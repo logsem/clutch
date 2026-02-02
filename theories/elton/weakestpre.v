@@ -169,113 +169,73 @@ Section modalities.
       rewrite /dbind/dbind_pmf{1}/pmf.
       setoid_rewrite <-SeriesC_scal_r.
       rewrite fubini_pos_seriesC'; last first.
-      + admit.
-      + admit.
-      + admit.
-      + admit.
+      + setoid_rewrite Rmult_assoc.
+        setoid_rewrite SeriesC_scal_l.
+        apply (ex_seriesC_le _ (λ x, unif_set s x *Rmax 1 r))%R; last by apply ex_seriesC_scal_r.
+        intros. split.
+        * apply Rmult_le_pos; first done.
+          apply SeriesC_ge_0'.
+          real_solver.
+        * apply Rmult_le_compat_l; first done.
+          trans (SeriesC (λ x, if bool_decide (x=(<[u:=urn_unif {[n]}]> us) ) then Rmax 1 r else 0%R)); last (by rewrite SeriesC_singleton).
+          apply SeriesC_le; last apply ex_seriesC_singleton.
+          intros n'.
+          split; first real_solver.
+          case_bool_decide; subst.
+          -- rewrite dret_1_1; last done. rewrite Rmult_1_l.
+             rewrite Rmax_Rle.
+             case_match; naive_solver.
+          -- rewrite dret_0; first lra. done.
+      + intros.
+        setoid_rewrite Rmult_assoc.
+        apply ex_seriesC_scal_l.
+        apply (ex_seriesC_le _ (λ x, if bool_decide (x=(<[u:=urn_unif {[a]}]> us)) then Rmax 1 r else 0)); last apply ex_seriesC_singleton.
+        intros. split; first real_solver.
+        case_bool_decide.
+        * rewrite dret_1_1; last done.
+          subst.
+          rewrite Rmult_1_l.
+          case_match;
+            rewrite Rmax_Rle; naive_solver.
+        * rewrite dret_0; simpl; try lra. done.
+      + intros. real_solver. 
+      + right.
+        apply SeriesC_ext.
+        intros a.
+        setoid_rewrite Rmult_assoc.
+        rewrite SeriesC_scal_l.
+        case_bool_decide as H'.
+        * rewrite unif_set_compute; last set_solver.
+          rewrite Rmult_comm. f_equal.
+          erewrite (SeriesC_ext _ (λ x, if bool_decide (x=(<[u:=urn_unif {[a]}]> us) ) then nonneg (ε2 a) else 0%R)); first by rewrite SeriesC_singleton.
+          intros.
+          case_bool_decide; subst.
+          -- rewrite dret_1_1; last done.
+             rewrite Rmult_1_l.
+             case_match.
+             ++ do 2 f_equal.
+                rename select (∃ _, _) into He.
+                pose proof epsilon_correct _ He as [He'].
+                apply insert_inv in He'.
+                assert (∀ x y, urn_unif x = urn_unif y -> x=y) as Hcut.
+                { clear. intros. by simplify_eq. }
+                apply Hcut in He'.
+                set_solver.
+             ++ exfalso. 
+                apply elem_of_elements in H'. naive_solver.
+          -- rewrite dret_0; last done.
+             lra.
+        * rewrite unif_set_compute'; last set_solver. simpl; lra.
     - iIntros (m').
       case_match.
       + rename select (∃ _, _) into He.
-        pose proof epsilon_correct _ He as [].
+        pose proof epsilon_correct _ He as [H2 ].
         simpl in *.
         iMod ("H" with "[//]").
-        admit.
+        by rewrite -H2.
       + by iApply state_step_coupl_ret_err_ge_1.
-  Admitted. 
+  Qed. 
         
-      
-      pose (h m:= match ClassicalEpsilon.excluded_middle_informative
-                          (∃ (x : fin (S N)), ∃ (y : nat), lis !! (fin_to_nat x) = Some y ∧ m = <[u:={[y]}]> us)
-                  with
-                  | left P => Some (epsilon P)
-                  | right _ => None
-                  end).
-      erewrite (SeriesC_ext _ (λ m, from_option (λ a, dunifP N a * ε2 a)%R 0 (h m))); last first.
-      { intros n.
-        rewrite /h.
-        destruct (ClassicalEpsilon.excluded_middle_informative _) as [e|e].
-        - pose proof epsilon_correct _ e as H5.
-          simpl in *.
-          destruct H5 as [?[? ->]].
-          destruct e as [x'[?[K1 K2]]].
-          subst.
-          simpl. f_equal.
-          rewrite {1}/dbind{1}/dbind_pmf{1}/pmf/=.
-          erewrite (SeriesC_subset (λ x1,  (x1=x'))); last first.
-          + intros ? Hcontra.
-            case_match; last real_solver.
-            rewrite dret_0; first lra.
-            intros Hcontra'.
-            apply Hcontra.
-            apply (f_equal (λ m,m!!u)) in Hcontra'.
-            rewrite !lookup_insert in Hcontra'.
-            simplify_eq.
-            assert (<[u:={[n]}]> us !! u= <[u:={[x0]}]> us!!u) as Hlookup.
-            { by f_equal. }
-            rewrite !lookup_insert in Hlookup.
-            simplify_eq.
-            apply fin_to_nat_inj.
-            by eapply NoDup_lookup.
-          + rewrite SeriesC_singleton_dependent.
-            etrans.
-            { rewrite K1. rewrite /dunifP/dunif{1}/pmf.
-              rewrite K2. rewrite dret_1_1; last done.
-              by rewrite Rmult_1_r.
-            }
-            done.
-        - simpl.
-          rewrite Rmult_1_r.
-          rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
-          apply SeriesC_0.
-          intros ?.
-          apply Rmult_eq_0_compat_l.
-          case_match; last done.
-          rewrite dret_0; first done.
-          intros ->.
-          apply e.
-          naive_solver.
-      }
-      apply SeriesC_le_inj.
-      + real_solver.
-      + intros ???.
-        rewrite /h.
-        destruct (ClassicalEpsilon.excluded_middle_informative _) as [e|e]; last done.
-        destruct (ClassicalEpsilon.excluded_middle_informative _) as [e'|e']; last done.
-        pose proof epsilon_correct _ e as He.
-        pose proof epsilon_correct _ e' as He'.
-        simpl in *.
-        destruct e as [?[?[K1 ->]]].
-        destruct e' as [?[?[K2 ->]]].
-        destruct He as [? [K3 K3']].
-        destruct He' as [? [K4 K4']].
-        intros Hrewrite.
-        rewrite -Hrewrite.
-        intros H5.
-        simplify_eq.
-        rewrite H5 in K4.
-        rewrite K3 in K4.
-        simplify_eq.
-        apply (f_equal (λ m, m!!u)) in K3', K4'.
-        rewrite !lookup_insert in K3' K4'.
-        simplify_eq.
-        repeat f_equal.
-      + apply ex_seriesC_finite.
-    - iIntros (?).
-      case_match; last by iApply state_step_coupl_ret_err_ge_1.
-      rename select (∃ _ _, _) into e.
-      pose proof epsilon_correct _ e as [?[H7 H8]].
-      destruct e as [?[?[H9 H10]]].
-      destruct!/=.
-      apply (f_equal (λ m, m!!u)) in H8.
-      rewrite !lookup_insert in H8.
-      simplify_eq.
-      eapply NoDup_lookup in H7; [|done|apply H9].
-      apply fin_to_nat_inj in H7.
-      rewrite -H7.
-      iDestruct ("H"$! _) as "H".
-      by erewrite H9.
-  Qed.
-
   (* Lemma state_step_coupl_rec_equiv σ1 (ε : nonnegreal) Z : *)
   (*   (∃ μ (ε2 : state con_prob_lang -> nonnegreal), *)
   (*       ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗ *)
