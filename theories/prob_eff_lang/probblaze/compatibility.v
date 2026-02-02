@@ -8,7 +8,7 @@ From iris.proofmode Require Import base tactics.
 From iris.base_logic.lib Require Import iprop invariants.
 
 (* Local imports *)
-From clutch.prob_eff_lang.probblaze Require Import notation mode sem_def sem_sig sem_types sem_row sem_env logic sem_judgement.
+From clutch.prob_eff_lang.probblaze Require Import notation class_instances proofmode  mode sem_def sem_sig sem_types sem_row sem_env logic sem_judgement.
 
 
 Open Scope stdpp_scope.
@@ -39,13 +39,12 @@ Section compatibility.
        iIntros (?) "Hτ". iFrame.
      Qed. *)
 
-  (* Lemma sem_typed_val τ Γ v1 v2 : 
-       ⊨ᵥ v1 ≤ v2 : τ -∗ Γ ⊨ v1 ≤ v2 : ⟨⟩ : τ ⫤ Γ.
-     Proof.
-       iIntros "#Hv". rewrite - {1} (app_nil_l Γ).
-       iApply sem_typed_oval. by iApply sem_oval_typed_val.
-     Qed. *)
-
+  Lemma sem_typed_val τ Γ v1 v2 : 
+    ⊢  ⊨ᵥ v1 ≤ v2 : τ -∗ sem_typed Γ v1 v2 sem_row_nil τ Γ.
+  Proof.
+    iIntros "#Hv". iIntros "!# %vvs HΓ /=".
+    iApply brel_value. iFrame. unfold sem_val_typed. simpl. done.
+  Qed.     
   (* Base rules *)
   
   Lemma sem_typed_var τ Γ x :
@@ -88,10 +87,10 @@ Section compatibility.
     iIntros (γ) "!# /= [%v (%Hrw & [] & _)] /=". 
   Qed.
 
-  (* Lemma sem_typed_closure τ ρ κ f x e :
+  (* Lemma sem_typed_closure τ ρ κ f x e1 e2 :
        match f with BNamed f => BNamed f ≠ x | BAnon => True end →
-       (x, τ) ::? (f, τ -{ ρ }-> κ) ::? [] ⊨ e : ρ : κ ⫤ [] -∗ 
-       ⊨ᵥ (rec: f x := e) : (τ -{ ρ }-> κ).
+       sem_typed ((x, τ) :: (f, τ -{ ρ }-> κ) :: []) e1 e2 ρ κ [] -∗ 
+       ⊨ᵥ (rec: f x := e1) ≤ (rec: f x := e2): (τ -{ ρ }-> κ).
      Proof.
        iIntros (?) "#He !#". iLöb as "IH".
        rewrite /sem_ty_arr /sem_ty_mbang /=.
@@ -110,30 +109,30 @@ Section compatibility.
          iApply (ewpw_mono with "[Hτ]"); [iApply "He"|iIntros "!# % [$ _] //="].
          rewrite -insert_union_singleton_r; [solve_env|apply lookup_singleton_ne];
          intros ?; simplify_eq.
-     Qed.
-     
-     Lemma sem_typed_Tclosure τ v :
-       (∀ α, ⊨ᵥ v : τ α) -∗ 
-       ⊨ᵥ v : (∀ₜ α, τ α).
-     Proof.
-       iIntros "#He !# %u". rewrite /sem_val_typed /=. iApply "He".
-     Qed.
-     
-     (* row abstraction and application *)
-     Lemma sem_typed_Rclosure C v : 
-       (∀ θ, ⊨ᵥ v : C θ) -∗
-       ⊨ᵥ v : (∀ᵣ θ , C θ)%T.
-     Proof.
-       iIntros "#He !# %u". rewrite /sem_val_typed /=. iApply "He".
-     Qed.
-     
-     (* mode abstraction and application *)
-     Lemma sem_typed_Mclosure C v : 
-       (∀ ν, ⊨ᵥ v : C ν) -∗
-       ⊨ᵥ v : (∀ₘ ν , C ν)%T.
-     Proof.
-       iIntros "#He !# %u". rewrite /sem_val_typed /=. iApply "He". 
      Qed. *)
+  
+  Lemma sem_typed_Tclosure τ v1 v2 :
+    ⊢ (∀ α, ⊨ᵥ v1 ≤ v2 : τ α) -∗ 
+    ⊨ᵥ v1 ≤ v2 : (∀ₜ α, τ α).
+  Proof.
+    iIntros "#He !# %u". rewrite /sem_val_typed /=. iApply "He".
+  Qed.
+  
+  (* row abstraction and application *)
+  Lemma sem_typed_Rclosure C v1 v2 : 
+    ⊢ (∀ θ, ⊨ᵥ v1 ≤ v2 : C θ) -∗
+    ⊨ᵥ v1 ≤ v2 : (∀ᵣ θ , C θ)%T.
+  Proof.
+    iIntros "#He !# %u". rewrite /sem_val_typed /=. iApply "He".
+  Qed.
+  
+  (* mode abstraction and application *)
+  Lemma sem_typed_Mclosure C v1 v2 : 
+    ⊢ (∀ ν, ⊨ᵥ v1 ≤ v2 : C ν) -∗
+    ⊨ᵥ v1 ≤ v2 : (∀ₘ ν , C ν)%T.
+  Proof.
+    iIntros "#He !# %u". rewrite /sem_val_typed /=. iApply "He". 
+  Qed.
 
   (* mode abstraction and application *)
   Lemma sem_val_typed_bang v1 v2 τ :
@@ -355,7 +354,112 @@ Section compatibility.
     iApply sem_typed_sub_nil. iApply sem_typed_var.
   Qed.
 
+  (* (* bang intro *)
+     Lemma sem_typed_mbang m Γ v1 v2 τ `{ m ₘ⪯ₑ Γ } :
+       ⊢ (sem_typed Γ (of_val v1) (of_val v2) ⊥ τ []) -∗
+       sem_typed Γ (of_val v1) (of_val v2) ⊥ (![m] τ) [].
+     Proof.
+       iIntros "#He !# %γ HΓ₁ /=".
+       inv H. iDestruct (mode_env_sub with "HΓ₁") as "HΓ". destruct m; simpl.
+       - iDestruct ("He" with "HΓ") as "He'". done.
+       - rewrite /sem_ty_mbang /=. iDestruct "HΓ" as "#HΓ".
+         iDestruct ("He" with "HΓ") as "Hbrel". simpl.
+         iApply (brel_wand with "Hbrel").
+         iModIntro. iIntros "% % (Hτ & $)".
+         iApply (pwp_wand with "(He HΓ)"). iIntros "% $".
+     Qed. *)
 
+  (* Generic App Rule *)
+  Lemma sem_typed_app_gen τ ρ' ρ ρ'' κ Γ1 Γ2 Γ3 e1 e1' e2 e2' `{ ρ' ᵣ⪯ₜ τ } `{ ρ'' ᵣ⪯ₑ Γ3 } :
+    ⊢ ρ' ≤ᵣ ρ -∗ ρ'' ≤ᵣ ρ -∗
+    sem_typed Γ2 e1 e2 ρ' (τ -{ ρ'' }-∘ κ) Γ3 -∗
+    sem_typed Γ1 e1' e2' ρ τ Γ2 -∗
+    sem_typed Γ1 (e1 e1') (e2 e2') ρ κ Γ3.
+  Proof.
+    iIntros "#Hρ'ρ #Hρ''ρ #Hee1 #Hee2 !# %γ HΓ1 /=". 
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iDestruct ("Hee2" with "HΓ1") as "He2brel".
+    iApply (brel_wand with "He2brel").
+    iIntros "!# % % (Hτ & HΓ2) /=".
+    iApply (brel_bind [AppLCtx _] [AppLCtx _]); [iApply traversable_to_iThy|iApply "Hρ'ρ"|].
+    iApply (brel_wand with "[Hτ HΓ2]").
+    { iApply (brel_mono_on_prop with "[][Hτ]"); [iApply row_type_sub| iApply "Hτ"|]. by iApply "Hee1". }
+    iIntros "!# % % ((Hfun & HΓ3) & Hτ) /=".
+    iDestruct ("Hfun" with "Hτ") as "Hfun".
+    iApply brel_introduction_mono; [iApply "Hρ''ρ"|].
+    iApply (brel_wand with "[Hfun HΓ3]").
+    { iApply (brel_mono_on_prop with "[][HΓ3]"); [iApply row_env_sub|iApply "HΓ3" |done]. }
+    iIntros "!# % % ($&$)". 
+  Qed.
+
+  (* Derived App Rules *)
+  Corollary sem_typed_app τ ρ' ρ κ Γ1 Γ2 e1 e2 e1' e2' :
+    ⊢ ¡ ρ' ≤ᵣ ρ -∗
+    sem_typed Γ2 e1 e2 (¡ ρ') (τ -{ ρ }-∘ κ) [] -∗
+    sem_typed Γ1 e1' e2' ρ τ Γ2 -∗
+    sem_typed Γ1 (e1 e1') (e2 e2') ρ κ [].
+  Proof.
+    iIntros "#Hρ'ρ #He #He'". 
+    iApply (sem_typed_app_gen with "Hρ'ρ [] He He'"). 
+    iApply row_le_refl.
+  Qed.
+
+  Corollary sem_typed_app_nil τ ρ κ Γ1 Γ2 e1 e2 e1' e2' :
+    ⊢ sem_typed Γ2 e1 e2 ⟨⟩ (τ -{ ρ }-∘ κ) [] -∗
+    sem_typed Γ1 e1' e2' ρ τ Γ2 -∗
+    sem_typed Γ1 (e1 e1') (e2 e2') ρ κ [].
+  Proof.
+    iIntros "#He₁ #He₂".
+    iApply (sem_typed_app _ ⟨⟩%R).
+    { iApply row_le_trans; [iApply (row_le_mfbang_elim_nil)|iApply row_le_nil]. }
+    { iApply sem_typed_sub_nil. iApply "He₁". }
+    iApply "He₂".
+  Qed.
+
+  Corollary sem_typed_app_os τ (ρ : sem_row Σ) κ Γ1 Γ2 Γ3 e1 e2 e1' e2' `{! OnceR ρ}: 
+    ⊢ sem_typed Γ2 e1 e2 ρ (τ -{ ρ }-∘ κ) Γ3 -∗
+    sem_typed Γ1 e1' e2' ρ τ Γ2 -∗
+    sem_typed Γ1 (e1 e1') (e2 e2') ρ κ Γ3.
+  Proof.
+    iIntros "#He1 #He2". inv OnceR0.
+    iApply sem_typed_sub_row; first iApply row_le_mfbang_elim.
+    iApply (sem_typed_app_gen τ (¡ ρ)%R (¡ ρ)%R (¡ ρ)%R). 
+    - iApply row_le_refl. 
+    - iApply row_le_refl. 
+    - iApply sem_typed_sub_row; first iApply (row_le_mfbang_intro OS).
+      iApply sem_typed_sub_ty; [iApply ty_le_arr|iApply "He1"]; 
+        first iApply (row_le_mfbang_intro OS); try iApply ty_le_refl.
+    - iApply sem_typed_sub_row; first iApply (row_le_mfbang_intro OS).
+      iApply "He2".
+  Qed.
+
+  Corollary sem_typed_app_ms τ ρ κ Γ1 Γ2 Γ3 e1 e2 e1' e2' `{! MultiE Γ3 } `{! MultiT τ } :
+    ⊢ sem_typed Γ2 e1 e2 ρ (τ -{ ρ }-∘ κ) Γ3 -∗
+    sem_typed Γ1 e1' e2' ρ τ Γ2 -∗
+    sem_typed Γ1 (e1 e1') (e2 e2') ρ κ Γ3.
+  Proof.
+    iIntros "#He #He'".
+    iApply (sem_typed_app_gen _ ρ ρ ρ). 
+    - iApply row_le_refl.
+    - iApply row_le_refl.
+    - iApply "He".
+    - iApply "He'".
+  Qed.
+
+  Lemma sem_typed_seq τ ρ κ Γ1 Γ2 Γ3 e1 e2 e1' e2' : 
+    ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
+    sem_typed Γ2 e1' e2' ρ κ Γ3 -∗
+    sem_typed Γ1 (e1 ;; e1') (e2 ;; e2') ρ κ Γ3.
+  Proof.
+    iIntros "#He #He' !# %γ HΓ1 /=".
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| iApply to_iThy_le_refl |].
+    iApply (brel_wand with "[HΓ1]"); [by iApply "He"|].
+    iIntros "!# % % (Hτ & HΓ2) /=". 
+    brel_pures_l. brel_pures_r.
+    iApply (brel_wand with "[Hτ HΓ2]"); [iApply "He'"|]; first done.
+    iIntros "!# % % ($&$)".
+  Qed.
+  
   (* Effect allocation rule *)
   (* TODO: type-related rules -- figure out where to place these *)
   Lemma brel_add_label_l_sem_sig e1 e2 l1 l1s l2s L R :

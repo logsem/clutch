@@ -496,7 +496,7 @@ End brel_lemmas.
 Tactic Notation "brel_pures_l" open_constr(n) :=
   iStartProof;
   lazymatch goal with
-  | |- environments.envs_entails _ (brel _ _ _ _ _) =>
+  | |- environments.envs_entails _ (brel _ _ _ _) =>
     notypeclasses refine (tac_brel_pure_l n _ _ _ _ _);
       [ tc_solve || fail 1 "brel_pures_l: no pure steps can be performed"
       | try done (* side-condition *)
@@ -511,7 +511,7 @@ Tactic Notation "brel_pures_l" := brel_pures_l (S _).
 Tactic Notation "brel_pures_r" open_constr(n) :=
   iStartProof;
   lazymatch goal with
-  | |- environments.envs_entails _ (brel _ _ _ _ _) =>
+  | |- environments.envs_entails _ (brel _ _ _ _) =>
     notypeclasses refine (tac_brel_pure_r n _ _ _ _);
       [ tc_solve || fail 1 "brel_pures_r: no pure steps can be performed"
       | try done (* side-condition *)
