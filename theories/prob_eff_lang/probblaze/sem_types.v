@@ -59,16 +59,16 @@ Definition sem_ty_arr `{probblazeRGS Σ}
       τ w1 w2 -∗ BREL (v1 w1) ≤ (v2 w2) <| iLblSig_to_iLblThy ρ |> {{ (λ u1 u2, κ u1 u2) }})%I.
 
 (* Polymorphic type. *)
-Definition sem_ty_type_forall {Σ} 
-  (C : sem_ty Σ → sem_ty Σ) : sem_ty Σ := (λ v1 v2, ∀ τ, C τ v1 v2)%I.
+Definition sem_ty_type_forall `{!probblazeRGS Σ} 
+  (C : sem_ty Σ → sem_ty Σ) : sem_ty Σ := (λ v1 v2, ∀ τ, (C τ) v1 v2)%I.
 
 (* Polymorphic effect type. *)
-Definition sem_ty_row_forall {Σ} 
-  (A : sem_row Σ → sem_ty Σ) : sem_ty Σ := (λ v1 v2, ∀ θ, A θ v1 v2)%I.
+Definition sem_ty_row_forall `{probblazeRGS Σ} 
+  (A : sem_row Σ → sem_ty Σ) : sem_ty Σ := (λ v1 v2, ∀ θ, (A θ) v1 v2)%I.
 
 (* Polymorphic mode type. *)
-Definition sem_ty_mode_forall {Σ} 
-  (C : mode → sem_ty Σ) : sem_ty Σ := (λ v1 v2, ∀ m, C m v1 v2)%I.
+Definition sem_ty_mode_forall `{probblazeRGS Σ} 
+  (C : mode → sem_ty Σ) : sem_ty Σ := (λ v1 v2, ∀ m, (C m) v1 v2)%I.
 
 (* Existential type. *)
 Definition sem_ty_exists `{probblazeGS Σ} 
@@ -197,26 +197,26 @@ Section types_properties.
   Proof. solve_non_expansive. Qed.
 
   Global Instance sem_ty_type_forall_ne n :
-    Proper (pointwise_relation _ (dist n) ==> dist n) (@sem_ty_type_forall Σ).
+    Proper (pointwise_relation _ (dist n) ==> dist n) (@sem_ty_type_forall Σ _).
   Proof.
     intros ?????. unfold sem_ty_type_forall; repeat f_equiv. 
     by do 3apply non_dep_fun_dist.
   Qed.
-
+  
   Global Instance sem_ty_type_forall_row_ne n :
-    Proper (pointwise_relation _ (dist n) ==> dist n) (@sem_ty_row_forall Σ).
+    Proper (pointwise_relation _ (dist n) ==> dist n) (@sem_ty_row_forall Σ _).
   Proof.
     intros ?????. unfold sem_ty_row_forall; repeat f_equiv.
     by do 2 apply non_dep_fun_dist.
   Qed.
-
+  
   Global Instance sem_ty_type_forall_mode_ne n :
-    Proper (pointwise_relation _ (dist n) ==> dist n) (@sem_ty_mode_forall Σ).
+    Proper (pointwise_relation _ (dist n) ==> dist n) (@sem_ty_mode_forall Σ _).
   Proof.
     intros ?????. unfold sem_ty_mode_forall; repeat f_equiv. 
     by do 2 apply non_dep_fun_dist.
   Qed.
-
+  
   Global Instance sem_ty_exist_ne n :
     Proper (pointwise_relation _ (dist n) ==> dist n) sem_ty_exists.
   Proof. 
@@ -270,26 +270,26 @@ Section types_properties.
   (* Proof. intros ????. unfold sem_ty_ref_cpy; by repeat f_equiv. Qed. *)
   Admitted.
 
-  Global Instance sem_ty_type_forall_proper :
-    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_type_forall Σ).
-  Proof. 
-    intros ?????. unfold sem_ty_type_forall; repeat f_equiv. 
-    by do 3 apply non_dep_fun_equiv. 
-  Qed.
-
-  Global Instance sem_ty_row_forall_proper :
-    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_row_forall Σ).
-  Proof. 
-    intros ?????. unfold sem_ty_row_forall; repeat f_equiv. 
-    by do 3 apply non_dep_fun_equiv. 
-  Qed.
-
-  Global Instance sem_ty_mode_forall_proper :
-    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_mode_forall Σ).
-  Proof. 
-    intros ?????. unfold sem_ty_mode_forall; repeat f_equiv. 
-    by do 3 apply non_dep_fun_equiv. 
-  Qed.
+  (* Global Instance sem_ty_type_forall_proper :
+       Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_type_forall Σ).
+     Proof. 
+       intros ?????. unfold sem_ty_type_forall; repeat f_equiv. 
+       by do 3 apply non_dep_fun_equiv. 
+     Qed.
+     
+     Global Instance sem_ty_row_forall_proper :
+       Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_row_forall Σ).
+     Proof. 
+       intros ?????. unfold sem_ty_row_forall; repeat f_equiv. 
+       by do 3 apply non_dep_fun_equiv. 
+     Qed.
+     
+     Global Instance sem_ty_mode_forall_proper :
+       Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_mode_forall Σ).
+     Proof. 
+       intros ?????. unfold sem_ty_mode_forall; repeat f_equiv. 
+       by do 3 apply non_dep_fun_equiv. 
+     Qed. *)
 
   Global Instance sem_ty_exist_proper :
     Proper (pointwise_relation _ (≡) ==>(≡)) sem_ty_exists.
@@ -310,17 +310,17 @@ Section types_properties.
   Proof. unfold sem_ty_mbang. simpl. apply _. Qed.
 
   Global Instance sem_ty_type_forall_type_persistent (C : sem_ty Σ → sem_ty Σ) v1 v2 :
-    (∀ τ w1 w2, Persistent (C τ w1 w2)) →
+    (∀ τ w1 w2, Persistent ((C τ)%T w1 w2)) →
     Persistent ((sem_ty_type_forall C) v1 v2). 
   Proof. unfold sem_ty_type_forall. simpl. apply _. Qed.
 
   Global Instance sem_ty_row_forall_persistent (C : sem_row Σ → sem_ty Σ) v1 v2 :
-    (∀ τ w1 w2, Persistent (C τ w1 w2)) →
+    (∀ τ w1 w2, Persistent ((C τ)%T w1 w2)) →
     Persistent ((sem_ty_row_forall C) v1 v2).
   Proof. unfold sem_ty_row_forall. simpl. apply _. Qed.
 
   Global Instance sem_ty_mode_forall_persistent (C : mode → sem_ty Σ) v1 v2 :
-    (∀ τ w1 w2, Persistent (C τ w1 w2)) →
+    (∀ τ w1 w2, Persistent ((C τ)%T w1 w2)) →
     Persistent ((sem_ty_mode_forall C) v1 v2).
   Proof. unfold sem_ty_mode_forall. simpl. apply _. Qed.
 
@@ -425,17 +425,29 @@ Section sub_typing.
   Lemma ty_le_type_forall (τ₁ τ₂ : sem_ty Σ → sem_ty Σ) :
     (∀ α, τ₁ α ≤ₜ τ₂ α) -∗
     (∀ₜ α, τ₁ α)%T ≤ₜ (∀ₜ α, τ₂ α).
-  Proof. iIntros "#Hτ₁₂ !# %v1 %v2 Hτ₁ %τ /=". by iApply "Hτ₁₂". Qed.
+  Proof.
+    iIntros "#Hτ12 !# %v1 %v2 Hτ1 %τ /=".
+    iDestruct ("Hτ1" $! τ) as "Hτ1".
+    by iApply "Hτ12".
+  Qed. 
 
   Lemma ty_le_row_forall (τ₁ τ₂ : sem_row Σ → sem_ty Σ) :
     (∀ θ, τ₁ θ ≤ₜ τ₂ θ) -∗
     (∀ᵣ θ, τ₁ θ) ≤ₜ (∀ᵣ θ, τ₂ θ).
-  Proof. iIntros "#Hτ₁₂ !# %v1 %v2 Hτ₁ %τ /=". by iApply "Hτ₁₂". Qed.
+  Proof.
+    iIntros "#Hτ₁₂ !# %v1 %v2 Hτ₁ %τ /=". 
+    iDestruct ("Hτ₁" $! τ) as "Hτ₁".
+    by iApply "Hτ₁₂".
+  Qed. 
 
   Lemma ty_le_mode_forall (τ₁ τ₂ : mode → sem_ty Σ) :
     (∀ ν, τ₁ ν ≤ₜ τ₂ ν) -∗
     (∀ₘ ν, τ₁ ν) ≤ₜ (∀ₘ ν, τ₂ ν).
-  Proof. iIntros "#Hτ₁₂ !# %v1 %v2 Hτ₁ %τ /=". by iApply "Hτ₁₂". Qed.
+  Proof.
+    iIntros "#Hτ₁₂ !# %v1 %v2 Hτ₁ %τ /=". 
+    iDestruct ("Hτ₁" $! τ) as "Hτ₁".
+    by iApply "Hτ₁₂".
+  Qed. 
 
   Lemma ty_le_exists (τ₁ τ₂ : sem_ty Σ → sem_ty Σ) :
     (∀ α, τ₁ α ≤ₜ τ₂ α) -∗
@@ -699,8 +711,8 @@ Section sub_typing.
   
   Lemma ty_le_mbang_type_forall (C : sem_ty Σ → sem_ty Σ) m :
     ⊢ (∀ₜ α, ![m] (C α))%T ≤ₜ ![m] (∀ₜ α, C α).
-  Proof. 
-    iIntros "!# % % Hτ". 
+  Proof.
+    iIntros "!# %v1 %v2 Hτ". 
     iApply forall_intuitionistically_if. iIntros (τ).
     iApply "Hτ".
   Qed.
