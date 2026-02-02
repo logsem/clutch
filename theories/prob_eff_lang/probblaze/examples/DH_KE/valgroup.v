@@ -247,7 +247,7 @@ Tactic Notation "rel_inv_l" :=
   | |- environments.envs_entails _ (logic.rel _ ?e _ _ _) =>
       match e with
       | context[App (Val vinv) (Val ?a)] =>
-          iApply (rel_inv_l _ _ _ _ a _) => //
+          iApply (rel_inv_l _ _ _ _ _ _) => //
       | _ => fail "rel_inv_l: no vinv / group element found"
       end
   | _ => fail "rel_inv_l: not proving a refinement"
@@ -258,7 +258,7 @@ Tactic Notation "rel_inv_r" :=
   | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
       match e with
       | context[App (Val vinv) (Val ?a)] =>
-          iApply (rel_inv_r _ _ _ _ a _) => //
+          iApply (rel_inv_r _ _ _ _ _ _) => //
       | _ => fail "rel_inv_r: no vinv / group element found"
       end
   | _ => fail "rel_inv_r: not proving a refinement"
@@ -270,7 +270,7 @@ Tactic Notation "rel_mult_l" :=
   | |- environments.envs_entails _ (logic.rel _ ?e _ _ _) =>
       match e with
       | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
-          iApply (rel_mult_l _ _ _ _ a b _) => //
+          iApply (rel_mult_l _ _ _ _ _ _ _) => //
       | _ => fail "rel_mult_l: no vmult / v1 / v2 found"
       end
   | _ => fail "rel_mult_l: not proving a refinement"
@@ -281,7 +281,7 @@ Tactic Notation "rel_mult_r" :=
   | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
       match e with
       | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
-          iApply (rel_mult_r _ _ _ _ a b _) => //
+          iApply (rel_mult_r _ _ _ _ _ _ _) => //
       | _ => fail "rel_mult_r: no vmult / v1 / v2 found"
       end
   | _ => fail "rel_mult_r: not proving a refinement"
@@ -293,7 +293,7 @@ Tactic Notation "rel_exp_l" :=
   | |- environments.envs_entails _ (logic.rel _ ?e _ _ _) =>
       match e with
       | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
-          iApply (rel_exp_l _ _ _ _ b p _) => //
+          iApply (rel_exp_l _ _ _ _ _ _ _) => //
       | _ => fail "rel_exp_l: no vexp / base / exponent found"
       end
   | _ => fail "rel_exp_l: not proving a refinement"
@@ -303,8 +303,8 @@ Tactic Notation "rel_exp_r" :=
   lazymatch goal with
   | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
       match e with
-      | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
-          iApply (rel_exp_r _ _ _ _ b p _) => //
+      | context[App (App (Val vexp) (Val ?_b)) (Val #(LitInt (Z.of_nat ?_p)))] =>
+          iApply (rel_exp_r _ _ _ _ _ _ _) => //
       | _ => fail "rel_exp_r: no vexp / base / exponent found"
       end
   | _ => fail "rel_exp_r: not proving a refinement"

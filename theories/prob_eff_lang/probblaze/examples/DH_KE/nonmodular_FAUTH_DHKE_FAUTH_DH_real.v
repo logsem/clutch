@@ -117,8 +117,8 @@ Section verification.
     iApply (rel_na_alloc
               ((β ↪ (n; [b]) ∗ l2 ↦ NONEV ∗ l2' ↦ₛ NONEV ∗ lb ↦ NONEV)
                 ∨ (β ↪□ (n; [])
-                   ∗ l2 ↦□ SOMEV (g ^+ b)%g
-                   ∗ l2' ↦ₛ□ SOMEV (g ^+ b)%g
+                   ∗ l2 ↦□ SOMEV (vgval $ g ^+ b)%g
+                   ∗ l2' ↦ₛ□ SOMEV (vgval $ g ^+ b)%g
                    ∗ lb ↦□ SOMEV #b))%I
               betaN).
     iSplitL "Hl2 Hl2s Hβ Hlb"; [iNext; iFrame; iLeft; iFrame|].
@@ -127,8 +127,8 @@ Section verification.
     iApply (rel_na_alloc
               ((α ↪ (n; [a]) ∗ l1 ↦ NONEV ∗ l1' ↦ₛ NONEV ∗ la ↦ NONEV)
                 ∨ (α ↪□ (n; [])
-                   ∗ l1 ↦□ SOMEV (g ^+ a)%g
-                   ∗ l1' ↦ₛ□ SOMEV (g ^+ a)%g
+                   ∗ l1 ↦□ SOMEV (vgval $ g ^+ a)%g
+                   ∗ l1' ↦ₛ□ SOMEV (vgval $ g ^+ a)%g
                    ∗ la ↦□ SOMEV #a))%I
               alphaN).
     iSplitL "Hα Hl1 Hl1s Hla"; [iNext; iFrame; iLeft; iFrame|].

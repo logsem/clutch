@@ -236,8 +236,9 @@ Section handlee_verification.
     rewrite subst_is_closed_empty; last done.
     
     iApply fupd_rel.
-    iMod (auth_upd (g ^+ a)%g with "Ha") as "Ha".
-    iMod (auth_upd (g ^+ b)%g with "Hb") as "Hb".
+    set (ga := (g ^+ a)%g).
+    iMod (auth_upd (vgval (g ^+ a)%g) with "Ha") as "Ha".
+    iMod (auth_upd (vgval $ g ^+ b)%g with "Hb") as "Hb".
     iMod (auth_persist with "Ha") as "#Ha".
     iMod (auth_persist with "Hb") as "#Hb".
     iModIntro.
@@ -310,7 +311,7 @@ Section handlee_verification.
             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
             iLeft. iLeft. simpl.
-            iExists ((g ^+ a)%g : val),  ((g ^+ a)%g : val).
+            iExists (vgval (g ^+ a)%g),  (vgval (g ^+ a)%g).
             iSplitL.
             { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
               - iModIntro. iLeft.
