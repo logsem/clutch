@@ -227,9 +227,6 @@ Proof.
   lra.
 Qed.
 
-(** * Finish this proof
-    Make sure to choose ε2' that fixes all elements not in s to be 1
- *)
 Lemma pupd_resolve_urn s ε (ε2 : _ -> nonnegreal) l E:
   s ≠ ∅ ->
  (SeriesC (λ x, if bool_decide (x ∈ elements s) then ε2 x else 0)/ size s <= ε)%R ->
@@ -239,59 +236,70 @@ Lemma pupd_resolve_urn s ε (ε2 : _ -> nonnegreal) l E:
         ↯ (ε2 x) ∗ l↪ urn_unif {[x]} ∗ ⌜x ∈ s⌝
     )%I.
 Proof.
-Admitted. 
-(*   rewrite pupd_unseal/pupd_def. *)
-(*   iIntros (HNoDup Hlen Hineq Hbound) "Herr Hl". *)
-(*   iIntros ([] ε') "([Hs Hu]& Herr')". *)
-(*   iDestruct (ghost_map_lookup with "Hu [$]") as %?. *)
-(*   iDestruct (ec_supply_ec_inv with "[$][$]") as %(x&x'& -> & He). *)
-(*   iApply fupd_mask_intro; first set_solver. *)
-(*   iIntros "Hclose". *)
-(*   iApply state_step_coupl_rec_complete_split. *)
-(*   assert (∀ x, 0<=ε2 x + x')%R as Hnnr. *)
-(*   { intros. apply Rplus_le_le_0_compat; apply cond_nonneg. } *)
-(*   iExists _,_, _, (λ x, mknonnegreal _ (Hnnr x)). *)
-(*   iSplit; first done. *)
-(*   iSplit; first done. *)
-(*   iSplit; first done. *)
-(*   iSplit. *)
-(*   { iPureIntro. *)
-(*     destruct Hbound as [r ?]. *)
-(*     exists (r+x')%R. *)
-(*     simpl. intros. real_solver. *)
-(*   } *)
-(*   iSplit; first iPureIntro. *)
-(*   { simpl. *)
-(*     rewrite Expval_plus; try apply ex_seriesC_finite. *)
-(*     rewrite Expval_const; last done. *)
-(*     rewrite dunifP_mass. *)
-(*     rewrite Rmult_1_r. *)
-(*     apply Rplus_le_compat; by subst.  *)
-(*   } *)
-(*   iIntros (x0). *)
-(*   pose proof fin_to_nat_lt x0. *)
-(*   case_match eqn:H'; last first. *)
-(*   { apply lookup_ge_None in H'. rewrite Hlen in H'. lia. } *)
-  
-(*   iMod (ec_supply_decrease with "Herr' Herr") as (????) "Hε2". *)
-(*   iModIntro. *)
-(*   destruct (Rlt_decision ((ε2 (x0)) + nonneg x' )%R 1%R) as [Hdec|Hdec]; last first. *)
-(*   { apply Rnot_lt_ge, Rge_le in Hdec. *)
-(*     by iApply state_step_coupl_ret_err_ge_1. *)
-(*   } *)
-(*   iApply state_step_coupl_ret. *)
-(*   iMod (ghost_map_update with "Hu Hl") as "[$ Hl]". *)
-(*   rename select ((_+_)%NNR = _) into H1. apply (f_equal nonneg) in H1.  *)
-(*   unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 (x0)) _) with "[Hε2]") as "[Hε2 Hcr]"; first done. *)
-(*   { simpl. done. } *)
-(*   { simpl in *. lra. } *)
-(*   { iApply ec_supply_eq; [|done]. simplify_eq. lra. } *)
-(*   iFrame. *)
-(*   subst. *)
-(*   iMod "Hclose". *)
-(*   iModIntro. iSplit; last done. *)
-(*   iApply ec_supply_eq; [|done]. simplify_eq. simpl. simpl in *. lra. *)
-(* Qed.  *)
+  rewrite pupd_unseal/pupd_def.
+  iIntros (Hs Hineq [r Hbound]) "Herr Hl".
+  iIntros ([] ε') "([Hs Hu]& Herr')".
+  iDestruct (ghost_map_lookup with "Hu [$]") as %?.
+  iDestruct (ec_supply_ec_inv with "[$][$]") as %(x&x'& -> & He).
+  iApply fupd_mask_intro; first set_solver.
+  iIntros "Hclose".
+  iApply state_step_coupl_rec_complete_split.
+  pose (ε2' := λ x,  (ε2 x + x')%NNR ).
+  assert (∀ x, 0<=ε2' x)%R as Hnnr; first (intros; apply cond_nonneg). 
+  iExists _,_, (λ x, mknonnegreal _ (Hnnr x)).
+  iSplit; first done.
+  iSplit; first done.
+  iSplit.
+  { iPureIntro.
+    exists ( (r+x'))%R.
+    simpl. intros.
+    rewrite /ε2'.
+    real_solver.
+  }
+  assert (size s > 0)%R.
+  { apply Rlt_gt.
+    apply lt_0_INR.
+    destruct (size _) eqn :Hn; last lia.
+    exfalso.
+    apply Hs.
+    rewrite size_empty_iff in Hn.
+    set_solver.
+  }
+  iSplit; first iPureIntro.
+  { simpl.
+    rewrite Rcomplements.Rle_div_l; last lra.
+    rewrite Rcomplements.Rle_div_l in Hineq; last lra.
+    rewrite Rmult_plus_distr_r.
+    rewrite He.
+    etrans; last (apply Rplus_le_compat_r; exact).
+    replace (size _) with (length (elements s)) by done.
+    rewrite -SeriesC_list_2; last apply NoDup_elements.
+    right.
+    rewrite -SeriesC_plus; [|apply ex_seriesC_list..].
+    apply SeriesC_ext.
+    intros.
+    case_bool_decide; simpl; lra.
+  }
+  iIntros (x0 Hx0).
+  iMod (ec_supply_decrease with "Herr' Herr") as (????) "Hε2".
+  iModIntro.
+  destruct (Rlt_decision ((ε2 (x0)) + nonneg x' )%R 1%R) as [Hdec|Hdec]; last first.
+  { apply Rnot_lt_ge, Rge_le in Hdec.
+    by iApply state_step_coupl_ret_err_ge_1.
+  }
+  iApply state_step_coupl_ret.
+  iMod (ghost_map_update with "Hu Hl") as "[$ Hl]".
+  rename select ((_+_)%NNR = _) into H1. apply (f_equal nonneg) in H1.
+  unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 (x0)) _) with "[Hε2]") as "[Hε2 Hcr]"; first done.
+  { simpl. done. }
+  { simpl in *. lra. }
+  { iApply ec_supply_eq; [|done]. simplify_eq. lra. }
+  iFrame.
+  subst.
+  iMod "Hclose".
+  iModIntro. iSplit; last done.
+  iApply ec_supply_eq; [|done]. simplify_eq. simpl. simpl in *. lra.
+Qed.
 
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
 (* induction directly, but this demonstrates that we can state the expected *)

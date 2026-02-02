@@ -62,18 +62,13 @@ Section urn_erasable_functions.
     rewrite /urn_erasable.
     intros. rewrite dret_id_left'. done.
   Qed.
-
-  (** * TODO restate this lemma *)
-  (* Lemma complete_split_urn_erasable (m:gmap loc urn) u lis (N:nat): *)
-  (* NoDup lis -> *)
-  (* m!!u=Some (list_to_set lis) -> *)
-  (* length lis = S N -> *)
-  (* urn_erasable (dunifP N ≫= (λ n, (match (lis)!!(fin_to_nat n) with *)
-  (*                    | Some y => dret (<[u:={[y]}]> m) *)
-  (*                    | None => dzero *)
-  (*                                  end ))) m. *)
-  (* Proof. *)
-  (*   rewrite /urn_erasable. *)
-  (*   intros. rewrite -dbind_assoc'. by erewrite urns_f_distr_split. *)
-  (* Qed.  *)
+ 
+  Lemma complete_split_urn_erasable (m:gmap loc urn) u s :
+  s ≠ ∅ ->
+  m!!u=Some (urn_unif s) ->
+  urn_erasable (unif_set s ≫=  (λ y, dret (<[u:= urn_unif {[y]}]> m))) m.
+  Proof.
+    rewrite /urn_erasable.
+    intros. rewrite -dbind_assoc'. by erewrite urns_f_distr_split.
+  Qed.
 End urn_erasable_functions.

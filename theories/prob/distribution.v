@@ -2616,6 +2616,114 @@ Section uniform.
   
 End uniform.
 
+(** Uniform from a gset *)
+Section uniform_set.
+  Context `{Countable A}.
+  Program Definition unif_set (s:gset A) : distr (A) :=
+    MkDistr (λ x, if bool_decide (x ∈ s) then / size (s) else 0) _ _ _.
+  Next Obligation.
+    intros. simpl.
+    case_bool_decide; last lra.
+    destruct (size _); first (cbv; rewrite Rinv_0; lra).
+    left.
+    apply RinvN_pos'.
+  Qed.
+  Next Obligation.
+    intros.
+    eapply (ex_seriesC_ext (λ x, if bool_decide (x∈elements s) then _ else _)).
+    { intros.
+      case_bool_decide as H1; rewrite elem_of_elements in H1.
+      - by rewrite bool_decide_eq_true_2.
+      - by rewrite bool_decide_eq_false_2.
+    }
+    apply ex_seriesC_list.
+  Qed. 
+  Next Obligation.
+    intros s.
+    erewrite (SeriesC_ext _ (λ x, if bool_decide (x∈elements s) then _ else _)); last first. 
+    { intros.
+      symmetry. 
+      case_bool_decide as H1; rewrite elem_of_elements in H1.
+      - by rewrite bool_decide_eq_true_2.
+      - by rewrite bool_decide_eq_false_2.
+    }
+    rewrite SeriesC_list_2; last apply NoDup_elements.
+    replace (length _) with (size s) by done.
+    destruct (size _) eqn :?.
+    - cbv. rewrite Rinv_0; lra.
+    - replace (_*_) with (S n / S n) by lra.
+      right.
+      apply Rdiv_diag.
+      apply not_0_INR.
+      lia.
+  Qed.
+
+  Lemma unif_set_mass s:
+    s ≠ ∅ -> SeriesC (unif_set s) = 1.
+  Proof.
+    intros Hs.
+    rewrite /unif_set/pmf.
+    erewrite (SeriesC_ext _ (λ x, if bool_decide (x∈elements s) then _ else _)); last first. 
+    { intros.
+      symmetry. 
+      case_bool_decide as H1; rewrite elem_of_elements in H1.
+      - by rewrite bool_decide_eq_true_2.
+      - by rewrite bool_decide_eq_false_2.
+    }
+    rewrite SeriesC_list_2; last apply NoDup_elements.
+    replace (length _) with (size s) by done.
+    destruct (size _) eqn :Hsize.
+    - exfalso. apply Hs.
+      apply size_empty_inv in Hsize.
+      set_solver.
+    - replace (_*_) with (S n / S n) by lra.
+      apply Rdiv_diag.
+      apply not_0_INR.
+      lia.
+  Qed.
+
+  Lemma unif_set_pos s x:
+    unif_set s x > 0 <-> s≠∅ /\ x ∈ s.
+  Proof.
+    split.
+    - rewrite /unif_set/pmf.
+      case_bool_decide; last lra.
+      intros.
+      split; last done.
+      intros ->.
+      set_solver.
+    - intros [H1 H2].
+      rewrite /unif_set/pmf.
+      rewrite bool_decide_eq_true_2; last done.
+      destruct (size _) eqn :Hsize.
+      + exfalso.
+        apply H1.
+        apply size_empty_iff in Hsize. set_solver.
+      + apply Rlt_gt.
+        apply RinvN_pos'.
+  Qed.
+
+  Lemma unif_set_compute s x:
+    x ∈ s ->
+    unif_set s x = /size s.
+  Proof.
+    intros.
+    rewrite /unif_set/pmf.
+    by rewrite bool_decide_eq_true_2.
+  Qed.
+
+  
+  Lemma unif_set_compute' s x:
+    x ∉ s ->
+    unif_set s x = 0.
+  Proof.
+    intros.
+    rewrite /unif_set/pmf.
+    by rewrite bool_decide_eq_false_2.
+  Qed. 
+    
+End uniform_set.
+
 (** Uniform fin lists *)
 Section uniform_fin_lists.
   Program Definition dunifv (N p: nat): distr (list (fin (S N))) :=
@@ -2968,6 +3076,7 @@ Ltac solve_distr :=
         apply dmap_pos; eexists; (split; [done|]); try done
     | |- (dunifP _).(pmf) _ > 0 => apply dunifP_pos
     | |- (dunifv _ _).(pmf) _ > 0 => apply dunifv_pos
+    | |- (unif_set _).(pmf) _ > 0 => apply unif_set_pos
     | |- (laplace_rat _ _ _ _).(pmf) _ > 0 => apply laplace_rat_pos
     | |- (d_proj_Some _).(pmf) _ > 0 => rewrite d_proj_Some_pos
     end.
@@ -2980,6 +3089,7 @@ Ltac solve_distr_mass :=
   | |- SeriesC (dunif _).(pmf) = 1 => rewrite dunif_mass //
   | |- SeriesC (dunifP _).(pmf) = 1 => rewrite dunifP_mass //
   | |- SeriesC (dunifv _ _).(pmf) = 1 => rewrite dunifv_mass //
+  | |- SeriesC (unif_set _).(pmf) = 1 => rewrite unif_set_mass //
   | |- SeriesC (laplace_rat _ _ _ _).(pmf) = 1 => rewrite laplace_rat_mass //
   end .
 

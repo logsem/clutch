@@ -233,114 +233,48 @@ Proof. intros. apply subst_map_is_closed with (∅ : stringset); set_solver. Qed
 
 
 (** Lemma for resolving an urn. To be improved to allow partial resolvement *)
-(** * TODO Restate this *)
-(* Lemma urns_f_distr_split (m:gmap loc urn) u lis (N:nat): *)
-(*   NoDup lis -> *)
-(*   m!!u=Some (list_to_set lis) -> *)
-(*   length lis = S N -> *)
-(*   urns_f_distr m = *)
-(*   dunifP N ≫= (λ n, (match (lis)!!(fin_to_nat n) with *)
-(*                      | Some y => dret (<[u:={[y]}]> m) *)
-(*                      | None => dzero *)
-(*                      end ) ≫= (λ m', urns_f_distr m') *)
-(*     ). *)
-(* Proof. *)
-(*   intros Hnodup Hsome Hsize. *)
-(*   apply distr_ext. *)
-(*   intros f. *)
-(*   assert (list_to_set lis ≠ (∅:gset _)). *)
-(*   { destruct lis; first done. *)
-(*     simpl. set_solver. } *)
-(*   destruct (decide (urns_f_valid m f)) as [H'|H']. *)
-(*   - rewrite urns_f_distr_eval; last done. *)
-(*     replace m with (<[u:=(list_to_set lis)]> (delete u m)) at 1; last first. *)
-(*     { rewrite insert_delete_insert. *)
-(*       by rewrite insert_id. *)
-(*     } *)
-(*     rewrite urns_subst_f_num_insert; [|done|apply lookup_delete]. *)
-(*     pose proof H' u as H''. *)
-(*     rewrite Hsome in H''. *)
-(*     case_match; last destruct!/=. *)
-(*     destruct H'' as (u'&?&Helem). *)
-(*     destruct!/=. *)
-(*     rewrite elem_of_list_to_set in Helem. *)
-(*     apply elem_of_list_lookup_1 in Helem. *)
-(*     destruct Helem as [i Helem']. *)
-(*     apply lookup_lt_Some in Helem' as Hlt. *)
-(*     rewrite Hsize in Hlt. *)
-(*     rewrite {1}/dbind{1}/dbind_pmf{1}/pmf. *)
-(*     pose (a':= nat_to_fin Hlt). *)
-(*     erewrite (SeriesC_ext _ (λ a, if bool_decide (a = a') then dunifP N a * _ else 0)); last first. *)
-(*     { intros a. *)
-(*       case_bool_decide as H1; first done. *)
-(*       case_match eqn:Hsome'; last (rewrite dbind_dzero dzero_0; lra). *)
-(*       rewrite dret_id_left'. *)
-(*       rewrite urns_f_distr_eval'; first lra. *)
-(*       intro Hcontra. *)
-(*       pose proof Hcontra u as H2. *)
-(*       case_match; simplify_eq. *)
-(*       destruct H2 as (?&H2&?). *)
-(*       rewrite lookup_insert in H2. *)
-(*       simplify_eq. *)
-(*       set_unfold; destruct!/=. *)
-(*       apply H1. *)
-(*       apply fin_to_nat_inj. *)
-(*       eapply NoDup_lookup; try done. by rewrite fin_to_nat_to_fin.  *)
-(*     } *)
-(*     rewrite SeriesC_singleton_dependent. *)
-(*     rewrite {1}/pmf{1}/dunifP/dunif. *)
-(*     rewrite size_list_to_set; last done. *)
-(*     rewrite Hsize. *)
-(*     rewrite fin_to_nat_to_fin. *)
-(*     rewrite Helem'. *)
-(*     rewrite dret_id_left'. *)
-(*     rewrite urns_f_distr_eval; last first. *)
-(*     + intros j. destruct (decide (u=j)). *)
-(*       * subst. case_match; simplify_eq. *)
-(*         eexists _. *)
-(*         rewrite lookup_insert; split; first done. *)
-(*         set_solver. *)
-(*       * pose proof H' j. *)
-(*         rewrite lookup_insert_ne; last done. *)
-(*         case_match; destruct!/=; naive_solver. *)
-(*     + rewrite -insert_delete_insert. *)
-(*       rewrite urns_subst_f_num_insert. *)
-(*       * rewrite size_singleton. *)
-(*         rewrite !mult_INR.  *)
-(*         rewrite INR_1.  *)
-(*         rewrite !Rdiv_1_l. *)
-(*         rewrite !Rinv_mult. *)
-(*         lra. *)
-(*       * set_solver. *)
-(*       * apply lookup_delete. *)
-(*   - rewrite urns_f_distr_eval'; last done. *)
-(*     symmetry. *)
-(*     destruct (pmf_pos (dunifP N *)
-(*                          ≫= λ n : fin (S N), *)
-(*                          match lis !! (fin_to_nat n) with *)
-(*                          | Some y => dret (<[u:={[y]}]> m) *)
-(*                          | None => dzero *)
-(*                          end ≫= λ m' : gmap loc urn, urns_f_distr m') f) as [Hcontra|]; last lra. *)
-(*     apply Rlt_gt in Hcontra. *)
-(*     inv_distr. *)
-(*     case_match; inv_distr. *)
-(*     exfalso. *)
-(*     apply H'. *)
-(*     intros u'. *)
-(*     rename select (_ _ f > 0) into Hpos. *)
-(*     rewrite urns_f_distr_pos in Hpos. *)
-(*     pose proof Hpos u' as K. *)
-(*     destruct (decide (u=u')). *)
-(*     + subst. *)
-(*       rewrite lookup_insert in K. *)
-(*       case_match; destruct!/=. *)
-(*       set_unfold; destruct!/=. *)
-(*       eexists _; split; first done. *)
-(*       rewrite elem_of_list_to_set. *)
-(*       by eapply elem_of_list_lookup_2. *)
-(*     + rewrite lookup_insert_ne in K; last done. *)
-(*       naive_solver. *)
-(* Qed. *)
+Lemma urns_f_distr_split (m:gmap loc urn) u s:
+  s ≠ ∅ ->
+  m!!u=Some (urn_unif s) ->
+  urns_f_distr m =
+  unif_set s ≫=  (λ y, dret (<[u:= urn_unif {[y]}]> m) ≫= (λ m', urns_f_distr m')).
+Proof.
+  intros Hs Hlookup.
+  apply distr_ext.
+  intros f.
+  replace (m) with (<[u:=urn_unif s]> (delete u m)) at 1; last first. 
+  { apply map_eq.
+    intros u'.
+    destruct (decide (u=u')); subst; by simplify_map_eq.
+  }
+  rewrite urns_f_distr_insert; simpl; simplify_map_eq; try done.
+  rewrite dbind_comm.
+  apply dbind_pmf_ext; last done; last by apply distr_ext.
+  intros a ?.
+  rewrite dret_id_left.
+  replace (<[_:=_]> _) with (<[u:=urn_unif {[a]}]> (delete u m)) at 1; last first. 
+  { apply map_eq.
+    intros u'.
+    destruct (decide (u=u')); subst; by simplify_map_eq.
+  }
+  rewrite urns_f_distr_insert; simpl; simplify_map_eq; try done.
+  apply dbind_pmf_ext; try done.
+  intros.
+  symmetry.
+  replace (urns_f_distr_compute_distr _ ) with (dret a); first by rewrite dret_id_left.
+  apply distr_ext.
+  intros a'.
+  rewrite /urns_f_distr_compute_distr/urns_f_distr_compute{2}/pmf.
+  case_bool_decide as H.
+  - set_unfold in H; subst.
+    rewrite dret_1_1; last done.
+    rewrite size_singleton.
+    replace (INR _) with 1%R by done.
+    lra.
+  - rewrite dret_0; first done.
+    intros ->.
+    set_solver.
+Qed.
 
 (** Preservation lemma *)
 Lemma head_step_urns_support_set_subset e σ e2 σ2:
