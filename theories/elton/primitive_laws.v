@@ -4,7 +4,7 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Export ghost_map.
 From clutch.base_logic Require Export error_credits.
-From clutch.elton Require Export weakestpre ectx_lifting rupd pupd.
+From clutch.elton Require Export weakestpre ectx_lifting pupd.
 From clutch.delay_prob_lang Require Export class_instances.
 From clutch.delay_prob_lang Require Import tactics lang notation urn_subst.
 From iris.prelude Require Import options.

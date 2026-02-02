@@ -9,7 +9,7 @@ From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.delay_prob_lang Require Import notation metatheory urn_subst commute urn_erasable.
 From clutch.common Require Export language.
 From clutch.base_logic Require Import error_credits.
-From clutch.elton Require Import weakestpre primitive_laws rupd.
+From clutch.elton Require Import weakestpre primitive_laws.
 From clutch.prob Require Import distribution.
 Import uPred.
 
