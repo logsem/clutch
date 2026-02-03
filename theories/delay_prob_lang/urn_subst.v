@@ -168,6 +168,40 @@ Section urn_subst.
   end
   .
 
+  
+  Fixpoint is_simple_expr (e : expr) : bool :=
+    match e with
+    | Val v => is_simple_val v
+    | Var x => true
+    | Rec f x e => is_simple_expr e
+    | App e1 e2 => is_simple_expr e1 && is_simple_expr e2
+    | UnOp op e => is_simple_expr e
+    | BinOp op e1 e2 => is_simple_expr e1 && is_simple_expr e2
+    | If e0 e1 e2 => is_simple_expr e0 && is_simple_expr e1 && is_simple_expr e2
+    | Pair e1 e2 => is_simple_expr e1 && is_simple_expr e2
+    | Fst e => is_simple_expr e
+    | Snd e => is_simple_expr e
+    | InjL e => is_simple_expr e
+    | InjR e => is_simple_expr e
+    | Case e0 e1 e2 => is_simple_expr e0 && is_simple_expr e1 && is_simple_expr e2
+    | AllocN e1 e2 => is_simple_expr e1 && is_simple_expr e2
+    | Load e => is_simple_expr e
+    | Store e1 e2 => is_simple_expr e1 && is_simple_expr e2
+    | Rand e => is_simple_expr e
+    | DRand e => false
+    | Laplace e1 e2 e3 => is_simple_expr e1 && is_simple_expr e2 && is_simple_expr e3
+    | DLaplace e1 e2 e3 => false
+    end
+  with is_simple_val v : bool :=
+         match v with
+         | LitV l => is_simple_base_lit l
+         | RecV f x e => is_simple_expr e
+         | PairV v1 v2 => is_simple_val v1 && is_simple_val v2
+         | InjLV v => is_simple_val v
+         | InjRV v => is_simple_val v
+         end
+  .
+
   Definition urn_subst_ectx_item (f:gmap loc Z) K : option ectx_item :=
     match K with
     | AppLCtx v2 => v2' ← urn_subst_val f v2; Some $ AppLCtx v2'
@@ -196,8 +230,30 @@ Section urn_subst.
     | DLaplaceNumCtx v2 v3 => v2' ← urn_subst_val f v2; v3' ← urn_subst_val f v3; Some $ LaplaceNumCtx v2' v3'
     | DLaplaceDenCtx e1 v3 => e1' ← urn_subst_expr f e1; v3' ← urn_subst_val f v3; Some $ LaplaceDenCtx e1' v3'
     | DLaplaceLocCtx e1 e2 => e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some $ LaplaceLocCtx e1' e2'
-    end.
+  end.
 
+  Lemma urn_subst_expr_is_simple f e e':
+    urn_subst_expr f e = Some e' -> is_simple_expr e' = true.
+  Proof.
+    revert e e'.
+    apply (expr_mut (λ e, ∀ e', urn_subst_expr f e = Some e' → is_simple_expr e' = true)
+             (λ v, ∀ v', urn_subst_val f v = Some v' -> is_simple_val v' = true)); pose proof urn_subst_is_simple.
+    all: simpl; repeat setoid_rewrite bind_Some; intros; destruct!/=; simpl in *; repeat rewrite andb_true_iff; repeat split; naive_solver.
+  Qed.
+  
+  Lemma urn_subst_val_is_simple f v v':
+    urn_subst_val f v = Some v' -> is_simple_val v' = true.
+  Proof.
+    revert v v'.
+    fix FIX 1.
+    intros []; simpl; repeat setoid_rewrite bind_Some; intros; destruct!/=; simpl.
+    - by eapply urn_subst_is_simple.
+    - by eapply urn_subst_expr_is_simple.
+    - repeat erewrite FIX; naive_solver.
+    - erewrite FIX; naive_solver.
+    - erewrite FIX; naive_solver.
+  Qed.
+  
   Lemma base_lit_support_set_not_support bl f:
     base_lit_support_set bl ⊈ dom f → urn_subst f bl = None.
   Proof.

@@ -206,7 +206,7 @@ Lemma pupd_epsilon_err E:
   ⊢ pupd E E (∃ ε, ⌜(0<ε)%R⌝ ∗ ↯ ε)%I.
 Proof.
   rewrite pupd_unseal/pupd_def.
-  iIntros (? ε) "(Hstate& Herr)".
+  iIntros (?? ε) "(Hstate& Herr)".
   iApply fupd_mask_intro; first set_solver.
   iIntros "Hclose".
   iApply state_step_coupl_ampl.
@@ -224,6 +224,7 @@ Proof.
   iFrame. iMod "Hclose". iPureIntro.
   rewrite /diff.
   simpl.
+  split; first done.
   lra.
 Qed.
 
@@ -238,7 +239,7 @@ Lemma pupd_resolve_urn s ε (ε2 : _ -> nonnegreal) l E:
 Proof.
   rewrite pupd_unseal/pupd_def.
   iIntros (Hs Hineq [r Hbound]) "Herr Hl".
-  iIntros ([] ε') "([Hs Hu]& Herr')".
+  iIntros (?[] ε') "([Hs Hu]& Herr')".
   iDestruct (ghost_map_lookup with "Hu [$]") as %?.
   iDestruct (ec_supply_ec_inv with "[$][$]") as %(x&x'& -> & He).
   iApply fupd_mask_intro; first set_solver.
