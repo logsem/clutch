@@ -459,6 +459,79 @@ Section compatibility.
     iApply (brel_wand with "[Hτ HΓ2]"); [iApply "He'"|]; first done.
     iIntros "!# % % ($&$)".
   Qed.
+
+  (* Generic Pair Rule *)
+  Lemma sem_typed_pair_gen τ ρ κ Γ1 Γ2 Γ3 e1 e2 e1' e2' `{ ρ ᵣ⪯ₜ κ }:
+    ⊢ sem_typed Γ2 e1 e2 ρ τ Γ3 -∗
+    sem_typed Γ1 e1' e2' ρ κ Γ2 -∗
+    sem_typed Γ1 (e1,e1') (e2, e2') ρ (τ × κ) Γ3.
+  Proof.
+    iIntros "#He #He' !# %γ HΓ1 //=".
+    iApply (brel_bind [PairRCtx _] [PairRCtx _]); [iApply traversable_to_iThy| iApply to_iThy_le_refl |].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He'".
+    iIntros "!# % % (Hκ & HΓ2) /=".
+    iApply (brel_bind [PairLCtx _] [PairLCtx _]); [iApply traversable_to_iThy| iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[Hκ HΓ2]").
+    { iApply (brel_mono_on_prop with "[][Hκ]"); [by iApply row_type_sub| done| by iApply "He"]. }
+    iIntros "!# % % ((Hτ & HΓ3) & Hκ) /=".
+    brel_pures_l. brel_pures_r.
+    by iFrame.
+  Qed.
+
+  (* TODO: Add the rest of the pair rules *)
+  
+  Lemma sem_typed_fst x τ κ Γ : 
+    ⊢ sem_typed ((x, τ × κ) :: Γ) (Fst x) (Fst x) ⟨⟩ τ ((x, ⊤ × κ) :: Γ).
+  Proof.
+    iIntros "!# %γ /= (% & % & [(% & % & % & % &% & %  & Hτ & Hκ) HΓ]) //=". rewrite !lookup_fmap. rewrite H /= H0 H1.
+    brel_pures_l. brel_pures_r. 
+    solve_env.
+  Qed.
+
+  Lemma sem_typed_snd x τ κ Γ : 
+    ⊢ sem_typed ((x, τ × κ) :: Γ) (Snd x) (Snd x) ⟨⟩ κ ((x, τ × ⊤) :: Γ).
+  Proof.
+    iIntros "!# %γ /= (% & % & [(% & % & % & % &% & %  & Hτ & Hκ) HΓ]) //=".
+    rewrite !lookup_fmap. rewrite H /= H0 H1.
+    brel_pures_l. brel_pures_r. 
+    solve_env.
+  Qed.
+
+  Lemma sem_typed_pair_elim τ ρ κ ι Γ1 Γ2 Γ3 x1 x2 e1 e2 e1' e2' :
+    x1 ∉ (env_dom Γ2) → x2 ∉ (env_dom Γ2) →
+    x1 ∉ (env_dom Γ3) → x2 ∉ (env_dom Γ3) →
+    x1 ≠ x2 →
+    ⊢ sem_typed Γ1 e1 e2 ρ (τ × κ) Γ2 -∗
+    sem_typed ((x1, τ) :: (x2, κ) :: Γ2) e1' e2' ρ ι Γ3 -∗
+    sem_typed Γ1 (let, (x1, x2) := e1 in e1') (let, (x1, x2) := e2 in e2') ρ ι Γ3.
+  Proof.
+    iIntros (?????) "#He #He' !# %γ HΓ1 //=".
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy |iApply to_iThy_le_refl |].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % ((% & % & % & % & % & % & Hτ & Hκ) & HΓ2) //=".
+    rewrite H4 H5.
+    brel_pures_l. brel_pures_r.
+    rewrite !(delete_commute _ x1).
+    rewrite !lookup_delete /=. destruct (decide _) as [[]|[]]; [|split; [done|congruence]].
+    rewrite !(@decide_True _ (x2 = x2)); try done.
+    rewrite !decide_False; try (intros (_& contra); done).
+    brel_pures_l. brel_pures_r.
+    rewrite !(delete_commute _ _ x1) -!(subst_map_insert x1) -!delete_insert_ne; try done.
+    rewrite !delete_idemp.
+    rewrite !decide_True; try (split; [done|congruence]).
+    rewrite -!subst_map_insert.
+    assert (w1 = fst (w1, w1')) as ->; first done.
+    assert (w2 = fst (w2, w2')) as ->; first done.
+    assert (w1' = snd (w1, w1')) as ->; first done.
+    assert (w2' = snd (w2, w2')) as ->; first done.
+    rewrite -!fmap_insert. simpl.
+    iApply (brel_wand with "[Hτ Hκ HΓ2]"); first iApply "He'".
+    - rewrite env_sem_typed_cons. iSplitL "Hτ".
+      { iFrame. rewrite lookup_insert_ne; last done. by rewrite lookup_insert. }
+      rewrite env_sem_typed_cons. iSplitL "Hκ"; last by do 2 (rewrite -env_sem_typed_insert; last done).
+      iExists _, _. iFrame. iPureIntro. apply lookup_insert.
+    - iIntros "!# % % ($ & HΓ3)". by do 2 (rewrite -env_sem_typed_insert; last done). 
+  Qed.     
   
   (* Effect allocation rule *)
   (* TODO: type-related rules -- figure out where to place these *)

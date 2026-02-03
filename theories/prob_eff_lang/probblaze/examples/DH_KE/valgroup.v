@@ -303,7 +303,7 @@ Tactic Notation "rel_exp_r" :=
   lazymatch goal with
   | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
       match e with
-      | context[App (App (Val vexp) (Val ?_b)) (Val #(LitInt (Z.of_nat ?_p)))] =>
+      | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
           iApply (rel_exp_r _ _ _ _ _ _ _) => //
       | _ => fail "rel_exp_r: no vexp / base / exponent found"
       end
