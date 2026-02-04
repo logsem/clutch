@@ -819,6 +819,33 @@ Section compatibility.
     iModIntro. iExists _. iFrame. simpl.
     iApply brel_value. by iFrame.
   Qed.
+
+  (* Generic Store (cpy) rule *)
+  Lemma sem_typed_store_cpy_gen τ ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' `{ ρ ᵣ⪯ₜ τ} :
+    ⊢ sem_typed Γ2 e1 e1' ρ (Refᶜ τ) Γ3 -∗
+    sem_typed Γ1 e2 e2' ρ τ Γ2 -∗
+    sem_typed Γ1 (e1 <- e2) (e1' <- e2') ρ 𝟙 Γ3.
+  Proof.
+    iIntros "#He1 #He2 %γ !# /= HΓ1 /=".
+    iApply (brel_bind [StoreRCtx _] [StoreRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He2".
+    iIntros "!# % % (Hτ & HΓ2) //=".
+    iApply (brel_bind [StoreLCtx _] [StoreLCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ2 Hτ]").
+    { iApply (brel_mono_on_prop with "[][Hτ]"); [iApply row_type_sub|iApply "Hτ"|]. by iApply "He1". }
+    iIntros "!# % % (((%l1 & %l2 & -> & -> & #Hinv) & HΓ3) & Hτ) //=".
+    iApply (brel_atomic_l _ []).
+    iIntros (K') "Hj". 
+    iMod (inv_acc _ (tyN.@(l1,l2)) with "Hinv") as "[(%&%&>Hl1&>Hl2&Hτw) Hclose]"; first done.
+    iModIntro. iApply spec_update_wp.
+    iMod (step_store with "[$Hj $Hl2]") as "[Hj Hl2]". iModIntro.
+    iApply (wp_store with "Hl1"). iIntros "!> Hl1".
+    iMod ("Hclose" with "[Hl1 Hl2 Hτ]") as "_"; [iExists _,_; iFrame|].
+    iModIntro. iExists _. iFrame. iApply brel_value.
+    by iFrame. 
+  Qed.
+
+  (* TODO: add specialized store rules *)
   
   (* Effect allocation rule *)
   (* TODO: type-related rules -- figure out where to place these *)
