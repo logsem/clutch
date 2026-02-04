@@ -254,6 +254,17 @@ Notation "'letrec:' f x y .. z := e1 'in' e2" :=
    format "'[' 'letrec:'  f  x y .. z :=  '/  ' '[' e1 ']'  'in'  '/' e2 ']'")
     : expr_scope.
 
+(* To unfold a recursive type, we need to take a step. We thus define the
+unfold operator to be the identity function. *)
+Definition rec_unfold : val := λ: "x", "x".
+Definition unpack : val := λ: "x" "y", "y" "x".
+
+Notation "'unpack:' x := e1 'in' e2" := (unpack e1%E (Lam x%binder e2%E))
+  (at level 200, x at level 1, e1, e2 at level 200, only parsing) : expr_scope.
+
+Notation "'unpack:' x := e1 'in' e2" := (unpack e1%E (LamV x%binder e2%E))
+  (at level 200, x at level 1, e1, e2 at level 200, only parsing) : val_scope.
+
 (* ************************************************************************* *)
 (** Effect declaration. *)
 Notation "'effect' s e" := (Effect s%binder e%E)

@@ -525,7 +525,7 @@ Tactic Notation "brel_pures_r" := brel_pures_r (S _).
 Tactic Notation "brel_rec_l" :=
   iStartProof;
   lazymatch goal with
-  | |- environments.envs_entails _ (brel _ _ _ _ _) =>
+  | |- environments.envs_entails _ (brel _ _ _ _) =>
     notypeclasses refine (tac_brel_rec_l _ _ _ _);
       [ tc_solve || fail 1 "brel_rec_l: no beta reduction step can be performed"
       | tc_solve (* into laters *)
@@ -537,7 +537,7 @@ Tactic Notation "brel_rec_l" :=
 Tactic Notation "brel_rec_r" :=
   iStartProof;
   lazymatch goal with
-  | |- environments.envs_entails _ (brel _ _ _ _ _) =>
+  | |- environments.envs_entails _ (brel _ _ _ _) =>
     notypeclasses refine (tac_brel_rec_r _ _ _);
       [ tc_solve || fail 1 "brel_rec_r: no beta reduction step can be performed"
       | tc_solve (* simpl *)

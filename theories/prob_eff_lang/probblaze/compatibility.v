@@ -8,7 +8,7 @@ From iris.proofmode Require Import base tactics.
 From iris.base_logic.lib Require Import iprop invariants.
 
 (* Local imports *)
-From clutch.prob_eff_lang.probblaze Require Import notation class_instances proofmode  mode sem_def sem_sig sem_types sem_row sem_env logic sem_judgement.
+From clutch.prob_eff_lang.probblaze Require Import notation class_instances proofmode  mode sem_def sem_sig sem_types sem_row sem_env logic sem_judgement sem_operators.
 
 
 Open Scope stdpp_scope.
@@ -478,7 +478,7 @@ Section compatibility.
     by iFrame.
   Qed.
 
-  (* TODO: Add the rest of the pair rules *)
+  (* TODO: Add the rest of the pair rules from affect/compatibility *)
   
   Lemma sem_typed_fst x τ κ Γ : 
     ⊢ sem_typed ((x, τ × κ) :: Γ) (Fst x) (Fst x) ⟨⟩ τ ((x, ⊤ × κ) :: Γ).
@@ -531,7 +531,227 @@ Section compatibility.
       rewrite env_sem_typed_cons. iSplitL "Hκ"; last by do 2 (rewrite -env_sem_typed_insert; last done).
       iExists _, _. iFrame. iPureIntro. apply lookup_insert.
     - iIntros "!# % % ($ & HΓ3)". by do 2 (rewrite -env_sem_typed_insert; last done). 
+  Qed.
+
+  Lemma sem_typed_left_inj τ ρ κ Γ1 Γ2 e1 e2 : 
+    ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
+    sem_typed Γ1 (InjL e1) (InjL e2) ρ (τ + κ) Γ2.
+  Proof.
+    iIntros "#He !# %γ HΓ1 //=".
+    iApply (brel_bind [InjLCtx] [InjLCtx]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (Hτ & HΓ2) //=".
+    brel_pures_l. brel_pures_r.
+    iModIntro. iFrame. iExists _, _. iLeft.
+    by iFrame.
+  Qed.
+
+  Lemma sem_typed_right_inj τ ρ κ Γ1 Γ2 e1 e2 : 
+    ⊢ sem_typed Γ1 e1 e2 ρ κ Γ2 -∗
+    sem_typed Γ1 (InjR e1) (InjR e2) ρ (τ + κ) Γ2.
+  Proof.
+    iIntros "#He !# %γ HΓ1 //=".
+    iApply (brel_bind [InjRCtx] [InjRCtx]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (Hκ & HΓ2) //=".
+    brel_pures_l. brel_pures_r.
+    iFrame. iExists _,_. iRight. by iFrame.
+  Qed.
+
+  Lemma sem_typed_match τ ρ κ ι Γ1 Γ2 Γ3 e1 e1' x y e2 e2' e3 e3' :
+    x ∉ env_dom Γ2 → x ∉ env_dom Γ3 → y ∉ env_dom Γ2 → y ∉ env_dom Γ3 →
+    ⊢ sem_typed Γ1 e1 e1' ρ (τ + κ) Γ2 -∗
+    sem_typed ((x, τ) :: Γ2) e2 e2' ρ ι Γ3 -∗
+    sem_typed ((y, κ) :: Γ2) e3 e3' ρ ι Γ3 -∗
+    sem_typed Γ1
+      (match: e1 with InjL x => e2 | InjR y => e3 end)
+      (match: e1' with InjL x => e2' | InjR y => e3' end)
+      ρ ι Γ3.
+  Proof.
+    iIntros (????) "#He1 #He2 #He3 !# %γ HΓ1 //=".
+    iApply (brel_bind [CaseCtx _ _] [CaseCtx _ _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He1".
+    iIntros "!# % % ((% & % & [(-> & -> & Hτ)|(->&->&Hκ)]) & HΓ2) //="; brel_pures_l; brel_pures_r.
+    - rewrite -!subst_map_insert. iApply (brel_wand with "[HΓ2 Hτ]").
+      { assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (-> & ->) by done. rewrite -!fmap_insert. simpl.
+        iApply "He2". solve_env. }
+      iIntros "!# % % [$ HΓ3]". solve_env.
+    - rewrite -!subst_map_insert. iApply (brel_wand with "[HΓ2 Hκ]").
+      { assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (-> & ->) by done. rewrite -!fmap_insert. simpl.
+        iApply "He3". solve_env. }
+      iIntros "!# % % [$ HΓ3]". solve_env.
+  Qed.         
+
+  (* TODO: add option typing rules from affect/compatibility *)
+
+  Lemma bin_op_copy_types (τ κ ι : sem_ty Σ) op :
+    typed_bin_op op τ κ ι → MultiT τ ∧ MultiT κ ∧ MultiT ι.
+  Proof. intros []; (split; last split); apply _. Qed.
+
+  Lemma sem_typed_bin_op τ κ ι ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' op :
+    typed_bin_op op τ κ ι →
+    ⊢ sem_typed Γ2 e1 e1' ρ τ Γ3 -∗
+    sem_typed Γ1 e2 e2' ρ κ Γ2 -∗
+    sem_typed Γ1 (BinOp op e1 e2) (BinOp op e1' e2') ρ ι Γ3.
+  Proof.
+    iIntros (Hop) "#He1 #He2 !# %γ HΓ1 //=".
+    destruct (bin_op_copy_types _ _ _ _ Hop) as [Hmulτ [Hmulκ Hmulι]].
+    iApply (brel_bind [BinOpRCtx _ _] [BinOpRCtx _ _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He2".
+    iIntros "!# % % (#Hκ & HΓ2) /=".
+    iApply (brel_bind [BinOpLCtx _ _] [BinOpLCtx _ _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[Hκ HΓ2]"); first by iApply "He1".
+    iIntros "!# % % (#Hτ & HΓ3) /=".
+    destruct op; inversion Hop;
+      iDestruct "Hκ" as "(%n1 & -> & ->)";
+      iDestruct "Hτ" as "(%n2 & -> & ->)";
+      brel_pures_l; brel_pures_r; iFrame; eauto.
+  Qed.
+  
+  Lemma sem_typed_if τ ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' e3 e3' :
+    ⊢ sem_typed Γ1 e1 e1' ρ 𝔹 Γ2 -∗
+    sem_typed Γ2 e2 e2' ρ τ Γ3 -∗
+    sem_typed Γ2 e3 e3' ρ τ Γ3 -∗
+    sem_typed Γ1
+      (if: e1 then e2 else e3)
+      (if: e1' then e2' else e3')
+      ρ τ Γ3.
+  Proof.
+    iIntros "#He1 #He2 #He3 !# %γ HΓ1 //=".
+    iApply (brel_bind [IfCtx _ _] [IfCtx _ _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He1".
+    iIntros "!# % % (#(% & -> & ->) & HΓ2) /=".
+    destruct b; brel_pures_l; brel_pures_r; [by iApply "He2"|by iApply "He3"].
+  Qed.
+
+  (* Type abstraction and application *)
+  Lemma sem_typed_TLam C (* Γ1 *) v1 v2 : 
+    ⊢ (∀ α, (* (∀ γ, Γ1 ⊨ₑ γ -∗ *) (C α) (* (subst_map (fst <$> γ) *) (Val v1)(* ) *) (* (subst_map (snd <$> γ) *) (Val v2))(*) ) *) -∗
+    ((* ∀ γ, Γ1 ⊨ₑ γ -∗  *)(∀ₜ α , C α) (* (subst_map (fst <$> γ) *) v1(* )  (subst_map (snd <$> γ) *) v2(* ) *)).
+  Proof.
+    iIntros "Hv //=".
+  Qed.
+
+  Lemma sem_typed_TApp C τ ρ Γ1 Γ2 e1 e2 :
+    ⊢ sem_typed Γ1 e1 e2 ρ (∀ₜ α , C α) Γ2 -∗
+    sem_typed Γ1 e1 e2 ρ (C τ) Γ2. 
+  Proof.
+    iIntros "#He !# %γ HΓ1 /=".
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (HC & $) //=".
+  Qed.
+
+  (* row abstraction and application *)
+  Lemma sem_typed_RLam C v1 v2 :
+    ⊢ (∀ θ, (C θ) v1 v2) -∗ (∀ᵣ θ, C θ) v1 v2.
+  Proof.
+    iIntros "Hvv //=".
+  Qed.
+
+  Lemma sem_typed_RApp C ρ ρ' Γ1 Γ2 e1 e2 :
+    ⊢ sem_typed Γ1 e1 e2 ρ (∀ᵣ θ , C θ) Γ2 -∗
+    sem_typed Γ1 e1 e2 ρ (C ρ') Γ2. 
+  Proof.
+    iIntros "#He !# %γ HΓ1 /=".
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (HC & $) //=".
+  Qed.
+
+  (* mode abstraction and application *)
+  Lemma sem_typed_MLam C v1 v2 : 
+    ⊢ (∀ ν, (C ν) v1 v2) -∗ (∀ₘ ν, C ν) v1 v2.
+  Proof.
+    iIntros "Hvv //=".
+  Qed.
+
+  Lemma sem_typed_MApp C ρ m Γ1 Γ2 e1 e2 :
+    ⊢ sem_typed Γ1 e1 e2 ρ (∀ₘ ν , C ν) Γ2 -∗
+    sem_typed Γ1 e1 e2 ρ (C m) Γ2. 
+  Proof.
+    iIntros "#He !# %γ HΓ1 /=".
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (HC & $) //=".
+  Qed.
+
+  (* Existential type packing and unpacking *)
+  Lemma sem_typed_pack C τ ρ Γ1 Γ2 e1 e2 :
+    ⊢ sem_typed Γ1 e1 e2 ρ (C τ) Γ2 -∗
+    sem_typed Γ1 e1 e2 ρ (∃ₜ α, C α) Γ2. 
+  Proof.
+    iIntros "#He %γ !# HΓ1 //=".
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (HC & $) //=". by iExists _. 
+  Qed.
+
+
+  Lemma sem_typed_unpack C κ ρ Γ1 Γ2 Γ3 x e1 e1' e2 e2' :
+    x ∉ env_dom Γ2 → x ∉ env_dom Γ3 →
+    ⊢ sem_typed Γ1 e1 e1' ρ (∃ₜ α, C α) Γ2 -∗
+    (∀ τ, sem_typed ((x, C τ) :: Γ2) e2 e2' ρ κ Γ3) -∗
+    sem_typed Γ1 (unpack: x := e1 in e2)%E (unpack: x := e1' in e2')%E ρ κ Γ3.
+  Proof.
+    iIntros (??) "#He1 #He2 %γ !# HΓ1 //=".
+    iApply (brel_bind [AppLCtx _; _] [AppLCtx _; _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He1".
+    iIntros "!# %v1 %v1' ((%τ & Hτww) & HΓ2) ".
+    unfold unpack. brel_pures_l. brel_pures_r.
+    rewrite -!subst_map_insert.
+    assert (v1 = fst (v1, v1') ∧ v1' = snd (v1, v1')) as (-> & ->) by done. rewrite -!fmap_insert. simpl.
+    iApply (brel_wand with "[HΓ2 Hτww]").
+    { iDestruct ("He2" $! τ) as "He2'". iApply "He2'". solve_env. }
+    iIntros "!# % % (Hκ & HΓ3) //=". iFrame. solve_env.
   Qed.     
+
+  (* Recursive type rules *)
+  Lemma sem_typed_fold C ρ Γ1 Γ2 e1 e2 `{NonExpansive C}:
+    ⊢ sem_typed Γ1 e1 e2 ρ (C (μₜ α, C α)) Γ2 -∗
+    sem_typed Γ1 e1 e2 ρ (μₜ α, C α) Γ2.
+  Proof.
+    iIntros "#He %γ !# HΓ1 //=".
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (HC & HΓ2) //=". iFrame.
+    by iApply sem_ty_rec_unfold.
+  Qed.     
+
+  Lemma sem_typed_unfold C ρ Γ1 Γ2 e1 e2 `{NonExpansive C}:
+    ⊢ sem_typed Γ1 e1 e2 ρ (μₜ α, C α) Γ2 -∗
+    sem_typed Γ1 (rec_unfold e1) (rec_unfold e2) ρ (C (μₜ α, C α)) Γ2.
+  Proof.
+    iIntros "#He1 %γ !# HΓ1 //=".
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He1".
+    iIntros "!# %v1 %v1' (Hτ & HΓ2) //=".
+    rewrite sem_ty_rec_unfold.
+    unfold rec_unfold. brel_pures_l. brel_pures_r.
+    by iFrame. 
+  Qed.
+
+  (* TODO: add list rules from affect/compatibility *)
+
+  (* Reference rules *)
+  
+  Lemma sem_typed_alloc τ ρ Γ1 Γ2 e1 e2 :
+    ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
+    sem_typed Γ1 (ref e1) (ref e2) ρ (Ref τ) Γ2.
+  Proof.
+    iIntros "#He !# %γ HΓ1 //=".
+    iApply (brel_bind [AllocNRCtx _] [AllocNRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (Hτ & HΓ2) //=".
+    iApply brel_alloc_l. iIntros "!> % Hl1".
+    iApply brel_alloc_r. iIntros "% Hl2".
+    iApply brel_value. iFrame. done.
+  Qed.
+  
+  Lemma sem_typed_load τ Γ x : 
+    ⊢ sem_typed ((x, Ref τ) :: Γ) (Load x) (Load x) ⟨⟩ τ  ((x, Ref ⊤) :: Γ).
+  Proof.
+    iIntros "%γ !# //= H".
+    iIntros "%γ !# //= [%v1 %v2 (%Hrw & (%w1 & %w2 & -> & -> & (%l1 & %l2 & Hl2 & Hτ)) & HΓ)]".
+    rewrite Hrw. iApply (ewpw_load with "Hl").
+    iIntros "!> Hl !>". solve_env.
+  Qed.
+  
   
   (* Effect allocation rule *)
   (* TODO: type-related rules -- figure out where to place these *)
