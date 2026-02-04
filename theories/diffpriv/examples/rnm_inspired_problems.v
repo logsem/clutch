@@ -27,6 +27,39 @@ Section rnm.
           ! "maxI"
       in ("add_query", "release").
 
+  Definition report_noisy_max_online_lazy : val :=
+    λ:"num" "den" "evalQ" "d",
+      let: "queries" := ref [] in
+      let: "add_query" :=
+        λ:"i",
+          "queries" <- "i" :: !"queries" in
+      let: "release" :=
+        λ:"_",
+          let: "evalQ'" :=
+            λ:"i" "d",
+              "evalQ" (list.nth "i" !"queries") "d"
+          in
+          let: "N" = list.length !"queries" in
+          rnm_offline "evalQ'" "N" "d"
+      in ("add_query", "release").
+
+  (* Unclear how to show that evalQ' is 1-sensitive b/c it doesn't directly use the d provided as input. *)
+  Definition report_noisy_max_online_less_lazy : val :=
+    λ:"num" "den" "evalQ" "d",
+      let: "query_results" := ref [] in
+      let: "add_query" :=
+        λ:"i",
+          "query_results" <- ("evalQ" "i" "d") :: !"query_results" in
+      let: "release" :=
+        λ:"_",
+          let: "evalQ'" :=
+            λ:"i" "d",
+              (list.nth "i" !"query_results")
+          in
+          let: "N" = list.length !"query_results" in
+          rnm_offline "evalQ'" "N" "d"
+      in ("add_query", "release").
+
   (* Given the error credits for one run of RNM, initializing oRNM provides an abstract token AUTH
   that is required to call the add_query and release methods, and...
 - add_query processes a query and returns AUTH back to the caller
