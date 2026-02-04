@@ -26,6 +26,28 @@ Section rnm.
               "rnm" ("i" + #1)))
       in "f" #0.
 
+  Definition report_noisy_max_presampling (num den : Z) : val :=
+    (* ↯ (num/den) ∗ evalQ is 1-sensitive ∗ N ∈ ℕ \ {0} ∗ 0 < num/2den ∗ dDB db db' <= 1 *)
+    λ:"evalQ" "N" "d",
+      let: "xs" := list_init "N" (λ:"i", "evalQ" "i" "d") in
+      (* len xs = len xs' = N ∗ List_forall2 x ∈ xs, x' ∈ xs', dZ x x' <= 1 *)
+      let: "xs_tapes" := list_map (λ:"x", ("x", TapeLaplace #num #(2*den) "x")) "xs" in
+      (* len tapes = len tapes' = N ∗
+         List_forall2 (x, ι), (x', ι') ∈ tapes, tapes'
+         . dZ x x' <= 1 ∗ ι ↦ (Lap(num, 2den, x), []) ∗ ι' ↦ (Lap(num, 2den, x'), [])
+       *)
+      (* state step to *)
+      (* len tapes = len tapes' = N ∗
+         ∃ vs vs' . len vs = len vs' = N ∗
+         List_max_index vs = List_max_index vs' ∗
+         List_forall4 (x, ι), (x', ι'), v, v' ∈ tapes, tapes', vs, vs'
+         . ι ↦ (Lap(num, 2den, x), [v]) ∗ ι' ↦ (Lap(num, 2den, x'), [v'])
+       *)
+      let: "noisy_xs" := list_map (λ:"x_ι", Laplace #num #(2*den) (Fst "x_ι") (Snd "x_ι")) "xs_tapes" in
+      (* We'll get exactly vs as noisy_xs. *)
+      (* List.max_index noisy_xs = List.max_index noisy_xs' ; QED *)
+      list_max_index "noisy_xs".
+
   #[local] Definition rnm_body (num den : Z) (evalQ : val) {DB} (dDB : Distance DB) (N : nat) (db : DB) (maxI maxA : loc) :=
     (rec: "rnm" "i" :=
        if: "i" = #N then ! #maxI
