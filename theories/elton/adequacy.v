@@ -72,11 +72,9 @@ Section adequacy.
       apply pgl_dbind'; first done; intros ? H3.
       inv_distr.
       rewrite bind_Some in H2. destruct!/=.
+      erewrite exec_is_final; last done.
+      eapply pgl_mon_grading; last apply pgl_dret; first done.
       admit. 
-      (* erewrite exec_is_final; last done. *)
-      (* apply Hsubst in H1. *)
-      (* destruct!/=. *)
-      (* eapply pgl_mon_grading; last apply pgl_dret; done. *)
     - iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
       { iPureIntro.
         intros H'.
@@ -117,7 +115,8 @@ Section adequacy.
       iMod ("H") as "[H _]".
       simpl in *.
       iApply "H"; first done; try done.
-      + admit. 
+      + iPureIntro.
+        by erewrite urn_erasable_same_support_set.
       + iPureIntro.
         eapply map_Forall_impl; first done.
         simpl.
@@ -156,7 +155,7 @@ Section adequacy.
     - iApply step_fupdN_intro; first done.
       iPureIntro. by apply pgl_1.
     - iMod ("HZ" with "[H]"); last done.
-      admit. 
+      iDestruct "H" as "(?&?&?&?&$)".
     - iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
       { iPureIntro.
         intros H'.

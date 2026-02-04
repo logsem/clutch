@@ -74,11 +74,10 @@ Section modalities.
             ⌜urn_erasable μ σ1.(urns)⌝ ∗
             ∀ m', |={∅}=> Φ (e, state_upd_urns (λ _, m') σ1, ε2 m')
         ) ∨
-        (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) bl P,
+        (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
             ⌜e = fill K (Val v)⌝ ∗
-            ⌜is_simple_base_lit bl = true⌝ ∗
-            rupd (λ x,x=LitV bl) P v ∗
-            (P ={∅}=∗ Φ (fill K (Val (LitV bl)), σ1, ε))
+            rupd (λ x,x=v') P v ∗
+            (P ={∅}=∗ Φ (fill K (Val v'), σ1, ε))
         )
     )%I.
 
@@ -94,7 +93,7 @@ Section modalities.
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros ([[]?]) "[H|[?|[H|[(%&%&%&%&%&H)|(%&%&%&%&%&%&?&H)]]]]".
+    iIntros ([[]?]) "[H|[?|[H|[(%&%&%&%&%&H)|(%&%&%&%&%&?&H)]]]]".
     - by iLeft.
     - iRight; by iLeft.
     - iRight; iRight; iLeft.
@@ -129,11 +128,10 @@ Section modalities.
             ⌜urn_erasable μ σ1.(urns)⌝ ∗
             ∀ m', |={∅}=> state_step_coupl e (state_upd_urns (λ _, m') σ1) (ε2 m') Z
          ) ∨
-         (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) bl P,
+         (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
             ⌜e = fill K (Val v)⌝ ∗
-            ⌜is_simple_base_lit bl = true⌝ ∗
-            rupd (λ x,x=LitV bl) P v ∗
-            (P ={∅}=∗ state_step_coupl (fill K (Val (LitV bl)))  σ1 ε Z)
+            rupd (λ x,x=v') P v ∗
+            (P ={∅}=∗ state_step_coupl (fill K (Val v'))  σ1 ε Z)
         )
       )%I.
   Proof. rewrite /state_step_coupl /state_step_coupl' least_fixpoint_unfold //. Qed.
@@ -174,11 +172,10 @@ Section modalities.
   Proof. iIntros "H". rewrite state_step_coupl_unfold. do 3 iRight. iLeft. done. Qed.
 
   Lemma state_step_coupl_value_promote e σ1 (ε : nonnegreal) Z:
-     (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) bl P,
+     (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
             ⌜e = fill K (Val v)⌝ ∗
-            ⌜is_simple_base_lit bl = true⌝ ∗
-            rupd (λ x,x=LitV bl) P v ∗
-            (P ={∅}=∗ state_step_coupl (fill K (Val (LitV bl))) σ1 ε Z)
+            rupd (λ x,x=v') P v ∗
+            (P ={∅}=∗ state_step_coupl (fill K (Val v')) σ1 ε Z)
      ) ⊢
      state_step_coupl e σ1 ε Z.
   Proof.
@@ -417,7 +414,7 @@ Section modalities.
       iMod "H" as "[IH _]".
       by iApply "IH".
     - iApply state_step_coupl_value_promote.
-      iDestruct "H" as "(%&%&%&%&%&%&H1&H2)".
+      iDestruct "H" as "(%&%&%&%&%&H1&H2)".
       repeat iExists _. repeat iSplit; try done.
       iFrame.
       iIntros "HP".
@@ -471,7 +468,7 @@ Section modalities.
       iDestruct ("H" $! x) as "H".
       iMod ("H") as "[H _]".
       by iApply "H".
-    - iDestruct "H" as "(%&%&%&%&%&%&H1&H2)".
+    - iDestruct "H" as "(%&%&%&%&%&H1&H2)".
       iApply state_step_coupl_value_promote.
       repeat iExists _.
       repeat iSplit; try done.
@@ -576,7 +573,7 @@ Section modalities.
       iApply state_step_coupl_rec.
       repeat iExists _; repeat iSplit; try done.
       iIntros. by iMod ("H" $! _) as "[H _]".
-    - iDestruct "H" as "(%&%&%&%&%&%&H1&H2)".
+    - iDestruct "H" as "(%&%&%&%&%&H1&H2)".
       subst.
       iApply state_step_coupl_value_promote.
       iExists (comp_ectx K _), _, _, _.
@@ -604,19 +601,24 @@ Section modalities.
         iApply state_step_coupl_rec.
         repeat iExists _; repeat iSplit; try done.
         iIntros. by iMod ("H" $! _) as "[H _]".
-      + iDestruct "H" as "(%&%v&%bl&%&%&%&H1&H2)".
+      + iDestruct "H" as "(%&%v&%v'&%&%&H1&H2)".
         subst.
         iApply state_step_coupl_value_promote.
         repeat iExists _.
         repeat iSplit; try done; try iFrame.
         iIntros "HP". iMod ("H2" with "[$]") as "[H2 _]".
-        assert (ssrbool.isSome$ to_val (fill K (Val (LitV bl))) = ssrbool.isSome $ to_val (fill K (Val (v)))) as Hrewrite; last by rewrite Hrewrite.
+        assert (ssrbool.isSome$ to_val (fill K (Val v')) = ssrbool.isSome $ to_val (fill K (Val (v)))) as Hrewrite; last by rewrite Hrewrite.
         simpl.
         destruct K as [|e]; simpl; first done.
         rewrite fill_not_val; first rewrite fill_not_val; try done; by destruct e.
     - iApply state_step_coupl_mono.
       iIntros (???) "[$?]".
-  Qed. 
+  Qed.
+
+  Lemma state_step_coupl_preserve_atomic `{!Atomic StronglyAtomic e1} σ1 ε Z :
+    state_step_coupl e1 σ1 ε Z ⊣⊢ state_step_coupl e1 σ1 ε (λ e2 σ2 ε2, Z e2 σ2 ε2 ∗ ⌜Atomic StronglyAtomic e2⌝).
+  Proof.
+  Admitted. 
   
   (* Lemma state_step_coupl_state_step α σ1 Z (ε ε' : nonnegreal) : *)
   (*   α ∈ get_active σ1 → *)
@@ -1204,19 +1206,20 @@ Proof.
   iIntros (??) "[??]".
   iDestruct ("H" with "[$]") as ">>H".
   iModIntro.
+  rewrite state_step_coupl_preserve_atomic.
   iApply (state_step_coupl_mono with "[] H").
   iIntros (e2 σ2 ε2).
   destruct (to_val e2) as [v|] eqn:He.
-  - iIntros ">(?&?&>?)". by iFrame.
-  - iIntros "H".
+  - iIntros "[>(?&?&>?) %]". by iFrame.
+  - iIntros "[H %]".
     iDestruct (prog_coupl_strengthen with "[]H") as "H".
     { iModIntro. iIntros. by iApply state_step_coupl_ret_err_ge_1. }
     iApply (prog_coupl_mono with "[] [$]").
-    iIntros (???) "[[[%%H]|%]?]!>"; last first.
+    iIntros (???) "[[[%%]|%H0]?]!>"; last first.
     { by iApply state_step_coupl_ret_err_ge_1. }
     rewrite state_step_coupl_preserve_to_val.
     iApply (state_step_coupl_bind with "[][$]").
-    iIntros (???) "[H %]".
+    iIntros (???) "[H %H1]".
     iApply fupd_state_step_coupl.
     iMod "H" as "(?&?&H)".
     rewrite !pgl_wp_unfold {1}/pgl_wp_pre.
@@ -1230,12 +1233,14 @@ Proof.
       iFrame. iModIntro.
       rewrite -(of_to_val _ _ H').
       by iApply pgl_wp_value_fupd'.
-    + iIntros "[_ %]".
+    + iIntros "[_ %H2]".
       simpl in *.
-      (* epose proof (atomic _ _ _ H) as [??]. *)
-      (* congruence. *)
-      admit.
-Abort.
+      epose proof (atomic _ _ _ H0) as [? H3].
+      simpl in *.
+      exfalso.
+      rewrite H2 in H1.
+      by rewrite H3 in H1.
+Qed. 
 
 Lemma pgl_wp_step_fupd s E1 E2 e P Φ :
   TCEq (to_val e) None → E2 ⊆ E1 →
@@ -1424,10 +1429,9 @@ Section proofmode_classes.
             (WP e @ s; E1 {{ Φ }}) (WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }})%I | 100.
   Proof.
     intros ?.
-  Abort. 
-  (*   by rewrite intuitionistically_if_elim *)
-  (*     fupd_frame_r wand_elim_r pgl_wp_atomic. *)
-  (* Qed. *)
+    by rewrite intuitionistically_if_elim
+      fupd_frame_r wand_elim_r pgl_wp_atomic.
+  Qed.
 
   Global Instance add_modal_fupd_pgl_wp s E e P Φ :
     AddModal (|={E}=> P) P (WP e @ s; E {{ Φ }}).
@@ -1439,11 +1443,10 @@ Section proofmode_classes.
             α β γ (WP e @ s; E1 {{ Φ }})
             (λ x, WP e @ s; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I | 100.
   Proof.
-  Abort. 
-  (*   iIntros (?) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]". *)
-  (*   iApply (pgl_wp_wand with "(Hinner Hα)"). *)
-  (*   iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose". *)
-  (* Qed. *)
+    iIntros (?) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
+    iApply (pgl_wp_wand with "(Hinner Hα)").
+    iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
+  Qed.
 
   Global Instance elim_acc_pgl_wp_nonatomic {X} E α β γ e s Φ :
     ElimAcc (X:=X) True (fupd E E) (fupd E E)

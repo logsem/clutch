@@ -82,9 +82,8 @@ Section rules.
     rewrite refines_eq /refines_def.
     iIntros "Hlog" .
     iApply pgl_wp_bind.
-  Abort. 
-    (* iApply pgl_wp_atomic; auto. *)
-  (* Qed. *)
+    iApply pgl_wp_atomic; auto.
+  Qed.
   
   Lemma pupd_fupd' E1 E2 P:
     E2⊆E1->

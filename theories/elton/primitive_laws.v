@@ -305,6 +305,30 @@ Qed.
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
 (* induction directly, but this demonstrates that we can state the expected *)
 (* reasoning principle for recursive functions, without any visible ▷. *)
+
+Lemma wp_value_promotion v v' P Φ s E:
+  (rupd (λ x, x=v') P v)-∗
+    (P -∗ WP (Val v') @ s; E {{ Φ }}) -∗
+    WP (Val v) @ s; E {{ Φ }}.
+Proof.
+  iIntros "H1 H2".
+  iApply state_step_coupl_wp.
+  iIntros (??) "[??]".
+  iApply fupd_mask_intro; first set_solver.
+  iIntros "Hclose".
+  iApply state_step_coupl_value_promote.
+  iExists [], v, v', P.
+  simpl.
+  iFrame.
+  iSplit; first done.
+  iIntros "HP".
+  iApply state_step_coupl_ret.
+  iFrame.
+  iModIntro.
+  iMod "Hclose".
+  by iApply "H2".
+Qed. 
+
 Lemma wp_rec_löb E f x e Φ Ψ :
   □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}) -∗
      ∀ v, Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ E {{ Φ }}) -∗
