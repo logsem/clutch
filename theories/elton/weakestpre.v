@@ -76,6 +76,7 @@ Section modalities.
         ) ∨
         (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
             ⌜e = fill K (Val v)⌝ ∗
+            ⌜is_simple_val v' = true ⌝ ∗
             rupd (λ x,x=v') P v ∗
             (P ={∅}=∗ Φ (fill K (Val v'), σ1, ε))
         )
@@ -93,7 +94,7 @@ Section modalities.
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros ([[]?]) "[H|[?|[H|[(%&%&%&%&%&H)|(%&%&%&%&%&?&H)]]]]".
+    iIntros ([[]?]) "[H|[?|[H|[(%&%&%&%&%&H)|(%&%&%&%&%&%&?&H)]]]]".
     - by iLeft.
     - iRight; by iLeft.
     - iRight; iRight; iLeft.
@@ -130,6 +131,7 @@ Section modalities.
          ) ∨
          (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
             ⌜e = fill K (Val v)⌝ ∗
+            ⌜is_simple_val v' = true ⌝ ∗
             rupd (λ x,x=v') P v ∗
             (P ={∅}=∗ state_step_coupl (fill K (Val v'))  σ1 ε Z)
         )
@@ -174,6 +176,7 @@ Section modalities.
   Lemma state_step_coupl_value_promote e σ1 (ε : nonnegreal) Z:
      (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
             ⌜e = fill K (Val v)⌝ ∗
+            ⌜is_simple_val v' = true ⌝ ∗
             rupd (λ x,x=v') P v ∗
             (P ={∅}=∗ state_step_coupl (fill K (Val v')) σ1 ε Z)
      ) ⊢
@@ -414,7 +417,7 @@ Section modalities.
       iMod "H" as "[IH _]".
       by iApply "IH".
     - iApply state_step_coupl_value_promote.
-      iDestruct "H" as "(%&%&%&%&%&H1&H2)".
+      iDestruct "H" as "(%&%&%&%&%&%&H1&H2)".
       repeat iExists _. repeat iSplit; try done.
       iFrame.
       iIntros "HP".
@@ -468,7 +471,7 @@ Section modalities.
       iDestruct ("H" $! x) as "H".
       iMod ("H") as "[H _]".
       by iApply "H".
-    - iDestruct "H" as "(%&%&%&%&%&H1&H2)".
+    - iDestruct "H" as "(%&%&%&%&%&%&H1&H2)".
       iApply state_step_coupl_value_promote.
       repeat iExists _.
       repeat iSplit; try done.
@@ -494,65 +497,69 @@ Section modalities.
                 ⌜map_Forall (λ (_ : loc) v, val_support_set v ⊆ urns_support_set (urns σ')) (heap σ')⌝ ∗
                 Z e' σ' ε').
   Proof.
-  Admitted.
-  (*   intros H1 H2 H3. *)
-  (*   iIntros "H". *)
-  (*   iRevert (H1 H2 H3). *)
-  (*   iRevert "H". *)
-  (*   iRevert (e σ ε). *)
-  (*   iApply state_step_coupl_ind. *)
-  (*   iModIntro. *)
-  (*   iIntros (e σ ε) "H". *)
-  (*   iIntros (Hsubset Hforall1 Hforall2). *)
-  (*   iDestruct "H" as "[%|[H|[H|[H|H]]]]". *)
-  (*   - by iApply state_step_coupl_ret_err_ge_1. *)
-  (*   - iApply state_step_coupl_ret. iFrame. iPureIntro. naive_solver. *)
-  (*   - iApply state_step_coupl_ampl. *)
-  (*     iIntros. *)
-  (*     iDestruct ("H" with "[//]") as "[H _]". *)
-  (*     by iApply "H". *)
-  (*   - iDestruct "H" as "(%μ&%ε2&[%r %]&%H2&%&H)". *)
-  (*     iApply state_step_coupl_rec. *)
-  (*     iExists μ, (λ m, if bool_decide (μ m > 0) then ε2 m else 1%NNR)%R. *)
-  (*     repeat iSplit. *)
-  (*     + iPureIntro. exists (Rmax r 1). *)
-  (*       intros. case_bool_decide; [|apply Rmax_r]. *)
-  (*       etrans; last apply Rmax_l. naive_solver. *)
-  (*     + iPureIntro. erewrite Expval_support in H2. *)
-  (*       etrans; last exact. *)
-  (*       rewrite /Expval. *)
-  (*       right.  *)
-  (*       apply SeriesC_ext. *)
-  (*       intros. repeat f_equal. *)
-  (*       by case_bool_decide. *)
-  (*     + done. *)
-  (*     +  iIntros (x).  *)
-  (*        iDestruct ("H" $! x) as "H". *)
-  (*        iMod "H" as "[H _]". iModIntro. *)
-  (*        case_bool_decide; last by iApply state_step_coupl_ret_err_ge_1. *)
-  (*        iApply "H"; iPureIntro. *)
-  (*        * etrans; first exact. *)
-  (*          by erewrite <-urn_erasable_same_support_set. *)
-  (*        * done. *)
-  (*        * eapply map_Forall_impl; first done. *)
-  (*          simpl. *)
-  (*          intros. etrans; first exact. *)
-  (*          by erewrite <-urn_erasable_same_support_set. *)
-  (*   - iDestruct "H" as "(%&%&%&%&%&%&H1&H2)". *)
-  (*     iApply state_step_coupl_value_promote. *)
-  (*     repeat iExists _. iFrame. *)
-  (*     repeat iSplit; try done. *)
-  (*     iIntros "HP". *)
-  (*     iMod ("H2" with "[$]") as "[H2 _]". *)
-  (*     iApply ("H2"); iPureIntro; try done. *)
-  (*     subst. *)
-  (*     rewrite support_set_fill. *)
-  (*     rewrite support_set_fill in Hsubset. *)
-  (*     etrans; last exact. *)
-  (*     simpl. *)
-  (*     destruct bl; try done; simpl; *)
-  (*     set_solver. *)
-  (* Qed. *)
+    intros H1 H2 H3 H4.
+    iIntros "H".
+    iRevert (H1 H2 H3 H4).
+    iRevert "H".
+    iRevert (e σ ε).
+    iApply state_step_coupl_ind.
+    iModIntro.
+    iIntros (e σ ε) "H".
+    iIntros (He Hsubset Hforall1 Hforall2).
+    iDestruct "H" as "[%|[H|[H|[H|H]]]]".
+    - by iApply state_step_coupl_ret_err_ge_1.
+    - iApply state_step_coupl_ret. iFrame. iPureIntro. naive_solver.
+    - iApply state_step_coupl_ampl.
+      iIntros.
+      iDestruct ("H" with "[//]") as "[H _]".
+      by iApply "H".
+    - iDestruct "H" as "(%μ&%ε2&[%r %]&%H2&%&H)".
+      iApply state_step_coupl_rec.
+      iExists μ, (λ m, if bool_decide (μ m > 0) then ε2 m else 1%NNR)%R.
+      repeat iSplit.
+      + iPureIntro. exists (Rmax r 1).
+        intros. case_bool_decide; [|apply Rmax_r].
+        etrans; last apply Rmax_l. naive_solver.
+      + iPureIntro. erewrite Expval_support in H2.
+        etrans; last exact.
+        rewrite /Expval.
+        right.
+        apply SeriesC_ext.
+        intros. repeat f_equal.
+        by case_bool_decide.
+      + done.
+      +  iIntros (x).
+         iDestruct ("H" $! x) as "H".
+         iMod "H" as "[H _]". iModIntro.
+         case_bool_decide; last by iApply state_step_coupl_ret_err_ge_1.
+         iApply "H"; iPureIntro.
+         * done.
+         * etrans; first exact.
+           by erewrite <-urn_erasable_same_support_set.
+         * done.
+         * eapply map_Forall_impl; first done.
+           simpl.
+           intros. etrans; first exact.
+           by erewrite <-urn_erasable_same_support_set.
+    - iDestruct "H" as "(%&%&%&%&%&%&H1&H2)".
+      iApply state_step_coupl_value_promote.
+      subst.
+      repeat iExists _. iFrame.
+      repeat iSplit; try done.
+      iIntros "HP".
+      iMod ("H2" with "[$]") as "[H2 _]".
+      iApply ("H2"); iPureIntro; try done.
+      + rewrite !is_well_constructed_fill in He *.
+        rewrite !andb_true_iff in He *.
+        split; last naive_solver.
+        admit.
+      + subst.
+        rewrite support_set_fill.
+        rewrite support_set_fill in Hsubset.
+        etrans; last exact.
+        simpl.
+        admit.
+  Admitted. 
 
   Lemma state_step_coupl_ctx_bind K e1 σ1 Z ε:
     state_step_coupl e1 σ1 ε
@@ -573,7 +580,7 @@ Section modalities.
       iApply state_step_coupl_rec.
       repeat iExists _; repeat iSplit; try done.
       iIntros. by iMod ("H" $! _) as "[H _]".
-    - iDestruct "H" as "(%&%&%&%&%&H1&H2)".
+    - iDestruct "H" as "(%&%&%&%&%&%&H1&H2)".
       subst.
       iApply state_step_coupl_value_promote.
       iExists (comp_ectx K _), _, _, _.
@@ -601,7 +608,7 @@ Section modalities.
         iApply state_step_coupl_rec.
         repeat iExists _; repeat iSplit; try done.
         iIntros. by iMod ("H" $! _) as "[H _]".
-      + iDestruct "H" as "(%&%v&%v'&%&%&H1&H2)".
+      + iDestruct "H" as "(%&%v&%v'&%&%&%&H1&H2)".
         subst.
         iApply state_step_coupl_value_promote.
         repeat iExists _.

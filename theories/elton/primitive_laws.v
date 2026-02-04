@@ -307,11 +307,12 @@ Qed.
 (* reasoning principle for recursive functions, without any visible ▷. *)
 
 Lemma wp_value_promotion v v' P Φ s E:
+  is_simple_val v' = true ->
   (rupd (λ x, x=v') P v)-∗
     (P -∗ WP (Val v') @ s; E {{ Φ }}) -∗
     WP (Val v) @ s; E {{ Φ }}.
 Proof.
-  iIntros "H1 H2".
+  iIntros (H) "H1 H2".
   iApply state_step_coupl_wp.
   iIntros (??) "[??]".
   iApply fupd_mask_intro; first set_solver.
@@ -320,6 +321,7 @@ Proof.
   iExists [], v, v', P.
   simpl.
   iFrame.
+  iSplit; first done.
   iSplit; first done.
   iIntros "HP".
   iApply state_step_coupl_ret.
