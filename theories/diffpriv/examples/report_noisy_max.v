@@ -3,6 +3,119 @@ From clutch.common Require Import inject.
 From clutch.prelude Require Import tactics.
 From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode.
+From clutch.prob_lang Require Import gwp.list.
+
+(* TODO: upstream to gwp.list *)
+Definition list_hd : val :=
+  λ:"xs", match: "xs" with NONE => #0 #0 | SOME "x_xs" => Fst "x_xs" end.
+
+Definition list_tl : val :=
+  λ:"xs", match: "xs" with NONE => "xs" | SOME "x_xs" => Snd "x_xs" end.
+
+Definition list_max_index : val :=
+  λ:"xs",
+    match: "xs" with
+    | NONE => #0
+    | SOME "y_xs" =>
+        let, ("y", "xs") := "y_xs" in
+        let, ("_y", "iy", "_ix") :=
+          list_fold
+            (λ: "(y, iy, ix)" "x",
+               let, ("y", "iy", "ix") := "(y, iy, ix)" in
+               if: "y" < "x" then ("x", "ix", "ix"+#1) else ("y", "iy", "ix"+#1))
+            ("y", #0, #1) "xs"
+        in "iy"
+    end.
+
+Definition list_init : val :=
+  λ: "len" "f",
+  letrec: "aux" "acc" "i" :=
+    (if: "i" = "len"
+     then  list_rev "acc"
+     else  "aux" (("f" "i") :: "acc") ("i" + #1)) in
+    "aux" [] #0.
+
+Section list_specs.
+  Context `{invGS_gen hlc Σ} `{g : !GenWp Σ}.
+  Context `[!Inject A val].
+
+  Lemma gwp_list_hd s E xs vxs :
+    G{{{ ⌜is_list xs vxs⌝ ∗ ⌜0 < length xs⌝ }}}
+      list_hd vxs @ s ; E
+                 {{{ v, RET v; ⌜List.hd v xs = v⌝}}}.
+  Proof.
+    iIntros (Φ) "(%Hxs & %Hlen) HΦ". rewrite /list_hd.
+    gwp_pures.
+    destruct xs as [|v xs]. 1: simpl in Hlen ; by (exfalso ; lia).
+    simpl in Hxs.
+    destruct Hxs as (? & -> & ?). gwp_pures.
+    iApply "HΦ". done.
+  Qed.
+
+  Lemma gwp_list_tl s E xs vxs :
+    G{{{ ⌜is_list xs vxs⌝ ∗ ⌜0 < length xs⌝ }}}
+      list_tl vxs @ s ; E
+                 {{{ v, RET v; ⌜is_list (List.tl xs) v⌝}}}.
+  Proof.
+    iIntros (Φ) "(%Hxs & %Hlen) HΦ". rewrite /list_tl.
+    gwp_pures.
+    destruct xs as [|v xs]. 1: simpl in Hlen ; by (exfalso ; lia).
+    simpl in Hxs.
+    destruct Hxs as (? & -> & ?). gwp_pures.
+    iApply "HΦ". done.
+  Qed.
+
+  Definition List_max_index (xs : list Z) : nat :=
+  match xs with
+  | [] => 0%nat
+  | y :: xs =>
+      let '(_, iy, _) :=
+        List.fold_left
+          (λ '(y, iy, ix) x,
+             if (Z.ltb y x)%Z then (x, ix, ix+1)%nat else (y, iy, ix+1)%nat)
+          xs (y, 0, 1)%nat
+      in iy
+  end.
+
+  Lemma gwp_list_max_index s E xs vxs :
+    G{{{ ⌜is_list xs vxs⌝ }}}
+      list_max_index vxs @ s ; E
+                 {{{ (i : nat), RET #i; ⌜i = List_max_index xs⌝}}}.
+  Proof.
+    iIntros (Φ) "%Hxs HΦ". rewrite /list_max_index.
+    gwp_pures.
+    destruct xs as [|y xs'].
+    { rewrite Hxs. gwp_pures.
+      replace 0%Z with (Z.of_nat 0) => //.
+      iApply "HΦ". done. }
+    destruct Hxs as (vxs' & -> & Hxs'). gwp_pures.
+    gwp_bind (list_fold _ _ _).
+    iRevert (Φ vxs' Hxs') "HΦ".
+    (* post/IH not quite right; at least need to generalize. *)
+    iInduction xs' as [|x xs'] "IH" ; iIntros (Φ vxs' Hxs') "HΦ".
+    - rewrite Hxs' /list_fold. gwp_pures.
+      iModIntro. gwp_pures.
+      replace 0%Z with (Z.of_nat 0) => //.
+      iApply "HΦ". done.
+    -
+      destruct Hxs' as (vxs'' & -> & Hxs'').
+      gwp_pures.
+      gwp_lam. gwp_pures.
+      case_bool_decide.
+      + gwp_pures.
+        replace x with y at 1 by admit.
+        replace #1 with #0 at 3 by admit.
+        replace #(1+1) with #1 by admit.
+        iApply "IH".
+        1: done.
+        iIntros "%i %Hi".
+        iSpecialize ("HΦ" $! i).
+        rewrite Hi.
+        iApply "HΦ".
+  Abort.
+
+
+End list_specs.
 
 Section rnm.
   Context `{!diffprivGS Σ}.
@@ -25,6 +138,10 @@ Section rnm.
                else #()) ;;
               "rnm" ("i" + #1)))
       in "f" #0.
+
+
+  (* Allocate a tape for Laplace(num / den, mean). *)
+  Variable TapeLaplace : expr -> expr -> expr -> expr.
 
   Definition report_noisy_max_presampling (num den : Z) : val :=
     (* ↯ (num/den) ∗ evalQ is 1-sensitive ∗ N ∈ ℕ \ {0} ∗ 0 < num/2den ∗ dDB db db' <= 1 *)
