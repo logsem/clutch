@@ -3,6 +3,7 @@ From clutch.common Require Import inject.
 From clutch.prelude Require Import tactics.
 From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode.
+From clutch.diffpriv.examples Require Import report_noisy_max.
 
 Section rnm.
   Context `{!diffprivGS Σ}.
@@ -27,37 +28,37 @@ Section rnm.
           ! "maxI"
       in ("add_query", "release").
 
-  Definition report_noisy_max_online_lazy : val :=
-    λ:"num" "den" "evalQ" "d",
-      let: "queries" := ref [] in
+  Definition report_noisy_max_online_lazy (num den : Z) : val :=
+    λ: "evalQ" "d",
+      let: "queries" := ref list.list_nil in
       let: "add_query" :=
         λ:"i",
-          "queries" <- "i" :: !"queries" in
+          "queries" <- list.list_cons "i" !"queries" in
       let: "release" :=
         λ:"_",
           let: "evalQ'" :=
             λ:"i" "d",
-              "evalQ" (list.nth "i" !"queries") "d"
+              "evalQ" (list.list_nth "i" !"queries") "d"
           in
-          let: "N" = list.length !"queries" in
-          rnm_offline "evalQ'" "N" "d"
+          let: "N" := list.list_length !"queries" in
+          report_noisy_max num den "evalQ'" "N" "d"
       in ("add_query", "release").
 
   (* Unclear how to show that evalQ' is 1-sensitive b/c it doesn't directly use the d provided as input. *)
-  Definition report_noisy_max_online_less_lazy : val :=
+  Definition report_noisy_max_online_less_lazy (num den : Z) : val :=
     λ:"num" "den" "evalQ" "d",
-      let: "query_results" := ref [] in
+      let: "query_results" := ref list.list_nil in
       let: "add_query" :=
         λ:"i",
-          "query_results" <- ("evalQ" "i" "d") :: !"query_results" in
+          "query_results" <- list.list_cons ("evalQ" "i" "d") !"query_results" in
       let: "release" :=
         λ:"_",
           let: "evalQ'" :=
             λ:"i" "d",
-              (list.nth "i" !"query_results")
+              (list.list_nth "i" !"query_results")
           in
-          let: "N" = list.length !"query_results" in
-          rnm_offline "evalQ'" "N" "d"
+          let: "N" := list.list_length !"query_results" in
+          report_noisy_max num den "evalQ'" "N" "d"
       in ("add_query", "release").
 
   (* Given the error credits for one run of RNM, initializing oRNM provides an abstract token AUTH
