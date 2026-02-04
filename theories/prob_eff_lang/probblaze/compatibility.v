@@ -746,12 +746,79 @@ Section compatibility.
   Lemma sem_typed_load τ Γ x : 
     ⊢ sem_typed ((x, Ref τ) :: Γ) (Load x) (Load x) ⟨⟩ τ  ((x, Ref ⊤) :: Γ).
   Proof.
-    iIntros "%γ !# //= H".
-    iIntros "%γ !# //= [%v1 %v2 (%Hrw & (%w1 & %w2 & -> & -> & (%l1 & %l2 & Hl2 & Hτ)) & HΓ)]".
-    rewrite Hrw. iApply (ewpw_load with "Hl").
-    iIntros "!> Hl !>". solve_env.
+    iIntros "%γ !# //= [%vv (%Hrw & (%w1 & %w2 & %Heq1 & %Heq2 & (%l1 & %l2 & Hl1 & Hl2 & Hτ)) & HΓ)]".
+    destruct vv as (v1, v2). simpl in *. simplify_eq.
+    rewrite !lookup_fmap. rewrite Hrw //=.
+    iApply (brel_load_l with "Hl1"). iIntros "!> Hl1".
+    iApply (brel_load_r with "Hl2"). iIntros "Hl2".
+    iApply brel_value. iFrame. solve_env.
   Qed.
-  
+
+  Lemma sem_typed_load_copy τ Γ x `{! MultiT τ }:
+    ⊢ sem_typed ((x, Ref τ) :: Γ) (Load x) (Load x) ⟨⟩ τ ((x, Ref τ) :: Γ).
+  Proof.
+    iIntros "%γ !# //= [%vv (%Hrw & (%w1 & %w2 & %Heq1 & %Heq2 & (%l1 & %l2 & Hl1 & Hl2 & #Hτ)) & HΓ)]".
+    destruct vv as (v1, v2). simpl in *. simplify_eq.
+    rewrite !lookup_fmap. rewrite Hrw //=.
+    iApply (brel_load_l with "Hl1"). iIntros "!> Hl1".
+    iApply (brel_load_r with "Hl2"). iIntros "Hl2".
+    iApply brel_value. iFrame. solve_env.
+  Qed.
+
+  Lemma sem_typed_store τ κ ι ρ Γ1 Γ2 x e1 e2 :
+    ⊢ sem_typed ((x, Ref τ) :: Γ1) e1 e2 ρ ι ((x, Ref κ) :: Γ2) -∗
+    sem_typed ((x, Ref τ) :: Γ1) (x <- e1) (x <- e2) ρ 𝟙 ((x, Ref ι) :: Γ2).
+  Proof.
+    iIntros "#He !# %γ //= HΓ1 //=".
+    iApply (brel_bind [StoreRCtx _] [StoreRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    rewrite !lookup_fmap.
+    iIntros "!# % % (Hι & [%ll (%Hrw & (% & % & % & % & (%&%&Hl1&Hl2&Hκ)) & HΓ2)]) //=".
+    destruct ll as (l1', l2'). simpl in *. simplify_eq. rewrite Hrw.
+    iApply (brel_store_l with "Hl1"). iIntros "!> Hl1".
+    iApply (brel_store_r with "Hl2"). iIntros "Hl2".
+    iApply brel_value.
+    solve_env.
+  Qed.
+
+  Lemma sem_typed_alloc_cpy τ ρ Γ1 Γ2 e1 e2 :
+    ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
+    sem_typed Γ1 (ref e1) (ref e2) ρ (Refᶜ τ) Γ2.
+  Proof.
+    iIntros "#He !# %γ HΓ1 //=".
+    iApply (brel_bind [AllocNRCtx _] [AllocNRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (Hτ & HΓ2) /=".
+    iApply brel_alloc_l. iIntros (l1) "!> Hl1".
+    iApply brel_alloc_r. iIntros (l2) "Hl2".
+    iApply fupd_brel.
+    iMod (inv_alloc (tyN.@(l1,l2)) _
+            (∃ w1 w2, l1 ↦ w1 ∗ l2 ↦ₛ w2 ∗ τ w1 w2)%I with "[Hl1 Hl2 Hτ]") as "#Hinv".
+    { iExists _,_. by iFrame. }
+    iModIntro.
+    iApply brel_value.
+    iFrame. iExists l1, l2.
+    by auto.
+  Qed. 
+
+  Lemma sem_typed_load_cpy τ ρ Γ1 Γ2 e1 e2 `{! MultiT τ } :
+    ⊢ sem_typed Γ1 e1 e2 ρ (Refᶜ τ) Γ2 -∗
+    sem_typed Γ1 (Load e1) (Load e2) ρ τ Γ2.
+  Proof.
+    iIntros "#He %γ !# //= HΓ1".
+    iApply (brel_bind [LoadCtx] [LoadCtx]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % ((%l1 & %l2 & -> & -> & #Hinv) & HΓ2) //=".
+    iApply (brel_atomic_l _ []).
+    iIntros (K') "Hj".
+    iMod (inv_acc _ (tyN.@(l1,l2)) with "Hinv") as "[(%&%&>Hl1&>Hl2&#Hτ) Hclose]"; first done.
+    iModIntro. iApply spec_update_wp.
+    iMod (step_load with "[$Hj $Hl2]") as "[Hj Hl2]". iModIntro.
+    iApply (wp_load with "Hl1"). iIntros "!> Hl1".
+    iMod ("Hclose" with "[Hl1 Hl2]") as "_"; [iExists _,_; by iFrame|].
+    iModIntro. iExists _. iFrame. simpl.
+    iApply brel_value. by iFrame.
+  Qed.
   
   (* Effect allocation rule *)
   (* TODO: type-related rules -- figure out where to place these *)

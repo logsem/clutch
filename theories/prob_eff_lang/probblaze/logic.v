@@ -2830,6 +2830,29 @@ Section blaze_rules.
     iMod "H". iApply ("H" with "Hvalid [//]").
   Qed.
 
+  (* from approxis *)
+  Lemma brel_atomic_l (E' : coPset) K e1 t X R
+    (Hatomic : Atomic StronglyAtomic e1) :
+    (∀ K', ⤇ fill K' t ={⊤, E'}=∗
+             WP e1 @ E' {{ v,
+              |={E', ⊤}=> ∃ t', ⤇ fill K' t' ∗
+              BREL fill K (of_val v) ≤ t' <| X |> {{R}} }})%I
+   ⊢ BREL fill K e1 ≤ t <|X|> {{R}}.
+  Proof.
+    iIntros "H #Hvalid %Hdistinct".
+    iApply rel_atomic_l.
+    iIntros (K') "Hj".
+    iMod ("H" with "Hj") as "H".
+    iModIntro.
+    iDestruct (wp_frame_r with "[H Hvalid]") as "Hwp".
+    { iFrame. iApply "Hvalid". }
+    iApply wp_mono; [|done].
+    iIntros (v) "H". iApply fupd_mono.
+    2 : { by iDestruct (fupd_frame_r with "H") as "H". }
+    iIntros "[[% (Hj & Hbrel)] #Hvalid]".
+    iExists _. iFrame. by iApply "Hbrel".
+  Qed.
+
   Lemma brel_pure_step_later `{!probblazeGS Σ} e1 e1' e2 φ n L R :
     PureExec φ n e1 e1' →
     φ →
