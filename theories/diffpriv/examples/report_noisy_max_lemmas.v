@@ -6,6 +6,7 @@ From clutch.diffpriv Require Import distance.
 
 Set Default Proof Using "Type".
 
+(** list_Z_max *)
 (* x is index we are recursing
    a is prev largest value
    i is index of prev largest value
@@ -44,7 +45,33 @@ Proof.
     destruct!/=; right; lia.
   - unshelve epose proof IHl (x+1) a0 i _; first lia.
     destruct!/=; lia.
-Qed. 
+Qed.
+
+Lemma pw_list_Z_max_bound' l x a i:
+  i<x ->
+  list_Z_max' l x a i < (x + length l).
+Proof.
+  revert x a i.
+  induction l as [|hd tl IHl].
+  - simpl. intros. lia.
+  - simpl.
+    intros. 
+    case_bool_decide.
+    + eapply Nat.lt_le_trans; first apply IHl; lia.
+    + eapply Nat.lt_le_trans; first apply IHl; lia.
+Qed.
+
+Lemma list_Z_max_bound l:
+  0<length l->
+  list_Z_max l < length l.
+Proof.
+  intros.
+  destruct l as [|z l]; first (simpl in *; lia).
+  rewrite /list_Z_max.
+  simpl.
+  rewrite bool_decide_eq_false_2; last lia.
+  eapply Nat.lt_le_trans; first apply pw_list_Z_max_bound'; lia.
+Qed.   
 
 Lemma pw_list_Z_max_after l l' x j a a' i i':
   i<= x->
@@ -218,7 +245,7 @@ Proof.
 Qed. 
   
   
-Definition pw_list_Z_max_correct l l' z (j:nat):
+Lemma pw_list_Z_max_correct l l' z (j:nat):
   length l > 0 ->
   length l = length l' -> 
   (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
@@ -240,4 +267,114 @@ Proof.
     simpl in *. by simplify_eq.
   - unshelve epose proof H3 (_,_) _ as K; last apply K.
     rewrite elem_of_cons. naive_solver.
+Qed. 
+
+(** laplace_map *)
+Fixpoint laplace_map num den (Hproof:(0<IZR num / IZR den)%R) (l:list Z) :=
+  match l with
+  | [] => dret []
+  | loc::l' =>
+      dbind (λ z,
+               dbind (λ zs, dret (z::zs)) (laplace_map num den Hproof l')
+        ) (laplace_rat num den loc Hproof)
+  end.
+
+Lemma laplace_map_pos num den Hproof l zs:
+  (laplace_map num den Hproof l zs > 0)%R ->
+  length zs = length l.
+Proof.
+  revert zs.
+  induction l as [|?? IHl]; intros zs; simpl; intros H; inv_distr; first done.
+  erewrite <-IHl; last done. done.
+Qed.
+
+Lemma laplace_map_mass num den Hproof l :
+  (SeriesC (laplace_map num den Hproof l) =1)%R.
+Proof.
+  induction l as [|? ? IHl]; first (simpl; solve_distr_mass).
+  simpl.
+  setoid_rewrite dbind_mass.
+  erewrite SeriesC_ext; last first.
+  { intros. rewrite dbind_mass.
+    erewrite SeriesC_ext; last first.
+    - intros. rewrite dret_mass.
+      by rewrite Rmult_1_r.
+    - rewrite IHl. by rewrite Rmult_1_r.
+  }
+  solve_distr_mass.
+Qed.
+
+Lemma ineq_convert num den:
+  (0 < IZR num / IZR (2 * den))%R ->
+  (0 < IZR num / IZR (den))%R.
+Proof.
+  intros.
+  rewrite mult_IZR in H. 
+  rewrite Rdiv_mult_distr in H. lra.
+Qed. 
+
+
+Lemma laplace_map_pw num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R) j:
+  length l = length l' ->
+  (length l > 0)%nat ->
+  (j<length l)%nat->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
+  DPcoupl (laplace_map num den (ineq_convert _ _ Hproof) l)
+    (laplace_map num den (ineq_convert _ _ Hproof) l')
+    (λ zs zs',
+       length zs > 0 /\
+       length zs = length zs' /\
+       (∀ p, p ∈ zip_with (λ x y, (x,y)) zs zs' -> (dZ p.1 p.2 <= 1)%R) /\
+       ∃ (z: Z),
+         zs!!j=Some z /\ zs' !!j = Some (z+1)%Z
+    ) (IZR num / IZR den) 0.
+Proof.
+Admitted. 
+
+Lemma laplace_map_correct' num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
+  length l = length l' ->
+  (length l > 0)%nat ->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
+  DPcoupl (laplace_map num den (ineq_convert _ _ Hproof) l)
+    (laplace_map num den (ineq_convert _ _ Hproof) l')
+    (λ zs zs', list_Z_max zs = list_Z_max zs'
+    ) (IZR num / IZR den) 0.
+Proof.
+  intros Ha Hb Hc.
+  replace 0%R with (SeriesC (λ (x:nat), 0)); last by apply SeriesC_0.
+  apply DPcoupl_pweq'.
+  - pose proof (ineq_convert _ _ Hproof) as K. lra.
+  - done.
+  - apply ex_seriesC_0.
+  - intros j.
+    destruct (decide (j<length l)); last first.
+    {
+      eapply DPcoupl_mono; last eapply DPcoupl_pos_R; last eapply DPcoupl_trivial; try done.
+      - simpl. intros ? ? [? [?%laplace_map_pos ?]].
+        intros. subst.
+        unshelve epose proof list_Z_max_bound x _; lia.
+      - left. by apply ineq_convert.
+      - apply laplace_map_mass.
+      - apply laplace_map_mass.
+    }
+    eapply DPcoupl_mono; last eapply DPcoupl_pos_R; last eapply laplace_map_pw; try done.
+    simpl.
+    intros ?? [H [Hlen%laplace_map_pos Hlen'%laplace_map_pos]]?.
+    destruct H as [H1 [H2 [H3 [z [H4 H5]]]]].
+    by eapply pw_list_Z_max_correct.
+Qed. 
+
+Lemma laplace_map_correct num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
+  length l = length l' ->
+  (length l > 0)%nat ->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
+  DPcoupl (laplace_map num den (ineq_convert _ _ Hproof) l)
+    (laplace_map num den (ineq_convert _ _ Hproof) l')
+    (λ zs zs', length zs = length zs' /\ (length zs > 0)%nat /\
+               list_Z_max zs = list_Z_max zs'
+    ) (IZR num / IZR den) 0.
+Proof.
+  intros.
+  eapply DPcoupl_mono; last (eapply DPcoupl_pos_R; eapply laplace_map_correct'); try done.
+  intros ??[?[?%laplace_map_pos ?%laplace_map_pos]]. lia.
 Qed. 
