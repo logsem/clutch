@@ -360,8 +360,7 @@ Proof.
     eapply DPcoupl_mono; last eapply DPcoupl_pos_R; last eapply laplace_map_pw; try done.
     simpl.
     intros ?? [H [Hlen%laplace_map_pos Hlen'%laplace_map_pos]]?.
-    destruct H as [H1 [H2 [H3 [z [H4 H5]]]]].
-    by eapply pw_list_Z_max_correct.
+    destruct!/=. eapply pw_list_Z_max_correct; naive_solver.
 Qed. 
 
 Lemma laplace_map_correct num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
