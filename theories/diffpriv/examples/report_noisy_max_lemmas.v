@@ -31,9 +31,13 @@ Proof.
   revert x a i.
   induction l; first naive_solver.
   simpl.
-  intros.
+  intros x a0 i ?.
   case_bool_decide.
-Admitted. 
+  - unshelve epose proof IHl (x+1) a x _; first lia.
+    destruct!/=; right; lia.
+  - unshelve epose proof IHl (x+1) a0 i _; first lia.
+    destruct!/=; lia.
+Qed. 
 
 Lemma pw_list_Z_max_after l l' x j a a' i:
   i<= x->
@@ -53,19 +57,49 @@ Proof.
   case_bool_decide.
   { unshelve epose proof pw_list_Z_max_bound l (x+1) z x _; lia. }
   apply dZ_bounded_cases in H2 as H5.
-  rewrite bool_decide_eq_false_2; last first.
-  { unshelve epose proof H (z, z') _ as K; first (rewrite elem_of_cons; naive_solver).
-    apply dZ_bounded_cases in K.
-    simpl in *.
+  case_bool_decide.
+  - unshelve epose proof pw_list_Z_max_bound l (x+1) a i _ as H7; first lia.
+    destruct!/=; last lia.
+    exfalso.
+    apply H1 in H7.
     subst.
-    admit. 
-  }
-  eapply IHl; try done; try lia.
-  intros.
-  apply H.
-  rewrite elem_of_cons. naive_solver.
+    unshelve epose proof H (z, z') _ as H4; first (rewrite elem_of_cons; naive_solver).
+    apply dZ_bounded_cases in H4. simpl in *. lia.
+  - eapply IHl; try done; try lia.
+    intros.
+    apply H.
+    rewrite elem_of_cons. naive_solver.
+Qed.
+
+Lemma pw_list_Z_max_current l l' j a a' i z z':
+  i<= j->
+  length l = length l' ->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
+  (z+1=z')%Z ->
+  (i=j -> a+1=a')%Z ->
+  (dZ a a' <=1)%R ->
+  list_Z_max' (z::l) j a i = j ->
+  list_Z_max' (z'::l') j a' i = j.
+Proof.
+  intros H1 H2 H3 H4 H5 H6. subst.
+  apply dZ_bounded_cases in H6 as H7.
+  simpl. 
+  intros H.
+  case_bool_decide.
+  - rewrite bool_decide_eq_true_2; last lia.
+    eapply pw_list_Z_max_after; last first; try done; try lia.
+    rewrite /dZ/=.
+    replace (_-_)%Z with (-1)%Z by lia.
+    by rewrite Rabs_Ropp Rabs_R1.
+  - case_bool_decide.
+    + rewrite Nat.le_lteq in H1. destruct H1 as []; last first.
+      * unshelve epose proof H5 _; lia.
+      * admit.
+    + eapply pw_list_Z_max_after; last first; try done; lia.
 Admitted. 
-    
+
+
+
 
 
 (* Definition list_Z_max l := *)
