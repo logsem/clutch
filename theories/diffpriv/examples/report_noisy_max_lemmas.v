@@ -94,9 +94,12 @@ Proof.
   - case_bool_decide.
     + rewrite Nat.le_lteq in H1. destruct H1 as []; last first.
       * unshelve epose proof H5 _; lia.
-      * admit.
+      * unshelve epose proof pw_list_Z_max_bound l (j+1) a i _ as H8; first lia.
+        destruct H8; last lia.
+        assert (i=j) as -> by congruence.
+        lia.
     + eapply pw_list_Z_max_after; last first; try done; lia.
-Admitted. 
+Qed. 
 
 
 
