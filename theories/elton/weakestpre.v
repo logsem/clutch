@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From clutch.bi Require Export weakestpre.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.prob Require Export couplings distribution graded_predicate_lifting.
-From clutch.delay_prob_lang Require Import lang urn_subst metatheory urn_erasable.
+From clutch.delay_prob_lang Require Import lang urn_subst metatheory urn_erasable preserve_atomicity.
 From clutch.common Require Export language.
 
 (** This file contains the definition of the weakest precondition of elton *)
@@ -654,8 +654,8 @@ Section modalities.
       iPureIntro.
       epose proof urns_f_distr_witness _ as [? H'].
       apply H1 in H'.
-      admit. 
-  Admitted. 
+      by eapply value_promote_preserves_atomicity.
+  Qed.
   
   (* Lemma state_step_coupl_state_step α σ1 Z (ε ε' : nonnegreal) : *)
   (*   α ∈ get_active σ1 → *)
