@@ -230,7 +230,16 @@ Qed.
 Lemma subst_map_is_closed_empty e vs : is_closed_expr ∅ e → subst_map vs e = e.
 Proof. intros. apply subst_map_is_closed with (∅ : stringset); set_solver. Qed.
 
-
+Lemma fill_to_val K e:
+  is_Some (to_val (fill K e)) -> K= [].
+Proof.
+  revert e.
+  destruct K as [|K1 K2] using rev_ind; first done.
+  simpl. 
+  intros e. simpl. rewrite fill_app.
+  simpl.
+  destruct K1, (fill K2 e); simpl; by intros [].
+Qed. 
 
 (** Lemma for resolving an urn. To be improved to allow partial resolvement *)
 Lemma urns_f_distr_split (m:gmap loc urn) u s:

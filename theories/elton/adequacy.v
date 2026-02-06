@@ -127,9 +127,28 @@ Section adequacy.
         intros ?? H'.
         etrans; first exact.
         by erewrite <-urn_erasable_same_support_set.
-    - iDestruct "H" as "(%K&%v1&%v2&%P&%H1&%H2&H3)".
-      admit. 
-  Admitted. 
+    - iDestruct "H" as "(%K&%v1&%v2&%H1&%H2&H3)".
+      iMod "H3" as "[H3 _]".
+      epose proof urns_f_distr_witness _ as [f H'].
+      apply H2 in H'.
+      unshelve epose proof fill_to_val K (Val v1) _ as ->; first by rewrite -H1.
+      simpl in *. simplify_eq. 
+      erewrite (distr_ext (dbind _ _)); first iApply "H3"; try done.
+      + iPureIntro.
+        apply is_simple_val_well_constructed.
+        by eapply urn_subst_val_is_simple.
+      + iPureIntro.
+        erewrite is_simple_val_support_set; first done.
+        by eapply urn_subst_val_is_simple.
+      + intros.
+        erewrite dbind_ext_right_strong; first done.
+        intros ??.
+        simpl.
+        apply dbind_ext_right'; first done.
+        rewrite H2; last done.
+        rewrite is_simple_val_urn_subst; first done.
+        by eapply urn_subst_val_is_simple.
+  Qed. 
 
   
   Lemma state_step_coupl_erasure (ε:nonnegreal) e σ ϕ n m Z:

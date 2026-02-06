@@ -74,10 +74,10 @@ Section modalities.
             ⌜urn_erasable μ σ1.(urns)⌝ ∗
             ∀ m', |={∅}=> Φ (e, state_upd_urns (λ _, m') σ1, ε2 m')
         ) ∨
-        (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
+        (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v',
             ⌜e = fill K (Val v)⌝ ∗
             ⌜∀ f, (urns_f_distr (urns σ1) f > 0)%R -> urn_subst_val f v = Some v' ⌝ ∗
-            (P ={∅}=∗ Φ (fill K (Val v'), σ1, ε))
+            (|={∅}=> Φ (fill K (Val v'), σ1, ε))
         )
     )%I.
 
@@ -93,7 +93,7 @@ Section modalities.
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros ([[]?]) "[H|[?|[H|[(%&%&%&%&%&H)|(%&%&%&%&%&%&H)]]]]".
+    iIntros ([[]?]) "[H|[?|[H|[(%&%&%&%&%&H)|(%&%&%&%&%&H)]]]]".
     - by iLeft.
     - iRight; by iLeft.
     - iRight; iRight; iLeft.
@@ -107,9 +107,8 @@ Section modalities.
       iApply "Hwand".
       by iApply "H".
     - repeat iRight.
-      iExists _, _, _, _. repeat iSplit; try done.
+      iExists _, _, _. repeat iSplit; try done.
       iFrame.
-      iIntros "?".
       by iApply "Hwand".
   Qed.
 
@@ -127,10 +126,10 @@ Section modalities.
             ⌜urn_erasable μ σ1.(urns)⌝ ∗
             ∀ m', |={∅}=> state_step_coupl e (state_upd_urns (λ _, m') σ1) (ε2 m') Z
          ) ∨
-         (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
+         (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v',
             ⌜e = fill K (Val v)⌝ ∗
             ⌜∀ f, (urns_f_distr (urns σ1) f > 0)%R -> urn_subst_val f v = Some v' ⌝ ∗
-            (P ={∅}=∗ state_step_coupl (fill K (Val v'))  σ1 ε Z)
+            (|={∅}=> state_step_coupl (fill K (Val v'))  σ1 ε Z)
         )
       )%I.
   Proof. rewrite /state_step_coupl /state_step_coupl' least_fixpoint_unfold //. Qed.
@@ -171,10 +170,10 @@ Section modalities.
   Proof. iIntros "H". rewrite state_step_coupl_unfold. do 3 iRight. iLeft. done. Qed.
 
   Lemma state_step_coupl_value_promote e σ1 (ε : nonnegreal) Z:
-     (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
+     (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v',
             ⌜e = fill K (Val v)⌝ ∗
             ⌜∀ f, (urns_f_distr (urns σ1) f > 0)%R -> urn_subst_val f v = Some v' ⌝ ∗
-            (P ={∅}=∗ state_step_coupl (fill K (Val v')) σ1 ε Z)
+            (|={∅}=> state_step_coupl (fill K (Val v')) σ1 ε Z)
      ) ⊢
      state_step_coupl e σ1 ε Z.
   Proof.
@@ -413,10 +412,9 @@ Section modalities.
       iMod "H" as "[IH _]".
       by iApply "IH".
     - iApply state_step_coupl_value_promote.
-      iDestruct "H" as "(%&%&%&%P&%&%&H2)".
-      iExists _, _, _, P. repeat iSplit; try done.
-      iIntros "HP".
-      iMod ("H2" with "[$HP]") as "[H2 _]".
+      iDestruct "H" as "(%&%&%&%&%&H2)".
+      iExists _, _, _. repeat iSplit; try done.
+      iMod ("H2") as "[H2 _]".
       by iApply "H2".
   Qed.
 
@@ -466,12 +464,11 @@ Section modalities.
       iDestruct ("H" $! x) as "H".
       iMod ("H") as "[H _]".
       by iApply "H".
-    - iDestruct "H" as "(%&%&%&%P&%&%&H2)".
+    - iDestruct "H" as "(%&%&%&%&%&H2)".
       iApply state_step_coupl_value_promote.
-      iExists _, _, _, P.
+      iExists _, _, _.
       repeat iSplit; try done.
-      iIntros "HP".
-      iMod ("H2" with "[$]") as "[H2 _]".
+      iMod ("H2") as "[H2 _]".
       by iApply "H2".
   Qed.
 
@@ -535,14 +532,13 @@ Section modalities.
            simpl.
            intros. etrans; first exact.
            by erewrite <-urn_erasable_same_support_set.
-    - iDestruct "H" as "(%&%&%&%P&%&%H1&H2)".
+    - iDestruct "H" as "(%&%&%&%&%H1&H2)".
       iApply state_step_coupl_value_promote.
       subst.
-      repeat iExists _, _, _, P.
+      repeat iExists _, _, _.
       iFrame.
       repeat iSplit; try done.
-      iIntros "HP".
-      iMod ("H2" with "[$]") as "[H2 _]".
+      iMod ("H2") as "[H2 _]".
       iApply ("H2"); iPureIntro; try done.
       + rewrite !is_well_constructed_fill in He *.
         rewrite !andb_true_iff in He *.
@@ -582,14 +578,14 @@ Section modalities.
       iApply state_step_coupl_rec.
       repeat iExists _; repeat iSplit; try done.
       iIntros. by iMod ("H" $! _) as "[H _]".
-    - iDestruct "H" as "(%&%&%&%P&%&%&H2)".
+    - iDestruct "H" as "(%&%&%&%&%&H2)".
       subst.
       iApply state_step_coupl_value_promote.
-      iExists (comp_ectx K _), _, _, P.
+      iExists (comp_ectx K _), _, _.
       repeat iSplit; try done; try iFrame.
       + by rewrite fill_app.
       + rewrite fill_app.
-        iIntros "HP". by iMod ("H2" with "[$]") as "[$ _]".
+        by iMod ("H2") as "[$ _]".
   Qed.
 
   Lemma state_step_coupl_preserve_to_val e1 σ1 ε Z:
@@ -610,12 +606,12 @@ Section modalities.
         iApply state_step_coupl_rec.
         repeat iExists _; repeat iSplit; try done.
         iIntros. by iMod ("H" $! _) as "[H _]".
-      + iDestruct "H" as "(%&%v&%v'&%P&%&%&H2)".
+      + iDestruct "H" as "(%&%v&%v'&%&%&H2)".
         subst.
         iApply state_step_coupl_value_promote.
-        iExists _, _, _, P. 
+        iExists _, _, _. 
         repeat iSplit; try done; try iFrame.
-        iIntros "HP". iMod ("H2" with "[$]") as "[H2 _]".
+        iMod ("H2") as "[H2 _]".
         assert (ssrbool.isSome$ to_val (fill K (Val v')) = ssrbool.isSome $ to_val (fill K (Val (v)))) as Hrewrite; last by rewrite Hrewrite.
         simpl.
         destruct K as [|e]; simpl; first done.
@@ -648,17 +644,17 @@ Section modalities.
       repeat iExists _; repeat iSplit; try done.
       iIntros. iMod ("H" $! _) as "[H _]".
       by iApply "H".
-    - iDestruct "H" as "(%&%v&%v'&%P&%&%H1&H2)".
+    - iDestruct "H" as "(%&%v&%v'&%&%H1&H2)".
       subst.
       iApply state_step_coupl_value_promote.
-      iExists _, _, _, P.
+      iExists _, _, _.
       repeat iSplit; try done; try iFrame.
-      iIntros "HP".
-      iMod ("H2" with "[$]") as "[H _]".
+      iMod ("H2") as "[H _]".
       iApply "H".
       iPureIntro.
       epose proof urns_f_distr_witness _ as [? H'].
       apply H1 in H'.
+      admit. 
   Admitted. 
   
   (* Lemma state_step_coupl_state_step α σ1 Z (ε ε' : nonnegreal) : *)

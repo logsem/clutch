@@ -318,7 +318,7 @@ Proof.
   iApply fupd_mask_intro; first set_solver.
   iIntros "Hclose".
   iApply state_step_coupl_value_promote.
-  iExists [], v, v', P.
+  iExists [], v, v'.
   simpl.
   repeat iSplit; last iFrame; first done.
   { rewrite rupd_unseal/rupd_def.
@@ -327,8 +327,9 @@ Proof.
     intros ? H'.
     apply K in H'. by destruct!/=.
   }
+  rewrite rupd_unseal/rupd_def.
+  iDestruct ("H1" with "[$]") as "[_ [HP Hstate]]".
   iFrame.
-  iIntros "HP".
   iApply state_step_coupl_ret.
   iFrame.
   iModIntro.
