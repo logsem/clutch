@@ -1,0 +1,50 @@
+From Stdlib Require Import Reals Psatz.
+From iris.proofmode Require Import base proofmode classes.
+From iris.base_logic Require Export invariants lib.ghost_map lib.cancelable_invariants.
+From iris.bi.lib Require Import fractional.
+From iris.prelude Require Import options.
+
+From clutch.common Require Export language ectx_language.
+From clutch.prob_lang Require Export lang notation.
+From clutch.eris Require Export weakestpre total_weakestpre lang_completeness proofmode derived_laws.
+From clutch.prob Require Import distribution.
+
+Section completeness.
+  Context `{!erisGS Σ}.
+
+  Definition heap_inv (σ : state) : iProp Σ :=
+    ([∗ map] ℓ↦v ∈ σ.(heap),  ℓ ↦ v) 
+  ∗ ([∗ map] ι↦α ∈ σ.(tapes), ι ↪ α).
+
+  Lemma wp_base_completeness e1 σ E :
+    head_reducible e1 σ →
+    heap_inv σ ={E}=∗
+    (⌜Atomic StronglyAtomic e1⌝ ∗ heap_inv σ ∗ (heap_inv σ -∗ ∀ Φ, ((▷ ∀ v2 σ' ,
+      ⌜prim_step e1 σ ((Val v2),σ') > 0⌝ -∗
+      heap_inv σ' ==∗
+      (heap_inv σ' ∗ (heap_inv σ' -∗ Φ v2))) -∗
+      WP e1 @ E {{ v, Φ v}}))) ∨
+    (heap_inv σ ∗ ∀ Ψ E2, ((▷ |={E2,E}=> ∃ σ1, heap_inv σ1 ∗
+      ∀ e2 σ1',
+      ⌜prim_steps e1 σ1 e2 σ1'⌝ -∗
+      heap_inv σ1' ={E,E2}=∗
+      (WP e2 @ E2 {{v, Ψ (of_val v)}}))) -∗
+      WP e1 @ E2 {{v, Ψ (of_val v)}}).
+  Proof.
+    iIntros (((?&?)&?)) "Hinv".
+    rewrite head_step_support_equiv_rel in H.
+    pose proof H as Hhs.
+    rewrite -head_step_support_equiv_rel in Hhs.
+    iInduction H as [] "IH"; simplify_eq; 
+    try (iRight;
+      iModIntro; iFrame "Hinv"; iIntros (Ψ E2) "H"; wp_pure; (try iApply fupd_wp);
+      iMod "H" as "(%σ1&Hinv&HH)"; 
+      iMod ("HH" with "[] Hinv"); first (iPureIntro; eapply prim_steps_step; [|apply prim_steps_refl]; simpl; rewrite head_prim_step_eq //=;
+        rewrite dret_1_1; [lra|reflexivity]); by rewrite pgl_wp_value_fupd).
+    11 : {
+      
+    }
+  Admitted.
+
+
+End completeness.
