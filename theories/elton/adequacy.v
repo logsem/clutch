@@ -237,8 +237,38 @@ Section adequacy.
         intros ?? H'.
         etrans; first exact.
         by erewrite <-urn_erasable_same_support_set.
-    - admit.
-  Admitted. 
+    - iDestruct "H" as "(%K&%v1&%v2&%H1&%H2&H3)".
+      subst.
+      iMod "H3" as "[H3 _]".
+      epose proof urns_f_distr_witness _ as [f H'].
+      apply H2 in H' as H''.
+      iDestruct ("H3" with "[$][][][][]") as "H3".
+      + iPureIntro.
+        rewrite !is_well_constructed_fill in He *.
+        rewrite !andb_true_iff in He *.
+        destruct!/=. split; last done.
+        apply is_simple_val_well_constructed.
+        by eapply urn_subst_val_is_simple.
+      + iPureIntro.
+        rewrite !support_set_fill in Hset *.
+        simpl.
+        erewrite is_simple_val_support_set; first set_solver.
+        by eapply urn_subst_val_is_simple.
+      + done.
+      + done.
+      + erewrite (distr_ext (dbind _ _)); first iApply "H3"; try done.
+        intros.
+        erewrite dbind_ext_right_strong; first done.
+        intros ? H.
+        apply H2 in H.
+        simpl.
+        apply dbind_ext_right'; first done.
+        rewrite !urn_subst_expr_fill.
+        simpl.
+        rewrite H.
+        rewrite is_simple_val_urn_subst; first done.
+        by eapply urn_subst_val_is_simple.
+  Qed. 
 
   Lemma prog_coupl_erasure (ε:nonnegreal) e σ ϕ n m Z:
     is_well_constructed_expr e = true ->
