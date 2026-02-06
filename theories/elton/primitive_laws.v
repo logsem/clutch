@@ -320,9 +320,14 @@ Proof.
   iApply state_step_coupl_value_promote.
   iExists [], v, v', P.
   simpl.
+  repeat iSplit; last iFrame; first done.
+  { rewrite rupd_unseal/rupd_def.
+    iDestruct ("H1" with "[$]") as  "[%K ?]".
+    iPureIntro.
+    intros ? H'.
+    apply K in H'. by destruct!/=.
+  }
   iFrame.
-  iSplit; first done.
-  iSplit; first done.
   iIntros "HP".
   iApply state_step_coupl_ret.
   iFrame.

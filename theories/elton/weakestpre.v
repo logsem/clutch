@@ -76,8 +76,7 @@ Section modalities.
         ) ∨
         (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
             ⌜e = fill K (Val v)⌝ ∗
-            ⌜is_simple_val v' = true ⌝ ∗
-            rupd (λ x,x=v') P v ∗
+            ⌜∀ f, (urns_f_distr (urns σ1) f > 0)%R -> urn_subst_val f v = Some v' ⌝ ∗
             (P ={∅}=∗ Φ (fill K (Val v'), σ1, ε))
         )
     )%I.
@@ -94,7 +93,7 @@ Section modalities.
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros ([[]?]) "[H|[?|[H|[(%&%&%&%&%&H)|(%&%&%&%&%&%&?&H)]]]]".
+    iIntros ([[]?]) "[H|[?|[H|[(%&%&%&%&%&H)|(%&%&%&%&%&%&H)]]]]".
     - by iLeft.
     - iRight; by iLeft.
     - iRight; iRight; iLeft.
@@ -111,7 +110,6 @@ Section modalities.
       iExists _, _, _, _. repeat iSplit; try done.
       iFrame.
       iIntros "?".
-      iMod ("H" with "[$]").
       by iApply "Hwand".
   Qed.
 
@@ -131,8 +129,7 @@ Section modalities.
          ) ∨
          (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
             ⌜e = fill K (Val v)⌝ ∗
-            ⌜is_simple_val v' = true ⌝ ∗
-            rupd (λ x,x=v') P v ∗
+            ⌜∀ f, (urns_f_distr (urns σ1) f > 0)%R -> urn_subst_val f v = Some v' ⌝ ∗
             (P ={∅}=∗ state_step_coupl (fill K (Val v'))  σ1 ε Z)
         )
       )%I.
@@ -176,8 +173,7 @@ Section modalities.
   Lemma state_step_coupl_value_promote e σ1 (ε : nonnegreal) Z:
      (∃ (K:ectx (d_prob_ectx_lang)) (v: val d_prob_lang) v' P,
             ⌜e = fill K (Val v)⌝ ∗
-            ⌜is_simple_val v' = true ⌝ ∗
-            rupd (λ x,x=v') P v ∗
+            ⌜∀ f, (urns_f_distr (urns σ1) f > 0)%R -> urn_subst_val f v = Some v' ⌝ ∗
             (P ={∅}=∗ state_step_coupl (fill K (Val v')) σ1 ε Z)
      ) ⊢
      state_step_coupl e σ1 ε Z.
@@ -417,11 +413,10 @@ Section modalities.
       iMod "H" as "[IH _]".
       by iApply "IH".
     - iApply state_step_coupl_value_promote.
-      iDestruct "H" as "(%&%&%&%&%&%&H1&H2)".
-      repeat iExists _. repeat iSplit; try done.
-      iFrame.
+      iDestruct "H" as "(%&%&%&%P&%&%&H2)".
+      iExists _, _, _, P. repeat iSplit; try done.
       iIntros "HP".
-      iMod ("H2" with "[$]") as "[H2 _]".
+      iMod ("H2" with "[$HP]") as "[H2 _]".
       by iApply "H2".
   Qed.
 
@@ -471,11 +466,10 @@ Section modalities.
       iDestruct ("H" $! x) as "H".
       iMod ("H") as "[H _]".
       by iApply "H".
-    - iDestruct "H" as "(%&%&%&%&%&%&H1&H2)".
+    - iDestruct "H" as "(%&%&%&%P&%&%&H2)".
       iApply state_step_coupl_value_promote.
-      repeat iExists _.
+      iExists _, _, _, P.
       repeat iSplit; try done.
-      iFrame.
       iIntros "HP".
       iMod ("H2" with "[$]") as "[H2 _]".
       by iApply "H2".
@@ -541,10 +535,11 @@ Section modalities.
            simpl.
            intros. etrans; first exact.
            by erewrite <-urn_erasable_same_support_set.
-    - iDestruct "H" as "(%&%&%&%&%&%&H1&H2)".
+    - iDestruct "H" as "(%&%&%&%P&%&%H1&H2)".
       iApply state_step_coupl_value_promote.
       subst.
-      repeat iExists _. iFrame.
+      repeat iExists _, _, _, P.
+      iFrame.
       repeat iSplit; try done.
       iIntros "HP".
       iMod ("H2" with "[$]") as "[H2 _]".
@@ -552,14 +547,21 @@ Section modalities.
       + rewrite !is_well_constructed_fill in He *.
         rewrite !andb_true_iff in He *.
         split; last naive_solver.
-        admit.
+        apply is_simple_val_well_constructed.
+        destruct!/=.
+        epose proof urns_f_distr_witness _ as [? H'].
+        apply H1 in H'.
+        by eapply urn_subst_val_is_simple.
       + subst.
         rewrite support_set_fill.
         rewrite support_set_fill in Hsubset.
         etrans; last exact.
         simpl.
-        admit.
-  Admitted. 
+        rewrite is_simple_val_support_set; first set_solver.
+        epose proof urns_f_distr_witness _ as [? H'].
+        apply H1 in H'.
+        by eapply urn_subst_val_is_simple.
+  Qed. 
 
   Lemma state_step_coupl_ctx_bind K e1 σ1 Z ε:
     state_step_coupl e1 σ1 ε
@@ -580,10 +582,10 @@ Section modalities.
       iApply state_step_coupl_rec.
       repeat iExists _; repeat iSplit; try done.
       iIntros. by iMod ("H" $! _) as "[H _]".
-    - iDestruct "H" as "(%&%&%&%&%&%&H1&H2)".
+    - iDestruct "H" as "(%&%&%&%P&%&%&H2)".
       subst.
       iApply state_step_coupl_value_promote.
-      iExists (comp_ectx K _), _, _, _.
+      iExists (comp_ectx K _), _, _, P.
       repeat iSplit; try done; try iFrame.
       + by rewrite fill_app.
       + rewrite fill_app.
@@ -608,10 +610,10 @@ Section modalities.
         iApply state_step_coupl_rec.
         repeat iExists _; repeat iSplit; try done.
         iIntros. by iMod ("H" $! _) as "[H _]".
-      + iDestruct "H" as "(%&%v&%v'&%&%&%&H1&H2)".
+      + iDestruct "H" as "(%&%v&%v'&%P&%&%&H2)".
         subst.
         iApply state_step_coupl_value_promote.
-        repeat iExists _.
+        iExists _, _, _, P. 
         repeat iSplit; try done; try iFrame.
         iIntros "HP". iMod ("H2" with "[$]") as "[H2 _]".
         assert (ssrbool.isSome$ to_val (fill K (Val v')) = ssrbool.isSome $ to_val (fill K (Val (v)))) as Hrewrite; last by rewrite Hrewrite.
@@ -622,9 +624,41 @@ Section modalities.
       iIntros (???) "[$?]".
   Qed.
 
-  Lemma state_step_coupl_preserve_atomic `{!Atomic StronglyAtomic e1} σ1 ε Z :
+  Lemma state_step_coupl_preserve_atomic `{Hatomic: !Atomic StronglyAtomic e1} σ1 ε Z :
     state_step_coupl e1 σ1 ε Z ⊣⊢ state_step_coupl e1 σ1 ε (λ e2 σ2 ε2, Z e2 σ2 ε2 ∗ ⌜Atomic StronglyAtomic e2⌝).
   Proof.
+    iSplit; last first.
+    { iApply state_step_coupl_mono.
+      iIntros (???) "[$?]". }
+    iIntros "H".
+    iRevert (Hatomic).
+    iRevert (e1 σ1 ε) "H".
+    iApply state_step_coupl_ind.
+    iModIntro.
+    iIntros (e σ ε) "H".
+    iDestruct "H" as "[%|[H|[H|[H|H]]]]"; iIntros (Hatomic).
+    - iApply state_step_coupl_ret_err_ge_1. lra.
+    - iApply state_step_coupl_ret. by iFrame.
+    - iApply state_step_coupl_ampl.
+      iIntros.
+      iDestruct ("H" with "[//]") as "[H _]".
+      by iApply "H".
+    - iDestruct ("H") as "(%&%&%&%&%&H)".
+      iApply state_step_coupl_rec.
+      repeat iExists _; repeat iSplit; try done.
+      iIntros. iMod ("H" $! _) as "[H _]".
+      by iApply "H".
+    - iDestruct "H" as "(%&%v&%v'&%P&%&%H1&H2)".
+      subst.
+      iApply state_step_coupl_value_promote.
+      iExists _, _, _, P.
+      repeat iSplit; try done; try iFrame.
+      iIntros "HP".
+      iMod ("H2" with "[$]") as "[H _]".
+      iApply "H".
+      iPureIntro.
+      epose proof urns_f_distr_witness _ as [? H'].
+      apply H1 in H'.
   Admitted. 
   
   (* Lemma state_step_coupl_state_step α σ1 Z (ε ε' : nonnegreal) : *)

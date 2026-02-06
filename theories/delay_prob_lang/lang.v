@@ -2434,6 +2434,19 @@ Section urn.
      | _ => false
      end).
 
+  Lemma is_simple_base_lit_support_set bl:
+    is_simple_base_lit bl = true -> base_lit_support_set bl = ∅.
+  Proof.
+    destruct bl; naive_solver.
+  Qed.
+
+  Lemma is_simple_base_lit_type_check bl:
+    is_simple_base_lit bl = true ->
+    match base_lit_type_check bl with | Some _ => true | _ => false end = true.
+  Proof. 
+    destruct bl; naive_solver.
+  Qed.
+
   Lemma urn_subst_equal_obv σ bl:
     is_simple_base_lit bl = true -> urn_subst_equal σ bl bl.
   Proof.

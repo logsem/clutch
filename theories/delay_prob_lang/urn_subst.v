@@ -232,6 +232,22 @@ Section urn_subst.
     | DLaplaceLocCtx e1 e2 => e1' ← urn_subst_expr f e1; e2' ← urn_subst_expr f e2; Some $ LaplaceLocCtx e1' e2'
   end.
 
+  Lemma is_simple_expr_support_set e:
+    is_simple_expr e = true -> expr_support_set e = ∅.
+  Proof.
+    pose proof is_simple_base_lit_support_set.
+    apply (expr_mut (λ e, is_simple_expr e = true -> expr_support_set e = ∅)
+             (λ v, is_simple_val v = true -> val_support_set v = ∅)); simpl; repeat setoid_rewrite empty_union_L; simpl; repeat setoid_rewrite andb_true_iff; naive_solver.
+  Qed. 
+  
+  Lemma is_simple_val_support_set v:
+    is_simple_val v = true -> val_support_set v = ∅.
+  Proof.
+    pose proof is_simple_base_lit_support_set.
+    apply (val_mut (λ e, is_simple_expr e = true -> expr_support_set e = ∅)
+             (λ v, is_simple_val v = true -> val_support_set v = ∅)); simpl; repeat setoid_rewrite empty_union_L; simpl; repeat setoid_rewrite andb_true_iff; naive_solver.
+  Qed. 
+
   Lemma urn_subst_expr_is_simple f e e':
     urn_subst_expr f e = Some e' -> is_simple_expr e' = true.
   Proof.
@@ -252,6 +268,21 @@ Section urn_subst.
     - repeat erewrite FIX; naive_solver.
     - erewrite FIX; naive_solver.
     - erewrite FIX; naive_solver.
+  Qed.
+
+  Lemma is_simple_base_lit_urn_subst f bl:
+    is_simple_base_lit bl = true -> urn_subst f bl = Some bl.
+  Proof.
+    destruct bl; naive_solver.
+  Qed.
+  
+  Lemma is_simple_val_urn_subst f v:
+     is_simple_val v = true -> urn_subst_val f v = Some v.
+  Proof.
+    pose proof is_simple_base_lit_urn_subst.
+    revert v.
+    apply (val_mut (λ e, is_simple_expr e = true -> urn_subst_expr f e = Some e)
+             (λ v, is_simple_val v = true -> urn_subst_val f v = Some v)); simpl; repeat setoid_rewrite bind_Some; repeat setoid_rewrite andb_true_iff; naive_solver.
   Qed.
   
   Lemma base_lit_support_set_not_support bl f:
@@ -498,6 +529,23 @@ Definition is_well_constructed_ectx_item K :=
   | DLaplaceDenCtx e1 v3 => is_well_constructed_expr e1 && is_well_constructed_val v3
   | DLaplaceLocCtx e1 e2 => is_well_constructed_expr e1 && is_well_constructed_expr e2
   end.
+
+
+Lemma is_simple_expr_well_constructed e:
+  is_simple_expr e = true -> is_well_constructed_expr e = true.
+Proof.
+    pose proof is_simple_base_lit_type_check.
+    apply (expr_mut (λ e, is_simple_expr e = true -> is_well_constructed_expr e = true)
+             (λ v, is_simple_val v = true -> is_well_constructed_val v = true)); simpl; repeat setoid_rewrite andb_true_iff; naive_solver.
+Qed. 
+
+Lemma is_simple_val_well_constructed v:
+  is_simple_val v = true -> is_well_constructed_val v = true.
+Proof.
+    pose proof is_simple_base_lit_type_check.
+    apply (val_mut (λ e, is_simple_expr e = true -> is_well_constructed_expr e = true)
+             (λ v, is_simple_val v = true -> is_well_constructed_val v = true)); simpl; repeat setoid_rewrite andb_true_iff; naive_solver.
+Qed. 
 
 Lemma is_well_constructed_expr_false e f:
   is_well_constructed_expr e = false -> urn_subst_expr f e = None.

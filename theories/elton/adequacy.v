@@ -53,28 +53,32 @@ Section adequacy.
     iRevert (Hset Hforall1 Hforall2).
     remember (Val v) as e eqn:Heqe.
     rewrite Heqe in He.
-    iRevert (Heqe).
+    iRevert (v Heqe He).
     iRevert "H".
     iRevert (e σ ε).
     iApply state_step_coupl_ind.
     iModIntro.
-    iIntros (???) "[%|[H|[H|[H|H]]]] % %Hset %Hforall1 %Hforall2"; subst.
+    iIntros (???) "[%|[H|[H|[H|H]]]] %v -> %He %Hset %Hforall1 %Hforall2"; subst.
     - iApply step_fupdN_intro; first done.
       iPureIntro. by apply pgl_1.
-    - iMod "H" as "(?&?&[% %])".
+    - iMod "H" as "(?&?&[%Hsimple %])".
       iApply step_fupdN_intro; first done.
       iApply fupd_mask_intro; first set_solver.
       iIntros.
       iNext. 
       iPureIntro.
-      apply pgl_dbind'; first done; intros ? H1.
+      apply pgl_dbind'; first done; intros f H1.
       apply pgl_dbind'; first done; intros ? H2.
       apply pgl_dbind'; first done; intros ? H3.
       inv_distr.
-      rewrite bind_Some in H2. destruct!/=.
+      rewrite bind_Some in H2.
+      destruct H2 as [?[H2 ?]].
+      simplify_eq.
       erewrite exec_is_final; last done.
       eapply pgl_mon_grading; last apply pgl_dret; first done.
-      admit. 
+      eapply (is_simple_val_urn_subst f) in Hsimple.
+      rewrite Hsimple in H2.
+      by simplify_eq.
     - iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
       { iPureIntro.
         intros H'.
@@ -123,7 +127,8 @@ Section adequacy.
         intros ?? H'.
         etrans; first exact.
         by erewrite <-urn_erasable_same_support_set.
-    - admit.
+    - iDestruct "H" as "(%K&%v1&%v2&%P&%H1&%H2&H3)".
+      admit. 
   Admitted. 
 
   
