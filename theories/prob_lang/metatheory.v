@@ -31,6 +31,7 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | If e0 e1 e2 | Case e0 e1 e2 =>
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
   | AllocTape e => is_closed_expr X e
+  | AllocTapeLaplace e1 e2 e3 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3
   | Laplace e1 e2 e3 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3
   | Tick e => is_closed_expr X e
   end
@@ -62,6 +63,7 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | Load e => Load (subst_map vs e)
   | Store e1 e2 => Store (subst_map vs e1) (subst_map vs e2)
   | AllocTape e => AllocTape (subst_map vs e)
+  | AllocTapeLaplace e1 e2 e3 => AllocTapeLaplace (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
   | Rand e1 e2 => Rand (subst_map vs e1) (subst_map vs e2)
   | Laplace e1 e2 e3 => Laplace (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
   | Tick e => Tick (subst_map vs e)
@@ -1454,6 +1456,8 @@ Inductive prob_head_step_pred : expr -> state -> Prop :=
 | AllocTapePSP σ N z :
   N = Z.to_nat z →
   prob_head_step_pred (alloc #z) σ
+| AllocTapeLaplacePSP σ (num den mean : Z) :
+  prob_head_step_pred (AllocTapeLaplace #num #den #mean) σ
 | RandTapePSP α σ N n ns z :
   N = Z.to_nat z →
   σ.(tapes) !! α = Some ((N; n :: ns) : tape) →
@@ -1667,6 +1671,15 @@ Proof.
   by rewrite dom_insert_lookup_L.
 Qed.
 
+Lemma fresh_loc_upd_some_laplace σ α bs bs' :
+  (tapes_laplace σ) !! α = Some bs →
+  fresh_loc (tapes_laplace σ) = (fresh_loc (<[α:= bs']> (tapes_laplace σ))).
+Proof.
+  intros Hα.
+  apply fresh_loc_eq_dom.
+  by rewrite dom_insert_lookup_L.
+Qed.
+
 Lemma elem_fresh_ne {V} (ls : gmap loc V) k v :
   ls !! k = Some v → fresh_loc ls ≠ k.
 Proof.
@@ -1685,6 +1698,17 @@ Proof.
   apply elem_fresh_ne in H.
   unfold state_upd_tapes.
   by rewrite insert_commute.
+Qed.
+
+Lemma fresh_loc_upd_swap_laplace σ α bs bs' bs'' :
+  (tapes σ) !! α = Some bs →
+  state_upd_tapes_laplace <[fresh_loc (tapes_laplace σ):=bs']> (state_upd_tapes <[α:=bs'']> σ)
+  = state_upd_tapes <[α:=bs'']> (state_upd_tapes_laplace <[fresh_loc (tapes_laplace σ):=bs']> σ).
+Proof.
+  intros H.
+  apply elem_fresh_ne in H.
+  unfold state_upd_tapes.
+  simpl. reflexivity.
 Qed.
 
 Lemma fresh_loc_lookup σ α bs bs' :

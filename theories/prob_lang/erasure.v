@@ -86,6 +86,39 @@ Section erasure_helpers.
     by apply fresh_loc_lookup.
   Qed.
 
+  Local Lemma ind_case_alloc_laplace σ α N ns (num den mean : Z) K :
+    tapes σ !! α = Some (N; ns) →
+    Rcoupl
+      (dmap (fill_lift K) (head_step (AllocTapeLaplace #num #den #mean) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+      (dunifP N ≫=
+         (λ n, dmap (fill_lift K) (head_step (AllocTapeLaplace #num #den #mean) (state_upd_tapes <[α:= (N; ns ++ [n])]> σ)) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ)))
+      eq.
+  Proof using m IH.
+    intros Hα.
+    rewrite dmap_dret dret_id_left -/exec.
+    setoid_rewrite (dmap_dret (fill_lift K)).
+    erewrite (distr_ext (dunifP N ≫= _)); last first.
+    { intros. apply dbind_pmf_ext; [|done..].
+      intros. rewrite dret_id_left. done. }
+    rewrite -dmap_dbind.
+    (* TODO: fix slightly ugly hack ... *)
+    revert IH; intro IHm.
+    apply lookup_total_correct in Hα as Hαtot.
+    pose proof (elem_fresh_ne _ _ _ Hα) as Hne.
+    erewrite dbind_ext_right; last first.
+    { intros n.
+      assert
+        (fresh_loc
+           (tapes_laplace (state_upd_tapes <[α:=(N; ns ++ [n])]> σ))
+         = fresh_loc
+             (tapes_laplace σ)) as h by reflexivity.
+      rewrite !h.
+      erewrite fresh_loc_upd_swap_laplace => //.
+    }
+    apply IHm.
+    simpl. done.
+  Qed.
+
   Local Lemma ind_case_rand_some σ α α' K N M (z : Z) n ns ns' :
     N = Z.to_nat z →
     tapes σ !! α = Some (M; ns') →
@@ -357,6 +390,7 @@ Proof.
       * eapply ind_case_det; [done|done|by apply is_det_head_step_true].
       * inversion HP; simplify_eq.
         -- by eapply ind_case_alloc.
+        -- by eapply ind_case_alloc_laplace.
         -- by eapply ind_case_rand_some.
         -- by eapply ind_case_rand_empty.
         -- by eapply ind_case_rand_some_neq.
