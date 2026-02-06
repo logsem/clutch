@@ -476,7 +476,7 @@ Lemma laplace_map_correct num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R)
   (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
   DPcoupl (laplace_map num (2*den) (Hproof) l)
     (laplace_map num (2*den) (Hproof) l')
-    (λ zs zs', length zs = length zs' /\ (length zs > 0)%nat /\
+    (λ zs zs', length zs = length zs' /\ (length zs = length l)%nat /\
                list_Z_max zs = list_Z_max zs'
     ) (IZR num / IZR den) 0.
 Proof.
