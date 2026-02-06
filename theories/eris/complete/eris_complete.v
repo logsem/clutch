@@ -13,6 +13,22 @@ From clutch.pure_complete Require Export prob_additional.
 
 Local Open Scope R.
 
+
+(* From Stdlib Require Import Reals Psatz.
+From iris.proofmode Require Import base proofmode classes.
+From iris.base_logic Require Export invariants lib.ghost_map lib.cancelable_invariants.
+From iris.bi.lib Require Import fractional.
+From iris.prelude Require Import options.
+
+From clutch.common Require Export language ectx_language.
+From clutch.prob_lang Require Export lang notation.
+From clutch.eris Require Export weakestpre total_weakestpre lang_completeness proofmode derived_laws.
+From clutch.prob Require Import distribution.
+From clutch.eris.complete Require Export exec_probs.
+From clutch.pure_complete Require Export prob_additional.
+
+Local Open Scope R.
+
 Section completeness.
   Context `{!erisGS Σ}.
 
@@ -214,4 +230,4 @@ Section completeness.
 
   Admitted.
     
-End completeness.
+End completeness. *)

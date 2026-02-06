@@ -29,6 +29,8 @@ Class eris_ectx_lang_completeness_gen (Λ : ectxLanguage) (Σ : gFunctors) `{!er
   err_fin : ∀ φ (v : Λ.(val)) σ,
     err φ (of_val v, σ) < 1 →
       heap_inv σ -∗ φ v;
+  err_fill : ∀ K e σ φ , 
+    err (λ v : val Λ, WP fill K (of_val v) {{ v0, φ v0 }})%I (e, σ) = err φ (fill K e, σ) ;
 
   eris_ectx_lang_completeness :
     ∀ e1 σ E,
@@ -79,22 +81,17 @@ Section completeness.
     iModIntro. iFrame.
     iIntros (Ψ) "Hc Herr".
     iApply pgl_wp_bind. 
-    iApply ("HH" with "[Hc] [Herr]").
-    2 : admit.
+    iSpecialize ("HH" $! (λ v , WP fill K (of_val v) {{v0, Ψ v0}})%I). 
+    iApply ("HH" with "[Hc] [Herr]"); last by rewrite err_fill.
     iNext.
     iMod "Hc" as (σ1) "[Hf Hc]". iModIntro.
     iFrame "Hf". iIntros (e2 σ2) "%Hprims Hheap".
-    
-    iMod ("Hc" with "[] Hheap") as "Hc".
-    { iPureIntro. }
-
-
-    (* Search (ectx_language.prim_step _ _ _ > 0).  *)
-    
-
-
-  Admitted.
-    
+    iMod ("Hc" with "[] Hheap") as "Hc"; first by iPureIntro; eapply fill_step; eauto; apply ectx_lang_ctx.
+    iModIntro. iIntros "Herr". 
+    rewrite pgl_wp_bind_inv.
+    iApply "Hc".
+    by rewrite err_fill.
+  Qed.
 
 End completeness.
 
