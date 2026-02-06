@@ -12,6 +12,14 @@ Definition list_hd : val :=
 Definition list_tl : val :=
   λ:"xs", match: "xs" with NONE => "xs" | SOME "x_xs" => Snd "x_xs" end.
 
+Definition list_max_index_aux : val :=
+  λ:"y" "xs",
+    list_fold
+      (λ: "(y, iy, ix)" "x",
+         let, ("y", "iy", "ix") := "(y, iy, ix)" in
+         if: "y" < "x" then ("x", "ix", "ix"+#1) else ("y", "iy", "ix"+#1))
+      ("y", #0, #1) "xs".
+
 Definition list_max_index : val :=
   λ:"xs",
     match: "xs" with
@@ -19,11 +27,7 @@ Definition list_max_index : val :=
     | SOME "y_xs" =>
         let, ("y", "xs") := "y_xs" in
         let, ("_y", "iy", "_ix") :=
-          list_fold
-            (λ: "(y, iy, ix)" "x",
-               let, ("y", "iy", "ix") := "(y, iy, ix)" in
-               if: "y" < "x" then ("x", "ix", "ix"+#1) else ("y", "iy", "ix"+#1))
-            ("y", #0, #1) "xs"
+          list_max_index_aux "y" "xs"
         in "iy"
     end.
 
@@ -38,6 +42,73 @@ Definition list_init : val :=
 Section list_specs.
   Context `{invGS_gen hlc Σ} `{g : !GenWp Σ}.
   Context `[!Inject A val].
+
+  Definition List_max_index_aux y xs :=
+    List.fold_left
+      (λ '(y, iy, ix) x,
+         if (Z.ltb y x)%Z then (x, ix, ix+1)%nat else (y, iy, ix+1)%nat)
+      xs (y, 0, 1)%nat.
+
+  Definition List_max_index (xs : list Z) : nat :=
+  match xs with
+  | [] => 0%nat
+  | y :: xs =>
+      let '(_, iy, _) :=
+        List_max_index_aux y xs
+      in iy
+  end.
+
+  Lemma gwp_list_max_index_aux s E (y : Z) xs vxs :
+    G{{{ ⌜is_list xs vxs⌝ }}}
+      list_max_index_aux #y vxs @ s ; E
+                 {{{ (y' : Z) (ix iy : nat), RET (#y', #iy, #ix); ⌜(y', iy, ix) = List_max_index_aux y xs⌝}}}.
+  Proof.
+    iIntros "%post %hxs hpost".
+    rewrite /list_max_index_aux. gwp_pures.
+    gwp_apply (gwp_list_fold
+                 (λ l v, ∃ (y' : Z) (iy' ix : nat),
+                     ⌜v = (#y', #iy', #ix)%V⌝ ∗
+                     ⌜(y', iy', ix) = List_max_index_aux y l⌝ )
+                 (λ _, emp) (λ _, emp))%I.
+    2:{ repeat iSplit => //. iExists _,_,_. rewrite /List_max_index_aux /=.
+        iSplit => //. done. }
+    2:{ iIntros "%v ((%y' & %iy' & %ix' & %eq1 & %eq2) & _)".
+        rewrite eq1. iApply "hpost". done. }
+    iIntros. iIntros "%post' !> (%&(%&%&%&->&%IH)&_) hpost'".
+    simplify_eq.
+    gwp_pures.
+    rewrite /List_max_index_aux.
+    rewrite fold_left_app.
+    rewrite /List_max_index_aux in IH. rewrite -IH.
+    case_bool_decide ; gwp_pures ; iModIntro ;
+      replace (Z.of_nat ix+1)%Z with (Z.of_nat $ ix+1) by lia.
+    - iApply "hpost'". iSplit => //. iExists _,_,_. iPureIntro.
+      intuition auto => /=.
+      destruct (y' <? a)%Z eqn:h ; try apply Z.ltb_lt in h ; try lia.
+      reflexivity.
+    - iApply "hpost'". iSplit => //. iExists _,_,_. iPureIntro.
+      intuition auto => /=.
+      destruct (y' <? a)%Z eqn:h ; try apply Z.ltb_lt in h ; try lia.
+      reflexivity.
+  Qed.
+
+  Lemma gwp_list_max_index s E xs vxs :
+    G{{{ ⌜is_list xs vxs⌝ }}}
+      list_max_index vxs @ s ; E
+                 {{{ (i : nat), RET #i; ⌜i = List_max_index xs⌝}}}.
+  Proof.
+    iIntros (Φ) "%Hxs HΦ". rewrite /list_max_index.
+    gwp_pures.
+    rewrite /List_max_index.
+    destruct xs as [|y xs'].
+    { rewrite Hxs. gwp_pures.
+      replace 0%Z with (Z.of_nat 0) => //.
+      iApply "HΦ". done. }
+    destruct Hxs as (vxs' & -> & Hxs'). gwp_pures.
+    gwp_bind (list_max_index_aux _ _).
+    iApply gwp_list_max_index_aux => //.
+    iIntros "!> % % % <-". gwp_pures. by iApply "HΦ".
+  Qed.
 
   Lemma gwp_list_hd s E xs vxs :
     G{{{ ⌜is_list xs vxs⌝ ∗ ⌜0 < length xs⌝ }}}
@@ -64,56 +135,6 @@ Section list_specs.
     destruct Hxs as (? & -> & ?). gwp_pures.
     iApply "HΦ". done.
   Qed.
-
-  Definition List_max_index (xs : list Z) : nat :=
-  match xs with
-  | [] => 0%nat
-  | y :: xs =>
-      let '(_, iy, _) :=
-        List.fold_left
-          (λ '(y, iy, ix) x,
-             if (Z.ltb y x)%Z then (x, ix, ix+1)%nat else (y, iy, ix+1)%nat)
-          xs (y, 0, 1)%nat
-      in iy
-  end.
-
-  Lemma gwp_list_max_index s E xs vxs :
-    G{{{ ⌜is_list xs vxs⌝ }}}
-      list_max_index vxs @ s ; E
-                 {{{ (i : nat), RET #i; ⌜i = List_max_index xs⌝}}}.
-  Proof.
-    iIntros (Φ) "%Hxs HΦ". rewrite /list_max_index.
-    gwp_pures.
-    destruct xs as [|y xs'].
-    { rewrite Hxs. gwp_pures.
-      replace 0%Z with (Z.of_nat 0) => //.
-      iApply "HΦ". done. }
-    destruct Hxs as (vxs' & -> & Hxs'). gwp_pures.
-    gwp_bind (list_fold _ _ _).
-    iRevert (Φ vxs' Hxs') "HΦ".
-    (* post/IH not quite right; at least need to generalize. *)
-    iInduction xs' as [|x xs'] "IH" ; iIntros (Φ vxs' Hxs') "HΦ".
-    - rewrite Hxs' /list_fold. gwp_pures.
-      iModIntro. gwp_pures.
-      replace 0%Z with (Z.of_nat 0) => //.
-      iApply "HΦ". done.
-    -
-      destruct Hxs' as (vxs'' & -> & Hxs'').
-      gwp_pures.
-      gwp_lam. gwp_pures.
-      case_bool_decide.
-      + gwp_pures.
-        replace x with y at 1 by admit.
-        replace #1 with #0 at 3 by admit.
-        replace #(1+1) with #1 by admit.
-        iApply "IH".
-        1: done.
-        iIntros "%i %Hi".
-        iSpecialize ("HΦ" $! i).
-        rewrite Hi.
-        iApply "HΦ".
-  Abort.
-
 
 End list_specs.
 

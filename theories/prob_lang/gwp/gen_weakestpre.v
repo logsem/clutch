@@ -16,7 +16,7 @@ Section GenWp_mixin.
     mixin_gwp_pointsto_timeless l dq v : Timeless (gwp_pointsto l dq v);
 
     mixin_gwp_value E Φ v : Φ v ⊢ gwp E (of_val v) Φ;
-      mixin_gwp_fupd E Φ e : gwp E e (λ v, |={E}=> Φ v) ⊢ gwp E e Φ;
+    mixin_gwp_fupd E Φ e : gwp E e (λ v, |={E}=> Φ v) ⊢ gwp E e Φ;
     mixin_gwp_bind K E e Φ :
       gwp E e (λ v, gwp E (fill K (of_val v)) Φ ) ⊢ gwp E (fill K e) Φ;
     mixin_gwp_pure_step E e1 e2 φ n Φ :
