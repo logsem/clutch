@@ -362,14 +362,14 @@ Proof.
     + apply map_Forall_union_2; last done.
       intros ??.
       rewrite heap_array_lookup.
-      intros (?&?&?&H).
-      apply lookup_replicate in H.
+      intros (?&?&?&H').
+      apply lookup_replicate in H'.
       by destruct!/=. 
     + apply map_Forall_union_2; last done.
       intros ??.
       rewrite heap_array_lookup.
-      intros (?&?&?&H).
-      apply lookup_replicate in H.
+      intros (?&?&?&H').
+      apply lookup_replicate in H'.
       destruct!/=.
       set_solver.
   - repeat split; try done; first set_solver.
@@ -539,11 +539,11 @@ Inductive head_step_pred : expr → state → Prop :=
   head_step_pred (Case (Val $ InjLV v) e1 e2) σ
 | CaseRHSP v e1 e2 σ :
   head_step_pred (Case (Val $ InjRV v) e1 e2) σ
-| AllocNHSP z N v σ l :
-  l = fresh_loc σ.(heap) →
+| AllocNHSP z N v σ bl:
+  urn_subst_equal σ bl (z:Z) ->
   N = Z.to_nat z →
   (0 < N)%nat ->
-  head_step_pred (AllocN (Val (LitV (LitInt z))) (Val v)) σ
+  head_step_pred (AllocN #bl (Val v)) σ
 | LoadHSP l v σ :
   σ.(heap) !! l = Some v →
   head_step_pred (Load (Val $ LitV $ LitLoc l)) σ

@@ -358,9 +358,11 @@ Proof.
   iIntros (σ1) "[Hh Ht] !#".
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+  erewrite urn_subst_equal_epsilon_unique; last done.
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
   iFrame.
+  simpl.
   rewrite map_union_empty -insert_union_singleton_l.
   iFrame.
   iIntros "!>". by iApply "HΦ". 
@@ -388,23 +390,18 @@ Proof.
   iMod ((ghost_map_insert_big _ _ with "Hh")) as "[$ Hl]".
   iIntros "!>". iFrame. 
   iApply "HΦ".
-  iInduction (H) as [ | ?] "IH" forall (σ1).
-  - simpl.
-    iSplit; auto.
-    rewrite map_union_empty.
-    rewrite loc_add_0.
+  erewrite urn_subst_equal_epsilon_unique; last done.
+  clear.
+  iInduction (Z.to_nat z) as [ | ?] "IH" forall (σ1); first done.
+  rewrite seq_S.
+  rewrite heap_array_replicate_S_end.
+  iPoseProof (big_sepM_union _ _ _ _ with "Hl") as "[H1 H2]".
+  iApply big_sepL_app.
+  iSplitL "H1".
+  + by iApply "IH".
+  + simpl. iSplit; auto.
     by rewrite big_sepM_singleton.
-  - rewrite seq_S.
-    rewrite heap_array_replicate_S_end.
-    iPoseProof (big_sepM_union _ _ _ _ with "Hl") as "[H1 H2]".
-    iApply big_sepL_app.
-    iSplitL "H1".
-    + iApply "IH".
-      { iPureIntro. lia. }
-      iApply "H1".
-    + simpl. iSplit; auto.
-      by rewrite big_sepM_singleton.
-      Unshelve.
+    Unshelve.
       {
         apply heap_array_map_disjoint.
         intros.
@@ -417,7 +414,8 @@ Proof.
       rewrite dom_singleton.
       apply not_elem_of_singleton_2.
       intros H2.
-      apply loc_add_inj in H2.
+      apply loc_add_inj in H2. subst.
+      rename select (_<_)%Z into H1.
       rewrite length_replicate in H1.
       lia.
 Qed.

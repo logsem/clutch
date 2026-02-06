@@ -57,7 +57,7 @@ Proof.
   simpl in *.
   assert (head_step_pred e1' σ) as Hpred.
   { by rewrite head_step_pred_head_reducible. }
-  inversion Hpred as [| | | |f x e1 v2|op v ? v'|op v1 v2 ? v'| bl e1 e2 |bl e1 e2|v1 v2 |v1 v2 |v e1 e2 | v e1 e2| z N v ? l|l v|l v w|N ? z bl|N ? z bl|? z0 z1 z2 bl0 bl1 bl2|? z0 z1 z2 bl0 bl1 bl2|? z0 z1 z2 bl0 bl1 bl2|? z0 z1 z2 bl0 bl1 bl2]; subst.
+  inversion Hpred as [| | | |f x e1 v2|op v ? v'|op v1 v2 ? v'| bl e1 e2 |bl e1 e2|v1 v2 |v1 v2 |v e1 e2 | v e1 e2| z N v ? bl|l v|l v w|N ? z bl|N ? z bl|? z0 z1 z2 bl0 bl1 bl2|? z0 z1 z2 bl0 bl1 bl2|? z0 z1 z2 bl0 bl1 bl2|? z0 z1 z2 bl0 bl1 bl2]; subst.
   - (** rec *)
     repeat smash.
     rewrite fill_prim_step_dbind; last done.
@@ -216,13 +216,17 @@ Proof.
     rewrite dmap_dret//.
   - (** allocN *)
     repeat smash.
-    case_bool_decide; last lia.
-    rewrite !dret_id_left'/=.
+    case_match; last first.
+    { exfalso. naive_solver. }
+    erewrite urn_subst_equal_epsilon_unique; last done.
+    case_bool_decide; last done.
     repeat smash.
     inv_distr.
     unfolder.
     assert (∃ v', urn_subst_val a v = Some v') as [? Hrewrite] by val_exists_solver.
     rewrite Hrewrite/=.
+    rename select (urn_subst_equal _ _ _) into H.
+    rewrite H; last done.
     rewrite !dret_id_left'.
     rewrite -d_proj_Some_fmap.
     rewrite dbind_assoc'.
@@ -248,6 +252,11 @@ Proof.
       rewrite fill_prim_step_dbind; last done.
       rewrite head_prim_step_eq.
       simpl.
+      case_match; last done.
+      clear Hstep'.
+      case_match; last first.
+      { exfalso. naive_solver. }
+      erewrite urn_subst_equal_epsilon_unique; last done.
       rewrite bool_decide_eq_true_2; last done.
       smash.
       do 2 f_equal.

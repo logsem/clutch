@@ -2721,11 +2721,15 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
       dret (App e1 (Val v), σ1)
   | Case (Val (InjRV v)) e1 e2 =>
       dret (App e2 (Val v), σ1)
-  | AllocN (Val (LitV (LitInt N))) (Val v) =>
+  | AllocN (Val (LitV bl)) (Val v) =>
       let ℓ := fresh_loc σ1.(heap) in
-      if bool_decide (0 < Z.to_nat N)%nat
-        then dret (Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1)
-        else dzero
+      match excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl (LitInt N)) with
+      | left P => let N := epsilon P in
+                 if bool_decide (0 < Z.to_nat N)%nat
+                 then dret (Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1)
+                 else dzero
+      | _ => dzero
+      end
   | Load (Val (LitV (LitLoc l))) =>
       match σ1.(heap) !! l with
         | Some v => dret (Val v, σ1)
@@ -2874,11 +2878,12 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   head_step_rel (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ
 | CaseRS v e1 e2 σ :
   head_step_rel (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ
-| AllocNS z N v σ l :
+| AllocNS bl z N v σ l :
+  urn_subst_equal σ bl (LitInt z) ->
   l = fresh_loc σ.(heap) →
   N = Z.to_nat z →
   (0 < N)%nat ->
-  head_step_rel (AllocN (Val (LitV (LitInt z))) (Val v)) σ
+  head_step_rel (AllocN (Val (LitV bl)) (Val v)) σ
     (Val $ LitV $ LitLoc l) (state_upd_heap_N l N v σ)
 | LoadS l v σ :
   σ.(heap) !! l = Some v →
@@ -2992,6 +2997,8 @@ Proof.
     (* + inv_distr. *)
     (*   eapply IfFalseS'; try done. *)
     (*   by apply urns_f_distr_pos. *)
+    + eapply AllocNS; try done.
+      apply urn_subst_equal_epsilon_correct.
     + eapply RandS; last done.
       apply urn_subst_equal_epsilon_correct.
     + eapply DRandS; last done; try done.
@@ -3015,6 +3022,10 @@ Proof.
     (*   { intros H'. by eapply (urn_subst_equal_unique _ _ (LitBool true) (LitBool false)) in H'. } *)
     (*   rewrite bool_decide_eq_true_2; last done. *)
     (*   solve_distr. *)
+    + case_match; last (exfalso; naive_solver).
+      erewrite urn_subst_equal_epsilon_unique; last done.
+      rewrite bool_decide_eq_true_2; last done.
+      solve_distr.
     + solve_distr. case_match; last (exfalso; naive_solver).
       erewrite urn_subst_equal_epsilon_unique; last done.
       solve_distr.
@@ -3101,7 +3112,7 @@ Lemma head_step_mass e σ :
 Proof.
   intros [[] Hs%head_step_support_equiv_rel].
   inversion Hs;
-    repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done) ).
+    repeat (simplify_map_eq/=; solve_distr_mass || case_bool_decide ||case_match; try (case_bool_decide; done) ).
   (* - rename select (_=false) into L1. clear L1.  *)
   (*   rename select (_=false) into L1. clear L1. *)
   (*   rename select (urns_f_valid _ _) into H1. *)
@@ -3166,7 +3177,10 @@ Proof.
   (*   + apply H4. *)
   (*     rewrite /urn_subst_equal/=. *)
   (*     by intros ? ->%urns_subst_f_to_urns_unique_valid. *)
-  all: exfalso; naive_solver.
+  all: exfalso; try naive_solver.
+  rename select (¬ _) into H'.
+  apply H'.
+  erewrite urn_subst_equal_epsilon_unique; naive_solver.
 Qed. 
 
 
