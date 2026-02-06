@@ -1,10 +1,16 @@
 From discprob.basic Require Import seq_ext.
 From stdpp Require Import list.
 From clutch.prelude Require Import tactics.
-From clutch.prob Require Import couplings_dp.
-From clutch.diffpriv Require Import distance.
+From clutch.prob Require Import couplings_dp differential_privacy.
+From clutch.diffpriv Require Import diffpriv.
 
 Set Default Proof Using "Type".
+
+
+Lemma dZ_bounded_cases' x y k : (- k <= x - y ∧ x - y <= k)%Z -> (dZ x y <= (IZR k))%R.
+Proof.
+  rewrite /dZ/distance Rabs_Zabs. intros h. apply IZR_le. lia. 
+Qed.
 
 (** list_Z_max *)
 (* x is index we are recursing
@@ -313,14 +319,57 @@ Proof.
   rewrite Rdiv_mult_distr in H. lra.
 Qed. 
 
+Lemma laplace_map_pw_after num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
+  length l = length l' ->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
+  DPcoupl (laplace_map num (2*den) (Hproof) l)
+    (laplace_map num (2*den) (Hproof) l')
+    (λ zs zs',
+       length zs = length zs' /\
+       (∀ p, p ∈ zip_with (λ x y, (x,y)) zs zs' -> (dZ p.1 p.2 <= 1)%R) 
+    ) 0 0.
+Proof.
+  revert l'.
+  induction l as [|hd tl IHl].
+  - intros []; last done.
+    simpl.
+    intros.
+    apply DPcoupl_dret; naive_solver.
+  - intros [|hd' tl']; first done.
+    simpl.
+    intros H1 H2.
+    replace 0%R with (0+0)%R by lra.
+    unshelve epose proof H2 (hd, hd') _ as H3.
+    { rewrite elem_of_cons; naive_solver. }
+    apply dZ_bounded_cases in H3 as H4.
+    eapply (DPcoupl_dbind _ _ _ _ (λ z z', (dZ z z' <= 1)%R)); try done; last first.
+    { eapply DPcoupl_mono; [done|done|..]; last apply Mcoupl_to_DPcoupl; last apply Mcoupl_laplace_isometry; try done.
+      intros.
+      apply dZ_bounded_cases'. simpl in *. lia.
+    }
+    intros z z' Hz.
+    replace 0%R with (0+0)%R by lra.
+    eapply DPcoupl_dbind; last apply IHl; try done; last first.
+    + intros. apply H2. rewrite elem_of_cons; naive_solver.
+    + by simplify_eq.
+    + simpl.
+      intros ??[H5 H6].
+      apply DPcoupl_dret; try done.
+      split; first (simpl; lia).
+      simpl.
+      intros [].
+      rewrite elem_of_cons.
+      intros [|]; simplify_eq; naive_solver.
+Qed. 
+    
 
 Lemma laplace_map_pw num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R) j:
   length l = length l' ->
   (length l > 0)%nat ->
   (j<length l)%nat->
   (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
-  DPcoupl (laplace_map num den (ineq_convert _ _ Hproof) l)
-    (laplace_map num den (ineq_convert _ _ Hproof) l')
+  DPcoupl (laplace_map num (2*den) (Hproof) l)
+    (laplace_map num (2*den) (Hproof) l')
     (λ zs zs',
        length zs > 0 /\
        length zs = length zs' /\
@@ -329,14 +378,72 @@ Lemma laplace_map_pw num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R) j:
          zs!!j=Some z /\ zs' !!j = Some (z+1)%Z
     ) (IZR num / IZR den) 0.
 Proof.
-Admitted. 
+  revert l l'.
+  induction j as [|? Hj].
+  - replace 0%R with (0+0)%R by lra.
+    replace (_/_)%R with (IZR num / IZR den + 0)%R by lra.
+    intros [|hd tl] [|hd' tl']; simpl; try lia.
+    intros H1 H2 H3 H4.
+    simplify_eq.
+    eapply (DPcoupl_dbind _ _ _ _ (λ z z', z+1=z')%Z); try done; last first.
+    { eapply DPcoupl_mono; [done|done|..]; last apply Mcoupl_to_DPcoupl; last eapply (Mcoupl_laplace_alt _ _ _ 1); try done.
+      simpl.
+      rewrite mult_IZR.
+      replace (_/(_*_))%R with (/2 * (IZR num / IZR den))%R; last (rewrite Rdiv_mult_distr; lra).
+      rewrite -Rmult_assoc.
+      rewrite -{2}(Rmult_1_l (_/_)%R).
+      apply Rmult_le_compat_r.
+      - left. by apply ineq_convert.
+      - unshelve epose proof H4 (hd, hd') _ as H5.
+        + rewrite elem_of_cons; naive_solver.
+        + cut (IZR (Z.abs (1 + hd - hd')) <=2)%R; first lra.
+          rewrite -Rabs_Zabs.
+          apply dZ_bounded_cases'.
+          apply dZ_bounded_cases in H5. simpl in *. lia.
+    }
+    intros ?? <-.
+    replace 0%R with (0+0)%R by lra.
+    eapply DPcoupl_dbind; last apply laplace_map_pw_after; try done; last first.
+    { intros. apply H4. rewrite elem_of_cons; naive_solver. }
+    simpl.
+    intros ??[].
+    apply DPcoupl_dret; try done.
+    repeat split; simpl; try lia; last naive_solver.
+    intros [].
+    rewrite elem_of_cons.
+    intros []; simplify_eq; last naive_solver.
+    apply dZ_bounded_cases'. simpl. lia.
+  - intros [|hd tl] [|hd' tl']; simpl; try lia.
+    intros H1 H2 H3 H4.
+    simplify_eq.
+    replace 0%R with (0+0)%R by lra.
+    replace (_/_)%R with (0+IZR num / IZR den)%R by lra.
+    eapply (DPcoupl_dbind _ _ _ _ (λ z z', (dZ z z' <= 1)%R)); try done; last first.
+    { eapply DPcoupl_mono; [done|done|..]; last apply Mcoupl_to_DPcoupl; last eapply (Mcoupl_laplace_isometry); try done.
+      simpl.
+      intros ?? ->.
+      unshelve epose proof H4 (_,_) _ as H5; last apply H5.
+      rewrite elem_of_cons. naive_solver.
+    }
+    intros ???.
+    replace 0%R with (0+0)%R by lra.
+    replace (_/_)%R with (IZR num / IZR den+0)%R by lra.
+    eapply DPcoupl_dbind; last apply Hj; try done; try lia; last first. 
+    + intros. apply H4. rewrite elem_of_cons; naive_solver.
+    + simpl.
+      intros. destruct!/=.
+      apply DPcoupl_dret; try done; simpl.
+      repeat split; try lia.
+      * intros []. rewrite elem_of_cons. intros. destruct!/=; naive_solver.
+      * naive_solver.
+Qed.
 
 Lemma laplace_map_correct' num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
   length l = length l' ->
   (length l > 0)%nat ->
   (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
-  DPcoupl (laplace_map num den (ineq_convert _ _ Hproof) l)
-    (laplace_map num den (ineq_convert _ _ Hproof) l')
+  DPcoupl (laplace_map num (2*den) (Hproof) l)
+    (laplace_map num (2*den) (Hproof) l')
     (λ zs zs', list_Z_max zs = list_Z_max zs'
     ) (IZR num / IZR den) 0.
 Proof.
@@ -367,8 +474,8 @@ Lemma laplace_map_correct num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R)
   length l = length l' ->
   (length l > 0)%nat ->
   (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
-  DPcoupl (laplace_map num den (ineq_convert _ _ Hproof) l)
-    (laplace_map num den (ineq_convert _ _ Hproof) l')
+  DPcoupl (laplace_map num (2*den) (Hproof) l)
+    (laplace_map num (2*den) (Hproof) l')
     (λ zs zs', length zs = length zs' /\ (length zs > 0)%nat /\
                list_Z_max zs = list_Z_max zs'
     ) (IZR num / IZR den) 0.
