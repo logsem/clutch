@@ -5,14 +5,99 @@ From iris.bi.lib Require Import fractional.
 From iris.prelude Require Import options.
 
 From clutch.common Require Export language ectx_language.
-From clutch.prob_lang Require Export lang notation.
+From clutch.prob_lang Require Import notation tactics metatheory.
+From clutch.prob_lang Require Export lang.
 From clutch.eris Require Export weakestpre total_weakestpre lang_completeness proofmode derived_laws.
 From clutch.prob Require Import distribution.
-From clutch.eris.complete Require Export exec_probs.
+From clutch.eris.complete Require Export ectx_lang_completeness lang_completeness.
 From clutch.pure_complete Require Export prob_additional.
 
 Local Open Scope R.
 
+Section Instances.
+
+Context `{!erisGS Σ}.
+
+Definition heap_inv (σ : prob_lang.state) : iProp Σ :=
+    ([∗ map] ℓ↦v ∈ σ.(heap),  ℓ ↦ v) 
+  ∗ ([∗ map] ι↦α ∈ σ.(tapes), ι ↪ α).
+
+Definition na (e : prob_lang.expr) := ∀ n σ e' σ', 
+  pexec n (e, σ) (e', σ') > 0 → dom σ.(heap) = dom σ'.(heap) ∧ dom σ.(tapes) = dom σ'.(tapes).
+
+Lemma na_step : ∀ e σ e' σ', 
+  step (e, σ) (e', σ') > 0 → na e'.
+Proof.
+Admitted.
+
+Definition lim_step (ρ : cfg prob_lang) : distr (val prob_lang * state prob_lang). 
+Admitted.
+
+Lemma lim_step_fill K e σ : 
+  lim_step (fill K e, σ) = dbind (λ '(v, σ'), lim_step (fill K (Val v), σ')) (lim_step (e, σ)).
+Admitted.
+
+Lemma lim_step_step ρ : 
+  lim_step ρ = dbind lim_step (step ρ).
+Admitted.
+
+(* Definition err (φ: prob_lang.val → iProp Σ) (ρ : cfg prob_lang) := probp (lim_exec ρ) (λ v, ¬ ⊢ φ v). *)
+Definition err (φ: prob_lang.val → iProp Σ) (ρ : cfg prob_lang) := probp (lim_step ρ) (λ '(v, σ), ¬ ⊢ heap_inv σ -∗ φ v).
+
+Lemma probp_1 `{Countable A} (μ : distr A) (P : A → Prop) : 
+  ∀ a, P a → probp μ P = 1.
+Admitted.  
+
+(* Lemma head_step_to_val (e0 : expr prob_lang) σ0 e σ:
+  head_step e0 σ0 (e, σ) > 0 →
+  is_Some (to_val e).
+Proof. 
+  intros Hhr.
+  rewrite head_step_support_equiv_rel in Hhr.
+  inversion Hhr; subst; try done.
+  (* intros Hna Hhr.
+  rewrite head_step_support_equiv_rel in Hhr.
+  induction Hhr. *)
+Admitted. *)
+
+Lemma err_fill K e σ φ:
+  na e →
+  err (λ v, WP fill K (of_val v) {{ v0, φ v0 }})%I (e, σ) = err φ (fill K e, σ).
+Proof. 
+  intros Hna (* [[e' σ'] Hhr] *).
+  (* rewrite head_step_support_equiv_rel in Hhr. *)
+  rewrite /err lim_step_fill probp_dbind.
+  (* inversion Hhr.  *)
+  Search head_step_rel.
+  (* rewrite /err lim_step_fill probp_dbind.
+  unfold probp at 1. simpl.
+  apply SeriesC_ext.
+  intros [v σ0].
+  case_bool_decide.
+  - simpl. eassert (probp _ _ = 1) as ->; try lra.
+    rewrite /probp. *)
+Admitted.
+
+
+Lemma err_fin: ∀ φ (v : prob_lang.val) σ,
+  err φ (of_val v, σ) < 1 →
+  heap_inv σ -∗ φ v.
+Proof.
+  (* intros ???.
+  rewrite /err /probp (lim_exec_final (of_val v, σ) v) //=.
+  intros.
+  destruct (decide (⊢ φ v)). 
+  - iIntros. iApply b.
+  - apply (probp_dret_true v (λ a, (not (bi_emp_valid (φ a))))) in n.
+    rewrite /probp in n. lra. *)
+Admitted.
+
+End Instances.
+
+Section Completeness.
+
+
+End Completeness.
 
 (* From Stdlib Require Import Reals Psatz.
 From iris.proofmode Require Import base proofmode classes.

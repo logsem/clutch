@@ -8,8 +8,6 @@ From clutch.common Require Export language.
 From clutch.eris Require Export weakestpre total_weakestpre complete_pre.
 From clutch.prob Require Import distribution.
 From clutch.base_logic Require Import error_credits.
-From clutch.eris.complete Require Export exec_probs.
-
 
 Local Open Scope R.
  
