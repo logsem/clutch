@@ -2872,29 +2872,42 @@ Section laplace.
     apply ex_seriesC_laplace_f.
   Qed.
 
-  Definition laplace_rat (num den loc : Z) (εpos : (0 < IZR num / IZR den)%R) : distr Z
-    := laplace (mkposreal (IZR num / IZR den) εpos) loc.
+  Definition laplace_rat (num den loc : Z) : distr Z
+    :=
+    match decide (0 < IZR num / IZR den)%R with
+    | left εpos => laplace (mkposreal (IZR num / IZR den) εpos) loc
+    | right nεpos => dret loc
+    end.
 
-  Lemma laplace_rat_pos (num den loc : Z) (εpos : (0 < IZR num / IZR den)%R) z :
-    laplace_rat num den loc εpos z > 0.
+  Lemma laplace_rat_pos (num den loc : Z) z :
+    (0 < IZR num / IZR den ∨ loc = z) →
+    laplace_rat num den loc z > 0.
   Proof.
-    rewrite /laplace_rat. rewrite /laplace. rewrite /pmf. rewrite /laplace'.
+    rewrite /laplace_rat.
+    case_decide => //.
+    {
+    intros.
+    rewrite /laplace. rewrite /pmf. rewrite /laplace'.
     apply Rdiv_lt_0_compat.
     - rewrite /laplace_f/laplace_f_nat. apply exp_pos.
-    - pose proof (ex_seriesC_laplace_f {| cond_pos := εpos |}).
+    - epose proof (ex_seriesC_laplace_f {| cond_pos := _ |}).
       rewrite /laplace_f/laplace_f_nat.
       rewrite -(@dzero_mass Z _ _). apply SeriesC_lt.
       + intros. split.
         * rewrite dzero_0. done.
         * rewrite dzero_0. left. apply exp_pos.
       + simpl. exists 0%Z. rewrite dzero_0. apply exp_pos.
-      + assumption.
+      + eassumption.
+    }
+    intros [] => //. simplify_eq. apply Rlt_gt. rewrite ((iffLR (dret_1 z z))) => //. lra.
   Qed.
 
-  Corollary laplace_rat_mass num den loc (εpos : (0 < IZR num / IZR den)%R) :
-    SeriesC (laplace_rat num den loc εpos) = 1.
+  Corollary laplace_rat_mass num den loc :
+    SeriesC (laplace_rat num den loc) = 1.
   Proof.
-    apply laplace_mass.
+    rewrite /laplace_rat. case_decide.
+    - apply laplace_mass.
+    - apply dret_mass.
   Qed.
 
 End laplace.
@@ -2956,6 +2969,9 @@ Ltac inv_distr :=
     | H : (dbind _ _).(pmf) _ > 0 |- _ => apply dbind_pos in H as (?&?&?)
     | H : (dmap _ _).(pmf) _ > 0 |- _ => apply dmap_pos in H as (?&?&?); simplify_eq
     | H:  (d_proj_Some _).(pmf) _ > 0 |- _ => apply d_proj_Some_pos in H
+    | H : ((laplace_rat ?num ?den _).(pmf) _) > 0 |- _
+      => rewrite /laplace_rat in H ;
+         destruct (decide (0 < IZR num / IZR den)) ; [|inv_distr]
     end.
 
 Ltac solve_distr :=
@@ -2968,7 +2984,7 @@ Ltac solve_distr :=
         apply dmap_pos; eexists; (split; [done|]); try done
     | |- (dunifP _).(pmf) _ > 0 => apply dunifP_pos
     | |- (dunifv _ _).(pmf) _ > 0 => apply dunifv_pos
-    | |- (laplace_rat _ _ _ _).(pmf) _ > 0 => apply laplace_rat_pos
+    | |- (laplace_rat _ _ _).(pmf) _ > 0 => apply laplace_rat_pos
     | |- (d_proj_Some _).(pmf) _ > 0 => rewrite d_proj_Some_pos
     end.
 
@@ -2980,7 +2996,7 @@ Ltac solve_distr_mass :=
   | |- SeriesC (dunif _).(pmf) = 1 => rewrite dunif_mass //
   | |- SeriesC (dunifP _).(pmf) = 1 => rewrite dunifP_mass //
   | |- SeriesC (dunifv _ _).(pmf) = 1 => rewrite dunifv_mass //
-  | |- SeriesC (laplace_rat _ _ _ _).(pmf) = 1 => rewrite laplace_rat_mass //
+  | |- SeriesC (laplace_rat _ _ _).(pmf) = 1 => rewrite laplace_rat_mass //
   end .
 
 Ltac inv_dzero :=

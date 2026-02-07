@@ -155,15 +155,16 @@ Proof.
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (ghost_map_alloc σ.(tapes_laplace)) as "[%γTL [Htl _]]".
   iMod spec_ra_init as (HspecGS) "(Hs & Hj & ?)".
   set ε' := mknonnegreal _ Heps.
   iMod (ecm_alloc ε') as (?) "[HE He]".
   destruct (decide (δ < 1)) as [? | Hnlt%Rnot_lt_le].
   - set δ' := mknonnegreal _ Hdel.
     iMod (ec_alloc δ') as (?) "[HD Hd]"; [done|].
-    set (HdiffprivGS := HeapG Σ _ _ _ γH γT HspecGS _).
+    set (HdiffprivGS := HeapG Σ _ _ _ _ γH γT γTL HspecGS _).
     iApply (wp_adequacy_step_fupdN ε' δ').
-    iFrame "Hh Ht Hs HE HD".
+    iFrame "Hh Ht Htl Hs HE HD".
     by iApply (Hwp with "[Hj] [He] [Hd]").
   - iApply fupd_mask_intro; [done|]; iIntros "_".
     iApply step_fupdN_intro; [done|]; iModIntro.

@@ -302,22 +302,21 @@ Section erasure_helpers.
     apply IH; auto.
   Qed.
 
-  Local Lemma ind_case_laplace σ α K (M N : nat) z ns (num den loc : Z) :
+  Local Lemma ind_case_laplace σ α K (M : nat) ns (num den loc : Z) :
 
-    N = Z.to_nat z →
     tapes σ !! α = Some (M; ns) →
 
   Rcoupl
-    (dmap (fill_lift K) (head_step (Laplace #num #den #loc) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+    (dmap (fill_lift K) (head_step (Laplace #num #den #loc #()) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
     (dunifP M ≫=
      λ n : fin (S M),
        dmap (fill_lift K)
-         (head_step (Laplace #num #den #loc)
+         (head_step (Laplace #num #den #loc #())
                (state_upd_tapes <[α:=(M; ns ++ [n]) : tape]> σ))
           ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
     eq.
   Proof using m IH.
-    intros Hz Hα.
+    intros Hα.
     rewrite /head_step.
     rewrite {1 2}/dmap.
     erewrite (dbind_ext_right (dunifP M)); last first.
@@ -338,6 +337,72 @@ Section erasure_helpers.
     }
     rewrite -dmap_dbind.
     apply IH; auto.
+  Qed.
+
+  Local Lemma ind_case_tape_laplace σ α K (M : nat) ns (num den mean : Z) (β : loc) :
+    (∃ x xs, tapes_laplace σ !! β = Some (Tape_Laplace num den mean (x :: xs)))
+    ∨ (tapes_laplace σ !! β = Some (Tape_Laplace num den mean []))
+    ∨
+      (∃ (num' den' mean' : Z)
+         (xs : list Z),
+          tapes_laplace σ !! β = Some (Tape_Laplace num' den' mean' xs)
+          ∧ ¬ (num = num' ∧ den = den' ∧ mean = mean'))
+    →
+      tapes σ !! α = Some (M; ns) →
+    Rcoupl
+      (dmap (fill_lift K) (head_step (Laplace #num #den #mean #lbl:β) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+      (dunifP M ≫=
+       λ n : fin (S M),
+         dmap (fill_lift K)
+           (head_step (Laplace #num #den #mean #lbl:β)
+              (state_upd_tapes <[α:=(M; ns ++ [n]) : tape]> σ))
+           ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+      eq.
+  Proof using m IH.
+    intros hlap Hα.
+    rewrite /head_step.
+    destruct hlap as [(x & xs & hβ)|[hβnil|hparam]].
+    (* non-empty tape with matching parameters *)
+    -
+      rewrite hβ.
+      rewrite {1 2}/dmap.
+      erewrite (dbind_ext_right (dunifP M)); last first.
+      { intro.
+        rewrite {1 2}/dmap.
+        do 2 rewrite -dbind_assoc //. }
+      simpl.
+      rewrite -/exec /=.
+      rewrite -!dbind_assoc -/exec.
+      case_bool_decide as hparam.
+      2: { exfalso. apply hparam. done. }
+      simplify_eq.
+      simpl in IH.
+      rewrite dret_id_left.
+      erewrite (dbind_ext_right (dunifP M)); last first.
+      { intros n. rewrite !dret_id_left. done. }
+      rewrite !dret_id_left.
+      pose proof IH as IH' ; clear IH.
+      rewrite {1 2}/dmap in IH'. simpl.
+      rewrite dbind_assoc.
+      opose proof (IH' (fill K #x)
+                     (state_upd_tapes_laplace <[β:=Tape_Laplace num den mean xs]> σ)
+                     α M ns Hα) as IH'' ; clear IH'.
+      apply IH''.
+
+    - rewrite hβnil.
+      case_bool_decide as hparam.
+      2: { exfalso. apply hparam. done. }
+      simplify_eq.
+      simpl in IH.
+      apply ind_case_laplace. done.
+    - destruct hparam as (?&?&?&?&hβ&hparam).
+      rewrite hβ.
+      case_bool_decide as hparam'.
+      { exfalso. apply hparam. done. }
+      simplify_eq.
+      simpl in IH.
+      apply ind_case_laplace. done.
+
   Qed.
 
 End erasure_helpers.
@@ -395,8 +460,10 @@ Proof.
         -- by eapply ind_case_rand_empty.
         -- by eapply ind_case_rand_some_neq.
         -- by eapply ind_case_rand.
-        -- by eapply ind_case_laplace. Unshelve. exact 0%Z.
-        -- by eapply ind_case_laplace. Unshelve. exact 0%Z.
+        -- by eapply ind_case_laplace.
+        -- eapply ind_case_tape_laplace ; eauto.
+        -- eapply ind_case_tape_laplace ; eauto.
+        -- eapply ind_case_tape_laplace ; eauto. right. right. repeat eexists ; eauto.
       * by eapply ind_case_dzero.
 Qed.
 

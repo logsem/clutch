@@ -32,7 +32,7 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
   | AllocTape e => is_closed_expr X e
   | AllocTapeLaplace e1 e2 e3 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3
-  | Laplace e1 e2 e3 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3
+  | Laplace e1 e2 e3 e4 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3 && is_closed_expr X e4
   | Tick e => is_closed_expr X e
   end
 with is_closed_val (v : val) : bool :=
@@ -65,7 +65,7 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | AllocTape e => AllocTape (subst_map vs e)
   | AllocTapeLaplace e1 e2 e3 => AllocTapeLaplace (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
   | Rand e1 e2 => Rand (subst_map vs e1) (subst_map vs e2)
-  | Laplace e1 e2 e3 => Laplace (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
+  | Laplace e1 e2 e3 e4 => Laplace (subst_map vs e1) (subst_map vs e2) (subst_map vs e3) (subst_map vs e4)
   | Tick e => Tick (subst_map vs e)
   end.
 
@@ -1474,12 +1474,22 @@ Inductive prob_head_step_pred : expr -> state -> Prop :=
 | RandNoTapePSP (N : nat) σ z :
   N = Z.to_nat z →
   prob_head_step_pred (rand #z) σ
-| LaplacePSP (num den loc : Z) σ :
-  (0 < IZR num / IZR den) →
-  prob_head_step_pred (Laplace #num #den #loc) σ
-| LaplacePSP' (num den loc : Z) σ :
-  (not (0 < IZR num / IZR den)) →
-  prob_head_step_pred (Laplace #num #den #loc) σ.
+| LaplaceNoTapePSP (num den mean : Z) σ :
+  prob_head_step_pred (Laplace #num #den #mean #()) σ
+
+| LaplaceTapeConsPSP num den mean lbl x xs σ :
+  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num den mean (x :: xs)) →
+  prob_head_step_pred (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+
+| LaplaceTapeEmptyPSP num den mean lbl σ :
+  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num den mean []) →
+  prob_head_step_pred (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+
+| LaplaceTapeOtherPSP num den mean lbl num' den' mean' xs σ :
+  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num' den' mean' xs) →
+  (not ((num = num') ∧ (den = den') ∧ (mean = mean'))) →
+  prob_head_step_pred (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+.
 
 Definition head_step_pred e1 σ1 :=
   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.
@@ -1547,7 +1557,10 @@ Proof.
   split.
   - intros [Hdet | Hdet];
       inversion Hdet; simplify_eq; do 2 eexists; try (by econstructor).
-    Unshelve. 4: apply 0%Z. all: apply 0%fin.
+    + apply LaplaceNoTapeS. by right.
+    + eapply LaplaceTapeEmptyS => // ; by right.
+    + eapply LaplaceTapeOtherS => // ; by right.
+      Unshelve. all: apply 0%fin.
   - intros (?&?& H). inversion H; simplify_eq;
       (try by (left; econstructor));
       (try by (right; econstructor)).
@@ -1612,6 +1625,8 @@ Proof.
       by apply not_elem_of_dom_2 in H5.
     + rewrite lookup_insert_ne // in H6.
       rewrite H5 in H6. done.
+  - rewrite Hz. apply dmap_dzero.
+  - rewrite Hz. apply dmap_dzero.
   - rewrite Hz. apply dmap_dzero.
 Qed.
 
@@ -1754,4 +1769,3 @@ Proof.
   Unshelve.
   all: exact (0%fin).
 Qed.
-  

@@ -282,7 +282,7 @@ Fixpoint laplace_map num den (Hproof:(0<IZR num / IZR den)%R) (l:list Z) :=
   | loc::l' =>
       dbind (λ z,
                dbind (λ zs, dret (z::zs)) (laplace_map num den Hproof l')
-        ) (laplace_rat num den loc Hproof)
+        ) (laplace_rat num den loc)
   end.
 
 Lemma laplace_map_pos num den Hproof l zs:
@@ -291,7 +291,7 @@ Lemma laplace_map_pos num den Hproof l zs:
 Proof.
   revert zs.
   induction l as [|?? IHl]; intros zs; simpl; intros H; inv_distr; first done.
-  erewrite <-IHl; last done. done.
+  all: erewrite <-IHl; done.
 Qed.
 
 Lemma laplace_map_mass num den Hproof l :
@@ -319,6 +319,40 @@ Proof.
   rewrite Rdiv_mult_distr in H. lra.
 Qed. 
 
+Fact Mcoupl_laplace_rat_isometry (num den loc loc' : Z) :
+  Mcoupl (laplace_rat num den loc) (laplace_rat num den loc') (λ z z', z - z' = loc - loc')%Z 0.
+Proof.
+  intros ?? Hf Hg Hfg.
+  rewrite exp_0. ring_simplify.
+  rewrite -(SeriesC_translate _ (loc - loc')).
+  2:{ intros. apply Rmult_le_pos. 1: auto. apply Hf. }
+  2:{ eapply ex_seriesC_le. 2: apply (pmf_ex_seriesC (laplace_rat num den loc)).
+      intros z. simpl. split.
+      - apply Rmult_le_pos => //. apply Hf.
+      - destruct (Hf z). etrans. 2: right ; apply Rmult_1_r.
+        apply Rmult_le_compat => //.
+  }
+  apply SeriesC_le.
+  2:{ eapply ex_seriesC_le. 2: apply (pmf_ex_seriesC (laplace_rat num den loc')).
+      intros z. simpl. split.
+      - apply Rmult_le_pos => //. apply Hg.
+      - destruct (Hg z). etrans. 2: right ; apply Rmult_1_r.
+        apply Rmult_le_compat => //.
+  }
+  intros z. split.
+  { apply Rmult_le_pos => //. apply Hf. }
+  opose proof (Hfg ((z + (loc - loc'))) z _)%Z.
+  1: lia.
+  apply Rmult_le_compat => //.
+  1: apply Hf.
+  rewrite /laplace_rat/laplace/laplace'/pmf{1 3}/laplace_f/laplace_f_nat.
+  right.
+  case_decide.
+  1: do 7 f_equal ; lia.
+  simpl. rewrite /dret_pmf. repeat case_bool_decide ; try lra. 1,2: qify_r ; zify_q.
+  1,2: lia.
+Qed.
+
 Lemma laplace_map_pw_after num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
   length l = length l' ->
   (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
@@ -343,7 +377,7 @@ Proof.
     { rewrite elem_of_cons; naive_solver. }
     apply dZ_bounded_cases in H3 as H4.
     eapply (DPcoupl_dbind _ _ _ _ (λ z z', (dZ z z' <= 1)%R)); try done; last first.
-    { eapply DPcoupl_mono; [done|done|..]; last apply Mcoupl_to_DPcoupl; last apply Mcoupl_laplace_isometry; try done.
+    { eapply DPcoupl_mono; [done|done|..]; last apply Mcoupl_to_DPcoupl; last apply Mcoupl_laplace_rat_isometry; try done.
       intros.
       apply dZ_bounded_cases'. simpl in *. lia.
     }
@@ -360,8 +394,8 @@ Proof.
       intros [].
       rewrite elem_of_cons.
       intros [|]; simplify_eq; naive_solver.
-Qed. 
-    
+Qed.
+
 
 Lemma laplace_map_pw num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R) j:
   length l = length l' ->
@@ -386,7 +420,8 @@ Proof.
     intros H1 H2 H3 H4.
     simplify_eq.
     eapply (DPcoupl_dbind _ _ _ _ (λ z z', z+1=z')%Z); try done; last first.
-    { eapply DPcoupl_mono; [done|done|..]; last apply Mcoupl_to_DPcoupl; last eapply (Mcoupl_laplace_alt _ _ _ 1); try done.
+    { rewrite /laplace_rat. case_decide ; [|done].
+      eapply DPcoupl_mono; [done|done|..]; last apply Mcoupl_to_DPcoupl; last eapply (Mcoupl_laplace_alt _ _ _ 1); try done.
       simpl.
       rewrite mult_IZR.
       replace (_/(_*_))%R with (/2 * (IZR num / IZR den))%R; last (rewrite Rdiv_mult_distr; lra).
@@ -419,7 +454,8 @@ Proof.
     replace 0%R with (0+0)%R by lra.
     replace (_/_)%R with (0+IZR num / IZR den)%R by lra.
     eapply (DPcoupl_dbind _ _ _ _ (λ z z', (dZ z z' <= 1)%R)); try done; last first.
-    { eapply DPcoupl_mono; [done|done|..]; last apply Mcoupl_to_DPcoupl; last eapply (Mcoupl_laplace_isometry); try done.
+    { rewrite /laplace_rat. case_decide ; [|done].
+      eapply DPcoupl_mono; [done|done|..]; last apply Mcoupl_to_DPcoupl; last eapply (Mcoupl_laplace_isometry); try done.
       simpl.
       intros ?? ->.
       unshelve epose proof H4 (_,_) _ as H5; last apply H5.

@@ -197,9 +197,9 @@ Definition auto_avg : val :=
     let: "exact_sum" := age_sum_query "final_b" "ds" in
     (* by hoare_couple_laplace, this is num/den private for
        final_b * (num / (final_b * final_b)) = num/den credits. *)
-    let: "noisy_sum" := Laplace "num" ("final_b" * "den") "exact_sum" in
+    let: "noisy_sum" := Laplace "num" ("final_b" * "den") "exact_sum" #() in
     (* again num/den-private because list_length is 1-sensitive *)
-    let: "noisy_count" := Laplace "num" "den" (list_length "ds") in
+    let: "noisy_count" := Laplace "num" "den" (list_length "ds") #() in
     (* post-processing *)
     "noisy_sum" `quot` "noisy_count".
 
@@ -495,7 +495,7 @@ Section queries.
         - intros. apply le_IZR in res_close. lia.
         - intros. apply le_IZR in res_close. lia.
       }
-      tp_bind (Laplace _ _ _). wp_apply (hoare_couple_laplace_exact _ _ 0 with "[$rhs $ε2] [-]") ; try done.
+      tp_bind (Laplace _ _ _ _). wp_apply (hoare_couple_laplace_exact _ _ 0 with "[$rhs $ε2] [-]") ; try done.
       iIntros "!> * rhs" => /=. tp_pures ; wp_pures.
 
       tp_bind (list_length _). wp_bind (list_length _).
@@ -504,7 +504,7 @@ Section queries.
       1: iPureIntro ; by rewrite is_list_inject.
       1: simpl ; iIntros ; simplify_eq ; done.
       simplify_eq.
-      tp_bind (Laplace _ _ _).
+      tp_bind (Laplace _ _ _ _).
       wp_pures.
       wp_apply (hoare_couple_laplace _ _ 0 with "[$rhs ε3] [-]") ; try done.
       {
@@ -527,7 +527,7 @@ Section queries.
 
     -
       (* Laplace num (bound*den) sum ~ Laplace num (bound*den) sum'   for  ↯ num/den   because   |sum-sum'| ≤ bound   *)
-      tp_bind (Laplace _ _ _). wp_apply (hoare_couple_laplace _ _ 0 with "[$rhs ε2] [-]") ; try done.
+      tp_bind (Laplace _ _ _ _). wp_apply (hoare_couple_laplace _ _ 0 with "[$rhs ε2] [-]") ; try done.
       { rewrite mult_IZR. eapply Rdiv_pos_pos ; auto. real_solver. }
       {
         rewrite Z.add_0_l.
@@ -559,7 +559,7 @@ Section queries.
       assert ((Z.abs (length ds1 - length ds2)) <= 1).
       1: destruct Hneigh ; simplify_eq ; rewrite !length_app /= ; lia.
       (* private length for ε *)
-      tp_bind (Laplace _ _ _).
+      tp_bind (Laplace _ _ _ _).
       wp_pures.
       wp_apply (hoare_couple_laplace _ _ 0 with "[$rhs ε3] [-]") ; try done.
       1: by rewrite Rmult_1_l.

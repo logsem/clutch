@@ -50,7 +50,7 @@ Section svt.
   useful in practice. *)
   Definition above_threshold_reset : val :=
     λ:"num" "den" "T",
-      let: "T'" := Laplace "num" (#2*"den") "T" in
+      let: "T'" := Laplace "num" (#2*"den") "T" #() in
       let: "reset" := ref #false in
       λ:"db",
         let: "f" :=
@@ -58,7 +58,7 @@ Section svt.
              if: ! "reset" then
                NONE
              else
-               (let: "vi" := Laplace "num" (#4*"den") ("qi" "db") in
+               (let: "vi" := Laplace "num" (#4*"den") ("qi" "db") #() in
                 (if: "T'" ≤ "vi" then
                    "reset" <- #true ;;
                    SOME #true
@@ -69,9 +69,9 @@ Section svt.
   (* We don't actually need `reset` since it is always set to `false` so long as a client holds AUTH. *)
   Definition above_threshold : val :=
     λ:"num" "den" "T",
-      let: "T'" := Laplace "num" (#2*"den") "T" in
+      let: "T'" := Laplace "num" (#2*"den") "T" #() in
       λ:"db" "qi",
-        let: "vi" := Laplace "num" (#4*"den") ("qi" "db") in
+        let: "vi" := Laplace "num" (#4*"den") ("qi" "db") #() in
         "T'" ≤ "vi".
 
   (* The spec that AT satisfies after initialising T'. *)
@@ -112,8 +112,8 @@ Section svt.
             SOME
               ((if: ! "found_above_T" then
                   (* need to reset T' from T with fresh noise *)
-                  "T'" <- Laplace #num ("c" * #(2*den)) "T" else #()) ;;
-               let: "vi" := Laplace #num #(4*den) ("qi" "db") in
+                  "T'" <- Laplace #num ("c" * #(2*den)) "T" #() else #()) ;;
+               let: "vi" := Laplace #num #(4*den) ("qi" "db") #() in
                if: "T'" ≤ "vi" then
                  "found_above_T" <- #true ;;
                  "count" <- !"count"+#1 ;;
@@ -154,7 +154,7 @@ Section svt.
                ⤇ fill K (Val f') ∗ AUTH ∗ AT_spec 1 AUTH f f' }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold...
-    tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
     set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
     fold ε in εpos. rewrite Rmult_plus_distr_l.
     iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver.
@@ -181,7 +181,7 @@ Section svt.
       apply Zabs_ind ; intros ? h; split.
       all: pose proof (le_IZR _ _ h) ; lia.
     }
-    tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
     iApply (hoare_couple_laplace_choice vq_l (vq_r) T' with "[$]") => //.
     1: apply Zabs_ind ; lia.
     1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.

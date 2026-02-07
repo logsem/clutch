@@ -18,7 +18,7 @@ Section rnm.
       let: "maxA" := ref #0 in
       let: "add_query" :=
         λ:"i",
-          (let: "a" := Laplace "num" (#2 * "den") ("evalQ" "i" "d") in
+          (let: "a" := Laplace "num" (#2 * "den") ("evalQ" "i" "d") #() in
            (if: "i" = #0 `or` ! "maxA" < "a" then
               "maxA" <- "a" ;;
               "maxI" <- "i"

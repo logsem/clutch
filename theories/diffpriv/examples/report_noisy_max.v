@@ -152,7 +152,7 @@ Section rnm.
            if: "i" = "N" then
              ! "maxI"
            else
-             (let: "a" := Laplace #num #(2*den) ("evalQ" "i" "d") in
+             (let: "a" := Laplace #num #(2*den) ("evalQ" "i" "d") #() in
               (if: "i" = #0 `or` ! "maxA" < "a" then
                  "maxA" <- "a" ;;
                  "maxI" <- "i"
@@ -189,7 +189,7 @@ Section rnm.
   #[local] Definition rnm_body (num den : Z) (evalQ : val) {DB} (dDB : Distance DB) (N : nat) (db : DB) (maxI maxA : loc) :=
     (rec: "rnm" "i" :=
        if: "i" = #N then ! #maxI
-       else let: "a" := Laplace #num #(2*den) (evalQ "i" (inject db)) in
+       else let: "a" := Laplace #num #(2*den) (evalQ "i" (inject db)) #() in
             (if:  "i" = #0 `or` ! #maxA < "a"
              then #maxA <- "a";; #maxI <- "i" else #());;
             "rnm" ("i" + #1))%V.
@@ -264,7 +264,7 @@ Section rnm.
       (* case on the whether i is below, at, or above the result j. *)
       destruct (Z.lt_trichotomy i j) as [ij | [e|ij]].
       2:{                       (* i = j *)
-        tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+        tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
         iApply (hoare_couple_laplace e1 e2 1%Z 2%Z with "[$rnm' ε]") => //.
         1: apply Zabs_ind ; lia.
         { case_bool_decide. 2: lia. iApply ecm_eq. 2: iFrame.
@@ -297,7 +297,7 @@ Section rnm.
           iFrame. iFrame. iPureIntro. intuition lia. }
 
       (* i < j *)
-      { tp_bind (Laplace _ _ _) ; wp_bind (Laplace _ _ _).
+      { tp_bind (Laplace _ _ _ _) ; wp_bind (Laplace _ _ _ _).
         iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
         1: eapply Zabs_ind ; intuition lia. 1: rewrite Rmult_0_l => //.
         iNext ; iIntros (a) "rnm'" => /=... tp_load ; wp_load...
@@ -334,7 +334,7 @@ Section rnm.
           iPureIntro ; intuition try lia. }
 
       (* j < i *)
-      { tp_bind (Laplace _ _ _) ; wp_bind (Laplace _ _ _).
+      { tp_bind (Laplace _ _ _ _) ; wp_bind (Laplace _ _ _ _).
         iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
         1: eapply Zabs_ind ; intuition lia. 1: rewrite Rmult_0_l => //.
         iNext ; iIntros (a) "rnm'" => /=... tp_load ; wp_load...
@@ -366,7 +366,7 @@ Section rnm.
       iApply (hoare_sensitive_Z_bounded $! (qi_sens _) with "[] [] rnm") => //.
       1: real_solver. rewrite Zmult_1_l.
       iIntros "!> % (%e1 & %e2 & -> & rnm & %e1e2_adj & %e1e2_adj')" => /=.
-      tp_bind (Laplace _ _ _) ; wp_bind (Laplace _ _ _). iMod ecm_zero as "ε0".
+      tp_bind (Laplace _ _ _ _) ; wp_bind (Laplace _ _ _ _). iMod ecm_zero as "ε0".
       iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm ε0]") => //.
       1: eapply Zabs_ind ; intuition lia.
       1: rewrite Rmult_0_l => //.
@@ -402,7 +402,7 @@ Section rnm.
         iApply (hoare_sensitive_Z_bounded $! (qi_sens _) with "[] [] rnm'") => //.
         1: real_solver. rewrite Zmult_1_l.
         iIntros "!> % (%e1 & %e2 & -> & rnm' & %e1e2_adj & %e1e2_adj')" => /=.
-        tp_bind (Laplace _ _ _) ; wp_bind (Laplace _ _ _).
+        tp_bind (Laplace _ _ _ _) ; wp_bind (Laplace _ _ _ _).
         iMod ecm_zero as "ε0".
         iApply (hoare_couple_laplace e1 e2 (e2 - e1)%Z 0%Z with "[$rnm' ε0]") => //.
         1: eapply Zabs_ind ; intuition lia.

@@ -36,7 +36,7 @@ Section svt_experiments.
        }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold_reset...
-    tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
     set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
     fold ε in εpos.
     assert (IZR den ≠ 0) by admit.
@@ -100,11 +100,11 @@ Section svt_experiments.
                reset_l ↦ #false ∗
                reset_r ↦ₛ #false ∗
                ⤇ fill K
-                 (let: "vi" := Laplace #num #(4 * den) #vq_r in
+                 (let: "vi" := Laplace #num #(4 * den) #vq_r #() in
                   if: #(T' + 1) ≤ "vi" then #reset_r <- #true;; InjR #true
                   else InjR #false)%E
                ⊢
-                 WP let: "vi" := Laplace #num #(4 * den) #vq_l in
+                 WP let: "vi" := Laplace #num #(4 * den) #vq_l #() in
                     if: #T' ≤ "vi" then #reset_l <- #true;; InjR #true else InjR #false
                     {{ v, ∃ v' : val, ⤇ fill K v' ∗ ⌜v = v'⌝ ∗ (⌜v = InjRV #false⌝ -∗ AUTH) }}).
     (* sanity check: is this the current goal? *)
@@ -116,7 +116,7 @@ Section svt_experiments.
     {
       subst goal.
       iIntros "(ε & reset_l & reset_r & rhs)".
-      tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+      tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
 
       (* case 1 *)
       (* A direct proof of this case with the appropriate coupling is commented out here. *)
@@ -137,7 +137,7 @@ Section svt_experiments.
     {
       subst goal.
       iIntros "(ε & reset_l & reset_r & rhs)".
-      tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+      tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
 
       (* case 2 *)
       (* A direct proof of this case with the appropriate coupling is commented out here. *)
@@ -167,10 +167,10 @@ Section svt_experiments.
     set (Magic := ∀ num den loc loc' k k' ε K
                     (Hdist : (Z.abs (k + loc - loc') <= k')%Z) (Hε : ε = IZR num / IZR den) Φ,
             ↯m (IZR k' * ε) -∗
-            ⤇ fill K (Laplace #num #den #loc') -∗
+            ⤇ fill K (Laplace #num #den #loc' #()) -∗
             Φ -∗
             ∀ T : Z,
-              WP Laplace #num #den #loc
+              WP Laplace #num #den #loc #()
                 {{ v_l, ∃ z_l : Z,
                       ⌜ v_l = #z_l ⌝ ∗
                       ∃ z_r : Z,
@@ -185,7 +185,7 @@ Section svt_experiments.
     assert (Magic → goal) as _.
     { intros magic. subst goal Magic.
       iIntros "(ε & reset_l & reset_r & rhs)".
-      tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+      tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
 
       opose proof (magic num (4*den)%Z vq_l vq_r 1%Z 2%Z _ _ _ _ _) as magic' ; clear magic.
       1: apply Zabs_ind ; lia.
@@ -219,8 +219,8 @@ Section svt_experiments.
             0 < IZR num / IZR den →
             ε' = (IZR k' * ε) →
             ∀ RES : Z,
-              {{{ ⤇ fill K (Laplace #num #den #loc') ∗ ↯m ε' }}}
-                Laplace #num #den #loc @ E
+              {{{ ⤇ fill K (Laplace #num #den #loc' #()) ∗ ↯m ε' }}}
+                Laplace #num #den #loc #() @ E
                 {{{ (z_l : Z), RET #z_l; ∃ z_r : Z, ⤇ fill K #(z_r) ∗ ⌜z_l = RES → (z_r = RES+k)%Z⌝ }}}).
 
     (* General point-wise rule.  *)
@@ -242,11 +242,11 @@ Section svt_experiments.
             reset_l ↦ #false ∗
             reset_r ↦ₛ #false ∗
             ⤇ fill K
-              (let: "vi" := Laplace #num #(4 * den) #vq_r in
+              (let: "vi" := Laplace #num #(4 * den) #vq_r #() in
                if: #(T' + 1) ≤ "vi" then #reset_r <- #true;; InjR #true
                else InjR #false)%E
             ⊢
-              WP let: "vi" := Laplace #num #(4 * den) #vq_l in
+              WP let: "vi" := Laplace #num #(4 * den) #vq_l #() in
                 if: #T' ≤ "vi" then #reset_l <- #true;; InjR #true else InjR #false
                 {{ v, ∃ v' : val, ⤇ fill K v' ∗ ⌜v = SOMEV #RES → v' = SOMEV #RES⌝ ∗ (⌜v = SOMEV #false⌝ -∗ AUTH) }}).
 
@@ -257,7 +257,7 @@ Section svt_experiments.
       intros z_l.
       iIntros "(ε & reset_l & reset_r & rhs)".
 
-      tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+      tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
 
       destruct_decide (@bool_decide_reflect (T' ≤ z_l)%Z _) as res_l.
       (* case 1 *)
@@ -362,7 +362,7 @@ Section svt_experiments.
        }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold...
-    tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
     set (ε := (IZR num / 2 * IZR den)).
     fold ε in εpos.
     (* iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver. *)
@@ -391,7 +391,7 @@ Section svt_experiments.
       apply Zabs_ind ; intros ? h; split.
       all: pose proof (le_IZR _ _ h) ; lia.
     }
-    tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
     (* case on whether the result is the one that will get released (pweq) *)
     destruct R eqn:HR.
     - iApply (hoare_couple_laplace vq_l vq_r 1%Z 2%Z with "[$rhs ε]") => //.

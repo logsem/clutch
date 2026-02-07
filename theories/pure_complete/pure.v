@@ -213,7 +213,7 @@ Definition is_pure_ectx (Ki : ectx_item) : bool :=
   | RandLCtx (LitV (LitUnit)) => true
   | LaplaceNumCtx v2 v3 => is_pureV v2 && is_pureV v3
   | LaplaceDenCtx e1 v3 => is_pure e1 && is_pureV v3
-  | LaplaceLocCtx e1 e2 => is_pure e1 && is_pure e2
+  | LaplaceMeanCtx e1 e2 => is_pure e1 && is_pure e2
   | AllocNLCtx _ | AllocNRCtx _ | LoadCtx | StoreLCtx _ | StoreRCtx _ 
   | AllocTapeCtx | RandLCtx _ => false
   | TickCtx => true

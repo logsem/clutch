@@ -74,7 +74,7 @@ Inductive SamplesOneTapeItem (t : loc) : ectx_item -> Prop :=
   | SamplesOneTapeItemCaseCtx e1 e2 : SamplesOneTape t e1 -> SamplesOneTape t e2 -> SamplesOneTapeItem t (CaseCtx e1 e2)
   (* | SamplesOneTapeLaplaceNumCtx v1 v2 : SamplesOneTapeV t v1 -> SamplesOneTapeV t v2 -> SamplesOneTapeItem t (LaplaceNumCtx v1 v2)
      | SamplesOneTapeLaplaceDenCtx e1 v3 : SamplesOneTape t e1 -> SamplesOneTapeV t v3 -> SamplesOneTapeItem t (LaplaceDenCtx e1 v3) *)
-  (* | SamplesOneTapeLaplaceLocCtx  *)
+  (* | SamplesOneTapeLaplaceMeanCtx  *)
   | SamplesOneTapeItemTickCtx : SamplesOneTapeItem t TickCtx.
 
 Lemma SamplesOneTape_fill_item Ki e l :

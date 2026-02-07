@@ -49,7 +49,7 @@ Section svt_pw.
        }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold_reset...
-    tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
     set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
     fold ε in εpos.
     iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver.
@@ -85,7 +85,7 @@ Section svt_pw.
     }
     (* case on whether the result is the one that will get released (pweq) *)
     destruct R eqn:HR.
-    - tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    - tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
       iApply (hoare_couple_laplace vq_l vq_r 1%Z 2%Z with "[$rhs ε]") => //.
       1: apply Zabs_ind ; lia.
       1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
@@ -99,7 +99,7 @@ Section svt_pw.
       + exfalso. lia.
       + iFrame. iSplitR. 1: done. iModIntro.
         iIntros ((h_R & h_vv' & h_vR)). exfalso. inversion h_R.
-    - tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    - tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
       iMod ecm_zero as "ε0".
       iApply (hoare_couple_laplace vq_l vq_r (vq_r - vq_l)%Z 0%Z with "[$rhs ε0]") => //.
       1: apply Zabs_ind ; lia.
@@ -131,7 +131,7 @@ Section svt_pw.
        }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold...
-    tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
     set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
     fold ε in εpos.
     iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver.
@@ -161,7 +161,7 @@ Section svt_pw.
       apply Zabs_ind ; intros ? h; split.
       all: pose proof (le_IZR _ _ h) ; lia.
     }
-    tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
     (* case on whether the result is the one that will get released (pweq) *)
     destruct R eqn:HR.
     - iApply (hoare_couple_laplace vq_l vq_r 1%Z 2%Z with "[$rhs ε]") => //.
@@ -222,7 +222,7 @@ Section svt_pw.
        }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold...
-    tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
     set (ε := (IZR num / 2 * IZR den)).
     fold ε in εpos.
     (* case on whether the result is the one that will get released (pweq) *)
@@ -252,7 +252,7 @@ Section svt_pw.
         apply Zabs_ind ; intros ? h; split.
         all: pose proof (le_IZR _ _ h) ; lia.
       }
-      tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+      tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
       iApply (hoare_couple_laplace vq_l vq_r 1%Z 2%Z with "[$rhs ε]") => //.
       1: apply Zabs_ind ; lia.
       1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
@@ -291,7 +291,7 @@ Section svt_pw.
         apply Zabs_ind ; intros ? h; split.
         all: pose proof (le_IZR _ _ h) ; lia.
       }
-      tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+      tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
       iApply (hoare_couple_laplace vq_l vq_r 0%Z 1%Z with "[$rhs ε]") => //.
       1: apply Zabs_ind ; lia.
       1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
