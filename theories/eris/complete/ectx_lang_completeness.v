@@ -5,12 +5,11 @@ From iris.bi.lib Require Import fractional.
 From iris.prelude Require Import options.
 
 From clutch.common Require Export language ectx_language.
-From clutch.eris Require Export weakestpre total_weakestpre complete_pre.
+From clutch.eris Require Export weakestpre total_weakestpre.
 From clutch.prob Require Import distribution.
 From clutch.base_logic Require Import error_credits.
 From clutch.eris.complete Require Export lang_completeness.
 
-Search fill_lift.
 Local Open Scope R.
 
 Class eris_ectx_lang_completeness_gen (Λ : ectxLanguage) (Σ : gFunctors) `{!erisWpGS Λ Σ} `{ecGS Σ} := ErisEctxCompleteness {
@@ -25,7 +24,7 @@ Class eris_ectx_lang_completeness_gen (Λ : ectxLanguage) (Σ : gFunctors) `{!er
       na e1 →
       head_reducible e1 σ →
       heap_inv σ ={E}=∗
-      ((heap_inv σ ∗ ∀ Ψ (ε1 : cfg Λ → R), 
+      ((∀ Ψ (ε1 : cfg Λ → R), 
         ⌜∀ e σ, head_reducible e σ → ε1 (e, σ) = Expval (step (e, σ)) ε1⌝ →
         ⌜∀ ρ, 0 <= ε1 ρ⌝ →
         ⌜∀ ρ, stuck ρ → ε1 ρ = 1⌝ →
@@ -64,10 +63,10 @@ Section completeness.
     reducible (e1, σ) →
     heap_inv σ ={E}=∗
     ((∀ Ψ (ε1 : cfg Λ → R), 
-    ⌜∀ e σ, reducible (e, σ) → ε1 (e, σ) = Expval (step (e, σ)) ε1⌝ →
+    ⌜∀ ρ, reducible ρ → ε1 ρ = Expval (step ρ) ε1⌝ →
     ⌜∀ ρ, 0 <= ε1 ρ⌝ →
     ⌜∀ ρ, stuck ρ → ε1 ρ = 1⌝ →
-    ⌜∀ K e σ, reducible (e, σ) → ε1 (fill_lift K (e, σ)) = Expval (step (e, σ)) (ε1 ∘ fill_lift K)⌝ →
+    ⌜∀ K ρ, reducible ρ → ε1 (fill_lift K ρ) = Expval (step ρ) (ε1 ∘ fill_lift K)⌝ →
     ((▷ |={⊤,E}=> 
         ∀ e2 σ1',
         ⌜prim_step e1 σ (e2, σ1') > 0⌝ -∗
@@ -79,7 +78,7 @@ Section completeness.
     iIntros (Hna ((e'&σ')&Hstep)) "Hheap".
     rewrite //= prim_step_iff in Hstep. 
     destruct Hstep as (K & e1' & e2' & <- & <- & Hstep).
-    iMod (eris_ectx_lang_completeness e1' σ with "Hheap") as "(Hheap & HH)";
+    iMod (eris_ectx_lang_completeness e1' σ with "Hheap") as "HH";
     [by eapply na_fill_inv | by econstructor |].
     iModIntro. iFrame.
     iIntros (Ψ ε1 Hε1step Hε1nn Hε1stuck Hε1fill) "Hc Herr".
@@ -89,7 +88,7 @@ Section completeness.
     { 
       iPureIntro. 
       intros e0 σ0 Hrd.
-      rewrite (Hε1fill (fill K) e0 σ0); last by apply head_prim_reducible.
+      rewrite (Hε1fill (fill K) (e0, σ0)); last by apply head_prim_reducible.
       f_equal. 
       by apply functional_extensionality => [[??]]. 
     }
@@ -107,23 +106,17 @@ Section completeness.
     iMod ("Hc" with "[] Hheap [Herr]") as "Hc"; first by iPureIntro; eapply fill_step; eauto; apply ectx_lang_ctx.
     - iFrame.
     - by rewrite pgl_wp_bind_inv.
-  Admitted.
+  Qed.
 
 End completeness.
 
-(* Global Program Instance eris_ectx_to_completeness `{eris_ectx_lang_completeness_gen Λ Σ} : 
+Global Program Instance eris_ectx_to_completeness `{eris_ectx_lang_completeness_gen Λ Σ} : 
   eris_lang_completeness_gen (ectx_lang Λ) Σ := {
-    heap_inv σ := heap_inv σ;
-    err := err;
-    err_ge0 := err_ge0;
-    err_le1 := err_le1;
-    err_exp := err_exp;
-    err_stuck := err_stuck;
-    err_fin := err_fin;
+    heap_inv := heap_inv;
     na := na;
     na_step := na_step;
   }.
 Next Obligation.
   intros. simpl.
-  by eapply pgl_wp_ectx_to_prim_completeness.
-Defined. *)
+  exact (pgl_wp_ectx_to_prim_completeness e1 σ E H1 H2).
+Defined.
