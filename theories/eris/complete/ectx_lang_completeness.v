@@ -10,106 +10,81 @@ From clutch.prob Require Import distribution.
 From clutch.base_logic Require Import error_credits.
 From clutch.eris.complete Require Export lang_completeness.
 
-
+Search fill_lift.
 Local Open Scope R.
 
 Class eris_ectx_lang_completeness_gen (Λ : ectxLanguage) (Σ : gFunctors) `{!erisWpGS Λ Σ} `{ecGS Σ} := ErisEctxCompleteness {
   heap_inv : Λ.(state) → iProp Σ;
-  (* heap_inv_timeless :> ∀ σ, Timeless (heap_inv σ); *)
 
   na : Λ.(expr) → Prop;
   na_step : ∀ e σ e' σ', na e → prim_step e σ (e', σ') > 0 → na e';
   na_fill_inv : ∀ e K, na (fill K e) → na e; 
-
-  err : (Λ.(val) → iProp Σ) → cfg Λ → R;
-  err_ge0 : ∀ φ ρ, 0 <= err φ ρ;
-  err_le1 : ∀ φ ρ, err φ ρ <= 1;
-  err_exp : ∀ φ ρ, err φ ρ = Expval (step ρ) (err φ);
-  err_stuck : ∀ φ ρ, stuck ρ → err φ ρ = 1;
-  err_fin : ∀ φ (v : Λ.(val)) σ,
-    err φ (of_val v, σ) < 1 →
-      heap_inv σ -∗ φ v;
-  err_fill : ∀ K e σ φ , 
-    na (fill K e) →
-    head_reducible e σ →
-    err (λ v : val Λ, WP fill K (of_val v) {{ v0, φ v0 }})%I (e, σ) = err φ (fill K e, σ) ;
 
   eris_ectx_lang_completeness :
     ∀ e1 σ E,
       na e1 →
       head_reducible e1 σ →
       heap_inv σ ={E}=∗
-      ((* (∃ K e1', ⌜LanguageCtx K⌝ ∗ ⌜e1 = K e1'⌝ ∗ ⌜to_val e1' = None⌝ ∗ ⌜Atomic StronglyAtomic e1'⌝ ∗
-        ∀ Ψ, ((▷ ∀ v2 σ',
-          ⌜prim_step e1' σ (of_val v2, σ') > 0⌝ -∗
-          heap_inv σ' ==∗
-          (heap_inv σ' ∗ (heap_inv σ' -∗ Ψ v2))) -∗
-          ↯ (err Ψ (e1', σ)) -∗
-          WP e1' @ E {{ v, Ψ v }})) ∨ *)
-      (heap_inv σ ∗ ∀ Ψ, ((▷ |={⊤,E}=> ∃ σ1, heap_inv σ1 ∗
-        ∀ e2 σ1',
-          ⌜prim_step e1 σ1 (e2, σ1') > 0⌝ -∗
-          heap_inv σ1' ={E,⊤}=∗
-          ↯ (err Ψ (e2, σ1')) -∗ WP e2 @ ⊤ {{ v, Ψ v }}) -∗
-          ↯ (err Ψ (e1, σ)) -∗ WP e1 @ ⊤ {{ v, Ψ v }})) )
+      ((heap_inv σ ∗ ∀ Ψ (ε1 : cfg Λ → R), 
+        ⌜∀ e σ, ε1 (e, σ) = Expval (step (e, σ)) ε1⌝ →
+          ((▷ |={⊤,E}=> ∃ σ1, 
+            heap_inv σ1 ∗ 
+            ∀ e2 σ1',
+              ⌜prim_step e1 σ1 (e2, σ1') > 0⌝ -∗
+                heap_inv σ1' -∗ 
+                  ↯ (ε1 (e2, σ1')) ={E,⊤}=∗ 
+                    WP e2 @ ⊤ {{ v, Ψ v }}) -∗
+            ↯ (ε1 (e1, σ)) -∗ WP e1 @ ⊤ {{ v, Ψ v }})))
 }.
 
 Section completeness.
   Context `{eris_ectx_lang_completeness_gen Λ Σ}.
 
-  Lemma pgl_wp_ectx_to_prim_completeness e1 σ E : 
+  Lemma pgl_wp_ectx_to_prim_completeness e1 σ E :
     na e1 →
     reducible (e1, σ) →
     heap_inv σ ={E}=∗
-    ((* (∃ K e1', ⌜LanguageCtx K⌝ ∗ ⌜e1 = K e1'⌝ ∗ ⌜to_val e1' = None⌝ ∗ ⌜Atomic StronglyAtomic e1'⌝ ∗
-    ∀ Ψ, ((▷ ∀ v2 σ',
-        ⌜prim_step e1' σ (of_val v2, σ') > 0⌝ -∗
-        heap_inv σ' ==∗
-        (heap_inv σ' ∗ (heap_inv σ' -∗ Ψ v2))) -∗
-        ↯ (err Ψ (e1', σ)) -∗
-        WP e1' @ E {{ v, Ψ v }})) ∨ *)
-    (heap_inv σ ∗ ∀ Ψ, ((▷ |={⊤,E}=> ∃ σ1, heap_inv σ1 ∗
-    ∀ e2 σ1',
+    ((heap_inv σ ∗ ∀ Ψ (ε1 : cfg Λ → R), 
+    ⌜∀ ρ, ε1 ρ = Expval (step ρ) ε1⌝ -∗
+    ⌜∀ K e σ, ε1 (fill_lift K (e, σ)) = Expval (step (e, σ)) (ε1 ∘ fill_lift K)⌝ →
+    ((▷ |={⊤,E}=> ∃ σ1, 
+        heap_inv σ1 ∗ 
+        ∀ e2 σ1',
         ⌜prim_step e1 σ1 (e2, σ1') > 0⌝ -∗
-        heap_inv σ1' ={E,⊤}=∗
-        ↯ (err Ψ (e2, σ1')) -∗ WP e2 @ ⊤ {{ v, Ψ v }}) -∗
-        ↯ (err Ψ (e1, σ)) -∗ WP e1 @ ⊤ {{ v, Ψ v }})) ).
+            heap_inv σ1' -∗ 
+            ↯ (ε1 (e2, σ1')) ={E,⊤}=∗ 
+                WP e2 @ ⊤ {{ v, Ψ v }}) -∗
+        ↯ (ε1 (e1, σ)) -∗ WP e1 @ ⊤ {{ v, Ψ v }}))).
   Proof.
-    iIntros (Hna ((e'&σ')&Hstep)) "Hheap".
+    (* iIntros (Hna ((e'&σ')&Hstep)) "Hheap".
     rewrite //= prim_step_iff in Hstep. 
     destruct Hstep as (K & e1' & e2' & <- & <- & Hstep).
     iMod (eris_ectx_lang_completeness e1' σ with "Hheap") as "(Hheap & HH)";
     [by eapply na_fill_inv | by econstructor |].
     iModIntro. iFrame.
-    iIntros (Ψ) "Hc Herr".
+    iIntros (Ψ ε1 Hε1step Hε1fill) "Hc Herr".
     iApply pgl_wp_bind. 
-    iSpecialize ("HH" $! (λ v , WP fill K (of_val v) {{v0, Ψ v0}})%I). 
-    iApply ("HH" with "[Hc] [Herr]").  
-    2 : {
-      erewrite (err_fill K e1' σ Ψ); eauto.
-      econstructor; eauto.
-    } 
+    iSpecialize ("HH" $! (λ v , WP fill K (of_val v) {{v0, Ψ v0}})%I (λ '(e, s), ε1 (fill K e, s))). 
+    iApply ("HH" with "[] [Hc] Herr"). 
+    { 
+      iPureIntro. 
+      intros e0 σ0.
+      rewrite (Hε1fill (fill K) e0 σ0).
+      f_equal. 
+      by apply functional_extensionality => [[??]]. 
+    }
     iNext.
     iMod "Hc" as (σ1) "[Hf Hc]". iModIntro.
-    iFrame "Hf". iIntros (e2 σ2) "%Hprims Hheap".
-    iMod ("Hc" with "[] Hheap") as "Hc"; first by iPureIntro; eapply fill_step; eauto; apply ectx_lang_ctx.
-    iModIntro. iIntros "Herr". 
-    rewrite pgl_wp_bind_inv.
-    iApply "Hc".
-    Search head_step.
-    (* rewrite err_fill; [iFrame |]. *)
-    (* Search head_step. *)
-    (* epose proof (na_step e1' _ (fill K e2) _). *)
-    (* eapply na_fill_inv.  *)
-    (* eapply (na_step (fill K e1')); auto. *)
+    iFrame "Hf".
+    iIntros (e2 σ2) "%Hprims Hheap Herr".
+    iMod ("Hc" with "[] Hheap [Herr]") as "Hc"; first by iPureIntro; eapply fill_step; eauto; apply ectx_lang_ctx.
+    - iFrame.
+    - by rewrite pgl_wp_bind_inv. *)
   Admitted.
-(*     rewrite -(fill_step_prob ()).
-    Search fill.
-  Qed. *)
 
 End completeness.
 
-Global Program Instance eris_ectx_to_completeness `{eris_ectx_lang_completeness_gen Λ Σ} : 
+(* Global Program Instance eris_ectx_to_completeness `{eris_ectx_lang_completeness_gen Λ Σ} : 
   eris_lang_completeness_gen (ectx_lang Λ) Σ := {
     heap_inv σ := heap_inv σ;
     err := err;
@@ -124,4 +99,4 @@ Global Program Instance eris_ectx_to_completeness `{eris_ectx_lang_completeness_
 Next Obligation.
   intros. simpl.
   by eapply pgl_wp_ectx_to_prim_completeness.
-Defined.
+Defined. *)

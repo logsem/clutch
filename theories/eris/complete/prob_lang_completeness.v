@@ -30,6 +30,19 @@ Lemma na_step : ∀ e σ e' σ',
 Proof.
 Admitted.
 
+Lemma na_no_allocN : ∀ e1 e2 e3, 
+  na (AllocN e1 e2 e3) → 
+  False.
+Proof.
+Admitted.
+
+Lemma na_no_allocTape : ∀ e1, 
+  na (AllocTape e1) → 
+  False.
+Proof.
+Admitted.
+
+(* 
 Definition lim_step (ρ : cfg prob_lang) : distr (val prob_lang * state prob_lang). 
 Admitted.
 
@@ -64,20 +77,14 @@ Lemma err_fill K e σ φ:
   na e →
   err (λ v, WP fill K (of_val v) {{ v0, φ v0 }})%I (e, σ) = err φ (fill K e, σ).
 Proof. 
-  intros Hna (* [[e' σ'] Hhr] *).
-  (* rewrite head_step_support_equiv_rel in Hhr. *)
+  intros Hna.
   rewrite /err lim_step_fill probp_dbind.
-  (* inversion Hhr.  *)
-  Search head_step_rel.
-  (* rewrite /err lim_step_fill probp_dbind.
   unfold probp at 1. simpl.
   apply SeriesC_ext.
-  intros [v σ0].
+  intros [v σ0]. 
   case_bool_decide.
-  - simpl. eassert (probp _ _ = 1) as ->; try lra.
-    rewrite /probp. *)
-Admitted.
 
+Admitted.
 
 Lemma err_fin: ∀ φ (v : prob_lang.val) σ,
   err φ (of_val v, σ) < 1 →
@@ -92,6 +99,91 @@ Proof.
     rewrite /probp in n. lra. *)
 Admitted.
 
+Lemma err_step φ ρ : err φ ρ = Expval (step ρ) (err φ).
+Admitted.
+
+Lemma err_head_step φ e σ : 
+  head_reducible e σ →
+  err φ (e, σ) = Expval (head_step e σ) (err φ).
+Admitted.
+
+Lemma err_stuck φ ρ : stuck ρ → err φ ρ = 1.
+Proof.
+Admitted.
+
+Search (head_step). *)
+
+Lemma prob_lang_head_completeness e1 σ E : 
+  na e1 →
+  head_reducible e1 σ →
+  heap_inv σ ={E}=∗
+  ((∀ Ψ (ε1 : cfg prob_lang → R), 
+    ⌜∀ e σ, ε1 (e, σ) = Expval (step (e, σ)) ε1⌝ →
+      ((▷ |={⊤,E}=> 
+        ∀ e2 σ1',
+          ⌜prim_step e1 σ (e2, σ1') > 0⌝ -∗
+            heap_inv σ1' -∗ 
+              ↯ (ε1 (e2, σ1')) ={E,⊤}=∗ 
+                WP e2 @ ⊤ {{ v, Ψ v }}) -∗
+        ↯ (ε1 (e1, σ)) -∗ WP e1 @ ⊤ {{ v, Ψ v }}))).
+Proof.
+  iIntros (Hna ((e'&σ')&Hstep)) "Hheap".
+  iModIntro. iFrame.
+  iIntros (Ψ ε1 Hε1) "Hind Herr".
+  rewrite head_step_support_equiv_rel in Hstep.
+  specialize (Hε1 e1 σ).
+  rewrite /step //= head_prim_step_eq in Hε1.
+  induction Hstep; simplify_eq; rewrite /head_step /prob_lang.head_step //= in Hε1.
+  { 
+    rewrite Expval_dret in Hε1; 
+    rewrite Hε1; 
+    wp_pures; 
+    iMod ("Hind" $! (Val _) with "[] Hheap") as "Hind"; 
+    (try by iPureIntro; rewrite /prim_step //= head_prim_step_eq /head_step //= dret_1_1 //=; lra);
+    last by iSpecialize ("Hind" with "Herr"); iMod "Hind"; rewrite pgl_wp_value_fupd.
+  }
+  Search head_prim_step_eq.
+  
+Admitted.
+
+(* Lemma pgl_wp_head_completeness e1 σ E :
+    na e1 →
+    head_reducible e1 σ →
+    heap_inv σ ={E}=∗
+    ((* (∃ K e1', ⌜LanguageCtx K⌝ ∗ ⌜e1 = K e1'⌝ ∗ ⌜to_val e1' = None⌝ ∗ ⌜Atomic StronglyAtomic e1'⌝ ∗
+      ∀ Ψ, ((▷ ∀ v2 σ',
+        ⌜prim_step e1' σ (of_val v2, σ') > 0⌝ -∗
+        heap_inv σ' ==∗
+        (heap_inv σ' ∗ (heap_inv σ' -∗ Ψ v2))) -∗
+        ↯ (err Ψ (e1', σ)) -∗
+        WP e1' @ E {{ v, Ψ v }})) ∨ *)
+    (heap_inv σ ∗ ∀ Ψ, ((▷ |={⊤,E}=> ∃ σ1, heap_inv σ1 ∗
+      ∀ e2 σ1',
+        ⌜prim_step e1 σ1 (e2, σ1') > 0⌝ -∗
+        heap_inv σ1' ={E,⊤}=∗
+        ↯ (err Ψ (e2, σ1')) -∗ WP e2 @ ⊤ {{ v, Ψ v }}) -∗
+        ↯ (err Ψ (e1, σ)) -∗ WP e1 @ ⊤ {{ v, Ψ v }})) ).
+Proof.
+  iIntros (Hna ((e'&σ')&Hstep)) "Hheap".
+  iModIntro. iFrame.
+  iIntros (Ψ) "Hind Herr".
+  rewrite err_step //=.
+  Search head_reducible.
+  rewrite head_step_support_equiv_rel in Hstep.
+  inversion Hstep; simplify_eq. 
+  10 : {
+    wp_pures. iMod "Hind" as "(%σ1 & Hheap & Hind)".
+    rewrite !head_prim_step_eq Expval_dret //=.
+    iSpecialize ("Hind" $! v1 σ1 _).
+    admit.
+    (* iMod ("Hind" $! v1 σ1 _ with "Hheap") as "Hind".
+    iApply pgl_wp_value_fupd.
+    iApply "Hind". *)
+    (* rewrite pgl_wp_value. *)
+  }
+  all : admit.
+  (* Search head_step_rel. *)
+Admitted. *)
 End Instances.
 
 Section Completeness.
