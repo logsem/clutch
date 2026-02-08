@@ -875,6 +875,23 @@ Proof.
   by rewrite (lookup_total_correct (tapes σ) α (N; ns)); last done.
 Qed.
 
+Definition state_step_laplace (σ1 : state) (α : loc) : distr state :=
+  if bool_decide (α ∈ dom σ1.(tapes_laplace)) then
+    let '(Tape_Laplace num den mean zs) := (σ1.(tapes_laplace) !!! α) in
+    dmap (λ z, state_upd_tapes_laplace (<[α := (Tape_Laplace num den mean (zs ++ [z]))]>) σ1) (laplace_rat num den mean)
+  else dzero.
+
+Lemma state_step_laplace_unfold σ α num den mean zs:
+  tapes_laplace σ !! α = Some (Tape_Laplace num den mean zs) ->
+  state_step_laplace σ α = dmap (λ z, state_upd_tapes_laplace (<[α := (Tape_Laplace num den mean (zs ++ [z]))]>) σ) (laplace_rat num den mean).
+Proof.
+  intros H.
+  rewrite /state_step_laplace.
+  rewrite bool_decide_eq_true_2; last first.
+  { by apply elem_of_dom. }
+  by rewrite (lookup_total_correct (tapes_laplace σ) α (Tape_Laplace num den mean zs)); last done.
+Qed.
+
 (** Basic properties about the language *)
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
 Proof. induction Ki; intros ???; simplify_eq/=; auto with f_equal. Qed.

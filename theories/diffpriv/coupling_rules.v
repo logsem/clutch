@@ -34,74 +34,6 @@ Section rules.
     apply DPcoupl_dret=>/=; [done|done|]. eauto.
   Qed.
 
-  Lemma DPcoupl_laplace_step
-    (loc loc' k k' : Z)
-    (Hdist : (Z.abs (k + loc - loc') <= k')%Z)
-    (num den : Z) ε ε' σ1 σ1' :
-    (IZR num / IZR den) = ε →
-    0 < IZR num / IZR den →
-    ε' = (IZR k' * ε) →
-    DPcoupl (language.prim_step (Laplace #num #den #loc #()) σ1)
-      (prim_step (Laplace #num #den #loc' #()) σ1')
-      (λ ρ2 ρ2', ∃ (z : Z),
-          ρ2 = (Val #z, σ1) ∧ ρ2' = (Val #(z+k), σ1'))
-      ε' 0.
-  Proof.
-    intros Hε ? Hε'. simpl. fold cfg.
-    rewrite !head_prim_step_eq /= ; try by exact 0%Z.
-    rewrite /dmap.
-    replace 0 with (0 + 0) by lra.
-    replace ε' with (ε' + 0) by lra.
-    eapply DPcoupl_dbind => //.
-    2:{ rewrite /laplace_rat.
-        case_decide ; [|done].
-        rewrite Hε' -Hε.
-        apply Mcoupl_to_DPcoupl.
-        eapply (Mcoupl_laplace).
-        done.
-    }
-    simpl.
-    intros z1 z2 Hres.
-    apply DPcoupl_dret; [done|done|]. subst.
-    exists z1. done.
-  Qed.
-
-  Lemma DPcoupl_laplace_step_exact
-    (loc : Z)
-    (num den : Z) σ1 σ1' :
-    DPcoupl (language.prim_step (Laplace #num #den #loc #()) σ1)
-      (prim_step (Laplace #num #den #loc #()) σ1')
-      (λ ρ2 ρ2', ∃ (z : Z),
-          ρ2 = (Val #z, σ1) ∧ ρ2' = (Val #z, σ1'))
-      0 0.
-  Proof.
-    simpl. fold cfg.
-    repeat erewrite head_prim_step_eq. 2,3: shelve.
-    simpl.
-    rewrite /dmap.
-    replace 0 with (0 + 0) by lra.
-    assert (0 = (0 + 0)) as h by lra.
-    (* rewrite {9}h. *)
-    eapply DPcoupl_dbind' => //.
-    2:{ rewrite /laplace_rat.
-        case_decide. 2: apply DPcoupl_dret => //.
-        apply Mcoupl_to_DPcoupl.
-        assert (IZR 0 * pos {| pos := IZR num / IZR den; cond_pos := H |} = 0) as <-. 1: simpl ; lra.
-        opose proof (Mcoupl_laplace _ loc loc 0 0 _) as hh.
-        1: lia.
-        eapply Mcoupl_mono ; last first. 1: apply hh.
-        1: by right. all: try done. simpl. intros. lia.
-    }
-    intros z z' <-.
-    apply DPcoupl_dret; [done|done|]. subst.
-    exists z. intuition auto.
-    Unshelve.
-    - eexists (of_val #loc, σ1'). simpl. eapply dmap_pos.
-      eexists loc. split => //. apply laplace_rat_pos. right. done.
-    - eexists (of_val #loc, σ1). simpl. eapply dmap_pos.
-      eexists loc. split => //. apply laplace_rat_pos. right. done.
-  Qed.
-
   Lemma hoare_couple_laplace_exact (loc : Z)
     (num den : Z) K E :
     {{{ ⤇ fill K (Laplace #num #den #loc #()) }}}
@@ -116,7 +48,7 @@ Section rules.
     iApply (prog_coupl_steps_simple ε_now 0%NNR _ δ_now 0%NNR);
       [apply nnreal_ext ; real_solver| apply nnreal_ext; simpl; lra |try solve_red|try solve_red|..].
     { apply DPcoupl_steps_ctx_bind_r => //.
-      eapply DPcoupl_laplace_step_exact => //. }
+      eapply DPcoupl_laplace_primstep_exact => //. }
     iIntros (???? (?& [=->] & (z & [=-> ->] & [=-> ->]))).
     iMod (spec_update_prog (fill K #(_)) with "Hauth2 Hr") as "[$ Hspec0]".
     (* iMod (ecm_supply_decrease with "Hε2 Hε") as (???Herr Hε''') "H". *)
@@ -147,7 +79,7 @@ Section rules.
     iApply (prog_coupl_steps_simple _ _ _ δ_now 0%NNR);
       [done| apply nnreal_ext; simpl; lra |solve_red|solve_red|..].
     { apply DPcoupl_steps_ctx_bind_r => //. rewrite Hε''.
-      eapply DPcoupl_laplace_step => //. } simpl.
+      eapply DPcoupl_laplace_primstep => //. } simpl.
     iIntros (???? (?& [=->] & (z & [=-> ->] & [=-> ->]))).
     iMod (spec_update_prog (fill K #(_)) with "Hauth2 Hr") as "[$ Hspec0]".
     iMod (ecm_supply_decrease with "Hε2 Hε") as (???Herr Hε''') "H".
@@ -162,38 +94,49 @@ Section rules.
     Unshelve. all: constructor.
   Qed.
 
-  Lemma wp_couple_laplace (loc loc' k k' : Z)
-    (Hdist : (Z.abs (k + loc - loc') <= k')%Z)
-    (num den : Z) (ε ε' : R) K E :
+  Lemma wp_couple_tapes_laplace (mean mean' k k' : Z) α α' zs zs' e Φ
+    (Hdist : (Z.abs (k + mean - mean') <= k')%Z)
+    (num den : Z) (ε ε' : R) E :
     IZR num / IZR den = ε →
     0 < IZR num / IZR den →
     ε' = (IZR k' * ε) →
-    ⤇ fill K (Laplace #num #den #loc' #()) -∗ ↯m ε' -∗
-    WP (Laplace #num #den #loc #()) @ E
-      {{ v, ∃ z : Z, ⌜v = #z⌝ ∗ ⤇ fill K #(z+k) }}.
+    ▷ α ↪L (num, den, mean; zs) ∗ ▷ α' ↪Lₛ (num, den, mean'; zs') ∗ ↯m ε' -∗
+    (∀ z, α ↪L (num, den, mean; zs ++ [z]) ∗ α' ↪Lₛ (num, den, mean'; zs' ++ [z + k]%Z) -∗
+          WP e @ E {{ Φ }}) -∗
+    WP e @ E {{ Φ }}.
   Proof.
     iIntros (Hε εpos Hε').
-    iIntros "Hr Hε".
-    iApply wp_lift_step_prog_couple; [done|].
-    iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & Hε2 & Hδ2)".
-    iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
+    iIntros "(>α & >α' & Hε) HΦ".
+    iApply wp_lift_step_spec_couple.
+    iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1 & Htl1) & Hauth2 & Hε2 & Hδ2)".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Htl2)/=".
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(? &?& -> & Hε'').
-    iApply (prog_coupl_steps_simple _ _ _ δ_now 0%NNR) ;
-      [done| apply nnreal_ext; simpl; lra |solve_red|solve_red|..].
-    { apply DPcoupl_steps_ctx_bind_r => //. rewrite Hε''.
-      eapply DPcoupl_laplace_step => //. }
-    iIntros (???? (?& [=->] & (z & [=-> ->] & [=-> ->]))).
-    iMod (spec_update_prog (fill K #(_)) with "Hauth2 Hr") as "[$ Hspec0]".
-    iMod (ecm_supply_decrease with "Hε2 Hε") as (???Herr Hε''') "H".
-    do 2 iModIntro.
-    iMod "Hclose'" as "_".
-    iModIntro. iFrame.
-    rewrite -wp_value.
-    simplify_eq. rewrite Hε'' Hε''' in Herr.
-    rewrite Rplus_comm in Herr. apply Rplus_eq_reg_r in Herr. clear -Herr.
-    apply nnreal_ext in Herr. subst. iSplitL. 2: done. done.
-    Unshelve. all: constructor.
+    iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(ε'' & ε_now_rest & foo & Hε'').
+    rewrite -Hε''. rewrite -Hε'' in Hε'. clear Hε''. clear ε'. rename ε'' into ε'.
+    iDestruct (ghost_map_lookup with "Htl2 α'") as %?.
+    iDestruct (ghost_map_lookup with "Htl1 α") as %?.
+
+    iApply (spec_coupl_erasables_weak _ _ _ ε' ε_now_rest _ 0%NNR δ_now) => //.
+    1: apply nnreal_ext ; simpl ; lra.
+    1: eapply DPcoupl_laplace_statestep => //.
+    { by eapply state_step_laplace_erasable. }
+    { by eapply state_step_laplace_erasable. }
+    simpl.
+    iIntros (σ2 σ2' (z & -> & ->)).
+    iApply spec_coupl_ret.
+
+    iDestruct (ghost_map_lookup with "Htl1 α") as %?%lookup_total_correct.
+    iDestruct (ghost_map_lookup with "Htl2 α'") as %?%lookup_total_correct.
+    iMod (ghost_map_update ((Tape_Laplace num den mean (zs ++ [z]))) with "Htl1 α") as "[$ α]".
+    iMod (ghost_map_update ((Tape_Laplace num den mean' (zs' ++ [z+k]%Z))) with "Htl2 α'") as "[$ α']".
+    iMod (ecm_supply_decrease with "Hε2 Hε") as (????) "H".
+    iModIntro. iMod "Hclose'" as "_". iFrame.
+    simplify_eq.
+    iDestruct ("HΦ" $! z with "[$α $α']") as "Hwp".
+    iSplitL "H".
+    2: done.
+    iApply ecm_supply_eq; [|done].
+      simplify_eq/=; lra.
   Qed.
 
   Lemma hoare_couple_laplace_choice (loc loc' T : Z)
@@ -258,7 +201,7 @@ Section rules.
       subst. simpl in *.
       eapply DPcoupl_mono ; last first.
       (* for 2num/den we get a coupling that shifts the rhs by 1 *)
-      1: eapply (DPcoupl_laplace_step loc loc' 1 (Z.abs (1 + loc - loc'))).
+      1: eapply (DPcoupl_laplace_primstep loc loc' 1 (Z.abs (1 + loc - loc'))).
       all: try by intuition eauto.
       {
         rewrite Hε''. real_solver_partial. 1: lra.
@@ -274,7 +217,7 @@ Section rules.
     - intros. replace 0%R with (nonneg 0%NNR) => //. apply DPcoupl_steps_ctx_bind_r => //.
       subst. simpl in *.
       eapply DPcoupl_mono ; last first.
-      1: eapply (DPcoupl_laplace_step loc loc'
+      1: eapply (DPcoupl_laplace_primstep loc loc'
                    (loc' - loc) (Z.abs ((loc' - loc) + loc - loc'))).
       all: try by intuition eauto.
       {

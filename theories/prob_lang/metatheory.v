@@ -1,7 +1,8 @@
 From Stdlib Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
-From clutch.prob Require Import distribution couplings couplings_app.
+From clutch.prob Require Import distribution couplings couplings_app
+  couplings_exp differential_privacy couplings_dp.
 From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import tactics notation.
 From clutch.prob_lang Require Export lang.
@@ -756,6 +757,115 @@ Proof.
   apply ARcoupl_dret; [done|].
   naive_solver.
 Qed.
+
+Lemma DPcoupl_laplace_primstep
+  (loc loc' k k' : Z)
+  (Hdist : (Z.abs (k + loc - loc') <= k')%Z)
+  (num den : Z) ε ε' σ1 σ1' :
+  (IZR num / IZR den)%R = ε →
+  (0 < IZR num / IZR den)%R →
+  ε' = (IZR k' * ε)%R →
+  DPcoupl (language.prim_step (Laplace #num #den #loc #()) σ1)
+    (prim_step (Laplace #num #den #loc' #()) σ1')
+    (λ ρ2 ρ2', ∃ (z : Z),
+        ρ2 = (Val #z, σ1) ∧ ρ2' = (Val #(z+k), σ1'))
+    ε' 0.
+Proof.
+  intros Hε ? Hε'. simpl. fold cfg.
+  rewrite !head_prim_step_eq /= ; try by exact 0%Z.
+  rewrite /dmap.
+  replace 0%R with (0 + 0)%R by lra.
+  replace ε' with (ε' + 0)%R by lra.
+  eapply DPcoupl_dbind => //.
+  2:{ rewrite /laplace_rat.
+      case_decide ; [|done].
+      rewrite Hε' -Hε.
+      apply Mcoupl_to_DPcoupl.
+      eapply (Mcoupl_laplace).
+      done.
+  }
+  simpl.
+  intros z1 z2 Hres.
+  apply DPcoupl_dret; [done|done|]. subst.
+  exists z1. done.
+Qed.
+
+Lemma DPcoupl_laplace_primstep_exact
+  (loc : Z)
+  (num den : Z) σ1 σ1' :
+  DPcoupl (language.prim_step (Laplace #num #den #loc #()) σ1)
+    (prim_step (Laplace #num #den #loc #()) σ1')
+    (λ ρ2 ρ2', ∃ (z : Z),
+        ρ2 = (Val #z, σ1) ∧ ρ2' = (Val #z, σ1'))
+    0 0.
+Proof.
+  simpl. fold cfg.
+  repeat erewrite head_prim_step_eq. 2,3: shelve.
+  simpl.
+  rewrite /dmap.
+  replace 0%R with (0 + 0)%R by lra.
+  assert (0 = (0 + 0))%R as h by lra.
+  (* rewrite {9}h. *)
+  eapply DPcoupl_dbind' => //.
+  2:{ rewrite /laplace_rat.
+      case_decide. 2: apply DPcoupl_dret => //.
+      apply Mcoupl_to_DPcoupl.
+      assert (IZR 0 * pos {| pos := IZR num / IZR den; cond_pos := H |} = 0)%R as <-. 1: simpl ; lra.
+      opose proof (Mcoupl_laplace _ loc loc 0 0 _) as hh.
+      1: lia.
+      eapply Mcoupl_mono ; last first. 1: apply hh.
+      1: by right. all: try done. simpl. intros. lia.
+  }
+  intros z z' <-.
+  apply DPcoupl_dret; [done|done|]. subst.
+  exists z. intuition auto.
+  Unshelve.
+  - eexists (of_val #loc, σ1'). simpl. eapply dmap_pos.
+    eexists loc. split => //. apply laplace_rat_pos. right. done.
+  - eexists (of_val #loc, σ1). simpl. eapply dmap_pos.
+    eexists loc. split => //. apply laplace_rat_pos. right. done.
+Qed.
+
+(* The Laplace version of Rcoupl_state_state. *)
+Lemma DPcoupl_laplace_statestep
+        α α'
+  (mean mean' k k' : Z)
+  (Hdist : (Z.abs (k + mean - mean') <= k')%Z)
+  (num den : Z) ε ε' σ1 σ1' xs ys :
+  (IZR num / IZR den)%R = ε →
+  (0 < IZR num / IZR den)%R →
+  ε' = (IZR k' * ε)%R →
+  σ1.(tapes_laplace) !! α = Some (Tape_Laplace num den mean xs) →
+  σ1'.(tapes_laplace) !! α' = Some (Tape_Laplace num den mean' ys) →
+  DPcoupl (state_step_laplace σ1 α)
+    (state_step_laplace σ1' α')
+    (λ σ2 σ2', ∃ (z : Z),
+        σ2 = state_upd_tapes_laplace <[α := (Tape_Laplace num den mean (xs ++ [z]))]> σ1 ∧
+        σ2' = state_upd_tapes_laplace <[α' := (Tape_Laplace num den mean' (ys ++ [z+k]%Z))]> σ1')
+    ε' 0.
+Proof.
+  intros Hε ? Hε' hα hα'. simpl. fold cfg.
+  rewrite /state_step_laplace.
+  do 2 (rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2]).
+  rewrite (lookup_total_correct _ _ _ hα).
+  rewrite (lookup_total_correct _ _ _ hα').
+  rewrite /dmap.
+  replace 0%R with (0 + 0)%R by lra.
+  replace ε' with (ε' + 0)%R by lra.
+  eapply DPcoupl_dbind => //.
+  2:{ rewrite /laplace_rat.
+      case_decide ; [|done].
+      rewrite Hε' -Hε.
+      apply Mcoupl_to_DPcoupl.
+      eapply (Mcoupl_laplace).
+      done.
+  }
+  simpl.
+  intros z1 z2 Hres.
+  apply DPcoupl_dret; [done|done|]. subst.
+  exists z1. done.
+Qed.
+
 
 (** * state_step ~ fair_coin  *)
 Lemma state_step_fair_coin_coupl σ α bs :

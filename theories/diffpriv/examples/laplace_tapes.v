@@ -61,13 +61,21 @@ Section wp_example.
       (e #loc)%E
       {{{ (z : Z), RET #z; ⤇ fill K (Val #z) }}}.
   Proof.
-    iIntros (???) "(f' & ε) post". subst e.
+    iIntros (???) "(rhs & ε) post". subst e.
     tp_pures.
     wp_pures.
     tp_alloctape_laplace α' as "α'".
     wp_alloctape_laplace α as "α".
     tp_pures ; wp_pures.
-    fail iApply (hoare_couple_laplace _ _ 0%Z with "[$]") => //.
-  Abort.
+    wp_apply (wp_couple_tapes_laplace with "[ε $α $α']") => //.
+    { iApply ecm_eq. 2: iFrame.
+      Unshelve. 2: exact 0%Z. rewrite Zplus_0_l. reflexivity. }
+    iIntros "%z [α α']". rewrite Zplus_0_r.
+    (* TODO Why doesn't this work? Also, this tactic needs a better name. *)
+    Fail wp_randtape_laplace.
+    tp_laplace. wp_apply (wp_laplace_tape with "α").
+    iIntros "α". iApply "post".
+    done.
+  Qed.
 
 End wp_example.
