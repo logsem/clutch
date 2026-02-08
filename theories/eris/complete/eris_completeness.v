@@ -9,7 +9,7 @@ From clutch.prob_lang Require Import notation tactics metatheory.
 From clutch.prob_lang Require Export lang.
 From clutch.eris Require Export weakestpre total_weakestpre lang_completeness proofmode derived_laws error_rules presample_rules.
 From clutch.prob Require Import distribution.
-From clutch.eris.complete Require Export ectx_lang_completeness lang_completeness.
+From clutch.eris.complete Require Export ectx_lang_completeness lang_completeness no_alloc.
 From clutch.pure_complete Require Export prob_additional.
 
 Local Open Scope R.
@@ -22,50 +22,11 @@ Definition heap_inv (σ : prob_lang.state) : iProp Σ :=
     ([∗ map] ℓ↦v ∈ σ.(heap),  ℓ ↦ v) 
   ∗ ([∗ map] ι↦α ∈ σ.(tapes), ι ↪ α).
 
-(* 
-this definition is bad, actually! 
-*)
-Definition na (e : prob_lang.expr) := ∀ n σ e' σ', 
-  pexec n (e, σ) (e', σ') > 0 → dom σ.(heap) = dom σ'.(heap) ∧ dom σ.(tapes) = dom σ'.(tapes).
-
-(*
-counterexample: e := (λ y, if (y = !l) then #0 else AllocN #1 #0) (!l)
-*)
-Lemma na_step e σ e' σ' : 
-  na e → 
-  step (e, σ) (e', σ') > 0 → na e'.
-Proof.
-Admitted.
-
-Lemma na_fill_inv : ∀ e K, 
-  na (fill K e) → na e.
-Proof.
-Admitted.
-
-Lemma na_no_allocN : ∀ {v1 v2 : prob_lang.val}, 
-  na (AllocN v1 v2) → 
-  False.
-Proof.
-  rewrite /na.
-  intros v1 v2 H.
-  specialize (H 1%nat {|heap:=∅; tapes := ∅|}).
-  rewrite pexec_1 step_or_final_no_final in H; last by rewrite /is_final /to_final //=.
-  rewrite /step //= /ectx_language.prim_step /decomp decomp_unfold //= in H. 
-  Search ectxi_language.decomp.
-  Search pexec.
-Admitted.
-
-Lemma na_no_allocTape : ∀ {e1}, 
-  na (AllocTape e1) → 
-  False.
-Proof.
-Admitted.
-
 Lemma prob_lang_head_completeness e1 σ E : 
-  na e1 →
+  na e1 σ →
   head_reducible e1 σ →
   heap_inv σ ={E}=∗
-  ((∀ Ψ (ε1 : cfg prob_lang → R), 
+  ((∀ Ψ (ε1 : cfg → R), 
     ⌜∀ e σ, head_reducible e σ → ε1 (e, σ) = Expval (step (e, σ)) ε1⌝ →
     ⌜∀ ρ, 0 <= ε1 ρ⌝ →
     ⌜∀ ρ, stuck ρ → ε1 ρ = 1⌝ →
@@ -88,14 +49,14 @@ Proof.
   induction Hstep; simplify_eq; rewrite /head_step /prob_lang.head_step //= in Hε1 Hε1stuck.
   all: try (rewrite Expval_dret in Hε1; 
     rewrite Hε1; wp_pure; (try iApply fupd_pgl_wp); iMod ("Hind" $! _ with "[] Hheap") as "Hind"; 
-    [by iPureIntro; rewrite /prim_step //= head_prim_step_eq /head_step //= dret_1_1 //=; lra|
+    [by iPureIntro; rewrite head_prim_step_eq /head_step //= dret_1_1 //=; lra|
     by iSpecialize ("Hind" with "Herr"); iMod "Hind"; (try rewrite pgl_wp_value_fupd)]). 
   (* un_op *)
   {
     destruct (un_op_eval op v) eqn : Hop. 
     - rewrite Expval_dret in Hε1. wp_op. rewrite Hε1. 
       iMod ("Hind" $! _ with "[] Hheap") as "Hind".
-      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step //= Hop //= dret_1_1 //=; lra.
+      + iPureIntro. rewrite head_prim_step_eq /head_step //= Hop //= dret_1_1 //=; lra.
       + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
     - rewrite Hε1stuck; first by iPoseProof (ec_contradict with "Herr") as "[]". 
       rewrite /stuck /irreducible /step //= head_prim_step_eq //=. 
@@ -105,13 +66,13 @@ Proof.
     destruct (bin_op_eval op v1 v2) eqn : Hop. 
     - rewrite Expval_dret in Hε1. wp_op. rewrite Hε1. 
       iMod ("Hind" $! _ with "[] Hheap") as "Hind".
-      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step //= Hop //= dret_1_1 //=; lra.
+      + iPureIntro. rewrite head_prim_step_eq /head_step //= Hop //= dret_1_1 //=; lra.
       + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
     - rewrite Hε1stuck; first by iPoseProof (ec_contradict with "Herr") as "[]". 
       rewrite /stuck /irreducible /step //= head_prim_step_eq //=. 
   }
   (* allocN (no) *)
-  { by destruct (na_no_allocN Hna). }
+  { by destruct Hna as [H ?]; destruct (na_no_allocN H). }
   (* load *)
   { 
     destruct (heap σ !! l) eqn : Hσl.
@@ -122,7 +83,7 @@ Proof.
       rewrite <-(big_sepM_delete (λ l v, l ↦ v)%I _ _  _ Hσl). 
       iCombine "Hheap Htapes" as "Hheap".
       iMod ("Hind" $! _ with "[] Hheap") as "Hind". 
-      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step /prob_lang.head_step Hσl //= dret_1_1 //=; lra. 
+      + iPureIntro. rewrite head_prim_step_eq /ectx_language.head_step /prob_lang.head_step //= Hσl //= dret_1_1 //=; lra.  
       + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
     - rewrite Hε1stuck; first by iPoseProof (ec_contradict with "Herr") as "[]". 
       rewrite /stuck /irreducible /step //= head_prim_step_eq //=. 
@@ -137,7 +98,7 @@ Proof.
       rewrite <-(big_sepM_insert_delete (λ l v, l ↦ v)%I).
       iCombine "Hheap Htapes" as "Hheap".
       iMod ("Hind" $! _ with "[] [Hheap]") as "Hind". 
-      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step /prob_lang.head_step Hσl dret_1_1 //=; lra.
+      + iPureIntro. rewrite head_prim_step_eq /ectx_language.head_step /prob_lang.head_step //= Hσl dret_1_1 //=; lra.
       + by rewrite /state_upd_heap.
       + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
     - rewrite Hε1stuck; first by iPoseProof (ec_contradict with "Herr") as "[]". 
@@ -155,12 +116,12 @@ Proof.
       rewrite dunif_pmf //=. 
       real_solver.
     - iIntros (n0) "Herr". iMod ("Hind" $! (Val #n0) with "[] Hheap") as "Hind".
-      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step /prob_lang.head_step. 
+      + iPureIntro. rewrite head_prim_step_eq /head_step /prob_lang.head_step. 
         rewrite dmap_pos. do 2 econstructor; eauto. apply dunifP_pos.
       + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
   } 
   (* allocTape (no) *)
-  { by destruct (na_no_allocTape Hna). }
+  { by destruct Hna as [H ?]; destruct (na_no_allocTape H). }
   (* successful rand on tape *)
   {  
     destruct (tapes σ !! l) eqn : Hσl; inversion H0; simplify_eq.
@@ -174,7 +135,7 @@ Proof.
     rewrite <-(big_sepM_insert_delete (λ l v, l ↪[erisGS_tapes_name] v)%I).
     iCombine "Hheap Htapes" as "Hheap".
     iMod ("Hind" $! _ with "[] [Hheap]") as "Hind". 
-    + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step /prob_lang.head_step Hσl.
+    + iPureIntro. rewrite head_prim_step_eq /ectx_language.head_step /prob_lang.head_step //= Hσl.
       case_bool_decide; last contradiction. rewrite dret_1_1 //=; lra.
     + by rewrite /state_upd_heap.
     + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
@@ -201,7 +162,7 @@ Proof.
       rewrite insert_id //=.
       iCombine "Hheap Htapes" as "Hheap".
       iMod ("Hind" $! _ with "[] [Hheap]") as "Hind".  
-      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step /prob_lang.head_step Hσl. 
+      + iPureIntro. rewrite head_prim_step_eq /ectx_language.head_step /prob_lang.head_step //= Hσl. 
       case_bool_decide; last contradiction. rewrite dmap_pos. do 2 econstructor; eauto. rewrite dunif_pmf. real_solver.
       + by rewrite /state_upd_heap.
       + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
@@ -211,7 +172,6 @@ Proof.
     (* no tactics? *)
     destruct (tapes σ !! l) eqn : Hσl; inversion H0; simplify_eq.
     case_bool_decide; first done.
-    Check wp_rand_tape_empty.
     admit.
   }
   (* laplacian *)
@@ -237,22 +197,24 @@ Global Program Instance prob_lang_ectx_completeness `{erisGS Σ} :
 }.
 Next Obligation.
   intros. simpl in H1.
-  eapply na_step; eauto. rewrite /step //=.
+  destruct H0.
+  eapply na_step; eauto.
 Defined.
 Next Obligation.
-  intros. by eapply na_fill_inv.
+  intros ????? [??]. constructor; auto. 
+  eapply na_fill_inv; simpl in *; eauto.
 Defined.
 Next Obligation.
   intros.
   by apply prob_lang_head_completeness.
 Defined.
 
-Lemma prob_lang_pgl_sem_completeness `{erisGS Σ} e σ (φ : val prob_lang → Prop) :
-  na e →
-  ↯ (err_lb φ (e, σ)) -∗
+Lemma prob_lang_pgl_sem_completeness `{erisGS Σ} e σ (φ : val → Prop) :
+  na e σ →
+  ↯ (err_lb (δ := lang_markov prob_lang) φ (e, σ)) -∗
   heap_inv σ -∗
   WP e {{v, ⌜φ v⌝}}.
 Proof.
   iIntros (?) "Herr Hheap".
-  iApply (pgl_sem_completeness with "[Herr] [Hheap]"); auto.
-Qed.
+  iApply (pgl_sem_completeness with "[Herr] [Hheap]"); simpl; eauto.
+Qed. 

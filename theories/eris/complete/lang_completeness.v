@@ -14,13 +14,13 @@ Local Open Scope R.
 Class eris_lang_completeness_gen (Λ : language) (Σ : gFunctors) `{!erisWpGS Λ Σ} `{ecGS Σ} := ErisCompleteness {
   heap_inv : Λ.(state) → iProp Σ;
 
-  (** [na e] should state that the execution of na does not allocate any new locations in the state *)
-  na : Λ.(expr) → Prop;
-  na_step : ∀ e σ e' σ', na e → prim_step e σ (e', σ') > 0 → na e';
+  (** [na e σ] should state that the execution of (e, σ) does not allocate any new locations in the state *)
+  na : Λ.(expr) → Λ.(state) → Prop;
+  na_step : ∀ e σ e' σ', na e σ → prim_step e σ (e', σ') > 0 → na e' σ';
 
   eris_lang_completeness :
     ∀ e1 σ E,
-      na e1 →
+      na e1 σ →
       reducible (e1, σ) →
       heap_inv σ ={E}=∗
       ((∀ Ψ (ε1 : cfg Λ → R), 
@@ -80,7 +80,7 @@ Section completeness.
   Context `{!eris_lang_completeness_gen Λ Σ}.
   
   Lemma pgl_sem_completeness e σ (φ : Λ.(val) → Prop) :
-    na e →
+    na e σ →
     ↯ (err_lb φ (e, σ)) -∗
     heap_inv σ -∗
     WP e {{v, ⌜φ v⌝}}.
