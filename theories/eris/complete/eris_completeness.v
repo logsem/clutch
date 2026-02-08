@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From clutch.common Require Export language ectx_language.
 From clutch.prob_lang Require Import notation tactics metatheory.
 From clutch.prob_lang Require Export lang.
-From clutch.eris Require Export weakestpre total_weakestpre lang_completeness proofmode derived_laws error_rules.
+From clutch.eris Require Export weakestpre total_weakestpre lang_completeness proofmode derived_laws error_rules presample_rules.
 From clutch.prob Require Import distribution.
 From clutch.eris.complete Require Export ectx_lang_completeness lang_completeness.
 From clutch.pure_complete Require Export prob_additional.
@@ -22,10 +22,17 @@ Definition heap_inv (σ : prob_lang.state) : iProp Σ :=
     ([∗ map] ℓ↦v ∈ σ.(heap),  ℓ ↦ v) 
   ∗ ([∗ map] ι↦α ∈ σ.(tapes), ι ↪ α).
 
+(* 
+this definition is bad, actually! 
+*)
 Definition na (e : prob_lang.expr) := ∀ n σ e' σ', 
   pexec n (e, σ) (e', σ') > 0 → dom σ.(heap) = dom σ'.(heap) ∧ dom σ.(tapes) = dom σ'.(tapes).
 
-Lemma na_step : ∀ e σ e' σ', 
+(*
+counterexample: e := (λ y, if (y = !l) then #0 else AllocN #1 #0) (!l)
+*)
+Lemma na_step e σ e' σ' : 
+  na e → 
   step (e, σ) (e', σ') > 0 → na e'.
 Proof.
 Admitted.
@@ -35,10 +42,17 @@ Lemma na_fill_inv : ∀ e K,
 Proof.
 Admitted.
 
-Lemma na_no_allocN : ∀ {e1 e2}, 
-  na (AllocN e1 e2) → 
+Lemma na_no_allocN : ∀ {v1 v2 : prob_lang.val}, 
+  na (AllocN v1 v2) → 
   False.
 Proof.
+  rewrite /na.
+  intros v1 v2 H.
+  specialize (H 1%nat {|heap:=∅; tapes := ∅|}).
+  rewrite pexec_1 step_or_final_no_final in H; last by rewrite /is_final /to_final //=.
+  rewrite /step //= /ectx_language.prim_step /decomp decomp_unfold //= in H. 
+  Search ectxi_language.decomp.
+  Search pexec.
 Admitted.
 
 Lemma na_no_allocTape : ∀ {e1}, 
@@ -129,12 +143,10 @@ Proof.
     - rewrite Hε1stuck; first by iPoseProof (ec_contradict with "Herr") as "[]". 
       rewrite /stuck /irreducible /step //= head_prim_step_eq //=. 
   }
+  (* weird *)
+  all : iApply (pgl_wp_strong_mono ⊤ _ _ (λ v, |={⊤}=> Ψ v)%I with "[Hheap Herr Hind] []"); try done; last by iIntros "% H"; iApply "H".
   (* rand *)
   {
-    (* weird *)
-    iApply (pgl_wp_strong_mono ⊤ _ _ (λ v, |={⊤}=> Ψ v)%I with "[Hheap Herr Hind] []"); try done.
-    2 : { iIntros "% H". by iApply "H". }
-
     wp_apply (wp_rand_exp_fin _ _ _ _ (λ n0 : fin (S (Z.to_nat z)), ε1 (Val #n0, σ)) with "Herr").
     - intros. apply Hε1nn.
     - rewrite Hε1 Expval_dmap //=; first last.
@@ -146,26 +158,60 @@ Proof.
       + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step /prob_lang.head_step. 
         rewrite dmap_pos. do 2 econstructor; eauto. apply dunifP_pos.
       + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
-  }
-  (* allocTape *)
+  } 
+  (* allocTape (no) *)
   { by destruct (na_no_allocTape Hna). }
   (* successful rand on tape *)
   {  
     destruct (tapes σ !! l) eqn : Hσl; inversion H0; simplify_eq.
     case_bool_decide; last done.
     rewrite Expval_dret in Hε1. rewrite Hε1. 
-    admit.
+    rewrite /heap_inv (big_sepM_delete _ (tapes σ) l); eauto.
+    iDestruct "Hheap" as "(Hheap & (Hl & Htapes'))".
+    wp_apply (wp_rand_tape with "Hl").
+    iIntros "Hl".
+    iCombine "Hl Htapes'" as "Htapes".
+    rewrite <-(big_sepM_insert_delete (λ l v, l ↪[erisGS_tapes_name] v)%I).
+    iCombine "Hheap Htapes" as "Hheap".
+    iMod ("Hind" $! _ with "[] [Hheap]") as "Hind". 
+    + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step /prob_lang.head_step Hσl.
+      case_bool_decide; last contradiction. rewrite dret_1_1 //=; lra.
+    + by rewrite /state_upd_heap.
+    + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
   }
-  (* rand on empty tape (same as usual rand) *) 
+  (* 
+    rand on empty tape (same as usual rand),
+    prove this by first presampling
+  *) 
   {
     destruct (tapes σ !! l) eqn : Hσl; inversion H0; simplify_eq.
     case_bool_decide; last done.
-    admit.
+    rewrite /heap_inv (big_sepM_delete _ (tapes σ) l); eauto.
+    iDestruct "Hheap" as "(Hheap & (Hl & Htapes'))".
+    iApply (wp_presample_adv_comp _ _ _ _ _ _ _ _ (λ n, ε1 (Val #n, σ))); auto.
+    iFrame. iSplitL "Herr".
+    - iApply (ec_eq with "Herr").
+      rewrite Hε1 Expval_dmap; auto; last apply ex_seriesC_finite.
+      apply SeriesC_ext. intros. rewrite dunif_pmf //=. real_solver. 
+    - iIntros (n0) "(Herr & Hl)".
+      wp_apply (wp_rand_tape with "Hl").
+      iIntros "Hl".
+      iCombine "Hl Htapes'" as "Htapes".
+      rewrite <-(big_sepM_insert_delete (λ l v, l ↪[erisGS_tapes_name] v)%I).
+      rewrite insert_id //=.
+      iCombine "Hheap Htapes" as "Hheap".
+      iMod ("Hind" $! _ with "[] [Hheap]") as "Hind".  
+      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step /prob_lang.head_step Hσl. 
+      case_bool_decide; last contradiction. rewrite dmap_pos. do 2 econstructor; eauto. rewrite dunif_pmf. real_solver.
+      + by rewrite /state_upd_heap.
+      + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
   }
   (* rand on unmatching tape (same as usual rand)*) 
   {
+    (* no tactics? *)
     destruct (tapes σ !! l) eqn : Hσl; inversion H0; simplify_eq.
     case_bool_decide; first done.
+    Check wp_rand_tape_empty.
     admit.
   }
   (* laplacian *)
@@ -191,7 +237,7 @@ Global Program Instance prob_lang_ectx_completeness `{erisGS Σ} :
 }.
 Next Obligation.
   intros. simpl in H1.
-  eapply na_step. rewrite /step //=.
+  eapply na_step; eauto. rewrite /step //=.
 Defined.
 Next Obligation.
   intros. by eapply na_fill_inv.
