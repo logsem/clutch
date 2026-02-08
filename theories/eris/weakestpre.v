@@ -601,20 +601,21 @@ Section glm.
         * right. apply SeriesC_ext.
           intros (e&σ).
           f_equal. by apply fill_step_prob.
-        * admit. (* eapply (SeriesC_le_inj _ (λ '(e,σ), Some (K e, σ))).
+        * epose proof (SeriesC_le_inj (λ ρ : expr Λ * state Λ, prim_step (K e1) σ' ρ * ε3 ρ)%R (λ '(e,σ), Some (K e, σ))).
+          etrans; last apply H0.
+          ** apply Req_le_sym, SeriesC_ext => [[??]] //=. 
           ** intros (e&σ).
              apply Rmult_le_pos; auto.
              apply cond_nonneg.
           ** intros (e3&σ3) (e4&σ4) (e5&σ5).
-             simpl. intros [= -> ->] [= HKinj ->].
-             f_equal. by apply (fill_inj K).
+             simpl. intros [= <- ->] [= HKinj ->].
+             f_equal. by apply fill_inj.
           ** apply (ex_seriesC_le _ (λ ρ, (prim_step (K e1) σ' ρ * r)%R)).
              *** intros (e&σ); split.
                  **** apply Rmult_le_pos; auto.
                       apply cond_nonneg.
                  **** apply Rmult_le_compat_l; auto.
-                      apply (Hr (e, σ)).
-             *** apply ex_seriesC_scal_r; auto. *)
+             *** apply ex_seriesC_scal_r; auto.
       + iIntros (e2 σ2) "%HR'".
         simpl in HR'.
         iMod ("H" $! (K e2) σ2 with "[%]") as "H".
@@ -643,7 +644,7 @@ Section glm.
           iApply (exec_stutter_mono_pred); [|done].
           iIntros (?) "HΦ". iApply "HΦ". done.
       + iRight. by iApply ("IH" with "Ht").
-  Admitted.
+  Qed.
 
   Lemma glm_prim_step e1 σ1 Z ε :
     (∃ R ε1 ε2, ⌜reducible (e1, σ1)⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
