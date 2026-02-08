@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From clutch.common Require Export language ectx_language.
 From clutch.prob_lang Require Import notation tactics metatheory.
 From clutch.prob_lang Require Export lang.
-From clutch.eris Require Export weakestpre total_weakestpre lang_completeness proofmode derived_laws.
+From clutch.eris Require Export weakestpre total_weakestpre lang_completeness proofmode derived_laws error_rules.
 From clutch.prob Require Import distribution.
 From clutch.eris.complete Require Export ectx_lang_completeness lang_completeness.
 From clutch.pure_complete Require Export prob_additional.
@@ -30,95 +30,26 @@ Lemma na_step : ∀ e σ e' σ',
 Proof.
 Admitted.
 
-Lemma na_no_allocN : ∀ e1 e2 e3, 
-  na (AllocN e1 e2 e3) → 
+Lemma na_no_allocN : ∀ {e1 e2}, 
+  na (AllocN e1 e2) → 
   False.
 Proof.
 Admitted.
 
-Lemma na_no_allocTape : ∀ e1, 
+Lemma na_no_allocTape : ∀ {e1}, 
   na (AllocTape e1) → 
   False.
 Proof.
 Admitted.
-
-(* 
-Definition lim_step (ρ : cfg prob_lang) : distr (val prob_lang * state prob_lang). 
-Admitted.
-
-Lemma lim_step_fill K e σ : 
-  lim_step (fill K e, σ) = dbind (λ '(v, σ'), lim_step (fill K (Val v), σ')) (lim_step (e, σ)).
-Admitted.
-
-Lemma lim_step_step ρ : 
-  lim_step ρ = dbind lim_step (step ρ).
-Admitted.
-
-(* Definition err (φ: prob_lang.val → iProp Σ) (ρ : cfg prob_lang) := probp (lim_exec ρ) (λ v, ¬ ⊢ φ v). *)
-Definition err (φ: prob_lang.val → iProp Σ) (ρ : cfg prob_lang) := probp (lim_step ρ) (λ '(v, σ), ¬ ⊢ heap_inv σ -∗ φ v).
-
-Lemma probp_1 `{Countable A} (μ : distr A) (P : A → Prop) : 
-  ∀ a, P a → probp μ P = 1.
-Admitted.  
-
-(* Lemma head_step_to_val (e0 : expr prob_lang) σ0 e σ:
-  head_step e0 σ0 (e, σ) > 0 →
-  is_Some (to_val e).
-Proof. 
-  intros Hhr.
-  rewrite head_step_support_equiv_rel in Hhr.
-  inversion Hhr; subst; try done.
-  (* intros Hna Hhr.
-  rewrite head_step_support_equiv_rel in Hhr.
-  induction Hhr. *)
-Admitted. *)
-
-Lemma err_fill K e σ φ:
-  na e →
-  err (λ v, WP fill K (of_val v) {{ v0, φ v0 }})%I (e, σ) = err φ (fill K e, σ).
-Proof. 
-  intros Hna.
-  rewrite /err lim_step_fill probp_dbind.
-  unfold probp at 1. simpl.
-  apply SeriesC_ext.
-  intros [v σ0]. 
-  case_bool_decide.
-
-Admitted.
-
-Lemma err_fin: ∀ φ (v : prob_lang.val) σ,
-  err φ (of_val v, σ) < 1 →
-  heap_inv σ -∗ φ v.
-Proof.
-  (* intros ???.
-  rewrite /err /probp (lim_exec_final (of_val v, σ) v) //=.
-  intros.
-  destruct (decide (⊢ φ v)). 
-  - iIntros. iApply b.
-  - apply (probp_dret_true v (λ a, (not (bi_emp_valid (φ a))))) in n.
-    rewrite /probp in n. lra. *)
-Admitted.
-
-Lemma err_step φ ρ : err φ ρ = Expval (step ρ) (err φ).
-Admitted.
-
-Lemma err_head_step φ e σ : 
-  head_reducible e σ →
-  err φ (e, σ) = Expval (head_step e σ) (err φ).
-Admitted.
-
-Lemma err_stuck φ ρ : stuck ρ → err φ ρ = 1.
-Proof.
-Admitted.
-
-Search (head_step). *)
 
 Lemma prob_lang_head_completeness e1 σ E : 
   na e1 →
   head_reducible e1 σ →
   heap_inv σ ={E}=∗
   ((∀ Ψ (ε1 : cfg prob_lang → R), 
-    ⌜∀ e σ, ε1 (e, σ) = Expval (step (e, σ)) ε1⌝ →
+    ⌜∀ e σ, head_reducible e σ → ε1 (e, σ) = Expval (step (e, σ)) ε1⌝ →
+    ⌜∀ ρ, 0 <= ε1 ρ⌝ →
+    ⌜∀ ρ, stuck ρ → ε1 ρ = 1⌝ →
       ((▷ |={⊤,E}=> 
         ∀ e2 σ1',
           ⌜prim_step e1 σ (e2, σ1') > 0⌝ -∗
@@ -127,63 +58,126 @@ Lemma prob_lang_head_completeness e1 σ E :
                 WP e2 @ ⊤ {{ v, Ψ v }}) -∗
         ↯ (ε1 (e1, σ)) -∗ WP e1 @ ⊤ {{ v, Ψ v }}))).
 Proof.
-  iIntros (Hna ((e'&σ')&Hstep)) "Hheap".
+  iIntros (Hna Hre) "Hheap".
+  pose proof Hre as ((e'&σ')&Hstep).
   iModIntro. iFrame.
-  iIntros (Ψ ε1 Hε1) "Hind Herr".
+  iIntros (Ψ ε1 Hε1 Hε1nn Hε1stuck) "Hind Herr".
   rewrite head_step_support_equiv_rel in Hstep.
-  specialize (Hε1 e1 σ).
-  rewrite /step //= head_prim_step_eq in Hε1.
-  induction Hstep; simplify_eq; rewrite /head_step /prob_lang.head_step //= in Hε1.
-  { 
-    rewrite Expval_dret in Hε1; 
-    rewrite Hε1; 
-    wp_pures; 
-    iMod ("Hind" $! (Val _) with "[] Hheap") as "Hind"; 
-    (try by iPureIntro; rewrite /prim_step //= head_prim_step_eq /head_step //= dret_1_1 //=; lra);
-    last by iSpecialize ("Hind" with "Herr"); iMod "Hind"; rewrite pgl_wp_value_fupd.
+  specialize (Hε1 e1 σ Hre).
+  specialize (Hε1stuck (e1, σ)).
+  rewrite /step //= head_prim_step_eq in Hε1 Hε1stuck.
+  induction Hstep; simplify_eq; rewrite /head_step /prob_lang.head_step //= in Hε1 Hε1stuck.
+  all: try (rewrite Expval_dret in Hε1; 
+    rewrite Hε1; wp_pure; (try iApply fupd_pgl_wp); iMod ("Hind" $! _ with "[] Hheap") as "Hind"; 
+    [by iPureIntro; rewrite /prim_step //= head_prim_step_eq /head_step //= dret_1_1 //=; lra|
+    by iSpecialize ("Hind" with "Herr"); iMod "Hind"; (try rewrite pgl_wp_value_fupd)]). 
+  (* un_op *)
+  {
+    destruct (un_op_eval op v) eqn : Hop. 
+    - rewrite Expval_dret in Hε1. wp_op. rewrite Hε1. 
+      iMod ("Hind" $! _ with "[] Hheap") as "Hind".
+      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step //= Hop //= dret_1_1 //=; lra.
+      + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
+    - rewrite Hε1stuck; first by iPoseProof (ec_contradict with "Herr") as "[]". 
+      rewrite /stuck /irreducible /step //= head_prim_step_eq //=. 
   }
-  Search head_prim_step_eq.
-  
+  (* bin_op *)
+  {
+    destruct (bin_op_eval op v1 v2) eqn : Hop. 
+    - rewrite Expval_dret in Hε1. wp_op. rewrite Hε1. 
+      iMod ("Hind" $! _ with "[] Hheap") as "Hind".
+      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step //= Hop //= dret_1_1 //=; lra.
+      + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
+    - rewrite Hε1stuck; first by iPoseProof (ec_contradict with "Herr") as "[]". 
+      rewrite /stuck /irreducible /step //= head_prim_step_eq //=. 
+  }
+  (* allocN (no) *)
+  { by destruct (na_no_allocN Hna). }
+  (* load *)
+  { 
+    destruct (heap σ !! l) eqn : Hσl.
+    - rewrite Expval_dret in Hε1. rewrite Hε1. 
+      rewrite /heap_inv (big_sepM_delete); eauto.
+      iDestruct "Hheap" as "((Hl&Hheap') & Htapes)".
+      wp_load. iCombine "Hl Hheap'" as "Hheap".
+      rewrite <-(big_sepM_delete (λ l v, l ↦ v)%I _ _  _ Hσl). 
+      iCombine "Hheap Htapes" as "Hheap".
+      iMod ("Hind" $! _ with "[] Hheap") as "Hind". 
+      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step /prob_lang.head_step Hσl //= dret_1_1 //=; lra. 
+      + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
+      Search ([∗ map] _ ↦ _ ∈ _, _)%I.
+    - rewrite Hε1stuck; first by iPoseProof (ec_contradict with "Herr") as "[]". 
+      rewrite /stuck /irreducible /step //= head_prim_step_eq //=. 
+  }
+  (* store *)
+  {
+    destruct (heap σ !! l) eqn : Hσl.
+    - rewrite Expval_dret in Hε1. rewrite Hε1. 
+      rewrite /heap_inv (big_sepM_delete); eauto.
+      iDestruct "Hheap" as "((Hl&Hheap') & Htapes)".
+      wp_store. iCombine "Hl Hheap'" as "Hheap". 
+      rewrite <-(big_sepM_insert_delete (λ l v, l ↦ v)%I).
+      iCombine "Hheap Htapes" as "Hheap".
+      iMod ("Hind" $! _ with "[] [Hheap]") as "Hind". 
+      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step /prob_lang.head_step Hσl dret_1_1 //=; lra.
+      + by rewrite /state_upd_heap.
+      + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
+    - rewrite Hε1stuck; first by iPoseProof (ec_contradict with "Herr") as "[]". 
+      rewrite /stuck /irreducible /step //= head_prim_step_eq //=. 
+  }
+  (* rand *)
+  {
+    (* weird *)
+    iApply (pgl_wp_strong_mono ⊤ _ _ (λ v, |={⊤}=> Ψ v)%I with "[Hheap Herr Hind] []"); try done.
+    2 : { iIntros "% H". by iApply "H". }
+
+    wp_apply (wp_rand_exp_fin _ _ _ _ (λ n0 : fin (S (Z.to_nat z)), ε1 (Val #n0, σ)) with "Herr").
+    - intros. apply Hε1nn.
+    - rewrite Hε1 Expval_dmap //=; first last.
+      { apply ex_seriesC_finite. }
+      apply SeriesC_ext => n0. 
+      rewrite dunif_pmf //=. 
+      real_solver.
+    - iIntros (n0) "Herr". iMod ("Hind" $! (Val #n0) with "[] Hheap") as "Hind".
+      + iPureIntro. rewrite /prim_step //= head_prim_step_eq /head_step /prob_lang.head_step. 
+        rewrite dmap_pos. do 2 econstructor; eauto. apply dunifP_pos.
+      + iSpecialize ("Hind" with "Herr"). iMod "Hind". by rewrite pgl_wp_value_fupd.
+  }
+  (* allocTape *)
+  { by destruct (na_no_allocTape Hna). }
+  (* successful rand on tape *)
+  {  
+    destruct (tapes σ !! l) eqn : Hσl; inversion H0; simplify_eq.
+    case_bool_decide; last done.
+    rewrite Expval_dret in Hε1. rewrite Hε1. 
+    admit.
+  }
+  (* rand on empty tape (same as usual rand) *) 
+  {
+    destruct (tapes σ !! l) eqn : Hσl; inversion H0; simplify_eq.
+    case_bool_decide; last done.
+    admit.
+  }
+  (* rand on unmatching tape (same as usual rand)*) 
+  {
+    destruct (tapes σ !! l) eqn : Hσl; inversion H0; simplify_eq.
+    case_bool_decide; first done.
+    admit.
+  }
+  (* laplacian *)
+  {
+    (* we don't have a proof rule for laplacian in eris? *)
+    case_decide; last done.
+    admit.
+  }
+  (* laplacian (zero scale) *)
+  {
+    case_decide; first done.
+    rewrite dmap_dret Expval_dret in Hε1.
+    admit.
+  }
 Admitted.
 
-(* Lemma pgl_wp_head_completeness e1 σ E :
-    na e1 →
-    head_reducible e1 σ →
-    heap_inv σ ={E}=∗
-    ((* (∃ K e1', ⌜LanguageCtx K⌝ ∗ ⌜e1 = K e1'⌝ ∗ ⌜to_val e1' = None⌝ ∗ ⌜Atomic StronglyAtomic e1'⌝ ∗
-      ∀ Ψ, ((▷ ∀ v2 σ',
-        ⌜prim_step e1' σ (of_val v2, σ') > 0⌝ -∗
-        heap_inv σ' ==∗
-        (heap_inv σ' ∗ (heap_inv σ' -∗ Ψ v2))) -∗
-        ↯ (err Ψ (e1', σ)) -∗
-        WP e1' @ E {{ v, Ψ v }})) ∨ *)
-    (heap_inv σ ∗ ∀ Ψ, ((▷ |={⊤,E}=> ∃ σ1, heap_inv σ1 ∗
-      ∀ e2 σ1',
-        ⌜prim_step e1 σ1 (e2, σ1') > 0⌝ -∗
-        heap_inv σ1' ={E,⊤}=∗
-        ↯ (err Ψ (e2, σ1')) -∗ WP e2 @ ⊤ {{ v, Ψ v }}) -∗
-        ↯ (err Ψ (e1, σ)) -∗ WP e1 @ ⊤ {{ v, Ψ v }})) ).
-Proof.
-  iIntros (Hna ((e'&σ')&Hstep)) "Hheap".
-  iModIntro. iFrame.
-  iIntros (Ψ) "Hind Herr".
-  rewrite err_step //=.
-  Search head_reducible.
-  rewrite head_step_support_equiv_rel in Hstep.
-  inversion Hstep; simplify_eq. 
-  10 : {
-    wp_pures. iMod "Hind" as "(%σ1 & Hheap & Hind)".
-    rewrite !head_prim_step_eq Expval_dret //=.
-    iSpecialize ("Hind" $! v1 σ1 _).
-    admit.
-    (* iMod ("Hind" $! v1 σ1 _ with "Hheap") as "Hind".
-    iApply pgl_wp_value_fupd.
-    iApply "Hind". *)
-    (* rewrite pgl_wp_value. *)
-  }
-  all : admit.
-  (* Search head_step_rel. *)
-Admitted. *)
 End Instances.
 
 Section Completeness.
