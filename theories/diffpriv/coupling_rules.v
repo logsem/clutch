@@ -328,4 +328,66 @@ Section rules.
         Unshelve. all: exact 0%Z.
   Qed.
 
+
+  (** TODO: This should be generalizable to injective functions [N] -> [M]
+      Then we can get the exact couplings with bijections as a corollary *)
+  Lemma wp_couple_tapes (N M : nat) E e α αₛ ns nsₛ Φ (δ : R) :
+    (N <= M)%nat →
+    (S M - S N) / S M = δ →
+    ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗
+    ↯ δ ∗
+    (∀ (n : nat),
+        ⌜ n ≤ N ⌝ -∗
+        α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ ++ [n]) -∗
+        WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (NMpos NMδ) "(>Hα & >Hαₛ & Hδ & Hwp)".
+    iMod ecm_zero as "Hε".
+    iApply wp_lift_step_spec_couple.
+    iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1 & Htl1) & Hauth2 & Hε2 & Hδ2)".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Htl2)/=".
+    iDestruct "Hα" as (fs) "(%&Hα)".
+    iDestruct "Hαₛ" as (fsₛ) "(%&Hαₛ)".
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ec_supply_ec_inv with "Hδ2 Hδ") as %(?&?&->&<-).
+    iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(?&?&->&hh).
+    iApply spec_coupl_erasables_weak ; [done|done|..].
+    { rewrite hh. simpl.
+      apply ARcoupl_to_DPcoupl.
+      apply (ARcoupl_state_state N M σ1 σ1' α αₛ fs fsₛ x NMpos NMδ H2 H1). }
+    { by eapply state_step_erasable. }
+    { by eapply state_step_erasable. }
+    iIntros (σ2 σ2' (n & m & nm & -> & ->)).
+    iApply spec_coupl_ret.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?%lookup_total_correct.
+    iMod (ghost_map_update ((N; fs ++ [n]) : tape) with "Ht1 Hα") as "[$ Hα]".
+    iMod (ghost_map_update ((M; fsₛ ++ [m]) : tape) with "Ht2 Hαₛ") as "[$ Hαₛ]".
+    iMod (ec_supply_decrease with "Hδ2 Hδ") as (????) "H".
+    iMod (ecm_supply_decrease with "Hε2 Hε") as (????) "Hm".
+    iModIntro. iMod "Hclose'" as "_". iFrame.
+    pose proof (fin_to_nat_lt n).
+    iDestruct ("Hwp" $! n with "[]") as "Hwp".
+    { iPureIntro; lia. }
+    rewrite -/add_ec_supply.
+    iSplitL "H Hm".
+    { iSplitL "Hm".
+      - iApply ecm_supply_eq; [|done]. simplify_eq/=; lra.
+      - iApply ec_supply_eq; [|done]. simplify_eq/=; lra.
+    }
+    iModIntro.
+    iApply "Hwp".
+    iSplitL "Hα".
+    - iExists _. iFrame.
+      rewrite fmap_app.
+      simplify_eq. done.
+    - iExists _. iFrame.
+      rewrite nm.
+      rewrite fmap_app.
+      simplify_eq. done.
+  Qed.
+
 End rules.

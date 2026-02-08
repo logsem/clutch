@@ -215,3 +215,6 @@ Section rewritable_functions.
   Qed.
 
 End rewritable_functions.
+
+Definition rewritable_of_erasable {Λ} (μ : distr (state Λ)) (e : expr Λ) : distr (expr Λ * state Λ) :=
+  μ ≫= λ σ : state Λ, dret (e, σ).

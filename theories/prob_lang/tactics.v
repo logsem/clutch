@@ -81,7 +81,7 @@ Global Hint Extern 1
     finite map operations. This tactic is slightly ad-hoc and tuned for proving
     our lifting lemmas. *)
 
-Global Hint Extern 0 (head_reducible (Laplace _ _ _ _) _) =>
+Global Hint Extern 0 (head_reducible (Laplace _ _ _ (Val $ LitV $ LitLbl _)) _) =>
          eapply head_reducible_laplace : head_step.
 
 Global Hint Extern 0 (head_reducible _ _) =>

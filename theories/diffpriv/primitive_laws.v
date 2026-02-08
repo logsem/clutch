@@ -413,7 +413,7 @@ Proof.
   auto.
 Qed.
 
-Lemma wp_rand_tape_laplace num den mean num' den' mean' α n ns E s :
+Lemma wp_laplace_tape num den mean num' den' mean' α n ns E s :
   TCEq num num' →
   TCEq den den' →
   TCEq mean mean' →
@@ -437,7 +437,7 @@ Proof.
     iApply "HΦ". done.
 Qed.
 
-Lemma wp_rand_tape_laplace_empty num den mean num' den' mean' α E s :
+Lemma wp_laplace_tape_empty num den mean num' den' mean' α E s :
   TCEq num num' →
   TCEq den den' →
   TCEq mean mean' →
@@ -463,7 +463,7 @@ Proof.
 Qed.
 
 
-Lemma wp_rand_tape_laplace_wrong_bound num den mean num' den' mean' α E ns s :
+Lemma wp_laplace_tape_wrong_bound num den mean num' den' mean' α E ns s :
   not (num = num' ∧ den = den' ∧ mean = mean') →
   {{{ ▷ α ↪L (num', den', mean'; ns) }}}
     Laplace #num #den #mean (#lbl:α) @ s; E
@@ -618,6 +618,123 @@ Proof.
   iApply ("Hwp" with "[-]"); first by iFrame.
   iPureIntro.
   pose proof (fin_to_nat_lt x); lia.
+Qed.
+
+(** spec [Laplace] *)
+Lemma wp_laplace_r (num den mean : Z) E e K Φ :
+  ⤇ fill K (Laplace #num #den #mean #()) ∗
+  (∀ z : Z, ⤇ fill K #z -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros "(Hj & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_step ; [solve_red|].
+  rewrite fill_dmap //=.
+  iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
+  simplify_eq/=.
+  rewrite head_prim_step_eq // in Hs.
+  inv_head_step.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "Hj").
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "Hj").
+Qed.
+
+(** spec [Laplace(α)] with empty tape  *)
+Lemma wp_laplace_empty_r (num den mean num' den' mean' : Z) E e K α Φ :
+  TCEq num num' →
+  TCEq den den' →
+  TCEq mean mean' →
+  ⤇ fill K (Laplace #num #den #mean (#lbl:α)) ∗ α ↪Lₛ (num,den,mean; []) ∗
+  (∀ z : Z, (α ↪Lₛ (num,den,mean; []) ∗ ⤇ fill K #z) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (->->->) "(Hj & Hα & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iDestruct (spec_auth_lookup_tape_laplace with "Hs Hα") as %?.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_step; [solve_red|].
+  rewrite fill_dmap //=.
+  iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
+  simplify_eq/=.
+  rewrite head_prim_step_eq // in Hs.
+  inv_head_step.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[Hα Hj]");
+      first by iFrame; auto.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[Hα Hj]");
+      first by iFrame; auto.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[Hα Hj]");
+      first by iFrame; auto.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[Hα Hj]");
+      first by iFrame; auto.
+Qed.
+
+(** spec [Laplace(α)] with wrong tape  *)
+Lemma wp_laplace_wrong_tape_r (num den mean num' den' mean' : Z) E e K α Φ zs :
+  not (num = num' ∧ den = den' ∧ mean = mean') →
+  ⤇ fill K (Laplace #num #den #mean (#lbl:α)) ∗ α ↪Lₛ (num', den', mean'; zs) ∗
+  (∀ (z : Z), (α ↪Lₛ (num', den', mean'; zs) ∗ ⤇ fill K #z) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (?) "(Hj & Hα & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iDestruct (spec_auth_lookup_tape_laplace with "Hs Hα") as %?.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_step; [solve_red|].
+  rewrite fill_dmap //=.
+  iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
+  simplify_eq/=.
+  rewrite head_prim_step_eq // in Hs.
+  inv_head_step.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[-]"); first by iFrame.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[-]"); first by iFrame.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[-]"); first by iFrame.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[-]"); first by iFrame.
 Qed.
 
 End lifting.

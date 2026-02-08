@@ -346,6 +346,49 @@ Tactic Notation "tp_allocnattape" ident(l) "as"  constr(H) :=
 Tactic Notation "tp_allocnattape" ident(j') :=
   let H := iFresh in tp_alloctape as j' H.
 
+Lemma tac_tp_alloctape_laplace `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e (num den mean : Z) Q :
+  (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
+  envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
+  e = fill K (AllocTapeLaplace #num #den #mean) →
+  (∀ α : loc, ∃ Δ2,
+    envs_simple_replace i1 false
+       (Esnoc Enil i1 (⤇ fill K #lbl:α)) Δ1 = Some Δ2 ∧
+    (envs_entails Δ2 ((α ↪Lₛ Tape_Laplace num den mean []) -∗ Q)%I)) →
+  envs_entails Δ1 Q.
+Proof.
+  rewrite envs_entails_unseal. intros ?? Hfill HQ.
+  rewrite (envs_lookup_sound' Δ1 false i1); last by eassumption.
+  rewrite Hfill /=.
+  rewrite step_alloctape_laplace //.
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono_r, bi.wand_intro_l.
+  rewrite bi.sep_exist_r.
+  apply bi.exist_elim=> l.
+  destruct (HQ l) as (Δ2 & HΔ2 & HQ').
+  rewrite (envs_simple_replace_sound' _ _ i1 _ _ HΔ2) /=.
+  rewrite HQ' right_id.
+  iIntros "[[H Hl] Hcnt]".
+  iApply ("Hcnt" with "H Hl").
+Qed.
+
+Tactic Notation "tp_alloctape_laplace" ident(l) "as" constr(H) :=
+  let finish _ :=
+      first [ intros l | fail 1 "tp_alloctape_laplace:" l "not fresh"];
+        eexists; split;
+        [ reduction.pm_reflexivity
+        | (iIntros H; tp_normalise) || fail 1 "tp_alloctape_laplace:" H "not correct intro pattern" ] in
+  iStartProof;
+  eapply (tac_tp_alloctape_laplace);
+  [tc_solve || fail "tp_alloctape_laplace: cannot eliminate modality in the goal"
+  (* |tc_solve || fail "tp_alloctape_laplace: cannnot convert bound to a natural number" *)
+  |iAssumptionCore || fail "tp_alloctape_laplace: cannot find the RHS"
+  |tp_bind_helper
+  |finish ()
+(* new goal *)].
+
+Tactic Notation "tp_alloctape_laplace" "as" ident(j') :=
+  let H := iFresh in tp_alloctape_laplace j' as H.
+
 Lemma tac_tp_rand `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) N z n ns Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
@@ -440,6 +483,55 @@ Tactic Notation "tp_randnat" :=
   tp_randnat as "%".
 
 
+Lemma tac_tp_laplace `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) (num den mean num' den' mean' z : Z) zs Q :
+  (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
+  TCEq num num' →
+  TCEq den den' →
+  TCEq mean mean' →
+  envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
+  e = fill K (Laplace #num #den #mean (#lbl:l)) →
+  envs_lookup i2 Δ2 = Some (false, l ↪Lₛ Tape_Laplace num' den' mean' (z::zs))%I →
+  e2 = fill K (of_val #z) →
+  match envs_simple_replace i2 false
+    (Esnoc (Esnoc Enil i1 (⤇ e2)) i2 (l ↪Lₛ Tape_Laplace num' den' mean' zs)%I) Δ2 with
+  | Some Δ3 => envs_entails Δ3 Q
+  | None    => False
+  end →
+  envs_entails Δ1 Q.
+Proof.
+  rewrite envs_entails_unseal. intros ????? -> ? -> HQ.
+  rewrite envs_lookup_delete_sound //; simpl.
+  destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
+  rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl.
+  rewrite right_id.
+  rewrite assoc.
+  rewrite step_laplace //=.
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono_r.
+  apply bi.wand_intro_l.
+  rewrite HQ.
+  rewrite (comm _ _ (l ↪Lₛ Tape_Laplace num' den' mean' zs)%I).
+  by apply bi.wand_elim_r.
+Qed.
+
+Tactic Notation "tp_laplace" :=
+  iStartProof;
+  eapply tac_tp_laplace;
+  [tc_solve || fail "tp_laplace: cannot eliminate modality in the goal"
+  | (* postpone solving [TCEq ...] until after the tape has been unified *)
+  | (* postpone solving [TCEq ...] until after the tape has been unified *)
+  | (* postpone solving [TCEq ...] until after the tape has been unified *)
+  |iAssumptionCore || fail "tp_laplace: cannot find the RHS"
+  |tp_bind_helper
+  |iAssumptionCore || fail "tp_laplace: cannot find '? ↪Lₛ ?'"
+  |simpl; reflexivity || fail "tp_laplace: this should not happen"
+  |pm_reduce (* new goal *)];
+  [tc_solve || fail "tp_laplace: Laplace numerator does not match the tape numerator"
+  |tc_solve || fail "tp_laplace: Laplace denominator does not match the tape denominator"
+  |tc_solve || fail "tp_laplace: Laplace mean does not match the tape mean"
+  |].
+
+
 (** Some simple tests *)
 Section tests.
   Context `{specG_prob_lang Σ, invGS_gen hasLc Σ}.
@@ -473,6 +565,15 @@ Section tests.
   Proof.
     iIntros "[Hα Hs]".
     tp_rand.
+    iModIntro.
+    done.
+  Qed.
+
+  Local Lemma test_laplace E α :
+    α ↪Lₛ Tape_Laplace 1 2 0 [42%Z] ∗ ⤇ (Laplace #1 #2 #0 (#lbl:α)) ⊢ spec_update E (⤇ #42).
+  Proof.
+    iIntros "[Hα Hs]".
+    tp_laplace.
     iModIntro.
     done.
   Qed.

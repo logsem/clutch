@@ -94,7 +94,7 @@ Notation "l ↪ₛ{# q } v" := (l ↪ₛ{ DfracOwn q } v)%I
 Notation "l ↪ₛ v" := (l ↪ₛ{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪ₛ  v") : bi_scope.
 
-(** Spec tapes *)
+(** Spec Laplace tapes *)
 Notation "l ↪Lₛ{ dq } v" := (@ghost_map_elem _ _ _ _ _ specG_prob_lang_tapes_laplace specG_prob_lang_tapes_laplace_name l dq v)
   (at level 20, format "l  ↪Lₛ{ dq }  v") : bi_scope.
 Notation "l ↪Lₛ□ v" := (l ↪Lₛ{ DfracDiscarded } v)%I
@@ -103,6 +103,9 @@ Notation "l ↪Lₛ{# q } v" := (l ↪Lₛ{ DfracOwn q } v)%I
   (at level 20, format "l  ↪Lₛ{# q }  v") : bi_scope.
 Notation "l ↪Lₛ v" := (l ↪Lₛ{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪Lₛ  v") : bi_scope.
+
+Notation "l ↪Lₛ ( num , den , mean ; xs )" := (l ↪Lₛ (Tape_Laplace num den mean xs))%I
+  (at level 20, format "l  ↪Lₛ  ( num , den , mean ;  xs )") : bi_scope.
 
 Section theory.
   Context `{!specG_prob_lang Σ}.
@@ -196,7 +199,7 @@ Section theory.
 
   Lemma spec_auth_tape_laplace_alloc e σ num den mean :
     spec_auth (e, σ) ==∗
-    spec_auth (e, state_upd_tapes_laplace <[fresh_loc σ.(tapes_laplace) := (Tape_Laplace num den mean [])]> σ) ∗ fresh_loc σ.(tapes_laplace) ↪Lₛ (Tape_Laplace num den mean []).
+    spec_auth (e, state_upd_tapes_laplace <[fresh_loc σ.(tapes_laplace) := (Tape_Laplace num den mean [])]> σ) ∗ fresh_loc σ.(tapes_laplace) ↪Lₛ (num, den, mean; []).
   Proof.
     iIntros "(? & ? & ?&Htapes) /=".
     iMod (ghost_map_insert (fresh_loc σ.(tapes_laplace)) with "Htapes") as "[H Hl]".

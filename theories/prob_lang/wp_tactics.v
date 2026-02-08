@@ -71,6 +71,24 @@ Class GwpTacticsTapes Σ A (laters : bool) (gwp : A → coPset → expr → (val
     gwp a E (Rand (LitV (LitInt z)) (LitV (LitLbl l))) Φ;
 }.
 
+(** Laplace Tapes *)
+Class GwpTacticsTapesLaplace Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ):= {
+  wptac_mapsto_tape_laplace : loc → dfrac → Z -> Z -> Z -> (list Z) → iProp Σ;
+
+  wptac_wp_alloctape_laplace E (num den mean : Z) a Φ :
+    True -∗
+    (▷?laters (∀ l, (wptac_mapsto_tape_laplace l (DfracOwn 1) num den mean nil) -∗ Φ (LitV (LitLbl l))%V)) -∗
+    gwp a E (AllocTapeLaplace (Val $ LitV $ LitInt $ num) (Val $ LitV $ LitInt $ den) (Val $ LitV $ LitInt $ mean)) Φ;
+
+  wptac_wp_rand_tape_laplace E (num den mean num' den' mean' z : Z) zs l dq a Φ :
+    TCEq num num' →
+    TCEq den den' →
+    TCEq mean mean' →
+    (▷ wptac_mapsto_tape_laplace l dq num' den' mean' (z::zs)) -∗
+    (▷?laters ((wptac_mapsto_tape_laplace l dq num' den' mean' zs) -∗ Φ (LitV $ LitInt $ z)%V)) -∗
+    gwp a E (Laplace (LitV (LitInt num)) (LitV (LitInt den)) (LitV (LitInt mean)) (LitV (LitLbl l))) Φ;
+}.
+
 Section wp_tactics.
   Context `{GwpTacticsBase Σ A hlc gwp}.
 
@@ -163,6 +181,8 @@ Ltac wp_finish :=
   rewrite ?[wptac_mapsto _ _ _]/=;
   (* simplify occurences of [wptac_mapsto_tape] projections  *)
   rewrite ?[wptac_mapsto_tape _ _ _]/=;
+  (* simplify occurences of [wptac_mapsto_tape_laplace] projections  *)
+  rewrite ?[wptac_mapsto_tape_laplace _ _ _ _ _]/=;
   (* simplify occurences of subst/fill *)
   wp_expr_simpl;
   (* in case we have reached a value, get rid of the wp *)
@@ -721,11 +741,11 @@ Tactic Notation "wp_randtape" "as" constr(H) :=
   let Htmp := iFresh in
   let solve_wptac_mapsto_tape _ :=
     let l := match goal with |- _ = Some (_, (wptac_mapsto_tape ?l _ _ (_ :: _))%I) => l end in
-    iAssumptionCore || fail "wp_load: cannot find" l "↪N ?" in
+    iAssumptionCore || fail "wp_randtape: cannot find" l "↪N ?" in
   let finish _ :=
     pm_reduce;
     lazymatch goal with
-    | |- False => fail 1 "wp_alloc:" H "not fresh"
+    | |- False => fail 1 "wp_randtape:" H "not fresh"
     | _ => iDestructHyp Htmp as H; wp_finish
     end in
   wp_pures;
@@ -733,7 +753,7 @@ Tactic Notation "wp_randtape" "as" constr(H) :=
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
       first
         [reshape_expr e ltac:(fun K e' => eapply (tac_wp_rand_tape _ _ _ _ Htmp K))
-        |fail 1 "wp_load: cannot find 'Rand' in" e];
+        |fail 1 "wp_randtape: cannot find 'Rand' in" e];
       [ (* Delay resolution of TCEq *)
       | tc_solve
       | solve_wptac_mapsto_tape ()
@@ -742,13 +762,167 @@ Tactic Notation "wp_randtape" "as" constr(H) :=
   | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
       first
         [reshape_expr e ltac:(fun K e' => eapply (tac_wp_rand_tape _ _ _ _ Htmp K))
-        |fail 1 "wp_load: cannot find 'Rand' in" e];
+        |fail 1 "wp_randtape: cannot find 'Rand' in" e];
       [try tc_solve
       |tc_solve
       |try (solve_wptac_mapsto_tape ())
       |finish ()]
-  | _ => fail "wp_load: not a 'wp'"
+  | _ => fail "wp_randtape: not a 'wp'"
   end.
 
 Tactic Notation "wp_randtape" :=
   wp_randtape as "%".
+
+Section tape_laplace_tactics.
+  Context `{GwpTacticsBase Σ A hlc gwp, GwpTacticsBind Σ A hlc gwp, !GwpTacticsTapesLaplace Σ A laters gwp}.
+
+  Local Notation "'WP' e @ s ; E {{ Φ } }" := (gwp s E e%E Φ)
+    (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+
+  (** Notations with binder. *)
+  Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
+    (at level 20, e, Q at level 200,
+     format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+
+  Lemma tac_wp_alloctape_laplace Δ Δ' E j K num den mean Φ a :
+    MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
+    (∀ l,
+        match envs_app false (Esnoc Enil j (wptac_mapsto_tape_laplace l (DfracOwn 1) num den mean nil)) Δ' with
+        | Some Δ'' =>
+            envs_entails Δ'' (WP fill K (Val $ LitV $ LitLbl l) @ a ; E {{ Φ }})
+        | None => False
+        end) →
+    envs_entails Δ (WP fill K (AllocTapeLaplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean)) @ a; E {{ Φ }}).
+  Proof.
+    rewrite envs_entails_unseal=> ? HΔ.
+    rewrite -wptac_wp_bind.
+    eapply bi.wand_apply.
+    { by apply bi.wand_entails, wptac_wp_alloctape_laplace. }
+    rewrite left_id into_laterN_env_sound.
+    apply bi.laterN_mono, bi.forall_intro=> l.
+    specialize (HΔ l).
+    destruct (envs_app _ _ _) as [Δ''|] eqn:HΔ'; [| contradiction].
+    rewrite envs_app_sound //; simpl.
+    apply bi.wand_intro_l.
+    rewrite right_id.
+    rewrite bi.wand_elim_r //.
+  Qed.
+
+
+  Lemma tac_wp_laplace_tape Δ1 Δ2 E i (* j *) K l num den mean num' den' mean' z zs Φ a :
+    TCEq num num' →
+    TCEq den den' →
+    TCEq mean mean' →
+    MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ1 Δ2 →
+    envs_lookup i Δ2 = Some (false, wptac_mapsto_tape_laplace l (DfracOwn 1) num' den' mean' (z::zs)) ->
+    (match envs_simple_replace i false (Esnoc Enil i (wptac_mapsto_tape_laplace l (DfracOwn 1) num' den' mean' zs)) Δ2 with
+    | Some Δ3 =>
+        (* (match envs_app false (Esnoc Enil j (⌜n ≤ N⌝%I)) Δ3 with
+           | Some Δ4 => *)
+        envs_entails Δ3 (* Δ4 *) (WP fill K (Val $ LitV $ LitInt z) @ a; E {{ Φ }})
+        (* | None    => False
+           end) *)
+    | None    => False
+    end) →
+    envs_entails Δ1 (gwp a E (fill K (Laplace (LitV (LitInt num)) (LitV (LitInt den)) (LitV (LitInt mean)) (LitV (LitLbl l)))) Φ ).
+  Proof.
+    rewrite envs_entails_unseal=> ???? Hi HΔ.
+    destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
+    rewrite -wptac_wp_bind.
+    eapply bi.wand_apply.
+    { by apply bi.wand_entails, wptac_wp_rand_tape_laplace. }
+    rewrite into_laterN_env_sound.
+    destruct laters.
+    - rewrite -bi.later_sep.
+      apply bi.later_mono.
+      rewrite (envs_simple_replace_sound Δ2 Δ3 i) /= //; simpl.
+      iIntros "[$ He]".
+      iIntros "Htp".
+      (* destruct (envs_app _ _ _) as [Δ4 |] eqn: HΔ4; [|contradiction]. *)
+      (* rewrite envs_app_sound //; simpl. *)
+      iApply HΔ.
+      iApply ("He" with "[$Htp]").
+      (* iFrame. *)
+    - simpl.
+      rewrite (envs_simple_replace_sound Δ2 Δ3 i) /= //; simpl.
+      iIntros "[$ He]".
+      iIntros "Htp".
+      (* destruct (envs_app _ _ _) as [Δ4 |] eqn: HΔ4; [|contradiction].
+         rewrite envs_app_sound //; simpl. *)
+      iApply HΔ.
+      iApply ("He" with "[$Htp]").
+      (* iFrame. *)
+  Qed.
+
+End tape_laplace_tactics.
+
+
+Tactic Notation "wp_alloctape_laplace" ident(l) "as" constr(H) :=
+  let Htmp := iFresh in
+  let finish _ :=
+    first [intros l | fail 1 "wp_alloctape_laplace:" l "not fresh"];
+    pm_reduce;
+    lazymatch goal with
+    | |- False => fail 1 "wp_alloctape_laplace:" H "not fresh"
+    | _ => iDestructHyp Htmp as H; wp_finish
+    end in
+  wp_pures;
+lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+        first
+          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloctape_laplace _ _ _ Htmp K))
+          |fail 1 "wp_alloctape_laplace: cannot find 'AllocTapeLaplace' in" e];
+        [tc_solve (* | tc_solve *)
+        |finish ()]
+| |- envs_entails _ (twp ?s ?E ?e ?Q) =>
+        first
+          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloctape_laplace _ _ _ Htmp K))
+          |fail 1 "wp_alloctape_laplace: cannot find 'AllocTapeLaplace' in" e];
+        [tc_solve (* | tc_solve *)
+        |finish ()]
+  | _ => fail "wp_alloctape_laplace: not a 'wp'"
+  end.
+
+
+Tactic Notation "wp_alloctape_laplace" ident(l) :=
+  wp_alloctape_laplace l as "?".
+
+Tactic Notation "wp_randtape_laplace" "as" constr(H) :=
+  let Htmp := iFresh in
+  let solve_wptac_mapsto_tape_laplace _ :=
+    let l := match goal with |- _ = Some (_, (wptac_mapsto_tape_laplace ?l _ _ _ _ (_ :: _))%I) => l end in
+    iAssumptionCore || fail "wp_randtape_laplace: cannot find" l "↪L ?" in
+  let finish _ :=
+    pm_reduce;
+    lazymatch goal with
+    | |- False => fail 1 "wp_randtape_laplace:" H "not fresh"
+    | _ => iDestructHyp Htmp as H; wp_finish
+    end in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+      first
+        [reshape_expr e ltac:(fun K e' => eapply (tac_wp_laplace_tape _ _ _ Htmp K))
+        |fail 1 "wp_randtape_laplace: cannot find 'Laplace' in" e];
+      [ (* Delay resolution of TCEq *)
+      | (* Delay resolution of TCEq *)
+      | (* Delay resolution of TCEq *)
+      | tc_solve
+      | solve_wptac_mapsto_tape_laplace ()
+      |];
+      [try tc_solve | try tc_solve | try tc_solve | finish ()]
+  | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
+      first
+        [reshape_expr e ltac:(fun K e' => eapply (tac_wp_laplace_tape _ _ _ Htmp K))
+        |fail 1 "wp_randtape_laplace: cannot find 'Laplace' in" e];
+      [ try tc_solve
+      | try tc_solve
+      | try tc_solve
+      | tc_solve
+      | try (solve_wptac_mapsto_tape_laplace ())
+      | finish ()]
+  | _ => fail "wp_randtape_laplace: not a 'wp'"
+  end.
+
+Tactic Notation "wp_randtape_laplace" :=
+  wp_randtape_laplace as "%".

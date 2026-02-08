@@ -248,6 +248,33 @@ Section coupl_modalities.
     by iApply ("H" $! σ2 (e2', σ2')).
   Qed.
 
+  Lemma DPcoupl_rewritable_of_erasable (e1' : expr Λ) (μ1 μ1' : distr $ state Λ) R (ε1 δ1 : nonnegreal) (H : DPcoupl μ1 μ1' R ε1 δ1) :
+    DPcoupl μ1 (rewritable_of_erasable μ1' e1') (fun x y => R x y.2 ∧ y.1 = e1') ε1 δ1.
+  Proof.
+    rewrite -(dret_id_right μ1).
+    eapply (DPcoupl_dbind' ε1 0 ε1 δ1 0 δ1) => //. 1,2: lra.
+    intros. apply DPcoupl_dret ; try lra.
+    done.
+  Qed.
+
+  Lemma spec_coupl_erasables_weak R μ1 μ1' ε1 ε2 ε δ1 δ2 δ E σ1 e1' σ1' Z :
+    ε = (ε1 + ε2)%NNR →
+    δ = (δ1 + δ2)%NNR →
+    DPcoupl μ1 μ1' R ε1 δ1 →
+    erasable μ1 σ1 →
+    erasable μ1' σ1' →
+    (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={E}=∗ spec_coupl E σ2 e1' σ2' ε2 δ2 Z)
+    ⊢ spec_coupl E σ1 e1' σ1' ε δ Z.
+  Proof.
+    iIntros (-> -> ???) "H".
+    iApply spec_coupl_erasables => //. 2: by apply rewritable_erasable.
+    1: apply DPcoupl_rewritable_of_erasable => //.
+    simpl.
+    iIntros "%%[% %h]".
+    simplify_eq.
+    iApply "H". done.
+  Qed.
+
   Lemma spec_coupl_erasable_steps n R μ1 ε1 ε2 ε δ1 δ2 δ E σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
     δ = (δ1 + δ2)%NNR →
