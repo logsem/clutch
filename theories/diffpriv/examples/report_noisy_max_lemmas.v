@@ -536,8 +536,7 @@ Fixpoint replace_laplace_tape num den σ ls :=
   end.
 
 Lemma laplace_presample_list_rewrite num den l σ (Hproof: (0 < IZR num / IZR (2 * den))%R):
-  (length l > 0)%nat ->
-  Forall (λ '(ι, loc, lis), tapes_laplace σ!!ι = Some (Tape_Laplace num den loc lis)) l ->
+  Forall (λ '(ι, loc, lis), tapes_laplace σ!!ι = Some (Tape_Laplace num (2*den) loc lis)) l ->
   NoDup (l.*1.*1) ->
   laplace_presample_list σ ((l.*1).*1) =
   dbind (λ zs,
@@ -545,6 +544,51 @@ Lemma laplace_presample_list_rewrite num den l σ (Hproof: (0 < IZR num / IZR (2
     ) (laplace_map num (2*den) (Hproof) (l.*1.*2))
 .
 Proof.
+  assert ((0 < IZR num / IZR (den))%R).
+  { rewrite mult_IZR in Hproof.
+    rewrite Rdiv_mult_distr in Hproof. lra.
+  }
+  revert σ.
+  induction l as [|hd tl IHl].
+  { simpl. intros. by rewrite dret_id_left. }
+  intros σ Hforall Hnodup.
+  destruct hd as [[]].
+  rewrite !fmap_cons.
+  rewrite /laplace_presample_list.
+  etrans.
+  { simpl.
+    rewrite Forall_cons in Hforall.
+    erewrite state_step_laplace_unfold; last naive_solver.
+    rewrite /dmap.
+    eapply dbind_ext_right_strong.
+    intros σ' Hpos.
+    apply dbind_pos in Hpos.
+    destruct!/=.
+    inv_distr; last naive_solver.
+    erewrite IHl; last first.
+    - apply NoDup_cons in Hnodup. naive_solver.
+    - admit.
+    - rewrite dmap_fold.
+      instantiate (1:=λ x, dmap
+                        (λ a0 : list Z,
+                           replace_laplace_tape num den
+                             x
+                             (zip tl a0))
+                        (laplace_map num (2 * den) Hproof tl.*1.*2)).
+      done.
+  }
+  rewrite /laplace_map.
+  rewrite -/laplace_map.
+  rewrite -!dbind_assoc'.
+  apply dbind_ext_right.
+  intros z'.
+  rewrite /dmap.
+  rewrite dret_id_left.
+  rewrite -dbind_assoc'.
+  apply dbind_ext_right.
+  intros ?.
+  rewrite dret_id_left.
+  simpl. f_equal.
 Admitted. 
 
 (* ls a list of tape loc content*)
