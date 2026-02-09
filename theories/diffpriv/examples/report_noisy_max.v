@@ -58,9 +58,9 @@ Section list_specs.
       in iy
   end.
 
-  Lemma gwp_list_max_index_aux s E (y : Z) xs vxs :
+  Lemma gwp_list_max_index_aux E (y : Z) xs vxs :
     G{{{ ⌜is_list xs vxs⌝ }}}
-      list_max_index_aux #y vxs @ s ; E
+      list_max_index_aux #y vxs @ g ; E
                  {{{ (y' : Z) (ix iy : nat), RET (#y', #iy, #ix); ⌜(y', iy, ix) = List_max_index_aux y xs⌝}}}.
   Proof.
     iIntros "%post %hxs hpost".
@@ -92,9 +92,9 @@ Section list_specs.
       reflexivity.
   Qed.
 
-  Lemma gwp_list_max_index s E xs vxs :
+  Lemma gwp_list_max_index E xs vxs :
     G{{{ ⌜is_list xs vxs⌝ }}}
-      list_max_index vxs @ s ; E
+      list_max_index vxs @ g ; E
                  {{{ (i : nat), RET #i; ⌜i = List_max_index xs⌝}}}.
   Proof.
     iIntros (Φ) "%Hxs HΦ". rewrite /list_max_index.
@@ -110,9 +110,9 @@ Section list_specs.
     iIntros "!> % % % <-". gwp_pures. by iApply "HΦ".
   Qed.
 
-  Lemma gwp_list_hd s E xs vxs :
+  Lemma gwp_list_hd E xs vxs :
     G{{{ ⌜is_list xs vxs⌝ ∗ ⌜0 < length xs⌝ }}}
-      list_hd vxs @ s ; E
+      list_hd vxs @ g ; E
                  {{{ v, RET v; ⌜List.hd v xs = v⌝}}}.
   Proof.
     iIntros (Φ) "(%Hxs & %Hlen) HΦ". rewrite /list_hd.
@@ -123,9 +123,9 @@ Section list_specs.
     iApply "HΦ". done.
   Qed.
 
-  Lemma gwp_list_tl s E xs vxs :
+  Lemma gwp_list_tl E xs vxs :
     G{{{ ⌜is_list xs vxs⌝ ∗ ⌜0 < length xs⌝ }}}
-      list_tl vxs @ s ; E
+      list_tl vxs @ g ; E
                  {{{ v, RET v; ⌜is_list (List.tl xs) v⌝}}}.
   Proof.
     iIntros (Φ) "(%Hxs & %Hlen) HΦ". rewrite /list_tl.
@@ -136,7 +136,37 @@ Section list_specs.
     iApply "HΦ". done.
   Qed.
 
+  (* Lemma gwp_list_init P Φ Ψ E handler (l : list A) acc lv :
+       (∀ (a : A) acc lacc lrem,
+           G{{{ ⌜l = lacc ++ a :: lrem⌝ ∗ P lacc acc ∗ Φ a }}}
+             (Val handler) (Val acc) (inject a) @ g; E
+           {{{v, RET v; P (lacc ++ [a]) v ∗ Ψ a }}}) -∗
+       G{{{ ⌜is_list l lv⌝ ∗ P [] acc ∗ [∗ list] a∈l, Φ a }}}
+         list_init handler acc lv @ g; E
+       {{{v, RET v; P l v ∗ [∗ list] a∈l, Ψ a }}}.
+     Proof.
+       iIntros "#Hcl". iIntros (Ξ) "!# (Hl & Hacc & HΦ) HΞ".
+       change l with ([] ++ l) at 1 4.
+       generalize (@nil A) at 1 3 4 as lproc => lproc.
+       iInduction l as [|x l] "IHl" forall (Ξ lproc acc lv) "Hacc Hl HΞ".
+       - iDestruct "Hl" as %?; simpl in *; simplify_eq.
+         gwp_rec. gwp_pures. iApply "HΞ".
+         rewrite app_nil_r; iFrame; done.
+       - iDestruct "Hl" as %[lw [? Hlw]]; subst.
+         iDestruct "HΦ" as "[Hx HΦ]".
+         gwp_rec. gwp_pures.
+         gwp_apply ("Hcl" with "[$Hacc $Hx] [-]"); auto.
+         iNext. iIntros (w) "[Hacc HΨ]"; simpl. gwp_pures.
+         iApply ("IHl" with "[] [$HΦ] [$Hacc] [] [HΨ HΞ]"); [|auto|].
+         { rewrite -app_assoc; auto. }
+         iNext. iIntros (v) "[HP HΨs]".
+         rewrite -app_assoc.
+         iApply "HΞ"; iFrame.
+     Qed. *)
+
 End list_specs.
+
+
 
 Section rnm.
   Context `{!diffprivGS Σ}.
@@ -161,15 +191,12 @@ Section rnm.
       in "f" #0.
 
 
-  (* Allocate a tape for Laplace(num / den, mean). *)
-  Variable TapeLaplace : expr -> expr -> expr -> expr.
-
   Definition report_noisy_max_presampling (num den : Z) : val :=
     (* ↯ (num/den) ∗ evalQ is 1-sensitive ∗ N ∈ ℕ \ {0} ∗ 0 < num/2den ∗ dDB db db' <= 1 *)
     λ:"evalQ" "N" "d",
       let: "xs" := list_init "N" (λ:"i", "evalQ" "i" "d") in
       (* len xs = len xs' = N ∗ List_forall2 x ∈ xs, x' ∈ xs', dZ x x' <= 1 *)
-      let: "xs_tapes" := list_map (λ:"x", ("x", TapeLaplace #num #(2*den) "x")) "xs" in
+      let: "xs_tapes" := list_map (λ:"x", ("x", AllocTapeLaplace #num #(2*den) "x")) "xs" in
       (* len tapes = len tapes' = N ∗
          List_forall2 (x, ι), (x', ι') ∈ tapes, tapes'
          . dZ x x' <= 1 ∗ ι ↦ (Lap(num, 2den, x), []) ∗ ι' ↦ (Lap(num, 2den, x'), [])
@@ -181,10 +208,89 @@ Section rnm.
          List_forall4 (x, ι), (x', ι'), v, v' ∈ tapes, tapes', vs, vs'
          . ι ↦ (Lap(num, 2den, x), [v]) ∗ ι' ↦ (Lap(num, 2den, x'), [v'])
        *)
-      let: "noisy_xs" := list_map (λ:"x_ι", Laplace #num #(2*den) (Fst "x_ι") (Snd "x_ι")) "xs_tapes" in
+      let: "noisy_xs" := list_mapi (λ:"x_ι" "_k", Laplace #num #(2*den) (Fst "x_ι") (Snd "x_ι")) "xs_tapes" in
       (* We'll get exactly vs as noisy_xs. *)
       (* List.max_index noisy_xs = List.max_index noisy_xs' ; QED *)
       list_max_index "noisy_xs".
+
+  Lemma rnm_init (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+    (∀ i : Z, ⊢ hoare_sensitive (evalQ #i) 1 dDB dZ) →
+    ∀ db db', dDB db db' <= 1 →
+              {{{ ⤇ fill K ((of_val list_init) #N (λ:"i", (of_val evalQ) "i" (of_val (inject db'))))%V }}}
+                (list_init #N (λ:"i", evalQ "i" (of_val (inject db))))%V
+                {{{ vxs, RET vxs ; ∃ (vxs' : val) (xs xs' : list Z),
+                        ⤇ fill K vxs' ∗
+                        ⌜ is_list xs vxs ∧ is_list xs' vxs' ∧ length xs = N ∧ length xs' = N ∧
+                        Forall2 (λ x x', dZ x x' <= 1) xs xs'⌝
+                }}}.
+  Proof.
+  Admitted.
+
+  Lemma rnm_pres_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+    (0 < IZR num / IZR (2 * den)) →
+    (∀ i : Z, ⊢ hoare_sensitive (evalQ #i) 1 dDB dZ) →
+    ∀ db db', dDB db db' <= 1 →
+                {{{ ↯m (IZR num / IZR den) ∗
+                    ⤇ fill K (report_noisy_max_presampling num den evalQ #N (of_val (inject db'))) }}}
+                  report_noisy_max_presampling num den evalQ #N (of_val (inject db))
+                  {{{ v, RET v ; ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = v' ⌝  }}}.
+  Proof with (tp_pures ; wp_pures).
+    intros εpos qi_sens db db' db_adj post. iIntros "[ε rhs] Hpost".
+    wp_lam. tp_lam...
+    tp_bind (list_init _ _). wp_bind (list_init _ _).
+    iApply (rnm_init with "rhs") => //.
+    iIntros "!> % (% & % & % & rhs & % & % & % & % & %)". simpl...
+    tp_bind (list_map _ _). wp_bind (list_map _ _).
+
+    assert (forall K,
+               {{{ ⤇ fill K ((list_map (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x")))%V vxs') }}}
+                 (list_map (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x")))%V vxs
+                 {{{ vxιs, RET vxιs ; ∃ vxιs' xιs xιs',
+                         ⌜is_list xιs vxιs⌝ ∗ ⌜length xιs = length xs⌝ ∗
+                         ⌜is_list xιs' vxιs'⌝ ∗ ⌜length xιs' = length xs'⌝ ∗
+                         ⤇ fill K vxιs' ∗
+                         [∗ list] '(x, ι) ; '(x', ι') ∈ xιs ; xιs',
+                       ι ↪L (num, 2*den, x; []) ∗ ι' ↪Lₛ (num, 2*den, x'; []) ∗
+                       ⌜dZ x x' <= 1⌝
+           }}}) as wp_tape_list.
+    1: admit.
+
+    wp_apply (wp_tape_list with "rhs") ; clear wp_tape_list.
+    iIntros "% (% & % & % & % & % & % & % & rhs & Htapes) /="...
+    iAssert
+      (∀ num den e Φ,
+          (⌜(0 < IZR num / IZR (2 * den))⌝ ∗
+           ↯m (IZR num / IZR den) ∗
+           ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num, 2 * den,x; []) ∗ ι' ↪Lₛ (num,2 * den,x'; []) ∗ ⌜dZ x x' <= 1⌝)
+           ∗
+             ((∃ zs zs', ([∗ list] k ↦ '(x, ι);'(x', ι') ∈ xιs;xιs',
+                            ι ↪L (num, 2 * den,x; [List.nth k zs 0%Z]) ∗
+                            ι' ↪Lₛ (num,2 * den,x'; [List.nth k zs' 0%Z]) ∗
+                            ⌜dZ x x' <= 1⌝) ∗
+                         ⌜List_max_index zs = List_max_index zs'⌝)
+              -∗
+              WP e {{ v, Φ v }})
+             -∗
+           WP e {{ v, Φ v }}))%I
+      as "presample_laplace_map_max".
+    1: admit.
+
+    wp_apply ("presample_laplace_map_max" $! _ _ _ post with "[$ε $Htapes rhs Hpost]") ;
+      iClear "presample_laplace_map_max" ; iSplit ; [done|].
+    iIntros "(% & % & Htapes & %Hmax)".
+    iPoseProof (gwp_list_mapi (g:=gwp_wpre)
+                  (λ k '(x, ι), zs !! k) xιs
+                  (λ: "x_ι" "_k", Laplace #num #(2 * den) (Fst "x_ι") (Snd "x_ι"))%V
+                  vxιs
+               _ _ top
+               (λ vzs, ⌜is_list zs vzs⌝)%I
+               ) as "foo".
+    wp_bind (list_mapi _ _).
+    Fail gwp_apply "foo".
+
+  Admitted.
+
+
 
   #[local] Definition rnm_body (num den : Z) (evalQ : val) {DB} (dDB : Distance DB) (N : nat) (db : DB) (maxI maxA : loc) :=
     (rec: "rnm" "i" :=
