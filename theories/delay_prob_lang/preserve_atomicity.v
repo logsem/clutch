@@ -45,7 +45,27 @@ Proof.
           2:{ rewrite head_step_support_equiv_rel.
               by apply BetaS. }
           simpl in *.
-          admit. 
+          unfold is_Some in *. destruct!/=.
+          rename select (to_val _ = _) into H'.
+          apply of_to_val in H'. subst.
+          destruct x, f0; simpl in *.
+          -- simpl in *. subst. setoid_rewrite bind_Some in H. destruct!/=.
+             naive_solver.
+          -- induction e; simplify_eq; simpl in *; subst; simplify_eq.
+             ++ setoid_rewrite bind_Some in H. destruct!/=.
+                naive_solver.
+             ++ case_match; subst; simplify_eq; simpl.
+                case_match; last done.
+                naive_solver.
+          -- induction e; simpl in *; simplify_eq.
+             ++ rewrite bind_Some in H. destruct!/=; naive_solver.
+             ++ case_match; subst; simpl; case_match; try done.
+                naive_solver.
+          -- induction e; simpl in *; simplify_eq.
+             ++ rewrite bind_Some in H. destruct!/=; naive_solver.
+             ++ case_match; subst; simpl; case_match; try done; first naive_solver.
+                simpl. case_match; subst; first naive_solver.
+                simpl in *; by case_match. 
       + unshelve epose proof (fill_to_val K2 _ _) as ->; [|by erewrite <-H|].
         simpl in *. simplify_eq.
         unshelve epose proof H1' σ' σ' [] _ _ _ _; [| |done|..].
@@ -53,8 +73,7 @@ Proof.
             by apply BetaS.
         }
         simpl in *.
-        (* obvious, induct on subst f0 _ *)
-        admit. 
+        by eapply subst_to_val_change'.
     - admit.
     - admit.
     - admit.

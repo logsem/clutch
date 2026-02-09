@@ -132,6 +132,18 @@ Lemma subst_rec_ne' f y e x v :
   subst' x v (Rec f y e) = Rec f y (subst' x v e).
 Proof. intros. destruct x; simplify_option_eq; naive_solver. Qed.
 
+Lemma subst_to_val' x v e:
+  is_Some (to_val e) -> (is_Some (to_val $ subst' x v e)) .
+Proof.
+  destruct e, x; simpl; try naive_solver; simpl; by case_match.
+Qed.
+
+Lemma subst_to_val_change' x v v' e:
+  (is_Some (to_val $ subst' x v e)) -> (is_Some (to_val $ subst' x v' e)) .
+Proof.
+  destruct e, x; simpl; try naive_solver; simpl; by case_match.
+Qed. 
+
 Lemma bin_op_eval_closed op v1 v2 v' :
   is_closed_val v1 → is_closed_val v2 → bin_op_eval op v1 v2 = Some v' →
   is_closed_val v'.
