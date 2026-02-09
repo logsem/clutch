@@ -33,11 +33,10 @@ Definition list_max_index : val :=
 
 Definition list_init : val :=
   λ: "len" "f",
-  letrec: "aux" "acc" "i" :=
-    (if: "i" = "len"
-     then  list_rev "acc"
-     else  "aux" (("f" "i") :: "acc") ("i" + #1)) in
-    "aux" [] #0.
+  (rec: "aux" "acc" "i" :=
+    (if: "i" = #0
+     then  "acc"
+     else  "aux" (("f" "i") :: "acc") ("i" - #1))) [] "len".
 
 Section list_specs.
   Context `{invGS_gen hlc Σ} `{g : !GenWp Σ}.
@@ -223,8 +222,55 @@ Section rnm.
                         ⌜ is_list xs vxs ∧ is_list xs' vxs' ∧ length xs = N ∧ length xs' = N ∧
                         Forall2 (λ x x', dZ x x' <= 1) xs xs'⌝
                 }}}.
-  Proof.
-  Admitted.
+  Proof with (tp_pures ; wp_pures).
+    iIntros (ev_sens ?? adj post) "rhs Hpost".
+    wp_lam. wp_pure. wp_lam.
+    tp_lam. tp_pure. tp_lam.
+    tp_pure. wp_pure.
+    set (vxs := InjLV #()).
+    unfold vxs at 1.
+    set (vxs' := InjLV #()).
+    set (k := N).
+    wp_pure. tp_pure.
+    assert
+      (∃ (xs xs' : list Z),
+                 is_list xs vxs
+                  ∧ is_list xs' vxs'
+                    ∧ (length xs + k = N)%nat
+                      ∧ (length xs' + k = N)%nat
+                        ∧ Forall2 (λ x x' : Z, dZ x x' <= 1) xs xs') as hpre.
+    1: exists [], [] ; cbn ; intuition eauto.
+    revert hpre.
+    unfold k at 4 5.
+    generalize k vxs vxs'.
+    clear vxs vxs' k. intros.
+    iInduction k as [|k'] forall (vxs vxs' hpre).
+    - idtac... iApply "Hpost".
+      destruct hpre as (?&?&?&?&?&?&?).
+      iModIntro. iExists _,_,_. iFrame ; iPureIntro. intuition eauto ; cbn.
+      + simplify_eq. lia.
+      + simplify_eq. lia.
+
+    - idtac...
+      tp_bind (evalQ _ _) ; wp_bind (evalQ _ _).
+      wp_apply (ev_sens with "[] [rhs]"). 1: iPureIntro ; lra. 1: iFrame.
+      iIntros "% (%&%&->&rhs&%h)".
+      idtac... wp_rec. wp_pure. wp_pure. wp_pure. wp_pure.
+      simpl. tp_rec. tp_pure. tp_pure. tp_pure. tp_pure.
+      replace (S k' - 1)%Z with (Z.of_nat k') by lia.
+      destruct hpre as (xs & xs' &?&?&?&?&?).
+      iSpecialize ("IHk'" $! (InjRV (#b, vxs)) ((InjRV (#b', vxs'))) with "[] [rhs]").
+      2: iFrame.
+      + iPureIntro. exists (b::xs). exists (b' :: xs'). intuition eauto.
+        * simpl. eauto.
+        * simpl. eauto.
+        * simpl. lia.
+        * simpl. lia.
+        * constructor. 2: done.
+          simpl in h. etrans. 2: exact adj. rewrite Rmult_1_l in h. done.
+      + iSpecialize ("IHk'" with "Hpost").
+        iApply "IHk'".
+  Qed.
 
   Lemma rnm_pres_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (0 < IZR num / IZR (2 * den)) →
@@ -248,6 +294,7 @@ Section rnm.
                  {{{ vxιs, RET vxιs ; ∃ vxιs' xιs xιs',
                          ⌜is_list xιs vxιs⌝ ∗ ⌜length xιs = length xs⌝ ∗
                          ⌜is_list xιs' vxιs'⌝ ∗ ⌜length xιs' = length xs'⌝ ∗
+                         ⌜ NoDup xιs.*2 ⌝ ∗ ⌜ NoDup xιs'.*2 ⌝ ∗
                          ⤇ fill K vxιs' ∗
                          [∗ list] '(x, ι) ; '(x', ι') ∈ xιs ; xιs',
                        ι ↪L (num, 2*den, x; []) ∗ ι' ↪Lₛ (num, 2*den, x'; []) ∗
@@ -256,12 +303,13 @@ Section rnm.
     1: admit.
 
     wp_apply (wp_tape_list with "rhs") ; clear wp_tape_list.
-    iIntros "% (% & % & % & % & % & % & % & rhs & Htapes) /="...
+    iIntros "% (% & % & % & % & % & % & % & % & % & rhs & Htapes) /="...
     iAssert
       (∀ num den e Φ,
           (⌜(0 < IZR num / IZR (2 * den))⌝ ∗
            ↯m (IZR num / IZR den) ∗
-           ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num, 2 * den,x; []) ∗ ι' ↪Lₛ (num,2 * den,x'; []) ∗ ⌜dZ x x' <= 1⌝)
+           ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num, 2 * den,x; []) ∗ ι' ↪Lₛ (num,2 * den,x'; []) ∗ ⌜dZ x x' <= 1⌝) ∗
+             ⌜ NoDup xιs.*2 ⌝ ∗ ⌜ NoDup xιs'.*2 ⌝
            ∗
              ((∃ zs zs', ([∗ list] k ↦ '(x, ι);'(x', ι') ∈ xιs;xιs',
                             ι ↪L (num, 2 * den,x; [List.nth k zs 0%Z]) ∗
@@ -277,16 +325,25 @@ Section rnm.
 
     wp_apply ("presample_laplace_map_max" $! _ _ _ post with "[$ε $Htapes rhs Hpost]") ;
       iClear "presample_laplace_map_max" ; iSplit ; [done|].
+    repeat iSplit => //.
     iIntros "(% & % & Htapes & %Hmax)".
-    iPoseProof (gwp_list_mapi (g:=gwp_wpre)
+    iPoseProof (gwp_list_mapi (* (g:=gwp_wpre) *)
                   (λ k '(x, ι), zs !! k) xιs
                   (λ: "x_ι" "_k", Laplace #num #(2 * den) (Fst "x_ι") (Snd "x_ι"))%V
                   vxιs
-               _ _ top
-               (λ vzs, ⌜is_list zs vzs⌝)%I
+               _ _ _ (* top *)
+               (* (λ vzs, ⌜is_list zs vzs⌝)%I *)
+               _
                ) as "foo".
     wp_bind (list_mapi _ _).
-    Fail gwp_apply "foo".
+    iApply "foo".
+    (* TODO step rhs *)
+    1: admit.
+    iNext. iIntros. idtac...
+    iApply gwp_list_max_index.
+    1: admit.
+    iIntros "!> **".
+    iApply "Hpost".
 
   Admitted.
 
