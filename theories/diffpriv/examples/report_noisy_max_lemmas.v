@@ -520,3 +520,8 @@ Proof.
   eapply DPcoupl_mono; last (eapply DPcoupl_pos_R; eapply laplace_map_correct'); try done.
   intros ??[?[?%laplace_map_pos ?%laplace_map_pos]]. lia.
 Qed. 
+
+Section coupling_rule.
+    Context `{!diffprivGS Σ}.
+
+End coupling_rule.
