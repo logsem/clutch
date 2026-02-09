@@ -9,10 +9,10 @@ Definition tgl_wp_pre `{!erisWpGS Λ Σ}
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   match to_val e1 with
   | Some v => |={E}=> Φ v
-  | None => ∀ σ1 ε1,
-      state_interp σ1 ∗ err_interp ε1 ={E,∅}=∗
+  | None => ∀ n σ1 ε1,
+      state_interp n σ1 ∗ err_interp ε1 ={E,∅}=∗
       glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
-        |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
+        |={∅,E}=> state_interp (S n) σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
 end%I.
 
 Local Lemma tgl_wp_pre_mono `{!erisWpGS Λ Σ}
@@ -23,7 +23,7 @@ Proof.
   iIntros "#H".
   iIntros (E e Φ) "Hwp". rewrite /tgl_wp_pre.
   case_match; first done.
-  iIntros (σ ε) "He". iMod ("Hwp" with "He") as "Hwp".
+  iIntros (n σ ε) "He". iMod ("Hwp" with "He") as "Hwp".
   iModIntro. iApply (glm_mono_pred with "[][$Hwp]").
   iIntros ([e' s] ε') "He".
   iApply (fupd_wand_l with "[H He]").
@@ -44,7 +44,7 @@ Proof.
     iApply tgl_wp_pre_mono. iIntros "!>" (E e Φ). iApply ("H" $! (E,e,Φ)).
   - intros wp Hwp n [[E1 e1] Φ1] [[E2 e2] Φ2]
       [[?%leibniz_equiv ?%leibniz_equiv] ?]; simplify_eq/=.
-    rewrite /curry3 /tgl_wp_pre. do 7 (f_equiv).
+    rewrite /curry3 /tgl_wp_pre. do 9 (f_equiv).
     rewrite /glm /glm'.
     f_equiv.
     intros Φ e. unfold glm_pre.
@@ -114,7 +114,7 @@ Section tgl_wp.
       clear. iIntros (e E Φ) "H #IH".
       iApply "IH".
       rewrite {2 4}/tgl_wp_pre. case_match; first done.
-      iIntros (σ ε) "[Hs He]".
+      iIntros (n σ ε) "[Hs He]".
       iMod ("H" with "[$]") as "H".
       iModIntro.
       iApply (glm_mono_pred with "[]H").
@@ -141,7 +141,7 @@ Section tgl_wp.
     iIntros (e E Φ) "H #IH".
     iApply "IH".
     rewrite {2 4}/tgl_wp_pre. case_match; first done.
-    iIntros (σ ε) "[Hs He]".
+    iIntros (n σ ε) "[Hs He]".
     iMod ("H" with "[$]") as "H".
     iModIntro.
     iApply (glm_mono_pred with "[]H").
@@ -162,7 +162,7 @@ Section tgl_wp.
     iIntros "!>" (e E1 Φ) "IH"; iIntros (E2 Ψ HE) "HΦ".
     rewrite !tgl_wp_unfold /tgl_wp_pre. destruct (to_val e) as [v|] eqn:?.
     { iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). }    
-    iIntros (σ1 ε1) "[Hs He]".
+    iIntros (n σ1 ε1) "[Hs He]".
     iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
     iMod ("IH" with "[$Hs $He]") as "IH".
     iModIntro.
@@ -178,7 +178,7 @@ Section tgl_wp.
   Proof.
     rewrite tgl_wp_unfold /tgl_wp_pre. iIntros "H". destruct (to_val e) as [v|] eqn:?.
     { by iMod "H". }
-    iIntros (s' ε) "[Hs He]".
+    iIntros (n s' ε) "[Hs He]".
     iMod "H". iApply "H". iFrame.
   Qed.
   Lemma tgl_wp_fupd s E e Φ : WP e @ s; E [{ v, |={E}=> Φ v }] ⊢ WP e @ s; E [{ Φ }].
@@ -190,7 +190,7 @@ Section tgl_wp.
     iIntros "H". rewrite !tgl_wp_unfold /tgl_wp_pre /=.
     destruct (to_val e) as [v|] eqn:He.
     { by iDestruct "H" as ">>> $". }
-    iIntros (σ1 ε) "[Hs He]". iMod "H". iMod ("H" $! σ1 ε with "[$Hs $He]") as "H".
+    iIntros (n σ1 ε) "[Hs He]". iMod "H". iMod ("H" $! n σ1 ε with "[$Hs $He]") as "H".
   iModIntro. iApply (glm_strong_mono with "[][]H"); [done|].
   iIntros (e2 σ2 ε2) "([%σ' %Hstep]&H)".
   iMod "H" as "(Hσ&Hε&Hwp)".
@@ -214,7 +214,7 @@ Section tgl_wp.
     rewrite /tgl_wp_pre. destruct (to_val e) as [v|] eqn:He.
     { apply of_to_val in He as <-. iApply fupd_tgl_wp. by iApply "HΦ". }
     rewrite tgl_wp_unfold /tgl_wp_pre fill_not_val //.
-    iIntros (σ1 ε1) "[Hσ Hε]". iMod ("IH" with "[$]") as "IH".
+    iIntros (n σ1 ε1) "[Hσ Hε]". iMod ("IH" with "[$]") as "IH".
     iModIntro.
     iApply glm_bind; [done|].
     iApply (glm_mono with "[][HΦ][$]"); first done.
@@ -227,8 +227,9 @@ Section tgl_wp.
   Proof.
     iIntros "H". iLöb as "IH" forall (E e Φ).
     rewrite pgl_wp_unfold tgl_wp_unfold /pgl_wp_pre /tgl_wp_pre. destruct (to_val e) as [v|]=>//=.
-    iIntros (σ1 ε) "[Hσ Hε]". iMod ("H" with "[$Hσ $Hε]") as "H".
+    iIntros (n σ1 ε) "[Hσ Hε]". iMod ("H" with "[$Hσ $Hε]") as "H".
     iIntros "!>".
+    iRight.
     iApply glm_mono_pred; last iFrame.
     iIntros ([e' s'] ε').
     iIntros "H". iNext. iMod "H" as "[?[?H]]".

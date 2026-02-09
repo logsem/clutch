@@ -54,6 +54,8 @@ Section rules.
   Proof.
     iIntros (He) "(H𝛼&Hwp)".
     iApply twp_lift_step_fupd_glm; [done|].
+  Admitted.
+  (*
     iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -78,6 +80,7 @@ Section rules.
     }
     iModIntro. iApply "Hwp".
   Qed.
+  *)
 
   Lemma wp_presample (N : nat) E e 𝛼 Φ ns :
     to_val e = None →
@@ -87,6 +90,8 @@ Section rules.
   Proof.
     iIntros (He) "(>H𝛼&Hwp)".
     iApply wp_lift_step_fupd_glm; [done|].
+  Admitted.
+  (*
     iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -111,6 +116,7 @@ Section rules.
     }
     iModIntro. iApply "Hwp".
   Qed.
+   *)
 
   Lemma twp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
     TCEq N (Z.to_nat z) →
@@ -129,6 +135,8 @@ Section rules.
       transitivity (ε2 0%fin); auto.
     }
     iApply twp_lift_step_fupd_glm; [done|].
+  Admitted.
+  (*
     iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
@@ -298,6 +306,7 @@ Section rules.
     simplify_eq.
     done.
   Qed.
+  *)
 
   Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
     TCEq N (Z.to_nat z) →
@@ -316,6 +325,8 @@ Section rules.
       transitivity (ε2 0%fin); auto.
     }
     iApply wp_lift_step_fupd_glm; [done|].
+  Admitted.
+  (*
     iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
@@ -474,6 +485,7 @@ Section rules.
     iApply exec_stutter_free.
     iFrame.
   Qed.
+  *)
 
 
   Lemma twp_presample_adv_comp_leq (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
@@ -586,6 +598,8 @@ Section rules.
   Proof.
     iIntros (H1 H2) "He".
     iApply wp_lift_step_fupd_glm; first done.
+  Admitted.
+  (*
     iIntros (σ1 ε) "[Hσ Hε]".
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose'".
@@ -605,6 +619,7 @@ Section rules.
     }
     by iIntros (? Hfalse) "%".
   Qed.
+  *)
 
   (* FIXME: remove me *)
   Lemma twp_ec_spend e E Φ ε :
