@@ -519,9 +519,51 @@ Proof.
   intros.
   eapply DPcoupl_mono; last (eapply DPcoupl_pos_R; eapply laplace_map_correct'); try done.
   intros ??[?[?%laplace_map_pos ?%laplace_map_pos]]. lia.
-Qed. 
+Qed.
 
-Section coupling_rule.
-    Context `{!diffprivGS Σ}.
+Fixpoint laplace_presample_list σ ls:=
+  match ls with
+  | [] => dret σ
+  | hd :: tl => dbind (λ σ', laplace_presample_list σ' tl) (state_step_laplace σ hd)
+  end.
 
-End coupling_rule.
+Fixpoint replace_laplace_tape num den σ ls :=
+  match ls with
+  | [] => σ
+  | hd::tl =>
+      let '(ι, mean, ls, z) :=hd in
+        state_upd_tapes_laplace <[ι := Tape_Laplace num den mean (ls++[z])]> (replace_laplace_tape num den σ tl)
+  end.
+
+Lemma laplace_presample_list_rewrite num den l σ (Hproof: (0 < IZR num / IZR (2 * den))%R):
+  (length l > 0)%nat ->
+  Forall (λ '(ι, loc, lis), tapes_laplace σ!!ι = Some (Tape_Laplace num den loc lis)) l ->
+  NoDup (l.*1.*1) ->
+  laplace_presample_list σ ((l.*1).*1) =
+  dbind (λ zs,
+           dret (replace_laplace_tape num den σ (zip l zs))
+    ) (laplace_map num (2*den) (Hproof) (l.*1.*2))
+.
+Proof.
+Admitted. 
+
+(* ls a list of tape loc content*)
+Lemma laplace_state_list_coupl num den ls ls' σ σ':
+  (0 < IZR num / IZR (2 * den))%R -> 
+  length ls = length ls' ->
+  (length ls > 0)%nat ->
+  (∀ p, p ∈ zip_with (λ x y, (x.1.2,y.1.2)) ls ls' -> (dZ p.1 p.2 <= 1)%R) ->
+  (NoDup ls.*1.*1) ->
+  (NoDup ls'.*1.*1) ->
+  Forall (λ '(ι, loc, lis), tapes_laplace σ!!ι = Some (Tape_Laplace num den loc lis)) ls ->
+  Forall (λ '(ι, loc, lis), tapes_laplace σ'!!ι = Some (Tape_Laplace num den loc lis)) ls' ->
+  DPcoupl (laplace_presample_list σ ls.*1.*1)
+    (laplace_presample_list σ' ls'.*1.*1)
+    (λ σf σf',
+       ∃ zs zs', length zs = length zs' /\ (length zs = length ls)%nat /\
+                 list_Z_max zs = list_Z_max zs' /\
+                 Forall (λ '(ι, loc, lis, z), tapes_laplace σ!!ι = Some (Tape_Laplace num den loc (lis ++ [z]))) (zip ls zs) /\
+                 Forall (λ '(ι, loc, lis, z), tapes_laplace σ'!!ι = Some (Tape_Laplace num den loc (lis ++ [z]))) (zip ls' zs')
+    ) (IZR num / IZR den) 0.
+Proof.
+Admitted. 
