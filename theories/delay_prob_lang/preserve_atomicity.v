@@ -112,7 +112,31 @@ Proof.
             by subst. 
         }
         done. 
-    - admit.
-    - admit.
+    - destruct (list_destruct_rev K) as [|[K1[K2]]]; simplify_eq.
+      rewrite fill_app in H3.
+      destruct K1; simplify_eq; simpl in *; simplify_eq.
+      destruct (list_destruct_rev K2) as [|[K1' [K2']]]; simplify_eq; last first.
+      { rewrite fill_app in H3. destruct K1'; simplify_eq. }
+      simpl in *. simplify_eq.
+      induction v; repeat setoid_rewrite bind_Some in H2; destruct!/=. 
+      unshelve epose proof H1' σ' σ' [] _ _ _ _; [| |done| |].
+      + exact (Var "sd"). 
+      + rewrite head_step_support_equiv_rel.
+        eapply _.
+      + unfold is_Some in *.
+        destruct!/=.
+    - destruct (list_destruct_rev K) as [|[K1[K2]]]; simplify_eq.
+      rewrite fill_app in H3.
+      destruct K1; simplify_eq; simpl in *; simplify_eq.
+      destruct (list_destruct_rev K2) as [|[K1' [K2']]]; simplify_eq; last first.
+      { rewrite fill_app in H3. destruct K1'; simplify_eq. }
+      simpl in *. simplify_eq.
+      induction v; repeat setoid_rewrite bind_Some in H2; destruct!/=. 
+      unshelve epose proof H1' σ' σ' [] _ _ _ _; [| |done| |].
+      + exact (Var "sd"). 
+      + rewrite head_step_support_equiv_rel.
+        eapply _.
+      + unfold is_Some in *.
+        destruct!/=.
   }
 Admitted. 
