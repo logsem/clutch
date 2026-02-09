@@ -37,7 +37,6 @@ Class eris_ectx_lang_completeness_gen (Λ : ectxLanguage) (Σ : gFunctors) `{!er
             ↯ (ε1 (e1, σ)) -∗ WP e1 @ ⊤ {{ v, Ψ v }})))
 }.
 
-
 Lemma stuck_fill {Λ : ectxLanguage} {e : expr Λ} {σ : state Λ} K : stuck (e, σ) → stuck (fill K e, σ).
 Proof.
   intros [Hnv Hr].
@@ -63,10 +62,10 @@ Section completeness.
     reducible (e1, σ) →
     heap_inv σ ={E}=∗
     ((∀ Ψ (ε1 : cfg Λ → R), 
+    ⌜∃ r, ∀ ρ, ε1 ρ <= r⌝  →
     ⌜∀ ρ, reducible ρ → ε1 ρ = Expval (step ρ) ε1⌝ →
     ⌜∀ ρ, 0 <= ε1 ρ⌝ →
     ⌜∀ ρ, stuck ρ → ε1 ρ = 1⌝ →
-    ⌜∀ K ρ, reducible ρ → ε1 (fill_lift K ρ) = Expval (step ρ) (ε1 ∘ fill_lift K)⌝ →
     ((▷ |={⊤,E}=> 
         ∀ e2 σ1',
         ⌜prim_step e1 σ (e2, σ1') > 0⌝ -∗
@@ -81,16 +80,17 @@ Section completeness.
     iMod (eris_ectx_lang_completeness e1' σ with "Hheap") as "HH";
     [by eapply na_fill_inv | by econstructor |].
     iModIntro. iFrame.
-    iIntros (Ψ ε1 Hε1step Hε1nn Hε1stuck Hε1fill) "Hc Herr".
+    iIntros (Ψ ε1 [r Hε1r] Hε1step Hε1nn Hε1stuck) "Hc Herr".
     iApply pgl_wp_bind. 
     iSpecialize ("HH" $! (λ v , WP fill K (of_val v) {{v0, Ψ v0}})%I (λ '(e, s), ε1 (fill K e, s))). 
     iApply ("HH" with "[] [] [] [Hc] Herr"). 
     { 
       iPureIntro. 
       intros e0 σ0 Hrd.
-      rewrite (Hε1fill (fill K) (e0, σ0)); last by apply head_prim_reducible.
-      f_equal. 
-      by apply functional_extensionality => [[??]]. 
+      replace (λ '(e, s), ε1 (fill K e, s)) with (ε1 ∘ (fill_lift (fill K))); last by apply functional_extensionality => [[??]] //=.
+      rewrite -Expval_dmap //=; last by eapply ex_expval_bounded => [[??]]; split; real_solver.
+      rewrite -fill_dmap //=; last by apply head_prim_reducible, reducible_not_final, to_final_None_1 in Hrd.
+      by apply Hε1step, head_prim_fill_reducible.
     }
     { iPureIntro. intros [??]. apply Hε1nn. }
     { 

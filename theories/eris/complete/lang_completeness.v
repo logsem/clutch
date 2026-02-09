@@ -8,6 +8,7 @@ From clutch.common Require Export language.
 From clutch.eris Require Export weakestpre total_weakestpre lifting ectx_lifting.
 From clutch.prob Require Import distribution.
 From clutch.base_logic Require Import error_credits.
+From clutch.eris.complete Require Import exec_probs.
 
 Local Open Scope R.
 
@@ -25,10 +26,10 @@ Class eris_lang_completeness_gen (Λ : language) (Σ : gFunctors) `{!erisWpGS Λ
       heap_inv σ ={E}=∗
       ((∀ Ψ (ε1 : cfg Λ → R), 
       (* ε1 is an abstract "error" random variable *)
+      ⌜∃ r, ∀ ρ, ε1 ρ <= r⌝ →
       ⌜∀ ρ, reducible ρ → ε1 ρ = Expval (step ρ) ε1⌝ → 
       ⌜∀ ρ, 0 <= ε1 ρ⌝ →
       ⌜∀ ρ, stuck ρ → ε1 ρ = 1⌝ →
-      ⌜∀ K ρ, reducible ρ → ε1 (fill_lift K ρ) = Expval (step ρ) (ε1 ∘ fill_lift K)⌝ →
         ((▷ |={⊤,E}=> 
           ∀ e2 σ1',
             ⌜prim_step e1 σ (e2, σ1') > 0⌝ -∗
@@ -37,42 +38,6 @@ Class eris_lang_completeness_gen (Λ : language) (Σ : gFunctors) `{!erisWpGS Λ
                   WP e2 @ ⊤ {{ v, Ψ v }}) -∗
           ↯ (ε1 (e1, σ)) -∗ WP e1 @ ⊤ {{ v, Ψ v }})) )
 }.
-
-Section prob.
-  Definition stuck_prob {δ : markov} (ρ : mstate δ) : R 
-    (* := 1 - Inf_seq (fun n => SeriesC (pexec n ρ)) *).
-  Admitted.
-
-  Definition err_prob {δ : markov} (ρ : mstate δ) (φ : mstate_ret δ → Prop) : R := 
-    prob (lim_exec ρ) (λ a, negb (bool_decide (φ a))).
-
-  (* need to check if this is correct *)
-  Definition err_lb {δ : markov} (φ : mstate_ret δ → Prop) (ρ : mstate δ) : R := (stuck_prob ρ) + (err_prob ρ φ).
-
-  Lemma err_lb_fail_1 {δ : markov} (ρ : mstate δ) v (φ : mstate_ret δ → Prop) :
-    to_final ρ = Some v →
-    ¬ φ v →
-    err_lb φ ρ = 1.
-  Admitted.
-
-  Lemma err_lb_stuck_1 {δ : markov} (ρ : mstate δ) (φ : mstate_ret δ → Prop) :
-    stuck ρ →
-    err_lb φ ρ = 1.
-  Admitted.
-
-  Lemma err_lb_step {δ : markov} (ρ : mstate δ) (φ : mstate_ret δ → Prop) :
-    err_lb φ ρ = Expval (step ρ) (err_lb φ).
-  Admitted.
-
-  Lemma err_lb_nn {δ : markov} (ρ : mstate δ) (φ : mstate_ret δ → Prop) :
-    0 <= err_lb φ ρ.
-  Admitted. 
-
-  Lemma err_lb_fill {Λ : language} (e : Λ.(expr)) (σ : Λ.(state)) (φ : Λ.(val) → Prop) K :
-    reducible (e, σ) →
-    err_lb φ (fill_lift K (e, σ)) = Expval (step (e, σ)) (err_lb φ ∘ fill_lift K).
-  Admitted.
-End prob.
 
 Section completeness.
   Context `{!erisWpGS Λ Σ}.
@@ -103,10 +68,10 @@ Section completeness.
     }
     iMod (eris_lang_completeness with "Hst") as "H"; eauto.
     iApply ("H" with "[] [] [] [] [] Herr").
+    { iPureIntro. intros. by apply err_lb_bound. }
     { iPureIntro. intros. by apply err_lb_step. }
     { iPureIntro. intros. by apply err_lb_nn. }
     { iPureIntro. intros. by apply err_lb_stuck_1. }
-    { iPureIntro. intros ? [??]. by apply err_lb_fill. }
     iNext. 
     iModIntro.
     iIntros (??) "%Hstep Hheap Herr".
