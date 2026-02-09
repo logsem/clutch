@@ -14,11 +14,11 @@ Section total_lifting.
 
   Lemma twp_lift_step_fupd_glm E Φ e1 s :
   to_val e1 = None →
-  (∀ σ1 ε1,
-    state_interp σ1 ∗ err_interp ε1
+  (∀ n σ1 ε1,
+    state_interp n σ1 ∗ err_interp ε1
     ={E,∅}=∗
     glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
-                      |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E [{ Φ }]))
+                      |={∅,E}=> state_interp (S n) σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E [{ Φ }]))
   ⊢ WP e1 @ s; E [{ Φ }].
   Proof.
     by rewrite tgl_wp_unfold /tgl_wp_pre =>->.
@@ -26,18 +26,18 @@ Section total_lifting.
 
   Lemma twp_lift_step_fupd E Φ e1 s :
   to_val e1 = None →
-  (∀ σ1, state_interp σ1
+  (∀ n σ1, state_interp n σ1
      ={E,∅}=∗
     ⌜reducible (e1, σ1)⌝ ∗
      ∀ e2 σ2,
       ⌜prim_step e1 σ1 (e2, σ2) > 0 ⌝ ={∅}=∗ |={∅,E}=>
-      state_interp σ2 ∗ WP e2 @ s; E [{ Φ }])
+      state_interp (S n) σ2 ∗ WP e2 @ s; E [{ Φ }])
   ⊢ WP e1 @ s; E  [{ Φ }].
   Proof.
     intros Hval.
     iIntros "H".
     iApply twp_lift_step_fupd_glm; [done|].
-    iIntros (σ1 ε1) "[Hσ Hε]".
+    iIntros (n1 σ1 ε1) "[Hσ Hε]".
     iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
     iApply (glm_prim_step e1 σ1).
     iExists _.
@@ -60,15 +60,15 @@ Section total_lifting.
   (** Derived lifting lemmas. *)
   Lemma twp_lift_step E Φ e1 s :
     to_val e1 = None →
-    (∀ σ1, state_interp σ1 ={E,∅}=∗
+    (∀ n σ1, state_interp n σ1 ={E,∅}=∗
            ⌜reducible (e1, σ1)⌝ ∗
            ∀ e2 σ2,
        ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅,E}=∗
-       state_interp σ2 ∗
+       state_interp (S n) σ2 ∗
        WP e2 @ s; E [{ Φ }])
     ⊢ WP e1 @ s; E [{ Φ }].
   Proof.
-    iIntros (?) "H". iApply twp_lift_step_fupd; [done|]. iIntros (?) "Hσ".
+    iIntros (?) "H". iApply twp_lift_step_fupd; [done|]. iIntros (??) "Hσ".
     iMod ("H" with "Hσ") as "[$ H]". iIntros "!>" (???) "!>" . iMod ("H" with "[]"); first done.
     iModIntro; done.
   Qed.
@@ -81,27 +81,30 @@ Section total_lifting.
   Proof.
     iIntros (Hsafe Hstep) "H". iApply twp_lift_step.
     { by eapply (to_final_None_1 (e1, inhabitant)), reducible_not_final. }
-    iIntros (σ1) "Hσ". iMod "H".
+    iIntros (n σ1) "Hσ". iMod "H".
     iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
     iSplit; [done|].
     iIntros (e2 σ2 Hprim).
     destruct (Hstep _ _ _ Hprim).
-    iMod "Hclose" as "_". iModIntro.
-    iDestruct ("H" with "[//]") as "H". simpl. by iFrame.
+    iMod "Hclose" as "_".
+    iDestruct ("H" with "[//]") as "H".
+    iMod (fupd_mask_subseteq ∅) as "Hclo"; first by set_solver+.
+    iMod (state_interp_mono with "[$]") as "$".
+    iMod "Hclo". by iFrame.
   Qed.
 
   Lemma twp_lift_atomic_step_fupd {E1 Φ} e1 s :
   to_val e1 = None →
-  (∀ σ1, state_interp σ1 ={E1}=∗
+  (∀ n σ1, state_interp n σ1 ={E1}=∗
     ⌜reducible (e1, σ1)⌝ ∗
     ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={E1}=∗
-      state_interp σ2 ∗
+      state_interp (S n) σ2 ∗
       from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E1 [{ Φ }].
   Proof.
     iIntros (?) "H".
-    iApply (twp_lift_step_fupd E1 _ e1)=>//; iIntros (σ1) "Hσ1".
-    iMod ("H" $! σ1 with "Hσ1") as "[$ H]".
+    iApply (twp_lift_step_fupd E1 _ e1)=>//; iIntros (n σ1) "Hσ1".
+    iMod ("H" $! n σ1 with "Hσ1") as "[$ H]".
     iApply fupd_mask_intro; first set_solver.
     iIntros "Hclose" (e2 σ2 Hs). iMod "Hclose" as "_".
     iMod ("H" $! e2 σ2 with "[#]") as "[Hs ?]"; [done|].
@@ -114,15 +117,15 @@ Section total_lifting.
 
   Lemma twp_lift_atomic_step {E Φ} e1 s :
     to_val e1 = None →
-    (∀ σ1, state_interp σ1 ={E}=∗
+    (∀ n σ1, state_interp n σ1 ={E}=∗
            ⌜reducible (e1, σ1)⌝ ∗
           ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗
-                    state_interp σ2 ∗
+                    state_interp (S n) σ2 ∗
                     from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E [{ Φ }].
   Proof.
     iIntros (?) "H". iApply twp_lift_atomic_step_fupd; [done|].
-    iIntros (?) "?". iMod ("H" with "[$]") as "[$ H]".
+    iIntros (n ?) "?". iMod ("H" with "[$]") as "[$ H]".
     iIntros "!> *". iIntros (Hstep).
     by iApply "H".
   Qed.

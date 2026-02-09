@@ -1,0 +1,19 @@
+Require Export clutch.eris.examples.math.axioms.
+Require Export clutch.eris.examples.math.continuity2.
+Require Export clutch.eris.examples.math.iverson.
+Require Export clutch.eris.examples.math.integrals.
+Require Export clutch.eris.examples.math.exp.
+Require Export clutch.eris.examples.math.sets.
+Require Export clutch.eris.examples.math.series.
+Require Export clutch.eris.examples.math.limit_exchanges.
+Require Export clutch.eris.examples.math.improper.
+Require Export clutch.eris.examples.math.derived_fubini.
+Require Export clutch.eris.examples.math.piecewise.
+Require Export clutch.eris.examples.math.periodisation.
+
+
+From clutch.eris.examples.math Require Import prelude.
+From clutch.eris Require Import infinite_tape.
+Set Default Proof Using "Type*".
+#[local] Open Scope R.
+Import Hierarchy.

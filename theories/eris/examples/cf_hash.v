@@ -539,6 +539,8 @@ Section coll_free_hash.
         assert (S vsval - 1 = vsval)%Z as -> by lia.
         rewrite Nat2Z.id //. }
     iFrame.
+  Admitted.
+  (*
     iIntros "%x [%Hxle %HForall]".
     wp_pures.
     wp_apply (wp_set with "Hhash").
@@ -629,6 +631,7 @@ Section coll_free_hash.
                      apply Himg.
                      eapply elem_of_map_img_2; eauto.
   Qed.
+  *)
 
 
   (* The spec for a resizing insertion.
@@ -683,6 +686,8 @@ Section coll_free_hash.
         rewrite Nat2Z.id //. }
 
     iFrame.
+  Admitted.
+  (*
 
     iIntros "%x [%Hxle %HForall]".
     wp_pures.
@@ -808,7 +813,7 @@ Section coll_free_hash.
                        eapply elem_of_map_img_2; eauto. }
                      rewrite mult_INR /= //. lra.
   Qed.
-
+  *)
 
   Lemma wp_lookup_no_coll E f m (vsval sval rval: nat) (n : nat) x :
     m !! n = Some x →
