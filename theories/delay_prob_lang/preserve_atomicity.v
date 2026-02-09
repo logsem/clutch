@@ -74,8 +74,44 @@ Proof.
         }
         simpl in *.
         by eapply subst_to_val_change'.
-    - admit.
-    - admit.
+    - destruct (list_destruct_rev K) as [|[K1[K2]]]; simplify_eq.
+      rewrite fill_app in H3.
+      destruct K1; simplify_eq; simpl in *; simplify_eq.
+      destruct (list_destruct_rev K2) as [|[K1' [K2']]]; simplify_eq; last first.
+      * rewrite fill_app in H3; simpl in *; destruct K1'; simplify_eq.
+      * simpl in *. simplify_eq.
+        destruct v; simpl in *; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+        eapply urn_subst_equal_unique in H; last apply urn_subst_equal_obv; last first.
+        { by eapply urn_subst_is_simple. }
+        subst. 
+        unshelve epose proof H1' ({|heap:=∅; urns:=urns_subst_f_to_urns f|}) ({|heap:=∅; urns:=urns_subst_f_to_urns f|}) [] _ _ _ _; [| |done|..].
+        2:{ rewrite head_step_support_equiv_rel.
+            eapply IfTrueS.
+            intros ? H .
+            simpl in *.
+            apply urns_subst_f_to_urns_unique_valid in H.
+            by subst. 
+        }
+        done. 
+    - destruct (list_destruct_rev K) as [|[K1[K2]]]; simplify_eq.
+      rewrite fill_app in H3.
+      destruct K1; simplify_eq; simpl in *; simplify_eq.
+      destruct (list_destruct_rev K2) as [|[K1' [K2']]]; simplify_eq; last first.
+      * rewrite fill_app in H3; simpl in *; destruct K1'; simplify_eq.
+      * simpl in *. simplify_eq.
+        destruct v; simpl in *; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+        eapply urn_subst_equal_unique in H; last apply urn_subst_equal_obv; last first.
+        { by eapply urn_subst_is_simple. }
+        subst. 
+        unshelve epose proof H1' ({|heap:=∅; urns:=urns_subst_f_to_urns f|}) ({|heap:=∅; urns:=urns_subst_f_to_urns f|}) [] _ _ _ _; [| |done|..].
+        2:{ rewrite head_step_support_equiv_rel.
+            eapply IfFalseS.
+            intros ? H .
+            simpl in *.
+            apply urns_subst_f_to_urns_unique_valid in H.
+            by subst. 
+        }
+        done. 
     - admit.
     - admit.
   }

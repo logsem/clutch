@@ -2613,57 +2613,78 @@ Section urn.
   Qed. 
                                  
 
-  (** urns_subst_f_to_urns not used, remove? *)
-  (* Definition urns_subst_f_to_urns (f:gmap loc Z): gmap loc urn := *)
-  (*   (λ x, urn_unif {[x]}) <$> f. *)
+  Definition urns_subst_f_to_urns (f:gmap loc Z): gmap loc urn :=
+    (λ x, urn_unif {[x]}) <$> f.
 
-  (* Lemma urns_subst_f_to_urns_support f: urns_support_set (urns_subst_f_to_urns f) = dom f. *)
-  (* Proof. *)
-  (* Admitted.  *)
-  (* (*   rewrite /urns_subst_f_to_urns. *) *)
-  (* (*   rewrite /urns_support_set. *) *)
-  (* (*   rewrite dom_fmap_L. *) *)
-  (* (*   apply set_eq. *) *)
-  (* (*   intros x. rewrite elem_of_filter elem_of_dom. *) *)
-  (* (*   split; intros H; first naive_solver. *) *)
-  (* (*   split; last done. *) *)
-  (* (*   rewrite lookup_fmap. *) *)
-  (* (*   destruct H. *) *)
-  (* (*   by rewrite H. *) *)
-  (* (* Qed. *) *)
-
-  (* Lemma urns_subst_f_to_urns_valid f: *)
-  (*   urns_f_valid (urns_subst_f_to_urns f) f. *)
-  (* Proof. *)
-  (* Admitted.  *)
-  (* (*   rewrite /urns_f_valid. *) *)
-  (* (*   rewrite /urns_subst_f_to_urns. *) *)
-  (* (*   intros ?. *) *)
-  (* (*   case_match eqn:H. *) *)
-  (* (*   - eexists _. rewrite lookup_fmap. *) *)
-  (* (*     rewrite H. simpl. split; [done|set_solver]. *) *)
-  (* (*   - rewrite lookup_fmap. rewrite H. naive_solver. *) *)
-  (* (* Qed.  *) *)
-
-  (* Lemma urns_subst_f_to_urns_unique_valid f f' : *)
-  (*   urns_f_valid (urns_subst_f_to_urns f) f' -> f=f'. *)
-  (* Proof. *)
-  (*   pose proof urns_subst_f_to_urns_valid f as Hf. *)
-  (*   rewrite -!elem_of_set_urns_f_valid in Hf *. *)
-  (*   assert (size (set_urns_f_valid (urns_subst_f_to_urns f)) = 1)%nat as Hsize. *)
-  (*   { apply set_urns_f_valid_singleton. *)
-  (*     rewrite /urns_subst_f_to_urns. *)
-  (*     rewrite map_Forall_fmap. *)
-  (*     intros ???. simpl. *)
-  (*     right. eassert (size ({[x]}:gset _) = 1)%nat; last done. *)
-  (*     apply size_singleton. *)
-  (*   } *)
-  (*   intros. *)
-  (*   by eapply size_singleton_inv. *)
-  (*   Unshelve. *)
-  (*   all: try apply _. *)
-  (* Qed.  *)
-    
+  Lemma urns_subst_f_to_urns_support f: urns_support_set (urns_subst_f_to_urns f) = dom f.
+  Proof.
+    induction f using map_ind.
+    - rewrite /urns_subst_f_to_urns. rewrite fmap_empty.
+      rewrite /urns_support_set.
+      by rewrite map_filter_empty.
+    - rewrite dom_insert_L.
+      rewrite /urns_subst_f_to_urns.
+      rewrite fmap_insert.
+      rewrite /urns_support_set.
+      rewrite map_filter_insert.
+      case_match; last first.
+      { simpl in *. exfalso.
+        rename select (¬ _) into H'.
+        apply H'.
+        set_solver. }
+      rewrite dom_insert_L.
+      f_equal. naive_solver.
+  Qed.
+  
+  Lemma urns_subst_f_to_urns_pos f:
+    urns_f_distr (urns_subst_f_to_urns f) f > 0.
+  Proof.
+    induction f as [|? ?? H' ]using map_ind. 
+    - rewrite /urns_subst_f_to_urns.
+      rewrite fmap_empty.
+      rewrite urns_f_distr_empty.
+      solve_distr.
+    - rewrite /urns_subst_f_to_urns.
+      rewrite fmap_insert.
+      rewrite urns_f_distr_insert; try done; last first.
+      { rewrite lookup_fmap.
+        by rewrite H'.
+      }
+      apply dbind_pos.
+      eexists _.
+      split.
+      + apply dbind_pos.
+        eexists _. split; first solve_distr.
+        rewrite /urns_f_distr_compute_distr/urns_f_distr_compute/pmf.
+        rewrite bool_decide_eq_true_2; last set_solver.
+        rewrite size_singleton.
+        simpl. lra.
+      + done.
+  Qed.
+  
+  Lemma urns_subst_f_to_urns_unique_valid f f' :
+    urns_f_distr (urns_subst_f_to_urns f) f' > 0 -> f=f'.
+  Proof.
+    revert f'. 
+    induction f as [|? ?? H' ]using map_ind.
+    - rewrite /urns_subst_f_to_urns.
+      rewrite fmap_empty.
+      rewrite urns_f_distr_empty.
+      intros. by inv_distr.
+    - rewrite /urns_subst_f_to_urns. rewrite fmap_insert.
+      rewrite urns_f_distr_insert; try done; last first.
+      { rewrite lookup_fmap.
+        by rewrite H'.
+      }
+      intros.
+      inv_distr.
+      f_equal.
+      + rename select (urns_f_distr_compute_distr _ _ > 0)%R into H1.
+        rewrite /urns_f_distr_compute_distr/urns_f_distr_compute/pmf in H1.
+        case_bool_decide; last lra.
+        set_unfold. by subst.
+      + naive_solver.
+  Qed.     
 End urn.
 
 
