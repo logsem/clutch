@@ -501,7 +501,10 @@ Qed.
     intros εpos qi_sens db db' db_adj post. iIntros "[ε rhs] Hpost".
     wp_lam. tp_lam...
     destruct N as [|N'].
-    1: admit.
+    {
+      rewrite /list_init/list_map/list_mapi/list_mapi_loop/list_max_index...
+      iApply "Hpost". iFrame. done.
+    }
     set (N := S N'). assert (0 < N)%nat by (unfold N ; lia).
     tp_bind (list_init _ _). wp_bind (list_init _ _).
     iApply (rnm_init with "rhs") => //.
