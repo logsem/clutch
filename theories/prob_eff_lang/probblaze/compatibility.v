@@ -1118,8 +1118,8 @@ Section compatibility.
         do 2 (rewrite -delete_insert_ne; last done).
         rewrite -!subst_map_insert. 
         assert (v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & ->) by done.
-        eassert (KontV ((HandleCtx _ _ op.1 _ _) :: k1') = fst (KontV (_ :: _), KontV _) ∧
-                 KontV ((HandleCtx _ _ op.2 _ _) :: k2') = snd (KontV _, KontV (_ :: _))) as (Hkont1 & Hkont2) by done.
+        eassert (KontV ((HandleCtx _ _ op.1 (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1) (λ: x, subst_map (delete x (fst <$> γ)) r1)) :: k1') = fst (KontV (_ :: _), KontV _) ∧
+                 KontV ((HandleCtx _ _ op.2 (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2) (λ: x, subst_map (delete x (snd <$> γ)) r2)) :: k2') = snd (KontV _, KontV (_ :: _))) as (Hkont1 & Hkont2) by done.
         rewrite Hkont1. rewrite Hkont2.
         rewrite -!fmap_insert. simpl.
         iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
@@ -1163,8 +1163,8 @@ Section compatibility.
           do 2 (rewrite -delete_insert_ne; last done).
           rewrite -!subst_map_insert. 
           assert (v0 = fst (v0, v3) ∧ v3 = snd (v0, v3)) as (-> & ->) by done.
-          eassert (KontV ((HandleCtx _ _ op.1 _ _) :: k1'0) = fst (KontV (_ :: _), KontV _) ∧
-                   KontV ((HandleCtx _ _ op.2 _ _) :: k2'0) = snd (KontV _, KontV (_ :: _))) as (Hkont1' & Hkont2') by done.
+          eassert (KontV ((HandleCtx _ _ op.1 (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1) (λ: x, subst_map (delete x (fst <$> γ)) r1)) :: k1'0) = fst (KontV (_ :: _), KontV _) ∧
+                   KontV ((HandleCtx _ _ op.2 (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2) (λ: x, subst_map (delete x (snd <$> γ)) r2)) :: k2'0) = snd (KontV _, KontV (_ :: _))) as (Hkont1' & Hkont2') by done.
           rewrite Hkont1'. rewrite Hkont2'.
           rewrite -!fmap_insert. simpl.
           iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
@@ -1193,8 +1193,8 @@ Section compatibility.
         do 2 (rewrite -delete_insert_ne; last done).
         rewrite -!subst_map_insert. 
         assert (v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & ->) by done.
-        eassert (KontV ((HandleCtx _ _ op.1 _ _) :: k1') = fst (KontV (_ :: _), KontV _) ∧
-                 KontV ((HandleCtx _ _ op.2 _ _) :: k2') = snd (KontV _, KontV (_ :: _))) as (Hkont1 & Hkont2) by done.
+        eassert (KontV ((HandleCtx _ _ op.1 (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1) (λ: x, subst_map (delete x (fst <$> γ)) r1)) :: k1') = fst (KontV (_ :: _), KontV _) ∧
+                 KontV ((HandleCtx _ _ op.2 (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2) (λ: x, subst_map (delete x (snd <$> γ)) r2)) :: k2') = snd (KontV _, KontV (_ :: _))) as (Hkont1 & Hkont2) by done.
         rewrite Hkont1. rewrite Hkont2.
         rewrite -!fmap_insert. simpl.
         iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
@@ -1237,8 +1237,8 @@ Section compatibility.
           do 2 (rewrite -delete_insert_ne; last done).
           rewrite -!subst_map_insert. 
           assert (v0 = fst (v0, v3) ∧ v3 = snd (v0, v3)) as (-> & ->) by done.
-          eassert (KontV ((HandleCtx _ _ op.1 _ _) :: k1'0) = fst (KontV (_ :: _), KontV _) ∧
-                   KontV ((HandleCtx _ _ op.2 _ _) :: k2'0) = snd (KontV _, KontV (_ :: _))) as (Hkont1' & Hkont2') by done.
+          eassert (KontV ((HandleCtx _ _ op.1 (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1) (λ: x, subst_map (delete x (fst <$> γ)) r1)) :: k1'0) = fst (KontV (_ :: _), KontV _) ∧
+                   KontV ((HandleCtx _ _ op.2 (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2) (λ: x, subst_map (delete x (snd <$> γ)) r2)) :: k2'0) = snd (KontV _, KontV (_ :: _))) as (Hkont1' & Hkont2') by done.
           rewrite Hkont1'. rewrite Hkont2'.
           rewrite -!fmap_insert. simpl.
           iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
@@ -1252,7 +1252,7 @@ Section compatibility.
           iDestruct ("HBQ" $! w0 w3 with "[HB]") as "HQ"; first by iFrame.
           iDestruct ("Hkont'" with "HQ") as "Hbrelk".
           iApply ("IH" with "[][][Hbrelk]"); done.
-          Unshelve. all : try done; try apply MS; try apply Deep.
+          Unshelve. all : try apply MS; try apply Deep.
   Qed. 
     
 End compatibility.
