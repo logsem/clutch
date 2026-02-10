@@ -8,14 +8,15 @@ From clutch.common Require Export language.
 From clutch.eris Require Export weakestpre total_weakestpre lifting ectx_lifting.
 From clutch.prob Require Import distribution.
 From clutch.base_logic Require Import error_credits.
-From clutch.eris.complete Require Import exec_probs.
+From clutch.eris.complete Require Export exec_probs.
 
 Local Open Scope R.
 
 Class eris_lang_completeness_gen (Λ : language) (Σ : gFunctors) `{!erisWpGS Λ Σ} `{ecGS Σ} := ErisCompleteness {
   heap_inv : Λ.(state) → iProp Σ;
 
-  (** [na e σ] should state that the execution of (e, σ) does not allocate any new locations in the state *)
+  (** [na e σ] should state that the execution of (e, σ) does not 
+      allocate any new locations in the state *)
   na : Λ.(expr) → Λ.(state) → Prop;
   na_step : ∀ e σ e' σ', na e σ → prim_step e σ (e', σ') > 0 → na e' σ';
 
@@ -40,9 +41,7 @@ Class eris_lang_completeness_gen (Λ : language) (Σ : gFunctors) `{!erisWpGS Λ
 }.
 
 Section completeness.
-  Context `{!erisWpGS Λ Σ}.
-  Context `{!ecGS Σ}.
-  Context `{!eris_lang_completeness_gen Λ Σ}.
+  Context `{!erisWpGS Λ Σ} `{!ecGS Σ} `{!eris_lang_completeness_gen Λ Σ}.
   
   Lemma pgl_sem_completeness e σ (φ : Λ.(val) → Prop) :
     na e σ →

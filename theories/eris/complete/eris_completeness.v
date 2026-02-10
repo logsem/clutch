@@ -169,9 +169,11 @@ Proof.
   }
   (* rand on unmatching tape (same as usual rand)*) 
   {
-    (* no tactics? *)
+    (* no proof rules? *)
     destruct (tapes σ !! l) eqn : Hσl; inversion H0; simplify_eq.
     case_bool_decide; first done.
+    (* wp_apply (wp_rand_exp_fin_tape_mismatch _ _ _ _ _ _ _ (λ n0 : fin (S (Z.to_nat z)), ε1 (Val #n0, σ))); eauto.
+    -  *)
     admit.
   }
   (* laplacian *)

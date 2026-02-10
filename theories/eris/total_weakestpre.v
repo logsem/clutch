@@ -208,7 +208,7 @@ Section tgl_wp.
   Proof.
     revert Φ. cut (∀ Φ', WP e @ s; E [{ Φ' }] -∗ ∀ Φ,
                      (∀ v, Φ' v -∗ WP K (of_val v) @ s; E [{ Φ }]) -∗ WP K e @ s; E [{ Φ }]).
-    { iIntros (help Φ) "H". iApply (help with "H"); auto. }
+    { iIntros (help Φ) "H". iApply (help with "H"). auto. }
     iIntros (Φ') "H". iRevert (e E Φ') "H". iApply tgl_wp_ind; first solve_proper.
     iIntros "!>" (e E1 Φ') "IH". iIntros (Φ) "HΦ".
     rewrite /tgl_wp_pre. destruct (to_val e) as [v|] eqn:He.
@@ -222,6 +222,12 @@ Section tgl_wp.
     iMod "H". iModIntro. iDestruct "H" as "[?[?K]]".
     iFrame. by iApply "K".
   Qed.
+
+  Lemma tgl_wp_bind_inv K `{!LanguageCtx K} s E e Φ :
+  WP K e @ s; E [{ Φ }] ⊢ WP e @ s; E [{ v, WP K (of_val v) @ s; E [{ Φ }] }].
+  Proof.
+    
+  Admitted.
 
   Lemma tgl_wp_pgl_wp s E e Φ : WP e @ s; E [{ Φ }] -∗ WP e @ s; E {{ Φ }}.
   Proof.

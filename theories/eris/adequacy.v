@@ -692,3 +692,13 @@ Proof.
   rewrite pexec_safety_relate.
   by eapply (wp_safety Σ).
 Qed.
+
+(*
+  adequacy: 
+  0 <= ε →
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  err_lb φ (e, σ) <= ε
+Proof.
+  
+Admitted.
+*)

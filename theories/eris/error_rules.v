@@ -420,6 +420,251 @@ Qed.
 
 
 (* General expectation preserving rule, returning a fin *)
+Lemma twp_rand_exp_nat_tape_mismatch N M z α E ns s (ε1 : R) (ε2 : nat -> R) Φ :
+  TCEq N (Z.to_nat z) →
+  N ≠ M →
+  (∀ n, (0 <= ε2 n <= 1)%R) →
+  (SeriesC (λ n : nat, if bool_decide (n <= N)%nat then (1 / (S N)) * ε2 n else 0)%R <= ε1 )%R →
+  ↯ ε1 -∗ α ↪ (M; ns) -∗ (∀ (n : nat), ⌜ n <= N ⌝ ∗ ↯ (ε2 n) -∗ α ↪ (M; ns) -∗ Φ #n) -∗
+  WP rand(#lbl:α) #z @ s; E [{ Φ }].
+Proof.
+  iIntros (-> Hne Hleq Hε1) "Herr Htape HΦ".
+  assert (forall n, 0 <= ε2 n)%R as Hleq1.
+  {
+    intros; apply Hleq.
+  }
+  assert (forall n, ε2 n <= 1)%R as Hleq2.
+  {
+    intros; apply Hleq.
+  }
+  iApply twp_lift_step_fupd_glm; [done|].
+  iIntros (σ1 ε_now) "[Hσ Hε]".
+  iDestruct "Hσ" as "(Hh & Ht)".
+  iDestruct (ghost_map_lookup with "Ht Htape") as %Hlookup.
+  iApply fupd_mask_intro; [set_solver|].
+  iIntros "Hclose'".
+  iApply glm_adv_comp; simpl.
+  iDestruct (ec_supply_ec_inv with "Hε Herr") as %(ε1' & ε3 & Hε_now & Hε1').
+  set (ecfn := (λ (ρ : expr * state),
+                ε3 +
+                  match ρ with
+                  | (Val (LitV (LitInt n)), σ) =>
+                      if bool_decide(σ = σ1)
+                      then if bool_decide (0 ≤ n)%Z
+                           then if bool_decide (Z.to_nat n <= Z.to_nat z)
+                                then mknonnegreal _ (Hleq1 (Z.to_nat n))
+                                else nnreal_zero
+                           else nnreal_zero
+                      else nnreal_zero
+                  | _ => nnreal_zero
+                  end)%NNR).
+  iExists
+    (λ (ρ : expr * state),
+      ∃ (n : Z), (0 <= n)%Z /\ (Z.to_nat n <= Z.to_nat z) /\ ρ = (Val #n, σ1)), nnreal_zero, ecfn.
+  iSplit.
+  { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
+  iSplit.
+  {
+    iPureIntro. exists (ε3 + 1)%R.
+    intros (e & σ); simpl.
+    apply Rplus_le_compat; [lra |].
+    do 6 (case_match; simpl; try lra).
+    apply Hleq2.
+  }
+  iSplit.
+  {
+    iPureIntro.
+    rewrite /ecfn /= Rplus_0_l.
+    setoid_rewrite Rmult_plus_distr_l.
+    rewrite SeriesC_plus.
+    - rewrite Rplus_comm.
+      subst.
+      apply Rplus_le_compat.
+      + etrans; eauto.
+        etrans; last first.
+        * apply (SeriesC_le_inj _
+                   (λ ρ : expr * state,
+                       let (e, σ) := ρ in
+                       if bool_decide (σ = σ1) then
+                         match e with
+                         | Val #(LitInt n) =>
+                             if bool_decide (0 ≤ n)%Z
+                             then if bool_decide (Z.to_nat n <= Z.to_nat z)
+                                  then Some (Z.to_nat n)
+                                  else None
+                             else None
+                         | _ => None
+                         end
+                       else None)).
+          ** intros.
+             real_solver.
+          ** intros ρ1 ρ2 m Hc1 Hc2.
+             do 14 ((case_bool_decide || case_match); simplify_eq).
+             f_equal.
+             do 3 f_equal.
+             apply Z2Nat.inj; auto.
+          ** apply ex_seriesC_nat_bounded.
+        * apply SeriesC_le.
+          ** intros []; split.
+             *** apply Rmult_le_pos; auto.
+             *** case_bool_decide; simplify_eq.
+                 **** do 5 (case_match; simpl; (try (rewrite Rmult_0_r; lra))); last first.
+                      apply bool_decide_eq_true_1 in H2.
+                      apply bool_decide_eq_true_1 in H3.
+                      rewrite bool_decide_eq_true_2; last by lia.
+                      apply Rmult_le_compat_r; [ auto |].
+                      rewrite head_prim_step_eq /= Hlookup /=.
+                      rewrite bool_decide_eq_false_2; [| lia].
+                      rewrite /dmap /pmf/=/dbind_pmf/dunifP.
+                      setoid_rewrite dunif_pmf.
+                      rewrite SeriesC_scal_l /= /Rdiv Rmult_1_l.
+                      rewrite <- Rmult_1_r.
+                      apply Rmult_le_compat_l; auto.
+                      ***** left. eapply Rlt_le_trans; [apply (RinvN_pos' (Z.to_nat z)) |].
+                      done.
+                      ***** rewrite /pmf/=/dret_pmf.
+                      assert (Z.to_nat n < S (Z.to_nat z)) as H4 by lia.
+                      erewrite <- (SeriesC_singleton (nat_to_fin H4)).
+                      apply SeriesC_le; [ | apply ex_seriesC_singleton ].
+                      intro; split; [ real_solver |].
+                      case_bool_decide; try real_solver.
+                      rewrite bool_decide_eq_true_2; [lra|].
+                      simplify_eq.
+                      apply fin_to_nat_inj.
+                      rewrite fin_to_nat_to_fin.
+                      rewrite Nat2Z.id //.
+                 **** simpl. etrans; [ | right; eapply Rmult_0_l ].
+                      apply Rmult_le_compat_r; [ auto | ].
+                      right.
+                      rewrite head_prim_step_eq /= Hlookup /=.
+                      rewrite bool_decide_eq_false_2; [| lia].
+                      rewrite /dmap /pmf/=/dbind_pmf/dunifP.
+                      setoid_rewrite dunif_pmf.
+                      rewrite SeriesC_scal_l /= /Rdiv.
+                      erewrite (SeriesC_ext _ (λ _, 0));
+                        [rewrite SeriesC_0; auto; by rewrite Rmult_0_r|].
+                      intro; rewrite dret_0; auto.
+                      intro; simplify_eq.
+          ** eapply ex_seriesC_finite_from_option.
+             instantiate (1 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))).
+             intros [e σ].
+             split.
+             --- case_bool_decide; last first.
+                 { inversion 1. done. }
+                 case_match; try (by inversion 1).
+                 case_match; try (by inversion 1).
+                 case_match; try (by inversion 1).
+                 case_bool_decide; try (by inversion 1).
+                 case_match; try (by inversion 1).
+                 intros. subst. eapply elem_of_list_fmap_1_alt; last first.
+                 { repeat f_equal. instantiate (1 := Z.to_nat n). lia. }
+                 apply bool_decide_eq_true_1 in H4.
+                 rewrite elem_of_seq. lia.
+             --- intros H1. apply elem_of_list_fmap_2 in H1.
+                 destruct H1 as [n[H1 H2]].
+                 inversion H1.
+                 replace (bool_decide (_=_)) with true.
+                 2: { case_bool_decide; done. }
+                 replace (bool_decide _) with true.
+                 2: { case_bool_decide; lia. }
+                 case_match; first done.
+                 apply bool_decide_eq_false_1 in H.
+                 rewrite elem_of_seq in H2.
+                 exfalso.
+                 apply H.
+                 lia.
+      + rewrite SeriesC_scal_r.
+        rewrite <- Rmult_1_l.
+        apply Rmult_le_compat; auto; try lra; apply cond_nonneg.
+    - by apply ex_seriesC_scal_r.
+    - eapply ex_seriesC_ext; last eapply ex_seriesC_list.
+      intros [e σ].
+      instantiate (2 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))).
+      case_bool_decide; last first.
+      + repeat (case_match; try (simpl; lra)).
+        exfalso. apply H. subst.
+        eapply elem_of_list_fmap_1_alt; last first.
+        { apply bool_decide_eq_true_1 in H3, H4. repeat f_equal.
+          - instantiate (1 := Z.to_nat n). lia.
+          - done.
+        }
+        rewrite elem_of_seq.
+        apply bool_decide_eq_true_1 in H5.
+        lia.
+      + instantiate (1 :=
+                       (λ '(e, s), (prim_step (rand(#lbl:α) #z) σ1 (e, s) *
+                                      match e with
+                                      | Val #(LitInt n) =>
+                                          if bool_decide (s = σ1)
+                                          then
+                                            if bool_decide (0 ≤ n)%Z
+                                            then if bool_decide (Z.to_nat n <= Z.to_nat z)
+                                                 then ε2 (Z.to_nat n)
+                                                 else nnreal_zero
+                                            else nnreal_zero
+                                          else nnreal_zero
+                                      | _ => nnreal_zero
+                                      end)%R)).
+        simpl. repeat f_equal.
+        repeat (case_match; try (simpl; lra)).
+        * apply bool_decide_eq_true_1 in H5.
+          apply bool_decide_eq_false_1 in H6.
+          apply INR_le in H5.
+          lia.
+        * apply bool_decide_eq_false_1 in H5.
+          apply Rnot_le_lt in H5.
+          apply bool_decide_eq_true_1 in H6.
+          apply INR_lt in H5.
+          lia.
+  }
+  iSplit.
+  {
+    iPureIntro.
+    rewrite head_prim_step_eq /= Hlookup /= bool_decide_eq_false_2 /=; [| lia].
+    rewrite /dmap -(Rplus_0_r 0).
+    eapply (pgl_dbind _ _ _ _ _ 0);
+      [done|done| |by apply pgl_trivial].
+    intros n ?.
+    apply pgl_dret.
+    exists n.
+    econstructor; [|econstructor; eauto]; try real_solver.
+    rewrite Nat2Z.id. pose proof (fin_to_nat_lt n).
+    lia.
+  }
+  iIntros (e2 σ2) "%H".
+  destruct H as (n & Hn1 & Hn2 & Hn3); simplify_eq.
+  rewrite /ecfn.
+  rewrite bool_decide_eq_true_2; last done.
+  rewrite bool_decide_eq_true_2; last first.
+  { zify. lia.  }
+  rewrite bool_decide_eq_true_2; last done.
+  iMod (ec_supply_decrease with "Hε Herr") as (????) "Hε2".
+  iModIntro.
+  destruct (Rlt_decision (nonneg ε3 + (ε2 (Z.to_nat n)))%R 1%R) as [Hdec | Hdec]; last first.
+  { apply Rnot_lt_ge, Rge_le in Hdec.
+    iApply exec_stutter_spend.
+    iPureIntro.
+    simpl.
+    lra.
+  }
+  iApply exec_stutter_free.
+  iMod (ec_supply_increase ε3 (mknonnegreal _ (Hleq1 (Z.to_nat n) )) with "[Hε2]") as "[Hε2 Hcr]".
+  { simpl. lra. }
+  { iApply ec_supply_eq; [|done]. simplify_eq. lra. }
+  iMod "Hclose'".
+  iApply fupd_mask_intro; [eauto|]; iIntros "_".
+  iFrame.
+  iApply tgl_wp_value.
+  replace (#n) with (#(Z.to_nat n)); last first.
+  {
+    f_equal.
+    by rewrite Z2Nat.id //.
+  }
+  iApply ("HΦ" with "[Hcr] Htape").
+  iFrame.
+  iPureIntro.
+  lia.
+Qed.
 
 Lemma twp_rand_exp_fin (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :
   TCEq N (Z.to_nat z) →
@@ -647,6 +892,48 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma twp_rand_exp_fin_tape_mismatch N M z α E ns (ε1 : R) (ε2 : fin (S N) -> R) :
+  TCEq N (Z.to_nat z) →
+  N ≠ M →
+  (∀ n, (0 <= ε2 n <= 1)%R) →
+  (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= ε1 )%R →
+  [[{ ↯ ε1 ∗ α ↪ (M; ns) }]] rand(#lbl:α) #z @ E [[{ n, RET #n; ↯ (ε2 n) ∗ α ↪ (M; ns)}]].
+Proof.
+  iIntros (-> Hne Hleq Hε1 Φ) "[Herr Htape] HΦ".
+  assert (∀ n : fin (S (Z.to_nat z)), extend_fin_to_R ε2 n = ε2 n) as H2fin. {
+    intros.
+    rewrite /extend_fin_to_R.
+    pose proof (fin.fin_to_nat_le n).
+    destruct (le_lt_dec (S (Z.to_nat z)) n) as [?|?]; first by real_solver.
+    by rewrite nat_to_fin_to_nat.
+  }
+  wp_apply (twp_rand_exp_nat_tape_mismatch _ _ _ _ _ _ _ _ (extend_fin_to_R ε2) with "Herr Htape"); eauto; intros.
+  - rewrite /extend_fin_to_R. destruct (le_lt_dec (S (Z.to_nat z)) n); real_solver.
+  - etrans; last by apply Hε1.
+    apply Req_le.
+    rewrite SeriesC_nat_bounded_fin.
+    apply SeriesC_ext.
+    intros. by f_equal.
+  - iIntros (n') "(%Hn' & Herr) Htape".
+    assert (n' < S $ Z.to_nat z) as  Hn'0; first lia.
+    set n := nat_to_fin Hn'0.
+    assert (n' = n)%nat as Hnn'; first by rewrite /n fin_to_nat_to_fin. 
+    rewrite Hnn' H2fin. iApply "HΦ". iFrame.
+Qed.
+
+Lemma wp_rand_exp_fin_tape_mismatch N M z α E ns (ε1 : R) (ε2 : fin (S N) -> R) Φ :
+  TCEq N (Z.to_nat z) →
+  N ≠ M →
+  (∀ n, (0 <= ε2 n <= 1)%R) →
+  (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= ε1 )%R →
+  {{{ ↯ ε1 ∗ α ↪ (M; ns) }}} rand(#lbl:α) #z @ E {{{ n, RET #n; ↯ (ε2 n) ∗ α ↪ (M; ns) }}}.
+Proof.
+  iIntros "%%%%% [??] ?".
+  iApply (tgl_wp_pgl_wp_step' with "[$]").
+  wp_apply (twp_rand_exp_fin_tape_mismatch with "[$]"); try done. 
+  iIntros (?) "[H1 H] H2". iModIntro.
+  iApply ("H2" with "[$] ").
+Qed.
 
 Lemma wp_rand_exp_fin (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :
   TCEq N (Z.to_nat z) →
