@@ -348,22 +348,48 @@ Proof.
     simpl.
     rewrite /list_map.
     wp_pures.
-    
     inversion H1. inversion H2.
+    iDestruct "H3" as "(_&?&?&H3)".
+    tp_pures.
     wp_pures.
-    
-    (* iIntros (?? prev prev' post) "* [h (%hlv&%hlv'&%hlen&pre&P&P'&rhs)] post". rewrite hlv. *)
-    (* assert (l' = []) as ->. 1: by destruct l'. *)
-    (* rewrite /list_map. *)
-    (* rewrite hlv'. tp_pures. *)
-    (* wp_pures. iApply "post". iModIntro. iExists _,[],[]. *)
-    (* repeat iSplit => // ; try iPureIntro => //. *)
-    (* iFrame. *)
-    (* rewrite hlv'. iFrame. *)
-
-  (* - iIntros (?? post) "* [h (%hlv&%hlv'&%hlen&pre&P&P'&rhs)] post". rewrite hlv. *)
-
-Admitted.
+    iApply "HΦ".
+    iFrame. by simpl.
+  - iIntros (l' lv lv' fv fv' K Φ).
+    iIntros "[#H (%H1&%H2&%&H3)] HΦ".
+    simpl in *.
+    destruct l' as [|]; first (simpl in *; lia).
+    simpl in H2. destruct!/=.
+    rewrite /list_map.
+    iDestruct "H3" as "([Hγ ?]&?&?&?)".
+    wp_pure.
+    tp_pure.
+    rewrite -/list_map.
+    tp_pures.
+    wp_pures.
+    tp_bind (list_map _ _).
+    wp_bind (list_map _ _).
+    iApply ("IH" with "[-HΦ Hγ]"); first (iFrame; by repeat iSplit).
+    iNext.
+    iIntros (?) "(%&%&%&%&%&%&%&?&HΨ&?&?)".
+    simpl.
+    tp_pures.
+    wp_pures.
+    wp_bind (fv _).
+    tp_bind (fv' _).
+    iApply ("H" with "[-HΦ HΨ]"); first iFrame.
+    iNext.
+    iIntros (?) "(%&%&%&->&->&Hspec&?&?&?)".
+    simpl.
+    iDestruct (gwp_list_cons (g:=gwp_spec) with "[][][$]") as ">(%&?&K)"; first done.
+    { iNext. iIntros (?) "K". iApply "K". }
+    iDestruct "K" as "%".
+    iApply gwp_list_cons; [done |].
+    iNext.
+    iIntros (?) "%".
+    iApply "HΦ".
+    iFrame.
+    iPureIntro; repeat split; try done; simpl; lia.
+Qed.
 
 Lemma wp_alloc_tapes_laplace :
   (forall (num den : Z) K xs xs' vxs vxs',
@@ -739,6 +765,7 @@ Qed.
             (if:  "i" = #0 `or` ! #maxA < "a"
              then #maxA <- "a";; #maxI <- "i" else #());;
             "rnm" ("i" + #1))%V.
+
 
   Lemma rnm_pw_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (0 < IZR num / IZR (2 * den)) →
