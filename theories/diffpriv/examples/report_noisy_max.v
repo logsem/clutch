@@ -275,6 +275,200 @@ Section rnm.
 Local Program Instance : Inject loc val := {| inject := LitV ∘ LitLbl |}.
 Next Obligation. by intros ?? [=]. Qed.
 
+Lemma big_sepL2_Forall2 {PROP : bi} {A B} P (xs : list A) (ys : list B) :
+  ((([∗ list] x; y ∈ xs; ys, ⌜P x y⌝ : PROP) ⊢ ⌜Forall2 P xs ys⌝ : PROP)%I).
+Proof.
+  iRevert (ys). iInduction xs as [|x xs'] ; iIntros (ys) "h".
+  1: iDestruct (big_sepL2_length with "h") as "%len" ; destruct ys => //.
+  destruct ys. 1: iDestruct (big_sepL2_length with "h") as "%len" => //.
+  rewrite big_sepL2_cons.
+  iDestruct "h" as "[hx h]".
+  rewrite Forall2_cons_iff. iSplitL "hx" => //.
+  iApply "IHxs'". done.
+Qed.
+
+Lemma lookup_eq_pointwise {A} `{Inhabited A} (xs ys : list A) :
+  length xs = length ys -> (∀ k : nat, (k < length ys)%nat -> xs !!! k = ys !!! k) -> xs = ys.
+Proof.
+  revert ys. induction xs.
+  1: intros ; destruct ys => //.
+  intros ? hlen Hlookup . destruct ys. 1: simpl in * ; lia.
+  opose proof (Hlookup 0%nat _) as Hl0 => /=; [lia|].
+  f_equal. 1: apply Hl0.
+  apply IHxs. 1: by inversion hlen.
+  intros.
+  specialize (Hlookup (S k)). simpl in Hlookup. apply Hlookup.
+  lia.
+Qed.
+
+Lemma mapi_length {A B} (f : nat -> A -> B) (xs : list A) : length (mapi f xs) = length xs.
+Proof. rewrite /mapi. generalize 0%nat. induction xs => //= ?. by rewrite IHxs. Qed.
+
+
+(* γ := (dZ x x' <= 1) *)
+Lemma rwp_list_map {A} `{!Inject A val} `{!Inject B val}
+  (l l' : list A) (lv lv' fv fv' : val)
+  (γ : A -> A -> iProp Σ) (ψ : B -> B -> iProp Σ)
+  (P P' : list B -> iProp Σ) E K :
+  {{{
+        □ (∀ (x x' : A) K' (prev prev' : list B),
+            {{{ γ x x' ∗ ⤇ fill K' (fv' (inject x')) ∗ P prev ∗ P' prev' }}}
+              fv (inject x) @ E
+              {{{ frv, RET frv;
+                  ∃ frv' fr fr',
+                    ⌜frv = (inject fr)⌝ ∗ ⌜frv' = (inject fr')⌝
+                    ∗ ⤇ fill K' frv'
+                    ∗ ψ fr fr' ∗ P (fr :: prev) ∗ P' (fr' :: prev')
+          }}}) ∗
+      ⌜is_list l lv⌝ ∗
+      ⌜is_list l' lv'⌝ ∗
+      ⌜length l = length l'⌝ ∗
+      ([∗ list] i ↦ a;a' ∈ l;l', γ a a') ∗
+      P [] ∗ P' [] ∗
+      ⤇ fill K (list_map fv' lv')
+  }}}
+    list_map fv lv @ E
+    {{{ rv, RET rv;
+        ∃ rv' xs xs',
+          ⌜is_list xs rv⌝ ∗
+          ⌜is_list xs' rv'⌝ ∗
+          ⌜length xs = length l⌝ ∗
+          ⌜length xs' = length l'⌝ ∗
+          ⤇ fill K rv' ∗
+          ([∗ list] i ↦ a;a' ∈ xs;xs', ψ a a')
+          ∗ P xs ∗ P' xs'
+    }}}.
+Proof.
+  (* do whatever list_fold and list_mapi do... *)
+  set (prev := []).
+  unfold prev at 2.
+  set (prev' := []).
+  generalize prev, prev'. clear prev prev'.
+  iRevert (l' lv').
+  iInduction l as [|l_hd l_tl].
+  - iIntros (?? prev prev' post) "* [h (%hlv&%hlv'&%hlen&pre&P&P'&rhs)] post". rewrite hlv.
+    assert (l' = []) as ->. 1: by destruct l'.
+    rewrite /list_map.
+    rewrite hlv'. tp_pures.
+    wp_pures. iApply "post". iModIntro. iExists _,[],[].
+    repeat iSplit => // ; try iPureIntro => //.
+    iFrame.
+    rewrite hlv'. iFrame.
+
+  (* - iIntros (?? post) "* [h (%hlv&%hlv'&%hlen&pre&P&P'&rhs)] post". rewrite hlv. *)
+
+Admitted.
+
+Lemma wp_alloc_tapes_laplace :
+  (forall (num den : Z) K xs xs' vxs vxs',
+      is_list xs vxs → is_list xs' vxs' → length xs = length xs' →
+      Forall2 (λ x x' : Z, dZ x x' <= 1) xs xs' →
+      {{{ ⤇ fill K ((list_map (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x")))%V vxs') }}}
+        (list_map (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x")))%V vxs
+        {{{ vxιs, RET vxιs ; ∃ vxιs' xιs xιs',
+                ⌜is_list xιs vxιs⌝ ∗ ⌜length xιs = length xs⌝ ∗
+                ⌜is_list xιs' vxιs'⌝ ∗ ⌜length xιs' = length xs'⌝ ∗
+                ⌜ NoDup xιs.*2 ⌝ ∗ ⌜ NoDup xιs'.*2 ⌝ ∗
+                ⤇ fill K vxιs' ∗
+                [∗ list] '(x, ι) ; '(x', ι') ∈ xιs ; xιs',
+              ι ↪L (num, 2*den, x; []) ∗ ι' ↪Lₛ (num, 2*den, x'; []) ∗
+              ⌜dZ x x' <= 1⌝
+  }}}).
+Proof.
+  iIntros (??????? hxs hxs' hlen adj post) "rhs post".
+  iApply (rwp_list_map xs xs' vxs vxs'
+            (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x"))%V
+            (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x"))%V
+            (λ x x', ⌜dZ x x' <= 1⌝)%I
+            (λ '(x, ι) '(x', ι'), ⌜dZ x x' <= 1⌝ )%I
+            (λ xιs, ([∗ list] xι ∈ xιs, let '(x, ι) := xι in ι ↪L (num, 2*den, x; [])) ∗ ⌜NoDup xιs.*2⌝)%I
+            (λ xιs', ([∗ list] xι' ∈ xιs', let '(x', ι') := xι' in ι' ↪Lₛ (num, 2*den, x'; [])) ∗ ⌜NoDup xιs'.*2⌝)%I
+           with "[-post]").
+  2: iNext ; iIntros (?) "h". 2: iApply "post".
+  2: {
+    iDestruct "h" as "(%&%&%&%&%&%&%&rhs&h&[hh %]&[hh' %])".
+
+    iExists _,_,_. iFrame.
+    repeat iSplit => //.
+    iAssert (
+        ([∗ list] xι ; xι' ∈ xs0 ; xs'0,
+           let '(x, ι) := xι in
+           let '(x', ι') := xι' in
+           (ι ↪L (num,2 * den,x; []) ∗ ι' ↪Lₛ (num,2 * den,x'; [])))
+)%I
+ with "[hh hh']" as "hh".
+    {
+      iApply big_sepL2_mono ; last first.
+      - iApply (big_sepL2_sep_2 with "[hh]") ; iFrame.
+        + iApply big_sepL2_const_sepL_l.
+          iSplit => //. iPureIntro. lia.
+        + iApply big_sepL2_const_sepL_r.
+          iSplit => //. iPureIntro. lia.
+      - iIntros. destruct y1, y2. done.
+    }
+    iDestruct (big_sepL2_sep_2 _ _ xs0 xs'0 with "[h] [hh]") as "hhh".
+    1,2: done.
+
+
+    rewrite !big_sepL2_alt. iSplit ; [iPureIntro ; lia|].
+    iApply big_sepL_mono ; last first.
+    - iDestruct "hhh" as "[% h]".
+      done.
+    - iIntros "* % h". simpl. destruct y. destruct p, p0. simpl.
+      iDestruct "h" as "(%&h&h')". iFrame. done.
+  }
+  iFrame. repeat iSplit => //.
+  2:{ iInduction adj as [|] forall (vxs vxs' hxs hxs' hlen) => //.
+      iSplit => //. simpl.
+      inversion hlen. destruct hxs, hxs'.
+      iApply "IHadj" => // ; intuition eauto.
+  }
+  2,3: iPureIntro ; constructor.
+  iModIntro. iIntros. iIntros "%post' !> (% & rhs & (hh & %) & (hh' & %)) post'".
+  tp_pures. wp_pures.
+  tp_alloctape_laplace ι' as "ι'".
+  wp_alloctape_laplace ι as "ι".
+  tp_pures. wp_pures. iApply "post'".
+  iModIntro. iExists _,(x, ι),(x', ι'). simpl. iFrame "rhs".
+  repeat iSplit => //=. iSplitL "ι hh".
+  - simpl.
+    iAssert (⌜ι ∈ list_fmap (Z * loc)%type loc snd prev⌝ -∗ False)%I as "%".
+    {
+      iIntros "%not_fresh".
+      destruct (elem_of_list_fmap_2 snd prev ι not_fresh) as [? []].
+      destruct x0. simpl in H2. symmetry in H2.
+      simplify_eq.
+      iDestruct (big_sepL_elem_of with "hh") as "ι'".
+      1: done.
+      iDestruct (ghost_map_elem_valid_2 ι diffprivGS_tapes_laplace_name (DfracOwn 1) (DfracOwn 1)
+                   (Tape_Laplace num (Z.mul 2 den) x nil) (Tape_Laplace num (Z.mul 2 den) z nil)
+                  with "[ι] [ι']")
+        as "[% %]".
+      3:{ cbv in H4. done. }
+      1: iFrame.
+      iFrame "ι'".
+    }
+    iFrame. iPureIntro.
+    econstructor. 1,2: assumption.
+  - simpl.
+    iAssert (⌜ι' ∈ list_fmap (Z * loc)%type loc snd prev'⌝ -∗ False)%I as "%".
+    {
+      iIntros "%not_fresh'".
+      destruct (elem_of_list_fmap_2 snd prev' ι' not_fresh') as [? []].
+      destruct x0. simpl in H2. symmetry in H2.
+      simplify_eq.
+      iDestruct (big_sepL_elem_of with "hh'") as "ι''".
+      1: done.
+      iDestruct (ghost_map_elem_valid_2 ι' _ (DfracOwn 1) (DfracOwn 1)
+                   (Tape_Laplace num (Z.mul 2 den) _ nil) (Tape_Laplace num (Z.mul 2 den) _ nil)
+                  with "ι' ι''")
+        as "[% %]".
+      cbv in H4. done.
+    }
+    iFrame. iPureIntro.
+    econstructor. 1,2: assumption.
+Qed.
+
 
   Lemma rnm_pres_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (0 < IZR num / IZR (2 * den)) →
@@ -292,21 +486,22 @@ Next Obligation. by intros ?? [=]. Qed.
     iIntros "!> % (% & % & % & rhs & % & % & % & % & %)". simpl...
     tp_bind (list_map _ _). wp_bind (list_map _ _).
 
-    assert (forall K,
-               {{{ ⤇ fill K ((list_map (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x")))%V vxs') }}}
-                 (list_map (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x")))%V vxs
-                 {{{ vxιs, RET vxιs ; ∃ vxιs' xιs xιs',
-                         ⌜is_list xιs vxιs⌝ ∗ ⌜length xιs = length xs⌝ ∗
-                         ⌜is_list xιs' vxιs'⌝ ∗ ⌜length xιs' = length xs'⌝ ∗
-                         ⌜ NoDup xιs.*2 ⌝ ∗ ⌜ NoDup xιs'.*2 ⌝ ∗
-                         ⤇ fill K vxιs' ∗
-                         [∗ list] '(x, ι) ; '(x', ι') ∈ xιs ; xιs',
-                       ι ↪L (num, 2*den, x; []) ∗ ι' ↪Lₛ (num, 2*den, x'; []) ∗
-                       ⌜dZ x x' <= 1⌝
-           }}}) as wp_tape_list.
-    1: admit.
+    (* assert (forall K vxs vxs',
+                  {{{ ⤇ fill K ((list_map (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x")))%V vxs') }}}
+                    (list_map (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x")))%V vxs
+                    {{{ vxιs, RET vxιs ; ∃ vxιs' xιs xιs',
+                            ⌜is_list xιs vxιs⌝ ∗ ⌜length xιs = length xs⌝ ∗
+                            ⌜is_list xιs' vxιs'⌝ ∗ ⌜length xιs' = length xs'⌝ ∗
+                            ⌜ NoDup xιs.*2 ⌝ ∗ ⌜ NoDup xιs'.*2 ⌝ ∗
+                            ⤇ fill K vxιs' ∗
+                            [∗ list] '(x, ι) ; '(x', ι') ∈ xιs ; xιs',
+                          ι ↪L (num, 2*den, x; []) ∗ ι' ↪Lₛ (num, 2*den, x'; []) ∗
+                          ⌜dZ x x' <= 1⌝
+              }}}) as wp_tape_list.
+       1: admit. *)
 
-    wp_apply (wp_tape_list with "rhs") ; clear wp_tape_list.
+    wp_apply (wp_alloc_tapes_laplace with "rhs") (* ; clear wp_tape_list *) => //.
+    1: lia.
     iIntros "% (% & % & % & % & % & % & % & % & % & rhs & Htapes) /="...
     iAssert
       (∀ num den e Φ,
@@ -376,14 +571,28 @@ Next Obligation. by intros ?? [=]. Qed.
               ) with "[Htapes Htapes' htapes]" as
       "(%&%&%&%& Htapes & Htapes' & %htapes)".
     {
+      assert (forall (xys : list (Z * loc)) k x y, xys !! k = Some (x,y) → (xys .*1) !! k = Some x) as lookup_fmap_fst.
+      {
+        clear. intro xys. induction xys. 1: done.
+        intros. destruct k.
+        - simpl. simpl in H. inversion H. subst. simpl. done.
+        - destruct a.
+          rewrite fmap_cons.
+          simpl. simpl in H. eapply IHxys. done.
+      }
+      assert (forall (xys : list (Z * loc)) k x y, xys !! k = Some (x,y) → (xys .*2) !! k = Some y) as lookup_fmap_snd.
+      {
+        clear. intro xys. induction xys. 1: done.
+        intros. destruct k.
+        - simpl. simpl in H. inversion H. subst. simpl. done.
+        - destruct a.
+          rewrite fmap_cons.
+          simpl. simpl in H. eapply IHxys. done.
+      }
       iExists (xιs.*1). iExists (xιs'.*1).
       iExists (xιs.*2). iExists (xιs'.*2).
       iSplitL "Htapes" ; [|iSplitL "Htapes'"].
-      -
-        opose proof (big_sepL2_const_sepL_l
-                       (λ k '(x, ι), ι ↪L (num, 2 * den,x; [zs !!! k]))%I
-          xιs xιs')
-          as h.
+      - opose proof (big_sepL2_const_sepL_l (λ k '(x, ι), ι ↪L (num, 2 * den,x; [zs !!! k]))%I xιs xιs') as h.
         symmetry in h.
         iDestruct (h with "[Htapes]") as "[% Htapes]" ; clear h.
         { iApply (big_sepL2_mono with "Htapes").
@@ -391,35 +600,9 @@ Next Obligation. by intros ?? [=]. Qed.
         iApply (big_sepL_mono with "Htapes").
         iIntros (? []). iIntros. iFrame.
         iPureIntro. split.
-        + apply list_lookup_total_correct.
-          assert (forall (xys : list (Z * loc)) k x y, xys !! k = Some (x,y) → (xys .*1) !! k = Some x) as hh.
-          {
-            clear. intro xys. induction xys. 1: done.
-            intros. destruct k.
-            - simpl. simpl in H. inversion H. subst. simpl. done.
-            - destruct a.
-              rewrite fmap_cons.
-              simpl. simpl in H. eapply IHxys. done.
-          }
-          eapply hh.
-          done.
-        + apply list_lookup_total_correct.
-          assert (forall (xys : list (Z * loc)) k x y, xys !! k = Some (x,y) → (xys .*2) !! k = Some y) as hh.
-          {
-            clear. intro xys. induction xys. 1: done.
-            intros. destruct k.
-            - simpl. simpl in H. inversion H. subst. simpl. done.
-            - destruct a.
-              rewrite fmap_cons.
-              simpl. simpl in H. eapply IHxys. done.
-          }
-          eapply hh.
-          done.
-      -
-        opose proof (big_sepL2_const_sepL_r
-                       (λ k '(x, ι), ι ↪Lₛ (num, 2 * den,x; [zs' !!! k]))%I
-          xιs xιs')
-          as h.
+        + apply list_lookup_total_correct. eapply lookup_fmap_fst. done.
+        + apply list_lookup_total_correct. eapply lookup_fmap_snd. done.
+      - opose proof (big_sepL2_const_sepL_r (λ k '(x, ι), ι ↪Lₛ (num, 2 * den,x; [zs' !!! k]))%I xιs xιs') as h.
         symmetry in h.
         iDestruct (h with "[Htapes']") as "[% Htapes']" ; clear h.
         { iApply (big_sepL2_mono with "Htapes'").
@@ -427,44 +610,27 @@ Next Obligation. by intros ?? [=]. Qed.
         iApply (big_sepL_mono with "Htapes'").
         iIntros (? []). iIntros. iFrame.
         iPureIntro. split.
-        + apply list_lookup_total_correct.
-          assert (forall (xys : list (Z * loc)) k x y, xys !! k = Some (x,y) → (xys .*1) !! k = Some x) as hh.
-          {
-            clear. intro xys. induction xys. 1: done.
-            intros. destruct k.
-            - simpl. simpl in H. inversion H. subst. simpl. done.
-            - destruct a.
-              rewrite fmap_cons.
-              simpl. simpl in H. eapply IHxys. done.
-          }
-          eapply hh.
-          done.
-        + apply list_lookup_total_correct.
-          assert (forall (xys : list (Z * loc)) k x y, xys !! k = Some (x,y) → (xys .*2) !! k = Some y) as hh.
-          {
-            clear. intro xys. induction xys. 1: done.
-            intros. destruct k.
-            - simpl. simpl in H. inversion H. subst. simpl. done.
-            - destruct a.
-              rewrite fmap_cons.
-              simpl. simpl in H. eapply IHxys. done.
-          }
-          eapply hh.
-          done.
-      - admit.
+        + apply list_lookup_total_correct. eapply lookup_fmap_fst. done.
+        + apply list_lookup_total_correct. eapply lookup_fmap_snd. done.
+      -
+        iApply big_sepL2_Forall2.
+        iApply big_sepL2_fmap_l.
+        iApply big_sepL2_fmap_r.
+        iApply (big_sepL2_mono with "htapes").
+        { iIntros (? [] []). iIntros. simpl. done. }
     }
 
     wp_bind (list_mapi _ _).
-    iPoseProof (gwp_list_mapi (A:=Z*loc) (B:=Z)
-                              (Inject0 := (@Inject_prod Z inject.Inject_instance_0 loc Inject_instance_0))
-                  (λ k '(x, ι), zs !!! k)
-                  xιs
-                  (λ: "_k" "x_ι", Laplace #num #(2 * den) (Fst "x_ι") (Snd "x_ι"))%V
-                  vxιs
-                  (λ k xι, let '(x, ι) := xι in ι ↪L (num, 2*den, x; [zs !!! k]))%I
-                  (λ k z', ⌜zs !!! k = z'⌝)%I
-               ) as "foo".
-    iApply ("foo" with "[Htapes]") ; iClear "foo".
+
+    iApply (gwp_list_mapi (A:=Z*loc) (B:=Z)
+              (Inject0 := (@Inject_prod Z inject.Inject_instance_0 loc Inject_instance_0))
+              (λ k '(x, ι), zs !!! k)
+              xιs
+              _
+              _
+              (λ k xι, let '(x, ι) := xι in ι ↪L (num, 2*den, x; [zs !!! k]))%I
+              (λ k z', ⌜zs !!! k = z'⌝)%I
+             with "[Htapes]").
     { repeat iSplit.
       - iModIntro.
         iIntros (k [x ι] Φ) "!> ι HΦ". simpl.
@@ -475,19 +641,17 @@ Next Obligation. by intros ?? [=]. Qed.
       - iApply (big_sepL_mono with "Htapes").
         iIntros (?[]) "% [?[??]]". iFrame.
     }
-    iNext. iIntros "% h_list_mapi". idtac...
+    iIntros "!> % h_list_mapi". idtac...
 
     tp_bind (list_mapi _ _).
-    iPoseProof (gwp_list_mapi (g:=gwp_spec)
-                              (Inject0 := (@Inject_prod Z inject.Inject_instance_0 loc Inject_instance_0))
+
+    iMod (gwp_list_mapi (g:=gwp_spec)
                   (λ k '(x, ι), zs' !!! k) xιs'
                   (λ: "_k" "x_ι", Laplace #num #(2 * den) (Fst "x_ι") (Snd "x_ι"))%V
                   vxιs'
                   (λ k '(x, ι), ι ↪Lₛ (num, 2*den, x; [zs' !!! k]))%I
                   (λ k z', ⌜zs' !!! k = z'⌝)%I
-               ) as "h".
-    iSimpl in "h".
-    iMod ("h" with "[Htapes'] [] [$rhs]") as (?) "[rhs h_list_mapi']" ; iClear "h".
+               with "[Htapes'] [] [$rhs]") as (?) "[rhs h_list_mapi']".
     {
       repeat iSplit.
       - iModIntro.
@@ -503,12 +667,12 @@ Next Obligation. by intros ?? [=]. Qed.
     iSimpl in "rhs". tp_pures.
     iDestruct "h_list_mapi" as "(%mapi1&%mapi2)".
     iDestruct "h_list_mapi'" as "(%mapi1'&%mapi2')".
-    iPoseProof (gwp_list_max_index (g:=gwp_spec) _ _ _
-                  (fun (i : val) => ⌜i = LitV (LitInt (List_max_index (mapi (λ (k : nat) '(_, _), zs' !!! k) xιs')))⌝)%I) as "bar".
-    iSimpl in "bar".
-    iSpecialize ("bar" with "[] [] rhs").
+
+    iMod (gwp_list_max_index (g:=gwp_spec) _ _ _
+            (fun (i : val) => ⌜i = LitV (LitInt (List_max_index (mapi (λ (k : nat) '(_, _), zs' !!! k) xιs')))⌝)%I
+          with "[] [] rhs")
+      as (?) "[rhs %max_rhs]".
     1: done.
-    2: iMod ("bar") as (?) "[rhs %max_rhs]".
     { iIntros (?) "%hh". rewrite hh. done. }
     iApply gwp_list_max_index.
     1: done.
@@ -518,22 +682,15 @@ Next Obligation. by intros ?? [=]. Qed.
     simplify_eq.
     iPureIntro. f_equal. f_equal. f_equal.
     destruct Hmax as (?&?&?).
-
-    assert (forall (xs ys : list Z), length xs = length ys -> (forall k : nat, (k < length ys)%nat -> xs !!! k = ys !!! k) -> xs = ys)
-      as hext.
-    1: admit.
-    assert (∀ {A B} (f : nat -> A -> B) (xs : list A), length (mapi f xs) = length xs) as mapi_length.
-    1: admit.
-
-    assert (zs = (mapi (λ (k : nat) '(_, _), zs !!! k) xιs)) as <-.
-    2: assert (zs' = (mapi (λ (k : nat) '(_, _), zs' !!! k) xιs')) as <-.
-    3: assumption.
-    - eapply hext.
+    assert (zs' = (mapi (λ (k : nat) '(_, _), zs' !!! k) xιs')) as <- ; first last.
+    1: assert (zs = (mapi (λ (k : nat) '(_, _), zs !!! k) xιs)) as <- ; first last.
+    1: assumption.
+    - eapply lookup_eq_pointwise.
       { rewrite mapi_length. lia. }
       intros. apply mapi2.
       apply list_lookup_lookup_total_lt.
       done.
-    - eapply hext.
+    - eapply lookup_eq_pointwise.
       { rewrite mapi_length. lia. }
       intros. apply mapi2'.
       apply list_lookup_lookup_total_lt.
