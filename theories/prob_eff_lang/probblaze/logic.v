@@ -3084,6 +3084,88 @@ Section brel_effect_rules.
       iApply "Hk".
   Qed.
 
+  Lemma brel_exhaustion' (m : mode) e1 e2 k1 k2 (X Y : iThy Σ) L R S l1s l2s :
+    ectx_labels k1 ⊆ l1s →
+    ectx_labels k2 ⊆ l2s →
+
+    BREL e1 ≤ e2 <|((l1s, l2s, X) :: L)|> {{R}} -∗
+
+    ((* Value case. *)
+      (□?m ∀ v1 v2,
+      R v1 v2 -∗
+      BREL fill k1 v1 ≤ fill k2 v2 <|((l1s, l2s, Y) :: (to_iThyIfMono m L))|> {{S}})
+
+      ∧
+
+     (* Effect case. *)
+      (□?m ∀ k1' k2' e1' e2' Q,
+      ⌜ NeutralEctx l1s k1' ⌝ →
+      ⌜ NeutralEctx l2s k2' ⌝ →
+      X e1' e2' Q -∗
+      (□?m ▷ ∀ s1' s2', Q s1' s2' -∗
+      BREL fill k1' s1' ≤ fill k2' s2' <|((l1s, l2s, X) :: L)|> {{R}}) -∗
+      BREL fill (k1 ++ k1') e1' ≤ fill (k2 ++ k2') e2' <|((l1s, l2s, Y) :: (to_iThyIfMono m L))|> {{S}})
+    ) -∗
+
+    BREL fill k1 e1 ≤ fill k2 e2 <|((l1s, l2s, Y) :: (to_iThyIfMono m L))|> {{S}}.
+  Proof.
+    destruct m=>//; [|rewrite //= !to_iThyIfMonoMS; by apply brel_exhaustion].
+
+    iIntros (Hk1 Hk2) "Hbrel Hfill #Hvalid %Hdistinct".
+    iApply (rel_introduction_mono with "[Hbrel Hfill]"); last (
+      iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy;
+      iApply iThy_le_sum_map; first iApply iThy_le_refl;
+      iApply iThy_le_to_iThy_to_iThyIfMono
+    ).
+
+    iAssert (valid ((l1s, l2s, X) :: L))%I as "#Hvalid'".
+    { iApply (valid_submseteq' _ (((l1s, l2s), Y) :: to_iThyIfMono OS L)); last done.
+      - by rewrite !labels_l_cons //= labels_l_to_iThyIfMono.
+      - by rewrite !labels_r_cons //= labels_r_to_iThyIfMono.
+    }
+
+    assert (distinct ((l1s, l2s, X) :: L)) as Hdistinct'.
+    { apply (distinct_submseteq' _ (((l1s, l2s), Y) :: to_iThyIfMono OS L)); last done.
+      - by rewrite !labels_l_cons //= labels_l_to_iThyIfMono.
+      - by rewrite !labels_r_cons //= labels_r_to_iThyIfMono.
+    }
+
+    iApply (rel_exhaustion_sum_r' OS with "[] [Hbrel] [Hfill]").
+    { by iApply (traversable_ectx_labels k1 k2 l1s l2s Y). }
+
+    { iApply (rel_introduction_mono with "[Hbrel]").
+      { by iApply "Hbrel". }
+      { by iApply iThy_le_to_iThy_sum. }
+    }
+
+    clear e1 e2. simpl. iSplit.
+
+    - iIntros (v1 v2) "HR".
+      iApply (rel_introduction_mono with "[Hfill HR]"); first
+      iApply ("Hfill" with "HR"); try done.
+      iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
+      iApply iThy_le_sum_map; first iApply iThy_le_refl.
+      by iApply (iThy_le_to_iThyIfMono_to_iThy OS).
+
+    - iIntros "%e1 %e2 %Q HX Hk".
+      iDestruct "HX" as
+        "[%e1' [%e2' [%k1' [%k2' [%Q' (-> & % & -> & % & HX & # HQ')]]]]]".
+      iApply (rel_introduction_mono with "[Hfill Hk HX]"); last (
+      iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum;
+      iApply iThy_le_sum_map; first iApply iThy_le_refl;
+      by iApply (iThy_le_to_iThyIfMono_to_iThy OS)
+      ).
+      rewrite -!fill_app.
+      iDestruct "Hfill" as "[_ Heffect]".
+      iApply ("Heffect" with "[//] [//] HX [Hk]"); try done.
+      iIntros "!> %s1' %s2' HQ".
+      iSpecialize ("HQ'" with "HQ").
+      iSpecialize ("Hk" with "HQ'").
+      iIntros "_ _".
+      iApply (rel_introduction_mono with "[Hk]"); last iApply iThy_le_sum_to_iThy.
+      iApply "Hk".
+  Qed.
+
    Lemma brel_bind k1 k2 (L M : iLblThy Σ) R e1 e2 :
     traversable k1 k2 (to_iThy L) -∗
     to_iThy_le L M -∗
@@ -3176,6 +3258,54 @@ Section brel_effect_rules.
       apply submseteq_inserts_r.
       reflexivity.
     }
+  Qed.
+
+  Lemma brel_handle_os_l k k' hs (l : label) (v : val) (h ret : expr) e2 L R :
+    let c := match hs with Deep => HandleCtx hs OS l h ret :: k' | Shallow => k' end in
+    l ∉ ectx_labels k' →
+    (▷ ∀ r, unshot r -∗ BREL fill k (App (App h v) (ContV r c)) ≤ e2 <|L|> {{R}}) -∗
+    BREL fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) ≤ e2 <|L|> {{R}}.
+  Proof.
+    iIntros (? Hnot_in_k') "Hbrel".
+    iIntros "#Hvalid #Hdistinct".
+    iApply rel_handle_os_l; first done.
+    iIntros "!> % Hunshot".
+    by iApply ("Hbrel" with "Hunshot").
+  Qed.
+
+  Lemma brel_handle_os_r k k' hs (l : label) (v : val) (h ret : expr) e1 L R :
+    let c := match hs with Deep => HandleCtx hs OS l h ret :: k' | Shallow => k' end in
+    l ∉ ectx_labels k' →
+    (∀ r, unshotₛ r -∗ BREL e1 ≤ fill k (App (App h v) (ContV r c)) <|L|> {{R}}) -∗
+    BREL e1 ≤ fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) <|L|> {{R}}.
+  Proof.
+    iIntros (? Hnot_in_k') "Hbrel".
+    iIntros "#Hvalid #Hdistinct".
+    iApply rel_handle_os_r; first done.
+    iIntros "% Hunshot".
+    by iApply ("Hbrel" with "Hunshot").
+  Qed.
+
+  Lemma brel_cont_l k k' (v : val) r e2 L R :
+    ▷ unshot r -∗
+    ▷ BREL fill k (fill k' v) ≤ e2 <|L|> {{R}} -∗
+    BREL fill k (App (ContV r k') v) ≤ e2 <|L|> {{R}}.
+  Proof.
+    iIntros "Hunshot Hbrel".
+    iIntros "#Hvalid #Hdistinct".
+    iApply (rel_cont_l with "Hunshot").
+    by iApply "Hbrel".
+  Qed.
+
+  Lemma brel_cont_r k k' (v : val) r e1 L R :
+    unshotₛ r -∗ 
+    BREL e1 ≤ fill k (fill k' v) <|L|> {{R}} -∗
+    BREL e1 ≤ fill k (App (ContV r k') v) <|L|> {{R}}.
+  Proof.
+    iIntros "Hunshot Hbrel".
+    iIntros "#Hvalid #Hdistinct".
+    iApply (rel_cont_r with "Hunshot").
+    by iApply "Hbrel".
   Qed.
 
 End brel_effect_rules.
