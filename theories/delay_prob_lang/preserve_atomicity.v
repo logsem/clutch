@@ -12,6 +12,57 @@ Proof.
   - right. naive_solver.
 Qed.
 
+Local Ltac smash :=
+  repeat (done||subst||simpl in *||rewrite app_nil_r||rewrite app_assoc||split||eexists _).
+
+Lemma fill_is_val K (e:expr) v:
+  fill K e = (Val v) -> K=[].
+Proof.
+  intros H.
+  eapply fill_to_val; by erewrite H.
+Qed. 
+
+Local Ltac fill_inv :=
+  repeat
+    match goal with
+    | H : fill _ _ = (Val _)  |- _ => apply fill_is_val in H as ?; subst; simpl in *; subst
+    | H : (Val _) = fill _ _  |- _ => symmetry in H; apply fill_is_val in H as ?; subst; simpl in *; subst
+    | H : is_Some (to_val (fill _ _))  |- _ =>  destruct H as [? H]; apply of_to_val in H;symmetry in H
+    end.
+
+Lemma fill_equal_break K K' e1' v' σ:
+  head_step_pred e1' σ ->
+  fill K' e1' = fill K (Val v') ->
+  (∃ K1, K= K1++K') \/ (∃ Kall K1 K2, K' = K1++ Kall /\ K = K2:: Kall).
+Proof.
+  revert K' e1' v'.
+  induction K as [|K1 K2 IHK]using rev_ind.
+  - intros K' e1' v' H1 H2.
+    simpl in *.
+    epose proof fill_to_val K' _ as ->; last by erewrite H2.
+    left. exists []. naive_solver.
+  - intros K' e1' v' H1 H2.
+    rewrite fill_app in H2.
+    simpl in *.
+    destruct (list_destruct_rev K') as [|[K1' [K2']]].
+    { subst. simpl in *. subst.
+      setoid_rewrite app_nil_r.
+      naive_solver. }
+    subst. rewrite fill_app in H2.
+    simpl in *.
+    destruct (decide (K1=K1')).
+    { subst. simplify_eq.
+      apply IHK in H2; last done.
+      destruct!/=.
+      - setoid_rewrite app_assoc; naive_solver.
+      - right. eexists _, _, _.
+        split; last done.
+        smash.
+    }
+    destruct K1, K1'; simplify_eq; fill_inv; right; simplify_eq; try (by inversion H1); repeat eexists _.
+    all: try split; last done; smash.
+Qed. 
+
 Lemma value_promote_preserves_atomicity_empty_context f v v' e1' e2' σ σ' K K' :
   urn_subst_val f v = Some v' ->
   head_step_rel e1' σ e2' σ' ->
@@ -20,6 +71,78 @@ Lemma value_promote_preserves_atomicity_empty_context f v v' e1' e2' σ σ' K K'
       fill K0 e1' = fill K v → head_step e1' σ (e2', σ') > 0 → is_Some (to_val (fill K0 e2'))) ->
   K' = [].
 Proof.
+  intros H1 H2 H3 H4.
+  eapply fill_equal_break in H3 as H5; last first.
+  { rewrite head_step_pred_ex_rel. naive_solver. }
+  destruct!/=.
+  - rewrite fill_app in H3.
+    simplify_eq.
+    destruct (list_destruct_rev K1) as [|[K1' [K2']]].
+    + subst. simpl in *. inversion H2.
+    + subst. rewrite fill_app in H2. simpl in H2.
+      destruct (list_destruct_rev K2') as [|[K1'' [K2'']]]; last first.
+      { subst. rewrite fill_app in H2.
+        simpl in *. inversion H2; destruct K1'; simplify_eq; destruct K1''; simplify_eq.
+      }
+      subst. simpl in *.
+      inversion H2; destruct K1'; simplify_eq; simpl in *; simplify_eq.
+      * unshelve epose proof H4 σ' _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply PairS|..]. by fill_inv.
+      * unshelve epose proof H4 σ' _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply PairS|..]. by fill_inv.
+      * unshelve epose proof H4 σ' _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply InjLS|..]; last by fill_inv.
+      * unshelve epose proof H4 σ' _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply InjRS|..]; last by fill_inv.
+      * destruct v; simpl in *; repeat setoid_rewrite bind_Some in H1; destruct!/=.
+        unshelve epose proof H4 σ' _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply BetaS|..]; last by fill_inv.
+        2:{ done. }
+      * unshelve epose proof H4 σ' _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply BetaS|..]; last by fill_inv.
+        2:{ done. }
+      * unshelve epose proof H4 σ' _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply UnOpS|..]; last by fill_inv.
+        
+        admit.
+      * admit.
+      * admit.
+      * destruct v; simpl in *; repeat setoid_rewrite bind_Some in H1; destruct!/=.
+        unshelve epose proof H4 ({|heap:=inhabitant; urns :=urns_subst_f_to_urns  f|}) _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply IfTrueS|..]; last by fill_inv.
+        admit. 
+      * destruct v; simpl in *; repeat setoid_rewrite bind_Some in H1; destruct!/=.
+        unshelve epose proof H4 ({|heap:=inhabitant; urns :=urns_subst_f_to_urns  f|}) _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply IfFalseS|..]; last by fill_inv.
+        admit. 
+      * destruct v; simpl in *; repeat setoid_rewrite bind_Some in H1; destruct!/=.
+        unshelve epose proof H4 σ' _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply FstS|..]; last by fill_inv.
+      * destruct v; simpl in *; repeat setoid_rewrite bind_Some in H1; destruct!/=.
+        unshelve epose proof H4 σ' _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply SndS|..]; last by fill_inv.
+      * destruct v; simpl in *; repeat setoid_rewrite bind_Some in H1; destruct!/=.
+        unshelve epose proof H4 σ' _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply CaseLS|..]; last by fill_inv.
+      * destruct v; simpl in *; repeat setoid_rewrite bind_Some in H1; destruct!/=.
+        unshelve epose proof H4 σ' _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply CaseRS|..]; last by fill_inv.
+      * destruct v; simpl in *; repeat setoid_rewrite bind_Some in H1; destruct!/=.
+        unshelve epose proof H4 ({|heap:=inhabitant; urns :=urns_subst_f_to_urns  f|}) _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply AllocNS|..]; last by fill_inv.
+        all: try done.
+        admit.
+      * unshelve epose proof H4 ({|heap:=inhabitant; urns :=urns_subst_f_to_urns  f|}) _ (K') _ _ _ _; [| | |done|rewrite head_step_support_equiv_rel; eapply AllocNS|..]; last by fill_inv.
+        all: try done.
+        admit.
+      * destruct v as [l0| | | |]; simpl in *; repeat setoid_rewrite bind_Some in H1; destruct!/=.
+        destruct l0; simpl in *; repeat setoid_rewrite bind_Some in H; destruct!/=; repeat case_match; simplify_eq.
+        -- admit.
+        -- admit. 
+      * admit.
+      * admit. 
+      * admit.
+      * admit. 
+      * admit.
+      * admit. 
+      * admit.
+      * admit. 
+      * admit.
+      * admit. 
+      * admit.
+      * admit. 
+      * admit.
+      * admit. 
+      * admit.
+      * admit. 
+  - rewrite fill_app in H3. simplify_eq.
+    admit. 
 Admitted. 
 
 Lemma value_promote_preserves_atomicity K f v v':
