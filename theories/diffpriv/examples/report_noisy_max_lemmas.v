@@ -742,6 +742,32 @@ Qed.
 Section coupling_rule.
   Context `{!diffprivGS Σ}.
   
+  Lemma hoare_couple_laplace_list_update xιs xιs' zs zs' ls ls' σ σ' num den:
+    length xιs = length xιs' -> 
+    NoDup xιs.*2 -> NoDup xιs'.*2 ->
+    length zs = length xιs ->
+    ls = zip (zip xιs.*2 xιs.*1) (replicate (length xιs) []) ->
+    ls' =zip (zip xιs'.*2 xιs'.*1) (replicate (length xιs) []) ->
+    heap_auth 1 (heap σ) -∗
+    tapes_auth 1 (tapes σ) -∗
+    tapes_laplace_auth 1 (tapes_laplace σ) -∗
+    spec_heap_auth (heap σ') -∗
+    spec_tapes_auth (tapes σ') -∗
+    spec_tapes_laplace_auth (tapes_laplace σ') -∗
+    ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num,2 * den,x; []) ∗
+            ι' ↪Lₛ (num,2 * den,x'; []) ∗ ⌜(Rabs (IZR (x - x')) <= 1)%R⌝)
+    ==∗
+    (heap_auth 1 (heap (replace_laplace_tape num (2 * den) σ (zip ls zs))) ∗
+     tapes_auth 1 (tapes (replace_laplace_tape num (2 * den) σ (zip ls zs))) ∗
+     tapes_laplace_auth 1 (tapes_laplace (replace_laplace_tape num (2 * den) σ (zip ls zs)))) ∗
+    spec_heap_auth (heap (replace_laplace_tape num (2 * den) σ' (zip ls' zs'))) ∗
+     spec_tapes_auth (tapes (replace_laplace_tape num (2 * den) σ' (zip ls' zs'))) ∗
+     spec_tapes_laplace_auth (tapes_laplace (replace_laplace_tape num (2 * den) σ' (zip ls' zs'))) ∗
+    ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num,2 * den,x; [
+                                                    zs !!! k]) ∗ ι' ↪Lₛ (num,2 * den,x'; [zs' !!! k]) ∗ ⌜(Rabs (IZR (x - x')) <= 1)%R⌝).
+  Proof.
+  Admitted.
+  
   Lemma hoare_couple_laplace_list num den xιs xιs' N e Φ:
     (0 < IZR num / IZR (2 * den))%R ->
     length xιs = N ->
@@ -901,6 +927,20 @@ Section coupling_rule.
       iApply spec_coupl_ret.
       iModIntro.
       subst.
-  Admitted.
+      rewrite /spec_auth/=.
+      simpl.
+      unfold ls in *.
+      rewrite !length_zip !length_fmap !length_replicate in Hlen5. 
+      iMod (hoare_couple_laplace_list_update _ _ zs zs' with "[$][$][$][$][$][$][$]") as "Hrest"; try done; try lia.
+      iDestruct "Hrest" as "([$[$$]]&$&[$[$?]])".
+      iFrame.
+      iMod "Hclose'".
+      iModIntro.
+      iSplitL "H".
+      + iApply ecm_supply_eq; last done. simplify_eq. lra.
+      + iApply "HΦ".
+        iFrame.
+        repeat iSplit; iPureIntro; lia.
+  Qed. 
   
 End coupling_rule.
