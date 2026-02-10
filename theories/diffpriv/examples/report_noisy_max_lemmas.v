@@ -625,6 +625,41 @@ Proof.
 Qed. 
 
 (* ls a list of tape loc content*)
+
+Lemma replace_laplace_tape_zip ls zs num den σ:
+  length ls = length zs ->
+  NoDup (ls.*1.*1) ->
+  Forall
+    (λ '(ι, loc, lis, z),
+       tapes_laplace (replace_laplace_tape num (2 * den) σ (zip ls zs)) !! ι =
+       Some (Tape_Laplace num (2 * den) loc (lis ++ [z])))
+    (zip ls zs).
+Proof.
+  revert zs σ.
+  induction ls as [|[[]]? IHl].
+  { simpl. intros. by apply Forall_nil. }
+  intros [|z']?; first (simpl; lia).
+  rewrite !fmap_cons.
+  intros H1 H2.
+  simpl in H1, H2.
+  simplify_eq.
+  apply NoDup_cons in H2.
+  rewrite /zip-/zip.
+  apply Forall_cons.
+  split.
+  - simpl.
+    by rewrite lookup_insert.
+  - epose proof IHl _ (state_upd_tapes_laplace <[_:=_]> σ) _ _ as H.
+    eapply Forall_impl; first done.
+    intros [[[]]].
+    rewrite laplace_presample_list_rewrite_notin; first done.
+    rewrite fst_zip; first naive_solver.
+    lia.
+    Unshelve.
+    + lia.
+    + naive_solver.
+Qed. 
+
 Lemma laplace_state_list_coupl num den ls ls' σ σ':
   (0 < IZR num / IZR (2 * den))%R -> 
   length ls = length ls' ->
@@ -639,8 +674,23 @@ Lemma laplace_state_list_coupl num den ls ls' σ σ':
     (λ σf σf',
        ∃ zs zs', length zs = length zs' /\ (length zs = length ls)%nat /\
                  list_Z_max zs = list_Z_max zs' /\
-                 Forall (λ '(ι, loc, lis, z), tapes_laplace σ!!ι = Some (Tape_Laplace num (2*den) loc (lis ++ [z]))) (zip ls zs) /\
-                 Forall (λ '(ι, loc, lis, z), tapes_laplace σ'!!ι = Some (Tape_Laplace num (2*den) loc (lis ++ [z]))) (zip ls' zs')
+                 Forall (λ '(ι, loc, lis, z), tapes_laplace σf!!ι = Some (Tape_Laplace num (2*den) loc (lis ++ [z]))) (zip ls zs) /\
+                 Forall (λ '(ι, loc, lis, z), tapes_laplace σf'!!ι = Some (Tape_Laplace num (2*den) loc (lis ++ [z]))) (zip ls' zs')
     ) (IZR num / IZR den) 0.
 Proof.
-Admitted. 
+  intros H1 H2 H3 H4 H5 H6 H7 H8.
+  unshelve (repeat erewrite laplace_presample_list_rewrite); last first; try done.
+  replace (0)%R with (0+0)%R by lra.
+  replace (_/_)%R with (IZR num / IZR den + 0)%R by lra.
+  eapply DPcoupl_dbind; [done|done| |apply laplace_map_correct]; last first.
+  - repeat setoid_rewrite zip_with_fmap_l.
+    repeat setoid_rewrite zip_with_fmap_r. naive_solver.
+  - rewrite !length_fmap. lia.
+  - rewrite !length_fmap. lia.
+  - simpl.
+    rewrite !length_fmap.
+    intros zs zs' (?&?&?).
+    apply DPcoupl_dret; try done.
+    exists zs, zs'.
+    repeat split; try lia; apply replace_laplace_tape_zip; by try lia.
+Qed. 
