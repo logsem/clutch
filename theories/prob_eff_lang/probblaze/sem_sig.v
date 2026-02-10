@@ -10,25 +10,25 @@ From clutch.prob_eff_lang.probblaze Require Import logic sem_def syntax semantic
 
 (* Universally Quantified Effect Signature *)
 (* TODO: generalize αs to a list of types -- in affect they use a tele *)
-Program Definition sem_sig_eff {Σ} : (sem_ty Σ -d> sem_ty Σ) -d> (sem_ty Σ -d> sem_ty Σ) -d> sem_sig Σ :=
-  λ A B,
-  (@SemSig Σ (@PMonoProt Σ (λ e1 e2, λne Φ, ∃ αs, ∃ (op1 op2 : label) v1 v2, ⌜ e1 = (do: op1 (Val v1))%E ⌝ ∗ ⌜ e2 = (do: op2 (Val v2))%E ⌝ ∗  A αs v1 v2 
-                                               ∗ □ (∀ w1 w2, ∃ v1 v2, ⌜ w1 = Val v1 ⌝ ∗ ⌜ w2 = Val v2 ⌝ ∗ B αs v1 v2 -∗ Φ w1 w2))%I _) _).
+Program Definition sem_sig_eff {Σ} : label -d> label -d> (sem_ty Σ -d> sem_ty Σ) -d> (sem_ty Σ -d> sem_ty Σ) -d> sem_sig Σ :=
+  λ op1 op2 A B,
+  (@SemSig Σ (@PMonoProt Σ (λ e1 e2, λne Φ, ∃ αs v1 v2, ⌜ e1 = (do: (EffLabel op1) (Val v1))%E ⌝ ∗ ⌜ e2 = (do: (EffLabel op2) (Val v2))%E ⌝ ∗  A αs v1 v2 
+                                               ∗ □ (∀ w1 w2, ∀ v1 v2, ⌜ w1 = Val v1 ⌝ ∗ ⌜ w2 = Val v2 ⌝ ∗ B αs v1 v2 -∗ Φ w1 w2))%I _) _).
 Next Obligation.
-  iIntros (?????????). repeat f_equiv.
+  iIntros (???????????). repeat f_equiv.
 Qed.
 Next Obligation.
-  iIntros (???????) "#HΦ Hσ".
-  f_equal /=. iDestruct "Hσ" as (αs' op1' op2' v1' v2' -> ->) "(HA & #Hσ)". iExists _, _, _,_,_.
+  iIntros (?????????) "#HΦ Hσ".
+  f_equal /=. iDestruct "Hσ" as (αs' v1' v2' -> ->) "(HA & #Hσ)". iExists _, _, _.
   do 2 (iSplit; try done). iFrame "HA".
-  iModIntro. iIntros (??). iDestruct ("Hσ" $! w1 w2) as (v1 v2) "HB". iExists _, _.
+  iModIntro. iIntros (????). iDestruct ("Hσ" $! w1 w2 v1 v2) as "HB". 
   iIntros "H". iApply "HΦ". by iApply "HB".
 Qed.
 Next Obligation.
-  iIntros (??????) "(%&%&%&%&%&->&->&_)". iExists _,_,_,_. iSplit; iPureIntro; reflexivity.
+  iIntros (????????) "(%&%&%&->&->&_)". iExists _,_,_,_. iSplit; iPureIntro; reflexivity.
 Qed.
 
-Global Instance sem_sig_bottom {Σ} : Bottom (sem_sig Σ) := @sem_sig_eff Σ (λ _, (λ v1 v2, False)%I) (λ _, (λ v1 v2, True)%I).
+Global Instance sem_sig_bottom {Σ} : Bottom (sem_sig Σ) := @sem_sig_eff Σ 0%nat 0%nat (λ _, (λ v1 v2, False)%I) (λ _, (λ v1 v2, True)%I).
 
 (* Flip-Bang Signature *)
 Program Definition sem_sig_flip_mbang {Σ} (m : mode) (σ : sem_sig Σ) : sem_sig Σ := @SemSig Σ (@PMonoProt Σ (iThyIfMono m σ) _) _.
@@ -60,25 +60,25 @@ Qed.
      (at level 80, x binder, y binder, κ at next level, ι at next level, right associativity,
       format "'[ ' '∀ₛ' x .. y ,  κ  ⇒  ι  ']'") : sem_sig_scope. *)
 
-Notation "κ ⇒ ι" := 
-  (@sem_sig_eff _ _ (λ _, κ%T) (λ _, ι%T))
+Notation "⟨ op1 , op2 ⟩ : κ ⇒ ι" := 
+  (@sem_sig_eff _ op1 op2 (λ _, κ%T) (λ _, ι%T))
   (at level 80, right associativity,
-   format "'[ ' κ  ⇒  ι  ']'") : sem_sig_scope.
+   format "'[ ' ⟨ op1 ,  op2 ⟩  ':'  κ '⇒'  ι  ']'") : sem_sig_scope.
 
 Notation "¡[ m ] σ" := (sem_sig_flip_mbang m σ) (at level 10) : sem_sig_scope.
 Notation "¡ σ" := (sem_sig_flip_mbang OS σ) (at level 10) : sem_sig_scope.
 
-Notation "κ '=[' m ']=>' ι" := 
-  (sem_sig_flip_mbang m (@sem_sig_eff _ _ (λ _, κ%T) (λ _, ι%T)))
+Notation "⟨ op1 , op2 ⟩ : κ '=[' m ']=>' ι" := 
+  (sem_sig_flip_mbang m (@sem_sig_eff _ op1 op2 (λ _, κ%T) (λ _, ι%T)))
   (at level 80, right associativity,
-   format "'[ ' κ  =[ m ]=>  ι  ']'") : sem_sig_scope.
+   format "'[ ' ⟨ op1 ,  op2 ⟩  :  κ  =[ m ]=>  ι  ']'") : sem_sig_scope.
 
-(* Notation "'∀ₛ..' tt , κ '=[' m ']=>' ι" := 
-     (sem_sig_flip_mbang m (sem_sig_eff (λ tt, κ%T) (λ tt, ι%T)))
-     (at level 80, tt binder, κ at next level, ι at next level,  right associativity,
-      format "'[ ' '∀ₛ..'  tt ,  κ  =[ m ]=>  ι  ']'") : sem_sig_scope.
-   
-   Notation "'∀ₛ' x .. y , κ '=[' m ']=>' ι" := 
+Notation "⟨ op1 , op2 ⟩ : '∀ₛ' α , κ '=[' m ']=>' ι" := 
+  (sem_sig_flip_mbang m (sem_sig_eff op1 op2 (λ α, κ%T) (λ α, ι%T)))
+  (at level 80, α binder, κ at next level, ι at next level,  right associativity,
+   format "'[ ' ⟨ op1 ,  op2 ⟩  :  '∀ₛ'  α ,  κ  =[ m ]=>  ι  ']'") : sem_sig_scope.
+
+(* Notation "'∀ₛ' x .. y , κ '=[' m ']=>' ι" := 
      (sem_sig_flip_mbang m (
        (sem_sig_eff 
        (@tele_app ((TeleS (λ x, .. (TeleS (λ y, TeleO)) ..))) (sem_ty _) (λ x, .. (λ y, κ%T) ..)) 
@@ -96,11 +96,11 @@ Admitted.
 
 Global Instance sem_sig_eff_ne {Σ} A :
   NonExpansive (@sem_sig_eff Σ A).
-Proof. iIntros (????). by f_equiv. Qed.
+Proof. iIntros (??????). by f_equiv. Qed.
 
 Global Instance sem_sig_eff_alt_ne {Σ}:
   NonExpansive (@sem_sig_eff Σ).
-Proof. iIntros (?????). by f_equiv. Qed.
+Proof. iIntros (???????). by f_equiv. Qed.
 
 (* Global Instance sem_sig_eff_pers_mono_prot {Σ} {αs : sem_ty Σ} A B :
      PersMonoProt (@sem_sig_eff Σ αs A B).
@@ -154,7 +154,7 @@ Section once_sig.
   (* Once Constraint *)
 
   Class OnceS {Σ} (σ : sem_sig Σ) := {
-    sig_le_mfbang_elim : (⊢ (¡ σ) ≤ₛ σ)
+    sig_le_mfbang_elim : ⊢ ¡ σ ≤ₛ σ
   }.
 
 End once_sig.
@@ -194,7 +194,7 @@ Section sig_sub_typing.
      Qed. *)
   
   Lemma sig_le_mfbang_intro {Σ} m (σ : sem_sig Σ) :
-    ⊢ σ ≤ₛ (¡[ m ] σ).
+    ⊢ σ ≤ₛ ¡[ m ] σ.
   Proof.
     rewrite /sem_sig_flip_mbang. 
     iIntros (v1 v2 Φ) "!# Hσ". destruct m; try done; simpl.
@@ -202,7 +202,7 @@ Section sig_sub_typing.
   Qed.
   
   Lemma sig_le_mfbang_elim_ms {Σ} (σ : sem_sig Σ) :
-    ⊢ (¡[ MS ] σ) ≤ₛ σ.
+    ⊢ ¡[ MS ] σ ≤ₛ σ.
   Proof.
     rewrite /sem_sig_flip_mbang. 
     iIntros (v1 v2 Φ)"!#". simpl. iIntros "$". 
@@ -210,7 +210,7 @@ Section sig_sub_typing.
   
   Lemma sig_le_mfbang_comp {Σ} (m m' : mode) (σ σ' : sem_sig Σ) :
     m' ≤ₘ m -∗ σ ≤ₛ σ' -∗ 
-    (¡[ m ] σ) ≤ₛ (¡[ m' ] σ').
+    ¡[ m ] σ ≤ₛ ¡[ m' ] σ'.
   Proof.
     iIntros "#Hlem #Hleσ". destruct m.
     - iDestruct (mode_le_OS_inv with "Hlem") as "->".

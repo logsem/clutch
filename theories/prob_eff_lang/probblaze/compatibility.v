@@ -21,16 +21,15 @@ Section compatibility.
 
   Context `{!probblazeRGS Σ}.
 
-  (*  Lemma sem_oval_typed_val τ v : 
-       ⊨ᵥ v : τ -∗ [] ⊨ₚ v : τ.
-     Proof.
-       iIntros "#Hv !# %γ HΓ /=".
-       iApply pwp_value'. iFrame.
-       rewrite /sem_val_typed /tc_opaque.
-       iApply "Hv".
-     Qed.
-     
-     Lemma sem_typed_oval τ Γ₁ Γ₂ e :
+   Lemma sem_oval_typed_val τ v1 v2 : 
+    ⊢ ⊨ᵥ v1 ≤ v2 : τ -∗ (* [] ⊨ₚ v : τ. *) τ v1 v2.
+   Proof.
+     iIntros "#Hv". unfold sem_val_typed. simpl. 
+     done.
+   Qed.
+
+   (* With the current definition of ⊨ₚ as just lying in the type, this is just brel_value *)
+  (* Lemma sem_typed_oval τ Γ₁ Γ₂ e :
        (Γ₁ ⊨ₚ e : τ) -∗ (Γ₁ ++ Γ₂ ⊨ e : ⟨⟩ : τ ⫤ Γ₂).
      Proof.
        iIntros "#Hv !# %γ HΓ₁₂ /=". iApply pwp_ewpw. 
@@ -846,6 +845,30 @@ Section compatibility.
   Qed.
 
   (* TODO: add specialized store rules *)
+
+  (* TODO: for now we don't have a replace construct in the language *)
+  (* (* Generic Replace rule *)
+     Lemma sem_typed_replace_cpy_gen τ ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' `{ ρ ᵣ⪯ₜ τ }:
+       ⊢ sem_typed Γ2 e1 e1' ρ (Refᶜ τ) Γ3 -∗
+       sem_typed Γ1 e2 e2' ρ τ Γ2 -∗
+       sem_typed Γ1 (Replace e1 e2) (Replace e1' e2') ρ τ Γ3.
+     Proof.
+       iIntros "#He₁ #He₂ %γ !# /= HΓ₁ /=".
+       iApply (ewpw_bind [ReplaceRCtx _]); first done. simpl.
+       iApply (ewpw_mono with "[HΓ₁]"); [by iApply "He₂"|].
+       iIntros "!# %w [Hτ HΓ₂] !>". 
+       iApply (ewpw_bind [ReplaceLCtx _]); first done. simpl.
+       iApply (ewpw_mono with "[Hτ HΓ₂]").
+       { iApply (ewpw_row_type_sub with "[HΓ₂] Hτ"); by iApply "He₁". }
+       iIntros "!# %u [[(%l & -> & Hinv) HΓ₃] Hτ] !>".
+       iApply (ewpw_atomic _ (⊤ ∖ ↑tyN.@l)).
+       iMod (inv_acc _ (tyN.@l) with "Hinv") as "[(%u & >Hl & Hu) Hclose]"; first done.
+       iModIntro. iApply (ewpw_replace with "Hl"). 
+       iIntros "!> Hl !>".  
+       iMod ("Hclose" with "[Hl Hτ]").
+       { iExists w. iFrame. } 
+       iIntros "!>". iFrame.
+     Qed. *)
   
   (* Effect allocation rule *)
   (* TODO: type-related rules -- figure out where to place these *)
@@ -867,7 +890,7 @@ Section compatibility.
     iApply (iThy_le_trans _ (to_iThy L)).
     { iApply (iThy_le_trans _ (iThySum (iThyTraverse (l1 :: l1s) l2s sem_sig_bottom) (to_iThy L))).
       { iApply iThy_le_to_iThy_sum. }
-      iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&%&%&H'&?)&?)|?]";[done|done]. }
+      iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H'&?)&?)|?]";[done|done]. }
     { by iApply iThy_le_to_iThy_2. }
   Qed.
  
@@ -889,7 +912,7 @@ Section compatibility.
     iApply (iThy_le_trans _ (to_iThy L)).
     { iApply (iThy_le_trans _ (iThySum (iThyTraverse l1s (l2 :: l2s) sem_sig_bottom) (to_iThy L))).
       { iApply iThy_le_to_iThy_sum. }
-      iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&%&%&H'&?)&?)|?]";[done|done]. }
+      iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H'&?)&?)|?]";[done|done]. }
     { by iApply iThy_le_to_iThy_2. }
   Qed.
   
@@ -905,7 +928,7 @@ Section compatibility.
     { iSplit.
       - iApply (iThy_le_trans _ (iThySum (iThyTraverse [] [] sem_sig_bottom) (to_iThy (iLblSig_to_iLblThy ρ)))).
         { simpl. iApply iThy_le_to_iThy_sum. }
-        iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&%&%&H'&?)&?)|?]";[done|done].
+        iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H'&?)&?)|?]";[done|done].
       - iSplit; iModIntro.
         + iApply valid_submseteq'; [rewrite labels_l_cons | rewrite labels_r_cons]; done.
         + iIntros (Hd). iPureIntro. apply (distinct_submseteq' _ (iLblSig_to_iLblThy ρ)); done. }
@@ -915,6 +938,135 @@ Section compatibility.
     by rewrite !subst_map_lbl_subst. 
   Qed.
 
+  (* TODO: tech debt from sem_sig -- sigs are only allowed to depend on one type variable compared to a tele from affect *)
+  Lemma sem_typed_do m τ ρ' op (A B : sem_ty Σ → sem_ty Σ) Γ1 Γ2 e1 e2 `{ m ₘ⪯ₑ Γ2 } :
+    let σ := (⟨op.1, op.2⟩ : ∀ₛ α, (A α) =[ m ]=> (B α))%S in
+    let ρ := ((op, σ) · ρ')%R in
+    ⊢ sem_typed Γ1 e1 e2 ρ (A τ) Γ2 -∗
+    sem_typed Γ1 (do: op.1 e1) (do: op.2 e2) ρ (B τ) Γ2.
+  Proof.
+    iIntros (σ ρ) "#He !# %γ HΓ1 //=".
+    iApply (brel_bind [DoCtx _] [DoCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (HA & HΓ2) //=".
+    iApply (brel_introduction _ _ _ (λ w1 w2, ∃ v1 v2, ⌜w1 = Val v1⌝ ∗ ⌜w2 = Val v2⌝ ∗ B τ v1 v2 ∗ Γ2 ⊨ₑ γ)
+             with "[HA HΓ2]"); first apply elem_of_list_here.
+    { destruct m; simpl; iExists _,_,[],[], (λ w1 w2, ∃ v1 v2, ⌜w1 = Val v1⌝ ∗ ⌜w2 = Val v2⌝ ∗ B τ v1 v2 ∗ Γ2 ⊨ₑ γ);
+                                            repeat (iSplit; first iPureIntro; try done; try apply NeutralEctx_nil); iSplit.
+      - iExists (λ w1 w2, ∃ v1 v2, ⌜w1 = Val v1⌝ ∗ ⌜w2 = Val v2⌝ ∗ B τ v1 v2).
+        iSplitR "HΓ2"; last (iIntros "!> % % H"; by iFrame).
+        iExists τ,_,_. iFrame. repeat (iSplit; first iPureIntro; try done).
+        iIntros "!# %%%% (-> & -> & H)". iExists _, _. iFrame. iSplit; done. 
+      - iIntros "!# % % HB". iApply "HB".
+      - iExists τ,_,_. iFrame. repeat (iSplit; first iPureIntro; try done).
+        iDestruct (mode_env_sub with "HΓ2") as "HΓ2 /=". iDestruct "HΓ2" as "#HΓ2".
+        iIntros "!# %%%% (-> & -> & H)". iExists _,_. iFrame. repeat (iSplit; try done).  
+      - iIntros "!# % % HB". iApply "HB". }
+    iIntros "!# !> % % [% [% (-> & -> & HB & HΓ2)]]".
+    iApply brel_value.
+    iFrame.
+  Qed.
+
+  Lemma sem_typed_shallow_handler_MS op (A B : sem_ty Σ → sem_ty Σ) m τ τ' ρ' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
+    x ∉ env_dom Γ2 →  x ∉ env_dom Γ3 → k ∉ env_dom Γ3 → x ≠ k →
+    let σ := (⟨op.1, op.2⟩ : ∀ₛ α, A α =[m]=> B α)%S in
+    let ρ := ((op, σ) · ρ')%R in
+    ⊢ valid (iLblSig_to_iLblThy ρ) -∗
+    distinct' (iLblSig_to_iLblThy ρ) -∗
+    sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
+    (∀ α, sem_typed ((x, A α) :: (k, B α -{ ρ }-[m]-> τ) :: Γ3) h1 h2 ρ' τ' Γ3) -∗
+    sem_typed ((x, τ) :: Γ2 ++ Γ3) r1 r2 ρ' τ' Γ3 -∗
+    sem_typed (Γ1 ++ Γ3)
+      (handle: e1 with
+      | effect op.1 x, k as multi => h1
+      | return x => r1 end)
+      (handle: e2 with
+      | effect op.2 x, k as multi => h2
+      | return x => r2 end)
+      ρ' τ' Γ3.
+  Proof. 
+    iIntros (??????) "#Hvalid #Hdistinct #He #Hh #Hr !# %γ HΓ1Γ3 /=".
+    iDestruct (env_sem_typed_app with "HΓ1Γ3") as "[HΓ1 #HΓ3]".
+    iDestruct ("He" with "HΓ1") as "Hbrel".
+    rewrite <-(to_iThyIfMonoMS (iLblSig_to_iLblThy ρ')) at 3.
+    iApply (brel_mono _ _ _ (([op.1], [op.2], ⊥) :: iLblSig_to_iLblThy ρ') with "[][HΓ3 Hbrel]").
+    { iSplit; last iSplit; try iIntros "!# _".
+      - iIntros "!# % % % (%&%&%&%Hin&HX)".
+        inversion Hin; first by iApply iThy_le_iThyTraverse_bot.
+        subst. iExists _,_,_. by iFrame.
+      - iApply valid_submseteq'; last iApply "Hvalid"; set_solver.
+      - iDestruct "Hdistinct" as "%Hdistinct". iPureIntro. eapply distinct_submseteq'; set_solver.
+    }
+    2 : { simpl. iIntros "!# % % H". iApply "H". }
+    iApply (brel_exhaustion _ _ _ _ σ with "Hbrel").
+    1,2: simpl; set_solver.
+    iSplit.
+    - iIntros (v1 v2) "!# (Hτ & HΓ2)". brel_pures_l. brel_pures_r.
+      rewrite -!subst_map_insert.
+      assert (v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & ->) by done.
+      rewrite -!fmap_insert /=. 
+      iDestruct ("Hr" $! (<[x:=(v1,v2)]> γ) with "[Hτ HΓ2]") as "Hbrelr".
+      { solve_env. iApply env_sem_typed_app. iSplitL; solve_env. }
+      rewrite <-(to_iThyIfMonoMS (([op.1], [op.2], ⊥) :: (iLblSig_to_iLblThy ρ'))) at 1.
+      iApply (brel_mono _ _ _ (iLblSig_to_iLblThy ρ') with "[][Hbrelr]").
+      { iApply to_iThy_le_intro'. by apply submseteq_cons. }
+      2: { simpl. iIntros "!# % % H". iApply "H". }
+      iApply (brel_wand with "Hbrelr"). iIntros "!# % % ($ & _)". iFrame "#". 
+    - destruct m.
+      + iIntros "!# % % % % % %Hk1' %Hk2' (%&(%&%&%&->&->&HA&#HBQ')&HQ'Q) #Hkont".
+        brel_pures_l; [apply neutral_ectx; set_solver|].
+        brel_pures_r; [apply neutral_ectx; set_solver|].
+        destruct (decide _) as [[]|[]]; [|].
+        2: { split; eauto. intros ?. simplify_eq. }
+        do 2 rewrite (delete_commute _ k).
+        rewrite -!subst_map_insert.
+        do 2 (rewrite -delete_insert_ne; last done).
+        rewrite -!subst_map_insert.
+        assert (KontV k1' = fst (KontV k1', KontV k2') ∧ KontV k2' = snd (KontV k1', KontV k2') ∧ v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & -> & -> & ->) by done.
+        rewrite -!fmap_insert. simpl.
+        rewrite <-(to_iThyIfMonoMS (([op.1], [op.2], ⊥) :: (iLblSig_to_iLblThy ρ'))) at 1.
+        iApply (brel_mono MS _ _ (iLblSig_to_iLblThy ρ') with "[][HA HQ'Q]").
+        { iApply to_iThy_le_intro'. by apply submseteq_cons. }
+        2: { simpl. iIntros "!# % % H". iApply "H". }
+        iDestruct ("Hh" with "[HA HQ'Q]") as "Hbrelh".
+        2 : { iApply (brel_wand with "Hbrelh").  by iIntros "!# % % ($ & _)". }
+        solve_env; last (by do 2 (rewrite -env_sem_typed_insert; last done)).
+        rewrite /sem_ty_arr /sem_ty_mbang /=.
+        iIntros (??) "HB".
+        brel_pures_l. brel_pures_r.
+        iDestruct ("HBQ'" $! w1 w2 with "[HB]") as "HQ'"; first by iFrame.
+        iDestruct ("HQ'Q" with "HQ'") as "HQ".
+        iDestruct ("Hkont" with "HQ") as "Hbrelk".
+        iApply (brel_wand with "Hbrelk"). iIntros "!# %% ($&_)".
+      + iIntros "!# % % % % % %Hk1' %Hk2' (%&%&%&->&->&HA&#HBQ) #Hkont".
+        brel_pures_l; [apply neutral_ectx; set_solver|].
+        brel_pures_r; [apply neutral_ectx; set_solver|].
+        destruct (decide _) as [[]|[]]; [|].
+        2: { split; eauto. intros ?. simplify_eq. }
+        do 2 rewrite (delete_commute _ k).
+        rewrite -!subst_map_insert.
+        do 2 (rewrite -delete_insert_ne; last done).
+        rewrite -!subst_map_insert.
+        assert (KontV k1' = fst (KontV k1', KontV k2') ∧ KontV k2' = snd (KontV k1', KontV k2') ∧ v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & -> & -> & ->) by done.
+        rewrite -!fmap_insert. simpl.
+        rewrite <-(to_iThyIfMonoMS (([op.1], [op.2], ⊥) :: (iLblSig_to_iLblThy ρ'))) at 1.
+        iApply (brel_mono MS _ _ (iLblSig_to_iLblThy ρ') with "[][HA HBQ]").
+        { iApply to_iThy_le_intro'. by apply submseteq_cons. }
+        2: { simpl. iIntros "!# % % H". iApply "H". }
+        iDestruct ("Hh" with "[HA HBQ]") as "Hbrelh".
+        2 : { iApply (brel_wand with "Hbrelh").  by iIntros "!# % % ($ & _)". }
+        solve_env; last (by do 2 (rewrite -env_sem_typed_insert; last done)).
+        rewrite /sem_ty_arr /sem_ty_mbang /=.
+        iIntros (??) "!# HB".
+        brel_pures_l. brel_pures_r.
+        iDestruct ("HBQ" $! w1 w2 with "[HB]") as "HQ"; first by iFrame.
+        iDestruct ("Hkont" with "HQ") as "Hbrelk".
+        iApply (brel_wand with "Hbrelk"). iIntros "!# %% ($&_)".
+  Qed. 
+      
+
+
+    
 End compatibility.
 
     
