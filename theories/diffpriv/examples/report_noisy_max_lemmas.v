@@ -555,13 +555,13 @@ Proof.
   naive_solver.
 Qed. 
 
-Lemma laplace_presample_list_rewrite num den l σ (Hproof: (0 < IZR num / IZR (den))%R):
-  Forall (λ '(ι, loc, lis), tapes_laplace σ!!ι = Some (Tape_Laplace num (den) loc lis)) l ->
+Lemma laplace_presample_list_rewrite num den l σ (Hproof: (0 < IZR num / IZR (2*den))%R):
+  Forall (λ '(ι, loc, lis), tapes_laplace σ!!ι = Some (Tape_Laplace num (2*den) loc lis)) l ->
   NoDup (l.*1.*1) ->
   laplace_presample_list σ ((l.*1).*1) =
   dbind (λ zs,
-           dret (replace_laplace_tape num den σ (zip l zs))
-    ) (laplace_map num (den) (Hproof) (l.*1.*2))
+           dret (replace_laplace_tape num (2*den) σ (zip l zs))
+    ) (laplace_map num (2*den) (Hproof) (l.*1.*2))
 .
 Proof.
   revert σ.
@@ -597,10 +597,10 @@ Proof.
     - rewrite dmap_fold.
       instantiate (1:=λ x, dmap
                         (λ a0 : list Z,
-                           replace_laplace_tape num den
+                           replace_laplace_tape num (2*den)
                              x
                              (zip tl a0))
-                        (laplace_map num ( den) Hproof tl.*1.*2)).
+                        (laplace_map num (2*den) Hproof tl.*1.*2)).
       done.
   }
   rewrite /laplace_map.
@@ -632,15 +632,15 @@ Lemma laplace_state_list_coupl num den ls ls' σ σ':
   (∀ p, p ∈ zip_with (λ x y, (x.1.2,y.1.2)) ls ls' -> (dZ p.1 p.2 <= 1)%R) ->
   (NoDup ls.*1.*1) ->
   (NoDup ls'.*1.*1) ->
-  Forall (λ '(ι, loc, lis), tapes_laplace σ!!ι = Some (Tape_Laplace num den loc lis)) ls ->
-  Forall (λ '(ι, loc, lis), tapes_laplace σ'!!ι = Some (Tape_Laplace num den loc lis)) ls' ->
+  Forall (λ '(ι, loc, lis), tapes_laplace σ!!ι = Some (Tape_Laplace num (2*den) loc lis)) ls ->
+  Forall (λ '(ι, loc, lis), tapes_laplace σ'!!ι = Some (Tape_Laplace num (2*den) loc lis)) ls' ->
   DPcoupl (laplace_presample_list σ ls.*1.*1)
     (laplace_presample_list σ' ls'.*1.*1)
     (λ σf σf',
        ∃ zs zs', length zs = length zs' /\ (length zs = length ls)%nat /\
                  list_Z_max zs = list_Z_max zs' /\
-                 Forall (λ '(ι, loc, lis, z), tapes_laplace σ!!ι = Some (Tape_Laplace num den loc (lis ++ [z]))) (zip ls zs) /\
-                 Forall (λ '(ι, loc, lis, z), tapes_laplace σ'!!ι = Some (Tape_Laplace num den loc (lis ++ [z]))) (zip ls' zs')
+                 Forall (λ '(ι, loc, lis, z), tapes_laplace σ!!ι = Some (Tape_Laplace num (2*den) loc (lis ++ [z]))) (zip ls zs) /\
+                 Forall (λ '(ι, loc, lis, z), tapes_laplace σ'!!ι = Some (Tape_Laplace num (2*den) loc (lis ++ [z]))) (zip ls' zs')
     ) (IZR num / IZR den) 0.
 Proof.
 Admitted. 
