@@ -36,37 +36,6 @@ Proof.
     apply mass_pos_reducible. lra.
 Qed.
 
-Lemma finite_bounded n (f : fin n -> R):
-  (∀ x, 0 <= f x) ->
-  ∃ r, 0 <= r ∧ ∀ x, f x <= r.
-Proof.
-  induction n.
-  { 
-    intros. exists 0. 
-    split; try lra.
-    intros. 
-    apply Fin.case0. apply x.
-  }
-  intros.
-  epose proof (IHn (f ∘ Fin.FS) _) as [r [Hp Hr]].
-  assert (n < S n)%nat; try lia.
-  destruct (Rle_dec (f 0%fin) r).
-  {
-    exists r.
-    split; auto.
-    by apply (fin_S_inv (n := n)).
-  }
-  exists (f 0%fin).
-  split; auto.
-  apply (fin_S_inv (n := n)); try lra. 
-  intros.
-  etrans.
-  { apply Hr. }
-  lra.
-  Unshelve.
-  by simpl.
-Qed.
-
 Lemma prim_step_fin e σ:
   reducible (e, σ) ->
   (∃ ρ, prim_step e σ = dret ρ) 

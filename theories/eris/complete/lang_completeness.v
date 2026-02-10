@@ -4,11 +4,10 @@ From iris.base_logic Require Export invariants lib.ghost_map lib.cancelable_inva
 From iris.bi.lib Require Import fractional.
 From iris.prelude Require Import options.
 
-From clutch.common Require Export language.
+From clutch.common Require Export language exec_probs.
 From clutch.eris Require Export weakestpre total_weakestpre lifting ectx_lifting.
 From clutch.prob Require Import distribution.
 From clutch.base_logic Require Import error_credits.
-From clutch.eris.complete Require Export exec_probs.
 
 Local Open Scope R.
 

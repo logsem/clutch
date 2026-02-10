@@ -224,7 +224,7 @@ Section tgl_wp.
   Qed.
 
   Lemma tgl_wp_bind_inv K `{!LanguageCtx K} s E e Φ :
-  WP K e @ s; E [{ Φ }] ⊢ WP e @ s; E [{ v, WP K (of_val v) @ s; E [{ Φ }] }].
+    WP K e @ s; E [{ Φ }] ⊢ WP e @ s; E [{ v, WP K (of_val v) @ s; E [{ Φ }] }].
   Proof.
     
   Admitted.

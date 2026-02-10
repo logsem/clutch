@@ -420,10 +420,10 @@ Qed.
 
 
 (* General expectation preserving rule, returning a fin *)
-Lemma twp_rand_exp_nat_tape_mismatch N M z α E ns s (ε1 : R) (ε2 : nat -> R) Φ :
+Lemma twp_rand_exp_nat_tape_mismatch N M z α E ns s (ε1 : R) (ε2 : nat -> R) Φ (r : R):
   TCEq N (Z.to_nat z) →
   N ≠ M →
-  (∀ n, (0 <= ε2 n <= 1)%R) →
+  (∀ n, (0 <= ε2 n <= r)%R) →
   (SeriesC (λ n : nat, if bool_decide (n <= N)%nat then (1 / (S N)) * ε2 n else 0)%R <= ε1 )%R →
   ↯ ε1 -∗ α ↪ (M; ns) -∗ (∀ (n : nat), ⌜ n <= N ⌝ ∗ ↯ (ε2 n) -∗ α ↪ (M; ns) -∗ Φ #n) -∗
   WP rand(#lbl:α) #z @ s; E [{ Φ }].
@@ -433,9 +433,13 @@ Proof.
   {
     intros; apply Hleq.
   }
-  assert (forall n, ε2 n <= 1)%R as Hleq2.
+  assert (forall n, ε2 n <= r)%R as Hleq2.
   {
     intros; apply Hleq.
+  }
+  assert (0 <= r)%R as Hr. 
+  {
+    trans (ε2 1); auto.
   }
   iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε_now) "[Hσ Hε]".
@@ -465,11 +469,10 @@ Proof.
   { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
   iSplit.
   {
-    iPureIntro. exists (ε3 + 1)%R.
+    iPureIntro. exists (ε3 + r)%R.
     intros (e & σ); simpl.
     apply Rplus_le_compat; [lra |].
-    do 6 (case_match; simpl; try lra).
-    apply Hleq2.
+    do 2 (case_match; simpl; try real_solver).
   }
   iSplit.
   {
@@ -895,7 +898,7 @@ Qed.
 Lemma twp_rand_exp_fin_tape_mismatch N M z α E ns (ε1 : R) (ε2 : fin (S N) -> R) :
   TCEq N (Z.to_nat z) →
   N ≠ M →
-  (∀ n, (0 <= ε2 n <= 1)%R) →
+  (∀ n, (0 <= ε2 n)%R) →
   (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= ε1 )%R →
   [[{ ↯ ε1 ∗ α ↪ (M; ns) }]] rand(#lbl:α) #z @ E [[{ n, RET #n; ↯ (ε2 n) ∗ α ↪ (M; ns)}]].
 Proof.
@@ -907,7 +910,8 @@ Proof.
     destruct (le_lt_dec (S (Z.to_nat z)) n) as [?|?]; first by real_solver.
     by rewrite nat_to_fin_to_nat.
   }
-  wp_apply (twp_rand_exp_nat_tape_mismatch _ _ _ _ _ _ _ _ (extend_fin_to_R ε2) with "Herr Htape"); eauto; intros.
+  pose proof (finite_bounded _ ε2 Hleq) as [r [Hrnn Hr]].
+  wp_apply (twp_rand_exp_nat_tape_mismatch _ _ _ _ _ _ _ _ (extend_fin_to_R ε2) _ r with "Herr Htape"); eauto; intros.
   - rewrite /extend_fin_to_R. destruct (le_lt_dec (S (Z.to_nat z)) n); real_solver.
   - etrans; last by apply Hε1.
     apply Req_le.
@@ -924,7 +928,7 @@ Qed.
 Lemma wp_rand_exp_fin_tape_mismatch N M z α E ns (ε1 : R) (ε2 : fin (S N) -> R) Φ :
   TCEq N (Z.to_nat z) →
   N ≠ M →
-  (∀ n, (0 <= ε2 n <= 1)%R) →
+  (∀ n, (0 <= ε2 n)%R) →
   (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= ε1 )%R →
   {{{ ↯ ε1 ∗ α ↪ (M; ns) }}} rand(#lbl:α) #z @ E {{{ n, RET #n; ↯ (ε2 n) ∗ α ↪ (M; ns) }}}.
 Proof.

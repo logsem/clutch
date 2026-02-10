@@ -4,11 +4,10 @@ From iris.base_logic Require Export invariants lib.ghost_map lib.cancelable_inva
 From iris.bi.lib Require Import fractional.
 From iris.prelude Require Import options.
 
-From clutch.common Require Export language.
+From clutch.common Require Export language exec_probs.
 From clutch.eris Require Export weakestpre total_weakestpre lifting ectx_lifting.
 From clutch.prob Require Import distribution.
 From clutch.base_logic Require Import error_credits.
-From clutch.eris.complete Require Import exec_probs.
 
 Local Open Scope R.
 
@@ -26,7 +25,10 @@ Class eris_lang_total_completeness_gen (Λ : language) (Σ : gFunctors) `{!erisW
       reducible (e1, σ) →
       heap_inv σ ={E}=∗
       ((∀ Ψ (ε1 : nat → cfg Λ → R) n, 
-      (* ε1 is an abstract "error" random variable *)
+      (* 
+        ε1 is an abstract "error" random variable;
+        in the total case, it is also indexed by step to allow induction
+      *)
       ⌜∃ r, ∀ n ρ, ε1 n ρ <= r⌝ →
       ⌜∀ n ρ, reducible ρ → ε1 (S n) ρ = Expval (step ρ) (ε1 n)⌝ → 
       ⌜∀ n ρ, 0 <= ε1 n ρ⌝ →
@@ -40,80 +42,6 @@ Class eris_lang_total_completeness_gen (Λ : language) (Σ : gFunctors) `{!erisW
           ↯ (ε1 (S n) (e1, σ)) -∗ WP e1 @ ⊤ [{ v, Ψ v }])) )
 }.
 
-Section prob.
-  Context {δ : markov}.
-  Implicit Types (n : nat)(ρ : mstate δ) (φ : mstate_ret δ → Prop).
-
-  Definition err_tlb φ n ρ : R.
-  Admitted.
-
-  Lemma err_tlb_fail_1 n ρ v φ :
-    to_final ρ = Some v →
-    ¬ φ v →
-    err_tlb φ n ρ = 1.
-  Proof.
-  Admitted.
-  (*   intros.
-    rewrite /err_lb /err_prob (stuck_prob_final_0 v) //= 
-      (lim_exec_final _ v) //= prob_dret_true; real_solver.
-  Qed. *)
-
-  Lemma err_tlb_stuck_1 n ρ φ:
-    stuck ρ →
-    err_tlb φ n ρ = 1.
-  Proof.
-  Admitted.
-  (*   intros.
-    pose proof H as [??].
-    rewrite /err_lb /err_prob stuck_prob_stuck_1 //= 
-      lim_exec_not_final //= irreducible_dzero //= dbind_dzero /prob. 
-    erewrite SeriesC_ext; first by erewrite dzero_mass; real_solver.
-    real_solver.
-  Qed. *)
-
-  Lemma err_tlb_bound φ :
-    ∃ r, ∀ n ρ, err_tlb φ n ρ <= r.
-  Proof.
-  Admitted.
-  (*   exists (1+1).
-    intros. rewrite /err_lb.
-    apply Rle_plus_plus.
-    - apply stuck_prob_le_1.
-    - apply prob_le_1.
-  Qed. *)
-
-  Lemma err_tlb_nn n ρ φ :
-    0 <= err_tlb φ n ρ.
-  Proof.
-  Admitted.
-  (*   replace 0 with (0 + 0); last real_solver.
-    rewrite /err_lb. 
-    apply Rle_plus_plus.
-    - apply stuck_prob_nn.
-    - apply prob_ge_0.
-  Qed.  *)
-
-End prob.
-
-Section lang.
-
-  Context {Λ : language}.
-
-  Lemma err_tlb_step n (ρ : cfg Λ) (φ : val Λ → Prop) :
-    reducible ρ →
-    err_tlb φ (S n) ρ = Expval (step ρ) (err_tlb φ n).
-  Proof.
-  Admitted.
-  (*   intros.
-    rewrite /err_lb.
-    rewrite Expval_plus.
-    - rewrite stuck_prob_step //= (err_prob_step ρ φ) //=.
-    - eapply ex_expval_bounded => x. split; [apply stuck_prob_nn | apply stuck_prob_le_1]. 
-    - eapply ex_expval_bounded => x. split; [apply prob_ge_0 | apply prob_le_1]. 
-  Qed. *)
-
-End lang.
-
 Section completeness.
   Context `{!erisWpGS Λ Σ} `{!ecGS Σ} `{!eris_lang_total_completeness_gen Λ Σ}.
   
@@ -121,7 +49,7 @@ Section completeness.
     na e σ →
     ↯ (err_tlb φ n (e, σ)) -∗
     heap_inv σ -∗
-    WP e [{v, ⌜φ v⌝}].
+    WP e [{ v, ⌜φ v⌝}].
   Proof.
     iInduction n as [|n] "IH" forall (e σ φ).
     - iIntros (Hna) "Herr Hst".
@@ -155,7 +83,6 @@ Section completeness.
       { iPureIntro. intros. by apply err_tlb_step. }
       { iPureIntro. intros. by apply err_tlb_nn. }
       { iPureIntro. intros. by apply err_tlb_stuck_1. }
-      (* iNext. *)
       iModIntro.
       iIntros (??) "%Hstep Hheap Herr".
       iApply ("IH" with "[] Herr Hheap").

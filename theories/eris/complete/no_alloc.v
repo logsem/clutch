@@ -28,7 +28,7 @@ Fixpoint na_expr (e : prob_lang.expr) : Prop :=
   | Store e1 e2 => na_expr e1 ∧ na_expr e2
   | AllocTape _ => False
   | Rand e1 e2 => na_expr e1 ∧ na_expr e2
-  | Laplace e1 e2 e3 => na_expr e1 ∧ na_expr e2 ∧ na_expr e3
+  | Laplace e1 e2 e3 => False
   | Tick e => na_expr e
   end
 with na_val (v : prob_lang.val) : Prop :=
@@ -56,7 +56,6 @@ Proof.
   - (* Rec *) destruct (decide _); simpl; auto.
   - (* If *) destruct Hna as (?&?&?). repeat split; auto.
   - (* Case *) destruct Hna as (?&?&?). repeat split; auto.
-  - (* Laplace *) destruct Hna as (?&?&?). repeat split; auto.
 Qed.
 
 Lemma na_subst' mx v e : na_expr e → na_val v → na_expr (subst' mx v e).
@@ -93,6 +92,11 @@ Proof. simpl. tauto. Qed.
 
 Lemma na_no_allocTape : ∀ {e1},
   na_expr (AllocTape e1) →
+  False.
+Proof. simpl. tauto. Qed.
+
+Lemma na_no_laplace : ∀ {e1 e2 e3},
+  na_expr (Laplace e1 e2 e3) →
   False.
 Proof. simpl. tauto. Qed.
 

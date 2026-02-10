@@ -52,7 +52,7 @@ Proof.
   apply inf_is_lower_bound.
 Qed.
 
-Section prob.
+Section err_lb.
   Context {δ : markov}.
   Implicit Types (ρ : mstate δ) (φ : mstate_ret δ → Prop).
 
@@ -181,9 +181,9 @@ Section prob.
     - apply prob_ge_0.
   Qed. 
 
-End prob.
+End err_lb.
 
-Section lang.
+Section err_lb_lang.
 
   Context {Λ : language}.
 
@@ -207,4 +207,78 @@ Section lang.
     - eapply ex_expval_bounded => x. split; [apply prob_ge_0 | apply prob_le_1]. 
   Qed.
 
-End lang.
+End err_lb_lang.
+
+Section err_tlb.
+  Context {δ : markov}.
+  Implicit Types (n : nat)(ρ : mstate δ) (φ : mstate_ret δ → Prop).
+
+  Definition err_tlb φ n ρ : R.
+  Admitted.
+
+  Lemma err_tlb_fail_1 n ρ v φ :
+    to_final ρ = Some v →
+    ¬ φ v →
+    err_tlb φ n ρ = 1.
+  Proof.
+  Admitted.
+  (*   intros.
+    rewrite /err_lb /err_prob (stuck_prob_final_0 v) //= 
+      (lim_exec_final _ v) //= prob_dret_true; real_solver.
+  Qed. *)
+
+  Lemma err_tlb_stuck_1 n ρ φ:
+    stuck ρ →
+    err_tlb φ n ρ = 1.
+  Proof.
+  Admitted.
+  (*   intros.
+    pose proof H as [??].
+    rewrite /err_lb /err_prob stuck_prob_stuck_1 //= 
+      lim_exec_not_final //= irreducible_dzero //= dbind_dzero /prob. 
+    erewrite SeriesC_ext; first by erewrite dzero_mass; real_solver.
+    real_solver.
+  Qed. *)
+
+  Lemma err_tlb_bound φ :
+    ∃ r, ∀ n ρ, err_tlb φ n ρ <= r.
+  Proof.
+  Admitted.
+  (*   exists (1+1).
+    intros. rewrite /err_lb.
+    apply Rle_plus_plus.
+    - apply stuck_prob_le_1.
+    - apply prob_le_1.
+  Qed. *)
+
+  Lemma err_tlb_nn n ρ φ :
+    0 <= err_tlb φ n ρ.
+  Proof.
+  Admitted.
+  (*   replace 0 with (0 + 0); last real_solver.
+    rewrite /err_lb. 
+    apply Rle_plus_plus.
+    - apply stuck_prob_nn.
+    - apply prob_ge_0.
+  Qed.  *)
+
+End err_tlb.
+
+Section err_tlb_lang.
+
+  Context {Λ : language}.
+
+  Lemma err_tlb_step n (ρ : cfg Λ) (φ : val Λ → Prop) :
+    reducible ρ →
+    err_tlb φ (S n) ρ = Expval (step ρ) (err_tlb φ n).
+  Proof.
+  Admitted.
+  (*   intros.
+    rewrite /err_lb.
+    rewrite Expval_plus.
+    - rewrite stuck_prob_step //= (err_prob_step ρ φ) //=.
+    - eapply ex_expval_bounded => x. split; [apply stuck_prob_nn | apply stuck_prob_le_1]. 
+    - eapply ex_expval_bounded => x. split; [apply prob_ge_0 | apply prob_le_1]. 
+  Qed. *)
+
+End err_tlb_lang.
