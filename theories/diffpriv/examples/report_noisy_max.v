@@ -340,21 +340,26 @@ Lemma rwp_list_map {A} `{!Inject A val} `{!Inject B val}
           ∗ P xs ∗ P' xs'
     }}}.
 Proof.
-  (* do whatever list_fold and list_mapi do... *)
-  set (prev := []).
-  unfold prev at 2.
-  set (prev' := []).
-  generalize prev, prev'. clear prev prev'.
-  iRevert (l' lv').
-  iInduction l as [|l_hd l_tl].
-  - iIntros (?? prev prev' post) "* [h (%hlv&%hlv'&%hlen&pre&P&P'&rhs)] post". rewrite hlv.
-    assert (l' = []) as ->. 1: by destruct l'.
+  iRevert (l' lv lv' fv fv' K).
+  iInduction l as [|l_hd l_tl] "IH".
+  - iIntros (l' lv lv' fv fv' K Φ).
+    iIntros "[#H (%H1&%H2&%&H3)] HΦ".
+    destruct l'; last (simpl in *; lia).
+    simpl.
     rewrite /list_map.
-    rewrite hlv'. tp_pures.
-    wp_pures. iApply "post". iModIntro. iExists _,[],[].
-    repeat iSplit => // ; try iPureIntro => //.
-    iFrame.
-    rewrite hlv'. iFrame.
+    wp_pures.
+    
+    inversion H1. inversion H2.
+    wp_pures.
+    
+    (* iIntros (?? prev prev' post) "* [h (%hlv&%hlv'&%hlen&pre&P&P'&rhs)] post". rewrite hlv. *)
+    (* assert (l' = []) as ->. 1: by destruct l'. *)
+    (* rewrite /list_map. *)
+    (* rewrite hlv'. tp_pures. *)
+    (* wp_pures. iApply "post". iModIntro. iExists _,[],[]. *)
+    (* repeat iSplit => // ; try iPureIntro => //. *)
+    (* iFrame. *)
+    (* rewrite hlv'. iFrame. *)
 
   (* - iIntros (?? post) "* [h (%hlv&%hlv'&%hlen&pre&P&P'&rhs)] post". rewrite hlv. *)
 
