@@ -10,7 +10,17 @@ Proof.
   induction l using rev_ind; destruct!/=; first naive_solver.
   - right. eexists _, []. naive_solver.
   - right. naive_solver.
-Qed. 
+Qed.
+
+Lemma value_promote_preserves_atomicity_empty_context f v v' e1' e2' σ σ' K K' :
+  urn_subst_val f v = Some v' ->
+  head_step_rel e1' σ e2' σ' ->
+  fill K' e1' = fill K (Val v') ->
+  ( ∀ (σ σ' : state) (K0 : list ectx_item) (e1' : ectxi_language.expr d_prob_ectxi_lang) (e2' : expr),
+      fill K0 e1' = fill K v → head_step e1' σ (e2', σ') > 0 → is_Some (to_val (fill K0 e2'))) ->
+  K' = [].
+Proof.
+Admitted. 
 
 Lemma value_promote_preserves_atomicity K f v v':
   Atomic StronglyAtomic (fill K (Val v)) ->
@@ -118,13 +128,10 @@ Proof.
       destruct (list_destruct_rev K2) as [|[K1' [K2']]]; simplify_eq; last first.
       { rewrite fill_app in H3. destruct K1'; simplify_eq. }
       simpl in *. simplify_eq.
-      induction v; repeat setoid_rewrite bind_Some in H2; destruct!/=. 
-      unshelve epose proof H1' σ' σ' [] _ _ _ _; [| |done| |].
-      + exact (Var "sd"). 
-      + rewrite head_step_support_equiv_rel.
-        eapply _.
-      + unfold is_Some in *.
-        destruct!/=.
+      destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. 
+      unshelve epose proof H1' σ' σ' [] _ _ _ _ as IHv'; [| |done| |].
+      2:{ rewrite head_step_support_equiv_rel. apply CaseLS. }
+      done. 
     - destruct (list_destruct_rev K) as [|[K1[K2]]]; simplify_eq.
       rewrite fill_app in H3.
       destruct K1; simplify_eq; simpl in *; simplify_eq.
@@ -133,10 +140,10 @@ Proof.
       simpl in *. simplify_eq.
       induction v; repeat setoid_rewrite bind_Some in H2; destruct!/=. 
       unshelve epose proof H1' σ' σ' [] _ _ _ _; [| |done| |].
-      + exact (Var "sd"). 
-      + rewrite head_step_support_equiv_rel.
-        eapply _.
-      + unfold is_Some in *.
-        destruct!/=.
+      2:{ rewrite head_step_support_equiv_rel. apply CaseRS. }
+      done. 
   }
-Admitted. 
+  by eapply value_promote_preserves_atomicity_empty_context.
+Qed. 
+
+                     
