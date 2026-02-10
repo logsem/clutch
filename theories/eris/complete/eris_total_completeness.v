@@ -232,3 +232,28 @@ Proof.
   iIntros (?) "Herr Hheap".
   iApply (tgl_sem_completeness with "[Herr] [Hheap]"); simpl; eauto.
 Qed. 
+
+Theorem tgl_twp_completeness `{erisGS Σ} e (φ : val → Prop) ε σ :
+  na e σ →
+  tgl (lim_exec (e, σ)) φ ε →
+  heap_inv σ -∗
+  ↯ ε -∗ 
+    WP e [{ v, ⌜φ v⌝}].
+Proof.
+  iIntros (Hna Hexec) "Hheap Herr".
+  destruct (to_val e) eqn : Hve. {
+    erewrite (lim_exec_final) in Hexec => //=.
+    rewrite /tgl in Hexec.
+    destruct (bool_decide (φ v)) eqn : Hde; [rewrite prob_dret_true //= in Hexec| rewrite prob_dret_false //= in Hexec].
+    - by rewrite bool_decide_eq_true in Hde; rewrite -(of_to_val _ _ Hve); wp_pures. 
+    - iPoseProof (ec_contradict with "Herr") as "[]"; lra.
+  }
+  iApply twp_err_pos; auto.
+  iIntros (ε0 Hε0pos) "Herr'".
+  iCombine "Herr Herr'" as "Herr".
+  assert (ε < ε + ε0) as Hε0; first real_solver.
+  epose proof (tgl_gt_lim (e, σ) _ _ _ Hε0 Hexec) as [n Hexecn].
+  assert (err_tlb (δ := lang_markov prob_lang) φ n (e, σ) <= (ε + ε0)); first by unfold tgl, err_tlb in *; real_solver.
+  iPoseProof (ec_weaken with "Herr") as "Herr"; first by split; [eapply err_tlb_nn | apply H0].
+  by iApply (prob_lang_tgl_sem_completeness _ _ _ _ Hna with "Herr").
+Qed.

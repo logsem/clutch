@@ -75,13 +75,11 @@ Section err_lb.
   
   Definition stuck_prob ρ : R := 1 - Inf_seq (fun n => SeriesC (pexec n ρ)).
 
-  Local Opaque SeriesC.
   Lemma stuck_prob_le_1 ρ :
     stuck_prob ρ <= 1.
   Proof.
     rewrite /stuck_prob.
     assert (0 <= Inf_seq (fun n => SeriesC (pexec n ρ))); last by real_solver.
-    
   Admitted. 
 
   Lemma stuck_prob_nn ρ :
@@ -213,54 +211,84 @@ Section err_tlb.
   Context {δ : markov}.
   Implicit Types (n : nat)(ρ : mstate δ) (φ : mstate_ret δ → Prop).
 
-  Definition err_tlb φ n ρ : R.
-  Admitted.
+  Definition err_tlb φ n ρ : R := 1 - prob (exec n ρ) (λ a, bool_decide (φ a)).
 
   Lemma err_tlb_fail_1 n ρ v φ :
     to_final ρ = Some v →
     ¬ φ v →
     err_tlb φ n ρ = 1.
   Proof.
-  Admitted.
-  (*   intros.
-    rewrite /err_lb /err_prob (stuck_prob_final_0 v) //= 
-      (lim_exec_final _ v) //= prob_dret_true; real_solver.
-  Qed. *)
+    intros.
+    rewrite /err_tlb. 
+    erewrite exec_is_final => //=.
+    rewrite prob_dret_false; first real_solver.
+    case_bool_decide; tauto.
+  Qed.
 
   Lemma err_tlb_stuck_1 n ρ φ:
     stuck ρ →
     err_tlb φ n ρ = 1.
   Proof.
-  Admitted.
-  (*   intros.
-    pose proof H as [??].
-    rewrite /err_lb /err_prob stuck_prob_stuck_1 //= 
-      lim_exec_not_final //= irreducible_dzero //= dbind_dzero /prob. 
-    erewrite SeriesC_ext; first by erewrite dzero_mass; real_solver.
-    real_solver.
-  Qed. *)
+    intros [??].
+    rewrite /err_tlb.
+    destruct n.
+    - rewrite /exec to_final_None_1 //= /prob SeriesC_0; real_solver. 
+    - rewrite exec_Sn step_or_final_no_final //= irreducible_dzero //= dbind_dzero /prob SeriesC_0; real_solver.
+  Qed.
 
   Lemma err_tlb_bound φ :
     ∃ r, ∀ n ρ, err_tlb φ n ρ <= r.
   Proof.
-  Admitted.
-  (*   exists (1+1).
-    intros. rewrite /err_lb.
-    apply Rle_plus_plus.
-    - apply stuck_prob_le_1.
-    - apply prob_le_1.
-  Qed. *)
+    exists 1. intros. rewrite /err_tlb.
+    assert (0 <= prob (exec n ρ) (λ a, bool_decide (φ a))); last lra.
+    apply prob_ge_0.
+  Qed.
 
   Lemma err_tlb_nn n ρ φ :
     0 <= err_tlb φ n ρ.
   Proof.
-  Admitted.
-  (*   replace 0 with (0 + 0); last real_solver.
-    rewrite /err_lb. 
-    apply Rle_plus_plus.
-    - apply stuck_prob_nn.
-    - apply prob_ge_0.
-  Qed.  *)
+    rewrite /err_tlb.
+    assert (prob (exec n ρ) (λ a, bool_decide (φ a)) <= 1); last lra.
+    apply prob_le_1.
+  Qed.
+
+  Lemma tgl_gt_lim ρ φ ε ε' : 
+    ε < ε' ->
+    tgl (lim_exec ρ) φ ε -> 
+    ∃ n, tgl (exec n ρ) φ ε'.
+  Proof.
+    rewrite /tgl //= /prob.  
+    intros. 
+    assert ((λ a, if bool_decide (φ a) then lim_exec ρ a else 0) = (λ a, Rbar.real $ Sup_seq (λ n, Rbar.Finite $ if bool_decide (φ a) then exec n ρ a else 0))). {
+      apply functional_extensionality => a //=.
+      case_bool_decide; last by rewrite sup_seq_const.
+      by rewrite lim_exec_unfold.
+    }
+    rewrite H1 in H0.
+    erewrite SeriesC_Sup_seq_swap in H0; first last; intros.
+    
+    2 : { eapply SeriesC_correct. eapply ex_seriesC_le; real_solver.  }
+    { simpl. etrans; first eapply SeriesC_le; real_solver. }
+    { exists 1. real_solver. }
+    { case_bool_decide; try lra. apply exec_mono.  }
+    { real_solver. }
+    
+    set s := Rbar.real $ Sup_seq (λ n : nat,  Rbar.Finite (SeriesC (λ a, if bool_decide (φ a) then exec n ρ a else 0))).
+
+    assert (Lim_seq.is_sup_seq (λ n : nat, Rbar.Finite (SeriesC (λ a, if bool_decide (φ a) then exec n ρ a else 0)))  (Rbar.Finite $ s)). {
+      rewrite rbar_finite_real_eq. 2 : {
+        apply (Rbar_le_sandwich 0 1).
+        { apply (Sup_seq_minor_le _ _ 0%nat). apply SeriesC_ge_0; try real_solver. eapply ex_seriesC_le; try real_solver.  }
+        { apply upper_bound_ge_sup => n //=. etrans; first eapply SeriesC_le; real_solver. }
+      }
+      apply Lim_seq.Sup_seq_correct.
+    }
+    unfold is_sup_seq in H2.
+    assert (0 < s - (1 - ε')); first by rewrite /s; lra.
+    specialize H2 with (mkposreal _ H3) as [?[n?]].
+    exists n. simpl in H4. ring_simplify in H4. ring_simplify. lra.
+  Qed.
+
 
 End err_tlb.
 
@@ -272,13 +300,20 @@ Section err_tlb_lang.
     reducible ρ →
     err_tlb φ (S n) ρ = Expval (step ρ) (err_tlb φ n).
   Proof.
-  Admitted.
-  (*   intros.
-    rewrite /err_lb.
-    rewrite Expval_plus.
-    - rewrite stuck_prob_step //= (err_prob_step ρ φ) //=.
-    - eapply ex_expval_bounded => x. split; [apply stuck_prob_nn | apply stuck_prob_le_1]. 
-    - eapply ex_expval_bounded => x. split; [apply prob_ge_0 | apply prob_le_1]. 
-  Qed. *)
+    assert (ex_expval (prim_step ρ.1 ρ.2) (λ x, - prob (exec n x) (λ a, bool_decide (φ a)))). {
+      eapply ex_seriesC_ext; first by intros; rewrite Ropp_mult_distr_r_reverse -(Rmult_1_l (_ * _)) Ropp_mult_distr_l //=.
+      apply ex_seriesC_scal_l.
+      eapply ex_expval_bounded; split; [apply prob_ge_0| apply prob_le_1]. 
+    }
+    intros.
+    rewrite /err_tlb exec_Sn /step //= Expval_plus //=; last by apply ex_expval_const.
+    rewrite /Expval /step //= SeriesC_scal_r Rmult_1_r 
+      prim_step_mass //= prob_dbind step_or_final_no_final //=; 
+    last by apply reducible_not_final.
+    eassert (SeriesC (λ _, _ * - _) = - SeriesC (λ _:  expr Λ * state Λ , _)) as ->; last by real_solver.
+    apply Rplus_opp_r_uniq.
+    rewrite -SeriesC_plus //=; first by apply SeriesC_0; real_solver.
+    eapply ex_expval_bounded; split; [apply prob_ge_0| apply prob_le_1]. 
+  Qed.
 
 End err_tlb_lang.

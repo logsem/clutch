@@ -44,7 +44,7 @@ Class eris_lang_total_completeness_gen (Λ : language) (Σ : gFunctors) `{!erisW
 
 Section completeness.
   Context `{!erisWpGS Λ Σ} `{!ecGS Σ} `{!eris_lang_total_completeness_gen Λ Σ}.
-  
+
   Lemma tgl_sem_completeness e σ (φ : Λ.(val) → Prop) n :
     na e σ →
     ↯ (err_tlb φ n (e, σ)) -∗
@@ -61,7 +61,8 @@ Section completeness.
         iPoseProof (ec_contradict with "Herr") as "[]".
         lra.
       } 
-      admit.
+      rewrite /err_tlb /exec //= Hev /prob SeriesC_0; last real_solver. 
+      iPoseProof (ec_contradict with "Herr") as "[]"; real_solver.
     - iIntros (Hna) "Herr Hst".
       destruct (to_val e) as [v|] eqn:Hev. {
         eapply of_to_val in Hev. subst e. 
@@ -88,6 +89,5 @@ Section completeness.
       iApply ("IH" with "[] Herr Hheap").
       iPureIntro. 
       eapply na_step; eauto.
-  Admitted.
-
+  Qed.
 End completeness.
