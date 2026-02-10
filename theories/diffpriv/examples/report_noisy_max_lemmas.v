@@ -694,3 +694,136 @@ Proof.
     exists zs, zs'.
     repeat split; try lia; apply replace_laplace_tape_zip; by try lia.
 Qed. 
+
+
+Section coupling_rule.
+  Context `{!diffprivGS Σ}.
+  
+  Lemma hoare_couple_laplace_list num den xιs xιs' N e Φ:
+    (0 < IZR num / IZR (2 * den))%R ->
+    length xιs = N ->
+    length xιs = length xιs' ->
+    (length xιs > 0)%nat ->
+    NoDup xιs.*2 -> NoDup xιs'.*2 ->
+           ↯m (IZR num / IZR den) -∗
+           ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num, 2 * den,x; []) ∗ ι' ↪Lₛ (num,2 * den,x'; []) ∗ ⌜(dZ x x' <= 1)%R⌝) -∗
+             ((∃ zs zs', ([∗ list] k ↦ '(x, ι);'(x', ι') ∈ xιs;xιs',
+                            ι ↪L (num, 2 * den,x; [zs !!! k]) ∗
+                            ι' ↪Lₛ (num,2 * den,x'; [zs' !!! k]) ∗
+                            ⌜(dZ x x' <= 1)%R⌝) ∗
+                         ⌜length zs = N⌝ ∗
+                         ⌜length zs' = N⌝ ∗
+                         ⌜list_Z_max zs = list_Z_max zs'⌝)
+              -∗
+              WP e {{ v, Φ v }})
+             -∗
+               WP e {{ v, Φ v }}.
+  Proof.
+    iIntros (Hineq Hlen1 Hlen2 Hlen3 Hnodup1 Hnodup2) "Herr Hlist HΦ".
+    iApply wp_lift_step_spec_couple.
+    iIntros (σ e' σ' ε δ) "((Hh1 & Ht1 & Htl1) & Hauth2 & Hε2 & Hδ2)".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Htl2)/=".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ecm_supply_ecm_inv with "Hε2 Herr") as %(ε'' & ε_now_rest & foo & Hε'').
+    set (ls := zip (zip xιs.*2 xιs.*1) (replicate N ([]:list Z))).
+    set (ls' := zip (zip xιs'.*2 xιs'.*1) (replicate N ([]:list Z))).
+    iAssert (⌜Forall (λ '(ι, loc, lis), tapes_laplace σ!!ι = Some (Tape_Laplace num (2*den) loc lis)) ls⌝)%I as "%".
+    { rewrite List.Forall_forall.
+      iIntros ([[??]?]).
+      rewrite -elem_of_list_In.
+      rewrite /ls.
+      rewrite elem_of_list_lookup.
+      iIntros ([k Hsome]).
+      rewrite big_sepL2_alt.
+      iDestruct "Hlist" as "[_ Hlist]".
+      repeat rewrite lookup_zip_Some in Hsome.
+      assert (is_Some (zip (zip xιs'.*2 xιs'.*1) (replicate N ([]:list Z)) !! k)).
+      { eapply lookup_lt_is_Some_2.
+        rewrite !length_zip !length_fmap length_replicate.
+        destruct Hsome as [Hsome1 Hsome2].
+        apply lookup_replicate in Hsome2.
+        lia.
+      }
+      destruct H as [[[]] H].
+      repeat rewrite lookup_zip_Some in H.
+      destruct Hsome as [[H1 H2] H3].
+      destruct H as [[H4 H5] H6].
+      rewrite !list_lookup_fmap in H1, H2, H4, H5.
+      rewrite !lookup_replicate in H3, H6. 
+      simpl in *.
+      destruct!/=.
+      destruct (xιs!!k) as [[]|] eqn:K1; try done.
+      destruct (xιs'!!k) as [[]|] eqn:K2; try done.
+      simpl in *.
+      simplify_eq.
+      eassert (_∈zip xιs xιs') as H.
+      { eapply elem_of_list_lookup_2.
+        erewrite lookup_zip_Some. naive_solver.
+      }
+      iDestruct (big_sepL_elem_of with "[$]") as "H"; first done.
+      simpl.
+      iDestruct "H" as "[H ?]".
+      by iDestruct (ghost_map_lookup with "Htl1 H") as "%".
+    }
+    iAssert (⌜Forall (λ '(ι, loc, lis), tapes_laplace σ'!!ι = Some (Tape_Laplace num (2*den) loc lis)) ls'⌝)%I as "%".
+    { rewrite List.Forall_forall.
+      iIntros ([[??]?]).
+      rewrite -elem_of_list_In.
+      rewrite /ls.
+      rewrite elem_of_list_lookup.
+      iIntros ([k Hsome]).
+      rewrite big_sepL2_alt.
+      iDestruct "Hlist" as "[_ Hlist]".
+      repeat rewrite lookup_zip_Some in Hsome.
+      assert (is_Some (zip (zip xιs.*2 xιs.*1) (replicate N ([]:list Z)) !! k)) as H'.
+      { eapply lookup_lt_is_Some_2.
+        rewrite !length_zip !length_fmap length_replicate.
+        destruct Hsome as [Hsome1 Hsome2].
+        apply lookup_replicate in Hsome2.
+        lia.
+      }
+      destruct H' as [[[]] H'].
+      repeat rewrite lookup_zip_Some in H'.
+      destruct Hsome as [[H1 H2] H3].
+      destruct H' as [[H4 H5] H6].
+      rewrite !list_lookup_fmap in H1, H2, H4, H5.
+      rewrite !lookup_replicate in H3, H6. 
+      simpl in *.
+      destruct!/=.
+      destruct (xιs!!k) as [[]|] eqn:K1; try done.
+      destruct (xιs'!!k) as [[]|] eqn:K2; try done.
+      simpl in *.
+      simplify_eq.
+      eassert (_∈zip xιs xιs') as H'.
+      { eapply elem_of_list_lookup_2.
+        erewrite lookup_zip_Some. naive_solver.
+      }
+      iDestruct (big_sepL_elem_of with "[$]") as "H"; first done.
+      simpl.
+      iDestruct "H" as "[? [H ?]]".
+      by iDestruct (ghost_map_lookup with "Htl2 H") as "%".
+    }
+    iAssert (⌜(∀ p, p ∈ zip_with (λ x y, (x.1.2,y.1.2)) ls ls' -> (dZ p.1 p.2 <= 1)%R)⌝)%I as "%".
+    {
+      iIntros ([z z'] H').
+      rewrite elem_of_lookup_zip_with in H'.
+      destruct H' as (k&[[]]&[[]]&?&K1 &K2); destruct!/=.
+      rewrite big_sepL2_alt.
+      rewrite /ls/ls' in K1, K2.
+      repeat rewrite lookup_zip_Some in K1, K2.
+      rewrite !list_lookup_fmap !lookup_replicate in K1, K2.
+      destruct (xιs!!k) as [[]|] eqn:?; last naive_solver.
+      destruct (xιs'!!k) as [[]|] eqn:?; last naive_solver.
+      destruct!/=.
+      iDestruct "Hlist" as "[_ Hlist]".
+      eassert (_∈zip xιs xιs') as H'.
+      { eapply elem_of_list_lookup_2.
+        erewrite lookup_zip_Some. naive_solver.
+      }
+      iDestruct (big_sepL_elem_of with "[$]") as "H"; first done.
+      simpl.
+      by iDestruct "H" as "(?&?&%)".
+    }
+  Admitted.
+  
+End coupling_rule.
