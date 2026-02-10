@@ -739,6 +739,30 @@ Proof.
         rewrite elem_of_cons in Hnodup. naive_solver.
 Qed.
 
+Lemma replace_laplace_tape_heap num den h t l ls:
+  (heap (replace_laplace_tape num (2 * den)
+                              {| heap := h; tapes := t; tapes_laplace := l |} ls) = h).
+Proof.
+  revert h t l.
+  induction ls; first naive_solver.
+  intros. simpl.
+  repeat case_match; subst.
+  simpl.
+  naive_solver.
+Qed. 
+
+Lemma replace_laplace_tape_tapes num den h t l ls:
+  (tapes (replace_laplace_tape num (2 * den)
+                              {| heap := h; tapes := t; tapes_laplace := l |} ls) = t).
+Proof.
+  revert h t l.
+  induction ls; first naive_solver.
+  intros. simpl.
+  repeat case_match; subst.
+  simpl.
+  naive_solver.
+Qed.
+
 Section coupling_rule.
   Context `{!diffprivGS Σ}.
   
@@ -746,27 +770,59 @@ Section coupling_rule.
     length xιs = length xιs' -> 
     NoDup xιs.*2 -> NoDup xιs'.*2 ->
     length zs = length xιs ->
+    length zs' = length xιs ->
     ls = zip (zip xιs.*2 xιs.*1) (replicate (length xιs) []) ->
     ls' =zip (zip xιs'.*2 xιs'.*1) (replicate (length xιs) []) ->
-    heap_auth 1 (heap σ) -∗
-    tapes_auth 1 (tapes σ) -∗
     tapes_laplace_auth 1 (tapes_laplace σ) -∗
-    spec_heap_auth (heap σ') -∗
-    spec_tapes_auth (tapes σ') -∗
     spec_tapes_laplace_auth (tapes_laplace σ') -∗
     ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num,2 * den,x; []) ∗
             ι' ↪Lₛ (num,2 * den,x'; []) ∗ ⌜(Rabs (IZR (x - x')) <= 1)%R⌝)
     ==∗
-    (heap_auth 1 (heap (replace_laplace_tape num (2 * den) σ (zip ls zs))) ∗
-     tapes_auth 1 (tapes (replace_laplace_tape num (2 * den) σ (zip ls zs))) ∗
-     tapes_laplace_auth 1 (tapes_laplace (replace_laplace_tape num (2 * den) σ (zip ls zs)))) ∗
-    spec_heap_auth (heap (replace_laplace_tape num (2 * den) σ' (zip ls' zs'))) ∗
-     spec_tapes_auth (tapes (replace_laplace_tape num (2 * den) σ' (zip ls' zs'))) ∗
+    (tapes_laplace_auth 1 (tapes_laplace (replace_laplace_tape num (2 * den) σ (zip ls zs)))) ∗
      spec_tapes_laplace_auth (tapes_laplace (replace_laplace_tape num (2 * den) σ' (zip ls' zs'))) ∗
     ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num,2 * den,x; [
                                                     zs !!! k]) ∗ ι' ↪Lₛ (num,2 * den,x'; [zs' !!! k]) ∗ ⌜(Rabs (IZR (x - x')) <= 1)%R⌝).
   Proof.
-  Admitted.
+    revert xιs' zs zs' ls ls' σ σ'.
+    induction xιs as [|hd xιs IH].
+    {
+      intros []; last (simpl; lia).
+      intros []; last (simpl; lia).
+      intros []; last (simpl; lia).
+      simpl.
+      intros.
+      subst. simpl.
+      iIntros.
+      by iFrame.
+    }
+    simpl.
+    intros [|? xιs']; first (simpl; lia).
+    intros [|? zs]; first (simpl; lia).
+    intros [|? zs']; first (simpl; lia).
+    simpl.
+    intros ls ls' σ σ'.
+    intros H1 H2 H3 H4 H5 -> ->.
+    rewrite !NoDup_cons in H2, H3.
+    iIntros "H1 H2 H3".
+    case_match. case_match; subst.
+    iDestruct "H3" as "(H3 & H4)".
+    iMod (IH xιs' zs zs' _ _ σ σ' with "[$][$][$]") as "H".
+    - lia.
+    - naive_solver.
+    - naive_solver.
+    - lia.
+    - lia.
+    - done.
+    - done.
+    - iDestruct ("H3") as "(H1&H2&%)".
+      iDestruct "H" as "(H3&H4&H5)".
+      simpl.
+      iMod (ghost_map_update with "H3 H1") as "[$ $]".
+      iMod (ghost_map_update with "H4 H2") as "[$ $]".
+      iModIntro.
+      iSplit; first done.
+      iFrame.
+  Qed. 
   
   Lemma hoare_couple_laplace_list num den xιs xιs' N e Φ:
     (0 < IZR num / IZR (2 * den))%R ->
@@ -930,9 +986,12 @@ Section coupling_rule.
       rewrite /spec_auth/=.
       simpl.
       unfold ls in *.
-      rewrite !length_zip !length_fmap !length_replicate in Hlen5. 
-      iMod (hoare_couple_laplace_list_update _ _ zs zs' with "[$][$][$][$][$][$][$]") as "Hrest"; try done; try lia.
-      iDestruct "Hrest" as "([$[$$]]&$&[$[$?]])".
+      rewrite !length_zip !length_fmap !length_replicate in Hlen5.
+      destruct σ, σ'.
+      rewrite !replace_laplace_tape_heap !replace_laplace_tape_tapes.
+      iFrame. 
+      iMod (hoare_couple_laplace_list_update _ _ zs zs' with "[$][$][$]") as "Hrest"; try done; try lia.
+      iDestruct "Hrest" as "(?&?&?)".
       iFrame.
       iMod "Hclose'".
       iModIntro.
