@@ -1,6 +1,7 @@
 From discprob.basic Require Import seq_ext.
 From stdpp Require Import list.
 From clutch.prelude Require Import tactics.
+From clutch.prob_lang Require Import erasure.
 From clutch.prob Require Import couplings_dp differential_privacy.
 From clutch.diffpriv Require Import diffpriv.
 
@@ -674,8 +675,10 @@ Lemma laplace_state_list_coupl num den ls ls' σ σ':
     (λ σf σf',
        ∃ zs zs', length zs = length zs' /\ (length zs = length ls)%nat /\
                  list_Z_max zs = list_Z_max zs' /\
-                 Forall (λ '(ι, loc, lis, z), tapes_laplace σf!!ι = Some (Tape_Laplace num (2*den) loc (lis ++ [z]))) (zip ls zs) /\
-                 Forall (λ '(ι, loc, lis, z), tapes_laplace σf'!!ι = Some (Tape_Laplace num (2*den) loc (lis ++ [z]))) (zip ls' zs')
+                 σf = (replace_laplace_tape num (2 * den) σ (zip ls zs)) /\ 
+                 σf' = (replace_laplace_tape num (2 * den) σ' (zip ls' zs'))(*  /\  *)
+                 (* Forall (λ '(ι, loc, lis, z), tapes_laplace σf!!ι = Some (Tape_Laplace num (2*den) loc (lis ++ [z]))) (zip ls zs) /\ *)
+                 (* Forall (λ '(ι, loc, lis, z), tapes_laplace σf'!!ι = Some (Tape_Laplace num (2*den) loc (lis ++ [z]))) (zip ls' zs') *)
     ) (IZR num / IZR den) 0.
 Proof.
   intros H1 H2 H3 H4 H5 H6 H7 H8.
@@ -692,9 +695,49 @@ Proof.
     intros zs zs' (?&?&?).
     apply DPcoupl_dret; try done.
     exists zs, zs'.
-    repeat split; try lia; apply replace_laplace_tape_zip; by try lia.
+    repeat split; lia. 
 Qed. 
 
+Lemma laplace_presample_list_erasable num den σ ls (Hineq:(0 < IZR num / IZR (2 * den))%R):
+  NoDup ls.*1.*1->
+  Forall (λ '(ι, loc, lis), tapes_laplace σ!!ι = Some (Tape_Laplace num (2*den) loc lis)) ls ->
+  erasable (laplace_presample_list σ ls.*1.*1) σ.
+Proof.
+  revert σ.
+  induction ls as [|[[]] tl IHls]; intros ? Hnodup H; first apply dret_erasable.
+  simpl.
+  apply erasable_dbind.
+  - eapply state_step_laplace_erasable.
+    rewrite Forall_cons in H. naive_solver.
+  - intros ? Hpos. apply IHls.
+    { rewrite !fmap_cons in Hnodup.
+      rewrite NoDup_cons in Hnodup.
+      naive_solver.
+    }
+    rewrite Forall_cons in H.
+    destruct!/=.
+    rewrite /state_step_laplace in Hpos.
+    case_bool_decide as H; last first. 
+    { rewrite elem_of_dom in H.
+      naive_solver.
+    }
+    setoid_rewrite lookup_total_correct in Hpos; last done.
+    simpl in *.
+    inv_distr; last lra.
+    simpl.
+    clear -H1 Hnodup.
+    apply NoDup_cons in Hnodup as [Hnodup _].
+    revert H1 Hnodup.
+    induction tl.
+    + intros. by apply Forall_nil.
+    + rewrite Forall_cons.
+      intros. destruct!/=.
+      rewrite Forall_cons; split.
+      * rewrite lookup_insert_ne; first done.
+        rewrite elem_of_cons in Hnodup. naive_solver.
+      * apply IHtl; first done.
+        rewrite elem_of_cons in Hnodup. naive_solver.
+Qed.
 
 Section coupling_rule.
   Context `{!diffprivGS Σ}.
@@ -824,6 +867,40 @@ Section coupling_rule.
       simpl.
       by iDestruct "H" as "(?&?&%)".
     }
+    iApply (spec_coupl_erasables_weak _ _ _ ε'' ε_now_rest _ 0%NNR δ) => //.
+    - apply nnreal_ext. simpl. lra.
+    - rewrite Hε''.
+      apply laplace_state_list_coupl; [| | |done|..]; try done.
+      + unfold ls. unfold ls'.
+        rewrite !length_zip!length_replicate!length_fmap. lia.
+      + unfold ls.
+        rewrite !length_zip!length_replicate!length_fmap. lia.
+      + unfold ls.
+        rewrite fst_zip; last first.
+        { rewrite !length_zip!length_replicate!length_fmap. lia. }
+        rewrite fst_zip; first done.
+        rewrite !length_fmap. lia.
+      + unfold ls'.
+        rewrite fst_zip; last first.
+        { rewrite !length_zip!length_replicate!length_fmap. lia. }
+        rewrite fst_zip; first done.
+        rewrite !length_fmap. lia.
+    - eapply laplace_presample_list_erasable; try done.
+      unfold ls.
+      rewrite !fst_zip; first done.
+      + rewrite !length_fmap. lia.
+      + rewrite !length_zip!length_replicate!length_fmap. lia.
+    - eapply laplace_presample_list_erasable; try done.
+      unfold ls.
+      rewrite !fst_zip; first done.
+      + rewrite !length_fmap. lia.
+      + rewrite !length_zip!length_replicate!length_fmap. lia.
+    - simpl.
+      iIntros (σ2 σ2') "(%zs & %zs' &%Hlen4 &%Hlen5&%Hmax&%Hforall1&%Hforall2)".
+      iMod (ecm_supply_decrease with "Hε2 Herr") as (????) "H".
+      iApply spec_coupl_ret.
+      iModIntro.
+      subst.
   Admitted.
   
 End coupling_rule.
