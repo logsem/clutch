@@ -756,8 +756,6 @@ Qed.
       done.
   Qed.
 
-
-
   #[local] Definition rnm_body (num den : Z) (evalQ : val) {DB} (dDB : Distance DB) (N : nat) (db : DB) (maxI maxA : loc) :=
     (rec: "rnm" "i" :=
        if: "i" = #N then ! #maxI
@@ -990,6 +988,28 @@ Qed.
   Qed.
 
 End rnm.
+  
+Lemma rnm_diffpriv_presampling num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
+  (0 < IZR num / IZR (2 * den))%R →
+  (0 <= IZR num / IZR den)%R →
+  (∀ `{!diffprivGS Σ}, ∀ i : Z, ⊢ hoare_sensitive (evalQ #i) 1 dDB dZ) → ∀ σ,
+      diffpriv_pure
+        dDB
+        (λ db, lim_exec ((report_noisy_max_presampling num den evalQ #N (inject db)), σ))
+        (IZR num / IZR den).
+Proof.
+  intros. apply diffpriv_approx_pure. apply DPcoupl_diffpriv.
+  intros.
+  eapply (adequacy.wp_adequacy diffprivΣ) => //.
+  iIntros (?)"H1 H2".
+  iDestruct (rnm_pres_diffpriv with "[$H2 H1]") as "K"; try done.
+  - by erewrite fill_empty.
+  - iIntros.
+    iApply "K".
+    iNext. iIntros (?) "(%&?&%)".
+    by iFrame.
+Qed.
+
 
 Lemma rnm_diffpriv_cpl num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
   (0 < IZR num / IZR (2 * den))%R →
