@@ -4,6 +4,7 @@ From clutch.prelude Require Import tactics.
 From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode.
 From clutch.prob_lang Require Import gwp.list.
+From clutch.diffpriv.examples Require Import report_noisy_max_lemmas.
 
 (* TODO: upstream to gwp.list *)
 Definition list_hd : val :=
@@ -470,6 +471,24 @@ Proof.
 Qed.
 
 
+Lemma list_max_index_eq xs : List_max_index xs = list_Z_max xs.
+Proof.
+  rewrite /List_max_index /list_Z_max.
+  destruct xs as [|xmax xs] => //.
+  rewrite /List_max_index_aux.
+  simpl.
+  intros. rewrite bool_decide_eq_false_2 //. 2: lia.
+  generalize 1%nat at 3 4 as inext. generalize 0%nat at 3 4 as imax.
+  revert xmax.
+  induction xs as [|x xs].
+  1: { simpl. done. }
+  intros.
+  simpl.
+  case_bool_decide ; destruct ((xmax <? x)%Z) eqn:hlt => //.
+  - apply Z.ltb_ge in hlt. lia.
+  - apply Z.ltb_lt in hlt. lia.
+Qed.
+
   Lemma rnm_pres_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (0 < IZR num / IZR (2 * den)) →
     (∀ i : Z, ⊢ hoare_sensitive (evalQ #i) 1 dDB dZ) →
@@ -481,6 +500,9 @@ Qed.
   Proof with (tp_pures ; wp_pures).
     intros εpos qi_sens db db' db_adj post. iIntros "[ε rhs] Hpost".
     wp_lam. tp_lam...
+    destruct N as [|N'].
+    1: admit.
+    set (N := S N'). assert (0 < N)%nat by (unfold N ; lia).
     tp_bind (list_init _ _). wp_bind (list_init _ _).
     iApply (rnm_init with "rhs") => //.
     iIntros "!> % (% & % & % & rhs & % & % & % & % & %)". simpl...
@@ -503,30 +525,32 @@ Qed.
     wp_apply (wp_alloc_tapes_laplace with "rhs") (* ; clear wp_tape_list *) => //.
     1: lia.
     iIntros "% (% & % & % & % & % & % & % & % & % & rhs & Htapes) /="...
-    iAssert
-      (∀ num den e Φ,
-          (⌜(0 < IZR num / IZR (2 * den))⌝ ∗
-           ↯m (IZR num / IZR den) ∗
-           ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num, 2 * den,x; []) ∗ ι' ↪Lₛ (num,2 * den,x'; []) ∗ ⌜dZ x x' <= 1⌝) ∗
-             ⌜ NoDup xιs.*2 ⌝ ∗ ⌜ NoDup xιs'.*2 ⌝
-           ∗
-             ((∃ zs zs', ([∗ list] k ↦ '(x, ι);'(x', ι') ∈ xιs;xιs',
-                            ι ↪L (num, 2 * den,x; [zs !!! k]) ∗
-                            ι' ↪Lₛ (num,2 * den,x'; [zs' !!! k]) ∗
-                            ⌜dZ x x' <= 1⌝) ∗
-                         ⌜length zs = N⌝ ∗
-                         ⌜length zs' = N⌝ ∗
-                         ⌜List_max_index zs = List_max_index zs'⌝)
-              -∗
-              WP e {{ v, Φ v }})
-             -∗
-           WP e {{ v, Φ v }}))%I
-      as "presample_laplace_map_max".
-    1: admit.
+    (* iAssert
+         (∀ num den e Φ,
+             (⌜(0 < IZR num / IZR (2 * den))⌝ ∗
+              ↯m (IZR num / IZR den) ∗
+              ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num, 2 * den,x; []) ∗ ι' ↪Lₛ (num,2 * den,x'; []) ∗ ⌜dZ x x' <= 1⌝) ∗
+                ⌜ NoDup xιs.*2 ⌝ ∗ ⌜ NoDup xιs'.*2 ⌝
+              ∗
+                ((∃ zs zs', ([∗ list] k ↦ '(x, ι);'(x', ι') ∈ xιs;xιs',
+                               ι ↪L (num, 2 * den,x; [zs !!! k]) ∗
+                               ι' ↪Lₛ (num,2 * den,x'; [zs' !!! k]) ∗
+                               ⌜dZ x x' <= 1⌝) ∗
+                            ⌜length zs = N⌝ ∗
+                            ⌜length zs' = N⌝ ∗
+                            ⌜List_max_index zs = List_max_index zs'⌝)
+                 -∗
+                 WP e {{ v, Φ v }})
+                -∗
+              WP e {{ v, Φ v }}))%I
+         as "presample_laplace_map_max".
+       1: admit. *)
 
-    wp_apply ("presample_laplace_map_max" $! _ _ _ post with "[$ε $Htapes rhs Hpost]") ;
-      iClear "presample_laplace_map_max" ; iSplit ; [done|].
-    repeat iSplit => //.
+    wp_apply (hoare_couple_laplace_list with "[$ε] [$Htapes] [rhs Hpost]") => //.
+    1,2: lia.
+    (* wp_apply ("presample_laplace_map_max" $! _ _ _ post with "[$ε $Htapes rhs Hpost]") ;
+         iClear "presample_laplace_map_max" ; iSplit ; [done|].
+       repeat iSplit => //. *)
     iIntros "(% & % & Htapes & %Hmax)".
 
     (* TODO split the tapes assumption into three list-foralls (two unary ones and one that's pure about the dZ). *)
@@ -682,6 +706,7 @@ Qed.
     simplify_eq.
     iPureIntro. f_equal. f_equal. f_equal.
     destruct Hmax as (?&?&?).
+    rewrite !list_max_index_eq.
     assert (zs' = (mapi (λ (k : nat) '(_, _), zs' !!! k) xιs')) as <- ; first last.
     1: assert (zs = (mapi (λ (k : nat) '(_, _), zs !!! k) xιs)) as <- ; first last.
     1: assumption.
@@ -695,7 +720,7 @@ Qed.
       intros. apply mapi2'.
       apply list_lookup_lookup_total_lt.
       done.
-  Admitted.
+  Qed.
 
 
 
