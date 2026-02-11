@@ -220,7 +220,6 @@ Qed.
     (*   * admit. *)
     (*   * admit.  *)
 
-Admitted.
 
 Lemma value_promote_preserves_atomicity K f v v':
   Atomic StronglyAtomic (fill K (Val v)) ->
