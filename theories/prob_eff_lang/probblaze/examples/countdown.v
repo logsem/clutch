@@ -1,9 +1,13 @@
 From iris.proofmode Require Import base tactics classes.
 From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode spec_rules spec_ra notation.
+From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode spec_rules spec_ra notation semantics.
 
+
+(* countdown : implementation of a random countdown, where the randomness is performed before effect calls *)
+(* Relating a handler-based counter in a state-passing style to an implementation using primitive state *)
 Section implementation.
 
+  (* Randomness performed in the while-loop *)
   Definition whileE (get : expr) (set : expr) : expr :=
     (rec: "while" <> :=
        if: get #(()%V) < #0 then #(()%V) else
@@ -21,17 +25,23 @@ Section implementation.
 
   Definition run_st_passing_handler (timer : eff_val) (e : expr) (init : expr) : expr :=
     handle: e with
-    | effect timer "request", rec "k"  => λ: "x",
+    | effect timer "request", rec "k" as multi => λ: "x",
         match: "request" with
           InjL <>  => "k" "x" "x"
         | InjR "y" => "k" #()%V "y"
         end
     | return "y" => λ: <>, "y"
     end init.
-
+  
   Definition run_st_passing (timer : eff_val) : val := λ: "init" "main",
                                                          run_st_passing_handler timer ("main" #()%V) "init".
 
+  Definition run_spec : val := λ: "init" "main",
+    let: "r" := ref "init" in
+    let: "get" := λ: <>, !"r" in
+    let: "set" := λ: "y", "r" <- "y" in
+    "main" "get" "set".
+  
 End implementation.
 
 Section handlee_verification.
@@ -131,6 +141,84 @@ Section handlee_verification.
 
 End handlee_verification.
 
+Section handler_verification.
+  Context `{!probblazeRGS Σ}.
+  Context (timer : label).
+
+  (* Assuming the clients are related under the specified theory, the handler is as well. *)
+  
+  Lemma run_st_passing_handler_refines (l : loc) (e1 e2 : expr) (init : Z) :
+    l ↦ₛ{# 1/2} #init -∗
+    REL e1 ≤ e2 <|iThyTraverse [timer] [] (Timer timer l)|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }} -∗
+    REL run_st_passing_handler timer e1 #init ≤ e2
+        <|iThyBot|>
+        {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
+  Proof.
+    iIntros "Hl He".
+    iLöb as "IH" forall (e1 e2 init).
+    rewrite /run_st_passing_handler.
+    iApply (rel_exhaustion [_; _] [] with "He").
+    iSplit; [by iIntros (??) "->"; rel_pures_l|].
+    clear e1 e2. iIntros (e1 e2 ?)
+      "[%e1' [%e2' [%k1 [%k2 [%S
+        (-> & %Hk1 & -> & %Hk2 & [[%x [Hl'  (-> & -> & #HS)]]|[%x [%y [Hl'  (-> & -> & #HS)]]]] & #HQ)
+       ]]]]] #Hk".
+      (* Read *)
+    - iDestruct (ghost_map_elem_agree with "Hl Hl'") as "->".
+      rel_pures_l; [by apply NeutralEctx_ectx_labels_singleton|].
+      iApply (rel_load_r with "Hl"). iIntros "Hl".
+      iDestruct ("HS" with "Hl'") as "HSxx".
+      iDestruct ("HQ" with "HSxx") as "HQxx".
+      iDestruct ("Hk" with "HQxx") as "Hkont".
+      iApply ("IH" with "[$][$]").
+    (* Write *)
+    - rel_pures_l; [by apply NeutralEctx_ectx_labels_singleton|].
+      iDestruct (ghost_map_elem_combine with "Hl Hl'") as "[Hl ->]".
+      rewrite dfrac_op_own Qp.half_half.
+      iApply (rel_store_r with "Hl"). iIntros "Hl".
+      iEval (rewrite -Qp.half_half) in "Hl".
+      iDestruct (ghost_map_elem_fractional with "Hl") as "[Hl Hl']".
+      iDestruct ("HS" with "Hl'") as "HSxx".
+      iDestruct ("HQ" with "HSxx") as "HQxx".
+      iDestruct ("Hk" with "HQxx") as "Hkont".
+      iApply ("IH" with "[$][$]").
+  Qed. 
+
+  Lemma run_st_passing_refines l (main1 : val) (main2 : expr) (init : Z) :
+    l ↦ₛ{# 1/2} #init -∗
+    REL main1 #()%V ≤ main2 <|iThyTraverse [timer] [] (Timer timer l)|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝)}} -∗
+    REL run_st_passing timer #init main1 ≤ main2 <|iThyBot|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝)}}.
+  Proof.
+    iIntros "Hl Hmain". rewrite /run_st_passing. rel_pures_l.
+    by iApply (run_st_passing_handler_refines with "Hl Hmain").
+  Qed.
+
+  (* Combining handler and the handlee *)
+  
+  Lemma run_st_passing_refines_run_spec (init : Z) :
+    let e1 := run_st_passing timer #init (λ: <>, countdown (get timer) (set timer))%V in
+    let e2 := run_spec #init countdown in
+    ⊢ REL e1 ≤ e2 <|iThyBot|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
+  Proof.
+    iIntros (e1 e2). 
+    rewrite /e1 /e2 /run_spec.
+    rel_pures_r. iApply rel_alloc_r. iIntros (l) "Hl". rel_pures_r.
+    iEval (rewrite -Qp.half_half) in "Hl".
+    iDestruct (ghost_map_elem_fractional with "Hl") as "[Hl Hl']".
+    iApply (run_st_passing_refines with "Hl'").
+    rel_pures_l.
+    by iApply countdown_refines.
+  Qed.
+
+End handler_verification.
+
+
+
+(* A random countdown : at each tick the countdown decreases with a random value in {0,1}.  *)
+(* The randomness is performed in the decrease function, and is thus performed in handler.   *)
+(* A state passing style handler refines an implementation using primitive state.            *)
+(* Both implementations use the same while-loop.                                            *)
+
 Section implementation2.
 
   Definition whileE2 (get : expr) (decrease : expr) : expr :=
@@ -153,7 +241,7 @@ Section implementation2.
 
   Definition run_st_passing_handler2 (timer : eff_val) (e : expr) (init : expr) : expr :=
     handle: e with
-    | effect timer "request", rec "k"  => λ: "x",
+    | effect timer "request", rec "k" as multi => λ: "x",
         match: "request" with
           InjL <>  => "k" "x" "x"
         | InjR "y" =>
@@ -178,6 +266,8 @@ Section implementation2.
   
 End implementation2.
 
+(* Verification of the two clients, given that the effects performed by the LHS is related to the native effects *)
+  
 Section handlee_verification2.
   Context `{!probblazeRGS Σ} `{!frac_cell Σ}.
   Context (timer : label).
@@ -277,10 +367,12 @@ Section handlee_verification2.
 
 End handlee_verification2.
 
-Section handler_verification.
+Section handler_verification2.
   Context `{!probblazeRGS Σ}.
   Context (timer : label).
 
+  (* Assuming the clients are related under the specified theory, the handler is as well. *)
+  
   Lemma run_st_passing_handler_refines2 (l : loc) (e1 e2 : expr) (init : Z) :
     l ↦ₛ{# 1/2} #init -∗
     REL e1 ≤ e2 <|iThyTraverse [timer] [] (Timer2 timer l)|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }} -∗
@@ -295,41 +387,43 @@ Section handler_verification.
     iSplit; [by iIntros (??) "->"; rel_pures_l|].
     clear e1 e2. iIntros (e1 e2 ?)
       "[%e1' [%e2' [%k1 [%k2 [%S
-        (-> & %Hk1 & -> & %Hk2 & [HRead|[HWrite |Hdecrease]] & #HQ)
+        (-> & %Hk1 & -> & %Hk2 & [[%x [Hl'  (-> & -> & #HS)]]|[[%x [%y [Hl'  (-> & -> & #HS)]]]|[%x [Hl'  (-> & -> & #HS)]]]] & #HQ)
        ]]]]] #Hk".
-    - iDestruct "HRead" as "[%x [Hl'  (-> & -> & #HS)]]".
-      iDestruct (ghost_map_elem_agree with "Hl Hl'") as "->".
-  (*     rel_pures_l. { apply Hk1. set_solver. }
-         iApply (rel_load_r with "Hl"). iIntros "Hl".
-         iApply ("IH" with "Hl").
-         iApply "Hk". iApply "HQ". by iApply ("HS" with "Hl'").
-       - iDestruct "HWrite" as "[%x [%y [Hl' (-> & -> & #HS)]]]".
-         iDestruct (ghost_map_elem_combine with "Hl Hl'") as "[Hl ->]".
-         rewrite dfrac_op_own Qp.half_half.
-         iApply (rel_store_r with "Hl"). iIntros "Hl".
-         iEval (rewrite -Qp.half_half) in "Hl".
-         iDestruct (ghost_map_elem_fractional with "Hl") as "[Hl Hl']".
-         rel_pures_l. { apply Hk1. set_solver. }
-         iApply ("IH" with "Hl").
-         iApply "Hk". iApply "HQ". by iApply ("HS" with "Hl'").
-       - iDestruct "Hdecrease" as "[%x [Hl' (-> & -> & #HS)]]".
-         iDestruct (ghost_map_elem_combine with "Hl Hl'") as "[Hl ->]".
-         rewrite dfrac_op_own Qp.half_half.
-         rel_pures_l. { apply Hk1. set_solver. }
-         iApply rel_couple_rand_rand; [done|].
-         iIntros (n). rewrite fill_app. simpl.
-         iApply (rel_load_r with "Hl"). iIntros "Hl". rewrite fill_app. simpl.
-         rel_pure_r. rel_pures_l.
-         iApply (rel_store_r with "Hl").
-         iIntros "Hl".
-         iEval (rewrite -Qp.half_half) in "Hl".
-         iDestruct (ghost_map_elem_fractional with "Hl") as "[Hl Hl']".
-         iApply ("IH" with "Hl").
-         iApply "Hk". iApply "HQ". by iApply "HS".
-     Qed. *)
-  Admitted.
+      (* Read *)
+    - iDestruct (ghost_map_elem_agree with "Hl Hl'") as "->".
+      rel_pures_l; [by apply NeutralEctx_ectx_labels_singleton|].
+      iApply (rel_load_r with "Hl"). iIntros "Hl".
+      iDestruct ("HS" with "Hl'") as "HSxx".
+      iDestruct ("HQ" with "HSxx") as "HQxx".
+      iDestruct ("Hk" with "HQxx") as "Hkont".
+      iApply ("IH" with "[$][$]").
+    - rel_pures_l; [by apply NeutralEctx_ectx_labels_singleton|].
+      iDestruct (ghost_map_elem_combine with "Hl Hl'") as "[Hl ->]".
+      rewrite dfrac_op_own Qp.half_half.
+      iApply (rel_store_r with "Hl"). iIntros "Hl".
+      iEval (rewrite -Qp.half_half) in "Hl".
+      iDestruct (ghost_map_elem_fractional with "Hl") as "[Hl Hl']".
+      iDestruct ("HS" with "Hl'") as "HSxx".
+      iDestruct ("HQ" with "HSxx") as "HQxx".
+      iDestruct ("Hk" with "HQxx") as "Hkont".
+      iApply ("IH" with "[$][$]").
+    - rel_pures_l; [by apply NeutralEctx_ectx_labels_singleton|].     
+      iApply rel_couple_rand_rand; [done|]. iIntros (n).
+      rel_pures_l.
+      iDestruct (ghost_map_elem_combine with "Hl Hl'") as "(Hl & %)". simplify_eq.
+      rewrite dfrac_op_own Qp.half_half.
+      iApply (rel_load_r _ _ _  with "Hl"). iIntros "Hl".
+      rewrite fill_app. simpl. rel_pures_r.
+      iApply (rel_store_r with "Hl"). iIntros "Hl".
+      iEval (rewrite -Qp.half_half) in "Hl".
+      iDestruct (ghost_map_elem_fractional with "Hl") as "[Hl Hl']".
+      iDestruct ("HS" with "Hl'") as "HSxx".
+      iDestruct ("HQ" with "HSxx") as "HQxx".
+      iDestruct ("Hk" with "HQxx") as "Hkont".
+      iApply ("IH" with "[$][$]").
+  Qed. 
 
-  Lemma run_st_passing_refines l (main1 : val) (main2 : expr) (init : Z) :
+  Lemma run_st_passing_refines2 l (main1 : val) (main2 : expr) (init : Z) :
     l ↦ₛ{# 1/2} #init -∗
     REL main1 #()%V ≤ main2 <|iThyTraverse [timer] [] (Timer2 timer l)|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝)}} -∗
     REL run_st_passing2 timer #init main1 ≤ main2 <|iThyBot|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝)}}.
@@ -338,17 +432,21 @@ Section handler_verification.
     by iApply (run_st_passing_handler_refines2 with "Hl Hmain").
   Qed.
 
-  Lemma run_st_passing_refines_run_spec (init : Z) :
+  (* Combining handler and the handlee *)
+  
+  Lemma run_st_passing_refines_run_spec2 (init : Z) :
     let e1 := run_st_passing2 timer #init (λ: <>, countdown2 (get2 timer) (set2 timer) (decrease2 timer))%V in
     let e2 := run_spec2 #init countdown2 in
     ⊢ REL e1 ≤ e2 <|iThyBot|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
   Proof.
-    iIntros (e1 e2). rewrite /e1 /e2 /run_st_passing2 /run_spec2.
-    rel_pures_l. rel_pures_r. iApply rel_alloc_r. iIntros (l) "Hl". rel_pures_r.
+    iIntros (e1 e2). 
+    rewrite /e1 /e2 /run_spec2.
+    rel_pures_r. iApply rel_alloc_r. iIntros (l) "Hl". rel_pures_r.
     iEval (rewrite -Qp.half_half) in "Hl".
     iDestruct (ghost_map_elem_fractional with "Hl") as "[Hl Hl']".
-    iApply (run_st_passing_handler_refines2 with "Hl'").
-    by iApply (countdown_refines2 with "Hl").
+    iApply (run_st_passing_refines2 with "Hl'").
+    rel_pures_l.
+    by iApply countdown_refines2.
   Qed.
 
-End handler_verification.
+End handler_verification2.
