@@ -77,15 +77,183 @@ Proof.
   rewrite !fill_app.
   simpl.
   intros H1; inversion H1; destruct K1; simplify_eq; destruct K2; simplify_eq.
+Qed.
+
+
+Lemma head_step_pred_laplace bl0 bl1 bl2:
+  base_lit_type_check bl0 = Some BLTInt ->
+  base_lit_type_check bl1 = Some BLTInt ->
+  base_lit_type_check bl2 = Some BLTInt->
+  ∃ σ' : state, head_step_pred (Laplace #bl0 #bl1 #bl2) σ'.
+Proof.
+  intros H1 H2 H3.
+  set (s:=base_lit_support_set bl0 ∪ base_lit_support_set bl1 ∪ base_lit_support_set bl2 ).
+  set (f' := gset_to_gmap 0%Z s).
+  exists ({| heap := inhabitant; urns :=urns_subst_f_to_urns f'|}).
+  eapply (urn_subst_exists _ _ f') in H1 as K1; last first.
+  { rewrite /f'. rewrite dom_gset_to_gmap. rewrite /s. set_solver. }
+  eapply (urn_subst_exists _ _ f') in H2 as K2; last first.
+  { rewrite /f'. rewrite dom_gset_to_gmap. rewrite /s. set_solver. }
+  eapply (urn_subst_exists _ _ f') in H3 as K3; last first.
+  { rewrite /f'. rewrite dom_gset_to_gmap. rewrite /s. set_solver. }
+  destruct K1 as (num&K1&?).
+  destruct K2 as (den&K2&?).
+  destruct K3 as (loc&K3&?).
+  apply urn_subst_is_simple in K1 as K1'.
+  apply urn_subst_is_simple in K2 as K2'.
+  apply urn_subst_is_simple in K3 as K3'.
+  destruct num; simplify_eq.
+  destruct den; simplify_eq.
+  destruct loc; simplify_eq.
+  destruct (decide (0<IZR n/IZR n0)%R).
+  - eapply LaplaceHSP; last done; intros ??%urns_subst_f_to_urns_unique_valid; by subst.
+  - eapply LaplaceHSP'; last done; intros ??%urns_subst_f_to_urns_unique_valid; by subst.
+Qed.
+
+Lemma head_step_pred_dlaplace bl0 bl1 bl2:
+  base_lit_type_check bl0 = Some BLTInt ->
+  base_lit_type_check bl1 = Some BLTInt ->
+  base_lit_type_check bl2 = Some BLTInt->
+  ∃ σ' : state, head_step_pred (DLaplace #bl0 #bl1 #bl2) σ'.
+Proof.
+  intros H1 H2 H3.
+  set (s:=base_lit_support_set bl0 ∪ base_lit_support_set bl1 ∪ base_lit_support_set bl2 ).
+  set (f' := gset_to_gmap 0%Z s).
+  exists ({| heap := inhabitant; urns :=urns_subst_f_to_urns f'|}).
+  eapply (urn_subst_exists _ _ f') in H1 as K1; last first.
+  { rewrite /f'. rewrite dom_gset_to_gmap. rewrite /s. set_solver. }
+  eapply (urn_subst_exists _ _ f') in H2 as K2; last first.
+  { rewrite /f'. rewrite dom_gset_to_gmap. rewrite /s. set_solver. }
+  eapply (urn_subst_exists _ _ f') in H3 as K3; last first.
+  { rewrite /f'. rewrite dom_gset_to_gmap. rewrite /s. set_solver. }
+  destruct K1 as (num&K1&?).
+  destruct K2 as (den&K2&?).
+  destruct K3 as (loc&K3&?).
+  apply urn_subst_is_simple in K1 as K1'.
+  apply urn_subst_is_simple in K2 as K2'.
+  apply urn_subst_is_simple in K3 as K3'.
+  destruct num; simplify_eq.
+  destruct den; simplify_eq.
+  destruct loc; simplify_eq.
+  destruct (decide (0<IZR n/IZR n0)%R).
+  - eapply DLaplaceHSP; last done; intros ??%urns_subst_f_to_urns_unique_valid; by subst.
+  - eapply DLaplaceHSP'; last done; intros ??%urns_subst_f_to_urns_unique_valid; by subst.
 Qed. 
 
+Local Ltac urn_smash H':=
+  intros ??%urns_subst_f_to_urns_unique_valid;
+  subst;
+  rename select (urn_subst_equal _ _ _) into H';
+  eapply urn_subst_equal_unique in H'; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple.
+
+(** Simplify this proof? *)
 Lemma value_promote_preserves_atomicity_empty_context1 Ki v' v σ f:
   head_step_pred (fill_item Ki (Val v')) σ ->
   urn_subst_val f v = Some (v') ->
-  head_step_pred (fill_item Ki (Val v)) ({| heap := σ.(heap); urns :=urns_subst_f_to_urns f|}).
+  ∃ σ',
+  head_step_pred (fill_item Ki (Val v)) σ'.
 Proof.
+  intros H1 H2.
+  inversion H1; destruct Ki; simplify_eq; simpl in *; simplify_eq.
+  - exists inhabitant. apply PairHSP.
+  - exists inhabitant. apply PairHSP.
+  - exists inhabitant. apply InjLHSP.
+  - exists inhabitant. apply InjRHSP.
+  - exists inhabitant. destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply BetaSP.
+  - exists inhabitant. apply BetaSP.
+  - exists inhabitant. admit.
+  - exists inhabitant. admit.
+  - exists inhabitant. admit.
+  - exists ({| heap := σ.(heap); urns :=urns_subst_f_to_urns f|}). destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply IfTrueHSP.
+    urn_smash H'. naive_solver.
+  - exists ({| heap := σ.(heap); urns :=urns_subst_f_to_urns f|}). destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply IfFalseHSP.
+    urn_smash H'. naive_solver.
+  - exists inhabitant. destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply FstHSP.
+  - exists inhabitant. destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply SndHSP.
+  - exists inhabitant. destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply CaseLHSP.
+  - exists inhabitant. destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply CaseRHSP.
+  - exists ({| heap := σ.(heap); urns :=urns_subst_f_to_urns f|}).
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply AllocNHSP; try done.
+    urn_smash H'. naive_solver.
+  - exists σ. by eapply AllocNHSP.
+  - exists ({| heap := σ.(heap); urns :=urns_subst_f_to_urns f|}).
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply LoadHSP; try done.
+    urn_smash H'. naive_solver.
+  - exists ({| heap := σ.(heap); urns :=urns_subst_f_to_urns f|}).
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply StoreHSP; try done.
+    urn_smash H'. naive_solver.
+  - exists σ. by eapply StoreHSP.
+  - exists ({| heap := σ.(heap); urns :=urns_subst_f_to_urns f|}).
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply RandHSP; try done.
+    urn_smash H'. naive_solver.
+  - exists ({| heap := σ.(heap); urns :=urns_subst_f_to_urns f|}).
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply DRandHSP; try done.
+    urn_smash H'. naive_solver.
+    (** laplace *)
+  - apply urn_subst_equal_well_typed in H3, H4.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H3 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H0; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_laplace.
+  - apply urn_subst_equal_well_typed in H0, H4.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H0 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H3; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_laplace.
+  - apply urn_subst_equal_well_typed in H0, H3.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H0 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H4; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_laplace.
+  - apply urn_subst_equal_well_typed in H3, H4.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H3 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H0; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_laplace.
+  - apply urn_subst_equal_well_typed in H0, H4.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H0 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H3; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_laplace.
+  - apply urn_subst_equal_well_typed in H0, H3.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H0 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H4; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_laplace.
+    (** Dlaplace*)
+  - apply urn_subst_equal_well_typed in H3, H4.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H3 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H0; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_dlaplace.
+  - apply urn_subst_equal_well_typed in H0, H4.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H0 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H3; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_dlaplace.
+  - apply urn_subst_equal_well_typed in H0, H3.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H0 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H4; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_dlaplace.
+  - apply urn_subst_equal_well_typed in H3, H4.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H3 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H0; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_dlaplace.
+  - apply urn_subst_equal_well_typed in H0, H4.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H0 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H3; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_dlaplace.
+  - apply urn_subst_equal_well_typed in H0, H3.
+    destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
+    apply urn_subst_well_typed in H0 as ?. destruct!/=.
+    eapply urn_subst_equal_unique in H4; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
+    by eapply head_step_pred_dlaplace.
 Admitted.
-
+  
 Lemma fill_item_not_match K1 K2 e v v': 
   K1 ≠ K2 -> fill_item K1 e = fill_item K2 (Val v) ->
   ∃ K1', fill_item K1' e = fill_item K2 (Val v').
@@ -138,6 +306,7 @@ Proof.
     destruct!/=.
     setoid_rewrite head_step_support_equiv_rel in H4.
     eapply value_promote_preserves_atomicity_empty_context1 in H3 as K; last done.
+    destruct!/=.
     rewrite head_step_pred_ex_rel in K.
     destruct!/=.
     eapply H4 in K; last done.
