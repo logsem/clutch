@@ -63,6 +63,60 @@ Proof.
     all: repeat eexists _; split; last split; [|done|]; try (by rewrite app_nil_r); try (by rewrite fill_app); try (by f_equal); by rewrite fill_app.
 Qed.
 
+Lemma head_step_pred_fill K v σ:
+  head_step_pred (fill K (Val v)) σ -> ∃ Ki, K = [Ki].
+Proof.
+  destruct (list_destruct_rev K) as [|[K1[K']]].
+  { subst.
+    simpl.
+    intros H1.
+    inversion H1.
+  }
+  destruct (list_destruct_rev K') as [|[K2[]]]; first naive_solver.
+  subst.
+  rewrite !fill_app.
+  simpl.
+  intros H1; inversion H1; destruct K1; simplify_eq; destruct K2; simplify_eq.
+Qed. 
+
+Lemma value_promote_preserves_atomicity_empty_context1 Ki v' v σ f:
+  head_step_pred (fill_item Ki (Val v')) σ ->
+  urn_subst_val f v = Some (v') ->
+  head_step_pred (fill_item Ki (Val v)) ({| heap := σ.(heap); urns :=urns_subst_f_to_urns f|}).
+Proof.
+Admitted.
+
+Lemma fill_item_not_match K1 K2 e v v': 
+  K1 ≠ K2 -> fill_item K1 e = fill_item K2 (Val v) ->
+  ∃ K1', fill_item K1' e = fill_item K2 (Val v').
+Proof.
+  intros H1 H2.
+  destruct K1, K2; simplify_eq; simpl.
+  - by eexists (AppLCtx _).
+  - by eexists (AppRCtx _).
+  - by eexists (BinOpLCtx _ _).
+  - by eexists (BinOpRCtx _ _).
+  - by eexists (PairLCtx _).
+  - by eexists (PairRCtx _).
+  - by eexists (AllocNLCtx _).
+  - by eexists (AllocNRCtx _).
+  - by eexists (StoreLCtx _).
+  - by eexists (StoreRCtx _).
+  - by eexists (LaplaceNumCtx _ _).
+  - by eexists (LaplaceNumCtx _ _).
+  - by eexists (LaplaceDenCtx _ _).
+  - by eexists (LaplaceDenCtx _ _).
+  - by eexists (LaplaceLocCtx _ _).
+  - by eexists (LaplaceLocCtx _ _).
+  - by eexists (DLaplaceNumCtx _ _).
+  - by eexists (DLaplaceNumCtx _ _).
+  - by eexists (DLaplaceDenCtx _ _).
+  - by eexists (DLaplaceDenCtx _ _).
+  - by eexists (DLaplaceLocCtx _ _).
+  - by eexists (DLaplaceLocCtx _ _).
+Qed.
+  
+
 Lemma value_promote_preserves_atomicity_empty_context f v v' e1' e2' σ σ' K K' :
   urn_subst_val f v = Some v' ->
   head_step_rel e1' σ e2' σ' ->
@@ -78,11 +132,29 @@ Proof.
   - destruct!/=.
     rewrite fill_app in H3.
     simplify_eq.
-    admit.
+    assert (head_step_pred (fill K1 v') σ) as H3.
+    { rewrite head_step_pred_ex_rel. naive_solver. }
+    apply head_step_pred_fill in H3 as H5.
+    destruct!/=.
+    setoid_rewrite head_step_support_equiv_rel in H4.
+    eapply value_promote_preserves_atomicity_empty_context1 in H3 as K; last done.
+    rewrite head_step_pred_ex_rel in K.
+    destruct!/=.
+    eapply H4 in K; last done.
+    by eapply fill_to_val.
   - destruct H as (Hall & K1 & K1' & K2 & -> &-> &H&Hneq).
     rewrite !fill_app//= in H3, H.
     simplify_eq. simpl in *.
-    admit. 
+    eapply (fill_item_not_match _ _ _ _ v) in H; last done.
+    destruct!/=.
+    setoid_rewrite head_step_support_equiv_rel in H4.
+    eapply (H4 _ _ ((_++[_])++Hall)) in H2; last first.
+    + erewrite fill_app. f_equal.
+      erewrite fill_app. by rewrite -H.
+    + apply fill_to_val in H2.
+      apply app_eq_nil in H2 as [H2 H'].
+      apply app_eq_nil in H2. destruct!/=.
+Qed. 
     (* destruct (list_destruct_rev K1) as [|[K1' [K2']]]. *)
     (* + subst. simpl in *. inversion H2. *)
     (* + subst. rewrite fill_app in H2. simpl in H2. *)
@@ -148,7 +220,7 @@ Proof.
     (*   * admit. *)
     (*   * admit.  *)
 
-Admitted. 
+Admitted.
 
 Lemma value_promote_preserves_atomicity K f v v':
   Atomic StronglyAtomic (fill K (Val v)) ->
