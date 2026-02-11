@@ -556,12 +556,14 @@ Inductive head_step_pred : expr → state → Prop :=
   N = Z.to_nat z →
   (0 < N)%nat ->
   head_step_pred (AllocN #bl (Val v)) σ
-| LoadHSP l v σ :
+| LoadHSP bl (l:loc) v σ :
+  urn_subst_equal σ bl (LitLoc l) ->
   σ.(heap) !! l = Some v →
-  head_step_pred (Load (Val $ LitV $ LitLoc l)) σ
-| StoreHSP l v w σ :
+  head_step_pred (Load (Val $ LitV $ bl)) σ
+| StoreHSP bl l v w σ :
+  urn_subst_equal σ bl (LitLoc l) ->
   σ.(heap) !! l = Some v →
-  head_step_pred (Store (Val $ LitV $ LitLoc l) (Val w)) σ
+  head_step_pred (Store (Val $ LitV $ bl) (Val w)) σ
 | RandHSP (N : nat) σ (z:Z) bl :
   urn_subst_equal σ bl z ->
   N = Z.to_nat z →

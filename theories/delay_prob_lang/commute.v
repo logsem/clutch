@@ -35,6 +35,7 @@ Local Ltac heap_exists_solver :=
       erewrite <-urns_f_valid_support; first done;
   by apply urns_f_distr_pos.
 
+(** TODO: rewrite this proof so its nicer... *)
 Lemma delay_prob_lang_commute e σ m: 
   is_well_constructed_expr e = true ->
   expr_support_set e ⊆ urns_support_set (urns σ) ->
@@ -271,13 +272,16 @@ Proof.
         by eapply urn_subst_heap_dom.
   - (** load *)
     repeat smash.
-    case_match; simplify_eq.
+    case_match; simplify_eq; last first.
+    { exfalso. naive_solver. }
+    erewrite urn_subst_equal_epsilon_unique'; last done.
+    case_match; last done. simplify_eq.
     repeat smash.
     inv_distr.
     unfolder.
     case_match; simplify_eq.
     destruct Hstep'; inv_distr.
-    assert (∃ v', urn_subst_val a v = Some v') as [? Hrewrite].
+    assert (∃ v', urn_subst_val a v0 = Some v') as [? Hrewrite].
     { eapply urn_subst_val_exists.
       - rewrite map_Forall_lookup in Hforall1.
         naive_solver.
@@ -286,6 +290,8 @@ Proof.
         naive_solver.
     }
     rewrite Hrewrite/=.
+    repeat smash.
+    rewrite H; last done.
     repeat smash.
     rewrite fill_prim_step_dbind; last done.
     inv_distr.
@@ -296,7 +302,7 @@ Proof.
     { rename select (_!!_=Some _) into K'.
       rewrite -elem_of_map_to_list in K'.
       by apply elem_of_list_lookup in K'. }
-    eassert (list_to_map ml !! l = Some _) as Hrewrite'.
+    eassert (list_to_map ml !! v = Some _) as Hrewrite'.
     {
       eapply elem_of_list_to_map.
       - replace (ml.*1) with ((map_to_list (heap σ)).*1); first apply NoDup_fst_map_to_list.
@@ -315,20 +321,31 @@ Proof.
         destruct!/=.
         naive_solver.
     }
+    case_match; inv_distr.
+    case_match; inv_distr.
+      
     erewrite head_prim_step_eq; last first.
     { rewrite /head_reducible/=.
-      rewrite Hrewrite'.
+      case_match; last (exfalso; naive_solver).
+      erewrite urn_subst_equal_epsilon_unique'; last done.
+      case_match; simplify_eq. 
       eexists _; solve_distr. 
     }
     simpl.
-    rewrite Hrewrite'.
+    case_match; last (exfalso; naive_solver).
+    erewrite urn_subst_equal_epsilon_unique'; last done.
+    case_match; simplify_eq. 
     rewrite dmap_dret//.
   - (** store *)
     repeat smash.
-    case_match; simplify_eq.
+    case_match; simplify_eq; last (exfalso; naive_solver).
+    erewrite urn_subst_equal_epsilon_unique'; last done.
+    case_match; last done. simplify_eq.
     repeat smash.
     unfolder.
-    assert (∃ v', urn_subst_val a w = Some v') as [? Hrewrite] by val_exists_solver.
+    assert (∃ v', urn_subst_val a w0 = Some v') as [? Hrewrite] by val_exists_solver.
+    simpl in *.
+    simplify_eq.
     rewrite Hrewrite.
     smash.
     rewrite dbind_assoc'.
@@ -337,21 +354,37 @@ Proof.
     rewrite -d_proj_Some_fmap.
     rewrite -!/(urn_subst_heap _ _).
     assert (∃ h, urn_subst_heap a (heap σ) = Some h) as [h Hrewrite'] by heap_exists_solver.
-    assert (is_Some(h!!l) ) as [? K'].
+    assert (is_Some(h!!v ) ) as [? K'].
     { rewrite <-elem_of_dom. erewrite <-urn_subst_heap_dom; last done.
       rewrite elem_of_dom. naive_solver.
     }
     destruct!/=.
     rewrite Hrewrite'.
-    erewrite urn_subst_heap_insert'; [| |done|done]; last first.
-    { rewrite elem_of_dom. naive_solver. }
+    trans (d_proj_Some (urn_subst_heap a (<[v:=w0]> (delete v (heap σ))))
+             ≫= λ σh : gmap loc val, dret (fill a0 #(), {| heap := σh; urns := m |})); last first.
+    { rewrite insert_delete_insert. by smash. }
+    erewrite urn_subst_heap_insert; last first.
+    { apply urn_subst_heap_delete; last done.
+      rewrite elem_of_dom. naive_solver.
+    }
+    { done. }
+    { rewrite dom_delete. set_solver. }
+    smash.
+    rewrite H; last done.
     smash.
     rewrite fill_prim_step_dbind; last done.
     erewrite head_prim_step_eq; last first.
     { rewrite -head_step_pred_head_reducible.
-      by eapply StoreHSP. }
+      by eapply StoreHSP.
+    }
     smash.
+    case_match; last (exfalso; naive_solver).
+    case_match; inv_distr.
+    case_match; inv_distr.
+    case_match; last (exfalso; naive_solver).
+    erewrite urn_subst_equal_epsilon_unique'; last done.
     rewrite K'.
+    rewrite insert_delete_insert.
     by smash.
   - (** rand *)
     repeat smash.

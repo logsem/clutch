@@ -429,6 +429,9 @@ Proof.
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+  rename select (_!!(epsilon _)=_) into H1.
+  erewrite urn_subst_equal_epsilon_unique' in H1; last done.
+  simplify_eq.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
@@ -442,6 +445,10 @@ Proof.
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+  rename select (_!!(epsilon _)=_) into H1.
+  erewrite urn_subst_equal_epsilon_unique' in H1; last done.
+  erewrite urn_subst_equal_epsilon_unique'; last done.
+  simplify_eq.
   iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
   iFrame. iModIntro. by iApply "HΦ".
 Qed.

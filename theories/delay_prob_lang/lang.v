@@ -2425,8 +2425,22 @@ Section urn.
     intros H'.
     eapply urn_subst_equal_unique in H; last apply H'.
     by simplify_eq.
-  Qed. 
+  Qed.
+  
+  Lemma urn_subst_equal_epsilon_correct' σ bl (e:∃ l, urn_subst_equal σ bl (LitLoc l)):
+    urn_subst_equal σ bl (LitLoc (epsilon e)).
+  Proof.
+    by pose proof epsilon_correct _ e as H.
+  Qed.
 
+  Lemma urn_subst_equal_epsilon_unique' σ bl l (e:∃ l, urn_subst_equal σ bl (LitLoc l)):
+    urn_subst_equal σ bl (LitLoc l) -> epsilon e = l.
+  Proof.
+    pose proof epsilon_correct _ e as H.
+    intros H'.
+    eapply urn_subst_equal_unique in H; last apply H'.
+    by simplify_eq.
+  Qed. 
 
   Definition is_simple_base_lit bl:=
     (match bl with
@@ -2751,15 +2765,23 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
                  else dzero
       | _ => dzero
       end
-  | Load (Val (LitV (LitLoc l))) =>
-      match σ1.(heap) !! l with
-        | Some v => dret (Val v, σ1)
-        | None => dzero
+  | Load (Val (LitV bl)) =>
+      match excluded_middle_informative (∃ l, urn_subst_equal σ1 bl (LitLoc l)) with
+      | left P => let l:=epsilon P in 
+                 match σ1.(heap) !! l with
+                 | Some v => dret (Val v, σ1)
+                 | None => dzero
+                 end
+      | _ =>dzero
       end
-  | Store (Val (LitV (LitLoc l))) (Val w) =>
-      match σ1.(heap) !! l with
-        | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1)
-        | None => dzero
+  | Store (Val (LitV bl)) (Val w) =>
+      match excluded_middle_informative (∃ l, urn_subst_equal σ1 bl (LitLoc l)) with
+      | left P => let l:=epsilon P in 
+                 match σ1.(heap) !! l with
+                 | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1)
+                 | None => dzero
+                 end
+      | _ =>dzero
       end
   (* Uniform sampling from [0, 1 , ..., N] *)
   | Rand (Val (LitV bl)) =>
@@ -2906,12 +2928,14 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   (0 < N)%nat ->
   head_step_rel (AllocN (Val (LitV bl)) (Val v)) σ
     (Val $ LitV $ LitLoc l) (state_upd_heap_N l N v σ)
-| LoadS l v σ :
+| LoadS bl l v σ :
+  urn_subst_equal σ bl (LitLoc l) ->
   σ.(heap) !! l = Some v →
-  head_step_rel (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ
-| StoreS l v w σ :
+  head_step_rel (Load (Val $ LitV bl)) σ (of_val v) σ
+| StoreS bl l v w σ :
+  urn_subst_equal σ bl (LitLoc l) ->
   σ.(heap) !! l = Some v →
-  head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
+  head_step_rel (Store (Val $ LitV bl) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
 | RandS z N bl (n : fin (S N)) σ:
   urn_subst_equal σ bl (LitInt z) ->
@@ -3020,6 +3044,10 @@ Proof.
     (*   by apply urns_f_distr_pos. *)
     + eapply AllocNS; try done.
       apply urn_subst_equal_epsilon_correct.
+    + eapply LoadS; try done.
+      apply urn_subst_equal_epsilon_correct'.
+    + eapply StoreS; try done.
+      apply urn_subst_equal_epsilon_correct'.
     + eapply RandS; last done.
       apply urn_subst_equal_epsilon_correct.
     + eapply DRandS; last done; try done.
@@ -3046,6 +3074,14 @@ Proof.
     + case_match; last (exfalso; naive_solver).
       erewrite urn_subst_equal_epsilon_unique; last done.
       rewrite bool_decide_eq_true_2; last done.
+      solve_distr.
+    + case_match; last (exfalso; naive_solver).
+      erewrite urn_subst_equal_epsilon_unique'; last done.
+      case_match; simplify_eq.
+      solve_distr.
+    + case_match; last (exfalso; naive_solver).
+      erewrite urn_subst_equal_epsilon_unique'; last done.
+      case_match; simplify_eq.
       solve_distr.
     + solve_distr. case_match; last (exfalso; naive_solver).
       erewrite urn_subst_equal_epsilon_unique; last done.
@@ -3199,9 +3235,17 @@ Proof.
   (*     rewrite /urn_subst_equal/=. *)
   (*     by intros ? ->%urns_subst_f_to_urns_unique_valid. *)
   all: exfalso; try naive_solver.
-  rename select (¬ _) into H'.
-  apply H'.
-  erewrite urn_subst_equal_epsilon_unique; naive_solver.
+  - rename select (¬ _) into H'.
+    apply H'.
+    erewrite urn_subst_equal_epsilon_unique; naive_solver.
+  - rename select (_!!epsilon _ = _) into H'.
+    revert H'.
+    erewrite urn_subst_equal_epsilon_unique'; last done.
+    intros. naive_solver.
+  - rename select (_!!epsilon _ = _) into H'.
+    revert H'.
+    erewrite urn_subst_equal_epsilon_unique'; last done.
+    intros. naive_solver.
 Qed. 
 
 
