@@ -632,3 +632,31 @@ Proof.
   by rewrite dbind_const; last apply urns_f_distr_mass.
 Qed. 
   
+
+Lemma elton_adequacy_remove_drand_distribution Σ `{eltonGpreS Σ} (e e':expr) m μ:
+  remove_drand_expr e = Some e' ->
+  (∀ `{eltonGS Σ} ε L D,
+     (0 <= ε)%R →
+     (∀ (v : val), 0 <= D v <= L)%R →
+     SeriesC (λ (v : val), D v * μ v)%R <= ε →
+     ⊢ ↯ ε -∗ WP e {{ v, ⌜is_simple_val v = true⌝ ∗ ↯ (D v)}}) ->
+  ∀ v, (lim_exec (e', {|heap:=∅; urns:=m|})) v<= μ v .
+Proof.
+  intros Hsome Hwp v.
+  cut (pgl (lim_exec (e', {| heap := ∅; urns := m |})) (λ v',bool_decide (v=v')) (1-μ v)%R).
+Admitted. 
+  
+  
+(*   intros Hsome Hpos Hwp. *)
+(*   eapply (elton_adequacy_without_conditions _ _ ({|heap:= ∅; urns:= ∅|}) _ m) in Hwp; last done. *)
+(*   eassert (lim_exec _ = _) as ->; last done. *)
+(*   erewrite dbind_ext_right_strong; last first. *)
+(*   { intros ??. erewrite remove_drand_expr_urn_subst; last done. *)
+(*     simpl. rewrite dret_id_left'. *)
+(*     rewrite urn_subst_heap_empty. *)
+(*     simpl. *)
+(*     by rewrite dret_id_left'. *)
+(*   } *)
+(*   by rewrite dbind_const; last apply urns_f_distr_mass. *)
+(* Qed.  *)
+
