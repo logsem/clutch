@@ -116,7 +116,23 @@ Local Lemma head_step_pred_un_op v v' v'' op σ f:
    urn_subst_val f v = Some v' ->
    head_step_pred (UnOp op v) σ.
 Proof.
-Admitted.
+  intros H1 H2.
+  assert (∃ bl, v'=LitV bl) as [? ->].
+  { rewrite /un_op_eval in H1.
+    case_match; naive_solver.
+  }
+  assert (∃ bl, v=LitV bl) as [x' ->].
+  { destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. naive_solver. }
+  simpl in H2. repeat setoid_rewrite bind_Some in H2.
+  destruct H2 as (?&H&?). simplify_eq.
+  apply urn_subst_well_typed in H.
+  destruct H as (?&H&?).
+  destruct!/=.
+  assert (∃ v', un_op_eval op #x' = Some v') as [].
+  { repeat case_match; destruct!/=; rewrite H; repeat (case_match; simplify_eq); by eexists _.
+  }
+  by eapply UnOpHSP.
+Qed. 
 
 
 Local Lemma head_step_pred_bin_op1 v1 v1' v2 v' op σ f:
@@ -124,14 +140,166 @@ Local Lemma head_step_pred_bin_op1 v1 v1' v2 v' op σ f:
    urn_subst_val f v1 = Some v1' ->
    head_step_pred (BinOp op v1 v2) σ.
 Proof.
-Admitted.
+  intros H1 H2.
+  assert (∃ bl, v1'=LitV bl) as [? ->].
+  { rewrite /bin_op_eval in H1.
+    case_match; naive_solver.
+  }
+  assert (∃ bl, v1=LitV bl) as [x' ->].
+  { destruct v1; repeat setoid_rewrite bind_Some in H2; destruct!/=. naive_solver. }
+  assert (∃ bl, v2=LitV bl) as [x'' ->].
+  { destruct v2; repeat setoid_rewrite bind_Some in H2; destruct!/=. naive_solver. }
+  simpl in H2. repeat setoid_rewrite bind_Some in H2.
+  destruct H2 as (?&H&H0). simplify_eq.
+  apply urn_subst_well_typed in H.
+  destruct H as (?&H&H').
+  destruct!/=.
+  rewrite bind_Some in H1.
+  destruct!/=.
+  assert (∃ v', bin_op_eval op #x' #x''  = Some v') as [].
+  { simpl in *.
+    rewrite /bin_op_eval_bl in H0 *. case_match; rewrite H; rewrite H' in H0.
+    all: case_match; try done.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+  }
+  by eapply BinOpHSP.
+Qed. 
 
 Local Lemma head_step_pred_bin_op2 v1 v2 v2' v' op σ f:
    bin_op_eval op v1 v2' = Some v' ->
    urn_subst_val f v2 = Some v2' ->
    head_step_pred (BinOp op v1 v2) σ.
 Proof.
-Admitted.
+  intros H1 H2.
+  assert (∃ bl, v2'=LitV bl) as [? ->].
+  { rewrite /bin_op_eval in H1.
+    repeat case_match; naive_solver.
+  }
+  assert (∃ bl, v2=LitV bl) as [x' ->].
+  { destruct v2; repeat setoid_rewrite bind_Some in H2; destruct!/=. naive_solver. }
+  assert (∃ bl, v1=LitV bl) as [x'' ->].
+  { destruct v1; repeat setoid_rewrite bind_Some in H2; destruct!/=. naive_solver. }
+  simpl in H2. repeat setoid_rewrite bind_Some in H2.
+  destruct H2 as (?&H&H0). simplify_eq.
+  apply urn_subst_well_typed in H.
+  destruct H as (?&H&H').
+  destruct!/=.
+  rewrite bind_Some in H1.
+  destruct!/=.
+  assert (∃ v', bin_op_eval op #x'' #x'  = Some v') as [].
+  { simpl in *.
+    rewrite /bin_op_eval_bl in H0 *. case_match; rewrite H; rewrite H' in H0.
+    all: case_match; try done.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+    - clear H0.
+      repeat case_match; naive_solver.
+    - case_match; try done;
+      case_match; try done;
+        clear H0.
+      repeat case_match; naive_solver.
+  }
+  by eapply BinOpHSP.
+Qed. 
 
 Local Lemma head_step_pred_dlaplace bl0 bl1 bl2:
   base_lit_type_check bl0 = Some BLTInt ->
