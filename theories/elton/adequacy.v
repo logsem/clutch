@@ -633,7 +633,7 @@ Proof.
 Qed. 
   
 
-Lemma elton_adequacy_remove_drand_distribution Σ `{eltonGpreS Σ} (e e':expr) m μ:
+Lemma elton_adequacy_remove_drand_distribution Σ `{eltonGpreS Σ} (e e':expr) m (μ:distr _):
   remove_drand_expr e = Some e' ->
   (∀ `{eltonGS Σ} ε L D,
      (0 <= ε)%R →
@@ -643,20 +643,30 @@ Lemma elton_adequacy_remove_drand_distribution Σ `{eltonGpreS Σ} (e e':expr) m
   ∀ v, (lim_exec (e', {|heap:=∅; urns:=m|})) v<= μ v .
 Proof.
   intros Hsome Hwp v.
-  cut (pgl (lim_exec (e', {| heap := ∅; urns := m |})) (λ v',bool_decide (v=v')) (1-μ v)%R).
-Admitted. 
-  
-  
-(*   intros Hsome Hpos Hwp. *)
-(*   eapply (elton_adequacy_without_conditions _ _ ({|heap:= ∅; urns:= ∅|}) _ m) in Hwp; last done. *)
-(*   eassert (lim_exec _ = _) as ->; last done. *)
-(*   erewrite dbind_ext_right_strong; last first. *)
-(*   { intros ??. erewrite remove_drand_expr_urn_subst; last done. *)
-(*     simpl. rewrite dret_id_left'. *)
-(*     rewrite urn_subst_heap_empty. *)
-(*     simpl. *)
-(*     by rewrite dret_id_left'. *)
-(*   } *)
-(*   by rewrite dbind_const; last apply urns_f_distr_mass. *)
-(* Qed.  *)
-
+  cut (pgl (lim_exec (e', {| heap := ∅; urns := m |})) (λ v', (v≠v')) (
+           μ v
+         )%R).
+  { rewrite /pgl.
+    rewrite /prob.
+    intros H1.
+    etrans; last exact.
+    erewrite (SeriesC_ext _ (λ x, if bool_decide (x=v) then _ else _)); last first.
+    - intros. case_bool_decide.
+      + by rewrite bool_decide_eq_false_2.
+      + by rewrite bool_decide_eq_true_2.
+    - simpl.
+      by rewrite SeriesC_singleton_dependent.
+  }
+  eapply elton_adequacy_remove_drand; try done.
+  iIntros.
+  iPoseProof (Hwp _ _ 1 (λ x, if bool_decide (x=v) then 1 else 0) with "[$]") as "H".
+  - done.
+  - intros. case_match; first case_bool_decide; lra.
+  - erewrite (SeriesC_ext _ (λ x, if bool_decide (x=v) then _ else _)); first by erewrite SeriesC_singleton_dependent.
+    intros. case_bool_decide; case_bool_decide; try done; lra.
+  - iApply (pgl_wp_mono with "[$]").
+    iIntros (?) "[% ?]".
+    case_bool_decide.
+    + by iDestruct (ec_contradict with "[$]") as "[]".
+    + iPureIntro. naive_solver.
+Qed. 
