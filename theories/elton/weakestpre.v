@@ -35,9 +35,9 @@ Canonical Structure NNRO := leibnizO nonnegreal.
 Section rupd.
   Context `{H:!eltonWpGS d_prob_lang Σ}.
   (* Do we need to open invariants? *)
-  Definition rupd_def (P: val d_prob_lang -> Prop) Q v : iProp Σ:=
+  Definition rupd_def (P: base_lit -> Prop) Q v : iProp Σ:=
     (∀ σ1, state_interp σ1 -∗ 
-           ⌜∀ f, (urns_f_distr (urns σ1) f > 0)%R -> ∃ v', urn_subst_val f v = Some v' /\ P v'⌝ ∗ (Q ∗ state_interp σ1)).
+           ⌜∀ f, (urns_f_distr (urns σ1) f > 0)%R -> ∃ v', urn_subst f v = Some v' /\ P v'⌝ ∗ (Q ∗ state_interp σ1)).
   
   Local Definition rupd_aux : seal (@rupd_def). Proof. by eexists. Qed.
   Definition rupd := rupd_aux.(unseal).

@@ -306,26 +306,26 @@ Qed.
 (* induction directly, but this demonstrates that we can state the expected *)
 (* reasoning principle for recursive functions, without any visible ▷. *)
 
-Lemma wp_value_promotion v v' P Φ s E:
-  is_simple_val v' = true ->
+Lemma wp_value_promotion (v v':base_lit) P Φ s E:
   (rupd (λ x, x=v') P v)-∗
-    (P -∗ WP (Val v') @ s; E {{ Φ }}) -∗
-    WP (Val v) @ s; E {{ Φ }}.
+    (P -∗ WP (Val (LitV v')) @ s; E {{ Φ }}) -∗
+    WP (Val (LitV v)) @ s; E {{ Φ }}.
 Proof.
-  iIntros (H) "H1 H2".
+  iIntros "H1 H2".
   iApply state_step_coupl_wp.
   iIntros (??) "[??]".
   iApply fupd_mask_intro; first set_solver.
   iIntros "Hclose".
   iApply state_step_coupl_value_promote.
-  iExists [], v, v'.
+  iExists [], (LitV v), (LitV v').
   simpl.
   repeat iSplit; last iFrame; first done.
   { rewrite rupd_unseal/rupd_def.
     iDestruct ("H1" with "[$]") as  "[%K ?]".
     iPureIntro.
     intros ? H'.
-    apply K in H'. by destruct!/=.
+    apply K in H' as (?&H&?). subst.
+    by rewrite H.
   }
   rewrite rupd_unseal/rupd_def.
   iDestruct ("H1" with "[$]") as "[_ [HP Hstate]]".
@@ -475,9 +475,9 @@ Proof.
   done. 
 Qed.
 
-Lemma wp_drand_thunk (N : nat) (z : Z) v E s P :
+Lemma wp_drand_thunk (N : nat) (z : Z) (v:base_lit) E s P :
   TCEq N (Z.to_nat z) →
-  {{{ (rupd (λ v,v= #N) P v)}}} drand v @ s; E {{{ l, RET LitV (LitLbl l); P ∗ l ↪ (urn_unif $ list_to_set (Z.of_nat <$> (seq 0 (S N)))) }}}.
+  {{{ (rupd (λ (v : base_lit),v= (LitInt N)) P v)}}} drand LitV v @ s; E {{{ l, RET LitV (LitLbl l); P ∗ l ↪ (urn_unif $ list_to_set (Z.of_nat <$> (seq 0 (S N)))) }}}.
 Proof.
   iIntros (-> Φ) "Hrupd HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -492,19 +492,15 @@ Proof.
     apply H in Hf as H'.
     destruct H' as [? [H' ->]].
     case_match; simpl in *; simplify_eq; repeat setoid_rewrite bind_Some in H'; destruct!/=; last first.
-    case_match; last first.
-    - exfalso.
-      setoid_rewrite bind_Some in H.
-      rename select (¬ _) into Hcontra.
+    { exfalso. rename select (¬ _) into Hcontra.
       apply Hcontra.
       eexists _.
-      intros ? H2.
-      apply H in H2.
-      by destruct!/=.
-    - erewrite urn_subst_equal_epsilon_unique; first solve_distr.
-      intros ? H2.
-      apply H in H2.
-      setoid_rewrite bind_Some in H2. by destruct!/=.
+      intros ? H1. apply H in H1. by destruct!/=. 
+    }
+    erewrite urn_subst_equal_epsilon_unique; first solve_distr.
+    intros ? H2.
+    apply H in H2.
+    by destruct!/=.
   }
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
@@ -517,7 +513,7 @@ Proof.
   rewrite (urn_subst_equal_epsilon_unique _ _ (Z.to_nat z) _ _); last first.
   { intros ? H2.
     apply H in H2.
-    setoid_rewrite bind_Some in H2. by destruct!/=.
+    by destruct!/=.
   }
   rewrite Nat2Z.id.
   rewrite Nat.add_1_r. iFrame. 

@@ -96,8 +96,7 @@ Section encr.
           { iDestruct (ec_contradict with "[$]") as "[]". lra. }
           do 3 wp_pure.
           wp_bind (Val _).
-          wp_apply (wp_value_promotion _ (#false) (True)%I with "[Hl][-]").
-          { done. }
+          wp_apply (wp_value_promotion _ (false) (True)%I with "[Hl][-]").
           {
             rewrite rupd_unseal/rupd_def.
             iIntros (?) "[? Hu]".
@@ -130,8 +129,7 @@ Section encr.
           wp_pures. by wp_pures.
         * do 3 wp_pure.
           wp_bind (Val _).
-          wp_apply (wp_value_promotion _ (#false) (True)%I with "[Hl][-]").
-          { done. }
+          wp_apply (wp_value_promotion _ (false) (True)%I with "[Hl][-]").
           {
             rewrite rupd_unseal/rupd_def.
             iIntros (?) "[? Hu]".
