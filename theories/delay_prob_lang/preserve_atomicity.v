@@ -110,7 +110,30 @@ Proof.
   - eapply LaplaceHSP'; last done; intros ??%urns_subst_f_to_urns_unique_valid; by subst.
 Qed.
 
-Lemma head_step_pred_dlaplace bl0 bl1 bl2:
+
+Local Lemma head_step_pred_un_op v v' v'' op σ f:
+   un_op_eval op v' = Some v'' ->
+   urn_subst_val f v = Some v' ->
+   head_step_pred (UnOp op v) σ.
+Proof.
+Admitted.
+
+
+Local Lemma head_step_pred_bin_op1 v1 v1' v2 v' op σ f:
+   bin_op_eval op v1' v2 = Some v' ->
+   urn_subst_val f v1 = Some v1' ->
+   head_step_pred (BinOp op v1 v2) σ.
+Proof.
+Admitted.
+
+Local Lemma head_step_pred_bin_op2 v1 v2 v2' v' op σ f:
+   bin_op_eval op v1 v2' = Some v' ->
+   urn_subst_val f v2 = Some v2' ->
+   head_step_pred (BinOp op v1 v2) σ.
+Proof.
+Admitted.
+
+Local Lemma head_step_pred_dlaplace bl0 bl1 bl2:
   base_lit_type_check bl0 = Some BLTInt ->
   base_lit_type_check bl1 = Some BLTInt ->
   base_lit_type_check bl2 = Some BLTInt->
@@ -162,9 +185,9 @@ Proof.
   - exists inhabitant. destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=.
     apply BetaSP.
   - exists inhabitant. apply BetaSP.
-  - exists inhabitant. admit.
-  - exists inhabitant. admit.
-  - exists inhabitant. admit.
+  - exists inhabitant. by eapply head_step_pred_un_op.
+  - exists inhabitant. by eapply head_step_pred_bin_op1. 
+  - exists inhabitant. by eapply head_step_pred_bin_op2. 
   - exists ({| heap := σ.(heap); urns :=urns_subst_f_to_urns f|}). destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply IfTrueHSP.
     urn_smash H'. naive_solver.
   - exists ({| heap := σ.(heap); urns :=urns_subst_f_to_urns f|}). destruct v; repeat setoid_rewrite bind_Some in H2; destruct!/=. eapply IfFalseHSP.
@@ -252,7 +275,8 @@ Proof.
     apply urn_subst_well_typed in H0 as ?. destruct!/=.
     eapply urn_subst_equal_unique in H4; last apply urn_subst_equal_obv; last by eapply urn_subst_is_simple. simplify_eq. simpl in *. simplify_eq.
     by eapply head_step_pred_dlaplace.
-Admitted.
+Qed.  
+        
   
 Lemma fill_item_not_match K1 K2 e v v': 
   K1 ≠ K2 -> fill_item K1 e = fill_item K2 (Val v) ->
