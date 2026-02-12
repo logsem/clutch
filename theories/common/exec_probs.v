@@ -64,61 +64,85 @@ Section err_lb.
     apply SeriesC_le; real_solver.
   Qed.
 
-  Lemma pexec_inf_exists ρ :
-    is_finite (Inf_seq (λ n : nat, SeriesC (pexec n ρ))).
+  Lemma err_prob_ge_0 ρ n φ: 
+    0 <= 1 - SeriesC (pexec n ρ) + prob (exec n ρ) (λ v, Datatypes.negb $ bool_decide (φ v)).
   Proof.
-    apply (Rbar_le_sandwich 0 1).
-    + by apply lower_bound_le_inf =>/=.
-    + Check Sup_seq_minor_le.
-      by apply (Inf_seq_major_ge _ _ 0%nat)=>/=. 
+    assert (SeriesC (pexec n ρ) - prob (exec n ρ) (λ v, Datatypes.negb $ bool_decide (φ v)) <= 1); last real_solver.
+    rewrite exec_pexec_relate prob_dbind -SeriesC_minus //=; try real_solver; 
+    last by eapply ex_expval_bounded => a; split; [apply prob_ge_0 | apply prob_le_1].
+    setoid_rewrite <- (Rmult_1_r (pexec _ _ _)) at 1. 
+    setoid_rewrite <- Rmult_minus_distr_l.
+    trans (SeriesC (pexec n ρ)); last done.
+    apply SeriesC_le => //= x.
+    split.
+    - case_match. 
+      + apply Rmult_le_pos => //=; apply Rle_0_le_minus, prob_le_1. 
+      + rewrite /prob SeriesC_0; real_solver.
+    - rewrite <- (Rmult_1_r (pexec _ _ _)) at 2.
+      apply Rmult_le_compat_l => //=.
+      epose proof (prob_ge_0). real_solver.
   Qed.
   
-  Definition stuck_prob ρ : R := 1 - Inf_seq (fun n => SeriesC (pexec n ρ)).
+  Lemma err_prob_le_1 ρ n φ: 
+    1 - SeriesC (pexec n ρ) + prob (exec n ρ) (λ v, Datatypes.negb $ bool_decide (φ v)) <= 1.
+  Proof.
+    assert (0 <= SeriesC (pexec n ρ) - prob (exec n ρ) (λ v, Datatypes.negb $ bool_decide (φ v))); last real_solver.
+    rewrite exec_pexec_relate prob_dbind -SeriesC_minus //=; try real_solver;
+    last by eapply ex_expval_bounded => a; split; [apply prob_ge_0 | apply prob_le_1].
+    apply SeriesC_ge_0' => x; pose proof (pmf_pos (pexec n ρ) x).
+    case_match.
+    - destruct (decide (φ m)); [rewrite prob_dret_false| rewrite prob_dret_true]; real_solver.
+    - rewrite /prob SeriesC_0; real_solver.
+  Qed.
+
+  Lemma comp_pexec_mass_sup_exists ρ :
+    is_finite (Sup_seq (λ n : nat, 1 - SeriesC (pexec n ρ))).
+  Proof.
+    apply (Rbar_le_sandwich 0 1). 
+    + apply (Sup_seq_minor_le _ _ 0%nat)=>/=. rewrite /pexec //= dret_mass; real_solver.
+    + apply upper_bound_ge_sup=>/= x. real_solver.
+  Qed.
+  
+  Definition stuck_prob ρ : R := Sup_seq (fun n => 1 - SeriesC (pexec n ρ)).
 
   Lemma stuck_prob_le_1 ρ :
     stuck_prob ρ <= 1.
   Proof.
-    rewrite /stuck_prob.
-    assert (0 <= Inf_seq (fun n => SeriesC (pexec n ρ))); last by real_solver.
-  Admitted. 
+    apply finite_rbar_le; first apply comp_pexec_mass_sup_exists.
+    apply upper_bound_ge_sup => n //=. real_solver.
+  Qed.
 
   Lemma stuck_prob_nn ρ :
     0 <= stuck_prob ρ.
   Proof.
-    rewrite /stuck_prob.
-    assert (Inf_seq (fun n => SeriesC (pexec n ρ)) <= 1); last by real_solver.
-    transitivity (SeriesC (pexec 0 ρ)); last done.
-    apply finite_rbar_le; first by apply pexec_inf_exists.
-    apply (inf_is_lower_bound (λ n : nat, SeriesC (pexec n ρ)) 0).
+    apply rbar_le_finite; first apply comp_pexec_mass_sup_exists.
+    apply (Sup_seq_minor_le _ _ 0) => //=. 
+    rewrite pexec_O dret_mass. real_solver. 
   Qed.
 
   Lemma stuck_prob_final_0 {ρ} v :
     to_final ρ = Some v →
     stuck_prob ρ = 0.
   Proof.
-    intros.
+    intros Hρ.
     apply Rle_antisym; last by apply stuck_prob_nn.
     rewrite /stuck_prob. 
-    assert (1 <= Inf_seq (λ n : nat, SeriesC (pexec n ρ))); last by real_solver.
-    apply rbar_le_finite; first by apply pexec_inf_exists.
-    apply lower_bound_le_inf => ?. 
-    apply rbar_le_rle.
-    rewrite pexec_is_final; first by rewrite dret_mass; lra.
-    by eapply to_final_Some_2.
+    apply finite_rbar_le; first apply comp_pexec_mass_sup_exists.
+    apply upper_bound_ge_sup => n //=. rewrite pexec_is_final /is_final //= dret_mass.
+    real_solver.
   Qed.
 
   Lemma stuck_prob_stuck_1 ρ :
     stuck ρ →
     stuck_prob ρ = 1.
   Proof.
-    intros [??].
+    intros [Hρ Hnr].
     apply Rle_antisym; first by apply stuck_prob_le_1.
     rewrite /stuck_prob.
-    assert (Inf_seq (λ n : nat, SeriesC (pexec n ρ)) <= 0); last by real_solver.
-    assert (SeriesC (pexec 1 ρ) = 0) as <-; first by rewrite pexec_1 step_or_final_no_final //= 
-      irreducible_dzero //= dzero_mass //=.
-    apply finite_rbar_le; first by apply pexec_inf_exists.
-    apply (inf_is_lower_bound (λ n : nat, SeriesC (pexec n ρ)) 1).
+    apply rbar_le_finite; first apply comp_pexec_mass_sup_exists.
+    apply (Sup_seq_minor_le _ _ 1) => //=.  
+    rewrite pexec_1 step_or_final_no_final //= irreducible_dzero //= dzero_mass.
+    real_solver.
   Qed.
 
   Definition err_prob φ ρ : R := 
@@ -189,9 +213,33 @@ Section err_lb_lang.
     reducible ρ →
     stuck_prob ρ = Expval (step ρ) stuck_prob.
   Proof.
-    intros.
-    rewrite /stuck_prob. 
-  Admitted.
+    assert (∀ n (x : cfg Λ), 0 <= 1 - SeriesC (pexec n x)); first by intros; pose proof (pmf_SeriesC (pexec n x)); real_solver. 
+    assert (∀ n (x : cfg Λ), 1 - SeriesC (pexec n x) <= 1); first by intros; pose proof (pmf_SeriesC_ge_0 (pexec n x)); real_solver.
+    intros Hred.
+    rewrite /stuck_prob.
+    rewrite /Expval.
+    setoid_rewrite <-Sup_seq_scal_l' => //=; last apply comp_pexec_mass_sup_exists.
+    erewrite (SeriesC_Sup_seq_swap 1 (λ n, SeriesC (λ a : expr Λ * state Λ, prim_step ρ.1 ρ.2 a * (1 - SeriesC (pexec n a))))); first last; intros.
+    - erewrite <-prim_step_mass at 1; last by apply Hred.
+      apply SeriesC_le => //= x; split; real_solver. 
+    - apply SeriesC_correct.
+      eapply ex_expval_bounded; real_solver.
+    - exists (prim_step ρ.1 ρ.2 a * 1).
+      real_solver.
+    - apply Rmult_le_compat_l => //=. 
+      apply Rplus_le_compat_l.
+      pose proof (pexec_mass_mono n a).
+      real_solver.
+    - apply Rmult_le_pos => //=. 
+    - rewrite mon_sup_succ; intros; last by apply Rplus_le_compat_l; pose proof (pexec_mass_mono n ρ); real_solver.
+      do 2 f_equal. apply functional_extensionality => ?.
+      setoid_rewrite Rmult_minus_distr_l.
+      rewrite SeriesC_minus; [|apply ex_expval_const| eapply ex_expval_bounded; real_solver].
+      rewrite pexec_Sn step_or_final_no_final; last by apply reducible_not_final.
+      rewrite dbind_mass. do 2 f_equal; auto.
+      rewrite SeriesC_scal_r prim_step_mass //=. 
+      real_solver.
+  Qed.
 
   Lemma err_lb_step (ρ : cfg Λ) (φ : val Λ → Prop) :
     reducible ρ →
@@ -203,6 +251,44 @@ Section err_lb_lang.
     - rewrite stuck_prob_step //= (err_prob_step ρ φ) //=.
     - eapply ex_expval_bounded => x. split; [apply stuck_prob_nn | apply stuck_prob_le_1]. 
     - eapply ex_expval_bounded => x. split; [apply prob_ge_0 | apply prob_le_1]. 
+  Qed.
+
+
+  Lemma err_lb_combine (ρ : cfg Λ) (φ : val Λ → Prop) :  
+    err_lb φ ρ = ((Sup_seq (λ n, 1 - SeriesC (pexec n ρ) + prob (exec n ρ) (λ v, Datatypes.negb $ bool_decide (φ v)))):R).
+  Proof.  
+    Local Opaque SeriesC.
+    assert (∀ n (x : cfg Λ), 0 <= 1 - SeriesC (pexec n x)); first by intros; pose proof (pmf_SeriesC (pexec n x)); real_solver. 
+    assert (∀ n (x : cfg Λ), 1 - SeriesC (pexec n x) <= 1); first by intros; pose proof (pmf_SeriesC_ge_0 (pexec n x)); real_solver.
+    assert (is_finite (Sup_seq (λ x : nat, prob (exec x ρ) (λ v : val Λ, negb (bool_decide (φ v)))))). 
+    { 
+      apply (Rbar_le_sandwich 0 1).
+      - apply (Sup_seq_minor_le _ _ 0%nat)=>/=. apply prob_ge_0.
+      - apply upper_bound_ge_sup=>/=. intros. apply prob_le_1.
+    }
+    rewrite /err_lb /stuck_prob /err_prob.
+    erewrite Sup_seq_bounded_plus_sup => //=; intros; first last.
+    - apply SeriesC_le; last by apply ex_seriesC_filter_bool_pos. 
+      split; first by real_solver.
+      case_bool_decide; simpl; first by lra.
+      by pose proof (exec_mono ρ n n0).
+    - apply Rplus_le_compat_l.
+      pose proof (pexec_mass_mono n ρ).
+      real_solver.
+    - split; [apply prob_ge_0 | apply prob_le_1].
+    - exact 0.
+    - f_equal. 
+      apply Rle_antisym.
+      + apply lim_exec_continuous_prob => n. 
+        apply rbar_le_finite => //=; by apply (sup_is_upper_bound (λ x : nat, prob (exec x ρ) (λ v : val Λ, negb (bool_decide (φ v))))). 
+      + apply finite_rbar_le => //=.
+        apply upper_bound_ge_sup => n //=.
+        apply SeriesC_le; last by apply ex_seriesC_filter_bool_pos.
+        intros. split; first by real_solver.
+        case_bool_decide; simpl; first by lra.
+        rewrite lim_exec_unfold.
+        apply rbar_le_finite => //=; first by apply is_finite_Sup_seq_exec.
+        by apply (sup_is_upper_bound (λ n1 : nat, exec n1 ρ n0)).
   Qed.
 
 End err_lb_lang.

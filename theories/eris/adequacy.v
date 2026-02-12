@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import erasure notation.
-From clutch.common Require Export language erasable exec.
+From clutch.common Require Export language erasable exec exec_probs.
 From clutch.base_logic Require Import error_credits.
 From clutch.eris Require Import weakestpre primitive_laws.
 From clutch.prob Require Import distribution.
@@ -523,6 +523,240 @@ Section adequacy.
         by iApply (glm_erasure_safety with "H").
   Qed.
 
+  Lemma err_prob_ge_0 {δ} (ρ : mstate δ) n φ: 
+    0 <= 1 - SeriesC (pexec n ρ) + prob (exec n ρ) (λ v, Datatypes.negb $ bool_decide (φ v)).
+  Proof.
+    assert (SeriesC (pexec n ρ) - prob (exec n ρ) (λ v, Datatypes.negb $ bool_decide (φ v)) <= 1); last real_solver.
+    rewrite exec_pexec_relate prob_dbind -SeriesC_minus //=; try real_solver; 
+    last by eapply ex_expval_bounded => a; split; [apply prob_ge_0 | apply prob_le_1].
+    setoid_rewrite <- (Rmult_1_r (pexec _ _ _)) at 1. 
+    setoid_rewrite <- Rmult_minus_distr_l.
+    trans (SeriesC (pexec n ρ)); last done.
+    apply SeriesC_le => //= x.
+    split.
+    - case_match. 
+      + apply Rmult_le_pos => //=; apply Rle_0_le_minus, prob_le_1. 
+      + rewrite /prob SeriesC_0; real_solver.
+    - rewrite <- (Rmult_1_r (pexec _ _ _)) at 2.
+      apply Rmult_le_compat_l => //=.
+      epose proof (prob_ge_0). real_solver.
+  Qed.
+  
+  Lemma err_prob_le_1 {δ} (ρ : mstate δ) n φ: 
+    1 - SeriesC (pexec n ρ) + prob (exec n ρ) (λ v, Datatypes.negb $ bool_decide (φ v)) <= 1.
+  Proof.
+    assert (0 <= SeriesC (pexec n ρ) - prob (exec n ρ) (λ v, Datatypes.negb $ bool_decide (φ v))); last real_solver.
+    rewrite exec_pexec_relate prob_dbind -SeriesC_minus //=; try real_solver;
+    last by eapply ex_expval_bounded => a; split; [apply prob_ge_0 | apply prob_le_1].
+    apply SeriesC_ge_0' => x; pose proof (pmf_pos (pexec n ρ) x).
+    case_match.
+    - destruct (decide (φ m)); [rewrite prob_dret_false| rewrite prob_dret_true]; real_solver.
+    - rewrite /prob SeriesC_0; real_solver.
+  Qed.
+
+  Lemma glm_erasure_adequate (e : expr) (σ : state) (n : nat) (ε : nonnegreal) φ:
+    to_val e = None →
+    glm e σ ε (λ '(e', σ') (ε' : nonnegreal), 
+                |={∅}▷=>^(S n) ⌜1 - SeriesC (iterM n prim_step_or_val (e', σ')) + prob (exec n (e', σ')) (λ v, Datatypes.negb (bool_decide (φ v))) <= ε'⌝)
+    ⊢ |={∅}▷=>^(S n) ⌜1 - SeriesC (iterM (S n) prim_step_or_val (e, σ)) + prob (exec (S n) (e, σ)) (λ v, Datatypes.negb (bool_decide (φ v))) <= ε⌝.
+  Proof.
+    iIntros (Hv) "Hexec".
+    iAssert (⌜to_val e = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
+    rewrite /glm/glm'. 
+    set (Φ := (λ '((e1, σ1), ε''),
+                (⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
+                 ⌜1 - SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) + prob (exec (S n) (e1, σ1)) (λ v, Datatypes.negb (bool_decide (φ v))) <= ε''⌝)%I) :
+           prodO cfgO NNRO → iPropI Σ).
+    assert (NonExpansive Φ).
+    { intros m ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
+    set (F := (glm_pre (λ '(e', σ') (ε' : nonnegreal), |={∅}▷=>^(S n)
+                ⌜1 - SeriesC (iterM n prim_step_or_val (e', σ')) + prob (exec n (e', σ')) (λ v, Datatypes.negb (bool_decide (φ v))) <= ε'⌝))%I).
+    iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
+    {
+      iIntros "Hfix %".
+      iMod ("H" $! ((_, _)) with "Hfix [//]"). done.
+    }
+    clear.
+    iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
+    iIntros " [ H | [ (%R1 & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H]] %Hv".
+    - iApply (step_fupdN_mono _ _ _ (⌜∀ ε', ε'' < ε'  -> 1 - SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) + prob (exec (S n) (e1, σ1)) (λ v, Datatypes.negb (bool_decide (φ v))) <= ε'⌝%I )).
+      { 
+        apply pure_mono.
+        intros ?.
+        apply real_le_limit.
+        intros ε Hε.
+        rewrite Rcomplements.Rle_minus_l.
+        apply H.
+        lra.
+      }
+      iIntros (ε' Hε').
+      iMod ("H" $! (mknonnegreal ε' _) with "[]") as "H".
+      {
+        iPureIntro.
+        simpl in *. simpl.
+        lra.
+      }
+      iApply step_fupd_fupdN_S.
+      iDestruct (exec_stutter_compat_1 with "[][$]") as "[%H'|H2]".
+      { iIntros (???) "H %".
+        iDestruct ("H" with "[//]") as "H".
+        iApply step_fupdN_mono; last done.
+        iPureIntro. intros. trans ε; auto. }
+        + iApply step_fupdN_intro; first done.
+          iPureIntro. 
+          trans 1; last real_solver.
+          apply (err_prob_le_1 (e1, σ1) (S n) φ). 
+        + iDestruct ("H2" with "[//]") as "H2". done.
+    - iApply (step_fupdN_mono _ _ _ (⌜∀ ρ, R1 ρ -> 1 - SeriesC (iterM n prim_step_or_val ρ) + prob (exec n ρ) (λ v, Datatypes.negb (bool_decide (φ v))) <= (ε2 ρ)⌝)).
+      { 
+        apply pure_mono.
+        intros H1.
+        rewrite /dbind/dbind_pmf{1}/pmf //=. 
+        setoid_rewrite prim_step_or_val_no_val; last done. 
+        rewrite /pgl in Hlift. rewrite /prob in Hlift.
+        rewrite distr_double_swap. setoid_rewrite SeriesC_scal_l.
+        erewrite <-prim_step_mass; last by eapply Hred. 
+        rewrite Hv -SeriesC_minus //=; last by eapply ex_expval_bounded; real_solver.
+        rewrite prob_dbind. 
+        setoid_rewrite <- (Rmult_1_r (prim_step e1 σ1 _)) at 1. 
+        setoid_rewrite <- Rmult_minus_distr_l.
+        rewrite -SeriesC_plus //=; 
+        last by eapply ex_expval_bounded => ?; split; [apply prob_ge_0 | apply prob_le_1].
+        2 : { eapply ex_expval_bounded => ?; split; [by apply Rle_0_le_minus | real_solver]. }
+        setoid_rewrite <- Rmult_plus_distr_l. 
+        etrans; last eauto.
+        etrans; last by eapply Rplus_le_compat_r.
+        rewrite <-SeriesC_plus; [ | by apply ex_seriesC_filter_bool_pos | by eapply ex_expval_bounded].
+        apply SeriesC_le; last by apply ex_seriesC_plus; [by apply ex_seriesC_filter_bool_pos| by eapply ex_expval_bounded].
+        intros. split; first by apply Rmult_le_pos => //=; pose proof (err_prob_ge_0 n0 n φ); unfold pexec in H0.
+        case_bool_decide => /=.
+        - pose proof (H1 _ H0). rewrite Rplus_0_l. apply Rmult_le_compat_l => //=. 
+        - trans (prim_step e1 σ1 n0).
+          + rewrite <- (Rmult_1_r (prim_step e1 σ1 _)) at 1; apply Rmult_le_compat_l => //=. 
+            pose proof (err_prob_le_1 n0 n φ). by unfold pexec in H0.
+          + rewrite <- (Rplus_0_r (prim_step e1 σ1 _)). apply Rplus_le_compat_l. 
+            real_solver.
+      }
+      iIntros ([e s] ?).
+      iMod ("H" with "[//]") as "H".
+      iDestruct (exec_stutter_compat_1 with "[][$]") as "[%H'|H]".
+      { iIntros.
+        iApply step_fupdN_mono; last done.
+        iPureIntro. intros. trans ε; real_solver.
+      }
+      + iApply step_fupdN_intro; first done.
+        iPureIntro.
+        trans 1; auto.
+        apply (err_prob_le_1 (e, s) n φ). 
+      + done.
+    - iDestruct (big_orL_mono _ (λ _ _,
+                     |={∅}▷=>^(S n)
+                       ⌜1 - SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) + prob (exec (S n) (e1, σ1)) (λ v, Datatypes.negb (bool_decide (φ v))) <= ε''⌝)%I
+                  with "H") as "H".
+      { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & (%r & %Hε'') & %Hleq & %Hlift & H)".  
+        iApply (step_fupdN_mono _ _ _ (⌜∀ σ2, R2 σ2 -> 1 - SeriesC (iterM (S n) prim_step_or_val (e1, σ2)) + prob (exec (S n) (e1, σ2)) (λ v, Datatypes.negb (bool_decide (φ v))) <= (ε2 (e1, σ2))⌝)).
+        {
+          iPureIntro.
+          intros H.
+          assert (SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) =
+                  SeriesC (state_step σ1 α ≫= λ σ1', iterM (S n) prim_step_or_val (e1, σ1'))) as ->.
+          { erewrite (SeriesC_ext _ (pexec (S n) (e1, σ1))); last first.
+            { rewrite /pexec. done. }
+            erewrite (SeriesC_ext (_≫=_) (_≫=λ σ1', pexec (S n) (e1, σ1'))); last first.
+            { rewrite /pexec. done. }
+            rewrite -!(dmap_mass _ (λ x, x.1)).
+            eapply Rcoupl_mass_eq.
+            rewrite /=/get_active elem_of_elements elem_of_dom in Hα.
+            destruct Hα as [??].
+            by eapply pexec_coupl_step_pexec.
+          }
+          assert (exec (S n) (e1, σ1) = state_step σ1 α ≫= λ σ1', exec (S n) (e1, σ1')) as Hexec_eq.
+          { apply Rcoupl_eq_elim.
+            rewrite /=/get_active elem_of_elements elem_of_dom in Hα.
+            destruct Hα as [??].
+            by eapply prim_coupl_step_prim.
+          }
+          rewrite dbind_mass Hexec_eq prob_dbind.
+          rewrite /pgl in Hlift. rewrite /prob in Hlift.
+          erewrite <-state_step_mass; last first.
+          { rewrite /get_active in Hα. rewrite elem_of_elements in Hα. done. }
+          rewrite -SeriesC_minus //=; last by eapply ex_expval_bounded; real_solver.
+          setoid_rewrite <- (Rmult_1_r (state_step σ1 α _)) at 1.
+          setoid_rewrite <- Rmult_minus_distr_l.
+          rewrite -SeriesC_plus //=;
+            last by eapply ex_expval_bounded => ?; split; [apply prob_ge_0 | apply prob_le_1].
+            2 : { eapply ex_expval_bounded => ?; split; [by apply Rle_0_le_minus | real_solver]. }
+          setoid_rewrite <- Rmult_plus_distr_l.
+          etrans; last eauto.
+          etrans; last by eapply Rplus_le_compat_r.
+          rewrite <-SeriesC_plus; [ | by apply ex_seriesC_filter_bool_pos | by eapply ex_expval_bounded].
+          apply SeriesC_le; last by apply ex_seriesC_plus; [by apply ex_seriesC_filter_bool_pos| by eapply ex_expval_bounded].
+          intros x; split; first by apply Rmult_le_pos => //=; pose proof (err_prob_ge_0 (e1, x) (S n) φ); unfold pexec in H0.
+          case_bool_decide => /=.
+          - pose proof (H _ H0). rewrite Rplus_0_l. apply Rmult_le_compat_l => //=.
+          - trans (state_step σ1 α x).
+            + rewrite <- (Rmult_1_r (state_step σ1 α _)) at 2. 
+              apply Rmult_le_compat_l => //=.
+              pose proof (err_prob_le_1 (e1, x) (S n) φ). by unfold pexec in H0.
+            + rewrite <- (Rplus_0_r (state_step σ1 α _)) at 1. 
+              apply Rplus_le_compat_l. real_solver. 
+        }
+        iIntros (e s).
+        iApply step_fupd_fupdN_S.
+        iMod ("H" with "[//]") as "H"; iModIntro.
+        iDestruct (exec_stutter_compat_1 with "[][$]") as "[%H'|H]".
+        { iIntros (???) "H %".
+          iDestruct ("H" with "[//]") as "H".
+          iApply step_fupdN_mono; last done.
+          iPureIntro. intros. trans ε; real_solver.
+        }
+        + iApply step_fupdN_intro; first done.
+          iPureIntro.
+          trans 1; auto.
+          apply (err_prob_le_1 _ (S n) φ). 
+        + by iDestruct ("H" with "[//]") as "H". 
+      }
+      iInduction (language.get_active σ1) as [| α] "IH"; [done|].
+      rewrite big_orL_cons.
+      iDestruct "H" as "[H | Ht]"; [done|].
+      by iApply "IH". 
+    Unshelve.
+    trans ε''; try lra. apply cond_nonneg.
+  Qed.
+
+  Theorem wp_adequate_step_fupdN (ε : nonnegreal) (e : expr) (σ : state) n φ :
+    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
+    |={⊤,∅}=> |={∅}▷=>^n ⌜ 1 - SeriesC (pexec n (e, σ)) + prob (exec n (e, σ)) (λ v, Datatypes.negb $ bool_decide (φ v)) <= ε⌝.
+  Proof.
+    iInduction n as [|n] "IH" forall (e σ ε); iIntros "((Hσh & Hσt) & Hε & Hwp)".
+    - iPoseProof (wp_refRcoupl_step_fupdN _ _ _ 0 with "[Hσh Hσt Hε Hwp]") as "H"; first iFrame.
+      rewrite /pexec /=. 
+      iMod "H" as "%". iModIntro. iPureIntro.
+      destruct (to_val e) eqn : He.
+      + rewrite /pgl in H. rewrite dret_mass. real_solver.
+      + pose proof (cond_nonneg ε).  
+        rewrite dret_mass /prob SeriesC_0; real_solver.  
+    - destruct (to_val e) eqn:Heq. 
+      {
+        iPoseProof (wp_refRcoupl_step_fupdN _ _ _ (S n) with "[Hσh Hσt Hε Hwp]") as "H"; first iFrame.
+        simpl. rewrite Heq /pgl pexec_is_final /is_final //= dret_mass Rminus_diag Rplus_0_l //=.
+      }
+      rewrite pgl_wp_unfold /pgl_wp_pre /= Heq.
+      iMod ("Hwp" with "[$]") as "Hlift".
+      iModIntro.
+      iPoseProof
+          (glm_mono _ (λ '(e2, σ2) ε', |={∅}▷=>^(S n)
+             ⌜1 - SeriesC (iterM n prim_step_or_val (e2, σ2)) + prob (exec n (e2, σ2)) (λ v : val, Datatypes.negb (bool_decide (φ v))) <= ε'⌝)%I
+            with "[%] [] Hlift") as "H".
+      { apply Rle_refl. }
+      { iIntros ([] ?) "H !> !>".
+          iMod "H" as "(Hstate & Herr_auth & Hwp)".
+          iMod ("IH" with "[$]") as "H".
+          iModIntro. done. }
+      iPoseProof (glm_erasure_adequate _ _ _ _ _ Heq with "H") as "Ht". 
+      rewrite /pexec //= Heq. iApply "Ht".
+  Qed.
+
 End adequacy.
 
 
@@ -693,12 +927,44 @@ Proof.
   by eapply (wp_safety Σ).
 Qed.
 
-(*
-  adequacy: 
+Theorem pgl_wp_adequacy Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ n :
   0 <= ε →
   (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
-  err_lb φ (e, σ) <= ε
+  1 - SeriesC (pexec n (e, σ)) + prob (exec n (e, σ)) (λ v, Datatypes.negb $ bool_decide (φ v)) <= ε.
 Proof.
-  
-Admitted.
-*)
+  intros Hε Hwp.
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
+  iIntros (Hinv) "_".
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
+  { iClear "Hh Ht".
+    iApply (fupd_mask_intro); [eauto|].
+    iIntros "_".
+    iApply step_fupdN_intro; [eauto|].
+    iApply laterN_intro; iPureIntro.
+    apply not_Rlt, Rge_le in Hcr.
+    trans 1; auto.
+    apply err_prob_le_1.
+  }
+  set ε' := mknonnegreal _ Hε.
+  iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
+  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
+  iApply (wp_adequate_step_fupdN ε'). iFrame.
+  iApply Hwp. done.
+Qed.
+
+Lemma pgl_wp_adequacy_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
+  0 <= ε →
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  err_lb φ (e, σ) <= ε.
+Proof.
+  intros Hε Hwp.
+  rewrite err_lb_combine.
+  apply Coquelicot_ext.finite_rbar_le.
+  - apply (Rbar_le_sandwich 0 1).
+    + apply (Lim_seq.Sup_seq_minor_le _ _ 0%nat)=>/=. apply (err_prob_ge_0 (e, σ) 0). 
+    + apply upper_bound_ge_sup=>/= n. apply (err_prob_le_1 (e, σ) n).  
+  - apply upper_bound_ge_sup => //= n.
+    by eapply pgl_wp_adequacy.
+Qed.

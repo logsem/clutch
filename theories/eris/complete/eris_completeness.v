@@ -230,3 +230,16 @@ Proof.
   iIntros (?) "Herr Hheap".
   iApply (pgl_sem_completeness with "[Herr] [Hheap]"); simpl; eauto.
 Qed. 
+
+
+Lemma pgl_wp_completeness `{erisGS Σ} e σ (φ : val → Prop) ε :
+  na e σ →
+  err_lb (δ := lang_markov prob_lang) φ (e, σ) <= ε → 
+  ↯ ε -∗
+  heap_inv σ -∗
+      WP e {{v, ⌜φ v⌝}}.
+Proof.
+  iIntros "%% Herr Hheap".
+  iPoseProof (ec_weaken with "Herr") as "Herr"; first by split; [eapply err_lb_nn |eauto].
+  by iApply (prob_lang_pgl_sem_completeness with "Herr Hheap").
+Qed. 
