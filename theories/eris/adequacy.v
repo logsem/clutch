@@ -954,7 +954,7 @@ Proof.
   iApply Hwp. done.
 Qed.
 
-Lemma pgl_wp_adequacy_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
+Corollary pgl_wp_adequacy_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
   0 <= ε →
   (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   err_lb φ (e, σ) <= ε.

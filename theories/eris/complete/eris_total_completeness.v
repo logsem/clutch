@@ -223,7 +223,7 @@ Next Obligation.
   by apply prob_lang_head_total_completeness.
 Defined.
 
-Lemma prob_lang_tgl_sem_completeness `{erisGS Σ} n e σ (φ : val → Prop) :
+Theorem prob_lang_tgl_sem_completeness `{erisGS Σ} n e σ (φ : val → Prop) :
   na e σ →
   ↯ (err_tlb (δ := lang_markov prob_lang) φ n (e, σ)) -∗
   heap_inv σ -∗
@@ -233,7 +233,7 @@ Proof.
   iApply (tgl_sem_completeness with "[Herr] [Hheap]"); simpl; eauto.
 Qed. 
 
-Theorem tgl_twp_completeness `{erisGS Σ} e (φ : val → Prop) ε σ :
+Corollary tgl_twp_completeness `{erisGS Σ} e (φ : val → Prop) ε σ :
   na e σ →
   tgl (lim_exec (e, σ)) φ ε →
   heap_inv σ -∗

@@ -221,7 +221,7 @@ Next Obligation.
   by apply prob_lang_head_completeness.
 Defined.
 
-Lemma prob_lang_pgl_sem_completeness `{erisGS Σ} e σ (φ : val → Prop) :
+Theorem prob_lang_pgl_sem_completeness `{erisGS Σ} e σ (φ : val → Prop) :
   na e σ →
   ↯ (err_lb (δ := lang_markov prob_lang) φ (e, σ)) -∗
   heap_inv σ -∗
@@ -231,8 +231,7 @@ Proof.
   iApply (pgl_sem_completeness with "[Herr] [Hheap]"); simpl; eauto.
 Qed. 
 
-
-Lemma pgl_wp_completeness `{erisGS Σ} e σ (φ : val → Prop) ε :
+Corollary pgl_wp_completeness `{erisGS Σ} e σ (φ : val → Prop) ε :
   na e σ →
   err_lb (δ := lang_markov prob_lang) φ (e, σ) <= ε → 
   ↯ ε -∗
