@@ -2116,6 +2116,30 @@ Section urn.
       simplify_map_eq.
   Qed. 
 
+
+  Lemma urns_f_distr_lookup m l u f:
+    is_valid_urn u -> 
+    m!! l = Some u -> 
+    (urns_f_distr m f > 0)%R ->
+    ∃ z, f!!l=Some z /\
+    match u with
+    | urn_unif s => z ∈ s
+    | urn_laplace num den l => True
+    end.
+  Proof.
+    intros H1 H2 H3.
+    erewrite <-(insert_delete _ _) in H3; last done.
+    rewrite urns_f_distr_insert in H3; last done; last by simplify_map_eq.
+    inv_distr.
+    simplify_map_eq.
+    unfold urns_f_distr_compute_distr, urns_f_distr_compute, pmf in *.
+    destruct u.
+    - case_bool_decide.
+      + naive_solver.
+      + lra.
+    - naive_solver.
+  Qed. 
+  
   Lemma urns_f_distr_insert_no_change m l u:
     (match m!!l with
      | None => True

@@ -26,7 +26,8 @@ Section encr.
     - simpl. by erewrite typed_remove_drand_expr.
     - apply Rdiv_INR_ge_0.
     - rewrite /prog'.
-      iIntros (?) "Herr".
+      iIntros (? Φ).
+      iModIntro. iIntros "Herr HΦ".
       iPoseProof (typed_safe _ [] _ Htyped) as "H".
       wp_bind (f).
       iApply (pgl_wp_wand); first done.
@@ -126,7 +127,8 @@ Section encr.
           } 
           (* guess is out of bound *)
           iIntros.
-          wp_pures. by wp_pures.
+          wp_pures. wp_pures.
+          by iApply "HΦ".
         * do 3 wp_pure.
           wp_bind (Val _).
           wp_apply (wp_value_promotion _ (false) (True)%I with "[Hl][-]").
@@ -174,6 +176,7 @@ Section encr.
                destruct!/=. lia.
           }
           iIntros.
-          by repeat wp_pures.
+          repeat wp_pures.
+          by iApply "HΦ".
   Qed. 
 End encr.

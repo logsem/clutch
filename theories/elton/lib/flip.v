@@ -87,19 +87,37 @@ Section specs.
     (rupd (λ x, x=LitBool b) (flip_urn l {[b]}) ((flip_v l))).
   Proof.
     iIntros "H".
-  Admitted. 
-    
+    rewrite rupd_unseal/rupd_def.
+    iIntros (?) "[? H']".
+    iSplit; last iFrame.
+    rewrite /flip_urn.
+    rewrite set_map_singleton_L.
+    iIntros (f Hpos).
+    iDestruct (ghost_map_lookup with "H' H") as "%Hlookup".
+    eapply urns_f_distr_lookup in Hlookup as H'; try done.
+    destruct H' as (?&H1 &H2).
+    simpl.
+    rewrite H1. simpl.
+    iPureIntro.
+    eexists _; split; last done.
+    set_unfold in H2.
+    subst.
+    by destruct b.
+  Qed.     
   
-  Local Lemma test E x:
-    base_lit_type_check x = Some BLTBool->
-    is_simple_base_lit x = false ->
-    {{{ True }}} #x=#x @E{{{RET #(true); True }}}.
-  Proof.
-    iIntros (H' H'' Φ) "HΦ _".
-    (** Need a lemma to allow delay at the end *)
-    wp_pure.
-    - rewrite /bin_op_eval//=.
-      rewrite H'. repeat case_match; simplify_eq; done.
-    - admit. 
-  Admitted. 
+  (* Local Lemma test E x: *)
+  (*   base_lit_type_check x = Some BLTBool-> *)
+  (*   is_simple_base_lit x = false -> *)
+  (*   {{{ True }}} #x=#x @E{{{RET #(true); True }}}. *)
+  (* Proof. *)
+  (*   iIntros (H' H'' Φ) "HΦ _". *)
+  (*   rewrite -(fill_empty (_=_)). *)
+  (*   iApply pgl_wp_bind. *)
+  (*   (** Need a lemma to allow delay at the end *) *)
+  (*   wp_pure. *)
+  (*   - rewrite /bin_op_eval//=. *)
+  (*     rewrite H'. repeat case_match; simplify_eq; done. *)
+  (*   - simpl. *)
+  (*     iApply *)
+  (* Admitted.  *)
 End specs.
