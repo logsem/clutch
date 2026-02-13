@@ -120,6 +120,7 @@ Section proofs.
       iApply "HΦ".
       by iFrame.
   Qed. 
-             
+
+  
 End proofs.
     

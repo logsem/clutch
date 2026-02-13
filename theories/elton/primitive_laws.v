@@ -195,7 +195,14 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
 
 
 Section lifting.
-Context `{!eltonGS Σ}.
+  Context `{!eltonGS Σ}.
+
+  Global Instance rupd_timeless P Q v {_:Timeless Q}: Timeless (rupd P Q v).
+  Proof.
+    rewrite rupd_unseal/rupd_def.
+    apply _.
+  Qed. 
+  
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.
