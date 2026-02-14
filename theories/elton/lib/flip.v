@@ -23,7 +23,13 @@ Section specs.
   Lemma flip_v_not_simple l:
     is_simple_base_lit (flip_v l) = false.
   Proof. done. Qed. 
-  
+
+  Lemma flip_v_support_set l:
+    base_lit_support_set (flip_v l) = {[l]}.
+  Proof.
+    rewrite /flip_v/=. set_solver.
+  Qed. 
+    
   Lemma wp_dflip E:
     {{{ True }}} dflip #()@E{{{l, RET #(flip_v l); flip_urn l {[true; false]}}}}.
   Proof.
