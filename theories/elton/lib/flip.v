@@ -1,9 +1,10 @@
+
 From clutch.elton Require Import elton. 
 
-Definition flip := (λ: "x", rand #1=#1)%E.
-Definition dflip :=(λ: "x", drand #1=#1)%E.
+Definition flip :val := (λ: "x", rand #1=#1).
+Definition dflip:val :=(λ: "x", drand #1=#1).
 Lemma flip_dflip:
-  remove_drand_expr dflip = Some flip.
+  remove_drand_expr dflip = Some (Val flip).
 Proof. done. Qed.
 
 Section specs.
