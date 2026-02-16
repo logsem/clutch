@@ -9,8 +9,8 @@ Section pupd.
   Definition pupd_def E1 E2 P:=
     (|={E1, ∅}=>∀ e1 σ1 ε1,
        state_interp σ1 ∗ err_interp ε1 -∗
-       state_step_coupl e1 σ1 ε1 (λ e2 σ2 ε2,state_interp σ2 ∗ err_interp ε2 ∗ ⌜e1 = e2 ⌝ ∗ 
-                                 |={∅, E2}=> P
+       state_step_coupl e1 σ1 ε1 (λ e2 σ2 ε2, |={∅}=> (state_interp σ2 ∗ err_interp ε2 ∗ ⌜e1 = e2 ⌝ ∗ 
+                                 |={∅, E2}=> P)
          )
     )%I.
   
@@ -38,7 +38,7 @@ Section pupd.
     iIntros "Hclose".
     iIntros "% % % [??]".
     iApply state_step_coupl_ret.
-    iFrame. iSplit; first done.
+    iFrame. iModIntro. iSplit; first done.
     by iMod "Hclose".
   Qed.
 
@@ -67,7 +67,10 @@ Section pupd.
     iIntros (e1 σ1 ε1) "(H1 & H2)".
     iDestruct ("H" with "[$]") as "H".
     iApply (state_step_coupl_mono with "[Hvs][$]").
-    iIntros (???) "(?&?&?&H)".
+    iIntros (???).
+    iIntros ">H".
+    iModIntro.
+    iDestruct "H" as "(?&?&?&H)".
     iFrame.
     iMod "H".
     by iApply "Hvs".
@@ -86,8 +89,12 @@ Section pupd.
     iIntros. 
     iDestruct ("H" with "[$]") as "H".
     iApply (state_step_coupl_bind with "[Hclose][$]").
-    iIntros (???) "(?&?&?&H)". iApply state_step_coupl_ret.
+    iIntros (???) "H".
+    iApply fupd_state_step_coupl.
+    iMod "H" as "(?&?&?&H)". iApply state_step_coupl_ret.
     iFrame.
+    iModIntro.
+    iModIntro.
     iMod "H".
     by iMod "Hclose".
   Qed.
@@ -159,7 +166,9 @@ Section pupd.
     iModIntro.
     iIntros.
     iApply state_step_coupl_mono; last by iApply "H".
-    iIntros (???) "(?&?&?&H)".
+    iIntros (???) "H".
+    iMod "H" as "(?&?&?&H)".
+    iModIntro.
     iFrame.
     iMod "H".
     by iApply fupd_mask_intro_subseteq.
@@ -174,8 +183,9 @@ Section pupd.
     iIntros (???) "(?&?)".
     iDestruct ("H1" with "[$]") as "H1".
     iApply (state_step_coupl_bind with "[H2][$]").
-    iIntros (???) "(?&?&->&H)".
+    iIntros (???) "H".
     iApply fupd_state_step_coupl.
+    iMod "H" as "(?&?&->&H)".
     iMod "H".
     by iMod ("H2" with "[$][$]").
   Qed.
@@ -206,10 +216,14 @@ Section pupd.
       iDestruct ("H1" with "[$]") as "H1".
       iApply (state_step_coupl_bind with "[H2][$]").
       iIntros (???) "H".
-      iApply state_step_coupl_ret.
-      iDestruct "H" as "($&$&->&>H)".
-      iApply "H2".
+      iApply fupd_state_step_coupl.
+      iMod "H" as "(H3&H4&->&H)".
       iModIntro.
+      iApply state_step_coupl_ret.
+      iFrame "H3 H4".
+      iMod "H".
+      iModIntro.
+      iApply "H2".
       iApply "H".
     - iApply fupd_mask_intro; first exact; iIntros "Hclose"; iMod "H1"; iMod "Hclose"; by iModIntro.
     - iApply state_step_coupl_wp.
@@ -220,10 +234,14 @@ Section pupd.
       iDestruct ("H1" with "[$]") as "H1".
       iApply (state_step_coupl_bind with "[H2][$]").
       iIntros (???) "H".
-      iApply state_step_coupl_ret.
-      iDestruct "H" as "($&$&->&>H)".
-      iApply "H2".
+      iApply fupd_state_step_coupl.
+      iMod "H" as "(H3&H4&->&H)".
       iModIntro.
+      iApply state_step_coupl_ret.
+      iFrame "H3 H4".
+      iMod "H".
+      iModIntro.
+      iApply "H2".
       iApply "H".
     - iApply fupd_mask_intro; first exact; iIntros "Hclose"; iMod "H1"; iMod "Hclose"; by iModIntro.
   Qed.
@@ -340,7 +358,7 @@ Section pupd.
     iApply (state_step_coupl_bind with "[][$]").
     iIntros (???) "H".
     iApply state_step_coupl_ret.
-    iDestruct ("H") as "($&$&<-&>?)".
+    iMod ("H") as "($&$&<-&>?)".
     by iFrame. 
   Qed.
 

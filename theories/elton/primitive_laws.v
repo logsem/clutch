@@ -213,9 +213,9 @@ Lemma pupd_epsilon_err E:
   ⊢ pupd E E (∃ ε, ⌜(0<ε)%R⌝ ∗ ↯ ε)%I.
 Proof.
   rewrite pupd_unseal/pupd_def.
-  iIntros (?? ε) "(Hstate& Herr)".
   iApply fupd_mask_intro; first set_solver.
   iIntros "Hclose".
+  iIntros (?? ε) "(Hstate& Herr)".
   iApply state_step_coupl_ampl.
   iIntros (ε' ?).
   destruct (decide (ε'<1)%R); last first.
@@ -228,10 +228,14 @@ Proof.
   replace (ε') with (ε + diff)%NNR; last (apply nnreal_ext; rewrite /diff; simpl; lra).
   iMod (ec_supply_increase _ diff with "[$]") as "[??]".
   { rewrite /diff. simpl. simpl in *. lra. }
-  iFrame. iMod "Hclose". iPureIntro.
+  iFrame. iMod "Hclose".
+  iApply fupd_mask_intro; first set_solver.
+  iIntros "Hclose'".
+  iSplit; first done.
+  iMod "Hclose'".
+  iPureIntro.
   rewrite /diff.
   simpl.
-  split; first done.
   lra.
 Qed.
 
@@ -246,11 +250,11 @@ Lemma pupd_resolve_urn s ε (ε2 : _ -> nonnegreal) l E:
 Proof.
   rewrite pupd_unseal/pupd_def.
   iIntros (Hs Hineq [r Hbound]) "Herr Hl".
+  iApply fupd_mask_intro; first set_solver.
+  iIntros "Hclose".
   iIntros (?[] ε') "([Hs Hu]& Herr')".
   iDestruct (ghost_map_lookup with "Hu [$]") as %?.
   iDestruct (ec_supply_ec_inv with "[$][$]") as %(x&x'& -> & He).
-  iApply fupd_mask_intro; first set_solver.
-  iIntros "Hclose".
   iApply state_step_coupl_rec_complete_split.
   pose (ε2' := λ x,  (ε2 x + x')%NNR ).
   assert (∀ x, 0<=ε2' x)%R as Hnnr; first (intros; apply cond_nonneg). 
@@ -304,9 +308,11 @@ Proof.
   { iApply ec_supply_eq; [|done]. simplify_eq. lra. }
   iFrame.
   subst.
-  iMod "Hclose".
-  iModIntro. iSplit; last done.
-  iApply ec_supply_eq; [|done]. simplify_eq. simpl. simpl in *. lra.
+  iModIntro.
+  iSplitL "Hε2".
+  - iApply ec_supply_eq; [|done]. simplify_eq. simpl. simpl in *. lra.
+  - iSplit; first done.
+    iMod "Hclose". by iPureIntro.
 Qed.
 
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
@@ -320,9 +326,9 @@ Lemma wp_value_promotion (v v':base_lit) P Φ s E:
 Proof.
   iIntros "H1 H2".
   iApply state_step_coupl_wp.
-  iIntros (??) "[??]".
   iApply fupd_mask_intro; first set_solver.
   iIntros "Hclose".
+  iIntros (??) "[??]".
   iApply state_step_coupl_value_promote.
   iExists [], (LitV v), (LitV v').
   simpl.

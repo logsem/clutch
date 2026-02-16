@@ -41,17 +41,17 @@ Section adequacy.
     expr_support_set e ⊆ urns_support_set (urns σ) ->
     map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
     map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
-    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜is_simple_val v = true /\ ϕ v⌝ }} ⊢
-    |={⊤,∅}=>|={∅}▷=>^n ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+    state_interp σ ∗ err_interp (ε) ∗ wp' ∅ e (λ v, |={∅,⊤}=>⌜is_simple_val v = true /\ ϕ v⌝) ⊢
+    |={∅}=>|={∅}▷=>^n ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
                        d_proj_Some (urn_subst_expr f e) ≫= λ e',
                          d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
                            exec n (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
   Proof.
     iIntros (<-%of_to_val He Hset Hforall1 Hforall2) "(?&?&Hwp)".
-    rewrite pgl_wp_unfold/pgl_wp_pre.
+    rewrite wp'_unfold /pgl_wp_pre.
     iMod ("Hwp" with "[$]") as "H"; simpl.
-    iRevert (Hset Hforall1 Hforall2).
     remember (Val v) as e eqn:Heqe.
+    iRevert (Hset Hforall1 Hforall2).
     rewrite Heqe in He.
     iRevert (v Heqe He).
     iRevert "H".
@@ -61,7 +61,7 @@ Section adequacy.
     iIntros (???) "[%|[H|[H|[H|H]]]] %v -> %He %Hset %Hforall1 %Hforall2"; subst.
     - iApply step_fupdN_intro; first done.
       iPureIntro. by apply pgl_1.
-    - iMod "H" as "(?&?&[%Hsimple %])".
+    - simpl. iMod "H" as "(?&?&>[%Hsimple %])".
       iApply step_fupdN_intro; first done.
       iApply fupd_mask_intro; first set_solver.
       iIntros.
@@ -351,8 +351,10 @@ Section adequacy.
                            exec n (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
   Proof.
     iIntros (He Hsubset Hforall1 Hforall2).
-    iInduction n as [|n] "IH" forall (e σ ε He Hsubset Hforall1 Hforall2);
-      iIntros "((Hσh & Hσt) & Hε & Hwp)".
+    iIntros "((Hσh & Hσt)&Hε&Hwp)".
+    rewrite pgl_wp_unfold.
+    iMod "Hwp".
+    iInduction n as [|n] "IH" forall (e σ ε He Hsubset Hforall1 Hforall2) "Hσh Hσt Hε Hwp".
     - destruct (to_val e) eqn:Heqn.
       + apply of_to_val in Heqn as <-.
         iApply wp_elton_adequacy_val; [done..|iFrame].
@@ -373,7 +375,7 @@ Section adequacy.
     - destruct (to_val e) eqn:Heqn.
       + apply of_to_val in Heqn as <-.
         iApply wp_elton_adequacy_val; [done..|iFrame].
-      + rewrite pgl_wp_unfold/pgl_wp_pre.
+      + rewrite wp'_unfold /pgl_wp_pre.
         iMod ("Hwp" with "[$]") as "Hwp".
         iSimpl in "Hwp".
         iDestruct (state_step_coupl_preserve with "[$]") as "Hwp"; [done..|].
@@ -401,8 +403,8 @@ Section adequacy.
         iApply (state_step_coupl_erasure with "[$]"); [done..|].
         clear He Hsubset Hforall1 Hforall2.
         iIntros (e4 σ4 ε4) "(%He&%Hsubset&%Hforall1&%Hforall2&Hwp)".
-        iMod "Hwp" as "?".
-        by iApply ("IH" with "[][][][]").
+        iMod "Hwp" as "([??]&?&?)".
+        by iApply ("IH" with "[][][][][$][$][$][$]").
   Qed. 
   
 End adequacy.
