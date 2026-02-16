@@ -32,7 +32,31 @@ Section lifting.
        ))
     ⊢ WP e1 @ s; E {{ Φ }}.
   Proof.
-    by rewrite pgl_wp_unfold /pgl_wp_pre. 
+    rewrite pgl_wp_unfold /pgl_wp_pre.
+    iIntros "H".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    rewrite wp'_unfold/pgl_wp_pre.
+    iIntros (??) "?".
+    iMod "Hclose".
+    iMod ("H" with "[$]") as "H".
+    iModIntro.
+    iApply (state_step_coupl_bind with "[][$]").
+    iIntros (???) "H".
+    iApply state_step_coupl_ret.
+    case_match.
+    { iMod "H" as "(?&?&?)". iFrame.
+      iApply fupd_mask_intro_subseteq; first set_solver.
+      done.
+    }
+    iApply (prog_coupl_mono with "[][$]").
+    iIntros (???) "H".
+    iNext.
+    iApply (state_step_coupl_bind with "[][$]").
+    iIntros (???) "H".
+    iApply state_step_coupl_ret.
+    iMod "H" as "(?&?&?)". iFrame.
+    by rewrite pgl_wp_unfold.
   Qed.
 
 
