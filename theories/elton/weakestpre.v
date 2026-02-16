@@ -1554,7 +1554,11 @@ Lemma pgl_wp_step_fupd s E1 E2 e P Φ :
 Proof.
   rewrite !pgl_wp_unfold /pgl_wp_pre.
   iIntros (H ?) "HR H".
-  iIntros (σ1 ε) "[Hσ Hε]". iMod "HR".
+  iMod "HR".
+  iMod "H".
+  iModIntro.
+  rewrite !wp'_unfold/pgl_wp_pre.
+  iIntros (σ1 ε) "[Hσ Hε]". 
   iMod ("H" with "[$Hσ $Hε]") as "H".
   iModIntro.
   rewrite state_step_coupl_preserve_to_val.
@@ -1566,50 +1570,27 @@ Proof.
   iIntros (???) "H!>".
   iApply (state_step_coupl_mono with "[-H]H").
   iIntros (???) ">(?&?&?)".
-  iMod "HR".
-  iFrame. iModIntro.
-  iApply (pgl_wp_strong_mono with "[$]"); first done.
-  iIntros (???) "(?&?&K)".
-  iApply state_step_coupl_ret.
+  iModIntro.
   iFrame.
-  iApply fupd_mask_intro; first set_solver.
-  iIntros ">_".
-  iMod ("K" with "[$]").
-  by iFrame. 
+  iApply (wp'_strong_mono with "[$]"); first done.
+  iIntros (?) ">H".
+  iMod "HR".
+  iMod ("H" with "[$]").
+  iApply fupd_mask_intro_subseteq; last done.
+  set_solver.
 Qed.
 
 Lemma pgl_wp_bind K s E e Φ :
   WP e @ s; E {{ v, WP (fill K (of_val v)) @ s; E {{ Φ }} }} ⊢ WP fill K e @ s; E {{ Φ }}.
 Proof.
-  iIntros "H". iLöb as "IH" forall (E e Φ). rewrite !pgl_wp_unfold /pgl_wp_pre.
-  iIntros (??) "[??]".
-  iMod ("H" with "[$]") as "H".
+  rewrite !pgl_wp_unfold.
+  iIntros ">?".
   iModIntro.
-  iApply (state_step_coupl_ctx_bind).
-  iApply (state_step_coupl_bind with "[][$]").
-  iIntros (e2 ??) "H".
-  destruct (to_val e2) as [v|] eqn:He.
-  { apply of_to_val in He as <-.
-    iApply fupd_state_step_coupl.
-    iMod "H" as "(?&?&H)".
-    rewrite pgl_wp_unfold /pgl_wp_pre.
-    iMod ("H" with "[$]").
-    by iApply state_step_coupl_ret.
-  }
-  iApply state_step_coupl_ret.
-  iApply state_step_coupl_ret. 
-  rewrite fill_not_val; last done.
-  iApply prog_coupl_ctx_bind; [done|..].
-  { iModIntro; iIntros. by iApply state_step_coupl_ret_err_ge_1. }
-  iApply (prog_coupl_mono with "[] [$]").
-  iIntros (???) "H!>".
-  iApply (state_step_coupl_ctx_bind).
-  iApply (state_step_coupl_mono with "[][$]").
-  iIntros (???) "H".
-  iApply state_step_coupl_ret.
-  iMod ("H") as "($&$&?)".
-  by iApply "IH".
-Qed. 
+  iApply wp'_bind.
+  iApply (wp'_strong_mono with "[$]"); first done.
+  iIntros (?) ">?".
+  by rewrite pgl_wp_unfold.
+Qed.
 
 (** * Derived rules *)
 Lemma pgl_wp_mono s E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
@@ -1730,7 +1711,7 @@ Section proofmode_classes.
   Qed.
 
   Global Instance elim_modal_fupd_pgl_wp_atomic p s E1 E2 e P Φ :
-    ElimModal (Atomic StronglyAtomic e) p false
+    ElimModal (True) p false
             (|={E1,E2}=> P) P
             (WP e @ s; E1 {{ Φ }}) (WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }})%I | 100.
   Proof.
