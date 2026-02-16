@@ -66,22 +66,21 @@ Section proofs.
     wp_pures.
     rewrite -/dflip.
     iMod (token_alloc) as (γ) "Htoken".
-    iMod ((inv_alloc (nroot.@"2") _ ((flip_urn l {[true; false]}) ∨ token γ))%I with "[$Hflip]") as "#Hinv'".
-    iMod (inv_alloc (nroot.@"1") _
-            ( ∃ (x:base_lit)(f:bool -> bool) l , ⌜Bij f⌝ ∗ loc ↦ #x ∗ ⌜base_lit_type_check x = Some BLTBool⌝ ∗
-                              □(∀ b, flip_urn l {[b]} -∗ rupd (λ x, x=f b) (flip_urn l {[b]}) x) ∗
-                             inv (nroot.@"2")((flip_urn l {[true; false]})
+    iMod (inv_alloc (nroot) _
+            ( ∃ (x:base_lit)(f:bool -> bool) , ⌜Bij f⌝ ∗ loc ↦ #x ∗ ⌜base_lit_type_check x = Some BLTBool⌝ ∗
+                              
+                             ((∃ l, (∀ b, flip_urn l {[b]} -∗ rupd (λ x, x=f b) (flip_urn l {[b]}) x) ∗ (flip_urn l {[true; false]}))
                                ∨ token γ))%I
-           with "[ Hl]") as "#Hinv"; first iFrame.
-    { iNext. iExists id. iFrame "Hinv'". repeat iSplit.
+           with "[ Hl Hflip]") as "#Hinv"; first iFrame.
+    { iNext. iExists id; repeat iSplit; last iLeft; iFrame.
       - iPureIntro.
         split. 
         + intros ???. by simplify_eq.
         + intros ?. naive_solver.
       - (iPureIntro; apply flip_v_type).
-      - iModIntro. 
-        iIntros. 
-        by iApply flip_v_promote. }
+      - iIntros.
+        by iApply flip_v_promote.
+    }
     wp_bind (v _)%E.
     rewrite refines_eq /refines_def.
     simpl.
@@ -98,21 +97,18 @@ Section proofs.
       wp_pures.
       iInv "Hinv" as "H1" "Hclose".
       repeat setoid_rewrite bi.later_exist.
-      iDestruct "H1" as "(%&%&%&H1)".
+      iDestruct "H1" as "(%&%&H1)".
       repeat rewrite bi.later_sep_1.
-      iDestruct "H1" as "(>%&>H1&>%&H2&H3)".
+      iDestruct "H1" as "(>%&>H1&>%&>?)".
       wp_store.
-    iMod ((inv_alloc (nroot.@"2") _ ((flip_urn _ {[true; false]}) ∨ token γ))%I with "[$Hflip']") as "#Hinv''".
-      iDestruct "H2" as "#H2".
-      iDestruct "H3" as "#H3".
-      iMod ("Hclose" with "[$H1 $Hinv'']"); last done.
+      iMod ("Hclose" with "[$H1 Hflip']"); last done.
       iExists id.
-      iNext.
-      repeat iSplit; try done.
+      repeat iSplit; last (iLeft; iExists _); iFrame; try done.
       - iPureIntro; split; apply _.
-      - iModIntro.
-        iIntros.
+      - iIntros.
         simpl.
+        iNext.
+        iIntros.
         by iApply flip_v_promote.
     }
     iIntros (v') "#Hinterp'".
@@ -126,35 +122,23 @@ Section proofs.
       subst.
       rewrite refines_eq /refines_def.
       wp_pure.
-      wp_bind (! _)%E.
-      iInv "Hinv" as "H1" "Hclose".
-      repeat setoid_rewrite bi.later_exist.
-      iDestruct "H1" as "(%x&%f&%&H1)".
-      repeat rewrite bi.later_sep_1.
-      iDestruct "H1" as "(>%&>H1&>%&H2&H3)".
+      iInv "Hinv" as ">(%x&%f&%&H1)" "Hclose".
+      iDestruct "H1" as "(H1&%&H2)".
       wp_load.
-      iDestruct "H2" as "#H2".
-      iDestruct "H3" as "#H3".
-      iMod ("Hclose" with "[$H1 $H2 $H3]"); first done.
-      iModIntro.
       wp_pures.
       destruct (decide (∃ b, x=LitBool b))as [[b]|].
       - destruct!/=. wp_pures. 
-        iInv "Hinv" as "H1" "Hclose".
-        repeat setoid_rewrite bi.later_exist.
-        iDestruct "H1" as "(%x&%&%&H1)".
-        repeat rewrite bi.later_sep_1.
-        iDestruct "H1" as "(>%Hbij&>H1&>%Htype&_&_)".
         wp_store.
-        iMod ("Hclose" with "[$H1]"); last done.
-        iFrame "H3".
+        iMod ("Hclose" with "[$H1 H2]"); last done.
+        iNext.
         iExists (negb ∘ f).
         repeat iSplit; try done.
         + iPureIntro.
           split.
           * apply _.
           * apply _.
-        + iNext. iModIntro.
+        + iDestruct "H2" as "[[%[H2 ?]]|H2]"; iFrame. iLeft.
+          iFrame.
           iIntros (b0)"?".
           iDestruct ("H2" with "[$]") as "H1".
           rewrite rupd_unseal/rupd_def.
@@ -166,18 +150,12 @@ Section proofs.
           destruct H2' as (?&?&?).
           subst.
           naive_solver.
-      - destruct!/=.
-        wp_pure.
+      - wp_pure.
         { simpl.
           rewrite H3. repeat case_match; naive_solver. }
-        iInv "Hinv" as "H1" "Hclose".
-        repeat setoid_rewrite bi.later_exist.
-        iDestruct "H1" as "(%&%&%&H1)".
-        repeat rewrite bi.later_sep_1.
-        iDestruct "H1" as "(>%Hbij&>H1&>%Htype&_&_)".
         wp_store.
-        iMod ("Hclose" with "[$H1]"); last done.
-        iFrame "H3".
+        iMod ("Hclose" with "[$H1 H2]"); last done.
+        iNext.
         iExists (negb ∘ f).
         repeat iSplit; try done.
         + iPureIntro.
@@ -185,7 +163,8 @@ Section proofs.
           * apply _.
           * apply _.
         + simpl. by rewrite H3.
-        + iModIntro. iModIntro.
+        + iDestruct "H2" as "[[%[H2 ?]]|H2]"; iFrame. iLeft.
+          iFrame.
           iIntros (?)"?".
           iDestruct ("H2" with "[$]") as "H1".
           rewrite rupd_unseal/rupd_def.
@@ -203,20 +182,16 @@ Section proofs.
     wp_pures.
     rewrite -(fill_empty (!_)).
     iApply pgl_wp_bind.
-    iInv "Hinv" as "H1" "Hclose".
-    repeat setoid_rewrite bi.later_exist.
-    iDestruct "H1" as "(%x&%f&%&H1)".
-    repeat rewrite bi.later_sep_1.
-    iDestruct "H1" as "(>%&>H1&>%&H2&H3)".
+    iInv "Hinv" as ">(%x&%f&%&H1)" "Hclose".
+    iDestruct "H1" as "(H1&%&H2)".
     wp_load.
-    iDestruct "H2" as "#H2".
-    iDestruct "H3" as "#H3".
-    iMod ("Hclose" with "[$H1 $H2 $H3]"); first done.
-    iInv "H3" as ">[H3'|H3']" "Hclose"; last first.
-    { iCombine "Htoken" "H3'" gives "[]". }
-    iMod ("Hclose" with "[$Htoken]").
+    iDestruct "H2" as "[H2|Htoken']"; last first.
+    { iCombine "Htoken" "Htoken'" gives "[]". }
+    iMod ("Hclose" with "[$H1 $Htoken]").
+    { iNext. repeat iExists _. done. }
     iModIntro.
     simpl.
+    iDestruct "H2" as "(%&H2&Hflip)".
     set (D' := λ (v:val), match v with
                     | #(LitBool b) => D # (LitBool (f b))
                     | _ => D v
@@ -253,7 +228,7 @@ Section proofs.
           erewrite dmap_elem_ne; first lra.
           -- intros ???; by simplify_eq.
           -- intros [[] ]; destruct!/=; set_solver.
-    - iApply (wp_value_promotion with "[Hflip]"); first by iApply "H2". 
+    - iApply (wp_value_promotion with "[H2 Hflip]"); first by iApply "H2". 
       iIntros "_".
       wp_pures.
       iApply "HΦ". by iFrame.
