@@ -91,16 +91,18 @@ Section rules.
   Proof.
     rewrite pupd_unseal/pupd_def.
     intros.
-    iIntros "H" (???) "(?&?)".
-    iMod ("H" with "[$]") as "H".
+    iIntros ">H".
     iModIntro.
+    iIntros (???) "(?&?)".
+    iDestruct ("H" with "[$]") as "H".
     iApply state_step_coupl_mono; last done.
-    iIntros (???) ">(?&?&->&?)".
+    iIntros (???) ">(?&?&->&H)".
     iApply (fupd_mask_intro); first done.
     iIntros "Hclose".
     iFrame.
     iSplit; first done.
-    by iMod "Hclose".
+    iMod "H".
+    by iApply fupd_mask_intro_subseteq.
   Qed.
 
   
