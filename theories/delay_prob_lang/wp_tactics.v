@@ -16,8 +16,8 @@ Class GwpTacticsBase (Σ : gFunctors) (A : Type) `{!invGS_gen hlc Σ} (gwp : A �
   }.
 
 Class GwpTacticsBind (Σ : gFunctors) (A : Type) `{!invGS_gen hlc Σ} (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ)  := {
-    wptac_wp_bind K `{!LanguageCtx K} E e Φ a :
-      gwp a E e (λ v, gwp a E (K (of_val v)) Φ ) ⊢ gwp a E (K e) Φ
+    wptac_wp_bind K E e Φ a :
+      gwp a E e (λ v, gwp a E (fill K (of_val v)) Φ ) ⊢ gwp a E (fill K e) Φ
 }. 
 
 Class GwpTacticsPure Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ) := {

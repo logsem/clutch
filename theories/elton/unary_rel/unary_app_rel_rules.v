@@ -81,7 +81,8 @@ Section rules.
   Proof.
     rewrite refines_eq /refines_def.
     iIntros "Hlog" .
-    iApply pgl_wp_bind. iApply pgl_wp_atomic; auto.
+    iApply pgl_wp_bind.
+    iApply pgl_wp_atomic; auto.
   Qed.
   
   Lemma pupd_fupd' E1 E2 P:
@@ -90,15 +91,18 @@ Section rules.
   Proof.
     rewrite pupd_unseal/pupd_def.
     intros.
-    iIntros "H" (??) "(?&?)".
-    iMod ("H" with "[$]") as "H".
+    iIntros ">H".
     iModIntro.
+    iIntros (???) "(?&?)".
+    iDestruct ("H" with "[$]") as "H".
     iApply state_step_coupl_mono; last done.
-    iIntros (??) ">(?&?&?)".
+    iIntros (???) ">(?&?&->&H)".
     iApply (fupd_mask_intro); first done.
     iIntros "Hclose".
     iFrame.
-    by iMod "Hclose".
+    iSplit; first done.
+    iMod "H".
+    by iApply fupd_mask_intro_subseteq.
   Qed.
 
   

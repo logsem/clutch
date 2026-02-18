@@ -43,7 +43,7 @@ Section elton_test.
   Context `{!eltonGS Σ}.
 
   Local Lemma test_wp_tp_pures E l:
-    {{{ l ↪ ∅ }}} #3 + #3 @ E {{{ RET #6; l ↪ ∅ }}}.
+    {{{ l ↪ urn_unif ∅ }}} #3 + #3 @ E {{{ RET #6; l ↪ urn_unif ∅ }}}.
   Proof.
     iIntros (Ψ) "Hs HΦ".
     wp_pures.

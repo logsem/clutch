@@ -4,7 +4,7 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Export ghost_map.
 From clutch.base_logic Require Export error_credits.
-From clutch.elton Require Export weakestpre ectx_lifting rupd pupd.
+From clutch.elton Require Export weakestpre ectx_lifting pupd.
 From clutch.delay_prob_lang Require Export class_instances.
 From clutch.delay_prob_lang Require Import tactics lang notation urn_subst.
 From iris.prelude Require Import options.
@@ -195,7 +195,14 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
 
 
 Section lifting.
-Context `{!eltonGS Σ}.
+  Context `{!eltonGS Σ}.
+
+  Global Instance rupd_timeless P Q v {_:Timeless Q}: Timeless (rupd P Q v).
+  Proof.
+    rewrite rupd_unseal/rupd_def.
+    apply _.
+  Qed. 
+  
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.
@@ -206,9 +213,9 @@ Lemma pupd_epsilon_err E:
   ⊢ pupd E E (∃ ε, ⌜(0<ε)%R⌝ ∗ ↯ ε)%I.
 Proof.
   rewrite pupd_unseal/pupd_def.
-  iIntros (? ε) "(Hstate& Herr)".
   iApply fupd_mask_intro; first set_solver.
   iIntros "Hclose".
+  iIntros (?? ε) "(Hstate& Herr)".
   iApply state_step_coupl_ampl.
   iIntros (ε' ?).
   destruct (decide (ε'<1)%R); last first.
@@ -221,56 +228,71 @@ Proof.
   replace (ε') with (ε + diff)%NNR; last (apply nnreal_ext; rewrite /diff; simpl; lra).
   iMod (ec_supply_increase _ diff with "[$]") as "[??]".
   { rewrite /diff. simpl. simpl in *. lra. }
-  iFrame. iMod "Hclose". iPureIntro.
+  iFrame. iMod "Hclose".
+  iApply fupd_mask_intro; first set_solver.
+  iIntros "Hclose'".
+  iSplit; first done.
+  iMod "Hclose'".
+  iPureIntro.
   rewrite /diff.
   simpl.
   lra.
 Qed.
 
-Lemma pupd_resolve_urn E l lis ε N (ε2 : _ -> nonnegreal):
-  NoDup lis ->
-  length lis = S N ->
- (Expval (dunifP N) ε2 <= ε)%R ->
+Lemma pupd_resolve_urn s ε (ε2 : _ -> nonnegreal) l E:
+  s ≠ ∅ ->
+ (SeriesC (λ x, if bool_decide (x ∈ elements s) then ε2 x else 0)/ size s <= ε)%R ->
   (exists r, forall ρ, (ε2 ρ <= r)%R) ->
-  ↯ ε -∗
-  l ↪ (list_to_set lis) -∗
-  pupd E E (∃ (x:fin (S N)) y,
-        ⌜lis!!(fin_to_nat x) = Some y⌝ ∗ l↪ {[y]} ∗ ↯ (ε2 (x))                                     
+  ↯ ε -∗ l ↪ urn_unif s -∗
+  pupd E E (∃ x,
+        ↯ (ε2 x) ∗ l↪ urn_unif {[x]} ∗ ⌜x ∈ s⌝
     )%I.
 Proof.
   rewrite pupd_unseal/pupd_def.
-  iIntros (HNoDup Hlen Hineq Hbound) "Herr Hl".
-  iIntros ([] ε') "([Hs Hu]& Herr')".
-  iDestruct (ghost_map_lookup with "Hu [$]") as %?.
-  iDestruct (ec_supply_ec_inv with "[$][$]") as %(x&x'& -> & He).
+  iIntros (Hs Hineq [r Hbound]) "Herr Hl".
   iApply fupd_mask_intro; first set_solver.
   iIntros "Hclose".
+  iIntros (?[] ε') "([Hs Hu]& Herr')".
+  iDestruct (ghost_map_lookup with "Hu [$]") as %?.
+  iDestruct (ec_supply_ec_inv with "[$][$]") as %(x&x'& -> & He).
   iApply state_step_coupl_rec_complete_split.
-  assert (∀ x, 0<=ε2 x + x')%R as Hnnr.
-  { intros. apply Rplus_le_le_0_compat; apply cond_nonneg. }
-  iExists _,_, _, (λ x, mknonnegreal _ (Hnnr x)).
-  iSplit; first done.
+  pose (ε2' := λ x,  (ε2 x + x')%NNR ).
+  assert (∀ x, 0<=ε2' x)%R as Hnnr; first (intros; apply cond_nonneg). 
+  iExists _,_, (λ x, mknonnegreal _ (Hnnr x)).
   iSplit; first done.
   iSplit; first done.
   iSplit.
   { iPureIntro.
-    destruct Hbound as [r ?].
-    exists (r+x')%R.
-    simpl. intros. real_solver.
+    exists ( (r+x'))%R.
+    simpl. intros.
+    rewrite /ε2'.
+    real_solver.
+  }
+  assert (size s > 0)%R.
+  { apply Rlt_gt.
+    apply lt_0_INR.
+    destruct (size _) eqn :Hn; last lia.
+    exfalso.
+    apply Hs.
+    rewrite size_empty_iff in Hn.
+    set_solver.
   }
   iSplit; first iPureIntro.
   { simpl.
-    rewrite Expval_plus; try apply ex_seriesC_finite.
-    rewrite Expval_const; last done.
-    rewrite dunifP_mass.
-    rewrite Rmult_1_r.
-    apply Rplus_le_compat; by subst. 
+    rewrite Rcomplements.Rle_div_l; last lra.
+    rewrite Rcomplements.Rle_div_l in Hineq; last lra.
+    rewrite Rmult_plus_distr_r.
+    rewrite He.
+    etrans; last (apply Rplus_le_compat_r; exact).
+    replace (size _) with (length (elements s)) by done.
+    rewrite -SeriesC_list_2; last apply NoDup_elements.
+    right.
+    rewrite -SeriesC_plus; [|apply ex_seriesC_list..].
+    apply SeriesC_ext.
+    intros.
+    case_bool_decide; simpl; lra.
   }
-  iIntros (x0).
-  pose proof fin_to_nat_lt x0.
-  case_match eqn:H'; last first.
-  { apply lookup_ge_None in H'. rewrite Hlen in H'. lia. }
-  
+  iIntros (x0 Hx0).
   iMod (ec_supply_decrease with "Herr' Herr") as (????) "Hε2".
   iModIntro.
   destruct (Rlt_decision ((ε2 (x0)) + nonneg x' )%R 1%R) as [Hdec|Hdec]; last first.
@@ -279,21 +301,55 @@ Proof.
   }
   iApply state_step_coupl_ret.
   iMod (ghost_map_update with "Hu Hl") as "[$ Hl]".
-  rename select ((_+_)%NNR = _) into H1. apply (f_equal nonneg) in H1. 
+  rename select ((_+_)%NNR = _) into H1. apply (f_equal nonneg) in H1.
   unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 (x0)) _) with "[Hε2]") as "[Hε2 Hcr]"; first done.
   { simpl. done. }
   { simpl in *. lra. }
   { iApply ec_supply_eq; [|done]. simplify_eq. lra. }
   iFrame.
   subst.
-  iMod "Hclose".
-  iModIntro. iSplit; last done.
-  iApply ec_supply_eq; [|done]. simplify_eq. simpl. simpl in *. lra.
-Qed. 
+  iModIntro.
+  iSplitL "Hε2".
+  - iApply ec_supply_eq; [|done]. simplify_eq. simpl. simpl in *. lra.
+  - iSplit; first done.
+    iMod "Hclose". by iPureIntro.
+Qed.
 
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
 (* induction directly, but this demonstrates that we can state the expected *)
 (* reasoning principle for recursive functions, without any visible ▷. *)
+
+Lemma wp_value_promotion (v v':base_lit) P Φ s E:
+  (rupd (λ x, x=v') P v)-∗
+    (P -∗ WP (Val (LitV v')) @ s; E {{ Φ }}) -∗
+    WP (Val (LitV v)) @ s; E {{ Φ }}.
+Proof.
+  iIntros "H1 H2".
+  iApply state_step_coupl_wp.
+  iApply fupd_mask_intro; first set_solver.
+  iIntros "Hclose".
+  iIntros (??) "[??]".
+  iApply state_step_coupl_value_promote.
+  iExists [], (LitV v), (LitV v').
+  simpl.
+  repeat iSplit; last iFrame; first done.
+  { rewrite rupd_unseal/rupd_def.
+    iDestruct ("H1" with "[$]") as  "[%K ?]".
+    iPureIntro.
+    intros ? H'.
+    apply K in H' as (?&H&?). subst.
+    by rewrite H.
+  }
+  rewrite rupd_unseal/rupd_def.
+  iDestruct ("H1" with "[$]") as "[_ [HP Hstate]]".
+  iFrame.
+  iApply state_step_coupl_ret.
+  iFrame.
+  iModIntro.
+  iMod "Hclose".
+  by iApply "H2".
+Qed. 
+
 Lemma wp_rec_löb E f x e Φ Ψ :
   □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}) -∗
      ∀ v, Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ E {{ Φ }}) -∗
@@ -315,9 +371,11 @@ Proof.
   iIntros (σ1) "[Hh Ht] !#".
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+  erewrite urn_subst_equal_epsilon_unique; last done.
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
   iFrame.
+  simpl.
   rewrite map_union_empty -insert_union_singleton_l.
   iFrame.
   iIntros "!>". by iApply "HΦ". 
@@ -345,23 +403,18 @@ Proof.
   iMod ((ghost_map_insert_big _ _ with "Hh")) as "[$ Hl]".
   iIntros "!>". iFrame. 
   iApply "HΦ".
-  iInduction (H) as [ | ?] "IH" forall (σ1).
-  - simpl.
-    iSplit; auto.
-    rewrite map_union_empty.
-    rewrite loc_add_0.
+  erewrite urn_subst_equal_epsilon_unique; last done.
+  clear.
+  iInduction (Z.to_nat z) as [ | ?] "IH" forall (σ1); first done.
+  rewrite seq_S.
+  rewrite heap_array_replicate_S_end.
+  iPoseProof (big_sepM_union _ _ _ _ with "Hl") as "[H1 H2]".
+  iApply big_sepL_app.
+  iSplitL "H1".
+  + by iApply "IH".
+  + simpl. iSplit; auto.
     by rewrite big_sepM_singleton.
-  - rewrite seq_S.
-    rewrite heap_array_replicate_S_end.
-    iPoseProof (big_sepM_union _ _ _ _ with "Hl") as "[H1 H2]".
-    iApply big_sepL_app.
-    iSplitL "H1".
-    + iApply "IH".
-      { iPureIntro. lia. }
-      iApply "H1".
-    + simpl. iSplit; auto.
-      by rewrite big_sepM_singleton.
-      Unshelve.
+    Unshelve.
       {
         apply heap_array_map_disjoint.
         intros.
@@ -374,7 +427,8 @@ Proof.
       rewrite dom_singleton.
       apply not_elem_of_singleton_2.
       intros H2.
-      apply loc_add_inj in H2.
+      apply loc_add_inj in H2. subst.
+      rename select (_<_)%Z into H1.
       rewrite length_replicate in H1.
       lia.
 Qed.
@@ -388,6 +442,9 @@ Proof.
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+  rename select (_!!(epsilon _)=_) into H1.
+  erewrite urn_subst_equal_epsilon_unique' in H1; last done.
+  simplify_eq.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
@@ -401,6 +458,10 @@ Proof.
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+  rename select (_!!(epsilon _)=_) into H1.
+  erewrite urn_subst_equal_epsilon_unique' in H1; last done.
+  erewrite urn_subst_equal_epsilon_unique'; last done.
+  simplify_eq.
   iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
@@ -427,9 +488,9 @@ Proof.
   done. 
 Qed.
 
-Lemma wp_drand_thunk (N : nat) (z : Z) v E s P :
+Lemma wp_drand_thunk (N : nat) (z : Z) (v:base_lit) E s P :
   TCEq N (Z.to_nat z) →
-  {{{ (rupd (λ v,v= #N) P v)}}} drand v @ s; E {{{ l, RET LitV (LitLbl l); P ∗ l ↪ list_to_set (seq 0 (S N)) }}}.
+  {{{ (rupd (λ (v : base_lit),v= (LitInt N)) P v)}}} drand LitV v @ s; E {{{ l, RET LitV (LitLbl l); P ∗ l ↪ (urn_unif $ list_to_set (Z.of_nat <$> (seq 0 (S N)))) }}}.
 Proof.
   iIntros (-> Φ) "Hrupd HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -440,23 +501,19 @@ Proof.
   { iPureIntro.
     econstructor.
     simpl.
-    destruct (urns_f_valid_exists (urns σ1)) as [f Hf].
+    destruct (urns_f_distr_witness (urns σ1)) as [f Hf].
     apply H in Hf as H'.
     destruct H' as [? [H' ->]].
     case_match; simpl in *; simplify_eq; repeat setoid_rewrite bind_Some in H'; destruct!/=; last first.
-    case_match; last first.
-    - exfalso.
-      setoid_rewrite bind_Some in H.
-      rename select (¬ _) into Hcontra.
+    { exfalso. rename select (¬ _) into Hcontra.
       apply Hcontra.
       eexists _.
-      intros ? H2.
-      apply H in H2.
-      by destruct!/=.
-    - erewrite urn_subst_equal_epsilon_unique; first solve_distr.
-      intros ? H2.
-      apply H in H2.
-      setoid_rewrite bind_Some in H2. by destruct!/=.
+      intros ? H1. apply H in H1. by destruct!/=. 
+    }
+    erewrite urn_subst_equal_epsilon_unique; first solve_distr.
+    intros ? H2.
+    apply H in H2.
+    by destruct!/=.
   }
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
@@ -469,7 +526,7 @@ Proof.
   rewrite (urn_subst_equal_epsilon_unique _ _ (Z.to_nat z) _ _); last first.
   { intros ? H2.
     apply H in H2.
-    setoid_rewrite bind_Some in H2. by destruct!/=.
+    by destruct!/=.
   }
   rewrite Nat2Z.id.
   rewrite Nat.add_1_r. iFrame. 

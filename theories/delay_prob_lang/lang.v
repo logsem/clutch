@@ -1,6 +1,6 @@
 From Stdlib Require Import Reals Psatz ClassicalEpsilon.
 From stdpp Require Export binders strings.
-From stdpp Require Import gmap fin_maps countable fin.
+From stdpp Require Import gmap countable fin fin_maps.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext tactics.
 From iris.prelude Require Import options.
@@ -60,7 +60,9 @@ Inductive expr :=
   (* Probabilistic choice *)
   (* | AllocTape (e : expr) *)
   | Rand (e : expr)
-  | DRand (e : expr)     
+  | DRand (e : expr)
+  | Laplace (e1 e2 e3: expr) 
+  | DLaplace (e1 e2 e3: expr) 
 with val :=
   | LitV (l : base_lit)
   | RecV (f x : binder) (e : expr)
@@ -104,17 +106,41 @@ Definition def_val : val := LitV LitUnit.
 (*   val_is_unboxed vl ∨ val_is_unboxed v1. *)
 (* Global Arguments vals_compare_safe !_ !_ /. *)
 
+Inductive urn :=
+| urn_unif (s : gset Z)
+| urn_laplace (num: Z) (den : Z) (l : Z)
+.
 
-Definition urn :=  gset nat .
+Global Instance urn_inhabited : Inhabited urn. Proof. exact (populate (urn_unif ∅)). Qed. 
+Global Instance urn_eq_dec : EqDecision urn.
+Proof.
+  solve_decision.
+Qed.
 
-Global Instance urn_inhabited : Inhabited urn. Proof. apply _. Qed. 
-Global Instance urn_eq_dec : EqDecision urn. Proof. apply _. Defined.
-Global Instance urn_countable : EqDecision urn. Proof. apply _. Qed.
 
-Global Instance urn_lookup_total : LookupTotal loc urn (gmap loc urn).
-Proof. apply map_lookup_total. Defined.
-Global Instance urn_insert : Insert loc urn (gmap loc urn).
-Proof. apply map_insert. Defined.
+Global Instance urn_countable : Countable urn.
+Proof.
+  set (enc :=
+         (λ u, 
+           match u with
+           | urn_unif s => inl s
+           | urn_laplace num den l => inr (num, den, l)
+           end)).
+  set (dec :=
+         (λ x,
+            match x with
+            | inl s => urn_unif s
+            | inr (num, den, l) => urn_laplace num den l
+            end
+         )).
+  refine (inj_countable' enc dec _).
+  by intros []; simpl.
+Qed. 
+
+(* Global Instance urn_lookup_total : LookupTotal loc urn (gmap loc urn). *)
+(* Proof. apply map_lookup_total. Defined. *)
+(* Global Instance urn_insert : Insert loc urn (gmap loc urn). *)
+(* Proof. apply map_insert. Defined. *)
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed gmap of urns. *)
 Record state : Type := {
@@ -167,6 +193,10 @@ Proof.
          cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | Rand e, Rand e' => cast_if (decide (e=e'))
      | DRand e, DRand e' => cast_if (decide (e=e'))
+     | Laplace e0 e1 e2, Laplace e0' e1' e2' =>
+        cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
+     | DLaplace e0 e1 e2, DLaplace e0' e1' e2' =>
+        cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
      | _, _ => right _
      end
    with gov (v1 v2 : val) {struct v1} : Decision (v1 = v2) :=
@@ -285,6 +315,8 @@ Proof.
      | Store e1 e2 => GenNode 14 [go e1; go e2]
      | Rand e => GenNode 15 [go e]
      | DRand e => GenNode 16 [go e]
+     | Laplace e0 e1 e2 => GenNode 17 [go e0; go e1; go e2]
+     | DLaplace e0 e1 e2 => GenNode 18 [go e0; go e1; go e2]
      end
    with gov v :=
      match v with
@@ -317,6 +349,8 @@ Proof.
      | GenNode 14 [e1; e2] => Store (go e1) (go e2)
      | GenNode 15 [e] => Rand (go e)
      | GenNode 16 [e] => DRand (go e)
+     | GenNode 17 [e0; e1; e2] => Laplace (go e0) (go e1) (go e2)
+     | GenNode 18 [e0; e1; e2] => DLaplace (go e0) (go e1) (go e2)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -331,7 +365,7 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | ]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | | |]; simpl; f_equal;
      [exact (gov v)|done..].
  - destruct v; by f_equal.
 Qed.
@@ -373,7 +407,13 @@ Inductive ectx_item :=
   | StoreLCtx (v2 : val)
   | StoreRCtx (e1 : expr)
   | RandCtx
-  | DRandCtx  
+  | DRandCtx
+  | LaplaceNumCtx (v2 : val) (v3 : val)
+  | LaplaceDenCtx (e1 : expr) (v3 : val)
+  | LaplaceLocCtx (e1 : expr) (e2 : expr)
+  | DLaplaceNumCtx (v2 : val) (v3 : val)
+  | DLaplaceDenCtx (e1 : expr) (v3 : val)
+  | DLaplaceLocCtx (e1 : expr) (e2 : expr)
 .
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
@@ -398,6 +438,12 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | StoreRCtx e1 => Store e1 e
   | RandCtx => Rand e
   | DRandCtx => DRand e
+  | LaplaceNumCtx v2 v3 => Laplace e (Val v2) (Val v3)
+  | LaplaceDenCtx e1 v3 => Laplace e1 e (Val v3)
+  | LaplaceLocCtx e1 e2 => Laplace e1 e2 e
+  | DLaplaceNumCtx v2 v3 => DLaplace e (Val v2) (Val v3)
+  | DLaplaceDenCtx e1 v3 => DLaplace e1 e (Val v3)
+  | DLaplaceLocCtx e1 e2 => DLaplace e1 e2 e
   end.
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
@@ -440,6 +486,24 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
       end
   | Rand e => noval e RandCtx
   | DRand e => noval e DRandCtx
+  | Laplace e1 e2 e3 =>
+      match e3 with
+      | Val v3 =>
+          match e2 with
+          | Val v2 => noval e1 (LaplaceNumCtx v2 v3)
+          | _ => Some (LaplaceDenCtx e1 v3, e2)
+          end
+      | _ => Some (LaplaceLocCtx e1 e2, e3)
+      end
+  | DLaplace e1 e2 e3 =>
+      match e3 with
+      | Val v3 =>
+          match e2 with
+          | Val v2 => noval e1 (DLaplaceNumCtx v2 v3)
+          | _ => Some (DLaplaceDenCtx e1 v3, e2)
+          end
+      | _ => Some (DLaplaceLocCtx e1 e2, e3)
+      end
   | _              => None
   end.
 
@@ -471,6 +535,12 @@ Proof.
            | StoreRCtx e1 => GenNode 17 [GenLeaf (inl $ inr e1)]
            | RandCtx => GenNode 18 []
            | DRandCtx => GenNode 19 []
+           | LaplaceNumCtx v2 v3 => GenNode 20 [GenLeaf (inl $ inl v2); (GenLeaf (inl $ inl v3))]
+           | LaplaceDenCtx e1 v3 => GenNode 21 [GenLeaf (inl $ inr e1); (GenLeaf (inl $ inl v3))]
+           | LaplaceLocCtx e1 e2 => GenNode 22 [GenLeaf (inl $ inr e1); (GenLeaf (inl $ inr e2))]
+           | DLaplaceNumCtx v2 v3 => GenNode 23 [GenLeaf (inl $ inl v2); (GenLeaf (inl $ inl v3))]
+           | DLaplaceDenCtx e1 v3 => GenNode 24 [GenLeaf (inl $ inr e1); (GenLeaf (inl $ inl v3))]
+           | DLaplaceLocCtx e1 e2 => GenNode 25 [GenLeaf (inl $ inr e1); (GenLeaf (inl $ inr e2))]
            end).
   set (dec :=
          λ e, 
@@ -495,6 +565,12 @@ Proof.
            | GenNode 17 [GenLeaf (inl (inr e1))] => StoreRCtx e1  
            | GenNode 18 [] => RandCtx 
            | GenNode 19 [] => DRandCtx
+           | GenNode 20 [GenLeaf (inl (inl v2)); GenLeaf (inl (inl v3))] => LaplaceNumCtx v2 v3
+           | GenNode 21 [GenLeaf (inl (inr e1)); GenLeaf (inl (inl v3))] => LaplaceDenCtx e1 v3
+           | GenNode 22 [GenLeaf (inl (inr e1)); GenLeaf (inl (inr e2))] => LaplaceLocCtx e1 e2
+           | GenNode 23 [GenLeaf (inl (inl v2)); GenLeaf (inl (inl v3))] => DLaplaceNumCtx v2 v3
+           | GenNode 24 [GenLeaf (inl (inr e1)); GenLeaf (inl (inl v3))] => DLaplaceDenCtx e1 v3
+           | GenNode 25 [GenLeaf (inl (inr e1)); GenLeaf (inl (inr e2))] => DLaplaceLocCtx e1 e2
            | _ => DRandCtx
            end).
   refine (inj_countable' enc dec _).
@@ -522,6 +598,8 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
   | Rand e => Rand (subst x v e)
   | DRand e => DRand (subst x v e)
+  | Laplace e0 e1 e2 => Laplace (subst x v e0) (subst x v e1) (subst x v e2)
+  | DLaplace e0 e1 e2 => DLaplace (subst x v e0) (subst x v e1) (subst x v e2)
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
@@ -659,6 +737,8 @@ Fixpoint well_formed_expr (e:expr) :=
   | Store e1 e2 => well_formed_expr e1 && well_formed_expr e2
   | Rand e => well_formed_expr e
   | DRand e => well_formed_expr e
+  | Laplace e0 e1 e2 => well_formed_expr e0 && well_formed_expr e1 && well_formed_expr e2
+  | DLaplace e0 e1 e2 => well_formed_expr e0 && well_formed_expr e1 && well_formed_expr e2
   end
 with
 well_formed_val (v:val) :=
@@ -1039,13 +1119,13 @@ Qed.
 Section urn.
   (** Definitions for relating delayed program with nondelayed one *)
   (** Note here after the urn_subst, we completely remove all delayed unop binop operations*)
-  Fixpoint urn_subst (f: gmap loc nat) (bl : base_lit) : option base_lit :=
+  Fixpoint urn_subst (f: gmap loc Z) (bl : base_lit) : option base_lit :=
     match bl with
     | LitInt n => Some $ LitInt n
     | LitBool b => Some $ LitBool b
     | LitUnit => Some LitUnit
     | LitLoc l => Some $ LitLoc l
-    | LitLbl l => (x ← f !! l; Some $ LitInt (Z.of_nat x))
+    | LitLbl l => (x ← f !! l; Some $ LitInt (x))
     | NegOp' x => (i ← urn_subst f x;
                   match i with
                   | LitBool b => Some $ LitBool (negb b)
@@ -1166,59 +1246,67 @@ Section urn.
                         )
     end.
 
+  Definition is_valid_urn (u: urn) :=
+    match u with
+    | urn_unif s => s ≠ ∅
+    | urn_laplace num den l => (0<IZR num/IZR den)
+    end.
+
+  Global Instance is_valid_urn_dec u : Decision (is_valid_urn u).
+  Proof.
+    destruct u; simpl; first solve_decision.
+    apply make_decision.
+  Qed. 
+  
   Definition urns_support_set (m:gmap loc urn):=
-    filter (λ l, m!!l≠Some ∅) (dom m).
+    dom (filter (λ '(k, u), is_valid_urn u) m).
 
   Lemma elem_of_urns_support_set x m:
-    x ∈ urns_support_set m <-> (∃ s, m!!x = Some s /\ s≠∅).
+    x ∈ urns_support_set m <-> (∃ s, m!!x = Some s /\ is_valid_urn s).
   Proof.
     rewrite /urns_support_set.
-    rewrite elem_of_filter elem_of_dom.
-    split.
-    - intros [?[]].
+    rewrite elem_of_dom.
+    split; intros [a Ha].
+    - apply map_lookup_filter_Some in Ha.
       naive_solver.
-    - intros [?[]].
+    - eexists _.
+      apply map_lookup_filter_Some.
       naive_solver.
   Qed.
 
   Lemma urns_support_set_insert_subset m u s:
-    s≠∅ ->
+    is_valid_urn s ->
     urns_support_set m ⊆ urns_support_set (<[u:=s]> m).
   Proof.
     intros.
     rewrite /urns_support_set.
     intros x.
     repeat rewrite elem_of_filter.
+    rewrite map_filter_insert_True; last done.
     rewrite dom_insert_L.
-    intros [H1 H2].
-    destruct!/=.
-    split; last set_solver.
-    destruct (decide (u=x)).
-    - subst. simplify_map_eq.
-      naive_solver.
-    - by rewrite lookup_insert_ne.
+    set_solver.
   Qed. 
+  
+  (* Definition urns_subst_f_num (m:gmap loc urn):= *)
+  (*   map_fold (λ _ u n, *)
+  (*               if bool_decide (u=∅) *)
+  (*               then n else size u * n *)
+  (*     )%nat 1%nat m. *)
 
-  Definition urns_subst_f_num (m:gmap loc urn):=
-    map_fold (λ _ u n,
-                if bool_decide (u=∅)
-                then n else size u * n
-      )%nat 1%nat m.
-
-  Lemma urns_subst_f_num_insert m u s:
-    s≠∅->
-    m!!u=None ->
-    urns_subst_f_num (<[u:=s]> m) =
-    (urns_subst_f_num m * size s)%nat.
-  Proof.
-    intros.
-    rewrite /urns_subst_f_num.
-    rewrite map_fold_insert; last done.
-    - rewrite bool_decide_eq_false_2; last done.
-      lia.
-    - intros.
-      repeat case_bool_decide; lia.
-  Qed.  
+  (* Lemma urns_subst_f_num_insert m u s: *)
+  (*   s≠∅-> *)
+  (*   m!!u=None -> *)
+  (*   urns_subst_f_num (<[u:=s]> m) = *)
+  (*   (urns_subst_f_num m * size s)%nat. *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   rewrite /urns_subst_f_num. *)
+  (*   rewrite map_fold_insert; last done. *)
+  (*   - rewrite bool_decide_eq_false_2; last done. *)
+  (*     lia. *)
+  (*   - intros. *)
+  (*     repeat case_bool_decide; lia. *)
+  (* Qed.   *)
 
   Fixpoint base_lit_support_set bl : gset loc :=
     match bl with
@@ -1245,14 +1333,14 @@ Section urn.
     | OffsetOp' x1 x2 => base_lit_support_set x1 ∪ base_lit_support_set x2
     end.
 
-  Definition urns_f_valid (m : gmap loc urn) (f:gmap loc nat) :=
-    forall l, match f !! l with
-         | Some x =>
-             ∃ u, m!!l=Some u /\ x ∈ u
-| None => m!!l = None \/ m!!l = Some ∅
-  end
-  .
-
+  Definition urns_f_valid (m : gmap loc urn) (f:gmap loc Z) :=
+    forall l, match (m!!l), (f!!l)with
+         | Some u, Some _ => is_valid_urn u
+         | Some u, None => ¬ is_valid_urn u
+         | None, Some _ => False
+         | None, None => True
+         end.
+  
   Lemma urns_f_valid_support m f:
     urns_f_valid m f -> urns_support_set m = dom f.
   Proof.
@@ -1265,495 +1353,1089 @@ Section urn.
     split.
     - intros [?[]].
       pose proof H l.
-      case_match; first done.
-      naive_solver.
+      repeat case_match; destruct!/=; naive_solver.
     - intros [? H'].
       pose proof H l as H.
       rewrite H' in H.
-      destruct!/=.
-      set_unfold. naive_solver.
+      repeat case_match; naive_solver.
+  Qed.
+
+  Global Instance urns_f_valid_dec m f : Decision (urns_f_valid m f). 
+  Proof.
+    replace (urns_f_valid _ _) with
+      (urns_support_set m = dom f /\
+       map_Forall (λ l x,
+            match m!!l with
+            | Some u => is_valid_urn u
+            | None => False
+             end
+         ) f); last (intros; apply propositional_extensionality).
+    - apply and_dec; first solve_decision.
+      apply map_Forall_dec.
+      intros ??.
+      repeat case_match; solve_decision.
+    - rewrite /urns_f_valid. split.
+      + rewrite /urns_support_set.
+        intros [H1 H2].
+        intros l.
+        rewrite map_Forall_lookup in H2.
+        pose proof H2 l as H2.
+        case_match.
+        * case_match; first naive_solver.
+          intro.
+          assert (l∈ dom f) as H4.
+          { rewrite -H1.
+            rewrite elem_of_dom.
+            by setoid_rewrite map_lookup_filter_Some_2.
+          }
+          apply elem_of_dom in H4 as []. naive_solver.
+        * case_match; naive_solver.
+      + intros.
+        split.
+        * apply set_eq.
+          intros l.
+          rewrite elem_of_urns_support_set elem_of_dom.
+          pose proof H l as H.
+          repeat case_match; split; intros H'; destruct!/=; try naive_solver; by destruct H'.
+        * apply map_Forall_lookup.
+          intros l x.
+          pose proof H l as H.
+          intros H'. by rewrite H' in H.
   Qed. 
-      
-  Definition set_urns_f_valid (m:gmap loc urn) : gset (gmap loc nat):=
-    map_fold (λ k u l,
-                if bool_decide (u=∅)
-                then l
-                else
-                  set_bind (λ a, set_bind (λ b, {[<[k:=a]> b]}) l) u
-      ) {[∅]} m.
+
+  (* We always assume (urns_f_valid m f) for this function *)
+
+  Definition urns_f_distr_compute u z:=
+    match u with
+    | urn_unif s => if bool_decide (z∈s) then /size(s) else 0
+    | urn_laplace num den l =>
+        (match decide (0 < IZR num / IZR den) with
+         | left εpos => laplace_rat num den l εpos z
+         | right _ => 0 (* not possible *)
+         end)   
+    end.
+  
+  Lemma urns_f_distr_compute_pos u x : 0<=urns_f_distr_compute u x.
+  Proof.
+    rewrite /urns_f_distr_compute.
+    case_match.
+    - case_bool_decide; last done.
+      rewrite -Rdiv_1_l.
+      apply Rdiv_INR_ge_0.
+    - by case_match.
+  Qed.
+
+  Lemma urns_f_distr_compute_le_1 x: SeriesC (urns_f_distr_compute x) <= 1.
+  Proof.
+    rewrite /urns_f_distr_compute.
+    case_match; subst.
+    - erewrite (SeriesC_ext _ (λ z, if bool_decide (z∈elements s) then /size s else 0)).
+      + rewrite SeriesC_list_2.
+        * rewrite length_elements_size_gset.
+          destruct (length (_)) as [|n].
+          -- vm_compute. lra.
+          -- replace (_*_) with (S n / S n) by lra.
+             rewrite Rdiv_diag; first done.
+             apply not_0_INR.
+             lia.
+        * apply NoDup_elements.
+      + intros.
+        repeat case_bool_decide; set_solver.
+    - case_match; last rewrite SeriesC_0; try (intros; lra); done.
+  Qed. 
+
+  Lemma ex_seriesC_urns_f_distr_compute x: ex_seriesC (urns_f_distr_compute x).
+  Proof.
+    rewrite /urns_f_distr_compute.
+    case_match.
+    - subst.
+      apply (ex_seriesC_ext  (λ z, if bool_decide (z∈elements s) then /size s else 0)); last apply ex_seriesC_list.
+      intros.
+      repeat case_bool_decide; set_solver.
+    - case_match; try done.
+      apply ex_seriesC_0.
+  Qed.
+
+  Program Definition urns_f_distr_compute_distr u := MkDistr (urns_f_distr_compute u) _ _ _.
+  Next Obligation.
+    apply urns_f_distr_compute_pos.
+  Qed.
+  Next Obligation.
+    apply ex_seriesC_urns_f_distr_compute.
+  Qed.
+  Next Obligation.
+    apply urns_f_distr_compute_le_1.
+  Qed.  
+
+
+  Lemma urns_f_distr_compute_distr_mass u:
+    is_valid_urn u ->
+    SeriesC (urns_f_distr_compute u) = 1.
+  Proof.
+    intros H.
+    rewrite /urns_f_distr_compute.
+    unfold is_valid_urn in *.
+    case_match.
+    - erewrite (SeriesC_ext _ (λ z, if bool_decide (z ∈elements s) then /size s else 0)).
+      + rewrite SeriesC_list_2; last apply NoDup_elements.
+        rewrite -length_elements_size_gset.
+        replace (_*_) with ((size s)/ (size s)) by lra.
+        apply Rdiv_diag.
+        apply not_0_INR.
+        rewrite size_non_empty_iff.
+        set_solver.
+      + intros.
+        repeat case_bool_decide; set_solver.
+    - case_match eqn:Hn.
+      + apply laplace_mass.
+      + done.
+  Qed. 
+
+        
+  Definition urns_f_distr_f1 (m: gmap loc urn):=
+    (λ lo z r, r*match m!!lo with
+                | None => 0 (* Not possible *)
+                | Some u => urns_f_distr_compute u z
+                end
+    ).
+  
+  Definition urns_f_distr_f2 (m: gmap loc urn) (f:gmap loc Z) :=
+    map_fold (urns_f_distr_f1 m) 1 f.
+
+  Lemma urns_f_distr_f2_pos m x : 0<=urns_f_distr_f2 m x.
+  Proof.
+    rewrite /urns_f_distr_f2.
+    induction x as [|i x m' Hx Hfirst] using map_first_key_ind; first (vm_compute; lra).
+    rewrite map_fold_insert_first_key; try done.
+    rewrite {1}/urns_f_distr_f1.
+    case_match; last real_solver.
+    apply Rmult_le_pos; first done.
+    apply urns_f_distr_compute_pos.
+  Qed. 
+  
+  Lemma urns_f_distr_f2_agree m1 m2 f :
+    (∀ x, x ∈ dom f-> m1!!x = m2!!x) ->
+    urns_f_distr_f2 m1 f = urns_f_distr_f2 m2 f.
+  Proof.
+    revert m1 m2.
+    induction f as [|i x m Hx Hfirst] using map_first_key_ind; first by vm_compute.
+    intros ? m2 H.
+    unfold urns_f_distr_f2 in *.
+    rewrite !map_fold_insert_first_key; [|done..].
+    erewrite (IHf _ m2); last first.
+    { intros. apply H. set_solver. }
+    rewrite {1 3}/urns_f_distr_f1.
+    by rewrite H; last set_solver.
+  Qed. 
+
+  Lemma urns_f_distr_f2_insert l u m f z:
+    urns_f_valid (<[l:=u]> m) f ->
+    f !! l = Some z ->
+    is_valid_urn u -> 
+    urns_f_distr_f2 (<[l:=u]> m) f = urns_f_distr_f2 m (delete l f) * urns_f_distr_compute u z.
+  Proof.
+    rewrite {1}/urns_f_distr_f2.
+    intros H1 H2 H3.
+    replace (f) with (<[l:=z]> (delete l f)) at 1; last by rewrite insert_delete.
+    rewrite map_fold_insert; last by simplify_map_eq.
+    - rewrite -/(urns_f_distr_f2 _ (delete _ _)).
+      erewrite (urns_f_distr_f2_agree _ m); last first.
+      { intros x. rewrite elem_of_dom. intros []. simplify_map_eq.
+        destruct (decide (x=l)); subst; by simplify_map_eq. }
+      rewrite /urns_f_distr_f1.
+      by simplify_map_eq.
+    - intros.
+      rewrite /urns_f_distr_f1.
+      lra.
+  Qed.
+  
+  (* Lemma urns_f_distr_f_insert (m:gmap loc urn) i u: *)
+  (*   m!!i=None -> *)
+  (*     urns_f_distr_f (<[i:=u]> m) = *)
+  (*   (λ f, match f!!i with *)
+  (*         | Some z => *)
+  (*             match u with *)
+  (*             | urn_unif s => *)
+  (*                 if bool_decide (z∈s) then *)
+  (*                   urns_f_distr_f m (delete i f) / size (s) *)
+  (*                 else 0 *)
+  (*             | urn_laplace num den l => *)
+  (*                 (match decide (0 < IZR num / IZR den) with *)
+  (*                  | left εpos => urns_f_distr_f m (delete i f) * *)
+  (*                                  laplace_rat num den l εpos z *)
+  (*                  | right _ => 0  *)
+  (*                  end) *)
+  (*             end *)
+                
+  (*         | None => *)
+  (*             if bool_decide (is_valid_urn u) *)
+  (*             then 0 *)
+  (*             else urns_f_distr_f m f *)
+  (*         end *)
+  (*   ). *)
+  (* Proof. *)
+  (*   intros Hnone Hfirst. *)
+  (*   extensionality f. *)
+  (*   rewrite {1}/urns_f_distr_f. *)
+  (*   case_bool_decide as H'. *)
+  (*   - rewrite map_fold_insert_first_key; try done. *)
+  (*     case_match eqn: H''; subst. *)
+  (*     + pose proof H' i. *)
+  (*       case_match. *)
+  (*       * simplify_map_eq. *)
+  (*         case_bool_decide; last set_solver. *)
+  (*         rewrite bool_decide_eq_true_2; last done. *)
+  (*         f_equal. *)
+  (*         rewrite /urns_f_distr_f. *)
+  (*         rewrite bool_decide_eq_true_2; last first. *)
+  (*         -- intros l. *)
+  (*            case_match eqn:H2. *)
+  (*            ++ apply lookup_delete_Some in H2. *)
+  (*               destruct!/=. *)
+  (*               pose proof H' l. *)
+  (*               case_match; destruct!/=. *)
+  (*               by simplify_map_eq. *)
+  (*            ++ apply lookup_delete_None in H2. *)
+  (*               pose proof H' l. *)
+  (*               case_match; destruct!/=; by simplify_map_eq. *)
+  (*         -- clear -Hnone. *)
+  (*            induction m as [|i' x m Hx Hfirst] using map_first_key_ind; first by vm_compute. *)
+  (*            rewrite !map_fold_insert_first_key; try done. *)
+  (*            case_match. *)
+  (*            ++ case_bool_decide. *)
+  (*               ** f_equal. *)
+  (*                  apply IHm. *)
+  (*                  simplify_map_eq. *)
+  (*                  apply lookup_insert_None in Hnone. naive_solver. *)
+  (*               ** apply IHm. *)
+  (*                  simplify_map_eq. *)
+  (*                  apply lookup_insert_None in Hnone. naive_solver. *)
+  (*            ++ replace (f!! _) with (delete i f !! i') at 1. *)
+  (*               ** case_match; try done. *)
+  (*                  case_match; try done. *)
+  (*                  f_equal. *)
+  (*                  apply IHm. *)
+  (*                  apply lookup_insert_None in Hnone. naive_solver. *)
+  (*               ** rewrite lookup_delete_ne; first done. *)
+  (*                  apply lookup_insert_None in Hnone. naive_solver. *)
+  (*       * simplify_map_eq. *)
+  (*         rewrite bool_decide_eq_false_2; last naive_solver. *)
+  (*         rewrite /urns_f_distr_f. *)
+  (*         rewrite bool_decide_eq_false_2; try done. *)
+  (*         rewrite bool_decide_eq_true_2; first done. *)
+  (*         intros l. *)
+  (*         pose proof H' l. *)
+  (*         case_match. *)
+  (*         -- case_match; by simplify_map_eq. *)
+  (*         -- do 2 case_match; try done; by simplify_map_eq. *)
+  (*     + case_match; last first. *)
+  (*       * rewrite bool_decide_eq_true_2; first done. *)
+  (*         admit. *)
+  (*       * simpl. case_match; try done. *)
+  (*         f_equal. admit.  *)
+  (*   - admit. *)
+  (* Admitted. *)
+  
+  (* Definition set_urns_f_valid (m:gmap loc urn) : gset (gmap loc nat):= *)
+  (*   map_fold (λ k u l, *)
+  (*               if bool_decide (u=∅) *)
+  (*               then l *)
+  (*               else *)
+  (*                 set_bind (λ a, set_bind (λ b, {[<[k:=a]> b]}) l) u *)
+  (*     ) {[∅]} m. *)
              
-  Lemma set_urns_f_nonempty m:
-    (0< size (set_urns_f_valid m))%nat.
-  Proof.
-    rewrite /set_urns_f_valid. apply (map_fold_weak_ind (λ x _, 0<size x)%nat).
-    { rewrite size_singleton. lia. }
-    intros ? x ? r ??.
-    case_bool_decide; first done.
-    rewrite /set_bind.
-    destruct (elements x) eqn:Heqn.
-    { apply elements_empty_inv in Heqn. apply leibniz_equiv in Heqn. naive_solver. }
-    simpl.
-    eapply (Nat.lt_le_trans _ (size _)); last first.
-    - apply subseteq_size.
-      apply union_subseteq_l.
-    - destruct (elements r) eqn:Heqn'.
-      { assert (size r = 0)%nat; last lia.
-        apply elements_empty_inv in Heqn'. apply leibniz_equiv in Heqn'.
-        subst. set_solver.
-      }
-      simpl. 
-      eapply (Nat.lt_le_trans _ (size _)); last first.
-      + apply subseteq_size.
-        apply union_subseteq_l.
-      + rewrite size_singleton.
-        lia.
-  Qed.
+  (* Lemma set_urns_f_nonempty m: *)
+  (*   (0< size (set_urns_f_valid m))%nat. *)
+  (* Proof. *)
+  (*   rewrite /set_urns_f_valid. apply (map_fold_weak_ind (λ x _, 0<size x)%nat). *)
+  (*   { rewrite size_singleton. lia. } *)
+  (*   intros ? x ? r ??. *)
+  (*   case_bool_decide; first done. *)
+  (*   rewrite /set_bind. *)
+  (*   destruct (elements x) eqn:Heqn. *)
+  (*   { apply elements_empty_inv in Heqn. apply leibniz_equiv in Heqn. naive_solver. } *)
+  (*   simpl. *)
+  (*   eapply (Nat.lt_le_trans _ (size _)); last first. *)
+  (*   - apply subseteq_size. *)
+  (*     apply union_subseteq_l. *)
+  (*   - destruct (elements r) eqn:Heqn'. *)
+  (*     { assert (size r = 0)%nat; last lia. *)
+  (*       apply elements_empty_inv in Heqn'. apply leibniz_equiv in Heqn'. *)
+  (*       subst. set_solver. *)
+  (*     } *)
+  (*     simpl.  *)
+  (*     eapply (Nat.lt_le_trans _ (size _)); last first. *)
+  (*     + apply subseteq_size. *)
+  (*       apply union_subseteq_l. *)
+  (*     + rewrite size_singleton. *)
+  (*       lia. *)
+  (* Qed. *)
 
-  Lemma elem_of_set_urns_f_valid m f :
-      f ∈set_urns_f_valid m <->
-        urns_f_valid m f .
-  Proof.
-    symmetry.
-    rewrite /set_urns_f_valid.
-    revert f.
-    apply (map_fold_weak_ind (λ x m, forall f, urns_f_valid m f <-> f ∈ x)).
-    - intros f. rewrite elem_of_singleton.
-      split.
-      + rewrite /urns_f_valid.
-        intros.
-        apply map_eq.
-        intros i.
-        simplify_map_eq.
-        pose proof H i as H'.
-        case_match eqn:Heqn; last done.
-        destruct H' as [?[H0 ?]].
-        simplify_map_eq.
-      + intros ->. rewrite /urns_f_valid. intros. rewrite !lookup_empty.
-        naive_solver.
-    - intros i ???? H0 f. split.
-      + intros H'.
-        case_bool_decide as H1.
-        * subst.
-          apply H0.
-          rewrite /urns_f_valid in H' *.
-          intros l.
-          pose proof H' l as H'.
-          case_match.
-          -- destruct H' as [? [K1 K2]].
-             destruct (decide (i=l)).
-             ++ subst.
-                simplify_map_eq. set_solver.
-             ++ simplify_map_eq.
-                naive_solver.
-          -- destruct (decide (i=l)); simplify_map_eq; naive_solver.
-        * rewrite elem_of_set_bind.
-          destruct (f!!i) as [n'|] eqn :Hf.
-          -- exists n'.
-             rewrite elem_of_set_bind.
-             split; last first. 
-             ++ eexists (delete i f).
-                split; last first. 
-                ** rewrite insert_delete; [set_solver|done].
-                ** apply H0.
-                   intros i'.
-                   destruct (decide (i=i')); simplify_map_eq; first naive_solver.
-                   pose proof H' i'.
-                   by simplify_map_eq.
-             ++ pose proof H' i as H2.
-                rewrite Hf in H2.
-                destruct!/=. by simplify_map_eq.
-          -- exfalso.
-             pose proof H' i as H2.
-             rewrite Hf in H2.
-             simplify_map_eq. naive_solver.
-      + case_bool_decide.
-        * subst. rewrite -H0.
-          rewrite /urns_f_valid.
-          intros H' l.
-          pose proof H' l as H'.
-          case_match; destruct (decide (i=l)); subst; simplify_map_eq; destruct!/=; naive_solver.
-        * rewrite elem_of_set_bind.
-          setoid_rewrite elem_of_set_bind.
-          intros [y [H4[y' [H3 H2]]]].
-          rewrite - H0 in H3.
-          apply elem_of_singleton in H2.
-          subst. 
-          intros l.
-          pose proof H3 l as H5.
-          destruct (decide (i=l)); simplify_map_eq; naive_solver.
-  Qed. 
-  Global Instance urn_f_valid_dec m f: Decision (urns_f_valid m f).
-  Proof.
-    replace (urns_f_valid _ _) with (f∈set_urns_f_valid m); first apply _.
-    apply propositional_extensionality.
-    by rewrite elem_of_set_urns_f_valid.
-  Qed.
-
-  Lemma urns_f_valid_exists m:
-    ∃ f, urns_f_valid m f.
-  Proof.
-    setoid_rewrite <-elem_of_set_urns_f_valid.
-    apply size_pos_elem_of.
-    apply set_urns_f_nonempty.
-  Qed. 
+  (* Lemma elem_of_set_urns_f_valid m f : *)
+  (*     f ∈set_urns_f_valid m <-> *)
+  (*       urns_f_valid m f . *)
+  (* Proof. *)
+  (*   symmetry. *)
+  (*   rewrite /set_urns_f_valid. *)
+  (*   revert f. *)
+  (*   apply (map_fold_weak_ind (λ x m, forall f, urns_f_valid m f <-> f ∈ x)). *)
+  (*   - intros f. rewrite elem_of_singleton. *)
+  (*     split. *)
+  (*     + rewrite /urns_f_valid. *)
+  (*       intros. *)
+  (*       apply map_eq. *)
+  (*       intros i. *)
+  (*       simplify_map_eq. *)
+  (*       pose proof H i as H'. *)
+  (*       case_match eqn:Heqn; last done. *)
+  (*       destruct H' as [?[H0 ?]]. *)
+  (*       simplify_map_eq. *)
+  (*     + intros ->. rewrite /urns_f_valid. intros. rewrite !lookup_empty. *)
+  (*       naive_solver. *)
+  (*   - intros i ???? H0 f. split. *)
+  (*     + intros H'. *)
+  (*       case_bool_decide as H1. *)
+  (*       * subst. *)
+  (*         apply H0. *)
+  (*         rewrite /urns_f_valid in H' *. *)
+  (*         intros l. *)
+  (*         pose proof H' l as H'. *)
+  (*         case_match. *)
+  (*         -- destruct H' as [? [K1 K2]]. *)
+  (*            destruct (decide (i=l)). *)
+  (*            ++ subst. *)
+  (*               simplify_map_eq. set_solver. *)
+  (*            ++ simplify_map_eq. *)
+  (*               naive_solver. *)
+  (*         -- destruct (decide (i=l)); simplify_map_eq; naive_solver. *)
+  (*       * rewrite elem_of_set_bind. *)
+  (*         destruct (f!!i) as [n'|] eqn :Hf. *)
+  (*         -- exists n'. *)
+  (*            rewrite elem_of_set_bind. *)
+  (*            split; last first.  *)
+  (*            ++ eexists (delete i f). *)
+  (*               split; last first.  *)
+  (*               ** rewrite insert_delete; [set_solver|done]. *)
+  (*               ** apply H0. *)
+  (*                  intros i'. *)
+  (*                  destruct (decide (i=i')); simplify_map_eq; first naive_solver. *)
+  (*                  pose proof H' i'. *)
+  (*                  by simplify_map_eq. *)
+  (*            ++ pose proof H' i as H2. *)
+  (*               rewrite Hf in H2. *)
+  (*               destruct!/=. by simplify_map_eq. *)
+  (*         -- exfalso. *)
+  (*            pose proof H' i as H2. *)
+  (*            rewrite Hf in H2. *)
+  (*            simplify_map_eq. naive_solver. *)
+  (*     + case_bool_decide. *)
+  (*       * subst. rewrite -H0. *)
+  (*         rewrite /urns_f_valid. *)
+  (*         intros H' l. *)
+  (*         pose proof H' l as H'. *)
+  (*         case_match; destruct (decide (i=l)); subst; simplify_map_eq; destruct!/=; naive_solver. *)
+  (*       * rewrite elem_of_set_bind. *)
+  (*         setoid_rewrite elem_of_set_bind. *)
+  (*         intros [y [H4[y' [H3 H2]]]]. *)
+  (*         rewrite - H0 in H3. *)
+  (*         apply elem_of_singleton in H2. *)
+  (*         subst.  *)
+  (*         intros l. *)
+  (*         pose proof H3 l as H5. *)
+  (*         destruct (decide (i=l)); simplify_map_eq; naive_solver. *)
+  (* Qed.  *)
+  (* Global Instance urn_f_valid_dec m f: Decision (urns_f_valid m f). *)
+  (* Proof. *)
+  (*   replace (urns_f_valid _ _) with (f∈set_urns_f_valid m); first apply _. *)
+  (*   apply propositional_extensionality. *)
+  (*   by rewrite elem_of_set_urns_f_valid. *)
+  (* Qed. *)
   
-  Lemma size_set_urns_f m:
-    size (set_urns_f_valid m) = urns_subst_f_num m.
-  Proof.
-    revert m.
-    apply map_ind; first set_solver.
-    intros i x m Hnone Hind.
-    rewrite /set_urns_f_valid/urns_subst_f_num. 
-    rewrite !map_fold_insert; try done; last first.
-    - intros. repeat case_bool_decide; try done.
-      apply set_eq.
-      intros. repeat setoid_rewrite elem_of_set_bind.
-      split; intros; destruct!/=; set_unfold; subst; eexists _; split; first done; try done; rewrite insert_commute; naive_solver.
-    - intros. repeat case_bool_decide; try done.
-      lia. 
-    - case_bool_decide as H; first done.
-      rewrite /urns_subst_f_num in Hind.
-      rewrite -Hind.
-      rewrite -/(set_urns_f_valid m).
-      rewrite (size_set_bind_const _ _ (size (set_urns_f_valid m))); first done.
-      + intros.
-        erewrite (size_set_bind_const); first by erewrite Nat.mul_1_r.
-        * intros. apply size_singleton.
-        * intros ??.
-          rewrite !elem_of_set_urns_f_valid.
-          intros H1 H2 H3.
-          set_unfold.
-          intros ? -> ?.
-          apply H3.
-          apply map_eq.
-          intros l.
-          destruct (decide (i=l)).
-          -- pose proof H1 l as H1.
-             pose proof H2 l as H2.
-             repeat case_match; by destruct!/=.
-          -- apply (f_equal (λ x, x!!l)) in H4. by simplify_map_eq.
-      + intros.
-        rewrite /set_bind.
-        set_unfold.
-        setoid_rewrite elem_of_union_list.
-        setoid_rewrite elem_of_list_fmap.
-        setoid_rewrite elem_of_elements.
-        intros.
-        destruct!/=.
-        set_unfold.
-        subst.
-        rename select (<[_:=_]> _ = _) into H'.
-        apply (f_equal (λ x,x!!i)) in H'.
-        simplify_map_eq.
-  Qed.
+  (* Lemma size_set_urns_f m: *)
+  (*   size (set_urns_f_valid m) = urns_subst_f_num m. *)
+  (* Proof. *)
+  (*   revert m. *)
+  (*   apply map_ind; first set_solver. *)
+  (*   intros i x m Hnone Hind. *)
+  (*   rewrite /set_urns_f_valid/urns_subst_f_num.  *)
+  (*   rewrite !map_fold_insert; try done; last first. *)
+  (*   - intros. repeat case_bool_decide; try done. *)
+  (*     apply set_eq. *)
+  (*     intros. repeat setoid_rewrite elem_of_set_bind. *)
+  (*     split; intros; destruct!/=; set_unfold; subst; eexists _; split; first done; try done; rewrite insert_commute; naive_solver. *)
+  (*   - intros. repeat case_bool_decide; try done. *)
+  (*     lia.  *)
+  (*   - case_bool_decide as H; first done. *)
+  (*     rewrite /urns_subst_f_num in Hind. *)
+  (*     rewrite -Hind. *)
+  (*     rewrite -/(set_urns_f_valid m). *)
+  (*     rewrite (size_set_bind_const _ _ (size (set_urns_f_valid m))); first done. *)
+  (*     + intros. *)
+  (*       erewrite (size_set_bind_const); first by erewrite Nat.mul_1_r. *)
+  (*       * intros. apply size_singleton. *)
+  (*       * intros ??. *)
+  (*         rewrite !elem_of_set_urns_f_valid. *)
+  (*         intros H1 H2 H3. *)
+  (*         set_unfold. *)
+  (*         intros ? -> ?. *)
+  (*         apply H3. *)
+  (*         apply map_eq. *)
+  (*         intros l. *)
+  (*         destruct (decide (i=l)). *)
+  (*         -- pose proof H1 l as H1. *)
+  (*            pose proof H2 l as H2. *)
+  (*            repeat case_match; by destruct!/=. *)
+  (*         -- apply (f_equal (λ x, x!!l)) in H4. by simplify_map_eq. *)
+  (*     + intros. *)
+  (*       rewrite /set_bind. *)
+  (*       set_unfold. *)
+  (*       setoid_rewrite elem_of_union_list. *)
+  (*       setoid_rewrite elem_of_list_fmap. *)
+  (*       setoid_rewrite elem_of_elements. *)
+  (*       intros. *)
+  (*       destruct!/=. *)
+  (*       set_unfold. *)
+  (*       subst. *)
+  (*       rename select (<[_:=_]> _ = _) into H'. *)
+  (*       apply (f_equal (λ x,x!!i)) in H'. *)
+  (*       simplify_map_eq. *)
+  (* Qed. *)
 
   
-  Lemma set_urns_f_valid_singleton m:
-    map_Forall (λ _ v, v= ∅ \/ size v = 1)%nat m->
-    size (set_urns_f_valid m) = 1%nat.
-  Proof.
-    rewrite size_set_urns_f.
-    revert m.
-    apply (map_ind (λ m, _ -> _)); first by rewrite /urns_subst_f_num map_fold_empty.
-    intros i x m Hnone IH H.
-    rewrite /urns_subst_f_num.
-    rewrite map_fold_insert_L; last done; last first.
-    { intros.
-      repeat case_bool_decide; lia. 
-    }
-    rewrite map_Forall_insert in H; last done.
-    destruct H as [H1 H2].
-    destruct!/=.
-    - rewrite bool_decide_eq_true_2; naive_solver.
-    - rewrite bool_decide_eq_false_2; last (intros ->; set_solver).
-      rewrite H1. setoid_rewrite IH; [lia|done].
-  Qed.
+  (* Lemma set_urns_f_valid_singleton m: *)
+  (*   map_Forall (λ _ v, v= ∅ \/ size v = 1)%nat m-> *)
+  (*   size (set_urns_f_valid m) = 1%nat. *)
+  (* Proof. *)
+  (*   rewrite size_set_urns_f. *)
+  (*   revert m. *)
+  (*   apply (map_ind (λ m, _ -> _)); first by rewrite /urns_subst_f_num map_fold_empty. *)
+  (*   intros i x m Hnone IH H. *)
+  (*   rewrite /urns_subst_f_num. *)
+  (*   rewrite map_fold_insert_L; last done; last first. *)
+  (*   { intros. *)
+  (*     repeat case_bool_decide; lia.  *)
+  (*   } *)
+  (*   rewrite map_Forall_insert in H; last done. *)
+  (*   destruct H as [H1 H2]. *)
+  (*   destruct!/=. *)
+  (*   - rewrite bool_decide_eq_true_2; naive_solver. *)
+  (*   - rewrite bool_decide_eq_false_2; last (intros ->; set_solver). *)
+  (*     rewrite H1. setoid_rewrite IH; [lia|done]. *)
+  (* Qed. *)
   
   (** We define a distribution, where given a urn map, 
-      produces a uniform distribution of urn subst f *)
+      produces a distribution of urn subst functions *)
 
-  Program Definition urns_f_distr m := MkDistr (λ f, if bool_decide (urns_f_valid m f) then 1/size (set_urns_f_valid m) else 0) _ _ _.
+
+
+  Definition urns_f_distr_f3 m:= (λ f, if bool_decide (urns_f_valid m f)
+                                       then urns_f_distr_f2 m f else 0).
+
+  Lemma urns_f_distr_f3_pos m x : 0<=urns_f_distr_f3 m x.
+  Proof.
+    rewrite /urns_f_distr_f3.
+    case_bool_decide; last done.
+    apply urns_f_distr_f2_pos.
+  Qed.
+  
+  Lemma urns_f_distr_f3_insert m l u:
+    (match m!!l with
+     | None => True
+     | Some u' => ¬ is_valid_urn u'
+    end) ->
+    is_valid_urn u ->
+    urns_f_distr_f3 (<[l:=u]> m) =
+    (λ f, match f!!l with
+          | None => 0
+          | Some z =>
+              urns_f_distr_f3 m (delete l f) * (urns_f_distr_compute u z)
+          end
+    )
+  .
+  Proof.
+    intros.
+    extensionality f.
+    destruct (decide (urns_f_valid (<[l:=u]> m) f)) as [Hn|Hn]; last first.
+    { trans 0.
+      - rewrite /urns_f_distr_f3.
+        case_bool_decide; naive_solver.
+      - symmetry.
+        destruct (f!!l) eqn:Heqn; last done.
+        apply Rmult_eq_0_compat_r.
+        rewrite /urns_f_distr_f3.
+        rewrite bool_decide_eq_false_2; first done.
+        intros Hcontra.
+        apply Hn.
+        intros l'.
+        pose proof Hcontra l'.
+        destruct (decide (l=l')); subst; by simplify_map_eq. 
+    }
+    pose proof Hn l as Hn'.
+    simplify_map_eq.
+    case_match; last naive_solver.
+    rewrite /urns_f_distr_f3.
+    rewrite bool_decide_eq_true_2; last done.
+    rewrite bool_decide_eq_true_2; last first. 
+    { intros l'.
+      pose proof Hn l'.
+      destruct (decide (l=l')); subst; by simplify_map_eq. 
+    }
+    by apply urns_f_distr_f2_insert.
+  Qed.
+  
+  Lemma urns_f_distr_f3_insert_no_change m l u:
+    (match m!!l with
+     | None => True
+     | Some u' => ¬ is_valid_urn u'
+    end) ->
+    ¬ is_valid_urn u ->
+    urns_f_distr_f3 (<[l:=u]> m) = urns_f_distr_f3 m.
+  Proof.
+    rewrite /urns_f_distr_f3.
+    intros H1 H2.
+    extensionality f.
+    case_bool_decide as H0.
+    * rewrite bool_decide_eq_true_2.
+      -- apply urns_f_distr_f2_agree.
+         apply urns_f_valid_support in H0.
+         rewrite -H0.
+         intros l'.
+         rewrite elem_of_urns_support_set.
+         intros.
+         destruct!/=.
+         assert (l≠l'); last by simplify_map_eq.
+         intros ->.
+         by simplify_map_eq.
+      -- intros l'.
+         pose proof H0 l'.
+         destruct (decide (l'=l)); subst; try by simplify_map_eq.
+         subst.
+         simplify_map_eq.
+         case_match; first done.
+         by case_match.
+    * rewrite bool_decide_eq_false_2; first done.
+      intros Hcontra; apply H0.
+      intros l'.
+      pose proof Hcontra l'.
+      destruct (decide (l'=l)); subst; try by simplify_map_eq.
+      subst.
+      simplify_map_eq.
+      case_match; case_match; naive_solver.
+  Qed. 
+  
+  
+  Lemma ex_seriesC_urns_f_distr_f3 m: ex_seriesC (urns_f_distr_f3 m).
+  Proof.
+    induction m as [|i x m Hx Hfirst] using map_first_key_ind.
+    - eapply (ex_seriesC_ext (λ f, if bool_decide (f=∅) then 1 else _)); last apply ex_seriesC_singleton.
+      intros.
+      rewrite /urns_f_distr_f3.
+      case_bool_decide as H0.
+      + rewrite bool_decide_eq_true_2.
+        * subst.
+          rewrite /urns_f_valid.
+          intros.
+          repeat case_match; set_solver.
+        * subst. intros ?.
+          repeat case_match; set_solver.
+      + rewrite bool_decide_eq_false_2; first done.
+        intros ?.
+        apply map_choose in H0.
+        destruct!/=.
+        rewrite /urns_f_valid in H.
+        epose proof H _ as H1.
+        erewrite H0 in H1.
+        case_match; set_solver.
+    - destruct (decide (is_valid_urn x)) as [H|H].
+      + rewrite urns_f_distr_f3_insert; last first.
+        * done.
+        * by rewrite Hx.
+        * apply ex_seriesC_gmap_insert.
+          -- intros. apply urns_f_distr_f3_pos.
+          -- apply urns_f_distr_compute_pos.
+          -- done.
+          -- apply ex_seriesC_urns_f_distr_compute. 
+      + eapply ex_seriesC_ext; last done.
+        simpl.
+        intros f.
+        rewrite urns_f_distr_f3_insert_no_change; try done.
+        by rewrite Hx.
+  Qed. 
+  
+  Program Definition urns_f_distr m := MkDistr (urns_f_distr_f3 m) _ _ _.
   Next Obligation.
-    intros. simpl. case_bool_decide; last done.
+    intros m f. simpl.
+    rewrite /urns_f_distr_f3.
+    case_bool_decide; last done.
+    rewrite /urns_f_distr_f2.
+    clear.
+    induction f using map_first_key_ind; first (vm_compute; lra).
+    rewrite map_fold_insert_first_key; [|done..].
+    rewrite {1}/urns_f_distr_f1.
+    rewrite /urns_f_distr_compute.
+    case_match; last lra.
+    case_match; first case_match; [|real_solver..].
+    rewrite -Rdiv_1_l.
+    apply Rmult_le_pos; first done.
     apply Rdiv_INR_ge_0.
   Qed.
   Next Obligation.
-    intros.
-    setoid_rewrite bool_decide_ext; last by rewrite -elem_of_set_urns_f_valid.
-    eapply ex_seriesC_ext; last apply (ex_seriesC_list (elements (set_urns_f_valid m))).
-    intros. simpl.
-    erewrite bool_decide_ext; last by rewrite elem_of_elements. done.
-    Unshelve.
-    apply _.
-  Qed.
+    apply ex_seriesC_urns_f_distr_f3.
+  Qed. 
   Next Obligation.
-    intros.
-    setoid_rewrite bool_decide_ext; last first.
-    { rewrite -elem_of_set_urns_f_valid. by rewrite -elem_of_elements. }
-    erewrite SeriesC_ext; first erewrite SeriesC_list_2; last done.
-    - rewrite -length_elements_size_gset.
-      rewrite Rdiv_1_l.
-      rewrite Rinv_l; first done.
-      apply not_0_INR.
-      pose proof set_urns_f_nonempty m. lia.
-    - apply NoDup_elements.
+    intros m.
+    induction m as [|i x m Hx Hfirst] using map_first_key_ind.
+    - erewrite (SeriesC_ext _ (λ f, if bool_decide (f=∅) then 1 else _)); first by erewrite SeriesC_singleton.
+      intros.
+      rewrite /urns_f_distr_f3.
+      symmetry. 
+      case_bool_decide as H0.
+      + rewrite bool_decide_eq_true_2.
+        * subst.
+          rewrite /urns_f_valid.
+          intros.
+          repeat case_match; set_solver.
+        * subst. intros ?.
+          repeat case_match; set_solver.
+      + rewrite bool_decide_eq_false_2; first done.
+        intros ?.
+        apply map_choose in H0.
+        destruct!/=.
+        rewrite /urns_f_valid in H.
+        epose proof H _ as H1.
+        erewrite H0 in H1.
+        case_match; set_solver.
+    - destruct (decide (is_valid_urn x)) as [H|H].
+      + rewrite urns_f_distr_f3_insert; last first.
+        * done.
+        * by rewrite Hx.
+        * apply SeriesC_gmap_insert_le_1.
+          -- apply urns_f_distr_f3_pos.
+          -- apply urns_f_distr_compute_pos.
+          -- apply ex_seriesC_urns_f_distr_f3.
+          -- apply ex_seriesC_urns_f_distr_compute.
+          -- done.
+          -- apply urns_f_distr_compute_le_1.
+      + etrans; last exact.
+        right.
+        apply SeriesC_ext.
+        intros f.
+        rewrite urns_f_distr_f3_insert_no_change; try done.
+        by rewrite Hx.
   Qed.
 
+  Lemma urns_f_distr_empty :
+    urns_f_distr ∅ = dret ∅.
+  Proof.
+    apply distr_ext.
+    intros.
+    destruct (decide(a = ∅)) as [|Hn].
+    { subst.
+      rewrite dret_1_1; last done.
+      rewrite /urns_f_distr/pmf/=.
+      rewrite /urns_f_distr_f3.
+      rewrite bool_decide_eq_true_2.
+      - rewrite /urns_f_distr_f2.
+        by vm_compute.
+      - intros ?. repeat case_match; set_solver.
+    }
+    rewrite dret_0; last done.
+    rewrite /urns_f_distr/pmf.
+    rewrite /urns_f_distr_f3.
+    rewrite bool_decide_eq_false_2; first done.
+    apply map_choose in Hn.
+    destruct Hn as [i []].
+    intros Hcontra.
+    pose proof Hcontra i.
+    repeat case_match; set_solver.
+  Qed.
+
+  Lemma urns_f_distr_pos m f:
+    urns_f_distr m f > 0 -> urns_f_valid m f.
+  Proof.
+    rewrite /urns_f_distr/pmf/urns_f_distr_f3.
+    case_bool_decide; [done|lra].
+  Qed. 
+
+  Lemma urns_f_distr_insert m l u:
+    (match m!!l with
+     | None => True
+     | Some u' => ¬ is_valid_urn u'
+     end) ->
+    is_valid_urn u ->
+    urns_f_distr (<[l:=u]> m) =
+    dbind
+      (λ f,
+         dbind (λ z, dret (<[l:=z]> f)) (urns_f_distr_compute_distr u)
+      )
+      (urns_f_distr m).
+  Proof.
+    intros H1 H2.
+    apply distr_ext.
+    intros a.
+    rewrite {1}/urns_f_distr{1}/pmf.
+    rewrite urns_f_distr_f3_insert; try done.
+    destruct (a!!_) eqn:Ha.
+    - rewrite {1}/dbind{1}/dbind_pmf{1 }/pmf.
+      rewrite /dbind/dbind_pmf{2}/pmf.
+      erewrite (SeriesC_ext _ (λ a0, if bool_decide (a0 = (delete l a)) then _ else 0)); last first.
+      + intros n.
+        case_bool_decide as H; first done.
+        destruct (pmf_pos (urns_f_distr m) n) as [Hineq|<-]; last lra.
+        apply (Rlt_gt) in Hineq.
+        apply urns_f_distr_pos in Hineq as Hineq'.
+        apply Rmult_eq_0_compat_l.
+        apply SeriesC_0.
+        intros.
+        apply Rmult_eq_0_compat_l.
+        rewrite dret_0; first done.
+        intros ->.
+        apply H.
+        simplify_map_eq.
+        rewrite delete_insert; first done.
+        pose proof Hineq' l.
+        repeat case_match; naive_solver.
+      + rewrite SeriesC_singleton_dependent.
+        f_equal.
+        erewrite (SeriesC_ext _ (λ a0, if bool_decide (a0 = (z)) then _ else 0)); last first.
+        { intros. case_bool_decide; first done.
+          rewrite dret_0; first lra.
+          intros H'. rewrite H' in Ha. simplify_map_eq.
+        }
+        rewrite SeriesC_singleton_dependent.
+        rewrite /urns_f_distr_compute_distr{1}/pmf dret_1_1; first lra.
+        by rewrite insert_delete.
+    - symmetry.
+      apply: SeriesC_0.
+      intros.
+      apply Rmult_eq_0_compat_l.
+      apply:SeriesC_0.
+      intros.
+      rewrite dret_0; first lra.
+      intros ->.
+      simplify_map_eq.
+  Qed. 
+
+
+  Lemma urns_f_distr_lookup m l u f:
+    is_valid_urn u -> 
+    m!! l = Some u -> 
+    (urns_f_distr m f > 0)%R ->
+    ∃ z, f!!l=Some z /\
+    match u with
+    | urn_unif s => z ∈ s
+    | urn_laplace num den l => True
+    end.
+  Proof.
+    intros H1 H2 H3.
+    erewrite <-(insert_delete _ _) in H3; last done.
+    rewrite urns_f_distr_insert in H3; last done; last by simplify_map_eq.
+    inv_distr.
+    simplify_map_eq.
+    unfold urns_f_distr_compute_distr, urns_f_distr_compute, pmf in *.
+    destruct u.
+    - case_bool_decide.
+      + naive_solver.
+      + lra.
+    - naive_solver.
+  Qed. 
+  
+  Lemma urns_f_distr_insert_no_change m l u:
+    (match m!!l with
+     | None => True
+     | Some u' => ¬ is_valid_urn u'
+    end) ->
+    ¬ is_valid_urn u ->
+    urns_f_distr (<[l:=u]> m) = urns_f_distr m.
+  Proof.
+    intros.
+    apply distr_ext.
+    intros.
+    rewrite /urns_f_distr/pmf.
+    by rewrite urns_f_distr_f3_insert_no_change.
+  Qed. 
+  
   Lemma urns_f_distr_mass m:
     SeriesC (urns_f_distr m) = 1.
   Proof.
-    rewrite /urns_f_distr/pmf/=.
-    setoid_rewrite bool_decide_ext; last first.
-    { rewrite -elem_of_set_urns_f_valid. by rewrite -elem_of_elements. }
-    erewrite SeriesC_ext; first erewrite SeriesC_list_2; last done.
-    - rewrite -length_elements_size_gset.
-      rewrite Rdiv_1_l.
-      rewrite Rinv_l; first done.
-      apply not_0_INR.
-      pose proof set_urns_f_nonempty m. lia. 
-    - apply NoDup_elements.
-  Qed.
-  
-  Lemma urns_f_distr_pos m f:
-    urns_f_distr m f > 0 <-> urns_f_valid m f.
-  Proof.
-    rewrite /urns_f_distr/pmf/=.
-    case_bool_decide; split; try done; try lra.
-    intros.
-    pose proof set_urns_f_nonempty m.
-    apply Rdiv_pos_pos; first lra.
-    apply Rlt_gt.
-    apply lt_0_INR. lia. 
+    induction m as [|i x m Hx Hfirst] using map_first_key_ind.
+    { rewrite urns_f_distr_empty.
+      by rewrite dret_mass.
+    }
+    destruct (decide (is_valid_urn x)).
+    - setoid_rewrite urns_f_distr_insert; try done; last by rewrite Hx.
+      rewrite dbind_mass.
+      erewrite SeriesC_ext; last first.
+      + intros. rewrite dbind_mass.
+        erewrite SeriesC_ext; last first.
+        * intros. rewrite dret_mass. by rewrite Rmult_1_r.
+        * rewrite urns_f_distr_compute_distr_mass; last done.
+          by rewrite Rmult_1_r.
+      + done. 
+    - rewrite urns_f_distr_insert_no_change; try done.
+      by case_match.
   Qed.
 
-  Lemma urns_f_distr_eval m f :
-    urns_f_valid m f -> urns_f_distr m f = 1/(urns_subst_f_num m).
+  Lemma urns_f_distr_witness m :
+    ∃ f, urns_f_distr m f > 0.
   Proof.
-    intros.
-    rewrite /urns_f_distr/pmf.
-    rewrite size_set_urns_f.
-    by rewrite bool_decide_eq_true_2.
-  Qed.
-  
-  Lemma urns_f_distr_is_pos_eval m f :
-    urns_f_distr m f > 0 -> urns_f_distr m f = 1/(urns_subst_f_num m).
-  Proof.
-    rewrite urns_f_distr_pos.
-    by intros ?%urns_f_distr_eval.
+    apply: SeriesC_gtz_ex; first done.
+    rewrite urns_f_distr_mass.
+    lra.
   Qed. 
+  
+  Lemma urns_f_valid_exists m:
+    ∃ f, urns_f_valid m f.
+  Proof.
+    pose proof urns_f_distr_witness m as [? ?%urns_f_distr_pos]. naive_solver.
+  Qed.
+
+  (** Not true *)
+  (* Lemma urns_f_distr_pos m f: *)
+  (*   urns_f_distr m f > 0 <-> urns_f_valid m f. *)
+  (* Proof. *)
+  (*   rewrite /urns_f_distr/pmf/=. *)
+  (*   case_bool_decide; split; try done; try lra. *)
+  (*   intros. *)
+  (*   pose proof set_urns_f_nonempty m. *)
+  (*   apply Rdiv_pos_pos; first lra. *)
+  (*   apply Rlt_gt. *)
+  (*   apply lt_0_INR. lia.  *)
+  (* Qed. *)
+
+  (** Not true *)
+  (* Lemma urns_f_distr_eval m f : *)
+  (*   urns_f_valid m f -> urns_f_distr m f = 1/(urns_subst_f_num m). *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   rewrite /urns_f_distr/pmf. *)
+  (*   rewrite size_set_urns_f. *)
+  (*   by rewrite bool_decide_eq_true_2. *)
+  (* Qed. *)
+
+  (** not true *)
+  (* Lemma urns_f_distr_is_pos_eval m f : *)
+  (*   urns_f_distr m f > 0 -> urns_f_distr m f = 1/(urns_subst_f_num m). *)
+  (* Proof. *)
+  (*   rewrite urns_f_distr_pos. *)
+  (*   by intros ?%urns_f_distr_eval. *)
+  (* Qed.  *)
   
   Lemma urns_f_distr_eval' m f :
     ¬ urns_f_valid m f -> urns_f_distr m f = 0.
   Proof.
     intros.
-    rewrite /urns_f_distr/pmf.
-    by rewrite bool_decide_eq_false_2.
+    rewrite /urns_f_distr/pmf/urns_f_distr_f3.
+    case_bool_decide; naive_solver.
   Qed.
-
-  Lemma urns_f_distr_insert m lis l N:
-    NoDup lis -> 
-    l∉dom m ->
-    length lis = S N ->
-    urns_f_distr (<[l:=list_to_set lis]> m) =
-    dbind (λ f,
-             dbind (λ n,
-                      match lis!!(fin_to_nat n) with
-                      | Some y => dret (<[l:=y]> f)
-                      | None => dzero
-                      end 
-               ) (dunifP (N))
-      ) (urns_f_distr m).
-  Proof.
-    intros Hnodup Hdom Hneq.
-    apply distr_ext.
-    intros f.
-    destruct (pmf_pos (urns_f_distr (<[l:=list_to_set lis]> m)) f) as [H1|H1];
-      destruct (pmf_pos (dbind
-                           (λ f0 : gmap loc nat,
-                              dbind
-                                (λ n,
-                                   match lis !! (fin_to_nat n) with
-                                   | Some y => dret (<[l:=y]> f0)
-                                   | None => dzero
-                                   end) (dunifP (N))) (urns_f_distr m)) f) as [H2|H2].
-    - apply Rlt_gt in H1.
-      apply Rlt_gt in H2.
-      inv_distr.
-      case_match eqn:K1; inv_distr.
-      rewrite urns_f_distr_is_pos_eval; last done.
-      rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
-      rename select (gmap _ _) into f. 
-      rename select (fin _) into x'. 
-      erewrite (SeriesC_ext _ (λ a, if bool_decide (a = (delete l f)) then _ * _ else 0)); last first.
-      { intros f'.
-        case_bool_decide; first done.
-        apply pmf_mult_eq_0.
-        intros H'.
-        apply Rmult_eq_0_compat_l.
-        rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
-        erewrite (SeriesC_ext _ (λ a, if bool_decide (a = x') then _ * _ else 0)); last first.
-        - intros. case_bool_decide; first done.
-          apply pmf_mult_eq_0. intros H''.
-          apply Rmult_eq_0_compat_l.
-          case_match eqn:K2; last done.
-          apply dret_0.
-          intros Hcontra.
-          assert ( <[l:=n]> f !!l = <[l:=n1]> f'!!l) as Hcontra'.
-          + rewrite Hcontra; naive_solver.
-          + rewrite !lookup_insert in Hcontra'.
-            simplify_eq.
-            eapply NoDup_lookup in K1; last apply K2; naive_solver.
-        - rewrite SeriesC_singleton_dependent.
-          apply Rmult_eq_0_compat_l.
-          case_match; last done.
-          apply dret_0.
-          intros Hcontra.
-          simplify_eq.
-          apply H.
-          apply (f_equal (λ x, delete l x)) in Hcontra.
-          rewrite !delete_insert_delete in Hcontra.
-          rewrite (delete_notin f') in Hcontra; first done.
-          rewrite -not_elem_of_dom.
-          erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos.
-          rewrite /urns_support_set.
-          rewrite elem_of_filter.
-          intros ?.
-          destruct!/=. 
-      }
-      rewrite SeriesC_singleton_dependent.
-      rewrite delete_notin; last first.
-      { rewrite -not_elem_of_dom.
-        erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos.
-        rewrite /urns_support_set.
-        rewrite elem_of_filter.
-        intros ?.
-        destruct!/=. }
-      rewrite urns_f_distr_is_pos_eval; last done.
-      rewrite urns_subst_f_num_insert; last first.
-      { by rewrite -not_elem_of_dom. }
-      { destruct lis; set_solver. }
-      rewrite !Rdiv_1_l.
-      rewrite mult_INR.
-      rewrite Rinv_mult.
-      f_equal.
-      rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
-      erewrite (SeriesC_ext _ (λ a, if bool_decide (a = x') then _ else 0)); last first.
-      { intros. case_bool_decide; first done.
-        apply Rmult_eq_0_compat_l.
-        case_match; last done.
-        apply dret_0.
-        intros Hcontra.
-        apply H.
-        apply (f_equal (λ x, x!!l)) in Hcontra.
-        rewrite !lookup_insert in Hcontra. simplify_eq.
-        eapply NoDup_lookup in K1.
-        - by apply fin_to_nat_inj.
-        - done.
-        - done. 
-      }
-      rewrite SeriesC_singleton_dependent.
-      rewrite /dunifP/dunif{1}/pmf.
-      rewrite K1.
-      rewrite size_list_to_set; last done.
-      rewrite Hneq.
-      rewrite dret_1_1; [lra|done].
-    - exfalso.
-      apply Rlt_gt in H1.
-      symmetry in H2.
-      assert (dbind
-         (λ f0 : gmap loc nat,
-            dbind
-              (λ n : fin (S N),
-                 match lis !! (fin_to_nat n) with
-                 | Some y => dret (<[l:=y]> f0)
-                 | None => dzero
-                 end) (dunifP N)) (urns_f_distr m) f > 0); last lra.
-      clear H2.
-      apply dbind_pos.
-      exists (delete l f).
-      apply urns_f_distr_pos in H1.
-      split; last first.
-      { apply urns_f_distr_pos.
-        rewrite /urns_f_valid in H1 *.
-        intros l'.
-        destruct (decide (l=l')).
-        - subst.
-          rewrite lookup_delete.
-          rewrite -not_elem_of_dom. naive_solver.
-        - rewrite lookup_delete_ne; last done.
-          pose proof H1 l'.
-          case_match;
-            by setoid_rewrite lookup_insert_ne in H.
-      }
-      apply dbind_pos.
-      rewrite /urns_f_valid in H1.
-      pose proof H1 l as K.
-      case_match; rewrite lookup_insert in K; destruct!/=; last first.
-      { destruct lis; set_solver. }
-      rename select (_∈_) into H2.
-      rewrite elem_of_list_to_set in H2.
-      rewrite elem_of_list_lookup in H2.
-      destruct H2 as [i H2].
-      apply lookup_lt_Some in H2 as H3.
-      rewrite Hneq in H3.
-      exists (nat_to_fin H3).
-      rewrite fin_to_nat_to_fin.
-      rewrite H2.
-      rewrite insert_delete_insert.
-      rewrite insert_id; last done.
-      rewrite dret_1_1; last done.
-      split; first lra.
-      solve_distr.
-    - exfalso.
-      assert (urns_f_distr (<[l:=list_to_set lis]> m) f > 0); last lra.
-      clear H1.
-      apply Rlt_gt in H2.
-      inv_distr.
-      case_match; inv_distr.
-      apply urns_f_distr_pos.
-      rename select (urns_f_distr _ _ > 0) into H.
-      apply urns_f_distr_pos in H.
-      unfold urns_f_valid in H.
-      intros l'.
-      destruct (decide (l=l')).
-      + subst. rewrite !lookup_insert.
-        eexists _; split; first done.
-        rewrite elem_of_list_to_set.
-        apply elem_of_list_lookup. naive_solver.
-      + rewrite !lookup_insert_ne; try done.
-        naive_solver.
-    - by rewrite -H1 -H2.
-  Qed. 
+  
+  (** Need to be restated *)
+  (* Lemma urns_f_distr_insert m lis l N: *)
+  (*   NoDup lis ->  *)
+  (*   l∉dom m -> *)
+  (*   length lis = S N -> *)
+  (*   urns_f_distr (<[l:=list_to_set lis]> m) = *)
+  (*   dbind (λ f, *)
+  (*            dbind (λ n, *)
+  (*                     match lis!!(fin_to_nat n) with *)
+  (*                     | Some y => dret (<[l:=y]> f) *)
+  (*                     | None => dzero *)
+  (*                     end  *)
+  (*              ) (dunifP (N)) *)
+  (*     ) (urns_f_distr m). *)
+  (* Proof. *)
+  (*   intros Hnodup Hdom Hneq. *)
+  (*   apply distr_ext. *)
+  (*   intros f. *)
+  (*   destruct (pmf_pos (urns_f_distr (<[l:=list_to_set lis]> m)) f) as [H1|H1]; *)
+  (*     destruct (pmf_pos (dbind *)
+  (*                          (λ f0 : gmap loc nat, *)
+  (*                             dbind *)
+  (*                               (λ n, *)
+  (*                                  match lis !! (fin_to_nat n) with *)
+  (*                                  | Some y => dret (<[l:=y]> f0) *)
+  (*                                  | None => dzero *)
+  (*                                  end) (dunifP (N))) (urns_f_distr m)) f) as [H2|H2]. *)
+  (*   - apply Rlt_gt in H1. *)
+  (*     apply Rlt_gt in H2. *)
+  (*     inv_distr. *)
+  (*     case_match eqn:K1; inv_distr. *)
+  (*     rewrite urns_f_distr_is_pos_eval; last done. *)
+  (*     rewrite {1}/dbind{1}/dbind_pmf{1}/pmf. *)
+  (*     rename select (gmap _ _) into f.  *)
+  (*     rename select (fin _) into x'.  *)
+  (*     erewrite (SeriesC_ext _ (λ a, if bool_decide (a = (delete l f)) then _ * _ else 0)); last first. *)
+  (*     { intros f'. *)
+  (*       case_bool_decide; first done. *)
+  (*       apply pmf_mult_eq_0. *)
+  (*       intros H'. *)
+  (*       apply Rmult_eq_0_compat_l. *)
+  (*       rewrite {1}/dbind{1}/dbind_pmf{1}/pmf. *)
+  (*       erewrite (SeriesC_ext _ (λ a, if bool_decide (a = x') then _ * _ else 0)); last first. *)
+  (*       - intros. case_bool_decide; first done. *)
+  (*         apply pmf_mult_eq_0. intros H''. *)
+  (*         apply Rmult_eq_0_compat_l. *)
+  (*         case_match eqn:K2; last done. *)
+  (*         apply dret_0. *)
+  (*         intros Hcontra. *)
+  (*         assert ( <[l:=n]> f !!l = <[l:=n1]> f'!!l) as Hcontra'. *)
+  (*         + rewrite Hcontra; naive_solver. *)
+  (*         + rewrite !lookup_insert in Hcontra'. *)
+  (*           simplify_eq. *)
+  (*           eapply NoDup_lookup in K1; last apply K2; naive_solver. *)
+  (*       - rewrite SeriesC_singleton_dependent. *)
+  (*         apply Rmult_eq_0_compat_l. *)
+  (*         case_match; last done. *)
+  (*         apply dret_0. *)
+  (*         intros Hcontra. *)
+  (*         simplify_eq. *)
+  (*         apply H. *)
+  (*         apply (f_equal (λ x, delete l x)) in Hcontra. *)
+  (*         rewrite !delete_insert_delete in Hcontra. *)
+  (*         rewrite (delete_notin f') in Hcontra; first done. *)
+  (*         rewrite -not_elem_of_dom. *)
+  (*         erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos. *)
+  (*         rewrite /urns_support_set. *)
+  (*         rewrite elem_of_filter. *)
+  (*         intros ?. *)
+  (*         destruct!/=.  *)
+  (*     } *)
+  (*     rewrite SeriesC_singleton_dependent. *)
+  (*     rewrite delete_notin; last first. *)
+  (*     { rewrite -not_elem_of_dom. *)
+  (*       erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos. *)
+  (*       rewrite /urns_support_set. *)
+  (*       rewrite elem_of_filter. *)
+  (*       intros ?. *)
+  (*       destruct!/=. } *)
+  (*     rewrite urns_f_distr_is_pos_eval; last done. *)
+  (*     rewrite urns_subst_f_num_insert; last first. *)
+  (*     { by rewrite -not_elem_of_dom. } *)
+  (*     { destruct lis; set_solver. } *)
+  (*     rewrite !Rdiv_1_l. *)
+  (*     rewrite mult_INR. *)
+  (*     rewrite Rinv_mult. *)
+  (*     f_equal. *)
+  (*     rewrite {1}/dbind{1}/dbind_pmf{1}/pmf. *)
+  (*     erewrite (SeriesC_ext _ (λ a, if bool_decide (a = x') then _ else 0)); last first. *)
+  (*     { intros. case_bool_decide; first done. *)
+  (*       apply Rmult_eq_0_compat_l. *)
+  (*       case_match; last done. *)
+  (*       apply dret_0. *)
+  (*       intros Hcontra. *)
+  (*       apply H. *)
+  (*       apply (f_equal (λ x, x!!l)) in Hcontra. *)
+  (*       rewrite !lookup_insert in Hcontra. simplify_eq. *)
+  (*       eapply NoDup_lookup in K1. *)
+  (*       - by apply fin_to_nat_inj. *)
+  (*       - done. *)
+  (*       - done.  *)
+  (*     } *)
+  (*     rewrite SeriesC_singleton_dependent. *)
+  (*     rewrite /dunifP/dunif{1}/pmf. *)
+  (*     rewrite K1. *)
+  (*     rewrite size_list_to_set; last done. *)
+  (*     rewrite Hneq. *)
+  (*     rewrite dret_1_1; [lra|done]. *)
+  (*   - exfalso. *)
+  (*     apply Rlt_gt in H1. *)
+  (*     symmetry in H2. *)
+  (*     assert (dbind *)
+  (*        (λ f0 : gmap loc nat, *)
+  (*           dbind *)
+  (*             (λ n : fin (S N), *)
+  (*                match lis !! (fin_to_nat n) with *)
+  (*                | Some y => dret (<[l:=y]> f0) *)
+  (*                | None => dzero *)
+  (*                end) (dunifP N)) (urns_f_distr m) f > 0); last lra. *)
+  (*     clear H2. *)
+  (*     apply dbind_pos. *)
+  (*     exists (delete l f). *)
+  (*     apply urns_f_distr_pos in H1. *)
+  (*     split; last first. *)
+  (*     { apply urns_f_distr_pos. *)
+  (*       rewrite /urns_f_valid in H1 *. *)
+  (*       intros l'. *)
+  (*       destruct (decide (l=l')). *)
+  (*       - subst. *)
+  (*         rewrite lookup_delete. *)
+  (*         rewrite -not_elem_of_dom. naive_solver. *)
+  (*       - rewrite lookup_delete_ne; last done. *)
+  (*         pose proof H1 l'. *)
+  (*         case_match; *)
+  (*           by setoid_rewrite lookup_insert_ne in H. *)
+  (*     } *)
+  (*     apply dbind_pos. *)
+  (*     rewrite /urns_f_valid in H1. *)
+  (*     pose proof H1 l as K. *)
+  (*     case_match; rewrite lookup_insert in K; destruct!/=; last first. *)
+  (*     { destruct lis; set_solver. } *)
+  (*     rename select (_∈_) into H2. *)
+  (*     rewrite elem_of_list_to_set in H2. *)
+  (*     rewrite elem_of_list_lookup in H2. *)
+  (*     destruct H2 as [i H2]. *)
+  (*     apply lookup_lt_Some in H2 as H3. *)
+  (*     rewrite Hneq in H3. *)
+  (*     exists (nat_to_fin H3). *)
+  (*     rewrite fin_to_nat_to_fin. *)
+  (*     rewrite H2. *)
+  (*     rewrite insert_delete_insert. *)
+  (*     rewrite insert_id; last done. *)
+  (*     rewrite dret_1_1; last done. *)
+  (*     split; first lra. *)
+  (*     solve_distr. *)
+  (*   - exfalso. *)
+  (*     assert (urns_f_distr (<[l:=list_to_set lis]> m) f > 0); last lra. *)
+  (*     clear H1. *)
+  (*     apply Rlt_gt in H2. *)
+  (*     inv_distr. *)
+  (*     case_match; inv_distr. *)
+  (*     apply urns_f_distr_pos. *)
+  (*     rename select (urns_f_distr _ _ > 0) into H. *)
+  (*     apply urns_f_distr_pos in H. *)
+  (*     unfold urns_f_valid in H. *)
+  (*     intros l'. *)
+  (*     destruct (decide (l=l')). *)
+  (*     + subst. rewrite !lookup_insert. *)
+  (*       eexists _; split; first done. *)
+  (*       rewrite elem_of_list_to_set. *)
+  (*       apply elem_of_list_lookup. naive_solver. *)
+  (*     + rewrite !lookup_insert_ne; try done. *)
+  (*       naive_solver. *)
+  (*   - by rewrite -H1 -H2. *)
+  (* Qed.  *)
   
   Definition urn_subst_equal σ (bl bl':base_lit) :=
-    ∀ f, urns_f_valid (urns σ) f -> urn_subst f bl = Some bl'.
+    ∀ f, urns_f_distr (urns σ) f >0 -> urn_subst f bl = Some bl'.
 
   Lemma urn_subst_equal_witness σ bl bl':
-    urn_subst_equal σ bl bl' -> ∃ f, urns_f_valid (urns σ) f /\ urn_subst f bl = Some bl'.
+    urn_subst_equal σ bl bl' -> ∃ f, urns_f_distr (urns σ) f > 0 /\ urn_subst f bl = Some bl'.
   Proof.
-    rewrite /urn_subst_equal.
-    setoid_rewrite <-elem_of_set_urns_f_valid.
-    pose proof set_urns_f_nonempty (urns σ).
-    apply size_pos_elem_of in H.
-    destruct H as [f H].
-    intros H'. pose proof H' _ H as H0.
-    naive_solver.
+    destruct (urns_f_distr_witness (urns σ)) as [f].
+    intros H'.
+    exists f.
+    split; first done.
+    by apply H'.
   Qed. 
+  (*   rewrite /urn_subst_equal. *)
+  (*   setoid_rewrite <-elem_of_set_urns_f_valid. *)
+  (*   pose proof set_urns_f_nonempty (urns σ). *)
+  (*   apply size_pos_elem_of in H. *)
+  (*   destruct H as [f H]. *)
+  (*   intros H'. pose proof H' _ H as H0. *)
+  (*   naive_solver. *)
+  (* Qed.  *)
 
   Lemma urn_subst_equal_unique σ bl bl1 bl2:
     urn_subst_equal σ bl bl1 -> urn_subst_equal σ bl bl2 -> bl1=bl2.
   Proof.
-    rewrite /urn_subst_equal.
-    intros H1 H2.
-    setoid_rewrite <-elem_of_set_urns_f_valid in H1.
-    setoid_rewrite <-elem_of_set_urns_f_valid in H2.
-    pose proof set_urns_f_nonempty ( (urns σ)) as H.
-    apply size_pos_elem_of in H as [x ?].
-    epose proof H1 x H as H1.
-    epose proof H2 x H as H2.
-    rewrite H1 in H2. by simplify_eq.
+    intros H1.
+    apply urn_subst_equal_witness in H1 as [f [H1 H2]].
+    intros H3.
+    apply H3 in H1.
+    naive_solver.
   Qed.
-
+  
   Lemma urn_subst_equal_epsilon_correct σ bl (e:∃ N : Z, urn_subst_equal σ bl (LitInt N)):
     urn_subst_equal σ bl (LitInt (epsilon e)).
   Proof.
@@ -1767,14 +2449,41 @@ Section urn.
     intros H'.
     eapply urn_subst_equal_unique in H; last apply H'.
     by simplify_eq.
-  Qed. 
+  Qed.
+  
+  Lemma urn_subst_equal_epsilon_correct' σ bl (e:∃ l, urn_subst_equal σ bl (LitLoc l)):
+    urn_subst_equal σ bl (LitLoc (epsilon e)).
+  Proof.
+    by pose proof epsilon_correct _ e as H.
+  Qed.
 
+  Lemma urn_subst_equal_epsilon_unique' σ bl l (e:∃ l, urn_subst_equal σ bl (LitLoc l)):
+    urn_subst_equal σ bl (LitLoc l) -> epsilon e = l.
+  Proof.
+    pose proof epsilon_correct _ e as H.
+    intros H'.
+    eapply urn_subst_equal_unique in H; last apply H'.
+    by simplify_eq.
+  Qed. 
 
   Definition is_simple_base_lit bl:=
     (match bl with
      | LitInt _ | LitBool _ |LitLoc _ | LitUnit => true
      | _ => false
      end).
+
+  Lemma is_simple_base_lit_support_set bl:
+    is_simple_base_lit bl = true -> base_lit_support_set bl = ∅.
+  Proof.
+    destruct bl; naive_solver.
+  Qed.
+
+  Lemma is_simple_base_lit_type_check bl:
+    is_simple_base_lit bl = true ->
+    match base_lit_type_check bl with | Some _ => true | _ => false end = true.
+  Proof. 
+    destruct bl; naive_solver.
+  Qed.
 
   Lemma urn_subst_equal_obv σ bl:
     is_simple_base_lit bl = true -> urn_subst_equal σ bl bl.
@@ -1845,6 +2554,7 @@ Section urn.
     intros H.
     apply urn_subst_equal_witness in H.
     destruct H as [?[H1 H2]].
+    apply urns_f_distr_pos in H1.
     apply urns_f_valid_support in H1.
     rewrite H1.
     by eapply urn_subst_f_support.
@@ -1896,20 +2606,21 @@ Section urn.
                    by repeat (eexists _||split).
   Qed. 
 
-  Global Instance urn_subst_equal_dec σ bl bl': Decision (urn_subst_equal σ bl bl').
-  Proof.
-    replace (urn_subst_equal _ _ _) with
-      (∀ f, f ∈ set_urns_f_valid ( (urns σ)) -> urn_subst f bl = Some bl').
-    - apply _. 
-    - apply propositional_extensionality.
-      rewrite /urn_subst_equal.
-      split.
-      + intros H ??. apply H.
-        by apply elem_of_set_urns_f_valid.
-      + intros H ??.
-        apply H.
-        by apply elem_of_set_urns_f_valid.
-  Qed.
+  (** Not true *)
+  (* Global Instance urn_subst_equal_dec σ bl bl': Decision (urn_subst_equal σ bl bl'). *)
+  (* Proof. *)
+  (*   replace (urn_subst_equal _ _ _) with *)
+  (*     (∀ f, f ∈ set_urns_f_valid ( (urns σ)) -> urn_subst f bl = Some bl'). *)
+  (*   - apply _.  *)
+  (*   - apply propositional_extensionality. *)
+  (*     rewrite /urn_subst_equal. *)
+  (*     split. *)
+  (*     + intros H ??. apply H. *)
+  (*       by apply elem_of_set_urns_f_valid. *)
+  (*     + intros H ??. *)
+  (*       apply H. *)
+  (*       by apply elem_of_set_urns_f_valid. *)
+  (* Qed. *)
 
   Lemma base_lit_type_check_None bl f:
     base_lit_type_check bl = None ->
@@ -1939,60 +2650,79 @@ Section urn.
       by repeat (case_match||simplify_eq).
   Qed. 
                                  
-  (** Function to convert an urn subst_f back to a gmap
-      Used in the definition of the If then else head step,
-      in the case that the conditional cannot be directly resolved to either true or false
-      This simplifies the erasure theorem
-   *)
 
-  Definition urns_subst_f_to_urns (f:gmap loc nat): gmap loc urn :=
-    (λ x, {[x]}) <$> f.
+  Definition urns_subst_f_to_urns (f:gmap loc Z): gmap loc urn :=
+    (λ x, urn_unif {[x]}) <$> f.
 
   Lemma urns_subst_f_to_urns_support f: urns_support_set (urns_subst_f_to_urns f) = dom f.
   Proof.
-    rewrite /urns_subst_f_to_urns.
-    rewrite /urns_support_set.
-    rewrite dom_fmap_L.
-    apply set_eq.
-    intros x. rewrite elem_of_filter elem_of_dom.
-    split; intros H; first naive_solver.
-    split; last done.
-    rewrite lookup_fmap.
-    destruct H.
-    by rewrite H.
-  Qed.
-
-  Lemma urns_subst_f_to_urns_valid f:
-    urns_f_valid (urns_subst_f_to_urns f) f.
-  Proof.
-    rewrite /urns_f_valid.
-    rewrite /urns_subst_f_to_urns.
-    intros ?.
-    case_match eqn:H.
-    - eexists _. rewrite lookup_fmap.
-      rewrite H. simpl. split; [done|set_solver].
-    - rewrite lookup_fmap. rewrite H. naive_solver.
-  Qed. 
-
-  Lemma urns_subst_f_to_urns_unique_valid f f' :
-    urns_f_valid (urns_subst_f_to_urns f) f' -> f=f'.
-  Proof.
-    pose proof urns_subst_f_to_urns_valid f as Hf.
-    rewrite -!elem_of_set_urns_f_valid in Hf *.
-    assert (size (set_urns_f_valid (urns_subst_f_to_urns f)) = 1)%nat as Hsize.
-    { apply set_urns_f_valid_singleton.
+    induction f using map_ind.
+    - rewrite /urns_subst_f_to_urns. rewrite fmap_empty.
+      rewrite /urns_support_set.
+      by rewrite map_filter_empty.
+    - rewrite dom_insert_L.
       rewrite /urns_subst_f_to_urns.
-      rewrite map_Forall_fmap.
-      intros ???. simpl.
-      right. eassert (size ({[x]}:gset _) = 1)%nat; last done.
-      apply size_singleton.
-    }
-    intros.
-    by eapply size_singleton_inv.
-    Unshelve.
-    all: try apply _.
-  Qed. 
-    
+      rewrite fmap_insert.
+      rewrite /urns_support_set.
+      rewrite map_filter_insert.
+      case_match; last first.
+      { simpl in *. exfalso.
+        rename select (¬ _) into H'.
+        apply H'.
+        set_solver. }
+      rewrite dom_insert_L.
+      f_equal. naive_solver.
+  Qed.
+  
+  Lemma urns_subst_f_to_urns_pos f:
+    urns_f_distr (urns_subst_f_to_urns f) f > 0.
+  Proof.
+    induction f as [|? ?? H' ]using map_ind. 
+    - rewrite /urns_subst_f_to_urns.
+      rewrite fmap_empty.
+      rewrite urns_f_distr_empty.
+      solve_distr.
+    - rewrite /urns_subst_f_to_urns.
+      rewrite fmap_insert.
+      rewrite urns_f_distr_insert; try done; last first.
+      { rewrite lookup_fmap.
+        by rewrite H'.
+      }
+      apply dbind_pos.
+      eexists _.
+      split.
+      + apply dbind_pos.
+        eexists _. split; first solve_distr.
+        rewrite /urns_f_distr_compute_distr/urns_f_distr_compute/pmf.
+        rewrite bool_decide_eq_true_2; last set_solver.
+        rewrite size_singleton.
+        simpl. lra.
+      + done.
+  Qed.
+  
+  Lemma urns_subst_f_to_urns_unique_valid f f' :
+    urns_f_distr (urns_subst_f_to_urns f) f' > 0 -> f=f'.
+  Proof.
+    revert f'. 
+    induction f as [|? ?? H' ]using map_ind.
+    - rewrite /urns_subst_f_to_urns.
+      rewrite fmap_empty.
+      rewrite urns_f_distr_empty.
+      intros. by inv_distr.
+    - rewrite /urns_subst_f_to_urns. rewrite fmap_insert.
+      rewrite urns_f_distr_insert; try done; last first.
+      { rewrite lookup_fmap.
+        by rewrite H'.
+      }
+      intros.
+      inv_distr.
+      f_equal.
+      + rename select (urns_f_distr_compute_distr _ _ > 0)%R into H1.
+        rewrite /urns_f_distr_compute_distr/urns_f_distr_compute/pmf in H1.
+        case_bool_decide; last lra.
+        set_unfold. by subst.
+      + naive_solver.
+  Qed.     
 End urn.
 
 
@@ -2024,9 +2754,9 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
         | _ => dzero
       end
   | If (Val (LitV bl)) e1 e2 =>
-      if bool_decide (urn_subst_equal σ1 bl (LitBool true))
+      if @bool_decide  (urn_subst_equal σ1 bl (LitBool true)) (make_decision _)
       then dret (e1, σ1)
-      else if bool_decide (urn_subst_equal σ1 bl (LitBool false))
+      else if @bool_decide (urn_subst_equal σ1 bl (LitBool false)) (make_decision _)
            then dret (e2, σ1)
            else
              dzero
@@ -2050,20 +2780,32 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
       dret (App e1 (Val v), σ1)
   | Case (Val (InjRV v)) e1 e2 =>
       dret (App e2 (Val v), σ1)
-  | AllocN (Val (LitV (LitInt N))) (Val v) =>
+  | AllocN (Val (LitV bl)) (Val v) =>
       let ℓ := fresh_loc σ1.(heap) in
-      if bool_decide (0 < Z.to_nat N)%nat
-        then dret (Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1)
-        else dzero
-  | Load (Val (LitV (LitLoc l))) =>
-      match σ1.(heap) !! l with
-        | Some v => dret (Val v, σ1)
-        | None => dzero
+      match excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl (LitInt N)) with
+      | left P => let N := epsilon P in
+                 if bool_decide (0 < Z.to_nat N)%nat
+                 then dret (Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1)
+                 else dzero
+      | _ => dzero
       end
-  | Store (Val (LitV (LitLoc l))) (Val w) =>
-      match σ1.(heap) !! l with
-        | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1)
-        | None => dzero
+  | Load (Val (LitV bl)) =>
+      match excluded_middle_informative (∃ l, urn_subst_equal σ1 bl (LitLoc l)) with
+      | left P => let l:=epsilon P in 
+                 match σ1.(heap) !! l with
+                 | Some v => dret (Val v, σ1)
+                 | None => dzero
+                 end
+      | _ =>dzero
+      end
+  | Store (Val (LitV bl)) (Val w) =>
+      match excluded_middle_informative (∃ l, urn_subst_equal σ1 bl (LitLoc l)) with
+      | left P => let l:=epsilon P in 
+                 match σ1.(heap) !! l with
+                 | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1)
+                 | None => dzero
+                 end
+      | _ =>dzero
       end
   (* Uniform sampling from [0, 1 , ..., N] *)
   | Rand (Val (LitV bl)) =>
@@ -2078,10 +2820,42 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
           let N := epsilon P in
           let l := fresh_loc σ1.(urns) in
           let N' := Z.to_nat N in
-          let s := list_to_set (seq 0 (N'+1)) in
-          dret (Val $ LitV $ LitLbl l, state_upd_urns <[l:=s]> σ1)
+          let s := list_to_set (Z.of_nat <$>seq 0 (N'+1)) in
+          dret (Val $ LitV $ LitLbl l, state_upd_urns <[l:=(urn_unif s)]> σ1)
       | _ => dzero
-      end 
+      end
+  | Laplace (Val (LitV bl0)) (Val (LitV bl1)) (Val (LitV bl2)) =>
+      match excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl0 (LitInt N)),
+              excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl1 (LitInt N)),
+                excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl2 (LitInt N)) with
+      | left P0, left P1, left P2 =>
+          let num := epsilon P0 in
+          let den := epsilon P1 in
+          let loc := epsilon P2 in
+          dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1))
+            (match decide (0 < IZR num / IZR den) with
+             | left εpos => laplace_rat num den loc εpos
+             | right _ => dret loc
+             end)
+      | _, _, _ => dzero
+      end
+  | DLaplace (Val (LitV bl0)) (Val (LitV bl1)) (Val (LitV bl2)) =>
+      match excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl0 (LitInt N)),
+              excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl1 (LitInt N)),
+                excluded_middle_informative (∃ (N:Z), urn_subst_equal σ1 bl2 (LitInt N)) with
+      | left P0, left P1, left P2 =>
+          let num := epsilon P0 in
+          let den := epsilon P1 in
+          let loc := epsilon P2 in
+          let l := fresh_loc σ1.(urns) in
+          (match decide (0 < IZR num / IZR den) with
+           | left εpos =>
+               dret (Val $ LitV $ LitLbl l, state_upd_urns <[l:=(urn_laplace num den loc)]> σ1)
+             | right _ => 
+                 dret (Val $ LitV $ LitLbl l, state_upd_urns <[l:=(urn_unif {[loc]})]> σ1)
+             end)
+      | _, _, _ => dzero
+      end
   | _ => dzero
   end.
 
@@ -2118,7 +2892,7 @@ Lemma head_ctx_step_val Ki e σ ρ :
 Proof.
   destruct ρ, Ki ;
     rewrite /pmf/= ;
-    repeat case_match; clear -H ; inversion H; intros ; (lra || done).
+    repeat case_match; subst; try clear -H; try inversion H; intros ; (lra || done).
 Qed.
 
 (** A relational characterization of the support of [head_step] to make it easier to
@@ -2171,18 +2945,21 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   head_step_rel (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ
 | CaseRS v e1 e2 σ :
   head_step_rel (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ
-| AllocNS z N v σ l :
+| AllocNS bl z N v σ l :
+  urn_subst_equal σ bl (LitInt z) ->
   l = fresh_loc σ.(heap) →
   N = Z.to_nat z →
   (0 < N)%nat ->
-  head_step_rel (AllocN (Val (LitV (LitInt z))) (Val v)) σ
+  head_step_rel (AllocN (Val (LitV bl)) (Val v)) σ
     (Val $ LitV $ LitLoc l) (state_upd_heap_N l N v σ)
-| LoadS l v σ :
+| LoadS bl l v σ :
+  urn_subst_equal σ bl (LitLoc l) ->
   σ.(heap) !! l = Some v →
-  head_step_rel (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ
-| StoreS l v w σ :
+  head_step_rel (Load (Val $ LitV bl)) σ (of_val v) σ
+| StoreS bl l v w σ :
+  urn_subst_equal σ bl (LitLoc l) ->
   σ.(heap) !! l = Some v →
-  head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
+  head_step_rel (Store (Val $ LitV bl) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
 | RandS z N bl (n : fin (S N)) σ:
   urn_subst_equal σ bl (LitInt z) ->
@@ -2192,8 +2969,38 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   urn_subst_equal σ bl (LitInt z) ->
   l = fresh_loc σ.(urns) →
   N = Z.to_nat z →
-  s = list_to_set (seq 0 (N+1)) ->
-  head_step_rel (DRand (Val $ LitV bl)) σ (Val $ LitV $ LitLbl l) (state_upd_urns <[l:=s]> σ).
+  s = list_to_set (Z.of_nat <$> (seq 0 (N+1))) ->
+  head_step_rel (DRand (Val $ LitV bl)) σ (Val $ LitV $ LitLbl l) (state_upd_urns <[l:=urn_unif s]> σ)
+| LaplaceS σ bl0 bl1 bl2 num den loc z:
+  urn_subst_equal σ bl0 (LitInt num) ->
+  urn_subst_equal σ bl1 (LitInt den) ->
+  urn_subst_equal σ bl2 (LitInt loc) ->
+  (0<IZR num / IZR den) ->
+  head_step_rel (Laplace (Val $ LitV bl0) (Val $ LitV bl1) (Val $ LitV bl2))
+    σ (Val $ LitV $ LitInt z) σ
+| LaplaceS' σ bl0 bl1 bl2 num den loc :
+  urn_subst_equal σ bl0 (LitInt num) ->
+  urn_subst_equal σ bl1 (LitInt den) ->
+  urn_subst_equal σ bl2 (LitInt loc) ->
+  ¬ (0<IZR num / IZR den) ->
+  head_step_rel (Laplace (Val $ LitV bl0) (Val $ LitV bl1) (Val $ LitV bl2))
+    σ (Val $ LitV $ LitInt loc) σ
+| DLaplaceS σ bl0 bl1 bl2 num den loc l:
+  urn_subst_equal σ bl0 (LitInt num) ->
+  urn_subst_equal σ bl1 (LitInt den) ->
+  urn_subst_equal σ bl2 (LitInt loc) ->
+  (0<IZR num / IZR den) ->
+  l=fresh_loc σ.(urns) ->
+  head_step_rel (DLaplace (Val $ LitV bl0) (Val $ LitV bl1) (Val $ LitV bl2))
+    σ (Val $ LitV $ LitLbl l) (state_upd_urns <[l:=urn_laplace num den loc]> σ)
+| DLaplaceS' σ bl0 bl1 bl2 num den loc l:
+  urn_subst_equal σ bl0 (LitInt num) ->
+  urn_subst_equal σ bl1 (LitInt den) ->
+  urn_subst_equal σ bl2 (LitInt loc) ->
+  ¬ (0<IZR num / IZR den) ->
+  l=fresh_loc σ.(urns) ->
+  head_step_rel (DLaplace (Val $ LitV bl0) (Val $ LitV bl1) (Val $ LitV bl2))
+    σ (Val $ LitV $ LitLbl l) (state_upd_urns <[l:=urn_unif {[loc]}]> σ).
 (* | AllocTapeS z N σ l : *)
 (*   l = fresh_loc σ.(tapes) → *)
 (*   N = Z.to_nat z → *)
@@ -2259,10 +3066,24 @@ Proof.
     (* + inv_distr. *)
     (*   eapply IfFalseS'; try done. *)
     (*   by apply urns_f_distr_pos. *)
+    + eapply AllocNS; try done.
+      apply urn_subst_equal_epsilon_correct.
+    + eapply LoadS; try done.
+      apply urn_subst_equal_epsilon_correct'.
+    + eapply StoreS; try done.
+      apply urn_subst_equal_epsilon_correct'.
     + eapply RandS; last done.
       apply urn_subst_equal_epsilon_correct.
     + eapply DRandS; last done; try done.
       apply urn_subst_equal_epsilon_correct.
+    + eapply LaplaceS; try done.
+      all: apply urn_subst_equal_epsilon_correct.
+    + eapply LaplaceS'; try done.
+      all: apply urn_subst_equal_epsilon_correct.
+    + eapply DLaplaceS; try done.
+      all: apply urn_subst_equal_epsilon_correct.
+    + eapply DLaplaceS'; try done.
+      all: apply urn_subst_equal_epsilon_correct.
   - inversion 1; simplify_map_eq/=; repeat try case_bool_decide; simplify_eq; try done; try by solve_distr.
     + exfalso.
       assert (LitBool true ≠ LitBool false) as H' by done; (apply H'; by eapply urn_subst_equal_unique).
@@ -2274,11 +3095,41 @@ Proof.
     (*   { intros H'. by eapply (urn_subst_equal_unique _ _ (LitBool true) (LitBool false)) in H'. } *)
     (*   rewrite bool_decide_eq_true_2; last done. *)
     (*   solve_distr. *)
+    + case_match; last (exfalso; naive_solver).
+      erewrite urn_subst_equal_epsilon_unique; last done.
+      rewrite bool_decide_eq_true_2; last done.
+      solve_distr.
+    + case_match; last (exfalso; naive_solver).
+      erewrite urn_subst_equal_epsilon_unique'; last done.
+      case_match; simplify_eq.
+      solve_distr.
+    + case_match; last (exfalso; naive_solver).
+      erewrite urn_subst_equal_epsilon_unique'; last done.
+      case_match; simplify_eq.
+      solve_distr.
     + solve_distr. case_match; last (exfalso; naive_solver).
       erewrite urn_subst_equal_epsilon_unique; last done.
       solve_distr.
     + case_match; last (exfalso; naive_solver).
       erewrite urn_subst_equal_epsilon_unique; last done.
+      solve_distr.
+    + do 3 (case_match; last (exfalso; naive_solver)).
+      repeat (erewrite urn_subst_equal_epsilon_unique; last done).
+      case_match; last done.
+      solve_distr.
+    + do 3 (case_match; last (exfalso; naive_solver)).
+      repeat (erewrite urn_subst_equal_epsilon_unique; last done).
+      case_match; first done.
+      solve_distr.
+    + do 3 (case_match; last (exfalso; naive_solver)).
+      repeat (erewrite urn_subst_equal_epsilon_unique; last done).
+      Unshelve.
+      2:{ done. }
+      case_match; last done.
+      solve_distr.
+    + do 3 (case_match; last (exfalso; naive_solver)).
+      repeat (erewrite urn_subst_equal_epsilon_unique; last done).
+      case_match; first done.
       solve_distr.
 Qed.
 
@@ -2342,7 +3193,7 @@ Lemma head_step_mass e σ :
 Proof.
   intros [[] Hs%head_step_support_equiv_rel].
   inversion Hs;
-    repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done) ).
+    repeat (simplify_map_eq/=; solve_distr_mass || case_bool_decide ||case_match; try (case_bool_decide; done) ).
   (* - rename select (_=false) into L1. clear L1.  *)
   (*   rename select (_=false) into L1. clear L1. *)
   (*   rename select (urns_f_valid _ _) into H1. *)
@@ -2407,8 +3258,18 @@ Proof.
   (*   + apply H4. *)
   (*     rewrite /urn_subst_equal/=. *)
   (*     by intros ? ->%urns_subst_f_to_urns_unique_valid. *)
-  - exfalso; naive_solver.
-  - exfalso; naive_solver.
+  all: exfalso; try naive_solver.
+  - rename select (¬ _) into H'.
+    apply H'.
+    erewrite urn_subst_equal_epsilon_unique; naive_solver.
+  - rename select (_!!epsilon _ = _) into H'.
+    revert H'.
+    erewrite urn_subst_equal_epsilon_unique'; last done.
+    intros. naive_solver.
+  - rename select (_!!epsilon _ = _) into H'.
+    revert H'.
+    erewrite urn_subst_equal_epsilon_unique'; last done.
+    intros. naive_solver.
 Qed. 
 
 
@@ -2437,6 +3298,8 @@ Fixpoint height (e : expr) : nat :=
   | Store e1 e2 => 1 + height e1 + height e2
   | Rand e => 1 + height e
   | DRand e => 1 + height e
+  | Laplace e0 e1 e2 => 1 + height e0 + height e1 + height e2
+  | DLaplace e0 e1 e2 => 1 + height e0 + height e1 + height e2
   end.
 
 Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.

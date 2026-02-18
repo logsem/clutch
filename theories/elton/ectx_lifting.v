@@ -21,14 +21,14 @@ Lemma wp_lift_head_step_fupd {E Φ} e1 s :
     state_interp σ1 ∗ err_interp ε1
     ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
-    state_step_coupl σ1 ε1
-       (λ σ2 ε2,
-          match to_val e1 with
+    state_step_coupl e1 σ1 ε1
+       (λ e2 σ2 ε2,
+          match to_val e2 with
           | Some v => |={∅, E}=> state_interp σ2 ∗ err_interp ε2 ∗ Φ v
-          | None => prog_coupl e1 σ2 ε2
+          | None => prog_coupl e2 σ2 ε2
                      (λ e3 σ3 ε3,
-                        ▷ state_step_coupl σ3 ε3
-                          (λ σ4 ε4, |={∅, E}=> state_interp σ4 ∗ err_interp ε4 ∗ WP e3 @ s ; E {{Φ}} 
+                        ▷ state_step_coupl e3 σ3 ε3
+                          (λ e4 σ4 ε4, |={∅, E}=> state_interp σ4 ∗ err_interp ε4 ∗ WP e4 @ s ; E {{Φ}} 
                           )
                      )
           end
