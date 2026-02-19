@@ -277,7 +277,22 @@ Section modalities.
         iMod ("H" with "[//]").
         by rewrite -H2.
       + by iApply state_step_coupl_ret_err_ge_1.
-  Qed. 
+  Qed.
+  
+  Lemma state_step_coupl_rec_partial_split e σ1 (ε : nonnegreal) Z :
+    (∃ u s (ε2 :_ -> nonnegreal) lis,
+        ⌜s≠∅⌝ ∗
+        ⌜⋃ lis =s⌝ ∗
+        ⌜ NoDup lis ⌝ ∗
+        ⌜∀ x y, x∈ lis -> y ∈ lis -> ∀ z, z ∈ x -> z ∈ y -> x=y⌝ ∗
+        ⌜σ1.(urns) !! u = Some (urn_unif s) ⌝ ∗
+        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+                    ⌜ (SeriesC (λ x, if bool_decide (x ∈ lis) then ε2 x * size x else 0%NNR)/ size s <= ε)%R ⌝ ∗
+                    (∀ x, ⌜x∈lis⌝ ={∅}=∗ state_step_coupl e (state_upd_urns <[u:=urn_unif x]> σ1) (ε2 x) Z )
+    )%I
+    ⊢ state_step_coupl e σ1 ε Z.
+  Proof.
+  Admitted. 
         
   (* Lemma state_step_coupl_rec_equiv σ1 (ε : nonnegreal) Z : *)
   (*   (∃ μ (ε2 : state con_prob_lang -> nonnegreal), *)

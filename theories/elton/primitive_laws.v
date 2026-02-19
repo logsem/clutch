@@ -315,6 +315,90 @@ Proof.
     iMod "Hclose". by iPureIntro.
 Qed.
 
+Lemma pupd_partial_resolve_urn s ε (ε2 : _ -> nonnegreal) l E lis:
+  s ≠ ∅ ->
+  ⋃ lis = s ->
+  NoDup lis ->
+  (∀ x y, x∈ lis -> y ∈ lis -> ∀ z, z ∈ x -> z ∈ y -> x=y) ->
+ (SeriesC (λ x, if bool_decide (x ∈ lis) then ε2 x * size x else 0)/ size s <= ε)%R ->
+  (exists r, forall ρ, (ε2 ρ <= r)%R) ->
+  ↯ ε -∗ l ↪ urn_unif s -∗
+  pupd E E (∃ s',
+        ↯ (ε2 s') ∗ l↪ urn_unif s' ∗ ⌜s' ∈ lis⌝
+    )%I.
+Proof.
+  rewrite pupd_unseal/pupd_def.
+  iIntros (Hs Hunion Hnodup Hdisjoint Hineq [r Hbound]) "Herr Hl".
+  iApply fupd_mask_intro; first set_solver.
+  iIntros "Hclose".
+  iIntros (?[] ε') "([Hs Hu]& Herr')".
+  iDestruct (ghost_map_lookup with "Hu [$]") as %?.
+  iDestruct (ec_supply_ec_inv with "[$][$]") as %(x&x'& -> & He).
+  iApply state_step_coupl_rec_partial_split.
+  pose (ε2' := λ x,  (ε2 x + x')%NNR ).
+  assert (∀ x, 0<=ε2' x)%R as Hnnr; first (intros; apply cond_nonneg).
+  iExists _,_, (λ x, mknonnegreal _ (Hnnr x)), lis.
+  iSplit; first done.
+  iSplit; first done.
+  iSplit; first done.
+  iSplit; first done.
+  iSplit; first done.
+  iSplit.
+  { iPureIntro.
+    exists ( (r+x'))%R.
+    simpl. intros.
+    rewrite /ε2'.
+    real_solver.
+  }
+  iSplit; first iPureIntro.
+  { simpl.
+    setoid_rewrite Rmult_plus_distr_r.
+    erewrite (SeriesC_ext _ (λ x0, (if bool_decide (x0 ∈ lis) then ε2 x0 * size x0 else 0)+if bool_decide (x0 ∈ lis) then x' * size x0 else 0)%R); last (intros; case_bool_decide; simpl; lra).
+    rewrite SeriesC_plus; try apply ex_seriesC_list.
+    rewrite Rdiv_plus_distr.
+    apply Rplus_le_compat; first lra.
+    rewrite SeriesC_list; last done.
+    cut ((∀ lis', NoDup lis' ->  (∀ x y : gset Z, x ∈ lis' → y ∈ lis' → ∀ z : Z, z ∈ x → z ∈ y → x = y)->foldr (Rplus ∘ λ a : gset Z, x' * size a) 0 lis' = x'* size (⋃ lis')) )%R.
+    - intros H'. rewrite H'; try done.
+      rewrite Hunion. rewrite Rmult_div_l; first done.
+      apply not_0_INR.
+      rewrite size_non_empty_iff.
+      by rewrite leibniz_equiv_iff.
+    - clear.
+      intros l.
+      induction l as [|hd tl IHl]; first rewrite size_empty/=; first lra.
+      intros Hnodup Hdisjoint.
+      simpl.
+      rewrite IHl.
+      + rewrite size_union; first simpl.
+        * rewrite plus_INR. lra.
+        * admit. 
+      + apply NoDup_cons in Hnodup. naive_solver.
+      + intros. repeat setoid_rewrite elem_of_cons in Hdisjoint. naive_solver.
+  }
+  iIntros (x0 Hx0).
+  iMod (ec_supply_decrease with "Herr' Herr") as (????) "Hε2".
+  iModIntro.
+  destruct (Rlt_decision ((ε2 (x0)) + nonneg x' )%R 1%R) as [Hdec|Hdec]; last first.
+  { apply Rnot_lt_ge, Rge_le in Hdec.
+    by iApply state_step_coupl_ret_err_ge_1.
+  }
+  iApply state_step_coupl_ret.
+  iMod (ghost_map_update with "Hu Hl") as "[$ Hl]".
+  rename select ((_+_)%NNR = _) into H'. apply (f_equal nonneg) in H'.
+  unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 (x0)) _) with "[Hε2]") as "[Hε2 Hcr]"; first done.
+  { simpl. done. }
+  { simpl in *. lra. }
+  { iApply ec_supply_eq; [|done]. simplify_eq. lra. }
+  iFrame.
+  subst.
+  iModIntro.
+  iSplitL "Hε2".
+  - iApply ec_supply_eq; [|done]. simplify_eq. simpl. simpl in *. lra.
+  - iSplit; first done.
+    iMod "Hclose". by iPureIntro.
+Admitted. 
+
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
 (* induction directly, but this demonstrates that we can state the expected *)
 (* reasoning principle for recursive functions, without any visible ▷. *)
