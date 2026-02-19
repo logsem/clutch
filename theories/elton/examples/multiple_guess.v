@@ -56,7 +56,7 @@ Section proofs.
       - assert (INR 1 < N)%R; last (simpl in *; lra).
         apply lt_INR. lia.
     }
-    iMod (pupd_partial_resolve_urn _ _ (λ x, mknonnegreal _ (Hε2 x)) _ _ ({[x]}:: s'::[]) with "[$][$]"); try done.
+    iMod (pupd_partial_resolve_urn _ _ (λ x, mknonnegreal _ (Hε2 x)) _ _ ({[x]}:: s'::[]) with "[$][$]") as "H"; try done.
     - set_solver.
     - set_solver.
     - apply NoDup_cons; split; last apply NoDup_cons; last split; last by apply NoDup_nil.
@@ -81,6 +81,61 @@ Section proofs.
         replace (_+_-_)%nat with (size s') by lia.
         right.
         f_equal.
+        rewrite -Rmult_div_swap.
+        rewrite Rmult_div_l; last first.
+        { apply not_0_INR.
+          rewrite size_union in Hineq; last set_solver.
+          rewrite size_singleton in Hineq. lia.
+        }
+        replace (_*_)%R with (INR 1); last first.
+        { simpl. lra. }
+        rewrite Rplus_0_r.
+        rewrite -plus_INR.
+        f_equal. lia.
+    - exists 1.
+      intros.
+      rewrite /ε2.
+      simpl.
+      repeat case_bool_decide; try lra.
+      rewrite -Rcomplements.Rdiv_le_1.
+      + assert (M<=N)%R; last lra.
+        apply le_INR. lia.
+      + assert (INR 1 < N)%R; last (simpl in *; lra).
+        apply lt_INR.
+        lia.
+    - iDestruct ("H") as "(%s''&Herr&Hunif&%Hcase)".
+      set_unfold in Hcase.
+      destruct!/=.
+      + rewrite /ε2.
+        rewrite bool_decide_eq_false_2; last set_solver.
+        rewrite bool_decide_eq_true_2; last done.
+        by iDestruct (ec_contradict with "[$]") as "[]".
+      + rewrite /ε2.
+        rewrite bool_decide_eq_true_2; last done.
+        rewrite size_union; last set_solver.
+        rewrite size_singleton.
+        replace 1%R with (INR 1) by done.
+        rewrite -(minus_INR (_+_)); last lia.
+        replace ((_+_-_)%nat) with (size s') by lia.
+        wp_bind (Val # (_ =ᵥ _))%V.
+        iApply (wp_value_promotion _ false (l ↪ urn_unif s')%I with "[Hunif]").
+        * admit.
+        * iIntros "Hunif".
+          wp_pures.
+          wp_pure.
+          wp_pure.
+          replace (_-_)%Z with (Z.of_nat (M-1)) by lia.
+          rewrite -minus_INR; last lia.
+          iApply ("IH" with "[][][//][$HΦ][$Herr][$]").
+          -- iPureIntro.
+             apply size_non_empty_iff.
+             rewrite leibniz_equiv_iff.
+             intros ->.
+             rewrite union_empty_r size_singleton in Hineq.
+             lia.
+          -- iPureIntro. rewrite size_union in Hineq; last set_solver.
+             rewrite size_singleton in Hineq.
+             lia. 
   Admitted.
     
 End proofs.
