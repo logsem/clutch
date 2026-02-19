@@ -4,21 +4,9 @@ Set Default Proof Using "Type*".
 Section proofs.
   Context `{eltonGS Σ}.  
 
-  Local Lemma ind_case_zero v l:
-    {{{ True }}}
-      (rec: "f" "x" :=
-         if: "x" = #0 then #false
-         else let: "guess" := v (Val (LitV LitUnit)) in if: "guess" = #lbl:l then #true else "f" ("x" - #1))%V
-      #0
-      {{{ RET #false; True }}}.
-  Proof.
-    iIntros (Φ) "_ HΦ".
-    wp_pures. by iApply "HΦ".
-  Qed. 
-
   Local Lemma ind_case (M N:nat) s (v:val) l:
     N≠0->
-    M<=N->
+    M<N->
     size s = N ->
     {{{ □ (∀ v1 : val, ()%lrel v1 -∗ REL v v1 : lrel_nat) ∗
         ↯ (M / N) ∗
@@ -39,6 +27,7 @@ Section proofs.
     wp_bind (v _)%E.
     iApply (pgl_wp_wand); first by iApply "Hinterp".
     iIntros (?) "[%guess ->]".
+    assert (Z.of_nat M ≠ 0) as Hneq'; first (intros Hrewrite; destruct!/=).
     wp_pures.
     assert (∃ x (s':gset Z), x∉s'/\{[x]}∪s' = s /\ (Z.of_nat guess) ∉ s') as (x & s' &H1 &H2&H3).
     { destruct (decide (Z.of_nat guess ∈ s)).
@@ -54,7 +43,45 @@ Section proofs.
           split; first (rewrite -union_difference_L; set_solver).
           set_solver.
     }
-    Admitted.
+    pose (ε2 := (λ s, if bool_decide (s = s') then (M-1)/(N-1) else if bool_decide (s = {[x]}) then 1 else 0)%R).
+    assert (∀ x, 0<= ε2 x)%R as Hε2.
+    { intros.
+      rewrite /ε2.
+      repeat case_bool_decide; try lra.
+      apply Rcomplements.Rdiv_le_0_compat.
+      - cut (INR 1<=M)%R; first (simpl; lra).
+        apply le_INR.
+        simplify_eq.
+        lia.
+      - assert (INR 1 < N)%R; last (simpl in *; lra).
+        apply lt_INR. lia.
+    }
+    iMod (pupd_partial_resolve_urn _ _ (λ x, mknonnegreal _ (Hε2 x)) _ _ ({[x]}:: s'::[]) with "[$][$]"); try done.
+    - set_solver.
+    - set_solver.
+    - apply NoDup_cons; split; last apply NoDup_cons; last split; last by apply NoDup_nil.
+      + rewrite elem_of_list_singleton. set_solver.
+      + set_solver.
+    - repeat setoid_rewrite elem_of_cons.
+      intros. destruct!/=; set_solver.
+    - rewrite SeriesC_list; last first.
+      + apply NoDup_cons; split; last apply NoDup_cons; last split; last by apply NoDup_nil.
+        * rewrite elem_of_list_singleton. set_solver.
+        * set_solver.
+      + Local Opaque size. simpl. rewrite size_singleton.
+        rewrite /ε2.
+        rewrite bool_decide_eq_false_2; last set_solver.
+        rewrite bool_decide_eq_true_2; last done.
+        rewrite bool_decide_eq_true_2; last done.
+        subst.
+        rewrite size_union; last set_solver.
+        rewrite size_singleton.
+        replace 1%R with (INR 1) by done.
+        rewrite -!minus_INR; try lia.
+        replace (_+_-_)%nat with (size s') by lia.
+        right.
+        f_equal.
+  Admitted.
     
 End proofs.
 
@@ -126,20 +153,21 @@ Section result.
       }
       iDestruct ("H'") as "(%s&Hl&%Hsize)".
       do 3 wp_pure.
-      destruct M.
-      + replace #0%nat with #0%Z by done.
-        wp_apply (ind_case_zero with "[//][-]").
-        iNext.
+      inversion Hineq.
+      { iDestruct (ec_contradict with "[$]") as "[]".
+        right. symmetry.
+        apply Rdiv_diag_eq.
+        - apply not_0_INR. lia.
+        - f_equal. lia.
+      }
+      iApply (ind_case with "[$Herr $Hl]").
+      + lia.
+      + lia.
+      + lia.
+      + done.
+      + iNext.
         iIntros.
         by iApply "HΦ".
-      + iApply (ind_case with "[$Herr $Hl]").
-        * lia.
-        * lia.
-        * lia.
-        * done.
-        * iNext.
-          iIntros.
-          by iApply "HΦ".
   Qed. 
 End result.
 

@@ -369,12 +369,16 @@ Proof.
       induction l as [|hd tl IHl]; first rewrite size_empty/=; first lra.
       intros Hnodup Hdisjoint.
       simpl.
+      repeat setoid_rewrite elem_of_cons in Hdisjoint.
       rewrite IHl.
       + rewrite size_union; first simpl.
         * rewrite plus_INR. lra.
-        * admit. 
+        * intros y ?. rewrite elem_of_union_list.
+          intros (y' &?&?).
+          assert (hd =y') as ->; first naive_solver.
+          apply NoDup_cons in Hnodup. naive_solver.
       + apply NoDup_cons in Hnodup. naive_solver.
-      + intros. repeat setoid_rewrite elem_of_cons in Hdisjoint. naive_solver.
+      + intros. naive_solver.
   }
   iIntros (x0 Hx0).
   iMod (ec_supply_decrease with "Herr' Herr") as (????) "Hε2".
@@ -397,7 +401,7 @@ Proof.
   - iApply ec_supply_eq; [|done]. simplify_eq. simpl. simpl in *. lra.
   - iSplit; first done.
     iMod "Hclose". by iPureIntro.
-Admitted. 
+Qed. 
 
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
 (* induction directly, but this demonstrates that we can state the expected *)
