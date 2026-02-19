@@ -38,9 +38,23 @@ Section proofs.
     rewrite refines_eq/refines_def.
     wp_bind (v _)%E.
     iApply (pgl_wp_wand); first by iApply "Hinterp".
-    iIntros (?) "[%n ->]".
+    iIntros (?) "[%guess ->]".
     wp_pures.
-  Admitted.
+    assert (∃ x (s':gset Z), x∉s'/\{[x]}∪s' = s /\ (Z.of_nat guess) ∉ s') as (x & s' &H1 &H2&H3).
+    { destruct (decide (Z.of_nat guess ∈ s)).
+      - exists (Z.of_nat guess), (s∖{[Z.of_nat guess]}).
+        repeat split.
+        + set_solver.
+        + rewrite -union_difference_L; set_solver.
+        + set_solver.
+      - assert (∃ x, x ∈ s) as [x ].
+        + apply size_pos_elem_of. lia.
+        + exists x, (s∖{[x]}).
+          split; first set_solver.
+          split; first (rewrite -union_difference_L; set_solver).
+          set_solver.
+    }
+    Admitted.
     
 End proofs.
 
