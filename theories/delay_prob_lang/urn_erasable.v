@@ -71,4 +71,14 @@ Section urn_erasable_functions.
     rewrite /urn_erasable.
     intros. rewrite -dbind_assoc'. by erewrite urns_f_distr_split.
   Qed.
+
+  Lemma two_split_urn_erasable m u s1 s2 s (H:(0<=size s1/size s<=1)%R):
+    s1≠ ∅ ->
+    s2≠ ∅ ->
+    s1 ##s2 ->
+    s1∪s2 = s ->
+    m!!u=Some (urn_unif s)->
+    urn_erasable (dmap (λ b, if b then (<[u:= urn_unif s1]> m) else (<[u:= urn_unif s2]> m)) (biased_coin _ H)) m.
+  Proof.
+  Admitted. 
 End urn_erasable_functions.

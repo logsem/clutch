@@ -487,6 +487,9 @@ Section modalities.
     )%I
     ⊢ state_step_coupl e σ1 ε Z.
   Proof.
+    iIntros "(%u&%s&%ε2&%s1&%s2&%Hnonempty1&%Hnonempty2&<-&%Hneq&%Hdisjoint&%Hlookup&[%r %Hbound]&%Hineq&H)".
+    iApply state_step_coupl_rec.
+    (* two_split_urn_erasable *)
   Admitted.
   
   Lemma state_step_coupl_rec_partial_split e σ1 (ε : nonnegreal) Z :
