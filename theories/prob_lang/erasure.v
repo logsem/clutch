@@ -1659,6 +1659,28 @@ Proof.
   1: eauto. intros [] []. apply Hcpl.
 Qed.
 
+(* rhs advanced composition, specialized to ε1 = 0 (as in Approxis). *)
+Lemma DPcoupl_erasure_erasable_exp_rhs_specialized δ1 μ1 μ1' (X2 : _ → R) R Φ (e1 e1' : expr) σ1 σ1' ε δ r n m
+  :
+  0 <= δ1 →
+  DPcoupl μ1 (σ2' ← μ1'; pexec m (e1', σ2')) R 0 δ1 →
+  δ1 + Expval (σ2' ← μ1'; pexec m (e1', σ2')) X2 <= δ →
+  (∀ ρ, (0 <= X2 ρ <= r)%R) →
+  erasable μ1 σ1 →
+  erasable μ1' σ1' →
+  (∀ σ2 e2' σ2', R σ2 (e2', σ2') →
+                 DPcoupl (exec n (e1, σ2)) (lim_exec (e2', σ2')) Φ ε (X2 (e2', σ2'))) →
+  DPcoupl (exec n (e1, σ1)) (lim_exec (e1', σ1')) Φ ε δ.
+Proof.
+  intros Hδ1 Hcoupl Hineq Hbound Hμ1 Hμ2 Hcont.
+  rewrite -Hμ1.
+  rewrite -(erasable_pexec_lim_exec μ1' m) //.
+  assert (0 + ε <= ε) by lra.
+  eapply DPcoupl_mon_grading; [done|done|].
+  eapply (DPcoupl_dbind_adv_rhs_specialized' _ _ _ _ _ _ ε δ1 _ X2) ; [done|eauto|done| |done].
+  intros ? [] ?.
+  by eapply Hcont.
+Qed.
 
 Lemma DPcoupl_erasure_erasable_rhs e1 e1' ε ε1 ε2 δ δ1 δ2 σ1 σ1' μ1 μ1' R φ k m
   (Hεsum : ε1 + ε2 <= ε)

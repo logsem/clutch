@@ -881,8 +881,8 @@ Section coupling_rule.
       destruct (xιs'!!k) as [[]|] eqn:K2; try done.
       simpl in *.
       simplify_eq.
-      eassert (_∈zip xιs xιs') as H.
-      { eapply elem_of_list_lookup_2.
+      iAssert (⌜_∈zip xιs xιs'⌝)%I as "%H".
+      { iPureIntro. eapply elem_of_list_lookup_2.
         erewrite lookup_zip_Some. naive_solver.
       }
       iDestruct (big_sepL_elem_of with "[$]") as "H"; first done.
@@ -919,8 +919,8 @@ Section coupling_rule.
       destruct (xιs'!!k) as [[]|] eqn:K2; try done.
       simpl in *.
       simplify_eq.
-      eassert (_∈zip xιs xιs') as H'.
-      { eapply elem_of_list_lookup_2.
+      iAssert (⌜_∈zip xιs xιs'⌝%I) as "%H'".
+      { iPureIntro. eapply elem_of_list_lookup_2.
         erewrite lookup_zip_Some. naive_solver.
       }
       iDestruct (big_sepL_elem_of with "[$]") as "H"; first done.
@@ -941,8 +941,8 @@ Section coupling_rule.
       destruct (xιs'!!k) as [[]|] eqn:?; last naive_solver.
       destruct!/=.
       iDestruct "Hlist" as "[_ Hlist]".
-      eassert (_∈zip xιs xιs') as H'.
-      { eapply elem_of_list_lookup_2.
+      iAssert (⌜_∈zip xιs xιs'⌝)%I as "%H'".
+      { iPureIntro. eapply elem_of_list_lookup_2.
         erewrite lookup_zip_Some. naive_solver.
       }
       iDestruct (big_sepL_elem_of with "[$]") as "H"; first done.

@@ -369,33 +369,33 @@ Section rules.
   Qed.
   Definition refines_couple_tapes := refines_couple_TT_err.
 
-  (* Lemma refines_couple_TT_frag (N M : nat) (f : nat -> nat) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ :
-       (M <= N)%nat →
-       (∀ n : nat, n < S M → f n < S N) ->
-       ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗
-       (∀ (n : nat),
-          ⌜ n ≤ N ⌝ -∗
-          if bool_decide (∃ m, m ≤ M /\ f m = n) then
-            ∀ m, α ↪N (N; ns ++ [f m]) ∗ αₛ ↪ₛN (M; nsₛ ++ [m]) ∗ ⌜f m ≤ N⌝ ∗ ⌜m ≤ M⌝ -∗
-                 REL e1 << e2 @ E : A
-          else
-            α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ) ∗ ⌜ n ≤ N ⌝ -∗ REL e1 << e2 @ E : A
-       )
-       ⊢ REL e1 << e2 @ E : A.
-     Proof.
-       iIntros (Hleq Hdom) "(Hα & Hαs & Hlog)".
-       rewrite refines_eq /refines_def.
-       iIntros (K2 ε') "He2 Hnais Herr' Hpos/=".
-       wp_apply wp_couple_fragmented_rand_rand_inj; [done|done|].
-       iFrame.
-       iIntros (n) "%".
-       iSpecialize ("Hlog" $! n).
-       case_bool_decide.
-       - iIntros (m) "(Hα & Hαs & Hnm)".
-         iApply ("Hlog" with "[//] [$Hα $Hαs $Hnm] [$He2] Hnais Herr' Hpos").
-       - iIntros "(Hα & Hαs)".
-         iApply ("Hlog" with "[//] [$Hα $Hαs] [$He2] Hnais Herr' Hpos").
-     Qed.
+  Lemma refines_couple_TT_frag (N M : nat) (f : nat -> nat) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ :
+    (M <= N)%nat →
+    (∀ n : nat, n < S M → f n < S N) ->
+    ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗
+    (∀ (n : nat),
+       ⌜ n ≤ N ⌝ -∗
+       if bool_decide (∃ m, m ≤ M /\ f m = n) then
+         ∀ m, α ↪N (N; ns ++ [f m]) ∗ αₛ ↪ₛN (M; nsₛ ++ [m]) ∗ ⌜f m ≤ N⌝ ∗ ⌜m ≤ M⌝ -∗
+              REL e1 << e2 @ E : A
+       else
+         α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ) ∗ ⌜ n ≤ N ⌝ -∗ REL e1 << e2 @ E : A
+    )
+    ⊢ REL e1 << e2 @ E : A.
+  Proof.
+    iIntros (Hleq Hdom) "(Hα & Hαs & Hlog)".
+    rewrite refines_eq /refines_def.
+    iIntros (K2 ε') "He2 Hnais Herr' Hpos/=".
+    wp_apply wp_couple_fragmented_rand_rand_inj; [done|done|].
+    iFrame.
+    iIntros (n) "%".
+    iSpecialize ("Hlog" $! n).
+    case_bool_decide.
+    - iIntros (m) "(Hα & Hαs & Hnm)".
+      iApply ("Hlog" with "[//] [$Hα $Hαs $Hnm] [$He2] Hnais Herr' Hpos").
+    - iIntros "(Hα & Hαs)".
+      iApply ("Hlog" with "[//] [$Hα $Hαs] [$He2] Hnais Herr' Hpos").
+  Qed.
 
      Lemma refines_couple_TT_adv (N M : nat) (f : nat → nat) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ (ε : R) :
        (0 <= ε)%R →
@@ -431,7 +431,7 @@ Section rules.
          iApply ("Hlog" $! ε'0 with "[$Hα $Hαs $Herr'0] [$He2] Hnais [$Herr'] [//]").
          iPureIntro.
          done.
-     Qed. *)
+     Qed.
 
   Lemma refines_get_ec E e e' A :
     (∀ ε : R, ↯ ε -∗ ⌜(0 < ε)%R⌝ -∗ REL e << e' @ E : A) ⊢

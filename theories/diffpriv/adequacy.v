@@ -24,13 +24,47 @@ Section adequacy.
     iRevert (σ1 e1' σ1' ε δ).
     iApply spec_coupl_ind.
     iIntros "!>" (σ1 e1' σ1' ε δ)
-      "[boo|(%T & %μ1 & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & % & % & %Hμ1 & %Hμ1' & H)] HZ";
-      [by iMod ("HZ" with "[$]") |].
-    iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-    { iPureIntro. intros h. eapply DPcoupl_erasure_rewritable_rhs. 8: apply h. all: eauto. }
-    iIntros (σ2 (e2', σ2') HT).
-    iMod ("H" with "[//]") as "[H _]".
-    by iApply "H".
+      "[% | [boo | [(%T & %μ1 & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & % & % & %Hμ1 & %Hμ1' & H)
+              |(%T & %k & %μ1 & %μ1' & %δ' & %X2 & %r & % & % & % & %Hμ1 & %Hμ1' & H) ]]] HZ";
+      [ | by iMod ("HZ" with "[$]") | |].
+    - iApply step_fupdN_intro; [done|].
+      do 2 iModIntro. iPureIntro. by apply DPcoupl_1.
+    - iApply (step_fupdN_mono _ _ _ ⌜_⌝).
+      { iPureIntro. intros h. eapply DPcoupl_erasure_rewritable_rhs. 8: apply h. all: eauto. }
+      iIntros (σ2 (e2', σ2') HT).
+      iMod ("H" with "[//]") as "[H _]".
+      by iApply "H".
+    - iApply (step_fupdN_mono _ _ _ ⌜_⌝).
+      { iPureIntro. intros h.
+        opose proof (ARcoupl_to_DPcoupl _ _ _ _ _) .
+        1: exact H.
+        (* should be possible to assume δ' = 0 here, judging from how spec_coupl_erasables_exp is used in coupling_rules. *)
+        (* eapply (DPcoupl_erasure_erasable_exp_rhs 0 δ' _ _ _ ε _ _ _ _ _ _ ε δ r m k).
+           8: apply h. all: eauto.
+           Unshelve.
+           1: lra.
+           apply cond_nonneg.
+         *)
+        eapply (DPcoupl_erasure_erasable_exp_rhs_specialized).
+        7: apply h. all: eauto.
+
+        (* (* eapply ARcoupl_to_DPcoupl. *)
+           eapply (DPcoupl_erasure_erasable_rhs _ _ ε 0 ε
+                     δ
+                     (Expval (μ1' ≫= λ σ2' : language.state prob_lang, pexec k (e1', σ2'))
+                     (λ x : mstate (lang_markov prob_lang), X2 x))
+                     δ'
+                  ). 8: apply h. all: eauto.
+           1: lra.
+           1: by (eapply Expval_ge_0' ; intros ; apply cond_nonneg).
+           1: by apply cond_nonneg.
+           (* 2: by eapply rewritable_erasable. *) *)
+        (* done. *)
+      }
+      iIntros (σ2 e2' σ2' HT).
+      (* opose proof (ARcoupl_to_DPcoupl _ _ _ _ H) . *)
+      iMod ("H" with "[//]") as "[H _]".
+      by iApply "H".
   Qed.
 
   Lemma wp_adequacy_prog_coupl n m e1 σ1 e1' σ1' Z φ ε δ :

@@ -324,6 +324,452 @@ Section couplings_theory.
   Qed.
 
 
+
+  (* Advanced composition on the right, specialized to the case where the first coupling has parameter ε_1 = 0. This is
+     sufficient for recovering the rules used by Approxis (since they were designed for the case ε=0). Maybe the proof
+     could be generalized to support non-zero ε_1. Ideally, DPcoupl_dbind should be a corollary of the general lemma. *)
+  Lemma DPcoupl_dbind_adv_rhs_specialized `{Countable A, Countable B, Countable A', Countable B'} (f : A → distr A') (g : B → distr B')
+    (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
+    ε2 δ1 δ2 (Δ2 : B → R) :
+    (0 <= δ1) → (∀ b, 0 <= (Δ2 b) <= 1) →
+    (SeriesC (λ b, μ2 b * (Δ2 b)) = δ2) →
+    (∀ a b, S a b → DPcoupl (f a) (g b) S' ε2 (Δ2 b)) →
+    DPcoupl μ1 μ2 S 0 δ1 →
+    DPcoupl (dbind f μ1) (dbind g μ2) S' (0 + ε2) (δ1 + δ2).
+  Proof.
+    intros Hδ1 HΔ2 <- Hcoup_fg Hcoup_S h1 h2 Hh1pos Hh2pos Hh1h2S.
+    rewrite {-3}/pmf/=/dbind_pmf.
+    (* To use the hypothesis that we have an R-ACoupling up to ε1 for μ1, μ2,
+       we have to rewrite the sums in such a way as to isolate (the expectation
+       of) a random variable X on the LHS and Y on the RHS, and ε1 on the
+       RHS. *)
+    (* First step: rewrite the LHS into a RV X on μ1. *)
+    setoid_rewrite <- SeriesC_scal_r.
+    rewrite <-(fubini_pos_seriesC (λ '(a,x), μ1 x * f x a * h1 a)).
+
+       (* Boring Fubini sideconditions. *)
+       2: { real_solver. }
+       2: { intro a'.
+            (* specialize (Hh1pos a'). *)
+            apply (ex_seriesC_le _ μ1); auto.
+            intro a; split.
+            + apply Rmult_le_pos.
+              * real_solver.
+              * real_solver.
+            + rewrite <- Rmult_1_r.
+              rewrite Rmult_assoc.
+              apply Rmult_le_compat_l; auto.
+              rewrite <- Rmult_1_r.
+              apply Rmult_le_compat; real_solver. }
+       2: { setoid_rewrite SeriesC_scal_r.
+            apply (ex_seriesC_le _ (λ a : A', SeriesC (λ x : A, μ1 x * f x a))); auto.
+            + series.
+            + apply (pmf_ex_seriesC (dbind f μ1)). }
+
+       (* LHS: Pull the (μ1 b) factor out of the inner sum. *)
+       assert (SeriesC (λ b : A, SeriesC (λ a : A', μ1 b * f b a * h1 a)) =
+                 SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a))) as ->.
+       { setoid_rewrite <- SeriesC_scal_l. series. }
+
+       (* Second step: rewrite the RHS into a RV Y on μ2. *)
+       (* RHS: Fubini. *)
+       rewrite <-(fubini_pos_seriesC (λ '(b,x), μ2 x * g x b * h2 b)).
+       2: by series.
+       2:{ intro b'.
+           specialize (Hh2pos b').
+           apply (ex_seriesC_le _ μ2) ; auto.
+           intro b; split.
+           - series.
+           - do 2 rewrite <- Rmult_1_r. series. }
+       2:{ setoid_rewrite SeriesC_scal_r.
+           apply (ex_seriesC_le _ (λ a : B', SeriesC (λ b : B, μ2 b * g b a))); auto.
+           - intros b'; specialize (Hh2pos b'); split.
+             + apply Rmult_le_pos; [ | lra].
+               apply (pmf_pos ((dbind g μ2)) b').
+             + rewrite <- Rmult_1_r.
+               apply Rmult_le_compat_l; auto.
+               * apply SeriesC_ge_0'. real_solver.
+               * real_solver.
+           - apply (pmf_ex_seriesC (dbind g μ2)). }
+
+       (* RHS: Factor out (μ2 b) *)
+       assert (SeriesC (λ b : B, SeriesC (λ a : B', μ2 b * g b a * h2 a))
+               = SeriesC (λ b : B, μ2 b * SeriesC (λ a : B', g b a * h2 a))) as ->.
+       { apply SeriesC_ext; intro.
+         rewrite <- SeriesC_scal_l.
+         apply SeriesC_ext; real_solver. }
+
+       (* here we depart from the lhs proof *)
+       rewrite (Rplus_comm δ1 _).
+       rewrite -Rplus_assoc.
+
+       (* push (exp ε2) into the series over B *)
+       rewrite exp_plus.
+       rewrite Rmult_assoc.
+       rewrite -(SeriesC_scal_l).
+       setoid_rewrite (eq_sym (Rmult_assoc (exp ε2) (μ2 _) _)).
+       setoid_rewrite ((Rmult_comm (exp ε2) _)).
+       setoid_rewrite ((Rmult_assoc (μ2 _) (exp ε2) _)).
+       rewrite exp_0. rewrite Rmult_1_l.
+
+       set (gh2 b := exp ε2 * SeriesC (λ b' : B', g b b' * h2 b')).
+       replace (λ b, μ2 b * _) with (λ b, μ2 b * gh2 b) by auto.
+
+       assert (∀ x, 0 <= exp x) by (left ; apply exp_pos).
+       assert (forall b, 0 <= gh2 b + Δ2 b).
+       { intros b. apply Rplus_le_le_0_compat. 2: apply HΔ2.
+         rewrite /gh2. apply Rmult_le_pos => //.
+         apply SeriesC_ge_0'. intros b'.
+         apply Rmult_le_pos => //.
+         apply Hh2pos.
+       }
+
+       rewrite -SeriesC_plus.
+
+       2:{
+         apply pmf_ex_seriesC_mult_fn.
+         eexists (exp ε2).
+         intros b.
+         split.
+         - apply Rmult_le_pos => //. apply SeriesC_ge_0'.
+           intros. apply Rmult_le_pos ; auto. naive_solver.
+         - trans (exp ε2 * SeriesC (g b)) => //.
+           + apply Rmult_le_compat_l => //. apply SeriesC_le => //. intros b'.
+             destruct (Hh2pos b'). real_solver.
+           + erewrite (eq_sym (Rmult_1_r (exp _))). rewrite Rmult_assoc. apply Rmult_le_compat_l => //. real_solver.
+       }
+       2:{
+         apply pmf_ex_seriesC_mult_fn.
+         eexists 1.
+         intros b.
+         destruct (HΔ2 b) ; lra.
+       }
+       replace (SeriesC (λ x : B, μ2 x * gh2 x + μ2 x * Δ2 x) + δ1)
+         with (exp 0 * SeriesC (λ x : B, μ2 x * gh2 x + μ2 x * Δ2 x) + δ1).
+       2:{ rewrite exp_0. lra. }
+       setoid_rewrite <-Rmult_plus_distr_l.
+
+       set (Y b := Rmin (gh2 b + Δ2 b) 1).
+
+       transitivity ((exp 0 * SeriesC (λ x : B, μ2 x * Y x) + δ1)).
+       {
+       apply Hcoup_S.
+
+
+       - intro; split.
+        + apply SeriesC_ge_0'; intro a'.
+          specialize (Hh1pos a'); real_solver.
+        + apply (Rle_trans _ (SeriesC (f a))); auto.
+          apply SeriesC_le; auto.
+          intro a'.
+          specialize (Hh1pos a'); real_solver.
+
+       - intros. rewrite /Y. split.
+        * rewrite /Y /gh2.
+          apply Rmin_glb ; [|lra].
+          apply Rle_plus_r. 1: apply HΔ2.
+          apply Rmult_le_pos => //.
+          apply SeriesC_ge_0'. intros b'.
+          apply Rmult_le_pos => //.
+          apply Hh2pos.
+        * rewrite /Y/gh2. apply Rmin_r.
+       - intros.
+         unfold Y.
+         apply Rmin_glb.
+         + apply Hcoup_fg => //.
+         + trans (SeriesC (λ a' : A', f a a' * 1)).
+           * apply SeriesC_le.
+             -- intros a'. destruct (Hh1pos a'). real_solver.
+             -- apply pmf_ex_seriesC_mult_fn. exists 1. intros ; lra.
+           * setoid_rewrite Rmult_1_r. auto.
+       }
+       apply Rle_plus_proper => //.
+       rewrite exp_0. rewrite !Rmult_1_l.
+       apply SeriesC_le'.
+       1: { intros b. apply Rmult_le_compat_l => //. rewrite /Y.
+            apply Rmin_l. }
+    - rewrite /Y.
+      apply pmf_ex_seriesC_mult_fn.
+      eexists 1.
+      intros b.
+      split.
+      + apply Rmin_glb. 2: lra. auto.
+      + apply Rmin_r.
+    - apply pmf_ex_seriesC_mult_fn.
+      exists (exp ε2 * 1 + 1). intros b. split => //.
+      apply Rle_plus_proper => //.
+      + rewrite /gh2. trans (exp ε2 * SeriesC (λ b' : B', g b b')) => //.
+        1,2: apply Rmult_le_compat_l => //.
+        apply SeriesC_le => //.
+        intros b' => //. destruct (Hh2pos b'). real_solver.
+      + apply HΔ2.
+  Qed.
+
+  Lemma DPcoupl_dbind_adv_rhs_specialized'
+    `{Countable A, Countable B, Countable A', Countable B'} (f : A → distr A') (g : B → distr B')
+    (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
+    ε2 δ1 δ2 (Δ2 : B → R) :
+    (0 <= δ1) → (∃ r, ∀ b, 0 <= (Δ2 b) <= r) →
+    (SeriesC (λ b, μ2 b * (Δ2 b)) <= δ2) →
+    (∀ a b, S a b → DPcoupl (f a) (g b) S' ε2 (Δ2 b)) →
+    DPcoupl μ1 μ2 S 0 δ1 →
+    DPcoupl (dbind f μ1) (dbind g μ2) S' (0 + ε2) (δ1 + δ2).
+  Proof.
+    intros Hε1 HE2 Hsum Hfg Hcoupl.
+    pose (Δ2' x := Rmin 1 (Δ2 x)).
+    eapply (DPcoupl_mon_grading _ _ _ _ _ (δ1 + SeriesC (λ a, μ2 a * (Δ2' a)))).
+    1: reflexivity.
+    { apply Rplus_le_compat_l; etrans; last exact. apply SeriesC_le; last apply pmf_ex_seriesC_mult_fn.
+      - intros. rewrite /Δ2'. split.
+        + apply Rmult_le_pos; try done. apply Rmin_glb; [lra|naive_solver].
+        + apply Rmult_le_compat_l; first done. apply Rmin_r.
+      - naive_solver.
+    }
+    eapply (DPcoupl_dbind_adv_rhs_specialized _ _ _ _ _ _ _ _ _ Δ2'); try done.
+    - intros a; split.
+      + apply Rmin_glb; [lra|naive_solver].
+      + apply Rmin_l.
+    - intros a b Hs. specialize (Hfg a b Hs).
+      rewrite /Δ2'.
+      rewrite /Rmin.
+      case_match.
+      + apply DPcoupl_1; done.
+      + eapply DPcoupl_mon_grading; done.
+  Qed.
+
+
+  (* Advanced composition on the right; not clear that the statement is entirely correct, but this should be the general
+     version (see DPcoupl_dbind_adv_rhs_specialized). *)
+
+  (* Lemma DPcoupl_dbind_adv_rhs `{Countable A, Countable B, Countable A', Countable B'} (f : A → distr A') (g : B → distr B')
+       (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
+       ε1 ε2 δ1 δ2 (Δ2 : B → R) :
+       (0 <= δ1) → (∀ b, 0 <= (Δ2 b) <= 1) →
+       (* (SeriesC (λ a, μ1 a * (E2 a)) <= ε2) → *)
+       (SeriesC (λ b, μ2 b * (Δ2 b)) = δ2) →
+       (∀ a b, S a b → DPcoupl (f a) (g b) S' ε2 (Δ2 b)) →
+       DPcoupl μ1 μ2 S ε1 δ1 →
+       DPcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2) (δ1 + δ2).
+     Proof.
+       intros Hδ1 HΔ2 <- Hcoup_fg Hcoup_S h1 h2 Hh1pos Hh2pos Hh1h2S.
+       rewrite {-3}/pmf/=/dbind_pmf.
+       (* To use the hypothesis that we have an R-ACoupling up to ε1 for μ1, μ2,
+          we have to rewrite the sums in such a way as to isolate (the expectation
+          of) a random variable X on the LHS and Y on the RHS, and ε1 on the
+          RHS. *)
+       (* First step: rewrite the LHS into a RV X on μ1. *)
+       setoid_rewrite <- SeriesC_scal_r.
+       rewrite <-(fubini_pos_seriesC (λ '(a,x), μ1 x * f x a * h1 a)).
+
+       (* Boring Fubini sideconditions. *)
+       2: { real_solver. }
+       2: { intro a'.
+            (* specialize (Hh1pos a'). *)
+            apply (ex_seriesC_le _ μ1); auto.
+            intro a; split.
+            + apply Rmult_le_pos.
+              * real_solver.
+              * real_solver.
+            + rewrite <- Rmult_1_r.
+              rewrite Rmult_assoc.
+              apply Rmult_le_compat_l; auto.
+              rewrite <- Rmult_1_r.
+              apply Rmult_le_compat; real_solver. }
+       2: { setoid_rewrite SeriesC_scal_r.
+            apply (ex_seriesC_le _ (λ a : A', SeriesC (λ x : A, μ1 x * f x a))); auto.
+            + series.
+            + apply (pmf_ex_seriesC (dbind f μ1)). }
+
+       (* LHS: Pull the (μ1 b) factor out of the inner sum. *)
+       assert (SeriesC (λ b : A, SeriesC (λ a : A', μ1 b * f b a * h1 a)) =
+                 SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a))) as ->.
+       { setoid_rewrite <- SeriesC_scal_l. series. }
+
+       (* Second step: rewrite the RHS into a RV Y on μ2. *)
+       (* RHS: Fubini. *)
+       rewrite <-(fubini_pos_seriesC (λ '(b,x), μ2 x * g x b * h2 b)).
+       2: by series.
+       2:{ intro b'.
+           specialize (Hh2pos b').
+           apply (ex_seriesC_le _ μ2) ; auto.
+           intro b; split.
+           - series.
+           - do 2 rewrite <- Rmult_1_r. series. }
+       2:{ setoid_rewrite SeriesC_scal_r.
+           apply (ex_seriesC_le _ (λ a : B', SeriesC (λ b : B, μ2 b * g b a))); auto.
+           - intros b'; specialize (Hh2pos b'); split.
+             + apply Rmult_le_pos; [ | lra].
+               apply (pmf_pos ((dbind g μ2)) b').
+             + rewrite <- Rmult_1_r.
+               apply Rmult_le_compat_l; auto.
+               * apply SeriesC_ge_0'. real_solver.
+               * real_solver.
+           - apply (pmf_ex_seriesC (dbind g μ2)). }
+
+       (* RHS: Factor out (μ2 b) *)
+       assert (SeriesC (λ b : B, SeriesC (λ a : B', μ2 b * g b a * h2 a))
+               = SeriesC (λ b : B, μ2 b * SeriesC (λ a : B', g b a * h2 a))) as ->.
+       { apply SeriesC_ext; intro.
+         rewrite <- SeriesC_scal_l.
+         apply SeriesC_ext; real_solver. }
+
+       (* here we depart from the lhs proof *)
+       rewrite (Rplus_comm δ1 _).
+       rewrite -Rplus_assoc.
+
+       (* push (exp ε2) into the series over B *)
+       rewrite exp_plus.
+       rewrite Rmult_assoc.
+       rewrite -(SeriesC_scal_l).
+       setoid_rewrite (eq_sym (Rmult_assoc (exp ε2) (μ2 _) _)).
+       setoid_rewrite ((Rmult_comm (exp ε2) _)).
+       setoid_rewrite ((Rmult_assoc (μ2 _) (exp ε2) _)).
+
+
+
+
+
+
+
+
+
+       (* lhs proof below *)
+
+       apply Rle_minus_l.
+
+
+       (* To construct X, we want to push ε2 into the inner sum. We don't do this
+          directly, because X might be larger than 1, but
+          our assumption on the ε1 R-ACoupling requires it to be valued in [0,1].
+          Instead, we take min(1, exp(ε2) * (Σ(a:A')(f b a * h1 a))).
+          ALT: could use a more fine-grained min inside the sum?
+        *)
+
+       assert (exp (ε1) * SeriesC (λ b : B, μ2 b * (Rmin 1 (exp (ε2) * SeriesC (λ a : B', g b a * h2 a)))) + δ1
+               <= exp (ε1 + ε2) * SeriesC (λ b : B, μ2 b * SeriesC (λ a : B', g b a * h2 a)) + δ1) as <-.
+       {
+          apply Rplus_le_compat_r.
+          rewrite exp_plus.
+          rewrite Rmult_assoc.
+          rewrite -(SeriesC_scal_l _ (exp ε2)).
+          apply Rmult_le_compat_l; [left; apply exp_pos |].
+          apply SeriesC_le.
+          - intros b; split.
+            + apply Rmult_le_pos; auto.
+              apply Rmin_glb; [lra |].
+              apply Rmult_le_pos; [left; apply exp_pos |].
+              apply SeriesC_ge_0'.
+              real_solver.
+            + rewrite Rmult_min_distr_l; auto.
+              etrans; [apply Rmin_r | lra].
+          - apply ex_seriesC_scal_l.
+            apply (ex_seriesC_le _ μ2); auto.
+            intro b; split.
+            + apply Rmult_le_pos; auto.
+              apply SeriesC_ge_0'.
+              intro; apply Rmult_le_pos; auto.
+              apply Hh2pos.
+            + rewrite <- Rmult_1_r.
+              apply Rmult_le_compat_l; auto.
+              apply (Rle_trans _ (SeriesC (g b))); auto.
+              apply SeriesC_le; auto.
+              real_solver.
+       }
+
+       assert (
+           SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a)) -
+             SeriesC (λ b, μ2 b * Δ2 b)
+           <= SeriesC (λ b : A, μ1 b * Rmax 0 (SeriesC (λ a : A', f b a * h1 a) - Δ2 b))
+         ) as ->.
+       {
+         apply (Rle_trans _ (SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a) - μ1 b * Δ2 b))).
+         - rewrite SeriesC_minus.
+           + apply Rplus_le_compat_l.
+             apply Ropp_le_contravar.
+             done.
+           + apply (ex_seriesC_le _ μ1); auto.
+            intro a; split.
+            * apply Rmult_le_pos; auto.
+              apply SeriesC_ge_0'.
+              intro; apply Rmult_le_pos; auto.
+              apply Hh1pos.
+            * rewrite <- Rmult_1_r.
+              apply Rmult_le_compat_l; auto.
+              apply (Rle_trans _ (SeriesC (f a))); auto.
+              apply SeriesC_le; auto.
+              real_solver.
+           + apply (ex_seriesC_le _ μ1); auto.
+             intros; real_solver.
+         - apply SeriesC_le'.
+           + intros a.
+             rewrite -Rmult_minus_distr_l.
+             apply Rmult_le_compat_l; auto.
+             apply Rmax_r.
+           + apply ex_seriesC_plus.
+             * apply (ex_seriesC_le _ μ1); auto.
+               intro a; split.
+               ** apply Rmult_le_pos; auto.
+                  apply SeriesC_ge_0'.
+                  intro; apply Rmult_le_pos; auto.
+                  apply Hh1pos.
+               ** rewrite <- Rmult_1_r.
+                  apply Rmult_le_compat_l; auto.
+                  apply (Rle_trans _ (SeriesC (f a))); auto.
+                  apply SeriesC_le; auto.
+                  real_solver.
+             * apply (ex_seriesC_ext (λ x, -1 * (μ1 x * Δ2 x))).
+               1: intros; real_solver.
+               apply ex_seriesC_scal_l.
+               apply (ex_seriesC_le _ μ1); auto.
+               intros; real_solver.
+           + apply (ex_seriesC_le _ μ1); auto.
+             intros a; split.
+             * apply Rmult_le_pos; auto.
+               apply Rmax_l.
+             * rewrite -{2}(Rmult_1_r (μ1 a)).
+               apply Rmult_le_compat_l; auto.
+               apply Rmax_lub; first by lra.
+               apply Rle_minus_l.
+               apply (Rle_trans _ 1); last by real_solver.
+               apply (Rle_trans _ (SeriesC (f a))); auto.
+               apply SeriesC_le; auto.
+               real_solver.
+       }
+
+       (*
+           Now we instantiate the lifting definitions and use them to prove the
+           inequalities
+       *)
+       rewrite /DPcoupl in Hcoup_S.
+       apply Hcoup_S.
+       + intro; split; first apply Rmax_l.
+         apply Rmax_lub; first by lra.
+         apply Rle_minus_l.
+         apply (Rle_trans _ 1); last by real_solver.
+         apply (Rle_trans _ (SeriesC (f a))); auto.
+         apply SeriesC_le; auto; real_solver.
+       + intro; split.
+         * apply Rmin_glb; [lra |].
+           apply Rmult_le_pos.
+           ** left. apply exp_pos.
+           ** apply SeriesC_ge_0'; intro b'.
+              specialize (Hh2pos b'); real_solver.
+         * apply Rmin_l.
+
+       + intros a b Rab.
+         apply Rmin_glb; apply Rmax_lub; first by lra.
+         * apply Rle_minus_l.
+           apply (Rle_trans _ 1); last by real_solver.
+           apply (Rle_trans _ (SeriesC (f a))); auto.
+           apply SeriesC_le; auto; real_solver.
+         * series.
+           left.
+           by apply exp_pos.
+         * apply Rle_minus_l.
+           by apply Hcoup_fg.
+     Qed. *)
+
+
   Lemma DPcoupl_dbind_choice `{Countable A, Countable B, Countable A', Countable B'} (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (S1 : A → B → Prop) (S2 : A → B → Prop) (S' : A' → B' → Prop)
     ε1 ε2 δ1 δ2 ε1' ε2' δ1' ε δ:
