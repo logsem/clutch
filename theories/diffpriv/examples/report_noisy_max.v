@@ -541,53 +541,13 @@ Qed.
     iApply (rnm_init with "rhs") => //.
     iIntros "!> % (% & % & % & rhs & % & % & % & % & %)". simpl...
     tp_bind (list_map _ _). wp_bind (list_map _ _).
-
-    (* assert (forall K vxs vxs',
-                  {{{ ⤇ fill K ((list_map (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x")))%V vxs') }}}
-                    (list_map (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x")))%V vxs
-                    {{{ vxιs, RET vxιs ; ∃ vxιs' xιs xιs',
-                            ⌜is_list xιs vxιs⌝ ∗ ⌜length xιs = length xs⌝ ∗
-                            ⌜is_list xιs' vxιs'⌝ ∗ ⌜length xιs' = length xs'⌝ ∗
-                            ⌜ NoDup xιs.*2 ⌝ ∗ ⌜ NoDup xιs'.*2 ⌝ ∗
-                            ⤇ fill K vxιs' ∗
-                            [∗ list] '(x, ι) ; '(x', ι') ∈ xιs ; xιs',
-                          ι ↪L (num, 2*den, x; []) ∗ ι' ↪Lₛ (num, 2*den, x'; []) ∗
-                          ⌜dZ x x' <= 1⌝
-              }}}) as wp_tape_list.
-       1: admit. *)
-
-    wp_apply (wp_alloc_tapes_laplace with "rhs") (* ; clear wp_tape_list *) => //.
+    wp_apply (wp_alloc_tapes_laplace with "rhs") => //.
     1: lia.
     iIntros "% (% & % & % & % & % & % & % & % & % & rhs & Htapes) /="...
-    (* iAssert
-         (∀ num den e Φ,
-             (⌜(0 < IZR num / IZR (2 * den))⌝ ∗
-              ↯m (IZR num / IZR den) ∗
-              ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num, 2 * den,x; []) ∗ ι' ↪Lₛ (num,2 * den,x'; []) ∗ ⌜dZ x x' <= 1⌝) ∗
-                ⌜ NoDup xιs.*2 ⌝ ∗ ⌜ NoDup xιs'.*2 ⌝
-              ∗
-                ((∃ zs zs', ([∗ list] k ↦ '(x, ι);'(x', ι') ∈ xιs;xιs',
-                               ι ↪L (num, 2 * den,x; [zs !!! k]) ∗
-                               ι' ↪Lₛ (num,2 * den,x'; [zs' !!! k]) ∗
-                               ⌜dZ x x' <= 1⌝) ∗
-                            ⌜length zs = N⌝ ∗
-                            ⌜length zs' = N⌝ ∗
-                            ⌜List_max_index zs = List_max_index zs'⌝)
-                 -∗
-                 WP e {{ v, Φ v }})
-                -∗
-              WP e {{ v, Φ v }}))%I
-         as "presample_laplace_map_max".
-       1: admit. *)
-
     wp_apply (hoare_couple_laplace_list with "[$ε] [$Htapes] [rhs Hpost]") => //.
     1,2: lia.
-    (* wp_apply ("presample_laplace_map_max" $! _ _ _ post with "[$ε $Htapes rhs Hpost]") ;
-         iClear "presample_laplace_map_max" ; iSplit ; [done|].
-       repeat iSplit => //. *)
     iIntros "(% & % & Htapes & %Hmax)".
-
-    (* TODO split the tapes assumption into three list-foralls (two unary ones and one that's pure about the dZ). *)
+    (* split the tapes assumption into three list-foralls (two unary ones and one that's pure about the dZ). *)
     iAssert (([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs',
                ι ↪L (num, 2 * den,x; [zs !!! k]))
              ∗
