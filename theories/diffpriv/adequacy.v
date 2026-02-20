@@ -182,24 +182,37 @@ Proof.
   by eapply wp_adequacy_exec_n.
 Qed.
 
-(* Corollary wp_adequacy_error_lim Σ `{diffprivGpreS Σ} (e e' : expr) (σ σ' : state) (ε : R) φ :
-     0 <= ε →
-     (∀ `{diffprivGS Σ} (ε' : R),
-         ε < ε' → ⊢ ⤇ e' -∗ ↯ ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
-     Mcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
-   Proof.
-     intros ? Hwp.
-     apply Mcoupl_limit.
-     intros ε' Hineq.
-     assert (0 <= ε') as Hε'.
-     { trans ε; [done|lra]. }
-     pose (mknonnegreal ε' Hε') as NNRε'.
-     assert (ε' = (NNRbar_to_real (NNRbar.Finite NNRε'))) as Heq; [done|].
-     rewrite Heq.
-     eapply wp_adequacy; [done|done|].
-     iIntros (?).
-     by iApply Hwp.
-   Qed. *)
+Lemma DPcoupl_limit `{Countable A, Countable B} μ1 μ2 ε δ (ψ : A -> B -> Prop):
+  (forall δ', δ' > δ -> DPcoupl μ1 μ2 ψ ε δ') -> DPcoupl μ1 μ2 ψ ε δ.
+Proof.
+  rewrite /DPcoupl.
+  intros Hlimit. intros.
+  apply real_le_limit.
+  intros δ0 ?. rewrite Rcomplements.Rle_minus_l.
+  rewrite Rplus_assoc.
+  apply Hlimit; try done.
+  lra.
+Qed.
+
+Corollary wp_adequacy_error_lim Σ `{diffprivGpreS Σ} (e e' : expr) (σ σ' : state) (ε δ : R) φ :
+  0 <= ε →
+  0 <= δ →
+  (∀ `{diffprivGS Σ} (δ' : R),
+      δ < δ' → ⊢ ⤇ e' -∗ ↯m ε -∗ ↯ δ' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  DPcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε δ.
+Proof.
+  intros ?? Hwp.
+  apply DPcoupl_limit.
+  intros δ' Hineq.
+  assert (0 <= δ') as Hδ'.
+  { trans δ; [done|lra]. }
+  pose (mknonnegreal δ' Hδ') as NNRδ'.
+  assert (δ' = (NNRbar_to_real (NNRbar.Finite NNRδ'))) as Heq; [done|].
+  rewrite Heq.
+  eapply wp_adequacy; [done|done|done|..].
+  iIntros (?).
+  by iApply Hwp.
+Qed.
 
 Corollary wp_adequacy_mass Σ `{!diffprivGpreS Σ} (e e' : expr) (σ σ' : state) φ (ε δ : R) :
   0 <= ε → 0 <= δ ->
