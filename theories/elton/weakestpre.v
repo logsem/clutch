@@ -278,23 +278,7 @@ Section modalities.
         by rewrite -H2.
       + by iApply state_step_coupl_ret_err_ge_1.
   Qed.
-  
-  Lemma state_step_coupl_rec_partial_split e σ1 (ε : nonnegreal) Z :
-    (∃ u s (ε2 :_ -> nonnegreal) lis,
-        ⌜s≠∅⌝ ∗
-        ⌜⋃ lis =s⌝ ∗
-        ⌜ NoDup lis ⌝ ∗
-        ⌜ ∅ ∉ lis ⌝ ∗
-        ⌜∀ x y, x∈ lis -> y ∈ lis -> ∀ z, z ∈ x -> z ∈ y -> x=y⌝ ∗
-        ⌜σ1.(urns) !! u = Some (urn_unif s) ⌝ ∗
-        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-                    ⌜ (SeriesC (λ x, if bool_decide (x ∈ lis) then ε2 x * size x else 0%NNR)/ size s <= ε)%R ⌝ ∗
-                    (∀ x, ⌜x∈lis⌝ ={∅}=∗ state_step_coupl e (state_upd_urns <[u:=urn_unif x]> σ1) (ε2 x) Z )
-    )%I
-    ⊢ state_step_coupl e σ1 ε Z.
-  Proof.
-  Admitted. 
-        
+
   (* Lemma state_step_coupl_rec_equiv σ1 (ε : nonnegreal) Z : *)
   (*   (∃ μ (ε2 : state con_prob_lang -> nonnegreal), *)
   (*       ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗ *)
@@ -488,6 +472,211 @@ Section modalities.
       by iApply "H2".
   Qed.
 
+
+  Lemma state_step_coupl_rec_two_split e σ1 (ε : nonnegreal) Z :
+    (∃ u s (ε2 :_ -> nonnegreal) s1 s2,
+        ⌜s1≠∅⌝ ∗
+        ⌜s2≠∅⌝ ∗
+        ⌜s1 ∪ s2 =s⌝ ∗
+        ⌜ s1 ≠ s2 ⌝ ∗
+        ⌜ s1 ## s2 ⌝ ∗
+        ⌜σ1.(urns) !! u = Some (urn_unif s) ⌝ ∗
+        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+                    ⌜ (SeriesC (λ x, if bool_decide (x ∈ [s1; s2]) then ε2 x * size x else 0%NNR)/ size s <= ε)%R ⌝ ∗
+                    (∀ x, ⌜x=s1 ∨ x=s2⌝ ={∅}=∗ state_step_coupl e (state_upd_urns <[u:=urn_unif x]> σ1) (ε2 x) Z )
+    )%I
+    ⊢ state_step_coupl e σ1 ε Z.
+  Proof.
+  Admitted.
+  
+  Lemma state_step_coupl_rec_partial_split e σ1 (ε : nonnegreal) Z :
+    (∃ u s (ε2 :_ -> nonnegreal) lis,
+        ⌜s≠∅⌝ ∗
+        ⌜⋃ lis =s⌝ ∗
+        ⌜ NoDup lis ⌝ ∗
+        ⌜ ∅ ∉ lis ⌝ ∗
+        ⌜∀ x y, x∈ lis -> y ∈ lis -> ∀ z, z ∈ x -> z ∈ y -> x=y⌝ ∗
+        ⌜σ1.(urns) !! u = Some (urn_unif s) ⌝ ∗
+        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+                    ⌜ (SeriesC (λ x, if bool_decide (x ∈ lis) then ε2 x * size x else 0%NNR)/ size s <= ε)%R ⌝ ∗
+                    (∀ x, ⌜x∈lis⌝ ={∅}=∗ state_step_coupl e (state_upd_urns <[u:=urn_unif x]> σ1) (ε2 x) Z )
+    )%I
+    ⊢ state_step_coupl e σ1 ε Z.
+  Proof.
+    iIntros "(%l&%s&%ε2&%lis &%Hnonempty&%Hunion&%Hnodup&%Hnonempty'&%Hdisjoint&%Hlookup&%Hbound &%Hineq &H)".
+    iInduction (lis) as [|hd tl IHl] forall (σ1 ε Z s ε2 Hnonempty Hunion Hnodup Hnonempty' Hdisjoint Hlookup Hbound Hineq).
+    { simpl in *. set_solver. }
+    destruct tl as [|hd' tl].
+    { simpl.
+      simpl in *.
+      assert (s = hd) as -> by set_solver.
+      replace (σ1) with (state_upd_urns <[l:=urn_unif hd]> σ1) at 1.
+      - iApply fupd_state_step_coupl. iApply state_step_coupl_mono_err; last iMod ("H" with "[]") as "$"; try done.
+        + etrans; last exact.
+          rewrite SeriesC_list; simpl; last apply NoDup_singleton.
+          rewrite Rplus_0_r.
+          rewrite Rmult_div_l; first done.
+          apply not_0_INR.
+          apply size_non_empty_iff.
+          by rewrite leibniz_equiv_iff.
+        + iPureIntro. set_solver.
+      - by apply state_upd_urns_no_change.
+    }
+    iApply state_step_coupl_rec_two_split.
+    pose (ε2' x := ((if bool_decide (x=hd) then (ε2 x) else 0%R)+
+                     if bool_decide (x=⋃(hd' :: tl)) then
+                       SeriesC
+                         (λ x , if bool_decide (x ∈ hd' :: tl) then ε2 x * size x else 0)%R / size (⋃ (hd'::tl)) else 0
+                   )%R).
+    assert (∀ x, 0<=ε2' x)%R as Hε2'.
+    { intros.
+      rewrite /ε2'.
+      apply Rplus_le_le_0_compat; first by case_bool_decide.
+      case_bool_decide; last done.
+      apply Rcomplements.Rdiv_le_0_compat.
+      - apply SeriesC_ge_0'.
+        intros. case_bool_decide; real_solver.
+      - apply lt_0_INR.
+        simpl.
+        rewrite size_union_alt.
+        assert (0<size hd'); last lia.
+        destruct (size hd') eqn:Hcontra; last lia.
+        exfalso.
+        apply Hnonempty'.
+        apply size_empty_inv in Hcontra.
+        rewrite leibniz_equiv_iff in Hcontra.
+        set_solver.
+    }
+    assert (hd ≠ ⋃ (hd' :: tl)).
+    { intros ->.
+      repeat setoid_rewrite NoDup_cons in Hnodup.
+      destruct Hnodup as [Hnodup1 ].
+      rewrite elem_of_cons in Hnodup1.
+      apply Hnodup1.
+      left.
+      assert (hd'≠∅) as H1.
+      { intros ->. set_solver. }
+      apply set_choose_L in H1 as [].
+      eapply Hdisjoint; last done; simpl; set_solver. }
+    assert (hd ## ⋃ (hd' :: tl)).
+    { intros ? H' H1.
+      repeat setoid_rewrite NoDup_cons in Hnodup.
+      destruct Hnodup as [Hnodup1 ].
+      rewrite elem_of_cons in Hnodup1.
+      apply Hnodup1.
+      simpl in H1.
+      rewrite elem_of_union in H1.
+      destruct!/=.
+      - left. 
+        eapply Hdisjoint; last done; simpl; set_solver.
+      - right.
+        rewrite elem_of_union_list in H1.
+        destruct H1 as (?&H1&H2').
+        eapply Hdisjoint in H2'; last apply H'; [|set_solver..].
+        by subst. }
+    iExists l, s, (λ x, mknonnegreal _ (Hε2' x)), hd, (⋃(hd'::tl)).
+    repeat iSplit.
+    - iPureIntro. intros ->. set_solver.
+    - iPureIntro. rewrite empty_union_list_L.
+      rewrite Forall_cons.
+      intros [->]. set_solver.
+    - iPureIntro. set_solver.
+    - done.
+    - done.
+    - done.
+    - rewrite /ε2'.
+      simpl.
+      iPureIntro.
+      eexists ((ε2 hd) + SeriesC (λ x : gset BinNums.Z, if bool_decide (x ∈ hd' :: tl) then ε2 x * size x else 0) /
+                           size (hd' ∪ ⋃ tl))%R.
+      intros.
+      apply Rplus_le_compat.
+      + case_bool_decide; by subst.
+      + case_bool_decide; first done.
+        apply Rcomplements.Rdiv_le_0_compat.
+        * apply SeriesC_ge_0'.
+          intros. case_bool_decide; last done.
+          apply Rmult_le_pos; first done.
+          apply pos_INR.
+        * apply lt_0_INR.
+          rewrite size_union_alt.
+          assert (0<size hd')%nat; last lia.
+          destruct (size hd') eqn:Hcontra; last lia.
+          apply size_non_empty_iff in Hcontra; first done.
+          rewrite leibniz_equiv_iff. intros ->. set_solver.
+    - iPureIntro.
+      assert (0<size s)%R.
+      { apply lt_0_INR.
+        destruct (size s) eqn:Hcontra; last lia.
+        apply size_non_empty_iff in Hcontra; first done.
+        rewrite leibniz_equiv_iff. intros ->. set_solver. }
+      rewrite Rcomplements.Rle_div_l in Hineq; last lra.
+      rewrite Rcomplements.Rle_div_l; last lra.
+      etrans; last exact.
+      rewrite !SeriesC_list; last first.
+      + repeat setoid_rewrite NoDup_cons.
+        repeat split; last by apply NoDup_nil.
+        * by rewrite elem_of_list_singleton. 
+        * set_solver.
+      + done.
+      + simpl.
+        rewrite /ε2'.
+        rewrite bool_decide_eq_true_2; last done.
+        rewrite bool_decide_eq_false_2; last first.
+        { apply NoDup_cons in Hnodup. naive_solver. }
+        rewrite Rplus_0_r.
+        apply Rplus_le_compat_l.
+        rewrite bool_decide_eq_false_2; last first.
+        { intros <-.
+          set_solver.
+        }
+        rewrite bool_decide_eq_true_2; last done.
+        rewrite Rplus_0_l.
+        rewrite -Rmult_div_swap.
+        rewrite Rmult_div_l; last first.
+        { apply not_0_INR.
+          intros Hcontra.
+          apply size_non_empty_iff in Hcontra; first done.
+          rewrite leibniz_equiv_iff.
+          apply union_positive_l_alt_L.
+          intros ->. set_solver.
+        }
+        rewrite Rplus_0_r.
+        rewrite SeriesC_list; last (apply NoDup_cons in Hnodup; naive_solver).
+        done.
+    - iIntros (s' [?|?]); subst.
+      + rewrite /ε2'.
+        iMod ("H" with "[]"); last iApply (state_step_coupl_mono_err with "[$]").
+        * iPureIntro. set_solver.
+        * simpl.
+          rewrite bool_decide_eq_true_2; last done.
+          rewrite bool_decide_eq_false_2; last done.
+          lra.
+      + iDestruct ("IHl" $! (state_upd_urns <[l:=urn_unif (⋃ (hd' :: tl))]> σ1) with "[][][][][][][][][-]") as "H'"; last first.
+        * done.
+        * iIntros (??).
+          iMod ("H" with "[]").
+          -- iPureIntro. rewrite elem_of_cons. by right.
+          -- by rewrite state_upd_urns_twice.
+        * simpl.
+          rewrite /ε2'.
+          rewrite bool_decide_eq_false_2; last done.
+          rewrite bool_decide_eq_true_2; last done.
+          by rewrite Rplus_0_l.
+        * done.
+        * iPureIntro. by rewrite lookup_insert.
+        * iPureIntro.
+          intros.
+          eapply Hdisjoint; set_solver.
+        * iPureIntro. set_solver.
+        * iPureIntro. apply NoDup_cons in Hnodup. naive_solver.
+        * done.
+        * iPureIntro.
+          apply union_positive_l_alt_L.
+          intros ->.
+          set_solver.
+  Qed.         
+  
   (** Lemma needed for adequacy *)
   Lemma state_step_coupl_preserve e σ ε Z:
     is_well_constructed_expr e = true -> 
