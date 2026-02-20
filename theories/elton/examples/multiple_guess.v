@@ -56,12 +56,23 @@ Section proofs.
       - assert (INR 1 < N)%R; last (simpl in *; lra).
         apply lt_INR. lia.
     }
+    destruct (decide (s'=∅)).
+    { subst.
+      iDestruct (ec_contradict with "[$]") as "[]".
+      rewrite union_empty_r.
+      rewrite size_singleton.
+      simpl.
+      rewrite Rdiv_1_r.
+      replace 1%R with (INR 1) by done.
+      apply le_INR. lia.
+    }
     iMod (pupd_partial_resolve_urn _ _ (λ x, mknonnegreal _ (Hε2 x)) _ _ ({[x]}:: s'::[]) with "[$][$]") as "H"; try done.
     - set_solver.
     - set_solver.
     - apply NoDup_cons; split; last apply NoDup_cons; last split; last by apply NoDup_nil.
       + rewrite elem_of_list_singleton. set_solver.
       + set_solver.
+    - set_solver. 
     - repeat setoid_rewrite elem_of_cons.
       intros. destruct!/=; set_solver.
     - rewrite SeriesC_list; last first.
@@ -119,7 +130,14 @@ Section proofs.
         replace ((_+_-_)%nat) with (size s') by lia.
         wp_bind (Val # (_ =ᵥ _))%V.
         iApply (wp_value_promotion _ false (l ↪ urn_unif s')%I with "[Hunif]").
-        * admit.
+        * rewrite rupd_unseal/rupd_def.
+          iIntros  (?) "[? H]". iSplit; last iFrame.
+          iDestruct (ghost_map_lookup with "H [$]") as "%Hlookup".
+          iPureIntro.
+          intros.
+          eapply urns_f_distr_lookup in Hlookup; last done; last first.
+          { admit. }
+          admit. 
         * iIntros "Hunif".
           wp_pures.
           wp_pure.

@@ -284,6 +284,7 @@ Section modalities.
         ⌜s≠∅⌝ ∗
         ⌜⋃ lis =s⌝ ∗
         ⌜ NoDup lis ⌝ ∗
+        ⌜ ∅ ∉ lis ⌝ ∗
         ⌜∀ x y, x∈ lis -> y ∈ lis -> ∀ z, z ∈ x -> z ∈ y -> x=y⌝ ∗
         ⌜σ1.(urns) !! u = Some (urn_unif s) ⌝ ∗
         ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗

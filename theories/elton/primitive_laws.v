@@ -319,6 +319,7 @@ Lemma pupd_partial_resolve_urn s ε (ε2 : _ -> nonnegreal) l E lis:
   s ≠ ∅ ->
   ⋃ lis = s ->
   NoDup lis ->
+  ∅ ∉ lis ->
   (∀ x y, x∈ lis -> y ∈ lis -> ∀ z, z ∈ x -> z ∈ y -> x=y) ->
  (SeriesC (λ x, if bool_decide (x ∈ lis) then ε2 x * size x else 0)/ size s <= ε)%R ->
   (exists r, forall ρ, (ε2 ρ <= r)%R) ->
@@ -328,7 +329,7 @@ Lemma pupd_partial_resolve_urn s ε (ε2 : _ -> nonnegreal) l E lis:
     )%I.
 Proof.
   rewrite pupd_unseal/pupd_def.
-  iIntros (Hs Hunion Hnodup Hdisjoint Hineq [r Hbound]) "Herr Hl".
+  iIntros (Hs Hunion Hnodup Hnonempty Hdisjoint Hineq [r Hbound]) "Herr Hl".
   iApply fupd_mask_intro; first set_solver.
   iIntros "Hclose".
   iIntros (?[] ε') "([Hs Hu]& Herr')".
@@ -338,6 +339,7 @@ Proof.
   pose (ε2' := λ x,  (ε2 x + x')%NNR ).
   assert (∀ x, 0<=ε2' x)%R as Hnnr; first (intros; apply cond_nonneg).
   iExists _,_, (λ x, mknonnegreal _ (Hnnr x)), lis.
+  iSplit; first done.
   iSplit; first done.
   iSplit; first done.
   iSplit; first done.
