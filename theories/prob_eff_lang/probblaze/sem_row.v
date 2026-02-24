@@ -127,7 +127,6 @@ Section once_row.
   }.
 
   
-  (* TODO: This should be provable, but the records and coercions are annoying*)
   Lemma iThyIfMono_iLblSig_to_iThyIfMono {Σ} (m : mode) (ρ : sem_row Σ) :
     iLblSig_to_iLblThy (sem_row_flip_mbang m ρ) = to_iThyIfMono m (iLblSig_to_iLblThy ρ).
   Proof.
@@ -193,66 +192,57 @@ Section row_sub_typing.
     ⊢ ⟨⟩ ≤ᵣ ρ.
   Proof. iApply to_iThy_le_bot. Qed.
 
-  (* TODO: figure out how to extend sem_rows *)
-  Lemma row_le_cons_comp (ρ ρ' : sem_row Σ) (op op' : label) (σ σ' : sem_sig Σ) : 
-    σ ≤ₛ σ' -∗ ρ ≤ᵣ ρ' -∗ sem_row_cons op op' σ ρ ≤ᵣ sem_row_cons op op' σ' ρ'.
-    (* (((op, op'), σ) ⋅ ρ) ≤ᵣ ((op, op'), σ') · ρ'. *)
-  Proof.
-    iIntros "#Hσσ' #Hρρ'". (* rewrite /sem_row_cons /=. *)
-    unfold row_le. simpl.
+  Lemma valid_cons_singleton (op1 op2 : label) (σ : sem_sig Σ) (ρ : sem_row Σ) :
+    ⊢  logic.valid (iLblSig_to_iLblThy (sem_row_cons op1 op2 σ ρ)) ∗-∗ is_label op1 DfracDiscarded ∗ spec_labels_frag op2 DfracDiscarded ∗ (logic.valid (iLblSig_to_iLblThy ρ)).
+  Proof.                                                                                    
     iSplit.
-    - admit.
-    - iDestruct "Hρρ'" as "(_&#(#Hvalid & #Hdistinct))".
-      iSplit.
-      + iModIntro. iIntros "#H".
-        iDestruct (valid_submseteq with "H") as "Hρ'".
-        { instantiate (1 := iLblSig_to_iLblThy ρ').
-          apply submseteq_cons. set_solver. }
-        iDestruct ("Hvalid" with "Hρ'") as "Hρ".
-        iSplit.
-        * iDestruct "H" as "(H1 & H2)". unfold valid_l.
-          admit.
-        * admit.
-      + admit.
-    (* iIntros (???) "!# (% & % & % & % & % & % & -> & -> & H)".
-       iExists op', v1', v2'; do 2 (iSplit; first done).
-       destruct (decide (op = op')); first (by iApply "Hσσ'"). 
-       by iApply "Hρρ'". *)
-  Admitted. 
+    - iIntros "#Hvalid".
+      unfold logic.valid. simpl.
+      repeat iSplit.
+      3 : iApply valid_l_submseteq; last iDestruct "Hvalid" as "($&_)"; rewrite labels_l_cons; apply submseteq_cons; done.
+      3 : iApply valid_r_submseteq; last iDestruct "Hvalid" as "(_&$)"; rewrite labels_r_cons; apply submseteq_cons; done.
+      + iDestruct "Hvalid" as "(Hl & _)". unfold valid_l. simpl. iDestruct "Hl" as "($&_)".
+      + iDestruct "Hvalid" as "(_ & Hr)". unfold valid_r. simpl. iDestruct "Hr" as "($&_)".
+    - iIntros "(#Hl1 & #Hl2 & #(Hvalidl & Hvalidr))".
+      iFrame "#". simpl. done.
+  Qed. 
   
-  Lemma row_le_swap_second `{probblazeRGS Σ} (op1 op1' op2 op2' : label) (σ σ' : sem_sig Σ) (ρ : sem_row Σ) : 
-    op1 ≠ op1' →
-    op2 ≠ op2' →
-    ⊢ (op1, op2, σ) · (op1', op2', σ') · ρ ≤ᵣ (op1', op2', σ') · (op1, op1', σ) · ρ. 
-  Proof. 
-    iIntros (Hneq). rewrite /sem_row_cons /=.
-    (* iIntros (???) "!# (%op'' & %v1'' & %v2'' & %Heq1 & %Heq2 & H)". simpl.
-       destruct (decide (op = op'')) as [->|].
-       - iExists op'', v1'', v2''. do 2 (iSplit; first done).
-         rewrite decide_False; last done.
-         iExists op'', v1'', v2''; do 2 (iSplit; first done).
-         rewrite decide_True //.
-       - iDestruct "H" as "(%op''' & %v1''' & %v2''' & %Heq1' & %Heq2' & H)".
-         destruct (decide (op' = op''')) as [->|].
-         + iExists op'', v1'', v2''; do 2 (iSplit; first done).
-           simplify_eq. rewrite decide_True //.
-         + iExists op''', v1'', v2''; do 2 (iSplit; first by simplify_eq).
-           simplify_eq. rewrite decide_False //.
-           iExists op''', v1''', v2'''. do 2 (iSplit; first done).
-           rewrite decide_False //.
-     Qed. *)
-  Admitted. 
+  Lemma row_le_cons_comp (ρ ρ' : sem_row Σ) (op op' : label) (σ σ' : sem_sig Σ) :
+    op ∉ labels_l (iLblSig_to_iLblThy ρ) → op' ∉ labels_r (iLblSig_to_iLblThy ρ) →
+    σ ≤ₛ σ' -∗ ρ ≤ᵣ ρ' -∗ sem_row_cons op op' σ ρ ≤ᵣ sem_row_cons op op' σ' ρ'.
+  Proof.
+    iIntros "%Hop %Hop' #Hσσ' #Hρρ'".
+    unfold row_le. simpl.
+    iSplit; last iSplit.
+    { iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
+      iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
+      iApply iThy_le_sum_map; last (iDestruct "Hρρ'" as "($&_)").
+      iIntros (???) "!# (%&%&%&%&%&$&$&$&$&H&$)". by iApply "Hσσ'". }
+    { iIntros "!# #H". iApply valid_cons_singleton.
+      iDestruct (valid_cons_singleton with "H") as "($&$&Hvalid)".
+      iDestruct "Hρρ'" as "(_&#Hρρ'&_)". by iApply "Hρρ'". }
+    { iIntros "!# #H". iDestruct "Hρρ'" as "(_&_&#Hρρ')". iDestruct "Hρρ'" as "%Hρρ'".
+      iDestruct "H" as "(%Hdistinctl&%Hdistinctr)". iPureIntro. unfold distinct_l in Hdistinctl.
+      split; simpl;
+        apply NoDup_cons in Hdistinctl as (Hopρ' & Hρ'l);
+        apply NoDup_cons in Hdistinctr as (Hop'ρ' & Hρ'r);
+        apply NoDup_cons; split; try done; by apply Hρρ'. }
+  Qed. 
   
-  Corollary row_le_swap_third `{probblazeRGS Σ} (op1 op1' op1'' op2 op2' op2'' : label) (σ σ' σ'' : sem_sig Σ) (ρ : sem_row Σ) : 
-    op1 ≠ op1' → op1' ≠ op1'' → op1'' ≠ op1 →
-    op2 ≠ op2' → op2' ≠ op2'' → op2'' ≠ op2 →
-    ⊢ (op1, op2,  σ) · (op1', op2', σ') · (op1'', op2'', σ'') · ρ ≤ᵣ (op1'', op2'', σ'') · (op1, op2, σ) · (op1', op2', σ') · ρ. 
-  Proof. 
-    (* iIntros (??????). 
-       iApply row_le_trans; first iApply row_le_cons_comp; [iApply sig_le_refl|by iApply row_le_swap_second|].
-       by iApply row_le_swap_second.
-     Qed. *)
-  Admitted.
+  Lemma row_le_swap_second (op1 op1' op2 op2' : label) (σ σ' : sem_sig Σ) (ρ : sem_row Σ) : 
+    ⊢ (op1, op2, σ) · (op1', op2', σ') · ρ ≤ᵣ (op1', op2', σ') · (op1, op2, σ) · ρ. 
+  Proof.
+    iApply to_iThy_le_intro'. simpl. apply submseteq_swap.
+  Qed. 
+  
+  (* Corollary row_le_swap_third (op1 op1' op1'' op2 op2' op2'' : label) (σ σ' σ'' : sem_sig Σ) (ρ : sem_row Σ) : 
+       ⊢ (op1, op2,  σ) · (op1', op2', σ') · (op1'', op2'', σ'') · ρ ≤ᵣ (op1'', op2'', σ'') · (op1, op2, σ) · (op1', op2', σ') · ρ. 
+     Proof.
+       iApply to_iThy_le_intro'. simpl. apply submseteq_swap.
+       iApply row_le_trans; first iApply row_le_cons_comp; try (by iApply row_le_swap_second); last iApply sig_le_refl.
+       - simpl.
+     Qed.
+     Admitted. *)
   
   (* Corollary row_le_swap_fourth {Σ} (op op' op'' op''' : label) (σ σ' σ'' σ''': sem_sig Σ) (ρ : sem_row Σ) : 
        op ≠ op' → op ≠ op'' → op ≠ op''' → op' ≠ op'' → op' ≠ op''' → op'' ≠ op''' → 
@@ -338,14 +328,10 @@ Section row_sub_typing.
   
   Lemma row_le_mfbang_dist_cons `{probblazeRGS Σ} op1 op2 m σ (ρ : sem_row Σ) :
     ⊢ ¡[ m ] ((op1, op2, σ) · ρ) ≤ᵣ (op1, op2, ¡[ m ] σ)%S · (¡[ m ] ρ).
-  Proof. 
-  (*   rewrite /sem_row_flip_mbang. iIntros (???) "!# H". simpl.
-       destruct m; simpl; [|done]. 
-       iDestruct "H" as (Q') "((%op' & %v1' & %v2' & -> & -> & H) & Hpost)".
-       iExists op', v1', v2'. do 2 (iSplit; first done).
-       destruct (decide (op = op')); first iNext; iExists Q'; iFrame. 
-     Qed. *)
-  Admitted. 
+  Proof.
+    unfold row_le. simpl.
+    rewrite iThyIfMono_iLblSig_to_iThyIfMono. iApply to_iThy_le_refl.
+  Qed.
   
   Global Instance row_cons_once `{probblazeRGS Σ} (ρ : sem_row Σ) op1 op2 (σ : sem_sig Σ) `{! OnceS σ, ! OnceR ρ } :
     OnceR ((op1, op2, σ) · ρ)%R.

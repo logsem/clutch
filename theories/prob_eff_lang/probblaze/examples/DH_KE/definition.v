@@ -34,27 +34,33 @@ Section implementation.
     handle: f with
     | effect channel "message", rec "k" as multi =>
         match: "message" with
+        (* SEND *)
         | InjL "payload" =>
             let, ("m", "dst") := "payload" in
             match: "dst" with
-              InjL <> => match: !"m1" with
+              (* Alice *)
+              InjL <> => match: !"m1" with (* Send only the first value. Discard all others.  *)
                          NONE => "m1" <- SOME "m";; (do: channel (Send ("m", "dst")));; "k" #()%V
                        | SOME "x" => "k" #()%V 
-                       end
+                         end
+            (* Bob *)
             | InjR <> => match: !"m2" with
                           NONE => "m2" <- SOME "m";; (do: channel (Send ("m", "dst")));; "k" #()%V
                         | SOME "x" => "k" #()%V 
                         end
             end
+        (* Recv *)
         | InjR "from" =>
             let: "r" := (do: channel (Recv "from")) in
              match: "r" with
                NONE => "k" NONEV
              | SOME "x" => match: "from" with
+                             (* Alice *)
                              InjL <> => match: !"m2" with
                                           NONE => "k" NONEV
                                         | SOME "m" => "k" (SOME "m")
                                         end
+                           (* Bob *)
                            | InjR <> => match: !"m1" with
                                           NONE => "k" NONEV
                                         | SOME "m" => "k" (SOME "m")
@@ -62,33 +68,7 @@ Section implementation.
                            end
              end
         end
-     | return "y" => #()%V end.
-
-
-  Definition F_KE (getKey channel : label) f : expr :=
-    let: "c" := (sample #()%V) in
-    let: "key" := g ^ "c" in
-
-    handle: f with
-    | effect getKey "p", rec "k" as multi =>
-        match: "p" with
-          InjL <> =>
-            (do: channel Send (#0, bob));;
-            let: "r" := do: channel Recv bob in
-            match: "r" with
-              NONE => "k" NONEV
-            | SOME "w" => "k" (SOME "key")
-            end
-        | InjR <> =>
-            let: "r" := do: channel Recv alice in
-            match: "r" with
-              NONE => "k" NONEV
-            | SOME "w" => 
-                (do: channel Send (#0, alice));;
-                "k" (SOME "key")
-            end
-       end
-    | return "y" => "y" end.
+    | return "y" => #()%V end.
 
 
   Definition DH_KE (getKey channel : label) f : expr :=
@@ -99,21 +79,28 @@ Section implementation.
     handle: f with
     | effect getKey "p", rec "k" as multi =>
         match: "p" with
+          (* Alice *)
           InjL <> =>
+            (* Sample *)
             let: "a" :=
               (match: !"l1" with
                 NONE => let: "a" := (samplelbl "α" #()%V) in "l1" <- SOME "a";; "a"
               | SOME "a" => "a"
-              end) in
+               end) in
+            (* Compute gA *)
             let: "gA" := g^"a" in
+            (* Send gA *)
             (do: channel (Send ("gA", bob)));;
+            (* Receive gB *)
             let: "r" := do: channel (Recv bob) in
             match: "r" with
               NONE => "k" NONEV
             | SOME "gB" =>
+                (* Compute key *)
                 let: "key" := "gB"^"a" in
                 "k" (SOME "key")
             end
+        (* Bob *)
         | InjR <> =>
             let: "r" := (do: channel (Recv alice)) in
             match: "r" with
@@ -132,6 +119,38 @@ Section implementation.
             end
        end
    | return "y" => "y" end.
+
+
+   Definition F_KE (getKey channel : label) f : expr :=
+    (* Magically share a presampled key *)
+    let: "c" := (sample #()%V) in
+    let: "key" := g ^ "c" in
+
+    handle: f with
+    | effect getKey "p", rec "k" as multi =>
+        match: "p" with
+          (* Alice *)
+          InjL <> =>
+            (* Send a dummy value *)
+            (do: channel Send (#0, bob));;
+            (* Receive a dummy value *)
+            let: "r" := do: channel Recv bob in
+            match: "r" with
+              NONE => "k" NONEV
+            | SOME "w" => "k" (SOME "key")
+            end
+        (* Bob  *)
+        | InjR <> =>
+            let: "r" := do: channel Recv alice in
+            match: "r" with
+              NONE => "k" NONEV
+            | SOME "w" => 
+                (do: channel Send (#0, alice));;
+                "k" (SOME "key")
+            end
+       end
+    | return "y" => "y" end.
+
 
   Definition DH_SIM (channel : label) (f : expr) : expr :=
     let: "α" := alloc #n in

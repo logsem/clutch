@@ -388,10 +388,9 @@ Proof.
   rewrite /sig_le /tc_opaque. by apply iThy_le_ne. 
 Qed.
 
-(* TODO: Proof cofe structure of SemSig *)
 Global Instance sig_le_proper {Σ} :
   Proper ((≡) ==> (≡) ==> (≡)) (@sig_le Σ).
-Proof. Admitted. (* apply ne_proper_2. apply _. Qed. *) 
+Proof. apply ne_proper_2. apply _. Qed. 
 
 Global Instance row_le_ne `{probblazeRGS Σ} :
   NonExpansive2 (row_le).
