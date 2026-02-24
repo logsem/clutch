@@ -18,7 +18,9 @@ Section conv_comb.
     ccr :> A -> cdistr A -> Prop; 
     ccr_cdret : ∀ a, ccr a (cdret a);
     ccr_cdbind : ∀ μ f a, 
-      ccr a μ -> (∀ a', ccr a' (f a')) -> ccr a (cdbind f μ)
+      ccr a μ -> (∀ a', ccr a' (f a')) -> ccr a (cdbind f μ);
+    ccr_convex : ∀ μ f a, 
+      ccr a μ -> (∀ x, ccr a (f x)) -> ccr a (cdbind f μ)
   }.
 
 End conv_comb.
@@ -27,7 +29,7 @@ End conv_comb.
 
 Section real_cc.
   
-  Program Definition real_cc : conv_comb R := MkConvComb _ (λ x d, ex_seriesCS (λ a, d a * a) ∧ SeriesCS (λ a, d a * a) = x) _ _.
+  Program Definition real_cc : conv_comb R := MkConvComb _ (λ x d, ex_seriesCS (λ a, d a * a) ∧ SeriesCS (λ a, d a * a) = x) _ _ _.
   Next Obligation.
     move => a //=.
     assert (∀ a0, cdret a a0 * a0 = if bool_decide (a0 = a) then a else 0). 
@@ -48,12 +50,14 @@ Section real_cc.
       last by intros; rewrite -SeriesCS_scal_r; apply SeriesCS_ext; real_solver.
       
   Admitted.
+  Next Obligation.
+  Admitted.
 
 End real_cc.
 
 Section nnr_cc.
   
-  Program Definition nnr_cc : conv_comb nonnegreal := MkConvComb _ (λ x d, ex_seriesCS (λ a, d a * a) ∧ SeriesCS (λ a, d a * a) = x) _ _.
+  Program Definition nnr_cc : conv_comb nonnegreal := MkConvComb _ (λ x d, ex_seriesCS (λ a, d a * a) ∧ SeriesCS (λ a, d a * a) = x) _ _ _.
   Next Obligation.
     move => a //=.
     Locate nnreal_zero.
@@ -75,6 +79,8 @@ Section nnr_cc.
       last by intros; rewrite -SeriesCS_scal_r; apply SeriesCS_ext; real_solver.
        *)
   Admitted.
+  Next Obligation.
+  Admitted.
 
 End nnr_cc.
 
@@ -88,7 +94,7 @@ Section prog_cc.
   | exec_rel_rec μ f ρ : pexec_rel ρ μ -> (∀ ρ', pexec_rel ρ' (f ρ')) -> pexec_rel ρ (cdbind f μ)
   .
 
-  Program Definition prog_cc : conv_comb (cfg Λ) := MkConvComb _ pexec_rel _ _.
+  Program Definition prog_cc : conv_comb (cfg Λ) := MkConvComb _ pexec_rel _ _ _.
   Next Obligation.
     intros. replace (cdret a) with (distr_cdistr (pexec 0 a)); first by apply exec_rel_stepN.
     by rewrite pexec_O cdret_dret.
@@ -96,6 +102,8 @@ Section prog_cc.
   Next Obligation. 
     by econstructor. 
   Qed.
+  Next Obligation.
+  Admitted.
 
 End prog_cc.
 
@@ -106,7 +114,7 @@ Section prod_cc.
 
   Definition prod_cc_rel (a : A) (b : B) μ η := ca a μ ∧ cb b η.
 
-  Program Definition prod_cc : conv_comb (A * B) := MkConvComb _ (λ p d, ∃ μ η, d = cdprod μ η ∧ prod_cc_rel p.1 p.2 μ η) _ _.
+  Program Definition prod_cc : conv_comb (A * B) := MkConvComb _ (λ p d, ∃ μ η, d = cdprod μ η ∧ prod_cc_rel p.1 p.2 μ η) _ _ _.
   Next Obligation.
     move => [a b] //=.
     exists (cdret a), (cdret b).
@@ -117,6 +125,8 @@ Section prod_cc.
   Qed.
   Next Obligation.
     move => ? f [a b] //= [μ [η [-> H2]]] Hf.
+  Admitted.
+  Next Obligation.
   Admitted.
 
 End prod_cc.

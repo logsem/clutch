@@ -26,17 +26,6 @@ Section CntSubtypes.
 
   Implicit Types (P : A -> Prop) (Q : A -> Prop).
 
-  (* Definition EqDec_subtype_mono P Q `{EqDecision (sig Q)}: (∀ x, P x -> Q x) -> EqDecision (sig P).
-  Proof. move => _ x y. by apply make_decision. Qed. *)
-  (* move => H [a Ha] [b Hb].
-    set af := exist Q a (H a Ha).
-    set bf := exist Q b (H b Hb).
-    destruct (decide (af = bf)).
-    - left; by eapply classic_proof_irrel.PIT.subset_eq_compat, eq_sig_fst, e. 
-    - right. unfold not. move => Hn. apply n.
-      by eapply classic_proof_irrel.PIT.subset_eq_compat, eq_sig_fst, Hn.
-  Qed. *)
-
   Definition Countable_subtype_mono P Q `{Countable (sig Q)} `{EqDecision (sig P)}: (∀ x, P x -> Q x) -> Countable (sig P).
   Proof.
     intro.
@@ -765,10 +754,9 @@ Section cdbind.
   Qed. *)
 End cdbind.
 
-Lemma cdbind_dbind `{Countable A, Countable B} (f : A -> cdistr B) (f' : A -> distr B) (μ : distr A) (b : B) : 
-  (∀ a , f a = f' a) → 
-  cdbind f μ b = dbind f' μ b.
-Proof. intros. rewrite cdbind_unfold_pmf dbind_unfold_pmf SeriesCS_countable. apply SeriesCS_ext => ?. by rewrite distr_cdistr_eq H1. Qed.
+Lemma cdbind_dbind `{Countable A, Countable B} (f : A -> distr B) (μ : distr A): 
+  cdbind f μ = dbind f μ.
+Proof. apply cdistr_ext => b //=. rewrite cdbind_unfold_pmf distr_cdistr_eq dbind_unfold_pmf SeriesCS_countable. apply SeriesCS_ext => //=. Qed.
 (* 
 
 
