@@ -50,9 +50,10 @@ Section implementation.
         let: "r" := (do: channel (Recv alice)) in
         match: "r" with
           SOME "uv" =>
+            let, ("u", "v") := "uv" in 
             if: ("u" = #1) then "k" #()%V else
-              let: "pk0" := ("g0", "h0", "uv") in
-              let: "pk1" := ("g1", "h1", "uv") in
+              let: "pk0" := ("g0", "h0", "u", "v") in
+              let: "pk1" := ("g1", "h1", "u", "v") in
               let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
               let: "e0" := enc "pk0" "m0" "r0" "s0" in
               let: "e1" := enc "pk1" "m1" "r1" "s1" in
@@ -62,3 +63,76 @@ Section implementation.
         end
     | return "y" => "y" end. 
 
+  Definition OT_Real_Receiver_Corrupted (Sender Receiver channel : label) f c : expr :=
+    let, ("g0", "h0", "g1", "h1") := (g^(sample #()%V), g^(sample #()%V), g^(sample #()%V), g^(sample #()%V)) in
+    let: "crs" := ("g0", "h0", "g1", "h1") in
+    handle: handle: (f "crs") with
+            | effect Receiver "b", "k" => c "b" "k"
+             | return "y" => "y" end
+    with
+    | effect Sender "m", "k" =>
+        let: "r" := (do: channel (Recv alice)) in
+        match: "r" with
+          SOME "uv" =>
+            let, ("u", "v") := "uv" in
+            if: ("u" = #1) then "k" #()%V else
+              let: "pk0" := ("g0", "h0", "u", "v") in
+              let: "pk1" := ("g1", "h1", "u", "v") in
+              let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
+              let: "e0" := enc "pk0" "m0" "r0" "s0" in
+              let: "e1" := enc "pk1" "m1" "r1" "s1" in
+              (do: channel (Send (("e0", "e1"), alice)));;
+              "k" #()%V
+        | NONE => "k" #()%V
+        end
+    | return "y" => "y" end.
+
+  Definition F_OT (Sender Receiver : label) f : expr :=
+    let: "message0" := ref NONEV in
+    let: "message1" := ref NONEV in
+
+    handle: handle: f with
+    | effect Receiver "b", "k" =>
+        let: "message" := if: "b" then "message0" else "message1" in
+        "k" (!"message")
+    | return "y" => "y" end with
+    | effect Sender "mm", "k" =>
+        let, ("m0", "m1") := "mm" in "message0" <- "m0";; "message1" <- "m1"
+    | return "y" => "y" end.
+
+  Definition honest_sender (Sender : label) : expr := λ: <>, do: Sender (#42, #43).
+
+  Definition OT_SIM_Receiver_Corrupt (Sender Receiver channel : label) f c : expr :=
+    honest_sender Sender #()%V;;
+    let, ("g0", "g1") := (g^(sample #()%V), g^(sample #()%V)) in
+    let, ("t0", "t1") := (sample #()%V, sample #()%V) in
+    let, ("h0", "h1") := ("g0"^"t0", "g1"^"t1") in
+    let: "crs" := ("g0", "h0", "g1", "h1") in
+    handle: handle: (f "crs") with
+            | effect Receiver "b", "k" => c "b" "k"
+             | return "y" => "y" end
+    with
+    | effect Sender "m", "k" =>
+        let: "r" := (do: channel (Recv alice)) in
+        match: "r" with
+          SOME "uv" =>
+            let, ("u", "v") := "uv" in
+            if: ("u" = #1) then "k" #()%V else
+              let: "b" := if: "v" = ("u" ^ "t0") then #true else if: "v" = ("u"^"t1") then #false else #true in (* Essentially if v = u^t0 then b = 0 otherwise b = 1 *)
+              let: "m" := (do: Receiver "b") in
+              match: "m" with
+              | SOME "mb" =>
+                  let: "pk0" := ("g0", "h0", "u", "v") in
+                  let: "pk1" := ("g1", "h1", "u", "v") in
+                  let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
+                  let: "e0" := enc "pk0" "m0" "r0" "s0" in
+                  let: "e1" := enc "pk1" "m1" "r1" "s1" in
+                  (do: channel (Send (("e0", "e1"), alice)));;
+                  "k" #()%V
+              | NONE => "k" #()%V
+              end 
+        | NONE => "k" #()%V
+        end
+    | return "y" => "y" end.
+
+End implementation.
