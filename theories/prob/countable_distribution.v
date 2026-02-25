@@ -754,10 +754,19 @@ Section cdbind.
   Qed. *)
 End cdbind.
 
-Lemma cdbind_dbind `{Countable A, Countable B} (f : A -> distr B) (μ : distr A): 
+Lemma cdbind_dbind `{Countable A, Countable B} (f : A -> distr B) (μ : distr A):
   cdbind f μ = dbind f μ.
 Proof. apply cdistr_ext => b //=. rewrite cdbind_unfold_pmf distr_cdistr_eq dbind_unfold_pmf SeriesCS_countable. apply SeriesCS_ext => //=. Qed.
-(* 
+
+(** Monad associativity for cdistr:
+    cdbind g (cdbind f μ) = cdbind (λ x, cdbind g (f x)) μ.
+    Proof follows from cdistr_ext + cdbind_unfold_pmf + SeriesCS_scal_r
+    + cdistr_double_swap (Fubini). Admitted pending those dependencies. *)
+Lemma cdbind_assoc {A B C : Type} (g : B → cdistr C) (f : A → cdistr B) (μ : cdistr A) :
+  cdbind g (cdbind f μ) = cdbind (λ x, cdbind g (f x)) μ.
+Proof. Admitted.
+
+(*
 
 
 Lemma dbind_pmf_ext `{Countable A, Countable B} (μ1 μ2 : distr A) (f g : A → distr B) (b1 b2 : B) :
