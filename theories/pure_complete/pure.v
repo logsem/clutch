@@ -32,8 +32,8 @@ Fixpoint is_pure (e : expr) :=
   | InjR e' => is_pure e'
   | Case e1 e2 e3 => is_pure e1 && is_pure e2 && is_pure e3
   | Rand e' (LitV (LitUnit)) => is_pure e'
-  | Laplace e1 e2 e3 => is_pure e1 && is_pure e2 && is_pure e3
-  | AllocN _ _ | Load _ | Store _ _ | AllocTape _ | Rand _ _ => false
+  | Laplace e1 e2 e3 (LitV (LitUnit)) => is_pure e1 && is_pure e2 && is_pure e3
+  | AllocN _ _ | Load _ | Store _ _ | AllocTape _ | AllocTapeLaplace _ _ | Rand _ _ | Laplace _ _ _ _ => false
   | Val v => is_pureV v
   | Var _ => true
   | Tick e => is_pure e
@@ -90,11 +90,11 @@ Inductive isPure : expr → Prop :=
   | isPure_Rand_Unit : ∀ op,
       isPure op ->
       isPure (Rand op (LitV LitUnit))
-| isPure_Laplace : ∀ e1 e2 e3,
+| isPure_Laplace_Unit : ∀ e1 e2 e3,
     isPure e1 →
     isPure e2 →
     isPure e3 →
-    isPure (Laplace e1 e2 e3)
+    isPure (Laplace e1 e2 e3 (LitV LitUnit))
   | isPure_Val : ∀ v,
       isPureV v →
       isPure (Val v)

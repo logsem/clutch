@@ -48,7 +48,7 @@ Theorem eager_lazy_equiv :
   (∅ ⊨ L =ctx= I : () → TBool) -> False.
 Proof.
   intros [h1 _].
-  set (σ := {| heap := ∅; tapes := ∅ |}).
+  set (σ := {| heap := ∅; tapes := ∅; tapes_laplace := ∅ |}).
   specialize (h1 C σ true c').
   revert h1.
   unfold I, L.
