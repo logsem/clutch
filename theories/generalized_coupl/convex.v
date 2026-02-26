@@ -13,14 +13,17 @@ Open Scope R.
 Section conv_comb.
 
   Context (A : Type).
-  
+
   Record conv_comb := MkConvComb {
-    ccr :> A -> cdistr A -> Prop; 
+    ccr :> A -> cdistr A -> Prop;
     ccr_cdret : ∀ a, ccr a (cdret a);
-    ccr_cdbind : ∀ μ f a, 
+    ccr_cdbind : ∀ μ f a,
       ccr a μ -> (∀ a', ccr a' (f a')) -> ccr a (cdbind f μ);
-    ccr_convex : ∀ {B} (μ : cdistr B) f a, 
-      (∀ x, ccr a (f x)) -> ccr a (cdbind f μ)
+    ccr_convex : ∀ {B} (μ : cdistr B) f a,
+      (∀ x, ccr a (f x)) -> ccr a (cdbind f μ);
+    (** Error budget: [1 ≤ cc_err a] means the obligation is trivially
+        discharged (the approximate coupling is vacuous). *)
+    cc_err : A → nonnegreal;
   }.
 
 End conv_comb.
@@ -28,11 +31,14 @@ End conv_comb.
 #[global] Hint Resolve ccr_cdret : core.
 
 Section real_cc.
-  
-  Program Definition real_cc : conv_comb R := MkConvComb _ (λ x d, ex_seriesCS (λ a, d a * a) ∧ SeriesCS (λ a, d a * a) = x) _ _ _.
+
+  Program Definition real_cc : conv_comb R := {|
+    ccr := λ x d, ex_seriesCS (λ a, d a * a) ∧ SeriesCS (λ a, d a * a) = x;
+    cc_err := λ x : R, mknonnegreal (Rmax 0 x) (Rmax_l 0 x);
+  |}.
   Next Obligation.
     move => a //=.
-    assert (∀ a0, cdret a a0 * a0 = if bool_decide (a0 = a) then a else 0). 
+    assert (∀ a0, cdret a a0 * a0 = if bool_decide (a0 = a) then a else 0).
     { intros. rewrite cdret_pmf_unfold. real_solver. }
     econstructor.
     - eapply (ex_seriesCS_ext (λ a0, if bool_decide (a0 = a) then a else 0)) => //=.
@@ -49,18 +55,20 @@ Section real_cc.
       last by intros; rewrite -SeriesCS_scal_r; apply SeriesCS_ext; real_solver.
   Admitted.
   Next Obligation.
-
   Admitted.
 
 End real_cc.
 
 Section nnr_cc.
-  
-  Program Definition nnr_cc : conv_comb nonnegreal := MkConvComb _ (λ x d, ex_seriesCS (λ a, d a * a) ∧ SeriesCS (λ a, d a * a) = x) _ _ _.
+
+  Program Definition nnr_cc : conv_comb nonnegreal := {|
+    ccr := λ x d, ex_seriesCS (λ a, d a * a) ∧ SeriesCS (λ a, d a * a) = x;
+    cc_err := λ x, x;
+  |}.
   Next Obligation.
     move => a //=.
     Locate nnreal_zero.
-    assert (∀ a0, cdret a a0 * a0 = if bool_decide (a0 = a) then a else nnreal_zero). 
+    assert (∀ a0, cdret a a0 * a0 = if bool_decide (a0 = a) then a else nnreal_zero).
     { intros. rewrite cdret_pmf_unfold. real_solver. }
     econstructor.
     - eapply (ex_seriesCS_ext (λ a0, if bool_decide (a0 = a) then nonneg a else 0)); first by intros; rewrite cdret_pmf_unfold; real_solver.
@@ -87,20 +95,23 @@ Section prog_cc.
 
   Context {Λ : language}.
 
-  Inductive pexec_rel : (cfg Λ) -> (cdistr (cfg Λ)) -> Prop := 
+  Inductive pexec_rel : (cfg Λ) -> (cdistr (cfg Λ)) -> Prop :=
   | exec_rel_stepN n ρ : pexec_rel ρ (pexec n ρ)
   | exec_rel_erasable e σ μ : erasable μ σ -> pexec_rel (e, σ) (dmap (pair e) μ)
   | exec_rel_bind μ f ρ : pexec_rel ρ μ -> (∀ ρ', pexec_rel ρ' (f ρ')) -> pexec_rel ρ (cdbind f μ)
   | exec_rel_rec μ f ρ : pexec_rel ρ μ -> (∀ ρ', pexec_rel ρ' (f ρ')) -> pexec_rel ρ (cdbind f μ)
   .
 
-  Program Definition prog_cc : conv_comb (cfg Λ) := MkConvComb _ pexec_rel _ _ _.
+  Program Definition prog_cc : conv_comb (cfg Λ) := {|
+    ccr := pexec_rel;
+    cc_err := λ _, nnreal_zero;
+  |}.
   Next Obligation.
     intros. replace (cdret a) with (distr_cdistr (pexec 0 a)); first by apply exec_rel_stepN.
     by rewrite pexec_O cdret_dret.
   Qed.
-  Next Obligation. 
-    by econstructor. 
+  Next Obligation.
+    by econstructor.
   Qed.
   Next Obligation.
     intros.
@@ -115,7 +126,15 @@ Section prod_cc.
 
   Definition prod_cc_rel (a : A) (b : B) μ η := ca a μ ∧ cb b η.
 
-  Program Definition prod_cc : conv_comb (A * B) := MkConvComb _ (λ p d, prod_cc_rel p.1 p.2 (cdbind (λ x, cdret $ fst x) d) (cdbind (λ x, cdret $ snd x) d)) _ _ _.
+  (** Maximum of two nonnegreals, used for the product error budget. *)
+  Definition nnreal_max (x y : nonnegreal) : nonnegreal :=
+    mknonnegreal (Rmax (nonneg x) (nonneg y))
+      (Rle_trans _ _ _ (cond_nonneg x) (Rmax_l _ _)).
+
+  Program Definition prod_cc : conv_comb (A * B) := {|
+    ccr := λ p d, prod_cc_rel p.1 p.2 (cdbind (λ x, cdret $ fst x) d) (cdbind (λ x, cdret $ snd x) d);
+    cc_err := λ p, nnreal_max (cc_err _ ca p.1) (cc_err _ cb p.2);
+  |}.
   Next Obligation.
     move => [a b] //=.
     rewrite /prod_cc_rel. split.

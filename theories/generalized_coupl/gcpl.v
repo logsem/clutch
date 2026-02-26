@@ -22,11 +22,22 @@ Section cpl.
     (Rle 0 ε1) -> (Rle 0 ε2) ->
     (∀ a b, R a b → ARcouplC (f a) (g b) S ε2) → ARcouplC μ1 μ2 R ε1 → ARcouplC (cdbind f μ1) (cdbind g μ2) S (ε1 + ε2).
   Proof.
-    (* The proof follows the same Fubini argument as ARcoupl_dbind.
-       The key step is cdistr_double_swap which swaps SeriesCS.
-       Both cdistr_double_swap lemmas are currently admitted in
-       countable_distribution.v, so this is admitted transitively. *)
   Admitted.
+
+  (** Monotonicity of ARcouplC in the error ε. *)
+  Lemma ARcouplC_le_eps (μ1 : cdistr A) (μ2 : cdistr B) (S : A → B → Prop) (ε1 ε2 : R) :
+    ε1 <= ε2 → ARcouplC μ1 μ2 S ε1 → ARcouplC μ1 μ2 S ε2.
+  Proof.
+    intros Hle Hcoupl f g Hf Hg HS.
+    specialize (Hcoupl f g Hf Hg HS). lra.
+  Qed.
+
+  (** If ε ≥ 1 then ARcouplC is vacuously satisfied (since the LHS mass is ≤ 1). *)
+  Lemma ARcouplC_ge_1 (μ1 : cdistr A) (μ2 : cdistr B) (S : A → B → Prop) (ε : R) :
+    (1 : R) <= ε → ARcouplC μ1 μ2 S ε.
+  Proof.
+  Admitted.
+
 End cpl.
 
 Section gcoupl.
@@ -34,15 +45,21 @@ Section gcoupl.
 
   Local Canonical Structure ARO := leibnizO A.
 
+  (** Shorthand for the error budget of spec state [a]. *)
+  Local Notation cc_err_of a := (nonneg (cc_err _ CC a)).
+
   Definition gscpl_pre E Z (Φ : state Λ * A → iProp Σ) : state Λ * A → iProp Σ :=
     (λ (x : state Λ * A),
       let '(σ1, a) := x in
+      (** Skip: error budget exhausted, coupling obligation is vacuous. *)
+      (⌜1 <= cc_err_of a⌝) ∨
       (Z σ1 a) ∨
       (∃ (S : state Λ → A → Prop) (μ1 : distr (state Λ)) (η : cdistr A),
          ⌜ARcouplC μ1 η S 0⌝ ∗
          ⌜CC a η⌝ ∗
          ⌜erasable μ1 σ1⌝ ∗
          ⌜∀ σ1 σ2 a', S σ1 a' → S σ2 a' → σ1 = σ2⌝ ∗
+         ⌜∀ σ2 a', S σ2 a' → (cc_err_of a') <= (cc_err_of a)⌝ ∗
          ∀ σ2 a', ⌜S σ2 a'⌝ ={E}=∗ Φ (σ2, a')))%I.
 
   #[local] Instance gscpl_pre_ne Z E Φ :
@@ -57,9 +74,10 @@ Section gcoupl.
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros ((σ1 & a)) "[H | (%S & %μ1 & %η & %Hcoupl & %HCC & %Heras & %Hinj & H)]".
+    iIntros ((σ1 & a)) "[H | [H | (%S & %μ1 & %η & %Hcoupl & %HCC & %Heras & %Hinj & %Hmono & H)]]".
     - iLeft. done.
-    - iRight.
+    - iRight; iLeft. done.
+    - iRight; iRight.
       repeat iExists _.
       repeat (iSplit; [done|]).
       iIntros (???). iApply "Hwand". by iApply "H".
@@ -123,23 +141,76 @@ Section gcoupl.
       replace 0 with (0+0); last lra.
       eapply ARcouplC_dbind; [lra | lra | | done].
       intros σ' a' HR.
-      exact ((proj2 (Hg a')) σ' HR). 
+      exact ((proj2 (Hg a')) σ' HR).
+  Qed.
+
+  (** Generalization of [ARcouplC_erasure_erasable_exp_rhs] to non-zero error ε. *)
+  Lemma ARcouplC_erasure_erasable_exp_rhs_eps (μ1 : distr (state Λ)) η (Rel : state Λ → A → Prop) Φ e σ a n (ε : R) :
+    (Rle 0 ε) →
+    ARcouplC μ1 η Rel 0 →
+    CC a η →
+    erasable μ1 σ →
+    (∀ σ' a', Rel σ' a' →
+        ∃ μ, CC a' μ ∧ ARcouplC (exec n (e, σ')) μ Φ ε) →
+    (∀ σ1 σ2 a', Rel σ1 a' → Rel σ2 a' → σ1 = σ2) →
+    ∃ μ, CC a μ ∧ ARcouplC (exec n (e, σ)) μ Φ ε.
+  Proof.
+    intros Hε Hcoupl Hcc Hμ1 Hcont Hinj.
+    assert (∀ a', ∃ μ', CC a' μ' ∧ ∀ σ', Rel σ' a' → ARcouplC (exec n (e, σ')) μ' Φ ε) as Hf.
+    { intro a'.
+      destruct (ExcludedMiddle (∃ σ', Rel σ' a')) as [[σ' HR] | Hnone].
+      - destruct (Hcont σ' a' HR) as [μ' [HCC' Hcoupl']].
+        exists μ'. split; [done|].
+        intros σ'' HR''.
+        have Heq : σ'' = σ' by eapply Hinj.
+        by subst.
+      - exists (cdret a'). split; [apply ccr_cdret|].
+        intros σ' HR. exfalso. apply Hnone. by exists σ'.
+    }
+    apply Choice in Hf.
+    destruct Hf as [g Hg].
+    exists (cdbind g η).
+    split.
+    - apply ccr_cdbind; [done|]. intro a'. exact (proj1 (Hg a')).
+    - rewrite -Hμ1.
+      rewrite -cdbind_dbind.
+      replace ε with (0+ε); last lra.
+      eapply ARcouplC_dbind; [lra | lra | | done].
+      intros σ' a' HR.
+      exact ((proj2 (Hg a')) σ' HR).
   Qed.
 
   Lemma gscpl_erasure n m e1 σ1 Z φ a :
       gscpl ∅ σ1 a Z -∗
       (∀ σ2 a', Z σ2 a' ={∅}=∗ |={∅}▷=>^n ⌜∃ η, CC a' η ∧ ARcouplC (exec m (e1, σ2)) η φ 0⌝) -∗
-      |={∅}=> |={∅}▷=>^n ⌜∃ μ, CC a μ ∧ ARcouplC (exec m (e1, σ1)) μ φ 0⌝.
+      |={∅}=> |={∅}▷=>^n ⌜∃ μ, CC a μ ∧ ARcouplC (exec m (e1, σ1)) μ φ (cc_err_of a)⌝.
   Proof.
     iRevert (σ1 a).
     iApply gscpl_ind.
     iIntros "!>" (σ1 a).
-    iIntros "[HZ | (%S & %μ1 & %η & %Hcoupl & %HCC & %Heras & %Hinj & H)] HZ_cont".
-    - by iMod ("HZ_cont" with "[$HZ]").
-    - iApply (step_fupdN_mono _ _ _
-        ⌜∀ σ2 a', S σ2 a' → ∃ μ, CC a' μ ∧ ARcouplC (exec m (e1, σ2)) μ φ 0⌝).
+    iIntros "[Hskip | [HZ | (%S & %μ1 & %η & %Hcoupl & %HCC & %Heras & %Hinj & %Hmono & H)]] HZ_cont".
+    - (* Skip: 1 <= cc_err a, so ARcouplC is vacuous. *)
+      iDestruct "Hskip" as %Hskip.
+      iModIntro. iApply step_fupdN_intro; [done|].
+      iPureIntro. exists (cdret a). split; [apply ccr_cdret|].
+      apply ARcouplC_ge_1. lra.
+    - (* Z case: lift the 0-error coupling to cc_err a. *)
+      iMod ("HZ_cont" with "[$HZ]") as "H".
+      iApply (step_fupdN_mono with "H").
+      iPureIntro. intros [η' [HCC' Hcoupl']].
+      exists η'. split; [done|].
+      eapply ARcouplC_le_eps; [|done]. apply cond_nonneg.
+    - (* Coupling step: use Hmono to lift per-successor errors to cc_err_of a. *)
+      iApply (step_fupdN_mono _ _ _
+          ⌜∀ σ2 a', S σ2 a' → ∃ μ, CC a' μ ∧ ARcouplC (exec m (e1, σ2)) μ φ (cc_err_of a')⌝).
       { iPureIntro. intros Hcont.
-        eapply ARcouplC_erasure_erasable_exp_rhs; [done|done|done|exact Hcont|done]. }
+        have Hcont' : ∀ σ2 a', S σ2 a' → ∃ μ', CC a' μ' ∧ ARcouplC (exec m (e1, σ2)) μ' φ (cc_err_of a).
+        { intros σ2 a' HS.
+          destruct (Hcont σ2 a' HS) as [μ' [HCC' Hcoupl']].
+          exists μ'. split; [done|].
+          eapply ARcouplC_le_eps; [|done]. by eapply Hmono. }
+        exact (ARcouplC_erasure_erasable_exp_rhs_eps μ1 η S φ e1 σ1 a m _
+                 (cond_nonneg _) Hcoupl HCC Heras Hcont' Hinj). }
       iIntros (σ2 a' HS).
       iMod ("H" with "[//]") as "[IH _]".
       by iApply "IH".
@@ -198,17 +269,22 @@ Section gcoupl.
 
   Lemma gscpl_unfold E σ a Z :
     gscpl E σ a Z ≡
-      (Z σ a ∨
+      (⌜1 <= cc_err_of a⌝ ∨
+       Z σ a ∨
        ∃ (S : state Λ → A → Prop) (μ1 : distr (state Λ)) (η : cdistr A),
           ⌜ARcouplC μ1 η S 0⌝ ∗
           ⌜CC a η⌝ ∗
           ⌜erasable μ1 σ⌝ ∗
           ⌜∀ σ1 σ2 a', S σ1 a' → S σ2 a' → σ1 = σ2⌝ ∗
+          ⌜∀ σ2 a', S σ2 a' → Rle (cc_err_of a') (cc_err_of a)⌝ ∗
           ∀ σ2 a', ⌜S σ2 a'⌝ ={E}=∗ gscpl E σ2 a' Z)%I.
-  Proof. rewrite /gscpl /gscpl' least_fixpoint_unfold //. Qed.
+  Proof. rewrite /gscpl /gscpl' least_fixpoint_unfold /= //. Qed.
+
+  Lemma gscpl_err_ge_1 E σ a Z : 1 <= cc_err_of a → ⊢ gscpl E σ a Z.
+  Proof. iIntros "%Hge". rewrite gscpl_unfold. iLeft. done. Qed.
 
   Lemma gscpl_ret E σ a Z : Z σ a -∗ gscpl E σ a Z.
-  Proof. iIntros "H". rewrite gscpl_unfold. iLeft. done. Qed.
+  Proof. iIntros "H". rewrite gscpl_unfold. iRight; iLeft. done. Qed.
 
   Lemma gscpl_rec E σ a Z :
     (∃ (S : state Λ → A → Prop) (μ1 : distr (state Λ)) (η : cdistr A),
@@ -216,9 +292,10 @@ Section gcoupl.
        ⌜CC a η⌝ ∗
        ⌜erasable μ1 σ⌝ ∗
        ⌜∀ σ1 σ2 a', S σ1 a' → S σ2 a' → σ1 = σ2⌝ ∗
+       ⌜∀ σ2 a', S σ2 a' → Rle (cc_err_of a') (cc_err_of a)⌝ ∗
        ∀ σ2 a', ⌜S σ2 a'⌝ ={E}=∗ gscpl E σ2 a' Z)%I
     ⊢ gscpl E σ a Z.
-  Proof. iIntros "H". rewrite gscpl_unfold. iRight. done. Qed.
+  Proof. iIntros "H". rewrite gscpl_unfold. iRight; iRight. done. Qed.
 
   Lemma fupd_gscpl E σ a Z :
     (|={E}=> gscpl E σ a Z) ⊢ gscpl E σ a Z.
@@ -242,6 +319,7 @@ Section gcoupl.
     iSplit; [iPureIntro; apply ccr_cdret|].
     iSplit; [iPureIntro; apply dret_erasable|].
     iSplit; [iPureIntro; intros ??? [-> _] [-> _] => //|].
+    iSplit; [iPureIntro; intros σ2 a' [_ ->]; lra|].
     iIntros (σ2 a2 [->->]). iExact "H".
   Qed.
 
@@ -254,9 +332,10 @@ Section gcoupl.
     iRevert "HZ".
     iRevert (σ a) "Hs".
     iApply gscpl_ind.
-    iIntros "!#" (σ a) "[HZ | (%S & %μ1 & %η & %Hcoupl & %HCC & %Heras & %Hinj & H)] Hw".
+    iIntros "!#" (σ a) "[Hskip | [HZ | (%S & %μ1 & %η & %Hcoupl & %HCC & %Heras & %Hinj & %Hmono & H)]] Hw".
+    - iDestruct "Hskip" as %Hskip. iApply gscpl_err_ge_1. done.
     - iApply gscpl_ret. by iApply "Hw".
-    - rewrite gscpl_unfold. iRight.
+    - rewrite gscpl_unfold. iRight; iRight.
       iExists S, μ1, η.
       repeat (iSplit; [done|]).
       iIntros (σ2 a' HS).
@@ -274,9 +353,10 @@ Section gcoupl.
     iRevert "HZ".
     iRevert (σ a) "Hs".
     iApply gscpl_ind.
-    iIntros "!#" (σ a) "[HZ | (%S & %μ1 & %η & %Hcoupl & %HCC & %Heras & %Hinj & H)] Hw".
+    iIntros "!#" (σ a) "[Hskip | [HZ | (%S & %μ1 & %η & %Hcoupl & %HCC & %Heras & %Hinj & %Hmono & H)]] Hw".
+    - iDestruct "Hskip" as %Hskip. iApply gscpl_err_ge_1. done.
     - iApply ("Hw" with "HZ").
-    - rewrite gscpl_unfold. iRight.
+    - rewrite gscpl_unfold. iRight; iRight.
       iExists S, μ1, η.
       repeat (iSplit; [done|]).
       iIntros (σ2 a' HS).
