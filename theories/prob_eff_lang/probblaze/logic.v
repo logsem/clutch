@@ -3459,6 +3459,31 @@ Section brel_probabilistic_rules.
       by iApply ("Hrel" with "[$][$]").
   Qed.
 
+  Lemma brel_couple_TU N f `{Bij (fin (S N)) (fin (S N)) f} K' α X R z ns e :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    ▷ α ↪ (N; ns) ∗
+    (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) -∗ BREL e ≤ fill K' (Val #(f n)) <|X|> {{R}})
+    ⊢ BREL e ≤ fill K' (rand #z) <|X|> {{R}}.
+  Proof.
+    iIntros (??) "(Hα & H) Hvalid Hdistinct".
+    iApply rel_couple_TU; first done.
+    iFrame. iIntros (n) "Hα".
+    by iApply ("H" with "[$][$]").
+  Qed.    
+
+  Lemma brel_couple_UT N f `{Bij (fin (S N)) (fin (S N)) f} K α X R z ns e :
+    TCEq N (Z.to_nat z) →
+    ▷ α ↪ₛ (N; ns) ∗
+    ▷ (∀ (n : fin (S N)), ⌜n ≤ N⌝ -∗ α ↪ₛ (N; ns ++ [f n]) -∗ BREL fill K (Val #n) ≤ e <|X|> {{R}})
+    ⊢ BREL fill K (rand #z) ≤ e <|X|> {{R}}.
+  Proof.
+    iIntros (?) "(Hα & H) Hvalid Hdistinct".
+    iApply rel_couple_UT. 
+    iFrame. iIntros (n) "!> % Hα".
+    by iApply ("H" with "[][$][$][$]").
+  Qed.    
+
   (* Error credit amplification *)
   Lemma brel_get_ec e e' X A :
     (∀ ε : R, (↯ ε) -∗ ⌜(0 < ε)%R⌝ -∗ BREL e ≤ e' <|X|> {{A}}) ⊢
