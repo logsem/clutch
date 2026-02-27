@@ -323,34 +323,34 @@ Proof.
   econstructor; last auto. apply logic.pure_step_ctx; auto.
 Qed.
 
-Class FinalizeBREL `{!probblazeRGS Σ} (e1 e2 : expr) (L : iLblThy Σ) (R : val -d> val -d> iProp Σ) (P : iProp Σ) : Prop :=
-  { finalize_brel : P ⊢ BREL e1 ≤ e2 <|L|> {{R}} }.
-Global Hint Mode FinalizeBREL + + ! + ! ! - : typeclass_instances.
+Class FinalizeBREL `{!probblazeRGS Σ} (E : coPset) (e1 e2 : expr) (L : iLblThy Σ) (R : val -d> val -d> iProp Σ) (P : iProp Σ) : Prop :=
+  { finalize_brel : P ⊢ BREL e1 ≤ e2 @ E  <|L|> {{R}} }.
+Global Hint Mode FinalizeBREL ! + + ! + ! ! - : typeclass_instances.
 
 (** There are three ways to finalize a SIM.
     First of all, if both expressions are a value
     and the postcondition already contains a update,
     we can just prove the postcondition. *)
-Lemma finalize_brel_value `{!probblazeRGS Σ} L R e1 e2 v1 v2 :
+Lemma finalize_brel_value `{!probblazeRGS Σ} E L R e1 e2 v1 v2 :
   IntoVal e1 v1 → IntoVal e2 v2 →
-  FinalizeBREL e1 e2 L R (R v1 v2).
+  FinalizeBREL E e1 e2 L R (na_ownP E ={⊤}=∗ na_ownP ⊤ ∗ R v1 v2).
 Proof. intros <- <-. constructor. apply brel_value. Qed.
 Global Hint Extern 0 (FinalizeBREL _ _ _ (λ _ _, |==> _)%I _) =>
-  notypeclasses refine (finalize_brel_value _ _ _ _ _ _ _ _) : typeclass_instances.
+  notypeclasses refine (finalize_brel_value _ _ _ _ _ _ _ _ _) : typeclass_instances.
 
-(** Second, if both expressions are a value
-    but the postcondition does NOT already contain an update,
-    we introduce it. *)
-Global Instance finalize_brel_value_upd `{!probblazeRGS Σ} L R e1 e2 v1 v2 :
-  IntoVal e1 v1 → IntoVal e2 v2 →
-  FinalizeBREL e1 e2 L R (|==> R v1 v2) | 1.
-Proof. intros <- <-. constructor. rewrite -fupd_brel -brel_value. by iIntros "?". Qed.
+(* (** Second, if both expressions are a value
+       but the postcondition does NOT already contain an update,
+       we introduce it. *)
+   Global Instance finalize_brel_value_upd `{!probblazeRGS Σ} E L R e1 e2 v1 v2 :
+     IntoVal e1 v1 → IntoVal e2 v2 →
+     FinalizeBREL E e1 e2 L R (|==> R v1 v2) | 1.
+   Proof. intros <- <-. constructor. rewrite -fupd_brel -brel_value. by iIntros "?". Qed. *)
 
 (** Finally, if the expressions aren't both a value,
     we simplify them both. *)
-Global Instance finalize_brel_simpl `{!probblazeRGS Σ} L R e1 e2 e1' e2' :
+Global Instance finalize_brel_simpl `{!probblazeRGS Σ} E L R e1 e2 e1' e2' :
   TCSimplExpr e1 e1' → TCSimplExpr e2 e2' →
-  FinalizeBREL e1 e2 L R (brel ⊤ e1' e2' L R) | 2.
+  FinalizeBREL E e1 e2 L R (brel E e1' e2' L R) | 2.
 Proof. intros ->%TCSimplExpr_eq ->%TCSimplExpr_eq. by constructor. Qed.
 
 (** [NormalizeBREL] transforms a goal [P] into another goal of the form [brel (fill K1 e1) (fill K2 e2) L R]
@@ -372,7 +372,8 @@ Global Instance normalize_brel_value `{!probblazeRGS Σ} v1 v2 K1 K2 e1 e2 e1' e
   NormalizeBREL (R v1 v2) K1 K2 e1 e2 L R' →
   NormalizeBREL (brel ⊤ e1' e2' L R) K1 K2 e1 e2 L R' | 1.
 Proof.
-  intros Hₜ Hₛ [HR]. split. by rewrite HR -Hₜ -Hₛ -brel_value.
+  intros Hₜ Hₛ [HR]. split. rewrite HR -Hₜ -Hₛ.
+  iIntros "HR". iApply brel_value. by iIntros "$ !>".
 Qed.
 
 (** We only perform pure steps without a side-condition here. We could let [NormalizeBREL]
@@ -438,13 +439,13 @@ Proof. rewrite TCEq_eq=> ->. by constructor. Qed.
 Section brel_lemmas.
   Context `{!probblazeRGS Σ}.
 
-  Lemma tac_brel_pure_l {Δ Δ' eₜ eₜ' eₛ L R Q φ} n :
+  Lemma tac_brel_pure_l {Δ Δ' E eₜ eₜ' eₛ L R Q φ} n :
     DoPureSteps φ n eₜ eₜ' →
     φ →
     MaybeIntoLaterNEnvs n Δ Δ' →
-    FinalizeBREL eₜ' eₛ L R Q →
+    FinalizeBREL E eₜ' eₛ L R Q →
     envs_entails Δ' Q →
-    envs_entails Δ (brel ⊤ eₜ eₛ L R).
+    envs_entails Δ (brel E eₜ eₛ L R).
   Proof.
     rewrite envs_entails_unseal=> -[Hsteps] Hφ HΔ [HQ] HΔ'.
     rewrite into_laterN_env_sound HΔ' HQ {HQ HΔ HΔ'}.
@@ -452,12 +453,12 @@ Section brel_lemmas.
     rewrite -brel_pure_step_later //.
   Qed.
 
-  Lemma tac_brel_pure_r {Δ eₜ eₛ eₛ' L R Q φ} n :
+  Lemma tac_brel_pure_r {Δ E eₜ eₛ eₛ' L R Q φ} n :
     DoPureSteps φ n eₛ eₛ' →
     φ →
-    FinalizeBREL eₜ eₛ' L R Q →
+    FinalizeBREL E eₜ eₛ' L R Q →
     envs_entails Δ Q →
-    envs_entails Δ (brel ⊤ eₜ eₛ L R).
+    envs_entails Δ (brel E eₜ eₛ L R).
   Proof.
     rewrite envs_entails_unseal=> -[Hsteps] Hφ [HQ] HΔ.
     rewrite HΔ HQ.
@@ -465,12 +466,12 @@ Section brel_lemmas.
     by apply: brel_pure_step_r.
   Qed.
 
-  Lemma tac_brel_rec_l {Δ Δ' eₜ eₜ' v1 v2 f x eₛ K L R Q} :
+  Lemma tac_brel_rec_l {Δ Δ' E eₜ eₜ' v1 v2 f x eₛ K L R Q} :
     IntoCtx eₜ (IsAppRec v1 v2 f x eₜ') K →
     MaybeIntoLaterNEnvs 1 Δ Δ' →
-    FinalizeBREL (fill K (val_subst' x v2 (val_subst' f v1 eₜ'))) eₛ L R Q →
+    FinalizeBREL E (fill K (val_subst' x v2 (val_subst' f v1 eₜ'))) eₛ L R Q →
     envs_entails Δ' Q →
-    envs_entails Δ (brel ⊤ eₜ eₛ L R).
+    envs_entails Δ (brel E eₜ eₛ L R).
   Proof.
     rewrite envs_entails_unseal=> -[? -> [-> ->]] HΔ [HQ] HΔ'.
     rewrite into_laterN_env_sound HΔ' HQ /=.
@@ -479,11 +480,11 @@ Section brel_lemmas.
     rewrite -brel_pure_step_later //.
   Qed.
 
-  Lemma tac_brel_rec_r {Δ eₜ v1 v2 f x eₛ eₛ' K L R Q} :
+  Lemma tac_brel_rec_r {Δ E eₜ v1 v2 f x eₛ eₛ' K L R Q} :
     IntoCtx eₛ (IsAppRec v1 v2 f x eₛ') K →
-    FinalizeBREL eₜ (fill K (val_subst' x v2 (val_subst' f v1 eₛ'))) L R Q →
+    FinalizeBREL E eₜ (fill K (val_subst' x v2 (val_subst' f v1 eₛ'))) L R Q →
     envs_entails Δ Q →
-    envs_entails Δ (brel ⊤ eₜ eₛ L R).
+    envs_entails Δ (brel E eₜ eₛ L R).
   Proof.
     rewrite envs_entails_unseal=> -[? -> [-> ->]] [HQ] HΔ.
     rewrite HΔ HQ /=.

@@ -2768,8 +2768,8 @@ Section blaze_rules.
     }
   Qed.
 
-  Lemma brel_value (v1 v2 : val) L R : R v1 v2 ⊢ BREL v1 ≤ v2 <|L|> {{R}}.
-  Proof. iIntros "HR _ _". by iApply rel_value. Qed.
+  Lemma brel_value E (v1 v2 : val) L R : (na_ownP E ={⊤}=∗ na_ownP ⊤ ∗ R v1 v2) ⊢ BREL v1 ≤ v2 @ E <|L|> {{R}}.
+  Proof. iIntros "HR _ _". by iApply rel_value_mask. Qed.
 
   Lemma brel_wand e1 e2 L R S :
     BREL e1 ≤ e2 <|L|> {{R}} -∗ □ (∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
@@ -2857,10 +2857,10 @@ Section blaze_rules.
     iExists _. iFrame. by iApply "Hbrel".
   Qed.
 
-  Lemma brel_pure_step_later `{!probblazeGS Σ} e1 e1' e2 φ n L R :
+  Lemma brel_pure_step_later `{!probblazeGS Σ} E e1 e1' e2 φ n L R :
     PureExec φ n e1 e1' →
     φ →
-    ▷^n (BREL e1' ≤ e2 <|L|> {{R}}) ⊢ BREL e1 ≤ e2 <|L|> {{R}}.
+    ▷^n (BREL e1' ≤ e2 @ E <|L|> {{R}}) ⊢ BREL e1 ≤ e2 @ E <|L|> {{R}}.
   Proof.
     intros Hexec ?.
     iIntros "Hbrel #Hvalid #Hdistinct".
@@ -2868,13 +2868,13 @@ Section blaze_rules.
     iIntros "!>". by iApply "Hbrel".
   Qed.
 
-  Lemma brel_pure_step_r `{!probblazeGS Σ} e1 e2 e2' φ n L R :
+  Lemma brel_pure_step_r `{!probblazeGS Σ} E e1 e2 e2' φ n L R :
     PureExec φ n e2 e2' →
     φ →
-    BREL e1 ≤ e2' <|L|> {{R}} ⊢ BREL e1 ≤ e2 <|L|> {{R}}.
+    BREL e1 ≤ e2' @ E <|L|> {{R}} ⊢ BREL e1 ≤ e2 @ E <|L|> {{R}}.
   Proof.
     iIntros (Hexec Hφ) "Hbrel #Hvalid %Hdistinct".
-    iApply (rel_pure_step_r _ _ e2' _ φ n). { done. }
+    iApply (rel_pure_step_r_with_mask _ _ _ e2' φ n); first done.
     by iApply "Hbrel".
   Qed.
 
