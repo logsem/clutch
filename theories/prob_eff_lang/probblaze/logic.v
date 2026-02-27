@@ -1606,11 +1606,11 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.
   
-  Lemma rel_couple_rand_rand N f `{Bij nat nat f} z K K' X R :
+  Lemma rel_couple_rand_rand E N f `{Bij nat nat f} z K K' X R :
     TCEq N (Z.to_nat z) →
     (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) →
-    (∀ n : nat, REL fill K #(n) ≤ fill K' #(f n) <|X|> {{R}})
-        ⊢ REL fill K (rand #z) ≤ fill K' (rand #z) <|X|> {{R}}.
+    (∀ n : nat, REL fill K #(n) ≤ fill K' #(f n) @ E <|X|> {{R}})
+        ⊢ REL fill K (rand #z) ≤ fill K' (rand #z) @ E <|X|> {{R}}.
   Proof.
     iIntros (??) "Hrel".
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
@@ -2827,8 +2827,8 @@ Section blaze_rules.
     by iApply (brel_introduction _ _ _ Q with "HX"); last auto.
   Qed.
 
-  Lemma fupd_brel e1 e2 L R :
-    (|={⊤}=> BREL e1 ≤ e2 <|L|> {{R}}) ⊢ BREL e1 ≤ e2 <|L|> {{R}}.
+  Lemma fupd_brel E e1 e2 L R :
+    (|={⊤}=> BREL e1 ≤ e2 @ E <|L|> {{R}}) ⊢ BREL e1 ≤ e2 @ E <|L|> {{R}}.
   Proof.
     iIntros "H #Hvalid %Hdistinct". iApply fupd_rel.
     iMod "H". iApply ("H" with "Hvalid [//]").
@@ -3339,11 +3339,11 @@ Section brel_probabilistic_rules.
     by iApply ("Hrel" with "[$][$]").
   Qed.
 
- Lemma brel_couple_rand_rand N f `{Bij nat nat f} z K K' X R :
+ Lemma brel_couple_rand_rand E N f `{Bij nat nat f} z K K' X R :
     TCEq N (Z.to_nat z) →
     (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) →
-    (∀ n : nat, BREL fill K #(n) ≤ fill K' #(f n) <|X|> {{R}})
-        ⊢ BREL fill K (rand #z) ≤ fill K' (rand #z) <|X|> {{R}}.
+    (∀ n : nat, BREL fill K #(n) ≤ fill K' #(f n) @ E <|X|> {{R}})
+        ⊢ BREL fill K (rand #z) ≤ fill K' (rand #z) @ E <|X|> {{R}}.
   Proof.
     iIntros (??)  "Hrel #Hvalid Hdistinct".
     iApply rel_couple_rand_rand; [done|].
@@ -3351,11 +3351,11 @@ Section brel_probabilistic_rules.
     by iApply "Hrel".
   Qed.
 
-  Lemma brel_randT_r K α N z n ns t X R :
+  Lemma brel_randT_r E K α N z n ns t X R :
     TCEq N (Z.to_nat z) →
     α ↪ₛN (N; n :: ns)
-   ⊢ (α ↪ₛN (N; ns)-∗ ⌜ n ≤ N ⌝ -∗ BREL t ≤ fill K (of_val #n) <|X|> {{R}})
-    -∗ BREL t ≤ (fill K (rand(#lbl:α) #z)) <|X|> {{R}}.
+   ⊢ (α ↪ₛN (N; ns)-∗ ⌜ n ≤ N ⌝ -∗ BREL t ≤ fill K (of_val #n) @ E <|X|> {{R}})
+    -∗ BREL t ≤ (fill K (rand(#lbl:α) #z)) @ E <|X|> {{R}}.
   Proof.
     iIntros (?) "Hα Hrel #Hvalid Hdistinct".
     iApply (rel_randT_r with "[$]"). 
@@ -3364,11 +3364,11 @@ Section brel_probabilistic_rules.
   Qed.
   Definition brel_rand_r := brel_randT_r.
 
-  Lemma brel_randT_empty_r K α N z e X R :
+  Lemma brel_randT_empty_r E K α N z e X R :
     TCEq N (Z.to_nat z) →
     ▷ α ↪ₛN (N; []) ∗
-      (∀ n : nat, α ↪ₛN (N; []) -∗ ⌜ n ≤ N ⌝ -∗ BREL e ≤ fill K (Val #n) <|X|> {{R}})
-    ⊢ BREL e ≤ fill K (rand(#lbl:α) #z) <|X|> {{R}}.
+      (∀ n : nat, α ↪ₛN (N; []) -∗ ⌜ n ≤ N ⌝ -∗ BREL e ≤ fill K (Val #n) @ E <|X|> {{R}})
+    ⊢ BREL e ≤ fill K (rand(#lbl:α) #z) @ E <|X|> {{R}}.
   Proof.
     iIntros (?) "(Hα & Hrel) #Hvalid Hdistinct".
     iApply (rel_randT_empty_r). iFrame.
@@ -3377,11 +3377,11 @@ Section brel_probabilistic_rules.
   Qed.
   Definition brel_rand_empty_r := brel_randT_empty_r.
 
-  Lemma brel_randT_l K α N z n ns t X R :
+  Lemma brel_randT_l E K α N z n ns t X R :
     TCEq N (Z.to_nat z) →
     (▷ α ↪N (N; n :: ns) ∗
-     ▷ (α ↪N (N; ns) -∗ ⌜ n ≤ N ⌝ -∗ BREL fill K (of_val #n) ≤ t <|X|> {{R}}))
-    ⊢ BREL fill K (rand(#lbl:α) #z) ≤ t <|X|> {{R}}.
+     ▷ (α ↪N (N; ns) -∗ ⌜ n ≤ N ⌝ -∗ BREL fill K (of_val #n) ≤ t @ E <|X|> {{R}}))
+    ⊢ BREL fill K (rand(#lbl:α) #z) ≤ t @ E <|X|> {{R}}.
   Proof.
     iIntros (?) "(Hα & Hrel) #Hvalid Hdistinct".
     iApply (rel_randT_l). iFrame.
@@ -3390,11 +3390,11 @@ Section brel_probabilistic_rules.
   Qed.
   Definition brel_rand_l := brel_randT_l.
 
-  Lemma brel_randT_empty_l K α N z e X R :
+  Lemma brel_randT_empty_l E K α N z e X R :
     TCEq N (Z.to_nat z) →
     ▷ α ↪N (N; []) ∗
-    ▷ (∀ (n : nat), α ↪N (N; []) -∗ ⌜ n ≤ N ⌝ -∗ BREL fill K (Val #n) ≤ e <|X|> {{R}})
-    ⊢ BREL fill K (rand(#lbl:α) #z) ≤ e <|X|> {{R}}.
+    ▷ (∀ (n : nat), α ↪N (N; []) -∗ ⌜ n ≤ N ⌝ -∗ BREL fill K (Val #n) ≤ e @ E <|X|> {{R}})
+    ⊢ BREL fill K (rand(#lbl:α) #z) ≤ e @ E <|X|> {{R}}.
   Proof.
     iIntros (?) "(Hα & Hrel) #Hvalid Hdistinct".
     iApply (rel_randT_empty_l). iFrame.
@@ -3403,12 +3403,12 @@ Section brel_probabilistic_rules.
   Qed.
   Definition brel_rand_empty_l := brel_randT_empty_l.
 
-  Lemma brel_couple_couple_avoid (N:nat) l z K K' X R:
+  Lemma brel_couple_couple_avoid E (N:nat) l z K K' X R:
     NoDup l ->
     TCEq N (Z.to_nat z) →
     ↯ (length l / (S N)) ∗
-    ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ BREL fill K (Val #n) ≤ fill K' (Val #n) <|X|> {{R}})
-    ⊢ BREL fill K (rand #z) ≤ fill K' (rand #z) <|X|> {{R}}.
+    ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ BREL fill K (Val #n) ≤ fill K' (Val #n) @ E <|X|> {{R}})
+    ⊢ BREL fill K (rand #z) ≤ fill K' (rand #z) @ E <|X|> {{R}}.
   Proof.
     iIntros (??) "(Hα & Hrel) #Hvalid Hdistinct".
     iApply (rel_couple_couple_avoid); first done. iFrame.
@@ -3416,7 +3416,7 @@ Section brel_probabilistic_rules.
     by iApply ("Hrel" with "[$][$]").
   Qed.
     
-  Lemma brel_couple_TT_frag (N M : nat) (f : nat -> nat) {_ : Inj (=) (=) f} e1 e2 X R α αₛ ns nsₛ :
+  Lemma brel_couple_TT_frag E (N M : nat) (f : nat -> nat) {_ : Inj (=) (=) f} e1 e2 X R α αₛ ns nsₛ :
     (M <= N)%nat →
     (∀ n : nat, n < S M → f n < S N)%nat ->
     ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗
@@ -3424,11 +3424,11 @@ Section brel_probabilistic_rules.
         ⌜ n ≤ N ⌝ -∗
         if bool_decide (∃ m, m ≤ M /\ f m = n) then
           ∀ m, α ↪N (N; ns ++ [f m]) ∗ αₛ ↪ₛN (M; nsₛ ++ [m]) ∗ ⌜f m ≤ N⌝ ∗ ⌜m ≤ M⌝ -∗
-               BREL e1 ≤ e2 <|X|> {{R}}
+               BREL e1 ≤ e2 @ E <|X|> {{R}}
         else
-          α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ) ∗ ⌜ n ≤ N ⌝ -∗ BREL e1 ≤ e2 <|X|> {{R}}
+          α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ) ∗ ⌜ n ≤ N ⌝ -∗ BREL e1 ≤ e2 @ E <|X|> {{R}}
     )
-    ⊢ BREL e1 ≤ e2 <|X|> {{R}}.
+    ⊢ BREL e1 ≤ e2 @ E <|X|> {{R}}.
   Proof.
     iIntros (??) "(Hα & Hαs & Hrel) #Hvalid Hdistinct".
     iApply (rel_couple_TT_frag); try done. iFrame.
@@ -3438,7 +3438,7 @@ Section brel_probabilistic_rules.
       by iApply ("Hrel" with "[$][$]").
   Qed.
 
-  Lemma brel_couple_TT_adv (N M : nat) (f : nat → nat) {_ : Inj (=) (=) f} e1 e2 X A α αₛ ns nsₛ (ε : R) :
+  Lemma brel_couple_TT_adv E (N M : nat) (f : nat → nat) {_ : Inj (=) (=) f} e1 e2 X A α αₛ ns nsₛ (ε : R) :
     (0 <= ε)%R →
     (N < M)%nat →
     (∀ n : nat, n < S N → f n < S M)%nat ->
@@ -3447,13 +3447,13 @@ Section brel_probabilistic_rules.
         ⌜ m ≤ M ⌝ -∗
         if bool_decide (∃ n, n ≤ N /\ f n = m) then
           ∀ n, α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ ++ [f n]) ∗ ⌜n ≤ N⌝ ∗ ⌜f n ≤ M⌝ -∗
-               BREL e1 ≤ e2 <|X|> {{A}}
+               BREL e1 ≤ e2 @ E <|X|> {{A}}
         else
           ∀ (ε' : R),
             ⌜ε' = ((S M) / (S M - S N) * ε)%R⌝ ∗
             α ↪N (N; ns) ∗ αₛ ↪ₛN (M; nsₛ ++ [m]) ∗ ↯ ε' ∗ ⌜ m ≤ M ⌝ -∗
-            BREL e1 ≤ e2 <|X|> {{A}})
-    ⊢ BREL e1 ≤ e2 <|X|> {{A}}.
+            BREL e1 ≤ e2 @ E <|X|> {{A}})
+    ⊢ BREL e1 ≤ e2 @ E <|X|> {{A}}.
   Proof.
     iIntros (???) "(Hα & Hαs & Herr & Hrel) #Hvalid Hdistinct".
     iApply (rel_couple_TT_adv); try done. iFrame.
@@ -3463,12 +3463,12 @@ Section brel_probabilistic_rules.
       by iApply ("Hrel" with "[$][$]").
   Qed.
 
-  Lemma brel_couple_TU N f `{Bij (fin (S N)) (fin (S N)) f} K' α X R z ns e :
+  Lemma brel_couple_TU E N f `{Bij (fin (S N)) (fin (S N)) f} K' α X R z ns e :
     TCEq N (Z.to_nat z) →
     to_val e = None →
     ▷ α ↪ (N; ns) ∗
-    (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) -∗ BREL e ≤ fill K' (Val #(f n)) <|X|> {{R}})
-    ⊢ BREL e ≤ fill K' (rand #z) <|X|> {{R}}.
+    (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) -∗ BREL e ≤ fill K' (Val #(f n)) @ E <|X|> {{R}})
+    ⊢ BREL e ≤ fill K' (rand #z) @ E <|X|> {{R}}.
   Proof.
     iIntros (??) "(Hα & H) Hvalid Hdistinct".
     iApply rel_couple_TU; first done.
@@ -3476,11 +3476,11 @@ Section brel_probabilistic_rules.
     by iApply ("H" with "[$][$]").
   Qed.    
 
-  Lemma brel_couple_UT N f `{Bij (fin (S N)) (fin (S N)) f} K α X R z ns e :
+  Lemma brel_couple_UT E N f `{Bij (fin (S N)) (fin (S N)) f} K α X R z ns e :
     TCEq N (Z.to_nat z) →
     ▷ α ↪ₛ (N; ns) ∗
-    ▷ (∀ (n : fin (S N)), ⌜n ≤ N⌝ -∗ α ↪ₛ (N; ns ++ [f n]) -∗ BREL fill K (Val #n) ≤ e <|X|> {{R}})
-    ⊢ BREL fill K (rand #z) ≤ e <|X|> {{R}}.
+    ▷ (∀ (n : fin (S N)), ⌜n ≤ N⌝ -∗ α ↪ₛ (N; ns ++ [f n]) -∗ BREL fill K (Val #n) ≤ e @ E <|X|> {{R}})
+    ⊢ BREL fill K (rand #z) ≤ e @ E <|X|> {{R}}.
   Proof.
     iIntros (?) "(Hα & H) Hvalid Hdistinct".
     iApply rel_couple_UT. 
@@ -3489,21 +3489,21 @@ Section brel_probabilistic_rules.
   Qed.    
 
   (* Error credit amplification *)
-  Lemma brel_get_ec e e' X A :
-    (∀ ε : R, (↯ ε) -∗ ⌜(0 < ε)%R⌝ -∗ BREL e ≤ e' <|X|> {{A}}) ⊢
-    (BREL e ≤ e' <|X|> {{A}}).
+  Lemma brel_get_ec E e e' X A :
+    (∀ ε : R, (↯ ε) -∗ ⌜(0 < ε)%R⌝ -∗ BREL e ≤ e' @ E <|X|> {{A}}) ⊢
+    (BREL e ≤ e' @ E <|X|> {{A}}).
   Proof.
     iIntros "H Hvalid Hdistinct".
     iApply rel_get_ec. 
     iIntros. by iApply ("H" with "[$][][$]").
   Qed.
 
-  Lemma brel_ind_amp e e' X A (k : R) :
+  Lemma brel_ind_amp E e e' X A (k : R) :
     (1 < k)%R ->
     □ (∀ (ε : R),
-          ⌜(0 < ε)%R⌝ -∗ □(↯ (k * ε) -∗ (BREL e ≤ e' <|X|> {{A}}))
-                         -∗ ↯ ε -∗ (BREL e ≤ e' <|X|> {{A}}))%I
-    ⊢ BREL e ≤ e' <|X|> {{A}}.
+          ⌜(0 < ε)%R⌝ -∗ □(↯ (k * ε) -∗ (BREL e ≤ e' @ E <|X|> {{A}}))
+                         -∗ ↯ ε -∗ (BREL e ≤ e' @ E <|X|> {{A}}))%I
+    ⊢ BREL e ≤ e' @ E <|X|> {{A}}.
   Proof.
     iIntros (?) "#H #Hvalid #Hdistinct".
     iApply rel_ind_amp; first done.

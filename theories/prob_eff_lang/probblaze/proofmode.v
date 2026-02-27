@@ -338,13 +338,13 @@ Proof. intros <- <-. constructor. apply brel_value. Qed.
 Global Hint Extern 0 (FinalizeBREL _ _ _ (λ _ _, |==> _)%I _) =>
   notypeclasses refine (finalize_brel_value _ _ _ _ _ _ _ _ _) : typeclass_instances.
 
-(* (** Second, if both expressions are a value
-       but the postcondition does NOT already contain an update,
-       we introduce it. *)
-   Global Instance finalize_brel_value_upd `{!probblazeRGS Σ} E L R e1 e2 v1 v2 :
-     IntoVal e1 v1 → IntoVal e2 v2 →
-     FinalizeBREL E e1 e2 L R (|==> R v1 v2) | 1.
-   Proof. intros <- <-. constructor. rewrite -fupd_brel -brel_value. by iIntros "?". Qed. *)
+(** Second, if both expressions are a value
+    but the postcondition does NOT already contain an update,
+    we introduce it. *)
+Global Instance finalize_brel_value_upd `{!probblazeRGS Σ} L R e1 e2 v1 v2 :
+  IntoVal e1 v1 → IntoVal e2 v2 →
+  FinalizeBREL ⊤ e1 e2 L R (|==> R v1 v2) | 1.
+Proof. intros <- <-. constructor. rewrite -fupd_brel -brel_value. iIntros "?". by iIntros "!> $". Qed.
 
 (** Finally, if the expressions aren't both a value,
     we simplify them both. *)

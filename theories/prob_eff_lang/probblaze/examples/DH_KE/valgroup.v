@@ -97,9 +97,9 @@ Proof.
   by iIntros ; rewrite fill_app; subst.
 Qed.
 
-Lemma brel_inv_l K X R (a : vgG) t :
-   (BREL (fill K (Val (vgval $ a^-1)%g)) ≤ t <|X|> {{R}})
-    ⊢ BREL  (fill K (vinv a)) ≤ t <|X|> {{R}}.
+Lemma brel_inv_l K E X R (a : vgG) t :
+   (BREL (fill K (Val (vgval $ a^-1)%g)) ≤ t @ E <|X|> {{R}})
+    ⊢ BREL  (fill K (vinv a)) ≤ t @ E <|X|> {{R}}.
 Proof.
   iIntros "Hbrel Hvalid Hdistinct".
   iApply rel_inv_l.
@@ -117,9 +117,9 @@ Proof.
   iApply ("H" with "[$][$][$][$][$]").
 Qed.
 
-Lemma brel_inv_r K X R (a : vgG) t :
-  (BREL t ≤ (fill K (Val (vgval $ a^-1)%g)) <|X|> {{R}})
-    ⊢ BREL t ≤ (fill K (vinv a)) <|X|> {{R}}.
+Lemma brel_inv_r K E X R (a : vgG) t :
+  (BREL t ≤ (fill K (Val (vgval $ a^-1)%g)) @ E <|X|> {{R}})
+    ⊢ BREL t ≤ (fill K (vinv a)) @ E <|X|> {{R}}.
 Proof.
   iIntros "Hbrel Hvalid Hdistinct".
   iApply rel_inv_r.
@@ -140,9 +140,9 @@ Proof.
   by iIntros ; rewrite fill_app; subst.
 Qed.
 
-Lemma brel_mult_l K X R (a b : vgG) t :
-  (BREL (fill K (Val (vgval (a * b)%g))) ≤ t <|X|> {{R}})
-    ⊢ BREL (fill K (vmult a b)) ≤ t <|X|> {{R}}.
+Lemma brel_mult_l K E X R (a b : vgG) t :
+  (BREL (fill K (Val (vgval (a * b)%g))) ≤ t @ E <|X|> {{R}})
+    ⊢ BREL (fill K (vmult a b)) ≤ t @ E<|X|> {{R}}.
 Proof.
   iIntros "Hbrel Hvalid Hdistinct".
   iApply rel_mult_l.
@@ -160,9 +160,9 @@ Proof.
   iApply ("H" with "[$][$][$][$][$]").
 Qed.
 
-Lemma brel_mult_r K X R (a b : vgG) t :
-  (BREL t ≤ (fill K (Val (vgval (a * b)%g))) <|X|> {{R}})
-    ⊢ BREL t ≤ (fill K (vmult a b)) <|X|> {{R}}.
+Lemma brel_mult_r K E X R (a b : vgG) t :
+  (BREL t ≤ (fill K (Val (vgval (a * b)%g))) @ E <|X|> {{R}})
+    ⊢ BREL t ≤ (fill K (vmult a b)) @ E <|X|> {{R}}.
 Proof.
   iIntros "Hbrel Hvalid Hdistinct".
   iApply rel_mult_r.
@@ -243,9 +243,9 @@ Proof.
   iIntros (v ->) "Hwp". rewrite !fill_app. simpl. done.
 Qed.
 
-Lemma brel_exp_l K X R (b : vgG) (p : nat) t :
-  (BREL (fill K (Val (vgval $ b ^+ p)%g)) ≤ t <|X|> {{R}})
-    ⊢ BREL (fill K (vexp b #p)) ≤ t <|X|> {{R}}.
+Lemma brel_exp_l K E X R (b : vgG) (p : nat) t :
+  (BREL (fill K (Val (vgval $ b ^+ p)%g)) ≤ t @ E <|X|> {{R}})
+    ⊢ BREL (fill K (vexp b #p)) ≤ t @ E <|X|> {{R}}.
 Proof.
   iIntros "Hbrel Hvalid Hdistinct".
   iApply rel_exp_l.
@@ -263,9 +263,9 @@ Proof.
   iApply ("H" with "[$][$][$][$][$]").
 Qed.
 
-Lemma brel_exp_r K X R (b : vgG) (p : nat) t :
-  (BREL t ≤ (fill K (Val $ vgval (b ^+ p)%g)) <|X|> {{R}})
-    ⊢ BREL t ≤ (fill K (vexp b #p)) <|X|> {{R}}.
+Lemma brel_exp_r K E X R (b : vgG) (p : nat) t :
+  (BREL t ≤ (fill K (Val $ vgval (b ^+ p)%g)) @ E <|X|> {{R}})
+    ⊢ BREL t ≤ (fill K (vexp b #p)) @ E <|X|> {{R}}.
 Proof.
   iIntros "Hbrel Hvalid Hdistinct".
   iApply rel_exp_r.
@@ -312,7 +312,7 @@ Tactic Notation "brel_inv_l" :=
   | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
       match e with
       | context[App (Val vinv) (Val ?a)] =>
-          iApply (brel_inv_l _ _ _ _ _) => //
+          iApply (brel_inv_l _ _ _ _ _ _) => //
       | _ => fail "brel_inv_l: no vinv / group element found"
       end
   | _ => fail "brel_inv_l: not proving a refinement"
@@ -334,7 +334,7 @@ Tactic Notation "brel_inv_r" :=
   | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
       match e with
       | context[App (Val vinv) (Val ?a)] =>
-          iApply (brel_inv_r _ _ _ _ _) => //
+          iApply (brel_inv_r _ _ _ _ _ _) => //
       | _ => fail "brel_inv_r: no vinv / group element found"
       end
   | _ => fail "brel_inv_r: not proving a refinement"
@@ -357,7 +357,7 @@ Tactic Notation "brel_mult_l" :=
   | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
       match e with
       | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
-          iApply (brel_mult_l _ _ _ _ _ _) => //
+          iApply (brel_mult_l _ _ _ _ _ _ _) => //
       | _ => fail "brel_mult_l: no vmult / v1 / v2 found"
       end
   | _ => fail "brel_mult_l: not proving a refinement"
@@ -379,7 +379,7 @@ Tactic Notation "brel_mult_r" :=
   | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
       match e with
       | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
-          iApply (brel_mult_r _ _ _ _ _ _) => //
+          iApply (brel_mult_r _ _ _ _ _ _ _) => //
       | _ => fail "brel_mult_r: no vmult / v1 / v2 found"
       end
   | _ => fail "brel_mult_r: not proving a refinement"
@@ -402,7 +402,7 @@ Tactic Notation "brel_exp_l" :=
   | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
       match e with
       | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
-          iApply (brel_exp_l _ _ _ _ _ _) => //
+          iApply (brel_exp_l _ _ _ _ _ _ _) => //
       | _ => fail "brel_exp_l: no vexp / base / exponent found"
       end
   | _ => fail "brel_exp_l: not proving a refinement"
@@ -425,7 +425,7 @@ Tactic Notation "brel_exp_r" :=
   | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
       match e with
       | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
-          iApply (brel_exp_r _ _ _ _ _ _) => //
+          iApply (brel_exp_r _ _ _ _ _ _ _) => //
       | _ => fail "brel_exp_r: no vexp / base / exponent found"
       end
   | _ => fail "brel_exp_r: not proving a refinement"
