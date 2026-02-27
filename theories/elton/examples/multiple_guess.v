@@ -160,7 +160,6 @@ Section proofs.
              rewrite size_singleton in Hineq.
              lia.
   Qed. 
-    
 End proofs.
 
 
