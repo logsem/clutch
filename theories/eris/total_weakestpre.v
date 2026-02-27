@@ -208,7 +208,7 @@ Section tgl_wp.
   Proof.
     revert Φ. cut (∀ Φ', WP e @ s; E [{ Φ' }] -∗ ∀ Φ,
                      (∀ v, Φ' v -∗ WP K (of_val v) @ s; E [{ Φ }]) -∗ WP K e @ s; E [{ Φ }]).
-    { iIntros (help Φ) "H". iApply (help with "H"); auto. }
+    { iIntros (help Φ) "H". iApply (help with "H"). auto. }
     iIntros (Φ') "H". iRevert (e E Φ') "H". iApply tgl_wp_ind; first solve_proper.
     iIntros "!>" (e E1 Φ') "IH". iIntros (Φ) "HΦ".
     rewrite /tgl_wp_pre. destruct (to_val e) as [v|] eqn:He.
@@ -221,6 +221,35 @@ Section tgl_wp.
     iIntros ([e' σ] ε) "H".
     iMod "H". iModIntro. iDestruct "H" as "[?[?K]]".
     iFrame. by iApply "K".
+  Qed.
+
+  Lemma tgl_wp_bind_inv K `{!LanguageCtx K} s E e Φ :
+    WP K e @ s; E [{ Φ }] ⊢ WP e @ s; E [{ v, WP K (of_val v) @ s; E [{ Φ }] }].
+  Proof.
+    revert e E Φ.
+    cut (∀ e' E Φ, WP e' @ s; E [{ Φ }] -∗
+      ∀ e, ⌜e' = K e⌝ -∗ WP e @ s; E [{ v, WP K (of_val v) @ s; E [{ Φ }] }]).
+    { intros help e E Φ. iIntros "H".
+      iPoseProof (help with "H") as "H". iApply ("H" $! e with "[//]"). }
+    iIntros (e' E0 Φ0) "H". iRevert (e' E0 Φ0) "H".
+    iApply tgl_wp_ind; first solve_proper.
+    iIntros "!>" (e' E0 Φ0) "IH %e0 %HeK". subst e'.
+    destruct (to_val e0) as [v|] eqn:He.
+    - apply of_to_val in He as <-.
+      rewrite tgl_wp_value_fupd'. iModIntro.
+      rewrite tgl_wp_unfold.
+      iApply (tgl_wp_pre_mono with "[] IH").
+      iIntros "!>" (E1 e1 Φ1) "[_ $]".
+    - rewrite tgl_wp_unfold /tgl_wp_pre He fill_not_val //.
+      iIntros (σ ε) "Hσε".
+      iMod ("IH" with "Hσε") as "IH".
+      iModIntro.
+      iPoseProof (glm_bind_inv _ _ _ _ _ He with "IH") as "IH".
+      iApply glm_mono_pred; last iFrame "IH".
+      iIntros ([e' σ'] ε') "H".
+      iMod "H" as "(Hσ & Hε & [HIH _])".
+      iModIntro. iFrame.
+      iApply ("HIH" $! e' with "[//]").
   Qed.
 
   Lemma tgl_wp_pgl_wp s E e Φ : WP e @ s; E [{ Φ }] -∗ WP e @ s; E {{ Φ }}.
