@@ -135,9 +135,14 @@ Section proofs.
           iDestruct (ghost_map_lookup with "H [$]") as "%Hlookup".
           iPureIntro.
           intros.
-          eapply urns_f_distr_lookup in Hlookup; last done; last first.
-          { admit. }
-          admit. 
+          eapply urns_f_distr_lookup in Hlookup; last done; last done.
+          destruct Hlookup as (?&H4&H5).
+          simpl.
+          rewrite H4.
+          simpl.
+          eexists _; split; last done.
+          rewrite bool_decide_eq_false_2; first done.
+          intros ?. simplify_eq.
         * iIntros "Hunif".
           wp_pures.
           wp_pure.
@@ -153,8 +158,8 @@ Section proofs.
              lia.
           -- iPureIntro. rewrite size_union in Hineq; last set_solver.
              rewrite size_singleton in Hineq.
-             lia. 
-  Admitted.
+             lia.
+  Qed. 
     
 End proofs.
 
