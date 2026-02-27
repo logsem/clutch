@@ -350,7 +350,7 @@ Proof. intros <- <-. constructor. rewrite -fupd_brel -brel_value. by iIntros "?"
     we simplify them both. *)
 Global Instance finalize_brel_simpl `{!probblazeRGS Σ} L R e1 e2 e1' e2' :
   TCSimplExpr e1 e1' → TCSimplExpr e2 e2' →
-  FinalizeBREL e1 e2 L R (brel e1' e2' L R) | 2.
+  FinalizeBREL e1 e2 L R (brel ⊤ e1' e2' L R) | 2.
 Proof. intros ->%TCSimplExpr_eq ->%TCSimplExpr_eq. by constructor. Qed.
 
 (** [NormalizeBREL] transforms a goal [P] into another goal of the form [brel (fill K1 e1) (fill K2 e2) L R]
@@ -364,13 +364,13 @@ Class NormalizeBREL `{!probblazeRGS Σ} (P : iProp Σ) (K1 K2 : ectx) (e1 e2 : e
 Global Hint Mode NormalizeBREL + + ! - - - - - - : typeclass_instances.
 
 Global Instance normalize_brel_here `{!probblazeRGS Σ} e1 e2 L R :
-  NormalizeBREL (brel e1 e2 L R) [] [] e1 e2 L R | 0.
+  NormalizeBREL (brel ⊤ e1 e2 L R) [] [] e1 e2 L R | 0.
 Proof. by split. Qed.
 
 Global Instance normalize_brel_value `{!probblazeRGS Σ} v1 v2 K1 K2 e1 e2 e1' e2' L R R' :
   IntoVal e1' v1 → IntoVal e2' v2 →
   NormalizeBREL (R v1 v2) K1 K2 e1 e2 L R' →
-  NormalizeBREL (brel e1' e2' L R) K1 K2 e1 e2 L R' | 1.
+  NormalizeBREL (brel ⊤ e1' e2' L R) K1 K2 e1 e2 L R' | 1.
 Proof.
   intros Hₜ Hₛ [HR]. split. by rewrite HR -Hₜ -Hₛ -brel_value.
 Qed.
@@ -381,7 +381,7 @@ Qed.
 Global Instance normalize_brel_step `{!probblazeRGS Σ} n1 n2 e1 e1' e2 e2' K1 K2 L R :
   DoPureStepsIntoCtx True e1 (TCEq e1') n1 K1 →
   DoPureStepsIntoCtx True e2 (TCEq e2') n2 K2 →
-  NormalizeBREL (brel e1 e2 L R) K1 K2 e1' e2' L R | 10.
+  NormalizeBREL (brel ⊤ e1 e2 L R) K1 K2 e1' e2' L R | 10.
 Proof.
   intros [? H1 [? -> <-]] [? H2 [? -> <-]]. split.
   assert (PureExec True n1 e1 (fill K1 e1')).
@@ -393,17 +393,17 @@ Proof.
 Qed.
 
 Global Instance from_assumption_brel `{!probblazeRGS Σ} p K1 K2 e1 e2 e1' e2' L R R' :
-  NormalizeBREL (brel e1 e2 L R) K1 K2 e1' e2' L R' →
-  FromAssumption p (brel (fill K1 e1') (fill K2 e2') L R') (brel e1 e2 L R) | 2.
+  NormalizeBREL (brel ⊤ e1 e2 L R) K1 K2 e1' e2' L R' →
+  FromAssumption p (brel ⊤ (fill K1 e1') (fill K2 e2') L R') (brel ⊤ e1 e2 L R) | 2.
 Proof.
   intros [HR].
   rewrite /FromAssumption bi.intuitionistically_if_elim. by rewrite HR.
 Qed.
 
 Global Instance into_wand_brel `{!probblazeRGS Σ} p e1 e2 K1 K2 e1' e2' L R R' S Q :
-  NormalizeBREL (brel e1 e2 L R) K1 K2 e1' e2' L R' →
+  NormalizeBREL (brel ⊤ e1 e2 L R) K1 K2 e1' e2' L R' →
   TCSimpl (□ (∀ v1 v2, S v1 v2 -∗ R' v1 v2))%I Q →
-  IntoWand p false (brel (fill K1 e1') (fill K2 e2') L S) Q (brel e1 e2 L R) | 1.
+  IntoWand p false (brel ⊤ (fill K1 e1') (fill K2 e2') L S) Q (brel ⊤ e1 e2 L R) | 1.
 Proof.
   intros [Hbrel] <-%TCSimpl_eq.
   rewrite /IntoWand /= bi.intuitionistically_if_elim.
@@ -414,10 +414,10 @@ Qed.
 (** This instance should not be needed, but is a workaround for
 https://gitlab.mpi-sws.org/iris/iris/-/issues/458 *)
 Global Instance into_wand_wand_brel `{!probblazeRGS Σ} p q e1 e2 K1 K2 e1' e2' P P' Q L R R' :
-  NormalizeBREL (brel e1 e2 L R) K1 K2 e1' e2' L R' →
+  NormalizeBREL (brel ⊤ e1 e2 L R) K1 K2 e1' e2' L R' →
   FromAssumption q P P' →
   TCSimpl P Q →
-  IntoWand p q (P' -∗ BREL fill K1 e1' ≤ fill K2 e2' <|L|> {{R'}}) Q (brel e1 e2 L R).
+  IntoWand p q (P' -∗ BREL fill K1 e1' ≤ fill K2 e2' <|L|> {{R'}}) Q (brel ⊤ e1 e2 L R).
 Proof.
   rewrite /FromAssumption /IntoWand.
   intros [Hbrel] ? <-%TCSimpl_eq.
@@ -444,7 +444,7 @@ Section brel_lemmas.
     MaybeIntoLaterNEnvs n Δ Δ' →
     FinalizeBREL eₜ' eₛ L R Q →
     envs_entails Δ' Q →
-    envs_entails Δ (brel eₜ eₛ L R).
+    envs_entails Δ (brel ⊤ eₜ eₛ L R).
   Proof.
     rewrite envs_entails_unseal=> -[Hsteps] Hφ HΔ [HQ] HΔ'.
     rewrite into_laterN_env_sound HΔ' HQ {HQ HΔ HΔ'}.
@@ -457,7 +457,7 @@ Section brel_lemmas.
     φ →
     FinalizeBREL eₜ eₛ' L R Q →
     envs_entails Δ Q →
-    envs_entails Δ (brel eₜ eₛ L R).
+    envs_entails Δ (brel ⊤ eₜ eₛ L R).
   Proof.
     rewrite envs_entails_unseal=> -[Hsteps] Hφ [HQ] HΔ.
     rewrite HΔ HQ.
@@ -470,7 +470,7 @@ Section brel_lemmas.
     MaybeIntoLaterNEnvs 1 Δ Δ' →
     FinalizeBREL (fill K (val_subst' x v2 (val_subst' f v1 eₜ'))) eₛ L R Q →
     envs_entails Δ' Q →
-    envs_entails Δ (brel eₜ eₛ L R).
+    envs_entails Δ (brel ⊤ eₜ eₛ L R).
   Proof.
     rewrite envs_entails_unseal=> -[? -> [-> ->]] HΔ [HQ] HΔ'.
     rewrite into_laterN_env_sound HΔ' HQ /=.
@@ -483,7 +483,7 @@ Section brel_lemmas.
     IntoCtx eₛ (IsAppRec v1 v2 f x eₛ') K →
     FinalizeBREL eₜ (fill K (val_subst' x v2 (val_subst' f v1 eₛ'))) L R Q →
     envs_entails Δ Q →
-    envs_entails Δ (brel eₜ eₛ L R).
+    envs_entails Δ (brel ⊤ eₜ eₛ L R).
   Proof.
     rewrite envs_entails_unseal=> -[? -> [-> ->]] [HQ] HΔ.
     rewrite HΔ HQ /=.
@@ -496,7 +496,7 @@ End brel_lemmas.
 Tactic Notation "brel_pures_l" open_constr(n) :=
   iStartProof;
   lazymatch goal with
-  | |- environments.envs_entails _ (brel _ _ _ _) =>
+  | |- environments.envs_entails _ (brel _ _ _ _ _) =>
     notypeclasses refine (tac_brel_pure_l n _ _ _ _ _);
       [ tc_solve || fail 1 "brel_pures_l: no pure steps can be performed"
       | try done (* side-condition *)
@@ -511,7 +511,7 @@ Tactic Notation "brel_pures_l" := brel_pures_l (S _).
 Tactic Notation "brel_pures_r" open_constr(n) :=
   iStartProof;
   lazymatch goal with
-  | |- environments.envs_entails _ (brel _ _ _ _) =>
+  | |- environments.envs_entails _ (brel _ _ _ _ _) =>
     notypeclasses refine (tac_brel_pure_r n _ _ _ _);
       [ tc_solve || fail 1 "brel_pures_r: no pure steps can be performed"
       | try done (* side-condition *)
@@ -525,7 +525,7 @@ Tactic Notation "brel_pures_r" := brel_pures_r (S _).
 Tactic Notation "brel_rec_l" :=
   iStartProof;
   lazymatch goal with
-  | |- environments.envs_entails _ (brel _ _ _ _) =>
+  | |- environments.envs_entails _ (brel _ _ _ _ _) =>
     notypeclasses refine (tac_brel_rec_l _ _ _ _);
       [ tc_solve || fail 1 "brel_rec_l: no beta reduction step can be performed"
       | tc_solve (* into laters *)
@@ -537,7 +537,7 @@ Tactic Notation "brel_rec_l" :=
 Tactic Notation "brel_rec_r" :=
   iStartProof;
   lazymatch goal with
-  | |- environments.envs_entails _ (brel _ _ _ _) =>
+  | |- environments.envs_entails _ (brel _ _ _ _ _) =>
     notypeclasses refine (tac_brel_rec_r _ _ _);
       [ tc_solve || fail 1 "brel_rec_r: no beta reduction step can be performed"
       | tc_solve (* simpl *)

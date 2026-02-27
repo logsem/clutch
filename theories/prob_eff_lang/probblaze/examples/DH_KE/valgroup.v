@@ -97,6 +97,15 @@ Proof.
   by iIntros ; rewrite fill_app; subst.
 Qed.
 
+Lemma brel_inv_l K X R (a : vgG) t :
+   (BREL (fill K (Val (vgval $ a^-1)%g)) ≤ t <|X|> {{R}})
+    ⊢ BREL  (fill K (vinv a)) ≤ t <|X|> {{R}}.
+Proof.
+  iIntros "Hbrel Hvalid Hdistinct".
+  iApply rel_inv_l.
+  by iApply ("Hbrel" with "[$][$]").
+Qed.
+  
 Lemma rel_inv_r E K X R (a : vgG) t :
   (REL t ≤ (fill K (Val (vgval $ a^-1)%g)) @ E <|X|> {{R}})
     ⊢ REL t ≤ (fill K (vinv a)) @ E <|X|> {{R}}.
@@ -106,6 +115,15 @@ Proof.
   iIntros (k1 k2 S) "Hkwp %k' %ε Hj Hnais Herr Hlt".
   rewrite -!fill_app. iMod (is_spec_inv with "Hj") as "Hj". rewrite !fill_app.
   iApply ("H" with "[$][$][$][$][$]").
+Qed.
+
+Lemma brel_inv_r K X R (a : vgG) t :
+  (BREL t ≤ (fill K (Val (vgval $ a^-1)%g)) <|X|> {{R}})
+    ⊢ BREL t ≤ (fill K (vinv a)) <|X|> {{R}}.
+Proof.
+  iIntros "Hbrel Hvalid Hdistinct".
+  iApply rel_inv_r.
+  by iApply ("Hbrel" with "[$][$]").
 Qed.
 
 Lemma rel_mult_l E K X R (a b : vgG) t :
@@ -122,6 +140,15 @@ Proof.
   by iIntros ; rewrite fill_app; subst.
 Qed.
 
+Lemma brel_mult_l K X R (a b : vgG) t :
+  (BREL (fill K (Val (vgval (a * b)%g))) ≤ t <|X|> {{R}})
+    ⊢ BREL (fill K (vmult a b)) ≤ t <|X|> {{R}}.
+Proof.
+  iIntros "Hbrel Hvalid Hdistinct".
+  iApply rel_mult_l.
+  by iApply ("Hbrel" with "[$][$]").
+Qed.
+
 Lemma rel_mult_r E K X R (a b : vgG) t :
   (REL t ≤ (fill K (Val (vgval (a * b)%g))) @ E <|X|> {{R}})
     ⊢ REL t ≤ (fill K (vmult a b)) @ E <|X|> {{R}}.
@@ -131,6 +158,15 @@ Proof.
   iIntros (k1 k2 S) "Hkwp %k' %ε Hj Hnais Herr Hlt".
   rewrite -!fill_app. iMod (is_spec_mult with "Hj") as "Hj". rewrite !fill_app.
   iApply ("H" with "[$][$][$][$][$]").
+Qed.
+
+Lemma brel_mult_r K X R (a b : vgG) t :
+  (BREL t ≤ (fill K (Val (vgval (a * b)%g))) <|X|> {{R}})
+    ⊢ BREL t ≤ (fill K (vmult a b)) <|X|> {{R}}.
+Proof.
+  iIntros "Hbrel Hvalid Hdistinct".
+  iApply rel_mult_r.
+  by iApply ("Hbrel" with "[$][$]").
 Qed.
 
 Fact is_exp (b : vgG) (x : nat) :
@@ -207,6 +243,15 @@ Proof.
   iIntros (v ->) "Hwp". rewrite !fill_app. simpl. done.
 Qed.
 
+Lemma brel_exp_l K X R (b : vgG) (p : nat) t :
+  (BREL (fill K (Val (vgval $ b ^+ p)%g)) ≤ t <|X|> {{R}})
+    ⊢ BREL (fill K (vexp b #p)) ≤ t <|X|> {{R}}.
+Proof.
+  iIntros "Hbrel Hvalid Hdistinct".
+  iApply rel_exp_l.
+  by iApply ("Hbrel" with "[$][$]").
+Qed.
+  
 Lemma rel_exp_r E K X R (b : vgG) (p : nat) t :
   (REL t ≤ (fill K (Val $ vgval (b ^+ p)%g)) @ E <|X|> {{R}})
     ⊢ REL t ≤ (fill K (vexp b #p)) @ E <|X|> {{R}}.
@@ -216,6 +261,15 @@ Proof.
   iIntros (k1 k2 S) "Hkwp %k' %ε Hj Hnais Herr Hlt".
   rewrite -!fill_app. iMod (is_spec_exp with "Hj") as "Hj". rewrite !fill_app.
   iApply ("H" with "[$][$][$][$][$]").
+Qed.
+
+Lemma brel_exp_r K X R (b : vgG) (p : nat) t :
+  (BREL t ≤ (fill K (Val $ vgval (b ^+ p)%g)) <|X|> {{R}})
+    ⊢ BREL t ≤ (fill K (vexp b #p)) <|X|> {{R}}.
+Proof.
+  iIntros "Hbrel Hvalid Hdistinct".
+  iApply rel_exp_r.
+  by iApply ("Hbrel" with "[$][$]").
 Qed.
 
 Lemma log_g :
@@ -253,6 +307,17 @@ Tactic Notation "rel_inv_l" :=
   | _ => fail "rel_inv_l: not proving a refinement"
   end.
 
+Tactic Notation "brel_inv_l" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
+      match e with
+      | context[App (Val vinv) (Val ?a)] =>
+          iApply (brel_inv_l _ _ _ _ _) => //
+      | _ => fail "brel_inv_l: no vinv / group element found"
+      end
+  | _ => fail "brel_inv_l: not proving a refinement"
+  end.
+
 Tactic Notation "rel_inv_r" :=
   lazymatch goal with
   | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
@@ -262,6 +327,17 @@ Tactic Notation "rel_inv_r" :=
       | _ => fail "rel_inv_r: no vinv / group element found"
       end
   | _ => fail "rel_inv_r: not proving a refinement"
+  end.
+
+Tactic Notation "brel_inv_r" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
+      match e with
+      | context[App (Val vinv) (Val ?a)] =>
+          iApply (brel_inv_r _ _ _ _ _) => //
+      | _ => fail "brel_inv_r: no vinv / group element found"
+      end
+  | _ => fail "brel_inv_r: not proving a refinement"
   end.
 
 (* fast tactics to simplify multiplications *)
@@ -276,6 +352,17 @@ Tactic Notation "rel_mult_l" :=
   | _ => fail "rel_mult_l: not proving a refinement"
   end.
 
+Tactic Notation "brel_mult_l" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
+      match e with
+      | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
+          iApply (brel_mult_l _ _ _ _ _ _) => //
+      | _ => fail "brel_mult_l: no vmult / v1 / v2 found"
+      end
+  | _ => fail "brel_mult_l: not proving a refinement"
+  end.
+
 Tactic Notation "rel_mult_r" :=
   lazymatch goal with
   | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
@@ -285,6 +372,17 @@ Tactic Notation "rel_mult_r" :=
       | _ => fail "rel_mult_r: no vmult / v1 / v2 found"
       end
   | _ => fail "rel_mult_r: not proving a refinement"
+  end.
+
+Tactic Notation "brel_mult_r" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
+      match e with
+      | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
+          iApply (brel_mult_r _ _ _ _ _ _) => //
+      | _ => fail "brel_mult_r: no vmult / v1 / v2 found"
+      end
+  | _ => fail "brel_mult_r: not proving a refinement"
   end.
 
 (* fast tactics to simplify exponentials *)
@@ -299,6 +397,18 @@ Tactic Notation "rel_exp_l" :=
   | _ => fail "rel_exp_l: not proving a refinement"
   end.
 
+Tactic Notation "brel_exp_l" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
+      match e with
+      | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
+          iApply (brel_exp_l _ _ _ _ _ _) => //
+      | _ => fail "brel_exp_l: no vexp / base / exponent found"
+      end
+  | _ => fail "brel_exp_l: not proving a refinement"
+  end.
+
+
 Tactic Notation "rel_exp_r" :=
   lazymatch goal with
   | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
@@ -310,12 +420,30 @@ Tactic Notation "rel_exp_r" :=
   | _ => fail "rel_exp_r: not proving a refinement"
   end.
 
+Tactic Notation "brel_exp_r" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
+      match e with
+      | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
+          iApply (brel_exp_r _ _ _ _ _ _) => //
+      | _ => fail "brel_exp_r: no vexp / base / exponent found"
+      end
+  | _ => fail "brel_exp_r: not proving a refinement"
+  end.
+
+
 Module valgroup_tactics.
 
   Ltac rel_pures :=
     iStartProof ;
-    repeat (rel_pures_l ; try first [rel_exp_r | rel_mult_r | rel_inv_r]) ;
-    repeat (rel_pures_r ; try first [rel_exp_l | rel_mult_l | rel_inv_l]).
+    repeat (try rel_pures_l ; try first [rel_exp_r | rel_mult_r | rel_inv_r]) ;
+    repeat (try rel_pures_r ; try first [rel_exp_l | rel_mult_l | rel_inv_l]).
+
+  Ltac brel_pures :=
+    iStartProof ;
+    repeat (try brel_pures_l ; try first [brel_exp_r | brel_mult_r | brel_inv_r]) ;
+    repeat (try brel_pures_r ; try first [brel_exp_l | brel_mult_l | brel_inv_l]).
+
 
 End valgroup_tactics.
 
