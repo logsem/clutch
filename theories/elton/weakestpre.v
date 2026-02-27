@@ -489,8 +489,144 @@ Section modalities.
   Proof.
     iIntros "(%u&%s&%ε2&%s1&%s2&%Hnonempty1&%Hnonempty2&<-&%Hneq&%Hdisjoint&%Hlookup&[%r %Hbound]&%Hineq&H)".
     iApply state_step_coupl_rec.
-    (* two_split_urn_erasable *)
-  Admitted.
+    destruct σ1 as [? us].
+    iExists _, (λ m, match ClassicalEpsilon.excluded_middle_informative
+                             (∃ x, m=<[u:=urn_unif x]> us /\ (x =s1 \/ x=s2)) with
+                     | left P =>ε2 (epsilon P)%NNR
+                     | right _ => 1%NNR
+                     end
+               ).
+    repeat iSplit.
+    3:{ iPureIntro. apply two_split_urn_erasable; [| |done|..]; done. }
+    - iPureIntro.
+      exists (Rmax 1 r).
+      intros. case_match.
+      + etrans; last apply Rmax_r. naive_solver.
+      + apply Rmax_l.
+    - iPureIntro.
+      etrans; last exact.
+      rewrite /Expval.
+      rewrite /dbind/dbind_pmf{1}/pmf.
+      setoid_rewrite <-SeriesC_scal_r.
+      rewrite fubini_pos_seriesC'; last first.
+      + setoid_rewrite Rmult_assoc.
+        setoid_rewrite SeriesC_scal_l.
+        eapply (ex_seriesC_le _ (λ x, biased_coin _ _ x *Rmax 1 r))%R; last eapply ex_seriesC_scal_r; last apply ex_seriesC_finite.
+        intros n. split.
+        * apply Rmult_le_pos; first done.
+          apply SeriesC_ge_0'.
+          real_solver.
+        * apply Rmult_le_compat_l; first done.
+          simpl.
+          trans (SeriesC (λ x,
+                            if bool_decide (x= if n then (<[u:=urn_unif s1]> us) else  (<[u:=urn_unif s2]> us)) then Rmax 1 r else 0%R)); last (by rewrite SeriesC_singleton).
+          apply SeriesC_le; last apply ex_seriesC_singleton.
+          intros n'.
+          split; first real_solver.
+          case_bool_decide; subst.
+          -- rewrite dret_1_1; last done. rewrite Rmult_1_l.
+             rewrite Rmax_Rle.
+             case_match; naive_solver.
+          -- rewrite dret_0; first lra. done.
+      + intros n.
+        setoid_rewrite Rmult_assoc.
+        apply ex_seriesC_scal_l.
+        apply (ex_seriesC_le _ (λ x, if bool_decide (x=if n then (<[u:=urn_unif s1]> us) else  (<[u:=urn_unif s2]> us)) then Rmax 1 r else 0)); last apply ex_seriesC_singleton.
+        intros. split; first real_solver.
+        case_bool_decide.
+        * rewrite dret_1_1; last done.
+          subst.
+          rewrite Rmult_1_l.
+          case_match;
+            rewrite Rmax_Rle; naive_solver.
+        * rewrite dret_0; simpl; try lra. done.
+      + intros. real_solver. 
+      + right.
+        rewrite SeriesC_scal_r.
+        rewrite SeriesC_list/=; last first.
+        { repeat setoid_rewrite NoDup_cons.
+          repeat split; last (by apply NoDup_nil); set_solver.
+        }
+        rewrite SeriesC_finite_foldr/=.
+        do 2 setoid_rewrite Rmult_assoc.
+        rewrite !SeriesC_scal_l/=.
+        rewrite /biased_coin{2}/pmf/biased_coin_pmf.
+        erewrite (SeriesC_ext _ (λ x, if bool_decide (x=(<[u:=urn_unif s1]> us)) then ε2 s1 else 0)); last first.
+        { intros. case_bool_decide.
+          - subst.
+            rewrite dret_1_1; last done.
+            case_match.
+            + pose proof epsilon_correct _ e0 as [H1].
+              simpl in *.
+              apply insert_inv in H1.
+              simplify_eq. rewrite -H1. lra.
+            + exfalso.
+              naive_solver.
+          - rewrite dret_0; last done. simpl. lra.
+        }
+        rewrite SeriesC_singleton.
+        erewrite (SeriesC_ext _ (λ x, if bool_decide (x=(<[u:=urn_unif s2]> us)) then ε2 s2 else 0)); last first.
+        { intros. case_bool_decide.
+          - subst.
+            rewrite dret_1_1; last done.
+            case_match.
+            + pose proof epsilon_correct _ e0 as [H1].
+              simpl in *.
+              apply insert_inv in H1.
+              simplify_eq. rewrite -H1. lra.
+            + exfalso.
+              naive_solver.
+          - rewrite dret_0; last done. simpl. lra.
+        }
+        rewrite SeriesC_singleton.
+        rewrite -Rdiv_def.
+        rewrite Rdiv_plus_distr.
+        rewrite !Rdiv_def.
+        f_equal; first lra.
+        rewrite !Rplus_0_r.
+        rewrite Rmult_comm. rewrite Rmult_assoc. f_equal.
+        rewrite size_union; last done.
+        rewrite -(Rdiv_diag (size s1 + size s2)); last first.
+        * rewrite -plus_INR.
+          apply not_0_INR.
+          assert (0<size s1); last lia.
+          destruct (size s1) eqn:?; last lia.
+          exfalso.
+          apply size_empty_inv in Heqn.
+          rewrite leibniz_equiv_iff in Heqn. naive_solver.
+        * rewrite plus_INR. rewrite Rdiv_def.
+          rewrite -Rcomplements.Rmult_minus_distr_r.
+          by rewrite Rplus_minus_l.
+    - iIntros (m').
+      case_match.
+      + rename select (∃ _, _) into He.
+        pose proof epsilon_correct _ He as [H2 ].
+        simpl in *.
+        iMod ("H" with "[//]").
+        by rewrite -H2.
+      + by iApply state_step_coupl_ret_err_ge_1.
+        Unshelve.
+        { split.
+         - apply Rcomplements.Rdiv_le_0_compat.
+           + apply pos_INR.
+           + apply lt_0_INR.
+             rewrite size_union; last done.
+             assert (0<size s1); last lia.
+             destruct (size s1) eqn:?; last lia.
+             exfalso.
+             apply size_empty_inv in Heqn.
+             rewrite leibniz_equiv_iff in Heqn. naive_solver.
+         - rewrite -Rcomplements.Rdiv_le_1.
+           + apply le_INR. rewrite size_union; first lia. done.
+           + apply lt_0_INR.
+             rewrite size_union; last done.
+             assert (0<size s1); last lia.
+             destruct (size s1) eqn:?; last lia.
+             exfalso.
+             apply size_empty_inv in Heqn.
+             rewrite leibniz_equiv_iff in Heqn. naive_solver.
+        }
+  Qed.
   
   Lemma state_step_coupl_rec_partial_split e σ1 (ε : nonnegreal) Z :
     (∃ u s (ε2 :_ -> nonnegreal) lis,
