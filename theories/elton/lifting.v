@@ -18,21 +18,45 @@ Section lifting.
   Lemma wp_lift_step_fupd_glm E Φ e1 s :
     (∀ σ1 ε1,
      state_interp σ1 ∗ err_interp ε1 ={E, ∅}=∗
-     state_step_coupl σ1 ε1
-       (λ σ2 ε2,
-          match to_val e1 with
+     state_step_coupl e1 σ1 ε1
+       (λ e2 σ2 ε2,
+          match to_val e2 with
           | Some v => |={∅, E}=> state_interp σ2 ∗ err_interp ε2 ∗ Φ v
-          | None => prog_coupl e1 σ2 ε2
+          | None => prog_coupl e2 σ2 ε2
                      (λ e3 σ3 ε3,
-                        ▷ state_step_coupl σ3 ε3
-                          (λ σ4 ε4, |={∅, E}=> state_interp σ4 ∗ err_interp ε4 ∗ WP e3 @ s ; E {{Φ}}
+                        ▷ state_step_coupl e3 σ3 ε3
+                          (λ e4 σ4 ε4, |={∅, E}=> state_interp σ4 ∗ err_interp ε4 ∗ WP e4 @ s ; E {{Φ}}
                           )
                      )
           end
        ))
     ⊢ WP e1 @ s; E {{ Φ }}.
   Proof.
-    by rewrite pgl_wp_unfold /pgl_wp_pre. 
+    rewrite pgl_wp_unfold /pgl_wp_pre.
+    iIntros "H".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    rewrite wp'_unfold/pgl_wp_pre.
+    iIntros (??) "?".
+    iMod "Hclose".
+    iMod ("H" with "[$]") as "H".
+    iModIntro.
+    iApply (state_step_coupl_bind with "[][$]").
+    iIntros (???) "H".
+    iApply state_step_coupl_ret.
+    case_match.
+    { iMod "H" as "(?&?&?)". iFrame.
+      iApply fupd_mask_intro_subseteq; first set_solver.
+      done.
+    }
+    iApply (prog_coupl_mono with "[][$]").
+    iIntros (???) "H".
+    iNext.
+    iApply (state_step_coupl_bind with "[][$]").
+    iIntros (???) "H".
+    iApply state_step_coupl_ret.
+    iMod "H" as "(?&?&?)". iFrame.
+    by rewrite pgl_wp_unfold.
   Qed.
 
 

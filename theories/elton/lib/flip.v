@@ -1,0 +1,130 @@
+
+From clutch.elton Require Import elton. 
+
+Definition flip :val := (λ: "x", rand #1=#1).
+Definition dflip:val :=(λ: "x", drand #1=#1).
+Lemma flip_dflip:
+  remove_drand_expr dflip = Some (Val flip).
+Proof. done. Qed.
+
+Section specs.
+  Context `{eltonGS Σ}.
+
+  Definition flip_urn l (s:gset bool):=
+    (l ↪ urn_unif (set_map Z.b2z s) )%I.
+  
+  Definition flip_v l:=
+    (LitLbl l =ᵥ 1)%V.
+
+  Lemma flip_v_type l:
+    base_lit_type_check (flip_v l) = Some BLTBool.
+  Proof. done. Qed.
+
+  Lemma flip_v_not_simple l:
+    is_simple_base_lit (flip_v l) = false.
+  Proof. done. Qed. 
+
+  Lemma flip_v_support_set l:
+    base_lit_support_set (flip_v l) = {[l]}.
+  Proof.
+    rewrite /flip_v/=. set_solver.
+  Qed. 
+    
+  Lemma wp_dflip E:
+    {{{ True }}} dflip #()@E{{{l, RET #(flip_v l); flip_urn l {[true; false]}}}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    rewrite /dflip.
+    wp_pures.
+    wp_apply (wp_drand_thunk _ 1 _ _ _ (True)).
+    { rewrite rupd_unseal/rupd_def.
+      iIntros (?) "$".
+      iPureIntro. naive_solver. }
+    iIntros (?) "[_ Hl]".
+    simpl.
+    replace (_∪ (_∪_)) with ({[0%Z; 1%Z]} : gset Z); last set_solver.
+    wp_pures.
+    by iApply "HΦ".
+  Qed.
+
+  Lemma flip_urn_resolve (ε2: _ -> nonnegreal) ε l E:
+    (ε2 true + ε2 false <= 2* ε)%R ->
+    ↯ε -∗
+    flip_urn l {[true; false]} -∗
+    pupd E E (∃ b, ↯ (ε2 b) ∗ flip_urn l {[b]}).
+  Proof.
+    iIntros (?) "??".
+    iMod (pupd_resolve_urn _ _ (λ x, if bool_decide (x∈[0%Z;1%Z]) then ε2 (bool_decide (x=1%Z)) else 1%NNR) with "[$][$]") as "H".
+    - done.
+    - rewrite SeriesC_list; simpl.
+      + replace (size _) with 2%nat; last first.
+        * by vm_compute.
+        * replace (INR 2) with 2%R by done.
+          replace (elements _) with ([1%Z; 0%Z]); last first.
+          -- by vm_compute.
+          -- simpl. rewrite Rcomplements.Rle_div_l; simpl in *; lra. 
+      + replace (elements _) with ([1%Z; 0%Z]); last by vm_compute.
+        repeat rewrite NoDup_cons. repeat split; try set_solver.
+        by apply NoDup_nil.
+    - exists (Rmax 1 (Rmax (ε2 true) (ε2 false))).
+      intros. case_bool_decide.
+      + case_bool_decide.
+        * etrans; last apply Rmax_r. apply Rmax_l.
+        * etrans; last apply Rmax_r. apply Rmax_r.
+      + apply Rmax_l.
+    - iDestruct "H" as "(%&Herr&Hl&_)".
+      case_bool_decide as H1; last by iDestruct (ec_contradict with "[$]") as "[]".
+      iFrame.
+      set_unfold in H1.
+      destruct!/=.
+      + iModIntro.
+        rewrite /flip_urn.
+        rewrite /set_map.
+        rewrite elements_singleton/=.
+        by rewrite union_empty_r_L.
+      + iModIntro.
+        rewrite /flip_urn.
+        rewrite /set_map.
+        rewrite elements_singleton/=.
+        by rewrite union_empty_r_L.
+  Qed.
+
+  Lemma flip_v_promote l b:
+    flip_urn l {[b]} -∗
+    (rupd (λ x, x=LitBool b) (flip_urn l {[b]}) ((flip_v l))).
+  Proof.
+    iIntros "H".
+    rewrite rupd_unseal/rupd_def.
+    iIntros (?) "[? H']".
+    iSplit; last iFrame.
+    rewrite /flip_urn.
+    rewrite set_map_singleton_L.
+    iIntros (f Hpos).
+    iDestruct (ghost_map_lookup with "H' H") as "%Hlookup".
+    eapply urns_f_distr_lookup in Hlookup as H'; try done.
+    destruct H' as (?&H1 &H2).
+    simpl.
+    rewrite H1. simpl.
+    iPureIntro.
+    eexists _; split; last done.
+    set_unfold in H2.
+    subst.
+    by destruct b.
+  Qed.     
+  
+  (* Local Lemma test E x: *)
+  (*   base_lit_type_check x = Some BLTBool-> *)
+  (*   is_simple_base_lit x = false -> *)
+  (*   {{{ True }}} #x=#x @E{{{RET #(true); True }}}. *)
+  (* Proof. *)
+  (*   iIntros (H' H'' Φ) "HΦ _". *)
+  (*   rewrite -(fill_empty (_=_)). *)
+  (*   iApply pgl_wp_bind. *)
+  (*   (** Need a lemma to allow delay at the end *) *)
+  (*   wp_pure. *)
+  (*   - rewrite /bin_op_eval//=. *)
+  (*     rewrite H'. repeat case_match; simplify_eq; done. *)
+  (*   - simpl. *)
+  (*     iApply *)
+  (* Admitted.  *)
+End specs.

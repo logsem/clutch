@@ -7,10 +7,10 @@ From clutch.elton Require Import weakestpre.
 Section pupd.
   Context `{H:!eltonWpGS d_prob_lang Σ}.
   Definition pupd_def E1 E2 P:=
-    (∀ σ1 ε1,
-       state_interp σ1 ∗ err_interp ε1 ={E1, ∅}=∗
-       state_step_coupl σ1 ε1 (λ σ2 ε2,
-                                 |={∅, E2}=> state_interp σ2 ∗ err_interp ε2 ∗ P
+    (|={E1, ∅}=>∀ e1 σ1 ε1,
+       state_interp σ1 ∗ err_interp ε1 -∗
+       state_step_coupl e1 σ1 ε1 (λ e2 σ2 ε2, |={∅}=> (state_interp σ2 ∗ err_interp ε2 ∗ ⌜e1 = e2 ⌝ ∗ 
+                                 |={∅, E2}=> P)
          )
     )%I.
   
@@ -24,7 +24,7 @@ Section pupd.
   Proof. rewrite pupd_unseal/pupd_def.
          rewrite /state_step_coupl/state_step_coupl'.
          intros ?????????. subst.
-         do 6 f_equiv.
+         do 8 f_equiv.
          apply least_fixpoint_ne_outer; [|done].
          solve_proper.
   Qed.
@@ -33,12 +33,13 @@ Section pupd.
     P -∗ pupd E E P.
   Proof. 
     rewrite pupd_unseal/pupd_def.
-    iIntros.
+    iIntros "?".
     iApply fupd_mask_intro; first set_solver.
     iIntros "Hclose".
+    iIntros "% % % [??]".
     iApply state_step_coupl_ret.
-    iMod "Hclose".
-    iFrame. by iModIntro.
+    iFrame. iModIntro. iSplit; first done.
+    by iMod "Hclose".
   Qed.
 
   Global Instance from_modal_pupd_pupd P E :
@@ -50,11 +51,10 @@ Section pupd.
   Proof.
     rewrite pupd_unseal/pupd_def.
     iIntros (Hsubseteq) "Hvs".
-    iIntros (σ1 ε1) "(H1 & H2)".
-    iMod ("Hvs" with "[$]") as ">?".
+    iMod ("Hvs") as ">H".
     iModIntro.
-    iApply (state_step_coupl_mono with "[][$]").
-    iIntros (??) ">(?&?)". by iFrame.
+    iIntros (e1 σ1 ε1) "(H1 & H2)".
+    by iDestruct ("H" with "[$]") as "H".
   Qed.
   
   Lemma pupd_mono E1 E2 P Q:
@@ -62,12 +62,17 @@ Section pupd.
   Proof.
     rewrite pupd_unseal/pupd_def.
     iIntros "Hvs H".
-    iIntros (σ1 ε1) "(H1 & H2)".
-    iMod ("H" with "[$]") as "?".
+    iMod "H" as "H".
     iModIntro.
+    iIntros (e1 σ1 ε1) "(H1 & H2)".
+    iDestruct ("H" with "[$]") as "H".
     iApply (state_step_coupl_mono with "[Hvs][$]").
-    iIntros (??) ">(?&?&?)".
+    iIntros (???).
+    iIntros ">H".
+    iModIntro.
+    iDestruct "H" as "(?&?&?&H)".
     iFrame.
+    iMod "H".
     by iApply "Hvs".
   Qed.
   
@@ -79,11 +84,17 @@ Section pupd.
     iApply fupd_mask_intro; first done.
     iIntros "Hclose".
     rewrite pupd_unseal/pupd_def.
-    iIntros.
-    iMod ("H" with "[$]") as "H".
+    iMod "H".
     iModIntro.
+    iIntros. 
+    iDestruct ("H" with "[$]") as "H".
     iApply (state_step_coupl_bind with "[Hclose][$]").
-    iIntros (??) "H". iApply state_step_coupl_ret.
+    iIntros (???) "H".
+    iApply fupd_state_step_coupl.
+    iMod "H" as "(?&?&?&H)". iApply state_step_coupl_ret.
+    iFrame.
+    iModIntro.
+    iModIntro.
     iMod "H".
     by iMod "Hclose".
   Qed.
@@ -103,14 +114,9 @@ Section pupd.
   Proof.
     iIntros "H1 H2".
     rewrite pupd_unseal/pupd_def.
-    iIntros (??) "(?&?)".
     iMod "H1".
-    iMod ("H2" with "[$][$]") as "H2".
-    iModIntro.
-    iApply state_step_coupl_mono; last done.
-    simpl.
-    iIntros (??) ">(?&?&?)".
-    by iFrame.
+    iMod ("H2" with "[$]") as "H2".
+    by iModIntro.
   Qed.
 
   Global Instance elim_modal_bupd_pupd p E1 E2 P Q :
@@ -156,28 +162,31 @@ Section pupd.
   Proof.
     rewrite pupd_unseal/pupd_def.
     intros.
-    iIntros "H" (??) "(?&?)".
-    iMod ("H" with "[$]") as "H".
+    iIntros ">H".
     iModIntro.
-    iApply state_step_coupl_mono; last done.
-    iIntros (??) ">(?&?&?)".
-    iApply (fupd_mask_intro); first done.
-    iIntros "Hclose".
+    iIntros.
+    iApply state_step_coupl_mono; last by iApply "H".
+    iIntros (???) "H".
+    iMod "H" as "(?&?&?&H)".
+    iModIntro.
     iFrame.
-    by iMod "Hclose".
+    iMod "H".
+    by iApply fupd_mask_intro_subseteq.
   Qed.
   
   Lemma pupd_bind E1 E2 E3 P Q:
     pupd E1 E2 P ∗ (P -∗ pupd E2 E3 Q) ⊢ pupd E1 E3 Q.
   Proof.
     rewrite pupd_unseal/pupd_def.
-    iIntros "[H1 H2]" (??) "(?&?)".
-    iMod ("H1" with "[$]") as "H1".
+    iIntros "[>H1 H2]".
     iModIntro.
+    iIntros (???) "(?&?)".
+    iDestruct ("H1" with "[$]") as "H1".
     iApply (state_step_coupl_bind with "[H2][$]").
-    iIntros (??) "H1".
+    iIntros (???) "H".
     iApply fupd_state_step_coupl.
-    iMod "H1" as "(?&?&?)".
+    iMod "H" as "(?&?&->&H)".
+    iMod "H".
     by iMod ("H2" with "[$][$]").
   Qed.
 
@@ -200,20 +209,40 @@ Section pupd.
     all: iDestruct (pupd_mono_fupd with "[H1]") as "H1"; first exact;
       last first.
     - iApply state_step_coupl_wp.
-      rewrite -/(pupd_def _ _ _).
-      rewrite -pupd_unseal.
-      iMod "H1".
+      rewrite pupd_unseal/pupd_def.
+      iMod ("H1").
+      iModIntro.
+      iIntros (??) "[??]".
+      iDestruct ("H1" with "[$]") as "H1".
+      iApply (state_step_coupl_bind with "[H2][$]").
+      iIntros (???) "H".
+      iApply fupd_state_step_coupl.
+      iMod "H" as "(H3&H4&->&H)".
+      iModIntro.
+      iApply state_step_coupl_ret.
+      iFrame "H3 H4".
+      iMod "H".
       iModIntro.
       iApply "H2".
-      iApply "H1".
+      iApply "H".
     - iApply fupd_mask_intro; first exact; iIntros "Hclose"; iMod "H1"; iMod "Hclose"; by iModIntro.
     - iApply state_step_coupl_wp.
-      rewrite -/(pupd_def _ _ _).
-      rewrite -pupd_unseal.
-      iMod "H1".
+      rewrite pupd_unseal/pupd_def.
+      iMod ("H1").
+      iModIntro.
+      iIntros (??) "[??]".
+      iDestruct ("H1" with "[$]") as "H1".
+      iApply (state_step_coupl_bind with "[H2][$]").
+      iIntros (???) "H".
+      iApply fupd_state_step_coupl.
+      iMod "H" as "(H3&H4&->&H)".
+      iModIntro.
+      iApply state_step_coupl_ret.
+      iFrame "H3 H4".
+      iMod "H".
       iModIntro.
       iApply "H2".
-      iApply "H1".
+      iApply "H".
     - iApply fupd_mask_intro; first exact; iIntros "Hclose"; iMod "H1"; iMod "Hclose"; by iModIntro.
   Qed.
 
@@ -325,7 +354,12 @@ Section pupd.
     iApply (pgl_wp_strong_mono with "[$]"); first done.
     iIntros (???) "(?&?&H)".
     iMod ("H" with "[$]").
-    by iModIntro.
+    iModIntro.
+    iApply (state_step_coupl_bind with "[][$]").
+    iIntros (???) "H".
+    iApply state_step_coupl_ret.
+    iMod ("H") as "($&$&<-&>?)".
+    by iFrame. 
   Qed.
 
   Lemma pupd_wp Φ E e:
