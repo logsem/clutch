@@ -699,10 +699,10 @@ Section baze_rules.
     X e1 e2 (λ s1 s2, REL s1 ≤ s2 <|X|> {{R}}) ⊢ REL e1 ≤ e2 <|X|> {{R}}.
   Proof. iIntros "HX". by iApply (rel_introduction with "HX"); auto. Qed.
 
-  Lemma rel_introduction_mono e1 e2 X Y R :
-    REL e1 ≤ e2 <|X|> {{R}} -∗ iThy_le X Y -∗ REL e1 ≤ e2 <|Y|> {{R}}.
+  Lemma rel_introduction_mono e1 e2 E X Y R :
+    REL e1 ≤ e2 @ E <|X|> {{R}} -∗ iThy_le X Y -∗ REL e1 ≤ e2 @ E <|Y|> {{R}}.
   Proof.
-    iLöb as "IH" forall (e1 e2).
+    iLöb as "IH" forall (e1 e2 E).
     rewrite !rel_unfold /rel_pre.
     iIntros "Hrel #Hle %k1 %k2 %S Hkwp".
     iApply "Hrel". clear e1 e2.
@@ -850,13 +850,13 @@ Lemma rel_inv_restore N P e1 e2 X R :
     by iApply ("IH" with "Hs own_F Herr").
   Qed.
   
-  Lemma rel_wand' e1 e2 X Y R S :
+  Lemma rel_wand' e1 e2 E X Y R S :
     iThy_le X Y -∗
-    REL e1 ≤ e2 <|X|> {{R}} -∗
+    REL e1 ≤ e2 @ E <|X|> {{R}} -∗
     (□ ∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
-    REL e1 ≤ e2 <|Y|> {{S}}.
+    REL e1 ≤ e2 @ E<|Y|> {{S}}.
   Proof.
-    iLöb as "IH" forall (e1 e2).
+    iLöb as "IH" forall (e1 e2 E).
     rewrite !rel_unfold /rel_pre.
     iIntros "#HY Hrel #Hle %k1 %k2 %T Hkwp".
     iApply "Hrel".
@@ -869,20 +869,20 @@ Lemma rel_inv_restore N P e1 e2 X R :
       by iApply ("IH" with "HY Hrel").
   Qed.
 
-  Lemma rel_wand e1 e2 X R S :
-    REL e1 ≤ e2 <|X|> {{R}} -∗
+  Lemma rel_wand e1 e2 E X R S :
+    REL e1 ≤ e2 @ E <|X|> {{R}} -∗
     (□ ∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
-    REL e1 ≤ e2 <|X|> {{S}}.
+    REL e1 ≤ e2 @ E <|X|> {{S}}.
   Proof. iApply rel_wand'. by iApply iThy_le_refl. Qed.
 
-  Lemma rel_mono' (m : mode) e1 e2 X Y R S :
+  Lemma rel_mono' (m : mode) e1 e2 E X Y R S :
     iThy_le X Y -∗
-    REL e1 ≤ e2 <|X|> {{R}} -∗
+    REL e1 ≤ e2 @ E <|X|> {{R}} -∗
     (□?m ∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
-    REL e1 ≤ e2 <|iThyIfMono m Y|> {{S}}.
+    REL e1 ≤ e2 @ E <|iThyIfMono m Y|> {{S}}.
   Proof.
     case m; [|by apply rel_wand']. simpl.
-    iLöb as "IH" forall (e1 e2).
+    iLöb as "IH" forall (e1 e2 E).
     iIntros "#HY Hrel HS".
     rewrite !rel_unfold /rel_pre.
     iIntros "%k1 %k2 %T Hkwp".
@@ -900,26 +900,26 @@ Lemma rel_inv_restore N P e1 e2 X R :
       by iApply "Hrel".
   Qed.
 
-  Lemma rel_mono (m : mode) e1 e2 X R S :
-    REL e1 ≤ e2 <|X|> {{R}} -∗
+  Lemma rel_mono (m : mode) e1 e2 E X R S :
+    REL e1 ≤ e2 @ E <|X|> {{R}} -∗
     (□?m ∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
-    REL e1 ≤ e2 <|iThyIfMono m X|> {{S}}.
+    REL e1 ≤ e2 @ E <|iThyIfMono m X|> {{S}}.
   Proof. iApply rel_mono'. by iApply iThy_le_refl. Qed.
 
-  Lemma rel_introduction_sum_mono_l e1 e2 X Y Z R :
-    REL e1 ≤ e2 <|iThySum X Z|> {{R}} -∗
+  Lemma rel_introduction_sum_mono_l e1 e2 E X Y Z R :
+    REL e1 ≤ e2 @ E <|iThySum X Z|> {{R}} -∗
     iThy_le X Y -∗
-    REL e1 ≤ e2 <|iThySum Y Z|> {{R}}.
+    REL e1 ≤ e2 @ E <|iThySum Y Z|> {{R}}.
   Proof.
     iIntros "Hrel Hle".
     iApply (rel_introduction_mono with "Hrel").
     iApply (iThy_le_sum_l with "Hle").
   Qed.
 
-  Lemma rel_introduction_sum_mono_r e1 e2 X Y Z R :
-    REL e1 ≤ e2 <|iThySum Z X|> {{R}} -∗
+  Lemma rel_introduction_sum_mono_r e1 e2 E X Y Z R :
+    REL e1 ≤ e2 @ E <|iThySum Z X|> {{R}} -∗
     iThy_le X Y -∗
-    REL e1 ≤ e2 <|iThySum Z Y|> {{R}}.
+    REL e1 ≤ e2 @ E <|iThySum Z Y|> {{R}}.
   Proof.
     iIntros "Hrel Hle".
     iApply (rel_introduction_mono with "Hrel").
@@ -3170,29 +3170,26 @@ Section brel_effect_rules.
       iApply "Hk".
   Qed.
 
-   Lemma brel_bind k1 k2 (L M : iLblThy Σ) R e1 e2 :
+   Lemma brel_bind k1 k2 E (L M : iLblThy Σ) R e1 e2 :
     traversable k1 k2 (to_iThy L) -∗
     to_iThy_le L M -∗
-    BREL e1 ≤ e2 <|L|> {{ (λ v1 v2, BREL fill k1 v1 ≤ fill k2 v2 <|M|> {{R}}) }} -∗
-    BREL fill k1 e1 ≤ fill k2 e2 <|M|> {{R}}.
+    BREL e1 ≤ e2 @ E <|L|> {{ (λ v1 v2, BREL fill k1 v1 ≤ fill k2 v2 <|M|> {{R}}) }} -∗
+    BREL fill k1 e1 ≤ fill k2 e2 @ E <|M|> {{R}}.
   Proof.
-    iIntros "#Htraversable (#Hle & #HvalidLM & #HdistinctLM) Hbrel #Hvalid %Hdistinct".
-    iApply (rel_bind with "[] Hle [Hbrel]"); first iApply "Htraversable".
+    iIntros "#Htraversable (#Hle & #HvalidLM & #HdistinctLM) Hbrel #Hvalid #Hdistinct".
+    iApply (rel_bind_mask with "[] Hle [Hbrel]"); first iApply "Htraversable".
     iApply (rel_wand with "[Hbrel]").
     { by iApply "Hbrel"; [iApply "HvalidLM"|iApply "HdistinctLM"]. }
-    { iIntros "!> %% Hbrel". by iApply "Hbrel". }
+    iIntros "!> %% Hbrel". by iApply "Hbrel".
   Qed.
 
-  Lemma brel_bind' k1 k2 (L : iLblThy Σ) R e1 e2 :
+  Lemma brel_bind' k1 k2 E (L : iLblThy Σ) R e1 e2 :
     traversable k1 k2 (to_iThy L) -∗
-    BREL e1 ≤ e2 <|L|> {{ (λ v1 v2, BREL fill k1 v1 ≤ fill k2 v2 <|L|> {{R}}) }} -∗
-    BREL fill k1 e1 ≤ fill k2 e2 <|L|> {{R}}.
+    BREL e1 ≤ e2 @ E <|L|> {{ (λ v1 v2, BREL fill k1 v1 ≤ fill k2 v2 <|L|> {{R}}) }} -∗
+    BREL fill k1 e1 ≤ fill k2 e2 @ E <|L|> {{R}}.
   Proof.
-    iIntros "#Htraversable Hbrel #Hvalid %Hdistinct".
-    iApply (rel_bind' with "[] [Hbrel]"); first iApply "Htraversable".
-    iApply (rel_wand with "[Hbrel]").
-    { by iApply "Hbrel". }
-    { iIntros "!> %% Hbrel". by iApply "Hbrel". }
+    iIntros "#Htraversable Hbrel".
+    iApply brel_bind; [done|iApply to_iThy_le_refl|done]. 
   Qed.
 
   Lemma brel_introduction_mono (L M : iLblThy Σ) R e1 e2 :
