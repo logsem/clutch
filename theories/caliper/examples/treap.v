@@ -397,7 +397,7 @@ Section runner_spec.
 
 End runner_spec.
 
-Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
+Notation σ₀ := {| heap := ∅; tapes := ∅; tapes_laplace := ∅ |}.
 Notation almost_surely_terminates ρ := (SeriesC (lim_exec ρ) = 1%R).
 
 Theorem runner_terminates :

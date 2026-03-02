@@ -236,6 +236,17 @@ Proof.
   auto; inversion H. 
 Qed.
 
+Lemma SamplesOneTape_head_step_tapes_laplace l e σ v t e' σ':
+  SamplesOneTape l e ->
+  σ.(tapes) !! l = Some (2%nat; v :: t) ->
+  head_step e σ (e', σ') > 0 ->
+  σ'.(tapes_laplace) = σ.(tapes_laplace).
+Proof.
+  intros.
+  destruct e; inv_head_step;
+  auto; inversion H.
+Qed.
+
 Lemma SamplesOneTape_step_det l e σ v t e' σ':
   SamplesOneTape l e ->
   σ.(tapes) !! l = Some (2%nat; v :: t) ->
@@ -298,6 +309,25 @@ Proof.
   apply dmap_pos in H1 as [(e1 & σ1) (?&?)].
   inversion H1; subst.
   eapply SamplesOneTape_head_step_heap. 
+  - eapply SamplesOneTape_decomp'; eauto.
+  - eauto.
+  - eauto.
+Qed.
+
+Lemma SamplesOneTape_step_tapes_laplace l e σ v t e' σ':
+  SamplesOneTape l e ->
+  σ.(tapes) !! l = Some (2%nat; v :: t) ->
+  step (e, σ) (e', σ') > 0 ->
+  σ'.(tapes_laplace) = σ.(tapes_laplace) .
+Proof.
+  rewrite /step.
+  simpl. rewrite /prim_step.
+  intros. simpl in *.
+  destruct (decomp e) eqn : Hde.
+  rewrite Hde in H1.
+  apply dmap_pos in H1 as [(e1 & σ1) (?&?)].
+  inversion H1; subst.
+  eapply SamplesOneTape_head_step_tapes_laplace.
   - eapply SamplesOneTape_decomp'; eauto.
   - eauto.
   - eauto.

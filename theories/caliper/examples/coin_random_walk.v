@@ -115,7 +115,7 @@ Section coin_flips.
 
 End coin_flips.
 
-Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
+Notation σ₀ := {| heap := ∅; tapes := ∅; tapes_laplace := ∅ |}.
 Notation almost_surely_terminates ρ := (SeriesC (lim_exec ρ) = 1%R).
 
 Theorem coin_flips_terminates :

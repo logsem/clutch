@@ -41,19 +41,31 @@ Fixpoint at_redex {A} (f : expr → A) (e : expr) : option A :=
       | _          => at_redex f e2
       end
   | AllocTape e    => noval e
-  | Rand e1 e2     =>
-      match e2 with
-      | Val v      => noval e1
-      | _          => at_redex f e2
-      end
-  | Tick e         => noval e
-  | Laplace e1 e2 e3 =>
+  | AllocTapeLaplace e1 e2 e3 =>
       match e3 with
       | Val v3 => match e2 with
                   | Val v2 => noval e1
                   | _ => at_redex f e2
                   end
       | _ => at_redex f e3
+      end
+  | Rand e1 e2     =>
+      match e2 with
+      | Val v      => noval e1
+      | _          => at_redex f e2
+      end
+  | Tick e         => noval e
+  | Laplace e1 e2 e3 e4 =>
+      match e4 with
+      | Val v4 =>
+          match e3 with
+          | Val v3 => match e2 with
+                      | Val v2 => noval e1
+                      | _ => at_redex f e2
+                      end
+          | _ => at_redex f e3
+          end
+      | _ => at_redex f e4
       end
   | _              => None
   end.
@@ -70,7 +82,7 @@ Lemma at_redex_fill (K : ectx prob_ectx_lang) (f : expr → R) (e : expr) b:
   at_redex f e = Some b → at_redex f (fill K e) = Some b.
 Proof.
   induction K as [|Ki K IHK] in e |-*; [done|].
-  destruct Ki => /= He; rewrite IHK //=; by case_match.
+  destruct Ki => /= He; rewrite IHK //=; try by case_match.
 Qed.
 
 Lemma at_redex_fill_item_None (f : expr → R) e Ki :

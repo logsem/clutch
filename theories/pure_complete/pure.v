@@ -33,7 +33,7 @@ Fixpoint is_pure (e : expr) :=
   | Case e1 e2 e3 => is_pure e1 && is_pure e2 && is_pure e3
   | Rand e' (LitV (LitUnit)) => is_pure e'
   | Laplace e1 e2 e3 (LitV (LitUnit)) => is_pure e1 && is_pure e2 && is_pure e3
-  | AllocN _ _ | Load _ | Store _ _ | AllocTape _ | AllocTapeLaplace _ _ | Rand _ _ | Laplace _ _ _ _ => false
+  | AllocN _ _ | Load _ | Store _ _ | AllocTape _ | AllocTapeLaplace _ _ _ | Rand _ _ | Laplace _ _ _ _ => false
   | Val v => is_pureV v
   | Var _ => true
   | Tick e => is_pure e
@@ -139,8 +139,12 @@ Proof.
   - intros. clear is_pure_isPure.
     induction e; try repeat (apply andb_prop in H as [H ?]);
     inversion H; try econstructor; eauto.
-    destruct e2; inversion H1. destruct v; inversion H1.
-    destruct l; inversion H1. econstructor. by apply IHe1.
+    + destruct e2; inversion H1. destruct v; inversion H1.
+      destruct l; inversion H1. econstructor. by apply IHe1.
+    + destruct e4; inversion H1. destruct v; inversion H1.
+      destruct l; inversion H1.
+      try repeat (apply andb_prop in H1 as [H1 ?]).
+      econstructor ; intuition auto.
   - intros. clear is_pureV_isPureV. 
     induction v; simpl in H; try repeat (apply andb_prop in H as [H ?]);
     econstructor; eauto.
@@ -160,14 +164,28 @@ Proof.
   induction e; simpl; auto; 
   try (case_decide; auto); simpl in H;
   try repeat (apply andb_prop in H as [H ?]);
-  subst; try (rewrite IHe1; auto); try(rewrite IHe2; auto).
+  subst; try (rewrite IHe1; auto); try(rewrite IHe2; auto); try(rewrite IHe3; auto); try(rewrite IHe4; auto).
   {  
     destruct e2; try by inversion H; simpl. 
     destruct v0; inversion H. 
     destruct l; inversion H. simpl. auto. 
     }
-  destruct e2; inversion H. rewrite H2. simpl. auto.
-  destruct v0; inversion H. destruct l; inversion H. auto.
+  - destruct e2; inversion H. rewrite H2. simpl. auto.
+    destruct v0; inversion H. destruct l; inversion H. auto.
+  - destruct e4; inversion H. rewrite H2. simpl. auto.
+    destruct v0; inversion H. destruct l; inversion H. auto.
+  - destruct e4; inversion H. rewrite H2. simpl. auto.
+    destruct v0; inversion H. destruct l; inversion H. auto.
+    rewrite H2.
+    try repeat (apply andb_prop in H as [H ?]). done.
+  - destruct e4; inversion H. rewrite H2. simpl. auto.
+    destruct v0; inversion H. destruct l; inversion H. auto.
+    rewrite H2.
+    try repeat (apply andb_prop in H as [H ?]). done.
+  - destruct e4; inversion H. rewrite H2. simpl. auto.
+    destruct v0; inversion H. destruct l; inversion H. auto.
+    rewrite H2.
+    try repeat (apply andb_prop in H as [H ?]). done.
 Qed.
 
 Lemma pure_head_step_inv (e e' : expr) (σ : state):
@@ -211,11 +229,13 @@ Definition is_pure_ectx (Ki : ectx_item) : bool :=
   | CaseCtx e1 e2 => is_pure e1 && is_pure e2
   | RandRCtx e => false
   | RandLCtx (LitV (LitUnit)) => true
-  | LaplaceNumCtx v2 v3 => is_pureV v2 && is_pureV v3
-  | LaplaceDenCtx e1 v3 => is_pure e1 && is_pureV v3
-  | LaplaceMeanCtx e1 e2 => is_pure e1 && is_pure e2
+  | LaplaceNumCtx v2 v3 (LitV (LitUnit)) => is_pureV v2 && is_pureV v3
+  | LaplaceDenCtx e1 v3 (LitV (LitUnit)) => is_pure e1 && is_pureV v3
+  | LaplaceMeanCtx e1 e2 (LitV (LitUnit)) => is_pure e1 && is_pure e2
+  | LaplaceTapeCtx e1 e2 e3 => false
   | AllocNLCtx _ | AllocNRCtx _ | LoadCtx | StoreLCtx _ | StoreRCtx _ 
-  | AllocTapeCtx | RandLCtx _ => false
+  | AllocTapeCtx | AllocTapeLaplaceNumCtx _ _  | AllocTapeLaplaceDenCtx _ _  | AllocTapeLaplaceMeanCtx _ _
+  | RandLCtx _ | LaplaceDenCtx _ _ _ | LaplaceNumCtx _ _ _ | LaplaceMeanCtx _ _ _  => false
   | TickCtx => true
   end.
 
@@ -226,9 +246,10 @@ Lemma is_pure_fill_item e Ki :
 Proof.
   intros.
   destruct Ki; inversion H0; 
-  destruct e; inversion H; simpl; 
-  try (rewrite H2); auto; try (rewrite H3); auto.
-  all: rewrite andb_true_r. all: by rewrite H2.
+  destruct e; inversion H; simpl ;
+  try repeat (apply andb_prop in H2 as [H2 ?]) ;
+  try (rewrite H3); auto; try (rewrite H4); auto.
+  all: repeat rewrite andb_true_r. all: try by rewrite H2.
 Qed.
 
 Lemma is_pure_fill e Ki:
@@ -339,9 +360,12 @@ Proof.
       destruct l; try by inversion H1. destruct e3; try by inversion H2.
     }
     {
-      destruct e5; try inversion H2; subst; simpl in *; auto; bool_solve.
-      destruct e4; try inversion H2; subst; simpl in *; auto; bool_solve.
-      destruct e3; try inversion H2; subst; simpl in *; auto; bool_solve.
+      destruct e6; try inversion H2; subst; simpl in *; auto; bool_solve.
+      destruct v; try inversion H1; subst; simpl in *; auto; bool_solve.
+      destruct l; try inversion H1; subst; simpl in *; auto; bool_solve. simpl.
+      destruct e5 ; simplify_eq ; cbn ; try by (apply andb_true_intro ; split).
+      all: destruct e4 ; simplify_eq ; cbn ; try by (apply andb_true_intro ; split).
+      all: destruct e3 ; simplify_eq ; cbn ; try by (apply andb_true_intro ; split).
     }
   }
   eapply IHn.

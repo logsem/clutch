@@ -52,7 +52,7 @@ Section Complete.
 
   Context `{!erisGS Σ}.
 
-  Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
+  Notation σ₀ := {| heap := ∅; tapes := ∅ ; tapes_laplace := ∅ |}.
   Notation almost_surely_terminates ρ := (SeriesC (lim_exec ρ) = 1%R).
 
   Lemma AST_complete_pure_pre (n: nat) (e : expr) (σ : state) E : 

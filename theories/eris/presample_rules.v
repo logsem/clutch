@@ -251,8 +251,7 @@ Section rules.
       - apply pgl_state. apply Hlookup.
       - done.
     }
-
-    iIntros ((heap2 & tapes2)) "[%sample %Hsample]".
+    iIntros ([heap2 tapes2 tapes_laplace2]) "[%sample %Hsample]".
 
     rewrite /= Hsample.
     destruct (@find_is_Some _ _ _
@@ -432,7 +431,7 @@ Section rules.
       - done.
     }
 
-    iIntros ((heap2 & tapes2)) "[%sample %Hsample]".
+    iIntros ([heap2 tapes2 tapes_laplace2]) "[%sample %Hsample]".
 
     rewrite Hsample /=.
     destruct (@find_is_Some _ _ _

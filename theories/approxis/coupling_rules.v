@@ -49,7 +49,7 @@ Section rules.
     iIntros (NMpos NMε) "(>Hα & >Hαₛ & Hε & Hwp)".
     iApply wp_lift_step_spec_couple.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Htl2)/=".
     iDestruct "Hα" as (fs) "(%&Hα)".
     iDestruct "Hαₛ" as (fsₛ) "(%&Hαₛ)".
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
@@ -96,7 +96,7 @@ Section rules.
     iIntros (Hdom) "(>Hα & >Hαₛ & Hwp)".
     iApply wp_lift_step_spec_couple.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Htl2)/=".
     iDestruct "Hα" as (fs) "(<-&Hα)".
     iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)".
     destruct (restr_bij_fin (S N) f) as [g [HBij Hfg]].
@@ -153,7 +153,7 @@ Section rules.
     iIntros (NMpos NMε) "( >Hα & >Hαₛ & Hε & Hwp)".
     iApply wp_lift_step_spec_couple.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct "Hauth2" as "(HK&Hh2&Ht2)".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Htl2)".
     iDestruct "Hα" as (fs) "(<-&Hα)".
     iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)".
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
@@ -551,7 +551,7 @@ Section rules.
     iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)".
     iApply wp_lift_step_spec_couple.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Htl2)/=".
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     simplify_map_eq.
@@ -692,7 +692,7 @@ Section rules.
     iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)".
     iApply wp_lift_step_spec_couple.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Htl2)/=".
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -782,7 +782,7 @@ Section rules.
     iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)".
     iApply wp_lift_step_spec_couple.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct "Hauth2" as "(HK&Hh2&Ht2)".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Htl2)".
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -1066,7 +1066,7 @@ Section rules.
     destruct (restr_list_inj_fixed_length (S N) (S M) p f) as [g [Hg1 Hg2]]; auto.
     iApply wp_lift_step_spec_couple.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Htl2)/=".
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     simplify_map_eq.
@@ -1204,7 +1204,7 @@ Section rules.
     iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)".
     destruct (restr_list_inj_fixed_length (S N) (S M) p f) as [g [Hg1 Hg2]]; auto.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2&Htl2)/=".
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     simplify_map_eq.

@@ -182,7 +182,7 @@ Section lazy_real.
       rewrite -(dret_id_right (state_step _ _ ≫= _)).
       eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl', state_steps_fair_coins_coupl].
       intros [] [b1' b2']  [= -> ->] =>/=.
-      eapply refRcoupl_dret=>/=. eauto 6. }
+      eapply refRcoupl_dret=>/=. simplify_eq. eauto 6. }
     iIntros "!>" (?? [[b1' b2'] N'] (-> & -> & ->)) "Hf1 Hα1 Hα2".
     iApply ("Hcnt" with "Hf1 Hα1 Hα2").
   Qed.
@@ -644,7 +644,7 @@ Section client.
 
 End client.
 
-Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
+Notation σ₀ := {| heap := ∅; tapes := ∅; tapes_laplace := ∅ |}.
 Notation almost_surely_terminates ρ := (SeriesC (lim_exec ρ) = 1%R).
 
 Theorem lazy_real_terminates :
