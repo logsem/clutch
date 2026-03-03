@@ -1410,7 +1410,7 @@ Section urn.
     | urn_unif s => if bool_decide (z∈s) then /size(s) else 0
     | urn_laplace num den l =>
         (match decide (0 < IZR num / IZR den) with
-         | left εpos => laplace_rat num den l εpos z
+         | left εpos => laplace_rat num den l z
          | right _ => 0 (* not possible *)
          end)   
     end.
@@ -1487,7 +1487,7 @@ Section urn.
       + intros.
         repeat case_bool_decide; set_solver.
     - case_match eqn:Hn.
-      + apply laplace_mass.
+      + apply laplace_rat_mass.
       + done.
   Qed. 
 
@@ -2834,7 +2834,7 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
           let loc := epsilon P2 in
           dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1))
             (match decide (0 < IZR num / IZR den) with
-             | left εpos => laplace_rat num den loc εpos
+             | left εpos => laplace_rat num den loc
              | right _ => dret loc
              end)
       | _, _, _ => dzero
@@ -3116,7 +3116,7 @@ Proof.
     + do 3 (case_match; last (exfalso; naive_solver)).
       repeat (erewrite urn_subst_equal_epsilon_unique; last done).
       case_match; last done.
-      solve_distr.
+      solve_distr. eauto.
     + do 3 (case_match; last (exfalso; naive_solver)).
       repeat (erewrite urn_subst_equal_epsilon_unique; last done).
       case_match; first done.

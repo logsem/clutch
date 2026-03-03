@@ -562,7 +562,7 @@ Proof.
     repeat (erewrite urn_subst_equal_epsilon_unique; last done).
     case_match; last (exfalso; naive_solver).
     repeat smash.
-    erewrite (distr_ext (dbind _ (laplace_rat _ _ _ _))); last first.
+    erewrite (distr_ext (dbind _ (laplace_rat _ _ _))); last first.
     { intros.
       apply dbind_pmf_ext; [|done..].
       intros. by rewrite !dret_id_left'/=.
@@ -575,14 +575,14 @@ Proof.
     repeat smash.
     setoid_rewrite d_proj_Some_bind.
     repeat smash.
-    rewrite (dbind_assoc' _ _ (laplace_rat _ _ _ _)).
-    rewrite (dbind_comm _ (laplace_rat _ _ _ _)).
+    rewrite (dbind_assoc' _ _ (laplace_rat _ _ _)).
+    rewrite (dbind_comm _ (laplace_rat _ _ _)).
     repeat smash.
     rewrite H; last done.
     rewrite H0; last done.
     rewrite H1; last done.
     repeat smash.
-    erewrite (distr_ext (dbind _ (laplace_rat _ _ _ _))); last first.
+    erewrite (distr_ext (dbind _ (laplace_rat _ _ _))); last first.
     { intros.
       apply dbind_pmf_ext; [|done..].
       intros. by rewrite !dret_id_left'/=.
@@ -606,7 +606,7 @@ Proof.
     rewrite /dmap.
     repeat smash.
     f_equal.
-    apply distr_ext. f_equal. 
+    (* apply distr_ext. f_equal.  *)
   - (** laplace' *)
     repeat smash.
     case_match; last first.
