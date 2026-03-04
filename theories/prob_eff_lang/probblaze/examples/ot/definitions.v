@@ -67,13 +67,11 @@ Section implementation.
         end
     | return "y" => "y" end. 
 
+  (* Assumes an authenticated channel *)
   Definition OT_Real_Receiver_Corrupted f (c : expr) : expr :=
     let, ("g0", "h0", "g1", "h1") := (g^(sample #()%V), g^(sample #()%V), g^(sample #()%V), g^(sample #()%V)) in
     let: "crs" := ("g0", "h0", "g1", "h1") in
-    handle: handle: f with
-    | effect Receiver "b", "k" => (λ: "crs" "b" "k", c) "crs" "b" (λ: "x", Protocol_Done Receiver ("k" "x") )
-    | return "y" => "y" end
-    with
+    handle: f "crs" with
     | effect Sender "m", "k" =>
         let: "r" := (do: channel (Recv alice)) in
         match: "r" with
@@ -123,7 +121,7 @@ Section implementation.
     let: "e" := ref NONE in
     
     (* unfolding the ideal functionality - foth exposes the honest sender to the environment and allows Fot to leak information to SIM, fots allows SIM to ask for mb *)
-    let, ("foth", "fots") := (F_OT f) #()%V in
+    let, ("foth", "fots") := (F_OT (f "crs")) #()%V in
 
     handle: handle: "foth" #()%V with
     (* Continuations in the channel branch are allowed to try again, as in the ideal functionality of the AUTH channel. *)
@@ -197,7 +195,7 @@ Section implementation.
     let: "b" := ref #false in    (* dummy value *)
         
     (* unfolding the ideal functionality - foth exposes the honest sender to the environment and allows Fot to leak information to SIM, fots allows SIM to ask for mb *)
-    let, ("foth", "fots") := (F_OT f) #()%V in
+    let, ("foth", "fots") := (F_OT (f "crs")) #()%V in
 
     handle: handle: "foth" #()%V with
     (* Continuations in the channel branch are allowed to try again, as in the ideal functionality of the AUTH channel. *)
