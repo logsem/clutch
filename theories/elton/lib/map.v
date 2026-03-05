@@ -22,38 +22,39 @@ Section map.
   Definition init_list : val :=
     λ:<>, ref NONE.
 
-  (* Context `{!conerisGS Σ}. *)
+  Context `{!eltonGS Σ}.
 
-  (* (* Impl *) *)
-  (* Fixpoint assoc_list (l : loc) (vs : list (nat * val)) : iProp Σ := *)
-  (*   match vs with *)
-  (*   | nil => l ↦ NONEV *)
-  (*   | (k, v) :: vs => ∃ (l' : loc), l ↦ SOMEV ((#k, v), #l') ∗ assoc_list l' vs *)
-  (* end. *)
+  (* Impl *)
+  Fixpoint assoc_list (l : loc) (vs : list (base_lit * val)) : iProp Σ :=
+    match vs with
+    | nil => l ↦ NONEV
+    | (k, v) :: vs => ∃ (l' : loc), l ↦ SOMEV ((#k, v), #l') ∗ ⌜base_lit_type_check k = Some BLTInt⌝ ∗ assoc_list l' vs
+  end.
 
 
-  (* #[global] Instance timeless_assoc_list l vs : *)
-  (*   Timeless (assoc_list l vs). *)
-  (* Proof. revert l. induction vs as [| (?&?)] => l /=; apply _. Qed. *)
+  #[global] Instance timeless_assoc_list l vs :
+    Timeless (assoc_list l vs).
+  Proof. revert l. induction vs as [| (?&?)] => l /=; apply _. Qed.
 
-  (* Lemma wp_init_list E : *)
-  (*   {{{ True }}} *)
-  (*     init_list #() @ E *)
-  (*   {{{ l, RET LitV (LitLoc l); assoc_list l nil }}}. *)
-  (* Proof. *)
-  (*   iIntros (Φ) "_ HΦ". *)
-  (*   rewrite /init_list. wp_pures. wp_alloc l. iModIntro. iApply "HΦ". eauto. *)
-  (* Qed. *)
+  Lemma wp_init_list E :
+    {{{ True }}}
+      init_list #() @ E
+    {{{ l, RET LitV (LitLoc l); assoc_list l nil }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    rewrite /init_list. wp_pures. wp_alloc l. iModIntro. iApply "HΦ". eauto.
+  Qed.
 
-  (* Lemma wp_cons_list E l vs (k : nat) (v : val) : *)
-  (*   {{{ assoc_list l vs }}} *)
-  (*     cons_list #l (#k, v)%V @ E *)
-  (*   {{{ l', RET LitV (LitLoc l'); assoc_list l' ((k, v) :: vs) }}}. *)
-  (* Proof. *)
-  (*   iIntros (Φ) "H HΦ". *)
-  (*   rewrite /cons_list. wp_pures. wp_alloc l' as "H'". iModIntro. iApply "HΦ". *)
-  (*   iExists l. iFrame. *)
-  (* Qed. *)
+  Lemma wp_cons_list E l vs (k : base_lit) (v : val) :
+    base_lit_type_check k = Some BLTInt ->
+    {{{ assoc_list l vs }}}
+      cons_list #l (#k, v)%V @ E
+    {{{ l', RET LitV (LitLoc l'); assoc_list l' ((k, v) :: vs) }}}.
+  Proof.
+    iIntros (Htype Φ) "H HΦ".
+    rewrite /cons_list. wp_pures. wp_alloc l' as "H'". iModIntro. iApply "HΦ".
+    iExists l. by iFrame.
+  Qed.
 
   (* Fixpoint find_list_gallina (vs: list (nat * val)) (k: nat) := *)
   (*   match vs with *)
@@ -70,6 +71,78 @@ Section map.
   (*   | Some v => SOMEV v *)
   (*   | None => NONEV *)
   (*   end. *)
+
+  Lemma wp_find_list_none E l vs (k: base_lit) R :
+    base_lit_type_check k = Some BLTInt ->
+    {{{ assoc_list l vs ∗ R ∗ [∗ list] x∈vs.*1, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V }}}
+      find_list #l #k @ E
+    {{{ v, RET v;
+        assoc_list l vs ∗ R ∗ ⌜v= NONEV ⌝
+    }}}.
+  Proof.
+    iIntros (Htype Φ) "(Hassoc&R&Hrupd) HΦ".
+    rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l) "Hrupd".
+    - wp_pures. rewrite /assoc_list. wp_load. wp_pures. iModIntro. iApply "HΦ"; auto. by iFrame.
+    - wp_pures. iDestruct "Hassoc" as (?) "(Hl&%Htype'&Hassoc)".
+      wp_load. wp_pures.
+      destruct (is_simple_base_lit k) eqn:H1; first 
+      destruct (is_simple_base_lit k') eqn:H2.
+      + (* both simple *)
+        destruct k, k'; simplify_eq.
+        wp_pures.
+        iDestruct "Hrupd" as "[Hrupd1 Hrupd2]".
+        simpl.
+        iDestruct ("Hrupd1" with "[$]") as "Hrupd1".
+        wp_bind (Val _).
+        iApply (wp_value_promotion _ false R with "[Hrupd1]").
+        { rewrite rupd_unseal/rupd_def.
+          iIntros.
+          iDestruct ("Hrupd1" with "[$]") as "(%Hrupd&?)".
+          iFrame.
+          iPureIntro.
+          naive_solver.
+        }
+        iIntros "R".
+        wp_pures.
+        wp_pure. iApply ("IH" with "[$][$][-Hrupd2][$]"). iNext.
+        iIntros (v) "Hfind". iApply "HΦ".
+        iDestruct "Hfind" as "(?&?&?)".
+        by iFrame. 
+      + wp_pure.
+        { simpl.
+          rewrite Htype Htype'.
+          repeat (case_match; simplify_eq); rewrite bind_Some;
+          naive_solver.
+        }
+        iDestruct "Hrupd" as "[Hrupd1 Hrupd2]".
+        simpl.
+        iDestruct ("Hrupd1" with "[$]") as "Hrupd1".
+        wp_bind (Val _).
+        iApply (wp_value_promotion _ false R with "[$]").
+        iIntros "R".
+        wp_pures.
+        wp_pure. iApply ("IH" with "[$][$][-Hrupd2][$]"). iNext.
+        iIntros (v) "Hfind". iApply "HΦ".
+        iDestruct "Hfind" as "(?&?&?)".
+        by iFrame. 
+      + wp_pure.
+        { simpl.
+          rewrite Htype Htype'.
+          repeat (case_match; simplify_eq); rewrite bind_Some;
+          naive_solver.
+        }
+        iDestruct "Hrupd" as "[Hrupd1 Hrupd2]".
+        simpl.
+        iDestruct ("Hrupd1" with "[$]") as "Hrupd1".
+        wp_bind (Val _).
+        iApply (wp_value_promotion _ false R with "[$]").
+        iIntros "R".
+        wp_pures.
+        wp_pure. iApply ("IH" with "[$][$][-Hrupd2][$]"). iNext.
+        iIntros (v) "Hfind". iApply "HΦ".
+        iDestruct "Hfind" as "(?&?&?)".
+        by iFrame. 
+  Qed.
 
   (* Lemma wp_find_list E l vs (k: nat) : *)
   (*   {{{ assoc_list l vs }}} *)
