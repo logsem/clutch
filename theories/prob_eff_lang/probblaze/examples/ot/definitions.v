@@ -31,11 +31,15 @@ Section implementation.
   Definition Protocol_Done (eff : label) (e : expr) : expr :=
     handle: e with effect eff "x", rec "k" => "k" #()%V | return "y" => "y" end.
 
+  Definition F_CRS f : expr :=
+    let: "crs" := (g^(sample #()%V), g^(sample #()%V), g^(sample #()%V), g^(sample #()%V)) in 
+    handle: f with
+    | effect CRS "x", rec "k" => "k" "crs"
+    | return "y" => "y" end.
+                                                                                            
   Definition OT_Real f : expr :=
     (* This should be encapsulated in the CRS effect *)
-    let: "crsgen" := (λ: <>, (g^(sample #()%V), g^(sample #()%V), g^(sample #()%V), g^(sample #()%V))) in 
-    let: "crs" := "crsgen" #()%V in
-    handle: handle: handle: f with
+    handle: handle: f with
     | effect Receiver "b", "k" =>
         let, ("g0", "h0", "g1", "h1") := (do: CRS #()%V) in
         let: "x" := sample #()%V in
@@ -68,11 +72,7 @@ Section implementation.
           Protocol_Done Sender ("k" #()%V)
     | NONE => Protocol_Done Sender ("k" #()%V)
     end
-| return "y" => "y" end
-  with
-| effect CRS "x", rec "k" => "k" "crs"
-| return "y" => "y"
-  end. 
+| return "y" => "y" end. 
 
   (* Assumes an authenticated channel *)
   Definition OT_Real_Receiver_Corrupted f (c : expr) : expr :=
@@ -114,102 +114,9 @@ Section implementation.
        let: "fots" := (λ: "m0" "m1", "message0" <- SOME "m0";; "message1" <- SOME "m1";; do: Leak bob) in
        let: "fotr" := (λ: "b", if: "b" then !"message0" else !"message1";; do: Leak alice) in
        ("fots", "fotr")).
-  
- (* Definition F_OT_with_D_Sender f : expr :=
-    (λ: <>,
-    let: "message0" := ref NONEV in
-    let: "message1" := ref NONEV in
-
-    let: "foth" := (λ: <>, handle: f with
-                   (* The continuations should be incapsulated in Protocol_Done *)
-                   | effect Sender "mm", "k" =>
-                       (* Honest sender inlined in ideal functionality *)
-                       let, ("m0", "m1") := "mm" in
-                       "message0" <- "m0";; "message1" <- "m1";;
-                       (do: Leak #()%V);;
-                       Protocol_Done Sender ("k" #()%V) 
-                   | return "y" => "y" end) in
-    let: "fots" := (λ: "b", if: "b" then !"message0" else !"message1") in
-    ("foth", "fots")).
-
-   (* A simulator also simulating the authenticated channel *)
-     Definition OT_SIM_Receiver_Corrupt (f : expr) : expr :=
-       (* sampling crs with a trapdoor to compute b from (u,v) *)
-       let, ("g0", "g1") := (g^(sample #()%V), g^(sample #()%V)) in
-       let, ("t0", "t1") := (sample #()%V, sample #()%V) in
-       let, ("h0", "h1") := ("g0"^"t0", "g1"^"t1") in
-       let: "crs" := ("g0", "h0", "g1", "h1") in
-       
-       (* setting up *)
-       let: "mb" := ref NONE in
-       let: "b" := ref NONE in
-       let: "s" := ref NONE in
-       let: "e" := ref NONE in
-       
-       (* unfolding the ideal functionality - foth exposes the honest sender to the environment and allows Fot to leak information to SIM, fots allows SIM to ask for mb *)
-       let, ("fots", "fotr") := F_OT_with_D_Sender #()%V in
-     
-       handle: handle: "foth" #()%V with
-       (* Continuations in the channel branch are allowed to try again, as in the ideal functionality of the AUTH channel. *)
-       | effect channel "p", rec "k" =>
-            match: "p" with
-           (* SEND *)
-            | InjL "payload" =>
-                match: !"s" with
-                | SOME "m" => "k" #()%V (* A message has already been sent *)
-                | NONE =>
-                    let, ("m", "dst") := "payload" in (* We know we only get messages from the Sender, so dst is always bob *)
-                    let, ("u","v") := "m" in
-                    let: "td" :=  if: "v" = ("u" ^ "t0") then #true else if: "v" = ("u"^"t1") then #false else #true in(* trapdoor - essentially if v = u^t0 then b = 0 otherwise b = 1 *)
-                    "b" <- SOME "td";;
-                    "s" <- SOME ("u", "v");;     (* Record that (u,v) has been sent *)
-                    (do: channel "p");; (* Forward the message to simulate the network *)
-                    "k" #()%V
-                end   
-            (* Recv *)
-            | InjR "from" =>
-                let: "r" := (do: channel (Recv "from")) in
-                match: "r" with
-                  NONE => "k" NONEV
-                | SOME "x" => match: !"s" with
-                              | NONE => "k" NONEV
-                              | SOME "m" => match: !"e" with
-                                            | NONE => "k" NONEV
-                                            | SOME "ee" => "k" "ee"
-                                            end
-                              end
-                end
-            end
-       | return "y" => "y"
-       end with
-       (* only the ideal functionality can use this effect *)
-       | effect Leak "x", "k" =>  let: "r" := (do: channel (Recv alice)) in
-                                  match: "r" with
-                                  | NONE => "k" NONEV
-                                  | SOME "x" =>
-                                      match: !"s" with
-                                      | NONE => "k" NONEV
-                                      | SOME "uv" => let, ("u","v") := "uv" in
-                                                     match: !"b" with
-                                                     | NONE => "k" NONEV
-                                                     | SOME "b'" => let: "m" := "fots" "b'" in
-                                                                    "mb" <- SOME "m";; 
-                                                                    let, ("m0", "m1") := if: "b'" then ("m", #0) else (#0, "m") in
-                                                                    let: "pk0" := ("g0", "h0", "u", "v") in
-                                                                    let: "pk1" := ("g1", "h1", "u", "v") in
-                                                                    let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
-                                                                    let: "e0" := enc "pk0" "m0" "r0" "s0" in
-                                                                    let: "e1" := enc "pk1" "m1" "r1" "s1" in
-                                                                    "e" <- SOME ("e0", "e1");;
-                                                                    (do: channel (Send (("e0", "e1"), alice)));;
-                                                                    "k" #()%V
-                                                     end
-                                      end
-                                  end
-     | return "y" => "y"
-     end. *)
 
   (* A simulator that uses the authenticated channel *)
+  (* Need to figure out how to handle the cont when the protocol has been executed (eg. Protocol_Done) *)
   Definition OT_SIM_Receiver_Corrupt_with_auth (f : expr) : expr :=
     (* sampling crs with a trapdoor to compute b from (u,v) *)
     let, ("g0", "g1") := (g^(sample #()%V), g^(sample #()%V)) in
