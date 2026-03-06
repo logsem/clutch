@@ -31,6 +31,7 @@ Section implementation.
   Definition Protocol_Done (eff : label) (e : expr) : expr :=
     handle: e with effect eff "x", rec "k" => "k" #()%V | return "y" => "y" end.
 
+  (* This is wrapped around the protocol like F_AUTH and provides the ideal functionality of a crs *)
   Definition F_CRS f : expr :=
     let: "crs" := (g^(sample #()%V), g^(sample #()%V), g^(sample #()%V), g^(sample #()%V)) in 
     handle: f with
@@ -76,10 +77,7 @@ Section implementation.
 
   (* Assumes an authenticated channel *)
   Definition OT_Real_Receiver_Corrupted f (c : expr) : expr :=
-    (* Encapsulate the generation in the CRS effect *)
-    let, ("g0", "h0", "g1", "h1") := (g^(sample #()%V), g^(sample #()%V), g^(sample #()%V), g^(sample #()%V)) in
-    let: "crs" := ("g0", "h0", "g1", "h1") in
-    handle: handle: f  with
+    handle: f  with
     | effect Sender "m", "k" =>
         let: "r" := (do: channel (Recv alice)) in
         match: "r" with
@@ -95,19 +93,17 @@ Section implementation.
              Protocol_Done Sender ("k" #()%V)
         | NONE => Protocol_Done Sender ("k" #()%V)
         end
-    | return "y" => "y" end with
-| effect CRS "x", rec "k" => "k" "crs"
-| return "y" => "y"
-  end. 
-
-  Definition D_Sender f : expr :=
+    | return "y" => "y" end.
+  
+  (* Dummy sender that just forwards messages from Env to F_OT *)
+  Definition D_Sender f : val :=
     (λ: "FOT", 
        handle: f with
     | effect Sender "mm", "k" => "FOT" "mm"
     | return "y" => "y"
      end).
      
-  Definition F_OT : expr :=
+  Definition F_OT : val :=
     (λ: <>,
        let: "message0" := ref NONEV in
        let: "message1" := ref NONEV in
@@ -117,6 +113,7 @@ Section implementation.
 
   (* A simulator that uses the authenticated channel *)
   (* Need to figure out how to handle the cont when the protocol has been executed (eg. Protocol_Done) *)
+  (* The simulator implements its own functionality for CRS *)
   Definition OT_SIM_Receiver_Corrupt_with_auth (f : expr) : expr :=
     (* sampling crs with a trapdoor to compute b from (u,v) *)
     let, ("g0", "g1") := (g^(sample #()%V), g^(sample #()%V)) in
@@ -130,19 +127,20 @@ Section implementation.
     (* unfolding the ideal functionality - foth exposes the honest sender to the environment and allows Fot to leak information to SIM, fots allows SIM to ask for mb *)
     let, ("foth", "fots") := F_OT #()%V in
 
+    (* since (D_Sender f) is a value, "crs" is technically not substitued into f when sampled, because of our implementation of subst *)
     handle: handle: handle: (D_Sender f) "fots" with
     (* Continuations in the channel branch are allowed to try again, as in the ideal functionality of the AUTH channel. *)
     | effect channel "p", rec "k" =>
          match: "p" with
         (* SEND *)
          | InjL "payload" =>
-             let, ("m", "dst") := "payload" in (* we only get messages from the Sender, so dst is always bob *)
+             let, ("m", "dst") := "payload" in (* we only get messages from the Sender, so dst is always bob -- in the proof this is ensured by the theory *)
              let, ("u","v") := "m" in
              (* trapdoor-essentially if v = u^t0 then b = 0 otherwise b = 1 *)
              let: "td" :=  if: "v" = ("u" ^ "t0") then #true else if: "v" = ("u"^"t1") then #false else #true in
              "b" <- "td";;
              (do: channel "p");; (* Forward the message to simulate the network *)
-             "k" #()%V
+             "k" #()%V           (* How to handle calls to an already finished procedure? *)
              
            
          (* RECV - just forward receives *)
@@ -158,7 +156,8 @@ Section implementation.
             match: "r" with
             | NONE => "k" NONEV
             | SOME "uv" => let, ("u","v") := "uv" in
-                           let: "mb" := "fots" !"b" in
+                           (* handle the other leakage -- this is not too pretty *)
+                           let: "mb" := handle: "fots" !"b" with effect Leak "x", "k" =>  #()%V | return "y" => "y" end in
                            let, ("m0", "m1") := if: !"b" then ("mb", #0) else (#0, "mb") in
                            let: "pk0" := ("g0", "h0", "u", "v") in
                            let: "pk1" := ("g1", "h1", "u", "v") in
