@@ -29,34 +29,7 @@
 | 4.2 | Rule                | `INV-OPEN`                                | Imported from [Iris invariant]                                         | `inv_acc`                                            |                                                          |
 | 4.2 | Rule                | `HT-FUPD-ELIM`                            | [theories/coneris/weakestpre.v]                                        | `elim_modal_fupd_pgl_wp_atomic`                      |                                                          |
 | 4.2 | Various Definitions | Tapes                                     |                                                                        |                                                      | See previously in the language and operational semantics |
-| 4.2 | Rule                | `HT-ALLOC-TAPE`                           | [theories/coneris/primitive_laws.v]                                    | `wp_alloc_tape`                                      |                                                          |
-| 4.2 | Rule                | `HT-RAND-TAPE`                            | [theories/coneris/primitive_laws.v]                                    | `wp_rand_tape`                                       |                                                          |
-| 4.2 | Rule                | `PUPD-RET`                                | [theories/coneris/wp_update.v]                                         | `state_update_ret`                                   |                                                          |
-| 4.2 | Rule                | `PUPD-BIND`                               | [theories/coneris/wp_update.v]                                         | `state_update_bind`                                  |                                                          |
-| 4.2 | Rule                | `PUPD-FUPD`                               | [theories/coneris/wp_update.v]                                         | Derived from `state_update_fupd_change`              |                                                          |
-| 4.2 | Rule                | `PUPD-PRESAMPLE-EXP`                      | [theories/coneris/error_rules.v]                                       | `state_update_presample_exp`                         |                                                          |
-| 4.2 | Rule                | `PUPD-ERR`                                | [theories/coneris/wp_update.v]                                         | `state_update_epsilon_err`                           |                                                          |
-| 5.1 | Example             | Fig 4                                     | [theories/coneris/examples/random_counter3/random_counter.v]           | Whole file                                           |                                                          |
-| 5.1 | Example             | Fig 5                                     | [theories/coneris/examples/random_counter/random_counter.v]            | Whole file                                           |                                                          |
-| 5.2 | Example             | `conTwoAdd` with tapes                    | [theories/coneris/examples/random_counter/client.v]                    | Whole file                                           |                                                          |
-| 5.2 | Example             | `twoIncr`                                 | [theories/coneris/examples/random_counter/client2.v]                   | Whole file                                           |                                                          |
-| 5.3 | Example             | First implementation of random counter    | [theories/coneris/examples/random_counter/impl1.v]                     | Whole file                                           |                                                          |
-| 5.3 | Example             | Second implementation of random counter   | [theories/coneris/examples/random_counter/impl2.v]                     | Whole file                                           |                                                          |
-| 5.3 | Example             | Third implementation of random counter    | [theories/coneris/examples/random_counter/impl3.v]                     | Whole file                                           |                                                          |
-| 6.1 | Example             | Thread-safe hash functions specification  | [theories/coneris/examples/hash/con_hash_interface4.v]                 | Whole file                                           |                                                          |
-| 6.1 | Example             | Thread-safe hash functions implementation | [theories/coneris/examples/hash/con_hash_impl4.v]                      | Whole file                                           |                                                          |
-| 6.2 | Example             | Bloom filter                              | [theories/coneris/examples/bloom_filter/concurrent_bloom_filter_alt.v] | Whole file                                           |                                                          |
-| 6.3 | Example             | Lazy random sampler specification         | [theories/coneris/examples/lazy_rand/lazy_rand_interface.v]            | Whole file                                           |                                                          |
-| 6.3 | Example             | Lazy random sampler implementation        | [theories/coneris/examples/lazy_rand/lazy_rand_impl.v]                 | Whole file                                           |                                                          |
-| 6.3 | Example             | `lazyRace`                                | [theories/coneris/examples/lazy_rand/lazy_rand_race.v]                 | Whole file                                           |                                                          |
-| 6.4 | Examples            | Other case studies                        |                                                                        |                                                      | See [theories/coneris/README.md]                         |
-| 7.1 | Definition          | Weakest precondition                      | [theories/coneris/weakestpre.v]                                        | `pgl_wp_def`                                         |                                                          |
-| 7.1 | Definition          | State step precondition                   | [theories/coneris/weakestpre.v]                                        | `state_step_coupl`                                   |                                                          |
-| 7.1 | Definition          | Program step precondition                 | [theories/coneris/weakestpre.v]                                        | `prog_coupl`                                         |                                                          |
-| 7.1 | Definition          | `schErasable`                             | [theories/common/sch_erasable.v]                                       | `sch_erasable`                                       |                                                          |
-| 7.1 | Definition          | Probabilistic update modality             | [theories/coneris/wp_update.v]                                         | `state_update`                                       |                                                          |
-| 7.2 | Lemma               | `Adequacy simplified`                     | [theories/coneris/adequacy.v]                                          | `wp_pgl_multi`                                       |                                                          |
-	
+
 
 
 
@@ -66,27 +39,6 @@
 [theories/common/ectx_language.v]: theories/common/ectx_language.v
 [theories/common/sch_erasable.v]: theories/common/sch_erasable.v
 [theories/prob/mdp.v]: theories/prob/mdp.v
-[theories/coneris/error_rules.v]: theories/coneris/error_rules.v
-[theories/coneris/weakestpre.v]: theories/coneris/weakestpre.v
-[theories/coneris/primitive_laws.v]: theories/coneris/primitive_laws.v
-[theories/coneris/wp_update.v]: theories/coneris/wp_update.v
-[theories/coneris/adequacy.v]: theories/coneris/adequacy.v
-[theories/coneris/lib/par.v]: theories/coneris/lib/par.v
-[theories/coneris/examples/con_two_add.v]: theories/coneris/examples/con_two_add.v
-[theories/coneris/examples/random_counter/random_counter.v]: theories/coneris/examples/random_counter/random_counter.v
-[theories/coneris/examples/random_counter3/random_counter.v]: theories/coneris/examples/random_counter3/random_counter.v
-[theories/coneris/examples/random_counter/impl1.v]: theories/coneris/examples/random_counter/impl1.v
-[theories/coneris/examples/random_counter/impl2.v]: theories/coneris/examples/random_counter/impl2.v
-[theories/coneris/examples/random_counter/impl3.v]: theories/coneris/examples/random_counter/impl3.v
-[theories/coneris/examples/random_counter/client.v]: theories/coneris/examples/random_counter/client.v
-[theories/coneris/examples/random_counter/client2.v]: theories/coneris/examples/random_counter/client2.v
-[theories/coneris/examples/hash/con_hash_interface4.v]: theories/coneris/examples/hash/con_hash_interface4.v
-[theories/coneris/examples/hash/con_hash_impl4.v]: theories/coneris/examples/hash/con_hash_impl4.v
-[theories/coneris/examples/bloom_filter/concurrent_bloom_filter_alt.v]: theories/coneris/examples/bloom_filter/concurrent_bloom_filter_alt.v
-[theories/coneris/examples/lazy_rand/lazy_rand_interface.v]: theories/coneris/examples/lazy_rand/lazy_rand_interface.v
-[theories/coneris/examples/lazy_rand/lazy_rand_impl.v]: theories/coneris/examples/lazy_rand/lazy_rand_impl.v
-[theories/coneris/examples/lazy_rand/lazy_rand_race.v]: theories/coneris/examples/lazy_rand/lazy_rand_race.v
-[theories/coneris/README.md]: theories/coneris/README.md
 
 
 [Iris iprop]: https://gitlab.mpi-sws.org/iris/iris/-/blob/master/iris/base_logic/lib/iprop.v
