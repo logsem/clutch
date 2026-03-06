@@ -1609,7 +1609,7 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
   Lemma rel_couple_rand_rand E N f `{Bij nat nat f} z K K' X R :
     TCEq N (Z.to_nat z) →
     (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) →
-    (∀ n : nat, REL fill K #(n) ≤ fill K' #(f n) @ E <|X|> {{R}})
+    (∀ n : nat, ⌜n ≤ N⌝ -∗ REL fill K #(n) ≤ fill K' #(f n) @ E <|X|> {{R}})
         ⊢ REL fill K (rand #z) ≤ fill K' (rand #z) @ E <|X|> {{R}}.
   Proof.
     iIntros (??) "Hrel".
@@ -1622,7 +1622,7 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     iSpecialize ("Hrel" $! n).
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     do 3rewrite fill_app.
-    by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
+    by iApply ("Hrel" $! Hlt with "Hkwp Hj Hnais Herr").
   Qed.
 
   Lemma rel_randT_r K E α N z n ns t X R :
@@ -3340,13 +3340,13 @@ Section brel_probabilistic_rules.
  Lemma brel_couple_rand_rand E N f `{Bij nat nat f} z K K' X R :
     TCEq N (Z.to_nat z) →
     (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) →
-    (∀ n : nat, BREL fill K #(n) ≤ fill K' #(f n) @ E <|X|> {{R}})
+    (∀ n : nat, ⌜n ≤ N⌝ -∗ BREL fill K #(n) ≤ fill K' #(f n) @ E <|X|> {{R}})
         ⊢ BREL fill K (rand #z) ≤ fill K' (rand #z) @ E <|X|> {{R}}.
   Proof.
     iIntros (??)  "Hrel #Hvalid Hdistinct".
     iApply rel_couple_rand_rand; [done|].
-    iIntros (n).
-    by iApply "Hrel".
+    iIntros (n) "Hlt".
+    by iApply ("Hrel" with "[$][$][$]").
   Qed.
 
   Lemma brel_randT_r E K α N z n ns t X R :
