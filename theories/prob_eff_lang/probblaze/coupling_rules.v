@@ -72,27 +72,29 @@ Section rules.
   Qed.
 
   (** coupling rand and rand but avoid certain values*)
-  Lemma wp_couple_rand_rand_avoid N (l:list _) z K E :
+  Lemma wp_couple_rand_rand_avoid N (l:list _) f `{Bij nat nat f} z K E :
     TCEq N (Z.to_nat z) →
-    NoDup l -> 
+    NoDup l ->
+    (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) ->
     {{{ ↯ (length l/(N+1)) ∗
         ⤇ fill K (rand #z) }}}
       rand #z @ E
-      {{{ (n : fin (S N)), RET #n; ⌜n∉l⌝ ∗ ⤇ fill K #n }}}.
+      {{{ (n : fin (S N)), RET #n; ⌜n∉l⌝ ∗ ⤇ fill K #(f n) }}}.
   Proof.
-    iIntros (H0 Hl Ψ) "[Hε Hr] HΨ".
+    iIntros (H0 Hl Hdom Ψ) "[Hε Hr] HΨ".
+    destruct (restr_bij_fin (S N) f Hdom) as [ff [Hbij Hff]].
     iApply wp_lift_step_prog_couple; [done|].
     iIntros (σ1 e1' σ1' ε) "[Hσ [Hs Hε2]]".
     iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-    iDestruct (ec_supply_ec_inv with "Hε2 Hε") as %(x & x1 & -> & H).
+    iDestruct (ec_supply_ec_inv with "Hε2 Hε") as %(x & x1 & -> & H').
     iApply (prog_coupl_steps _ _ _
            (* (λ ρ2 ρ2', *)
            (*   ∃ (n : fin _), n∉l /\ρ2 = (Val #n, σ1) ∧ ρ2' = (fill K #(n), σ1')) *))
     ; [done| | |..].
     1,2: eexists; simpl; try apply fill_step; apply head_step_prim_step; apply head_step_support_equiv_rel; unshelve constructor; eauto using Fin.F1; by apply TCEq_eq. 
     { simpl. eapply ARcoupl_steps_ctx_bind_r; [done|done|].
-      apply ARcoupl_rand_rand_avoid_list; first done.
+      apply ARcoupl_rand_rand_avoid_list; [done|done| |].
       - by rewrite S_INR. 
       - by apply TCEq_eq.
     }
@@ -109,6 +111,7 @@ Section rules.
     iFrame.
     iApply wp_value.
     iApply "HΨ".
+    rewrite Hff.
     iFrame.
     by iPureIntro.
   Qed.
