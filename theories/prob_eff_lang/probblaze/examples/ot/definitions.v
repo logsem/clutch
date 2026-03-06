@@ -42,7 +42,7 @@ Section implementation.
     (* This should be encapsulated in the CRS effect *)
     handle: handle: f with
     | effect Receiver "b", "k" =>
-        let, ("g0", "h0", "g1", "h1") := (do: CRS #()%V) in
+        let, ("h1", "h0", "g1", "g0") := (do: CRS #()%V) in
         let: "x" := sample #()%V in
         let, ("gb", "hb") := if: "b" then ("g0", "h0") else ("g1", "h1") in
         let: "uv" := ("gb"^"x", "hb"^"x") in
@@ -58,7 +58,7 @@ Section implementation.
     | return "y" => "y" end
   with
 | effect Sender "m", "k" =>
-    let, ("g0", "h0", "g1", "h1") := (do: CRS #()%V) in
+    let, ("h1", "h0", "g1", "g0") := (do: CRS #()%V) in
     let: "r" := (do: channel (Recv alice)) in
     match: "r" with
       SOME "uv" =>
@@ -76,9 +76,10 @@ Section implementation.
 | return "y" => "y" end. 
 
   (* Assumes an authenticated channel *)
-  Definition OT_Real_Receiver_Corrupted f (c : expr) : expr :=
+  Definition OT_Real_Receiver_Corrupted f : expr :=
     handle: f  with
     | effect Sender "m", "k" =>
+        let, ("h1", "h0", "g1", "g0") := (do: CRS #()%V) in
         let: "r" := (do: channel (Recv alice)) in
         match: "r" with
           SOME "uv" =>
@@ -116,10 +117,10 @@ Section implementation.
   (* The simulator implements its own functionality for CRS *)
   Definition OT_SIM_Receiver_Corrupt_with_auth (f : expr) : expr :=
     (* sampling crs with a trapdoor to compute b from (u,v) *)
-    let, ("g0", "g1") := (g^(sample #()%V), g^(sample #()%V)) in
-    let, ("t0", "t1") := (sample #()%V, sample #()%V) in
+    let, ("g1", "g0") := (g^(sample #()%V), g^(sample #()%V)) in
+    let, ("t1", "t0") := (sample #()%V, sample #()%V) in
     let, ("h0", "h1") := ("g0"^"t0", "g1"^"t1") in
-    let: "crs" := ("g0", "h0", "g1", "h1") in
+    let: "crs" := ("h1", "h0", "g1", "g0") in
     
     (* setting up *)
     let: "b" := ref #false in    (* dummy value *)

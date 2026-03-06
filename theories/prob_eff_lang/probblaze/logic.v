@@ -1739,14 +1739,15 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     iApply ("H" with "[$][$][$][$][$]").
   Qed.
     
-  Lemma rel_couple_couple_avoid (N:nat) l z E K K' X R:
+  Lemma rel_couple_couple_avoid (N:nat) l f `{Bij nat nat f} z E K K' X R:
     NoDup l ->
     TCEq N (Z.to_nat z) →
+    (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) →
     ↯ (length l / (S N)) ∗
-    ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ REL fill K (Val #n) ≤ fill K' (Val #n) @ E <|X|> {{R}})
+    ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ REL fill K (Val #n) ≤ fill K' (Val #(f n)) @ E <|X|> {{R}})
     ⊢ REL fill K (rand #z) ≤ fill K' (rand #z) @ E <|X|> {{R}}.
   Proof.
-    iIntros (Hl ->) "[Hε HΦ]".
+    iIntros (Hl -> Hf) "[Hε HΦ]".
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     iIntros (k1 k2 S) "Hkwp %k %ε Hfill Hown Herr %Hpos".
     rewrite -!fill_app.
@@ -1756,7 +1757,7 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     iApply (wp_couple_rand_rand_avoid with "[$]"); [done|done|].
     iIntros "!>" (n) "[% Hspec]".
     rewrite !fill_app.
-    iSpecialize ("HΦ" $! n H).
+    iSpecialize ("HΦ" $! n H0).
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     by iApply ("HΦ" with "[$][$][$][$]").
   Qed.
@@ -3405,11 +3406,11 @@ Section brel_probabilistic_rules.
     TCEq N (Z.to_nat z) →
     (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) →
     ↯ (length l / (S N)) ∗
-    ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ BREL fill K (Val #n) ≤ fill K' (Val #n) @ E <|X|> {{R}})
+    ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ BREL fill K (Val #n) ≤ fill K' (Val #(f n)) @ E <|X|> {{R}})
     ⊢ BREL fill K (rand #z) ≤ fill K' (rand #z) @ E <|X|> {{R}}.
   Proof.
     iIntros (???) "(Hα & Hrel) #Hvalid Hdistinct".
-    iApply (rel_couple_couple_avoid); first done. iFrame.
+    iApply (rel_couple_couple_avoid); [done|done|]. iFrame.
     iIntros (n) "!>Hnin".
     by iApply ("Hrel" with "[$][$]").
   Qed.
