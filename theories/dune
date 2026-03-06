@@ -1,7 +1,7 @@
 (include_subdirs qualified)
 (coq.theory
  (name clutch)
- (package rocq-clutch)
+ (package rocq-foxtrot)
  (theories
    ; local
    discprob
