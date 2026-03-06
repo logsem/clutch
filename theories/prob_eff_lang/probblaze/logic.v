@@ -1753,7 +1753,7 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     iApply wp_bind.
     (* rewrite -fill_app. *)
     rewrite S_INR.
-    iApply (wp_couple_rand_rand_avoid with "[$]"); first done.
+    iApply (wp_couple_rand_rand_avoid with "[$]"); [done|done|].
     iIntros "!>" (n) "[% Hspec]".
     rewrite !fill_app.
     iSpecialize ("HΦ" $! n H).
@@ -3400,14 +3400,15 @@ Section brel_probabilistic_rules.
   Qed.
   Definition brel_rand_empty_l := brel_randT_empty_l.
 
-  Lemma brel_couple_couple_avoid E (N:nat) l z K K' X R:
+  Lemma brel_couple_couple_avoid E (N:nat) l f `{Bij nat nat f} z K K' X R:
     NoDup l ->
     TCEq N (Z.to_nat z) →
+    (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) →
     ↯ (length l / (S N)) ∗
     ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ BREL fill K (Val #n) ≤ fill K' (Val #n) @ E <|X|> {{R}})
     ⊢ BREL fill K (rand #z) ≤ fill K' (rand #z) @ E <|X|> {{R}}.
   Proof.
-    iIntros (??) "(Hα & Hrel) #Hvalid Hdistinct".
+    iIntros (???) "(Hα & Hrel) #Hvalid Hdistinct".
     iApply (rel_couple_couple_avoid); first done. iFrame.
     iIntros (n) "!>Hnin".
     by iApply ("Hrel" with "[$][$]").
