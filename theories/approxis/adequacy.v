@@ -44,11 +44,16 @@ Section adequacy.
     iIntros (Hnone).
     rewrite exec_Sn.
     rewrite /step_or_final /= Hnone.
-    iIntros "(%R & %k & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) Hcoupl /=".
+    rewrite /prog_coupl.
+    iIntros "(%k & %μ1' & %X2 & % & [% %] & % & % & Hcnt) Hcoupl /=".
     iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-    { iPureIntro. intros. eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. }
-    iIntros (e2 σ2 e2' σ2' ε2).
-    iMod ("Hcnt" with "[//]") as "Hcnt".
+    { iPureIntro. intros.
+      eapply (ARcoupl_erasure_erasable_exp_lhs_kanto _ X2); [..|done]; eauto.
+      intros; simpl.
+      real_solver.
+    }
+    iIntros (e2 σ2 e2' σ2').
+    iMod ("Hcnt" $! _ _ _ _).
     by iApply "Hcoupl".
   Qed.
 

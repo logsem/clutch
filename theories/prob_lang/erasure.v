@@ -1612,6 +1612,31 @@ Proof.
   by eapply Hcont.
 Qed.
 
+
+Lemma ARcoupl_erasure_erasable_exp_lhs_kanto μ1' (E2 : _ -> _ → R) Φ (e1 e1' : expr) σ1 σ1' ε n m :
+  (exists r, ∀ ρ1 ρ2, (0 <= E2 ρ1 ρ2 <= r)%R) →
+  erasable μ1' σ1' →
+  (∀ h1 h2,
+    (∀ a, 0 <= h1 a <= 1)
+    → (∀ b, 0 <= h2 b <= 1)
+    → (∀ a b, h1 a <= h2 b + E2 a b)
+    → Expval (prim_step e1 σ1) h1 <= Expval (dbind (λ σ2', pexec m (e1', σ2')) μ1') h2 + ε) ->
+  (∀ e2 σ2 e2' σ2', ARcoupl (exec n (e2, σ2)) (lim_exec (e2', σ2')) Φ (E2 (e2, σ2) (e2', σ2'))) →
+  ARcoupl (prim_step e1 σ1 ≫= exec n) (lim_exec (e1', σ1')) Φ ε.
+Proof.
+  intros [r HE2] Hμ1' Hkanto Hcont.
+  rewrite -(erasable_pexec_lim_exec μ1' m) //.
+  eapply ARcoupl_mon_grading; [done|].
+  eapply (ARcoupl_dbind_adv_kanto_plain _ _ _ _ _ _ E2).
+  - intros a b.
+    apply HE2.
+  - done.
+  - intros [] [].
+    by eapply Hcont.
+Qed.
+
+
+
 Lemma ARcoupl_erasure_erasable_exp_lhs ε1 μ1' (E2 : _ → R) R Φ (e1 e1' : expr) σ1 σ1' ε r n m :
   0 <= ε1 →
   ARcoupl (prim_step e1 σ1) (μ1' ≫= λ σ2', pexec m (e1', σ2')) R ε1 →

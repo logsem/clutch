@@ -82,14 +82,25 @@ Lemma wp_lift_step_later E Φ e1 s :
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
-  iApply wp_lift_step_prog_couple; [done|].
-  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hρ & Hε)".
-  iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
+  iApply wp_lift_step_couple.
+  iIntros (????) "(Hst & Hsp & Herr)".
+  iMod ("H" with "Hst") as "[% H]".
+  iModIntro.
+  iApply spec_coupl_ret.
+  rewrite H.
   iApply prog_coupl_step_l; [done|].
-  iIntros (???).
-  iMod ("H" with "[//]") as "H".
-  iIntros "!> !>".
-  iMod "H" as "($ & $)".
+  iSplitR.
+  {
+    iModIntro.
+    iIntros.
+    iModIntro.
+    by iApply spec_coupl_err_ge_1.
+  }
+  iIntros (??) "Hpr".
+  iMod ("H" with "[$]") as "H".
+  iModIntro.
+  iModIntro.
+  iApply spec_coupl_ret.
   by iFrame.
 Qed.
 
@@ -107,6 +118,227 @@ Proof.
   iIntros (?) "H". iApply wp_lift_step_later; [done|]. iIntros (?) "Hσ".
   iMod ("H" with "Hσ") as "[$ H]". iIntros "!>" (???) "!>" . by iApply "H".
 Qed.
+
+
+Lemma wp_lift_prim_steps_coupl E Φ e1 s:
+  to_val e1 = None →
+  (∀ σ1 e1' σ1' ε,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε ={E, ∅}=∗
+    ( ∃ R (ε1 ε2 : nonnegreal),
+      ⌜ (ε = ε1 + ε2)%NNR ⌝ ∗
+      ⌜ reducible (e1, σ1) ⌝ ∗
+      ⌜ reducible (e1', σ1') ⌝ ∗
+      ⌜ ARcoupl (prim_step e1 σ1) (prim_step e1' σ1') R ε1 ⌝ ∗
+      ∀ e2 σ2 e2' σ2', ⌜ R (e2,σ2) (e2',σ2') ⌝ ={∅}=∗ ▷ |={∅,E}=>
+           state_interp σ2 ∗ spec_interp (e2', σ2') ∗
+           err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof.
+  iIntros (He1) "H".
+  iApply wp_lift_step_couple.
+  iIntros (??? ε ) "(Hst & Hsp & Herr)".
+  iMod ("H" with "[$Hst $Hsp $Herr]") as "[% [% [% (%&%&%&%&H)]]]".
+  iModIntro.
+  iApply spec_coupl_ret.
+  rewrite He1.
+  iApply prog_coupl_steps; eauto.
+  iSplitR.
+  {
+    iModIntro.
+    iIntros.
+    iModIntro.
+    by iApply spec_coupl_err_ge_1.
+  }
+  iIntros (????) "HR".
+  iMod ("H" with "HR") as "H".
+  iModIntro.
+  by iApply spec_coupl_ret.
+Qed.
+
+
+Lemma wp_lift_prim_step_l_dret E Φ e1 s:
+  to_val e1 = None →
+  (∀ σ1 e1' σ1' ε,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε ={E, ∅}=∗
+    ( ∃ R (ε1 ε2 : nonnegreal),
+      ⌜ (ε = ε1 + ε2)%NNR ⌝ ∗
+      ⌜ reducible (e1, σ1) ⌝ ∗
+      ⌜ ARcoupl (prim_step e1 σ1) (dret σ1') R ε1 ⌝ ∗
+      ∀ e2 σ2, ⌜ R (e2,σ2) σ1' ⌝ ={∅}=∗ ▷ |={∅,E}=>
+           state_interp σ2 ∗ spec_interp (e1', σ1') ∗
+           err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof.
+  iIntros (He1) "H".
+  iApply wp_lift_step_couple.
+  iIntros (??? ε ) "(Hst & Hsp & Herr)".
+  iMod ("H" with "[$Hst $Hsp $Herr]") as "[% [% (%&%&%&%&H)]]".
+  iModIntro.
+  iApply spec_coupl_ret.
+  rewrite He1.
+  iApply prog_coupl_step_l_dret; eauto.
+  iSplitR.
+  {
+    iModIntro.
+    iIntros.
+    iModIntro.
+    by iApply spec_coupl_err_ge_1.
+  }
+  iIntros (??) "HR".
+  iMod ("H" with "HR") as "H".
+  iModIntro.
+  by iApply spec_coupl_ret.
+Qed.
+
+
+Lemma wp_lift_prim_step_l_erasable E Φ e1 s:
+  to_val e1 = None →
+  (∀ σ1 e1' σ1' ε,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε ={E, ∅}=∗
+    ( ∃ R μ1' (ε1 ε2 : nonnegreal),
+      ⌜ (ε = ε1 + ε2)%NNR ⌝ ∗
+      ⌜ reducible (e1, σ1) ⌝ ∗
+      ⌜ erasable μ1' σ1' ⌝ ∗
+      ⌜ ARcoupl (prim_step e1 σ1) μ1' R ε1 ⌝ ∗
+      ∀ e2 σ2 σ2', ⌜ R (e2,σ2) σ2' ⌝ ={∅}=∗ ▷ |={∅,E}=>
+           state_interp σ2 ∗ spec_interp (e1', σ2') ∗
+           err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof.
+  iIntros (He1) "H".
+  iApply wp_lift_step_couple.
+  iIntros (??? ε ) "(Hst & Hsp & Herr)".
+  iMod ("H" with "[$Hst $Hsp $Herr]") as "[% [% [% (%&%&%&%&%&H)]]]".
+  iModIntro.
+  iApply spec_coupl_ret.
+  rewrite He1.
+  iApply prog_coupl_step_l_erasable; eauto.
+  iSplitR.
+  {
+    iModIntro.
+    iIntros.
+    iModIntro.
+    by iApply spec_coupl_err_ge_1.
+  }
+  iIntros (???) "HR".
+  iMod ("H" with "HR") as "H".
+  iModIntro.
+  by iApply spec_coupl_ret.
+Qed.
+
+
+
+Lemma wp_lift_prim_steps_coupl_adv E Φ e1 s:
+  to_val e1 = None →
+  (∀ σ1 e1' σ1' ε,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε ={E, ∅}=∗
+      ( ∃ (X : cfg Λ -> cfg Λ -> nonnegreal) (ε1 ε2 : nonnegreal),
+      ⌜ (ε = ε1 + ε2)%NNR ⌝ ∗
+      ⌜ reducible (e1, σ1) ⌝ ∗
+      ⌜ reducible (e1', σ1') ⌝ ∗
+      ⌜ ∀ ρ1 ρ2, X ρ1 ρ2 <= 1 ⌝ ∗
+      ⌜ (forall h1 h2,
+          (forall a, 0 <= h1 a <= 1) ->
+          (forall b, 0 <= h2 b <= 1) ->
+          (forall a b, h1 a <= h2 b + X a b) ->
+          (Expval (prim_step e1 σ1) h1 <=
+             Expval (prim_step e1' σ1') h2 + ε1) ) ⌝ ∗
+      ∀ e2 σ2 e2' σ2', ▷ |={∅,E}=>
+           state_interp σ2 ∗ spec_interp (e2', σ2') ∗
+           err_interp (X (e2,σ2) (e2',σ2') + ε2)%NNR ∗ WP e2 @ s; E {{ Φ }}))
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof.
+  iIntros (He1) "H".
+  iApply wp_lift_step_couple.
+  iIntros (??? ε) "(Hst & Hsp & Herr)".
+  iMod ("H" with "[$Hst $Hsp $Herr]") as "[% [% [% (%&%&%&%&%&H)]]]".
+  iModIntro.
+  iApply spec_coupl_ret.
+  rewrite He1.
+  iApply prog_coupl_steps_adv; eauto.
+  iIntros (????).
+  iModIntro.
+  by iApply spec_coupl_ret.
+Qed.
+
+
+Lemma wp_lift_prim_steps_coupl_adv' E Φ e1 s:
+  to_val e1 = None →
+  (∀ σ1 e1' σ1' ε,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε ={E, ∅}=∗
+      ( ∃ (X : cfg Λ -> cfg Λ -> nonnegreal),
+      ⌜ reducible (e1, σ1) ⌝ ∗
+      ⌜ reducible (e1', σ1') ⌝ ∗
+      ⌜ ∀ ρ1 ρ2, X ρ1 ρ2 <= 1 ⌝ ∗
+      ⌜ (forall h1 h2,
+          (forall a, 0 <= h1 a <= 1) ->
+          (forall b, 0 <= h2 b <= 1) ->
+          (forall a b, h1 a <= h2 b + X a b) ->
+          (Expval (prim_step e1 σ1) h1 <=
+             Expval (prim_step e1' σ1') h2 + ε) ) ⌝ ∗
+      ∀ e2 σ2 e2' σ2', ▷ |={∅,E}=>
+           state_interp σ2 ∗ spec_interp (e2', σ2') ∗
+           err_interp (X (e2,σ2) (e2',σ2'))%NNR ∗ WP e2 @ s; E {{ Φ }}))
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof.
+  iIntros (He1) "H".
+  iApply wp_lift_step_couple.
+  iIntros (??? ε) "(Hst & Hsp & Herr)".
+  iMod ("H" with "[$Hst $Hsp $Herr]") as "[% (%&%&%&%&H)]".
+  iModIntro.
+  iApply spec_coupl_ret.
+  rewrite He1.
+  iApply prog_coupl_steps_adv'; eauto.
+  iIntros (????).
+  iModIntro.
+  by iApply spec_coupl_ret.
+Qed.
+
+
+Lemma wp_lift_prim_steps_coupl_adv_err_le_1 E Φ e1 s:
+  to_val e1 = None →
+  (∀ σ1 e1' σ1' ε,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε ={E, ∅}=∗
+      ( ∃ (X : cfg Λ -> cfg Λ -> nonnegreal) (ε1 ε2 : nonnegreal),
+      ⌜ (ε = ε1 + ε2)%NNR ⌝ ∗
+      ⌜ reducible (e1, σ1) ⌝ ∗
+      ⌜ reducible (e1', σ1') ⌝ ∗
+      ⌜ ∀ ρ1 ρ2, X ρ1 ρ2 <= 1 ⌝ ∗
+      ⌜ (forall h1 h2,
+          (forall a, 0 <= h1 a <= 1) ->
+          (forall b, 0 <= h2 b <= 1) ->
+          (forall a b, h1 a <= h2 b + X a b) ->
+          (Expval (prim_step e1 σ1) h1 <=
+             Expval (prim_step e1' σ1') h2 + ε1) ) ⌝ ∗
+      ∀ e2 σ2 e2' σ2', ▷ |={∅,E}=>
+          ⌜ 1 <= X (e2,σ2) (e2',σ2') + ε2 ⌝ ∨ (
+           state_interp σ2 ∗ spec_interp (e2', σ2') ∗
+             err_interp (X (e2,σ2) (e2',σ2') + ε2)%NNR ∗
+                           WP e2 @ s; E {{ Φ }})))
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof.
+  iIntros (He1) "H".
+  iApply wp_lift_step_couple.
+  iIntros (??? ε) "(Hst & Hsp & Herr)".
+  iMod ("H" with "[$Hst $Hsp $Herr]") as "[% [% [% (%&%&%&%&%&H)]]]".
+  iModIntro.
+  iApply spec_coupl_ret.
+  rewrite He1.
+  iApply prog_coupl_steps_adv; eauto.
+  iIntros (e2 σ2 e2' σ2').
+  iModIntro.
+  iSpecialize ("H" $! e2 σ2 e2' σ2').
+  destruct (Rlt_or_le (X (e2,σ2) (e2',σ2') + ε2) 1).
+  + iApply spec_coupl_ret.
+    iModIntro.
+    iMod "H" as "[% | (?&?&?&?)]".
+    * lra.
+    * by iFrame.
+  + iApply spec_coupl_err_ge_1.
+    simpl.
+    real_solver.
+Qed.
+
 
 Lemma wp_lift_pure_step `{!Inhabited (state Λ)} E E' Φ e1 s :
   (∀ σ1, reducible (e1, σ1)) →
