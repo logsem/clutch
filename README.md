@@ -1,9 +1,10 @@
 # Foxtrot
 
 This repository contains the development of the Foxtrot logic, in the PLDI submission "Contextual Refinement of Higher-Order Concurrent Probabilistic Programs".
-Foxtrot is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Rocq prover](https://rocq-prover.org/).
+Please view [paper_mapping.md](paper_mapping.md) for a detailed paper mapping table describing where to find various definitions, rules, examples from the paper.
 
-Foxtrot is built on top of the infrastructure supporting the [Clutch](https://dl.acm.org/doi/abs/10.1145/3632868) logic. 
+Foxtrot is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Rocq prover](https://rocq-prover.org/).
+It is also built on top of the infrastructure supporting the [Clutch](https://dl.acm.org/doi/abs/10.1145/3632868) logic. 
 
 ## Building the development
 
@@ -35,7 +36,7 @@ opam update
 opam install ./rocq-foxtrot.opam --deps-only
 ```
 
-You should now be able to build the development by using `dune build`.
+You should now be able to build the development by using `dune build` (or `dune build --display=short` for more detailed display log info).
 
 Note that this command might produce various warnings of the form, which can all be safely ignored:
 ```
