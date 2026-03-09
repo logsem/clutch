@@ -1,1 +1,0 @@
-(* From clutch.generalized_coupl Require Export gcpl. *)

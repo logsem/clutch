@@ -881,6 +881,47 @@ Proof.
   by iApply "IH".
 Qed.
 
+Lemma prog_coupl_fill_inv (K : ectx con_prob_ectx_lang) e1 σ1 Z ε :
+  to_val e1 = None →
+  prog_coupl (fill K e1) σ1 ε Z -∗
+  prog_coupl e1 σ1 ε (λ e2 σ2 efs ε', Z (fill K e2) σ2 efs ε').
+Proof.
+  iIntros (Hv) "(%ε2 & %Hred & [%r %Hr] & %Hexp & H)".
+  iExists (λ '(e2, σ2, efs), ε2 (fill K e2, σ2, efs)).
+  repeat iSplit.
+  - iPureIntro. eapply (reducible_fill_inv (K := fill K)); eauto. 
+  - iPureIntro. exists r. intros [[??]?]. apply Hr.
+  - iPureIntro.
+    apply (Rle_trans _ (Expval (prim_step (fill K e1) σ1) ε2)); [| exact Hexp].
+    apply Req_le. 
+    setoid_rewrite fill_prim_step_dbind => //=. 
+    rewrite Expval_dmap //.
+    + rewrite /Expval. apply SeriesC_ext. intros [[??]?]. done.
+    + eapply ex_expval_bounded. intros [[??]?]. split; [apply cond_nonneg|]. apply Hr.
+  - iIntros (e2 σ2 efs). iApply ("H" $! (fill K e2) σ2 efs).
+Qed.
+
+Lemma pgl_wp_bind_inv (K : ectx con_prob_ectx_lang) E e Φ :
+  WP fill K e @ E {{Φ}} ⊢
+  WP e @ E {{v, WP fill K (of_val v) @ E {{Φ}}}}.
+Proof.
+  iIntros "H". iLöb as "IH" forall (E e Φ).
+  destruct (to_val e) as [v|] eqn:He.
+  { apply of_to_val in He as <-. by iApply pgl_wp_value_fupd'. }
+  rewrite !pgl_wp_unfold /pgl_wp_pre fill_not_val //.
+  iIntros (σ1 ε1) "[Hσ Hε]".
+  iMod ("H" with "[$Hσ $Hε]") as "H". iModIntro.
+  iApply (state_step_coupl_mono with "[] H").
+  iIntros (σ2 ε2) "H".
+  iDestruct (prog_coupl_fill_inv K e σ2 _ ε2 He with "H") as "H".
+  rewrite He.
+  iApply (prog_coupl_mono with "[] H").
+  iIntros (e2 σ3 efs ε3) "H !>".
+  iApply (state_step_coupl_mono with "[] H").
+  iIntros (σ4 ε4) ">(?&?&?&$)". iModIntro. iFrame.
+  by iApply "IH".
+Qed.
+
 (** * Derived rules *)
 Lemma pgl_wp_mono s E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
 Proof.
