@@ -36,7 +36,7 @@
 | 3.2 | Rule                | `PUPD-LOAD`                   | [theories/foxtrot/primitive_laws.v]                     | `pupd_load`                                          |                                                                     |
 | 3.2 | Rule                | `PUPD-FORK`                   | [theories/foxtrot/primitive_laws.v]                     | `pupd_fork`                                          |                                                                     |
 | 3.2 | Rule                | `PUPD-PAR-COMP`               | [theories/foxtrot/lib/par.v]                            | `tp_par`                                             |                                                                     |
-| 3.2 | Rule                | `HT-COUPLE`                   | [theories/foxtrot/couplings_rules.v]                    | `wp_couple_rand_rand`                                |                                                                     |
+| 3.2 | Rule                | `HT-COUPLE`                   | [theories/foxtrot/coupling_rules.v]                    | `wp_couple_rand_rand`                                |                                                                     |
 | 3.2 | Example             | Entropy mixer                 | [theories/foxtrot/examples/entropy_mixer.v]             | Whole file                                           |                                                                     |
 | 3.3 | Example             | Batch sampling                | [theories/foxtrot/examples/batch_sampling.v]            | Whole file                                           |                                                                     |
 | 3.3 | Definition          | Tapes                         |                                                         |                                                      | See `ConcRandML`                                                    |
@@ -96,7 +96,7 @@
 [Iris invariant]: https://gitlab.mpi-sws.org/iris/iris/-/blob/master/iris/base_logic/lib/invariants.v
 [theories/foxtrot/lib/par.v]: theories/foxtrot/lib/par.v
 [theories/foxtrot/pupd.v]: theories/foxtrot/pupd.v
-[theories/foxtrot/couplings_rules.v]: theories/foxtrot/couplings_rules.v
+[theories/foxtrot/coupling_rules.v]: theories/foxtrot/couplings_rules.v
 [theories/foxtrot/examples/entropy_mixer.v]: theories/foxtrot/examples/entropy_mixer.v
 [theories/foxtrot/examples/batch_sampling.v]: theories/foxtrot/examples/batch_sampling.v
 [theories/foxtrot/examples/presample_rhs.v]: theories/foxtrot/examples/presample_rhs.v
