@@ -33,6 +33,7 @@ Section implementation.
 
   (* This is wrapped around the protocol like F_AUTH and provides the ideal functionality of a crs *)
   Definition F_CRS f : expr :=
+    (* We should probably add a check that the last two samples are distinct *)
     let: "crs" := (g^(sample #()%V), g^(sample #()%V), g^(sample #()%V), g^(sample #()%V)) in 
     handle: f with
     | effect CRS "x", rec "k" => "k" "crs"
@@ -126,29 +127,10 @@ Section implementation.
     let: "b" := ref #false in    (* dummy value *)
         
     (* unfolding the ideal functionality - foth exposes the honest sender to the environment and allows Fot to leak information to SIM, fots allows SIM to ask for mb *)
-    let, ("foth", "fots") := F_OT #()%V in
+    let, ("fots", "fotr") := F_OT #()%V in
 
     (* since (D_Sender f) is a value, "crs" is technically not substitued into f when sampled, because of our implementation of subst *)
     handle: handle: handle: (D_Sender f) "fots" with
-    (* Continuations in the channel branch are allowed to try again, as in the ideal functionality of the AUTH channel. *)
-    | effect channel "p", rec "k" =>
-         match: "p" with
-        (* SEND *)
-         | InjL "payload" =>
-             let, ("m", "dst") := "payload" in (* we only get messages from the Sender, so dst is always bob -- in the proof this is ensured by the theory *)
-             let, ("u","v") := "m" in
-             (* trapdoor-essentially if v = u^t0 then b = 0 otherwise b = 1 *)
-             let: "td" :=  if: "v" = ("u" ^ "t0") then #true else if: "v" = ("u"^"t1") then #false else #true in
-             "b" <- "td";;
-             (do: channel "p");; (* Forward the message to simulate the network *)
-             "k" #()%V           (* How to handle calls to an already finished procedure? *)
-             
-           
-         (* RECV - just forward receives *)
-         | InjR "from" => let: "r" := (do: channel (Recv "from")) in "k" "r"
-         end 
-    | return "y" => "y"
-    end with
     (* only the ideal functionality can use this effect *) 
     | effect Leak "x", "k" =>
         match: "x" with
@@ -158,7 +140,7 @@ Section implementation.
             | NONE => "k" NONEV
             | SOME "uv" => let, ("u","v") := "uv" in
                            (* handle the other leakage -- this is not too pretty *)
-                           let: "mb" := handle: "fots" !"b" with effect Leak "x", "k" =>  #()%V | return "y" => "y" end in
+                           let: "mb" := handle: "fotr" !"b" with effect Leak "x", "k" =>  #()%V | return "y" => "y" end in
                            let, ("m0", "m1") := if: !"b" then ("mb", #0) else (#0, "mb") in
                            let: "pk0" := ("g0", "h0", "u", "v") in
                            let: "pk1" := ("g1", "h1", "u", "v") in
@@ -172,8 +154,28 @@ Section implementation.
         end 
   | return "y" => "y"
   end with
-(* the adversary (f) can throw CRS as well as Send/Recv *)
-| effect CRS "x", rec "k" => "k" "crs"
+    (* Continuations in the channel branch are allowed to try again, as in the ideal functionality of the AUTH channel. *)
+    | effect channel "p", rec "k" as multi =>
+         match: "p" with
+        (* SEND *)
+         | InjL "payload" =>
+             let, ("m", "dst") := "payload" in
+             match: "dst" with
+               InjL <> => "k" (do: channel "p")
+             | InjR <> => let, ("u","v") := "m" in
+                          (* trapdoor-essentially if v = u^t0 then b = 0 otherwise b = 1 *)
+                          let: "td" :=  if: "v" = ("u" ^ "t0") then #true else if: "v" = ("u"^"t1") then #false else #true in
+                          "b" <- "td";;
+                          (do: channel "p");; (* Forward the message to simulate the network *)
+                          "k" #()%V           (* How to handle calls to an already finished procedure? *)
+             end
+         (* RECV - just forward receives *)
+         | InjR "from" => "k" (do: channel (Recv "from")) 
+         end 
+    | return "y" => "y"
+    end with
+  (* the adversary (f) can throw CRS as well as Send/Recv *)
+  | effect CRS "x", rec "k" => "k" "crs"
   | return "y" => "y" end.
-
+                              
 End implementation.
