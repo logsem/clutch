@@ -112,6 +112,7 @@ Section prog.
                 lt ↦ #tries' ∗ (⌜(tries'<=tries)%nat ⌝) ∗
                 ∃ (s':gset Z),
                   ⌜s' ## (set_map Z.of_nat (dom m):gset _)⌝ ∗
+                  ⌜s≠∅⌝ ∗
                   l↪ urn_unif (s')∗
                 ((
                      (⌜∀ x y, m!!x=Some y -> y≠ fin_to_nat secret⌝) ∗
@@ -126,8 +127,11 @@ Section prog.
       rewrite kmap_empty.
       iFrame.
       iSplit; first done.
-      iSplit; last iLeft; iFrame.
+      repeat iSplit; last iLeft; iFrame.
       - iPureIntro. rewrite dom_empty. rewrite set_map_empty. set_solver.
+      - iPureIntro.
+        intros ->.
+        rewrite size_empty in Hsize. lia.
       - rewrite Hsize. rewrite S_INR plus_INR.
         replace 1%R with (INR 1) by done.
         rewrite Rdiv_def. rewrite plus_INR. simpl.
@@ -146,7 +150,7 @@ Section prog.
       iIntros (?) "[%guess ->]".
       rewrite refines_eq/refines_def.
       wp_pures.
-      iInv "Hinv" as ">(%tries'&%m&Hf&Hl&%& (%s'&%Hdisjoint&Hurn &Hor))" "Hclose".
+      iInv "Hinv" as ">(%tries'&%m&Hf&Hl&%& (%s'&%Hdisjoint&%Hnonempty&Hurn &Hor))" "Hclose".
       wp_load.
       wp_pures.
       case_bool_decide.
@@ -350,7 +354,7 @@ Section prog.
     { iExists (nat_to_fin (fin_to_nat_lt _)). by rewrite fin_to_nat_to_fin. }
     iIntros (?) "[%guess ->]".
     wp_pures. 
-    iInv "Hinv" as ">(%tries'&%m&Hf&Hl&%& (%s'&%Hdisjoint&Hurn &Hor))" "Hclose".
+    iInv "Hinv" as ">(%tries'&%m&Hf&Hl&%& (%s'&%Hdisjoint&%Hnonempty&Hurn &Hor))" "Hclose".
     iDestruct ("Hor") as "[Hor|Htoken']"; last first.
     { iCombine "Htoken" "Htoken'" gives "[]". }
     iDestruct "Hor" as "(%Hnotin&Herr&Herr'&%H1)".
