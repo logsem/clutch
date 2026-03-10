@@ -598,7 +598,7 @@ Section map.
     by iFrame. 
   Qed. 
 
-  Lemma wp_set_not_in' E lm m (k:base_lit) (v: val) :
+  Lemma wp_set' E lm m (k:base_lit) (v: val) :
     base_lit_type_check k= Some BLTInt ->
     {{{ map_list' lm m }}}
       set #lm #k v @ E

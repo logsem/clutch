@@ -3,6 +3,7 @@ From clutch.elton.lib Require Import map.
 
 Set Default Proof Using "Type*".
 
+(** * This specification of the hash is modified to support delayed values as dom *)
 Section simple_bit_hash.
 
   Context `{!eltonGS Σ}.
@@ -40,191 +41,97 @@ Section simple_bit_hash.
       let: "hm" := init_hash_state #() in
       compute_hash "hm".
 
-  (* (* A hash function is collision free if the partial map it *)
-  (*    implements is an injective function *) *)
-  (* Definition coll_free (m : gmap nat nat) := *)
-  (*   forall k1 k2, *)
-  (*   is_Some (m !! k1) -> *)
-  (*   is_Some (m !! k2) -> *)
-  (*   m !!! k1 = m !!! k2 -> *)
-  (*   k1 = k2. *)
+  Definition hashfun f (m:gmap base_lit nat) : iProp Σ :=
+    ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗
+                  map_list' hm ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗
+                  ⌜map_Forall (λ ind i, (0<= i <=val_size)%nat) m⌝
+  .
 
-  (* Definition hashfun f m : iProp Σ := *)
-  (*   ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗ *)
-  (*                 map_list hm ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗ *)
-  (*                 ⌜map_Forall (λ ind i, (0<= i <=val_size)%nat) m⌝ *)
-  (* . *)
+  #[global] Instance timeless_hashfun f m :
+    Timeless (hashfun f m).
+  Proof. apply _. Qed.
 
-  (* Definition coll_free_hashfun f m: iProp Σ := *)
-  (*   hashfun f m ∗ ⌜coll_free m⌝. *)
+  Lemma hashfun_implies_bounded_range f m idx x:
+    hashfun f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%nat⌝.
+  Proof.
+    iIntros "(%&%&H&%K) %".
+    iPureIntro.
+    by eapply map_Forall_lookup_1 in K.
+  Qed.
 
-  (* Lemma coll_free_hashfun_implies_hashfun f m: *)
-  (*   coll_free_hashfun f m -∗ hashfun f m. *)
-  (* Proof. *)
-  (*   by iIntros "[??]". *)
-  (* Qed. *)
+  Lemma wp_init_hash E :
+    {{{ True }}}
+      init_hash #() @ E
+    {{{ f, RET f; |={E}=> hashfun f ∅ }}}.
+  Proof.
+    rewrite /init_hash.
+    iIntros (Φ) "_ HΦ".
+    wp_pures. rewrite /init_hash_state.
+    wp_apply (wp_init_map' with "[//]").
+    iIntros (?) "Hm". wp_pures.
+    rewrite /compute_hash. wp_pures.
+    iApply "HΦ". repeat iModIntro. rewrite /hashfun. iFrame.
+    iSplit; first done.
+    iPureIntro. intros ???. simplify_map_eq.
+  Qed.
 
-  (* #[global] Instance timeless_hashfun f m : *)
-  (*   Timeless (hashfun f m). *)
-  (* Proof. apply _. Qed. *)
+  Lemma wp_hashfun_prev E f m k (n:nat) k' R:
+    base_lit_type_check k = Some BLTInt ->
+    m!!k' = Some n ->
+    {{{ hashfun f m ∗ R ∗ □(R -∗ rupd (λ v, v=true) R (k'=ᵥ k)%V) ∗
+        □[∗ set] x∈dom m ∖ {[k']}, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V }}}
+      f #k @ E
+    {{{ RET #n; hashfun f m ∗ R}}}.
+  Proof.
+    iIntros (Htype Hlookup Φ) "(Hhash&R&#HR1&#HR2) HΦ".
+    iDestruct "Hhash" as (hm ->) "[H Hbound]".
+    rewrite /compute_hash_specialized.
+    wp_pures.
+    wp_apply (wp_get_some' with "[$H R ]"); first done.
+    { rewrite lookup_fmap_Some. naive_solver. }
+    { iSplit; first iExact "R". iFrame "HR1". rewrite dom_fmap_L. iFrame "HR2". }
+    iIntros (vret) "(Hhash&R&->)".
+    wp_pures. iApply "HΦ".
+    by iFrame.
+  Qed.
 
-  (* #[global] Instance timeless_hashfun_amortized f m: *)
-  (*   Timeless (coll_free_hashfun f m). *)
-  (* Proof. apply _. Qed. *)
-
-  (* Lemma coll_free_hashfun_implies_coll_free f m: *)
-  (*   coll_free_hashfun f m -∗ ⌜coll_free m⌝. *)
-  (* Proof. *)
-  (*   by iIntros "[??]". *)
-  (* Qed. *)
-
-  (* Lemma hashfun_implies_bounded_range f m idx x: *)
-  (*   hashfun f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%nat⌝. *)
-  (* Proof. *)
-  (*   iIntros "(%&%&H&%K) %". *)
-  (*   iPureIntro. *)
-  (*   by eapply map_Forall_lookup_1 in K. *)
-  (* Qed. *)
-
-  (* Lemma coll_free_hashfun_implies_bounded_range f m idx x: *)
-  (*   coll_free_hashfun f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%nat⌝. *)
-  (* Proof. *)
-  (*   iIntros "(H&%) %". *)
-  (*   by iApply (hashfun_implies_bounded_range with "[$]"). *)
-  (* Qed. *)
-
-  (* Lemma wp_init_hash E : *)
-  (*   {{{ True }}} *)
-  (*     init_hash #() @ E *)
-  (*   {{{ f, RET f; |={E}=> coll_free_hashfun f ∅ }}}. *)
-  (* Proof. *)
-  (*   rewrite /init_hash. *)
-  (*   iIntros (Φ) "_ HΦ". *)
-  (*   wp_pures. rewrite /init_hash_state. *)
-  (*   wp_apply (wp_init_map with "[//]"). *)
-  (*   iIntros (?) "Hm". wp_pures. *)
-  (*   rewrite /compute_hash. wp_pures. *)
-  (*   iApply "HΦ". repeat iModIntro. rewrite /coll_free_hashfun. iSplit. *)
-  (*   - iExists _. rewrite fmap_empty. iFrame. eauto. *)
-  (*   - iPureIntro. rewrite /coll_free. intros ???H?. destruct H. *)
-  (*     by apply lookup_empty_Some in H. *)
-  (* Qed. *)
-
-  (* Lemma coll_free_insert (m : gmap nat nat) (n : nat) (z : nat) : *)
-  (*   m !! n = None -> *)
-  (*   coll_free m -> *)
-  (*   Forall (λ x, z ≠ snd x) (map_to_list m) -> *)
-  (*   coll_free (<[ n := z ]>m). *)
-  (* Proof. *)
-  (*   intros Hnone Hcoll HForall. *)
-  (*   intros k1 k2 Hk1 Hk2 Heq. *)
-  (*   apply lookup_insert_is_Some' in Hk1. *)
-  (*   apply lookup_insert_is_Some' in Hk2. *)
-  (*   destruct (decide (n = k1)). *)
-  (*   - destruct (decide (n = k2)); simplify_eq; auto. *)
-  (*     destruct Hk2 as [|Hk2]; auto. *)
-  (*     rewrite lookup_total_insert in Heq. *)
-  (*     rewrite lookup_total_insert_ne // in Heq. *)
-  (*     apply lookup_lookup_total in Hk2. *)
-  (*     rewrite -Heq in Hk2. *)
-  (*     eapply (Forall_iff (uncurry ((λ (k : nat) (v : nat), z ≠ v)))) in HForall; last first. *)
-  (*     { intros (?&?); eauto. } *)
-  (*     eapply map_Forall_to_list in HForall. *)
-  (*     rewrite /map_Forall in HForall. *)
-  (*     eapply HForall in Hk2; congruence. *)
-  (*   - destruct (decide (n = k2)); simplify_eq; auto. *)
-  (*     { *)
-  (*       destruct Hk1 as [|Hk1]; auto. *)
-  (*       rewrite lookup_total_insert in Heq. *)
-  (*       rewrite lookup_total_insert_ne // in Heq. *)
-  (*       apply lookup_lookup_total in Hk1. *)
-  (*       rewrite Heq in Hk1. *)
-  (*       eapply (Forall_iff (uncurry ((λ (k : nat) (v : nat), z ≠ v)))) in HForall; last first. *)
-  (*       { intros (?&?); eauto. } *)
-  (*       eapply map_Forall_to_list in HForall. *)
-  (*       rewrite /map_Forall in HForall. *)
-  (*       eapply HForall in Hk1; congruence. *)
-  (*     } *)
-  (*     rewrite ?lookup_total_insert_ne // in Heq. *)
-  (*     destruct Hk1 as [|Hk1]; try congruence; []. *)
-  (*     destruct Hk2 as [|Hk2]; try congruence; []. *)
-  (*     apply Hcoll; eauto. *)
-  (* Qed. *)
-
-
-  (* Lemma wp_hashfun_prev E f m (n : nat) (b : nat) : *)
-  (*   m !! n = Some b → *)
-  (*   {{{ hashfun f m }}} *)
-  (*     f #n @ E *)
-  (*   {{{ RET #b; hashfun f m }}}. *)
-  (* Proof. *)
-  (*   iIntros (Hlookup Φ) "Hhash HΦ". *)
-  (*   iDestruct "Hhash" as (hm ->) "[H Hbound]". *)
-  (*   rewrite /compute_hash_specialized. *)
-  (*   wp_pures. *)
-  (*   wp_apply (wp_get with "[$]"). *)
-  (*   iIntros (vret) "(Hhash&->)". *)
-  (*   rewrite lookup_fmap Hlookup /=. wp_pures. iModIntro. iApply "HΦ". *)
-  (*   iExists _. eauto. *)
-  (* Qed. *)
-
-  (* Lemma wp_coll_free_hashfun_prev E f m (n : nat) (b : nat) : *)
-  (*   m !! n = Some b → *)
-  (*   {{{ coll_free_hashfun f m }}} *)
-  (*     f #n @ E *)
-  (*   {{{ RET #b; coll_free_hashfun f m }}}. *)
-  (* Proof. *)
-  (*   iIntros (Hlookup Φ) "(Hhash & %Hcoll_free) HΦ". *)
-  (*   iDestruct "Hhash" as (hm ->) "[H Hbound]". *)
-  (*   rewrite /compute_hash_specialized. *)
-  (*   wp_pures. *)
-  (*   wp_apply (wp_get with "[$]"). *)
-  (*   iIntros (vret) "(Hhash&->)". *)
-  (*   rewrite lookup_fmap Hlookup /=. wp_pures. iModIntro. iApply "HΦ". *)
-  (*   iSplitL; last done. *)
-  (*   iExists _. eauto. *)
-  (* Qed. *)
-
-
-  (* Lemma wp_insert_no_coll E f m (n : nat) : *)
-  (*   m !! n = None → *)
-  (*   {{{ coll_free_hashfun f m ∗ ↯ (nnreal_div (nnreal_nat (length (map_to_list m))) (nnreal_nat(val_size+1))) *)
-  (*   }}} *)
-  (*     f #n @ E *)
-  (*   {{{ (v : nat), RET #v; coll_free_hashfun f (<[ n := v ]>m) }}}. *)
-  (* Proof. *)
-  (*   iIntros (Hlookup Φ) "([Hhash %Hcoll_free] & Herr) HΦ". *)
-  (*   iDestruct "Hhash" as (hm ->) "[H %Hbound]". *)
-  (*   rewrite /compute_hash_specialized. *)
-  (*   wp_pures. *)
-  (*   wp_apply (wp_get with "[$]"). *)
-  (*   iIntros (vret) "(Hhash&->)". *)
-  (*   rewrite lookup_fmap Hlookup /=. wp_pures. *)
-  (*   wp_bind (rand _)%E. *)
-  (*   wp_apply (wp_rand_err_list_nat _ val_size (map (λ p, snd p) (map_to_list m))); auto. *)
-  (*   rewrite length_map. *)
-  (*   rewrite plus_INR INR_1. *)
-  (*   iFrame. *)
-  (*   iIntros "%x [%Hx %HForall]". *)
-  (*   wp_pures. *)
-  (*   wp_apply (wp_set with "Hhash"). *)
-  (*   iIntros "Hlist". *)
-  (*   wp_pures. *)
-  (*   iModIntro. *)
-  (*   iApply "HΦ". *)
-  (*   iSplit. *)
-  (*   - rewrite /hashfun. *)
-  (*     iExists _. *)
-  (*     iSplit; first auto. *)
-  (*     iSplitL. *)
-  (*     + rewrite fmap_insert //. *)
-  (*     + iPureIntro. *)
-  (*       apply map_Forall_insert_2; last done. *)
-  (*       split; lia. *)
-  (*   - iPureIntro. *)
-  (*     apply coll_free_insert; auto. *)
-  (*     apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto. *)
-  (* Qed. *)
-
+  Lemma wp_insert_new_avoid_one E f m (k:base_lit) (ε : R) (ε2 : fin (S val_size) -> R) R:
+    base_lit_type_check k = Some BLTInt ->
+    (∀ n, (0<=ε2 n)%R) ->
+    (SeriesC (λ n, (1 / (S val_size)) * ε2 n)%R <= ε)%R →
+    {{{ hashfun f m ∗ R ∗ (□[∗ set] x∈dom m, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V) ∗ ↯ ε
+    }}}
+      f #k @ E
+    {{{ v, RET #v; hashfun f (<[ k := fin_to_nat v ]>m) ∗ R ∗ ↯ (ε2 v)}}}.
+  Proof.
+    iIntros (Htype Hpos Hineq Φ) "(Hhash & R & #HR&Herr) HΦ".
+    iDestruct "Hhash" as (hm ->) "[H %Hbound]".
+    rewrite /compute_hash_specialized.
+    wp_pures.
+    wp_apply (wp_get_none' with "[$H R]"); first done.
+    { iSplit; first iExact "R".
+      by rewrite dom_fmap_L.
+    }
+    iIntros (vret) "(Hhash&R&->)".
+    wp_pures.
+    wp_apply (wp_couple_rand_adv_comp'  with "[$]").
+    { done. }
+    { done. }
+    iIntros (n) "Herr".
+    wp_pures.
+    wp_apply (wp_set' with "[$]"); first done.
+    iIntros "?".
+    wp_pures.
+    iApply "HΦ".
+    iFrame.
+    iModIntro.
+    iExists _. rewrite fmap_insert. iFrame.
+    iSplit; first done.
+    iPureIntro.
+    intros i ? H.
+    destruct (decide (k=i)); subst; simplify_map_eq.
+    - pose proof fin_to_nat_lt n. lia.
+    - unfold map_Forall in *. naive_solver.
+  Qed. 
 
 End simple_bit_hash.
