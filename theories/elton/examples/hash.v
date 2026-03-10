@@ -95,7 +95,7 @@ Section simple_bit_hash.
     by iFrame.
   Qed.
 
-  Lemma wp_insert_new_avoid_one E f m (k:base_lit) (ε : R) (ε2 : fin (S val_size) -> R) R:
+  Lemma wp_insert_new E f m (k:base_lit) (ε : R) (ε2 : fin (S val_size) -> R) R:
     base_lit_type_check k = Some BLTInt ->
     (∀ n, (0<=ε2 n)%R) ->
     (SeriesC (λ n, (1 / (S val_size)) * ε2 n)%R <= ε)%R →
