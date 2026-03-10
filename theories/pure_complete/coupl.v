@@ -819,6 +819,14 @@ Proof.
     rewrite H.
     apply ARcoupl_dret; auto; lra.
   }
+  iSplitR.
+  {
+    iModIntro.
+    iIntros.
+    iModIntro.
+    iApply spec_coupl_err_ge_1.
+    done.
+  }
   iIntros "%%%". 
   destruct H0 as [H00 _].
   inversion H00; subst. clear H00.
@@ -1032,8 +1040,17 @@ Proof.
     rewrite H'. 
     apply ARcoupl_dret; auto; lra. 
   }
-  iIntros. 
-  destruct H10. inversion H10. subst e0 σ3. 
+  iSplitR.
+  {
+    iModIntro.
+    iIntros.
+    iModIntro.
+    iApply spec_coupl_err_ge_1.
+    done.
+  }
+  iIntros.
+  destruct H10. inversion H10.
+  subst e0 σ3.
   iMod "hclose'". 
   iApply fupd_mask_intro.
   { set_solver. }  
