@@ -25,10 +25,12 @@ Section map.
   Context `{!eltonGS Σ}.
 
   (* Impl *)
-  Fixpoint assoc_list (l : loc) (vs : list (base_lit * val)) : iProp Σ :=
+
+  (* Impl *)
+  Fixpoint assoc_list (l : loc) (vs : list (nat * val)) : iProp Σ :=
     match vs with
     | nil => l ↦ NONEV
-    | (k, v) :: vs => ∃ (l' : loc), l ↦ SOMEV ((#k, v), #l') ∗ ⌜base_lit_type_check k = Some BLTInt⌝ ∗ assoc_list l' vs
+    | (k, v) :: vs => ∃ (l' : loc), l ↦ SOMEV ((#k, v), #l') ∗ assoc_list l' vs
   end.
 
 
@@ -45,44 +47,220 @@ Section map.
     rewrite /init_list. wp_pures. wp_alloc l. iModIntro. iApply "HΦ". eauto.
   Qed.
 
-  Lemma wp_cons_list E l vs (k : base_lit) (v : val) :
-    base_lit_type_check k = Some BLTInt ->
+  Lemma wp_cons_list E l vs (k : nat) (v : val) :
     {{{ assoc_list l vs }}}
       cons_list #l (#k, v)%V @ E
     {{{ l', RET LitV (LitLoc l'); assoc_list l' ((k, v) :: vs) }}}.
+  Proof.
+    iIntros (Φ) "H HΦ".
+    rewrite /cons_list. wp_pures. wp_alloc l' as "H'". iModIntro. iApply "HΦ".
+    iExists l. iFrame.
+  Qed.
+
+  Fixpoint find_list_gallina (vs: list (nat * val)) (k: nat) :=
+    match vs with
+    | nil => None
+    | (k', v') :: vs =>
+        if bool_decide (k' = k) then
+          Some v'
+        else
+          find_list_gallina vs k
+    end.
+
+  Definition opt_to_val (ov: option val) :=
+    match ov with
+    | Some v => SOMEV v
+    | None => NONEV
+    end.
+
+  Lemma wp_find_list E l vs (k: nat) :
+    {{{ assoc_list l vs }}}
+      find_list #l #k @ E
+    {{{ v, RET v;
+        assoc_list l vs ∗ ⌜ v = opt_to_val (find_list_gallina vs k) ⌝
+    }}}.
+  Proof.
+    iIntros (Φ) "Hassoc HΦ".
+    rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l).
+    - wp_pures. rewrite /assoc_list. wp_load. wp_pures. iModIntro. iApply "HΦ"; auto.
+    - wp_pures. iDestruct "Hassoc" as (?) "(Hl&Hassoc)".
+      wp_load. wp_pures. case_bool_decide as Hcase.
+      { wp_pures.  iApply "HΦ". simpl. rewrite bool_decide_true //; last first.
+        { inversion Hcase; auto. lia. }
+        iModIntro. iSplit; last done. iExists _; iFrame; eauto. }
+      { wp_pure. iApply ("IH" with "[$]"). iNext.
+        iIntros (v) "Hfind". iApply "HΦ".
+        iEval simpl. rewrite bool_decide_false //; last by congruence.
+        iDestruct "Hfind" as "(?&$)". iExists _; iFrame.
+      }
+  Qed.
+
+  Lemma wp_find_list_Z E l vs (z: Z) :
+    {{{ assoc_list l vs }}}
+      find_list #l #z @ E
+    {{{ v, RET v;
+        assoc_list l vs ∗ ⌜ v = if bool_decide (z < 0)%Z then
+                                  opt_to_val None
+                                else opt_to_val (find_list_gallina vs (Z.to_nat z)) ⌝
+    }}}.
+  Proof.
+    iIntros (Φ) "Hassoc HΦ".
+    rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l).
+    - wp_pures. rewrite /assoc_list. wp_load. wp_pures. iModIntro. iApply "HΦ"; auto.
+      rewrite /=. iFrame. destruct (bool_decide _) => //=.
+    - wp_pures. iDestruct "Hassoc" as (?) "(Hl&Hassoc)".
+      wp_load. wp_pures.
+      destruct (bool_decide (#k' = #z)) eqn:Hbool.
+      { apply bool_decide_eq_true_1 in Hbool.
+        simplify_eq.
+        rewrite (bool_decide_eq_true_2 (_=_)); last done.
+        wp_pures.  iApply "HΦ". simpl. 
+        rewrite bool_decide_false //; last by lia.
+        rewrite bool_decide_true //; last by lia.
+        iModIntro. iSplit; last done. iExists _; iFrame; eauto. }
+      { case_bool_decide as H; first done.
+        rewrite (bool_decide_eq_false_2 (_=_)); last (intros ?; simplify_eq).
+        wp_pure. iApply ("IH" with "[$]"). iNext.
+        iIntros (v) "Hfind". iApply "HΦ".
+        iEval (simpl).
+        case_bool_decide.
+        { iDestruct "Hfind" as "(?&$)". iExists _. iFrame. }
+        rewrite (bool_decide_false (k' = _)); last first.
+        { intros Heq. subst. apply H. f_equal. rewrite Z2Nat.id; auto. lia. }
+        iDestruct "Hfind" as "(?&$)". iExists _; iFrame.
+      }
+  Qed.
+
+
+  Definition init_map : val :=
+    λ: <>, ref (init_list #()).
+
+  Definition get : val :=
+    λ: "m" "k", find_list !"m" "k".
+
+  Definition set : val :=
+    λ: "m" "k" "v", "m" <- cons_list !"m" ("k", "v").
+
+  Definition map_list lm (m: gmap nat val) : iProp Σ :=
+    ∃ (lv : loc) vs, lm ↦ #lv ∗ ⌜ list_to_map vs = m ⌝ ∗ assoc_list lv vs.
+
+  #[global] Instance timeless_map_list l m :
+    Timeless (map_list l m).
+  Proof. apply _. Qed.
+
+  Lemma wp_init_map E :
+    {{{ True }}}
+      init_map #() @ E
+    {{{ l, RET LitV (LitLoc l); map_list l ∅ }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    rewrite /init_map. wp_pures. wp_apply (wp_init_list with "[//]").
+    iIntros (l) "Halloc". wp_alloc lm. iApply "HΦ".
+    iModIntro. iExists _, _. iFrame. eauto.
+  Qed.
+
+  Lemma find_list_gallina_map_lookup vs (m : gmap nat val) n :
+    list_to_map vs = m →
+    find_list_gallina vs n = m !! n.
+  Proof.
+    revert m.
+    induction vs as [| (k, v) vs IH] => m Heq.
+    - rewrite /=. simpl in Heq. subst; auto.
+    - rewrite list_to_map_cons in Heq. subst.
+      destruct (decide (k = n)).
+      { subst. rewrite lookup_insert /= bool_decide_true //. }
+      rewrite lookup_insert_ne //= bool_decide_false //. eauto.
+  Qed.
+
+  Lemma wp_get E lm m (n: nat) :
+    {{{ map_list lm m }}}
+      get #lm #n @ E
+    {{{ res, RET res; map_list lm m ∗ ⌜ res = opt_to_val (m !! n) ⌝ }}}.
+  Proof.
+    iIntros (Φ) "Hm HΦ".
+    rewrite /get. wp_pures.
+    iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)".
+    wp_load. wp_apply (wp_find_list with "[$]").
+    iIntros (vret) "(Hassoc&Hm)". iApply "HΦ". iSplit.
+    { iExists _, _. iFrame. eauto. }
+    rewrite (find_list_gallina_map_lookup vs m) //.
+  Qed.
+
+  Lemma wp_get_Z E lm m (z: Z) :
+    {{{ map_list lm m }}}
+      get #lm #z @ E
+    {{{ res, RET res; map_list lm m ∗
+                        ⌜ res = if (bool_decide (z < 0)%Z) then
+                                  opt_to_val None
+                                else  opt_to_val (m !! Z.to_nat z)⌝
+    }}}.
+  Proof.
+    iIntros (Φ) "Hm HΦ".
+    rewrite /get. wp_pures.
+    iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)".
+    wp_load. wp_apply (wp_find_list_Z with "[$]").
+    iIntros (vret) "(Hassoc&Hm)". iApply "HΦ". iSplit.
+    { iExists _, _. iFrame. eauto. }
+    rewrite (find_list_gallina_map_lookup vs m) //.
+  Qed.
+
+
+  Lemma wp_set E lm m (n: nat) (v: val) :
+    {{{ map_list lm m }}}
+      set #lm #n v @ E
+    {{{ RET #(); map_list lm (<[n := v]>m) }}}.
+  Proof.
+    iIntros (Φ) "Hm HΦ".
+    rewrite /set. wp_pures.
+    iDestruct "Hm" as (??) "(?&%Heq&Hassoc)".
+    wp_load. wp_pures. wp_apply (wp_cons_list with "[$]").
+    iIntros (l') "Hassoc'". wp_store. iModIntro.
+    iApply "HΦ". iExists _, _. iFrame. rewrite list_to_map_cons Heq //.
+  Qed.
+
+  (** * Map that supports delayed values *)
+  Fixpoint assoc_list' (l : loc) (vs : list (base_lit * val)) : iProp Σ :=
+    match vs with
+    | nil => l ↦ NONEV
+    | (k, v) :: vs => ∃ (l' : loc), l ↦ SOMEV ((#k, v), #l') ∗ ⌜base_lit_type_check k = Some BLTInt⌝ ∗ assoc_list' l' vs
+  end.
+
+
+  #[global] Instance timeless_assoc_list' l vs :
+    Timeless (assoc_list' l vs).
+  Proof. revert l. induction vs as [| (?&?)] => l /=; apply _. Qed.
+
+  Lemma wp_init_list' E :
+    {{{ True }}}
+      init_list #() @ E
+    {{{ l, RET LitV (LitLoc l); assoc_list' l nil }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    rewrite /init_list. wp_pures. wp_alloc l. iModIntro. iApply "HΦ". eauto.
+  Qed.
+
+  Lemma wp_cons_list' E l vs (k : base_lit) (v : val) :
+    base_lit_type_check k = Some BLTInt ->
+    {{{ assoc_list' l vs }}}
+      cons_list #l (#k, v)%V @ E
+    {{{ l', RET LitV (LitLoc l'); assoc_list' l' ((k, v) :: vs) }}}.
   Proof.
     iIntros (Htype Φ) "H HΦ".
     rewrite /cons_list. wp_pures. wp_alloc l' as "H'". iModIntro. iApply "HΦ".
     iExists l. by iFrame.
   Qed.
 
-  (* Fixpoint find_list_gallina (vs: list (nat * val)) (k: nat) := *)
-  (*   match vs with *)
-  (*   | nil => None *)
-  (*   | (k', v') :: vs => *)
-  (*       if bool_decide (k' = k) then *)
-  (*         Some v' *)
-  (*       else *)
-  (*         find_list_gallina vs k *)
-  (*   end. *)
-
-  (* Definition opt_to_val (ov: option val) := *)
-  (*   match ov with *)
-  (*   | Some v => SOMEV v *)
-  (*   | None => NONEV *)
-  (*   end. *)
-
-  Lemma wp_find_list_none E l vs (k: base_lit) R :
+  Lemma wp_find_list_none' E l vs (k: base_lit) R :
     base_lit_type_check k = Some BLTInt ->
-    {{{ assoc_list l vs ∗ R ∗ [∗ list] x∈vs.*1, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V }}}
+    {{{ assoc_list' l vs ∗ R ∗ □[∗ list] x∈vs.*1, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V }}}
       find_list #l #k @ E
     {{{ v, RET v;
-        assoc_list l vs ∗ R ∗ ⌜v= NONEV ⌝
+        assoc_list' l vs ∗ R ∗ ⌜v= NONEV ⌝
     }}}.
   Proof.
     iIntros (Htype Φ) "(Hassoc&R&Hrupd) HΦ".
     rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l) "Hrupd".
-    - wp_pures. rewrite /assoc_list. wp_load. wp_pures. iModIntro. iApply "HΦ"; auto. by iFrame.
+    - wp_pures. rewrite /assoc_list'. wp_load. wp_pures. iModIntro. iApply "HΦ"; auto. by iFrame.
     - wp_pures. iDestruct "Hassoc" as (?) "(Hl&%Htype'&Hassoc)".
       wp_load. wp_pures.
       destruct (is_simple_base_lit k) eqn:H1; first 
@@ -143,25 +321,22 @@ Section map.
         iDestruct "Hfind" as "(?&?&?)".
         by iFrame. 
   Qed.
-
-  Definition map_list lm (m: gmap base_lit val) : iProp Σ :=
-    ∃ (lv : loc) vs, lm ↦ #lv ∗ ⌜ list_to_map vs = m ⌝ ∗ assoc_list lv vs.
   
-  Lemma wp_find_list_some E l (m:gmap _ _) vs (k: base_lit) R k' v':
+  Lemma wp_find_list_some' E l (m:gmap _ _) vs (k: base_lit) R k' v':
     base_lit_type_check k = Some BLTInt ->
     list_to_map vs= m->
     m!!k'=Some v' ->
-    {{{ assoc_list l vs ∗ R ∗ (R -∗ rupd (λ v, v=true) R (k'=ᵥ k)%V) ∗
+    {{{ assoc_list' l vs ∗ R ∗ □(R -∗ rupd (λ v, v=true) R (k'=ᵥ k)%V) ∗
         □([∗ set] x∈(dom m ∖ {[k']}), R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V)
     }}}
       find_list #l #k @ E
     {{{ v, RET v;
-        assoc_list l vs ∗ R ∗ ⌜ v = SOMEV v'⌝
+        assoc_list' l vs ∗ R ∗ ⌜ v = SOMEV v'⌝
     }}}.
   Proof.
     iIntros (Htype <- Hlookup Φ) "(Hassoc & R &HR1 &#HR2) HΦ".
     rewrite /find_list. iInduction vs as [|(k2, v2) vs] "IH" forall (l) "Hassoc HR2 HΦ".
-    - wp_pures. rewrite /assoc_list.
+    - wp_pures. rewrite /assoc_list'.
       simpl in *. set_solver.
     - wp_pures. iDestruct "Hassoc" as (?) "(Hl&%Htype'&Hassoc)".
       wp_load. wp_pures.
@@ -350,122 +525,91 @@ Section map.
               by iFrame.
   Qed. 
 
-  (* Lemma wp_find_list_Z E l vs (z: Z) : *)
-  (*   {{{ assoc_list l vs }}} *)
-  (*     find_list #l #z @ E *)
-  (*   {{{ v, RET v; *)
-  (*       assoc_list l vs ∗ ⌜ v = if bool_decide (z < 0)%Z then *)
-  (*                                 opt_to_val None *)
-  (*                               else opt_to_val (find_list_gallina vs (Z.to_nat z)) ⌝ *)
-  (*   }}}. *)
-  (* Proof. *)
-  (*   iIntros (Φ) "Hassoc HΦ". *)
-  (*   rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l). *)
-  (*   - wp_pures. rewrite /assoc_list. wp_load. wp_pures. iModIntro. iApply "HΦ"; auto. *)
-  (*     rewrite /=. iFrame. destruct (bool_decide _) => //=. *)
-  (*   - wp_pures. iDestruct "Hassoc" as (?) "(Hl&Hassoc)". *)
-  (*     wp_load. wp_pures. *)
-  (*     destruct (bool_decide (#k' = #z)) eqn:Hbool. *)
-  (*     { apply bool_decide_eq_true_1 in Hbool. *)
-  (*       wp_pures.  iApply "HΦ". simpl. inversion Hbool. *)
-  (*       rewrite bool_decide_false //; last by lia. *)
-  (*       rewrite bool_decide_true //; last by lia. *)
-  (*       iModIntro. iSplit; last done. iExists _; iFrame; eauto. } *)
-  (*     { wp_pure. iApply ("IH" with "[$]"). iNext. *)
-  (*       iIntros (v) "Hfind". iApply "HΦ". *)
-  (*       apply bool_decide_eq_false_1 in Hbool. *)
-  (*       iEval (simpl). *)
-  (*       case_bool_decide. *)
-  (*       { iDestruct "Hfind" as "(?&$)". iExists _. iFrame. } *)
-  (*       rewrite (bool_decide_false (k' = _)); last first. *)
-  (*       { intros Heq. apply Hbool. rewrite Heq. f_equal. rewrite Z2Nat.id; auto. lia. } *)
-  (*       iDestruct "Hfind" as "(?&$)". iExists _; iFrame. *)
-  (*     } *)
-  (* Qed. *)
+  Definition map_list' lm (m: gmap base_lit val) : iProp Σ :=
+    ∃ (lv : loc) vs, lm ↦ #lv ∗ ⌜ list_to_map vs = m ⌝ ∗ assoc_list' lv vs.
+  
+  #[global] Instance timeless_map_list' l m :
+    Timeless (map_list' l m).
+  Proof. apply _. Qed.
+  
+  Lemma wp_init_map' E :
+    {{{ True }}}
+      init_map #() @ E
+    {{{ l, RET LitV (LitLoc l); map_list' l ∅ }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    rewrite /init_map. wp_pures. wp_apply (wp_init_list' with "[//]").
+    iIntros (l) "Halloc". wp_alloc lm. iApply "HΦ".
+    iModIntro. iExists _, _. iFrame. eauto.
+  Qed.
 
+  Lemma wp_get_none' lm k R m E:
+    base_lit_type_check k = Some BLTInt ->
+    {{{ map_list' lm m ∗ R ∗ □[∗ set] x∈dom m, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V}}}
+      get #lm #k @ E
+      {{{ res, RET res; map_list' lm m ∗ R ∗ ⌜ res = NONEV ⌝ }}}.
+  Proof.
+    iIntros (Htype Φ) "(Hm&R&#HR) HΦ".
+    rewrite /get.
+    wp_pures.
+    iDestruct "Hm" as "(%&%&Hl&<-&Hassoc)".
+    wp_load.
+    wp_apply (wp_find_list_none' with "[-HΦ Hl]"); first done.
+    { iFrame. iSplitL "R"; first iExact "R".
+      iModIntro.
+      iApply big_sepL_intro.
+      iModIntro.
+      iIntros.
+      rewrite dom_list_to_map_L.
+      iDestruct (big_sepS_elem_of_acc with "[$]") as "[H1 ?]"; last by iApply "H1".
+      rewrite elem_of_list_to_set.
+      rewrite elem_of_list_lookup. naive_solver.
+    }
+    iIntros (?) "(?&?&?)".
+    iApply "HΦ".
+    by iFrame. 
+  Qed.
 
-  Definition init_map : val :=
-    λ: <>, ref (init_list #()).
+  Lemma wp_get_some' lm k R m E k' v':
+    base_lit_type_check k = Some BLTInt ->
+    m!!k' = Some v' ->
+    {{{ map_list' lm m ∗ R ∗ □(R -∗ rupd (λ v, v=true) R (k'=ᵥ k)%V) ∗
+        □[∗ set] x∈dom m ∖ {[k']}, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V}}}
+      get #lm #k @ E
+      {{{ res, RET res; map_list' lm m ∗ R ∗ ⌜ res = SOMEV v' ⌝ }}}.
+  Proof.
+    iIntros (Htype Hlookup Φ) "(Hm&R&#HR&#HR') HΦ".
+    rewrite /get.
+    wp_pures.
+    iDestruct "Hm" as "(%&%&Hl&<-&Hassoc)".
+    wp_load.
+    wp_apply (wp_find_list_some' with "[-HΦ Hl]"); [done| |done|..]; first done.
+    { iFrame. iSplitL "R"; first iExact "R".
+      iSplit; first done.
+      iModIntro. 
+      iApply big_sepS_intro.
+      iModIntro.
+      iIntros.
+      iDestruct (big_sepS_elem_of_acc with "[$]") as "[H1 ?]"; last by iApply "H1".
+      done. 
+    }
+    iIntros (?) "(?&?&?)".
+    iApply "HΦ".
+    by iFrame. 
+  Qed. 
 
-  Definition get : val :=
-    λ: "m" "k", find_list !"m" "k".
-
-  Definition set : val :=
-    λ: "m" "k" "v", "m" <- cons_list !"m" ("k", "v").
-
-
-  (* #[global] Instance timeless_map_list l m : *)
-  (*   Timeless (map_list l m). *)
-  (* Proof. apply _. Qed. *)
-
-  (* Lemma wp_init_map E : *)
-  (*   {{{ True }}} *)
-  (*     init_map #() @ E *)
-  (*   {{{ l, RET LitV (LitLoc l); map_list l ∅ }}}. *)
-  (* Proof. *)
-  (*   iIntros (Φ) "_ HΦ". *)
-  (*   rewrite /init_map. wp_pures. wp_apply (wp_init_list with "[//]"). *)
-  (*   iIntros (l) "Halloc". wp_alloc lm. iApply "HΦ". *)
-  (*   iModIntro. iExists _, _. iFrame. eauto. *)
-  (* Qed. *)
-
-  (* Lemma find_list_gallina_map_lookup vs (m : gmap nat val) n : *)
-  (*   list_to_map vs = m → *)
-  (*   find_list_gallina vs n = m !! n. *)
-  (* Proof. *)
-  (*   revert m. *)
-  (*   induction vs as [| (k, v) vs IH] => m Heq. *)
-  (*   - rewrite /=. simpl in Heq. subst; auto. *)
-  (*   - rewrite list_to_map_cons in Heq. subst. *)
-  (*     destruct (decide (k = n)). *)
-  (*     { subst. rewrite lookup_insert /= bool_decide_true //. } *)
-  (*     rewrite lookup_insert_ne //= bool_decide_false //. eauto. *)
-  (* Qed. *)
-
-  (* Lemma wp_get E lm m (n: nat) : *)
-  (*   {{{ map_list lm m }}} *)
-  (*     get #lm #n @ E *)
-  (*   {{{ res, RET res; map_list lm m ∗ ⌜ res = opt_to_val (m !! n) ⌝ }}}. *)
-  (* Proof. *)
-  (*   iIntros (Φ) "Hm HΦ". *)
-  (*   rewrite /get. wp_pures. *)
-  (*   iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)". *)
-  (*   wp_load. wp_apply (wp_find_list with "[$]"). *)
-  (*   iIntros (vret) "(Hassoc&Hm)". iApply "HΦ". iSplit. *)
-  (*   { iExists _, _. iFrame. eauto. } *)
-  (*   rewrite (find_list_gallina_map_lookup vs m) //. *)
-  (* Qed. *)
-
-  (* Lemma wp_get_Z E lm m (z: Z) : *)
-  (*   {{{ map_list lm m }}} *)
-  (*     get #lm #z @ E *)
-  (*   {{{ res, RET res; map_list lm m ∗ *)
-  (*                       ⌜ res = if (bool_decide (z < 0)%Z) then *)
-  (*                                 opt_to_val None *)
-  (*                               else  opt_to_val (m !! Z.to_nat z)⌝ *)
-  (*   }}}. *)
-  (* Proof. *)
-  (*   iIntros (Φ) "Hm HΦ". *)
-  (*   rewrite /get. wp_pures. *)
-  (*   iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)". *)
-  (*   wp_load. wp_apply (wp_find_list_Z with "[$]"). *)
-  (*   iIntros (vret) "(Hassoc&Hm)". iApply "HΦ". iSplit. *)
-  (*   { iExists _, _. iFrame. eauto. } *)
-  (*   rewrite (find_list_gallina_map_lookup vs m) //. *)
-  (* Qed. *)
-
-
-  (* Lemma wp_set E lm m (n: nat) (v: val) : *)
-  (*   {{{ map_list lm m }}} *)
-  (*     set #lm #n v @ E *)
-  (*   {{{ RET #(); map_list lm (<[n := v]>m) }}}. *)
-  (* Proof. *)
-  (*   iIntros (Φ) "Hm HΦ". *)
-  (*   rewrite /set. wp_pures. *)
-  (*   iDestruct "Hm" as (??) "(?&%Heq&Hassoc)". *)
-  (*   wp_load. wp_pures. wp_apply (wp_cons_list with "[$]"). *)
-  (*   iIntros (l') "Hassoc'". wp_store. iModIntro. *)
-  (*   iApply "HΦ". iExists _, _. iFrame. rewrite list_to_map_cons Heq //. *)
-  (* Qed. *)
-
+  Lemma wp_set_not_in' E lm m (k:base_lit) (v: val) :
+    base_lit_type_check k= Some BLTInt ->
+    {{{ map_list' lm m }}}
+      set #lm #k v @ E
+    {{{ RET #(); map_list' lm (<[k := v]>m) }}}.
+  Proof.
+    iIntros (Htype Φ) "Hm HΦ".
+    rewrite /set. wp_pures.
+    iDestruct "Hm" as "(%&%&Hl&<-&Hassoc)".
+    wp_load. wp_pures. wp_apply (wp_cons_list' with "[$]"); first done.
+    iIntros (l') "Hassoc'". wp_store. iModIntro.
+    iApply "HΦ". by iFrame. 
+  Qed.
+  
 End map.
