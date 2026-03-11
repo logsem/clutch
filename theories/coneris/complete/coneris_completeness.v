@@ -25,12 +25,13 @@ Class coneris_lang_completeness_gen Σ
       (σ : state con_prob_lang) E,
       reducible e1 σ →
       n ↪cthread e1 -∗
-      heap_inv C σ ∗ con_tp_inv C ∗ ⌜con_cfg_safe C σ⌝ ={E}=∗
+      heap_inv C σ ∗ con_tp_inv C  ={E}=∗
 
       (* ATOMIC CASE: open invariants *)
       (∃ (K : ectx con_prob_ectx_lang) (e1' : expr con_prob_lang),
         ⌜e1 = fill K e1'⌝ ∗
         ⌜Atomic StronglyAtomic e1'⌝ ∗
+        ⌜∃ σ', (head_reducible e1' σ')⌝ ∗
         ∀ Φ (ε1 : cfg con_prob_lang → R),
           ⌜∃ r : R, ∀ ρ, ε1 ρ <= r⌝ →
           ⌜∀ C' σ' n' e',
@@ -55,7 +56,7 @@ Class coneris_lang_completeness_gen Σ
       (heap_inv C σ ∗ con_tp_inv C ∗
         ∀ Ψ E2,
           (▷ |={E2,E}=> ∃ σ1 C1,
-            heap_inv C1 σ1 ∗ con_tp_inv C1 ∗ ⌜con_cfg_safe C1 σ1⌝ ∗
+            heap_inv C1 σ1 ∗ con_tp_inv C1 ∗
             ∀ e2,
               ⌜pure_step e1 e2⌝ -∗
               n ↪cthread e1 -∗
@@ -68,7 +69,6 @@ Class coneris_lang_completeness_gen Σ
 Global Existing Instance heap_inv_timeless.
 
 End lang_complete.
-
 
 Definition err_lb_con (φ : val con_prob_lang → Prop) (n : nat)
     (ρ : cfg con_prob_lang) : R. Admitted.
@@ -85,8 +85,7 @@ Admitted.
 
 Lemma err_lb_con_step φ n m C σ e :
   C !! m = Some e → reducible e σ →
-  err_lb_con φ n (C, σ) >=
-  Expval (prim_step e σ) (λ '(e', σ', efs), err_lb_con φ n (<[m := e']> C ++ efs, σ')). 
+  Expval (prim_step e σ) (λ '(e', σ', efs), err_lb_con φ n (<[m := e']> C ++ efs, σ')) <= err_lb_con φ n (C, σ). 
 Admitted.
 
 Lemma err_lb_con_stuck φ C n m e σ : 
@@ -95,6 +94,81 @@ Lemma err_lb_con_stuck φ C n m e σ :
   err_lb_con φ n (C, σ) = 1. 
 Admitted.
 
+Lemma reducible_to_head (e : expr con_prob_lang) σ:
+  reducible e σ →
+  ∃ K e', e = fill K e' ∧ head_reducible e' σ.
+Proof.
+  rewrite /reducible /= /con_ectx_language.prim_step //=.
+  intros [??].
+  destruct (decomp e) eqn: Hde; simpl in *.
+  rewrite Hde in H.
+  apply dmap_pos in H as [((?&?)&?)[??]].
+  exists l, e0. simpl in *.
+  apply decomp_fill in Hde as <-.
+  split; eauto; by eexists.
+Qed.
+
+Lemma head_redex_unique' K K' (e : expr con_prob_ectx_lang) e' σ σ':
+  fill K e = fill K' e' →
+  head_reducible e σ →
+  head_reducible e' σ' →
+  K = K' ∧ e = e'.
+Proof.
+  intros Heq [[e2 σ2] Hred] [[e2' σ2'] Hred'].
+    edestruct (step_by_val K' K e' e) as [K'' HK];
+      [by eauto using val_head_stuck..|].
+  simpl in *.
+  subst K. move: Heq. rewrite -fill_comp /=. intros <-%(inj (fill _)).
+  destruct (con_ectx_language.head_ctx_step_val _ _ _ _ Hred') as [[]%not_eq_None_Some|HK''].
+  { by eapply val_head_stuck. } 
+  subst. rewrite /empty_ectx //=.
+Qed.
+
+Lemma wp_inv_open_maybe' `{!conerisWpGS con_prob_lang Σ} e σ s E1 N Φ :
+  reducible e σ →
+  (|={E1,E1 ∖ ↑ N}=> 
+    (∃ (K : ectx con_prob_ectx_lang) e', ⌜e = fill K e'⌝ ∗ ⌜(Atomic StronglyAtomic e')⌝ ∗ ⌜∃ σ', (head_reducible e' σ')⌝
+      ∗ WP e' @ s; E1 ∖ ↑ N {{ v, |={E1 ∖ ↑ N,E1}=> WP fill K (of_val v) @ s; E1 {{ Φ }} }})
+    ∨ |={E1 ∖ ↑ N,E1}=> WP e @ s; E1 {{ Φ }})
+  -∗ WP e @ s; E1 {{ Φ }}.
+Proof.
+  iIntros (Hred) "H".
+  apply reducible_to_head in Hred as (K&e'&->&Hred').
+  destruct (decide (Atomic StronglyAtomic e')).
+  - iApply pgl_wp_bind.
+    iMod "H" as "[H|H]".
+    + iDestruct "H" as "(%K' & %e'' & % & %Hato & (%σ''&%Hred'') & Hwp)". 
+      eapply (head_redex_unique') in H as [-> <-]; eauto.
+    + iMod "H".
+      iApply pgl_wp_mono; 
+        first by iIntros (v) "H"; iApply fupd_mask_intro_subseteq; [set_solver | iExact "H"].  
+      iApply (pgl_wp_bind_inv with "H").
+  - iApply fupd_pgl_wp.
+    iApply (fupd_mask_frame_acc with "H"); first set_solver.
+    iIntros "[H|H]".
+    + iDestruct "H" as "(%K' & %e'' & % & %Hato & (%σ''&%Hred'') & Hwp)". 
+      eapply (head_redex_unique') in H as [-> <-]; eauto. 
+      contradiction. 
+    + iMod "H". iModIntro. by iIntros.
+Qed.
+
+Lemma wp_inv_open_maybe `{!conerisWpGS con_prob_lang Σ} e s E1 N Φ :
+  (|={E1,E1 ∖ ↑ N}=> 
+    (∃ (K : ectx con_prob_ectx_lang) e', ⌜e = fill K e'⌝ ∗ ⌜(Atomic StronglyAtomic e')⌝ ∗ ⌜∃ σ', (head_reducible e' σ')⌝
+      ∗ WP e' @ s; E1 ∖ ↑ N {{ v, |={E1 ∖ ↑ N,E1}=> WP fill K (of_val v) @ s; E1 {{ Φ }} }})
+    ∨ |={E1 ∖ ↑ N,E1}=> WP e @ s; E1 {{ Φ }})
+  -∗ WP e @ s; E1 {{ Φ }}.
+Proof.
+  destruct (decide (∃ σ, reducible e σ)) as [[??]|]; first by eapply wp_inv_open_maybe'.
+  pose proof (not_exists_forall_not _ _ n) as Hnred.
+  iIntros "H".
+  iApply fupd_pgl_wp.
+  iApply (fupd_mask_frame_acc with "H"); first set_solver.
+  iIntros "[(%K' & %e'' & % & %Hato & (%σ''&%Hred'') & Hwp)|H]"; subst.
+  - exfalso. 
+    by eapply Hnred, head_prim_fill_reducible.
+  - iMod "H". iModIntro. by iIntros.
+Qed.
 
 Section completeness.
 
@@ -123,16 +197,6 @@ Proof.
     rewrite Qp.div_div Qp.div_mul_cancel_r //.
 Qed.
 
-Lemma wp_inv_open_maybe e s E1 E2 Φ :
-  (|={E1,E2}=> 
-    (∃ K e', ⌜ConLanguageCtx K⌝ ∗ ⌜e = K e'⌝ ∗ ⌜(Atomic StronglyAtomic e')⌝ 
-      ∗ WP e' @ s; E2 {{ v, |={E2,E1}=> WP K (of_val v) @ s; E1 {{ Φ }} }})
-    ∨ |={E2,E1}=> WP e @ s; E1 {{ Φ }})
-  -∗ WP e @ s; E1 {{ Φ }}.
-Proof.
-Admitted.
-
-
 Let N := nroot .@ "completeness".
 
 Definition cfg_inv φ n : iProp Σ :=
@@ -144,15 +208,7 @@ Definition cfg_inv φ n : iProp Σ :=
 Definition is_ccfg φ n γ : iProp Σ :=
   cinv N γ (cfg_inv φ n).
 
-Lemma con_cfg_safe_step C n e σ e' σ' efs :
-    con_cfg_safe C σ →
-    C !! n = Some e →
-    prim_step e σ (e', σ', efs) > 0 →
-    con_cfg_safe (Λ := con_prob_lang) (<[n := e']> C ++ efs) σ'.
-Proof. 
-Admitted.
-
-Lemma wp_completeness φ γ q n e :
+Lemma wp_completeness φ γ q n e:
   is_ccfg φ 0 γ -∗
   cinv_own γ q -∗
   n ↪cthread e -∗
@@ -161,39 +217,27 @@ Proof.
   iIntros "#Hinv".
   iLöb as "IH" forall (q e n).
   iIntros "Hq He". 
+  destruct (to_val e) eqn : Hve. {
+    apply of_to_val in Hve as <-. 
+    iApply pgl_wp_value_fupd'. iModIntro. iFrame.
+  }
   iApply wp_inv_open_maybe.
   iMod (cinv_acc with "Hinv Hq") as "(>Hinv2&Hq&Hclose)". 1: done.
   iDestruct "Hinv2" as "(%cfg&Hheap&Htpinv&Hx)".
   iPoseProof (con_tp_inv_lookup with "Htpinv He") as "%Hlu".
-  destruct (to_val e) eqn : Hve. {
-    iRight. rewrite -(of_to_val _ _ Hve) /=.
-    iModIntro. 
-    iMod ("Hclose" with "[Hheap Htpinv Hx]") as "_".
-    {
-      iNext.
-      iExists (_, _). simpl. iFrame. 
-      by destruct cfg.
-    } 
-    iModIntro.
-    iApply pgl_wp_value'.
-    iFrame.
-  }
   destruct (decide (reducible e cfg.2)). 2 : {
     destruct cfg.
     erewrite err_lb_con_stuck; eauto; last by rewrite /stuck -not_reducible.
     iPoseProof (ec_contradict with "Hx") as "Hx"; auto; lra.
   }
   iMod (coneris_lang_completeness with "He [$Hheap $Htpinv]") as "[H|H]"; first done.
-  - iPureIntro. 
-    rewrite /con_cfg_safe.
-    admit.
-  - iDestruct "H" as "(%K&%e1&%Heq&%Hatomic&H)". iModIntro.
-    iLeft. 
-    iExists (fill K), e1. iSplitR.
-    { iPureIntro. apply con_ectx_lang_ctx. } 
+  - iDestruct "H" as "(%K&%e1&%Heq&%Hatomic&%Hred&H)". iModIntro.
+    iLeft.
+    iExists K, e1.
     iSplitR; first done.
-    iSplitR. 
-    { iPureIntro. done. } 
+    iSplitR.
+    { iPureIntro. done. }
+    iSplitL ""; first by (iPureIntro; exact Hred).
     iApply ("H" with "[][][][][Hq Hclose] [Hx]"); last by destruct cfg.
     5 : {
       iNext.
@@ -222,10 +266,11 @@ Proof.
         }
         iNext. iExists (_, _). simpl. iFrame.
     }
-    { admit. }
-    { admit. }
-    { admit. }
-    { admit. }
+    all : iPureIntro.
+    { eexists => ?. apply err_lb_con_bound. }
+    { intros. by apply err_lb_con_step. }
+    { apply err_lb_con_nn. }
+    { intros. by erewrite err_lb_con_stuck. }
   - iDestruct "H" as "(Hheap & Htpinv & H)". iModIntro. iRight.
     iMod ("Hclose" with "[Hheap Htpinv Hx]") as "?".
     { iNext. iExists (_, _). simpl. iFrame. by destruct cfg. }
@@ -233,7 +278,6 @@ Proof.
     iNext. iMod (cinv_acc with "Hinv Hq") as "(>Hinv2&Hq&Hclose)". 1: done.
     iDestruct "Hinv2" as "(%cfg2&Hheap&Htpinv&Herr)".
     iModIntro. iFrame.
-    iSplitL "". { admit. }
     iIntros (e2 Hpure) "He Htpinv".
     iPoseProof (con_tp_inv_lookup with "Htpinv He") as "%Hlu2".
     iMod (con_tp_inv_update with "Htpinv He") as "(Htpinv&He)".
@@ -243,13 +287,17 @@ Proof.
     {
       iNext.
       iExists (_, _). simpl. iFrame. 
-      admit.
+      inversion Hpure. destruct cfg2 as [C' σ']. 
+      iApply (ec_weaken with "Herr"); split; first by apply err_lb_con_nn.
+      etrans; last eapply err_lb_con_step; [| eauto| apply pure_step_safe]. 
+      eapply pmf_1_eq_dret in pure_step_det as ->.
+      rewrite Expval_dret //=. by rewrite app_nil_r.
     }
     iModIntro.
     iApply (pgl_wp_wand with "[-]").
     1: iApply ("IH" with "Hq He").
     iIntros (v) "[$ (%q'&$&%Hfork)] %Heq".
-Admitted.
+Qed.
 
 End completeness.
 

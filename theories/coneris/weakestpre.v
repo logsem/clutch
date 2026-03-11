@@ -901,9 +901,9 @@ Proof.
   - iIntros (e2 σ2 efs). iApply ("H" $! (fill K e2) σ2 efs).
 Qed.
 
-Lemma pgl_wp_bind_inv (K : ectx con_prob_ectx_lang) E e Φ :
-  WP fill K e @ E {{Φ}} ⊢
-  WP e @ E {{v, WP fill K (of_val v) @ E {{Φ}}}}.
+Lemma pgl_wp_bind_inv (K : ectx con_prob_ectx_lang) s E e Φ :
+  WP fill K e @ s; E {{Φ}} ⊢
+  WP e @ s; E {{v, WP fill K (of_val v) @ s; E {{Φ}}}}.
 Proof.
   iIntros "H". iLöb as "IH" forall (E e Φ).
   destruct (to_val e) as [v|] eqn:He.

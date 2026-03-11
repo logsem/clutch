@@ -25,7 +25,7 @@ Class coneris_ectx_lang_completeness_gen (Σ : gFunctors)
       (σ : state con_prob_lang) (K : ectx con_prob_ectx_lang) E,
       head_reducible e1 σ →
       n ↪cthread (fill K e1) -∗
-      heap_inv C σ ∗ con_tp_inv C ∗ ⌜con_cfg_safe C σ⌝ ={E}=∗
+      heap_inv C σ ∗ con_tp_inv C ={E}=∗
 
       (* ─── ATOMIC CASE ─── *)
       (⌜Atomic StronglyAtomic e1⌝ ∗
@@ -52,7 +52,7 @@ Class coneris_ectx_lang_completeness_gen (Σ : gFunctors)
       (heap_inv C σ ∗ con_tp_inv C ∗
         ∀ Ψ E2,
           (▷ |={E2,E}=> ∃ σ1 C1,
-            heap_inv C1 σ1 ∗ con_tp_inv C1 ∗ ⌜con_cfg_safe C1 σ1⌝ ∗
+            heap_inv C1 σ1 ∗ con_tp_inv C1 ∗
             ∀ e2,
               ⌜pure_step e1 e2⌝ -∗
               n ↪cthread (fill K e1) -∗
@@ -85,11 +85,12 @@ Lemma wp_ectx_to_prim_completeness
     (σ : state con_prob_lang) E :
   reducible e1 σ →
   n ↪cthread e1 -∗
-  heap_inv C σ ∗ con_tp_inv C ∗ ⌜con_cfg_safe C σ⌝ ={E}=∗
+  heap_inv C σ ∗ con_tp_inv C ={E}=∗
 
   (∃ (K : ectx con_prob_ectx_lang) (e1' : expr con_prob_lang),
     ⌜e1 = fill K e1'⌝ ∗
     ⌜Atomic StronglyAtomic e1'⌝ ∗
+    ⌜∃ σ', head_reducible e1' σ'⌝ ∗
     ∀ Φ (ε1 : cfg con_prob_lang → R),
       ⌜∃ r : R, ∀ ρ, ε1 ρ <= r⌝ →
       ⌜∀ C' σ' n' e',
@@ -114,7 +115,7 @@ Lemma wp_ectx_to_prim_completeness
   (heap_inv C σ ∗ con_tp_inv C ∗
     ∀ Ψ E2,
       (▷ |={E2,E}=> ∃ σ1 C1,
-        heap_inv C1 σ1 ∗ con_tp_inv C1 ∗ ⌜con_cfg_safe C1 σ1⌝ ∗
+        heap_inv C1 σ1 ∗ con_tp_inv C1 ∗ 
         ∀ e2,
           ⌜pure_step e1 e2⌝ -∗
           n ↪cthread e1 -∗
@@ -126,14 +127,14 @@ Proof.
   intros ([[ e2_0 σ2_0] efs_0] & Hstep).
   rewrite prim_step_iff in Hstep.
   destruct Hstep as (K & e1' & e2' & <- & <- & Hhs). 
-  iIntros "He (Hheap & Htp & %Hsafe)".
+  iIntros "He (Hheap & Htp)".
   iMod (coneris_head_completeness n C e1' σ K E
           with "He [$Hheap $Htp]") as "[HATOMIC | HNONAT]".
   { eexists. done. }
-  { done. }
   - iModIntro. iLeft.
     iDestruct "HATOMIC" as "(%Hatomic & HH)".
     iExists K, e1'. iSplitR; [done|]. iSplitR; [done|].
+    iSplitR; first by (iPureIntro; exists σ; eexists; exact Hhs).
     iExact "HH".
   - iModIntro. iRight.
     iDestruct "HNONAT" as "(Hheap & Htp & HNA)".
@@ -141,8 +142,8 @@ Proof.
     iIntros (Ψ E2) "Hcb".
     iApply pgl_wp_bind.
     iApply ("HNA" $! (λ v : val con_prob_lang, WP fill K (of_val v) @ E2 {{Ψ}})%I E2).
-    iNext. iMod "Hcb" as (σ1 C1) "(Hh1 & Htp1 & %Hsafe1 & Hcb)".
-    iModIntro. iExists σ1, C1. iFrame. iSplitR; [done|].
+    iNext. iMod "Hcb" as (σ1 C1) "(Hh1 & Htp1 & Hcb)".
+    iModIntro. iExists σ1, C1. iFrame. 
     iIntros (e2 Hps) "Hthread Htp1".
     iMod ("Hcb" $! (fill K e2) with "[%] Hthread Htp1") as "Hfupd".
     { exact (pure_step_fill K e1' e2 Hps). }
@@ -152,7 +153,7 @@ Proof.
     iModIntro.
     iApply pgl_wp_bind_inv.
     iExact "WPfull".
-Qed.
+Qed. 
 
 End ectx_to_lang.
 
@@ -169,17 +170,21 @@ Global Program Instance coneris_ectx_to_lang
 Next Obligation.
   intros ???????????.
   by apply wp_ectx_to_prim_completeness.
-Defined.
+Defined. 
 
 From clutch.coneris Require Import primitive_laws derived_laws error_rules.
 
 Section completeness.
 Context {Σ : gFunctors}.
 
-Global Instance pair_atomic s e1 e2 : Atomic s (Pair e1 e2).
+Global Instance pair_atomic s v1 v2 : Atomic s (Pair (Val v1) (Val v2)).
 Proof. 
-  
-Admitted.
+  apply strongly_atomic_atomic.
+  intros σ e' σ' efs.
+  setoid_rewrite head_prim_step_eq; last by eexists; simpl; solve_distr. 
+  rewrite head_step_support_equiv_rel.
+  intros H. by inversion H.
+Qed.
 
 Context `{!coneristpinvGS Σ con_prob_ectx_lang,
           !conerisGS Σ}.
@@ -187,7 +192,15 @@ Context `{!coneristpinvGS Σ con_prob_ectx_lang,
 Lemma wp_fork_fupd s E e Φ :
   ▷ (|={E}=> WP e @ s; ⊤ {{ _, True }} ∗ Φ (LitV LitUnit)) ⊢ WP Fork e @ s; E {{ Φ }}.
 Proof.
-Admitted.
+  iIntros "H".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "(Hh & Ht)". iModIntro.
+  iSplitR; first by (iPureIntro; eauto with head_step).
+  iNext. iIntros (e2 σ2 efs Hs).
+  inv_head_step.
+  iMod "H" as "[He HΦ]". iModIntro.
+  iFrame.
+Qed.
 
 Definition con_heap_inv (C : list (expr)) (σ : con_prob_lang.state) : iProp Σ :=
     ⌜Forall no_allocN_expr C⌝
@@ -203,7 +216,7 @@ Lemma atomic_pure_det_case (φ : Prop) n (C : list expr) (e1 : expr) (v2 : val)
     (Hφ : φ)
     (Hdet : head_step e1 σ = dret (of_val v2, σ, [])) :
   n ↪cthread (fill K e1) -∗
-  con_heap_inv C σ ∗ con_tp_inv C ∗ ⌜con_cfg_safe C σ⌝ ={E}=∗
+  con_heap_inv C σ ∗ con_tp_inv C ={E}=∗
   ⌜Atomic StronglyAtomic e1⌝ ∗
   ∀ Φ (ε1 : cfg → R),
     ⌜∃ r : R, ∀ ρ, Rle (ε1 ρ) r⌝ →
@@ -224,7 +237,7 @@ Lemma atomic_pure_det_case (φ : Prop) n (C : list expr) (e1 : expr) (v2 : val)
     ↯ (ε1 (C, σ)) -∗
     WP e1 @ E {{Φ}}.
 Proof.
-  iIntros "He ((%HnoallocC & %HnoallocH & Hheap_pts & Htapes) & Htp & %Hsafe)".
+  iIntros "He ((%HnoallocC & %HnoallocH & Hheap_pts & Htapes) & Htp)".
   iModIntro. iSplitR; first by iPureIntro; apply _.
   iIntros (Φ ε1 Hboundε Hstepε Hnnε Hstuckε) "Hind Herr".
   wp_pure.
@@ -311,23 +324,23 @@ Global Program Instance coneris_ectx_lang_completeness
 Next Obligation.
   Local Opaque INR.
   intros n C e1 σ K E Hred.
-  iIntros "He (Hheap & Htp & %Hsafe)".
+  iIntros "He (Hheap & Htp)".
   pose proof Hred as Hred'.
   destruct Hred' as ([[e2_w σ2_w] efs_w] & Hhs).
   rewrite head_step_support_equiv_rel in Hhs.
   inversion Hhs; subst; clear Hhs.
   (* pure atomic *)
-  1-4, 10-11, 22 : iLeft; iApply (atomic_pure_det_case True with "He [$Hheap $Htp]"); [done | done | by rewrite /head_step //= | done]. 
+  1-4, 10-11, 22 : iLeft; iApply (atomic_pure_det_case True with "He [$Hheap $Htp]"); [done | by rewrite /head_step //= | done]. 
   2 : { iLeft; iApply (atomic_pure_det_case (un_op_eval _ _ = Some _) with "He [$Hheap $Htp]");
-        [done | eassumption | by (rewrite /head_step /=; case_match; congruence) | done]. }
+        [done | eassumption | by (rewrite /head_step /=; case_match; congruence)]. }
   2 : { iLeft; iApply (atomic_pure_det_case (bin_op_eval _ _ _ = Some _) with "He [$Hheap $Htp]");
-        [done | eassumption | by (rewrite /head_step /=; case_match; congruence) | done]. }
+        [done | eassumption | by (rewrite /head_step /=; case_match; congruence)]. }
   (* pure nonatomic *)
   1-5 : 
     iRight; iModIntro; 
     iFrame "Hheap Htp"; iIntros (Ψ E2) "Hcb"; 
     wp_pure; iApply fupd_pgl_wp; 
-    iMod "Hcb" as (σ1 C1) "((%Hnae&%Hnas&Hh&Ht) & Htp1 & %Hsafe1 & Hcb)"; 
+    iMod "Hcb" as (σ1 C1) "((%Hnae&%Hnas&Hh&Ht) & Htp1 & Hcb)"; 
     iPoseProof (con_tp_inv_lookup with "Htp1 He") as "%HCn";
     iMod ("Hcb" $! _ with "[%] He Htp1 [Hh Ht]") as "Hfupd"; auto; [by apply pure_step_head_step => ?; rewrite dret_1_1|];
     unfold con_heap_inv; iSplitR; [iPureIntro | iSplitR; [iPureIntro; exact Hnas | iFrame]]; apply (no_allocN_Forall_insert _ _ _ _ Hnae HCn); 

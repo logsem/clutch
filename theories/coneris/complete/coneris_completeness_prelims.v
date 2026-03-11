@@ -52,12 +52,28 @@ Qed.
 Lemma con_tp_inv_update C n e1 e2 :
   con_tp_inv C -∗ n ↪cthread e1 ==∗ con_tp_inv (<[n := e2]> C) ∗ n ↪cthread e2.
 Proof.
-Admitted.
+  iIntros "Htp Hn".
+    iPoseProof (con_tp_inv_lookup with "Htp Hn") as "%Hlu".
+    iDestruct "Htp" as "(%m&%Hm&Hm)".
+    iMod (ghost_map_update e2 with "Hm Hn") as "(Hm&$)".
+    iModIntro. iExists _. iFrame "Hm".
+    iPureIntro.
+    intros n'. destruct (decide (n = n')) as [->|Hne].
+    - rewrite lookup_insert list_lookup_insert //.
+      eapply lookup_lt_is_Some. by eexists.
+    - rewrite list_lookup_insert_ne // lookup_insert_ne //.
+Qed.
 
 Lemma con_tp_inv_new_threads C efs :
   con_tp_inv C ==∗
   con_tp_inv (C ++ efs) ∗ [∗ list] k↦e ∈ efs, (length C + k) ↪cthread e.
 Proof.
+  Search map_seq.
+  iIntros "(%m&%Hm&Hm)".
+  iMod (ghost_map_insert_big (map_seq (length C) efs)  with "Hm") as "(Hm&Hefs)".
+  - eapply map_disjoint_spec. intros n e1 e2 (Hlen&Hluefs)%lookup_map_seq_Some Hl2.
+    rewrite Hm in Hl2. eapply lookup_lt_Some in Hl2. lia.
+  - 
 Admitted.
 
 Lemma con_tp_inv_set C :
@@ -77,9 +93,6 @@ Lemma con_tp_inv_alloc `{!ghost_mapG Σ nat Λ.(expr)} :
 Proof.
   iMod (ghost_map_alloc_empty) as (γ) "$". done.
 Qed.
-
-Definition con_cfg_safe {Λ : conLanguage} (C : list Λ.(expr)) (σ : Λ.(state)) : Prop :=
-  ∀ n e, C !! n = Some e → not_stuck e σ.
 
 Inductive con_prim_steps {Λ : conLanguage} :
     Λ.(expr) → Λ.(state) → Λ.(expr) → Λ.(state) → list Λ.(expr) → Prop :=
