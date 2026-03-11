@@ -37,12 +37,33 @@ Section prog.
   (* Context `{eltonGS Σ}. *)
 
   Lemma guess_hash A:
-    (tries+1<secret_range+1)->
     ∅ ⊢ₜ A : ((TNat → (TUnit+TNat)) → TNat → TNat) ->
              pgl (lim_exec ((prog A), {|heap:=∅; urns:= ∅|})) (λ v, v=#false)
                ((tries+1)%nat * (/(secret_range +1)%nat + /(val_size + 1)%nat) ).
   Proof. 
-    intros initial_ineq Htyped.
+    intros Htyped.
+    destruct (decide (tries+1<secret_range+1)) as [initial_ineq|]; last first.
+    {
+      apply pgl_1.
+      rewrite Rmult_plus_distr_l.
+      trans ((tries+1)%nat*/(secret_range+1)%nat)%R.
+      - rewrite -Rdiv_def.
+        apply Rcomplements.Rle_div_r.
+        + apply Rlt_gt.
+          apply lt_0_INR; lia.
+        + rewrite Rmult_1_l.
+          apply le_INR.
+          lia.
+      - assert (0<=(tries+1)%nat */(val_size +1)%nat)%R; last lra.
+        rewrite -Rdiv_def.
+        apply Rcomplements.Rle_div_r.
+        + apply Rlt_gt.
+          apply lt_0_INR; lia.
+        + rewrite Rmult_0_l.
+          replace 0%R with (INR 0) by done.
+          apply le_INR.
+          lia.
+    }
     eapply (elton_adequacy_remove_drand (#[eltonΣ; tokenΣ]) (prog' A)).
     - simpl. by erewrite typed_remove_drand_expr.
     - apply Rmult_le_pos; first apply pos_INR.
@@ -427,12 +448,123 @@ Section prog.
              by iRight. 
            }
            by iApply "HΦ".
-      -- destruct (decide (Z.of_nat guess ∈ s')).
-         ++ (** Need to partially resolve s' *)
-           admit. 
-         ++ (** hash something completely new *)
-           admit. 
+      -- iAssert (pupd ∅ ∅ (∃s'', ⌜ s'' ⊆ s' ⌝ ∗ ⌜ s''≠∅⌝ ∗
+                                  l ↪ urn_unif s'' ∗ ⌜Z.of_nat guess∉ s''⌝
+                 ))%I with "[Herr' Hurn]" as ">H'".
+         { destruct (decide (Z.of_nat guess ∈ s')); last first.
+           - iModIntro.
+             iFrame.
+             iPureIntro. simpl in *. naive_solver.
+           - iMod (pupd_resolve_urn _ _ (λ x, if bool_decide (x=Z.of_nat guess) then nnreal_one else nnreal_zero) with "[$][$]") as "(%&?&?&%)".
+             + done.
+             + erewrite (SeriesC_ext _ (λ x, if bool_decide (x=Z.of_nat guess) then nnreal_one else nnreal_zero)); last first.
+               -- intros.
+                  case_bool_decide as H3; first by case_bool_decide.
+                  rewrite bool_decide_eq_false_2; first done.
+                  intros ->. apply H3. set_solver.
+               -- rewrite SeriesC_singleton.
+                  simpl.
+                  rewrite !Rdiv_def.
+                  apply Rmult_le_compat_r.
+                  ++ rewrite -Rdiv_1_l.
+                     apply Rdiv_INR_ge_0.
+                  ++ replace 1%R with (INR 1) by done.
+                     apply le_INR.
+                     lia.
+             + exists 1.
+               intros.
+               case_bool_decide; simpl; lra.
+             + case_bool_decide.
+               * by iDestruct (ec_contradict with "[$]") as "[]".
+               * iFrame.
+                 iModIntro.
+                 iPureIntro.
+                 set_solver.       
+         }
+         iDestruct "H'" as "(%s''&%&%&Hurn &%)".
+         wp_apply (wp_insert_new _ _ _ _ _ _ (λ x, if bool_decide (x= secret) then nnreal_one else nnreal_zero)%R (l↪ _) with "[$Hf $Herr $Hurn]").
+         ++ done.
+         ++ intros. case_bool_decide; simpl; lra.
+         ++ rewrite SeriesC_scal_l. rewrite SeriesC_singleton.
+            rewrite Rmult_1_r.
+            rewrite S_INR.
+            replace 1%R with (INR 1) by done.
+            rewrite -!plus_INR.
+            simpl.
+            rewrite !Rdiv_def.
+            apply Rmult_le_compat_r.
+            ** rewrite -Rdiv_1_l.
+               apply Rdiv_INR_ge_0.
+            ** replace 1%R with (INR 1) by done.
+               apply le_INR.
+               lia.
+         ++ iModIntro.
+            iApply big_sepS_intro.
+            iModIntro.
+            iIntros (?) "%Hlookup'".
+            iIntros "?".
+            rewrite rupd_unseal/rupd_def.
+            iIntros  (?) "[? Hu]". iSplit; last iFrame.
+            iDestruct (ghost_map_lookup with "Hu [$]") as "%Hlookup".
+            iPureIntro.
+            intros.
+            eapply urns_f_distr_lookup in Hlookup; last done; last done.
+            destruct Hlookup as (?&Hsome&Hin).
+            eexists _; split; last done.
+            simpl.
+            rewrite elem_of_dom in Hlookup'.
+            destruct Hlookup' as [? Hlookup'].
+            rewrite lookup_insert_Some in Hlookup'.
+            destruct!/=.
+            ** rewrite Hsome/=.
+               rewrite bool_decide_eq_false_2; first done.
+               intros ?. simplify_eq.
+            ** rename select (kmap _ _ !!_=_) into Hlookup'.
+               apply lookup_kmap_Some in Hlookup'; last (intros ???; by simplify_eq).
+               destruct!/=.
+               rewrite bool_decide_eq_false_2; first done.
+               intros ?. simplify_eq.
+               rename select (m!!_=Some _) into Hcontra.
+               apply elem_of_dom_2 in Hcontra.
+               set_solver.
+         ++ iIntros (?) "(Hf&Hurn &Herr)".
+            case_bool_decide.
+            { by iDestruct (ec_contradict with "[$]") as "[]". }
+            wp_pures.
+            iMod ("Hclose" with "[-HΦ]").
+            { iNext.
+              iFrame "Hl".
+              rewrite insert_commute; last done.
+              iExists _.
+              erewrite kmap_insert; first iFrame "Hf"; last (intros ???; by simplify_eq).
+              iSplit; first done.
+              iFrame "Hurn".
+              repeat iSplit; last by iRight.
+              - iPureIntro.
+                set_solver.
+              - done.
+            }
+            iApply "HΦ".
+            iModIntro.
+            iPureIntro.
+            split; first done.
+            rewrite bool_decide_eq_false_2; first done.
+            intros ?. simplify_eq.
   Admitted.
         
 End prog.
 
+
+(* iModIntro. *)
+(* iApply big_sepS_intro. *)
+(* iModIntro. *)
+(* iIntros (?) "%Hlookup'". *)
+(* iIntros "?". *)
+(* rewrite rupd_unseal/rupd_def. *)
+(* iIntros  (?) "[? Hu]". iSplit; last iFrame. *)
+(* iDestruct (ghost_map_lookup with "Hu [$]") as "%Hlookup". *)
+(* iPureIntro. *)
+(* intros. *)
+(* eapply urns_f_distr_lookup in Hlookup; last done; last done. *)
+(* destruct Hlookup as (?&Hsome&Hin). *)
+(* eexists _; split; last done. *)
