@@ -72,7 +72,7 @@ Proof.
       rewrite /stuck /irreducible /step //= head_prim_step_eq //=. 
   }
   (* allocN (no) *)
-  { by destruct Hna as [H ?]; destruct (na_no_allocN H). }
+  { by destruct Hna as [H ?]; destruct (na_no_alloc H). }
   (* load *)
   { 
     destruct (heap σ !! l) eqn : Hσl.

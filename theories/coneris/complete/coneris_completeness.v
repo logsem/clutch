@@ -25,7 +25,7 @@ Class coneris_lang_completeness_gen Σ
       (σ : state con_prob_lang) E,
       reducible e1 σ →
       n ↪cthread e1 -∗
-      heap_inv C σ ∗ con_tp_inv C  ={E}=∗
+      heap_inv C σ ∗ tp_inv C  ={E}=∗
 
       (* ATOMIC CASE: open invariants *)
       (∃ (K : ectx con_prob_ectx_lang) (e1' : expr con_prob_lang),
@@ -44,7 +44,7 @@ Class coneris_lang_completeness_gen Σ
           (▷ ∀ v2 σ' efs,
             ⌜head_step e1' σ (of_val v2, σ', efs) > 0⌝ -∗
             n ↪cthread e1 -∗
-            con_tp_inv C ==∗
+            tp_inv C ==∗
             (heap_inv (<[n := fill K (of_val v2)]> C ++ efs) σ' 
               -∗ ↯ (ε1 ((<[n := fill K (of_val v2)]> C ++ efs), σ'))
               -∗ Φ v2) ∗
@@ -53,14 +53,14 @@ Class coneris_lang_completeness_gen Σ
           WP e1' @ E {{Φ}}) ∨
 
       (* NON-ATOMIC CASE: pure step *)
-      (heap_inv C σ ∗ con_tp_inv C ∗
+      (heap_inv C σ ∗ tp_inv C ∗
         ∀ Ψ E2,
           (▷ |={E2,E}=> ∃ σ1 C1,
-            heap_inv C1 σ1 ∗ con_tp_inv C1 ∗
+            heap_inv C1 σ1 ∗ tp_inv C1 ∗
             ∀ e2,
               ⌜pure_step e1 e2⌝ -∗
               n ↪cthread e1 -∗
-              con_tp_inv C1 ==∗
+              tp_inv C1 ==∗
               (heap_inv (<[n := e2]> C1) σ1
                  ={E,E2}=∗ WP e2 @ E2 {{Ψ}})) -∗
           WP e1 @ E2 {{Ψ}})
@@ -202,7 +202,7 @@ Let N := nroot .@ "completeness".
 Definition cfg_inv φ n : iProp Σ :=
   ∃ cfg,
     heap_inv (fst cfg) (snd cfg) ∗
-    con_tp_inv (fst cfg) ∗
+    tp_inv (fst cfg) ∗
     ↯ (err_lb_con φ n cfg).
 
 Definition is_ccfg φ n γ : iProp Σ :=
@@ -224,7 +224,7 @@ Proof.
   iApply wp_inv_open_maybe.
   iMod (cinv_acc with "Hinv Hq") as "(>Hinv2&Hq&Hclose)". 1: done.
   iDestruct "Hinv2" as "(%cfg&Hheap&Htpinv&Hx)".
-  iPoseProof (con_tp_inv_lookup with "Htpinv He") as "%Hlu".
+  iPoseProof (tp_inv_lookup with "Htpinv He") as "%Hlu".
   destruct (decide (reducible e cfg.2)). 2 : {
     destruct cfg.
     erewrite err_lb_con_stuck; eauto; last by rewrite /stuck -not_reducible.
@@ -245,8 +245,8 @@ Proof.
       iPoseProof (fractional_divide_n _ _ (Pos.of_nat (S (length efs))) with "Hq") as "Hp".
       rewrite Nat2Pos.id // seq_S big_sepL_snoc /=.
       iDestruct "Hp" as "[Hefsfrac Hq]".
-      iMod (con_tp_inv_new_threads _ efs with "Htpinv") as "(Htpinv&Hefs)".
-      iMod (con_tp_inv_update with "Htpinv He") as "(Htpinv&He)". iModIntro.
+      iMod (tp_inv_new_threads _ efs with "Htpinv") as "(Htpinv&Hefs)".
+      iMod (tp_inv_update with "Htpinv He") as "(Htpinv&He)". iModIntro.
       iSplitR "Hefs Hefsfrac"; last first.
       + iPoseProof (big_sepL2_sepL_2 with "Hefs Hefsfrac") as "Hefsfracs"; first by rewrite length_seq.
         rewrite big_sepL2_const_sepL_l. iDestruct "Hefsfracs" as "[_ Hefs]".
@@ -279,8 +279,8 @@ Proof.
     iDestruct "Hinv2" as "(%cfg2&Hheap&Htpinv&Herr)".
     iModIntro. iFrame.
     iIntros (e2 Hpure) "He Htpinv".
-    iPoseProof (con_tp_inv_lookup with "Htpinv He") as "%Hlu2".
-    iMod (con_tp_inv_update with "Htpinv He") as "(Htpinv&He)".
+    iPoseProof (tp_inv_lookup with "Htpinv He") as "%Hlu2".
+    iMod (tp_inv_update with "Htpinv He") as "(Htpinv&He)".
     iModIntro.
     iIntros "Hheap".
     iMod ("Hclose" with "[Hheap Htpinv Herr]") as "_".
@@ -307,14 +307,14 @@ Lemma coneris_sem_completeness `{
           !conerisWpGS con_prob_lang Σ,
           !cinvG Σ,
           !coneris_lang_completeness_gen Σ} e σ φ :
-  con_tp_inv_ini -∗
+  tp_inv_ini -∗
   heap_inv [e] σ -∗ 
   ↯ (err_lb_con φ 0 ([e], σ)) -∗
   WP e @ ⊤ {{ v, ⌜φ v⌝ }}.
 Proof.
   iIntros "Hini Hheap Herr".
   iApply fupd_pgl_wp.
-  iMod (con_tp_inv_set [e] with "Hini") as "(Hauth&Hfrags)".
+  iMod (tp_inv_set [e] with "Hini") as "(Hauth&Hfrags)".
   iMod (cinv_alloc _ _ (cfg_inv φ 0) with "[Hauth Hheap Herr]") as (γ') "(#Hinv&Hq)".
   { iNext. iFrame. }
   rewrite big_sepL_singleton.
@@ -325,7 +325,7 @@ Proof.
   iIntros (v) "(Hv&%q'&Hq')".
   iMod (cinv_acc with "Hinv Hq'") as "(>Hinv2&Hq'&Hclose2)". 1: done.
   iDestruct "Hinv2" as "(%&Hheap&Htpinv&Herr)".
-  iPoseProof (con_tp_inv_lookup with "Htpinv Hv") as "%Hlu".
+  iPoseProof (tp_inv_lookup with "Htpinv Hv") as "%Hlu".
   destruct (decide (φ v)). 2 : {
     iExFalso. iApply ec_contradict; last iFrame.
     erewrite err_lb_con_val; eauto.

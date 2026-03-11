@@ -85,7 +85,7 @@ Proof.
   by eapply na_fill_inv.
 Qed.
 
-Lemma na_no_allocN : ∀ {v1 v2},
+Lemma na_no_alloc : ∀ {v1 v2},
   na_expr (AllocN v1 v2) →
   False.
 Proof. simpl. tauto. Qed.

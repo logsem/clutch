@@ -1,4 +1,3 @@
-(* From clutch.coneris.complete Require Export coneris_completeness_prelims. *)
 From clutch.coneris.complete Require Export coneris_completeness.
 From clutch.base_logic Require Import error_credits.
 From clutch.common Require Export con_ectx_language.
@@ -25,7 +24,7 @@ Class coneris_ectx_lang_completeness_gen (Σ : gFunctors)
       (σ : state con_prob_lang) (K : ectx con_prob_ectx_lang) E,
       head_reducible e1 σ →
       n ↪cthread (fill K e1) -∗
-      heap_inv C σ ∗ con_tp_inv C ={E}=∗
+      heap_inv C σ ∗ tp_inv C ={E}=∗
 
       (* ─── ATOMIC CASE ─── *)
       (⌜Atomic StronglyAtomic e1⌝ ∗
@@ -40,7 +39,7 @@ Class coneris_ectx_lang_completeness_gen (Σ : gFunctors)
           (▷ ∀ v2 σ' efs,
             ⌜head_step e1 σ (of_val v2, σ', efs) > 0⌝ -∗
             n ↪cthread (fill K e1) -∗
-            con_tp_inv C ==∗
+            tp_inv C ==∗
             (heap_inv (<[n := fill K (of_val v2)]> C ++ efs) σ'
                -∗ ↯ (ε1 ((<[n := fill K (of_val v2)]> C ++ efs), σ'))
                -∗ Φ v2) ∗
@@ -49,14 +48,14 @@ Class coneris_ectx_lang_completeness_gen (Σ : gFunctors)
           WP e1 @ E {{Φ}}) ∨
 
       (* ─── NON-ATOMIC CASE ─── *)
-      (heap_inv C σ ∗ con_tp_inv C ∗
+      (heap_inv C σ ∗ tp_inv C ∗
         ∀ Ψ E2,
           (▷ |={E2,E}=> ∃ σ1 C1,
-            heap_inv C1 σ1 ∗ con_tp_inv C1 ∗
+            heap_inv C1 σ1 ∗ tp_inv C1 ∗
             ∀ e2,
               ⌜pure_step e1 e2⌝ -∗
               n ↪cthread (fill K e1) -∗
-              con_tp_inv C1 ==∗
+              tp_inv C1 ==∗
               (heap_inv (<[n := fill K e2]> C1) σ1
                  ={E,E2}=∗ WP e2 @ E2 {{Ψ}})) -∗
           WP e1 @ E2 {{Ψ}})
@@ -85,7 +84,7 @@ Lemma wp_ectx_to_prim_completeness
     (σ : state con_prob_lang) E :
   reducible e1 σ →
   n ↪cthread e1 -∗
-  heap_inv C σ ∗ con_tp_inv C ={E}=∗
+  heap_inv C σ ∗ tp_inv C ={E}=∗
 
   (∃ (K : ectx con_prob_ectx_lang) (e1' : expr con_prob_lang),
     ⌜e1 = fill K e1'⌝ ∗
@@ -103,7 +102,7 @@ Lemma wp_ectx_to_prim_completeness
       (▷ ∀ v2 σ' efs,
         ⌜head_step e1' σ (of_val v2, σ', efs) > 0⌝ -∗
         n ↪cthread e1 -∗
-        con_tp_inv C ==∗
+        tp_inv C ==∗
         (heap_inv (<[n := fill K (of_val v2)]> C ++ efs) σ'
           -∗ ↯ (ε1 ((<[n := fill K (of_val v2)]> C ++ efs), σ'))
           -∗ Φ v2) ∗
@@ -112,14 +111,14 @@ Lemma wp_ectx_to_prim_completeness
       WP e1' @ E {{Φ}}) ∨
 
   (* NON-ATOMIC: [e1] takes a pure step *)
-  (heap_inv C σ ∗ con_tp_inv C ∗
+  (heap_inv C σ ∗ tp_inv C ∗
     ∀ Ψ E2,
       (▷ |={E2,E}=> ∃ σ1 C1,
-        heap_inv C1 σ1 ∗ con_tp_inv C1 ∗ 
+        heap_inv C1 σ1 ∗ tp_inv C1 ∗ 
         ∀ e2,
           ⌜pure_step e1 e2⌝ -∗
           n ↪cthread e1 -∗
-          con_tp_inv C1 ==∗
+          tp_inv C1 ==∗
           (heap_inv (<[n := e2]> C1) σ1
              ={E,E2}=∗ WP e2 @ E2 {{Ψ}})) -∗
       WP e1 @ E2 {{Ψ}}).
@@ -203,8 +202,8 @@ Proof.
 Qed.
 
 Definition con_heap_inv (C : list (expr)) (σ : con_prob_lang.state) : iProp Σ :=
-    ⌜Forall no_allocN_expr C⌝
-  ∗ ⌜map_Forall (λ _ v, no_allocN_val v) σ.(heap)⌝
+    ⌜Forall no_alloc_expr C⌝
+  ∗ ⌜map_Forall (λ _ v, no_alloc_val v) σ.(heap)⌝
   ∗ ([∗ map] l↦v ∈ σ.(heap),  l ↦ v)
   ∗ ([∗ map] ι↦α ∈ σ.(tapes), ι ↪ α).
 
@@ -216,7 +215,7 @@ Lemma atomic_pure_det_case (φ : Prop) n (C : list expr) (e1 : expr) (v2 : val)
     (Hφ : φ)
     (Hdet : head_step e1 σ = dret (of_val v2, σ, [])) :
   n ↪cthread (fill K e1) -∗
-  con_heap_inv C σ ∗ con_tp_inv C ={E}=∗
+  con_heap_inv C σ ∗ tp_inv C ={E}=∗
   ⌜Atomic StronglyAtomic e1⌝ ∗
   ∀ Φ (ε1 : cfg → R),
     ⌜∃ r : R, ∀ ρ, Rle (ε1 ρ) r⌝ →
@@ -229,7 +228,7 @@ Lemma atomic_pure_det_case (φ : Prop) n (C : list expr) (e1 : expr) (v2 : val)
     (▷ ∀ v2' σ'' (efs : list expr),
       ⌜Rlt 0 (head_step e1 σ (of_val v2', σ'', efs))⌝ -∗
       n ↪cthread (fill K e1) -∗
-      con_tp_inv C ==∗
+      tp_inv C ==∗
       (con_heap_inv (<[n := fill K (of_val v2')]> C ++ efs) σ''
          -∗ ↯ (ε1 ((<[n := fill K (of_val v2')]> C ++ efs), σ''))
          -∗ Φ v2') ∗
@@ -241,17 +240,17 @@ Proof.
   iModIntro. iSplitR; first by iPureIntro; apply _.
   iIntros (Φ ε1 Hboundε Hstepε Hnnε Hstuckε) "Hind Herr".
   wp_pure.
-  iPoseProof (con_tp_inv_lookup with "Htp He") as "%HCn".
-  (* Derive no_allocN for the result value *)
-  have HfillKe1 : no_allocN_expr (fill K e1)
+  iPoseProof (tp_inv_lookup with "Htp He") as "%HCn".
+  (* Derive no_alloc for the result value *)
+  have HfillKe1 : no_alloc_expr (fill K e1)
     := proj1 (Forall_lookup _ _) HnoallocC _ _ HCn.
-  have He1 : no_allocN_expr e1 := no_allocN_fill_inv K e1 HfillKe1.
-  have Hv2 : no_allocN_val v2.
-  { apply (no_allocN_head_step_val e1 v2 σ HnoallocH He1).
+  have He1 : no_alloc_expr e1 := no_alloc_fill_inv K e1 HfillKe1.
+  have Hv2 : no_alloc_val v2.
+  { apply (no_alloc_head_step_val e1 v2 σ HnoallocH He1).
     rewrite -head_step_support_equiv_rel.
     rewrite Hdet. rewrite dret_1_1 //=. lra. }
-  have HfillKv2 : no_allocN_expr (fill K (of_val v2))
-    := no_allocN_fill_compat K e1 (of_val v2) HfillKe1 Hv2.
+  have HfillKv2 : no_alloc_expr (fill K (of_val v2))
+    := no_alloc_fill_compat K e1 (of_val v2) HfillKe1 Hv2.
   iSpecialize ("Hind" $! v2 σ []).
   iMod ("Hind" with "[] He Htp") as "[Hind Hnext]".
   { iPureIntro. rewrite Hdet dret_1_1 //=. lra. }
@@ -260,7 +259,7 @@ Proof.
   iAssert (con_heap_inv (<[n := fill K (of_val v2)]> C ++ []) σ)
       with "[Hheap_pts Htapes]" as "Hnew".
   { unfold con_heap_inv. rewrite app_nil_r.
-    iSplitR; [iPureIntro; eapply no_allocN_Forall_insert; eauto |].
+    iSplitR; [iPureIntro; eapply no_alloc_Forall_insert; eauto |].
     iSplitR; [iPureIntro; exact HnoallocH | iFrame]. }
   iApply ("Hind" with "Hnew").
   iApply (ec_weaken with "Herr").
@@ -287,14 +286,14 @@ Qed.
 Local Ltac atomic_start :=
   iLeft; iSplitL ""; [by iPureIntro; apply _ | idtac];
   iModIntro;
-  iPoseProof (con_tp_inv_lookup with "Htp He") as "%HCn";
+  iPoseProof (tp_inv_lookup with "Htp He") as "%HCn";
   iIntros (Φ ε1 Hboundε Hstepε Hnnε Hstuckε) "Hind Herr".
 
 Local Ltac no_alloc_fill_head hnoallocC hCn :=
   pose proof (proj1 (Forall_lookup _ _) hnoallocC _ _ hCn) as Hfill_head.
 
 Local Ltac no_alloc_arg_val hfill :=
-  apply no_allocN_fill_inv in hfill; simpl in hfill; tauto.
+  apply no_alloc_fill_inv in hfill; simpl in hfill; tauto.
 
 Local Ltac no_alloc_heap_upd hloc hnoallocH :=
   intros k ? Hk;
@@ -304,7 +303,7 @@ Local Ltac no_alloc_heap_upd hloc hnoallocH :=
 
 Local Ltac simple_heap_inv :=
   unfold con_heap_inv; rewrite app_nil_r /=;
-  iSplitR; [iPureIntro; eapply no_allocN_Forall_insert; eauto |];
+  iSplitR; [iPureIntro; eapply no_alloc_Forall_insert; eauto |];
   iSplitR; [by iPureIntro | iFrame].
 
 Local Ltac det_step_ec_weaken nn_hyp step_hyp ctx lookup :=
@@ -341,20 +340,20 @@ Next Obligation.
     iFrame "Hheap Htp"; iIntros (Ψ E2) "Hcb"; 
     wp_pure; iApply fupd_pgl_wp; 
     iMod "Hcb" as (σ1 C1) "((%Hnae&%Hnas&Hh&Ht) & Htp1 & Hcb)"; 
-    iPoseProof (con_tp_inv_lookup with "Htp1 He") as "%HCn";
+    iPoseProof (tp_inv_lookup with "Htp1 He") as "%HCn";
     iMod ("Hcb" $! _ with "[%] He Htp1 [Hh Ht]") as "Hfupd"; auto; [by apply pure_step_head_step => ?; rewrite dret_1_1|];
-    unfold con_heap_inv; iSplitR; [iPureIntro | iSplitR; [iPureIntro; exact Hnas | iFrame]]; apply (no_allocN_Forall_insert _ _ _ _ Hnae HCn); 
-    have Hfill := proj1 (Forall_lookup _ _) Hnae _ _ HCn; eapply no_allocN_fill_compat; [exact Hfill |];
-    apply no_allocN_fill_inv in Hfill; simpl in *;
+    unfold con_heap_inv; iSplitR; [iPureIntro | iSplitR; [iPureIntro; exact Hnas | iFrame]]; apply (no_alloc_Forall_insert _ _ _ _ Hnae HCn); 
+    have Hfill := proj1 (Forall_lookup _ _) Hnae _ _ HCn; eapply no_alloc_fill_compat; [exact Hfill |];
+    apply no_alloc_fill_inv in Hfill; simpl in *;
     try tauto;
-    try (apply no_allocN_subst'; [tauto |];
-    apply no_allocN_subst'; tauto). 
+    try (apply no_alloc_subst'; [tauto |];
+    apply no_alloc_subst'; tauto). 
   1, 5:
     (* allocN & allocTape (skip) *)
-    iPoseProof (con_tp_inv_lookup with "Htp He") as "%HCn";
+    iPoseProof (tp_inv_lookup with "Htp He") as "%HCn";
     iDestruct "Hheap" as "(%HnoallocC&%HnoallocH&Hheap&Htapes)";
     pose proof (proj1 (Forall_lookup _ _) HnoallocC _ _ HCn) as H;
-    apply no_allocN_fill_inv in H; contradiction.
+    apply no_alloc_fill_inv in H; contradiction.
   {
     (* load *)
     atomic_start.
@@ -365,12 +364,12 @@ Next Obligation.
     rewrite <-(big_sepM_delete (λ l v, l ↦ v)%I _ _  _ H).
     iPoseProof ("Hind" $! v σ2_w [] with "[%] He Htp") as ">[Hv Hnext]";
     first by rewrite /head_step /= H dret_1_1 //=; lra.
-    have HfillKFork : no_allocN_expr (fill K (Load (Val $ LitV $ LitLoc l)))
+    have HfillKFork : no_alloc_expr (fill K (Load (Val $ LitV $ LitLoc l)))
       := proj1 (Forall_lookup _ _) HnoallocC _ _ HCn.
-    have He_noalloc : no_allocN_val v
+    have He_noalloc : no_alloc_val v
       := map_Forall_lookup_1 _ _ _ _ HnoallocH H.
-    have HfillKUnit : no_allocN_expr (fill K (of_val v))
-      := no_allocN_fill_compat K _ _ HfillKFork _.
+    have HfillKUnit : no_alloc_expr (fill K (of_val v))
+      := no_alloc_fill_compat K _ _ HfillKFork _.
     iAssert (con_heap_inv (<[n := fill K (of_val v)]> C ++ []) σ2_w)
       with "[Hheap Htapes]" as "Hnew_heap"; [simple_heap_inv|].
     iApply ("Hv" with "Hnew_heap [Herr]").
@@ -382,19 +381,19 @@ Next Obligation.
     rewrite {1}/con_heap_inv big_sepM_delete; eauto.
     iDestruct "Hheap" as "(%HnoallocC & %HnoallocH &(Hl&Hheap')&Htapes)".
     wp_store.
-    have HfillKStore : no_allocN_expr (fill K (Store (Val $ LitV $ LitLoc l) (Val w)))
+    have HfillKStore : no_alloc_expr (fill K (Store (Val $ LitV $ LitLoc l) (Val w)))
       := proj1 (Forall_lookup _ _) HnoallocC _ _ HCn.
-    have Hw_noalloc : no_allocN_val w. { no_alloc_arg_val HfillKStore. }
-    have HfillKUnit : no_allocN_expr (fill K (of_val (LitV LitUnit))).
-    { apply (no_allocN_fill_compat K _ _ HfillKStore). done. }
-    have HnoallocH' : map_Forall (λ _ (v' : val), no_allocN_val v') (<[l:=w]> σ.(heap)).
+    have Hw_noalloc : no_alloc_val w. { no_alloc_arg_val HfillKStore. }
+    have HfillKUnit : no_alloc_expr (fill K (of_val (LitV LitUnit))).
+    { apply (no_alloc_fill_compat K _ _ HfillKStore). done. }
+    have HnoallocH' : map_Forall (λ _ (v' : val), no_alloc_val v') (<[l:=w]> σ.(heap)).
     { no_alloc_heap_upd l HnoallocH. }
     iPoseProof ("Hind" $! (LitV LitUnit) (state_upd_heap <[l:=w]> σ) [] with "[%] He Htp") as ">[Hv Hnext]";
     first by rewrite /head_step /= H dret_1_1 //=; lra.
     iAssert (con_heap_inv (<[n := fill K (of_val (LitV LitUnit))]> C ++ []) (state_upd_heap <[l:=w]> σ))
       with "[Hl Hheap' Htapes]" as "Hnew_heap".
     { unfold con_heap_inv. rewrite app_nil_r /=.
-      iSplitR; [iPureIntro; eapply no_allocN_Forall_insert; eauto |].
+      iSplitR; [iPureIntro; eapply no_alloc_Forall_insert; eauto |].
       iSplitR; [iPureIntro; exact HnoallocH' |].
       iSplitL "Hl Hheap'".
       - rewrite (big_sepM_delete _ _ _ _ (lookup_insert (heap σ) l w)).
@@ -408,7 +407,7 @@ Next Obligation.
     iLeft. 
     iSplitL ""; first by iPureIntro; apply _.
     iModIntro.
-    iPoseProof (con_tp_inv_lookup with "Htp He") as "%HCn".
+    iPoseProof (tp_inv_lookup with "Htp He") as "%HCn".
     iIntros (Φ ε1 Hboundε Hstepε Hnnε Hstuckε) "Hind Herr". 
     iApply (pgl_wp_strong_mono' E _ _ (λ v, |={E}=> Φ v)%I with "[-] []"); [done | |iIntros (???) "(?&?&H)"; iMod "H"; by iFrame].
     iDestruct "Hheap" as "(%HnoallocC & %HnoallocH &Hheap&Htapes)".
@@ -418,10 +417,10 @@ Next Obligation.
       iIntros (?) "Herr".
       iPoseProof ("Hind" $! (LitV (LitInt n1)) σ2_w [] with "[%] He Htp") as ">[Hv Hnext]"; 
       first by simpl; solve_distr. 
-      have HfillKStore : no_allocN_expr (fill K (Rand (Val $ LitV $ LitInt z) (Val $ LitV $ LitUnit)))
+      have HfillKStore : no_alloc_expr (fill K (Rand (Val $ LitV $ LitInt z) (Val $ LitV $ LitUnit)))
       := proj1 (Forall_lookup _ _) HnoallocC _ _ HCn.
-      have HfillKUnit : no_allocN_expr (fill K (of_val (LitV $ LitInt n1))).
-      { apply (no_allocN_fill_compat K _ _ HfillKStore). done. }
+      have HfillKUnit : no_alloc_expr (fill K (of_val (LitV $ LitInt n1))).
+      { apply (no_alloc_fill_compat K _ _ HfillKStore). done. }
       iAssert (con_heap_inv (<[n := fill K (of_val (LitV $ LitInt n1))]> C ++ []) σ2_w)
         with "[Hheap Htapes]" as "Hnew_heap"; [simple_heap_inv|].
       iModIntro. iApply ("Hv" with "Hnew_heap [Herr]").
@@ -446,17 +445,17 @@ Next Obligation.
     iLeft. 
     iSplitL ""; first by iPureIntro; apply _.
     iModIntro.
-    iPoseProof (con_tp_inv_lookup with "Htp He") as "%HCn".
+    iPoseProof (tp_inv_lookup with "Htp He") as "%HCn".
     iIntros (Φ ε1 Hboundε Hstepε Hnnε Hstuckε) "Hind Herr".
     iApply (pgl_wp_strong_mono' E _ _ (λ v, |={E}=> Φ v)%I with "[-] []"); [done | |iIntros (???) "(?&?&H)"; iMod "H"; by iFrame].
     rewrite {1}/con_heap_inv (big_sepM_delete (λ i l, i ↪[conerisGS_tapes_name]l)%I); eauto.
     iDestruct "Hheap" as "(%HnoallocC & %HnoallocH &Hheap&(Hl&Htapes'))". 
     wp_apply (wp_rand_tape with "[Hl]"); first by iNext; iFrame.
     iIntros "[Hl' %]".
-    have HfillKStore : no_allocN_expr (fill K (Rand (Val $ LitV $ LitInt z) (Val $ LitV $ LitLbl l)))
+    have HfillKStore : no_alloc_expr (fill K (Rand (Val $ LitV $ LitInt z) (Val $ LitV $ LitLbl l)))
     := proj1 (Forall_lookup _ _) HnoallocC _ _ HCn. 
-    have HfillKUnit : no_allocN_expr (fill K (of_val (LitV $ LitInt n0))).
-    { apply (no_allocN_fill_compat K _ _ HfillKStore). done. } 
+    have HfillKUnit : no_alloc_expr (fill K (of_val (LitV $ LitInt n0))).
+    { apply (no_alloc_fill_compat K _ _ HfillKStore). done. } 
     iPoseProof ("Hind" $! (LitV (LitInt n0)) _ [] with "[%] He Htp") as ">[Hv Hnext]";
       first by rewrite /head_step /= H0; case_bool_decide; [solve_distr|tauto].   
     iAssert (con_heap_inv (<[n := fill K (of_val (LitV $ LitInt n0))]> C ++ []) (state_upd_tapes <[l:=_]> σ))
@@ -475,7 +474,7 @@ Next Obligation.
         rewrite dret_1_1 //; lra.
     }
     unfold con_heap_inv. rewrite app_nil_r /=.
-    iSplitR; [iPureIntro; eapply no_allocN_Forall_insert; eauto |].
+    iSplitR; [iPureIntro; eapply no_alloc_Forall_insert; eauto |].
     iSplitR; [by iPureIntro| iFrame]. 
     rewrite (big_sepM_delete _ _ _ _ (lookup_insert (tapes σ) l _)). 
     rewrite delete_insert_delete. iFrame. 
@@ -492,7 +491,7 @@ Next Obligation.
     iLeft. 
     iSplitL ""; first by iPureIntro; apply _.
     iModIntro.
-    iPoseProof (con_tp_inv_lookup with "Htp He") as "%HCn".
+    iPoseProof (tp_inv_lookup with "Htp He") as "%HCn".
     iIntros (Φ ε1 Hboundε Hstepε Hnnε Hstuckε) "Hind Herr".
     iApply (pgl_wp_strong_mono' E _ _ (λ v, |={E}=> Φ v)%I with "[-] []"); [done | |iIntros (???) "(?&?&H)"; iMod "H"; by iFrame].
     rewrite {1}/con_heap_inv (big_sepM_delete (λ i l, i ↪[conerisGS_tapes_name]l)%I); eauto.
@@ -527,14 +526,14 @@ Next Obligation.
         have Hlt : n1 < S (Z.to_nat z) by lia.
         apply dmap_pos. exists (nat_to_fin Hlt).
         split; [by rewrite /= fin_to_nat_to_fin | apply dunifP_pos]. }
-      have HfillKStore : no_allocN_expr (fill K (Rand (Val $ LitV $ LitInt z) (Val $ LitV $ LitLbl l)))
+      have HfillKStore : no_alloc_expr (fill K (Rand (Val $ LitV $ LitInt z) (Val $ LitV $ LitLbl l)))
       := proj1 (Forall_lookup _ _) HnoallocC _ _ HCn.
-      have HfillKUnit : no_allocN_expr (fill K (of_val (LitV $ LitInt n1))).
-      { apply (no_allocN_fill_compat K _ _ HfillKStore). done. }
+      have HfillKUnit : no_alloc_expr (fill K (of_val (LitV $ LitInt n1))).
+      { apply (no_alloc_fill_compat K _ _ HfillKStore). done. }
       iAssert (con_heap_inv (<[n := fill K (of_val (LitV $ LitInt n1))]> C ++ []) σ2_w)
         with "[Hheap Hl Htapes']" as "Hnew_heap".
       { unfold con_heap_inv. rewrite app_nil_r /=. 
-        iSplitR; [iPureIntro; eapply no_allocN_Forall_insert; eauto |].
+        iSplitR; [iPureIntro; eapply no_alloc_Forall_insert; eauto |].
         iSplitR; [by iPureIntro| iFrame]. 
         iFrame. 
         rewrite ((big_sepM_delete _ _ _ _ H0)). iFrame. 
@@ -549,7 +548,7 @@ Next Obligation.
     iLeft.
     iSplitL ""; first by iPureIntro; apply _.
     iModIntro.
-    iPoseProof (con_tp_inv_lookup with "Htp He") as "%HCn".
+    iPoseProof (tp_inv_lookup with "Htp He") as "%HCn".
     iIntros (Φ ε1 Hboundε Hstepε Hnnε Hstuckε) "Hind Herr".
     iApply (pgl_wp_strong_mono' E _ _ (λ v, |={E}=> Φ v)%I with "[-] []"); [done | |iIntros (???) "(?&?&H)"; iMod "H"; by iFrame].
     rewrite {1}/con_heap_inv (big_sepM_delete (λ i l, i ↪[conerisGS_tapes_name]l)%I); eauto.
@@ -581,10 +580,10 @@ Next Obligation.
     iIntros (n1) "(Herr & Hl')".
     iPoseProof ("Hind" $! (LitV (LitInt n1)) σ2_w [] with "[%] He Htp") as ">[Hv Hnext]"; 
       first by rewrite /= H0; case_bool_decide; first real_solver; solve_distr. 
-    have HfillKRand : no_allocN_expr (fill K (Rand (Val $ LitV $ LitInt z) (Val $ LitV $ LitLbl l)))
+    have HfillKRand : no_alloc_expr (fill K (Rand (Val $ LitV $ LitInt z) (Val $ LitV $ LitLbl l)))
       := proj1 (Forall_lookup _ _) HnoallocC _ _ HCn.
-    have HfillKInt : no_allocN_expr (fill K (of_val (LitV $ LitInt n1))).
-    { apply (no_allocN_fill_compat K _ _ HfillKRand). done. }
+    have HfillKInt : no_alloc_expr (fill K (of_val (LitV $ LitInt n1))).
+    { apply (no_alloc_fill_compat K _ _ HfillKRand). done. }
     iDestruct "Hl'" as "((%fs_out&%Heq_out & Hl_out) & %)".
     eassert (ms = fs_out) as Hms_eq.
     { eapply fmap_inj; first apply fin_to_nat_inj. exact (eq_sym Heq_out). }
@@ -592,7 +591,7 @@ Next Obligation.
     iAssert (con_heap_inv (<[n := fill K (of_val (LitV $ LitInt n1))]> C ++ []) σ2_w)
       with "[Hheap Hl_out Htapes']" as "Hnew_heap".
     { unfold con_heap_inv. rewrite app_nil_r /=.
-      iSplitR; [iPureIntro; eapply no_allocN_Forall_insert; eauto |].
+      iSplitR; [iPureIntro; eapply no_alloc_Forall_insert; eauto |].
       iSplitR; [by iPureIntro|].
       iSplitL "Hheap"; [iFrame |].
       rewrite (big_sepM_delete _ _ _ _ H0). iFrame. }
@@ -605,25 +604,25 @@ Next Obligation.
     iSplitL ""; first by iPureIntro; apply _.
     iIntros (Φ ε1 Hboundε Hstepε Hnnε Hstuckε) "Hind Herr".
     iApply (wp_fork_fupd with "[Hind Herr He Htp Hheap]").
-    iPoseProof (con_tp_inv_lookup with "Htp He") as "%HCn".
+    iPoseProof (tp_inv_lookup with "Htp He") as "%HCn".
     iNext.
     iMod ("Hind" $! (LitV LitUnit) σ2_w [e] with "[] He Htp") as "[Hv Hnext]";
       first by iPureIntro; rewrite dret_1_1 //=; lra.
     iSplitL "Hnext"; first by iModIntro; rewrite big_sepL_singleton.
     iModIntro.
     iDestruct "Hheap" as "(%HnoallocC & %HnoallocH & Hheap_pts & Htapes)".
-    have HfillKFork : no_allocN_expr (fill K (Fork e))
+    have HfillKFork : no_alloc_expr (fill K (Fork e))
       := proj1 (Forall_lookup _ _) HnoallocC _ _ HCn.
-    have He_noalloc : no_allocN_expr e
-      := no_allocN_fill_inv K (Fork e) HfillKFork.
-    have HfillKUnit : no_allocN_expr (fill K (of_val (LitV LitUnit)))
-      := no_allocN_fill_compat K (Fork e) _ HfillKFork _. 
+    have He_noalloc : no_alloc_expr e
+      := no_alloc_fill_inv K (Fork e) HfillKFork.
+    have HfillKUnit : no_alloc_expr (fill K (of_val (LitV LitUnit)))
+      := no_alloc_fill_compat K (Fork e) _ HfillKFork _. 
     iAssert (con_heap_inv (<[n := fill K (of_val (LitV LitUnit))]> C ++ [e]) σ2_w)
         with "[Hheap_pts Htapes]" as "Hnew_heap".
     { unfold con_heap_inv.
       iSplitR.
-      { iPureIntro. apply no_allocN_Forall_app.
-        - by refine (no_allocN_Forall_insert _ _ _ _ HnoallocC HCn (HfillKUnit _)).  
+      { iPureIntro. apply no_alloc_Forall_app.
+        - by refine (no_alloc_Forall_insert _ _ _ _ HnoallocC HCn (HfillKUnit _)).  
         - by constructor. }
       iSplitR; [iPureIntro; exact HnoallocH | iFrame]. }
     iApply ("Hv" with "Hnew_heap [Herr]").
@@ -641,22 +640,22 @@ Next Obligation.
     iLeft.
     iSplitL ""; first by iPureIntro; apply _.
     iModIntro.
-    iPoseProof (con_tp_inv_lookup with "Htp He") as "%HCn".
+    iPoseProof (tp_inv_lookup with "Htp He") as "%HCn".
     iIntros (Φ ε1 Hboundε Hstepε Hnnε Hstuckε) "Hind Herr".
     iApply (pgl_wp_strong_mono' E _ _ (λ v, |={E}=> Φ v)%I with "[-] []"); [done | |iIntros (???) "(?&?&H)"; iMod "H"; by iFrame].
     rewrite {1}/con_heap_inv big_sepM_delete; eauto.
     iDestruct "Hheap" as "(%HnoallocC & %HnoallocH &(Hl&Hheap')&Htapes)".
-    have HfillKCmpXchg : no_allocN_expr (fill K (CmpXchg (Val $ LitV $ LitLoc l) (Val v1) (Val v2)))
+    have HfillKCmpXchg : no_alloc_expr (fill K (CmpXchg (Val $ LitV $ LitLoc l) (Val v1) (Val v2)))
       := proj1 (Forall_lookup _ _) HnoallocC _ _ HCn.
-    have Hvl_noalloc : no_allocN_val vl
+    have Hvl_noalloc : no_alloc_val vl
       := map_Forall_lookup_1 _ _ _ _ HnoallocH H.
-    have Hv2_noalloc : no_allocN_val v2. { no_alloc_arg_val HfillKCmpXchg. }
+    have Hv2_noalloc : no_alloc_val v2. { no_alloc_arg_val HfillKCmpXchg. }
     destruct (decide (vl = v1)) as [-> | Hne].
     - (* success: vl = v1 *)
-      have HnoallocH' : map_Forall (λ _ v', no_allocN_val v') (<[l:=v2]> σ.(heap)).
+      have HnoallocH' : map_Forall (λ _ v', no_alloc_val v') (<[l:=v2]> σ.(heap)).
       { no_alloc_heap_upd l HnoallocH. }
-      have HfillKResult : no_allocN_expr (fill K (of_val (PairV v1 (LitV (LitBool true))))).
-      { apply (no_allocN_fill_compat K _ _ HfillKCmpXchg). simpl. exact (conj Hvl_noalloc I). }
+      have HfillKResult : no_alloc_expr (fill K (of_val (PairV v1 (LitV (LitBool true))))).
+      { apply (no_alloc_fill_compat K _ _ HfillKCmpXchg). simpl. exact (conj Hvl_noalloc I). }
       
       wp_apply (wp_cmpxchg_suc with "Hl"); [done | done |].
       iIntros "Hl".
@@ -667,7 +666,7 @@ Next Obligation.
         (state_upd_heap <[l:=v2]> σ))
         with "[Hl Hheap' Htapes]" as "Hnew_heap".
       { unfold con_heap_inv. rewrite app_nil_r /=.
-        iSplitR; [iPureIntro; eapply no_allocN_Forall_insert; eauto |].
+        iSplitR; [iPureIntro; eapply no_alloc_Forall_insert; eauto |].
         iSplitR; [iPureIntro; exact HnoallocH' |].
         iSplitL "Hl Hheap'".
         - rewrite (big_sepM_delete _ _ _ _ (lookup_insert (heap σ) l v2)).
@@ -685,8 +684,8 @@ Next Obligation.
         rewrite /= H; case_decide; [| done];
           rewrite bool_decide_true // /= dret_1_1 //=; lra. 
     - (* failure: vl ≠ v1 *)
-      have HfillKResult : no_allocN_expr (fill K (of_val (PairV vl (LitV (LitBool false))))).
-      { apply (no_allocN_fill_compat K _ _ HfillKCmpXchg). simpl. exact (conj Hvl_noalloc I). }
+      have HfillKResult : no_alloc_expr (fill K (of_val (PairV vl (LitV (LitBool false))))).
+      { apply (no_alloc_fill_compat K _ _ HfillKCmpXchg). simpl. exact (conj Hvl_noalloc I). }
       wp_apply (wp_cmpxchg_fail with "Hl"); [done | done |].
       iIntros "Hl".
       iPoseProof ("Hind" $! (PairV vl (LitV (LitBool false))) σ []
@@ -696,7 +695,7 @@ Next Obligation.
       iAssert (con_heap_inv (<[n := fill K (of_val (PairV vl (LitV (LitBool false))))]> C ++ []) σ)
         with "[Hl Hheap' Htapes]" as "Hnew_heap".
       { unfold con_heap_inv. rewrite app_nil_r /=.
-        iSplitR; [iPureIntro; eapply no_allocN_Forall_insert; eauto |].
+        iSplitR; [iPureIntro; eapply no_alloc_Forall_insert; eauto |].
         iSplitR; [iPureIntro; exact HnoallocH |].
         iSplitL "Hl Hheap'".
         - iCombine "Hl Hheap'" as "Hheap".
@@ -722,21 +721,21 @@ Next Obligation.
     iDestruct "Hheap" as "(%HnoallocC & %HnoallocH &(Hl&Hheap')&Htapes)".
     wp_apply (wp_xchg with "Hl").
     iIntros "Hl".
-    have HfillKXchg : no_allocN_expr (fill K (Xchg (Val $ LitV $ LitLoc l) (Val v2)))
+    have HfillKXchg : no_alloc_expr (fill K (Xchg (Val $ LitV $ LitLoc l) (Val v2)))
       := proj1 (Forall_lookup _ _) HnoallocC _ _ HCn.
-    have Hv1_noalloc : no_allocN_val v1
+    have Hv1_noalloc : no_alloc_val v1
       := map_Forall_lookup_1 _ _ _ _ HnoallocH H.
-    have Hv2_noalloc : no_allocN_val v2. { no_alloc_arg_val HfillKXchg. }
-    have HfillKResult : no_allocN_expr (fill K (of_val v1)).
-    { apply (no_allocN_fill_compat K _ _ HfillKXchg). exact Hv1_noalloc. }
-    have HnoallocH' : map_Forall (λ _ v', no_allocN_val v') (<[l:=v2]> σ.(heap)).
+    have Hv2_noalloc : no_alloc_val v2. { no_alloc_arg_val HfillKXchg. }
+    have HfillKResult : no_alloc_expr (fill K (of_val v1)).
+    { apply (no_alloc_fill_compat K _ _ HfillKXchg). exact Hv1_noalloc. }
+    have HnoallocH' : map_Forall (λ _ v', no_alloc_val v') (<[l:=v2]> σ.(heap)).
     { no_alloc_heap_upd l HnoallocH. }
     iPoseProof ("Hind" $! v1 (state_upd_heap <[l:=v2]> σ) [] with "[%] He Htp") as ">[Hv Hnext]";
     first by rewrite /head_step /= H dret_1_1 //=; lra.
     iAssert (con_heap_inv (<[n := fill K (of_val v1)]> C ++ []) (state_upd_heap <[l:=v2]> σ))
       with "[Hl Hheap' Htapes]" as "Hnew_heap".
     { unfold con_heap_inv. rewrite app_nil_r /=.
-      iSplitR; [iPureIntro; eapply no_allocN_Forall_insert; eauto |].
+      iSplitR; [iPureIntro; eapply no_alloc_Forall_insert; eauto |].
       iSplitR; [iPureIntro; exact HnoallocH' |].
       iSplitL "Hl Hheap'".
       - rewrite (big_sepM_delete _ _ _ _ (lookup_insert (heap σ) l v2)).
@@ -753,11 +752,11 @@ Next Obligation.
     iDestruct "Hheap" as "(%HnoallocC & %HnoallocH &(Hl&Hheap')&Htapes)".
     wp_apply (wp_faa with "Hl").
     iIntros "Hl".
-    have HfillKFAA : no_allocN_expr (fill K (FAA (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i2)))
+    have HfillKFAA : no_alloc_expr (fill K (FAA (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i2)))
       := proj1 (Forall_lookup _ _) HnoallocC _ _ HCn.
-    have HfillKResult : no_allocN_expr (fill K (of_val (LitV (LitInt i1)))).
-    { apply (no_allocN_fill_compat K _ _ HfillKFAA). done. }
-    have HnoallocH' : map_Forall (λ _ v', no_allocN_val v') (<[l:= LitV (LitInt (i1+i2))]> σ.(heap)).
+    have HfillKResult : no_alloc_expr (fill K (of_val (LitV (LitInt i1)))).
+    { apply (no_alloc_fill_compat K _ _ HfillKFAA). done. }
+    have HnoallocH' : map_Forall (λ _ v', no_alloc_val v') (<[l:= LitV (LitInt (i1+i2))]> σ.(heap)).
     { no_alloc_heap_upd l HnoallocH. }
     iPoseProof ("Hind" $! (LitV (LitInt i1)) (state_upd_heap <[l:= LitV (LitInt (i1+i2))]> σ) []
       with "[%] He Htp") as ">[Hv Hnext]";
@@ -766,7 +765,7 @@ Next Obligation.
       (state_upd_heap <[l:= LitV (LitInt (i1+i2))]> σ))
       with "[Hl Hheap' Htapes]" as "Hnew_heap".
     { unfold con_heap_inv. rewrite app_nil_r /=.
-      iSplitR; [iPureIntro; eapply no_allocN_Forall_insert; eauto |].
+      iSplitR; [iPureIntro; eapply no_alloc_Forall_insert; eauto |].
       iSplitR; [iPureIntro; exact HnoallocH' |].
       iSplitL "Hl Hheap'".
       - rewrite (big_sepM_delete _ _ _ _ (lookup_insert (heap σ) l (LitV (LitInt (i1+i2))))).
@@ -780,3 +779,16 @@ Next Obligation.
 Qed.
 
 End completeness.
+
+Lemma coneris_wp_completeness `{!ghost_mapG Σ nat expr, !cinvG Σ, !conerisGS Σ} e σ φ ε:
+  (err_lb_con φ 0 ([e], σ) <= ε)%R →
+  con_heap_inv [e] σ -∗
+  ↯ ε -∗ 
+  WP e @ ⊤ {{ v, ⌜φ v⌝ }}.
+Proof.
+  iIntros (Hε) "Hheap Herr".
+  iPoseProof (ec_weaken with "Herr") as "Herr";
+    first by split; [apply err_lb_con_nn | done].
+  iMod tp_inv_alloc as (γ) "Htp".
+  iApply (coneris_sem_completeness  (coneris_lang_completeness_gen0 := coneris_ectx_to_lang (coneris_ectx_lang_completeness_gen0 := coneris_ectx_lang_completeness)) with "[$] [$] Herr").
+Qed.

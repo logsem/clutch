@@ -156,7 +156,6 @@ Section gcoupl.
     intros Hcoupl Hcc Hred Hcont Hinj.
     assert (to_val e = None) as Hnv.
     { destruct Hred as [ρ' Hstep]. exact (val_stuck e σ ρ' Hstep). }
-    Search is_final.
     rewrite exec_Sn_not_final //. 2 : by apply to_final_None_2.
     assert (∀ a', ∃ μ', CC a' μ' ∧ ∀ ρ, R ρ a' → ARcouplC (exec m ρ) μ' Φ 0) as Hf.
     { intro a'.
