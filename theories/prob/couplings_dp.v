@@ -1418,16 +1418,30 @@ Section couplings_theory.
 
 
   Lemma DPcoupl_dbind_subsampling `{Countable A}
-    (μ1 : distr A) (μ2 : distr A) (μ3 : distr A) (S : A -> A -> Prop) ε δ :
+    (μ1 : distr A) (μ2 : distr A) (μ3 : distr A) (S : A -> A -> Prop) (r : R)
+    (Hr: 0 <= r <= 1) ε δ :
     (0 <= ε) -> (0 <= δ) ->
     (DPcoupl μ1 μ2 S ε δ) →
     (DPcoupl μ1 μ3 S ε δ) →
     (DPcoupl μ3 μ2 S ε δ) →
     (DPcoupl μ3 μ3 S 0 0) →
-    DPcoupl (fair_conv_comb μ1 μ3) (fair_conv_comb μ2 μ3) S (ln ((1/2)*(exp(ε)+1))) ((1/2)*δ).
+    DPcoupl (dbind (λ b, if b then μ1 else μ3) (biased_coin r Hr))
+      (dbind (λ b, if b then μ2 else μ3) (biased_coin r Hr)) S
+        (ln (1 + r*(exp(ε)-1))) (r*δ).
   Proof.
     intros Hε Hδ Hcoupl12 Hcoupl13 Hcoupl23 Hcoupl33.
-    rewrite /fair_conv_comb.
+    assert (0 = r \/ 0 < r) as [<- | ] by lra.
+    {
+      (* degenerate case r=0 *)
+      simpl.
+      assert (biased_coin 0 Hr = dret (false)) as ->.
+      - apply distr_ext.
+        rewrite /biased_coin/pmf/=.
+        rewrite /biased_coin_pmf/dret_pmf/=.
+        intros []; simpl; lra.
+      - rewrite !dret_id_left.
+        rewrite !Rmult_0_l Rplus_0_r ln_1 //.
+    }
     set (E2 b1 b2 := match b1,b2 with
                       | false,false => 0
                       | _,_ => ε
@@ -1442,25 +1456,28 @@ Section couplings_theory.
     - intros h1 h2 Hh1 Hh2 Hh1h2.
       rewrite exp_ln; last first.
       {
-        apply Rmult_lt_0_compat; [lra|].
-        apply Rplus_lt_0_compat; [|lra].
-        apply exp_pos.
+        apply Rplus_lt_le_0_compat; [lra|].
+        apply Rmult_le_pos; [lra|].
+        apply Rle_minus_r.
+        rewrite Rplus_0_l.
+        by apply exp_pos_ge_1.
       }
-      rewrite SeriesC_bool.
-      rewrite !fair_coin_pmf.
-      assert (h1 true + h1 false <= (exp ε + 1) * SeriesC (λ b : bool, fair_coin b * h2 b) + δ); last by lra.
-      transitivity (h1 true + h2 false).
+      rewrite !SeriesC_bool.
+      rewrite /biased_coin/pmf/=.
+      (*  assert (h1 true + h1 false <= (exp ε + 1) * SeriesC (λ b : bool, fair_coin b * h2 b) + δ); last by lra. *)
+      transitivity (r * h1 true + (1-r) * h2 false).
       {
         apply Rplus_le_compat_l.
         specialize (Hh1h2 false false).
         rewrite /E2 /D2 exp_0 /= in Hh1h2.
         real_solver.
       }
-      set (ρ := (1/2) + (1/2) * exp (-ε)).
-      transitivity ( ρ * (exp (ε) * h2 true + δ) + (1-ρ) * (exp(ε) * h2 false + δ) + h2 false).
+      set (ρ := r + (1-r) * exp (-ε)).
+      transitivity (r * (ρ * (exp (ε) * h2 true + δ) + (1-ρ) * (exp(ε) * h2 false + δ)) + (1-r) * h2 false).
       {
         apply Rplus_le_compat_r.
         replace (h1 true) with (ρ * h1 true + (1-ρ) * h1 true) by lra.
+        apply Rmult_le_compat_l; [real_solver|].
         apply Rplus_le_compat.
         - apply Rmult_le_compat_l.
           + rewrite /ρ.
@@ -1474,7 +1491,7 @@ Section couplings_theory.
          + rewrite /ρ.
            apply Rle_minus_r.
            rewrite Rplus_0_l.
-           replace 1 with (1/2 + 1/2 * 1) at 3 by lra.
+           replace 1 with (r + (1-r) * 1) at 2 by lra.
            apply Rplus_le_compat_l.
            apply Rmult_le_compat_l; [lra|].
            rewrite exp_Ropp.
@@ -1484,35 +1501,34 @@ Section couplings_theory.
          + specialize (Hh1h2 true false).
            done.
       }
-      replace (ρ * (exp ε * h2 true + δ) + (1 - ρ) * (exp ε * h2 false + δ) + h2 false)
-        with (ρ * exp ε * h2 true + ((1 - ρ) * exp ε + 1) * h2 false + δ) by lra.
+      replace (r * (ρ * (exp ε * h2 true + δ) + (1 - ρ) * (exp ε * h2 false + δ)) + (1-r) * h2 false)
+        with (r * ρ * exp ε * h2 true + (r * (1 - ρ) * exp ε + (1-r)) * h2 false + r * δ) by lra.
       apply Rplus_le_compat_r.
-      rewrite /ρ.
-      replace ((1 / 2 + 1 / 2 * exp (- ε)) * exp ε) with (1 / 2 * exp ε + 1 / 2); last first.
-      {
+      replace (1 + r * (exp ε-1)) with (r * exp ε + (1-r)) by lra.
+      rewrite Rmult_plus_distr_l.
+      apply Rplus_le_compat.
+      + replace (r * ρ * exp ε * h2 true) with (ρ * exp ε * (r * h2 true)) by lra.
+        apply Rmult_le_compat_r; [real_solver|].
+        rewrite /ρ.
         rewrite Rmult_plus_distr_r.
-        f_equal.
+        apply Rplus_le_compat_l.
         rewrite Rmult_assoc.
         rewrite -exp_plus.
         replace (-ε+ε) with 0 by lra.
         rewrite exp_0.
         lra.
-      }
-      replace ((1 - (1 / 2 + 1 / 2 * exp (- ε))) * exp ε + 1) with
-        (1 / 2 * exp ε + 1 / 2 ); last first.
-      {
-        rewrite Rmult_plus_distr_r.
+      + rewrite -Rmult_assoc.
+        apply Rmult_le_compat_r; [real_solver|].
+        rewrite /ρ.
+        rewrite Rmult_assoc.
+        rewrite (Rmult_minus_distr_r _ _(exp ε)).
         rewrite Rmult_1_l.
-        replace (exp ε + - (1 / 2 + 1 / 2 * exp (- ε)) * exp ε) with
-          (exp ε - (1 / 2 * exp ε + 1 / 2 * (exp (- ε) * exp ε))) by lra.
+        rewrite (Rmult_plus_distr_r _ _(exp ε)).
+        rewrite Rmult_assoc.
         rewrite -exp_plus.
         replace (-ε+ε) with 0 by lra.
         rewrite exp_0.
         lra.
-      }
-      rewrite SeriesC_bool.
-      rewrite !fair_coin_pmf.
-      lra.
     - rewrite /E2/D2.
       intros [][]; simpl; auto.
   Qed.
