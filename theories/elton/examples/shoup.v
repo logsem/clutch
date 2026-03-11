@@ -4,6 +4,80 @@ From clutch.elton Require Import elton.
 From clutch.elton Require Import map.
 Set Default Proof Using "Type*".
 
+Open Scope Z_scope.
+
+Theorem mod_mult_inverse_unique :
+  forall p : Z,
+    prime p ->
+    forall a b : Z,
+      0 < a < p ->
+      0 <= b < p ->
+      exists! x : Z,
+        0 <= x < p /\ (a * x) mod p = b mod p.
+Proof.
+  intros p Hprime a b Ha Hb.
+  assert (Hp_pos : p > 0) by (destruct Hprime; lia).
+  assert (Hp_neq0 : p ≠ 0) by lia.
+  assert (Hndiv : ~ (p | a)).
+  { intros [k Hk]. destruct Ha as [Ha1 Ha2].
+    destruct (Z.eq_dec k 0) as [->|Hk0].
+    - lia.
+    - assert (Z.abs (p * k) >= p) by (rewrite Z.abs_mul; nia).
+      lia. }
+  assert (Hrel : rel_prime p a) by (apply prime_rel_prime; auto).
+  assert (Hrel' : rel_prime a p) by (apply rel_prime_sym; auto).
+  destruct (rel_prime_bezout p a Hrel) as [u v Hbez].
+  exists ((v * b) mod p).
+  unfold unique. split.
+  - split.
+    + apply Z_mod_lt. lia.
+    + rewrite Zmult_mod.
+      rewrite Zmod_mod.
+      rewrite <- Zmult_mod.
+      replace (a * (v * b)) with ((v * a) * b) by ring.
+      assert (Hva : v * a = 1 - u * p) by lia.
+      rewrite Hva.
+      replace ((1 - u * p) * b) with (b + (- u * b) * p) by ring.
+      rewrite Z_mod_plus_full.
+      rewrite (Zmod_small b p); lia.
+  - intros x' [Hx'_range Hx'_eq].
+    assert (Hwit_eq : (a * ((v * b) mod p)) mod p = b mod p).
+    { rewrite Zmult_mod. rewrite Zmod_mod. rewrite <- Zmult_mod.
+      replace (a * (v * b)) with ((v * a) * b) by ring.
+      assert (Hva : v * a = 1 - u * p) by lia.
+      rewrite Hva.
+      replace ((1 - u * p) * b) with (b + (- u * b) * p) by ring.
+      rewrite Z_mod_plus_full.
+      rewrite (Zmod_small b p); lia. }
+    assert (Hx'_eq' : (a * x') mod p = (a * ((v * b) mod p)) mod p).
+    { rewrite Hx'_eq. symmetry. exact Hwit_eq. }
+    assert (Hdiff : (a * x' - a * ((v * b) mod p)) mod p = 0).
+    { rewrite Zminus_mod.
+      rewrite Hx'_eq'.
+      rewrite Z.sub_diag.
+      reflexivity. }
+    assert (Hdiv : (p | a * (x' - (v * b) mod p))).
+    { apply Zmod_divides in Hdiff; auto.
+      destruct Hdiff as [c Hc].
+      exists c.
+      replace (a * (x' - (v * b) mod p)) with (a * x' - a * ((v * b) mod p)) by ring.
+      lia. }
+    assert (Hdiv2 : (p | x' - (v * b) mod p)).
+    { apply Gauss with a; auto. }
+    destruct Hdiv2 as [k Hk].
+    assert (Hx_range : 0 <= (v * b) mod p < p) by (apply Z_mod_lt; lia).
+    destruct (Z.eq_dec k 0) as [->|Hk0].
+    + lia.
+    + exfalso.
+      assert (Z.abs (x' - (v * b) mod p) >= p).
+      { rewrite Hk. rewrite Z.abs_mul.
+        assert (Z.abs p = p) by lia.
+        rewrite H. nia. }
+      lia.
+Qed.
+
+Close Scope Z_scope.
+
 Section prog.
   Variable p:nat.
   Variable tries:nat.
