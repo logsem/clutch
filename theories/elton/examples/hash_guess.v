@@ -2,6 +2,8 @@ From iris.base_logic.lib Require Import token.
 From clutch.elton Require Import elton hash. 
 Set Default Proof Using "Type*".
 
+(** https://eprint.iacr.org/2004/035.pdf. The APre game *)
+
 Lemma INR_div_pos x y: (0<=INR x/INR y)%R.
 Proof.
   destruct y.
