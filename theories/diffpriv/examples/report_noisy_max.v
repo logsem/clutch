@@ -190,6 +190,8 @@ Section rnm.
               "rnm" ("i" + #1)))
       in "f" #0.
 
+  Definition list_map' (v:val) :=
+    (list_mapi (λ: <>, v))%E.
 
   Definition report_noisy_max_presampling (num den : Z) : val :=
     (* ↯ (num/den) ∗ evalQ is 1-sensitive ∗ N ∈ ℕ \ {0} ∗ 0 < num/2den ∗ dDB db db' <= 1 *)
@@ -208,7 +210,7 @@ Section rnm.
          List_forall4 (x, ι), (x', ι'), v, v' ∈ tapes, tapes', vs, vs'
          . ι ↦ (Lap(num, 2den, x), [v]) ∗ ι' ↦ (Lap(num, 2den, x'), [v'])
        *)
-      let: "noisy_xs" := list_mapi (λ:"_k" "x_ι", Laplace #num #(2*den) (Fst "x_ι") (Snd "x_ι")) "xs_tapes" in
+      let: "noisy_xs" := list_map' (λ: "x_ι", Laplace #num #(2*den) (Fst "x_ι") (Snd "x_ι")) "xs_tapes" in
       (* We'll get exactly vs as noisy_xs. *)
       (* List.max_index noisy_xs = List.max_index noisy_xs' ; QED *)
       list_max_index "noisy_xs".
@@ -661,11 +663,12 @@ Qed.
     }
     iIntros "!> % h_list_mapi". idtac...
 
+    tp_pures.
     tp_bind (list_mapi _ _).
 
     iMod (gwp_list_mapi (g:=gwp_spec)
                   (λ k '(x, ι), zs' !!! k) xιs'
-                  (λ: "_k" "x_ι", Laplace #num #(2 * den) (Fst "x_ι") (Snd "x_ι"))%V
+                  _
                   vxιs'
                   (λ k '(x, ι), ι ↪Lₛ (num, 2*den, x; [zs' !!! k]))%I
                   (λ k z', ⌜zs' !!! k = z'⌝)%I
