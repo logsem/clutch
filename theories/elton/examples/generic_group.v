@@ -294,6 +294,41 @@ Section prog.
     Context `{tokenG Σ}.
     Context `{mono_natG Σ}.
     (* interp adv_type [] advv *)
+
+    Definition map_match (m:gmap nat base_lit) (m': gmap nat (nat * nat)) l:=
+      ∀ k bl (a b:nat) f x,  m!!k=Some bl -> m'!!k= Some (a,b) ->
+                     f!!l=Some x ->
+                     urn_subst f bl = Some (LitInt (Zmod (a*x+b) p)).
+
+    Definition no_coll (m':gmap nat (nat*nat)) (s:gset Z) :=
+      ∀ k k' (a b a' b':nat) x, m'!!k=Some (a,b) ->
+                        m'!!k'=Some (a',b') ->
+                        (a≠a'\/b≠b') ->
+                        x∈s ->
+                        (Zmod (a*x+b) p) ≠ (Zmod (a'*x+b') p) .
+    
+    Definition dlog_inv (lm:loc) arr ltries l γ1 γ2 :=
+      ( ∃ (m:gmap nat base_lit) (m': gmap nat (nat*nat)) (k:nat) s,
+          l ↪ urn_unif s ∗ ⌜set_Forall (λ x, (0<=x<p)%Z) s⌝ ∗
+          arr ↦ (#k, #lm)%V ∗
+          ⌜k<=tries + 2⌝ ∗
+          ltries ↦ #(tries +2 -k)%nat ∗
+          map_list lm ((λ x, #x) <$> m) ∗
+          ⌜dom m = set_seq 0 k⌝ ∗
+          ⌜map_Forall (λ _ x, base_lit_type_check x = Some BLTInt) m⌝ ∗
+          ⌜is_valid_urn (urn_unif s)⌝ ∗
+          mono_nat_auth_own γ1 1 (k-1) ∗
+          ((∃ (m':gmap nat (nat * nat)),
+               ⌜dom m = dom m'⌝ ∗ 
+               ⌜map_Forall (λ _ x, 0<=x.1<p/\0<=x.2<p) m'⌝ ∗
+               ⌜map_match m m' l⌝  ∗
+               ⌜no_coll m' s⌝ ∗
+               ⌜p-k+1<=size s⌝ ∗
+               ↯ ((1+(k)*(size s*2+k-1)%nat/2)/(size s))
+           )∨
+             token γ2
+          )
+      )%I.
     
   End proofs.
   
@@ -445,6 +480,9 @@ Section prog.
     }
     rewrite bool_decide_eq_false_2; last (set_unfold; set_solver).
     simpl.
-  Admitted. 
+  Admitted.
+
+  
+
   
 End prog.
