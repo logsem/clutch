@@ -154,10 +154,10 @@ Section prog.
         let: "e1" := arr_get "arr" "h1" in
         let: "e2" := arr_get "arr" "h2" in
         match: "e1" with
-          NONE => NONEV
+          NONE => #() #()
         | SOME "a" =>
             match: "e2" with
-              NONE => NONEV
+              NONE => #() #()
             | SOME "b" =>
                 SOME (arr_push "arr" (zmod ("a" + "b")))
             end
@@ -171,10 +171,10 @@ Section prog.
         let: "e1" := arr_get arr "h1" in
         let: "e2" := arr_get arr "h2" in
         match: "e1" with
-          NONE => NONEV
+          NONE => #() #()
         | SOME "a" =>
             match: "e2" with
-              NONE => NONEV
+              NONE => #() #()
             | SOME "b" =>
                 SOME (arr_push arr (zmod ("a" + "b")))
             end
@@ -188,7 +188,7 @@ Section prog.
       then
         let: "e" := arr_get "arr" "h" in
         match: "e" with
-          NONE => NONEV
+          NONE => #() #()
         | SOME "a" =>
             SOME (arr_push "arr" (zmod (#p-"a")))
         end
@@ -200,7 +200,7 @@ Section prog.
       then
         let: "e" := arr_get arr "h" in
         match: "e" with
-          NONE => NONEV
+          NONE => #() #()
         | SOME "a" =>
             SOME (arr_push arr (zmod (#p-"a")))
         end
@@ -212,10 +212,10 @@ Section prog.
       let: "e1" := arr_get "arr" "h1" in
       let: "e2" := arr_get "arr" "h2" in
       match: "e1" with
-        NONE => NONEV
+        NONE => #() #()
       | SOME "a" =>
           match: "e2" with
-            NONE => NONEV
+            NONE => #() #()
           | SOME "b" =>
              ("a" = "b")
           end
@@ -300,14 +300,16 @@ Section prog.
   Lemma guess_group A:
     ∅ ⊢ₜ A : adv_type ->
              pgl (lim_exec ((dlog_game A), {|heap:=∅; urns:= ∅|})) (λ v, v=#false)
-               ((2+((tries)*(tries+1)/2)%R) / p )%R.
+               ((2+((tries)*(tries+3)/2)%R) / p )%R.
   Proof.
     intros Htyped.
     eapply (elton_adequacy_remove_drand (#[eltonΣ; tokenΣ; mono_natΣ]) (dlog_game' A)).
     { simpl. by erewrite typed_remove_drand_expr. }
     { apply Rcomplements.Rdiv_le_0_compat.
       - apply Rplus_le_le_0_compat; first lra.
-        real_solver.
+        apply Rcomplements.Rdiv_le_0_compat; last lra.
+        apply Rmult_le_pos; first real_solver.
+        apply Rplus_le_le_0_compat; real_solver.
       - apply lt_0_INR. destruct Hprime. lia.
     }
     rewrite /dlog_game'.
@@ -372,10 +374,12 @@ Section prog.
     assert (1<p) by (destruct Hprime; lia).
 
     (* resolve urn to remove 1 *)
-    assert (0<=((1 + tries * (tries + 1) / 2) / (p-1)%nat))%R as err_ineq.
+    assert (0<=((1 + tries * (tries + 3) / 2) / (p-1)%nat))%R as err_ineq.
     { apply Rcomplements.Rdiv_le_0_compat.
       - apply Rplus_le_le_0_compat; first lra.
-        real_solver.
+        apply Rcomplements.Rdiv_le_0_compat; last lra.
+        apply Rmult_le_pos; first real_solver.
+        apply Rplus_le_le_0_compat; real_solver.
       - apply lt_0_INR. destruct Hprime. lia. }
     
     iMod (pupd_partial_resolve_urn _ _ (λ x, if bool_decide (x=({[1%Z]} : gset _)) then nnreal_one else mknonnegreal _ err_ineq) _ _ (({[1%Z]} ::( (list_to_set (Z.of_nat <$> seq 0 p))∖{[1%Z]}) ::[]): list (gset _)) with "[$][$]") as "H'".
