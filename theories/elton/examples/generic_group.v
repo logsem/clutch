@@ -296,8 +296,8 @@ Section prog.
     (* interp adv_type [] advv *)
 
     Definition map_match (m:gmap nat base_lit) (m': gmap nat (nat * nat)) l:=
-      ∀ k bl (a b:nat) f x,  m!!k=Some bl -> m'!!k= Some (a,b) ->
-                           (0<=x<p)%Z ->
+      ∀ k bl (a b:nat),  m!!k=Some bl -> m'!!k= Some (a,b) ->
+                     ∀ f x, (0<=x<p)%Z ->
                      f!!l=Some x ->
                      urn_subst f bl = Some (LitInt ( (a*x+b) mod p)%Z).
 
@@ -316,7 +316,7 @@ Section prog.
       ( ∃ (m:gmap nat base_lit) (k:nat) s (m':gmap nat (nat * nat)),
           l ↪ urn_unif s ∗ ⌜set_Forall (λ x, (0<=x<p)%Z) s⌝ ∗
           arr ↦ (#k, #lm)%V ∗
-          ⌜k<=tries + 2⌝ ∗
+          ⌜2<=k<=tries + 2⌝ ∗
           ltries ↦ #(tries +2 -k)%nat ∗
           map_list lm ((λ x, #x) <$> m) ∗
           ⌜dom m = set_seq 0 k⌝ ∗
@@ -342,6 +342,127 @@ Section prog.
            group_inv_specialized #arr (try_spend_specialized #ltries),
              group_eq_specialized (#arr))%V.
     Proof.
+      iIntros "#Hfrag #Hinv".
+      iExists (LRel (λ x, ∃ (n:nat), ⌜ x= #n⌝  ∗ mono_nat_lb_own γ' n)%I).
+      repeat (iExists _, _; iSplit; first done; iSplit).
+      - (* 0 *)
+        iExists 0%nat.
+        iSplit; first done.
+        iApply (mono_nat_lb_own_le); last done.
+        lia.
+      - (* 1 *)
+        iExists 1%nat.
+        by iSplit. 
+      - (* mult *)
+        iIntros (h1).
+        iModIntro.
+        iIntros "(%n1&->&#Hfrag1)".
+        rewrite refines_eq /refines_def.
+        rewrite /group_mul_specialized.
+        wp_pures.
+        iModIntro.
+        iIntros (h2).
+        iModIntro.
+        iIntros "(%n2&->&#Hfrag2)".
+        rewrite refines_eq /refines_def.
+        wp_pures.
+        iInv "Hinv" as ">(%m&%k&%s'&%m'&Hurn&%Hs&Harr&%&Htries&Hm&%Hdom&%Hforall&%&Hauth&%Hdom'&%Hforall2&%Hmatch&Hor)" "Hclose".
+        rewrite /try_spend_specialized.
+        wp_pures.
+        wp_load.
+        wp_pures.
+        case_bool_decide.
+        { wp_pures.
+          iMod ("Hclose" with "[-]"); first by iFrame.
+          iExists _. iLeft.
+          iPureIntro. naive_solver.
+        }
+        wp_pures.
+        wp_store.
+        wp_pures.
+
+        
+        iDestruct (mono_nat_lb_own_valid with "[$][$Hfrag1]") as "%".
+        iDestruct (mono_nat_lb_own_valid with "[$][$Hfrag2]") as "%".
+        assert (n1 ∈ dom m) as Hlookup1.
+        { rewrite Hdom. rewrite elem_of_set_seq. destruct!/=; simpl in *.
+          lia. }
+        pose proof Hlookup1 as Hlookup1'.
+        rewrite elem_of_dom in Hlookup1.
+        destruct Hlookup1 as [x1 Hlookup1].
+        assert (n2 ∈ dom m) as Hlookup2.
+        { rewrite Hdom. rewrite elem_of_set_seq. destruct!/=; simpl in *.
+          lia. }
+        
+        pose proof Hlookup2 as Hlookup2'.
+        rewrite elem_of_dom in Hlookup2.
+        destruct Hlookup2 as [x2 Hlookup2].
+        
+        rewrite /arr_get.
+        wp_pures.
+        wp_load.
+        wp_pures.
+        wp_apply (wp_get with "[$]").
+        iIntros (?) "(Hm & ->)".
+        simplify_map_eq.
+        wp_pures.
+        wp_load.
+        wp_pures.
+        wp_apply (wp_get with "[$]").
+        iIntros (?) "(Hm & ->)".
+        simplify_map_eq.
+        wp_pures.
+
+        iMod (mono_nat_own_update k with "[$]") as "[Hauth #Hfrag']"; first lia.
+        
+
+        apply Hforall in Hlookup1 as Htype1.
+        apply Hforall in Hlookup2 as Htype2.
+        rewrite /arr_push.
+        rewrite Hdom' in Hlookup1'.
+        rewrite Hdom' in Hlookup2'.
+        rewrite elem_of_dom in Hlookup1'.
+        rewrite elem_of_dom in Hlookup2'.
+        destruct Hlookup1' as [[a b] Hlookup1'].
+        destruct Hlookup2' as [[a' b'] Hlookup2'].
+
+        (** TODO do something about map match *)
+        
+        assert (∃ (x3:base_lit), bin_op_eval PlusOp #x1 #x2 = Some #x3 /\
+                          base_lit_type_check x3 = Some BLTInt /\
+                          (∀ f x, (0<=x<p)%Z -> f!!l=Some x->
+                                  urn_subst f x3 =
+                                  Some (LitInt ((a * x + b) `mod` p + (a' * x + b') `mod` p)%Z)
+                          )
+               ) as (x3 & ?&Htype3&Hx3).
+        { admit. }
+        wp_pure.
+        rewrite /zmod.
+        wp_pures.
+        
+        admit. 
+      - (* inv *)
+        iIntros (h).
+        iModIntro.
+        iIntros "(%n&->&#Hfrag')".
+        rewrite refines_eq /refines_def.
+        rewrite /group_inv_specialized.
+        wp_pures.
+        admit. 
+      - (* eq *)
+        iIntros (h1).
+        iModIntro.
+        iIntros "(%n1&->&#Hfrag1)".
+        rewrite refines_eq /refines_def.
+        rewrite /group_eq_specialized.
+        wp_pures.
+        iModIntro.
+        iIntros (h2).
+        iModIntro.
+        iIntros "(%n2&->&#Hfrag2)".
+        rewrite refines_eq /refines_def.
+        wp_pures.
+        admit. 
     Admitted. 
  
   End proofs.
@@ -525,7 +646,8 @@ Section prog.
         setoid_rewrite elem_of_seq. intros. destruct!/=. lia.
       - iPureIntro; lia.
       - iPureIntro.
-        simpl. by vm_compute.
+        simpl. lia.
+      - iPureIntro; by vm_compute.
       - iPureIntro.
         intros ?? Hlookup.
         apply lookup_insert_Some in Hlookup as [|[? Hlookup]];
@@ -652,8 +774,10 @@ Section prog.
           { iNext.
             iFrame.
             iExists _. repeat iSplit; try done.
-            iPureIntro.
-            intros ??. set_unfold. naive_solver.
+            - iPureIntro.
+              intros ??. set_unfold. naive_solver.
+            - iPureIntro. lia.
+            - iPureIntro. lia.
           }
           by iApply "HΦ".
     - (* guess not in s *)
@@ -683,12 +807,15 @@ Section prog.
           { iNext.
             iFrame.
             iExists _. repeat iSplit; try done.
-            iPureIntro.
-            intros ??. set_unfold. naive_solver.
+            - iPureIntro.
+              intros ??. set_unfold. naive_solver.
+            - iPureIntro. lia.
+            - iPureIntro. lia.
           }
           by iApply "HΦ".
   Qed. 
 
+End prog.
   (* rewrite rupd_unseal/rupd_def. *)
   (* iIntros  (?) "[? Hu]". iSplit; last iFrame. *)
   (* iDestruct (ghost_map_lookup with "Hu [$]") as "%Hlookup". *)
@@ -697,5 +824,75 @@ Section prog.
   (* eapply urns_f_distr_lookup in Hlookup; last done; last done. *)
   (* destruct Hlookup as (?&Hsome&Hin). *)
   (* simpl.  *)
+
+
   
-End prog.
+  (* destruct (decide (is_simple_base_lit x1 =true /\ is_simple_base_lit x2 = true)) as [[Hcase Hcase']|Hcase]. *)
+  (* + (* values are both simple *) *)
+  (*   destruct x1; simplify_eq.  *)
+  (*   destruct x2; simplify_eq. *)
+  (*   wp_pures. *)
+  (*   rewrite /zmod. *)
+  (*   wp_pures. *)
+  (*   wp_load. *)
+  (*   wp_pures. *)
+  (*   wp_apply (wp_set with "[$]"). *)
+  (*   iIntros "Hm". *)
+  (*   wp_pures. *)
+  (*   wp_store. *)
+  (*   rewrite -fmap_insert. *)
+  (*   rewrite Hdom' in Hlookup1'. *)
+  (*   rewrite Hdom' in Hlookup2'. *)
+  (*   rewrite elem_of_dom in Hlookup1'. *)
+  (*   rewrite elem_of_dom in Hlookup2'. *)
+  (*   destruct Hlookup1' as [[a b] Hlookup1']. *)
+  (*   destruct Hlookup2' as [[a' b'] Hlookup2']. *)
+
+  (*   (* split the or *) *)
+  (*   iDestruct "Hor" as "[(%Hcoll&%Hineq&Herr)|Htoken]"; last first. *)
+  (*   { *)
+  (*     wp_pures. *)
+  (*     iMod ("Hclose" with "[-]"); last first. *)
+  (*     - iExists _. iRight. *)
+  (*       iModIntro. iSplit; first done. *)
+  (*       iExists k; by iSplit. *)
+  (*     - iFrame. *)
+  (*       iExists (k+1). *)
+  (*       replace ((_+_-_)%nat-_)%Z with (Z.of_nat (tries + 2 - (k+1))%nat)%Z by lia. *)
+  (*       replace (k+1)%Z with (Z.of_nat (k+1)) by lia. *)
+  (*       iFrame.  *)
+  (*       replace (_+_-_) with k by lia. *)
+  (*       iFrame. *)
+  (*       iNext. *)
+  (*       iExists (<[k:=((a+a') mod p, (b+b') mod p)]> m'). *)
+  (*       repeat iSplit; iPureIntro. *)
+  (*       + done. *)
+  (*       + lia. *)
+  (*       + lia. *)
+  (*       + rewrite dom_insert_L. *)
+  (*         rewrite Hdom. *)
+  (*         replace (_+_) with (S k) by lia. *)
+  (*         rewrite set_seq_S_end_union_L. *)
+  (*         f_equal.  *)
+  (*       + intros ?? Hlookup. *)
+  (*         apply lookup_insert_Some in Hlookup. *)
+  (*         destruct!/=; first done. *)
+  (*         naive_solver. *)
+  (*       + done. *)
+  (*       + by rewrite !dom_insert_L Hdom'.  *)
+  (*       + intros ?? Hlookup. *)
+  (*         apply lookup_insert_Some in Hlookup. *)
+  (*         destruct!/=. *)
+  (*         * split. *)
+  (*           -- apply Nat.mod_bound_pos; destruct Hprime; lia. *)
+  (*           -- apply Nat.mod_bound_pos; destruct Hprime; lia. *)
+  (*         * by eapply Hforall2. *)
+  (*       + intros k' ????? Hlookupa Hlookupb ? Hf. *)
+  (*         destruct (decide (k=k')). *)
+  (*         * subst. simplify_map_eq. *)
+  (*           f_equal.  *)
+  (*           eapply Hmatch in Hlookup1'. *)
+  (*           apply Hlookup' in Hlookup1'. *)
+  (*           admit. *)
+  (*         * simplify_map_eq. naive_solver. *)
+  (*   } *)
