@@ -29,11 +29,13 @@ Class clutch_group_struct :=
     { vunit : cval
     ; vinv : cval
     ; vmult : cval
+    ; veq : cval
     ; int_of_vg : cval
     ; vg_of_int : cval
     ; vunit_closed : is_closed_val vunit
     ; vinv_closed : is_closed_val vinv
     ; vmult_closed : is_closed_val vmult
+    ; veq_closed : is_closed_val veq
     }.
 
 (* In some cases (Zpˣ), we might want to use exponentiation to define
@@ -54,6 +56,8 @@ Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct
     ; is_mult (x y : vgG) : ⊢ WP vmult (vgval x) (vgval y) {{ λ (v : cval), ⌜v = vgval (x * y)%g⌝ }}
     ; is_spec_mult (x y : vgG) K :
       ⤇ fill K (vmult x y) -∗ spec_update ⊤ (⤇ fill K (vgval (x * y)%g))
+    ; is_eq (x y : vgG) : ⊢ WP veq (vgval x) (vgval y) {{ λ (v : cval), ⌜v = #(bool_decide (x = y))⌝ }}
+    ; is_spec_eq (x y : vgG) K : ⤇ fill K (veq (vgval x) (vgval y)) -∗ spec_update ⊤ (⤇ fill K #(bool_decide (x = y)))
     }.
 
 Definition vg_of_cg := λ {Σ HΣ} vg cg (G : @clutch_group Σ HΣ vg cg), vg.
@@ -166,6 +170,49 @@ Lemma brel_mult_r K E X R (a b : vgG) t :
 Proof.
   iIntros "Hbrel Hvalid Hdistinct".
   iApply rel_mult_r.
+  by iApply ("Hbrel" with "[$][$]").
+Qed.
+
+Lemma rel_eq_l E K X R (x y : vgG) t :
+  (REL (fill K #(bool_decide (x = y))) ≤ t @ E <|X|> {{R}})
+    ⊢ REL (fill K (veq x y)) ≤ t @ E <|X|> {{R}}.
+Proof.
+  iIntros "H".
+  rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+  iIntros (k1 k2 S) "Hkwp %k' %ε Hj Hnais Herr Hlt".
+  rewrite -!fill_app. iApply primitive_laws.wp_bind.
+  rewrite !fill_app. 
+  iDestruct ("H" with "[$][$][$][$][$]") as "H".
+  iApply (wp_frame_wand with "H"). iApply (wp_mono $! (is_eq x y)). 
+  by iIntros ; rewrite fill_app; subst.
+Qed.
+
+Lemma brel_eq_l K E X R (x y : vgG) t :
+  (BREL (fill K #(bool_decide (x = y))) ≤ t @ E <|X|> {{R}})
+    ⊢ BREL (fill K (veq x y)) ≤ t @ E<|X|> {{R}}.
+Proof.
+  iIntros "Hbrel Hvalid Hdistinct".
+  iApply rel_eq_l.
+  by iApply ("Hbrel" with "[$][$]").
+Qed.
+
+Lemma rel_eq_r E K X R (x y :vgG) t :
+  (REL t ≤ fill K (#(bool_decide (x = y))) @ E <|X|> {{R}})
+  ⊢ REL t ≤ fill K (veq x y) @ E <|X|> {{R}}.
+Proof.
+  iIntros "H".
+  rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+  iIntros (k1 k2 S) "Hkwp %k' %ε Hj Hnais Herr Hlt".
+  rewrite -!fill_app. iMod (is_spec_eq with "Hj") as "Hj". rewrite !fill_app.
+  iApply ("H" with "[$][$][$][$][$]").
+Qed.
+
+Lemma brel_eq_r E K X R (x y :vgG) t :
+  (BREL t ≤ fill K (#(bool_decide (x = y))) @ E <|X|> {{R}})
+  ⊢ BREL t ≤ fill K (veq x y) @ E <|X|> {{R}}.
+Proof.
+  iIntros "Hbrel Hvalid Hdistinct".
+  iApply rel_eq_r.
   by iApply ("Hbrel" with "[$][$]").
 Qed.
 
@@ -433,16 +480,16 @@ Tactic Notation "brel_exp_r" :=
 
 
 Module valgroup_tactics.
-
+  (* Add eq tactics *)
   Ltac rel_pures :=
     iStartProof ;
-    repeat (try rel_pures_l ; try first [rel_exp_r | rel_mult_r | rel_inv_r]) ;
-    repeat (try rel_pures_r ; try first [rel_exp_l | rel_mult_l | rel_inv_l]).
+    repeat (try rel_pures_l ; try first [rel_exp_r | rel_mult_r | rel_inv_r ]) ;
+    repeat (try rel_pures_r ; try first [rel_exp_l | rel_mult_l | rel_inv_l ]).
 
   Ltac brel_pures :=
     iStartProof ;
-    repeat (try brel_pures_l ; try first [brel_exp_r | brel_mult_r | brel_inv_r]) ;
-    repeat (try brel_pures_r ; try first [brel_exp_l | brel_mult_l | brel_inv_l]).
+    repeat (try brel_pures_l ; try first [brel_exp_r | brel_mult_r | brel_inv_r ]) ;
+    repeat (try brel_pures_r ; try first [brel_exp_l | brel_mult_l | brel_inv_l ]).
 
 
 End valgroup_tactics.

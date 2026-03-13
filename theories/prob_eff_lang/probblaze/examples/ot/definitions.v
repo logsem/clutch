@@ -64,7 +64,7 @@ Section implementation.
     match: "r" with
       SOME "uv" =>
         let, ("u", "v") := "uv" in 
-        if: ("u" = #1) then Protocol_Done Sender ("k" #()%V) else
+        if: veq "u" vunit then Protocol_Done Sender ("k" #()%V) else
           let: "pk0" := ("g0", "h0", "u", "v") in
           let: "pk1" := ("g1", "h1", "u", "v") in
           let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
@@ -79,13 +79,14 @@ Section implementation.
   (* Assumes an authenticated channel *)
   Definition OT_Real_Receiver_Corrupted f : expr :=
     handle: f  with
-    | effect Sender "m", "k" =>
+    | effect Sender "mm", "k" as multi =>
         let, ("h1", "h0", "g1", "g0") := (do: CRS #()%V) in
+        let, ("m0", "m1") := "mm" in
         let: "r" := (do: channel (Recv alice)) in
         match: "r" with
           SOME "uv" =>
             let, ("u", "v") := "uv" in
-            if: ("u" = #1) then Protocol_Done Sender ("k" #()%V) else
+            if: veq "u" vunit then Protocol_Done Sender ("k" #()%V) else 
               let: "pk0" := ("g0", "h0", "u", "v") in
               let: "pk1" := ("g1", "h1", "u", "v") in
               let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
@@ -101,7 +102,7 @@ Section implementation.
   Definition D_Sender f : val :=
     (λ: "FOT", 
        handle: f with
-    | effect Sender "mm", "k" => "FOT" "mm"
+    | effect Sender "mm", "k" as multi => let, ("m0", "m1") := "mm" in "FOT" "m0" "m1";; Protocol_Done Sender ("k" #()%V)
     | return "y" => "y"
      end).
      
@@ -109,8 +110,8 @@ Section implementation.
     (λ: <>,
        let: "message0" := ref NONEV in
        let: "message1" := ref NONEV in
-       let: "fots" := (λ: "m0" "m1", "message0" <- SOME "m0";; "message1" <- SOME "m1";; do: Leak bob) in
-       let: "fotr" := (λ: "b", if: "b" then !"message0" else !"message1";; do: Leak alice) in
+       let: "fots" := (λ: "m0" "m1", "message0" <- SOME "m0";; "message1" <- SOME "m1";; (do: Leak bob)) in
+       let: "fotr" := (λ: "b", (do: Leak alice) ;; if: "b" then !"message0" else !"message1") in
        ("fots", "fotr")).
 
   (* A simulator that uses the authenticated channel *)
@@ -129,19 +130,21 @@ Section implementation.
     (* unfolding the ideal functionality - foth exposes the honest sender to the environment and allows Fot to leak information to SIM, fots allows SIM to ask for mb *)
     let, ("fots", "fotr") := F_OT #()%V in
 
-    (* since (D_Sender f) is a value, "crs" is technically not substitued into f when sampled, because of our implementation of subst *)
-    handle: handle: handle: (D_Sender f) "fots" with
+    (* since (D_Sender f) is a value, "crs" is technically not substituted into f when sampled, because of our implementation of subst *)
+   handle: handle: (D_Sender f) "fots" with
     (* only the ideal functionality can use this effect *) 
-    | effect Leak "x", "k" =>
+    | effect Leak "x", "k" as multi =>
         match: "x" with
         | InjL <> => 
             let: "r" := (do: channel (Recv alice)) in
             match: "r" with
             | NONE => "k" NONEV
             | SOME "uv" => let, ("u","v") := "uv" in
+                           if: veq "u" vunit then "k" #()%V else
+                           let: "td" :=  if: veq "v" ("u" ^ "t0") then #true else if: veq "v" ("u"^"t1") then #false else #true in
                            (* handle the other leakage -- this is not too pretty *)
-                           let: "mb" := handle: "fotr" !"b" with effect Leak "x", "k" =>  #()%V | return "y" => "y" end in
-                           let, ("m0", "m1") := if: !"b" then ("mb", #0) else (#0, "mb") in
+                           let: "mb" := handle: "fotr" "td" with effect Leak "x", "k" =>  #()%V | return "y" => "y" end in
+                           let, ("m0", "m1") := if: "td" then ("mb", #0) else (#0, "mb") in
                            let: "pk0" := ("g0", "h0", "u", "v") in
                            let: "pk1" := ("g1", "h1", "u", "v") in
                            let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
@@ -154,26 +157,6 @@ Section implementation.
         end 
   | return "y" => "y"
   end with
-    (* Continuations in the channel branch are allowed to try again, as in the ideal functionality of the AUTH channel. *)
-    | effect channel "p", rec "k" as multi =>
-         match: "p" with
-        (* SEND *)
-         | InjL "payload" =>
-             let, ("m", "dst") := "payload" in
-             match: "dst" with
-               InjL <> => "k" (do: channel "p")
-             | InjR <> => let, ("u","v") := "m" in
-                          (* trapdoor-essentially if v = u^t0 then b = 0 otherwise b = 1 *)
-                          let: "td" :=  if: "v" = ("u" ^ "t0") then #true else if: "v" = ("u"^"t1") then #false else #true in
-                          "b" <- "td";;
-                          (do: channel "p");; (* Forward the message to simulate the network *)
-                          "k" #()%V           (* How to handle calls to an already finished procedure? *)
-             end
-         (* RECV - just forward receives *)
-         | InjR "from" => "k" (do: channel (Recv "from")) 
-         end 
-    | return "y" => "y"
-    end with
   (* the adversary (f) can throw CRS as well as Send/Recv *)
   | effect CRS "x", rec "k" => "k" "crs"
   | return "y" => "y" end.

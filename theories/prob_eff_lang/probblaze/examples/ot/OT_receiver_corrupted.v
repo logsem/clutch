@@ -104,7 +104,7 @@ Section handlee_verification.
   (*------------------------------------------------------------*)
   
   Program Definition SenderTheory : iThy Σ :=
-    λ e1 e2, (λne Q, ∃ m0 m1 : val,
+    λ e1 e2, (λne Q, ∃ m0 m1 : vgG,
                 ⌜ e1 = do: Sender (m0, m1)%V ⌝%E ∗
                 ⌜ e2 = do: Sender (m0, m1)%V ⌝%E ∗
                 □ (Q #()%V #()%V)
@@ -128,8 +128,8 @@ Section handlee_verification.
     λ e1 e2, (λne Q,
                 ∃ m : val,
                 ⌜ e1 = do: channel (SendV (m, bob)) ⌝%E ∗
-                  ⌜ e2 = do: channel (SendV (m, bob)) ⌝%E ∗
-                   Q (Val #()%V) (Val #()%V)
+                ⌜ e2 = do: channel (SendV (m, bob)) ⌝%E ∗
+                □ Q (Val #()%V) (Val #()%V)
              )%I. 
   Next Obligation. solve_proper. Qed.
 
@@ -138,7 +138,7 @@ Section handlee_verification.
                 ∃ m : val, 
                   ⌜ e1 = do: channel (SendV (m, alice)) ⌝%E ∗
                   ⌜ e2 = do: channel (SendV (m, alice)) ⌝%E ∗
-                  Q (Val #()%V) (Val #()%V)
+                  □ Q (Val #()%V) (Val #()%V)
              )%I. 
   Next Obligation. solve_proper. Qed.
 
@@ -146,7 +146,7 @@ Section handlee_verification.
     λ e1 e2, (λne Q,
                 ⌜ e1 = do: channel (RecvV bob) ⌝%E ∗
                 ⌜ e2 = do: channel (RecvV bob) ⌝%E ∗
-                ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
+                □ ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed.
 
@@ -154,7 +154,7 @@ Section handlee_verification.
     λ e1 e2, (λne Q,
                 ⌜ e1 = do: channel (RecvV alice) ⌝%E ∗
                 ⌜ e2 = do: channel (RecvV alice) ⌝%E ∗
-                ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
+                □ ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed.
 
@@ -169,7 +169,7 @@ Section handlee_verification.
                    ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (u,v)%V) ∗ ⌜(u,v) = (u',v')⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
                             (⌜ e1 = do: channel (SendV ((u,v)%V, alice)) ⌝%E ∗
                              ⌜ e2 = do: channel (SendV ((u',v')%V, alice)) ⌝%E)  ∗ 
-                            (Q (Val #()%V) (Val #()%V)))
+                            □ (Q (Val #()%V) (Val #()%V)))
              )%I.
   Next Obligation. solve_proper. Qed.
 
@@ -177,7 +177,7 @@ Section handlee_verification.
     λ e1 e2, (λne Q,
                  ⌜ e1 = do: channel (RecvV alice) ⌝%E ∗
                  ⌜ e2 = do: channel (RecvV alice) ⌝%E ∗
-                 ▷ (Q NONEV NONEV ∗ (∀ u v, own γauth (to_dfrac_agree DfracDiscarded (u, v)%V) -∗ Q (SOMEV (u,v)) (SOMEV (u, v))))
+                 □▷ (Q NONEV NONEV ∗ (∀ u v : vgG, own γauth (to_dfrac_agree DfracDiscarded (u, v)%V) -∗ Q (SOMEV (u,v)) (SOMEV (u, v))))
              )%I.
   Next Obligation. solve_proper. Qed.
 
@@ -186,7 +186,7 @@ Section handlee_verification.
                 ∃ m m' : val, ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded m) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
                              (⌜ e1 = do: channel (SendV (m, bob)) ⌝%E ∗
                               ⌜ e2 = do: channel (SendV (m', bob)) ⌝%E)  ∗ 
-                             ▷ (Q (Val #()%V) (Val #()%V)))
+                             □▷ (Q (Val #()%V) (Val #()%V)))
              )%I.
   Next Obligation. solve_proper. Qed.
 
@@ -195,7 +195,7 @@ Section handlee_verification.
                 ⌜ e1 = do: channel (RecvV bob) ⌝%E ∗
                 ⌜ e2 = do: channel (RecvV bob) ⌝%E ∗
                 (* Added a later, since RHS doesn't take a step *)
-                ▷ (Q NONEV NONEV ∗ (∀ m, own γauth (to_dfrac_agree DfracDiscarded m) -∗ Q (SOMEV m) (SOMEV m)))
+                □▷ (Q NONEV NONEV ∗ (∀ m, own γauth (to_dfrac_agree DfracDiscarded m) -∗ Q (SOMEV m) (SOMEV m)))
              )%I.
   Next Obligation. solve_proper. Qed.
 
@@ -219,14 +219,18 @@ Section handlee_verification.
 
   Definition CorruptedTheory γtokb γfracb γauthb btokN : iThy Σ := iThyTraverse [channel] [channel] (iThySum (SendBobImpl γtokb γfracb γauthb btokN) (RecvBobImpl γauthb)).
 
-  Program Definition CRSThy : iThy Σ :=
+  Program Definition CRSThy {γcrs}: iThy Σ :=
     λ e1 e2, (λne Q,
-                ⌜ e1 = do: CRS #()%V ⌝%E ∗
-                ⌜ e2 = do: CRS #()%V ⌝%E ∗
-                □ (∀ crs : val, Q (Val crs) (Val crs)))%I.
+                (⌜ e2 = do: CRS #()%V ⌝%E ∗ ⌜ e1 = do: CRS #()%V ⌝%E ∗ (∀ crs, own γcrs (to_dfrac_agree DfracDiscarded crs) -∗ Q (Val crs) (Val crs))))%I.
   Next Obligation. solve_proper. Qed.
 
-  Definition LblAdv γtokb γfracb γauthb btokN := [([CRS],[CRS], CRSThy);([channel], [channel],
+  (* allows the real protocol (LHS) to throw additional CRS operations *)
+  Program Definition CRSThyL {γcrs} : iThy Σ :=
+    λ e1 e2, (λne Q, 
+                (⌜ e1 = do: CRS #()%V ⌝%E ∗ (∀ crs, own γcrs (to_dfrac_agree DfracDiscarded crs) -∗ Q (Val crs) e2)))%I.
+  Next Obligation. solve_proper. Qed.
+
+  Definition LblAdv γcrs γtokb γfracb γauthb btokN := [([CRS],[CRS], @CRSThy γcrs);([channel], [channel],
                                                                            (iThySum (SendBobImpl γtokb γfracb γauthb btokN) (RecvBobImpl γauthb)));
                                                                          ([Sender],[Sender;Leak],SenderTheory)].
   Definition LblAuthChannel γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := [([channel],[channel], (iThySum (iThySum (SendAliceImpl γtoka γfraca γautha atokN) (RecvBobImpl γauthb))
@@ -236,42 +240,48 @@ Section handlee_verification.
   (* Definition CR_type L : sem_type := (ℤ × ℤ × ℤ × ℤ) → 𝔹 → (𝟙 -{ LblAdv ++ L }⊸ 𝟙) → 𝟙. *)
                          
 
-  Lemma DH_KE_C_DH_real f1 f2 γtoka γtokb γfraca γfracb γautha γauthb L :
+  Lemma DH_KE_C_DH_real f1 f2 γcrs γtoka γtokb γfraca γfracb γautha γauthb L :
     Sender ≠ Receiver →
     channel ≠ Sender →
     (* Receiver ≠ Leak →
        Leak ≠ CRS →
        CRS ≠ channel → *)
     let AuthChannel := LblAuthChannel γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
-    let Adv := LblAdv γtokb γfracb γauthb btokN in
+    let Adv := LblAdv γcrs γtokb γfracb γauthb btokN in
          is_closed_expr ∅ f1 →
          is_closed_expr ∅ f2 →
          token γtoka -∗
-         token γtokb -∗
+         own γcrs (to_dfrac_agree (DfracOwn 1) #()%V) -∗
            own γautha (to_dfrac_agree (DfracOwn 1) #()%V) -∗
-           own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) -∗
            BREL f1 ≤ f2 <|Adv ++ L|> {{ (λ v1 v2, ⌜v1 = #()%V ∧ v2 = #()%V⌝) }} -∗
            ↯ (1 / (S n)) -∗
            BREL (@F_CRS _ _ _ CRS (@OT_Real_Receiver_Corrupted _ _ _ CRS Sender channel f1)) (* iThyBot can be replaced with an arbitrary theory X *)
              ≤ (@OT_SIM_Receiver_Corrupt_with_auth _ _ _ CRS Leak Sender channel f2) <|([CRS],[CRS], iThyBot) :: ([Sender],[Sender; Leak],iThyBot) :: AuthChannel ++ L|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
   Proof using G. 
-    iIntros (???? Hf1closed Hf2closed) "Htoka Htokb Hautha Hauthb Hff Herr".
+    iIntros (???? Hf1closed Hf2closed) "Htoka Hcrs Hautha Hff Herr".
 
     iApply brel_couple_rand_rand; first done. iIntros (g0 Hg0). simpl.
     brel_exp_l. brel_exp_r. brel_pures.
     iApply brel_couple_rand_rand; first done. iIntros (g1 Hg1).
     brel_exp_l. brel_exp_r. brel_pures.
     (* mod size of the group to stay in ℤₙ *)
-    iApply (brel_couple_rand_rand _ _ (λ m : nat, ((m / g0) `mod` n)%nat)).
-    { intros m Hlt. eapply Nat.lt_trans; last apply Nat.lt_succ_diag_r. apply Nat.mod_upper_bound. done. }
+    iApply (brel_couple_rand_rand _ _ (λ m : nat, ((m / g0))%nat)).
+    { intros m Hlt. apply Nat.Div0.div_lt_upper_bound. admit. (* eapply Nat.lt_trans; last apply Nat.lt_succ_diag_r. apply Nat.mod_upper_bound. done. *) }
     iIntros (t0 Ht0). brel_exp_l. brel_pures.
     assert (t0 < S n)%nat as Ht0' by lia.
-    iApply (brel_couple_couple_avoid _ _ [Fin.of_nat_lt Ht0'] (λ m : nat, ((m / g1) `mod` n)%nat)).
+    (* do we need mod n? it's to ensure m/g1 is less than n, but maybe if we know m : fin n we don't need that  *)
+    iApply (brel_couple_couple_avoid _ _ [Fin.of_nat_lt Ht0'] (λ m : nat, ((m / g1))%nat)).
     { apply NoDup_singleton. }
-    { intros m Hlt. eapply Nat.lt_trans; last apply Nat.lt_succ_diag_r. apply Nat.mod_upper_bound. done. }
+    { intros m Hlt. admit. (* eapply Nat.lt_trans; last apply Nat.lt_succ_diag_r. apply Nat.mod_upper_bound. done. *) }
     iFrame. iIntros (t1 Hneq) "!>". 
-    brel_exp_l. brel_pures.
+    brel_pures. 
     do 2 brel_exp_r. brel_pures.
+
+    iApply fupd_brel.
+    iMod (auth_upd (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V with "Hcrs") as "Hcrs".
+    iMod (auth_persist with "Hcrs") as "#Hcrs".
+    iModIntro.
+    
     iApply brel_alloc_r. iIntros (lb) "Hlb".
     brel_pures.
     unfold F_OT. brel_pures.
@@ -281,91 +291,66 @@ Section handlee_verification.
     unfold D_Sender. brel_pures_r.
     repeat (rewrite (subst_is_closed_empty f2); last done).
 
+    iApply fupd_brel.
+    iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
+    { iNext; iLeft;iFrame. }
+    iModIntro.
+
+    iApply (brel_na_alloc
+              ((∃ b : bool, lb ↦ₛ #b)
+               ∨ (∀ u v : vgG, own γauthb (to_dfrac_agree DfracDiscarded (u, v)%V) -∗
+                         let b := if bool_decide (vgval_as v = vgval (u ^+ (t0 `div` g0))%g) then #true else if bool_decide (vgval_as v = vgval (u ^+ (t1 `div` g1))%g) then #false else #true in
+                         (lb ↦ₛ□ b))
+              )%I
+              betaN).
+    iSplitL "Hlb"; [iNext; iLeft; iFrame|].
+    iIntros "#Hinvlb".
+
     (* All resources should be in an invariant *)
-    iApply (brel_exhaustion _ _ [_] [_] CRSThy with "[Htoka Htokb Hautha Hauthb Hff Hlb Hlm0 Hlm1]");[done|done| |].
+    iApply (brel_exhaustion _ _ [_] [_] (iThySum CRSThy CRSThyL) with "[Hautha Hff Hlm0 Hlm1]");[done|done| |].
 
     (* CRS handler *)
     (* add a resource to CRSThy to keep track of the crs value *)
     2 : { iLöb as "IH".
           iSplit; [iIntros (v1 v2) "!# H"; by brel_pures|].
-          iIntros (???????) "!# (-> & -> & #HQ) #Hkont".
-          iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
-          iIntros (rl) "!> Hrl".
-          iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
-          iIntros (rr) "Hrr".
-          brel_pures.
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]").
-          iSpecialize ("HQ" $! (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V). iDestruct ("Hkont" with "HQ") as "H".
-          iApply (brel_exhaustion _ _ [_] [_] CRSThy with "[H]"); [set_solver|set_solver| |].
-          2: { iApply "IH". }
-          admit.                (* Do the math (that the two crs are equivalent) *) }
-    iApply brel_introduction_mono. {iApply to_iThy_le_intro'. eapply submseteq_trans; last first.
-                                    - eapply submseteq_skip. eapply submseteq_swap.
-                                    - eapply submseteq_swap. }
+          iIntros (???????) "!# [(->&->&HQ) | (->&HQ)] #Hkont".
+          - iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
+            iIntros (rl) "!> Hrl".
+            iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
+            iIntros (rr) "Hrr".
+            brel_pures.
+            iApply (brel_cont_l with "[$]"). iModIntro.
+            iApply (brel_cont_r with "[$]").
+            iSpecialize ("HQ" $! (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
+            iDestruct ("HQ" with "Hcrs") as "HQ".
+            iDestruct ("Hkont" with "HQ") as "H".
+            iApply (brel_exhaustion _ _ [_] [_] (iThySum CRSThy CRSThyL) with "[H]"); [set_solver|set_solver| |].
+            2: { iApply "IH". }
+            rewrite -!expgnA. 
+            admit.                (* Do the math (that the two crs are equivalent) *)
+          - iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
+            iIntros (rl) "!> Hrl". brel_pures.
+            iApply (brel_cont_l with "[$]"). iModIntro.
+            iSpecialize ("HQ" $! (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
+            iDestruct ("HQ" with "Hcrs") as "HQ".
+            iDestruct ("Hkont" with "HQ") as "H".
+            iApply (brel_exhaustion _ _ [_] [_] (iThySum CRSThy CRSThyL) with "[H]"); [set_solver|set_solver|iApply "H"|iApply "IH"]. }
+
+    
+    iApply brel_introduction_mono. { iApply to_iThy_le_intro'. eapply submseteq_swap. }
     iDestruct (brel_introduction_mono _ with "[][$Hff]") as "Hff".
-    { iApply to_iThy_le_intro'. eapply submseteq_trans; last first.
+    { iApply to_iThy_le_trans.
+      (* add CRSThyL to the row of ff just to match the row of the context in the rest of the proof. It's fine since we've already factored out the CRS handler *)
+      - iSplit.
+        { iApply iThy_le_trans; first iApply (iThy_le_to_iThy_sum [CRS] [CRS]).
+          iApply iThy_le_trans; last iApply (iThy_le_sum_to_iThy [CRS] [CRS] (iThySum CRSThy CRSThyL)).
+          iApply iThy_le_sum_l. iIntros (???) "!# (%&%&%&%&%&?&?&?&?&H&?)". iExists e1',e2',k1,k2,_. iFrame. }
+        iSplit; iModIntro; [iIntros "#Hvalid"; iApply valid_to_iThy_bot; by (iDestruct (valid_to_iThy_bot with "Hvalid") as "?")| (iIntros (Hdistinct); iPureIntro)]; simpl.
+        apply distinct_to_iThy_bot. by apply distinct_to_iThy_bot in Hdistinct. 
+      - iApply to_iThy_le_intro'. eapply submseteq_trans; last first.
            +  eapply submseteq_skip. eapply submseteq_swap.
            +  eapply submseteq_swap. }
-    iApply (brel_exhaustion _ _ [] [_] (snd (hd ([],[],iThyBot) AuthChannel)) with "[Htoka Htokb Hautha Hauthb Hff Hlb Hlm0 Hlm1]");[set_solver|set_solver| |].
-
-    (* Channel handler  *)
-    2 : { iLöb as "IH".         (* ? *)
-          iSplit; [iIntros (v1 v2) "!# H"; by brel_pures|].
-          evar (P : iProp Σ).
-          iIntros (???????) "!#".
-          iIntros "[[(%&%&Hupd&(->&->)&HQ) | (->&->&HQ1&HQ2)] | [(%&%&%&%&Hupd&(->&->)&HQ) | (->&->&HQ1&HQ2)]] #Hkont".
-          1,2,4: brel_pures; [apply neutral_ectx; set_solver|];
-              iApply (brel_bind k1' [_] _ [([channel],[channel],_)]); [|iApply to_iThy_le_intro'; eapply singleton_submseteq_l; apply elem_of_list_here|];
-            first (iApply (traversable_ectx_labels _ _ (ectx_labels k1') []); [done|done|]; split; admit);
-              iApply brel_introduction'; [apply elem_of_list_here|];
-              iExists _,_,[],[], (λ s1 s2, ∃ v1 v2, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ Q s1 s2 ∗ □ (∀ s1' s2' : expr,
-                Q s1' s2' -∗
-                brel ⊤ (fill k1' s1') (fill k2' s2')
-                  (AuthChannel
-                   ++ ([CRS], [CRS], CRSThy) :: ([Sender], [Sender; Leak], iThyBot) :: L)
-                  (λ v1 v2 : val, |==> |==> ⌜v1 = v2⌝)) ∗ □ ?P )%I;
-                                 do 2 ((iSplit; [iPureIntro; done|]); iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit.
-          3 : iLeft; iRight.
-          5 : iRight; iRight.
-          1 : { iLeft;iLeft. iFrame. iSplit; [done|]. iModIntro. iExists _,_. do 2 (iSplit; [done|]). iSplit; [iApply "Hkont"|iApply "IH"]. }
-          2,4 : do 2 (try (iSplit; [done|]));
-              iSplitL "HQ1"; last first;
-            [ iModIntro; iFrame "Hkont"; iIntros; iExists _,_; repeat (iSplit; [done|]); iSplit; [by iApply "HQ2"| iApply "IH" ]|
-              iModIntro; iExists _,_; iFrame; iFrame "Hkont"; do 2 (iSplit; [done|]); iApply "IH"].
-          1,2,3: iClear "Hkont IH"; iModIntro; iIntros (??) "(%&%&-> & -> & HQ & #Hkont & #IH)";
-             iApply brel_value; iIntros "$ !>"; brel_pures;
-             iDestruct ("Hkont" with "HQ") as "Hkk";
-             iApply (brel_exhaustion _ _ [] [_] with "[$]"); [set_solver|set_solver|iApply "IH"].
-          clear P.
-          
-          brel_pures; [apply neutral_ectx; set_solver|].
-          brel_exp_r. 
-          destruct (bool_decide (vgval_as v' = vgval (u' ^+ (n'' - (Nat.divmod (t0 `div` g0) n'' 0 n'').2))%g)) eqn:Heq.
-          (* SEND *)
-          + iApply brel_pure_step_r. { eapply (logic.pure_exec_ctx [AppRCtx _; IfCtx _ _]). apply pure_eqop. }
-            { right. simpl. admit. } (* TODO: vals_compare_safe *)
-            simpl. rewrite Heq. brel_pures.
-            admit.            (* Need the invariant *)
-          + iApply brel_pure_step_r. { eapply (logic.pure_exec_ctx [AppRCtx _; IfCtx _ _]). apply pure_eqop. }
-            { right. simpl. admit. } (* TODO: vals_compare_safe *)
-            simpl. rewrite Heq. brel_pures. brel_exp_r. 
-            destruct (bool_decide (vgval_as v' = vgval (u' ^+ (n'' - (Nat.divmod (t1 `div` g1) n'' 0 n'').2))%g)) eqn:Heq'.
-            * iApply brel_pure_step_r. { eapply (logic.pure_exec_ctx [AppRCtx _; IfCtx _ _]). apply pure_eqop. }
-              { right. simpl. admit. } (* TODO: vals_compare_safe *)
-              simpl. rewrite Heq'. brel_pures.
-              admit.          (* Need the invariatn *)
-            * iApply brel_pure_step_r. { eapply (logic.pure_exec_ctx [AppRCtx _; IfCtx _ _]). apply pure_eqop. }
-              { right. simpl. admit. } (* TODO: vals_compare_safe *)
-              simpl. rewrite Heq'. brel_pures.
-              admit.          (* Need the invariatn *) }
-    simpl.
-
-    (* Sender hanlder *)
-    iApply brel_introduction_mono. {iApply to_iThy_le_intro'. eapply submseteq_trans; last first.
-                                    - eapply submseteq_skip. eapply submseteq_swap.
-                                    - eapply submseteq_swap. }
-    iDestruct (brel_introduction_mono _ (AuthChannel ++ [([Sender],[Sender;Leak], SenderTheory); ([CRS], [CRS], CRSThy)] ++ L) with "[][$Hff]") as "Hff". 
+    iDestruct (brel_introduction_mono _ (AuthChannel ++ [([Sender],[Sender;Leak], SenderTheory); ([CRS], [CRS], iThySum CRSThy CRSThyL)] ++ L) with "[][$Hff]") as "Hff". 
     {  iSplit.
         + iApply iThy_le_trans; [iApply iThy_le_to_iThy_sum|].
           iApply iThy_le_trans; [|iApply iThy_le_sum_to_iThy].
@@ -376,20 +361,196 @@ Section handlee_verification.
           try rewrite !labels_l_cons; try rewrite !labels_r_cons; set_solver.
     }
     iDestruct (brel_introduction_mono _ with "[][$Hff]") as "Hff".
-    { iApply to_iThy_le_intro'. eapply submseteq_swap. }
+    { iApply to_iThy_le_intro'. eapply submseteq_trans; first eapply submseteq_swap.
+      eapply submseteq_skip. eapply submseteq_swap. }
+    
 
+    (* (* iApply fupd_brel.
+          iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
+          { iNext; iLeft;iFrame. }
+          iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
+          { iNext; iFrame. }
+          iModIntro. *)
+       
+       iApply (brel_exhaustion _ _ [] [_] (snd (hd ([],[],iThyBot) AuthChannel)) with "[Hautha Hff Hlm0 Hlm1]"); [set_solver|set_solver| |].
+       
+       (* Channel handler  *)
+       2 : { iLöb as "IH".         (* ? *)
+             iSplit; [iIntros (v1 v2) "!# H"; by brel_pures|].
+             evar (P : iProp Σ).
+             iIntros (???????) "!#".
+             iIntros "[[(%&%&Hupd&(->&->)&HQ) | (->&->&HQ1&HQ2)] | [(%&%&%&%&Hupd&(->&->)&HQ) | (->&->&HQ1&HQ2)]] #Hkont".
+             1,2,4: brel_pures; [apply neutral_ectx; set_solver|];
+                 iApply (brel_bind k1' [_] _ [([channel],[channel],_)]); [|iApply to_iThy_le_intro'; eapply singleton_submseteq_l; apply elem_of_list_here|];
+               first (iApply (traversable_ectx_labels _ _ (ectx_labels k1') []); [done|done|]; split; admit);
+                 iApply brel_introduction'; [apply elem_of_list_here|];
+                 iExists _,_,[],[], (λ s1 s2, ∃ v1 v2, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ Q s1 s2 ∗ □ (∀ s1' s2' : expr,
+                   Q s1' s2' -∗
+                   brel ⊤ (fill k1' s1') (fill k2' s2')
+                     (AuthChannel
+                      ++ ([CRS], [CRS], (iThySum CRSThy CRSThyL)) :: ([Sender], [Sender; Leak], iThyBot) :: L)
+                     (λ v1 v2 : val, |==> |==> ⌜v1 = v2⌝)) ∗ □ ?P )%I;
+                                    do 2 ((iSplit; [iPureIntro; done|]); iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit.
+             3 : iLeft; iRight.
+             5 : iRight; iRight.
+             1 : { iLeft;iLeft. iFrame. iSplit; [done|]. iModIntro. iExists _,_. do 2 (iSplit; [done|]). iSplit; [iApply "Hkont"|iApply "IH"]. }
+             2,4 : do 2 (try (iSplit; [done|]));
+                 iSplitL "HQ1"; last first;
+               [ iModIntro; iFrame "Hkont"; iIntros; iExists _,_; repeat (iSplit; [done|]); iSplit; [by iApply "HQ2"| iApply "IH" ]|
+                 iModIntro; iExists _,_; iFrame; iFrame "Hkont"; do 2 (iSplit; [done|]); iApply "IH"].
+             1,2,3: iClear "Hkont IH"; iModIntro; iIntros (??) "(%&%&-> & -> & HQ & #Hkont & #IH)";
+                iApply brel_value; iIntros "$ !>"; brel_pures;
+                iDestruct ("Hkont" with "HQ") as "Hkk";
+                iApply (brel_exhaustion _ _ [] [_] with "[$]"); [set_solver|set_solver|iApply "IH"].
+             clear P.
+             
+             brel_pures; [apply neutral_ectx; set_solver|].
+             iApply (brel_introduction with "[Hupd HQ]"); [apply elem_of_list_here| |iIntros (??) "!# !> H"; iApply "H"].
+             iExists _,_,_,[AppRCtx _], (λ v1 v2, ⌜v1 = Val #()%V⌝ ∗ ⌜v2 = Val #()%V⌝ ∗ Q #()%V #()%V)%I.
+             repeat (iSplit; [done|]).
+             iSplit; [iPureIntro; apply AppRCtx_NeutralEctx; apply NeutralEctx_nil|].
+             iSplitL.
+             - iRight. iLeft. iExists u,v,u',v'. iFrame. by repeat (iSplit; [done|]).
+               
+             - iIntros (??) "!# (->&->&HQ)". brel_pures. brel_exp_r.
+               destruct (bool_decide (vgval_as v' = vgval (u' ^+ (t0 `div` g0))%g)) eqn:Heq.
+               (* SEND *)
+               + iApply brel_pure_step_r. { eapply (logic.pure_exec_ctx [AppRCtx _; IfCtx _ _]). apply pure_eqop. }
+                 { right. simpl. admit. } (* TODO: vals_compare_safe *)
+                 simpl. rewrite Heq. brel_pures.
+                 iApply (brel_na_inv _ _ betaN); first set_solver.
+                 iFrame "Hinvlb".
+                 iIntros "(>[(%&Hlb) | Hlb] & Hclose)".
+                 * iApply (brel_store_r _ _ _ _ [AppRCtx _ ] with "Hlb"). iIntros "Hlb".
+                   brel_pures.
+                   iApply brel_na_close. iFrame "Hclose". iSplitL "Hlb".
+                   { iModIntro. iLeft. iFrame. }
+                   
+                   iIntros (??) "?". rewrite Heq.
+       
+               admit.            (* Need the invariant *)
+             + iApply brel_pure_step_r. { eapply (logic.pure_exec_ctx [AppRCtx _; IfCtx _ _]). apply pure_eqop. }
+               { right. simpl. admit. } (* TODO: vals_compare_safe *)
+               simpl. rewrite Heq. brel_pures. brel_exp_r. 
+               destruct (bool_decide (vgval_as v' = vgval (u' ^+ (t1 `div` g1))%g)) eqn:Heq'.
+               * iApply brel_pure_step_r. { eapply (logic.pure_exec_ctx [AppRCtx _; IfCtx _ _]). apply pure_eqop. }
+                 { right. simpl. admit. } (* TODO: vals_compare_safe *)
+                 simpl. rewrite Heq'. brel_pures.
+                 admit.          (* Need the invariatn *)
+               * iApply brel_pure_step_r. { eapply (logic.pure_exec_ctx [AppRCtx _; IfCtx _ _]). apply pure_eqop. }
+                 { right. simpl. admit. } (* TODO: vals_compare_safe *)
+                 simpl. rewrite Heq'. brel_pures.
+                 admit.          (* Need the invariatn *) }
+       simpl.
+       
+       (* Sender handler *)
+       iApply brel_introduction_mono. {iApply to_iThy_le_intro'. eapply submseteq_trans; last first.
+                                       - eapply submseteq_skip. eapply submseteq_swap.
+                                       - eapply submseteq_swap. }
+       iDestruct (brel_introduction_mono _ (AuthChannel ++ [([Sender],[Sender;Leak], SenderTheory); ([CRS], [CRS], iThySum CRSThy CRSThyL)] ++ L) with "[][$Hff]") as "Hff". 
+       {  iSplit.
+           + iApply iThy_le_trans; [iApply iThy_le_to_iThy_sum|].
+             iApply iThy_le_trans; [|iApply iThy_le_sum_to_iThy].
+             iApply iThy_le_sum_l. iIntros (???) "!#  (%&%&%&%&%&?&?&H)". iExists _,_,_,_,_. iFrame.
+             iDestruct "H" as "(?&?&HX&#HSQ)". iFrame. iSplitL "HX"; [|iApply "HSQ"].
+             iDestruct "HX" as "[HX | HX]"; [iRight;iLeft;done|iLeft;iRight;done].
+           + iSplit; iModIntro; [iApply valid_submseteq'|iIntros (Hdistinct'); iPureIntro; eapply distinct_submseteq'; last done]; simpl;
+             try rewrite !labels_l_cons; try rewrite !labels_r_cons; set_solver.
+       }
+       iDestruct (brel_introduction_mono _ with "[][$Hff]") as "Hff".
+       { iApply to_iThy_le_intro'. eapply submseteq_swap. } *)
+    iApply (brel_na_alloc
+              ((lm0 ↦ₛ NONEV ∗ lm1 ↦ₛ NONEV) ∨ (∃ m0 m1 : vgG, lm0 ↦ₛ□ SOMEV m0 ∗ lm1 ↦ₛ□ SOMEV m1))%I
+              atokN).
+    iSplitL "Hlm0 Hlm1"; [iNext; iLeft; iFrame|].
+    iIntros "#Hinvmm".
+          
     iApply (brel_exhaustion _ _ [_] [_;_] with "[$Hff]"); [set_solver|set_solver|].
     iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
     iIntros (???????) "!#".
     iIntros "(%&%&->&->&#HQ) #Hkont".
-    Admitted. 
+    brel_pures. 1, 2: apply neutral_ectx;set_solver.
+    iApply (brel_introduction' [CRS]). { repeat constructor. }
+    iExists _, _, [AppRCtx _], [], _.  iSplit; [done|].
+    iSplit; [iPureIntro; apply AppRCtx_NeutralEctx; apply NeutralEctx_nil|].
+    iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
+    iSplit; last (iModIntro; iIntros (??) "H"; done).
+    iRight. iSplit; [done|]. iIntros (?) "Hcrs'".
+    iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'".
+    brel_pures.
     
+    iApply (brel_na_inv _ _ atokN); first set_solver.
+    iFrame "Hinvmm".
+    iIntros "([(>Hlm0 & >Hlm1) | >(%&%&Hlm0&Hlm1)] & Hclose)".
+    - iApply (brel_store_r _ _ _ _ [HandleCtx _ _ _ _ _;AppRCtx _;AppRCtx _ ] with "[$Hlm0]"). iIntros "Hlm0".
+      brel_pures.
+      iApply (brel_store_r _ _ _ _ [HandleCtx _ _ _ _ _;AppRCtx _;AppRCtx _  ] with "[$Hlm1]"). iIntros "Hlm1".
 
+      iApply fupd_brel.
+      iMod (ghost_map_elem_persist with "Hlm0") as "#Hlm0".
+      iMod (ghost_map_elem_persist with "Hlm1") as "#Hlm1".
+      iModIntro.
+      iApply brel_na_close. iFrame "Hclose". iSplitR; [iModIntro; iRight; iFrame "#"|].
+      
+      brel_pures; [eapply AppRCtx_NeutralEctx; [eapply NeutralEctx_nil|eapply elem_of_list_here]| ].
+      
+      iApply (brel_introduction' [channel]). { repeat constructor. }
+      iExists _,_,[AppRCtx _],[AppRCtx _ ],_.
+      do 2 (iSplit; [done|];
+      iSplit; [iPureIntro; apply AppRCtx_NeutralEctx; apply NeutralEctx_nil|]).
+      iSplitL; [|iIntros (??) "!# H"; iApply "H"].
+      iRight. iRight. do 2 (iSplit; [done|]).
+      do 2 iModIntro. iSplitL.
 
+      (* Protocol done loop *)
+      { brel_pures. iDestruct ("Hkont" with "HQ") as "Hfill".
+        iClear "Hkont".
+        iRevert (k1' k2' H1 H2) "Hfill".
+        iLöb as "IH". iIntros (????) "#Hfill".
+        iApply (brel_exhaustion _ _ [_] [_]); [set_solver|set_solver|iApply "Hfill"|].
+        iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+        iIntros (???????) "!#". iIntros "(%&%&->&->&#HQ') #Hkont'".
+        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+        iIntros (rl) "!> Hrl".
+        iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+        iIntros (rr) "Hrr". 
+        brel_pures.
+        iApply (brel_cont_l with "[$]"). iModIntro.
+        iApply (brel_cont_r with "[$]").
+        iDestruct ("Hkont'" with "HQ'") as "Hfill'".
+        by iApply "IH". }
+      
+      iIntros (??) "#Hag". brel_pures. rewrite is_unit.
+      iApply brel_eq_l. iApply brel_eq_r. 
+      destruct (bool_decide (u = 1%g)) eqn:Heq.
+      
+      (* Protocol done loop *)
+      { brel_pures. iDestruct ("Hkont" with "HQ") as "Hfill".
+        iClear "Hkont".
+        iRevert (k1' k2' H1 H2) "Hfill".
+        iLöb as "IH". iIntros (????) "#Hfill".
+        iApply (brel_exhaustion _ _ [_] [_]); [set_solver|set_solver|iApply "Hfill"|].
+        iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+        iIntros (???????) "!#". iIntros "(%&%&->&->&#HQ') #Hkont'".
+        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+        iIntros (rl) "!> Hrl".
+        iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+        iIntros (rr) "Hrr". 
+        brel_pures.
+        iApply (brel_cont_l with "[$]"). iModIntro.
+        iApply (brel_cont_r with "[$]").
+        iDestruct ("Hkont'" with "HQ'") as "Hfill'".
+        by iApply "IH". }
 
+      brel_pures.
+      iApply brel_eq_r.
+      destruct (bool_decide (v = (u ^+ (t0 `div` g0))%g)) eqn:Heq1; brel_pures.
+      + iApply brel_handle_os_r.
+        iApply (brel_load_r with "[$Hlm0]"). iIntros "_". brel_pures.
+        admit.
+      + brel_exp_r. iApply brel_eq_r.
+        destruct (bool_decide (v =  (u ^+ (t1 `div` g1))%g)) eqn:Heq2; brel_pures.
+        * iApply (brel_load_r with "[$Hlm1]"). iIntros "_". brel_pures.
+          iApply (brel_handle_os_r [AppRCtx _]).
 
-
-
-
-
-    
+  Admitted. 
