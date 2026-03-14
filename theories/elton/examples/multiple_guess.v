@@ -8,7 +8,7 @@ Section proofs.
     N≠0->
     M<N->
     size s = N ->
-    {{{ □ (∀ v1 : val, ()%lrel v1 -∗ REL v v1 : lrel_nat) ∗
+    {{{ □ (∀ v1 : val, ()%lrel v1 -∗ REL v v1 : lrel_int) ∗
         ↯ (M / N) ∗
         l↪urn_unif s }}}
       (rec: "f" "x" :=
@@ -29,9 +29,9 @@ Section proofs.
     iIntros (?) "[%guess ->]".
     assert (Z.of_nat M ≠ 0) as Hneq'; first (intros Hrewrite; destruct!/=).
     wp_pures.
-    assert (∃ x (s':gset Z), x∉s'/\{[x]}∪s' = s /\ (Z.of_nat guess) ∉ s') as (x & s' &H1 &H2&H3).
-    { destruct (decide (Z.of_nat guess ∈ s)).
-      - exists (Z.of_nat guess), (s∖{[Z.of_nat guess]}).
+    assert (∃ x (s':gset Z), x∉s'/\{[x]}∪s' = s /\ (guess) ∉ s') as (x & s' &H1 &H2&H3).
+    { destruct (decide (guess ∈ s)).
+      - exists (guess), (s∖{[guess]}).
         repeat split.
         + set_solver.
         + rewrite -union_difference_L; set_solver.
@@ -190,7 +190,7 @@ Section result.
   Local Opaque INR.
   
   Lemma prog_correct A:
-    ∅ ⊢ₜ A : (TUnit → TNat) ->
+    ∅ ⊢ₜ A : (TUnit → TInt) ->
              pgl (lim_exec ((prog A), {|heap:=∅; urns:= ∅|})) (λ v, v=#false) (M/S N).
   Proof.
     intros Htyped.
