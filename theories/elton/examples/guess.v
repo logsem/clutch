@@ -18,7 +18,7 @@ Section encr.
   Local Opaque INR.
   
   Lemma prog_correct f:
-    ∅ ⊢ₜ f : (TUnit → TNat) ->
+    ∅ ⊢ₜ f : (TUnit → TInt) ->
              pgl (lim_exec ((prog f), {|heap:=∅; urns:= ∅|})) (λ v, v=#true) (1/(S N)).
   Proof.
     intros Htyped.
@@ -54,9 +54,9 @@ Section encr.
         iApply (pgl_wp_wand); first by iApply "Hinterp".
         simpl.
         iIntros (?) "[%n ->]".
-        destruct (decide (n<S N))%nat as [K|K].
+        destruct (decide (0<=n<S N))%Z as [K|K].
         * (* maybe guessed right*)
-          pose (ε2' := λ x, if bool_decide (x=Z.of_nat n) then 1%R else 0%R).
+          pose (ε2' := λ x, if bool_decide (x=n) then 1%R else 0%R).
           assert (∀ x, 0<=ε2' x)%R as Hε2.
           { intros. rewrite /ε2'. case_bool_decide; lra. }
           iMod (pupd_resolve_urn _ _ (λ x, mknonnegreal _ (Hε2 x)) with "[$][$]") as "(%x&Herr&Hl&%Helem)".
@@ -71,14 +71,14 @@ Section encr.
             simpl.
             right.
             f_equal.
-            erewrite (SeriesC_ext _ (λ x, if bool_decide (x = Z.of_nat n) then 1 else 0));
+            erewrite (SeriesC_ext _ (λ x, if bool_decide (x = n) then 1 else 0));
               first by rewrite SeriesC_singleton_dependent.
             intros.
             symmetry.
             case_bool_decide; subst.
             - rewrite bool_decide_eq_true_2 /ε2'; first by rewrite bool_decide_eq_true_2.
               rewrite elem_of_elements elem_of_list_to_set elem_of_list_fmap.
-              eexists _; split; first done.
+              eexists (Z.to_nat n); split; first lia.
               rewrite elem_of_seq. lia.
             - case_bool_decide as H'; last done.
               rewrite elem_of_elements elem_of_list_to_set elem_of_list_fmap in H'.

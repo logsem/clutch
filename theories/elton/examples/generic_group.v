@@ -287,7 +287,7 @@ Section prog.
                  (#0 → #0 → (TUnit+#0)) *
                  (#0 → (TUnit+#0)) *
                  (#0 → #0 → TBool)
-                         ) → TNat)%ty.
+                         ) → TInt)%ty.
 
   Section proofs.
     Context `{eltonGS Σ}.
@@ -964,11 +964,11 @@ Section prog.
         apply le_INR. lia.
       - real_solver.
     }
-    destruct (decide (Z.of_nat guess ∈ s')).
+    destruct (decide (guess ∈ s')).
     - (* guess in s *)
-      iMod (pupd_resolve_urn _ _ (λ x, if bool_decide (x=Z.of_nat guess) then nnreal_one else nnreal_zero) with "[$][$]") as "(%&?&Hurn&%)".
+      iMod (pupd_resolve_urn _ _ (λ x, if bool_decide (x=guess) then nnreal_one else nnreal_zero) with "[$][$]") as "(%&?&Hurn&%)".
       + done.
-      + erewrite (SeriesC_ext _ (λ x, if bool_decide (x=Z.of_nat guess) then nnreal_one else nnreal_zero)); last first.
+      + erewrite (SeriesC_ext _ (λ x, if bool_decide (x=guess) then nnreal_one else nnreal_zero)); last first.
         * intros.
           case_bool_decide as K1; first by case_bool_decide.
           rewrite bool_decide_eq_false_2; first done.

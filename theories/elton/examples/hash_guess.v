@@ -53,7 +53,7 @@ Section prog.
   (* Context `{eltonGS Σ}. *)
 
   Lemma guess_hash A:
-    ∅ ⊢ₜ A : ((TNat → (TUnit+TNat)) → TNat → TNat) ->
+    ∅ ⊢ₜ A : ((TInt → (TUnit+TInt)) → TInt → TInt) ->
              pgl (lim_exec ((prog A), {|heap:=∅; urns:= ∅|})) (λ v, v=#false)
                ((tries+1)%nat * (/(secret_range +1)%nat + /(val_size + 1)%nat) ).
   Proof. 
@@ -144,11 +144,11 @@ Section prog.
       iDestruct "H'" as "(%s&Hl&%Hsize)".
       iMod (token_alloc) as (γ) "Htoken".
     iMod (inv_alloc (nroot) _
-            ( ∃ (tries':nat) (m:gmap nat _),
-                hashfun val_size f (<[LitLbl l:=fin_to_nat secret]> (kmap (λ x, LitInt (Z.of_nat x)) m))∗
+            ( ∃ (tries':nat) (m:gmap Z _),
+                hashfun val_size f (<[LitLbl l:=fin_to_nat secret]> (kmap (λ x, LitInt (x)) m))∗
                 lt ↦ #tries' ∗ (⌜(tries'<=tries)%nat ⌝) ∗
                 ∃ (s':gset Z),
-                  ⌜s' ## (set_map Z.of_nat (dom m):gset _)⌝ ∗
+                  ⌜s' ## ((dom m):gset _)⌝ ∗
                   ⌜s'≠∅⌝ ∗
                   l↪ urn_unif (s')∗
                 ((
@@ -165,7 +165,7 @@ Section prog.
       iFrame.
       iSplit; first done.
       repeat iSplit; last iLeft; iFrame.
-      - iPureIntro. rewrite dom_empty. rewrite set_map_empty. set_solver.
+      - iPureIntro. rewrite dom_empty. set_solver.
       - iPureIntro.
         intros ->.
         rewrite size_empty in Hsize. lia.
@@ -201,7 +201,7 @@ Section prog.
         wp_store.
         iDestruct "Hor" as "[Hor|Hor]".
         + (** normal case *)
-          destruct (decide (guess ∈ dom m)) as [Hlookup|].
+          destruct (decide (guess ∈ (( (dom m)):gset _))) as [Hlookup|].
           { (** it has been queried before *)
             rewrite elem_of_dom in Hlookup.
             destruct Hlookup.
@@ -242,8 +242,6 @@ Section prog.
                   intros ?. simplify_eq.
                   apply Hdisjoint in Hin.
                   apply Hin.
-                  rewrite elem_of_map.
-                  eexists _; split; first done.
                   rewrite elem_of_dom. naive_solver.
                 * rename select (kmap _ _ !! _ = _) into K1.
                   apply lookup_kmap_Some in K1; last (intros ???; by simplify_eq).
@@ -297,11 +295,11 @@ Section prog.
           assert (tries' ≠ 0).
           { intros ?. simplify_eq. }
           iAssert (pupd ∅ ∅ (∃s'', ⌜ s'' ⊆ s' ⌝ ∗ ⌜ s''≠∅⌝ ∗
-                                   l ↪ urn_unif s'' ∗ ⌜Z.of_nat guess∉ s''⌝ ∗
+                                   l ↪ urn_unif s'' ∗ ⌜guess∉ s''⌝ ∗
                                    ⌜size s'<=size s''+1⌝ ∗
                                    ↯ ((tries'-1+1)%nat/size s'')
                   ))%I with "[Hurn Herr2]" as ">H'".
-          { destruct (decide (Z.of_nat guess ∈ s')); last first.
+          { destruct (decide (guess ∈ s')); last first.
            - iModIntro.
              iFrame.
              repeat iSplit; try done.
@@ -325,7 +323,7 @@ Section prog.
                  replace 1%R with (INR 1) by done.
                  apply le_INR. lia.
              }
-             iMod (pupd_partial_resolve_urn _ _ (λ x, if bool_decide (x=({[Z.of_nat guess]} : gset _)) then nnreal_one else mknonnegreal _ err_ineq) _ _ (({[Z.of_nat guess]} ::(s'∖{[Z.of_nat guess]}) ::[]): list (gset _)) with "[$][$]") as "H'".
+             iMod (pupd_partial_resolve_urn _ _ (λ x, if bool_decide (x=({[guess]} : gset _)) then nnreal_one else mknonnegreal _ err_ineq) _ _ (({[guess]} ::(s'∖{[guess]}) ::[]): list (gset _)) with "[$][$]") as "H'".
              + done.
              + simpl.
                rewrite union_empty_r_L.
@@ -462,7 +460,7 @@ Section prog.
               iFrame "Hl". iFrame "Hurn".
               iExists _.
               erewrite kmap_insert; last (intros ???; by simplify_eq).
-              rewrite insert_commute; last done. 
+              rewrite insert_commute; last done.
               iFrame.
               repeat iSplit; last iLeft; repeat iSplit.
               - iPureIntro; lia.
@@ -554,7 +552,7 @@ Section prog.
                 iSplit; first done.
                 by iExists _.
             }
-            destruct (decide (Z.of_nat guess = x)).
+            destruct (decide (guess = x)).
             { (** guess is x*)
               wp_apply (wp_hashfun_prev _ _ _ _ _ _ (LitLbl l) (l↪ _) with "[$Hurn $Hf]").
               - done.
@@ -732,8 +730,6 @@ Section prog.
                   intros ?. simplify_eq.
                   apply Hdisjoint in Hin.
                   apply Hin.
-                  rewrite elem_of_map.
-                  eexists _; split; first done.
                   rewrite elem_of_dom. naive_solver.
               --- rename select (kmap _ _ !! _ = _) into K1.
                   apply lookup_kmap_Some in K1; last (intros ???; by simplify_eq).
@@ -754,15 +750,15 @@ Section prog.
            }
            by iApply "HΦ".
       -- iAssert (pupd ∅ ∅ (∃s'', ⌜ s'' ⊆ s' ⌝ ∗ ⌜ s''≠∅⌝ ∗
-                                  l ↪ urn_unif s'' ∗ ⌜Z.of_nat guess∉ s''⌝
+                                  l ↪ urn_unif s'' ∗ ⌜guess∉ s''⌝
                  ))%I with "[Herr' Hurn]" as ">H'".
-         { destruct (decide (Z.of_nat guess ∈ s')); last first.
+         { destruct (decide (guess ∈ s')); last first.
            - iModIntro.
              iFrame.
              iPureIntro. simpl in *. naive_solver.
-           - iMod (pupd_resolve_urn _ _ (λ x, if bool_decide (x=Z.of_nat guess) then nnreal_one else nnreal_zero) with "[$][$]") as "(%&?&?&%)".
+           - iMod (pupd_resolve_urn _ _ (λ x, if bool_decide (x=guess) then nnreal_one else nnreal_zero) with "[$][$]") as "(%&?&?&%)".
              + done.
-             + erewrite (SeriesC_ext _ (λ x, if bool_decide (x=Z.of_nat guess) then nnreal_one else nnreal_zero)); last first.
+             + erewrite (SeriesC_ext _ (λ x, if bool_decide (x=guess) then nnreal_one else nnreal_zero)); last first.
                -- intros.
                   case_bool_decide as H3; first by case_bool_decide.
                   rewrite bool_decide_eq_false_2; first done.
