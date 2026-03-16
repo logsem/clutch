@@ -401,8 +401,96 @@ Section prog.
           * apply Z.mod_pos_bound. destruct Hprime; lia.
           * destruct (decide (y∈ s)).
             -- (* partial split *)
+
+              assert (0<=(r+size m') / (size s-1)%nat)%R as err_ineq.
+              { apply Rcomplements.Rdiv_le_0_compat.
+                - apply Rplus_le_le_0_compat; real_solver.
+                - apply lt_0_INR. lia.
+              }
+              iMod (pupd_partial_resolve_urn _ _ (λ x, if bool_decide (x=({[y]} : gset _)) then nnreal_one else mknonnegreal _ err_ineq) _ _ (({[y]} ::( s∖{[y]}) ::[]): list (gset _)) with "[$][$]") as "H'".
+              { destruct p; last (simpl; set_solver). lia. }
+              { simpl. rewrite union_empty_r_L.
+                rewrite -union_difference_L; first done.
+                set_unfold.
+                intros. by destruct!/=. }
+              { repeat setoid_rewrite NoDup_cons. repeat split; last by apply NoDup_nil.
+                - set_unfold. set_solver. 
+                - set_solver.
+              }
+              { set_unfold. intros ?. destruct!/=.
+                rename select (∅=_) into Hcontra.
+                apply (f_equal size) in Hcontra.
+                rewrite size_empty in Hcontra.
+                rewrite size_difference in Hcontra.
+                - rewrite size_singleton in Hcontra. lia.
+                - set_unfold.
+                  intros. by destruct!/=.
+              }
+              { intros. set_unfold. destruct!/=; set_solver. }
+              { rewrite SeriesC_list; last first.
+                - repeat setoid_rewrite NoDup_cons.
+                  repeat split; last by apply NoDup_nil.
+                  + set_unfold.
+                    intros ?. destruct!/=. set_solver.
+                  + set_solver.
+                    Local Opaque size. 
+                - simpl. rewrite bool_decide_eq_true_2; last done.
+                  rewrite size_singleton Rmult_1_l.
+                  rewrite bool_decide_eq_false_2; last (set_unfold; set_solver).
+                  simpl.
+                  rewrite size_difference; last first.
+                  + set_unfold. intros. by subst. 
+                  +  rewrite size_singleton.
+                     rewrite (Rdiv_def _ (_-_)%nat).
+                     rewrite Rmult_assoc.
+                     rewrite (Rmult_comm (/_)%R).
+                     rewrite Rinv_r; first lra.
+                     apply not_0_INR; lia.
+              }
               
-              admit.
+              { eexists (Rmax _ _).
+                intros.
+                case_bool_decide.
+                - apply Rmax_l.
+                - apply Rmax_r. }
+              iDestruct "H'" as "(%s'&Herr&Hurn &%)".
+              set_unfold. destruct!/=.
+              { rewrite bool_decide_eq_true_2; last done.
+                by iDestruct (ec_contradict with "[$]") as "[]".
+              }
+              rewrite bool_decide_eq_false_2; last set_solver.
+              simpl.
+              iMod ("IH" with "[][][][][][][][Herr][$]") as "H"; try done.
+              { iPureIntro. rewrite size_difference; last set_solver.
+                rewrite size_singleton. lia. }
+              { iPureIntro. by eapply map_Forall_insert_1_2. }
+              { iPureIntro.
+                intros ??. eapply Hset. set_solver.
+              }
+              { iApply ec_eq; last done. 
+                f_equal. rewrite size_difference; last set_solver.
+                by rewrite size_singleton.
+              }
+              iDestruct "H" as "(%&%&%Hsize'&%&$&$)".
+              iModIntro.
+              repeat iSplit; iPureIntro.
+              ++ set_solver. 
+              ++ rewrite size_difference in Hsize'; last set_solver.
+                 rewrite size_singleton in Hsize'.
+                 lia.
+              ++ intros ?? b'0 Hlookup.
+                 apply lookup_insert_Some in Hlookup.
+                 destruct!/=; last naive_solver.
+                 rewrite /no_coll.
+                 intros x ??. intros Hcontra.
+                 rewrite Z.cong_iff_0 in Hcontra.
+                 assert (y=x); last (subst; set_solver).
+                 eapply Hy2. split. 
+                 ** eapply Hset. set_solver.
+                 ** rewrite Zmult_mod_idemp_l.
+                    rewrite Zmod_mod.
+                    rewrite Z.cong_iff_0. erewrite <-Hcontra.
+                    f_equal. lia. 
             -- (* no need to split *)
               iDestruct (ec_weaken _ ((r+size m')/(size s)%nat)%R with "[$]") as "Herr".
               { split.
@@ -472,8 +560,8 @@ Section prog.
             apply Z.cong_iff_0 in Hcontra. rewrite !Zmod_small in Hcontra; first destruct!/=.
             -- unfold map_Forall in Hmap.
                unshelve epose proof Hmap _ (_,b'0) _ as [_ K]; simpl in *; last lia; last by eapply lookup_insert.
-            -- lia. 
-    Admitted. 
+            -- lia.
+    Qed. 
       
     
     Definition dlog_inv (lm:loc) arr ltries l γ1 γ2 :=
@@ -830,6 +918,121 @@ Section prog.
         iIntros "(%n2&->&#Hfrag2)".
         rewrite refines_eq /refines_def.
         wp_pures.
+        iInv "Hinv" as ">(%m&%k&%s'&%m'&Hurn&%Hs&Harr&%&Htries&Hm&%Hdom&%Hforall&%&Hauth&%Hdom'&%Hforall2&%Hmatch&Hor)" "Hclose".
+
+        
+        iDestruct (mono_nat_lb_own_valid with "[$][$Hfrag1]") as "%".
+        iDestruct (mono_nat_lb_own_valid with "[$][$Hfrag2]") as "%".
+        assert (n1 ∈ dom m) as Hlookup1.
+        { rewrite Hdom. rewrite elem_of_set_seq. destruct!/=; simpl in *.
+          lia. }
+        pose proof Hlookup1 as Hlookup1'.
+        rewrite elem_of_dom in Hlookup1.
+        destruct Hlookup1 as [x1 Hlookup1].
+        assert (n2 ∈ dom m) as Hlookup2.
+        { rewrite Hdom. rewrite elem_of_set_seq. destruct!/=; simpl in *.
+          lia. }
+        
+        pose proof Hlookup2 as Hlookup2'.
+        rewrite elem_of_dom in Hlookup2.
+        destruct Hlookup2 as [x2 Hlookup2].
+        
+        rewrite /arr_get.
+        wp_pures.
+        wp_load.
+        wp_pures.
+        wp_apply (wp_get with "[$]").
+        iIntros (?) "(Hm & ->)".
+        simplify_map_eq.
+        wp_pures.
+        wp_load.
+        wp_pures.
+        wp_apply (wp_get with "[$]").
+        iIntros (?) "(Hm & ->)".
+        simplify_map_eq.
+        wp_pures.
+        
+        
+
+        apply Hforall in Hlookup1 as Htype1.
+        apply Hforall in Hlookup2 as Htype2.
+        rewrite Hdom' in Hlookup1'.
+        rewrite Hdom' in Hlookup2'.
+        rewrite elem_of_dom in Hlookup1'.
+        rewrite elem_of_dom in Hlookup2'.
+        destruct Hlookup1' as [[a b] Hlookup1'].
+        destruct Hlookup2' as [[a' b'] Hlookup2'].
+        eapply Hmatch in Hlookup1' as Hmatch1; last done.
+        eapply Hmatch in Hlookup2' as Hmatch2; last done.
+
+        rewrite -(fill_empty (_=_)).
+        iApply (pgl_wp_bind).
+        simpl.
+
+        assert (∃ (x3:base_lit), bin_op_eval EqOp #x1 #x2 = Some #x3 /\
+                          base_lit_type_check x3 = Some BLTBool /\
+                          (∀ f x, (0<=x<p)%Z -> f!!l=Some x->
+                                  urn_subst f x3 =
+                                  Some (LitBool (bool_decide (LitInt ((a * x + b) `mod` p )= LitInt ((a' * x + b') `mod` p))%Z))
+                          )
+               ) as (x3 & ?&Htype3&Hmatch3).
+        {
+          destruct (is_simple_base_lit x1) eqn:?; last first.
+          - exists (x1 =ᵥ x2)%V.
+            simpl. rewrite Htype1 Htype2.
+            split; last (split; first done); first by case_match.
+            intros.
+            erewrite Hmatch1; try done. 
+            by erewrite Hmatch2. 
+            
+          - destruct (is_simple_base_lit x2) eqn:?; last first.
+            + exists (x1 =ᵥ x2)%V.
+              simpl. rewrite Htype1 Htype2.
+              split; last (split; first done).
+              * case_match; try done; by case_match.
+              * intros. erewrite Hmatch1; try done.
+                by erewrite Hmatch2.
+            + destruct x1, x2; try done; naive_solver.
+        }
+
+        wp_pures.
+
+        iDestruct ("Hor") as "[(%Hcoll&%Hsize&Herr)|Htoken]"; last first.
+        { iMod (ec_zero) as "Herr".
+          iMod (pupd_resolve_urn _ _ (λ x, nnreal_zero) with "[$][$]") as "(%&?&Hurn&%)".
+          - done.
+          - rewrite SeriesC_0; first lra.
+            intros.
+            by case_bool_decide.
+          - naive_solver.
+          - iApply (wp_value_promotion _ _ (l↪ _) with "[Hurn]").
+            + rewrite rupd_unseal/rupd_def.
+              iIntros  (?) "[? Hu]". iSplit; last iFrame.
+              iDestruct (ghost_map_lookup with "Hu [$]") as "%Hlookup".
+              iPureIntro.
+              intros.
+              eapply urns_f_distr_lookup in Hlookup; last done; last done.
+              destruct Hlookup as (?&Hsome&Hin).
+              simpl.
+              set_unfold in Hin.
+              subst.
+              erewrite Hmatch3; try done; last by eapply Hs.
+              naive_solver.
+            + iIntros "Hurn".
+              wp_pures.
+              iMod ("Hclose" with "[-]").
+              * iFrame "Harr Hurn Hm Hauth Htries".
+                iNext.
+                iExists _.
+                repeat iSplit; last iRight; try done.
+                -- iPureIntro. intros ??. eapply Hs. set_solver.
+                -- iPureIntro. lia.
+                -- iPureIntro. lia.
+              * iModIntro. by iExists _. }
+        
+        
+        
+        
         admit. 
     Admitted. 
     
