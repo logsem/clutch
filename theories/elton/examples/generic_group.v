@@ -336,6 +336,143 @@ Section prog.
             ↯ (r/size s')
         ).
     Proof.
+      revert t r s l.
+      iInduction m' as [|k [a' b'] m' Hnone] "IH" using map_ind;
+        iIntros (t r s l); iIntros (<- Hineq Hpos Ha Hb Hmap Hset) "Herr Hl".
+      {
+        simpl in *.
+        rewrite map_size_empty.
+        iModIntro.
+        iFrame.
+        simpl.
+        rewrite Rplus_0_r.
+        iFrame.
+        repeat iSplit; iPureIntro.
+        - done.
+        - lia.
+        - intros. simplify_map_eq. 
+      }
+      rewrite map_size_insert. rewrite Hnone.
+      rewrite map_size_insert in Hineq.
+      rewrite S_INR.
+      simplify_map_eq.
+      destruct (decide (a=a'/\b=b')) as [|Hcase].
+      - (* trivial collision *)
+        destruct!/=.
+        iDestruct (ec_valid with "[$]") as "%Hineq'".
+        destruct Hineq' as [? Hineq'].
+        iDestruct (ec_weaken _ ((r+size m')/(size s)%nat)%R with "[$]") as "Herr".
+        { split.
+          - apply Rcomplements.Rdiv_le_0_compat.
+            + apply Rplus_le_le_0_compat; real_solver.
+            + apply lt_0_INR.
+              lia.
+          - apply Rcomplements.Rle_div_l.
+            + apply Rlt_gt; apply lt_0_INR. lia.
+            + rewrite -Rmult_div_swap.
+              apply Rcomplements.Rle_div_r; first (apply Rlt_gt; apply lt_0_INR; lia).
+              apply Rmult_le_compat_r; first real_solver.
+              lra. 
+        }
+        iMod ("IH" with "[][][][][][][][$][$]") as "H"; try done.
+        { iPureIntro. lia. }
+        { iPureIntro. by eapply map_Forall_insert_1_2. }
+        iDestruct "H" as "(%&%&%&%&$&$)".
+        iModIntro.
+        repeat iSplit; iPureIntro.
+        + done.
+        + lia.
+        + intros ??? Hlookup.
+          apply lookup_insert_Some in Hlookup.
+          destruct!/=; last naive_solver.
+          rewrite /no_coll.
+          intros. destruct!/=.
+      - destruct (decide (a=a')); last first. 
+        + unshelve epose proof mod_mult_inverse_unique p Hprime ((a-a') mod p)%Z ((b'-b) mod p)%Z _ _ as [y [Hy1 Hy2]].
+          * unshelve epose proof Z.mod_pos_bound (a-a')%Z p _.
+            -- destruct Hprime. lia.
+            -- split; last lia.
+               destruct (decide (0<((a-a') `mod` p)))%Z; first lia.
+               assert ((a-a') `mod` p=0)%Z as Heq; first lia.
+               apply Z.cong_iff_0 in Heq.
+               rewrite !Zmod_small in Heq; try lia.
+               rewrite map_Forall_insert in Hmap; last done.
+               simpl in *. lia.
+          * apply Z.mod_pos_bound. destruct Hprime; lia.
+          * destruct (decide (y∈ s)).
+            -- (* partial split *)
+              
+              admit.
+            -- (* no need to split *)
+              iDestruct (ec_weaken _ ((r+size m')/(size s)%nat)%R with "[$]") as "Herr".
+              { split.
+                - apply Rcomplements.Rdiv_le_0_compat.
+                  + apply Rplus_le_le_0_compat; real_solver.
+                  + apply lt_0_INR.
+                    lia.
+                - apply Rcomplements.Rle_div_l.
+                  + apply Rlt_gt; apply lt_0_INR. lia.
+                  + rewrite -Rmult_div_swap.
+                    apply Rcomplements.Rle_div_r; first (apply Rlt_gt; apply lt_0_INR; lia).
+                    apply Rmult_le_compat_r; first real_solver.
+                    lra. 
+              }
+              iMod ("IH" with "[][][][][][][][$][$]") as "H"; try done.
+              { iPureIntro. lia. }
+              { iPureIntro. by eapply map_Forall_insert_1_2. }
+              iDestruct "H" as "(%&%&%&%&$&$)".
+              iModIntro.
+              repeat iSplit; iPureIntro.
+              ++ done.
+              ++ lia.
+              ++ intros ??? Hlookup.
+                 apply lookup_insert_Some in Hlookup.
+                 destruct!/=; last naive_solver.
+                 rewrite /no_coll.
+                 intros x ??. intros Hcontra.
+                 rewrite Z.cong_iff_0 in Hcontra.
+                 unshelve epose proof Hy2 x _.
+                 { split; first (eapply Hset; set_solver).
+                   rewrite Zmult_mod_idemp_l Zmod_mod.
+                   apply Z.cong_iff_0.
+                   rewrite -Hcontra.
+                   f_equal. lia.
+                 }
+                 subst. set_solver.
+        + subst.
+          destruct (decide (b=b')); first naive_solver.
+          iDestruct (ec_weaken _ ((r+size m')/(size s)%nat)%R with "[$]") as "Herr".
+          { split.
+            - apply Rcomplements.Rdiv_le_0_compat.
+              + apply Rplus_le_le_0_compat; real_solver.
+              + apply lt_0_INR.
+                lia.
+            - apply Rcomplements.Rle_div_l.
+              + apply Rlt_gt; apply lt_0_INR. lia.
+              + rewrite -Rmult_div_swap.
+                apply Rcomplements.Rle_div_r; first (apply Rlt_gt; apply lt_0_INR; lia).
+                apply Rmult_le_compat_r; first real_solver.
+                lra. 
+          }
+          iMod ("IH" with "[][][][][][][][$][$]") as "H"; try done.
+          { iPureIntro. lia. }
+          { iPureIntro. by eapply map_Forall_insert_1_2. }
+          iDestruct "H" as "(%&%&%&%&$&$)".
+          iModIntro.
+          repeat iSplit; iPureIntro.
+          * done.
+          * lia.
+          * intros ?? b'0 Hlookup.
+            apply lookup_insert_Some in Hlookup.
+            destruct!/=; last naive_solver.
+            rewrite /no_coll.
+            intros x ??. intros Hcontra.
+            rewrite Z.cong_iff_0 in Hcontra.
+            replace (_-_)%Z with (b-b'0)%Z in Hcontra; last lia.
+            apply Z.cong_iff_0 in Hcontra. rewrite !Zmod_small in Hcontra; first destruct!/=.
+            -- unfold map_Forall in Hmap.
+               unshelve epose proof Hmap _ (_,b'0) _ as [_ K]; simpl in *; last lia; last by eapply lookup_insert.
+            -- lia. 
     Admitted. 
       
     
