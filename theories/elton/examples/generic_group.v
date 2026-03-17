@@ -280,7 +280,7 @@ Section prog.
      - 1
      - final guess
      - all the collisions
-     hence (2+((tries)*(tries+1)/2)%R)
+     hence (1+1+((tries)*(tries+3)/2)%R)
    *)
 
   Definition adv_type :=((∃: #0 * #0 *
