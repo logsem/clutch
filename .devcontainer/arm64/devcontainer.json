@@ -1,6 +1,9 @@
 {
 	"name": "clutch arm64 container",
 	"image": "ghcr.io/logsem/clutch/docker-arm64",
+	"mounts": [
+		"source=${localEnv:HOME}/.cache/dune,target=/root/.cache/dune,type=bind,consistency=cached"
+	],
 	"customizations": {
 		"vscode": {
 		  "extensions": ["maximedenes.vscoq"]
