@@ -1,5 +1,5 @@
 (lang dune 3.17)
-; version in current ci image
+; update to 3.21 once rocq 9.1 is used
 
 ; update to rocq 0.11 with dune 3.21
 (using coq 0.10)
@@ -29,9 +29,13 @@
 (package
  (name rocq-clutch)
  (synopsis "Higher-order probabilistic separation logics")
- (depends ocaml
+ (depends
+  ; use a recent ocaml version to compile the code in src/ that uses algebraic effects
+  (ocaml (and (>= 5.4.0) (< "5.5~")))
+  ; at least rocq 9.1 is needed to work with dune's rocq-lang feature
+  ; but that in turn requires upgrading to rocq-iris.4.5.0 and rocq-stdpp.1.13.0
   (rocq-core (and (>= 9.0.0) (< "9.1~")))
-  (rocq-stdlib (and (>= 9.0.0) (< "9.1~")))  
+  (rocq-stdlib (and (>= 9.0.0) (< "9.1~")))
   (coq-iris (= "4.4.0"))
   (coq-stdpp (= "1.12.0"))
   (coq-coquelicot (= "3.4.4"))
