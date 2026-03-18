@@ -61,7 +61,7 @@ Section xcache.
 (*    *)
 
 
-  #[local] Definition exact_cache_body `{Inject DB val} (M : val) (db : DB) (cache_loc : loc) : expr :=
+  #[local] Definition generic_cache_body `{Inject DB val} (M : val) (db : DB) (cache_loc : loc) : expr :=
     ((λ: "acc" "q",
         match: get #cache_loc "q" with
           InjL <> =>
@@ -82,13 +82,13 @@ Section xcache.
          end).
 
   (* We can define the original generic_cache as a client of the online spec (keeping the direct def.) *)
-  Definition exact_cache_offline_map : val :=
+  Definition generic_cache_offline_map : val :=
     λ:"M" "qs" "db",
       let: "oXC" := online_xcache "M" "db" in
       list_map "oXC" "qs".
 
   (* Same but with list_fold (used in one proof) *)
-  Definition exact_cache_offline : val :=
+  Definition generic_cache_offline : val :=
     λ:"M" "qs" "db",
       let: "oXC" := online_xcache "M" "db" in
       list_fold (λ: "acc" "q", list_cons ("oXC" "q") "acc") list_nil "qs".
@@ -201,25 +201,25 @@ Section xcache.
       iIntros (?) "(%a  & -> & FA & rhs)". iFrame => //.
   Qed.
 
-  (* We can prove exact_cache_dipr from the online spec. The proof is essentially the same as the direct proof. *)
-  Lemma exact_cache_dipr_offline (M : val) DB (dDB : Distance DB) A `{Inject A val}
+  (* We can prove generic_cache_dipr from the online spec. The proof is essentially the same as the direct proof. *)
+  Lemma generic_cache_dipr_offline (M : val) DB (dDB : Distance DB) A `{Inject A val}
     (qs : list nat) (QS : val) (is_qs : is_list qs QS)
     ε δ (εpos : 0 <= ε) (δpos : 0 <= δ)
     (M_dipr : Forall (λ q : nat, ⊢ wp_diffpriv (M #q) ε δ dDB A) qs)
     :
     let k := size ((list_to_set qs) : gset _) in
-    ⊢ wp_diffpriv (exact_cache_offline M QS) (k*ε) (k*δ) dDB (list A).
+    ⊢ wp_diffpriv (generic_cache_offline M QS) (k*ε) (k*δ) dDB (list A).
   Proof with (tp_pures ; wp_pures).
     iIntros (k K c db db' adj) "[rhs [ε δ]]".
-    rewrite {2}/exact_cache_offline...
-    rewrite /exact_cache_offline...
+    rewrite {2}/generic_cache_offline...
+    rewrite /generic_cache_offline...
     tp_bind (online_xcache _ _). wp_bind (online_xcache _ _).
     iPoseProof (oxc_spec0 M _ _ _ _) as "oXC" => //.
     iSpecialize ("oXC" with "rhs").
     iApply (wp_strong_mono'' with "oXC").
     iIntros "%f (%f' & rhs & %F & F & #cached & #fresh) /="...
-    set (exact_cache_offline_body (f : val) := (λ: "acc" "q", list_cons (f "q") "acc")%V).
-    rewrite -!/(exact_cache_offline_body _).
+    set (generic_cache_offline_body (f : val) := (λ: "acc" "q", list_cons (f "q") "acc")%V).
+    rewrite -!/(generic_cache_offline_body _).
     revert qs QS is_qs k M_dipr.
     cut
       (∀ (qs : list nat)
@@ -236,10 +236,10 @@ Section xcache.
                 ↯m (c * ((k - k') * ε)) ∗ ↯ (c * ((k - k') * δ)) ∗
                 □ oxc_spec0_cached A f f' F ∗
                 □ oxc_spec0_fresh M c dDB A f f' F ∗
-                ⤇ fill K (list_fold (exact_cache_offline_body f') (inject acc) QS') ∗
+                ⤇ fill K (list_fold (generic_cache_offline_body f') (inject acc) QS') ∗
                 F cache_map
           }}}
-            list_fold (exact_cache_offline_body f) (inject acc)%V QS'
+            list_fold (generic_cache_offline_body f) (inject acc)%V QS'
           {{{ (l : list A), RET (inject l); ⤇ fill K (inject l) }}}
       ).
     {
@@ -253,7 +253,7 @@ Section xcache.
                 M_dipr φ) "(ε & δ & #cached & #fresh & rhs & F) hφ".
     set (k := size (list_to_set qs : gset nat)).
     set (k' := size cache).
-    rewrite /exact_cache_offline_body /=.
+    rewrite /generic_cache_offline_body /=.
     tp_rec. tp_pures.
     wp_rec. wp_pures.
     destruct qs' as [|q' qs''] eqn:qs'_qs''.
@@ -297,7 +297,7 @@ Section xcache.
       }
       iDestruct (ecm_split with "ε") as "[kε ε]". 1,2: real_solver.
       iDestruct (ec_split with "δ") as "[kδ δ]". 1,2: real_solver.
-      rewrite /exact_cache_offline_body... tp_bind (f' _) ; wp_bind (f _).
+      rewrite /generic_cache_offline_body... tp_bind (f' _) ; wp_bind (f _).
       iCombine "fresh" as "h".
       iSpecialize ("h" $! q' cache ε δ _ h M_dipr_q' with "ε δ F rhs").
       iApply (wp_strong_mono'' with "h").
@@ -318,18 +318,18 @@ Section xcache.
         rewrite map_size_insert_None => //. qify_r ; zify_q. lia.
   Qed.
 
-  (* We can also prove the map variant of the offline exact_cache_dipr from the online spec *)
+  (* We can also prove the map variant of the offline generic_cache_dipr from the online spec *)
   (* This proof uses induction on the list of queries, which is a bit simpler than direct Löb induction. *)
-  Lemma exact_cache_dipr_offline_map (M : val) DB (dDB : Distance DB) A `{Inject A val}
+  Lemma generic_cache_dipr_offline_map (M : val) DB (dDB : Distance DB) A `{Inject A val}
     (qs : list nat) (QS : val) (is_qs : is_list qs QS)
     ε δ (εpos : 0 <= ε) (δpos : 0 <= δ)
     (M_dipr : Forall (λ q : nat, ⊢ wp_diffpriv (M #q) ε δ dDB A) qs)
     :
     let k := size ((list_to_set qs) : gset _) in
-    ⊢ wp_diffpriv (exact_cache_offline_map M QS) (k*ε) (k*δ) dDB (list A).
+    ⊢ wp_diffpriv (generic_cache_offline_map M QS) (k*ε) (k*δ) dDB (list A).
   Proof with (tp_pures ; wp_pures).
     iIntros (k K c db db' adj) "[rhs [ε δ]]".
-    rewrite /exact_cache_offline_map...
+    rewrite /generic_cache_offline_map...
     tp_bind (online_xcache _ _) ; wp_bind (online_xcache _ _).
     iPoseProof (oxc_spec0 M _ _ _ _ with "rhs") as "oXC" => //.
     iApply (wp_strong_mono'' with "oXC").
@@ -388,7 +388,7 @@ Section xcache.
   Qed.
 
   (* Direct proof via Löb induction for the definition with fold. *)
-  Lemma exact_cache_dipr (M : val) `(dDB : Distance DB) A `(Inject A val)
+  Lemma generic_cache_dipr (M : val) `(dDB : Distance DB) A `(Inject A val)
     (qs : list nat) (QS : val) (is_qs : is_list qs QS) ε δ (εpos : 0 <= ε) (δpos : 0 <= δ)
     (M_dipr : Forall (λ q : nat, ⊢ hoare_diffpriv (M #q) ε δ dDB A) qs)
     :
@@ -399,7 +399,7 @@ Section xcache.
     wp_apply wp_init_map => // ; iIntros (cache) "cache"...
     rewrite /generic_cache... tp_bind (init_map _).
     iMod (spec_init_map with "rhs") as "(%cache_r & rhs & cache_r)" => /=...
-    rewrite -!/(exact_cache_body _ _ _).
+    rewrite -!/(generic_cache_body _ _ _).
     revert qs QS is_qs k M_dipr.
     cut
       (∀ (qs : list nat)
@@ -415,11 +415,11 @@ Section xcache.
           let k' := size cache_map in
           {{{
                 ↯m (c * ((k - k') * ε)) ∗ ↯ (c * ((k - k') * δ))
-                ∗ ⤇ fill K (list_fold (exact_cache_body M db' cache_r) (inject acc) QS')
+                ∗ ⤇ fill K (list_fold (generic_cache_body M db' cache_r) (inject acc) QS')
                 ∗ map_list cache (inject <$> cache_map)
                 ∗ map_slist cache_r (inject <$> cache_map)
           }}}
-            list_fold (exact_cache_body M db cache) (inject acc) QS'
+            list_fold (generic_cache_body M db cache) (inject acc) QS'
             {{{ (l : list A), RET (inject l); ⤇ fill K (inject l) }}}
       ).
     {
@@ -433,13 +433,13 @@ Section xcache.
                M_dipr φ) "(ε & δ & rhs & cache & cache_r) hφ /=".
     set (k := size (list_to_set qs : gset nat)).
     set (k' := size cache').
-    tp_rec; tp_pures. rewrite -!/(exact_cache_body _ _ _).
-    wp_rec; wp_pures. rewrite -!/(exact_cache_body _ _ _).
+    tp_rec; tp_pures. rewrite -!/(generic_cache_body _ _ _).
+    wp_rec; wp_pures. rewrite -!/(generic_cache_body _ _ _).
     destruct qs' as [|q' qs''] eqn:qs'_qs''.
     { rewrite is_qs'. tp_pures. wp_pures. iApply "hφ". iFrame. iModIntro. done. }
     destruct is_qs' as (QS'' & -> & is_qs'').
-    tp_pures. rewrite -!/(exact_cache_body _ _ _).
-    wp_pures. rewrite -!/(exact_cache_body _ _ _).
+    tp_pures. rewrite -!/(generic_cache_body _ _ _).
+    wp_pures. rewrite -!/(generic_cache_body _ _ _).
     wp_apply (wp_get with "cache"). iIntros (?) "[cache ->]".
     tp_bind (get _ _). iMod (spec_get with "cache_r rhs") as "[rhs cache_r]" => /=.
     rewrite qs_pre_qs' in M_dipr.
@@ -450,7 +450,7 @@ Section xcache.
     - opose proof (elem_of_dom_2 _ _ _ cache_q') as h...
       rewrite !lookup_fmap cache_q' /=.
       rewrite /list_cons.
-      wp_pures. tp_pures. rewrite -!/(exact_cache_body _ _ _).
+      wp_pures. tp_pures. rewrite -!/(generic_cache_body _ _ _).
       iSpecialize ("IH" $! qs (qs_pre ++ [q']) qs'' QS'' (a :: acc) cache').
       iApply ("IH" with "[%] [%] [%] [%] [%] [$ε $δ $rhs $cache $cache_r]") => //; subst.
       { rewrite cons_middle assoc //. }
@@ -482,7 +482,7 @@ Section xcache.
       iApply (M_dipr_q' with "[] [rhs ε δ]") => // ; iFrame. iNext. iIntros (a) "rhs" => /=...
       tp_bind (set _ _ _). iMod (spec_set with "cache_r rhs") as "[rhs cache_r]".
       wp_apply (wp_set with "cache") ; iIntros "cache"...
-      rewrite /list_cons. do 7 wp_pure. simpl. do 9 tp_pure. rewrite -!/(exact_cache_body _ _ _).
+      rewrite /list_cons. do 7 wp_pure. simpl. do 9 tp_pure. rewrite -!/(generic_cache_body _ _ _).
       rewrite -!fmap_insert.
       iSpecialize ("IH" $! qs (qs_pre ++ [q']) qs'' QS'' (a :: _)).
       iApply ("IH" with "[%] [%] [%] [%] [%] [kε kδ $rhs $cache $cache_r]") => //; subst.

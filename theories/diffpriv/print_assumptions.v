@@ -21,8 +21,8 @@ Definition all_results :=
     @SVT_stream_diffpriv,
     @create_filter_private,
     @adaptive_count_diffpriv,
-    @exact_cache_dipr,
-    @exact_cache_dipr_offline_map,
+    @generic_cache_dipr,
+    @generic_cache_dipr_offline_map,
     @rnm_diffpriv
   ).
 
