@@ -504,6 +504,23 @@ let report_noisy_max (eps : Q.t) evalQ n d =
       rnm (i+1)
   in rnm 0
 
+let list_max_index_aux y xs =
+    List.fold_left
+      (fun (y, iy, ix) x -> if y < x then (x, ix, ix+1) else (y, iy, ix+1))
+      (y, 0, 1) xs
+
+let list_max_index xs =
+    match xs with
+    | [] -> 0
+    | y :: xs ->
+      let (_y, iy, _ix) = list_max_index_aux y xs in
+      iy
+
+let report_noisy_max_presampling (eps : Q.t) evalQ n d =
+  let xs = List.init n (fun i -> evalQ i d) in
+  let noisy_xs = List.map (fun x -> laplace (Q.mult eps (Q.mk 1 2)) x) xs in
+  list_max_index noisy_xs
+
 (* should be 1-sensitive *)
 let evalQ n db =
   match List.nth_opt predicates n with
@@ -512,6 +529,10 @@ let evalQ n db =
 
 let test_rnm () =
   report_noisy_max (Q.mk 4 1) evalQ 1000 data
+;;
+
+let test_rnm' () =
+  report_noisy_max_presampling (Q.mk 4 1) evalQ 1000 data
 ;;
 
 (* The exact count is [4 ; 6 ; 4]. *)
