@@ -754,38 +754,4 @@ Section rules.
   Qed.
   Definition refines_couple_rand_tape := refines_couple_UT.
 
-  (* TODO: Port other rules by need *)
-  (* Corollary refines_couple_TU_empty N f `{Bij (fin (S N)) (fin (S N)) f} K K' E α A z :
-       TCEq N (Z.to_nat z) →
-       ▷ α ↪ (N; []) ∗
-         ▷ (∀ (n : fin (S N)), α ↪ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
-       ⊢ REL fill K (rand(#lbl:α) #z) << fill K' (rand #z) @ E : A.
-     Proof.
-       iIntros (->) "(>α & H)".
-       iApply refines_couple_tape_rand.
-       { rewrite fill_not_val //. }
-       iFrame => /=. iIntros (n) "Hα".
-       iApply refines_rand_l.
-       iFrame. iModIntro. iApply "H".
-     Qed.
-     Definition refines_couple_rands_l := refines_couple_TU_empty.
-
-     Corollary refines_couple_UT_empty N f `{Bij (fin (S N)) (fin (S N)) f} K K' E α A z :
-       TCEq N (Z.to_nat z) →
-       ▷ α ↪ₛ (N; []) ∗
-         ▷ (∀ (n : fin (S N)), α ↪ₛ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
-       ⊢ REL fill K (rand #z) << fill K' (rand(#lbl:α) #z) @ E : A.
-     Proof.
-       iIntros (->) "(>Hα & H)".
-       iApply refines_couple_rand_tape.
-       iFrame.
-       iIntros "!>" (n) "Hα".
-       iApply (refines_rand_r with "Hα").
-       iIntros "α".
-       by iApply "H".
-     Qed.
-     Definition refines_couple_rands_r := refines_couple_UT_empty. *)
-
-
-
 End rules.
