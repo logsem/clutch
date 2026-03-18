@@ -1,6 +1,12 @@
 # Clutch-DP Project
 
-This repository contains the formal development of the Clutch-DP logic for differential privacy. Clutch-DP is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Rocq prover](https://rocq-prover.org/).
+This repository contains the Rocq formalization accompanying the PLDI 2026 submission "Modular Verification of Differential Privacy in Probabilistic Higher-Order Separation Logic".
+
+The Clutch-DP logic for differential privacy is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Rocq prover](https://rocq-prover.org/).
+
+Please refer to [paper_mapping.md](paper_mapping.md) for a detailed table mapping
+definitions, rules, and examples from the paper to the Rocq formalization.
+
 
 ## Building the development
 
@@ -19,8 +25,8 @@ The recommended way to install the dependencies locally is through [opam](https:
 1. Install [opam](https://opam.ocaml.org/doc/Install.html) if not already installed (a version greater than 2.0 is required).
 2. Install a new switch and link it to the project.
 ```
-opam switch create clutch 4.14.2
-opam switch link clutch .
+opam switch create clutch-dp 4.14.2
+opam switch link clutch-dp .
 ```
 3. Add the Rocq `opam` repository.
 ```
@@ -41,6 +47,25 @@ Warning: in file xxx, library
          from root Coquelicot and has not been found in the loadpath!
          [module-not-found,filesystem,default]
 ```
+
+## Structure
+
+The formalization is in `theories/diffpriv/`. Key files:
+
+| File | Contents |
+|------|----------|
+| `diffpriv_rules.v` | DP and sensitivity definitions; composition laws (§2–3) |
+| `coupling_rules.v` | `LAPLACE-SHIFT` and `LAPLACE-CHOICE` rules (§3.3) |
+| `distance.v` | Distance typeclass and instances (§2.2) |
+| `primitive_laws.v` | Heap, tape, and privacy credit resources (§3) |
+| `weakestpre.v` | Weakest precondition and coupling modalities (§A.2) |
+| `adequacy.v` | Soundness / adequacy theorem (§3, §5, §A.3) |
+| `examples/sparse_vector_technique.v` | Above Threshold and Sparse Vector Technique (§4.1) |
+| `examples/privacy_filter.v` | Privacy filter and adaptive counting (§4.2) |
+| `examples/auto_avg.v` | `auto_avg` client (§4.1.4) |
+| `examples/generic_cache.v` | Query cache and `map_cache` client (§4.3) |
+| `examples/report_noisy_max.v` | Report Noisy Max (Appendix B) |
+| `print_assumptions.v` | Checks axiom dependencies of all main results |
 
 ## Axioms
 
