@@ -1,6 +1,6 @@
-(* Pointwise differential privacy of exact_cache. *)
+(* Pointwise differential privacy of generic_cache. *)
 
-(* A mechanism M may only satisfy pointwise DP. We prove that (exact_cache M) is also differentially *)
+(* A mechanism M may only satisfy pointwise DP. We prove that (generic_cache M) is also differentially *)
 (* private, and that caching provides the expected cost reduction in privacy budget. *)
 
 (* The online version satisfies a resourceful spec that is close to pw-DP (see oxc_spec0_pw). *)
@@ -15,7 +15,7 @@ From clutch.common Require Import inject.
 From clutch.prelude Require Import tactics.
 From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode.
-From clutch.diffpriv.examples Require Import list map exact_cache.
+From clutch.diffpriv.examples Require Import list map generic_cache.
 
 Section xcache_pw.
   Context `{!diffprivGS Σ}.
@@ -117,7 +117,7 @@ Section xcache_pw.
 (*   Qed. *)
 
 
-  (* list_map offline exact_cache from online, but pointwise *)
+  (* list_map offline generic_cache from online, but pointwise *)
   (* This proof is complete modulo the safety part that proves that if list_map f xs returns a *)
 (*      value v, then v is a list. The real lemma is more subtle because it also has to preserve some *)
 (*      resources. It should be possible to complete the proof. *)

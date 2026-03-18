@@ -2,8 +2,8 @@ From clutch.diffpriv Require Import adequacy adequacy_rel.
 From clutch.diffpriv.examples Require Import
   sparse_vector_technique
   privacy_filter
-  sum_queries
-  exact_cache
+  auto_avg
+  generic_cache
   report_noisy_max.
 
 (** This file checks that the main results of the paper rely only on standard

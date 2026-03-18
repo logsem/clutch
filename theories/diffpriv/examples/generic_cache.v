@@ -20,10 +20,10 @@ Section xcache.
 
   #[local] Open Scope R.
 
-  (* TODO instantiate exact_cache with a mechanism *)
+  (* TODO instantiate generic_cache with a mechanism *)
 
-  (* SPEC: If M is ε-dp, then exact_cache M qs is kε-dp where k = |unique(qs)|. *)
-  Definition exact_cache : val :=
+  (* SPEC: If M is ε-dp, then generic_cache M qs is kε-dp where k = |unique(qs)|. *)
+  Definition generic_cache : val :=
     λ:"M" "qs" "db",
       let: "cache" := init_map #() in
       list_fold
@@ -37,7 +37,7 @@ Section xcache.
            end)
         list_nil "qs".
 
-  (* Given a set of queries qs and a ε-dp mechanism M, exact_cache M qs is kε-dp where k=|qs|. *)
+  (* Given a set of queries qs and a ε-dp mechanism M, generic_cache M qs is kε-dp where k=|qs|. *)
 
 (*     To enable caching we need decidable equality on the type of queries, so *)
 (*     we'll just work with integers (think of this as the Gödel encoding of the *)
@@ -81,7 +81,7 @@ Section xcache.
                    "v"
          end).
 
-  (* We can define the original exact_cache as a client of the online spec (keeping the direct def.) *)
+  (* We can define the original generic_cache as a client of the online spec (keeping the direct def.) *)
   Definition exact_cache_offline_map : val :=
     λ:"M" "qs" "db",
       let: "oXC" := online_xcache "M" "db" in
@@ -393,11 +393,11 @@ Section xcache.
     (M_dipr : Forall (λ q : nat, ⊢ hoare_diffpriv (M #q) ε δ dDB A) qs)
     :
     let k := size ((list_to_set qs) : gset _) in
-    ⊢ hoare_diffpriv (exact_cache M QS) (k*ε) (k*δ) dDB (list A).
+    ⊢ hoare_diffpriv (generic_cache M QS) (k*ε) (k*δ) dDB (list A).
   Proof with (tp_pures ; wp_pures).
-    iIntros (k K c db db' adj φ) "!> [rhs ε] hφ". rewrite {2}/exact_cache...
+    iIntros (k K c db db' adj φ) "!> [rhs ε] hφ". rewrite {2}/generic_cache...
     wp_apply wp_init_map => // ; iIntros (cache) "cache"...
-    rewrite /exact_cache... tp_bind (init_map _).
+    rewrite /generic_cache... tp_bind (init_map _).
     iMod (spec_init_map with "rhs") as "(%cache_r & rhs & cache_r)" => /=...
     rewrite -!/(exact_cache_body _ _ _).
     revert qs QS is_qs k M_dipr.
