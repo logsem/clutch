@@ -20,8 +20,6 @@ Section xcache.
 
   #[local] Open Scope R.
 
-  (* TODO instantiate generic_cache with a mechanism *)
-
   (* SPEC: If M is ε-dp, then generic_cache M qs is kε-dp where k = |unique(qs)|. *)
   Definition generic_cache : val :=
     λ:"M" "qs" "db",
