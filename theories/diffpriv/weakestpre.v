@@ -456,33 +456,6 @@ Section coupl_modalities.
       ⌜erasable μ1' σ1'⌝ ∗
       (∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2' ε2 δ2).
 
- (*
- Lemma prog_coupl_simple e1 σ1 e1' σ1' ε δ Z :
-   prog_coupl_no_choice e1 σ1 e1' σ1' ε δ Z -∗
-   prog_coupl e1 σ1 e1' σ1' ε (2*δ)%NNR Z.
- Proof.
-   iIntros "(%R & %n & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & %&%&%&%&Hcnt) /=".
-   iExists (λ _,True),_,_,_,_,ε1,δ1,ε2,δ2,ε1,δ1,ε2.
-   iSplit;[done|].
-   iSplit;[done|].
-   iSplit;[done|].
-   iSplit;[done|].
-   iSplit;[done|].
-   iSplit;[done|].
-   iSplit;[iPureIntro; simpl; lra|].
-   iSplit;[done|].
-   iIntros (e2 σ2 e2' σ2').
-   iSplitL.
-   - iIntros (H4).
-     destruct H4 as [? ?].
-     iApply ("Hcnt" with "[]").
-     done.
-   - iIntros (H4).
-     destruct H4 as [? ?].
-     done.
- Qed.
- *)
-
 
  Lemma prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 ε δ :
    (∀ e2 σ2 e2' σ2' ε' δ', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∗ Z1 e2 σ2 e2' σ2' ε' δ' -∗ Z2 e2 σ2 e2' σ2' ε' δ') -∗
@@ -579,7 +552,6 @@ Section coupl_modalities.
       intros [] ?? => /=. apply DPcoupl_dret; [done|done|]. eauto. }
     do 4 (iSplit; [done|]).
     iIntros (e2 σ2 e2' σ2').
-    (* TODO: Can classical logic be avoided here? *)
     destruct (decide (exists e2', e2 = K e2')) as [Hdecomp | Hdecomp].
     - destruct Hdecomp as [e3 He3].
       iDestruct ("Hcnt" $! e3 σ2 e2' σ2') as "[Hcnt1 Hcnt2]".
@@ -749,25 +721,6 @@ Section coupl_modalities.
     - iIntros "[% %]".
       done.
   Qed.
-
-(*
-    iIntros (-> -> ? ? ?) "H".
-    iApply prog_coupl_simple.
-    iExists (λ ρ2 '(e2', σ2'), R ρ2 σ2' ∧ e2' = e1'), 0%nat, μ1', ε1, δ1, ε2, δ2.
-    iSplit; [done|].
-    iSplit; [iPureIntro|].
-    { setoid_rewrite pexec_O.
-      rewrite -(dret_id_right (prim_step _ _)).
-      replace ε1 with (ε1 + 0)%NNR ; [|apply nnreal_ext => /= ; lra].
-      replace δ1 with (δ1 + 0)%NNR ; [|apply nnreal_ext => /= ; lra].
-      eapply DPcoupl_dbind => //.
-      intros ???. by apply DPcoupl_dret. }
-    iSplit; [by iPureIntro|].
-    iSplit; [by iPureIntro|].
-    iSplit; [done|].
-    iIntros (e2 σ2 e2' σ2' [? ->]).
-    by iApply "H".
-*)
 
   Lemma prog_coupl_step_l_dret ε2 ε1 ε δ2 δ1 δ R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
