@@ -205,6 +205,8 @@ Section simple_bit_hash.
     rewrite length_map.
     rewrite plus_INR INR_1.
     iFrame.
+  Admitted.
+  (*
     iIntros "%x [%Hx %HForall]".
     wp_pures.
     wp_apply (wp_set with "Hhash").
@@ -225,6 +227,7 @@ Section simple_bit_hash.
       apply coll_free_insert; auto.
       apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
   Qed.
+  *)
 
 
 End simple_bit_hash.

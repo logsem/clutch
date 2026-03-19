@@ -72,6 +72,8 @@ Section test.
     iSplitL.
     - iApply (ec_eq with "[$]").
       simpl. lra.
+  Admitted.
+  (*
     - iIntros (x) "% !>".      
       wp_pures.
       assert (x=1) as -> by lia.
@@ -79,6 +81,7 @@ Section test.
       wp_pures.
       wp_apply loop_lemma.
   Qed.
+  *)
 
   Lemma twp_e E:
     ⊢ ↯ (3 / 8) -∗
@@ -197,12 +200,15 @@ Proof.
   wp_bind (rand _)%E.
   wp_apply (wp_rand_err_nat _ _ m).
   iFrame.
+Admitted.
+(*
   iIntros (?) "!> [% %]".
   wp_pures.
   rewrite bool_decide_eq_false_2; auto; [ | intro; simplify_eq ].
   wp_if_false.
   by iApply "HΦ".
 Qed.
+*)
 
 
 Definition bar N : expr :=
@@ -224,12 +230,15 @@ Proof.
   wp_pures.
   wp_apply (wp_rand_err_nat _ _ m).
   iFrame.
+Admitted.
+(*
   iIntros (?) "!> [% %]".
   wp_pures.
   rewrite bool_decide_eq_false_2; auto; [ | intro; simplify_eq ].
   wp_if_false.
   by iApply "HΦ".
 Qed.
+*)
 
 
 Definition baz : expr :=

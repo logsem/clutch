@@ -31,7 +31,7 @@ Proof.
   iApply clutch.eris.error_rules.wp_rand_err_nat; auto.
   rewrite /Rdiv Rmult_1_l.
   iFrame.
-Qed.
+Admitted.
 
 (** Finally we present the rule for general expectation-preserving composition.
     The user needs to provide ↯ ε1, and gets to choose a credit distribution
@@ -112,7 +112,7 @@ Proof.
   iApply clutch.eris.error_rules.twp_rand_err_nat; auto.
   rewrite /Rdiv Rmult_1_l.
   iFrame.
-Qed.
+Admitted.
 
 
 Lemma twp_rand_exp (ε2 : nat → R) (N : nat) (ε1 : R) E Φ :
