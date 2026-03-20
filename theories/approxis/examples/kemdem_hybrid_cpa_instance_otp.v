@@ -271,7 +271,7 @@ Section logrel.
           eexists; split; done)).
     pose proof (vg_of_int_dom y) as H'.
     rewrite eqy in eqx.
-    apply elem_of_list_lookup_2 in eqx.
+    apply list_elem_of_lookup_2 in eqx.
     apply H' in eqx as H; clear H'.
     destruct H as [xg eqvgy].
     rewrite eqvgy...
@@ -536,7 +536,7 @@ Section logrel.
     injection Hlookup; clear Hlookup; intros eqxy; subst.
     rel_apply_l vg_of_int_correct; last
     rel_apply_r vg_of_int_correct; last first.
-    - apply elem_of_list_lookup_2 in Hlookup'.
+    - apply list_elem_of_lookup_2 in Hlookup'.
       pose proof (vg_of_int_dom x Hlookup') as [xg eqvg]; rewrite eqvg...
       rel_apply "Hrelkey". iExists _. iPureIntro; split; done.
     - clear Hlookup' x. rewrite /to_val_type_rel. iSplit.
@@ -578,7 +578,7 @@ Section logrel.
     iPoseProof Hrel as "Hrel". clear Hrel...
     rel_apply "Hrel". iClear "Hrel".
     rel_apply_l vg_of_int_correct; last first.
-    - apply elem_of_list_lookup_2 in Hlookup.
+    - apply list_elem_of_lookup_2 in Hlookup.
       pose proof (vg_of_int_dom x Hlookup) as [xg eqvg]; rewrite eqvg...
       rel_apply "Hrelkey". iExists _, _. iPureIntro; split; done.
     - clear Hlookup x. rewrite /to_val_type_rel. iSplit.
@@ -616,7 +616,7 @@ Section logrel.
     iPoseProof Hrel as "Hrel". clear Hrel...
     rel_apply "Hrel". iClear "Hrel".
     rel_apply_r vg_of_int_correct; last first.
-    - apply elem_of_list_lookup_2 in Hlookup.
+    - apply list_elem_of_lookup_2 in Hlookup.
       pose proof (vg_of_int_dom x Hlookup) as [xg eqvg]; rewrite eqvg...
       rel_apply "Hrelkey". iExists _, _. iPureIntro; split; done.
     - clear Hlookup x. rewrite /to_val_type_rel. iSplit.

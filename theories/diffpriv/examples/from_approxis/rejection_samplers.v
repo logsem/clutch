@@ -3,7 +3,7 @@ From clutch.diffpriv Require Export diffpriv.
 
 
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
-From iris.proofmode Require Export tactics.
+From iris.proofmode Require Export proofmode.
 
 Set Default Proof Using "Type*".
 Open Scope R.

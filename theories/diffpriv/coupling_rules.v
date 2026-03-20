@@ -1096,10 +1096,10 @@ Section rules.
         { apply Rmult_eq_0_compat_r. rewrite /dmap/dbind/dbind_pmf/pmf/=.
           apply SeriesC_0. intros. apply Rmult_eq_0_compat_l.
           rewrite /dret_pmf. case_bool_decide; last lra.
-          subst. exfalso. apply Hin. erewrite elem_of_list_fmap.
+          subst. exfalso. apply Hin. erewrite list_elem_of_fmap.
           exists x; split; first done. replace (fin_enum (S M)) with (enum (fin (S M))) by done.
           apply elem_of_enum. }
-        rewrite elem_of_list_fmap in Hin. destruct Hin as [y [-> ?]].
+        rewrite list_elem_of_fmap in Hin. destruct Hin as [y [-> ?]].
         apply Rmult_eq_compat_r. rewrite /dmap/dbind/dbind_pmf/pmf/=.
         rewrite SeriesC_scal_l.
         replace (SeriesC _) with 1%R; first lra.
@@ -1123,12 +1123,12 @@ Section rules.
           + apply Req_le_sym. apply SeriesC_ext. (** should be ok *)
             intros s. rewrite /h. case_match eqn:Heqn; last first.
             { rewrite bool_decide_eq_false_2; first (simpl;lra).
-              erewrite elem_of_list_fmap.
+              erewrite list_elem_of_fmap.
               intros [? [->?]]. apply n.
               naive_solver. }
             pose proof epsilon_correct _ e0 as H'.
             rewrite bool_decide_eq_true_2; last first.
-            { destruct e0 as [x ?]. subst. rewrite elem_of_list_fmap.
+            { destruct e0 as [x ?]. subst. rewrite list_elem_of_fmap.
               eexists _. split; first done.
               replace (fin_enum _) with (enum (fin (S M))) by done.
               apply elem_of_enum. }
@@ -1162,18 +1162,18 @@ Section rules.
             intros n. rewrite /diff.
             case_bool_decide as H1'.
             - destruct H1' as [? H1']. rewrite bool_decide_eq_true_2; last first.
-              + subst. apply elem_of_list_fmap_1. apply elem_of_enum.
+              + subst. apply list_elem_of_fmap_2. apply elem_of_enum.
               + subst. rewrite bool_decide_eq_false_2; first lra.
                 rewrite elem_of_elements.
                 rewrite not_elem_of_difference; right.
-                rewrite elem_of_list_to_set. apply elem_of_list_fmap_1; apply elem_of_enum.
+                rewrite elem_of_list_to_set. apply list_elem_of_fmap_2; apply elem_of_enum.
             - rewrite bool_decide_eq_false_2; last first.
-              { rewrite elem_of_list_fmap. intros [?[??]].
+              { rewrite list_elem_of_fmap. intros [?[??]].
                 subst. apply H1'. naive_solver. }
               rewrite bool_decide_eq_true_2; first lra.
               rewrite elem_of_elements. rewrite elem_of_difference.
               split; rewrite elem_of_list_to_set; first apply elem_of_enum.
-              rewrite elem_of_list_fmap. intros [?[??]].
+              rewrite list_elem_of_fmap. intros [?[??]].
               subst. apply H1'. naive_solver.
           }
         rewrite SeriesC_plus; try apply ex_seriesC_finite.

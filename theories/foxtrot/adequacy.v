@@ -867,7 +867,7 @@ Section adequacy.
       { iFrame. }
       done.
     - simpl in Hlookup.
-      apply elem_of_list_split_length in Hlookup as (l1 & l2 & -> & ->).
+      apply list_elem_of_split_length in Hlookup as (l1 & l2 & -> & ->).
       iDestruct "Hwps" as "[Hl1 [Hwp' Hl2]]".
       rewrite (wp_unfold _ chosen_e)/wp_pre.
       iSimpl in "Hwp'".
@@ -932,7 +932,10 @@ Proof.
   - set ε_nonneg := mknonnegreal _ Heps.
     iMod (ec_alloc ε_nonneg) as (?) "[HE He]"; [done|].
     set (HfoxtrotGS := HeapG Σ _ _ _ γH γT HspecGS _).
-    iApply (wp_adequacy_step_fupdN _ _ _ _ ε_nonneg); first lra.
+    iPoseProof (wp_adequacy_step_fupdN _ _ _ _ ε_nonneg _ _ _ _ _ ε') as "h" ; first lra.
+    iApply "h".
+    (* Iris regression: this used to work with iApply directly *)
+    (* iApply (wp_adequacy_step_fupdN _ _ _ _ ε_nonneg); first lra. *)
     iFrame.
     simpl.
     iApply (Hwp with "[He][-]").
@@ -944,6 +947,7 @@ Proof.
     iPureIntro. eexists full_info_inhabitant.
     apply ARcoupl_1.
     simpl in *. lra.
+    Unshelve. apply _.
 Qed.
 
 
@@ -964,7 +968,7 @@ Proof.
   iSplit; last done.
   iApply (Hwp with "[$]").
   iApply big_sepM_lookup; last iFrame.
-  simpl. apply lookup_insert.
+  simpl. apply lookup_insert_eq.
 Qed.
 
 Lemma foxtrot_adequacy_intermediate Σ `{foxtrotGpreS Σ} (ε:R) ϕ n e e' :

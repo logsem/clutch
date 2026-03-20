@@ -197,12 +197,13 @@ Proof.
   - set δ' := mknonnegreal _ Hdel.
     iMod (ec_alloc δ') as (?) "[HD Hd]"; [done|].
     set (HdiffprivGS := HeapG Σ _ _ _ _ γH γT γTL HspecGS _).
-    iApply (wp_adequacy_step_fupdN ε' δ').
+    pose proof (wp_adequacy_step_fupdN ε' δ') as h. iApply h.
     iFrame "Hh Ht Htl Hs HE HD".
     by iApply (Hwp with "[Hj] [He] [Hd]").
   - iApply fupd_mask_intro; [done|]; iIntros "_".
     iApply step_fupdN_intro; [done|]; iModIntro.
     iPureIntro. by apply DPcoupl_1.
+    Unshelve. apply _.
 Qed.
 
 Theorem wp_adequacy Σ `{diffprivGpreS Σ} (e e' : expr) (σ σ' : state) (ε δ : R) φ :

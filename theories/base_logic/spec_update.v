@@ -1,7 +1,7 @@
 From Stdlib Require Import Reals Psatz.
 
 From iris.base_logic.lib Require Export fancy_updates.
-From iris.proofmode Require Import base tactics classes.
+From iris.proofmode Require Import base proofmode classes.
 
 From clutch.prob Require Import distribution markov.
 

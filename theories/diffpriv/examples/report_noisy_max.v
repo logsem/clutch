@@ -469,11 +469,12 @@ Proof.
     iAssert (⌜ι ∈ list_fmap (Z * loc)%type loc snd prev⌝ -∗ False)%I as "%".
     {
       iIntros "%not_fresh".
-      destruct (elem_of_list_fmap_2 snd prev ι not_fresh) as [? []].
+      destruct (list_elem_of_fmap_1 snd prev ι not_fresh) as [? []].
       destruct x0. simpl in H2. symmetry in H2.
       simplify_eq.
       iDestruct (big_sepL_elem_of with "hh") as "ι'".
       1: done.
+      simplify_map_eq.
       iDestruct (ghost_map_elem_valid_2 ι diffprivGS_tapes_laplace_name (DfracOwn 1) (DfracOwn 1)
                    (Tape_Laplace num (Z.mul 2 den) x nil) (Tape_Laplace num (Z.mul 2 den) z nil)
                   with "[ι] [ι']")
@@ -488,7 +489,7 @@ Proof.
     iAssert (⌜ι' ∈ list_fmap (Z * loc)%type loc snd prev'⌝ -∗ False)%I as "%".
     {
       iIntros "%not_fresh'".
-      destruct (elem_of_list_fmap_2 snd prev' ι' not_fresh') as [? []].
+      destruct (list_elem_of_fmap_1 snd prev' ι' not_fresh') as [? []].
       destruct x0. simpl in H2. symmetry in H2.
       simplify_eq.
       iDestruct (big_sepL_elem_of with "hh'") as "ι''".
@@ -576,7 +577,7 @@ Qed.
       iIntros (?[][]) "%% [??]". iFrame.
     }
     iAssert ((
-                ∃ xs xs' ιs ιs',
+                ∃ (xs xs' : list Z) (ιs ιs' : list loc),
                   ([∗ list] k↦'xι ∈ xιs,
                      let '(x, ι) := xι in
                      ⌜xs !!! k = x⌝ ∗ ⌜ιs !!! k = ι⌝ ∗

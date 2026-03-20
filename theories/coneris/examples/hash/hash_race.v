@@ -64,7 +64,12 @@ Section race.
     - wp_apply (con_hash_alloc_tape3  _ _ _ _ _ _ _ _ _ _ _ _ _ ); first done.
       iIntros (α) "Ht".
       replace 0%Z with (Z.of_nat 0%nat) by done.
-      wp_apply (con_hash_spec3 _ _ _ _ _ _ _ _ _ _ _ _ (λ res,  hash_frag3 0 res _ _ _ )%I (λ res _, hash_frag3 0 res _ _ _ )%I with "[Ht]"); first iSplit; first done.
+      wp_apply (con_hash_spec3 _ _ _ _
+                  (λ m : gmap nat nat,
+                     if bool_decide (m !! 0 = None)
+                     then own γ (◯E false)
+                     else own γ (◯E true))%I
+                  _ _ _ _ _ _ _ (λ res,  hash_frag3 0 res _ _ _ )%I (λ res _, hash_frag3 0 res _ _ _ )%I with "[Ht]"); first iSplit; first done.
       + simpl.
         iIntros (?) "Hfrag Hhauth".
         case_bool_decide as H.
@@ -81,10 +86,10 @@ Section race.
              iFrame. iMod (ghost_var_update _ true with "[$][$]") as "[??]". iFrame. iModIntro.
              iIntros.
              rewrite bool_decide_eq_false_2; last first.
-             { by rewrite lookup_insert. }
+             { by rewrite lookup_insert_eq. }
              iMod (hash_auth_insert with "[$][$]"); first done.
              iDestruct (hash_auth_duplicate with "[$]") as "#?".
-             { by apply lookup_insert. }
+             { by apply lookup_insert_eq. }
              iFrame. done.
         * iModIntro. case_match; last done.
           iDestruct (hash_auth_duplicate with "[$]") as "#?"; first done.
@@ -93,7 +98,12 @@ Section race.
     - wp_apply (con_hash_alloc_tape3  _ _ _ _ _ _ _ _ _ _ _ _ _); first done.
       iIntros (α) "Ht".
       replace 0%Z with (Z.of_nat 0%nat) by done.
-      wp_apply (con_hash_spec3 _ _ _ _ _ _ _ _ _ _ _ _ (λ res,  hash_frag3 0 res _ _ _ )%I (λ res _, hash_frag3 0 res _ _ _ )%I with "[Ht]"); first iSplit; first done.
+      wp_apply (con_hash_spec3 _ _ _ _
+                  (λ m : gmap nat nat,
+                     if bool_decide (m !! 0 = None)
+                     then own γ (◯E false)
+                     else own γ (◯E true))
+                  _ _ _ _ _ _ _ (λ res,  hash_frag3 0 res _ _ _ )%I (λ res _, hash_frag3 0 res _ _ _ )%I with "[Ht]"); first iSplit; first done.
       + simpl.
         iIntros (?) "Hfrag  Hhauth".
         case_bool_decide as H.
@@ -110,10 +120,10 @@ Section race.
              iFrame. iMod (ghost_var_update _ true with "[$][$]") as "[??]". iFrame. iModIntro.
              iIntros.
              rewrite bool_decide_eq_false_2; last first.
-             { by rewrite lookup_insert. }
+             { by rewrite lookup_insert_eq. }
              iMod (hash_auth_insert with "[$][$]"); first done.
              iDestruct (hash_auth_duplicate with "[$]") as "#?".
-             { by apply lookup_insert. }
+             { by apply lookup_insert_eq. }
              iFrame. done.
         * iModIntro. case_match; last done.
           iDestruct (hash_auth_duplicate with "[$]") as "#?"; first done.

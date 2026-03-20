@@ -572,7 +572,7 @@ Variable xor_struct : XOR (Key := SymOutput) (Support := SymOutput).
         }
         rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
         iIntros (res') "Hmap %eqres'"; subst.
-        rewrite lookup_insert; simpl...
+        rewrite lookup_insert_eq; simpl...
         rel_apply xor_correct_l; try lia.
         { rewrite Nat2Z.id. apply xor_dom; lia. }
         rewrite Nat2Z.id.
@@ -713,7 +713,7 @@ Variable xor_struct : XOR (Key := SymOutput) (Support := SymOutput).
       rewrite /random_function...
       rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
       iIntros (res) "Hmap %eqres".
-      rewrite lookup_insert in eqres. simpl in eqres; subst...
+      rewrite lookup_insert_eq in eqres. simpl in eqres; subst...
       rel_apply xor_correct_l; try lia.
       rel_apply "H".
       iExists _. iFrame.
@@ -847,7 +847,7 @@ Variable xor_struct : XOR (Key := SymOutput) (Support := SymOutput).
       }
       rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
       iIntros (res') "Hmap %eqres'"; subst.
-      rewrite lookup_insert; simpl...
+      rewrite lookup_insert_eq; simpl...
       rel_apply xor_correct_l; try lia.
       { rewrite Nat2Z.id. apply xor_dom; lia. }
       rewrite Nat2Z.id.
@@ -1011,7 +1011,7 @@ Variable xor_struct : XOR (Key := SymOutput) (Support := SymOutput).
       }
       rel_apply (refines_get_l with "[-Hmap]"); last by iAssumption.
       iIntros (res') "Hmap %eqres'"; subst.
-      rewrite lookup_insert; simpl...
+      rewrite lookup_insert_eq; simpl...
       rel_apply xor_correct_l; try lia.
       { rewrite Nat2Z.id. apply xor_dom; lia. }
       rewrite Nat2Z.id.

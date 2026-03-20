@@ -214,7 +214,7 @@ Proof.
     { by rewrite Ht. }
     simpl. lia.
   - eapply IHn; eauto. 
-    { rewrite Ht. by apply lookup_insert. }
+    { rewrite Ht. by apply lookup_insert_eq. }
     lia.
 Qed. 
 
@@ -267,7 +267,7 @@ Proof.
     { by rewrite Ht. }
     simpl. lia. 
   - eapply IHn; eauto. 
-    { rewrite Ht. by apply lookup_insert. }
+    { rewrite Ht. by apply lookup_insert_eq. }
     lia.
 Qed.
 
@@ -329,12 +329,12 @@ Proof.
     - exists t; split; auto; lia. 
   }
   eapply IHn in H2 as [H21 [H22 H23]]; eauto.
-  2 : { rewrite Ht'. apply lookup_insert. }
+  2 : { rewrite Ht'. apply lookup_insert_eq. }
   split. 
   { by rewrite H21. }
   destruct H22.
   split ; [| by rewrite H23]. exists x.
-  by rewrite Ht' insert_insert in H2. 
+  by rewrite Ht' insert_insert_eq in H2.
 Qed. 
 
 Lemma presamples_stepN_det l σ n t e:
@@ -469,8 +469,8 @@ Proof.
     - exists t; split; auto; lia. 
   }
   eapply IHn.
-  - erewrite Ht''. eapply lookup_insert. 
-  - simpl. rewrite Ht Ht''. eapply lookup_insert.  
+  - erewrite Ht''. eapply lookup_insert_eq.
+  - simpl. rewrite Ht Ht''. eapply lookup_insert_eq.
   - auto.
   - apply He'. 
   - apply H3.
@@ -525,7 +525,7 @@ Proof.
     replace (heap σ') with (heap σ1).
     2 : {
       eapply IHn.
-      - by rewrite H0 lookup_insert.
+      - by rewrite H0 lookup_insert_eq.
       - by rewrite /state_stepN.
     }
     apply state_step_support_equiv_rel in H2.
@@ -559,7 +559,7 @@ Proof.
     replace (tapes_laplace σ') with (tapes_laplace σ1).
     2 : {
       eapply IHn.
-      - by rewrite H0 lookup_insert.
+      - by rewrite H0 lookup_insert_eq.
       - by rewrite /state_stepN.
     }
     apply state_step_support_equiv_rel in H2.
@@ -576,7 +576,7 @@ Proof.
   apply (state_stepN_heap _ _ _ _ _ H) in H1 as Hh.
   pose proof (state_stepN_tape _ _ _ _ _ H H1) as [t' [Ht Hst]].
   eapply presamples_exec_det_part; eauto.
-  - rewrite Hst. apply lookup_insert. 
+  - rewrite Hst. apply lookup_insert_eq.
   - rewrite length_app Ht. lia.
 Qed.
 
@@ -865,7 +865,7 @@ Proof.
     rewrite exec_Sn step_or_final_no_final in Hl1'; auto. 
     by rewrite H0' dret_id_left' in Hl1'. 
   - eapply SamplesOneTape_step_state_var in H0; eauto. 
-    rewrite H0 Ht'. apply lookup_insert.  
+    rewrite H0 Ht'. apply lookup_insert_eq.
   - eapply SamplesOneTape_inv; eauto.
 Qed.
   
@@ -928,7 +928,7 @@ Proof.
   destruct (to_val e1) eqn : Hve1. 
   {
     assert (tapes s2 !! l2 = Some (2%nat; t2 ++ t2')) as _H1. {
-      by rewrite Ht2' lookup_insert. 
+      by rewrite Ht2' lookup_insert_eq.
     }
     assert (m ≤ length (t2 ++ t2')) as _H2. {
       rewrite length_app. lia.
@@ -963,7 +963,7 @@ Proof.
     rewrite Hs1'. iFrame.
     rewrite Hs1'h -Hs2'. iFrame.
     rewrite Ht1'. iFrame.
-    rewrite Hs1't Ht2' insert_insert. iFrame.
+    rewrite Hs1't Ht2' insert_insert_eq. iFrame.
     rewrite Hs1'tl Htl2'. iFrame.
     iFrame.
     iPureIntro.
@@ -1001,7 +1001,7 @@ Proof.
   } 
   assert (step (e1, s1) = dret (e', σ')) as H'. {
     eapply pmf_1_eq_dret, SamplesOneTape_step_det; eauto.
-    by rewrite Ht1' lookup_insert Hvt.  
+    by rewrite Ht1' lookup_insert_eq Hvt.
   }
   assert (SamplesOneTape l1 e') as He'. {
     by eapply SamplesOneTape_inv. 
@@ -1009,16 +1009,16 @@ Proof.
   assert (heap σ' = heap σ0) as <-. {
     rewrite Hs1'.
     eapply (SamplesOneTape_step_heap _ e1); eauto;
-    by rewrite Ht1' lookup_insert Hvt.
+    by rewrite Ht1' lookup_insert_eq Hvt.
   }
   assert (∃ t1'', tapes σ' = <[l1 := (2%nat; t1'')]>(tapes σ0) ∧ (n ≤ length t1'')) as [t1'' [Ht1'' Hlt1']]. {
     eapply SamplesOneTape_step_tapes in Hst as Ht' ; eauto;
-    try by rewrite Ht1' lookup_insert Hvt.
+    try by rewrite Ht1' lookup_insert_eq Hvt.
     destruct Ht' as [-> | ->].
     - exists (t1 ++ t :: t1'). split; auto.
       simpl. rewrite length_app. lia. 
     - exists tt; split; eauto. 
-      { by rewrite Ht1' insert_insert.  }
+      { by rewrite Ht1' insert_insert_eq.  }
       apply le_S_n. 
       apply (f_equal length) in Hvt.  
       simpl in *. rewrite -Hvt length_app. 
@@ -1074,8 +1074,8 @@ Proof.
   iPoseProof ((det_result_rel_wp e' _ σ' s2 l1 l2 n m) with "[Hl1 Hl2 Hsp]") as "Hwp";
   try iFrame; eauto. 
   { rewrite length_app Hlt2; lia. }
-  { by rewrite Ht1'' lookup_insert. } 
-  { by rewrite Ht2' lookup_insert. }
+  { by rewrite Ht1'' lookup_insert_eq. }
+  { by rewrite Ht2' lookup_insert_eq. }
   iApply (wp_mono with "Hwp").
   iIntros "% (Hsv & %)"; subst; iFrame. 
   by iPureIntro. 

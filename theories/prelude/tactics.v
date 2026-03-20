@@ -166,11 +166,11 @@ Tactic Notation "simpl_map_total" "by" tactic3(tac) := repeat
    | H1 : context [?m !!! ?i], H2 : ?m !! ?i = Some ?x |- _ =>
       rewrite (lookup_total_correct m i x H2) in H1
    | |- context [<[ ?i := ?x ]> (<[ ?i := ?y ]> ?m)] =>
-       rewrite (insert_insert m i x y)
+       rewrite (insert_insert_eq m i x y)
    | |- context[ (<[_:=_]>_) !!! _ ] =>
-       rewrite lookup_total_insert || rewrite ->lookup_total_insert_ne by tac
+       rewrite lookup_total_insert_eq || rewrite ->lookup_total_insert_ne by tac
    | H : context[ (<[_:=_]>_) !!! _ ] |- _ =>
-       rewrite lookup_total_insert in H || rewrite ->lookup_total_insert_ne in H by tac
+       rewrite lookup_total_insert_eq in H || rewrite ->lookup_total_insert_ne in H by tac
    | H : ?m !!! ?i = ?x |- context [?m !!! ?i] =>
        rewrite H
    | H : ?x = ?m !!! ?i |- context [?m !!! ?i] =>
@@ -191,14 +191,14 @@ Tactic Notation "simpl_map_total" "by" tactic3(tac) := repeat
 Tactic Notation "simplify_map_eq'" "/=" :=
   simplify_map_eq'/= by eauto with simpl_map map_disjoint.
 
-(** [sort_map_insert] sorts concrete inserts such that they can later be eliminated via [insert_insert]. *)
+(** [sort_map_insert] sorts concrete inserts such that they can later be eliminated via [insert_insert_eq]. *)
 Ltac sort_map_insert :=
   repeat match goal with
          | |- context [<[ ?i := ?x ]> (<[ ?j := ?y ]> ?m)] =>
              is_closed_term i;
              is_closed_term j;
              assert_succeeds (assert (encode j <? encode i)%positive; [vm_compute; exact I|]);
-             rewrite (insert_commute m i j x y); [|done]
+             rewrite (insert_insert_ne m i j x y); [|done]
          end.
 
 (** [simpl_map_decide] tries to simplify bool_decide in the goal *)

@@ -1,5 +1,5 @@
 (include_subdirs qualified)
-(coq.theory
+(rocq.theory
  (name discprob)
  (package rocq-clutch)
 

@@ -349,7 +349,7 @@ Section fin_maps.
   Proof.
     rewrite map_eq_iff.
     intros Heq. specialize (Heq i).
-    rewrite 2!(lookup_insert _ i) in Heq.
+    rewrite 2!(lookup_insert_eq _ i) in Heq.
     by simplify_option_eq.
   Qed.
 
@@ -364,7 +364,7 @@ Section list.
 
   Lemma elem_of_list_prod l1 l2 (a : A) (b : B) :
     (a, b) ∈ list_prod l1 l2 ↔ a ∈ l1 ∧ b ∈ l2.
-  Proof. rewrite !elem_of_list_In. apply in_prod_iff. Qed.
+  Proof. rewrite !list_elem_of_In. apply in_prod_iff. Qed.
 
   Lemma elem_of_list_prod_1 l1 l2 (a : A) (b : B) :
     (a, b) ∈ list_prod l1 l2 → a ∈ l1 ∧ b ∈ l2.
@@ -430,7 +430,7 @@ Section gset.
           simpl. rewrite union_empty_r_L.
           rewrite elem_of_disjoint.
           setoid_rewrite elem_of_union_list.
-          setoid_rewrite elem_of_list_fmap.
+          setoid_rewrite list_elem_of_fmap.
           setoid_rewrite elem_of_elements.
           intros ? ?[?[[?[]]]].
           subst.
@@ -681,9 +681,9 @@ Proof.
     destruct (decide (x ∈ xs)) as [Hx | Hx].
     + simpl; case_decide as Hd.
       * by case_decide.
-      * exfalso; apply Hd. by apply elem_of_list_filter.       
+      * exfalso; apply Hd. by apply list_elem_of_filter.
     + simpl; case_decide.
-      * exfalso; apply Hx. by eapply elem_of_list_filter.
+      * exfalso; apply Hx. by eapply list_elem_of_filter.
       * case_decide; [done|].
         by rewrite filter_cons_True, IH. 
   - rewrite filter_cons_False; [|done]. 
@@ -719,14 +719,14 @@ Lemma remove_dups_fmap_permutation `{Countable T} (zs : list T) (f : T → T) :
 Proof.
   apply NoDup_Permutation; [apply NoDup_remove_dups|apply NoDup_remove_dups|].
   intros ?. split.
-  - rewrite elem_of_remove_dups, elem_of_list_fmap.
+  - rewrite elem_of_remove_dups, list_elem_of_fmap.
     intros (y & -> & Hy).
-    rewrite elem_of_remove_dups, elem_of_list_fmap.
+    rewrite elem_of_remove_dups, list_elem_of_fmap.
     eexists. split; [done|].
     by apply elem_of_remove_dups.
-  - rewrite elem_of_remove_dups, elem_of_list_fmap.
+  - rewrite elem_of_remove_dups, list_elem_of_fmap.
     intros (y & -> & Hy).
-    rewrite elem_of_remove_dups, elem_of_list_fmap.
+    rewrite elem_of_remove_dups, list_elem_of_fmap.
     eexists. split; [done|].
     by apply elem_of_remove_dups.
 Qed.
@@ -853,7 +853,7 @@ Lemma sum_list_with_elem_of `{Countable T} (x : T) (xs : list T) (f : T → Z)  
   x ∈ xs →
   sum_list_with f xs = f x + sum_list_with f (list_delete x xs).
 Proof.
-  intros (xs1 & ys & ->)%elem_of_list_split.
+  intros (xs1 & ys & ->)%list_elem_of_split.
   induction xs1 => /=.
   - rewrite decide_True; done.
   - rewrite sum_list_with_cons.
@@ -1102,7 +1102,7 @@ Proof.
     case_decide; subst; [|auto].
     simpl.
     case_decide; subst.
-    + rewrite elem_of_list_filter.
+    + rewrite list_elem_of_filter.
       intros [? Hin] ->. rewrite elem_of_remove_dups in Hin. done.
     + intros [-> | ?]%elem_of_cons; [done|]. by apply IHxs.
 Qed.
@@ -1118,7 +1118,7 @@ Proof.
   case_decide.
   - case_decide.
     + rewrite (sum_list_with_elem_of x); last first.
-      { apply elem_of_list_filter. split; [done|]. by apply elem_of_remove_dups. }
+      { apply list_elem_of_filter. split; [done|]. by apply elem_of_remove_dups. }
       rewrite decide_True; [|done].
       rewrite !Nat2Z.inj_add, <-Z.add_assoc.
       erewrite (sum_list_with_ext _ _ (λ z, Z.of_nat (list_count z xs))); last first.
@@ -1127,27 +1127,27 @@ Proof.
         by eapply elem_of_list_remove_filter. }
       rewrite IH.
       erewrite sum_list_with_elem_of; [done|].
-      apply elem_of_list_filter. split; [done|].
+      apply list_elem_of_filter. split; [done|].
       by apply elem_of_remove_dups.
     + rewrite filter_cons_True; [|done].
       rewrite sum_list_with_cons.
       rewrite decide_True; [|done].
       rewrite !Nat2Z.inj_add, <-Z.add_assoc.
       erewrite (sum_list_with_ext _ _ (λ z, Z.of_nat (list_count z xs))); last first.
-      { intros ? [-> Hin]%elem_of_list_filter.
+      { intros ? [-> Hin]%list_elem_of_filter.
         rewrite decide_False; [done|].
         intros ->. rewrite elem_of_remove_dups in Hin. done. }
       rewrite (list_count_not_elem_of xs); [|set_solver].
       lia.
   - case_decide.
     + erewrite (sum_list_with_ext _ _ (λ z, Z.of_nat (list_count z xs))); last first.
-      { intros ? [-> Hin]%elem_of_list_filter.
+      { intros ? [-> Hin]%list_elem_of_filter.
         rewrite decide_False; [done|].
         intros ->. rewrite elem_of_remove_dups in Hin. done. }
       lia.
     + rewrite filter_cons_False; [|done].
       erewrite (sum_list_with_ext _ _ (λ z, Z.of_nat (list_count z xs))); last first.
-      { intros ? [-> Hin]%elem_of_list_filter.
+      { intros ? [-> Hin]%list_elem_of_filter.
         rewrite decide_False; [done|].
         intros ->. rewrite elem_of_remove_dups in Hin. done. }
       lia.

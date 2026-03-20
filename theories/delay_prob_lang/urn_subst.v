@@ -1043,7 +1043,7 @@ Qed.
         setoid_rewrite <-H in Hin.
         rewrite -elem_of_Permutation in Hin.
         rewrite mapM_Some in H1.
-        rewrite elem_of_list_lookup in Hin.
+        rewrite list_elem_of_lookup in Hin.
         destruct!/=.
         eapply Forall2_lookup_l in H1; last done.
         destruct H1 as [[][? H1]].
@@ -1089,7 +1089,7 @@ Qed.
       rewrite elem_of_Permutation in H1.
       setoid_rewrite <-H in H1.
       rewrite -elem_of_Permutation in H1.
-      rewrite elem_of_list_lookup in H1.
+      rewrite list_elem_of_lookup in H1.
       destruct!/=.
       eapply Forall2_lookup_l in Heqn1; last done.
       setoid_rewrite bind_Some in Heqn1.
@@ -1149,7 +1149,7 @@ Qed.
       rewrite Exists_exists.
       eexists (i, _).
       rewrite elem_of_map_to_list.
-      rewrite lookup_insert.
+      rewrite lookup_insert_eq.
       split; first done.
       rewrite bind_None.
       naive_solver.
@@ -1246,7 +1246,7 @@ Qed.
       intros ?.
       intros H'.
       apply urn_subst_heap_forall in H' as H''.
-      eapply map_Forall_lookup_1 in H'' as K; last apply lookup_insert.
+      eapply map_Forall_lookup_1 in H'' as K; last apply lookup_insert_eq.
       destruct!/=.
       unshelve epose proof urn_subst_heap_forall' f m _ as []; first by eapply map_Forall_insert_1_2.
       erewrite urn_subst_heap_insert in H'; [| |done|done].
@@ -1320,13 +1320,13 @@ Qed.
     eapply map_Forall_lookup_1 in H2; last done.
     destruct H2 as [? H2].
     unshelve epose proof urn_subst_heap_insert _ _ _ _ _ _ _ H2 H as H'.
-    2:{ rewrite not_elem_of_dom. apply lookup_delete. }
-    rewrite insert_delete in H'; last done.
+    2:{ rewrite not_elem_of_dom. apply lookup_delete_eq. }
+    rewrite insert_delete_id in H'; last done.
     rewrite H1 in H'. simplify_eq.
-    rewrite delete_insert; first done.
+    rewrite delete_insert_id; first done.
     rewrite -not_elem_of_dom.
     erewrite <-urn_subst_heap_dom; last done.
-    rewrite not_elem_of_dom. apply lookup_delete. 
+    rewrite not_elem_of_dom. apply lookup_delete_eq. 
   Qed. 
 
   (** same as insert, but this is if i is in the domain *)
@@ -1337,14 +1337,14 @@ Qed.
     urn_subst_heap f (<[i:=x]> m) = Some (<[i:=x']> m').
   Proof.
     intros Hdom H1 H2.
-    rewrite -insert_delete_insert.
+    rewrite -insert_delete_eq.
     apply urn_subst_heap_forall in H2 as H3.
     eapply urn_subst_heap_delete in Hdom; last done.
     erewrite urn_subst_heap_insert; last first.
     - done.
     - done.
-    - rewrite not_elem_of_dom. apply lookup_delete.
-    - by rewrite insert_delete_insert. 
+    - rewrite not_elem_of_dom. apply lookup_delete_eq.
+    - by rewrite insert_delete_eq. 
   Qed. 
 
     Lemma urn_subst_heap_subset f f' m m':
@@ -1367,7 +1367,7 @@ Qed.
         by eapply map_Forall_insert_1_2.
       }
       assert (exists x', urn_subst_val f (x) = Some x') as [? Hrewrite'].
-      { eapply map_Forall_lookup_1 in H2; last apply lookup_insert. done. }
+      { eapply map_Forall_lookup_1 in H2; last apply lookup_insert_eq. done. }
       erewrite urn_subst_heap_insert; last first.
       + by apply IH.
       + by eapply urn_subst_val_subset.

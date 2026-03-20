@@ -1,6 +1,6 @@
 From iris.base_logic.lib Require Export fancy_updates invariants.
 From clutch.prelude Require Import iris_ext.
-From iris.proofmode Require Import base tactics classes.
+From iris.proofmode Require Import base proofmode classes.
 From clutch.con_prob_lang Require Import lang.
 From clutch.foxtrot Require Import weakestpre.
 
@@ -366,7 +366,7 @@ Section pupd.
     ✓ a -> ⊢ pupd E E (∃ γ, own γ a).
   Proof.
     iIntros "%".
-    by iMod (own_alloc).
+    by iMod (own_alloc a).
   Qed.
   
 End pupd.

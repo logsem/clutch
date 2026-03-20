@@ -137,7 +137,7 @@ Section erasure_helpers.
     apply lookup_total_correct in Hα' as Hα'tot.
     destruct (decide (α = α')) as [-> | Hαneql].
     - simplify_eq. rewrite /head_step Hα.
-      setoid_rewrite lookup_insert.
+      setoid_rewrite lookup_insert_eq.
       rewrite bool_decide_eq_true_2 //.
       rewrite dmap_dret dret_id_left.
       rewrite -dmap_dbind.
@@ -154,7 +154,7 @@ Section erasure_helpers.
       erewrite dbind_ext_right; last first.
       { intros. by rewrite dret_id_left sch_pexec_fold state_upd_tapes_twice Haux. }
       apply IH.
-      apply lookup_insert.
+      apply lookup_insert_eq.
     - rewrite /head_step Hα'.
       rewrite bool_decide_eq_true_2 //.
       setoid_rewrite lookup_insert_ne; [|done].
@@ -195,7 +195,7 @@ Section erasure_helpers.
       eapply (Rcoupl_dbind _ _ _ _ (=)); [ |apply Rcoupl_eq].
       intros ? b ->.
       do 2 rewrite dret_id_left.
-      rewrite lookup_insert.
+      rewrite lookup_insert_eq.
       rewrite bool_decide_eq_true_2 //.
       rewrite dmap_dret dret_id_left.
       rewrite upd_tape_twice.
@@ -246,7 +246,7 @@ Section erasure_helpers.
     rewrite bool_decide_eq_false_2 //.
     destruct (decide (α = α')) as [-> | Heq].
     - simplify_eq.
-      setoid_rewrite lookup_insert.
+      setoid_rewrite lookup_insert_eq.
       rewrite bool_decide_eq_false_2 //.
       rewrite /dmap /=.
       rewrite -!dbind_assoc.
@@ -525,7 +525,7 @@ Proof.
     destruct bs.
     erewrite state_step_unfold in K'; last done.
     rewrite dmap_pos in K'. destruct K' as (?&->&?).
-    eapply IHn. simpl. apply lookup_insert.
+    eapply IHn. simpl. apply lookup_insert_eq.
 Qed.
 
 Lemma limprim_coupl_step_limprim_aux
@@ -576,7 +576,7 @@ Proof.
   apply elem_of_elements.
   apply elem_of_dom.
   destruct (decide (α = α')); subst.
-  + eexists. rewrite lookup_insert //.
+  + eexists. rewrite lookup_insert_eq //.
   + rewrite lookup_insert_ne //.
     apply elem_of_dom. eapply elem_of_elements, Hα. by right.
 Qed.

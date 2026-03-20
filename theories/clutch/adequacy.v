@@ -108,8 +108,9 @@ Proof.
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod spec_ra_init as (HspecGS) "(Hs & Hj & ?)".
   set (HclutchGS := HeapG Σ _ _ _ γH γT HspecGS).
-  iApply wp_refRcoupl_step_fupdN.
+  pose proof wp_refRcoupl_step_fupdN as h. iApply h.
   iFrame "Hh Ht Hs". by iApply (Hwp with "[Hj]").
+  Unshelve. apply _.
 Qed.
 
 Corollary wp_refRcoupl_mass Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) φ :

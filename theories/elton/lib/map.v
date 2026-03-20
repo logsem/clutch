@@ -168,7 +168,7 @@ Section map.
     - rewrite /=. simpl in Heq. subst; auto.
     - rewrite list_to_map_cons in Heq. subst.
       destruct (decide (k = n)).
-      { subst. rewrite lookup_insert /= bool_decide_true //. }
+      { subst. rewrite lookup_insert_eq /= bool_decide_true //. }
       rewrite lookup_insert_ne //= bool_decide_false //. eauto.
   Qed.
 
@@ -563,7 +563,7 @@ Section map.
       rewrite dom_list_to_map_L.
       iDestruct (big_sepS_elem_of_acc with "[$]") as "[H1 ?]"; last by iApply "H1".
       rewrite elem_of_list_to_set.
-      rewrite elem_of_list_lookup. naive_solver.
+      rewrite list_elem_of_lookup. naive_solver.
     }
     iIntros (?) "(?&?&?)".
     iApply "HΦ".

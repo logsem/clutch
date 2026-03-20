@@ -114,8 +114,8 @@ Section stage1.
     - intros x b Hl.
       rewrite lookup_cons_Some in Hl. destruct Hl as [[-> ->]|[H Hl]].
       + simpl. set_solver.
-      + simpl. apply elem_of_list_further.
-        rewrite elem_of_list_fmap.
+      + simpl. apply list_elem_of_further.
+        rewrite list_elem_of_fmap.
         exists ((x-1)%nat, b). simpl; split.
         * f_equal. lia.
         * apply IHl. done.
@@ -193,7 +193,7 @@ Section stage1.
     - simpl. intros x H.
       rewrite elem_of_cons in H.
       destruct H as [->|H]; simpl; first lia.
-      rewrite elem_of_list_fmap in H.
+      rewrite list_elem_of_fmap in H.
       destruct H as [y [-> Hy]]. simpl.
       pose proof IHl _ Hy. lia.
   Qed.
@@ -205,7 +205,7 @@ Section stage1.
     induction l; simpl; first set_solver.
     intros x. rewrite elem_of_cons.
     intros [] [->|H0]; simpl in *; first naive_solver.
-    rewrite elem_of_list_fmap in H0.
+    rewrite list_elem_of_fmap in H0.
     destruct H0 as [y [-> H0]].
     simpl in H.
     by apply IHl.
@@ -244,18 +244,18 @@ Section stage1.
         * rewrite -H'. lia.
         * clear H'. apply Forall_lookup_total_1; last lia.
           rewrite Forall_forall.
-          intros x H0. rewrite elem_of_list_filter in H0.
+          intros x H0. rewrite list_elem_of_filter in H0.
           destruct H0 as [? H0].
-          rewrite elem_of_list_fmap in H0.
+          rewrite list_elem_of_fmap in H0.
           destruct H0 as [?[->?]]. simpl. lia.
       + exfalso.
         cut (0%nat<(filter (λ x, is_Some (x.2)) (prod_map S (λ x,x) <$> index_list l) !!! x).1)%nat.
         * rewrite H'. lia.
         * clear H'. apply Forall_lookup_total_1; last lia.
           rewrite Forall_forall.
-          intros y H0. rewrite elem_of_list_filter in H0.
+          intros y H0. rewrite list_elem_of_filter in H0.
           destruct H0 as [? H0].
-          rewrite elem_of_list_fmap in H0.
+          rewrite list_elem_of_fmap in H0.
           destruct H0 as [?[->?]]. simpl. lia.
       + f_equal. apply IHl.
         * rewrite filter_list_length. lia.
@@ -307,7 +307,7 @@ Section stage1.
       apply Forall_lookup_total_1; last lia.
       rewrite Forall_forall.
       intros x' Hx'.
-      rewrite elem_of_list_filter in Hx'.
+      rewrite list_elem_of_filter in Hx'.
       destruct Hx' as [? Hx'].
       rewrite -Hlen1. by apply index_list_range.
     }
@@ -337,7 +337,7 @@ Section stage1.
         * apply Forall_lookup_total_1; last lia.
           rewrite Forall_forall.
           rewrite /l'.
-          intros x'. rewrite elem_of_list_filter.
+          intros x'. rewrite list_elem_of_filter.
           intros [??]. by apply index_list_lookup_lemma.
         * rewrite /l'.
           apply filter_index_list_relate. lia.
@@ -349,7 +349,7 @@ Section stage1.
         destruct o as [|]; last done.
         exfalso.
         cut ((x, Some a) ∈ l').
-        * rewrite /l'. rewrite elem_of_list_lookup.
+        * rewrite /l'. rewrite list_elem_of_lookup.
           intros [i Hi].
           cut (i<N)%nat.
           -- intros Hproof.
@@ -360,7 +360,7 @@ Section stage1.
              by rewrite Hi.
           -- apply lookup_lt_Some in Hi.
              rewrite -Hlen2. rewrite -filter_list_length' in Hi. lia.
-        * rewrite /l'. rewrite elem_of_list_filter; simpl; split; first done.
+        * rewrite /l'. rewrite list_elem_of_filter; simpl; split; first done.
           apply elem_of_index_list. done.
   Qed.
 
@@ -404,7 +404,7 @@ Section stage1.
         * apply Forall_lookup_total_1; last auto.
           rewrite Forall_forall.
           rewrite /l'.
-          intros x'. rewrite elem_of_list_filter.
+          intros x'. rewrite list_elem_of_filter.
           intros [??]. by apply index_list_lookup_lemma.
         * rewrite /l'.
           apply filter_index_list_relate.
@@ -419,7 +419,7 @@ Section stage1.
         destruct o as [|]; last done.
         exfalso.
         cut ((fin_to_nat x, Some a) ∈ l').
-        * rewrite /l'. rewrite elem_of_list_lookup.
+        * rewrite /l'. rewrite list_elem_of_lookup.
           intros [i Hi].
           cut (i<N)%nat.
           -- intros Hproof.
@@ -431,7 +431,7 @@ Section stage1.
              by rewrite Hi.
           -- apply lookup_lt_Some in Hi.
              rewrite -Hlen2. rewrite -filter_list_length' in Hi. lia.
-        * rewrite /l'. rewrite elem_of_list_filter; simpl; split; first done.
+        * rewrite /l'. rewrite list_elem_of_filter; simpl; split; first done.
           apply elem_of_index_list. done.
     - (* prove first projection is indeed smaller than length l, i.e. M *)
       intros x.
@@ -439,7 +439,7 @@ Section stage1.
       rewrite Forall_forall.
       rewrite /l'.
       intros x' Hx'.
-      rewrite elem_of_list_filter in Hx'.
+      rewrite list_elem_of_filter in Hx'.
       destruct Hx' as [? Hx'].
       rewrite -Hlen1; by apply index_list_range.
   Qed.
@@ -805,10 +805,10 @@ Section b_tree.
       iModIntro. iIntros. case_match; first done.
       exfalso.
       assert (x.1 ∈tlis); last done.
-      rewrite elem_of_list_In.
+      rewrite list_elem_of_In.
       eapply in_combine_l.
-      rewrite -elem_of_list_In.
-      eapply elem_of_list_lookup_2. erewrite H.
+      rewrite -list_elem_of_In.
+      eapply list_elem_of_lookup_2. erewrite H.
       f_equal. apply surjective_pairing.
     - iIntros "H". iApply (big_sepL_impl with "[$]").
       iModIntro. iIntros. case_match; done.
@@ -858,10 +858,10 @@ Section b_tree.
       iModIntro. iIntros. case_match; first done.
       exfalso.
       assert (x.1 ∈tlis); last done.
-      rewrite elem_of_list_In.
+      rewrite list_elem_of_In.
       eapply in_combine_l.
-      rewrite -elem_of_list_In.
-      eapply elem_of_list_lookup_2. erewrite H.
+      rewrite -list_elem_of_In.
+      eapply list_elem_of_lookup_2. erewrite H.
       f_equal. apply surjective_pairing.
     - iIntros "H". iApply (big_sepL_impl with "[$]").
       iModIntro. iIntros. case_match; done.
@@ -1000,10 +1000,10 @@ Section b_tree.
       iModIntro. iIntros. case_match; first done.
       exfalso.
       assert (x.1 ∈tlis); last done.
-      rewrite elem_of_list_In.
+      rewrite list_elem_of_In.
       eapply in_combine_l.
-      rewrite -elem_of_list_In.
-      eapply elem_of_list_lookup_2. erewrite H.
+      rewrite -list_elem_of_In.
+      eapply list_elem_of_lookup_2. erewrite H.
       f_equal. apply surjective_pairing.
     - iIntros "H". iApply (big_sepL_impl with "[$]").
       iModIntro. iIntros. case_match; done.
@@ -1059,10 +1059,10 @@ Section b_tree.
       iModIntro. iIntros. case_match; first done.
       exfalso.
       assert (x.1 ∈tlis); last done.
-      rewrite elem_of_list_In.
+      rewrite list_elem_of_In.
       eapply in_combine_l.
-      rewrite -elem_of_list_In.
-      eapply elem_of_list_lookup_2. erewrite H.
+      rewrite -list_elem_of_In.
+      eapply list_elem_of_lookup_2. erewrite H.
       f_equal. apply surjective_pairing.
     - iIntros "H". iApply (big_sepL_impl with "[$]").
       iModIntro. iIntros. case_match; done.
@@ -1658,7 +1658,7 @@ Section b_tree.
         rewrite filter_app filter_replicate_is_nil; last done.
         rewrite app_nil_r.
         rewrite H4.
-        apply elem_of_list_split_length in H5 as (l2 & l3 & -> & ->).
+        apply list_elem_of_split_length in H5 as (l2 & l3 & -> & ->).
         rewrite fmap_app flat_map_app filter_app fmap_cons. simpl.
         rewrite filter_app.
         assert (length (filter (λ x : option val, is_Some x) (flat_map (λ x, x) (l2.*1))) =
@@ -1826,7 +1826,7 @@ Section b_tree.
         rewrite filter_app filter_replicate_is_nil; last done.
         rewrite app_nil_r.
         rewrite H4.
-        apply elem_of_list_split_length in H5 as (l2 & l3 & -> & ->).
+        apply list_elem_of_split_length in H5 as (l2 & l3 & -> & ->).
         rewrite fmap_app flat_map_app filter_app fmap_cons. simpl.
         rewrite filter_app.
         assert (length (filter (λ x : option val, is_Some x) (flat_map (λ x, x) (l2.*1))) =
@@ -1868,11 +1868,11 @@ Section b_tree.
   Ltac exploit_elem_of :=
     repeat match goal with
       | [ H: Some ?v = ?l !! ?n |- _ ] =>
-          notHyp (v ∈ l); assert (v ∈ l); first (apply eq_sym, elem_of_list_lookup_2 in H; auto)
+          notHyp (v ∈ l); assert (v ∈ l); first (apply eq_sym, list_elem_of_lookup_2 in H; auto)
       | [ H: ?l !! ?n = Some ?v |- _ ] =>
-          notHyp (v ∈ l); assert (v ∈ l); first (apply elem_of_list_lookup_2 in H; auto)
+          notHyp (v ∈ l); assert (v ∈ l); first (apply list_elem_of_lookup_2 in H; auto)
       | [ H : ?v ∈ filter _ ?l |- _ ] =>
-          notHyp (v ∈ l); assert (v ∈ l); first (eapply list_filter_subseteq in H; eauto)
+          notHyp (v ∈ l); assert (v ∈ l); first (eapply list_subseteq_filter in H; eauto)
       end.
 
   Lemma annotated_naive_naive_refinement Kctx depth tree l treev treev':
@@ -2063,7 +2063,7 @@ Section b_tree.
           pose proof pow_max_child_num depth'. lia.
         * pose proof Nat.Div0.div_mod n (max_child_num^depth')%nat. lia.
       + erewrite <-Hlookup.
-        apply elem_of_list_split_length in H8 as (la &lb& -> & ?).
+        apply list_elem_of_split_length in H8 as (la &lb& -> & ?).
         iPureIntro.
         rewrite fmap_app flat_map_app fmap_cons. simpl.
         assert (length (flat_map (λ x, x) la.*1) = n `div` max_child_num ^ depth' * max_child_num ^ depth')%nat as Heq.
@@ -2177,7 +2177,7 @@ Section b_tree.
           pose proof pow_max_child_num depth'. lia.
         * pose proof Nat.Div0.div_mod n (max_child_num^depth')%nat. lia.
       + erewrite <-Hlookup.
-        apply elem_of_list_split_length in H8 as (la &lb& -> & ?).
+        apply list_elem_of_split_length in H8 as (la &lb& -> & ?).
         iPureIntro.
         rewrite fmap_app flat_map_app fmap_cons. simpl.
         assert (length (flat_map (λ x, x) la.*1) = n `div` max_child_num ^ depth' * max_child_num ^ depth')%nat as Heq.
@@ -2272,7 +2272,7 @@ Section b_tree.
           pose proof pow_max_child_num depth'. lia.
         * pose proof Nat.Div0.div_mod n (max_child_num^depth')%nat. lia.
       + erewrite <-Hlookup.
-        apply elem_of_list_split_length in H8 as (la &lb& -> & ?).
+        apply list_elem_of_split_length in H8 as (la &lb& -> & ?).
         iPureIntro.
         rewrite fmap_app flat_map_app fmap_cons. simpl.
         assert (length (flat_map (λ x, x) la.*1) = n `div` max_child_num ^ depth' * max_child_num ^ depth')%nat as Heq.
@@ -2374,7 +2374,7 @@ Section b_tree.
           pose proof pow_max_child_num depth'. lia.
         * pose proof Nat.Div0.div_mod n (max_child_num^depth')%nat. lia.
       + erewrite <-Hlookup.
-        apply elem_of_list_split_length in H8 as (la &lb& -> & ?).
+        apply list_elem_of_split_length in H8 as (la &lb& -> & ?).
         iPureIntro.
         rewrite fmap_app flat_map_app fmap_cons. simpl.
         assert (length (flat_map (λ x, x) la.*1) = n `div` max_child_num ^ depth' * max_child_num ^ depth')%nat as Heq.
@@ -2722,7 +2722,7 @@ Section b_tree.
       + iPureIntro. eapply Forall_inv_tail; eauto.
       + erewrite <-Hlookup.
         iPureIntro.
-        apply elem_of_list_split_length in H8 as (la&lb&->&?).
+        apply list_elem_of_split_length in H8 as (la&lb&->&?).
         rewrite fmap_app flat_map_app fmap_cons. simpl.
         assert (length (flat_map (λ x, x) la.*1) = S (max_child_num - 1) ^ length xs' * x)%nat as Heq.
         { erewrite ab_b_tree_list_length_forall; last first.
@@ -2838,7 +2838,7 @@ Section b_tree.
       + iPureIntro. eapply Forall_inv_tail; eauto.
       + erewrite <-Hlookup.
         iPureIntro.
-        apply elem_of_list_split_length in H8 as (la&lb&->&?).
+        apply list_elem_of_split_length in H8 as (la&lb&->&?).
         rewrite fmap_app flat_map_app fmap_cons. simpl.
         assert (length (flat_map (λ x, x) la.*1) = S (max_child_num - 1) ^ length xs' * x)%nat as Heq.
         { erewrite ab_b_tree_list_length_forall; last first.
@@ -2934,7 +2934,7 @@ Section b_tree.
       + iPureIntro. eapply Forall_inv_tail; eauto.
       + erewrite <-Hlookup.
         iPureIntro.
-        apply elem_of_list_split_length in H8 as (la&lb&->&?).
+        apply list_elem_of_split_length in H8 as (la&lb&->&?).
         rewrite fmap_app flat_map_app fmap_cons. simpl.
         assert (length (flat_map (λ x, x) la.*1) = S (max_child_num - 1) ^ length xs' * x)%nat as Heq.
         { erewrite ab_b_tree_list_length_forall; last first.
@@ -3033,7 +3033,7 @@ Section b_tree.
       + iPureIntro. eapply Forall_inv_tail; eauto.
       + erewrite <-Hlookup.
         iPureIntro.
-        apply elem_of_list_split_length in H8 as (la&lb&->&?).
+        apply list_elem_of_split_length in H8 as (la&lb&->&?).
         rewrite fmap_app flat_map_app fmap_cons. simpl.
         assert (length (flat_map (λ x, x) la.*1) = S (max_child_num - 1) ^ length xs' * x)%nat as Heq.
         { erewrite ab_b_tree_list_length_forall; last first.
@@ -3322,10 +3322,10 @@ Section b_tree.
           destruct Hv as [(vret&->&Helem)|Hnone].
           { left. exists vret. split_and!; auto. exploit_elem_of.
             apply elem_of_app; left.
-            apply elem_of_list_In, in_flat_map.
+            apply list_elem_of_In, in_flat_map.
             exists l2. split.
-            * replace l2 with (fst (l2, a1)); auto. apply in_map, elem_of_list_In; auto.
-            * apply elem_of_list_In; exploit_elem_of; auto.
+            * replace l2 with (fst (l2, a1)); auto. apply in_map, list_elem_of_In; auto.
+            * apply list_elem_of_In; exploit_elem_of; auto.
           }
           { naive_solver. }
           Unshelve.
@@ -3465,10 +3465,10 @@ Section b_tree.
           destruct Hv as [(vret&->&Helem)|Hnone].
           { left. exists vret. split_and!; auto. exploit_elem_of.
             apply elem_of_app; left.
-            apply elem_of_list_In, in_flat_map.
+            apply list_elem_of_In, in_flat_map.
             exists l2. split.
-            * replace l2 with (fst (l2, a1)); auto. apply in_map, elem_of_list_In; auto.
-            * apply elem_of_list_In; exploit_elem_of; auto.
+            * replace l2 with (fst (l2, a1)); auto. apply in_map, list_elem_of_In; auto.
+            * apply list_elem_of_In; exploit_elem_of; auto.
           }
           { naive_solver. }
           Unshelve.
@@ -3561,7 +3561,8 @@ Section b_tree.
           iMod (create_ranked_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           simpl.
           tp_bind _.
-          wp_apply (naive_annotated_naive_refinement with "[$]"); first done.
+          epose proof naive_annotated_naive_refinement as h.
+          wp_apply (h with "[$]"); first done.
           simpl. iIntros (?) "($&_)"; done.
         - replace 0%R with (nonneg 0%NNR); last (simpl; by rewrite N2Nat.inj_0); eapply wp_adequacy; try done.
           iIntros.
@@ -3570,7 +3571,8 @@ Section b_tree.
           tp_bind (create_ranked_tree).
           iMod (create_ranked_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           tp_bind _.
-          wp_apply (annotated_naive_naive_refinement with "[$]"); first done.
+          epose proof annotated_naive_naive_refinement as h.
+          wp_apply (h with "[$]"); first done.
           iIntros (?) "($&_)". done.
       }
       (* stage 1*)
@@ -3612,7 +3614,8 @@ Section b_tree.
           iMod (create_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           simpl.
           tp_bind _.
-          wp_apply (intermediate_annotated_optimized_refinement with "[$]"); first done.
+          epose proof intermediate_annotated_optimized_refinement as h.
+          wp_apply (h with "[$]"); first done.
           iIntros (?) "($&_)". iFrame. done.
         - eapply wp_adequacy; try done.
           iIntros.
@@ -3622,7 +3625,8 @@ Section b_tree.
           iMod (create_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           simpl.
           tp_bind _.
-          wp_apply (annotated_optimized_intermediate_refinement with "[$]"); first done.
+          epose proof annotated_optimized_intermediate_refinement as h.
+          wp_apply (h with "[$]"); first done.
           iIntros (?) "($&_)". done.
       }
       (* stage 3 *)
@@ -3635,7 +3639,8 @@ Section b_tree.
           iMod (create_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           simpl.
           tp_bind _.
-          wp_apply (optimized_annotated_optimized_refinement with "[$]"); first done.
+          epose proof optimized_annotated_optimized_refinement as h.
+          wp_apply (h with "[$]"); first done.
           iIntros (?) "($&_)"; done.
         - eapply wp_adequacy; try done.
           iIntros.
@@ -3645,7 +3650,8 @@ Section b_tree.
           iMod (create_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           simpl.
           tp_bind _.
-          wp_apply (annotated_optimized_optimized_refinement with "[$]"); first done.
+          epose proof annotated_optimized_optimized_refinement as h.
+          wp_apply (h with "[$]"); first done.
           iIntros (?) "($&_)"; done.
     Qed.
 

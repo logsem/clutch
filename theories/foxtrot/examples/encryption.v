@@ -159,7 +159,7 @@ Section encr.
       wp_alloctape α' as "Hα'".
       wp_pures.
       iMod (pupd_presample with "[$Hα]") as "(%n&Hα & %Hineq)". simpl.
-      iMod (pupd_couple_tape_rand _ (coupling_f n Hineq) with "[$Hα'][$]") as "(%n'&Hα'&Hspec&%)".
+      iMod (pupd_couple_tape_rand _ (coupling_f n Hineq) (H:=coupling_f_Bij _ _) with "[$Hα'][$]") as "(%n'&Hα'&Hspec&%)".
       { intros n' Hn'. rewrite /coupling_f.
         rewrite bool_decide_eq_true_2; last lia.
         epose proof Nat.mod_upper_bound (n'+n) (N+1) _; lia. }
@@ -213,8 +213,7 @@ Section encr.
         rewrite !Nat2Z.inj_mod.
         repeat f_equal; lia.
         Unshelve.
-        + apply coupling_f_Bij.
-        + lia.
+        lia.
     Qed.
     
   End proof.
@@ -241,8 +240,7 @@ Section encr.
       tp_faa j1.
       replace (0+Z.of_nat n)%Z with (Z.of_nat n) by lia.
       tp_bind j2 (rand _)%E.
-      unshelve wp_apply (wp_couple_rand_rand' _ (coupling_f n Hn) with "[$]").
-      - apply coupling_f_Bij.
+      unshelve wp_apply (wp_couple_rand_rand' _ (coupling_f n Hn) (H:=coupling_f_Bij _ _) with "[$]").
       - intros n' Hn'. rewrite /coupling_f.
         rewrite bool_decide_eq_true_2; last lia.
         epose proof Nat.mod_upper_bound (n'+n) (N+1) _; lia.

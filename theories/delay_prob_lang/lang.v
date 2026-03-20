@@ -968,14 +968,14 @@ Global Arguments state_upd_urns _ !_ /.
 
 Lemma state_upd_urns_twice σ l xs ys :
   state_upd_urns <[l:=(ys)]> (state_upd_urns <[l:=(xs)]> σ) = state_upd_urns <[l:=(ys)]> σ.
-Proof. rewrite /state_upd_urns /=. f_equal. apply insert_insert. Qed.
+Proof. rewrite /state_upd_urns /=. f_equal. apply insert_insert_eq. Qed.
 
 Lemma state_upd_urns_same σ σ' l xs ys :
   state_upd_urns <[l:=(ys)]> σ = state_upd_urns <[l:=(xs)]> σ' -> xs = ys.
 Proof. rewrite /state_upd_urns /=. intros K. simplify_eq.
        rewrite map_eq_iff in H.
        specialize (H l).
-       rewrite !lookup_insert in H.
+       rewrite !lookup_insert_eq in H.
        by simplify_eq.
 Qed.
 
@@ -1536,7 +1536,7 @@ Section urn.
   Proof.
     rewrite {1}/urns_f_distr_f2.
     intros H1 H2 H3.
-    replace (f) with (<[l:=z]> (delete l f)) at 1; last by rewrite insert_delete.
+    replace (f) with (<[l:=z]> (delete l f)) at 1; last by rewrite insert_delete_id.
     rewrite map_fold_insert; last by simplify_map_eq.
     - rewrite -/(urns_f_distr_f2 _ (delete _ _)).
       erewrite (urns_f_distr_f2_agree _ m); last first.
@@ -1715,7 +1715,7 @@ Section urn.
   (*            split; last first.  *)
   (*            ++ eexists (delete i f). *)
   (*               split; last first.  *)
-  (*               ** rewrite insert_delete; [set_solver|done]. *)
+  (*               ** rewrite insert_delete_id; [set_solver|done]. *)
   (*               ** apply H0. *)
   (*                  intros i'. *)
   (*                  destruct (decide (i=i')); simplify_map_eq; first naive_solver. *)
@@ -1762,7 +1762,7 @@ Section urn.
   (*   - intros. repeat case_bool_decide; try done. *)
   (*     apply set_eq. *)
   (*     intros. repeat setoid_rewrite elem_of_set_bind. *)
-  (*     split; intros; destruct!/=; set_unfold; subst; eexists _; split; first done; try done; rewrite insert_commute; naive_solver. *)
+  (*     split; intros; destruct!/=; set_unfold; subst; eexists _; split; first done; try done; rewrite insert_insert_ne; naive_solver. *)
   (*   - intros. repeat case_bool_decide; try done. *)
   (*     lia.  *)
   (*   - case_bool_decide as H; first done. *)
@@ -1790,7 +1790,7 @@ Section urn.
   (*       rewrite /set_bind. *)
   (*       set_unfold. *)
   (*       setoid_rewrite elem_of_union_list. *)
-  (*       setoid_rewrite elem_of_list_fmap. *)
+  (*       setoid_rewrite list_elem_of_fmap. *)
   (*       setoid_rewrite elem_of_elements. *)
   (*       intros. *)
   (*       destruct!/=. *)
@@ -2092,7 +2092,7 @@ Section urn.
         intros ->.
         apply H.
         simplify_map_eq.
-        rewrite delete_insert; first done.
+        rewrite delete_insert_id; first done.
         pose proof Hineq' l.
         repeat case_match; naive_solver.
       + rewrite SeriesC_singleton_dependent.
@@ -2104,7 +2104,7 @@ Section urn.
         }
         rewrite SeriesC_singleton_dependent.
         rewrite /urns_f_distr_compute_distr{1}/pmf dret_1_1; first lra.
-        by rewrite insert_delete.
+        by rewrite insert_delete_id.
     - symmetry.
       apply: SeriesC_0.
       intros.
@@ -2128,7 +2128,7 @@ Section urn.
     end.
   Proof.
     intros H1 H2 H3.
-    erewrite <-(insert_delete _ _) in H3; last done.
+    erewrite <-(insert_delete_id _ _) in H3; last done.
     rewrite urns_f_distr_insert in H3; last done; last by simplify_map_eq.
     inv_distr.
     simplify_map_eq.
@@ -2280,7 +2280,7 @@ Section urn.
   (*         intros Hcontra. *)
   (*         assert ( <[l:=n]> f !!l = <[l:=n1]> f'!!l) as Hcontra'. *)
   (*         + rewrite Hcontra; naive_solver. *)
-  (*         + rewrite !lookup_insert in Hcontra'. *)
+  (*         + rewrite !lookup_insert_eq in Hcontra'. *)
   (*           simplify_eq. *)
   (*           eapply NoDup_lookup in K1; last apply K2; naive_solver. *)
   (*       - rewrite SeriesC_singleton_dependent. *)
@@ -2291,8 +2291,8 @@ Section urn.
   (*         simplify_eq. *)
   (*         apply H. *)
   (*         apply (f_equal (λ x, delete l x)) in Hcontra. *)
-  (*         rewrite !delete_insert_delete in Hcontra. *)
-  (*         rewrite (delete_notin f') in Hcontra; first done. *)
+  (*         rewrite !delete_insert_eq in Hcontra. *)
+  (*         rewrite (delete_id f') in Hcontra; first done. *)
   (*         rewrite -not_elem_of_dom. *)
   (*         erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos. *)
   (*         rewrite /urns_support_set. *)
@@ -2301,7 +2301,7 @@ Section urn.
   (*         destruct!/=.  *)
   (*     } *)
   (*     rewrite SeriesC_singleton_dependent. *)
-  (*     rewrite delete_notin; last first. *)
+  (*     rewrite delete_id; last first. *)
   (*     { rewrite -not_elem_of_dom. *)
   (*       erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos. *)
   (*       rewrite /urns_support_set. *)
@@ -2325,7 +2325,7 @@ Section urn.
   (*       intros Hcontra. *)
   (*       apply H. *)
   (*       apply (f_equal (λ x, x!!l)) in Hcontra. *)
-  (*       rewrite !lookup_insert in Hcontra. simplify_eq. *)
+  (*       rewrite !lookup_insert_eq in Hcontra. simplify_eq. *)
   (*       eapply NoDup_lookup in K1. *)
   (*       - by apply fin_to_nat_inj. *)
   (*       - done. *)
@@ -2358,7 +2358,7 @@ Section urn.
   (*       intros l'. *)
   (*       destruct (decide (l=l')). *)
   (*       - subst. *)
-  (*         rewrite lookup_delete. *)
+  (*         rewrite lookup_delete_eq. *)
   (*         rewrite -not_elem_of_dom. naive_solver. *)
   (*       - rewrite lookup_delete_ne; last done. *)
   (*         pose proof H1 l'. *)
@@ -2368,18 +2368,18 @@ Section urn.
   (*     apply dbind_pos. *)
   (*     rewrite /urns_f_valid in H1. *)
   (*     pose proof H1 l as K. *)
-  (*     case_match; rewrite lookup_insert in K; destruct!/=; last first. *)
+  (*     case_match; rewrite lookup_insert_eq in K; destruct!/=; last first. *)
   (*     { destruct lis; set_solver. } *)
   (*     rename select (_∈_) into H2. *)
   (*     rewrite elem_of_list_to_set in H2. *)
-  (*     rewrite elem_of_list_lookup in H2. *)
+  (*     rewrite list_elem_of_lookup in H2. *)
   (*     destruct H2 as [i H2]. *)
   (*     apply lookup_lt_Some in H2 as H3. *)
   (*     rewrite Hneq in H3. *)
   (*     exists (nat_to_fin H3). *)
   (*     rewrite fin_to_nat_to_fin. *)
   (*     rewrite H2. *)
-  (*     rewrite insert_delete_insert. *)
+  (*     rewrite insert_delete_eq. *)
   (*     rewrite insert_id; last done. *)
   (*     rewrite dret_1_1; last done. *)
   (*     split; first lra. *)
@@ -2396,10 +2396,10 @@ Section urn.
   (*     unfold urns_f_valid in H. *)
   (*     intros l'. *)
   (*     destruct (decide (l=l')). *)
-  (*     + subst. rewrite !lookup_insert. *)
+  (*     + subst. rewrite !lookup_insert_eq. *)
   (*       eexists _; split; first done. *)
   (*       rewrite elem_of_list_to_set. *)
-  (*       apply elem_of_list_lookup. naive_solver. *)
+  (*       apply list_elem_of_lookup. naive_solver. *)
   (*     + rewrite !lookup_insert_ne; try done. *)
   (*       naive_solver. *)
   (*   - by rewrite -H1 -H2. *)
@@ -3158,24 +3158,24 @@ Qed.
 (*   (* TODO: the sub goals used to be solved by [simplify_map_eq]  *) *)
 (*   - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)). *)
 (*     + destruct (decide (α = l1)); simplify_eq. *)
-(*       * rewrite lookup_insert in H11. done. *)
+(*       * rewrite lookup_insert_eq in H11. done. *)
 (*       * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done. *)
 (*     + destruct (decide (α = l1)); simplify_eq. *)
-(*       * rewrite lookup_insert in H11. done. *)
+(*       * rewrite lookup_insert_eq in H11. done. *)
 (*       * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done. *)
 (*     + destruct (decide (α = l1)); simplify_eq. *)
-(*       * rewrite lookup_insert in H10. done. *)
+(*       * rewrite lookup_insert_eq in H10. done. *)
 (*       * rewrite lookup_insert_ne // in H10. rewrite H10 in H7. done. *)
 (*   - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)). *)
 (*     + destruct (decide (α = l1)); simplify_eq. *)
 (*       * apply not_elem_of_dom_2 in H11. done. *)
 (*       * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done. *)
 (*     + destruct (decide (α = l1)); simplify_eq. *)
-(*       * rewrite lookup_insert // in H7. *)
+(*       * rewrite lookup_insert_eq // in H7. *)
 (*         apply not_elem_of_dom_2 in H11. done. *)
 (*       * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done. *)
 (*     + destruct (decide (α = l1)); simplify_eq. *)
-(*       * rewrite lookup_insert // in H7. *)
+(*       * rewrite lookup_insert_eq // in H7. *)
 (*         apply not_elem_of_dom_2 in H10. done. *)
 (*       * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done. *)
 (* Qed. *)
@@ -3356,7 +3356,7 @@ Proof. rewrite elem_of_elements. apply state_step_mass. Qed.
 (*     intros α' ?. rewrite /get_active /=. *)
 (*     apply elem_of_elements, elem_of_dom. *)
 (*     destruct (decide (α = α')); subst. *)
-(*     + eexists. rewrite lookup_insert //. *)
+(*     + eexists. rewrite lookup_insert_eq //. *)
 (*     + rewrite lookup_insert_ne //. *)
 (*       apply elem_of_dom. eapply elem_of_elements, Hact. by right. *)
 (* Qed. *)

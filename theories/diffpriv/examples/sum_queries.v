@@ -37,7 +37,7 @@ Section dataset_operators.
 
   Lemma elem_of_clip_fun lower upper zs z :
     lower ≤ upper → z ∈ clip lower upper zs → lower ≤ z ≤ upper.
-  Proof. intros ? (?&->&?)%elem_of_list_fmap. rewrite /clipZ. lia. Qed.
+  Proof. intros ? (?&->&?)%list_elem_of_fmap. rewrite /clipZ. lia. Qed.
 
   Lemma gwp_clip (zs : list Z) v (lower upper : Z) E :
     lower ≤ upper →
@@ -80,7 +80,7 @@ Section dataset_operators.
     (∀ z, z ∈ zs → z ≤ b) → sum_list zs ≤ b * length zs.
   Proof.
     induction zs as [|z zs' IH]  => /= Hz ; [lia|].
-    pose proof (Hz z (elem_of_list_here _ _)).
+    pose proof (Hz z (list_elem_of_here _ _)).
     assert (∀ z : Z, z ∈ zs' → z ≤ b) as Hin.
     { intros ??. apply Hz. by right. }
     specialize (IH Hin). lia.
@@ -90,7 +90,7 @@ Section dataset_operators.
     (∀ z, z ∈ zs → b ≤ z) → b * length zs ≤ sum_list zs.
   Proof.
     induction zs as [|z zs' IH]  => /= Hz ; [lia|].
-    pose proof (Hz z (elem_of_list_here _ _)).
+    pose proof (Hz z (list_elem_of_here _ _)).
     assert (∀ z : Z, z ∈ zs' → b ≤ z) as Hin.
     { intros ??. apply Hz. by right. }
     specialize (IH Hin). lia.
@@ -495,7 +495,7 @@ Section queries.
         - intros. apply le_IZR in res_close. lia.
         - intros. apply le_IZR in res_close. lia.
       }
-      tp_bind (Laplace _ _ _ _). wp_apply (hoare_couple_laplace_exact _ _ 0 with "[$rhs $ε2] [-]") ; try done.
+      tp_bind (Laplace _ _ _ _). wp_apply (hoare_couple_laplace_exact _ _ 0 with "[$rhs] [-]") ; try done.
       iIntros "!> * rhs" => /=. tp_pures ; wp_pures.
 
       tp_bind (list_length _). wp_bind (list_length _).

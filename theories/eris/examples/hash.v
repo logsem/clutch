@@ -123,7 +123,7 @@ Section simple_bit_hash.
     destruct (decide (n = k1)).
     - destruct (decide (n = k2)); simplify_eq; auto.
       destruct Hk2 as [|Hk2]; auto.
-      rewrite lookup_total_insert in Heq.
+      rewrite lookup_total_insert_eq in Heq.
       rewrite lookup_total_insert_ne // in Heq.
       apply lookup_lookup_total in Hk2.
       rewrite -Heq in Hk2.
@@ -135,7 +135,7 @@ Section simple_bit_hash.
     - destruct (decide (n = k2)); simplify_eq; auto.
       {
         destruct Hk1 as [|Hk1]; auto.
-        rewrite lookup_total_insert in Heq.
+        rewrite lookup_total_insert_eq in Heq.
         rewrite lookup_total_insert_ne // in Heq.
         apply lookup_lookup_total in Hk1.
         rewrite Heq in Hk1.

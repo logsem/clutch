@@ -12,9 +12,9 @@ From iris.prelude Require Import options.
 Class diffprivGS Σ := HeapG {
   diffprivGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
-  diffprivGS_heap : ghost_mapG Σ loc val;
-  diffprivGS_tapes : ghost_mapG Σ loc tape;
-  diffprivGS_tapes_laplace : ghost_mapG Σ loc tape_laplace;
+  diffprivGS_heap :: ghost_mapG Σ loc val;
+  diffprivGS_tapes :: ghost_mapG Σ loc tape;
+  diffprivGS_tapes_laplace :: ghost_mapG Σ loc tape_laplace;
   (* ghost names for the state *)
   diffprivGS_heap_name : gname;
   diffprivGS_tapes_name : gname;

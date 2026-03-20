@@ -44,7 +44,7 @@ Lemma to_tpool_insert tp j e :
   to_tpool (<[j:=e]> tp) = <[j:=e]> (to_tpool tp).
 Proof.
   intros. apply: map_eq=> i. destruct (decide (i = j)) as [->|].
-  - by rewrite tpool_lookup lookup_insert list_lookup_insert.
+  - by rewrite tpool_lookup lookup_insert_eq list_lookup_insert_eq.
   - rewrite tpool_lookup lookup_insert_ne // list_lookup_insert_ne //.
     by rewrite tpool_lookup.
 Qed.
@@ -53,7 +53,7 @@ Lemma to_tpool_app tp e :
   <[length tp:=e]> (to_tpool (tp)) = (to_tpool (tp++[e])).
 Proof.
   intros. apply: map_eq=> i. destruct (decide (i = length tp)) as [->|].
-  - rewrite lookup_insert tpool_lookup lookup_app_r; last done.
+  - rewrite lookup_insert_eq tpool_lookup lookup_app_r; last done.
     by rewrite Nat.sub_diag.
   - rewrite tpool_lookup lookup_insert_ne //.
     destruct (decide (i < length tp)).

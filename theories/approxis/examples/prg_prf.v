@@ -260,7 +260,7 @@ Section defs.
         repeat rel_apply (refines_app _ _ _ _ lrel_int);
         try (iPoseProof G_lr_sem_typed as "H"; iApply "H");
         try rel_values.
-      - rewrite lookup_insert... rel_apply refines_na_close; iFrame.
+      - rewrite lookup_insert_eq... rel_apply refines_na_close; iFrame.
         iSplitL.
         { iExists (<[0:=#k]> ∅), (q + 1).
           replace (Z.of_nat (q+1)%nat) with (q+1)%Z by lia.
@@ -374,12 +374,12 @@ Section defs.
             destruct Hindom as [Heq | Hindom].
             * apply elem_of_singleton in Heq; subst.
               split; first lia.
-              exists n. split; first apply lookup_insert.
+              exists n. split; first apply lookup_insert_eq.
               lia.
             * apply Hdom in Hindom. destruct Hindom as [Hineqelem [m [Hlookupelem Hboundelem]]].
               split; first assumption.
               destruct (PeanoNat.Nat.eq_dec (Z.to_nat x) elem) as [e|e].
-              { exists n. split; last lia. rewrite e. apply lookup_insert. }
+              { exists n. split; last lia. rewrite e. apply lookup_insert_eq. }
               { exists m. split; last assumption.
                 rewrite lookup_insert_ne; assumption. }
     Qed.

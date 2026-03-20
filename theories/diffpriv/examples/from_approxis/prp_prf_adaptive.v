@@ -303,7 +303,7 @@ Section prp_prf.
         + apply Nat2Z.inj' in K'. subst.
           rewrite NoDup_ListNoDup in HNoDup.
           apply NoDup_remove_2 in HNoDup.
-          rewrite elem_of_list_In. done.
+          rewrite list_elem_of_In. done.
         + intros ?. set_unfold.
           eapply Hdisjoint.
           * rewrite elem_of_map_img. naive_solver.
@@ -537,7 +537,7 @@ Section prp_prf.
         + apply Nat2Z.inj' in K'. subst.
           rewrite NoDup_ListNoDup in HNoDup.
           apply NoDup_remove_2 in HNoDup.
-          rewrite elem_of_list_In. done.
+          rewrite list_elem_of_In. done.
         + intros ?. set_unfold.
           eapply Hdisjoint.
           * rewrite elem_of_map_img. naive_solver.

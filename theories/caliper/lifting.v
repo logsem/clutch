@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 
 From clutch.prelude Require Import iris_ext.
 From clutch.caliper Require Export weakestpre.

@@ -28,19 +28,19 @@ Section uniform_list.
   Proof.
     split.
     - revert l; induction p; intros l.
-      + simpl. rewrite elem_of_list_singleton. by intros ->.
-      + rewrite enum_uniform_list_S. rewrite elem_of_list_bind. elim. intros x.
-        rewrite elem_of_list_bind. do 2 elim. intros y.
-        intros [?%elem_of_list_ret ?]. subst.
+      + simpl. rewrite list_elem_of_singleton. by intros ->.
+      + rewrite enum_uniform_list_S. rewrite list_elem_of_bind. elim. intros x.
+        rewrite list_elem_of_bind. do 2 elim. intros y.
+        intros [?%list_elem_of_ret ?]. subst.
         simpl. intros. f_equal. naive_solver.
     - revert l; induction p; intros l.
       + simpl. set_unfold. intros ?%nil_length_inv. naive_solver.
       + destruct l as [|t l'] eqn:Heqn; first done.
         rewrite enum_uniform_list_S.
         intros ?.
-        rewrite elem_of_list_bind. exists t.
-        rewrite elem_of_list_bind. split; last apply elem_of_enum.
-        exists l'. rewrite elem_of_list_ret. simplify_eq. naive_solver.
+        rewrite list_elem_of_bind. exists t.
+        rewrite list_elem_of_bind. split; last apply elem_of_enum.
+        exists l'. rewrite list_elem_of_ret. simplify_eq. naive_solver.
   Qed.
 
   Lemma elem_of_enum_uniform_list' l p:
@@ -91,11 +91,11 @@ Section uniform_list.
     - simpl. apply NoDup_singleton.
     - rewrite enum_uniform_list_S.
       apply NoDup_bind; last apply NoDup_enum.
-      + move => ????? /elem_of_list_bind [? [H1 ?]] /elem_of_list_bind[?[ H2?]].
-        apply elem_of_list_ret in H1, H2. by simplify_eq.
+      + move => ????? /list_elem_of_bind [? [H1 ?]] /list_elem_of_bind[?[ H2?]].
+        apply list_elem_of_ret in H1, H2. by simplify_eq.
       + intros ??.
         apply NoDup_bind; last done.
-        * intros ????? ?%elem_of_list_ret ?%elem_of_list_ret. by simplify_eq.
+        * intros ????? ?%list_elem_of_ret ?%list_elem_of_ret. by simplify_eq.
         * intros. rewrite /mret/list_ret. apply NoDup_singleton.
   Qed.  
 

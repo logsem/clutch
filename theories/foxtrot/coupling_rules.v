@@ -466,7 +466,7 @@ Section rules.
       destruct!/=.
       rewrite !app_nil_r in H'.
       eapply f_equal in H'.
-      erewrite !list_lookup_insert in H'; try done.
+      erewrite !list_lookup_insert_eq in H'; try done.
       by simplify_eq.
     - simpl.
       iIntros (?????[a ?]).
@@ -494,7 +494,7 @@ Section rules.
   Proof.
     iIntros (Heq Hdom Ψ) "Hr HΨ".
     rewrite Heq.
-    wp_apply (wp_couple_rand_rand _ (f_inv f) with "[$]").
+    wp_apply (wp_couple_rand_rand _ (f_inv f) (H:=f_inv_bij f) with "[$]").
     - intros.
       apply f_inv_restr; naive_solver.
     - iIntros (?) "(%&Hspec)".
@@ -506,8 +506,6 @@ Section rules.
       rewrite -Heq.
       assert (f_inv f n< S N)%nat; last lia.
       apply f_inv_restr; try lia; naive_solver.
-      Unshelve.
-      apply f_inv_bij.
   Qed.
 
   (** * Coupling a rand on LHS with two rands on the RHS *)
@@ -625,12 +623,12 @@ Section rules.
     - iPureIntro. simpl. intros ????? (n&m&K1&K2) (n'&m'&K3&K4). destruct!/=.
       assert (n=n'). 
       { apply (f_equal (λ x, x!!j)) in K2.
-        rewrite !list_lookup_insert in K2; naive_solver.
+        rewrite !list_lookup_insert_eq in K2; naive_solver.
       }
       subst.
       replace m with m'; first done.
       cut ((<[j':=fill K' #m']> (<[j:=fill K #n']> l))!!j' = (<[j':=fill K' #m]> (<[j:=fill K #n']> l)!!j')).
-      + rewrite !list_lookup_insert; try rewrite length_insert; naive_solver.
+      + rewrite !list_lookup_insert_eq; try rewrite length_insert; naive_solver.
       + by f_equal.
     - simpl.
       iIntros (?????) "(%n&%m&%)". destruct!/=.
@@ -817,7 +815,7 @@ Section rules.
         replace (fin_to_nat n') with (f m2).
         replace m1 with m2; first done.
         assert (<[j:=fill K #m2]> l!!j = <[j:=fill K #m1]> l!!j) as Hlookup; first by f_equal.
-        rewrite !list_lookup_insert in Hlookup; try lia.
+        rewrite !list_lookup_insert_eq in Hlookup; try lia.
         by simplify_eq.
       + destruct!/=.
       + destruct!/=.
@@ -1060,13 +1058,13 @@ Section rules.
         rewrite app_nil_r.
         case_bool_decide as H'.
         - destruct H' as [n' H'].
-          rewrite list_lookup_insert in H'; last done.
+          rewrite list_lookup_insert_eq in H'; last done.
           simplify_eq.
           rewrite bool_decide_eq_true_2; naive_solver.
         - rewrite bool_decide_eq_false_2; first naive_solver.
           intros [? ?].
           apply H'.
-          eexists _. rewrite list_lookup_insert; last done.
+          eexists _. rewrite list_lookup_insert_eq; last done.
           by repeat f_equal. 
       }
       rewrite /E2'.
@@ -1079,21 +1077,21 @@ Section rules.
       { intros n. rewrite /diff.
         case_bool_decide as H1'.
         - destruct H1' as [? H1']. rewrite bool_decide_eq_true_2; last first.
-          + rewrite -H1'. apply elem_of_list_fmap. eexists _; split; first done. apply elem_of_enum.
+          + rewrite -H1'. apply list_elem_of_fmap. eexists _; split; first done. apply elem_of_enum.
           + subst. rewrite bool_decide_eq_false_2; first lra.
             rewrite elem_of_elements.
             rewrite not_elem_of_difference; right.
-            rewrite elem_of_list_to_set. rewrite elem_of_list_fmap.
+            rewrite elem_of_list_to_set. rewrite list_elem_of_fmap.
             rewrite -H1'. eexists _; split; first done.
             apply elem_of_enum.
         - rewrite bool_decide_eq_false_2; last first.
-          { rewrite elem_of_list_fmap. intros [?[??]].
+          { rewrite list_elem_of_fmap. intros [?[??]].
             subst. apply H1'. naive_solver. }
           rewrite bool_decide_eq_true_2; first lra.
           rewrite elem_of_elements. rewrite elem_of_difference.
           split; rewrite elem_of_list_to_set.
-          + apply elem_of_list_fmap_1; apply elem_of_enum.
-          + rewrite elem_of_list_fmap. intros [?[??]].
+          + apply list_elem_of_fmap_2; apply elem_of_enum.
+          + rewrite list_elem_of_fmap. intros [?[??]].
             subst. apply H1'. naive_solver.
       }
       rewrite SeriesC_plus; try apply ex_seriesC_finite.
@@ -1112,7 +1110,7 @@ Section rules.
       rewrite !SeriesC_scal_l.
       rewrite !SeriesC_fin_in_set; last first.
       { intros ?. rewrite elem_of_list_to_set.
-        rewrite elem_of_list_fmap.
+        rewrite list_elem_of_fmap.
         intros. destruct!/=.
         apply Hdom.
         apply fin_to_nat_lt.
@@ -1121,7 +1119,7 @@ Section rules.
         intros ?. rewrite elem_of_list_to_set.
         rewrite elem_of_elements.
         rewrite elem_of_difference.
-        rewrite elem_of_list_to_set elem_of_list_fmap.
+        rewrite elem_of_list_to_set list_elem_of_fmap.
         intros. destruct!/=.
         apply fin_to_nat_lt.
       }
@@ -1141,7 +1139,7 @@ Section rules.
       Local Opaque fin_enum.
       rewrite size_difference; last first.
       { intros ?. rewrite !elem_of_list_to_set.
-        rewrite !elem_of_list_fmap.
+        rewrite !list_elem_of_fmap.
         intros [y]. destruct!/=.
         exists (nat_to_fin (Hdom _ (fin_to_nat_lt y))).
         rewrite !fin_to_nat_to_fin; split; first done.
@@ -1215,16 +1213,16 @@ Section rules.
       + destruct K1 as [n1]. destruct K2 as [n2]. destruct!/=.
         replace n1 with n2; first done.
         assert (<[j:=fill K #(f n2)]> l!!j = <[j:=fill K #(f n1)]> l!!j) as Heq; first by f_equal.
-        rewrite !list_lookup_insert in Heq; try lia. by destruct!/=. 
+        rewrite !list_lookup_insert_eq in Heq; try lia. by destruct!/=. 
       + destruct!/=.
         exfalso.
         apply C2.
         assert (<[j:=fill K #(f n')]> l !!j= <[j:=fill K #m1]> l!!j)as Heq; first by f_equal.
-        rewrite !list_lookup_insert in Heq; try lia. destruct!/=.
+        rewrite !list_lookup_insert_eq in Heq; try lia. destruct!/=.
         naive_solver.
       + destruct!/=. exfalso. apply C1.
         assert (<[j:=fill K #(m2)]> l !!j= <[j:=fill K #(f n')]> l!!j)as Heq; first by f_equal.
-        rewrite !list_lookup_insert in Heq; try lia. destruct!/=.
+        rewrite !list_lookup_insert_eq in Heq; try lia. destruct!/=.
         naive_solver.
       + destruct!/=. split; first done.
         congruence.
@@ -1241,7 +1239,7 @@ Section rules.
         replace (E2 _) with (ε_now1); last first.
         { rewrite /E2. subst.
           rewrite bool_decide_eq_true_2; first done.
-          eexists _. by rewrite list_lookup_insert. 
+          eexists _. by rewrite list_lookup_insert_eq. 
         }
         iModIntro. 
         iApply spec_coupl_ret.
@@ -1264,7 +1262,7 @@ Section rules.
         replace (E2 _) with (ε_now2); last first.
         { rewrite /E2. subst.
           rewrite bool_decide_eq_false_2; first done.
-          intros [? Heq]. rewrite list_lookup_insert in Heq; last done.
+          intros [? Heq]. rewrite list_lookup_insert_eq in Heq; last done.
           simplify_eq. apply H3. naive_solver.
         }
         destruct (Rle_or_lt 1 ε_now2).
@@ -1874,7 +1872,7 @@ Section rules.
           rewrite Hfrag_eq.
           rewrite /fragmented_f_alt.
           case_match eqn:Heqn'.
-          - by eapply elem_of_list_lookup_2.
+          - by eapply list_elem_of_lookup_2.
           - apply lookup_ge_None_1 in Heqn'. rewrite length_app in Heqn'. lia.
         }
         rewrite Hlookup.
@@ -1937,7 +1935,7 @@ Section rules.
           simpl in *.
           apply Heqn1.
           rewrite /fragmented_f.
-          rewrite elem_of_list_lookup in Hcontra.
+          rewrite list_elem_of_lookup in Hcontra.
           destruct Hcontra as [idx Hcontra].
           assert (idx<S (2*length l1-1))%nat as Hineq.
           { apply lookup_lt_Some in Hcontra. rewrite length_app in Hcontra. lia. }
@@ -1973,7 +1971,7 @@ Section rules.
         rewrite -K2 in H7. simplify_eq.
         assert (t1=t).
         { apply (f_equal (λ x, x!!j)) in H10.
-          rewrite !list_lookup_insert in H10; try done.
+          rewrite !list_lookup_insert_eq in H10; try done.
           by simplify_eq.
         }
         subst.
@@ -2040,13 +2038,13 @@ Section rules.
              simplify_eq.
              rewrite lookup_app_r in Hlookup'; last lia.
              rewrite NoDup_app in Hnodup.
-             apply Hnodup in K1. apply K1. erewrite elem_of_list_lookup. naive_solver.
+             apply Hnodup in K1. apply K1. erewrite list_elem_of_lookup. naive_solver.
           -- case_bool_decide as K2; last first.
              { rewrite Hfrag_eq in K1, K2.
                assert (fragmented_f_alt (f_decompose (t,t0)) ∉l1++l2) as Hnotin by (rewrite elem_of_app; naive_solver).
                rewrite /fragmented_f_alt in Hnotin.
                case_match eqn :Hlookup'.
-               - rewrite elem_of_list_lookup in Hnotin.
+               - rewrite list_elem_of_lookup in Hnotin.
                  exfalso. naive_solver.
                - apply lookup_ge_None_1 in Hlookup'.
                  pose proof fin_to_nat_lt (f_decompose (t, t0)). rewrite length_app in Hlookup'. lia.
@@ -2074,7 +2072,7 @@ Section rules.
              rewrite NoDup_app in Hnodup.
              unfold not in Hnodup.
              eapply Hnodup; last done.
-             erewrite elem_of_list_lookup. naive_solver.
+             erewrite list_elem_of_lookup. naive_solver.
       + simplify_eq.
         iMod (ghost_map_update with "[$]Hα") as "(?&?)".
         iMod (ghost_map_update with "[$]Hβ") as "(?&?)".
@@ -2088,7 +2086,7 @@ Section rules.
         * iPureIntro. apply Nat.lt_succ_r. apply fin_to_nat_lt.
         * iPureIntro. apply Nat.lt_succ_r. apply fin_to_nat_lt.
         * rewrite !bool_decide_eq_false_2; first done.
-          -- rewrite elem_of_list_lookup.
+          -- rewrite list_elem_of_lookup.
              intros [idx Hidx].
              assert (idx < length l2)%nat.
              { eapply lookup_lt_is_Some_1; by rewrite Hidx. }
@@ -2108,7 +2106,7 @@ Section rules.
                 { apply lookup_lt_Some in Heqn. lia. }
                 rewrite Nat.add_sub.
                 by rewrite Hidx.
-          -- rewrite elem_of_list_lookup.
+          -- rewrite list_elem_of_lookup.
              intros [idx Hidx].
              assert (idx < length l1)%nat.
              { eapply lookup_lt_is_Some_1; by rewrite Hidx. }
@@ -2283,7 +2281,7 @@ Section rules.
       rewrite Hfrag_eq.
       rewrite /fragmented_f_alt.
       case_match eqn:C.
-      -- by eapply elem_of_list_lookup_2.
+      -- by eapply list_elem_of_lookup_2.
       -- apply lookup_ge_None_1 in C. rewrite length_app in C. lia.
     }
     
@@ -2298,7 +2296,7 @@ Section rules.
         rewrite !fin_to_nat_to_fin.
         rewrite -surjective_pairing.
         apply Hin. lia.
-      - intros Hcase. apply elem_of_list_lookup in Hcase.
+      - intros Hcase. apply list_elem_of_lookup in Hcase.
         destruct Hcase as [idx Hcase].
         assert (idx < (S (length l1 + (length l1 + 0) - 1)))%nat as Hidx.
         { apply lookup_lt_Some in Hcase. rewrite length_app in Hcase. lia. }
@@ -2387,14 +2385,14 @@ Section rules.
         rewrite !app_nil_r. rewrite !length_insert.
         intros H'. destruct!/=.
         apply (f_equal (λ x, x!!j)) in H6.
-        rewrite !list_lookup_insert in H6; try done.
+        rewrite !list_lookup_insert_eq in H6; try done.
         apply (f_equal (λ x, x!!j')) in H7.
-        rewrite !list_lookup_insert in H7; try by rewrite !length_insert.
+        rewrite !list_lookup_insert_eq in H7; try by rewrite !length_insert.
         by simplify_eq.
       } 
       { intros ??. simpl. rewrite !app_nil_r.
         intros H'. apply (f_equal (λ x, x.1!!j)) in H'.
-        rewrite !list_lookup_insert in H'; try done.
+        rewrite !list_lookup_insert_eq in H'; try done.
         by simplify_eq. }
       simpl. 
       assert ((dbind (λ a : fin (S N), dmap (λ c : fin (S N), fn (<[j:=fill K #a]> l ++ [], s, c)) (dunifP N))
@@ -2432,15 +2430,15 @@ Section rules.
           pose proof fin_to_nat_lt n'.
           pose proof fin_to_nat_lt m'.
           rewrite list_lookup_insert_ne in K1; last done.
-          rewrite list_lookup_insert in K1; last done.
-          rewrite list_lookup_insert in K2; last (by rewrite length_insert).
+          rewrite list_lookup_insert_eq in K1; last done.
+          rewrite list_lookup_insert_eq in K2; last (by rewrite length_insert).
           simplify_eq. by rewrite bool_decide_eq_true_2.
         - case_bool_decide as Hcontra; last done.
           exfalso.
           apply H'. eexists _, _. repeat split; try done.
           + rewrite list_lookup_insert_ne; last done.
-            by apply list_lookup_insert.
-          + apply list_lookup_insert. by rewrite length_insert.
+            by apply list_lookup_insert_eq.
+          + apply list_lookup_insert_eq. by rewrite length_insert.
       } 
       rewrite /E2'.
       eapply Forall_app_2 in Hl2; last apply Hl1.
@@ -2471,7 +2469,7 @@ Section rules.
         case_bool_decide as Hcase.
         - rewrite /diff/right_l.
           rewrite -Hl' in Hcase.
-          rewrite elem_of_list_fmap in Hcase.
+          rewrite list_elem_of_fmap in Hcase.
           destruct Hcase as (y&Hcase1&Hcase).
           inversion Hcase1 as [[Hcase2 Hcase3]].
           apply fin_to_nat_inj in Hcase2, Hcase3.
@@ -2481,25 +2479,25 @@ Section rules.
             by rewrite -surjective_pairing.
           + subst.
             rewrite bool_decide_eq_true_2; last first.
-            * rewrite elem_of_list_to_set elem_of_list_fmap.
+            * rewrite elem_of_list_to_set list_elem_of_fmap.
               eexists (x); split; first done.
-              rewrite elem_of_list_fmap.
+              rewrite list_elem_of_fmap.
               exists (f_inv f x).
               rewrite f_inv_cancel_r; by split.
             * rewrite bool_decide_eq_false_2; first lra.
               rewrite not_elem_of_difference.
               right.
-              rewrite elem_of_list_to_set elem_of_list_fmap.
+              rewrite elem_of_list_to_set list_elem_of_fmap.
               eexists _; split; first done.
-              rewrite elem_of_list_fmap.
+              rewrite list_elem_of_fmap.
               eexists _; split; try done.
               by rewrite f_inv_cancel_r.
         - rewrite /diff/right_l.
           rewrite -Hl' in Hcase.
-          rewrite elem_of_list_fmap in Hcase.
+          rewrite list_elem_of_fmap in Hcase.
           rewrite bool_decide_eq_false_2; last first.
           + rewrite elem_of_list_to_set -list_fmap_compose.
-            rewrite elem_of_list_fmap.
+            rewrite list_elem_of_fmap.
             intros (?&Heq&?).
             apply Hcase.
             eexists _; split; first done.
@@ -2510,11 +2508,11 @@ Section rules.
             rewrite elem_of_difference.
             split.
             * rewrite elem_of_list_to_set.
-              rewrite elem_of_list_fmap.
+              rewrite list_elem_of_fmap.
               eexists _; split; first done.
               apply elem_of_enum.
             * rewrite elem_of_list_to_set -list_fmap_compose.
-              rewrite elem_of_list_fmap.
+              rewrite list_elem_of_fmap.
               intros (?&Heq&?).
               apply fin_to_nat_inj in Heq.
               subst.
@@ -2527,7 +2525,7 @@ Section rules.
       { rewrite /right_l.
         intros x.
         rewrite elem_of_list_to_set -list_fmap_compose.
-        rewrite elem_of_list_fmap.
+        rewrite list_elem_of_fmap.
         intros (y&?&?).
         subst.
         apply (fin_to_nat_lt (f y)).
@@ -2535,7 +2533,7 @@ Section rules.
       { rewrite /diff/right_l.
         intros x.
         rewrite elem_of_difference.
-        rewrite elem_of_list_to_set elem_of_list_fmap.
+        rewrite elem_of_list_to_set list_elem_of_fmap.
         intros [(y&?&?)].
         subst.
         apply fin_to_nat_lt.
@@ -2561,7 +2559,7 @@ Section rules.
       rewrite size_difference; last first. 
       { intros ?. rewrite !elem_of_list_to_set.
         rewrite -list_fmap_compose.
-        rewrite !elem_of_list_fmap.
+        rewrite !list_elem_of_fmap.
         intros (y&?&?). subst.
         eexists _; split; first done.
         apply elem_of_enum.
@@ -2649,14 +2647,14 @@ Section rules.
         rewrite !app_nil_r. rewrite !length_insert.
         intros H'. destruct!/=.
         apply (f_equal (λ x, x!!j)) in H6.
-        rewrite !list_lookup_insert in H6; try done.
+        rewrite !list_lookup_insert_eq in H6; try done.
         apply (f_equal (λ x, x!!j')) in H7.
-        rewrite !list_lookup_insert in H7; try by rewrite !length_insert.
+        rewrite !list_lookup_insert_eq in H7; try by rewrite !length_insert.
         by simplify_eq.
       } 
       { intros ??. simpl. rewrite !app_nil_r.
         intros H'. apply (f_equal (λ x, x.1!!j)) in H'.
-        rewrite !list_lookup_insert in H'; try done.
+        rewrite !list_lookup_insert_eq in H'; try done.
         by simplify_eq. }
       simpl. 
       assert ((dbind (λ a : fin (S N), dmap (λ c : fin (S N), fn (<[j:=fill K #a]> l ++ [], s, c)) (dunifP N))
@@ -2694,7 +2692,7 @@ Section rules.
       + (* we step on an accepted value *)
         rewrite bool_decide_eq_true_2; last first.
         { rewrite /fragmented_f.
-          apply elem_of_list_lookup in Heqn1 as Heqn2. 
+          apply list_elem_of_lookup in Heqn1 as Heqn2. 
           destruct Heqn2 as [idx Heqn2].
           assert (idx < (S (length l1 + (length l1 + 0) - 1)))%nat as Hidx.
           { cut (idx < length (l1++l2))%nat.
@@ -2780,7 +2778,7 @@ Section rules.
           rewrite /fragmented_f_alt in Heqn1.
           apply Heqn1.
           case_match eqn:C.
-          -- by eapply elem_of_list_lookup_2.
+          -- by eapply list_elem_of_lookup_2.
           -- apply lookup_ge_None_1 in C. rewrite length_app in C. lia.
         * pose proof fin_to_nat_lt (f_decompose (b,c)); lia.
       
@@ -2790,7 +2788,7 @@ Section rules.
       destruct!/=.
       apply (f_equal (λ x, x!!j)) in H6.
       apply (f_equal (λ x, x!!j')) in H7.
-      rewrite !list_lookup_insert in H6, H7; try rewrite length_insert; try lia.
+      rewrite !list_lookup_insert_eq in H6, H7; try rewrite length_insert; try lia.
       simplify_eq.
       case_bool_decide as T1; destruct!/=.
       + split; last done.
@@ -2821,10 +2819,10 @@ Section rules.
           rewrite !fin_to_nat_to_fin.
           eexists _, _.
           rewrite list_lookup_insert_ne; last done.
-          rewrite list_lookup_insert; last lia.
+          rewrite list_lookup_insert_eq; last lia.
           erewrite fin_to_nat_to_fin.
           split; first done.
-          rewrite list_lookup_insert; last (rewrite length_insert; lia).
+          rewrite list_lookup_insert_eq; last (rewrite length_insert; lia).
           erewrite fin_to_nat_to_fin.
           split; first done.
           rewrite -surjective_pairing.
@@ -2863,7 +2861,7 @@ Section rules.
                 exfalso. rewrite NoDup_app in Hnodup. unfold not in Hnodup.
                 destruct Hnodup as [?[Hnodup]].
                 eapply Hnodup; first done.
-                eapply elem_of_list_lookup. naive_solver.
+                eapply list_elem_of_lookup. naive_solver.
              ++ case_bool_decide as K2.
                 ** rewrite /fragmented_f_alt/f_decompose in K2.
                    rewrite /f_inv in K2.
@@ -2880,7 +2878,7 @@ Section rules.
                    rewrite /fragmented_f_alt.
                    rewrite lookup_app_l; last lia.
                    destruct (l1 !! _) eqn:Heqn.
-                   { rewrite elem_of_list_lookup. naive_solver. }
+                   { rewrite list_elem_of_lookup. naive_solver. }
                    exfalso.
                    apply lookup_ge_None_1 in Heqn. lia.
                 ** exfalso.
@@ -2888,7 +2886,7 @@ Section rules.
                    { rewrite elem_of_app. intros []; naive_solver. }
                    rewrite /fragmented_f_alt in Hnotin.
                    case_match eqn :H7.
-                   --- apply Hnotin. eapply elem_of_list_lookup. naive_solver.
+                   --- apply Hnotin. eapply list_elem_of_lookup. naive_solver.
                    --- apply lookup_ge_None_1 in H7. pose proof fin_to_nat_lt (f_decompose (b0, c0)).
                        rewrite length_app in H7. lia.
       + iMod (spec_update_prog with "[$][$Hspec]") as "[HK Hs]".
@@ -2899,12 +2897,12 @@ Section rules.
           rewrite /fragmented_f in Hcase.
           intros (x&y&Hcase1&Hcase2&Hcase3).
           rewrite list_lookup_insert_ne in Hcase1; last done.
-          rewrite list_lookup_insert in Hcase1; last lia.
+          rewrite list_lookup_insert_eq in Hcase1; last lia.
           simplify_eq.
-          rewrite list_lookup_insert in Hcase2; last (rewrite length_insert; lia).
+          rewrite list_lookup_insert_eq in Hcase2; last (rewrite length_insert; lia).
           simplify_eq.
           apply Hcase.
-          apply elem_of_list_lookup in Hcase3.
+          apply list_elem_of_lookup in Hcase3.
           destruct Hcase3 as [idx Hcase3].
           assert (idx < (S (length l1 + (length l1 + 0) - 1)))%nat as Hidx.
           { apply lookup_lt_Some in Hcase3. rewrite length_app in Hcase3. lia. }
@@ -3347,9 +3345,9 @@ Section rules.
         destruct K2 as [m' K2].
         simplify_eq.
         assert (<[j:=fill K #(qs')]> l !!j= <[j:=fill K #(qs)]> l!!j) as A1 by (by f_equal) .
-        rewrite !list_lookup_insert in A1; try lia. simplify_eq.
+        rewrite !list_lookup_insert_eq in A1; try lia. simplify_eq.
         assert (<[j':=fill K' #y']> (<[j:=fill K #(qs)]> l)!!j' = <[j':=fill K' #y]> (<[j:=fill K #(qs)]> l)!!j') as A1 by (by f_equal) .
-        rewrite !list_lookup_insert in A1; try (by rewrite length_insert||lia). simplify_eq.
+        rewrite !list_lookup_insert_eq in A1; try (by rewrite length_insert||lia). simplify_eq.
         split; last done.
         rewrite -K1 in K2.
         apply Hinj in K2.
@@ -3364,24 +3362,24 @@ Section rules.
         simplify_eq.
         exfalso.
         assert (<[j:=fill K #(qs')]> l !!j= <[j:=fill K #((nat_to_fin (Hf' a c)))]> l!!j) as A1 by (by f_equal) .
-        rewrite !list_lookup_insert in A1; try lia. simplify_eq.
+        rewrite !list_lookup_insert_eq in A1; try lia. simplify_eq.
       + destruct A1 as (a'&c'&->&(y'&?&?)).
         destruct A2 as (a&c&y&->&->&?).
         simplify_eq.
         exfalso.
         assert (<[j:=fill K #(nat_to_fin (Hf' a c))]> l!!j = <[j:=fill K #( qs)]> l!!j) as A1 by (by f_equal) .
-        rewrite !list_lookup_insert in A1; try lia. simplify_eq.
+        rewrite !list_lookup_insert_eq in A1; try lia. simplify_eq.
       + destruct A1 as (a&c&y&->&->&?).
         destruct A2 as (a'&c'&y'&->&->&?).
         simplify_eq.
         assert (<[j:=fill K #(nat_to_fin (Hf' a' c'))]> l!!j = <[j:=fill K #(nat_to_fin (Hf' a c))]> l!!j) as A1 by (by f_equal) .
-        rewrite !list_lookup_insert in A1; try lia. simplify_eq.
+        rewrite !list_lookup_insert_eq in A1; try lia. simplify_eq.
         rewrite -/(f (a, c)) in A1.
         rewrite -/(f (a', c')) in A1.
         simplify_eq.
         assert (<[j':=fill K' #y']> (<[j:=fill K #(nat_to_fin (Hf' a c))]> l)!!j' =
        <[j':=fill K' #y]> (<[j:=fill K #(nat_to_fin (Hf' a c))]> l)!!j') as A1 by (by f_equal) .
-        rewrite !list_lookup_insert in A1; try (by rewrite length_insert||lia). by simplify_eq.
+        rewrite !list_lookup_insert_eq in A1; try (by rewrite length_insert||lia). by simplify_eq.
     - iIntros (??? (qs & Hcond)).
       case_bool_decide as K1.
       + destruct Hcond as (a&c&->&(y&Heq&?)).
@@ -3608,7 +3606,7 @@ Section rules.
       apply ARcoupl_dret; naive_solver.
     - iPureIntro. simpl. intros ????? (n&H1&K1) (n'&H2&K2). destruct!/=.
       assert (<[j:=fill K #n]> l!!j = <[j:=fill K #n']> l!!j) as Hlookup; first by f_equal.
-      rewrite !list_lookup_insert in Hlookup; try lia.
+      rewrite !list_lookup_insert_eq in Hlookup; try lia.
       simplify_eq. split; last done.
       repeat f_equal. apply fin_to_nat_inj. lia.
     - simpl.
@@ -3691,7 +3689,7 @@ Section rules.
       apply ARcoupl_dret; naive_solver.
     - iPureIntro. intros ????? (a&?&H') [a' ?]. destruct!/=.
       assert (a=a') as ->; last naive_solver.
-      eapply f_equal in H'. erewrite !list_lookup_insert in H'; try done.
+      eapply f_equal in H'. erewrite !list_lookup_insert_eq in H'; try done.
       by simplify_eq. 
     - simpl.
       iIntros (??? (x&?&?)).
@@ -3815,7 +3813,7 @@ Section rules.
     - iPureIntro. simpl. intros ????? (n&m&K1&K2) (n'&m'&K3&K4). destruct!/=.
       assert (n=n'/\m=m'). 
       { apply (f_equal (λ x, x!!j)) in K2.
-        rewrite !list_lookup_insert in K2; try done.
+        rewrite !list_lookup_insert_eq in K2; try done.
         simplify_eq.
         apply Hcond2 in K2; first naive_solver.
         all: apply fin_to_nat_lt.
@@ -3930,7 +3928,7 @@ Section rules.
       destruct!/=.
       rewrite !app_nil_r in H'.
       eapply f_equal in H'.
-      erewrite !list_lookup_insert in H'; try done.
+      erewrite !list_lookup_insert_eq in H'; try done.
       by simplify_eq.
     - simpl.
       iIntros (?????[a ?]).
@@ -4021,7 +4019,7 @@ Section rules.
       destruct!/=.
       rewrite !app_nil_r in H'.
       eapply f_equal in H'.
-      erewrite !list_lookup_insert in H'; try done.
+      erewrite !list_lookup_insert_eq in H'; try done.
       by simplify_eq.
     - simpl.
       iIntros (?????[a ?]).
@@ -4113,7 +4111,7 @@ Section rules.
       destruct!/=.
       rewrite !app_nil_r in H'.
       eapply f_equal in H'.
-      erewrite !list_lookup_insert in H'; try done.
+      erewrite !list_lookup_insert_eq in H'; try done.
       by simplify_eq.
     - simpl.
       iIntros (?????[a ?]).

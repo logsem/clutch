@@ -1,7 +1,7 @@
 From Stdlib Require Export Reals Psatz.
 
 From iris.base_logic.lib Require Export fancy_updates own.
-From iris.proofmode Require Import base tactics classes.
+From iris.proofmode Require Import base proofmode classes.
 From iris.algebra Require Import excl auth.
 From iris.prelude Require Import options.
 
