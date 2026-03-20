@@ -1,6 +1,11 @@
 From stdpp Require Import countable fin_maps finite gmap option.
 From clutch.prelude Require Import classical.
 
+(* TODO remove this once https://gitlab.mpi-sws.org/iris/stdpp/-/merge_requests/692 is released as part of
+   rocq-stdpp.1.13.1 *)
+Global Hint Extern 0 (Inj _ _ (@existT ?A ?B ?a)) =>
+  simple apply (@existT_inj_2 A B a) : typeclass_instances.
+
 Section base.
   Global Instance negb_inj : Inj (=) (=) negb.
   Proof. intros [] []; auto. Qed.
