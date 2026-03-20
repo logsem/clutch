@@ -74,7 +74,7 @@ Inductive SamplesOneTapeItem (t : loc) : ectx_item -> Prop :=
   | SamplesOneTapeItemCaseCtx e1 e2 : SamplesOneTape t e1 -> SamplesOneTape t e2 -> SamplesOneTapeItem t (CaseCtx e1 e2)
   (* | SamplesOneTapeLaplaceNumCtx v1 v2 : SamplesOneTapeV t v1 -> SamplesOneTapeV t v2 -> SamplesOneTapeItem t (LaplaceNumCtx v1 v2)
      | SamplesOneTapeLaplaceDenCtx e1 v3 : SamplesOneTape t e1 -> SamplesOneTapeV t v3 -> SamplesOneTapeItem t (LaplaceDenCtx e1 v3) *)
-  (* | SamplesOneTapeLaplaceLocCtx  *)
+  (* | SamplesOneTapeLaplaceMeanCtx  *)
   | SamplesOneTapeItemTickCtx : SamplesOneTapeItem t TickCtx.
 
 Lemma SamplesOneTape_fill_item Ki e l :
@@ -236,6 +236,17 @@ Proof.
   auto; inversion H. 
 Qed.
 
+Lemma SamplesOneTape_head_step_tapes_laplace l e σ v t e' σ':
+  SamplesOneTape l e ->
+  σ.(tapes) !! l = Some (2%nat; v :: t) ->
+  head_step e σ (e', σ') > 0 ->
+  σ'.(tapes_laplace) = σ.(tapes_laplace).
+Proof.
+  intros.
+  destruct e; inv_head_step;
+  auto; inversion H.
+Qed.
+
 Lemma SamplesOneTape_step_det l e σ v t e' σ':
   SamplesOneTape l e ->
   σ.(tapes) !! l = Some (2%nat; v :: t) ->
@@ -298,6 +309,25 @@ Proof.
   apply dmap_pos in H1 as [(e1 & σ1) (?&?)].
   inversion H1; subst.
   eapply SamplesOneTape_head_step_heap. 
+  - eapply SamplesOneTape_decomp'; eauto.
+  - eauto.
+  - eauto.
+Qed.
+
+Lemma SamplesOneTape_step_tapes_laplace l e σ v t e' σ':
+  SamplesOneTape l e ->
+  σ.(tapes) !! l = Some (2%nat; v :: t) ->
+  step (e, σ) (e', σ') > 0 ->
+  σ'.(tapes_laplace) = σ.(tapes_laplace) .
+Proof.
+  rewrite /step.
+  simpl. rewrite /prim_step.
+  intros. simpl in *.
+  destruct (decomp e) eqn : Hde.
+  rewrite Hde in H1.
+  apply dmap_pos in H1 as [(e1 & σ1) (?&?)].
+  inversion H1; subst.
+  eapply SamplesOneTape_head_step_tapes_laplace.
   - eapply SamplesOneTape_decomp'; eauto.
   - eauto.
   - eauto.

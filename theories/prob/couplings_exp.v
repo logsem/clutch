@@ -5,7 +5,7 @@ From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
 From clutch.prob Require Export countable_sum distribution couplings graded_predicate_lifting.
 
-Open Scope R.
+Local Open Scope R.
 
 
 Section couplings.

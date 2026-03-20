@@ -83,12 +83,12 @@ Section diffpriv.
 
   Fact hoare_laplace_diffpriv (num den : Z) :
     ⌜0 < IZR num / IZR den⌝ -∗
-    hoare_diffpriv (λ: "loc", Laplace #num #den "loc")%V ((IZR num / IZR den)) 0 dZ Z.
+    hoare_diffpriv (λ: "loc", Laplace #num #den "loc" #())%V ((IZR num / IZR den)) 0 dZ Z.
   Proof.
     iIntros. rewrite /hoare_diffpriv/dZ /=. iIntros (K c x x' adj).
     iIntros (φ) "!> [f' [ε δ]] hφ".
     tp_pures. wp_pures.
-    tp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _).
     iApply (hoare_couple_laplace _ _ 0%Z with "[$f' ε]") => //.
     2: setoid_rewrite Z.add_0_r ; iNext ; iIntros ; iApply "hφ" ; iFrame ; done.
     iFrame. iApply ecm_weaken. 2: iFrame.
@@ -148,14 +148,14 @@ Section diffpriv.
 
   Corollary laplace_sensitive_comp_strict (f : val) (num den : Z) (_ : 0 < IZR num / IZR den) c `(dA : Distance A) (c_pos : 0 <= c) :
     hoare_sensitive f c dA dZ -∗
-    hoare_diffpriv (λ:"x", (λ:"loc", Laplace #num #den "loc")%V (f "x"))%V
+    hoare_diffpriv (λ:"x", (λ:"loc", Laplace #num #den "loc" #())%V (f "x"))%V
       (c*(IZR num / IZR den)) 0 dA A.
   Proof.
     iIntros "hf".
     set (ε := (IZR num / IZR den)).
     replace 0%R with (c * 0) by lra.
     iPoseProof (diffpriv_sensitive_strict_comp
-                  f (λ: "loc", Laplace #num #den "loc")%V
+                  f (λ: "loc", Laplace #num #den "loc" #())%V
                   ε 0 with "hf") as "Hf" => //.
     iPoseProof (hoare_laplace_diffpriv num den with "[]") as "hg" => //.
     fold ε.
@@ -172,14 +172,14 @@ Section diffpriv.
 
   Corollary laplace_sensitive_comp (f : val) (num den : Z) (_ : 0 < IZR num / IZR den) c `(dA : Distance A) (c_pos : 0 <= c) :
     hoare_sensitive f c dA dZ -∗
-    hoare_diffpriv_classic (λ:"x", (λ:"loc", Laplace #num #den "loc")%V (f "x"))%V
+    hoare_diffpriv_classic (λ:"x", (λ:"loc", Laplace #num #den "loc" #())%V (f "x"))%V
       (c*(IZR num / IZR den)) 0 dA A.
   Proof.
     iIntros "#hf".
     set (ε := (IZR num / IZR den)).
     replace 0%R with (c * 0) by lra.
     iPoseProof (diffpriv_sensitive_strict_comp
-                  f (λ: "loc", Laplace #num #den "loc")%V
+                  f (λ: "loc", Laplace #num #den "loc" #())%V
                   ε 0 with "hf") as "Hf" => // ; iClear "hf".
     iSpecialize ("Hf" with "[]").
     { iIntros (?) "** % !> (rhs&ε&δ) hk".
@@ -204,14 +204,14 @@ Section diffpriv.
   (* this is called internal metric composition in the paper *)
   Corollary laplace_sensitive_comp_alt (f : val) (num den : Z) (div_pos : 0 < IZR num / IZR den) (cnum cden : Z) c `(dA : Distance A) (c_pos : 0 < c) (hc : c = (IZR cnum / IZR cden)) :
     hoare_sensitive f c dA dZ -∗
-    hoare_diffpriv_classic (λ:"x", (λ:"loc", Laplace #(num * cden) #(den * cnum) "loc")%V (f "x"))
+    hoare_diffpriv_classic (λ:"x", (λ:"loc", Laplace #(num * cden) #(den * cnum) "loc" #())%V (f "x"))
       ((IZR num / IZR den)) 0 dA Z.
   Proof.
     iIntros "#hf".
     set (ε := (IZR num / IZR den)).
     replace 0%R with (c * 0) by lra.
     iPoseProof (diffpriv_sensitive_strict_comp
-                  f (λ: "loc", Laplace #(num * cden) #(den * cnum) "loc")
+                  f (λ: "loc", Laplace #(num * cden) #(den * cnum) "loc" #())
                   (ε/c) 0 with "hf") as "Hf" => // ; [|iClear "hf"].
     1: lra.
     rewrite hc in c_pos.

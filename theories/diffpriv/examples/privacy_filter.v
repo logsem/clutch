@@ -36,7 +36,7 @@ Definition create_filter : val :=
   "try_run".
 
 Definition laplace : val :=
-  λ:"eps" "mean", Laplace (Fst "eps") (Snd "eps") "mean".
+  λ:"eps" "mean", Laplace (Fst "eps") (Snd "eps") "mean" #().
 
 (* fix evaluation order to be head before tail. makes the induction easier. *)
 Definition list_map : val :=
@@ -382,7 +382,7 @@ Section adaptive.
       1-2: iPureIntro ; lia.
       + iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...
         rewrite /laplace...
-        tp_bind (Laplace _ _ _) ; wp_bind (Laplace _ _ _).
+        tp_bind (Laplace _ _ _ _) ; wp_bind (Laplace _ _ _ _).
         iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
         1: real_solver.
         iNext. iIntros (count_precise_1) "rhs" ; simpl... rewrite Z.add_0_r.
@@ -393,7 +393,7 @@ Section adaptive.
         iApply ("run_dp" $! _ _ _ _ _ ⌜True⌝%I with "[] [] [-Hpost] [Hpost]") ; iFrame.
         1-2: iPureIntro ; lia.
         * iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...
-          tp_bind (Laplace _ _ _) ; wp_bind (Laplace _ _ _).
+          tp_bind (Laplace _ _ _ _) ; wp_bind (Laplace _ _ _ _).
           iApply (hoare_couple_laplace _ _ 0 with "[$rhs $eps]") => //.
           1: real_solver.
           iNext. iIntros (count_precise_2) "rhs" ; simpl. rewrite Z.add_0_r.

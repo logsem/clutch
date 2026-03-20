@@ -17,7 +17,7 @@ homepage: "https://github.com/logsem/clutch"
 bug-reports: "https://github.com/logsem/clutch/issues"
 depends: [
   "dune" {>= "3.17"}
-  "ocaml"
+  "ocaml" {>= "5.4.0" & < "5.5~"}
   "rocq-core" {>= "9.0.0" & < "9.1~"}
   "rocq-stdlib" {>= "9.0.0" & < "9.1~"}
   "coq-iris" {= "4.4.0"}

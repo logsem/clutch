@@ -48,9 +48,10 @@ Inductive expr :=
   | Store (e1 : expr) (e2 : expr)
   (* Probabilistic choice *)
   | AllocTape (e : expr)
+  | AllocTapeLaplace (e : expr) (e : expr) (e : expr)
   | Rand (e1 e2 : expr)
-  (* Sample from discrete Laplace distribution, with scale e1/e2, located at e3 *)
-  | Laplace (e1 : expr) (e2 : expr) (e3 : expr)
+  (* Sample from discrete Laplace distribution, with scale e1/e2, located at e3, with tape e4 *)
+  | Laplace (e1 : expr) (e2 : expr) (e3 : expr) (e4 : expr)
   (* No-op operator used for cost *)
   | Tick (e : expr)
 with val :=
@@ -127,21 +128,74 @@ Definition vals_compare_safe (vl v1 : val) : Prop :=
 Global Arguments vals_compare_safe !_ !_ /.
 
 Definition tape := { n : nat & list (fin (S n)) }.
+Variant tape_laplace :=
+  Tape_Laplace (num den mean : Z) (tape_content : list Z).
 
 Global Instance tape_inhabited : Inhabited tape := populate (existT 0%nat []).
 Global Instance tape_eq_dec : EqDecision tape. Proof. apply _. Defined.
-Global Instance tape_countable : EqDecision tape. Proof. apply _. Qed.
+Global Instance tape_countable : Countable tape. Proof. apply _. Qed.
 
 Global Instance tapes_lookup_total : LookupTotal loc tape (gmap loc tape).
 Proof. apply map_lookup_total. Defined.
 Global Instance tapes_insert : Insert loc tape (gmap loc tape).
 Proof. apply map_insert. Defined.
 
+Global Instance tape_laplace_inhabited : Inhabited tape_laplace := populate (Tape_Laplace 0 0 0 []).
+Global Instance tape_laplace_eq_dec : EqDecision tape_laplace. Proof. solve_decision. Defined.
+Global Instance tape_laplace_countable : Countable tape_laplace.
+Proof.
+  unshelve econstructor.
+  - intros []. exact (prod_encode (prod_encode (prod_encode (Z_countable.(encode) num) (Z_countable.(encode) den)) (Z_countable.(encode) mean)) (encode tape_content)).
+  - intros p.
+    exact
+      ( match prod_decode_fst p with
+        | None => None
+        | Some num_den_mean =>
+            match prod_decode_fst num_den_mean with
+            | None => None
+            | Some num_den =>
+                match prod_decode_fst num_den with
+                | None => None
+                | Some num =>
+                    match prod_decode_snd num_den with
+                    | Some den =>
+                        match prod_decode_snd num_den_mean with
+                        | Some mean =>
+                            match prod_decode_snd p with
+                            | Some tape_content =>
+                                match (Z_countable.(decode) num, Z_countable.(decode) den, Z_countable.(decode) mean, decode tape_content) with
+                                | (Some num, Some den, Some mean, Some tape_content) =>
+                                    Some $ Tape_Laplace num den mean tape_content
+                                | _ => None
+                                end
+                            | None => None
+                            end
+                        | None => None
+                        end
+                    | None => None
+                    end
+                end
+            end
+        end ).
+    - simpl. intros [].
+      rewrite !prod_decode_encode_fst !prod_decode_encode_snd !decode_encode.
+      f_equal. f_equal.
+      + destruct num ; done.
+      + destruct den ; done.
+      + destruct mean ; done.
+Qed.
+
+Global Instance tapes_laplace_lookup_total : LookupTotal loc tape_laplace (gmap loc tape_laplace).
+Proof. apply map_lookup_total. Defined.
+Global Instance tapes_laplace_insert : Insert loc tape_laplace (gmap loc tape_laplace).
+Proof. apply map_insert. Defined.
+
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes of
     booleans. *)
 Record state : Type := {
   heap  : gmap loc val;
-  tapes : gmap loc tape
+  tapes : gmap loc tape;
+  tapes_laplace : gmap loc tape_laplace
 }.
 
 (** Equality and other typeclass stuff *)
@@ -188,8 +242,9 @@ Proof.
      | Store e1 e2, Store e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | AllocTape e, AllocTape e' => cast_if (decide (e = e'))
+     | AllocTapeLaplace e1 e2 e3, AllocTapeLaplace e1' e2' e3' => cast_if_and3 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3'))
      | Rand e1 e2, Rand e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | Laplace e1 e2 e3, Laplace e1' e2' e3' => cast_if_and3 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3'))
+     | Laplace e1 e2 e3 e4, Laplace e1' e2' e3' e4' => cast_if_and4 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3')) (decide (e4 = e4'))
      | Tick e, Tick e' => cast_if (decide (e = e'))
      | _, _ => right _
      end
@@ -266,9 +321,10 @@ Proof.
      | Load e => GenNode 13 [go e]
      | Store e1 e2 => GenNode 14 [go e1; go e2]
      | AllocTape e => GenNode 15 [go e]
-     | Rand e1 e2 => GenNode 16 [go e1; go e2]
-     | Laplace e1 e2 e3 => GenNode 17 [go e1; go e2; go e3]
-     | Tick e => GenNode 18 [go e]
+     | AllocTapeLaplace e1 e2 e3 => GenNode 16 [go e1; go e2; go e3]
+     | Rand e1 e2 => GenNode 17 [go e1; go e2]
+     | Laplace e1 e2 e3 e4 => GenNode 18 [go e1; go e2; go e3; go e4]
+     | Tick e => GenNode 19 [go e]
      end
    with gov v :=
      match v with
@@ -300,9 +356,10 @@ Proof.
      | GenNode 13 [e] => Load (go e)
      | GenNode 14 [e1; e2] => Store (go e1) (go e2)
      | GenNode 15 [e] => AllocTape (go e)
-     | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
-     | GenNode 17 [e1; e2; e3] => Laplace (go e1) (go e2) (go e3)
-     | GenNode 18 [e] => Tick (go e)
+     | GenNode 16 [e1; e2; e3] => AllocTapeLaplace (go e1) (go e2) (go e3)
+     | GenNode 17 [e1; e2] => Rand (go e1) (go e2)
+     | GenNode 18 [e1; e2; e3; e4] => Laplace (go e1) (go e2) (go e3) (go e4)
+     | GenNode 19 [e] => Tick (go e)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -317,19 +374,22 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
      [exact (gov v)|done..].
  - destruct v; by f_equal.
 Qed.
 Global Instance val_countable : Countable val.
 Proof. refine (inj_countable of_val to_val _); auto using to_of_val. Qed.
+
 Global Program Instance state_countable : Countable state :=
-  {| encode σ := encode (σ.(heap), σ.(tapes));
-     decode p := '(h, t) ← decode p; mret {|heap:=h; tapes:=t|} |}.
-Next Obligation. intros [h t]. rewrite decode_encode //=. Qed.
+  {| encode σ := encode (σ.(heap), σ.(tapes), σ.(tapes_laplace));
+     decode p := match decode p : option (_ * _ * _) with
+                 | Some (h, t, tl) => Some {|heap:=h; tapes:=t; tapes_laplace:=tl|}
+                 | None => None end |}.
+Next Obligation. intros [h t tl]. rewrite decode_encode //=. Qed.
 
 Global Instance state_inhabited : Inhabited state :=
-  populate {| heap := inhabitant; tapes := inhabitant |}.
+  populate {| heap := inhabitant; tapes := inhabitant; tapes_laplace := inhabitant |}.
 Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
 
@@ -359,11 +419,15 @@ Inductive ectx_item :=
   | StoreLCtx (v2 : val)
   | StoreRCtx (e1 : expr)
   | AllocTapeCtx
+  | AllocTapeLaplaceNumCtx (v2 : val) (v3 : val)
+  | AllocTapeLaplaceDenCtx (e1 : expr) (v3 : val)
+  | AllocTapeLaplaceMeanCtx (e1 : expr) (e2 : expr)
   | RandLCtx (v2 : val)
   | RandRCtx (e1 : expr)
-  | LaplaceNumCtx (v2 : val) (v3 : val)
-  | LaplaceDenCtx (e1 : expr) (v3 : val)
-  | LaplaceLocCtx (e1 : expr) (e2 : expr)
+  | LaplaceNumCtx (v2 : val) (v3 : val) (v4 : val)
+  | LaplaceDenCtx (e1 : expr) (v3 : val) (v4 : val)
+  | LaplaceMeanCtx (e1 : expr) (e2 : expr) (v4 : val)
+  | LaplaceTapeCtx (e1 : expr) (e2 : expr) (e3 : expr)
   | TickCtx.
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
@@ -387,11 +451,15 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | StoreLCtx v2 => Store e (Val v2)
   | StoreRCtx e1 => Store e1 e
   | AllocTapeCtx => AllocTape e
+  | AllocTapeLaplaceNumCtx v2 v3 => AllocTapeLaplace e (Val v2) (Val v3)
+  | AllocTapeLaplaceDenCtx e1 v3 => AllocTapeLaplace e1 e (Val v3)
+  | AllocTapeLaplaceMeanCtx e1 e2 => AllocTapeLaplace e1 e2 e
   | RandLCtx v2 => Rand e (Val v2)
   | RandRCtx e1 => Rand e1 e
-  | LaplaceNumCtx v2 v3 => Laplace e (Val v2) (Val v3)
-  | LaplaceDenCtx e1 v3 => Laplace e1 e (Val v3)
-  | LaplaceLocCtx e1 e2 => Laplace e1 e2 e
+  | LaplaceNumCtx v2 v3 v4 => Laplace e (Val v2) (Val v3) (Val v4)
+  | LaplaceDenCtx e1 v3 v4 => Laplace e1 e (Val v3) (Val v4)
+  | LaplaceMeanCtx e1 e2 v4 => Laplace e1 e2 e (Val v4)
+  | LaplaceTapeCtx e1 e2 e3 => Laplace e1 e2 e3 e
   | TickCtx => Tick e
   end.
 
@@ -439,14 +507,27 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
       | Val v      => noval e1 (RandLCtx v)
       | _          => Some (RandRCtx e1, e2)
       end
-  | Laplace e1 e2 e3 =>
+  | AllocTapeLaplace e1 e2 e3 =>
       match e3 with
       | Val v3 =>
           match e2 with
-          | Val v2 => noval e1 (LaplaceNumCtx v2 v3)
-          | _ => Some (LaplaceDenCtx e1 v3, e2)
+          | Val v2 => noval e1 (AllocTapeLaplaceNumCtx v2 v3)
+          | _ => Some (AllocTapeLaplaceDenCtx e1 v3, e2)
           end
-      | _ => Some (LaplaceLocCtx e1 e2, e3)
+      | _ => Some (AllocTapeLaplaceMeanCtx e1 e2, e3)
+      end
+  | Laplace e1 e2 e3 e4 =>
+      match e4 with
+      | Val v4 =>
+          match e3 with
+          | Val v3 =>
+              match e2 with
+              | Val v2 => noval e1 (LaplaceNumCtx v2 v3 v4)
+              | _ => Some (LaplaceDenCtx e1 v3 v4, e2)
+              end
+          | _ => Some (LaplaceMeanCtx e1 e2 v4, e3)
+          end
+      | _ => Some (LaplaceTapeCtx e1 e2 e3, e4)
       end
   | Tick e         => noval e TickCtx
   | _              => None
@@ -473,8 +554,9 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Load e => Load (subst x v e)
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
   | AllocTape e => AllocTape (subst x v e)
+  | AllocTapeLaplace e1 e2 e3 => AllocTapeLaplace (subst x v e1) (subst x v e2) (subst x v e3)
   | Rand e1 e2 => Rand (subst x v e1) (subst x v e2)
-  | Laplace e1 e2 e3 => Laplace (subst x v e1) (subst x v e2) (subst x v e3)
+  | Laplace e1 e2 e3 e4 => Laplace (subst x v e1) (subst x v e2) (subst x v e3) (subst x v e4)
   | Tick e => Tick (subst x v e)
   end.
 
@@ -544,12 +626,16 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
     end.
 
 Definition state_upd_heap (f : gmap loc val → gmap loc val) (σ : state) : state :=
-  {| heap := f σ.(heap); tapes := σ.(tapes) |}.
+  {| heap := f σ.(heap); tapes := σ.(tapes); tapes_laplace := σ.(tapes_laplace) |}.
 Global Arguments state_upd_heap _ !_ /.
 
 Definition state_upd_tapes (f : gmap loc tape → gmap loc tape) (σ : state) : state :=
-  {| heap := σ.(heap); tapes := f σ.(tapes) |}.
+  {| heap := σ.(heap); tapes := f σ.(tapes); tapes_laplace := σ.(tapes_laplace) |}.
 Global Arguments state_upd_tapes _ !_ /.
+
+Definition state_upd_tapes_laplace (f : gmap loc tape_laplace → gmap loc tape_laplace) (σ : state) : state :=
+  {| heap := σ.(heap); tapes := σ.(tapes); tapes_laplace := f σ.(tapes_laplace) |}.
+Global Arguments state_upd_tapes_laplace _ !_ /.
 
 Lemma state_upd_tapes_twice σ l n xs ys :
   state_upd_tapes <[l:=(n; ys)]> (state_upd_tapes <[l:=(n; xs)]> σ) = state_upd_tapes <[l:=(n; ys)]> σ.
@@ -731,6 +817,9 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
   | AllocTape (Val (LitV (LitInt z))) =>
       let ι := fresh_loc σ1.(tapes) in
       dret (Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (Z.to_nat z; []) ]> σ1)
+  | AllocTapeLaplace (Val (LitV (LitInt num))) (Val (LitV (LitInt den))) (Val (LitV (LitInt loc))) =>
+      let ι := fresh_loc σ1.(tapes_laplace) in
+      dret (Val $ LitV $ LitLbl ι, state_upd_tapes_laplace <[ι := Tape_Laplace num den loc [] ]> σ1)
   (* Labelled sampling, conditional on tape contents *)
   | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
       match σ1.(tapes) !! l with
@@ -749,12 +838,22 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
             dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
       | None => dzero
       end
-  | Laplace (Val (LitV (LitInt num))) (Val (LitV (LitInt den))) (Val (LitV (LitInt loc))) =>
-      dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1))
-        (match decide (0 < IZR num / IZR den) with
-         | left εpos => laplace_rat num den loc εpos
-         | right _ => dret loc
-         end)
+  | Laplace (Val (LitV (LitInt num))) (Val (LitV (LitInt den))) (Val (LitV (LitInt loc))) (Val (LitV LitUnit)) =>
+      dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1)) (laplace_rat num den loc)
+  | Laplace (Val (LitV (LitInt num))) (Val (LitV (LitInt den))) (Val (LitV (LitInt loc))) (Val (LitV (LitLbl l))) =>
+      match σ1.(tapes_laplace) !! l with
+      | Some (Tape_Laplace num' den' loc' xs) =>
+          if (bool_decide ((num = num') ∧ (den = den') ∧ (loc = loc')))%Z then
+            match xs with
+            | x :: xs => dret (Val $ LitV $ LitInt $ x, state_upd_tapes_laplace <[l:=(Tape_Laplace num' den' loc' xs)]> σ1)
+            | [] => dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1)) (laplace_rat num den loc)
+            end
+          else
+            (* tape and laplace parameters mismatch; follow laplace args *)
+            dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1)) (laplace_rat num den loc)
+      | None => dzero
+      end
+
   | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1)
   | _ => dzero
   end.
@@ -774,6 +873,23 @@ Proof.
   rewrite bool_decide_eq_true_2; last first.
   { by apply elem_of_dom. }
   by rewrite (lookup_total_correct (tapes σ) α (N; ns)); last done.
+Qed.
+
+Definition state_step_laplace (σ1 : state) (α : loc) : distr state :=
+  if bool_decide (α ∈ dom σ1.(tapes_laplace)) then
+    let '(Tape_Laplace num den mean zs) := (σ1.(tapes_laplace) !!! α) in
+    dmap (λ z, state_upd_tapes_laplace (<[α := (Tape_Laplace num den mean (zs ++ [z]))]>) σ1) (laplace_rat num den mean)
+  else dzero.
+
+Lemma state_step_laplace_unfold σ α num den mean zs:
+  tapes_laplace σ !! α = Some (Tape_Laplace num den mean zs) ->
+  state_step_laplace σ α = dmap (λ z, state_upd_tapes_laplace (<[α := (Tape_Laplace num den mean (zs ++ [z]))]>) σ) (laplace_rat num den mean).
+Proof.
+  intros H.
+  rewrite /state_step_laplace.
+  rewrite bool_decide_eq_true_2; last first.
+  { by apply elem_of_dom. }
+  by rewrite (lookup_total_correct (tapes_laplace σ) α (Tape_Laplace num den mean zs)); last done.
 Qed.
 
 (** Basic properties about the language *)
@@ -848,6 +964,11 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   N = Z.to_nat z →
   head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ
     (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N; []) : tape]> σ)
+| AllocTapeLaplaceS num den mean σ l :
+  l = fresh_loc σ.(tapes_laplace) →
+  head_step_rel (AllocTapeLaplace (Val (LitV (LitInt num))) (Val (LitV (LitInt den))) (Val (LitV (LitInt mean)))) σ
+    (Val $ LitV $ LitLbl l) (state_upd_tapes_laplace <[l := Tape_Laplace num den mean []]> σ)
+
 | RandTapeS l z N n ns σ :
   N = Z.to_nat z →
   σ.(tapes) !! l = Some ((N; n :: ns) : tape)  →
@@ -863,13 +984,45 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   N ≠ M →
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
 
-| LaplaceS num den loc (z : Z) σ :
-  (0 < IZR num / IZR den) →
-  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt loc)) σ (Val $ LitV $ LitInt z) σ
+| LaplaceNoTapeS num den mean σ z :
+  ((0 < IZR num / IZR den) ∨ mean = z) →
+  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val $ LitV $ LitUnit)) σ (Val $ LitV $ LitInt z) σ
 
-| LaplaceS0 num den loc (z : Z) σ :
-  (not (0 < IZR num / IZR den)) →
-  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt loc)) σ (Val $ LitV $ LitInt loc) σ
+(* | LaplaceNoTapeS0 num den mean σ :
+     (not (0 < IZR num / IZR den)) →
+     head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val $ LitV $ LitUnit)) σ (Val $ LitV $ LitInt mean) σ *)
+
+| LaplaceTapeConsS num den mean lbl x xs σ :
+  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num den mean (x :: xs)) →
+  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+    (Val $ LitV $ LitInt $ x) (state_upd_tapes_laplace <[lbl := (Tape_Laplace num den mean xs)]> σ)
+
+| LaplaceTapeEmptyS num den mean lbl σ z :
+  ((0 < IZR num / IZR den) ∨ mean = z)
+  (* (0 < IZR num / IZR den) *) →
+  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num den mean []) →
+  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+    (Val $ LitV $ LitInt $ z) σ
+
+(* | LaplaceTapeEmptyS0 num den mean lbl σ :
+     (not (0 < IZR num / IZR den)) →
+     σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num den mean []) →
+     head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+       (Val $ LitV $ LitInt $ mean) σ *)
+
+| LaplaceTapeOtherS num den mean lbl num' den' mean' xs σ z :
+  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num' den' mean' xs) →
+  (not ((num = num') ∧ (den = den') ∧ (mean = mean'))) →
+  ((0 < IZR num / IZR den) ∨ mean = z) (* (0 < IZR num / IZR den) *) →
+  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+    (Val $ LitV $ LitInt $ z) σ
+
+(* | LaplaceTapeOtherS0 num den mean lbl num' den' mean' xs σ :
+     σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num' den' mean' xs) →
+     (not ((num = num') ∧ (den = den') ∧ (mean = mean'))) →
+     (not (0 < IZR num / IZR den)) →
+     head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+       (Val $ LitV $ LitInt $ mean) σ *)
 
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
@@ -887,6 +1040,11 @@ Global Hint Extern 1
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
+
+(* Global Hint Extern 1
+     (head_step_rel (Laplace (Val (LitV _)) (Val (LitV _)) (Val (LitV (LitInt ?mean))) (Val (LitV LitUnit))) _ _ _) =>
+            eapply (LaplaceNoTapeS _ _ _ _ _ mean) : head_step. *)
+
 
 Inductive state_step_rel : state → loc → state → Prop :=
 | AddTapeS α N (n : fin (S N)) ns σ :
@@ -910,8 +1068,12 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
 Proof.
   split.
-  - intros ?. destruct e1; inv_head_step ; eauto with head_step.
+  - intros ?. destruct e1; inv_head_step ; try by eauto with head_step.
+    + econstructor ; inv_distr ; intuition simplify_eq ; eauto.
+    + econstructor ; inv_distr ; intuition simplify_eq ; eauto.
+    + intuition simplify_eq. econstructor. done.
   - inversion 1; simplify_map_eq/= ; try case_bool_decide ; try case_decide ; simplify_eq; solve_distr; try done.
+    all: intuition auto.
 Qed.
 
 Lemma state_step_support_equiv_rel σ1 α σ2 :
@@ -925,6 +1087,19 @@ Proof.
     rewrite bool_decide_eq_true_2 // H1. solve_distr.
 Qed.
 
+Ltac solve_distr :=
+  repeat
+    match goal with
+    | |- (dret _).(pmf) _ > 0 => rewrite dret_1_1 //; lra
+    | |- (dret ?x).(pmf) ?x = 1 => by apply dret_1_1
+    | |- (dbind _ _).(pmf) _ > 0 => apply dbind_pos; eexists; split
+    | |- (dmap _ _).(pmf) _ > 0 =>
+        apply dmap_pos; eexists; (split; [done|]); try done
+    | |- (dunifP _).(pmf) _ > 0 => apply dunifP_pos
+    | |- (dunifv _ _).(pmf) _ > 0 => apply dunifv_pos
+    | |- (d_proj_Some _).(pmf) _ > 0 => rewrite d_proj_Some_pos
+    end.
+
 Lemma state_step_head_step_not_stuck e σ σ' α :
   state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
 Proof.
@@ -932,17 +1107,34 @@ Proof.
   inversion_clear 1.
   split; intros [[e2 σ2] Hs].
   (* TODO: the sub goals used to be solved by [simplify_map_eq]  *)
-  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert in H11. done.
-      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert in H11. done.
-      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert in H10. done.
-      * rewrite lookup_insert_ne // in H10. rewrite H10 in H7. done.
-  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
+  - destruct e; inv_head_step; ( (eexists; solve_distr)) ; try done.
+    all: try rewrite dzero_0.
+    4-9: eapply laplace_rat_pos ; eauto.
+    + exfalso.
+      destruct (decide (α = l1)) ; simplify_eq.
+      * eapply (Some_ne_None ((_; _) : tape)).
+        rewrite -H11. simplify_map_eq. done.
+      * eapply (Some_ne_None ((_; _) : tape)).
+        rewrite -H11.
+        rewrite lookup_insert_ne => //.
+    + exfalso.
+      destruct (decide (α = l1)) ; simplify_eq.
+      * eapply (Some_ne_None ((_; _) : tape)).
+        rewrite -H11. simplify_map_eq. done.
+      * eapply (Some_ne_None ((_; _) : tape)).
+        rewrite -H11.
+        rewrite lookup_insert_ne => //.
+    + exfalso.
+      destruct (decide (α = l1)) ; simplify_eq.
+      * eapply (Some_ne_None ((_; _) : tape)).
+        rewrite -H10. simplify_map_eq. done.
+      * eapply (Some_ne_None ((_; _) : tape)).
+        rewrite -H10.
+        rewrite lookup_insert_ne => //.
+  - destruct e; inv_head_step; try ((eexists; solve_distr)) ; try done.
+    all: try rewrite dzero_0.
+    4-9: eapply laplace_rat_pos ; eauto.
+
     + destruct (decide (α = l1)); simplify_eq.
       * apply not_elem_of_dom_2 in H11. done.
       * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done.
@@ -954,6 +1146,9 @@ Proof.
       * rewrite lookup_insert // in H7.
         apply not_elem_of_dom_2 in H10. done.
       * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done.
+        Unshelve.
+        all: try apply (0%fin).
+        all: apply ((of_val $ LitV LitUnit), σ).
 Qed.
 
 Lemma state_step_mass σ α :
@@ -998,8 +1193,9 @@ Fixpoint height (e : expr) : nat :=
   | Load e => 1 + height e
   | Store e1 e2 => 1 + height e1 + height e2
   | AllocTape e => 1 + height e
+  | AllocTapeLaplace e1 e2 e3 => 1 + height e1 + height e2 + height e3
   | Rand e1 e2 => 1 + height e1 + height e2
-  | Laplace e1 e2 e3 => 1 + height e1 + height e2 + height e3
+  | Laplace e1 e2 e3 e4 => 1 + height e1 + height e2 + height e3 + height e4
   | Tick e => 1 + height e
   end.
 

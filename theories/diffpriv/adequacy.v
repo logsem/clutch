@@ -24,13 +24,47 @@ Section adequacy.
     iRevert (σ1 e1' σ1' ε δ).
     iApply spec_coupl_ind.
     iIntros "!>" (σ1 e1' σ1' ε δ)
-      "[boo|(%T & %μ1 & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & % & % & %Hμ1 & %Hμ1' & H)] HZ";
-      [by iMod ("HZ" with "[$]") |].
-    iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-    { iPureIntro. intros h. eapply DPcoupl_erasure_rewritable_rhs. 8: apply h. all: eauto. }
-    iIntros (σ2 (e2', σ2') HT).
-    iMod ("H" with "[//]") as "[H _]".
-    by iApply "H".
+      "[% | [boo | [(%T & %μ1 & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & % & % & %Hμ1 & %Hμ1' & H)
+              |(%T & %k & %μ1 & %μ1' & %δ' & %X2 & %r & % & % & % & %Hμ1 & %Hμ1' & H) ]]] HZ";
+      [ | by iMod ("HZ" with "[$]") | |].
+    - iApply step_fupdN_intro; [done|].
+      do 2 iModIntro. iPureIntro. by apply DPcoupl_1.
+    - iApply (step_fupdN_mono _ _ _ ⌜_⌝).
+      { iPureIntro. intros h. eapply DPcoupl_erasure_rewritable_rhs. 8: apply h. all: eauto. }
+      iIntros (σ2 (e2', σ2') HT).
+      iMod ("H" with "[//]") as "[H _]".
+      by iApply "H".
+    - iApply (step_fupdN_mono _ _ _ ⌜_⌝).
+      { iPureIntro. intros h.
+        opose proof (ARcoupl_to_DPcoupl _ _ _ _ _) .
+        1: exact H.
+        (* should be possible to assume δ' = 0 here, judging from how spec_coupl_erasables_exp is used in coupling_rules. *)
+        (* eapply (DPcoupl_erasure_erasable_exp_rhs 0 δ' _ _ _ ε _ _ _ _ _ _ ε δ r m k).
+           8: apply h. all: eauto.
+           Unshelve.
+           1: lra.
+           apply cond_nonneg.
+         *)
+        eapply (DPcoupl_erasure_erasable_exp_rhs_specialized).
+        7: apply h. all: eauto.
+
+        (* (* eapply ARcoupl_to_DPcoupl. *)
+           eapply (DPcoupl_erasure_erasable_rhs _ _ ε 0 ε
+                     δ
+                     (Expval (μ1' ≫= λ σ2' : language.state prob_lang, pexec k (e1', σ2'))
+                     (λ x : mstate (lang_markov prob_lang), X2 x))
+                     δ'
+                  ). 8: apply h. all: eauto.
+           1: lra.
+           1: by (eapply Expval_ge_0' ; intros ; apply cond_nonneg).
+           1: by apply cond_nonneg.
+           (* 2: by eapply rewritable_erasable. *) *)
+        (* done. *)
+      }
+      iIntros (σ2 e2' σ2' HT).
+      (* opose proof (ARcoupl_to_DPcoupl _ _ _ _ H) . *)
+      iMod ("H" with "[//]") as "[H _]".
+      by iApply "H".
   Qed.
 
   Lemma wp_adequacy_prog_coupl n m e1 σ1 e1' σ1' Z φ ε δ :
@@ -155,15 +189,16 @@ Proof.
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (ghost_map_alloc σ.(tapes_laplace)) as "[%γTL [Htl _]]".
   iMod spec_ra_init as (HspecGS) "(Hs & Hj & ?)".
   set ε' := mknonnegreal _ Heps.
   iMod (ecm_alloc ε') as (?) "[HE He]".
   destruct (decide (δ < 1)) as [? | Hnlt%Rnot_lt_le].
   - set δ' := mknonnegreal _ Hdel.
     iMod (ec_alloc δ') as (?) "[HD Hd]"; [done|].
-    set (HdiffprivGS := HeapG Σ _ _ _ γH γT HspecGS _).
+    set (HdiffprivGS := HeapG Σ _ _ _ _ γH γT γTL HspecGS _).
     iApply (wp_adequacy_step_fupdN ε' δ').
-    iFrame "Hh Ht Hs HE HD".
+    iFrame "Hh Ht Htl Hs HE HD".
     by iApply (Hwp with "[Hj] [He] [Hd]").
   - iApply fupd_mask_intro; [done|]; iIntros "_".
     iApply step_fupdN_intro; [done|]; iModIntro.
@@ -181,24 +216,37 @@ Proof.
   by eapply wp_adequacy_exec_n.
 Qed.
 
-(* Corollary wp_adequacy_error_lim Σ `{diffprivGpreS Σ} (e e' : expr) (σ σ' : state) (ε : R) φ :
-     0 <= ε →
-     (∀ `{diffprivGS Σ} (ε' : R),
-         ε < ε' → ⊢ ⤇ e' -∗ ↯ ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
-     Mcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
-   Proof.
-     intros ? Hwp.
-     apply Mcoupl_limit.
-     intros ε' Hineq.
-     assert (0 <= ε') as Hε'.
-     { trans ε; [done|lra]. }
-     pose (mknonnegreal ε' Hε') as NNRε'.
-     assert (ε' = (NNRbar_to_real (NNRbar.Finite NNRε'))) as Heq; [done|].
-     rewrite Heq.
-     eapply wp_adequacy; [done|done|].
-     iIntros (?).
-     by iApply Hwp.
-   Qed. *)
+Lemma DPcoupl_limit `{Countable A, Countable B} μ1 μ2 ε δ (ψ : A -> B -> Prop):
+  (forall δ', δ' > δ -> DPcoupl μ1 μ2 ψ ε δ') -> DPcoupl μ1 μ2 ψ ε δ.
+Proof.
+  rewrite /DPcoupl.
+  intros Hlimit. intros.
+  apply real_le_limit.
+  intros δ0 ?. rewrite Rcomplements.Rle_minus_l.
+  rewrite Rplus_assoc.
+  apply Hlimit; try done.
+  lra.
+Qed.
+
+Corollary wp_adequacy_error_lim Σ `{diffprivGpreS Σ} (e e' : expr) (σ σ' : state) (ε δ : R) φ :
+  0 <= ε →
+  0 <= δ →
+  (∀ `{diffprivGS Σ} (δ' : R),
+      δ < δ' → ⊢ ⤇ e' -∗ ↯m ε -∗ ↯ δ' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  DPcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε δ.
+Proof.
+  intros ?? Hwp.
+  apply DPcoupl_limit.
+  intros δ' Hineq.
+  assert (0 <= δ') as Hδ'.
+  { trans δ; [done|lra]. }
+  pose (mknonnegreal δ' Hδ') as NNRδ'.
+  assert (δ' = (NNRbar_to_real (NNRbar.Finite NNRδ'))) as Heq; [done|].
+  rewrite Heq.
+  eapply wp_adequacy; [done|done|done|..].
+  iIntros (?).
+  by iApply Hwp.
+Qed.
 
 Corollary wp_adequacy_mass Σ `{!diffprivGpreS Σ} (e e' : expr) (σ σ' : state) φ (ε δ : R) :
   0 <= ε → 0 <= δ ->

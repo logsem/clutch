@@ -362,7 +362,7 @@ Section map.
 
 End map.
 
-(* Section map_rel.
+Section map_rel.
 
        Context `{!diffprivRGS Σ}.
 
@@ -439,4 +439,4 @@ End map.
          by iApply ("Hlog" with "[$]").
        Qed.
 
-   End map_rel. *)
+   End map_rel.

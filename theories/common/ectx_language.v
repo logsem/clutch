@@ -431,6 +431,26 @@ Section ectx_language.
     by simplify_eq; rewrite fill_empty.
   Qed.
 
+  (** Stronger lemma of prim_step_iff*)
+  Lemma prim_step_iff' e1 σ1:
+    (∃ x, prim_step e1 σ1 x > 0) ->
+    ∃ K e1', fill K e1' = e1 /\
+             (∃ x, head_step e1' σ1 x > 0) /\
+             prim_step e1 σ1 =
+             dmap (fill_lift K) (head_step e1' σ1).
+  Proof.
+    intros [[] H].
+    rewrite prim_step_iff in H.
+    destruct H as (K&e1'&e2'&<-&<-&H).
+    eexists _, _.
+    split; first done.
+    split; first naive_solver.
+    rewrite fill_prim_step_dbind.
+    - erewrite head_prim_step_eq; first done.
+      by eexists _.
+    - by eapply val_head_stuck.
+  Qed. 
+  
   Lemma not_head_reducible_dzero e σ :
     head_irreducible e σ → head_step e σ = dzero.
   Proof.

@@ -1,0 +1,683 @@
+From iris.proofmode Require Import base proofmode.
+From iris.bi Require Export lib.fixpoint_mono big_op.
+From iris.base_logic.lib Require Import ghost_map invariants fancy_updates.
+From iris.algebra Require Import excl.
+From iris.prelude Require Import options.
+From Coquelicot Require Import Rbar Lim_seq.
+
+From clutch.prelude Require Import stdpp_ext iris_ext.
+From clutch.delay_prob_lang Require Import notation metatheory urn_subst commute urn_erasable.
+From clutch.common Require Export language.
+From clutch.base_logic Require Import error_credits.
+From clutch.elton Require Import weakestpre primitive_laws.
+From clutch.prob Require Import distribution.
+Import uPred.
+
+Set Default Proof Using "Type".
+  
+Section adequacy.
+  Context `{!eltonGS Σ}.
+  Lemma step_fupd_fupdN_S n (P : iProp Σ) :  ((|={∅}▷=>^(S n) P) ⊣⊢ (|={∅}=> |={∅}▷=>^(S n) P))%I.
+  Proof. iSplit; iIntros; simpl; iApply fupd_idemp; iFrame. Qed.
+  
+  Lemma pgl_dbind_adv' `{Countable A, Countable A'}
+    (f : A → distr A') (μ : distr A) (T : A' → Prop) ε' n :
+    ⌜ exists r, forall a, 0 <= ε' a <= r ⌝ -∗
+    (∀ a , |={∅}=> |={∅}▷=>^(n) ⌜pgl (f a) T (ε' a)⌝) -∗
+    |={∅}=> |={∅}▷=>^(n) ⌜pgl (dbind f μ) T ( Expval μ ε')⌝ : iProp Σ.
+  Proof.
+    iIntros (?) "H".
+    iApply (step_fupdN_mono _ _ _ (⌜(∀ a, pgl (f a) T (ε' a))⌝)).
+    { iIntros (?). iPureIntro. rewrite <-Rplus_0_l. eapply pgl_dbind_adv; try done.
+      by apply pgl_trivial.
+    }
+    by iIntros (?) "/=".
+  Qed.
+
+  
+  Lemma wp_elton_adequacy_val (ε: nonnegreal) e σ ϕ n m (v:val):
+    to_val e = Some v ->
+    is_well_constructed_expr e = true ->
+    expr_support_set e ⊆ urns_support_set (urns σ) ->
+    map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
+    map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
+    state_interp σ ∗ err_interp (ε) ∗ wp' ∅ e (λ v, |={∅,⊤}=>⌜is_simple_val v = true /\ ϕ v⌝) ⊢
+    |={∅}=>|={∅}▷=>^n ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+                       d_proj_Some (urn_subst_expr f e) ≫= λ e',
+                         d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+                           exec n (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
+  Proof.
+    iIntros (<-%of_to_val He Hset Hforall1 Hforall2) "(?&?&Hwp)".
+    rewrite wp'_unfold /pgl_wp_pre.
+    iMod ("Hwp" with "[$]") as "H"; simpl.
+    remember (Val v) as e eqn:Heqe.
+    iRevert (Hset Hforall1 Hforall2).
+    rewrite Heqe in He.
+    iRevert (v Heqe He).
+    iRevert "H".
+    iRevert (e σ ε).
+    iApply state_step_coupl_ind.
+    iModIntro.
+    iIntros (???) "[%|[H|[H|[H|H]]]] %v -> %He %Hset %Hforall1 %Hforall2"; subst.
+    - iApply step_fupdN_intro; first done.
+      iPureIntro. by apply pgl_1.
+    - simpl. iMod "H" as "(?&?&>[%Hsimple %])".
+      iApply step_fupdN_intro; first done.
+      iApply fupd_mask_intro; first set_solver.
+      iIntros.
+      iNext. 
+      iPureIntro.
+      apply pgl_dbind'; first done; intros f H1.
+      apply pgl_dbind'; first done; intros ? H2.
+      apply pgl_dbind'; first done; intros ? H3.
+      inv_distr.
+      rewrite bind_Some in H2.
+      destruct H2 as [?[H2 ?]].
+      simplify_eq.
+      erewrite exec_is_final; last done.
+      eapply pgl_mon_grading; last apply pgl_dret; first done.
+      eapply (is_simple_val_urn_subst f) in Hsimple.
+      rewrite Hsimple in H2.
+      by simplify_eq.
+    - iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        apply pgl_epsilon_limit; last exact.
+        by apply Rle_ge. 
+      }
+      iIntros (ε' ?).
+      unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]"; last first. 
+      + by iApply "H".
+      + done.
+      + pose proof cond_nonneg ε. lra.
+    - iDestruct "H" as "(%&%&%&%Hineq&%Herasable&H)".
+      rewrite -Herasable.
+      rewrite -dbind_assoc'.
+      iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        eapply pgl_mon_grading; first apply Hineq.
+        rewrite (Expval_support _ _ 1%R).
+        exact H'.
+      }
+      iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done].
+      { destruct H as [r H].
+        exists (Rmax r 1).
+        intros. case_bool_decide; split; try lra.
+        * done.
+        * etrans; last apply Rmax_l. naive_solver.
+        * apply Rmax_r. }
+      simpl.
+      iIntros (x).
+      case_bool_decide; last first.
+      { iModIntro.
+        iApply step_fupdN_intro; first done.
+        iPureIntro.
+        by apply pgl_1.
+      }
+      iDestruct ("H"$! x) as "H".
+      iMod ("H") as "[H _]".
+      simpl in *.
+      iApply "H"; first done; try done.
+      + iPureIntro.
+        by erewrite urn_erasable_same_support_set.
+      + iPureIntro.
+        eapply map_Forall_impl; first done.
+        simpl.
+        intros ?? H'.
+        etrans; first exact.
+        by erewrite <-urn_erasable_same_support_set.
+    - iDestruct "H" as "(%K&%v1&%v2&%H1&%H2&H3)".
+      iMod "H3" as "[H3 _]".
+      epose proof urns_f_distr_witness _ as [f H'].
+      apply H2 in H'.
+      unshelve epose proof fill_to_val K (Val v1) _ as ->; first by rewrite -H1.
+      simpl in *. simplify_eq. 
+      erewrite (distr_ext (dbind _ _)); first iApply "H3"; try done.
+      + iPureIntro.
+        apply is_simple_val_well_constructed.
+        by eapply urn_subst_val_is_simple.
+      + iPureIntro.
+        erewrite is_simple_val_support_set; first done.
+        by eapply urn_subst_val_is_simple.
+      + intros.
+        erewrite dbind_ext_right_strong; first done.
+        intros ??.
+        simpl.
+        apply dbind_ext_right'; first done.
+        rewrite H2; last done.
+        rewrite is_simple_val_urn_subst; first done.
+        by eapply urn_subst_val_is_simple.
+  Qed. 
+
+  
+  Lemma state_step_coupl_erasure (ε:nonnegreal) e σ ϕ n m Z:
+    is_well_constructed_expr e = true ->
+    expr_support_set e ⊆ urns_support_set (urns σ) ->
+    map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
+    map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
+    state_step_coupl e σ ε Z -∗
+    (∀ e2 σ2 ε2, Z e2 σ2 ε2 ={∅}=∗ |={∅}▷=>^(n)
+                               ⌜pgl (urns_f_distr (σ2.(urns)) ≫= λ f,
+                                       d_proj_Some (urn_subst_expr f e2) ≫= λ e',
+                                         d_proj_Some (urn_subst_heap f (σ2.(heap))) ≫= λ hm, 
+                                           exec (n) (e', {|heap:=hm; urns:=m|})) ϕ ε2⌝) -∗
+    |={∅}=> |={∅}▷=>^(n)
+             ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+                                       d_proj_Some (urn_subst_expr f e) ≫= λ e',
+                                         d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+                                           exec (n) (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
+  Proof.
+    iIntros (He Hset Hforall1 Hforall2) "H HZ".
+    iDestruct (state_step_coupl_preserve with "[$]") as "H"; try done.
+    iRevert (He Hset Hforall1 Hforall2).
+    iRevert "H HZ".
+    iRevert (e σ ε).
+    iApply state_step_coupl_ind.
+    iModIntro.
+    iIntros (???) "[%|[H|[H|[H|H]]]] HZ %He %Hset %Hforall1 %Hforall2".
+    - iApply step_fupdN_intro; first done.
+      iPureIntro. by apply pgl_1.
+    - iMod ("HZ" with "[H]"); last done.
+      iDestruct "H" as "(?&?&?&?&$)".
+    - iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        apply pgl_epsilon_limit; last exact.
+        apply Rle_ge.
+        apply cond_nonneg.
+      }
+      iIntros (ε' ?).
+      unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]"; last first. 
+      + iApply ("H" with "[-]"); [|done..].
+        iIntros (???) "?".
+        iMod ("HZ" with "[$]").
+        by iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+      + done.
+      + pose proof cond_nonneg ε.
+        simpl in *. lra. 
+    - iDestruct "H" as "(%&%&%&%Hineq&%Herasable&H)".
+      rewrite -Herasable.
+      rewrite -dbind_assoc'.
+      iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        eapply pgl_mon_grading; first apply Hineq.
+        rewrite (Expval_support _ _ 1%R).
+        exact H'.
+      }
+      iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done].
+      { destruct H as [r H].
+        exists (Rmax r 1).
+        intros. case_bool_decide; split; try lra.
+        * done.
+        * etrans; last apply Rmax_l. naive_solver.
+        * apply Rmax_r. }
+      simpl.
+      iIntros (x).
+      case_bool_decide; last first.
+      { iModIntro.
+        iApply step_fupdN_intro; first done.
+        iPureIntro.
+        by apply pgl_1.
+      }
+      iDestruct ("H"$! x) as "H".
+      iMod ("H") as "[H _]".
+      iApply ("H" with "[-]").
+      + iIntros (???) "?".
+        by iMod ("HZ" with "[$]").
+      + done.
+      + iPureIntro.
+        etrans; first done.
+        by erewrite <-urn_erasable_same_support_set.
+      + done.
+      + iPureIntro.
+        eapply map_Forall_impl; first done.
+        simpl.
+        intros ?? H'.
+        etrans; first exact.
+        by erewrite <-urn_erasable_same_support_set.
+    - iDestruct "H" as "(%K&%v1&%v2&%H1&%H2&H3)".
+      subst.
+      iMod "H3" as "[H3 _]".
+      epose proof urns_f_distr_witness _ as [f H'].
+      apply H2 in H' as H''.
+      iDestruct ("H3" with "[$][][][][]") as "H3".
+      + iPureIntro.
+        rewrite !is_well_constructed_fill in He *.
+        rewrite !andb_true_iff in He *.
+        destruct!/=. split; last done.
+        apply is_simple_val_well_constructed.
+        by eapply urn_subst_val_is_simple.
+      + iPureIntro.
+        rewrite !support_set_fill in Hset *.
+        simpl.
+        erewrite is_simple_val_support_set; first set_solver.
+        by eapply urn_subst_val_is_simple.
+      + done.
+      + done.
+      + erewrite (distr_ext (dbind _ _)); first iApply "H3"; try done.
+        intros.
+        erewrite dbind_ext_right_strong; first done.
+        intros ? H.
+        apply H2 in H.
+        simpl.
+        apply dbind_ext_right'; first done.
+        rewrite !urn_subst_expr_fill.
+        simpl.
+        rewrite H.
+        rewrite is_simple_val_urn_subst; first done.
+        by eapply urn_subst_val_is_simple.
+  Qed. 
+
+  Lemma prog_coupl_erasure (ε:nonnegreal) e σ ϕ n m Z:
+    is_well_constructed_expr e = true ->
+    expr_support_set e ⊆ urns_support_set (urns σ) ->
+    map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
+    map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
+    prog_coupl e σ ε Z -∗
+    (∀ e2 σ2 ε2, Z e2 σ2 ε2 ={∅}=∗ |={∅}▷=>^(S n)
+                               ⌜pgl (urns_f_distr (σ2.(urns)) ≫= λ f,
+                                       d_proj_Some (urn_subst_expr f e2) ≫= λ e',
+                                         d_proj_Some (urn_subst_heap f (σ2.(heap))) ≫= λ hm, 
+                                           exec (n) (e', {|heap:=hm; urns:=m|})) ϕ ε2⌝) -∗
+    |={∅}=> |={∅}▷=>^(S n)
+             ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+                                       d_proj_Some (urn_subst_expr f e) ≫= λ e',
+                                         d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+                                           exec (S n) (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
+  Proof.
+    rewrite /prog_coupl.
+    iIntros (He1 He2 Hforall1 Hforall2) "(%ε2&%Hred&%Hbound&%Hineq&H) Hrest".
+    iApply (step_fupdN_mono _ _ _ (⌜_⌝)%I).
+    { iPureIntro.
+      intros H'.
+      eapply pgl_mon_grading; first apply Hineq.
+      simpl.
+      erewrite dbind_ext_right_strong; first apply H'.
+      intros.
+      apply dbind_ext_right_strong.
+      intros.
+      apply dbind_ext_right_strong.
+      intros.
+      inv_distr.
+      erewrite urn_subst_expr_not_val; first done; last done.
+      apply reducible_not_final in Hred.
+      rewrite /is_final in Hred.
+      simpl in *.
+      destruct (to_val _); naive_solver.
+    }
+    rewrite /reducible in Hred.
+    (* annoying rewrites *)
+    erewrite (dbind_ext_right); last first.
+    { intros. apply dbind_ext_right.
+      intros. by rewrite dbind_assoc-/exec.
+    }
+    erewrite dbind_ext_right'; last done; last first.
+    { intros.
+      by apply dbind_assoc'.
+    }
+    rewrite dbind_assoc'.
+    rewrite (delay_prob_lang_commute e σ m); [|done..].
+    rewrite -!dbind_assoc'.
+    iApply pgl_dbind_adv'; first (iPureIntro; naive_solver).
+    iIntros ([??]).
+    iMod ("H" $! _ _).
+    erewrite (distr_ext (dbind _ _)); first iApply ("Hrest" with "[$]").
+    intros.
+    rewrite -dbind_assoc'.
+    f_equal.
+    apply dbind_ext_right.
+    intros.
+    rewrite -dbind_assoc'.
+    apply dbind_ext_right.
+    intros.
+    rewrite -!dbind_assoc'.
+    apply dbind_ext_right.
+    intros.
+    by rewrite dret_id_left'.
+  Qed. 
+  
+  Lemma wp_elton_adequacy (ε: nonnegreal) e σ ϕ n m :
+    is_well_constructed_expr e = true ->
+    expr_support_set e ⊆ urns_support_set (urns σ) ->
+    map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
+    map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
+    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜is_simple_val v = true /\ ϕ v⌝  }} ⊢
+    |={⊤,∅}=> |={∅}▷=>^n
+               ⌜pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+                       d_proj_Some (urn_subst_expr f e) ≫= λ e',
+                         d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+                           exec n (e', {|heap:=hm; urns:=m|})) ϕ ε⌝.
+  Proof.
+    iIntros (He Hsubset Hforall1 Hforall2).
+    iIntros "((Hσh & Hσt)&Hε&Hwp)".
+    rewrite pgl_wp_unfold.
+    iMod "Hwp".
+    iInduction n as [|n] "IH" forall (e σ ε He Hsubset Hforall1 Hforall2) "Hσh Hσt Hε Hwp".
+    - destruct (to_val e) eqn:Heqn.
+      + apply of_to_val in Heqn as <-.
+        iApply wp_elton_adequacy_val; [done..|iFrame].
+      + iApply fupd_mask_intro; first set_solver.
+        iIntros.
+        iPureIntro.
+        replace (dbind _ _) with (dzero: distr val); first (apply pgl_dzero, Rle_ge, cond_nonneg).
+        symmetry.
+        apply dbind_dzero_strong.
+        intros ? H1.
+        apply dbind_dzero_strong.
+        intros ? H2.
+        apply dbind_dzero_strong.
+        intros ? H3.
+        simpl.
+        inv_distr.
+        by erewrite urn_subst_expr_not_val.
+    - destruct (to_val e) eqn:Heqn.
+      + apply of_to_val in Heqn as <-.
+        iApply wp_elton_adequacy_val; [done..|iFrame].
+      + rewrite wp'_unfold /pgl_wp_pre.
+        iMod ("Hwp" with "[$]") as "Hwp".
+        iSimpl in "Hwp".
+        iDestruct (state_step_coupl_preserve with "[$]") as "Hwp"; [done..|].
+        rewrite state_step_coupl_preserve_to_val.
+        iApply (state_step_coupl_erasure _ _ _ _ (S n) with "[-]"); [done..|].
+        clear He Hsubset Hforall1 Hforall2.
+        iIntros (e2 σ2 ε2) "[(%He&%Hsubset&%Hforall1&%Hforall2&Hwp) %H]".
+        simpl in *.
+        case_match eqn :H'.
+        { exfalso.
+          simpl in *.
+          by rewrite Heqn in H.
+        }
+        iDestruct (prog_coupl_preserve with "[][$]") as "Hwp"; [done..| |].
+        { iModIntro. iIntros. iNext. by iApply state_step_coupl_ret_err_ge_1. }
+        iApply (prog_coupl_erasure with "[Hwp]"); [done..|].
+        clear He Hsubset Hforall1 Hforall2.
+        iIntros (e3 σ3 ε3) "([(%He&%Hsubset&%Hforall1&%Hforall2)|%Hineq]&Hwp)"; last first.
+        { iApply step_fupdN_intro; first done.
+          iPureIntro. by apply pgl_1. }
+        iModIntro.
+        simpl.
+        iModIntro. iNext.
+        iDestruct (state_step_coupl_preserve with "[$]") as "Hwp"; [done..|].
+        iApply (state_step_coupl_erasure with "[$]"); [done..|].
+        clear He Hsubset Hforall1 Hforall2.
+        iIntros (e4 σ4 ε4) "(%He&%Hsubset&%Hforall1&%Hforall2&Hwp)".
+        iMod "Hwp" as "([??]&?&?)".
+        by iApply ("IH" with "[][][][][$][$][$][$]").
+  Qed. 
+  
+End adequacy.
+
+Class eltonGpreS Σ := EltonGpreS {
+  eltonGpreS_iris  :: invGpreS Σ;
+  eltonGpreS_heap  :: ghost_mapG Σ loc val;
+  eltonGpreS_urns :: ghost_mapG Σ loc urn;
+  eltonGpreS_err   :: ecGpreS Σ;
+                        }.
+
+Definition eltonΣ : gFunctors :=
+  #[invΣ; ghost_mapΣ loc val;
+    ghost_mapΣ loc urn;
+    GFunctor (authR nonnegrealUR)].
+Global Instance subG_eltonGPreS {Σ} : subG eltonΣ Σ → eltonGpreS Σ.
+Proof. solve_inG. Qed.
+
+Lemma elton_adequacy_stratified Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ n:
+  is_well_constructed_expr e = true ->
+  expr_support_set e ⊆ urns_support_set (urns σ) ->
+  map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
+  map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
+  (0<=ε)%R ->
+  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜is_simple_val v = true /\ ϕ v⌝  }}) ->
+  pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+         d_proj_Some (urn_subst_expr f e) ≫= λ e',
+           d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+            exec n (e', {|heap:=hm; urns:=m|})) ϕ ε
+.
+Proof.
+  intros Htrue Hsubset Hforall1 Hforall2 Hε Hwp.
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
+  iIntros (Hinv) "_".
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(urns)) as "[%γU [Hu _]]".
+  destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
+  { iClear "Hh Hu".
+    iApply (fupd_mask_intro); [eauto|].
+    iIntros "_".
+    iApply step_fupdN_intro; [eauto|].
+    iApply laterN_intro; iPureIntro.
+    apply not_Rlt, Rge_le in Hcr.
+    rewrite /pgl; intros.
+    eapply Rle_trans; [eapply prob_le_1|done]. }
+  set ε' := mknonnegreal _ Hε.
+  iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
+  set (HeltonGS := HeapG Σ _ _ _ γH γU _).
+  iApply (wp_elton_adequacy ε'); try done.
+  iFrame.
+  by iApply Hwp.
+Qed. 
+
+Lemma elton_adequacy_with_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ:
+  is_well_constructed_expr e = true ->
+  expr_support_set e ⊆ urns_support_set (urns σ) ->
+  map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ) ->
+  map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ) ->
+  (0<=ε)%R ->
+  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜is_simple_val v = true /\ ϕ v⌝  }}) ->
+  pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+         d_proj_Some (urn_subst_expr f e) ≫= λ e',
+           d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+            lim_exec (e', {|heap:=hm; urns:=m|})) ϕ ε
+.
+Proof.
+  intros.
+  rewrite /pgl.
+  erewrite (prob_Sup_seq _ (λ n, (urns_f_distr (σ.(urns)) ≫= λ f,
+         d_proj_Some (urn_subst_expr f e) ≫= λ e',
+           d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+             exec n (e', {|heap:=hm; urns:=m|})))).
+  - rewrite -rbar_le_rle.
+    rewrite rbar_finite_real_eq.
+    + apply upper_bound_ge_sup.
+      intros.
+      by eapply elton_adequacy_stratified. 
+    + apply (is_finite_bounded 0 1).
+      * eapply (Sup_seq_minor_le _ _ 0).
+        apply prob_ge_0.
+      * apply upper_bound_ge_sup.
+        intros. apply prob_le_1.
+  - intros.
+    eassert (dbind _ _ a = Sup_seq (λ n : nat,
+       (urns_f_distr (urns σ)
+        ≫= λ f : gmap loc Z,
+             d_proj_Some (urn_subst_expr f e)
+             ≫= λ e' : language.expr d_prob_lang,
+                  d_proj_Some (urn_subst_heap f (heap σ))
+                    ≫= λ hm : gmap loc val, exec n (e', {| heap := hm; urns := m |})) a)) as ->; last first.
+    { rewrite rbar_finite_real_eq; [apply Sup_seq_correct|apply is_finite_Sup_seq_distr]. }
+    apply dbind_Sup_seq; last first.
+    { intros. apply: SeriesC_le; last (apply pmf_ex_seriesC_mult_fn; exists 1; naive_solver).
+      intros. split; first real_solver.
+      apply Rmult_le_compat_l; first done.
+      apply: SeriesC_le; last (apply pmf_ex_seriesC_mult_fn; exists 1; naive_solver).
+      intros. split; first real_solver.
+      apply Rmult_le_compat_l; first done.
+      apply exec_mono.
+    }
+    intros.
+    eassert (dbind _ _ a = Sup_seq (λ n : nat,
+       (d_proj_Some (urn_subst_expr a0 e)
+        ≫= λ e' : language.expr d_prob_lang,
+             d_proj_Some (urn_subst_heap a0 (heap σ))
+               ≫= λ hm : gmap loc val, exec n (e', {| heap := hm; urns := m |})) a)) as ->; last first.
+    { rewrite rbar_finite_real_eq; [apply Sup_seq_correct|apply is_finite_Sup_seq_distr]. }
+    apply dbind_Sup_seq; last first.
+    { intros. apply: SeriesC_le; last (apply pmf_ex_seriesC_mult_fn; exists 1; naive_solver).
+      intros. split; first real_solver.
+      apply Rmult_le_compat_l; first done.
+      apply exec_mono.
+    }
+    intros.
+    eassert (dbind _ _ a = Sup_seq (λ n : nat,
+       (d_proj_Some (urn_subst_heap a0 (heap σ))
+        ≫= λ hm : gmap loc val, exec n (a1, {| heap := hm; urns := m |})) a)) as ->; last first.
+    { rewrite rbar_finite_real_eq; [apply Sup_seq_correct|apply is_finite_Sup_seq_distr]. }
+    apply dbind_Sup_seq; last first.
+    { intros.
+      apply: exec_mono.
+    }
+    intros.
+    rewrite lim_exec_unfold.
+    rewrite rbar_finite_real_eq; [apply Sup_seq_correct|apply is_finite_Sup_seq_distr].
+  - intros. apply: SeriesC_le; last (apply pmf_ex_seriesC_mult_fn; exists 1; naive_solver).
+    intros. split; first real_solver.
+    apply Rmult_le_compat_l; first done.
+    apply: SeriesC_le; last (apply pmf_ex_seriesC_mult_fn; exists 1; naive_solver).
+    intros. split; first real_solver.
+    apply Rmult_le_compat_l; first done.
+    apply: SeriesC_le; last (apply pmf_ex_seriesC_mult_fn; exists 1; naive_solver).
+    intros. split; first real_solver.
+    apply Rmult_le_compat_l; first done.
+    apply exec_mono.
+Qed. 
+
+Lemma elton_adequacy_without_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ:
+  (0<=ε)%R ->
+  (∀ `{eltonGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜is_simple_val v = true /\ ϕ v⌝  }}) ->
+  pgl (urns_f_distr (σ.(urns)) ≫= λ f,
+         d_proj_Some (urn_subst_expr f e) ≫= λ e',
+           d_proj_Some (urn_subst_heap f (σ.(heap))) ≫= λ hm, 
+            lim_exec (e', {|heap:=hm; urns:=m|})) ϕ ε
+.
+Proof.
+  intros.
+  destruct (is_well_constructed_expr e) eqn:?; last first.
+  { erewrite (distr_ext _ _); first (apply pgl_dzero; lra).
+    simpl.
+    intros ?.
+    rewrite dzero_0.
+    rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
+    setoid_rewrite is_well_constructed_expr_false; last done.
+    setoid_rewrite d_proj_Some_None.
+    apply SeriesC_0.
+    intros.
+    rewrite dbind_dzero dzero_0. lra.
+  }
+  destruct (decide (expr_support_set e ⊆ urns_support_set (urns σ))); last first.
+  { erewrite (distr_ext _ _); first (apply pgl_dzero; lra).
+    simpl.
+    intros ?.
+    rewrite dzero_0.
+    erewrite dbind_eq; [by erewrite dzero_dbind| |done].
+    simpl. intros f.
+    intros H'%urns_f_distr_pos.
+    apply urns_f_valid_support in H'.
+    rewrite expr_support_set_not_support.
+    - rewrite d_proj_Some_None. by rewrite dbind_dzero.
+    - by rewrite -H'.
+  }
+  destruct (decide (map_Forall (λ _ v, is_well_constructed_val v = true) (heap σ))); last first.
+  {
+    erewrite (distr_ext _ _); first (apply pgl_dzero; lra).
+    simpl.
+    intros ?.
+    rewrite dzero_0.
+    erewrite dbind_eq; [by erewrite dzero_dbind| |done].
+    simpl. intros f.
+    intros H'%urns_f_distr_pos.
+    apply urns_f_valid_support in H'.
+    erewrite dbind_eq; [by erewrite dzero_dbind| |done].
+    intros ?.
+    intros.
+    simpl.
+    rewrite heap_not_well_constructed; last done. 
+    rewrite d_proj_Some_None. by rewrite dbind_dzero.
+  }
+  destruct (decide (  map_Forall (λ _ v, val_support_set v ⊆ urns_support_set (urns σ)) (heap σ))); first by eapply elton_adequacy_with_conditions.
+  erewrite (distr_ext _ _); first (apply pgl_dzero; lra).
+  simpl.
+  intros ?.
+  rewrite dzero_0.
+  erewrite dbind_eq; [by erewrite dzero_dbind| |done].
+  simpl. intros f.
+  intros H'%urns_f_distr_pos.
+  apply urns_f_valid_support in H'.
+  erewrite dbind_eq; [by erewrite dzero_dbind| |done].
+  intros ?.
+  intros.
+  simpl.
+  rewrite heap_support_set_not_support.
+  - rewrite d_proj_Some_None. by rewrite dbind_dzero.
+  - by rewrite -H'.
+Qed. 
+
+
+
+
+Lemma elton_adequacy_remove_drand Σ `{eltonGpreS Σ} (e e':expr) (ε:R) m ϕ:
+  remove_drand_expr e = Some e' ->
+  (0<=ε)%R ->
+  (∀ `{eltonGS Σ}, ⊢{{{ ↯ ε }}} e {{{ v, RET (v); ⌜is_simple_val v = true /\ ϕ v⌝  }}}) ->
+  pgl (lim_exec (e', {|heap:=∅; urns:=m|})) ϕ ε.
+Proof.
+  intros Hsome Hpos Hwp.
+  assert ((∀ H0 : eltonGS Σ, ↯ ε -∗ WP e {{ v, ⌜is_simple_val v = true ∧ ϕ v⌝ }})) as Hwp'.
+  { iIntros.
+    iApply (Hwp with "[$]").
+    iNext. by iIntros. 
+  }
+  eapply (elton_adequacy_without_conditions _ _ ({|heap:= ∅; urns:= ∅|}) _ m) in Hwp'; last done.
+  eassert (lim_exec _ = _) as ->; last done.
+  erewrite dbind_ext_right_strong; last first.
+  { intros ??. erewrite remove_drand_expr_urn_subst; last done.
+    simpl. rewrite dret_id_left'.
+    rewrite urn_subst_heap_empty.
+    simpl.
+    by rewrite dret_id_left'.
+  }
+  by rewrite dbind_const; last apply urns_f_distr_mass.
+Qed. 
+  
+
+Lemma elton_adequacy_remove_drand_distribution Σ `{eltonGpreS Σ} (e e':expr) m (μ:distr _):
+  remove_drand_expr e = Some e' ->
+  (∀ `{eltonGS Σ} ε L D,
+     (0 <= ε)%R →
+     (∀ (v : val), 0 <= D v <= L)%R →
+     SeriesC (λ (v : val), D v * μ v)%R <= ε →
+     ⊢ {{{ ↯ ε }}} e {{{ v, RET v; ⌜is_simple_val v = true⌝ ∗ ↯ (D v)}}}) ->
+  ∀ v, (lim_exec (e', {|heap:=∅; urns:=m|})) v<= μ v .
+Proof.
+  intros Hsome Hwp v.
+  cut (pgl (lim_exec (e', {| heap := ∅; urns := m |})) (λ v', (v≠v')) (
+           μ v
+         )%R).
+  { rewrite /pgl.
+    rewrite /prob.
+    intros H1.
+    etrans; last exact.
+    erewrite (SeriesC_ext _ (λ x, if bool_decide (x=v) then _ else _)); last first.
+    - intros. case_bool_decide.
+      + by rewrite bool_decide_eq_false_2.
+      + by rewrite bool_decide_eq_true_2.
+    - simpl.
+      by rewrite SeriesC_singleton_dependent.
+  }
+  eapply elton_adequacy_remove_drand; try done.
+  iIntros (? Φ).
+  iModIntro.
+  iIntros "? HΦ". 
+  iPoseProof (Hwp _ _ 1 (λ x, if bool_decide (x=v) then 1 else 0) with "[$]") as "H".
+  - done.
+  - intros. case_match; first case_bool_decide; lra.
+  - erewrite (SeriesC_ext _ (λ x, if bool_decide (x=v) then _ else _)); first by erewrite SeriesC_singleton_dependent.
+    intros. case_bool_decide; case_bool_decide; try done; lra.
+  - iApply "H".
+    iNext. 
+    iIntros (?) "[% H]".
+    iApply "HΦ".
+    case_bool_decide.
+    + by iDestruct (ec_contradict with "[$]") as "[]".
+    + iPureIntro. naive_solver.
+Qed. 

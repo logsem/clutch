@@ -24,11 +24,15 @@ Definition subst_map_ctx_item (es : stringmap val) (K : ectx_item) :=
   | StoreLCtx v2 => StoreLCtx v2
   | StoreRCtx e1 => StoreRCtx (subst_map es e1)
   | AllocTapeCtx => AllocTapeCtx
+  | AllocTapeLaplaceNumCtx v2 v3 => AllocTapeLaplaceNumCtx v2 v3
+  | AllocTapeLaplaceDenCtx e1 v3 => AllocTapeLaplaceDenCtx (subst_map es e1) v3
+  | AllocTapeLaplaceMeanCtx e1 e2 => AllocTapeLaplaceMeanCtx (subst_map es e1) (subst_map es e2)
   | RandLCtx v2 => RandLCtx v2
   | RandRCtx e1 => RandRCtx (subst_map es e1)
-  | LaplaceNumCtx v2 v3 => LaplaceNumCtx v2 v3
-  | LaplaceDenCtx e1 v3 => LaplaceDenCtx (subst_map es e1) v3
-  | LaplaceLocCtx e1 e2 => LaplaceLocCtx (subst_map es e1) (subst_map es e2)
+  | LaplaceNumCtx v2 v3 v4 => LaplaceNumCtx v2 v3 v4
+  | LaplaceDenCtx e1 v3 v4 => LaplaceDenCtx (subst_map es e1) v3 v4
+  | LaplaceMeanCtx e1 e2 v4 => LaplaceMeanCtx (subst_map es e1) (subst_map es e2) v4
+  | LaplaceTapeCtx e1 e2 e3 => LaplaceTapeCtx (subst_map es e1) (subst_map es e2) (subst_map es e3)
   | TickCtx => TickCtx
   end.
 

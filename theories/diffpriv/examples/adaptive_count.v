@@ -22,27 +22,27 @@ Definition adaptive : val :=
   (* Count the first predicate. This will consume either 2 or 12 credits.
      In either case we know we have enough budget, so we skip the check here.  *)
   let: "count_exact_1" := list_count (λ:"x", "x" < #30) "data" in
-  let: "count_coarse_1" := Laplace "εₛ" #10 "count_exact_1" in
+  let: "count_coarse_1" := Laplace "εₛ" #10 "count_exact_1" #() in
   (* Consume 2 credits. *)
   "b" <- ! "b" -  "εₛ" ;;
   "counts" <- ("count_coarse_1" :: !"counts") ;;
   (* If the test succeeds, we consume another 10 credits. *)
   (if: #5 < "count_coarse_1" then
-    let: "count_precise_1" := Laplace "εₗ" #10 "count_exact_1" in
+    let: "count_precise_1" := Laplace "εₗ" #10 "count_exact_1" #() in
     let: "_" := "b" <- ! "b" -  "εₗ" in
     "counts" <- "count_precise_1" :: !"counts"
    else #()) ;;
   (* We have either 18 or 8 credits left. *)
 
   let: "count_exact_2" := list_count (λ:"x", "x" < #32) "data" in
-  let: "count_coarse_2" := Laplace "εₛ" #10 "count_exact_2" in
+  let: "count_coarse_2" := Laplace "εₛ" #10 "count_exact_2" #() in
   (* We still have enough credits for the second coarse count. *)
   let: "_" := "b" <- ! "b" -  "εₛ" in
   "counts" <- ("count_coarse_2" :: !"counts") ;;
   (if: #5 < "count_coarse_2" then
      (* We can only afford a second precise count if the first count was below the threshold. *)
      if: "εₗ" <= !"b" then
-       let: "count_precise_2" := Laplace "εₗ" #10 "count_exact_2" in
+       let: "count_precise_2" := Laplace "εₗ" #10 "count_exact_2" #() in
        let: "_" := "b" <- ! "b" -  "εₗ" in
        "counts" <- "count_precise_2" :: !"counts"
      else #()
@@ -71,7 +71,7 @@ Definition create_filter : val :=
   "try_run".
 
 Definition laplace : val :=
-  λ:"eps" "mean", Laplace (Fst "eps") (Snd "eps") "mean".
+  λ:"eps" "mean", Laplace (Fst "eps") (Snd "eps") "mean" #().
 
 Definition iter_adaptive_acc : val :=
   λ:"ε_coarse" "ε_precise" "den"
@@ -84,13 +84,13 @@ Definition iter_adaptive_acc : val :=
         let: "count_exact" := list_count "pred" "data" in
         "try_run" "ε_coarse"
           (λ:<>,
-             let: "count_coarse" := Laplace "ε_coarse" "den" "count_exact" in
+             let: "count_coarse" := Laplace "ε_coarse" "den" "count_exact" #() in
              "counts" <- (!"index", "count_coarse") :: !"counts" ;;
 
              if: "threshold" < "count_coarse" then
                "try_run" "ε_precise"
                  (λ:<>,
-                    let: "count_precise" := Laplace "ε_precise" "den" "count_exact" in
+                    let: "count_precise" := Laplace "ε_precise" "den" "count_exact" #() in
                     "counts" <- (!"index", "count_precise") :: !"counts")
              else #()) ;;
         "index" <- !"index" + #1)
@@ -324,8 +324,8 @@ Section adaptive.
     simpl.
     iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
 
-    tp_bind (Laplace _ _ _).
-    wp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _).
+    wp_bind (Laplace _ _ _ _).
     iDestruct (ecm_split (IZR 2 / IZR 10)%R (IZR 18 / IZR 10)%R with "[ε]") as "[εₛ ε]".
     1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver.
 
@@ -346,8 +346,8 @@ Section adaptive.
     tp_load ; wp_load ; tp_pures ; tp_store ; wp_store...
     case_bool_decide as cc1...
 
-    - tp_bind (Laplace _ _ _).
-      wp_bind (Laplace _ _ _).
+    - tp_bind (Laplace _ _ _ _).
+      wp_bind (Laplace _ _ _ _).
       iDestruct (ecm_split (IZR 10 / IZR 10)%R (IZR 8 / IZR 10)%R with "[ε]") as "[εₗ ε]".
       1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver.
       iApply (hoare_couple_laplace _ _ 0 with "[$rhs $εₗ]") => //.
@@ -383,8 +383,8 @@ Section adaptive.
         done.
       }
 
-      tp_bind (Laplace _ _ _).
-      wp_bind (Laplace _ _ _).
+      tp_bind (Laplace _ _ _ _).
+      wp_bind (Laplace _ _ _ _).
       iDestruct (ecm_split (IZR 2 / IZR 10)%R (IZR 6 / IZR 10)%R with "[ε]") as "[εₛ ε]".
       1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver.
       iApply (hoare_couple_laplace _ _ 0 with "[$rhs $εₛ]") => //.
@@ -423,8 +423,8 @@ Section adaptive.
         done.
       }
 
-      tp_bind (Laplace _ _ _).
-      wp_bind (Laplace _ _ _).
+      tp_bind (Laplace _ _ _ _).
+      wp_bind (Laplace _ _ _ _).
       iDestruct (ecm_split (IZR 2 / IZR 10)%R (IZR 16 / IZR 10)%R with "[ε]") as "[εₛ ε]".
       1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver.
       iApply (hoare_couple_laplace _ _ 0 with "[$rhs $εₛ]") => //.
@@ -436,8 +436,8 @@ Section adaptive.
 
       tp_load ; wp_load...
 
-      tp_bind (Laplace _ _ _).
-      wp_bind (Laplace _ _ _).
+      tp_bind (Laplace _ _ _ _).
+      wp_bind (Laplace _ _ _ _).
       iDestruct (ecm_split (IZR 10 / IZR 10)%R (IZR 6 / IZR 10)%R with "[ε]") as "[εₗ ε]".
       1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver.
       iApply (hoare_couple_laplace _ _ 0 with "[$rhs $εₗ]") => //.
@@ -467,13 +467,13 @@ Definition iter_adaptive_acc_simple_unrolled : val :=
     let: "count" := list_count "pred" "data" in
     "try_run" "ε_coarse"
       (λ:<>,
-         let: "count_coarse" := Laplace "ε_coarse" "den" "count" in
+         let: "count_coarse" := Laplace "ε_coarse" "den" "count" #() in
          "counts" <- "count_coarse" :: !"counts") ;;
 
     (* let: "count" := list_count (λ:"x", #30 ≤ "x") "data" in
        "try_run" "ε_coarse"
          (λ:<>,
-            let: "count_coarse" := Laplace "ε_coarse" "den" "count" in
+            let: "count_coarse" := Laplace "ε_coarse" "den" "count" #() in
             "counts" <- "count_coarse" :: !"counts") ;; *)
 
     ! "counts".
@@ -489,7 +489,7 @@ Definition iter_adaptive_acc_simple : val :=
         let: "count" := list_count "pred" "data" in
         "try_run" "ε_coarse"
           (λ:<>,
-             let: "count_coarse" := Laplace "ε_coarse" "den" "count" in
+             let: "count_coarse" := Laplace "ε_coarse" "den" "count" #() in
              "counts" <- "count_coarse" :: !"counts"))
       "predicates" ;;
     ! "counts".
@@ -560,8 +560,8 @@ Lemma vpreds_is_predicate_list : ⊢ is_predicate_list predicates vpredicates.
        set (I := (∃ counts, counts_r ↦ₛ counts ∗ counts_l ↦ counts)%I).
        iApply ("run_dp" $! _ _ _ _ _ I with "[] [-]") => // ; iFrame. 1: iPureIntro ; lia.
        - iIntros "* % !> (eps & rhs & I & l & l') Hpost"...
-         tp_bind (Laplace _ _ _).
-         wp_bind (Laplace _ _ _).
+         tp_bind (Laplace _ _ _ _).
+         wp_bind (Laplace _ _ _ _).
          assert (Z.abs (len_f_l - len_f_r) <= 1).
          {
            assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
@@ -698,8 +698,8 @@ Lemma vpreds_is_predicate_list : ⊢ is_predicate_list predicates vpredicates.
       iDestruct "hh" as "(%&%&?&?&?&?&?)".
       iApply ("run_dp" $! _ _ _ _ _ I with "[] [-]") => // ; iFrame. 1: iPureIntro ; lia.
       + iIntros "* % !> (eps & rhs & I & l & l') Hpost"...
-        tp_bind (Laplace _ _ _).
-        wp_bind (Laplace _ _ _).
+        tp_bind (Laplace _ _ _ _).
+        wp_bind (Laplace _ _ _ _).
         assert (Z.abs (len_f_l - len_f_r) <= 1).
         {
           assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
@@ -863,7 +863,7 @@ repeat iSplit. 7: done.
       iApply ("run_dp" $! _ _ _ _ _ I with "[] [-]"). 1: iPureIntro ; lia.
       + iFrame. iSplitL. 2: by iExists _.
         iIntros "* % !> (eps & rhs & I & εrem & l & l') Hpost"...
-        tp_bind (Laplace _ _ _). wp_bind (Laplace _ _ _).
+        tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
         assert (Z.abs (len_f_l - len_f_r) <= 1).
         {
           assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
@@ -892,8 +892,8 @@ repeat iSplit. 7: done.
 
         * iFrame. iSplitL. 2: iExists (_::_),_ ; iPureIntro ; eauto.
           iIntros "* % !> (eps & rhs & I & εrem & l & l') Hpost"...
-          tp_bind (Laplace _ _ _).
-          wp_bind (Laplace _ _ _).
+          tp_bind (Laplace _ _ _ _).
+          wp_bind (Laplace _ _ _ _).
           assert (Z.abs (len_f_l - len_f_r) <= 1).
           {
             assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
@@ -997,8 +997,8 @@ repeat iSplit. 7: done.
       iDestruct "hh" as "(%&%&%&%&counts_l&counts_r&index_l&index_r)".
       iApply ("run_dp" $! _ _ _ _ I with "[] [-]"). 1: iPureIntro ; lia.
       + iFrame. iSplit. 2: by iExists _. iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...
-        tp_bind (Laplace _ _ _).
-        wp_bind (Laplace _ _ _).
+        tp_bind (Laplace _ _ _ _).
+        wp_bind (Laplace _ _ _ _).
         assert (Z.abs (len_f_l - len_f_r) <= 1).
         {
           assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
@@ -1023,8 +1023,8 @@ repeat iSplit. 7: done.
         iApply ("run_dp" $! _ _ _ _ I with "[] [-Hpost]"). 1: iPureIntro ; lia.
         * iFrame. iSplit. 2: iExists (_::_) => //= ; by eauto.
           iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...
-          tp_bind (Laplace _ _ _).
-          wp_bind (Laplace _ _ _).
+          tp_bind (Laplace _ _ _ _).
+          wp_bind (Laplace _ _ _ _).
           assert (Z.abs (len_f_l - len_f_r) <= 1).
           {
             assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.

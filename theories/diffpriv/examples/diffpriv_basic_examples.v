@@ -10,7 +10,7 @@ Section wp_example.
   Fact wp_laplace_diffpriv (loc loc' : Z)
     (num den : Z) K :
     0 < IZR num / IZR den →
-    let e := (λ: "loc", Laplace #num #den "loc")%E in
+    let e := (λ: "loc", Laplace #num #den "loc" #())%E in
     {{{ ⤇ fill K (e #loc') ∗ ↯m (IZR (Z.abs (loc - loc')) * (IZR num / IZR den)) }}}
       (e #loc)%E
       {{{ (z : Z), RET #z; ⤇ fill K (Val #z) }}}.
@@ -18,7 +18,7 @@ Section wp_example.
     iIntros (???) "(f' & ε) post". subst e.
     tp_pures.
     wp_pures.
-    tp_bind (Laplace _ _ _).
+    tp_bind (Laplace _ _ _ _).
     iApply (hoare_couple_laplace _ _ 0%Z with "[$]") => //.
     setoid_rewrite Z.add_0_r. done.
   Qed.
@@ -33,7 +33,7 @@ Section wp_example.
   Definition over_40 : val := λ:"r", if: #40 < age "r" then #1 else #0.
   Definition setmap : val := λ: "f" "db", ("f" (Fst (Fst "db")) , "f" (Snd (Fst "db")) , "f" (Snd "db")).
   Definition setsum : val := λ: "db", (Fst (Fst "db")) + (Snd (Fst "db")) + (Snd "db").
-  Definition count_query (num den : Z) : val := λ:"b", setsum (setmap (λ:"z", Laplace #num #den "z") (setmap over_40 "b")).
+  Definition count_query (num den : Z) : val := λ:"b", setsum (setmap (λ:"z", Laplace #num #den "z" #()) (setmap over_40 "b")).
 
   (* By adding (num/den) Laplacian noise, we get equal results for both databases.
      NB: Since this is done for a specific pair of databases, it doesn't quite
@@ -49,18 +49,18 @@ Section wp_example.
     rewrite {2}/count_query /over_40/setmap/setsum/age/db. wp_pures.
     rewrite /count_query /over_40/setmap/setsum/age/db ; tp_pures.
 
-    wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
+    wp_bind (Laplace _ _ _ _). tp_bind (Laplace _ _ _ _).
     iMod ecm_zero as "ε0".
     iApply (hoare_couple_laplace 1 1 0%Z with "[$ε0 $f']") => //.
     { rewrite {2}abs_IZR. replace (IZR (0 + 1 - 1)) with 0%R by easy. rewrite Rabs_R0. lra. }
     iNext. iIntros (z) "f'". simpl. tp_pures ; wp_pures.
 
-    wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
+    wp_bind (Laplace _ _ _ _). tp_bind (Laplace _ _ _ _).
     iApply (hoare_couple_laplace 1 0 0%Z with "[$ε $f']") => //.
     { rewrite abs_IZR. replace (IZR (0 + 1 - 0)) with 1%R by easy. rewrite Rabs_R1. lra. }
     iNext. iIntros (z') "f'". simpl. tp_pures ; wp_pures.
 
-    wp_bind (Laplace _ _ _). tp_bind (Laplace _ _ _).
+    wp_bind (Laplace _ _ _ _). tp_bind (Laplace _ _ _ _).
     iMod ecm_zero as "ε0".
     iApply (hoare_couple_laplace 0 0 0%Z with "[$ε0 $f']") => //.
     { rewrite {2}abs_IZR. replace (IZR (0 + 0 - 0)) with 0%R by easy. rewrite Rabs_R0. lra. }
@@ -81,7 +81,7 @@ Fact Laplace_diffpriv σ (num den : Z) :
   (0 < ε)%R →
   diffpriv_pure
     (λ x y, IZR (Z.abs (x - y)))
-    (λ x, lim_exec ((λ:"loc", Laplace #num #den "loc")%E #x, σ))
+    (λ x, lim_exec ((λ:"loc", Laplace #num #den "loc" #())%E #x, σ))
     ε.
 Proof.
   intros ε εpos.

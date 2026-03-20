@@ -73,7 +73,7 @@ Lemma prim_step_fin e σ:
   ∨ (∃ n (g : (fin n) -> cfg), 
     prim_step e σ = dmap g (dunif n) ∧ (Inj eq eq g))
   ∨ (∃ (num den loc : Z) (εpos : (0 < IZR num / IZR den)) l,
-       prim_step e σ = dmap (fill_lift l ∘ λ z : Z, (Val #z, σ)) (laplace_rat num den loc εpos)).
+       prim_step e σ = dmap (fill_lift l ∘ λ z : Z, (Val #z, σ)) (laplace_rat num den loc)).
 Proof.
   rewrite /reducible.
   simpl.
@@ -115,8 +115,18 @@ Proof.
       inversion H1.
       by apply Nat2Z.inj, fin_to_nat_inj in H3.
     + apply inj_fill.
-  - rewrite dmap_comp. right. right. do 5 eexists _ => //.
-  - rewrite dmap_comp. left. by (rewrite dmap_dret; do 3 econstructor).
+  - rewrite dmap_comp. right. right. unshelve (do 5 eexists _ => //). done.
+  - rewrite dmap_comp. left.
+    rewrite /laplace_rat. case_decide => //.
+    by (rewrite dmap_dret; do 3 econstructor).
+  - rewrite dmap_comp. right. right. unshelve do 5 eexists _ => //. done.
+  - rewrite dmap_comp. left.
+    rewrite /laplace_rat. case_decide => //.
+    by (rewrite dmap_dret; do 3 econstructor).
+  - rewrite dmap_comp. right. right. unshelve (do 5 eexists _ => //). done.
+  - rewrite dmap_comp. left.
+    rewrite /laplace_rat. case_decide => //.
+    by (rewrite dmap_dret; do 3 econstructor).
 Qed.
 
 (* TODO NOT TRUE *)
@@ -618,7 +628,7 @@ Section Complete.
 Context (costfun : Costfun prob_lang).
 Context `{!tachisGS Σ costfun}.
 
-Notation σ₀ := {| heap := ∅; tapes := ∅ |}. 
+Notation σ₀ := {| heap := ∅; tapes := ∅; tapes_laplace := ∅ |}.
 
 (* the expression have to be well-typed*)
 Inductive ReducibleInv : (expr * state) -> Prop:=

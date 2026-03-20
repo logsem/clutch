@@ -14,9 +14,11 @@ Class diffprivGS Σ := HeapG {
   (* CMRA for the state *)
   diffprivGS_heap : ghost_mapG Σ loc val;
   diffprivGS_tapes : ghost_mapG Σ loc tape;
+  diffprivGS_tapes_laplace : ghost_mapG Σ loc tape_laplace;
   (* ghost names for the state *)
   diffprivGS_heap_name : gname;
   diffprivGS_tapes_name : gname;
+  diffprivGS_tapes_laplace_name : gname;
   (* CMRA and ghost name for the spec *)
   diffprivGS_spec :: specG_prob_lang Σ;
   (* CMRA and ghost names for the error *)
@@ -28,6 +30,7 @@ Class diffprivGpreS Σ := DiffprivGpreS {
   diffprivGpreS_iris  :: invGpreS Σ;
   diffprivGpreS_heap  :: ghost_mapG Σ loc val;
   diffprivGpreS_tapes :: ghost_mapG Σ loc tape;
+  diffprivGpreS_tapes_laplace :: ghost_mapG Σ loc tape_laplace;
   diffprivGpreS_spcec :: specGpreS Σ;
   diffprivGpreS_err_eps   :: ecmGpreS Σ;
   diffprivGpreS_err_del   :: ecGpreS Σ;
@@ -37,6 +40,7 @@ Definition diffprivΣ : gFunctors :=
   #[invΣ;
     ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
+    ghost_mapΣ loc tape_laplace;
     specΣ;
     ecmΣ;
     ecΣ].
@@ -47,6 +51,8 @@ Definition heap_auth `{diffprivGS Σ} :=
   @ghost_map_auth _ _ _ _ _ diffprivGS_heap diffprivGS_heap_name.
 Definition tapes_auth `{diffprivGS Σ} :=
   @ghost_map_auth _ _ _ _ _ diffprivGS_tapes diffprivGS_tapes_name.
+Definition tapes_laplace_auth `{diffprivGS Σ} :=
+  @ghost_map_auth _ _ _ _ _ diffprivGS_tapes_laplace diffprivGS_tapes_laplace_name.
 Definition mult_ec_supply `{diffprivGS Σ} :=
   @ecm_supply _ diffprivGS_error_eps.
 Definition add_ec_supply `{diffprivGS Σ} :=
@@ -54,7 +60,7 @@ Definition add_ec_supply `{diffprivGS Σ} :=
 
 Global Instance diffprivGS_irisGS `{!diffprivGS Σ} : diffprivWpGS prob_lang Σ := {
   diffprivWpGS_invGS := diffprivGS_invG;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes) ∗ tapes_laplace_auth 1 σ.(tapes_laplace))%I;
   err_interp ε δ := ((mult_ec_supply ε) ∗ (add_ec_supply δ))%I;
 }.
 
@@ -84,6 +90,10 @@ Definition nat_tape `{diffprivGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
 
 Notation "l ↪N ( M ; ns )" := (nat_tape l M ns)%I
   (at level 20, format "l  ↪N  ( M ;  ns )") : bi_scope.
+
+Notation "l ↪L ( num , den , mean ; xs )" := (@ghost_map_elem _ _ tape_laplace _ _ diffprivGS_tapes_laplace diffprivGS_tapes_laplace_name
+                                                l (DfracOwn 1) (Tape_Laplace num den mean xs))%I
+  (at level 20, format "l  ↪L  ( num , den , mean ;  xs )") : bi_scope.
 
 (*
 Definition nat_spec_tape `{diffprivGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
@@ -311,7 +321,7 @@ Lemma wp_alloc_tape N z E s :
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !# /=".
+  iIntros (σ1) "(Hh & Ht & ?) !# /=".
   solve_red.
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
@@ -329,7 +339,7 @@ Lemma wp_rand_tape N α n ns z E s :
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !#".
+  iIntros (σ1) "(Hh & Ht & ?) !#".
   iDestruct (read_tape_head with "Hl") as (x xs) "(Hl&<-&Hret)".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
@@ -352,7 +362,7 @@ Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iPoseProof (tapeN_to_empty with "Hl") as "Hl".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !#".
+  iIntros (σ1) "(Hh & Ht & ?) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
@@ -373,7 +383,7 @@ Lemma wp_rand_tape_wrong_bound N M z α E ns s :
 Proof.
   iIntros (-> ? Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !#".
+  iIntros (σ1) "(Hh & Ht & ?) !#".
   iDestruct "Hl" as (?) "(?&Hl)".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
@@ -385,6 +395,107 @@ Proof.
   iFrame.
   iPureIntro.
   pose proof (fin_to_nat_lt x); lia.
+Qed.
+
+(** Laplace Tapes  *)
+Lemma wp_alloc_tape_laplace num den mean E s :
+  {{{ True }}} AllocTapeLaplace #num #den #mean @ s; E {{{ α, RET #lbl:α; α ↪L (num,den,mean; []) }}}.
+Proof.
+  iIntros (Φ) "_ HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "(Hh & ? & Ht) !# /=".
+  solve_red.
+  iIntros "!>" (e2 σ2 Hs); inv_head_step.
+  iMod (ghost_map_insert (fresh_loc σ1.(tapes_laplace)) with "Ht") as "[$ Hl]".
+  { apply not_elem_of_dom, fresh_loc_is_fresh. }
+  iFrame. iModIntro.
+  iApply "HΦ".
+  auto.
+Qed.
+
+Lemma wp_laplace_tape num den mean num' den' mean' α n ns E s :
+  TCEq num num' →
+  TCEq den den' →
+  TCEq mean mean' →
+  {{{ ▷ α ↪L (num, den, mean; n :: ns) }}}
+    Laplace #num #den #mean (#lbl:α) @ s; E
+  {{{ RET #(LitInt n); α ↪L (num, den, mean; ns) }}}.
+Proof.
+  iIntros (-> -> -> Φ) ">Hl HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "(Hh & ? & Ht) !#".
+  (* iDestruct (read_tape_head with "Hl") as (x xs) "(Hl&<-&Hret)". *)
+  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  solve_red.
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  - iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
+    iFrame. iModIntro.
+    iApply "HΦ". done.
+  - iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
+    iFrame. iModIntro.
+    iApply "HΦ". done.
+Qed.
+
+Lemma wp_laplace_tape_empty num den mean num' den' mean' α E s :
+  TCEq num num' →
+  TCEq den den' →
+  TCEq mean mean' →
+  {{{ ▷ α ↪L (num, den, mean; []) }}}
+    Laplace #num #den #mean (#lbl:α) @ s; E
+  {{{ (z : Z), RET #(LitInt z); α ↪L (num, den, mean; []) }}}.
+Proof.
+  iIntros (-> -> -> Φ) ">Hl HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "(Hh & ? & Ht) !#".
+  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  solve_red.
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  - iFrame.
+    iModIntro. iApply ("HΦ" with "[$Hl]").
+  - iFrame.
+    iModIntro. iApply ("HΦ" with "[$Hl]").
+  - iFrame.
+    iModIntro. iApply ("HΦ" with "[$Hl]").
+  - iFrame.
+    iModIntro. iApply ("HΦ" with "[$Hl]").
+Qed.
+
+
+Lemma wp_laplace_tape_wrong_bound num den mean num' den' mean' α E ns s :
+  not (num = num' ∧ den = den' ∧ mean = mean') →
+  {{{ ▷ α ↪L (num', den', mean'; ns) }}}
+    Laplace #num #den #mean (#lbl:α) @ s; E
+  {{{ (z : Z), RET #(LitInt z); α ↪L (num', den', mean'; ns) }}}.
+Proof.
+  iIntros (? Φ) ">Hl HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "(Hh & ? & Ht) !#".
+  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  iSplit.
+  {
+    iPureIntro.
+    eauto with head_step.
+  }
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  - iFrame.
+    iModIntro.
+    iApply ("HΦ").
+    intuition simplify_eq.
+  - iFrame.
+    iModIntro.
+    iApply ("HΦ").
+    iFrame.
+  - iFrame.
+    iModIntro.
+    iApply ("HΦ").
+    iFrame.
+  - iFrame.
+    iModIntro.
+    iApply ("HΦ").
+    iFrame.
 Qed.
 
 (** spec [rand] *)
@@ -507,6 +618,123 @@ Proof.
   iApply ("Hwp" with "[-]"); first by iFrame.
   iPureIntro.
   pose proof (fin_to_nat_lt x); lia.
+Qed.
+
+(** spec [Laplace] *)
+Lemma wp_laplace_r (num den mean : Z) E e K Φ :
+  ⤇ fill K (Laplace #num #den #mean #()) ∗
+  (∀ z : Z, ⤇ fill K #z -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros "(Hj & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_step ; [solve_red|].
+  rewrite fill_dmap //=.
+  iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
+  simplify_eq/=.
+  rewrite head_prim_step_eq // in Hs.
+  inv_head_step.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "Hj").
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "Hj").
+Qed.
+
+(** spec [Laplace(α)] with empty tape  *)
+Lemma wp_laplace_empty_r (num den mean num' den' mean' : Z) E e K α Φ :
+  TCEq num num' →
+  TCEq den den' →
+  TCEq mean mean' →
+  ⤇ fill K (Laplace #num #den #mean (#lbl:α)) ∗ α ↪Lₛ (num,den,mean; []) ∗
+  (∀ z : Z, (α ↪Lₛ (num,den,mean; []) ∗ ⤇ fill K #z) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (->->->) "(Hj & Hα & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iDestruct (spec_auth_lookup_tape_laplace with "Hs Hα") as %?.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_step; [solve_red|].
+  rewrite fill_dmap //=.
+  iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
+  simplify_eq/=.
+  rewrite head_prim_step_eq // in Hs.
+  inv_head_step.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[Hα Hj]");
+      first by iFrame; auto.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[Hα Hj]");
+      first by iFrame; auto.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[Hα Hj]");
+      first by iFrame; auto.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[Hα Hj]");
+      first by iFrame; auto.
+Qed.
+
+(** spec [Laplace(α)] with wrong tape  *)
+Lemma wp_laplace_wrong_tape_r (num den mean num' den' mean' : Z) E e K α Φ zs :
+  not (num = num' ∧ den = den' ∧ mean = mean') →
+  ⤇ fill K (Laplace #num #den #mean (#lbl:α)) ∗ α ↪Lₛ (num', den', mean'; zs) ∗
+  (∀ (z : Z), (α ↪Lₛ (num', den', mean'; zs) ∗ ⤇ fill K #z) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (?) "(Hj & Hα & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1' ε1 δ1) "(Hσ & Hs & Hε)".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iDestruct (spec_auth_lookup_tape_laplace with "Hs Hα") as %?.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_step; [solve_red|].
+  rewrite fill_dmap //=.
+  iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
+  simplify_eq/=.
+  rewrite head_prim_step_eq // in Hs.
+  inv_head_step.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[-]"); first by iFrame.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[-]"); first by iFrame.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[-]"); first by iFrame.
+  - iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+    iFrame. iModIntro.
+    iMod "Hclose" as "_"; iModIntro.
+    iApply ("Hwp" with "[-]"); first by iFrame.
 Qed.
 
 End lifting.

@@ -2,6 +2,7 @@ From clutch.common Require Export inject.
 From clutch.prob_lang Require Export notation tactics metatheory.
 From clutch.prob_lang Require Export lang.
 From clutch.diffpriv Require Export weakestpre lifting ectx_lifting primitive_laws proofmode.
+From clutch.diffpriv Require Import model compatibility app_rel_rules rel_tactics interp.
 Set Default Proof Using "Type*".
 
 Section list_code.
@@ -1472,7 +1473,7 @@ Section list_specs_extra.
 
 End list_specs_extra.
 
-(* Section list_rel.
+Section list_rel.
 
        Context `{!diffprivRGS Σ}.
        Context `[!Inject B val].
@@ -1532,4 +1533,4 @@ End list_specs_extra.
          naive_solver.
        Qed.
 
-   End list_rel. *)
+   End list_rel.
