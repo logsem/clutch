@@ -35,40 +35,46 @@ Section rules.
   Proof.
     iIntros (H0 Hdom Ψ) "Hr HΨ".
     destruct (restr_bij_fin (S N) f Hdom) as [ff [Hbij Hff]].
-    iApply wp_lift_step_prog_couple; [done|].
+    iApply (wp_lift_prim_steps_coupl); [done|].
     iIntros (σ1 e1' σ1' ε) "[Hσ [Hs Hε]]".
     iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
 
     replace ε with (0 + ε)%NNR; last first.
     { apply nnreal_ext; simpl; lra. }
-    iApply (prog_coupl_steps _ _ _
-              (λ ρ2 ρ2',
-                ∃ (n : fin _), ρ2 = (syntax.Val #n, σ1) ∧ ρ2' = (semantics.fill K #(f n), σ1')))
-    ; [done| | |..].
+    iExists (λ ρ2 ρ2', ∃ (n : fin _), ρ2 = (Val #n, σ1) ∧ ρ2' = (fill K #(f n), σ1')),_,_.
+    repeat iSplit.
+    - done.
+    - iPureIntro.
     { eexists. simpl. apply head_step_prim_step. apply head_step_support_equiv_rel. unshelve constructor; eauto using Fin.F1. by apply TCEq_eq. }
+    (* TODO should use tactic instead! *)
+      (* solve_red. *)
+    - iPureIntro.
     { eexists. simpl. apply fill_step. apply head_step_prim_step. apply head_step_support_equiv_rel. unshelve constructor; eauto using Fin.F1. by apply TCEq_eq. }
-    { rewrite /= semantics.fill_dmap //.
-      rewrite /= -(dret_id_right (semantics.prim_step _ _)) /=.
+    (* TODO *)
+      (* solve_red. *)
+    - iPureIntro.
+      rewrite /= fill_dmap //.
+      rewrite /= -(dret_id_right (prim_step _ _)) /=.
       apply ARcoupl_exact.
       eapply Rcoupl_dmap.
       eapply Rcoupl_mono.
-      - apply (Rcoupl_rand_rand _ ff).
+      + apply (Rcoupl_rand_rand _ ff).
         by rewrite H0.
-      - intros [] [] (b & [=] & [=])=>/=.
+      + intros [] [] (b & [=] & [=])=>/=.
         simplify_eq.
-        rewrite Hff. eauto. }
-    iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])) "!> !>".
-    iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
-    iMod "Hclose" as "_".
-    replace (0 + ε)%NNR with ε; last first.
-    { apply nnreal_ext; simpl; lra. }
-    iFrame.
-    iApply wp_value.
-    iApply "HΨ".
-    iFrame.
-    iPureIntro.
-    apply fin_to_nat_le.
+        rewrite Hff. eauto.
+    - iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])) "!> !>".
+      iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
+      iMod "Hclose" as "_".
+      replace (0 + ε)%NNR with ε; last first.
+      { apply nnreal_ext; simpl; lra. }
+      iFrame.
+      iApply wp_value.
+      iApply "HΨ".
+      iFrame.
+      iPureIntro.
+      apply fin_to_nat_le.
   Qed.
 
   (** coupling rand and rand but avoid certain values*)
@@ -83,37 +89,42 @@ Section rules.
   Proof.
     iIntros (H0 Hl Hdom Ψ) "[Hε Hr] HΨ".
     destruct (restr_bij_fin (S N) f Hdom) as [ff [Hbij Hff]].
-    iApply wp_lift_step_prog_couple; [done|].
+    iApply (wp_lift_prim_steps_coupl); [done|].
     iIntros (σ1 e1' σ1' ε) "[Hσ [Hs Hε2]]".
     iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
     iDestruct (ec_supply_ec_inv with "Hε2 Hε") as %(x & x1 & -> & H').
-    iApply (prog_coupl_steps _ _ _
-           (* (λ ρ2 ρ2', *)
-           (*   ∃ (n : fin _), n∉l /\ρ2 = (Val #n, σ1) ∧ ρ2' = (fill K #(n), σ1')) *))
-    ; [done| | |..].
-    1,2: eexists; simpl; try apply fill_step; apply head_step_prim_step; apply head_step_support_equiv_rel; unshelve constructor; eauto using Fin.F1; by apply TCEq_eq. 
-    { simpl. eapply ARcoupl_steps_ctx_bind_r; [done|done|].
-      apply ARcoupl_rand_rand_avoid_list; [done|done| |].
-      - by rewrite S_INR. 
-      - by apply TCEq_eq.
-    }
-    iIntros (e2 σ2 e2' σ2' (b & [= ->] & (?&?&[= -> ->] & [= -> ->]))) "!> !>".
-    iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
-    iMod (ec_supply_decrease with "Hε2 Hε") as (x2 x3 H1 ?) "H".
-    replace (x3) with (x1); last first.
-    { apply nnreal_ext. inversion H1.
-      lra.
-    }
-    iMod "Hclose" as "_".
-    (* replace (0 + ε)%NNR with ε; last first. *)
-    (* { apply nnreal_ext; simpl; lra. } *)
-    iFrame.
-    iApply wp_value.
-    iApply "HΨ".
-    rewrite Hff.
-    iFrame.
-    by iPureIntro.
+    iExists _,_,_.
+    repeat iSplit.
+    - done.
+    - iPureIntro.
+    { eexists. simpl. apply head_step_prim_step. apply head_step_support_equiv_rel. unshelve constructor; eauto using Fin.F1. by apply TCEq_eq. }
+    (* TODO should use tactic instead! *)
+      (* solve_red. *)
+    - iPureIntro.
+      eexists; simpl; try apply fill_step; apply head_step_prim_step; apply head_step_support_equiv_rel; unshelve constructor; eauto using Fin.F1; by apply TCEq_eq.
+    (* TODO should use tactic instead! *)
+      (* solve_red. *)
+    - iPureIntro.
+      eapply ARcoupl_steps_ctx_bind_r; first done. 1: done.
+      apply ARcoupl_rand_rand_avoid_list.
+      + apply Hbij.
+      + done.
+      + by rewrite S_INR.
+      + by apply TCEq_eq.
+    - iIntros (e2 σ2 e2' σ2' (b & [= ->] & (?&?&[= -> ->] & [= -> ->]))) "!> !>".
+      iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
+      iMod (ec_supply_decrease with "Hε2 Hε") as (x2 x3 H1 ?) "H".
+      replace (x3) with (x1); last first.
+      { apply nnreal_ext. inversion H1.
+        lra.
+      }
+      iMod "Hclose" as "_".
+      iFrame.
+      iApply wp_value.
+      iApply "HΨ".
+      rewrite Hff. iFrame.
+      by iPureIntro.
   Qed.
 
   (** rand(unit, N) ~ rand(unit, M) coupling, N <= M, under inj *)
@@ -140,31 +151,41 @@ Section rules.
       apply fin_to_nat_inj.
       apply Hinj; [apply fin_to_nat_lt..|].
       rewrite -H1 -H2 //. by f_equal. }
-
     iIntros (-> -> HNM Hε ?) "(Hr & Hε) Hcnt".
-    iApply wp_lift_step_prog_couple; [done|].
+    iApply (wp_lift_prim_steps_coupl); [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
     iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iDestruct (ec_supply_ec_inv with "Hε2 Hε") as %(? &?& -> & ?).
-    iApply prog_coupl_steps; [done| | |..].
-    1,2: eexists; simpl; try apply fill_step; apply head_step_prim_step; apply head_step_support_equiv_rel; unshelve constructor; eauto using Fin.F1; by apply TCEq_eq. 
-    { apply ARcoupl_steps_ctx_bind_r, (ARcoupl_rand_rand_inj _ _ g); done || lra. }
-    iIntros (???? (?& [=->] & (n & [=-> ->] & [=-> ->]))).
-    iMod (spec_update_prog (fill K #(g _)) with "Hauth2 Hr") as "[$ Hspec0]".
-    iMod (ec_supply_decrease with "Hε2 Hε") as (????) "H".
-    do 2 iModIntro.
-    iMod "Hclose'" as "_".
-    iModIntro. iFrame.
-    rewrite -wp_value.
-    rewrite /g fin_to_nat_to_fin.
-    iDestruct ("Hcnt" with "[$Hspec0]") as "$".
-    {
-      iPureIntro.
-      apply fin_to_nat_le.
-    }
-    iApply ec_supply_eq; [|done].
-    simplify_eq. lra.
+    iExists _,_,_.
+    repeat iSplit; eauto.
+    - iPureIntro.
+      { eexists. simpl. apply head_step_prim_step. apply head_step_support_equiv_rel. unshelve constructor; eauto using Fin.F1. }
+      (* TODO should use tactic instead! *)
+      (* solve_red. *)
+    - iPureIntro.
+      eexists; simpl; try apply fill_step; apply head_step_prim_step; apply head_step_support_equiv_rel; unshelve constructor; eauto using Fin.F1; by apply TCEq_eq.
+      (* TODO should use tactic instead! *)
+      (* solve_red. *)
+    - iPureIntro.
+      intros.
+      eapply ARcoupl_steps_ctx_bind_r; [done| |] => //=.
+      apply (ARcoupl_rand_rand_inj _ _ g); done || lra.
+    - iIntros (???? (?& [=->] & (n & [=-> ->] & [=-> ->]))).
+      iMod (spec_update_prog (fill K #(g _)) with "Hauth2 Hr") as "[$ Hspec0]".
+      iMod (ec_supply_decrease with "Hε2 Hε") as (????) "H".
+      do 2 iModIntro.
+      iMod "Hclose'" as "_".
+      iModIntro. iFrame.
+      rewrite -wp_value.
+      rewrite /g fin_to_nat_to_fin.
+      iDestruct ("Hcnt" with "[$Hspec0]") as "$".
+      {
+        iPureIntro.
+        apply fin_to_nat_le.
+      }
+      iApply ec_supply_eq; [|done].
+      simplify_eq. lra.
   Qed.
 
   (** fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*)
@@ -324,10 +345,10 @@ Section rules.
         { apply Rmult_eq_0_compat_r. rewrite /dmap/dbind/dbind_pmf/pmf/=.
           apply SeriesC_0. intros. apply Rmult_eq_0_compat_l.
           rewrite /dret_pmf. case_bool_decide; last lra.
-          subst. exfalso. apply Hin. erewrite elem_of_list_fmap.
+          subst. exfalso. apply Hin. erewrite list_elem_of_fmap.
           exists x; split; first done. replace (fin_enum (S M)) with (enum (fin (S M))) by done.
           apply elem_of_enum. }
-        rewrite elem_of_list_fmap in Hin. destruct Hin as [y [-> ?]].
+        rewrite list_elem_of_fmap in Hin. destruct Hin as [y [-> ?]].
         apply Rmult_eq_compat_r. rewrite /dmap/dbind/dbind_pmf/pmf/=.
         rewrite SeriesC_scal_l.
         replace (SeriesC _) with 1%R; first lra.
@@ -351,12 +372,12 @@ Section rules.
           + apply Req_le_sym. apply SeriesC_ext. (** should be ok *)
             intros s. rewrite /h. case_match eqn:Heqn; last first.
             { rewrite bool_decide_eq_false_2; first (simpl;lra).
-              erewrite elem_of_list_fmap.
+              erewrite list_elem_of_fmap.
               intros [? [->?]]. apply n.
               naive_solver. }
             pose proof epsilon_correct _ e0 as H'.
             rewrite bool_decide_eq_true_2; last first.
-            { destruct e0 as [x ?]. subst. rewrite elem_of_list_fmap.
+            { destruct e0 as [x ?]. subst. rewrite list_elem_of_fmap.
               eexists _. split; first done.
               replace (fin_enum _) with (enum (fin (S M))) by done.
               apply elem_of_enum. }
@@ -390,18 +411,18 @@ Section rules.
             intros n. rewrite /diff.
             case_bool_decide as H1'.
             - destruct H1' as [? H1']. rewrite bool_decide_eq_true_2; last first.
-              + subst. apply elem_of_list_fmap_1. apply elem_of_enum.
+              + subst. apply list_elem_of_fmap_2. apply elem_of_enum.
               + subst. rewrite bool_decide_eq_false_2; first lra.
                 rewrite elem_of_elements.
                 rewrite not_elem_of_difference; right.
-                rewrite elem_of_list_to_set. apply elem_of_list_fmap_1; apply elem_of_enum.
+                rewrite elem_of_list_to_set. apply list_elem_of_fmap_2; apply elem_of_enum.
             - rewrite bool_decide_eq_false_2; last first.
-              { rewrite elem_of_list_fmap. intros [?[??]].
+              { rewrite list_elem_of_fmap. intros [?[??]].
                 subst. apply H1'. naive_solver. }
               rewrite bool_decide_eq_true_2; first lra.
               rewrite elem_of_elements. rewrite elem_of_difference.
               split; rewrite elem_of_list_to_set; first apply elem_of_enum.
-              rewrite elem_of_list_fmap. intros [?[??]].
+              rewrite list_elem_of_fmap. intros [?[??]].
               subst. apply H1'. naive_solver.
           }
         rewrite SeriesC_plus; try apply ex_seriesC_finite.
@@ -553,34 +574,49 @@ Section rules.
   Qed.
 
   (** * rand(unit, N) ~ state_step(α', N) coupling *)
-  Lemma wp_couple_rand_tape N f `{Bij (fin (S N)) (fin (S N)) f} z E α ns :
+  Lemma wp_couple_rand_tape N f `{Bij nat nat f} z E α ns :
     TCEq N (Z.to_nat z) →
-    {{{ ▷ α ↪ₛ (N; ns) }}}
+    (∀ n, n < S N -> f n < S N)%nat →
+    {{{ ▷ α ↪ₛN (N; ns) }}}
       rand #z @ E
-    {{{ (n : fin (S N)), RET #n; α ↪ₛ (N; ns ++ [f n]) ∗ ⌜ n ≤ N ⌝ }}}.
+    {{{ (n : nat), RET #n; α ↪ₛN (N; ns ++ [f n]) ∗ ⌜ n ≤ N ⌝ }}}.
   Proof.
-    iIntros (H0 ?) ">Hαs Hwp".
-    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (H0 Hdom ?) ">Hαs Hwp".
+    iDestruct "Hαs" as (fs) "(<-&Hαs)".
+    destruct (restr_bij_fin (S N) f Hdom) as [ff [Hbij Hff]].
+    iApply wp_lift_prim_step_l_erasable; [done|].
     iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
     iDestruct (spec_auth_lookup_tape with "Hauth2 Hαs") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace (ε) with (0+ε)%NNR at 2 by (apply nnreal_ext; simpl; lra).
-    iApply prog_coupl_step_l_erasable; [done| |..].
+    iExists _,(state_step σ1' α), 0%NNR,ε.
+    repeat iSplit.
+    4:{
+        iPureIntro.
+        apply ARcoupl_exact.
+        eapply (Rcoupl_rand_state _ ff); eauto.
+        rewrite -H0//.
+      }
+    - iPureIntro.
+      apply nnreal_ext.
+      simpl.
+      real_solver.
+    - iPureIntro.
     { eexists. simpl. apply head_step_prim_step.
       apply head_step_support_equiv_rel. unshelve econstructor; eauto using Fin.F1. by rewrite H0. }
-    { apply ARcoupl_exact.
-      eapply (Rcoupl_rand_state _ f); eauto.
-      rewrite -H0//. }
-    { by eapply state_step_erasable. }
-    iIntros (??? (n & [= -> ->] & ->)).
-    iMod (spec_auth_update_tape (_; ns ++ [f _]) with "Hauth2 Hαs") as "[Htapes Hαs]".
-    do 2 iModIntro.
-    iMod "Hclose'" as "_".
-    iFrame.
-    iApply wp_value.
-    iApply ("Hwp" $! _ with "[$Hαs]").
-    iPureIntro.
-    apply fin_to_nat_le.
+    - iPureIntro.
+      by eapply state_step_erasable.
+    - iIntros (??? (n & [= -> ->] & ->)).
+      iMod (spec_auth_update_tape (_; fs ++ [ff _]) with "Hauth2 Hαs") as "[Htapes Hαs]".
+      do 2 iModIntro.
+      iMod "Hclose'" as "_".
+      iFrame.
+      iApply wp_value.
+      iApply ("Hwp" $! _ with "[$Hαs]").
+      iPureIntro.
+      rewrite fmap_app -Hff.
+      split; auto.
+      apply fin_to_nat_le.
   Qed.
-  
+
 End rules.

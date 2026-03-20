@@ -76,13 +76,13 @@ Section past_labels.
       split; [done|].
       split; [|apply NoDup_singleton].
       intros l Hl.
-      rewrite elem_of_list_lookup in Hl.
+      rewrite list_elem_of_lookup in Hl.
       destruct Hl as [i Hl].
       rewrite list_lookup_imap_Some in Hl.
       destruct Hl as [() [Hi ->]].
       rewrite lookup_replicate in Hi.
       destruct Hi as [_ Hi]. simpl in Hi.
-      rewrite elem_of_list_singleton.
+      rewrite list_elem_of_singleton.
       inversion 1.
       apply (Nat.lt_irrefl n).
       by rewrite H1 in Hi.
@@ -108,7 +108,7 @@ Section past_labels.
     label_car l < label_car l' → l ∈ past_labels l'.
   Proof.
     intros Hl.
-    rewrite elem_of_list_lookup.
+    rewrite list_elem_of_lookup.
     exists (label_car l).
     destruct l as [n].
     by apply lookup_past_labels_Some.
@@ -117,7 +117,7 @@ Section past_labels.
   Lemma not_elem_of_past_labels l l' :
     label_car l ≥ label_car l' → l ∉ past_labels l'.
   Proof.
-    rewrite elem_of_list_lookup.
+    rewrite list_elem_of_lookup.
     intros Hl [i Hlkp].
     case (le_gt_dec (label_car l') i).
     - intros Hl'.
@@ -146,7 +146,7 @@ Section to_labels.
     rewrite /to_labels.
     rewrite -not_elem_of_list_to_map.
     rewrite -list_fmap_compose.
-    rewrite elem_of_list_fmap.
+    rewrite list_elem_of_fmap.
     intros [l'' [Heq Hin]].
     simpl in Heq.
     rewrite -Heq in Hin.
@@ -162,7 +162,7 @@ Section to_labels.
     apply (elem_of_list_to_map_1 (_ <$> past_labels l') l).
     - rewrite -list_fmap_compose //=.
       by apply NoDup_fmap_2; [intros ??|apply NoDup_past_labels].
-    - rewrite elem_of_list_fmap.
+    - rewrite list_elem_of_fmap.
       exists l. split; [done|].
       by apply elem_of_past_labels.
   Qed.
@@ -764,9 +764,10 @@ Qed.
 
 Lemma prog_coupl_ctx_bind K e1 σ1 e1' σ1' Z ε:
   to_val e1 = None →
+  □(∀ e2 σ2 e2' σ2', Z e2 σ2 e2' σ2' 1%NNR) -∗
   prog_coupl e1 σ1 e1' σ1' ε (λ e2, Z (fill K e2)) -∗ prog_coupl (fill K e1) σ1 e1' σ1' ε Z.
 Proof.
-  iIntros (Hv) "(%R & %n & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) /=".
+  iIntros (Hv) "#HZ1 (%n & %μ1' & %X2 & %r & (%bound & %Hbound) & %Hcpl & % & Hcnt) /=".
 
   (** (classical) inverse of context [K] *)
   destruct (partial_inv_fun (fill K)) as (Kinv & HKinv).
@@ -774,33 +775,47 @@ Proof.
   { intro e.
     destruct (Kinv (fill K e)) eqn:Heq;
       eapply HKinv in Heq; by simplify_eq. }
-  set (X2' := (λ '(e, σ), from_option (λ e', X2 (e', σ)) 0%NNR (Kinv e))).
+  set (X2' := (λ '(e, σ) ρ', from_option (λ e', X2 (e', σ) ρ') 1%NNR (Kinv e))).
   assert (∀ e2 σ2, X2' (fill K e2, σ2) = X2 (e2, σ2)) as HX2'.
   { intros. rewrite /X2' HKinv3 //. }
 
-  iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = fill K e2' ∧ R (e2', σ2) ρ'), n, μ1', ε1, X2', r.
+  iExists n, μ1', X2'.
   iSplit; [eauto using reducible_fill|].
   iSplit.
+  { iPureIntro. exists (Rmax 1 bound). rewrite /X2' //. destruct ρ1.
+    intros. destruct (Kinv e) => //=. 2: apply Rmax_l. etrans. 2: apply Rmax_r. apply Hbound. }
+  iSplit.
   { iPureIntro. simpl.
-    erewrite semantics.fill_dmap_uncaught'; [|done|]. 2 : { destruct H as ((?,?) & Hstep). simpl in Hstep. by eapply prim_step_uncaught_eff. }
-                                                    rewrite -(dret_id_right (μ1' ≫= _ )) //.
+    erewrite semantics.fill_dmap_uncaught'; [|done|].
+    2: { destruct r as ((?,?) & Hstep). simpl in Hstep. by eapply prim_step_uncaught_eff. }
+    rewrite -(dret_id_right (μ1' ≫= _ )) //.
     rewrite /dmap.
-    eapply (ARcoupl_dbind' _ nnreal_zero); [..|done]; [done|done|simpl; lra|..].
-    intros [] ?? => /=. apply ARcoupl_dret; [done|]. eauto. }
-  iSplit; [iPureIntro|].
-  { intros [e σ]. simpl. destruct (Kinv e) => //=. }
-  iSplit; [iPureIntro; simpl|].
-  { rewrite fill_dmap_uncaught'; [|done|]. 2 : { destruct H as ((?,?) & Hstep). simpl in Hstep. by eapply prim_step_uncaught_eff. }
-                                         rewrite Expval_dmap //=; last first.
-    - eapply ex_expval_bounded. intros [] => /=. rewrite HKinv3 //=.
-    - etrans; [|done].
-      apply Rle_plus_plus; [done|].
-      right; apply SeriesC_ext.
-      intros [e σ]. rewrite -HX2' //. }
+    intros h1 h2 hh1 hh2 h12.
+    rewrite Expval_dbind.
+    3: apply ex_expval_dbind.
+    2,3: apply hh1.
+    3: intros ; apply ex_expval_dret.
+    2: {
+      replace (λ a, Expval (dret (semantics.fill_lift K a)) h1) with (λ a, (h1 (semantics.fill_lift K a))).
+      2: extensionality x ; by rewrite Expval_dret.
+      eapply ex_expval_bounded. intros ; done.
+    }
+    transitivity
+      (Expval (semantics.prim_step e1 σ1)
+         (λ a : syntax.expr * syntax.state,
+            h1 (semantics.fill_lift K a))).
+    { right. eapply SeriesC_ext. intros. by rewrite Expval_dret. }
+    rewrite dret_id_right.
+    apply Hcpl => //.
+    intros [] ? ; rewrite -HX2'. apply h12.
+  }
   iSplit; [done|].
-  iIntros (e2 σ2 e2' σ2' (e3 & -> & HR)).
-  rewrite HX2'.
-  by iApply "Hcnt".
+  iIntros (e2 σ2 e2' σ2').
+  rewrite /X2'. simpl.
+  destruct (Kinv e2) as [e3 | ] eqn:He2; simpl; auto.
+  assert (fill K e3 = e2) as <-.
+  1: by apply HKinv.
+  iApply "Hcnt".
 Qed.
 
 Lemma wp_bind K E e Φ s :
@@ -819,7 +834,8 @@ Proof.
                                      by iMod ("H" with "[$]"). } simpl.
                                    rewrite (semantics.fill_not_val K e) /=; [|done].
                                    iApply spec_coupl_ret.
-                                   iApply prog_coupl_ctx_bind; [done|].
+                                   iApply prog_coupl_ctx_bind; [done| | ].
+                                   { iModIntro. iIntros. by iApply spec_coupl_err_ge_1. }
                                    iApply (prog_coupl_mono with "[] H").
                                    iIntros (e3 σ3 e3' σ3' ε3) "H !>".
                                    iApply (spec_coupl_mono with "[] H"); [done|].

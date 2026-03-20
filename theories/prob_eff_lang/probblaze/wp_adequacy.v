@@ -52,11 +52,12 @@ Section adequacy.
     intros Hval.
     rewrite exec_Sn.
     rewrite /step_or_final val_to_final //. 
-    iIntros "(%R & %k & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) Hcoupl ".
+    iIntros "(%k & %μ1' & %X2 & %r & [% %] & % & % & Hcnt) Hcoupl ".
     iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-    { iPureIntro. intros. eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. }
-    iIntros (e2 σ2 e2' σ2' ε2).
-    iMod ("Hcnt" with "[//]") as "Hcnt".
+    { iPureIntro. intros. eapply (ARcoupl_erasure_erasable_exp_lhs_kanto _ X2); [..|done]; eauto.
+      simpl. real_solver. }
+    iIntros (e2 σ2 e2' σ2').
+    iMod ("Hcnt" $! _ _ _ _) as "Hcnt".
     by iApply "Hcoupl".
   Qed.
 
@@ -124,12 +125,14 @@ Proof.
   - set ε' := mknonnegreal _ Heps.
     iMod (ec_alloc ε') as (?) "[HE He]"; [done|].
     set (HprobblazeGS := HeapG Σ _ _ _ _ γH γT γlabels HspecGS _).
-    iApply (wp_adequacy_step_fupdN ε').
+    epose proof wp_adequacy_step_fupdN as h.
+    iApply (h ε').
     iFrame "Hh Ht Hs HE Hlabels".
     by iApply (Hwp with "[Hj] [He]").
   - iApply fupd_mask_intro; [done|]; iIntros "_".
     iApply step_fupdN_intro; [done|]; iModIntro.
     iPureIntro. by apply ARcoupl_1.
+    Unshelve. apply _.
 Qed.
 
 Theorem wp_adequacy Σ `{probblazeGpreS Σ} (e e' : expr) (σ σ' : state) (ε : R) φ :

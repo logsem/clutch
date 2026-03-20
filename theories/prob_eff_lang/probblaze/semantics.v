@@ -369,9 +369,9 @@ Proof. by apply NeutralEctx_cons. Qed.
 
 Instance NeutralEctx_dec ls k : Decision (NeutralEctx ls k).
 Proof.
-  ecase (stdpp.list_relations.Forall_dec (λ l, l ∉ ectx_labels k)); [left|right].
-  - constructor. by apply stdpp.list_relations.Forall_forall.
-  - intros Habsurd. apply n. rewrite stdpp.list_relations.Forall_forall. by apply neutral_ectx.
+  ecase (stdpp.list_relations.list.Forall_dec (λ l, l ∉ ectx_labels k)); [left|right].
+  - constructor. by apply stdpp.list_relations.list.Forall_forall.
+  - intros Habsurd. apply n. rewrite stdpp.list_relations.list.Forall_forall. by apply neutral_ectx.
 Qed.
 
 Lemma Permutation_NeutralEctx ls k k' :
@@ -414,7 +414,7 @@ Proof.
   intros Hneutral. split; [|by apply (NeutralEctx_app_r _ [f])].
   specialize (NeutralEctx_app_l _ [f] _ Hneutral) as Hf.
   destruct f=>//=; simpl; constructor; intros Hin_ls. clear Hneutral.
-  by apply (neutral_ectx l Hin_ls), elem_of_list_singleton.
+  by apply (neutral_ectx l Hin_ls), list_elem_of_singleton.
 Qed.
 
 Lemma NeutralEctx_ectx_labels_iff ls k :
@@ -442,7 +442,7 @@ Instance NeutralEctx_label_cons_inv_1 l ls k :
   NeutralEctx (l :: ls) k → NeutralEctx [l] k.
 Proof.
   intros Hk. constructor. intros l'.
-  rewrite elem_of_list_singleton. intros ->.
+  rewrite list_elem_of_singleton. intros ->.
   apply neutral_ectx. rewrite elem_of_cons. by left.
 Qed.
 
@@ -945,14 +945,14 @@ Global Arguments state_upd_tapes _ !_ /.
 
 Lemma state_upd_tapes_twice σ l n xs ys :
   state_upd_tapes <[l:=(n; ys)]> (state_upd_tapes <[l:=(n; xs)]> σ) = state_upd_tapes <[l:=(n; ys)]> σ.
-Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed.
+Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert_eq. Qed.
 
 Lemma state_upd_tapes_same σ σ' l n xs ys :
   state_upd_tapes <[l:=(n; ys)]> σ = state_upd_tapes <[l:=(n; xs)]> σ' -> xs = ys.
 Proof. rewrite /state_upd_tapes /=. intros K. simplify_eq.
        rewrite map_eq_iff in H0.
        specialize (H0 l).
-       rewrite !lookup_insert in H0.
+       rewrite !lookup_insert_eq in H0.
        by simplify_eq.
 Qed.
 
@@ -1641,7 +1641,7 @@ Proof.
     intros α' ?. rewrite /get_active /=.
     apply elem_of_elements, elem_of_dom.
     destruct (decide (α = α')); subst.
-    + eexists. rewrite lookup_insert //.
+    + eexists. rewrite lookup_insert_eq //.
     + rewrite lookup_insert_ne //.
       apply elem_of_dom. eapply elem_of_elements, Hact. by right.
 Qed.
@@ -1684,24 +1684,24 @@ Proof.
   (* (* TODO: the sub goals used to be solved by [simplify_map_eq]  *)
      - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
        + destruct (decide (α = l1)); simplify_eq.
-         * rewrite lookup_insert in H11. done.
+         * rewrite lookup_insert_eq in H11. done.
          * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
        + destruct (decide (α = l1nn)); simplify_eq.
-         * rewrite lookup_insert in H11. done.
+         * rewrite lookup_insert_eq in H11. done.
          * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
        + destruct (decide (α = l1)); simplify_eq.
-         * rewrite lookup_insert in H10. done.
+         * rewrite lookup_insert_eq in H10. done.
          * rewrite lookup_insert_ne // in H10. rewrite H10 in H7. done.
      - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
        + destruct (decide (α = l1)); simplify_eq.
          * apply not_elem_of_dom_2 in H11. done.
          * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done.
        + destruct (decide (α = l1)); simplify_eq.
-         * rewrite lookup_insert // in H7.
+         * rewrite lookup_insert_eq // in H7.
            apply not_elem_of_dom_2 in H11. done.
          * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done.
        + destruct (decide (α = l1)); simplify_eq.
-         * rewrite lookup_insert // in H7.
+         * rewrite lookup_insert_eq // in H7.
            apply not_elem_of_dom_2 in H10. done.
          * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done. *)
 Admitted.
@@ -1748,12 +1748,12 @@ Proof.
     rewrite reverse_cons. rewrite reverse_snoc. simpl.
     rewrite -reverse_cons. rewrite reverse_involutive. simpl.
     destruct (decide (l ∉ l :: ectx_labels k)); eauto. exfalso. apply n.
-    apply elem_of_list_here.
+    apply list_elem_of_here.
   - simplify_eq. unfold uncaught_eff. unfold to_eff. simpl. rewrite (to_eff_get_ectx e1 l v k H9).
     rewrite reverse_cons. rewrite reverse_snoc. simpl.
     rewrite -reverse_cons. rewrite reverse_involutive. simpl.
     destruct (decide (l ∉ l :: ectx_labels k)); eauto. exfalso. apply n.
-    apply elem_of_list_here.
+    apply list_elem_of_here.
 Qed.
 
 Lemma head_step_uncaught_eff e σ ρ :

@@ -2,7 +2,7 @@
 
 (* This file contains the definition of semantic typing judgments. *)
 
-From iris.proofmode Require Import base tactics classes.
+From iris.proofmode Require Import base proofmode classes.
 From iris.algebra Require Import list.
 
 From stdpp Require Import base gmap.

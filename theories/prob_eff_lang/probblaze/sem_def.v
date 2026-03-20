@@ -2,7 +2,7 @@
 
 (* This file contains the definition of types, signatures, rows, environments and relations. *)
 
-From iris.proofmode Require Import base tactics classes.
+From iris.proofmode Require Import base proofmode classes.
 From iris.algebra Require Import list ofe gmap.
 
 From clutch.prob_eff_lang.probblaze Require Import logic notation.

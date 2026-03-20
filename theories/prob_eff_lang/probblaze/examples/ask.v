@@ -1,6 +1,6 @@
 (* ask.v *)
 
-From iris.proofmode Require Import base tactics classes.
+From iris.proofmode Require Import base proofmode classes.
 From clutch.prob_eff_lang.probblaze Require Import logic proofmode  spec_rules.
 
 
@@ -46,7 +46,7 @@ Section verification.
     iApply (brel_exhaustion _ _ [_] with "He"); try done.
     iSplit; [by iIntros "!> %% HR"; by brel_pures_l|].
     iIntros "!> %k1 %k2 %%% %Hk1 %Hk2 (-> & -> & #HQ) #Hk".
-    brel_pures_l. { by apply Hk1; apply elem_of_list_singleton. }
+    brel_pures_l. { by apply Hk1; apply list_elem_of_singleton. }
     iApply "IH". by iApply "Hk".
   Qed.
 
@@ -69,7 +69,8 @@ Section verification.
     iExists (do: ask #()%V)%E, #x, [], [], _.
     do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
     iSplit; [|by iIntros "!> %% H"; iApply "H"].
-    do 2 (iSplit; [done|]). by iModIntro; iApply brel_value.
+    do 2 (iSplit; [done|]). iModIntro; iApply brel_value.
+    iIntros. iFrame. done.
   Qed.
 
 End verification.

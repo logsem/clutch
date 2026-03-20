@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base tactics classes.
+From iris.proofmode Require Import base proofmode classes.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode spec_rules spec_ra notation semantics.
 
@@ -94,7 +94,7 @@ Section handlee_verification.
       rel_pures_l. rel_pures_r. by auto.
     - intros Hnneg Hdec. rewrite bool_decide_eq_false_2; [|done].
       rel_pures_l. rel_pures_r.
-      iApply rel_couple_rand_rand; [done|simpl; iIntros (n)]. (* rand_rand coupling *)
+      iApply rel_couple_rand_rand; [done|simpl; iIntros (n) "%Hn"]. (* rand_rand coupling *)
       rel_pures_l. rel_pures_r.
       iApply (rel_bind' [_; _; BinOpLCtx _ _] [_; _; BinOpLCtx _ _]).
       { by iApply traversable_iThyTraverse; apply _. }
@@ -408,7 +408,7 @@ Section handler_verification2.
       iDestruct ("Hk" with "HQxx") as "Hkont".
       iApply ("IH" with "[$][$]").
     - rel_pures_l; [by apply NeutralEctx_ectx_labels_singleton|].     
-      iApply rel_couple_rand_rand; [done|]. iIntros (n).
+      iApply rel_couple_rand_rand; [done|]. iIntros (n) "%Hn".
       rel_pures_l.
       iDestruct (ghost_map_elem_combine with "Hl Hl'") as "(Hl & %)". simplify_eq.
       rewrite dfrac_op_own Qp.half_half.

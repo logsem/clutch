@@ -1,4 +1,4 @@
-From iris.proofmode      Require Import base tactics classes.
+From iris.proofmode      Require Import base proofmode classes.
 From iris.base_logic.lib Require Import iprop.
 From iris.program_logic  Require Import weakestpre language.
 From clutch.prob_eff_lang.hazel_prob Require Import lang iEff.

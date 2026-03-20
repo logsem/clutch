@@ -1,6 +1,6 @@
 From stdpp                         Require Import tactics.
 
-From iris.proofmode  Require Export base tactics classes.
+From iris.proofmode  Require Export base proofmode classes.
 From iris.proofmode Require Import proofmode.
 From clutch.approxis Require Import app_weakestpre.
 From clutch.common Require Import language ectxi_language locations.
@@ -1590,7 +1590,7 @@ Section compatibility.
                  iApply refines_eff.
                  rewrite eff_refines_unfold.
                  iExists l1', l2', B1', B2', v1, v2, _, _.
-                 iSplit. { iPureIntro. by apply elem_of_list_further. }
+                 iSplit. { iPureIntro. by apply list_elem_of_further. }
                  repeat (try (iSplit; [iPureIntro; (apply _ || done)|])). iFrame "HA1".
                  iModIntro. iIntros (w w') "#HB2'".
                  iDestruct ("Hcont" with "HB2'") as "HfillN". iNext.

@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base tactics classes.
+From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import  na_invariants.
 From iris.algebra Require Import agree excl auth frac excl_auth.
 From iris.algebra.lib Require Import dfrac_agree.
@@ -265,12 +265,16 @@ Section handlee_verification.
     iApply brel_couple_rand_rand; first done. iIntros (g1 Hg1).
     brel_exp_l. brel_exp_r. brel_pures.
     (* mod size of the group to stay in ℤₙ *)
-    iApply (brel_couple_rand_rand _ _ (λ m : nat, ((m / g0))%nat)).
+    epose proof brel_couple_rand_rand as h.
+    iApply (h _ _ (λ m : nat, ((m / g0))%nat)) ; clear h.
+    1: shelve.
     { intros m Hlt. apply Nat.Div0.div_lt_upper_bound. admit. (* eapply Nat.lt_trans; last apply Nat.lt_succ_diag_r. apply Nat.mod_upper_bound. done. *) }
     iIntros (t0 Ht0). brel_exp_l. brel_pures.
     assert (t0 < S n)%nat as Ht0' by lia.
     (* do we need mod n? it's to ensure m/g1 is less than n, but maybe if we know m : fin n we don't need that  *)
-    iApply (brel_couple_couple_avoid _ _ [Fin.of_nat_lt Ht0'] (λ m : nat, ((m / g1))%nat)).
+    epose proof brel_couple_couple_avoid as h ;
+    iApply (h _ _ [Fin.of_nat_lt Ht0'] (λ m : nat, ((m / g1))%nat)) ; clear h.
+    1: shelve.
     { apply NoDup_singleton. }
     { intros m Hlt. admit. (* eapply Nat.lt_trans; last apply Nat.lt_succ_diag_r. apply Nat.mod_upper_bound. done. *) }
     iFrame. iIntros (t1 Hneq) "!>". 
@@ -381,9 +385,9 @@ Section handlee_verification.
              iIntros (???????) "!#".
              iIntros "[[(%&%&Hupd&(->&->)&HQ) | (->&->&HQ1&HQ2)] | [(%&%&%&%&Hupd&(->&->)&HQ) | (->&->&HQ1&HQ2)]] #Hkont".
              1,2,4: brel_pures; [apply neutral_ectx; set_solver|];
-                 iApply (brel_bind k1' [_] _ [([channel],[channel],_)]); [|iApply to_iThy_le_intro'; eapply singleton_submseteq_l; apply elem_of_list_here|];
+                 iApply (brel_bind k1' [_] _ [([channel],[channel],_)]); [|iApply to_iThy_le_intro'; eapply singleton_submseteq_l; apply list_elem_of_here|];
                first (iApply (traversable_ectx_labels _ _ (ectx_labels k1') []); [done|done|]; split; admit);
-                 iApply brel_introduction'; [apply elem_of_list_here|];
+                 iApply brel_introduction'; [apply list_elem_of_here|];
                  iExists _,_,[],[], (λ s1 s2, ∃ v1 v2, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ Q s1 s2 ∗ □ (∀ s1' s2' : expr,
                    Q s1' s2' -∗
                    brel ⊤ (fill k1' s1') (fill k2' s2')
@@ -405,7 +409,7 @@ Section handlee_verification.
              clear P.
              
              brel_pures; [apply neutral_ectx; set_solver|].
-             iApply (brel_introduction with "[Hupd HQ]"); [apply elem_of_list_here| |iIntros (??) "!# !> H"; iApply "H"].
+             iApply (brel_introduction with "[Hupd HQ]"); [apply list_elem_of_here| |iIntros (??) "!# !> H"; iApply "H"].
              iExists _,_,_,[AppRCtx _], (λ v1 v2, ⌜v1 = Val #()%V⌝ ∗ ⌜v2 = Val #()%V⌝ ∗ Q #()%V #()%V)%I.
              repeat (iSplit; [done|]).
              iSplit; [iPureIntro; apply AppRCtx_NeutralEctx; apply NeutralEctx_nil|].
@@ -492,7 +496,7 @@ Section handlee_verification.
       iModIntro.
       iApply brel_na_close. iFrame "Hclose". iSplitR; [iModIntro; iRight; iFrame "#"|].
       
-      brel_pures; [eapply AppRCtx_NeutralEctx; [eapply NeutralEctx_nil|eapply elem_of_list_here]| ].
+      brel_pures; [eapply AppRCtx_NeutralEctx; [eapply NeutralEctx_nil|eapply list_elem_of_here]| ].
       
       iApply (brel_introduction' [channel]). { repeat constructor. }
       iExists _,_,[AppRCtx _],[AppRCtx _ ],_.

@@ -2,7 +2,7 @@
 
 (* This file contains the definition of semantic types *)
 
-From iris.proofmode Require Import base tactics.
+From iris.proofmode Require Import base proofmode.
 From iris.algebra Require Import ofe list.
 From iris.base_logic Require Export iprop upred invariants.
 

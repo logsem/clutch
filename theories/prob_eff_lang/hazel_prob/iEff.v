@@ -1,4 +1,4 @@
-From iris.proofmode       Require Import tactics.
+From iris.proofmode       Require Import proofmode.
 From iris.base_logic      Require Export lib.iprop.
 From iris.algebra         Require Import excl_auth.
 From iris.base_logic      Require Import lib.own.
@@ -64,7 +64,7 @@ Proof. by intros ???. Qed.
 Global Instance iEff_car_proper {Σ} : Proper ((≡) ==> (≡)) (iEff_car (Σ:=Σ)).
 Proof. by intros ???. Qed.
 
-Lemma iEff_equivI' {Σ} `{!BiInternalEq SPROP} (e1 e2 : iEff Σ) :
+Lemma iEff_equivI' {Σ} `{!Sbi SPROP} (e1 e2 : iEff Σ) :
   e1 ≡ e2 ⊣⊢@{SPROP} iEff_car e1 ≡ iEff_car e2.
 Proof.
   apply (anti_symm _).
@@ -73,7 +73,7 @@ Proof.
     by apply f_equivI, IEff_ne.
 Qed.
 
-Lemma iEff_equivI {Σ} `{!BiInternalEq SPROP} (e1 e2 : iEff Σ) :
+Lemma iEff_equivI {Σ} `{!Sbi SPROP} (e1 e2 : iEff Σ) :
   e1 ≡ e2 ⊣⊢@{SPROP} ∀ v q, iEff_car e1 v q ≡ iEff_car e2 v q.
 Proof.
   trans (iEff_car e1 ≡ iEff_car e2 : SPROP)%I.
@@ -84,4 +84,3 @@ Qed.
 
 (* iEff_bottom. *)
 Instance iEff_bottom {Σ} : Bottom (iEff Σ) := IEff (λ _, λne _, False%I).
-

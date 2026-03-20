@@ -32,44 +32,48 @@ Section rules.
   Proof.
     iIntros (H0 Hdom) "Hr HΨ".
     destruct (restr_bij_fin (S N) f Hdom) as [ff [Hbij Hff]].
-    iApply ewp_lift_step_prog_couple; [done|done|].
+
+    iApply (ewp_lift_prim_steps_coupl) => //.
     iIntros (σ1 e1' σ1' ε) "[Hσ [Hs Hε]]".
-    iDestruct (spec_auth_prog_agree with "Hs Hr") as %->. simpl.
+    iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
 
     replace ε with (0 + ε)%NNR; last first.
     { apply nnreal_ext; simpl; lra. }
-    iApply (prog_coupl_steps _ _ _
-              (λ ρ2 ρ2',
-                ∃ (n : fin _), ρ2 = (Val #n, σ1) ∧ ρ2' = (fill K #(f n), σ1')))
-    ; [done| | |..].
-    { eexists. simpl. apply head_step_prim_step. apply head_step_support_equiv_rel. constructor; done. }
-    { apply reducible_fill. eexists. simpl. apply head_step_prim_step. apply head_step_support_equiv_rel. constructor; done. }
-    { simpl.
+    iExists (λ ρ2 ρ2', ∃ (n : fin _), ρ2 = (Val #n, σ1) ∧ ρ2' = (fill K #(f n), σ1')),_,_.
+    repeat iSplit.
+    - done.
+    - iPureIntro.
+    { eexists. simpl. apply head_step_prim_step. apply head_step_support_equiv_rel. unshelve constructor; eauto using Fin.F1. by apply TCEq_eq. }
+    (* TODO should use tactic instead! *)
+      (* solve_red. *)
+    - iPureIntro.
+    { eexists. simpl. apply fill_step. apply head_step_prim_step. apply head_step_support_equiv_rel. unshelve constructor; eauto using Fin.F1. by apply TCEq_eq. }
+    (* TODO *)
+      (* solve_red. *)
+    - iPureIntro.
       rewrite /= fill_dmap //.
       rewrite /= -(dret_id_right (prim_step _ _)) /=.
       apply ARcoupl_exact.
       eapply Rcoupl_dmap.
       eapply Rcoupl_mono.
-      - apply (Rcoupl_rand_rand _ ff).
+      + apply (Rcoupl_rand_rand _ ff).
         by rewrite H0.
-      - intros [] [] (b & [=] & [=])=>/=.
+      + intros [] [] (b & [=] & [=])=>/=.
         simplify_eq.
-        rewrite Hff. eauto. }
-    iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])) "!> !>".
-    iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
-    iMod "Hclose" as "_".
-    replace (0 + ε)%NNR with ε; last first.
-    { apply nnreal_ext; simpl; lra. }
-    iFrame.
-    iApply ewp_value.
-    iApply "HΨ".
-    iFrame.
-    iPureIntro.
-    apply fin_to_nat_le.
-    Unshelve.
-    { rewrite -H0; apply Fin.F1. } 
-    { rewrite -H0; apply Fin.F1. } 
+        rewrite Hff. eauto.
+    - iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])) "!> !>".
+      iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
+      iMod "Hclose" as "_".
+      replace (0 + ε)%NNR with ε; last first.
+      { apply nnreal_ext; simpl; lra. }
+      iFrame.
+      iModIntro.
+      iApply ewp_value.
+      iApply "HΨ".
+      iFrame.
+      iPureIntro.
+      apply fin_to_nat_le.
   Qed.
 
   (** * rand(unit, N) ~ state_step(α', N) coupling *)
@@ -82,34 +86,42 @@ Section rules.
       rand #z @ E <| Ψ |>
     {{ v, Φ v }}.
   Proof.
-    iIntros (H0 Hdom) "Hαs HΦ". 
+    iIntros (H0 Hdom) "Hαs Hwp".
     iDestruct "Hαs" as (fs) "(<-&Hαs)".
     destruct (restr_bij_fin (S N) f Hdom) as [ff [Hbij Hff]].
-    iApply ewp_lift_step_prog_couple; [done|done|].
+    iApply ewp_lift_prim_step_l_erasable; [done|done|].
     iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
     iDestruct (spec_auth_lookup_tape with "Hauth2 Hαs") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace (ε) with (0+ε)%NNR at 2 by (apply nnreal_ext; simpl; lra).
-    iApply prog_coupl_step_l_erasable; [done| |..].
+    iExists _,(state_step σ1' α), 0%NNR,ε.
+    repeat iSplit.
+    4:{
+        iPureIntro.
+        apply ARcoupl_exact.
+        eapply (Rcoupl_rand_state _ ff); eauto.
+        rewrite -H0//.
+      }
+    - iPureIntro.
+      apply nnreal_ext.
+      simpl.
+      real_solver.
+    - iPureIntro.
     { eexists. simpl. apply head_step_prim_step.
-      apply head_step_support_equiv_rel. constructor; done. }
-    { apply ARcoupl_exact.
-      eapply (Rcoupl_rand_state _ ff); eauto.
-      rewrite -H0//. }
-    { by eapply state_step_erasable. }
-    iIntros (??? (n & [= -> ->] & ->)).
-    iMod (spec_auth_update_tape (_; fs ++ [ff _]) with "Hauth2 Hαs") as "[Htapes Hαs]".
-    do 2 iModIntro.
-    iMod "Hclose'" as "_".
-    iFrame.
-    iApply ewp_value.
-    iApply ("HΦ" $! _ with "[$Hαs]").
-    iPureIntro.
-    rewrite fmap_app -Hff.
-    split; auto.
-    apply fin_to_nat_le.
-    Unshelve.
-    rewrite -H0; apply Fin.F1.
+      apply head_step_support_equiv_rel. unshelve econstructor; eauto using Fin.F1. by rewrite H0. }
+    - iPureIntro.
+      by eapply state_step_erasable.
+    - iIntros (??? (n & [= -> ->] & ->)).
+      iMod (spec_auth_update_tape (_; fs ++ [ff _]) with "Hauth2 Hαs") as "[Htapes Hαs]".
+      do 2 iModIntro.
+      iMod "Hclose'" as "_".
+      iFrame.
+      iApply ewp_value.
+      iApply ("Hwp" $! _ with "[$Hαs]").
+      iPureIntro.
+      rewrite fmap_app -Hff.
+      split; auto.
+      apply fin_to_nat_le.
   Qed.
 
 End rules.

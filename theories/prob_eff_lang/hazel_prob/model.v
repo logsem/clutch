@@ -1,6 +1,6 @@
 From stdpp                         Require Import tactics.
 
-From iris.proofmode  Require Export base tactics classes.
+From iris.proofmode  Require Export base proofmode classes.
 From iris.proofmode Require Import proofmode.
 From clutch.approxis Require Import app_weakestpre.
 From clutch.common Require Import language ectxi_language locations.

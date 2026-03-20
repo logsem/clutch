@@ -3,7 +3,7 @@
 
 (* This file contains the definition of semantic rows. *)
 
-From iris.proofmode Require Import base tactics.
+From iris.proofmode Require Import base proofmode.
 From iris.algebra Require Import ofe gmap.
 From iris.base_logic Require Export iprop upred invariants.
 
@@ -138,12 +138,12 @@ Section once_row.
       iPoseProof Hmono as "Hmcons".
       iDestruct ("Hmcons" $! v1 v2 Φ Φ' with "H1") as "HΨ".
       iAssert (⌜(l1s0, l2s0, X) ∈ iLblSig_to_iLblThy ((l1s, l2s, σ) :: l)⌝ ∗ iThyTraverse l1s0 l2s0 X v1 v2 Φ)%I with "[H2]" as "Htemp".
-      { iSplit; last done. iPureIntro. by apply elem_of_list_further. }
+      { iSplit; last done. iPureIntro. by apply list_elem_of_further. }
       iDestruct ("HΨ" with "Htemp") as "(% & $)".
     - iIntros (???) "HΦ".
       iPoseProof Hprop as "Hprop". 
       iAssert (to_iThy (iLblSig_to_iLblThy ((l1s, l2s, σ) :: l)) e1 e2 Φ) with "[HΦ]" as "HΦ".
-      { iDestruct "HΦ" as (????) "HΦ". iExists _,_,_. iSplit; [iPureIntro; by apply elem_of_list_further |done]. }
+      { iDestruct "HΦ" as (????) "HΦ". iExists _,_,_. iSplit; [iPureIntro; by apply list_elem_of_further |done]. }
       iDestruct ("Hprop" with "HΦ") as "HΦ". done.
   Qed. 
 
@@ -274,8 +274,8 @@ Section row_sub_typing.
       iSplit.
       { iPureIntro. induction (iLblSig_to_iLblThy ρ); first by apply elem_of_nil in Hin.
         simpl. destruct a as [[l1s' l2s'] X']. apply elem_of_cons in Hin as [Hin| Hin].
-        - simplify_eq. apply elem_of_list_here.
-        - apply IHi in Hin. by apply elem_of_list_further. }
+        - simplify_eq. apply list_elem_of_here.
+        - apply IHi in Hin. by apply list_elem_of_further. }
       iDestruct "Ht" as (?????->?->?) "(HX & #Hcont)".
       iExists _,_,_,_,_. repeat (iSplit; first done).
       iSplitL; last iFrame "#".
@@ -360,7 +360,7 @@ Section row_sub_typing.
           iSplitL; last done.
           iExists Q'0. iFrame. iIntros (??) "!> HQ'0". iApply "H3". by iApply "Hcont". }
         iPureIntro.
-        simplify_eq. simpl. apply elem_of_list_here.
+        simplify_eq. simpl. apply list_elem_of_here.
       + iDestruct ("IH" $! Hin) as "IH'".
         iDestruct ("IH'" with "HX") as "Hi".
         iDestruct "Hi" as (???) "(%Hin' & HX)".

@@ -1,5 +1,5 @@
 From iris.algebra   Require Export list gmap.
-From iris.proofmode Require Export base tactics classes.
+From iris.proofmode Require Export base proofmode classes.
 
 From clutch.prob_eff_lang.hazel_prob Require Import typed_lang model spec_ra metatheory.
 
@@ -145,8 +145,8 @@ Section properties.
       rewrite (IHα _ _ Hlen).
       rewrite (IHβ _ _ Hlen).
       destruct (m <? n) eqn:Heq.
-      + rewrite lookup_delete_lt; [done|simpl]. by apply Stdlib.Arith.PeanoNat.Nat.ltb_lt.
-      + rewrite lookup_delete_ge; try done. by apply Stdlib.Arith.PeanoNat.Nat.ltb_ge.
+      + rewrite list_lookup_delete_lt; [done|simpl]. by apply Stdlib.Arith.PeanoNat.Nat.ltb_lt.
+      + rewrite list_lookup_delete_ge; try done. by apply Stdlib.Arith.PeanoNat.Nat.ltb_ge.
     - intros α IHα n ρ Hlen. simpl.
       apply valRel_forall_proper=> R R' ->.
       rewrite IHα; simpl; try done; simpl; lia.
@@ -187,7 +187,7 @@ Section properties.
       destruct (m <? n) eqn:Heq.
       + rewrite lookup_app_l.
         2 : { rewrite length_take. rewrite min_l; [| done]. by apply Stdlib.Arith.PeanoNat.Nat.ltb_lt. }
-        rewrite lookup_take; last by apply Stdlib.Arith.PeanoNat.Nat.ltb_lt.
+        rewrite lookup_take_lt; last by apply Stdlib.Arith.PeanoNat.Nat.ltb_lt.
         rewrite (IHα _ _ _ _ Hlen) (IHβ _ _ _ _ Hlen). done.
       + destruct (m =? n) eqn:Heq'.
         * rewrite list_lookup_middle.

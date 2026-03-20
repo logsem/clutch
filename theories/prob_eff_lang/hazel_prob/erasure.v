@@ -103,7 +103,7 @@ Set Default Proof Using "Type*".
        apply lookup_total_correct in Hα' as Hα'tot.
        destruct (decide (α = α')) as [-> | Hαneql].
        - simplify_eq. rewrite /head_step Hα.
-         setoid_rewrite lookup_insert.
+         setoid_rewrite lookup_insert_eq.
          rewrite bool_decide_eq_true_2 //.
          rewrite dmap_dret dret_id_left -/exec.
          erewrite dbind_ext_right; last first.
@@ -113,11 +113,11 @@ Set Default Proof Using "Type*".
          assert (Haux : ∀ n,
                     state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> σ =
                     state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> (state_upd_tapes <[α':=(Z.to_nat z; ns)]> σ)).
-         { intros. rewrite /state_upd_tapes. f_equal. rewrite insert_insert //. }
+         { intros. rewrite /state_upd_tapes. f_equal. rewrite insert_insert_eq //. }
          erewrite dbind_ext_right; [| intros; rewrite Haux; done].
          rewrite -dmap_dbind.
          apply IH.
-         apply lookup_insert.
+         apply lookup_insert_eq.
        - rewrite /head_step Hα'.
          rewrite bool_decide_eq_true_2 //.
          setoid_rewrite lookup_insert_ne; [|done].
@@ -153,7 +153,7 @@ Set Default Proof Using "Type*".
          eapply (Rcoupl_dbind _ _ _ _ (=)); [ |apply Rcoupl_eq].
          intros ? b ->.
          do 2 rewrite dret_id_left.
-         rewrite lookup_insert.
+         rewrite lookup_insert_eq.
          rewrite bool_decide_eq_true_2 //.
          rewrite dmap_dret dret_id_left -/exec.
          rewrite upd_tape_twice.
@@ -200,7 +200,7 @@ Set Default Proof Using "Type*".
        rewrite bool_decide_eq_false_2 //.
        destruct (decide (α = α')) as [-> | Heq].
        - simplify_eq.
-         setoid_rewrite lookup_insert.
+         setoid_rewrite lookup_insert_eq.
          rewrite bool_decide_eq_false_2 //.
          rewrite /dmap /=.
          rewrite -!dbind_assoc -/exec.
@@ -399,7 +399,7 @@ Set Default Proof Using "Type*".
        destruct bs. 
        erewrite state_step_unfold in H0; last done.
        rewrite dmap_pos in H0. destruct H0 as (?&->&K).
-       eapply IHn. simpl. apply lookup_insert.
+       eapply IHn. simpl. apply lookup_insert_eq.
    Qed.
    
    Lemma limprim_coupl_step_limprim_aux e1 σ1 α bs v:
@@ -481,7 +481,7 @@ Set Default Proof Using "Type*".
      apply elem_of_elements.
      apply elem_of_dom.
      destruct (decide (α = α')); subst.
-     + eexists. rewrite lookup_insert //.
+     + eexists. rewrite lookup_insert_eq //.
      + rewrite lookup_insert_ne //.
        apply elem_of_dom. eapply elem_of_elements, Hα. by right.
    Qed.
@@ -686,3 +686,25 @@ Set Default Proof Using "Type*".
      eapply (ARcoupl_dbind_adv_lhs' E2); [done|eauto|done| |done].
      intros [] [] ?. by eapply Hcont.
    Qed. 
+
+   Lemma ARcoupl_erasure_erasable_exp_lhs_kanto μ1' (E2 : _ -> _ → R) Φ (e1 e1' : expr) σ1 σ1' ε n m :
+     (exists r, ∀ ρ1 ρ2, (0 <= E2 ρ1 ρ2 <= r)%R) →
+     erasable μ1' σ1' →
+     (∀ h1 h2,
+         (∀ a, 0 <= h1 a <= 1)
+         → (∀ b, 0 <= h2 b <= 1)
+         → (∀ a b, h1 a <= h2 b + E2 a b)%R
+         → Expval (prim_step e1 σ1) h1 <= Expval (dbind (λ σ2', pexec m (e1', σ2')) μ1') h2 + ε)%R ->
+     (∀ e2 σ2 e2' σ2', ARcoupl (exec n (e2, σ2)) (lim_exec (e2', σ2')) Φ (E2 (e2, σ2) (e2', σ2'))) →
+     ARcoupl (prim_step e1 σ1 ≫= exec n) (lim_exec (e1', σ1')) Φ ε.
+   Proof.
+     intros [r HE2] Hμ1' Hkanto Hcont.
+     rewrite -(erasable_pexec_lim_exec μ1' m) //.
+     eapply ARcoupl_mon_grading; [done|].
+     eapply (ARcoupl_dbind_adv_kanto_plain _ _ _ _ _ _ E2).
+     - intros a b.
+       apply HE2.
+     - done.
+     - intros [] [].
+       by eapply Hcont.
+   Qed.

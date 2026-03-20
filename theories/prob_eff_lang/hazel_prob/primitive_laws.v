@@ -1,6 +1,6 @@
 (** This file proves the basic laws of the ProbLang weakest precondition by
     applying the lifting lemmas. *)
-From iris.proofmode       Require Import base tactics classes proofmode.
+From iris.proofmode       Require Import base proofmode classes proofmode.
 From iris.base_logic.lib Require Export ghost_map.
 From clutch.approxis Require Import  app_weakestpre.
 From clutch.base_logic Require Export error_credits.

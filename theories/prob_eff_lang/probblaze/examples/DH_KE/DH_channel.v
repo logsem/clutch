@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base tactics classes.
+From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import  na_invariants.
 From iris.algebra Require Import agree excl auth frac excl_auth.
 From iris.algebra.lib Require Import dfrac_agree.
@@ -307,7 +307,7 @@ Section handlee_verification.
 
         iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
         iApply (brel_introduction' [channel1] [channel2]).
-        { apply elem_of_cons. right. apply elem_of_list_here. }
+        { apply elem_of_cons. right. apply list_elem_of_here. }
 
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
@@ -328,7 +328,7 @@ Section handlee_verification.
 
         iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
         iApply (brel_introduction' [channel1] [channel2]).
-        { apply elem_of_cons. right. apply elem_of_list_here. }
+        { apply elem_of_cons. right. apply list_elem_of_here. }
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
         iLeft. iRight.
@@ -360,7 +360,7 @@ Section handlee_verification.
 
         iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
         iApply (brel_introduction' [channel1] [channel2]).
-        { apply elem_of_cons. right. apply elem_of_list_here. }
+        { apply elem_of_cons. right. apply list_elem_of_here. }
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
         iLeft. iLeft.
@@ -380,7 +380,7 @@ Section handlee_verification.
         
         iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
         iApply (brel_introduction' [channel1] [channel2]).
-        { apply elem_of_cons. right. apply elem_of_list_here. }
+        { apply elem_of_cons. right. apply list_elem_of_here. }
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
         iLeft. iRight.
@@ -410,7 +410,7 @@ Section handlee_verification.
       brel_pures; [apply Hk1; set_solver|apply Hk2; set_solver|].
       iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
       iApply brel_introduction'.
-      { apply elem_of_cons. right. apply elem_of_list_here. }
+      { apply elem_of_cons. right. apply list_elem_of_here. }
       iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
       iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
       iRight. iRight.
@@ -449,7 +449,7 @@ Section handlee_verification.
         iSplitL; [iRight; iFrame "#"|].
 
         iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|].
-        iApply brel_introduction'. { apply elem_of_cons. right. apply elem_of_list_here. }
+        iApply brel_introduction'. { apply elem_of_cons. right. apply list_elem_of_here. }
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
         iRight. iLeft.
@@ -478,7 +478,7 @@ Section handlee_verification.
         iApply (brel_load_l with "[$]").
         iIntros "!> _". brel_pures_l. brel_exp_l. brel_pures.
         iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
-        iApply brel_introduction'. { apply elem_of_cons. right. apply elem_of_list_here. }
+        iApply brel_introduction'. { apply elem_of_cons. right. apply list_elem_of_here. }
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
         iRight. iLeft.
@@ -523,8 +523,8 @@ Section handlee_verification.
     rewrite subst_is_closed_empty; try done.
     iApply brel_alloc_r. iIntros (lb) "Hlb". brel_pures_r. 
     rewrite subst_is_closed_empty; try done.
-    iApply brel_couple_UT. iFrame "Hα". simpl. iIntros (a ?) "!> Hα".
-    iApply brel_couple_UT. iFrame "Hβ". simpl. iIntros (b ?) "!> Hβ".
+    iApply brel_couple_UT. 1: auto. iFrame "Hα". simpl. iSplit => //. iIntros (a ?) "!> Hα".
+    iApply brel_couple_UT. 1: auto. iFrame "Hβ". simpl. iSplit => //. iIntros (b ?) "!> Hβ".
     
     brel_pures_l. rewrite -Nat2Z.inj_mul.
     do 3 brel_exp_l.
@@ -547,7 +547,7 @@ Section handlee_verification.
     iModIntro.
     
     iApply (brel_na_alloc
-              ((β ↪ₛ (n; [b]) ∗ lb ↦ₛ NONEV)
+              ((β ↪ₛN (n; [b]) ∗ lb ↦ₛ NONEV)
                ∨ (β ↪ₛ□ (n; [])
                   ∗ lb ↦ₛ□ SOMEV #b)
               )%I
@@ -556,7 +556,7 @@ Section handlee_verification.
     iIntros "#Hinvb".
     
     iApply (brel_na_alloc
-              ((α ↪ₛ (n; [a]) ∗ la ↦ₛ NONEV)
+              ((α ↪ₛN (n; [a]) ∗ la ↦ₛ NONEV)
                ∨ (α ↪ₛ□ (n; [])
                   ∗ la ↦ₛ□ SOMEV #a))%I
               alphaN).
@@ -580,8 +580,8 @@ Section handlee_verification.
        iIntros "([(>Hα & >Hla) | (#>Hα & #>Hla)] & Hclose)".
        - iApply (brel_load_r _ _ _ _ [AppRCtx _; CaseCtx _ _] with "Hla").
          iIntros "Hla". brel_pures_r.
-         iAssert (α ↪ₛN (n; [fin_to_nat a]))%I with "[Hα]" as "Hα".
-         { iExists [a]. simpl. iFrame. done. }
+         (* iAssert (α ↪ₛN (n; [a]))%I with "[Hα]" as "Hα".
+            { iExists [a]. simpl. iFrame. done. } *)
          iApply (brel_rand_r _ [AppRCtx _; AppRCtx _] with "Hα").
          iIntros "Hα _". brel_pures_r.
          iApply (brel_store_r _ _ _ _[AppRCtx _; AppRCtx _] with "Hla").
@@ -600,7 +600,7 @@ Section handlee_verification.
          (* Send (gA, bob) *)
          iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
          iApply (brel_introduction' [channel1] [channel2]).
-         { apply elem_of_cons. right. apply elem_of_list_here. }
+         { apply elem_of_cons. right. apply list_elem_of_here. }
          
          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
@@ -620,7 +620,7 @@ Section handlee_verification.
          (* Recv bob (either none or some) *)
          iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
          iApply (brel_introduction' [channel1] [channel2]).
-         { apply elem_of_cons. right. apply elem_of_list_here. }
+         { apply elem_of_cons. right. apply list_elem_of_here. }
          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
          iLeft. iRight.
@@ -653,7 +653,7 @@ Section handlee_verification.
          (* Send (gA, bob) *)
          iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
          iApply (brel_introduction' [channel1] [channel2]).
-         { apply elem_of_cons. right. apply elem_of_list_here. }
+         { apply elem_of_cons. right. apply list_elem_of_here. }
          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
          iLeft. iLeft.
@@ -673,7 +673,7 @@ Section handlee_verification.
          
          iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
          iApply (brel_introduction' [channel1] [channel2]).
-         { apply elem_of_cons. right. apply elem_of_list_here. }
+         { apply elem_of_cons. right. apply list_elem_of_here. }
          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
          iLeft. iRight.
@@ -703,7 +703,7 @@ Section handlee_verification.
        brel_pures; [apply Hk1; set_solver|apply Hk2; set_solver|].
        iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
        iApply brel_introduction'.
-       { apply elem_of_cons. right. apply elem_of_list_here. }
+       { apply elem_of_cons. right. apply list_elem_of_here. }
        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
        iRight. iRight.
@@ -725,8 +725,8 @@ Section handlee_verification.
        iIntros "(>[(Hβ & Hlb) | #(Hβ & Hlb)] & Hclose)".
        - iApply (brel_load_r _ _ _ _ [AppRCtx _; CaseCtx _ _] with "[$]").
          iIntros "Hlb". brel_pures_r.
-         iAssert (β ↪ₛN (n; [fin_to_nat b]))%I with "[Hβ]" as "Hβ".
-         { iExists _. simpl. iFrame. done. }
+         (* iAssert (β ↪ₛN (n; [fin_to_nat b]))%I with "[Hβ]" as "Hβ".
+            { iExists _. simpl. iFrame. done. } *)
          iApply (brel_rand_r _ [AppRCtx _; AppRCtx _] with "[$]").
          iIntros "Hβ _". brel_pures_r.
          iApply (brel_store_r _ _ _ _[AppRCtx _; AppRCtx _] with "Hlb").
@@ -743,7 +743,7 @@ Section handlee_verification.
 
          (* Send (gB, alice) *)
          iApply (brel_bind' [_] [_]); [by iApply traversable_to_iThy|].
-         iApply brel_introduction'. { apply elem_of_cons. right. apply elem_of_list_here. }
+         iApply brel_introduction'. { apply elem_of_cons. right. apply list_elem_of_here. }
          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
          iRight. iLeft. 
@@ -771,7 +771,7 @@ Section handlee_verification.
          
          (* Send (gB, alice) *)
          iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [by iApply traversable_to_iThy|].
-         iApply brel_introduction'. { apply elem_of_cons. right. apply elem_of_list_here. }
+         iApply brel_introduction'. { apply elem_of_cons. right. apply list_elem_of_here. }
          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
          iRight. iLeft.
@@ -863,7 +863,7 @@ Section handlee_verification.
            iApply brel_na_close. iFrame.
            iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
      
-           iApply brel_introduction'; first apply elem_of_list_here.
+           iApply brel_introduction'; first apply list_elem_of_here.
            iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
            iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
            iLeft. iRight.
@@ -889,7 +889,7 @@ Section handlee_verification.
      
        1 : { brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
              iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
-             iApply brel_introduction'; [apply elem_of_list_here|].
+             iApply brel_introduction'; [apply list_elem_of_here|].
              iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
              iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
              iRight. iRight. do 2 (iSplit; try (iPureIntro; done)).
@@ -949,7 +949,7 @@ Section handlee_verification.
            iApply brel_na_close. iFrame.
            iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
      
-           iApply brel_introduction'; first apply elem_of_list_here.
+           iApply brel_introduction'; first apply list_elem_of_here.
            iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
            iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
            iLeft. iLeft.
@@ -975,7 +975,7 @@ Section handlee_verification.
      
        1 : { brel_pures; [apply Hk1| apply Hk2|]; try set_solver.
              iApply (brel_bind' [_] [_]); [by iApply traversable_to_iThy|].
-             iApply brel_introduction'; first apply elem_of_list_here.
+             iApply brel_introduction'; first apply list_elem_of_here.
              iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
              iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
              iRight. iLeft. do 2 (iSplit; try (iPureIntro; done)).

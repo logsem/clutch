@@ -1,5 +1,5 @@
 
-From iris.proofmode Require Import base tactics classes.
+From iris.proofmode Require Import base proofmode classes.
 
 From stdpp Require Import base gmap.
 
@@ -51,14 +51,14 @@ Section env_lemmas_base.
     - iSplitL "Hw".
       + iExists _. iIntros "{$Hw} !%". 
         destruct (decide (y = x)) as [->|]. 
-        { destruct Helem. rewrite env_dom_cons. apply elem_of_list_here. }
+        { destruct Helem. rewrite env_dom_cons. apply list_elem_of_here. }
         by rewrite lookup_insert_ne.
       + iApply "IH"; last done. iPureIntro. 
         destruct (not_elem_of_cons (env_dom Γ') x y) as [[ ] _]; done.
     - iSplitL "Hw".
       + iExists _,_.  iIntros "{$Hw} !%". 
         destruct (decide (y = x)) as [->|]. 
-        { destruct Helem. rewrite env_dom_cons. apply elem_of_list_here. }
+        { destruct Helem. rewrite env_dom_cons. apply list_elem_of_here. }
         by rewrite lookup_insert_ne in Hγ.
       + iApply "IH"; last done. iPureIntro. 
         destruct (not_elem_of_cons (env_dom Γ') x y) as [[ ] _]; done.
@@ -84,7 +84,7 @@ Section env_lemmas_base.
     - iSplitL "Hw".
       + iExists _,_.  iIntros "{$Hw} !%". 
         destruct (decide (y = x)) as [->|]. 
-        { destruct Helem. rewrite env_dom_cons. apply elem_of_list_here. }
+        { destruct Helem. rewrite env_dom_cons. apply list_elem_of_here. }
         simpl in Hγ.
         by rewrite lookup_delete_ne in Hγ.
       + iApply "IH"; last done. iPureIntro. 
@@ -120,9 +120,9 @@ Global Ltac solve_env :=
     iSplit || 
     (progress iFrame "%#∗") ||
     (progress simpl) ||
-    apply lookup_insert || 
+    apply lookup_insert_eq || 
     rewrite lookup_insert_ne || 
-    apply lookup_delete ||
+    apply lookup_delete_eq ||
     rewrite env_sem_typed_empty ||
     rewrite env_sem_typed_cons ||
     solve_sem_typed_insert ||
@@ -171,8 +171,8 @@ Section env_lemmas_set_operations.
     intros Helem. induction Γ.
     { by destruct (not_elem_of_nil x). }
     destruct (decide (a = x)); first subst. 
-    { by rewrite delete_idemp. }
-    rewrite delete_commute -IHΓ; first done.
+    { by rewrite delete_delete_eq. }
+    rewrite delete_delete -IHΓ; first done.
     by destruct (elem_of_cons Γ x a) as [[] _].
   Qed.
   
@@ -199,7 +199,7 @@ Section env_lemmas_set_operations.
   Proof.
     destruct (vs !! z) eqn:H.
     - rewrite (difference_delete _ _ _ a); last done.
-      by rewrite lookup_insert.
+      by rewrite lookup_insert_eq.
     - apply lookup_difference_None; auto.
   Qed.
 
@@ -281,14 +281,14 @@ Section env_lemmas_set_operations.
       iExists _,_. iFrame. iPureIntro. 
       rewrite (delete_list_elem_of _ x); last done.
       rewrite lookup_union_r; first done.
-      apply lookup_delete.
+      apply lookup_delete_eq.
     - iInduction Γ as [|[x τ] Γ'] "IH"; first solve_env.
       rewrite !env_sem_typed_cons.
       iIntros "[(% & % & %Hrw & Hτ) HΓ']".
       iSplitL "Hτ".
       + iExists _, _. iIntros "{$Hτ} !%".
         rewrite -(lookup_union_r (delete (env_dom Δ) ws)); first done.
-        rewrite (delete_list_elem_of _ x); first (apply lookup_delete).
+        rewrite (delete_list_elem_of _ x); first (apply lookup_delete_eq).
         eapply subset_cons_elem. by erewrite <- env_dom_cons.
       + iApply "IH"; last done.
         iPureIntro. eapply subset_cons. by erewrite <- env_dom_cons.

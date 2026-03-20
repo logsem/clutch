@@ -1,7 +1,7 @@
 (** The "lifting lemmas" in this file serve to lift the rules of the operational
     semantics to the program logic. *)
 
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.prelude Require Import options.
 From clutch.prelude Require Import NNRbar.
 From clutch.approxis Require Import primitive_laws.
@@ -92,15 +92,28 @@ Lemma ewp_lift_step_later E Ψ Φ e1 :
       state_interp σ2 ∗ EWP e2 @ E <| Ψ |> {{ Φ }})
   ⊢ EWP e1 @ E <| Ψ |> {{ Φ }}.
 Proof.
-  iIntros (??) "H".
-  iApply ewp_lift_step_prog_couple; [done|done|].
+  iIntros (he hv) "H".
+
+  iApply ewp_lift_step_couple.
   iIntros (σ1 e1' σ1' ε1) "(Hσ & Hρ & Hε)".
-  iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
+
+  iMod ("H" with "Hσ") as "[% H]".
+  iModIntro.
+  iApply spec_coupl_ret.
+  rewrite he hv.
   iApply prog_coupl_step_l; [done|].
-  iIntros (???).
-  iMod ("H" with "[//]") as "H".
-  iIntros "!> !>".
-  iMod "H" as "($ & $)".
+  iSplitR.
+  {
+    iModIntro.
+    iIntros.
+    iModIntro.
+    by iApply spec_coupl_err_ge_1.
+  }
+  iIntros (??) "Hpr".
+  iMod ("H" with "[$]") as "H".
+  iModIntro.
+  iModIntro.
+  iApply spec_coupl_ret.
   by iFrame.
 Qed.
 
@@ -118,6 +131,78 @@ Lemma ewp_lift_step E Φ Ψ e1 :
 Proof.
   iIntros (??) "H". iApply ewp_lift_step_later; [done|done|]. iIntros (?) "Hσ".
   iMod ("H" with "Hσ") as "[$ H]". iIntros "!>" (???) "!>" . by iApply "H".
+Qed.
+
+Lemma ewp_lift_prim_steps_coupl E Φ Ψ e1 :
+  to_eff e1 = None →
+  to_val e1 = None →
+  (∀ σ1 e1' σ1' ε,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε ={E, ∅}=∗
+    ( ∃ R (ε1 ε2 : nonnegreal),
+      ⌜ (ε = ε1 + ε2)%NNR ⌝ ∗
+      ⌜ reducible (e1, σ1) ⌝ ∗
+      ⌜ reducible (e1', σ1') ⌝ ∗
+      ⌜ ARcoupl (prim_step e1 σ1) (prim_step e1' σ1') R ε1 ⌝ ∗
+      ∀ e2 σ2 e2' σ2', ⌜ R (e2,σ2) (e2',σ2') ⌝ ={∅}=∗ ▷ |={∅,E}=>
+           state_interp σ2 ∗ spec_interp (e2', σ2') ∗
+           err_interp ε2 ∗ EWP e2 @ E <| Ψ |> {{ Φ }}))
+  ⊢ EWP e1 @ E <| Ψ |> {{ Φ }}.
+Proof.
+  iIntros (He1 He1') "H".
+  iApply ewp_lift_step_couple.
+  iIntros (??? ε ) "(Hst & Hsp & Herr)".
+  iMod ("H" with "[$Hst $Hsp $Herr]") as "[% [% [% (%&%&%&%&H)]]]".
+  iModIntro.
+  iApply spec_coupl_ret.
+  rewrite He1 He1'.
+  iApply prog_coupl_steps; eauto.
+  iSplitR.
+  {
+    iModIntro.
+    iIntros.
+    iModIntro.
+    by iApply spec_coupl_err_ge_1.
+  }
+  iIntros (????) "HR".
+  iMod ("H" with "HR") as "H".
+  iModIntro.
+  by iApply spec_coupl_ret.
+Qed.
+
+Lemma ewp_lift_prim_step_l_erasable E Φ Ψ e1:
+  to_eff e1 = None →
+  to_val e1 = None →
+  (∀ σ1 e1' σ1' ε,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε ={E, ∅}=∗
+    ( ∃ R μ1' (ε1 ε2 : nonnegreal),
+      ⌜ (ε = ε1 + ε2)%NNR ⌝ ∗
+      ⌜ reducible (e1, σ1) ⌝ ∗
+      ⌜ erasable μ1' σ1' ⌝ ∗
+      ⌜ ARcoupl (prim_step e1 σ1) μ1' R ε1 ⌝ ∗
+      ∀ e2 σ2 σ2', ⌜ R (e2,σ2) σ2' ⌝ ={∅}=∗ ▷ |={∅,E}=>
+           state_interp σ2 ∗ spec_interp (e1', σ2') ∗
+           err_interp ε2 ∗ EWP e2 @ E <| Ψ |> {{ Φ }}))
+  ⊢ EWP e1 @ E <| Ψ |> {{ Φ }}.
+Proof.
+  iIntros (He1 He1') "H".
+  iApply ewp_lift_step_couple.
+  iIntros (??? ε ) "(Hst & Hsp & Herr)".
+  iMod ("H" with "[$Hst $Hsp $Herr]") as "[% [% [% (%&%&%&%&%&H)]]]".
+  iModIntro.
+  iApply spec_coupl_ret.
+  rewrite He1 He1'.
+  iApply prog_coupl_step_l_erasable; eauto.
+  iSplitR.
+  {
+    iModIntro.
+    iIntros.
+    iModIntro.
+    by iApply spec_coupl_err_ge_1.
+  }
+  iIntros (???) "HR".
+  iMod ("H" with "HR") as "H".
+  iModIntro.
+  by iApply spec_coupl_ret.
 Qed.
 
 Lemma ewp_lift_pure_step `{!Inhabited state} E E' Φ Ψ e1 :

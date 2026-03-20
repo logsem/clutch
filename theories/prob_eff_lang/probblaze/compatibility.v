@@ -4,7 +4,7 @@
 (* The compatibility lemmas are what one gets when the syntactic typing judgment
    is replaced with a semantic typing judgment. *)
 
-From iris.proofmode Require Import base tactics.
+From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Import iprop invariants.
 
 (* Local imports *)
@@ -42,7 +42,7 @@ Section compatibility.
     ⊢  ⊨ᵥ v1 ≤ v2 : τ -∗ sem_typed Γ v1 v2 sem_row_nil τ Γ.
   Proof.
     iIntros "#Hv". iIntros "!# %vvs HΓ /=".
-    iApply brel_value. iFrame. unfold sem_val_typed. simpl. done.
+    iApply brel_value. iFrame. unfold sem_val_typed. simpl. iIntros. iFrame. done.
   Qed.     
   (* Base rules *)
   
@@ -52,7 +52,7 @@ Section compatibility.
   Proof.
     iIntros (γ) "!# /= [%v (%Hrw & Hτ & HΓ₁)] /=".
     rewrite !lookup_fmap. rewrite Hrw. simpl.
-    iApply brel_value. iFrame.
+    iApply brel_value. iIntros. by iFrame.
   Qed.
 
   Lemma sem_typed_unit Γ :
@@ -60,7 +60,7 @@ Section compatibility.
     (* ⊢ Γ ⊨ #() ≤ #() : ⟨⟩ : 𝟙 ⫤ Γ. *)
   Proof.
     iIntros (γ) "!# HΓ₁ //=".
-    iApply brel_value. by iFrame.
+    iApply brel_value. iIntros. by iFrame.
   Qed.
   
   Lemma sem_typed_bool Γ (b : bool) :
@@ -68,7 +68,7 @@ Section compatibility.
     (* ⊢ Γ ⊨ #b : ⟨⟩ : 𝔹 ⫤ Γ. *)
   Proof.
     iIntros (γ) "!# HΓ₁ //=".
-    iApply brel_value. iFrame. iExists b. done.
+    iApply brel_value. iFrame. iIntros. iFrame. iExists b. done.
   Qed.
   
   Lemma sem_typed_int Γ (i : Z) :
@@ -76,7 +76,7 @@ Section compatibility.
     (* ⊢ Γ ⊨ #i : ⟨⟩ : ℤ ⫤ Γ. *)
   Proof.
     iIntros (γ) "!# HΓ₁ //=". 
-    iApply brel_value. iFrame. iExists i; done.
+    iApply brel_value. iFrame. iIntros. iFrame. iExists i; done.
   Qed.
 
   Lemma sem_typed_void_in_env τ Γ1 Γ2 e1 e2 x :
@@ -170,8 +170,10 @@ Section compatibility.
     (sem_typed Γ1 e1 e2 ρ' τ Γ2) -∗ (sem_typed Γ1 e1 e2 ρ τ Γ2).
   Proof.
     iIntros "#Hρ".
-    iApply (sem_typed_sub Γ1 Γ1 Γ2 Γ2 _ _ ρ ρ' τ τ);
-      (iApply env_le_refl || iApply ty_le_refl || done).
+    iApply (sem_typed_sub Γ1 Γ1 Γ2 Γ2 _ _ ρ ρ' τ τ) ; try done.
+    - iApply env_le_refl.
+    - iApply env_le_refl.
+    - iApply ty_le_refl.
   Qed.
 
   Corollary sem_typed_sub_nil Γ1 Γ2 e1 e2 τ ρ :
@@ -190,8 +192,10 @@ Section compatibility.
     (sem_typed Γ1' e1 e2 ρ τ Γ2) -∗ (sem_typed Γ1 e1 e2 ρ τ Γ2).
   Proof.
     iIntros "#HΓ₁".
-    iApply (sem_typed_sub Γ1 Γ1' Γ2 Γ2 _ _ ρ ρ τ τ);
-      (iApply row_le_refl || iApply env_le_refl || iApply ty_le_refl || done).
+    iApply (sem_typed_sub Γ1 Γ1' Γ2 Γ2 _ _ ρ ρ τ τ) => //.
+    - iApply env_le_refl.
+    - iApply row_le_refl.
+    - iApply ty_le_refl.
   Qed.
 
   Corollary sem_typed_sub_env_final Γ1 Γ2 Γ2' e1 e2 ρ τ :
@@ -199,8 +203,11 @@ Section compatibility.
     (sem_typed Γ1 e1 e2 ρ τ Γ2') -∗ (sem_typed Γ1 e1 e2 ρ τ Γ2).
   Proof.
     iIntros "#HΓ₂".
-    iApply (sem_typed_sub Γ1 Γ1 Γ2 Γ2' _ _ ρ ρ τ τ);
-      (iApply row_le_refl || iApply env_le_refl || iApply ty_le_refl || done).
+    iApply (sem_typed_sub Γ1 Γ1 Γ2 Γ2' _ _ ρ ρ τ τ).
+    - iApply env_le_refl.
+    - done.
+    - iApply row_le_refl.
+    - iApply ty_le_refl.
   Qed.
 
   Corollary sem_typed_swap_second Γ1 Γ2 x y e1 e2 ρ τ1 τ2 κ :
@@ -510,13 +517,13 @@ Section compatibility.
     iIntros "!# % % ((% & % & % & % & % & % & Hτ & Hκ) & HΓ2) //=".
     rewrite H4 H5.
     brel_pures_l. brel_pures_r.
-    rewrite !(delete_commute _ x1).
-    rewrite !lookup_delete /=. destruct (decide _) as [[]|[]]; [|split; [done|congruence]].
+    rewrite !(delete_delete _ x1).
+    rewrite !lookup_delete_eq /=. destruct (decide _) as [[]|[]]; [|split; [done|congruence]].
     rewrite !(@decide_True _ (x2 = x2)); try done.
     rewrite !decide_False; try (intros (_& contra); done).
     brel_pures_l. brel_pures_r.
-    rewrite !(delete_commute _ _ x1) -!(subst_map_insert x1) -!delete_insert_ne; try done.
-    rewrite !delete_idemp.
+    rewrite !(delete_delete _ _ x1) -!(subst_map_insert x1) -!delete_insert_ne; try done.
+    rewrite !delete_delete_eq.
     rewrite !decide_True; try (split; [done|congruence]).
     rewrite -!subst_map_insert.
     assert (w1 = fst (w1, w1')) as ->; first done.
@@ -526,9 +533,9 @@ Section compatibility.
     rewrite -!fmap_insert. simpl.
     iApply (brel_wand with "[Hτ Hκ HΓ2]"); first iApply "He'".
     - rewrite env_sem_typed_cons. iSplitL "Hτ".
-      { iFrame. rewrite lookup_insert_ne; last done. by rewrite lookup_insert. }
+      { iFrame. rewrite lookup_insert_ne; last done. by rewrite lookup_insert_eq. }
       rewrite env_sem_typed_cons. iSplitL "Hκ"; last by do 2 (rewrite -env_sem_typed_insert; last done).
-      iExists _, _. iFrame. iPureIntro. apply lookup_insert.
+      iExists _, _. iFrame. iPureIntro. apply lookup_insert_eq.
     - iIntros "!# % % ($ & HΓ3)". by do 2 (rewrite -env_sem_typed_insert; last done). 
   Qed.
 
@@ -739,7 +746,7 @@ Section compatibility.
     iIntros "!# % % (Hτ & HΓ2) //=".
     iApply brel_alloc_l. iIntros "!> % Hl1".
     iApply brel_alloc_r. iIntros "% Hl2".
-    iApply brel_value. iFrame. done.
+    iApply brel_value. iIntros. iFrame. done.
   Qed.
   
   Lemma sem_typed_load τ Γ x : 
@@ -796,7 +803,7 @@ Section compatibility.
     { iExists _,_. by iFrame. }
     iModIntro.
     iApply brel_value.
-    iFrame. iExists l1, l2.
+    iIntros. iFrame. iExists l1, l2.
     by auto.
   Qed. 
 
@@ -816,7 +823,7 @@ Section compatibility.
     iApply (wp_load with "Hl1"). iIntros "!> Hl1".
     iMod ("Hclose" with "[Hl1 Hl2]") as "_"; [iExists _,_; by iFrame|].
     iModIntro. iExists _. iFrame. simpl.
-    iApply brel_value. by iFrame.
+    iApply brel_value. iIntros. by iFrame.
   Qed.
 
   (* Generic Store (cpy) rule *)
@@ -841,7 +848,7 @@ Section compatibility.
     iApply (wp_store with "Hl1"). iIntros "!> Hl1".
     iMod ("Hclose" with "[Hl1 Hl2 Hτ]") as "_"; [iExists _,_; iFrame|].
     iModIntro. iExists _. iFrame. iApply brel_value.
-    by iFrame. 
+    iIntros. by iFrame.
   Qed.
 
   (* TODO: add specialized store rules *)
@@ -950,8 +957,8 @@ Section compatibility.
     iApply (brel_wand with "[HΓ1]"); first by iApply "He".
     iIntros "!# % % (HA & HΓ2) //=".
     iApply (brel_introduction _ _ _ (λ w1 w2, ∃ v1 v2, ⌜w1 = Val v1⌝ ∗ ⌜w2 = Val v2⌝ ∗ B τ v1 v2 ∗ Γ2 ⊨ₑ γ)
-             with "[HA HΓ2]"); first apply elem_of_list_here.
-    { destruct m; simpl; iExists _,_,[],[], (λ w1 w2, ∃ v1 v2, ⌜w1 = Val v1⌝ ∗ ⌜w2 = Val v2⌝ ∗ B τ v1 v2 ∗ Γ2 ⊨ₑ γ);
+             with "[HA HΓ2]"); first apply list_elem_of_here.
+    { destruct m eqn:case_m; simpl; iExists _,_,[],[], (λ w1 w2, ∃ v1 v2, ⌜w1 = Val v1⌝ ∗ ⌜w2 = Val v2⌝ ∗ B τ v1 v2 ∗ Γ2 ⊨ₑ γ);
                                             repeat (iSplit; first iPureIntro; try done; try apply NeutralEctx_nil); iSplit.
       - iExists (λ w1 w2, ∃ v1 v2, ⌜w1 = Val v1⌝ ∗ ⌜w2 = Val v2⌝ ∗ B τ v1 v2).
         iSplitR "HΓ2"; last (iIntros "!> % % H"; by iFrame).
@@ -959,12 +966,12 @@ Section compatibility.
         iIntros "!# %%%% (-> & -> & H)". iExists _, _. iFrame. iSplit; done. 
       - iIntros "!# % % HB". iApply "HB".
       - iExists τ,_,_. iFrame. repeat (iSplit; first iPureIntro; try done).
-        iDestruct (mode_env_sub with "HΓ2") as "HΓ2 /=". iDestruct "HΓ2" as "#HΓ2".
+        iDestruct (mode_env_sub with "HΓ2") as "HΓ2 /=". simpl. iDestruct "HΓ2" as "#HΓ2".
         iIntros "!# %%%% (-> & -> & H)". iExists _,_. iFrame. repeat (iSplit; try done).  
       - iIntros "!# % % HB". iApply "HB". }
     iIntros "!# !> % % [% [% (-> & -> & HB & HΓ2)]]".
     iApply brel_value.
-    iFrame.
+    iIntros. by iFrame.
   Qed.
 
   Lemma sem_typed_shallow_handler_MS op (A B : sem_ty Σ → sem_ty Σ) m τ τ' ρ' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
@@ -1018,7 +1025,7 @@ Section compatibility.
         brel_pures_r; [apply neutral_ectx; set_solver|].
         destruct (decide _) as [[]|[]]; [|].
         2: { split; eauto. intros ?. simplify_eq. }
-        do 2 rewrite (delete_commute _ k).
+        do 2 rewrite (delete_delete _ k).
         rewrite -!subst_map_insert.
         do 2 (rewrite -delete_insert_ne; last done).
         rewrite -!subst_map_insert.
@@ -1043,7 +1050,7 @@ Section compatibility.
         brel_pures_r; [apply neutral_ectx; set_solver|].
         destruct (decide _) as [[]|[]]; [|].
         2: { split; eauto. intros ?. simplify_eq. }
-        do 2 rewrite (delete_commute _ k).
+        do 2 rewrite (delete_delete _ k).
         rewrite -!subst_map_insert.
         do 2 (rewrite -delete_insert_ne; last done).
         rewrite -!subst_map_insert.
@@ -1113,7 +1120,7 @@ Section compatibility.
         brel_pures_r; [apply neutral_ectx; set_solver|].
         destruct (decide _) as [[]|[]]; [|].
         2: { split; eauto. intros ?. simplify_eq. }
-        do 2 rewrite (delete_commute _ k).
+        do 2 rewrite (delete_delete _ k).
         rewrite -!subst_map_insert.
         do 2 (rewrite -delete_insert_ne; last done).
         rewrite -!subst_map_insert. 
@@ -1173,10 +1180,10 @@ Section compatibility.
           2 : { iApply (brel_wand with "Hbrelh").  by iIntros "!# % % ($ & _)". }
           rewrite env_sem_typed_cons.
           iSplitL "HA"; [iFrame; iPureIntro|].
-          { rewrite lookup_insert_ne; first apply lookup_insert. done. }
+          { rewrite lookup_insert_ne; first apply lookup_insert_eq. done. }
           rewrite env_sem_typed_cons.
           iSplitL "HQ'Q"; last (by do 2 (rewrite -env_sem_typed_insert; last done)).
-          iExists _,_. iSplitR; first (iPureIntro; apply lookup_insert).
+          iExists _,_. iSplitR; first (iPureIntro; apply lookup_insert_eq).
           iIntros (??) "HB".
           brel_pures_l. brel_pures_r.
           iDestruct ("HBQ''" $! w0 w3 with "[HB]") as "HQ'";first by iFrame.
@@ -1188,7 +1195,7 @@ Section compatibility.
         brel_pures_r; [apply neutral_ectx; set_solver|].
         destruct (decide _) as [[]|[]]; [|].
         2: { split; eauto. intros ?. simplify_eq. }
-        do 2 rewrite (delete_commute _ k).
+        do 2 rewrite (delete_delete _ k).
         rewrite -!subst_map_insert.
         do 2 (rewrite -delete_insert_ne; last done).
         rewrite -!subst_map_insert. 
@@ -1308,7 +1315,7 @@ Section compatibility.
       brel_pures_l. brel_pures_r.
       destruct (decide _) as [[]|[]]; [|].
       2: { split; eauto. intros ?. simplify_eq. }
-      do 2 rewrite (delete_commute _ k).
+      do 2 rewrite (delete_delete _ k).
       rewrite -!subst_map_insert.
       do 2 (rewrite -delete_insert_ne; last done).
       rewrite -!subst_map_insert.
@@ -1382,7 +1389,7 @@ Section compatibility.
       brel_pures_l. brel_pures_r.
       destruct (decide _) as [[]|[]]; [|].
       2: { split; eauto. intros ?. simplify_eq. }
-      do 2 rewrite (delete_commute _ k).
+      do 2 rewrite (delete_delete _ k).
       rewrite -!subst_map_insert.
       do 2 (rewrite -delete_insert_ne; last done).
       rewrite -!subst_map_insert. 
@@ -1446,10 +1453,10 @@ Section compatibility.
         2 : { iApply (brel_wand with "Hbrelh").  by iIntros "!# % % ($ & _)". }
         rewrite env_sem_typed_cons.
         iSplitL "HA"; [iFrame; iPureIntro|].
-        { rewrite lookup_insert_ne; first apply lookup_insert. done. }
+        { rewrite lookup_insert_ne; first apply lookup_insert_eq. done. }
         rewrite env_sem_typed_cons.
         iSplitL; last (by do 2 (rewrite -env_sem_typed_insert; last done)).
-        iExists _,_. iSplitR; first (iPureIntro; apply lookup_insert).
+        iExists _,_. iSplitR; first (iPureIntro; apply lookup_insert_eq).
         iIntros (??) "HB".
         iApply (brel_cont_l with "Hunshot"). iModIntro.
         iApply (brel_cont_r with "Hunshots").

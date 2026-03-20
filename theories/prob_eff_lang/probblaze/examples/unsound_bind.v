@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base tactics classes.
+From iris.proofmode Require Import base proofmode classes.
 From clutch.prob_eff_lang.probblaze Require Import logic proofmode spec_rules.
 
  Lemma rel_bind_unsound `{!probblazeRGS Σ}k1 k2 e1 e2 X Y R :

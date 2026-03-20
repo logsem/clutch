@@ -1,7 +1,7 @@
 From iris.prelude Require Import options.
 
 From iris.algebra Require Import list.
-From iris.proofmode  Require Export base tactics classes proofmode.
+From iris.proofmode  Require Export base proofmode classes proofmode.
 From iris.base_logic Require Import na_invariants.
 
 From clutch.common Require Import locations.
@@ -1851,18 +1851,19 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     by iApply ("H" with "[$][$][$][$]").
   Qed.    
 
-  Lemma rel_couple_UT N f `{Bij (fin (S N)) (fin (S N)) f} K E α X R z ns e :
+  Lemma rel_couple_UT N f `{Bij nat nat f} K E α X R z ns e :
     TCEq N (Z.to_nat z) →
-    ▷ α ↪ₛ (N; ns) ∗
-    ▷ (∀ (n : fin (S N)), ⌜n ≤ N⌝ -∗ α ↪ₛ (N; ns ++ [f n]) -∗ REL fill K (Val #n) ≤ e @ E <|X|> {{R}})
+    (∀ n, n < S N -> f n < S N)%nat →
+    ▷ α ↪ₛN (N; ns) ∗
+    ▷ (∀ (n : nat), ⌜n ≤ N⌝ -∗ α ↪ₛN (N; ns ++ [f n]) -∗ REL fill K (Val #n) ≤ e @ E <|X|> {{R}})
     ⊢ REL fill K (rand #z) ≤ e @ E <|X|> {{R}}.
   Proof.
-    iIntros (->) "[>Hα Hcnt]".
+    iIntros (-> ?) "[>Hα Hcnt]".
     rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     iIntros (k1 k2 S) "Hkwp %K2 %ε2 He2 Hnais Herr' %Hε'".
     rewrite -!fill_app.
     iApply wp_bind.
-    iApply (wp_couple_rand_tape with "Hα").
+    iApply (wp_couple_rand_tape with "Hα") => //.
     iIntros (n) "!> [Hα %le_n_z]".
     iAssert ⌜n ≤ Z.to_nat z⌝%I as "h". 1: easy.
     iSpecialize ("Hcnt" with "h Hα").
@@ -3475,17 +3476,18 @@ Section brel_probabilistic_rules.
     by iApply ("H" with "[$][$]").
   Qed.    
 
-  Lemma brel_couple_UT E N f `{Bij (fin (S N)) (fin (S N)) f} K α X R z ns e :
+  Lemma brel_couple_UT E N f `{Bij nat nat f} K α X R z ns e :
     TCEq N (Z.to_nat z) →
-    ▷ α ↪ₛ (N; ns) ∗
-    ▷ (∀ (n : fin (S N)), ⌜n ≤ N⌝ -∗ α ↪ₛ (N; ns ++ [f n]) -∗ BREL fill K (Val #n) ≤ e @ E <|X|> {{R}})
+    (∀ n, n < S N -> f n < S N)%nat →
+    ▷ α ↪ₛN (N; ns) ∗
+    ▷ (∀ (n : nat), ⌜n ≤ N⌝ -∗ α ↪ₛN (N; ns ++ [f n]) -∗ BREL fill K (Val #n) ≤ e @ E <|X|> {{R}})
     ⊢ BREL fill K (rand #z) ≤ e @ E <|X|> {{R}}.
   Proof.
-    iIntros (?) "(Hα & H) Hvalid Hdistinct".
-    iApply rel_couple_UT. 
+    iIntros (??) "(Hα & H) Hvalid Hdistinct".
+    iApply rel_couple_UT => //.
     iFrame. iIntros (n) "!> % Hα".
     by iApply ("H" with "[][$][$][$]").
-  Qed.    
+  Qed.
 
   (* Error credit amplification *)
   Lemma brel_get_ec E e e' X A :

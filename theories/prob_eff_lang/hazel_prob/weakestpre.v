@@ -481,7 +481,7 @@ Proof.
   do 6 f_equiv.
   { do 12 f_equiv. f_contractive. apply Hewp. }
   rewrite /prog_coupl.
-  do 27 f_equiv.
+  do 19 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre.
@@ -541,7 +541,7 @@ Proof.
   - apply HΨ.
   - do 3 f_equiv. f_contractive_fin.
     apply IH; eauto using dist_S. f_equiv. apply dist_S. apply HΦ. 
-  - do 18 f_equiv.
+  - do 10 f_equiv.
   f_contractive_fin.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? [? ?]]. rewrite /spec_coupl_pre.
@@ -714,9 +714,13 @@ Proof.
   destruct (to_val e) as [v|] eqn:?.
   { iDestruct "H" as "> ($ & $ & $ & $)". }
   rewrite Heff.
-  iDestruct (prog_coupl_strengthen with "H") as "H".
+  iDestruct (prog_coupl_strengthen with "[] H") as "H".
+  {
+    iModIntro. simpl. iIntros. iNext. iApply spec_coupl_err_ge_1. done.
+  }
   iApply (prog_coupl_mono with "[] H").
-  iIntros (?????) "[[% %Hstep] H] !>".
+  simpl. iIntros (?????) "[[[% %Hstep] | %F] H] !>".
+  2: by iApply spec_coupl_err_ge_1.
   iApply (spec_coupl_bind with "[] H"); [done|].
   iIntros (????) "H".
   iApply fupd_spec_coupl.
@@ -793,6 +797,7 @@ Qed.
       iModIntro.
       iApply spec_coupl_ret.
       iApply prog_coupl_step_l.  { exists (e', σ1). simpl. pose proof (pure_prim_step_det _ _ Hstep σ1) as H. rewrite H. real_solver. }
+      iSplitR. { iModIntro. iIntros. by iApply spec_coupl_err_ge_1. }
       iIntros (e2 σ2 Hprim).
       iModIntro. iNext.
       iApply spec_coupl_ret.
@@ -843,9 +848,11 @@ Qed.
   Lemma prog_coupl_ctx_bind (K : ectx) e1 σ1 e1' σ1' Z ε:
     to_eff e1 = None → 
     to_val e1 = None →
+    □(∀ e2 σ2 e2' σ2', Z e2 σ2 e2' σ2' 1%NNR) -∗
     prog_coupl e1 σ1 e1' σ1' ε (λ e2, Z (fill K e2)) -∗ prog_coupl (fill K e1) σ1 e1' σ1' ε Z.
   Proof.
-    iIntros (Heff Hv) "(%R & %n & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) /=".
+    iIntros (Heff Hv) "#HZ1 (%n & %μ1' & %X2 & %r & (%bound & %Hbound) & %Hcpl & % & Hcnt) /=".
+    (* iIntros (Heff Hv) "(%R & %n & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) /=". *)
 
     (** (classical) inverse of context [K] *)
     destruct (partial_inv_fun (fill K)) as (Kinv & HKinv).
@@ -853,31 +860,46 @@ Qed.
     { intro e.
       destruct (Kinv (fill K e)) eqn:Heq; eapply HKinv in Heq;
         try apply fill_inj in Heq; by simplify_eq. }
-    set (X2' := (λ '(e, σ), from_option (λ e', X2 (e', σ)) 0%NNR (Kinv e))).
+    set (X2' := (λ '(e, σ) ρ', from_option (λ e', X2 (e', σ) ρ') 1%NNR (Kinv e))).
     assert (∀ e2 σ2, X2' (fill K e2, σ2) = X2 (e2, σ2)) as HX2'.
     { intros. rewrite /X2' HKinv3 //. }
-    iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = fill K e2' ∧ R (e2', σ2) ρ'), n, μ1', ε1, X2', r.
+    iExists n, μ1', X2'.
+    (* iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = fill K e2' ∧ R (e2', σ2) ρ'), n, μ1', ε1, X2', r. *)
     iSplit; [eauto using reducible_fill|].
+    iSplit.
+    { iPureIntro. exists (Rmax 1 bound). rewrite /X2' //. destruct ρ1.
+      intros. destruct (Kinv e) => //=. 2: apply Rmax_l. etrans. 2: apply Rmax_r. apply Hbound. }
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap //.
       rewrite -(dret_id_right (μ1' ≫= _ )) //.
       rewrite /dmap.
-      eapply (ARcoupl_dbind' _ nnreal_zero); [..|done]; [done|done|simpl; lra|..].
-      intros [] ?? => /=. apply ARcoupl_dret; [done|]. eauto. }
-    iSplit; [iPureIntro|].
-    { intros [e σ]. simpl. destruct (Kinv e) => //=. }
-    iSplit; [iPureIntro|].
-    { simpl. rewrite fill_dmap // Expval_dmap //=; last first.
-      - eapply ex_expval_bounded. intros [] => /=. rewrite HKinv3 //=.
-      - etrans; [|done].
-        apply Rle_plus_plus; [done|].
-        right; apply SeriesC_ext.
-        intros [e σ]. rewrite -HX2' //. }
+      intros h1 h2 hh1 hh2 h12.
+      rewrite Expval_dbind.
+      3: apply ex_expval_dbind.
+      2,3: apply hh1.
+      3: intros ; apply ex_expval_dret.
+      2: {
+        replace (λ a, Expval (dret (fill_lift K a)) h1) with (λ a, (h1 (fill_lift K a))).
+        2: extensionality x ; by rewrite Expval_dret.
+        eapply ex_expval_bounded. intros ; done.
+      }
+      transitivity
+        (Expval (prim_step e1 σ1)
+           (λ a,
+              h1 (fill_lift K a))).
+      { right. eapply SeriesC_ext. intros. by rewrite Expval_dret. }
+      rewrite dret_id_right.
+      apply Hcpl => //.
+      intros [] ? ; rewrite -HX2'. apply h12.
+    }
     iSplit; [done|].
-    iIntros (e2 σ2 e2' σ2' (e3 & -> & HR)).
-    rewrite HX2'.
-    by iApply "Hcnt".
+    iIntros (e2 σ2 e2' σ2').
+    rewrite /X2'. simpl.
+    destruct (Kinv e2) as [e3 | ] eqn:He2; simpl; auto.
+    assert (fill K e3 = e2) as <-.
+    1: by apply HKinv.
+    iApply "Hcnt".
   Qed.
 
   Lemma ewp_bind K `{NeutralEctx K} E e Φ Ψ :
@@ -922,7 +944,8 @@ Qed.
     iApply spec_coupl_ret.
     rewrite fill_not_val; [|done].
     rewrite fill_not_eff; [|done].
-    iApply prog_coupl_ctx_bind; [done|done|].
+    iApply prog_coupl_ctx_bind; [done|done| |].
+    { iModIntro. iIntros. by iApply spec_coupl_err_ge_1. }
     iApply prog_coupl_mono; try done.
     iIntros (e3 σ3 e3' σ3' ε3') "Hspec". iNext.
     iApply spec_coupl_mono; [done| | iApply "Hspec"].
@@ -978,7 +1001,8 @@ Qed.
       iApply spec_coupl_ret.
       rewrite fill_not_val; [|done].
       rewrite fill_not_eff; [|done].
-      iApply prog_coupl_ctx_bind; [done|done|].
+      iApply prog_coupl_ctx_bind; [done|done| |].
+      { iModIntro. iIntros. by iApply spec_coupl_err_ge_1. }
       iApply prog_coupl_mono; try done.
       iIntros (e3 σ3 e3' σ3' ε3') "Hspec". iNext.
       iApply spec_coupl_mono; [done| | iApply "Hspec"].

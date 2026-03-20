@@ -1,4 +1,4 @@
-From iris.proofmode       Require Import base tactics classes proofmode.
+From iris.proofmode       Require Import base proofmode classes proofmode.
 From iris.base_logic.lib  Require Import ghost_map.
 From clutch.approxis      Require Import app_weakestpre adequacy primitive_laws.
 From clutch.prob_eff_lang.hazel_prob Require Import weakestpre protocol_agreement iEff lang spec_ra erasure primitive_laws.
@@ -70,11 +70,13 @@ Section adequacy.
     iIntros (Hnone).
     rewrite exec_Sn.
     rewrite /step_or_final /= Hnone.
-    iIntros "(%R & %k & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) Hcoupl /=".
+    iIntros "(%k & %μ1' & %X2 & %r & [% %] & % & % & Hcnt) Hcoupl /=".
     iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-    { iPureIntro. intros. eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. }
-    iIntros (e2 σ2 e2' σ2' ε2).
-    iMod ("Hcnt" with "[//]") as "Hcnt".
+    { iPureIntro. intros.
+      eapply (ARcoupl_erasure_erasable_exp_lhs_kanto _ X2); [..|done]; eauto.
+    }
+    iIntros (e2 σ2 e2' σ2').
+    iMod ("Hcnt" $! _ _ _ _).
     by iApply "Hcoupl".
   Qed.
 
@@ -154,12 +156,14 @@ Proof.
   - set ε' := mknonnegreal _ Heps.
     iMod (ec_alloc ε') as (?) "[HE He]"; [done|].
     set (HprobeffGS := HeapG Σ _ _ _ γH γT HspecGS _).
-    iApply (ewp_adequacy_step_fupdN ε').
+    epose proof (ewp_adequacy_step_fupdN ε') as h.
+    iApply h.
     iFrame "Hh Ht Hs HE".
     by iApply (Hwp with "[Hj] [He]").
   - iApply fupd_mask_intro; [done|]; iIntros "_".
     iApply step_fupdN_intro; [done|]; iModIntro.
     iPureIntro. by apply ARcoupl_1.
+    Unshelve. apply _.
 Qed.
 
 

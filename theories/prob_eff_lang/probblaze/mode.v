@@ -2,7 +2,7 @@
 
 (* This file contains properties of modes and mode-related definitions. *)
 
-From iris.proofmode Require Import base tactics.
+From iris.proofmode Require Import base proofmode.
 From iris.algebra Require Import ofe gmap.
 From iris.base_logic Require Export iprop upred invariants.
 
