@@ -426,10 +426,11 @@ Proof.
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
   set (HtachisGS := HeapG Σ _ _ _ _ γH γT _).
-  iApply (wp_refRcoupl_step_fupdN).
+  iPoseProof (wp_refRcoupl_step_fupdN with "[-]") as "h". 2: done.
   iFrame.
   iApply Hwp.
   done.
+  Unshelve. apply _.
 Qed.
 
 Theorem wp_ERT_lim Σ `{tachisGpreS Σ} (e : expr) (σ : state) (x : nonnegreal) φ :
@@ -453,10 +454,11 @@ Proof.
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
   set (HtachisGS := HeapG Σ _ _ _ _ γH γT _).
-  iApply wp_refRcoupl_step_fupdN_ast; auto.
+  opose proof wp_refRcoupl_step_fupdN_ast as h. iApply h => //.
   iFrame.
   iApply Hwp.
   done.
+  Unshelve. apply _.
 Qed.
 
 (** Finite expected mean => Almost sure termination *)
@@ -525,10 +527,12 @@ Proof using costfun.
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
   set (HtachisGS := HeapG Σ _ _ _ _ γH γT _).
-  iApply wp_refRcoupl_step_fupdN_correct; auto.
+  pose proof wp_refRcoupl_step_fupdN_correct as h.
+  iApply h; auto.
   iFrame.
   iApply Hwp.
   done.
+  Unshelve. apply _.
 Qed.
 
 Local Lemma exec_lim_exec_pos (e : expr) (σ : state) (φ : val → Prop) :

@@ -117,7 +117,7 @@ Section impl.
              ).
     { simpl. iSplit; last done.
       iDestruct (big_sepM_lookup with "[$]") as "$".
-      apply lookup_insert.
+      apply lookup_insert_eq.
     }
     iIntros (??) "#Hlock".
     wp_pures.
@@ -252,7 +252,7 @@ Section impl.
     iIntros (????)"[H ?][H' ?]".
     iCombine "H H'" gives "%H".
     destruct n; simpl in H; simplify_eq.
-    rewrite /option_to_gmap in H. rewrite lookup_insert in H.
+    rewrite /option_to_gmap in H. rewrite lookup_insert_eq in H.
     by simplify_eq.
   Qed.
   Next Obligation.
@@ -277,7 +277,7 @@ Section impl.
     rewrite /rand_auth /=.
     iIntros ([??]??) "(?&?&_)".
     rewrite /option_to_gmap/=.
-    iMod (ghost_map_update with "[$][$]") as "[??]". rewrite insert_insert.
+    iMod (ghost_map_update with "[$][$]") as "[??]". rewrite insert_insert_eq.
     iFrame.
     by iMod (ghost_map_elem_persist with "[$]") as "$".
   Qed.

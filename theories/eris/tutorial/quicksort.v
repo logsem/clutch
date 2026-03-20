@@ -47,8 +47,8 @@ Section quicksort.
   Proof.
     intros Spre Spost ppre ppost. apply StronglySorted_app. repeat split ; auto.
     - intros x1 x2 x1pre x2post. trans p.
-      + apply ppre, elem_of_list_In ; auto.
-      + apply elem_of_list_In in x2post.
+      + apply ppre, list_elem_of_In ; auto.
+      + apply list_elem_of_In in x2post.
         destruct (in_inv x2post) as [-> | zpost] => //.
         apply Z.lt_le_incl, ppost => //.
     - apply SSorted_cons, List.Forall_forall => // ; intros.

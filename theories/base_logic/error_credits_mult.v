@@ -3,7 +3,7 @@ From Stdlib Require Import Reals RIneq Psatz.
 From Coquelicot Require Import Lim_seq.
 From clutch.prelude Require Export base classical Reals_ext NNRbar.
 From iris.prelude Require Import options.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Export auth numbers.
 From iris.base_logic.lib Require Import iprop own.
 Import uPred.

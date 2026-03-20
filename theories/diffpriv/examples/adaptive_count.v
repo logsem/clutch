@@ -449,8 +449,8 @@ Section adaptive.
       tp_load ; wp_load ; done.
 
       Unshelve. all: try lra.
-      1: exact (λ x : Z, bool_decide (x < 30)).
-      3,6: exact (λ x : Z, bool_decide (x < 32)).
+      3: exact (λ x : Z, bool_decide (x < 30)).
+      5,8: exact (λ x : Z, bool_decide (x < 32)).
       { iIntros "* !> * _ HΦ"... case_bool_decide as h ; by iApply "HΦ". }
       { iIntros "* !> * ? HΦ". gwp_pures. case_bool_decide as h ; by iApply "HΦ". }
       { iIntros "* !> * _ HΦ"... case_bool_decide as h ; by iApply "HΦ". }

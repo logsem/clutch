@@ -155,7 +155,7 @@ Section urn_erasable_functions.
           lra. 
     - rewrite -dbind_assoc'. apply dbind_pmf_ext; last done; last by apply distr_ext.
       intros []?; rewrite dret_id_left -/(urns_f_distr _);
-      rewrite -insert_delete_insert;
+      rewrite -insert_delete_eq;
         rewrite urns_f_distr_insert; try rewrite Hlookup/=; simplify_map_eq; try done; by rewrite dbind_comm.
   Qed. 
 End urn_erasable_functions.

@@ -201,7 +201,7 @@ Proof.
   iFrame.
   iModIntro.
   rewrite -pgl_wp_value.
-  iDestruct ("Hwp" with "[//]") as "$". iSplitL; last done.
+  iDestruct ("Hwp" with "[//]") as "$".
   iApply ec_supply_eq; [|done].
   simplify_eq.
   lra.
@@ -249,7 +249,7 @@ Proof.
   iFrame.
   iModIntro.
   rewrite -pgl_wp_value.
-  iDestruct ("Hwp" with "[//]") as "$"; iSplitL; last done.
+  iDestruct ("Hwp" with "[//]") as "$".
   iApply ec_supply_eq; [|done].
   simplify_eq.
   lra.
@@ -295,7 +295,6 @@ Proof.
   iModIntro.
   rewrite -pgl_wp_value.
   iDestruct ("Hwp" with "[//]") as "$".
-  iSplitL; last done.
   iApply ec_supply_eq; [|done].
   simplify_eq.
   lra.
@@ -339,7 +338,6 @@ Proof.
   iModIntro.
   rewrite -pgl_wp_value.
   iDestruct ("Hwp" with "[//]") as "$".
-  iSplitL; last done.
   iApply ec_supply_eq; [|done].
   simplify_eq.
   lra.
@@ -576,10 +574,10 @@ Proof.
                  case_match; try (by inversion 1).
                  case_bool_decide; try (by inversion 1).
                  case_match; try (by inversion 1).
-                 intros. subst. eapply elem_of_list_fmap_1_alt; last first.
+                 intros. subst. eapply list_elem_of_fmap_2'; last first.
                  { repeat f_equal. instantiate (1 := Z.to_nat n). lia. }
                  rewrite elem_of_seq. lia.
-             --- intros H1. apply elem_of_list_fmap_2 in H1.
+             --- intros H1. apply list_elem_of_fmap_1 in H1.
                  destruct H1 as [n[H1 H2]].
                  inversion H1.
                  replace (bool_decide (_=_)) with true.
@@ -598,7 +596,7 @@ Proof.
       case_bool_decide; last first.
       + do 7 (case_match; try (simpl; lra)).
         exfalso. apply H. subst.
-        eapply elem_of_list_fmap_1_alt; last first.
+        eapply list_elem_of_fmap_2'; last first.
         { apply bool_decide_eq_true_1 in H5, H4. repeat f_equal.
           - instantiate (1 := Z.to_nat n). lia.
           - done.
@@ -974,7 +972,7 @@ Proof.
   iIntros (Hin) "(%ε2 & %Hε & H)".
   iApply state_step_coupl_iterM_state_adv_comp.
   { rewrite /=/con_prob_lang.get_active.
-    by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
+    by apply list_elem_of_In, list_elem_of_In, elem_of_elements, elem_of_dom. }
   assert (0<=1 / S N ^ p)%R as Hineq.
   { apply Rcomplements.Rdiv_le_0_compat; first lra. apply pow_lt. apply pos_INR_S. }
  (* R: predicate should hold iff tapes σ' at α is ns ++ [nx] where ns is in enum_uniform_fin_list N p *) 

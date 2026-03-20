@@ -1,5 +1,5 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns intro_patterns.
-From iris.proofmode Require Export tactics.
+From iris.proofmode Require Export proofmode.
 
 From clutch.prob_lang Require Import lang notation class_instances tactics.
 From clutch.prob_lang Require Export wp_tactics.

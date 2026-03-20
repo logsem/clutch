@@ -300,11 +300,11 @@ Section fisher_yates.
       + intros ??. repeat case_bool_decide; simpl; naive_solver.
       + intros. repeat case_bool_decide; subst.
         * destruct (decide (fin_to_nat n=S i')) as [Heq|Heq].
-          -- rewrite Heq in H2. rewrite Heq. rewrite list_lookup_insert; first naive_solver.
+          -- rewrite Heq in H2. rewrite Heq. rewrite list_lookup_insert_eq; first naive_solver.
              rewrite !length_insert. lia.
-          -- rewrite list_lookup_insert_ne; last done. rewrite list_lookup_insert; first naive_solver.
+          -- rewrite list_lookup_insert_ne; last done. rewrite list_lookup_insert_eq; first naive_solver.
              pose proof fin_to_nat_lt n. lia.
-        * rewrite list_lookup_insert; first naive_solver.
+        * rewrite list_lookup_insert_eq; first naive_solver.
           rewrite length_insert. lia.
         * repeat (rewrite list_lookup_insert_ne; last done). done.
   Qed.

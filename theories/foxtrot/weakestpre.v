@@ -417,7 +417,7 @@ Section modalities.
       repeat f_equal.
       assert (<[j:=e0]> l !!j = <[j:=e2]> l!!j) as K'.
       { by f_equal. }
-      rewrite !list_lookup_insert in K'; first by simplify_eq.
+      rewrite !list_lookup_insert_eq in K'; first by simplify_eq.
       all: by eapply lookup_lt_Some.
     - iPureIntro.
       replace (ε1) with (ε1+0 )%NNR; last first.
@@ -457,7 +457,7 @@ Section modalities.
         rewrite app_inv_tail_iff.
         assert (<[j:=e'0]> ρ1.1 !!j = <[j:=e']> ρ1.1!!j) as K'.
         { by f_equal. }
-        rewrite !list_lookup_insert in K'; first by simplify_eq.
+        rewrite !list_lookup_insert_eq in K'; first by simplify_eq.
         all: by eapply lookup_lt_Some.
       + destruct σ'0, σ'. simpl in *; naive_solver.
     - iIntros (????).
@@ -473,7 +473,7 @@ Section modalities.
       apply app_inj_1 in H2 as [K ->]; last by rewrite !length_insert.
       assert (<[j:=e']> ρ1.1 !!j = <[j:=e1]> ρ1.1!!j) as K'.
       { by f_equal. }
-      rewrite !list_lookup_insert in K'; first by simplify_eq.
+      rewrite !list_lookup_insert_eq in K'; first by simplify_eq.
       all: by eapply lookup_lt_Some.
   Qed.
 

@@ -944,9 +944,11 @@ Section b_tree_adt.
 
       assert (Hvs1 : ∃ vs1, l !! (n : nat) = Some (vs1, tvl) /\ @is_ab_b_tree max_child_num' depth' vs1 tvl).
       { rewrite list_lookup_fmap_Some in Htvl.
-        destruct Htvl as ((vs1&?)&Hvs1&Heq'). simpl in Heq'. symmetry in Heq'. subst.
+        destruct Htvl as ((vs1&?)&Hvs1&Heq'). simpl in Heq'. symmetry in Heq'.
         exists vs1. split; auto.
-        eapply Forall_lookup_1 in Hvs1; eauto. simpl in Hvs1.
+        1: by subst.
+        simplify_eq.
+        symmetry in Heq'. eapply Forall_lookup_1 in Heq'; eauto. simpl in Heq'.
         eauto.
       }
       tp_bind (insert_tree_aux _ _)%E.
@@ -1614,7 +1616,8 @@ Section b_tree_adt.
       wp_pures.
 
       iMod (ec_zero) as "Hz".
-      wp_apply (naive_annotated_naive_refinement with "[$Hrel1_ranked $Hrel2_ranked $HK $Hz]"); eauto.
+      epose proof naive_annotated_naive_refinement as h.
+      wp_apply (h with "[$Hrel1_ranked $Hrel2_ranked $HK $Hz]"); eauto.
       iIntros (?) "(HK&%Helem&Hrel2_ranked&Hrel1_ranked)". iMod ("Hclo" with "[Hp1 Hp2 $Hna Hrel1 Hrel2]").
       { iNext. rewrite /btree_inv. iExists _, _, _.
         iFrame "%". iSplitR "Hp1 Hrel1"; iExists _; iFrame; eauto. }
@@ -1670,7 +1673,8 @@ Section b_tree_adt.
       wp_pures.
 
       iMod (ec_zero) as "Hz".
-      wp_apply (annotated_naive_naive_refinement with "[$Hrel1_ranked $Hrel2_ranked $HK $Hz]"); eauto.
+      epose proof annotated_naive_naive_refinement as h.
+      wp_apply (h with "[$Hrel1_ranked $Hrel2_ranked $HK $Hz]"); eauto.
       iIntros (?) "(HK&%Helem&Hrel2_ranked&Hrel1_ranked)". iMod ("Hclo" with "[Hp1 Hp2 $Hna Hrel1 Hrel2]").
       { iNext. rewrite /btree_inv. iExists _, _, _.
         iFrame "%". iSplitR "Hp1 Hrel1"; iExists _; iFrame; eauto. }

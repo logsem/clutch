@@ -301,7 +301,7 @@ Proof.
     eassert (∃ i, map_to_list (heap σ) !! i = Some (_,_)) as [].
     { rename select (_!!_=Some _) into K'.
       rewrite -elem_of_map_to_list in K'.
-      by apply elem_of_list_lookup in K'. }
+      by apply list_elem_of_lookup in K'. }
     eassert (list_to_map ml !! v = Some _) as Hrewrite'.
     {
       eapply elem_of_list_to_map.
@@ -314,7 +314,7 @@ Proof.
         rewrite bind_Some.
         intros.
         by destruct!/=.
-      - rewrite elem_of_list_lookup.
+      - rewrite list_elem_of_lookup.
         eapply Forall2_lookup_l in H'; last done.
         destruct H' as [[][? H']].
         rewrite bind_Some in H'.
@@ -362,7 +362,7 @@ Proof.
     rewrite Hrewrite'.
     trans (d_proj_Some (urn_subst_heap a (<[v:=w0]> (delete v (heap σ))))
              ≫= λ σh : gmap loc val, dret (fill a0 #(), {| heap := σh; urns := m |})); last first.
-    { rewrite insert_delete_insert. by smash. }
+    { rewrite insert_delete_eq. by smash. }
     erewrite urn_subst_heap_insert; last first.
     { apply urn_subst_heap_delete; last done.
       rewrite elem_of_dom. naive_solver.
@@ -384,7 +384,7 @@ Proof.
     case_match; last (exfalso; naive_solver).
     erewrite urn_subst_equal_epsilon_unique'; last done.
     rewrite K'.
-    rewrite insert_delete_insert.
+    rewrite insert_delete_eq.
     by smash.
   - (** rand *)
     repeat smash.
@@ -433,7 +433,7 @@ Proof.
     erewrite urns_f_distr_insert; last first.
     { simpl.
       eapply (non_empty_inhabited_L 0%Z).
-      rewrite elem_of_list_to_set elem_of_list_fmap.
+      rewrite elem_of_list_to_set list_elem_of_fmap.
       setoid_rewrite elem_of_seq.
       exists 0%nat. lia.
     }
@@ -446,21 +446,21 @@ Proof.
     assert (exists K', mapM (urn_subst_ectx_item a) K = Some K') as [? Hrewrite].
     { apply mapM_is_Some_2.
       rewrite Forall_forall.
-      setoid_rewrite elem_of_list_lookup.
+      setoid_rewrite list_elem_of_lookup.
       intros. simpl. destruct!/=.
       eapply urn_subst_ectx_item_exists.
       - rewrite forallb_forall in H2.
         apply H2.
-        rewrite -elem_of_list_In elem_of_list_lookup. naive_solver.
+        rewrite -list_elem_of_In list_elem_of_lookup. naive_solver.
       - erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos.
         etrans; last apply H3.
         set_unfold.
         setoid_rewrite elem_of_union_list.
         intros ??.
         eexists _; split; last done.
-        rewrite elem_of_list_fmap.
+        rewrite list_elem_of_fmap.
         eexists _; split; first done.
-        rewrite elem_of_list_lookup. naive_solver.
+        rewrite list_elem_of_lookup. naive_solver.
     }
     rewrite Hrewrite.
     smash.
@@ -493,7 +493,7 @@ Proof.
       intros x.
       rewrite /dmap/urns_f_distr_compute_distr{2}/pmf/urns_f_distr_compute.
       case_bool_decide as H.
-      - rewrite elem_of_list_to_set elem_of_list_fmap in H.
+      - rewrite elem_of_list_to_set list_elem_of_fmap in H.
         setoid_rewrite elem_of_seq in H.
         destruct H as [y].
         destruct!/=.
@@ -523,7 +523,7 @@ Proof.
         rewrite dret_0; first lra.
         intros ->.
         apply H.
-        rewrite elem_of_list_to_set elem_of_list_fmap.
+        rewrite elem_of_list_to_set list_elem_of_fmap.
         eexists _; split; first done.
         rewrite elem_of_seq.
         pose proof fin_to_nat_lt x'. lia.
@@ -544,7 +544,7 @@ Proof.
     }
     erewrite urn_subst_ectx_subset; [|done..].
     smash.
-    rewrite lookup_insert.
+    rewrite lookup_insert_eq.
     smash.
     rewrite dbind_assoc'.
     rewrite -d_proj_Some_fmap.
@@ -668,21 +668,21 @@ Proof.
     assert (exists K', mapM (urn_subst_ectx_item a) K = Some K') as [? Hrewrite].
     { apply mapM_is_Some_2.
       rewrite Forall_forall.
-      setoid_rewrite elem_of_list_lookup.
+      setoid_rewrite list_elem_of_lookup.
       intros. simpl. destruct!/=.
       eapply urn_subst_ectx_item_exists.
       - rewrite forallb_forall in H8.
         apply H8.
-        rewrite -elem_of_list_In elem_of_list_lookup. naive_solver.
+        rewrite -list_elem_of_In list_elem_of_lookup. naive_solver.
       - erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos.
         etrans; last apply H11.
         set_unfold.
         setoid_rewrite elem_of_union_list.
         intros ??.
         eexists _; split; last done.
-        rewrite elem_of_list_fmap.
+        rewrite list_elem_of_fmap.
         eexists _; split; first done.
-        rewrite elem_of_list_lookup. naive_solver.
+        rewrite list_elem_of_lookup. naive_solver.
     }
     rewrite Hrewrite.
     smash.
@@ -732,7 +732,7 @@ Proof.
     }
     erewrite urn_subst_ectx_subset; [|done..].
     smash.
-    rewrite lookup_insert.
+    rewrite lookup_insert_eq.
     smash.
     rewrite dbind_assoc'.
     rewrite -d_proj_Some_fmap.
@@ -766,21 +766,21 @@ Proof.
     assert (exists K', mapM (urn_subst_ectx_item a) K = Some K') as [? Hrewrite].
     { apply mapM_is_Some_2.
       rewrite Forall_forall.
-      setoid_rewrite elem_of_list_lookup.
+      setoid_rewrite list_elem_of_lookup.
       intros. simpl. destruct!/=.
       eapply urn_subst_ectx_item_exists.
       - rewrite forallb_forall in H8.
         apply H8.
-        rewrite -elem_of_list_In elem_of_list_lookup. naive_solver.
+        rewrite -list_elem_of_In list_elem_of_lookup. naive_solver.
       - erewrite <-urns_f_valid_support; last by apply urns_f_distr_pos.
         etrans; last apply H11.
         set_unfold.
         setoid_rewrite elem_of_union_list.
         intros ??.
         eexists _; split; last done.
-        rewrite elem_of_list_fmap.
+        rewrite list_elem_of_fmap.
         eexists _; split; first done.
-        rewrite elem_of_list_lookup. naive_solver.
+        rewrite list_elem_of_lookup. naive_solver.
     }
     rewrite Hrewrite.
     smash.
@@ -835,7 +835,7 @@ Proof.
     }
     erewrite urn_subst_ectx_subset; [|done..].
     smash.
-    rewrite lookup_insert.
+    rewrite lookup_insert_eq.
     smash.
     rewrite dbind_assoc'.
     rewrite -d_proj_Some_fmap.

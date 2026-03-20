@@ -119,7 +119,8 @@ Section adequacy.
       iApply ("H" with "[$]").
     - apply sch_erasable_sch_erasable_val in Herasable.
       rewrite -Herasable.
-      iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_)⌝)%I).
+      epose proof (step_fupdN_mono _ _ _ (⌜pgl _ _ (_)⌝)%I) as h.
+      iApply h.
       { iPureIntro.
         intros. eapply pgl_mon_grading; first (simpl; apply Hineq). exact.
       }
@@ -158,7 +159,8 @@ Section adequacy.
         [pose proof cond_nonneg ε; simpl in *; lra|done|simpl].
       iApply ("H" with "[$]").
     - unshelve erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim_sch_erasable _ _ _ _ _ _ _ μ _ _ _ _)); [done..|].
-      iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ _⌝)%I).
+      epose proof (step_fupdN_mono _ _ _ (⌜pgl _ _ _⌝)%I) as h.
+      iApply h.
       { iPureIntro.
         intros. eapply pgl_mon_grading; first (simpl; apply Hineq). exact.
       }
@@ -232,7 +234,8 @@ Section adequacy.
           (* replace (0+ε)%NNR with ε; [|apply nnreal_ext; simpl; lra]. *)
           iApply (state_step_coupl_erasure' with "[$Hlift]"); [done..|].
           iIntros (σ2 ε2) "(%&%&%&%Hineq&H)".
-          iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ _⌝)%I).
+          epose proof (step_fupdN_mono _ _ _ (⌜pgl _ _ _⌝)%I) as h.
+          iApply h.
           { iPureIntro.
             intros. eapply pgl_mon_grading; first (simpl; apply Hineq). exact.
           }
@@ -247,7 +250,7 @@ Section adequacy.
           iApply ("IH" with "[-]"). iFrame.
         * (* step other threads*)
           simpl in Hlookup.
-          apply elem_of_list_split_length in Hlookup as (l1 & l2 & -> & ->).
+          apply list_elem_of_split_length in Hlookup as (l1 & l2 & -> & ->).
           iDestruct "Hwps" as "[Hl1 [Hwp' Hl2]]".
           rewrite (pgl_wp_unfold _ _ chosen_e)/pgl_wp_pre.
           iSimpl in "Hwp'".
@@ -260,7 +263,8 @@ Section adequacy.
             by replace (_-_)%nat with 0%nat by lia.
           }
           iIntros (σ2 ε2) "(%&%&%&%Hineq&H)".
-          iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ _⌝)%I).
+          epose proof (step_fupdN_mono _ _ _ (⌜pgl _ _ _⌝)%I) as h.
+          iApply h.
           { iPureIntro.
             intros. eapply pgl_mon_grading; first (simpl; apply Hineq). exact.
           }
@@ -318,8 +322,10 @@ Proof.
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[??]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply (wp_refRcoupl_step_fupdN _ ε').
+  epose proof (wp_refRcoupl_step_fupdN _ ε') as h.
+  iApply h.
   iFrame. by iApply Hwp.
+  Unshelve. apply _.
 Qed.
 
 Theorem wp_pgl Σ `{conerisGpreS Σ} `{Countable sch_int_state} (ζ : sch_int_state) n
@@ -441,7 +447,8 @@ Section safety.
     assert (ε=0+Expval μ ε') as K.
     { rewrite /ε'. rewrite Expval_const; last done. rewrite Hmass. simpl. lra. }
     rewrite {2}K.
-    iPoseProof (safety_dbind_adv' _ _ 0 ε' with "[][][][H]") as "K".
+    epose proof (safety_dbind_adv' h _ 0 ε' n) as hh.
+    iPoseProof (hh with "[][][][H]") as "K".
     - done.
     - iPureIntro. exists ε. intros. naive_solver.
     - iPureIntro. by apply pgl_trivial.
@@ -664,7 +671,7 @@ Section safety.
           iApply (state_step_coupl_erasure_safety with "[$]").
           iIntros (??) ">(?&?&?&?)". iApply "IH". iFrame.
       + simpl in Hlookup.
-        apply elem_of_list_split_length in Hlookup as (l1 & l2 & -> & ->).
+        apply list_elem_of_split_length in Hlookup as (l1 & l2 & -> & ->).
         iDestruct "Hwps" as "[Hl1 [Hwp' Hl2]]".
         rewrite (pgl_wp_unfold _ _ chosen_e)/pgl_wp_pre.
         iSimpl in "Hwp'".
@@ -728,8 +735,10 @@ Proof.
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[??]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply (wp_safety_step_fupdN _ ε'); first done.
+  epose proof (wp_safety_step_fupdN _ ε') as h.
+  iApply h; first done.
   iFrame. by iApply Hwp.
+  Unshelve. apply _.
 Qed.
 
 Theorem wp_safety Σ `{conerisGpreS Σ} `{Countable sch_int_state} (ζ : sch_int_state)

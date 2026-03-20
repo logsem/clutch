@@ -186,9 +186,10 @@ Section refines.
     rewrite refines_soundness_laterN.
     rewrite bi.except_0_into_later.
     intros ?.
-    eapply uPred.pure_soundness.
-    eapply (uPred.laterN_soundness _ (S (S n))).
+    eapply pure_soundness.
+    eapply (laterN_soundness _ (S (S n))).
     done.
+    Unshelve. all: apply _.
   Qed.
 
 End refines.

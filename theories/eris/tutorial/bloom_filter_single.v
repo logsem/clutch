@@ -471,7 +471,7 @@ Section bloom_filter_single.
         specialize (Hels e He).
         set_solver.
       + apply elem_of_singleton in He as ->.
-        rewrite lookup_total_insert.
+        rewrite lookup_total_insert_eq.
         set_solver.
     - rewrite -Hlen length_insert //.
     - rewrite size_union; [|set_solver].
@@ -503,7 +503,7 @@ Section bloom_filter_single.
       + rewrite list_lookup_insert_ne; auto.
         set_solver.
       + apply elem_of_singleton in Hi as ->.
-        rewrite list_lookup_insert //.
+        rewrite list_lookup_insert_eq //.
         real_solver.
     - intros i Hi.
       apply elem_of_union in Hi as [Hi|Hi]; auto.
@@ -546,18 +546,18 @@ Section bloom_filter_single.
         specialize (Hels e He).
         set_solver.
       + apply elem_of_singleton in He as ->.
-        rewrite lookup_total_insert.
+        rewrite lookup_total_insert_eq.
         set_solver.
     - rewrite -Hlen length_insert //.
     - intros i Hi.
       destruct (decide (v = i)) as [-> | ?].
-      *** rewrite list_lookup_insert //.
+      *** rewrite list_lookup_insert_eq //.
           real_solver.
       *** rewrite list_lookup_insert_ne //; auto.
     - intros i Hleq Hi.
       rewrite length_insert in Hleq.
       destruct (decide (v = i)) as [-> | ?].
-      + rewrite list_lookup_insert //.
+      + rewrite list_lookup_insert_eq //.
       + rewrite list_lookup_insert_ne //; auto.
   Qed.
 

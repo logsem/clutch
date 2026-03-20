@@ -543,7 +543,7 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
       iIntros (?) "mapref #->"...
       assert ((M !! fin_to_nat r_in) = None) as r_fresh_M.
       { apply not_elem_of_dom_1. rewrite -elem_of_elements. rewrite -Hl'.
-        intros K. apply elem_of_list_fmap_2_inj in K; [done | apply fin_to_nat_inj]. }
+        intros K. apply list_elem_of_fmap_inj_2 in K; [done | apply fin_to_nat_inj]. }
       rewrite r_fresh_M...
       unshelve rel_apply (refines_couple_UU _ (@xor_sem _ _ xor_struct (Z.to_nat msg))) ;
         [apply xor_bij|apply xor_dom => //|..].

@@ -136,7 +136,7 @@ Section erasure_helpers.
     apply lookup_total_correct in Hα' as Hα'tot.
     destruct (decide (α = α')) as [-> | Hαneql].
     - simplify_eq. rewrite /head_step Hα.
-      setoid_rewrite lookup_insert.
+      setoid_rewrite lookup_insert_eq.
       rewrite bool_decide_eq_true_2 //.
       rewrite dmap_dret dret_id_left -/exec.
       erewrite dbind_ext_right; last first.
@@ -146,11 +146,11 @@ Section erasure_helpers.
       assert (Haux : ∀ n,
                  state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> σ =
                  state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> (state_upd_tapes <[α':=(Z.to_nat z; ns)]> σ)).
-      { intros. rewrite /state_upd_tapes. f_equal. rewrite insert_insert //. }
+      { intros. rewrite /state_upd_tapes. f_equal. rewrite insert_insert_eq //. }
       erewrite dbind_ext_right; [| intros; rewrite Haux; done].
       rewrite -dmap_dbind.
       apply IH.
-      apply lookup_insert.
+      apply lookup_insert_eq.
     - rewrite /head_step Hα'.
       rewrite bool_decide_eq_true_2 //.
       setoid_rewrite lookup_insert_ne; [|done].
@@ -186,7 +186,7 @@ Section erasure_helpers.
       eapply (Rcoupl_dbind _ _ _ _ (=)); [ |apply Rcoupl_eq].
       intros ? b ->.
       do 2 rewrite dret_id_left.
-      rewrite lookup_insert.
+      rewrite lookup_insert_eq.
       rewrite bool_decide_eq_true_2 //.
       rewrite dmap_dret dret_id_left -/exec.
       rewrite upd_tape_twice.
@@ -233,7 +233,7 @@ Section erasure_helpers.
     rewrite bool_decide_eq_false_2 //.
     destruct (decide (α = α')) as [-> | Heq].
     - simplify_eq.
-      setoid_rewrite lookup_insert.
+      setoid_rewrite lookup_insert_eq.
       rewrite bool_decide_eq_false_2 //.
       rewrite /dmap /=.
       rewrite -!dbind_assoc -/exec.
@@ -539,7 +539,7 @@ Proof.
   intros H.
   apply elem_fresh_ne in H.
   unfold state_upd_tapes_laplace.
-  by rewrite insert_commute.
+  by rewrite insert_insert_ne.
 Qed.
 
 (* Lemma fresh_loc_upd_swap_laplace' σ α bs bs' bs'' :
@@ -896,7 +896,7 @@ Qed.
 
 Lemma upd_tape_laplace_twice σ β bs bs' :
   state_upd_tapes_laplace <[β:= bs]> (state_upd_tapes_laplace <[β:= bs']> σ) = state_upd_tapes_laplace <[β:= bs]> σ.
-Proof. rewrite /state_upd_tapes_laplace insert_insert //. Qed.
+Proof. rewrite /state_upd_tapes_laplace insert_insert_eq //. Qed.
 
      Local Lemma ind_laplace_case_tape_laplace σ α K (M : nat) (num den mean num' den' mean' : Z) xs (β : loc) :
        tapes_laplace σ !! α = Some (Tape_Laplace num den mean xs) →
@@ -935,7 +935,7 @@ Proof. rewrite /state_upd_tapes_laplace insert_insert //. Qed.
            rewrite dret_id_left.
            erewrite (dbind_ext_right (laplace_rat num den mean)); last first.
            { intros n.
-             rewrite lookup_insert.
+             rewrite lookup_insert_eq.
              rewrite bool_decide_eq_true_2. 2: auto.
              rewrite dret_id_left. rewrite dret_id_left.
              rewrite upd_tape_laplace_twice.
@@ -943,7 +943,7 @@ Proof. rewrite /state_upd_tapes_laplace insert_insert //. Qed.
            assert (Haux : ∀ n,
                       state_upd_tapes_laplace <[α:=(Tape_Laplace num den mean (xs' ++ [n]))]> σ =
                       state_upd_tapes_laplace <[α:=(Tape_Laplace num den mean (xs' ++ [n]))]> (state_upd_tapes_laplace <[α:=Tape_Laplace num den mean xs']> σ)).
-           { intros. rewrite /state_upd_tapes_laplace. f_equal. rewrite insert_insert //. }
+           { intros. rewrite /state_upd_tapes_laplace. f_equal. rewrite insert_insert_eq //. }
            erewrite dbind_ext_right; [| intros; rewrite Haux; done].
 
            rewrite -dmap_dbind.
@@ -955,7 +955,7 @@ Proof. rewrite /state_upd_tapes_laplace insert_insert //. Qed.
            revert IH. intro.
            ospecialize (IH (fill K #x) (state_upd_tapes_laplace <[α:=Tape_Laplace num den mean xs']> σ) α num den mean (xs') _) ; last first.
            1: apply IH.
-           1: by simplify_map_eq.
+           by simplify_map_eq.
          - rewrite /head_step Hα.
            simplify_eq.
            rewrite bool_decide_eq_true_2 //.
@@ -964,7 +964,7 @@ Proof. rewrite /state_upd_tapes_laplace insert_insert //. Qed.
            eapply (Rcoupl_dbind _ _ _ _ (=)); [ |apply Rcoupl_eq].
            intros ? b ->.
            do 2 rewrite dret_id_left.
-           rewrite lookup_insert.
+           rewrite lookup_insert_eq.
            rewrite bool_decide_eq_true_2 //.
            rewrite dmap_dret dret_id_left -/exec.
            rewrite upd_tape_laplace_twice.
@@ -973,7 +973,7 @@ Proof. rewrite /state_upd_tapes_laplace insert_insert //. Qed.
            apply Rcoupl_eq.
          - destruct hparam as (?&?&?&?&hβ&hparam). simplify_eq.
            rewrite Hα.
-           setoid_rewrite lookup_insert.
+           setoid_rewrite lookup_insert_eq.
            rewrite bool_decide_eq_false_2 //.
            rewrite /dmap /=.
            rewrite -!dbind_assoc -/exec.
@@ -1020,12 +1020,10 @@ Proof. rewrite /state_upd_tapes_laplace insert_insert //. Qed.
          erewrite (dbind_ext_right (laplace_rat num _ _)).
          2:{ intros.
              Transparent state_upd_tapes_laplace.
-             rewrite /state_upd_tapes_laplace. rewrite insert_commute; done.
+             rewrite /state_upd_tapes_laplace. rewrite insert_insert_ne; done.
          }
          rewrite -/state_upd_tapes_laplace.
-         apply IH'. simplify_map_eq.
-         rewrite lookup_insert_ne ; [|done].
-         done.
+         apply IH'. by simplify_map_eq.
 
        - rewrite /head_step /=.
          setoid_rewrite lookup_insert_ne; [|done].
@@ -1203,7 +1201,7 @@ Proof.
     destruct bs. 
     erewrite state_step_unfold in H0; last done.
     rewrite dmap_pos in H0. destruct H0 as (?&->&K).
-    eapply IHn. simpl. apply lookup_insert.
+    eapply IHn. simpl. apply lookup_insert_eq.
 Qed.
 
 
@@ -1340,7 +1338,7 @@ Proof.
     destruct bs.
     erewrite state_step_laplace_unfold in H0; last done.
     rewrite dmap_pos in H0. destruct H0 as (?&->&K).
-    eapply IHn. simpl. apply lookup_insert.
+    eapply IHn. simpl. apply lookup_insert_eq.
 Qed.
 
 
@@ -1423,7 +1421,7 @@ Proof.
   apply elem_of_elements.
   apply elem_of_dom.
   destruct (decide (α = α')); subst.
-  + eexists. rewrite lookup_insert //.
+  + eexists. rewrite lookup_insert_eq //.
   + rewrite lookup_insert_ne //.
     apply elem_of_dom. eapply elem_of_elements, Hα. by right.
 Qed.

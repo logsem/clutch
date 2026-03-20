@@ -268,7 +268,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         rewrite /prf_local_state.random_function...
         rel_apply (refines_get_l with "[-Hmap]"); last iAssumption.
         iIntros (tmpres) "Hmap %Hreseq".
-        rewrite lookup_insert in Hreseq.
+        rewrite lookup_insert_eq in Hreseq.
         simpl in Hreseq. subst...
         assert (xor_ineq : Z.to_nat (xor_sem (Z.to_nat msg) z) < S Message)
           by (rewrite Nat2Z.id; apply xor_dom; lia).
@@ -398,7 +398,7 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
       rewrite -elem_of_elements.
       rewrite -Hl'.
       intros K.
-      apply elem_of_list_fmap_2_inj in K ; last apply fin_to_nat_inj.
+      apply list_elem_of_fmap_inj_2 in K ; last apply fin_to_nat_inj.
       done.
     Qed.
 
@@ -503,7 +503,7 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
           iIntros (?) "mapref #->"...
           assert ((M !! fin_to_nat r_in) = None) as ->.
           { apply not_elem_of_dom_1. rewrite -elem_of_elements -Hl'. intros K.
-            by apply elem_of_list_fmap_2_inj in K ; [|apply fin_to_nat_inj]. }
+            by apply list_elem_of_fmap_inj_2 in K ; [|apply fin_to_nat_inj]. }
           simpl...
           rel_apply (refines_couple_UU _ (xor_sem (Z.to_nat msg))).
           1: by apply xor_dom. 
@@ -613,7 +613,7 @@ we can split off q/N credits to spend on sampling a fresh element, as required.
           iIntros (?) "mapref #->"...
           assert ((M !! fin_to_nat r_in) = None) as ->.
           { apply not_elem_of_dom_1. rewrite -elem_of_elements -Hl'. intros K.
-            by apply elem_of_list_fmap_2_inj in K ; [|apply fin_to_nat_inj]. }
+            by apply list_elem_of_fmap_inj_2 in K ; [|apply fin_to_nat_inj]. }
           simpl...
           unshelve rel_apply (refines_couple_UU _ (f_inv (xor_sem (Z.to_nat msg)))).
           3: apply _.
