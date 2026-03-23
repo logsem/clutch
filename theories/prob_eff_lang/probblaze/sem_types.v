@@ -247,11 +247,16 @@ Section types_properties.
   Qed.
   
   Global Instance sem_ty_mbang_proper m : Proper ((≡) ==> (≡)) (@sem_ty_mbang Σ m).
-  (* Proof. solve_non_expansive. Qed. *)
+  (* Proof. solve_non_expansive.  Qed. *)
   Admitted.
 
   Global Instance sem_ty_prod_proper : Proper ((≡) ==> (≡) ==> (≡)) (@sem_ty_prod Σ).
-  (* Proof. solve_non_expansive. Qed. *)
+  Proof.
+    (* intros ??????. unfold sem_ty_prod. simpl. apply non_dep_fun_equiv. f_equiv.
+       - iIntros "(% &%&%&%&->&->&H1&H2)". 
+         iExists _,_,_,_. repeat (iSplit; try iPureIntro; try done).
+         solve_non_expansive. 
+            - setoid_rewrite H0. Qed. *)
   Admitted.
 
   Global Instance sem_ty_sum_proper : Proper ((≡) ==> (≡) ==> (≡)) (@sem_ty_sum Σ).

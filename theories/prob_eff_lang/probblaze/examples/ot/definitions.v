@@ -17,10 +17,11 @@ Section implementation.
   #[local] Notation n := (S n'').
 
   Definition sample : expr := λ: <>, rand #n.
+  Definition gensample : expr := λ: <>, (rand #(n - 1)) + #(1%nat).
   Definition samplelbl α : expr := λ: <>, (rand(α) #n).
   Definition enc : expr := λ: "pk" "m" "r" "s", let, ("g", "h", "u", "v") := "pk" in
-                                                ("g"^"r" * "h"^"s", "m" * ("u"^"r") * ("v"^"s")).
-  Definition dec : expr := λ: "x" "e", let, ("e0", "e1") := "e" in "e1" * ("e0"^- "x").
+                                                ("g"^"r" · "h"^"s", "m" · ("u"^"r") · ("v"^"s")).
+  Definition dec : expr := λ: "x" "e", let, ("e0", "e1") := "e" in "e1" · ("e0"^- "x").
   Definition Send (e : expr) := InjL e.
   Definition Recv (e : expr) := InjR e.
   Definition SendV (v : val) := InjLV v.
@@ -33,7 +34,7 @@ Section implementation.
 
   (* This is wrapped around the protocol like F_AUTH and provides the ideal functionality of a crs *)
   Definition F_CRS f : expr :=
-    (* We should probably add a check that the last two samples are distinct *)
+    (* We should  add a check that the last two samples are distinct or add a bit of error to ensure it *)
     let: "crs" := (g^(sample #()%V), g^(sample #()%V), g^(sample #()%V), g^(sample #()%V)) in 
     handle: f with
     | effect CRS "x", rec "k" => "k" "crs"
@@ -44,6 +45,7 @@ Section implementation.
     handle: handle: f with
     | effect Receiver "b", "k" =>
         let, ("h1", "h0", "g1", "g0") := (do: CRS #()%V) in
+        (* to avoid sampling the unit, as otherwise the protocol fails *)
         let: "x" := sample #()%V in
         let, ("gb", "hb") := if: "b" then ("g0", "h0") else ("g1", "h1") in
         let: "uv" := ("gb"^"x", "hb"^"x") in
@@ -120,6 +122,7 @@ Section implementation.
   Definition OT_SIM_Receiver_Corrupt_with_auth (f : expr) : expr :=
     (* sampling crs with a trapdoor to compute b from (u,v) *)
     let, ("g1", "g0") := (g^(sample #()%V), g^(sample #()%V)) in
+    (* as in the real protocol, these should be distinct *)
     let, ("t1", "t0") := (sample #()%V, sample #()%V) in
     let, ("h0", "h1") := ("g0"^"t0", "g1"^"t1") in
     let: "crs" := ("h1", "h0", "g1", "g0") in
@@ -143,8 +146,13 @@ Section implementation.
                            if: veq "u" vunit then "k" #()%V else
                            let: "td" :=  if: veq "v" ("u" ^ "t0") then #true else if: veq "v" ("u"^"t1") then #false else #true in
                            (* handle the other leakage -- this is not too pretty *)
-                           let: "mb" := handle: "fotr" "td" with effect Leak "x", "k" =>  #()%V | return "y" => "y" end in
-                           let, ("m0", "m1") := if: "td" then ("mb", #0) else (#0, "mb") in
+                           let: "mb" := (handle: "fotr" "td" with effect Leak "x", "k" => "k"  #()%V | return "y" => "y" end) in
+                           let: "mb" := match: "mb" with
+                                        | NONE => "k" #()%V
+                                        | SOME "m" => "m"
+                                        end in 
+                             (* replace #1 with sample to get a random group element or just use the unit of the group *)
+                           let, ("m0", "m1") := if: "td" then ("mb", g ^ #(Z.of_nat 1)) else (g ^ #(Z.of_nat 1), "mb") in
                            let: "pk0" := ("g0", "h0", "u", "v") in
                            let: "pk1" := ("g1", "h1", "u", "v") in
                            let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
