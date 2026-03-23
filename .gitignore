@@ -16,7 +16,6 @@
 *.mlpack.d
 *.native
 *.o
-*.sh
 *.v.d
 *.vio
 *.vo
