@@ -45,7 +45,7 @@ The project is known to compile with
 - [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.12.0
 - [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.4.0
 - [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.4.4
-- [Autosubst](https://github.com/coq-community/autosubst) 1.9
+- [Autosubst](https://github.com/coq-community/autosubst) dev
 - [Mathcomp](https://github.com/math-comp/math-comp) 2.5.0
 - [Mathcomp Analysis](https://github.com/math-comp/analysis) 1.14
 
