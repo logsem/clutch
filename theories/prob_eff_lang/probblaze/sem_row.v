@@ -86,13 +86,13 @@ Notation "'μᵣ' θ , ρ " := (sem_row_rec (λ θ, ρ%R)) (at level 50) : sem_r
 
 Section row_properties.
   (* TODO: finish proofs in this section *)
-  Global Instance sem_row_cons_ne {Σ} op : NonExpansive2 (@sem_row_cons Σ op).
+  Global Instance sem_row_cons_ne {Σ} op op' : NonExpansive2 (@sem_row_cons Σ op op').
   Proof. 
-  (*   intros ???????. rewrite /sem_row_cons. 
-       intros ??. simpl. do 2 f_equiv; apply non_dep_fun_dist; by f_equiv.  
+  (*   intros ???????. f_equiv. apply non_dep_fun_dist.
+       simpl. do 2 f_equiv; apply non_dep_fun_dist; by f_equiv.  
      Qed. *)
   Admitted. 
-  Global Instance sem_row_cons_Proper {Σ} op : Proper ((≡) ==> (≡) ==> (≡)) (@sem_row_cons Σ op).
+  Global Instance sem_row_cons_Proper {Σ} op op': Proper ((≡) ==> (≡) ==> (≡)) (@sem_row_cons Σ op op').
   Proof. apply ne_proper_2. apply _. Qed.
   
   Global Instance sem_row_cons_contractive {Σ} op n : Proper (dist_later n ==> dist n ==> dist n) (@sem_row_cons Σ op).
@@ -326,22 +326,28 @@ Section row_sub_typing.
       + iIntros "!# Hd". iDestruct "Hleσ" as "(_&_&Hleσ)". unfold distinct'. repeat rewrite -distinct_to_iThyIfMono. by iApply "Hleσ".
   Qed. 
   
-  Lemma row_le_mfbang_dist_cons `{probblazeRGS Σ} op1 op2 m σ (ρ : sem_row Σ) :
+  Lemma row_le_mfbang_dist_cons op1 op2 m σ (ρ : sem_row Σ) :
     ⊢ ¡[ m ] ((op1, op2, σ) · ρ) ≤ᵣ (op1, op2, ¡[ m ] σ)%S · (¡[ m ] ρ).
   Proof.
     unfold row_le. simpl.
     rewrite iThyIfMono_iLblSig_to_iThyIfMono. iApply to_iThy_le_refl.
   Qed.
   
-  Global Instance row_cons_once `{probblazeRGS Σ} (ρ : sem_row Σ) op1 op2 (σ : sem_sig Σ) `{! OnceS σ, ! OnceR ρ } :
+  Global Instance row_cons_once (ρ : sem_row Σ) op1 op2 (σ : sem_sig Σ) `{! OnceS σ, ! OnceR ρ } :
     OnceR ((op1, op2, σ) · ρ)%R.
   Proof.
-    constructor. inv OnceS0. inv OnceR0.
-    (* iApply row_le_trans; first iApply row_le_mfbang_dist_cons.
-       iApply row_le_cons_comp; [iApply sig_le_mfbang_elim|iApply row_le_mfbang_elim0].
-     Qed. *)
-  Admitted. 
-  
+    constructor. inv OnceS0. inv OnceR0. simpl.
+    iSplit; last iSplit.
+    { iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum. simpl.
+      iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy. simpl.
+      iApply iThy_le_sum_map.
+      - iIntros (???) "!# (%&%&%&%&%&$&$&$&$&H&$)".
+        by iApply sig_le_mfbang_elim.
+      - by iDestruct row_le_mfbang_elim0 as "($&_&_)". }
+    { iIntros "!# H". rewrite iThyIfMono_iLblSig_to_iThyIfMono. by rewrite <-valid_to_iThyIfMono. }
+    { iIntros "!# H". rewrite iThyIfMono_iLblSig_to_iThyIfMono. iDestruct "H" as "%Hdistinct". iPureIntro. by rewrite <-distinct_to_iThyIfMono. }
+  Qed.   
+
   Lemma row_le_mfbang_idemp m (ρ : sem_row Σ) :
     ⊢ (¡[ m ] (¡[ m ] ρ)) ≤ᵣ ((¡[ m ] ρ)).
   Proof.

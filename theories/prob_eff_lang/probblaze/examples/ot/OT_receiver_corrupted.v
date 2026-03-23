@@ -272,20 +272,23 @@ Section handlee_verification.
            own γautha (to_dfrac_agree (DfracOwn 1) #()%V) -∗
            BREL f1 ≤ f2 <|Adv ++ L|> {{ (λ v1 v2, ⌜v1 = #()%V ∧ v2 = #()%V⌝) }} -∗
            (* n instead of S n since we are not sampling 0 *)
-           ↯ (2 / n) -∗
+           ↯ (3 / n) -∗
            BREL (@F_CRS _ _ _ CRS (@OT_Real_Receiver_Corrupted _ _ _ CRS Sender channel f1)) (* iThyBot can be replaced with an arbitrary theory X *)
              ≤ (@OT_SIM_Receiver_Corrupt_with_auth _ _ _ CRS Leak Sender channel f2) <|([CRS],[CRS], iThyBot) :: ([Sender],[Sender; Leak],iThyBot) :: AuthChannel ++ L|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
   Proof using G. 
     iIntros (???? Hf1closed Hf2closed) "Htoka Hcrs Hautha Hff Herr".
     brel_pures.
-    iApply (brel_couple_couple_avoid _ _ [Fin.of_nat_lt (Nat.lt_0_succ (S n''))]); [apply NoDup_singleton|done|].
-    assert ((2/n) = 1/n + 1/n) as -> by lra.
-    iDestruct (ec_split with "Herr") as "(Herr1 & Herr2)"; [apply Rdiv_INR_ge_0|apply Rdiv_INR_ge_0|].
-    iFrame. iIntros (g0 Hg0) "!>". simpl.
+    set H0fin :=  Fin.of_nat_lt (Nat.lt_0_succ (S n'')).
+    iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
+    assert ((3/n) = 1/n + 1/n + 1/n) as -> by lra.
+    iDestruct (ec_split with "Herr") as "(Herr & Herr')"; [apply Rplus_le_le_0_compat; apply Rdiv_INR_ge_0|apply Rdiv_INR_ge_0|].
+    iFrame. iIntros (g0 Hg0) "!>". 
     brel_pures. brel_exp_l. brel_exp_r.
-    iApply brel_couple_rand_rand; first done. iIntros (g1 Hg1). brel_pures.
-    brel_exp_l. brel_exp_r. brel_pures.
-    (* mod size of the group to stay in ℤₙ *)
+    iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
+    iDestruct (ec_split with "Herr") as "(Herr & Herr')".
+    1, 2: apply Rdiv_INR_ge_0. iFrame.
+    iIntros (g1 Hg1) "!>". 
+    brel_exp_l. brel_exp_r.
     iApply (brel_couple_rand_rand _ _ (f n'' g0)); [apply f_lt|].
     iIntros (t0 Ht0). brel_pures. 
     assert (t0 < n)%nat as Ht0' by lia. 
@@ -293,8 +296,9 @@ Section handlee_verification.
     iFrame. iIntros (t1 Hneq) "!>". 
     brel_pures. 
     do 2brel_exp_r.
-    rewrite f_cancel_g.
-        
+    rewrite (f_cancel_g _ _ Hg0 Ht0').
+    (* assert (t1 < n)%nat as Ht1' by lia. 
+       rewrite (f_cancel_g _ _ Hg1 *)
     brel_pures.
 
     iApply fupd_brel.
@@ -323,7 +327,7 @@ Section handlee_verification.
                          (lb ↦ₛ□ b))
               )%I
               betaN).
-i    iSplitL "Hlb"; [iNext; iLeft; iFrame|].
+    iSplitL "Hlb"; [iNext; iLeft; iFrame|].
     iIntros "#Hinvlb".
 
     (* All resources should be in an invariant *)
@@ -564,7 +568,7 @@ i    iSplitL "Hlb"; [iNext; iLeft; iFrame|].
 
       brel_pures.
       iApply brel_eq_r.
-      destruct (bool_decide (v = (u ^+ (t0 `div` g0))%g)) eqn:Heq1; brel_pures.
+      destruct (bool_decide (v = (u ^+ (f n'' g0 t0))%g)) eqn:Heq1; brel_pures.
       + iApply (brel_handle_os_r [AppRCtx _] [AppRCtx _]); [set_solver|].
         iIntros (?) "Hcont". brel_pures.
         iApply (brel_cont_r with "[$]").
@@ -583,14 +587,7 @@ i    iSplitL "Hlb"; [iNext; iLeft; iFrame|].
         brel_mult_l. 
         do 2 brel_exp_r. do 2 brel_mult_r. do 2brel_exp_r. brel_mult_r.
         brel_pures.
-        rewrite -(expgM g g0 (t0 `div` g0)).
-        
-        brel_pures. 
-        iApply (brel_load_r with "[$Hlm0]"). iIntros "_". brel_pures.
-        admit.
+                admit.
       + brel_exp_r. iApply brel_eq_r.
-        destruct (bool_decide (v =  (u ^+ (t1 `div` g1))%g)) eqn:Heq2; brel_pures.
-        * iApply (brel_load_r with "[$Hlm1]"). iIntros "_". brel_pures.
-          iApply (brel_handle_os_r [AppRCtx _]).
-
+        destruct (bool_decide (v =  (u ^+ (f n'' g1 t1))%g)) eqn:Heq2; brel_pures.
   Admitted. 
