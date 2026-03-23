@@ -36,7 +36,7 @@
   (rocq-iris (= "4.5.0"))
   (rocq-stdpp (= "1.13.0"))
   (coq-coquelicot (= "3.4.4"))
-  (coq-autosubst (= "1.9"))
+  (coq-autosubst (= "dev"))
   (coq-hierarchy-builder (= "1.10.1"))
   (coq-mathcomp-ssreflect (= "2.5.0"))
   (coq-mathcomp-solvable (= "2.5.0"))
