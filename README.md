@@ -54,7 +54,7 @@ The recommended way to install the dependencies locally is through [opam](https:
 1. Install [opam](https://opam.ocaml.org/doc/Install.html) if not already installed (a version greater than 2.0 is required).
 2. Install a new project-local switch.
 ```
-opam switch create . --packages=ocaml-variants.5.4.0+options,ocaml-option-flambda
+opam switch create . --packages=ocaml-variants.5.4.0
 ```
 3. Add the Rocq `opam` repository.
 ```
