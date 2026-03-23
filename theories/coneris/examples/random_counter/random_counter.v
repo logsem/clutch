@@ -122,7 +122,7 @@ Section lemmas.
                   ∀ z : nat,
                                  counter_content_auth γ1 z ={E ∖ ↑N}=∗ counter_content_auth γ1 (z + n) ∗ Q z n ε ε2) with "[Hvs Hfrag][HΦ]"); last first.
     { iIntros "(%ε&%ε2&%n&?&?)".
-      wp_apply (incr_counter_tape_spec_some _ _ _ _ (λ z, Q z n ε ε2) with "[-HΦ]"); [exact|iFrame|]; first by iSplit.
+      wp_apply (incr_counter_tape_spec_some _ _ _ _ (λ z, Q z n ε ε2) with "[-HΦ]"); [exact|iFrame|] ; first done.
       iIntros (?) "[??]".
       iApply "HΦ".
       iFrame.

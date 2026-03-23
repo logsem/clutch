@@ -120,12 +120,13 @@ Proof.
   - set ε' := mknonnegreal _ Heps.
     iMod (ec_alloc ε') as (?) "[HE He]"; [done|].
     set (HapproxisGS := HeapG Σ _ _ _ γH γT HspecGS _).
-    iApply (wp_adequacy_step_fupdN ε').
+    pose proof (wp_adequacy_step_fupdN ε') as h. iApply h.
     iFrame "Hh Ht Hs HE".
     by iApply (Hwp with "[Hj] [He]").
   - iApply fupd_mask_intro; [done|]; iIntros "_".
     iApply step_fupdN_intro; [done|]; iModIntro.
     iPureIntro. by apply ARcoupl_1.
+    Unshelve. apply _.
 Qed.
 
 Theorem wp_adequacy Σ `{approxisGpreS Σ} (e e' : expr) (σ σ' : state) (ε : R) φ :

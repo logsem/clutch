@@ -60,7 +60,7 @@ Section rules.
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
     iApply glm_state_step.
     { rewrite /= /get_active.
-      by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
+      by apply list_elem_of_In, list_elem_of_In, elem_of_elements, elem_of_dom. }
     iExists _.
     iSplitR.
     { iPureIntro. apply pgl_state, Hlookup. }
@@ -93,7 +93,7 @@ Section rules.
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
     iApply glm_state_step.
     { rewrite /= /get_active.
-      by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
+      by apply list_elem_of_In, list_elem_of_In, elem_of_elements, elem_of_dom. }
     iExists _.
     iSplitR.
     { iPureIntro. apply pgl_state, Hlookup. }
@@ -138,7 +138,7 @@ Section rules.
     iIntros "Hclose".
     iApply (glm_state_adv_comp' α); simpl.
     { rewrite /get_active.
-      apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
+      apply list_elem_of_In, list_elem_of_In, elem_of_elements, elem_of_dom.
       done. }
     (* iDestruct (ec_supply_ec_inv with "Hε_supply Hε") as %(ε1' & ε_rem & -> & Hε1'). *)
 
@@ -323,7 +323,7 @@ Section rules.
     iIntros "Hclose".
     iApply (glm_state_adv_comp' α); simpl.
     { rewrite /get_active.
-      apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
+      apply list_elem_of_In, list_elem_of_In, elem_of_elements, elem_of_dom.
       done. }
 
     (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)

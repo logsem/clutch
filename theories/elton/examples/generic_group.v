@@ -559,7 +559,7 @@ Section prog.
             replace (_-_)%Z with (b-b'0)%Z in Hcontra; last lia.
             apply Z.cong_iff_0 in Hcontra. rewrite !Zmod_small in Hcontra; first destruct!/=.
             -- unfold map_Forall in Hmap.
-               unshelve epose proof Hmap _ (_,b'0) _ as [_ K]; simpl in *; last lia; last by eapply lookup_insert.
+               unshelve epose proof Hmap _ (_,b'0) _ as [_ K]; simpl in *; last lia; last by eapply lookup_insert_eq.
             -- lia.
     Qed. 
       
@@ -1446,7 +1446,7 @@ Section prog.
       set_unfold.
       intros. destruct!/=.
       eexists 1; split; first done.
-      rewrite elem_of_seq. lia. }
+      lia. }
     { repeat setoid_rewrite NoDup_cons. repeat split; last by apply NoDup_nil.
       - set_unfold. set_solver. 
       - set_solver.
@@ -1463,7 +1463,7 @@ Section prog.
       - set_unfold.
         intros. destruct!/=.
         exists 1; split; first done.
-        rewrite elem_of_seq; lia.
+        lia.
     }
     { intros. set_unfold. destruct!/=; set_solver. }
     { rewrite SeriesC_list; last first.
@@ -1478,7 +1478,7 @@ Section prog.
         rewrite bool_decide_eq_false_2; last (set_unfold; set_solver).
         simpl.
         rewrite size_difference; last first.
-        + set_unfold. intros. exists 1. split; first done. rewrite elem_of_seq; lia.
+        + set_unfold. intros. exists 1. split; first done. lia.
         + rewrite size_list_to_set; last first. 
           * apply NoDup_fmap; first (intros ???; by simplify_eq).
             apply NoDup_seq.
@@ -1507,7 +1507,7 @@ Section prog.
     { rewrite size_difference; last first.
       - set_unfold.
         intros. eexists 1; split; first done.
-        rewrite elem_of_seq. lia.
+        lia.
       - rewrite size_singleton.
         rewrite size_list_to_set.
         + rewrite length_fmap length_seq. lia.
@@ -1529,7 +1529,7 @@ Section prog.
       - iPureIntro.
         intros ?. rewrite elem_of_difference.
         rewrite elem_of_list_to_set.
-        rewrite elem_of_list_fmap.
+        rewrite list_elem_of_fmap.
         setoid_rewrite elem_of_seq. intros. destruct!/=. lia.
       - iPureIntro; lia.
       - iPureIntro.
@@ -1566,7 +1566,7 @@ Section prog.
         + intros ? _.
           rewrite elem_of_difference.
           rewrite elem_of_list_to_set.
-          rewrite elem_of_list_fmap.
+          rewrite list_elem_of_fmap.
           setoid_rewrite elem_of_seq.
           intros [[y]].
           destruct!/=.
@@ -1577,7 +1577,7 @@ Section prog.
           intros ?. set_solver.
         + intros ? _. rewrite elem_of_difference.
           rewrite elem_of_list_to_set.
-          rewrite elem_of_list_fmap.
+          rewrite list_elem_of_fmap.
           setoid_rewrite elem_of_seq.
           intros [[y]].
           destruct!/=.

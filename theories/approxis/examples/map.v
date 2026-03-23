@@ -266,7 +266,7 @@ Section map.
     - rewrite /=. simpl in Heq. subst; auto.
     - rewrite list_to_map_cons in Heq. subst.
       destruct (decide (k = n)).
-      { subst. rewrite lookup_insert /= bool_decide_true //. }
+      { subst. rewrite lookup_insert_eq /= bool_decide_true //. }
       rewrite lookup_insert_ne //= bool_decide_false //. eauto.
   Qed.
 

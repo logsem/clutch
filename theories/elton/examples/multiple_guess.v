@@ -70,14 +70,14 @@ Section proofs.
     - set_solver.
     - set_solver.
     - apply NoDup_cons; split; last apply NoDup_cons; last split; last by apply NoDup_nil.
-      + rewrite elem_of_list_singleton. set_solver.
+      + rewrite list_elem_of_singleton. set_solver.
       + set_solver.
     - set_solver. 
     - repeat setoid_rewrite elem_of_cons.
       intros. destruct!/=; set_solver.
     - rewrite SeriesC_list; last first.
       + apply NoDup_cons; split; last apply NoDup_cons; last split; last by apply NoDup_nil.
-        * rewrite elem_of_list_singleton. set_solver.
+        * rewrite list_elem_of_singleton. set_solver.
         * set_solver.
       + Local Opaque size. simpl. rewrite size_singleton.
         rewrite /ε2.

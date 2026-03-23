@@ -859,7 +859,7 @@ Section oscheduler.
           * rewrite lookup_app_l; last first. 
             { rewrite length_insert. lia.
             }
-            rewrite list_lookup_insert; try done.
+            rewrite list_lookup_insert_eq; try done.
             rewrite Heqn1 in H0.
             simplify_eq.
           * rewrite lookup_app_l; last (rewrite length_insert; lia).

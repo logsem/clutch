@@ -2559,14 +2559,14 @@ Section uniform.
              ++ eapply compose_inj; last done. apply fin_to_nat_inj.
              ++ replace (fin_enum _) with (enum (fin (S M))); last done.
                 apply NoDup_enum.
-        * intros ?. rewrite elem_of_list_to_set elem_of_list_fmap.
+        * intros ?. rewrite elem_of_list_to_set list_elem_of_fmap.
           intros [?[]]. subst.
           simpl. apply Hbound. apply fin_to_nat_lt.
       + intros n'.
         case_bool_decide as H'.
         * destruct H' as [m' H'].
           rewrite bool_decide_eq_true_2; last first.
-          { rewrite elem_of_list_to_set elem_of_list_fmap.
+          { rewrite elem_of_list_to_set list_elem_of_fmap.
             eexists m'. split; first naive_solver.
             replace (fin_enum _) with (enum (fin (S M))); last done.
             apply elem_of_enum.
@@ -2593,7 +2593,7 @@ Section uniform.
         * rewrite dret_0; last first.
           { intro H''. apply H'. subst. naive_solver. }
           rewrite bool_decide_eq_false_2; first lra.
-          rewrite elem_of_list_to_set elem_of_list_fmap.
+          rewrite elem_of_list_to_set list_elem_of_fmap.
           intros [?[]].
           apply H'. naive_solver.
     - erewrite (SeriesC_ext _ (dret n)); first apply dret_mass.

@@ -466,10 +466,10 @@ Section kway_merge_spec.
     wp_pures.
     wp_apply (wp_repeat_remove with "[Hc $Hh $Hout]"); [ | | |].
     { apply Forall_forall => zs Hzs.
-      apply list_filter_subseteq in Hzs.
+      apply list_subseteq_filter in Hzs.
       by eapply Forall_forall in Hzss. }
     { apply Forall_forall => zs Hz.
-      rewrite elem_of_list_filter in Hz.
+      rewrite list_elem_of_filter in Hz.
       by destruct Hz, zs. }
     { iApply (etc_weaken with "Hc").
       split; [apply repeat_remove_cost_nonneg|].

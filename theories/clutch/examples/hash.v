@@ -525,7 +525,7 @@ Section tape_bit_hash.
       rewrite fmap_insert; iFrame.
       iApply big_sepM_delete; first eauto.
       iSplitL "Htape".
-      { iLeft. iExists _. iSplit; eauto. rewrite lookup_insert //. }
+      { iLeft. iExists _. iSplit; eauto. rewrite lookup_insert_eq //. }
       iApply (big_sepM_mono with "Htapes").
       { iIntros (k ? Hlookup').
         assert (n ≠ k).
@@ -621,7 +621,7 @@ Section tape_bit_hash.
       rewrite fmap_insert; iFrame.
       iApply big_sepM_delete; first eauto.
       iSplitL "Hα".
-      { iLeft. iExists _. iSplit; eauto. rewrite lookup_insert //. }
+      { iLeft. iExists _. iSplit; eauto. rewrite lookup_insert_eq //. }
       iApply (big_sepM_mono with "Htapes").
       { iIntros (k ? Hlookup').
         assert (n ≠ k).
@@ -691,7 +691,7 @@ Section tape_bit_hash.
     iSplit; first done.
     iApply big_sepM_delete; first eauto.
     iSplitL "Hα".
-    { iRight. iLeft. iExists b. iFrame. iPureIntro; split; auto. rewrite lookup_insert //. }
+    { iRight. iLeft. iExists b. iFrame. iPureIntro; split; auto. rewrite lookup_insert_eq //. }
     iApply (big_sepM_mono with "Htapes").
     iIntros (k' x' Hdel) "H".
     assert (k ≠ k').
@@ -727,7 +727,7 @@ Section tape_bit_hash.
     iFrame "#".
     iApply big_sepM_delete; first eauto.
     iSplitL "Hα".
-    { iRight. iLeft. iExists b. iFrame. iPureIntro; split; auto. rewrite lookup_insert //. }
+    { iRight. iLeft. iExists b. iFrame. iPureIntro; split; auto. rewrite lookup_insert_eq //. }
     iApply (big_sepM_mono with "Htapes").
     iIntros (k' x' Hdel) "H".
     assert (k ≠ k').

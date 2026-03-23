@@ -463,7 +463,7 @@ Section bloom_filter.
              *** apply Forall_singleton.
                  apply elem_of_union in He as [He|He].
                  **** apply elem_of_singleton in He as ->.
-                      rewrite lookup_total_insert.
+                      rewrite lookup_total_insert_eq.
                       set_solver.
                  **** rewrite lookup_total_insert_ne; [|set_solver].
                       specialize (Hidxs_old e He).
@@ -473,7 +473,7 @@ Section bloom_filter.
           ** intros i Hi.
              apply elem_of_union in Hi as [Hi|Hi].
              *** apply elem_of_singleton in Hi as ->.
-                 rewrite list_lookup_insert //.
+                 rewrite list_lookup_insert_eq //.
                  real_solver.
              *** rewrite list_lookup_insert_ne; auto.
                  set_solver.
@@ -523,7 +523,7 @@ Section bloom_filter.
              *** apply Forall_singleton.
                  apply elem_of_union in He as [He|He].
                  **** apply elem_of_singleton in He as ->.
-                      rewrite lookup_total_insert.
+                      rewrite lookup_total_insert_eq.
                       set_solver.
                  **** rewrite lookup_total_insert_ne; [|set_solver].
                       specialize (Hidxs_old e He).
@@ -532,13 +532,13 @@ Section bloom_filter.
                       set_solver.
           ** intros i Hi.
              destruct (decide (v = i)) as [-> | ?].
-             *** rewrite list_lookup_insert //.
+             *** rewrite list_lookup_insert_eq //.
                  real_solver.
              *** rewrite list_lookup_insert_ne //; auto.
           ** intros i Hi; auto.
           ** intros i Hleq Hi.
              destruct (decide (v = i)) as [-> | ?].
-             *** rewrite list_lookup_insert //.
+             *** rewrite list_lookup_insert_eq //.
              *** rewrite list_lookup_insert_ne //; auto.
    - iModIntro.
      iIntros "Hbf".

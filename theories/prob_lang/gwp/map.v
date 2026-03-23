@@ -97,7 +97,7 @@ Section map_specs.
       case_bool_decide as Heq; simplify_eq.
       + gwp_pures. iApply "HΦ".
         iIntros "!> /= !%".
-        rewrite delete_insert.
+        rewrite delete_insert_id.
         * by eexists.
         * by apply not_elem_of_list_to_map.
       + gwp_if.
@@ -139,12 +139,12 @@ Section map_specs.
       iIntros (? ->%is_list_inject). iApply "HΦ". iPureIntro.
       exists ((k, v) :: l').
       split.
-      + rewrite <- insert_delete_insert.
+      + rewrite <- insert_delete_eq.
         rewrite Hl'. symmetry. apply list_to_map_cons.
       + split; [done|].
         constructor; last done.
         eapply (not_elem_of_list_to_map_2).
-        rewrite -Hl' lookup_delete //.
+        rewrite -Hl' lookup_delete_eq //.
   Qed.
 
   Lemma gwp_map_lookup k d m s E :
@@ -161,7 +161,7 @@ Section map_specs.
     - gwp_pures.
       case_bool_decide as Heq; simplify_eq.
       + gwp_if. gwp_pures.
-        iModIntro. rewrite lookup_insert /=.
+        iModIntro. rewrite lookup_insert_eq /=.
         by iApply "HΦ".
       + gwp_if. gwp_apply "IH".
         * inversion Hdup. by subst.
@@ -257,12 +257,12 @@ Section map_specs.
   (*       inversion Hnodup; simplify_map_eq. *)
   (*       apply elem_of_list_to_map in H1; [|set_solver]. *)
   (*       intros ->. apply H4. *)
-  (*       apply elem_of_list_fmap. *)
+  (*       apply list_elem_of_fmap. *)
   (*       exists (k0, v0); done. *)
   (*     + gwp_pures. *)
   (*       iApply "HΞ". *)
   (*       iExists _, _. iFrame. iPureIntro. *)
-  (*       rewrite lookup_insert //. *)
+  (*       rewrite lookup_insert_eq //. *)
   (* Qed. *)
 
 End map_specs.

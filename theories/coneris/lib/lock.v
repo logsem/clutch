@@ -63,7 +63,7 @@ Global Hint Extern 0 (lockG _) => progress simpl : typeclass_instances.
 Global Instance is_lock_contractive `{!conerisGS Σ, !lock, !lockG Σ} γ lk :
   Contractive (is_lock γ lk).
 Proof.
-  apply (uPred.contractive_internal_eq (M:=iResUR Σ)).
+  eapply (internal_eq.contractive_internal_eq). Unshelve. 2: apply (uPredI (iResUR Σ)). 2: apply _.
   iIntros (P Q) "#HPQ". iApply prop_ext. iIntros "!>".
   iSplit; iIntros "H"; iApply (is_lock_iff with "H");
     iNext; iRewrite "HPQ"; auto.

@@ -199,10 +199,10 @@ Section con_hash_impl2.
     iDestruct "H5" as "[#H5 H6]".
     rewrite /hash_auth.
     iMod (con_hash_interface1.hash_auth_insert with "[$][$]") as "K"; first done.
-    iDestruct (con_hash_interface1.hash_auth_duplicate with "[$]") as "#?"; first apply lookup_insert.
+    iDestruct (con_hash_interface1.hash_auth_duplicate with "[$]") as "#?"; first apply lookup_insert_eq.
     iAssert (⌜v∉(map_to_list m).*2⌝)%I as "%H0".
     { iIntros (H').
-      apply elem_of_list_fmap_2 in H'.
+      apply list_elem_of_fmap_1 in H'.
       destruct H' as ([??]&?&H1). simplify_eq.
       rewrite elem_of_map_to_list in H1.
       iDestruct (big_sepM_lookup with "[$]") as "H4"; first done.

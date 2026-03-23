@@ -270,7 +270,7 @@ Section fisher_yates.
     rewrite Haux.
     etrans; last first.
     - apply delete_Permutation.
-      by apply list_lookup_insert.
+      by apply list_lookup_insert_eq.
     - done.
   Qed.
   *)
@@ -338,7 +338,7 @@ Qed.
         epose proof (lookup_lt_is_Some_2 lav i' _) as [y Hy].
         eapply list_find_elem_of; last first.
         - by apply bool_decide_spec.
-        - apply elem_of_list_lookup_2 in Hy.
+        - apply list_elem_of_lookup_2 in Hy.
           rewrite Hperm //.
       }
       wp_apply (wp_rand_err_amp_nat _ _ k); iFrame.
@@ -378,11 +378,11 @@ Qed.
         + intros ??. repeat case_bool_decide; simpl; naive_solver.
         + intros. repeat case_bool_decide; subst.
           * destruct (decide (fin_to_nat n=S i')) as [Heq|Heq].
-            -- rewrite Heq in H2. rewrite Heq. rewrite list_lookup_insert; first naive_solver.
+            -- rewrite Heq in H2. rewrite Heq. rewrite list_lookup_insert_eq; first naive_solver.
                rewrite !length_insert. lia.
-            -- rewrite list_lookup_insert_ne; last done. rewrite list_lookup_insert; first naive_solver.
+            -- rewrite list_lookup_insert_ne; last done. rewrite list_lookup_insert_eq; first naive_solver.
                pose proof fin_to_nat_lt n. lia.
-          * rewrite list_lookup_insert; first naive_solver.
+          * rewrite list_lookup_insert_eq; first naive_solver.
             rewrite length_insert. lia.
           * repeat (rewrite list_lookup_insert_ne; last done). done.
           *)

@@ -139,7 +139,7 @@ Section rng.
     iApply (impl_couplable_elim with "[$Hcoup $HK Hc HΦ]").
     iIntros (b) "Hhash HK".
     wp_apply (wp_hashfun_prev' with "[$]").
-    { rewrite lookup_insert //. }
+    { rewrite lookup_insert_eq //. }
     iIntros "Hhash". wp_pures.
     wp_store. iModIntro. iApply "HΦ".
     iFrame. iExists _. 
@@ -184,7 +184,7 @@ Section rng.
     iIntros (b) "Hhash".
     tp_bind (h _)%E.
     iMod (spec_hashfun_prev' with "Hhash HK") as "(HK&Hhash) /=".
-    { rewrite lookup_insert //. }
+    { rewrite lookup_insert_eq //. }
     tp_pures.
     tp_store.
     tp_pures.

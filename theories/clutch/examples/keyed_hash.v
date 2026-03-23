@@ -458,7 +458,7 @@ Section keyed_hash.
     iApply (big_sepS_delete _ _ (enc_gallina_fin k v)).
     { apply elem_of_fin_to_set. }
     iSplitL "Hkv".
-    { iLeft. iExists _. iSplit; first eauto. rewrite lookup_insert //. }
+    { iLeft. iExists _. iSplit; first eauto. rewrite lookup_insert_eq //. }
     iApply (big_sepS_mono with "Hrest").
     { iIntros (x [Hx Hne]%elem_of_difference).
       set_unfold. iIntros "H".
@@ -519,10 +519,10 @@ Section keyed_hash.
     intros (?&?).
     split.
   - intros x' b'. destruct (decide (x = x')).
-    { subst. rewrite ?lookup_insert // => -> //. }
+    { subst. rewrite ?lookup_insert_eq // => -> //. }
     rewrite ?lookup_insert_ne //; eauto. intros ?%(inj fin_to_nat); congruence.
   - intros x'. destruct (decide (x = x')).
-    { subst. rewrite ?lookup_insert // => -> //. }
+    { subst. rewrite ?lookup_insert_eq // => -> //. }
     rewrite ?lookup_insert_ne //; eauto. intros ?%(inj fin_to_nat); congruence.
   Qed.
 

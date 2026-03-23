@@ -241,7 +241,6 @@ Section higherorder_rand.
         wp_pures; iModIntro; iPureIntro. left.
         { do 2 f_equal; apply bool_decide_false; lia. }
     Unshelve.
-    { rewrite Nat2Z.id; apply TCEq_refl. }
   Qed.
 
 End higherorder_rand.
@@ -292,8 +291,6 @@ Section higherorder_flip2.
         inv_fin n; first by rewrite /ε2_flip1 /=.
         intros n; inv_fin n; first by rewrite /ε2_flip1 /=.
         intros n; by apply Fin.case0.
-      Unshelve.
-      { apply TCEq_refl. }
   Qed.
 
   Definition flip2_goal (v : val) : iProp Σ := ⌜v = (#1%nat, #1%nat)%V⌝.

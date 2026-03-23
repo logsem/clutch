@@ -135,11 +135,6 @@ Global Instance tape_inhabited : Inhabited tape := populate (existT 0%nat []).
 Global Instance tape_eq_dec : EqDecision tape. Proof. apply _. Defined.
 Global Instance tape_countable : Countable tape. Proof. apply _. Qed.
 
-Global Instance tapes_lookup_total : LookupTotal loc tape (gmap loc tape).
-Proof. apply map_lookup_total. Defined.
-Global Instance tapes_insert : Insert loc tape (gmap loc tape).
-Proof. apply map_insert. Defined.
-
 Global Instance tape_laplace_inhabited : Inhabited tape_laplace := populate (Tape_Laplace 0 0 0 []).
 Global Instance tape_laplace_eq_dec : EqDecision tape_laplace. Proof. solve_decision. Defined.
 Global Instance tape_laplace_countable : Countable tape_laplace.
@@ -185,10 +180,6 @@ Proof.
       + destruct mean ; done.
 Qed.
 
-Global Instance tapes_laplace_lookup_total : LookupTotal loc tape_laplace (gmap loc tape_laplace).
-Proof. apply map_lookup_total. Defined.
-Global Instance tapes_laplace_insert : Insert loc tape_laplace (gmap loc tape_laplace).
-Proof. apply map_insert. Defined.
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes of
     booleans. *)
@@ -639,14 +630,14 @@ Global Arguments state_upd_tapes_laplace _ !_ /.
 
 Lemma state_upd_tapes_twice σ l n xs ys :
   state_upd_tapes <[l:=(n; ys)]> (state_upd_tapes <[l:=(n; xs)]> σ) = state_upd_tapes <[l:=(n; ys)]> σ.
-Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed.
+Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert_eq. Qed.
 
 Lemma state_upd_tapes_same σ σ' l n xs ys :
   state_upd_tapes <[l:=(n; ys)]> σ = state_upd_tapes <[l:=(n; xs)]> σ' -> xs = ys.
 Proof. rewrite /state_upd_tapes /=. intros K. simplify_eq.
        rewrite map_eq_iff in H.
        specialize (H l).
-       rewrite !lookup_insert in H.
+       rewrite !lookup_insert_eq in H.
        by simplify_eq.
 Qed.
 
@@ -1113,21 +1104,21 @@ Proof.
     + exfalso.
       destruct (decide (α = l1)) ; simplify_eq.
       * eapply (Some_ne_None ((_; _) : tape)).
-        rewrite -H11. simplify_map_eq. done.
+        rewrite -H11. by simplify_map_eq.
       * eapply (Some_ne_None ((_; _) : tape)).
         rewrite -H11.
         rewrite lookup_insert_ne => //.
     + exfalso.
       destruct (decide (α = l1)) ; simplify_eq.
       * eapply (Some_ne_None ((_; _) : tape)).
-        rewrite -H11. simplify_map_eq. done.
+        rewrite -H11. simplify_map_eq.
       * eapply (Some_ne_None ((_; _) : tape)).
         rewrite -H11.
         rewrite lookup_insert_ne => //.
     + exfalso.
       destruct (decide (α = l1)) ; simplify_eq.
       * eapply (Some_ne_None ((_; _) : tape)).
-        rewrite -H10. simplify_map_eq. done.
+        rewrite -H10. simplify_map_eq.
       * eapply (Some_ne_None ((_; _) : tape)).
         rewrite -H10.
         rewrite lookup_insert_ne => //.
@@ -1139,16 +1130,18 @@ Proof.
       * apply not_elem_of_dom_2 in H11. done.
       * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done.
     + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert // in H7.
+      * rewrite lookup_insert_eq // in H7.
         apply not_elem_of_dom_2 in H11. done.
       * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done.
     + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert // in H7.
+      * rewrite lookup_insert_eq // in H7.
         apply not_elem_of_dom_2 in H10. done.
       * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done.
         Unshelve.
         all: try apply (0%fin).
-        all: apply ((of_val $ LitV LitUnit), σ).
+        all: try apply ((of_val $ LitV LitUnit), σ).
+        all: try apply (0%nat).
+        all: apply [].
 Qed.
 
 Lemma state_step_mass σ α :
@@ -1253,7 +1246,7 @@ Proof.
     intros α' ?. rewrite /get_active /=.
     apply elem_of_elements, elem_of_dom.
     destruct (decide (α = α')); subst.
-    + eexists. rewrite lookup_insert //.
+    + eexists. rewrite lookup_insert_eq //.
     + rewrite lookup_insert_ne //.
       apply elem_of_dom. eapply elem_of_elements, Hact. by right.
 Qed.

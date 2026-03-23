@@ -16,14 +16,14 @@ tags: ["awesome" "separation logic" "probabilities"]
 homepage: "https://github.com/logsem/clutch"
 bug-reports: "https://github.com/logsem/clutch/issues"
 depends: [
-  "dune" {>= "3.17"}
+  "dune" {>= "3.21"}
   "ocaml" {>= "5.4.0" & < "5.5~"}
-  "rocq-core" {>= "9.0.0" & < "9.1~"}
-  "rocq-stdlib" {>= "9.0.0" & < "9.1~"}
-  "coq-iris" {= "4.4.0"}
-  "coq-stdpp" {= "1.12.0"}
+  "rocq-core" {>= "9.1.1" & < "9.2~"}
+  "rocq-stdlib" {>= "9.0.0" & < "9.2~"}
+  "rocq-iris" {= "4.5.0"}
+  "rocq-stdpp" {= "1.13.0"}
   "coq-coquelicot" {= "3.4.4"}
-  "coq-autosubst" {= "1.9"}
+  "coq-autosubst" {= "dev"}
   "coq-hierarchy-builder" {= "1.10.1"}
   "coq-mathcomp-ssreflect" {= "2.5.0"}
   "coq-mathcomp-solvable" {= "2.5.0"}
@@ -47,3 +47,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/logsem/clutch.git"
+x-maintenance-intent: ["(latest)"]

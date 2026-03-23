@@ -149,7 +149,7 @@ Section impl3.
     simpl.
     iIntros (??) "(%&%&%&<-&H1)".
     iPureIntro. rewrite Forall_forall.
-    intro. rewrite elem_of_list_filter.
+    intro. rewrite list_elem_of_filter.
     naive_solver.
   Qed.
   Next Obligation.
