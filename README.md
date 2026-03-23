@@ -41,9 +41,9 @@ In POPL 2024: ACM SIGPLAN Symposium on Principles of Programming Languages
 
 The project is known to compile with
 
-- [Rocq](https://rocq-prover.org/) 9.0
-- [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.12.0
-- [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.4.0
+- [Rocq](https://rocq-prover.org/) 9.1.1
+- [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.13.0
+- [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.5.0
 - [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.4.4
 - [Autosubst](https://github.com/coq-community/autosubst) 1.9
 - [Mathcomp](https://github.com/math-comp/math-comp) 2.5.0
