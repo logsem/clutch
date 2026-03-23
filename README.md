@@ -59,6 +59,7 @@ opam switch create . --empty
 3. Add the Rocq `opam` repository.
 ```
 opam repo add rocq-released https://rocq-prover.org/opam/released
+opam repo add iris-dev git+https://gitlab.mpi-sws.org/iris/opam.git
 opam update
 ```
 4. Install the right version of the dependencies as specified in the `rocq-clutch.opam` file.
