@@ -235,3 +235,15 @@ Section choice.
   Qed.
   
 End choice.
+
+Lemma big_sepL2_Forall2 {PROP : bi} {A B} P (xs : list A) (ys : list B) :
+  ((([∗ list] x; y ∈ xs; ys, ⌜P x y⌝ : PROP) ⊢ ⌜Forall2 P xs ys⌝ : PROP)%I).
+Proof.
+  iRevert (ys). iInduction xs as [|x xs'] ; iIntros (ys) "h".
+  1: iDestruct (big_sepL2_length with "h") as "%len" ; destruct ys => //.
+  destruct ys. 1: iDestruct (big_sepL2_length with "h") as "%len" => //.
+  rewrite big_sepL2_cons.
+  iDestruct "h" as "[hx h]".
+  rewrite Forall2_cons_iff. iSplitL "hx" => //.
+  iApply "IHxs'". done.
+Qed.

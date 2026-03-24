@@ -557,6 +557,20 @@ Fixpoint list_delete `{EqDecision A} (x : A) (l : list A) : list A :=
   | y :: l => if decide (x = y) then l else y :: list_delete x l
   end.
 
+Lemma lookup_eq_pointwise {A} `{Inhabited A} (xs ys : list A) :
+  length xs = length ys -> (∀ k : nat, (k < length ys)%nat -> xs !!! k = ys !!! k) -> xs = ys.
+Proof.
+  revert ys. induction xs.
+  1: intros ; by destruct ys.
+  intros ? hlen Hlookup . destruct ys. 1: simpl in * ; lia.
+  opose proof (Hlookup 0%nat _) as Hl0 ; simpl ; [lia|].
+  f_equal. 1: apply Hl0.
+  apply IHxs. 1: by inversion hlen.
+  intros.
+  specialize (Hlookup (S k)). simpl in Hlookup. apply Hlookup.
+  lia.
+Qed.
+
 Lemma list_difference_app `{Countable T} (xs ys zs : list T) :
   list_difference (xs ++ ys) zs = list_difference xs zs ++ list_difference ys zs.
 Proof.

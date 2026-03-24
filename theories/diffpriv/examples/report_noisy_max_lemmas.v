@@ -38,6 +38,24 @@ Lemma list_Z_max_cons hd tl x a i:
     list_Z_max' tl (x+1) hd x
   else list_Z_max' tl (x+1)%nat a i.
 Proof. done. Qed. 
+
+Lemma list_max_index_eq xs : List_max_index xs = list_Z_max xs.
+Proof.
+  rewrite /List_max_index /list_Z_max.
+  destruct xs as [|xmax xs] => //.
+  rewrite /List_max_index_aux.
+  simpl.
+  intros. rewrite bool_decide_eq_false_2 //. 2: lia.
+  generalize 1%nat at 3 4 as inext. generalize 0%nat at 3 4 as imax.
+  revert xmax.
+  induction xs as [|x xs].
+  1: { simpl. done. }
+  intros.
+  simpl.
+  case_bool_decide ; destruct ((xmax <? x)%Z) eqn:hlt => //.
+  - apply Z.ltb_ge in hlt. lia.
+  - apply Z.ltb_lt in hlt. lia.
+Qed.
   
 Lemma pw_list_Z_max_bound l x a i:
   i<= x -> 
