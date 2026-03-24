@@ -4,7 +4,6 @@ From clutch.prelude Require Import tactics.
 From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode.
 From clutch.prob_lang Require Import gwp.list.
-From clutch.diffpriv.examples Require Import report_noisy_max_lemmas.
 
 Section rnm.
   Context `{!diffprivGS Σ}.

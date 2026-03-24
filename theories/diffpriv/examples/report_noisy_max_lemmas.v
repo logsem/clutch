@@ -1,7 +1,7 @@
 From discprob.basic Require Import seq_ext.
 From stdpp Require Import list.
 From clutch.prelude Require Import tactics.
-From clutch.prob_lang Require Import erasure.
+From clutch.prob_lang Require Import erasure gwp.list.
 From clutch.prob Require Import couplings_dp differential_privacy.
 From clutch.diffpriv Require Import diffpriv.
 
