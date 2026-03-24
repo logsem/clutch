@@ -73,76 +73,87 @@ Section prog.
   Lemma basic_hash_game A:
     ∅ ⊢ₜ A : ((TInt* TInt) → (TInt* TInt) → (TInt → (TUnit+TInt))  → TInt) ->
              pgl (lim_exec ((prog A), {|heap:=∅; urns:= ∅|})) (λ v, v=#false)
-               (1/(nounce_range +1 ) + (2*(tries+1))/(tag_range+1)).
+               (1/(nounce_range +1 )%nat + (2*(tries+1)%nat)/(tag_range+1)%nat).
+  Proof.
+    intros Htyped.
+    destruct (decide (2*(tries+1)<tag_range+1)) as [initial_ineq|]; last first.
+    {
+      apply pgl_1.
+      apply Rle_plus_r; last apply Rdiv_INR_ge_0.
+      apply Rcomplements.Rle_div_r; first (apply Rlt_gt; apply lt_0_INR; lia).
+      rewrite Rmult_1_l.
+      replace 2%R with (INR 2) by done.
+      rewrite -mult_INR.
+      apply le_INR.
+      lia.
+    }
+    eapply (elton_adequacy_remove_drand (#[eltonΣ; tokenΣ]) (prog' A)).
+    { simpl; by erewrite typed_remove_drand_expr. }
+    { apply Rplus_le_le_0_compat; first apply Rdiv_INR_ge_0.
+      real_solver. }
+    rewrite /prog'.
+    iIntros (? Φ).
+    iModIntro.
+    iIntros "Herr HΦ".
+    
+    iPoseProof (typed_safe _ [] _ Htyped) as "H".
+    wp_bind (A).
+    iApply (pgl_wp_wand); first done.
+    iIntros (?) "#Hinterp".
+    simpl.
+    wp_pures.
+
+    
+    wp_apply (wp_init_hash); first done.
+    iIntros (f) ">Hf".
+    wp_pures.
+    
+    wp_apply (wp_drand_thunk _ _ _ _ _ (True)).
+    { rewrite rupd_unseal/rupd_def.
+      iIntros (?) "$".
+      iPureIntro.
+      intros.
+      simpl.
+      eexists _; split; first done.
+      f_equal.
+      f_equal.
+      instantiate (1:=(tag_range+1) *(tag_range+1)-1).
+      lia. }
+      iIntros (l) "[_ Hl]".
+      rewrite Nat2Z.id.
+      wp_pures.
+
+    wp_apply (wp_drand_thunk _ _ _ _ _ (True)).
+    { rewrite rupd_unseal/rupd_def.
+      iIntros (?) "$".
+      iPureIntro.
+      intros.
+      simpl.
+      eexists _; split; first done.
+      f_equal.
+      f_equal.
+      instantiate (1:=1).
+      lia. }
+      iIntros (b) "[_ Hb]".
+      rewrite Nat2Z.id.
+      wp_pures.
+
+      wp_apply wp_rand; first done.
+      iIntros (n1) "_".
+      wp_pures.
+
+      iDestruct (ec_split with "[$]") as "[Herr1 Herr2]"; [real_solver..|].
+
+      wp_apply (wp_couple_rand_adv_comp' _ _ _ _ (λ x, if bool_decide (x = n1) then nnreal_one else nnreal_zero)with "[$Herr1]").
+      { intros. case_bool_decide; simpl; lra. }
+      { rewrite SeriesC_scal_l. rewrite SeriesC_singleton.
+        rewrite Rmult_1_r.
+        rewrite S_INR. by rewrite plus_INR. 
+      }
+      iIntros (n2) "Herr1".
+      case_bool_decide; first (by iDestruct (ec_contradict with "[$Herr1]") as "[]").
+      wp_pures.
   Admitted. 
-  (* Proof.  *)
-  (*   intros Htyped. *)
-  (*   destruct (decide (tries+1<secret_range+1)) as [initial_ineq|]; last first. *)
-  (*   { *)
-  (*     apply pgl_1. *)
-  (*     rewrite Rmult_plus_distr_l. *)
-  (*     trans ((tries+1)%nat*/(secret_range+1)%nat)%R. *)
-  (*     - rewrite -Rdiv_def. *)
-  (*       apply Rcomplements.Rle_div_r. *)
-  (*       + apply Rlt_gt. *)
-  (*         apply lt_0_INR; lia. *)
-  (*       + rewrite Rmult_1_l. *)
-  (*         apply le_INR. *)
-  (*         lia. *)
-  (*     - assert (0<=(tries+1)%nat */(val_size +1)%nat)%R; last lra. *)
-  (*       rewrite -Rdiv_def. *)
-  (*       apply Rcomplements.Rle_div_r. *)
-  (*       + apply Rlt_gt. *)
-  (*         apply lt_0_INR; lia. *)
-  (*       + rewrite Rmult_0_l. *)
-  (*         replace 0%R with (INR 0) by done. *)
-  (*         apply le_INR. *)
-  (*         lia. *)
-  (*   } *)
-  (*   eapply (elton_adequacy_remove_drand (#[eltonΣ; tokenΣ]) (prog' A)). *)
-  (*   - simpl. by erewrite typed_remove_drand_expr. *)
-  (*   - apply Rmult_le_pos; first apply pos_INR. *)
-  (*     rewrite -!Rdiv_1_l. *)
-  (*     apply Rplus_le_le_0_compat; *)
-  (*       apply Rcomplements.Rdiv_le_0_compat; try lra. *)
-  (*     all: apply lt_0_INR; lia.  *)
-  (*   - rewrite /prog'. *)
-  (*     iIntros (? Φ). *)
-  (*     iModIntro. iIntros "Herr HΦ". *)
-  (*     iPoseProof (typed_safe _ [] _ Htyped) as "H". *)
-  (*     wp_bind (A). *)
-  (*     iApply (pgl_wp_wand); first done. *)
-  (*     iIntros (?) "#Hinterp". *)
-  (*     simpl. *)
-  (*     wp_pures. *)
-  (*     rewrite Rmult_plus_distr_l. *)
-  (*     iDestruct (ec_split with "[$]") as "[Herr1 Herr2]". *)
-  (*     { apply Rmult_le_pos; first apply pos_INR. *)
-  (*       rewrite -!Rdiv_1_l. *)
-  (*       apply Rcomplements.Rdiv_le_0_compat; try lra. *)
-  (*       apply lt_0_INR; lia.  } *)
-  (*     { apply Rmult_le_pos; first apply pos_INR. *)
-  (*       rewrite -!Rdiv_1_l. *)
-  (*       apply Rcomplements.Rdiv_le_0_compat; try lra. *)
-  (*       apply lt_0_INR; lia.  } *)
-            
-  (*     wp_apply (wp_init_hash); first done. *)
-  (*     iIntros (f) ">Hf". *)
-  (*     wp_pures. *)
-  (*     wp_apply (wp_drand_thunk _ _ _ _ _ (True)). *)
-  (*     { rewrite rupd_unseal/rupd_def. *)
-  (*       iIntros (?) "$". *)
-  (*       iPureIntro. *)
-  (*       intros. *)
-  (*       simpl. *)
-  (*       eexists _; split; first done. *)
-  (*       f_equal. *)
-  (*       f_equal.  *)
-  (*       instantiate (1:=secret_range). *)
-  (*       lia. } *)
-  (*     iIntros (l) "[_ Hl]". *)
-  (*     rewrite Nat2Z.id. *)
-  (*     wp_pures. *)
   (*     iMod (ec_zero) as "Hzero". *)
   (*     wp_apply (wp_insert_new _ _ _ _ _ _ (λ _, 0)%R True with "[$Hf $Hzero]"). *)
   (*     { done. } *)
