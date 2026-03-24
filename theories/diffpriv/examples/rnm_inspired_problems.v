@@ -3,7 +3,7 @@ From clutch.common Require Import inject.
 From clutch.prelude Require Import tactics.
 From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode.
-From clutch.diffpriv.examples Require Import report_noisy_max.
+From clutch.diffpriv.examples Require Import report_noisy_max_pointwise.
 
 Section rnm.
   Context `{!diffprivGS Σ}.
