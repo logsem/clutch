@@ -188,9 +188,8 @@ let above_threshold (eps : Q.t) t =
   let f q db = let x = q db in let y = laplace_discrete (Q.mult eps (Q.mk 1 4)) x in t' <= y
   in f
 
-(* TODO in the paper we had eps = 1/1000 which seems wrong. *)
-let ex_4_1 _ = above_threshold (Q.mk 1000 1) 3 (list_count (fun x -> x mod 2 = 0)) [1; 2; 3; 4; 5]
-let ex_4_1' _ = above_threshold (Q.mk 1000 1) 3 (list_count (fun x -> x mod 2 = 0)) [1; 2; 3; 4; 5; 6]
+let ex_4_1 _ = above_threshold (Q.mk 10 1) 3 (list_count (fun x -> x mod 2 = 0)) [1; 2; 3; 4; 5]
+let ex_4_1' _ = above_threshold (Q.mk 10 1) 3 (list_count (fun x -> x mod 2 = 0)) [1; 2; 3; 4; 5; 6]
 
 (* n*eps-dp *)
 let sparse_vector (eps : Q.t) t n =
