@@ -791,10 +791,7 @@ Section credits.
       rewrite /RealDecrTrial_μ.
       rewrite -RInt_Rmult.
       2: { apply RealDecrTrial_μ0_ex_RInt. }
-      rewrite Iverson_False; [|simpl; lia].
-      rewrite Iverson_True; [|simpl; lia].
-      rewrite Rmult_0_l Rplus_0_l.
-      rewrite Rmult_1_l.
+      simp_iverson.
       rewrite /RealDecrTrial_μ0.
       rewrite Nat.sub_diag pow_O //=.
       lra.

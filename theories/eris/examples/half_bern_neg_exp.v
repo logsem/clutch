@@ -460,8 +460,7 @@ Section credits.
     }
     have HIntegral (n : nat) : RInt (λ x : R, RealDecrTrial_μ x 0 n) 0 0.5 = RealDecrTrial_μ0 (0.5) (n+1)%nat.
     { rewrite RealDecrTrial_μ_RInt.
-      rewrite Iverson_True; [|simpl; lia].
-      rewrite Rmult_1_l.
+      simp_iverson.
       rewrite Nat.sub_0_r.
       replace (RealDecrTrial_μ0 0 (n + 1)) with 0;  first lra.
       rewrite /RealDecrTrial_μ0.
@@ -539,11 +538,10 @@ Section credits.
       rewrite SeriesC_nat_shift_rev.
       2: { apply ex_seriesC_nat, (@Hexp_ex_even (-0.5)). }
       rewrite ExpSeriesEven.
-      rewrite Iverson_True; OK.
-      rewrite Rmult_1_l pow_O /fact //=.
+      simp_iverson.
+      rewrite pow_O /fact //=.
       rewrite /BNEHalf_μ//=.
-      rewrite Iverson_True; OK.
-      rewrite Iverson_False; OK.
+      simp_iverson.
       replace ((-1 / 2)) with (-0.5) by OK.
       OK.
     }
@@ -606,12 +604,7 @@ Section credits.
       rewrite SeriesC_scal_l.
       rewrite ExpSeriesOdd.
       rewrite /BNEHalf_μ//=.
-      rewrite Iverson_False; last first.
-      { rewrite /comp//=. intuition. }
-      rewrite Rmult_0_l Rmult_0_r Ropp_0 Rplus_0_l.
-      rewrite Iverson_False; OK.
-      rewrite Rmult_0_l Rplus_0_l.
-      rewrite Iverson_True; OK.
+      simp_iverson.
       replace ((-1 / 2)) with (-0.5) by OK.
       OK.
     }
@@ -803,8 +796,7 @@ Section program.
       { iApply (wp_lazyDecrR_gen (LiftF F)); first rewrite /LiftF//=.
         iFrame.
         iSplitR; first auto.
-        rewrite Iverson_True; auto.
-        rewrite Rmult_1_l.
+        simp_iverson.
         iFrame.
       }
       rewrite /LiftF//=.
@@ -832,8 +824,7 @@ Section program.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
       { apply Iverson_Rmult_nonneg; apply CreditV_nonneg; auto. intro n. apply Hnn. }
       { apply Iverson_Rmult_nonneg; apply Hnn. }
-      rewrite Iverson_True; auto.
-      rewrite Rmult_1_l.
+      simp_iverson.
       iFrame.
     }
   Qed.

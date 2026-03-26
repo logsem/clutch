@@ -114,9 +114,7 @@ Section credits.
     rewrite /Iverson.
     case_decide.
     { rewrite /Geo_μ.
-      rewrite Iverson_True; [|simpl; lia].
-      rewrite Iverson_False; [|simpl; lia].
-      lra.
+      simp_iverson. lra.
     }
     { rewrite Rmult_0_l Rplus_0_r.
       rewrite /Geo_μ.

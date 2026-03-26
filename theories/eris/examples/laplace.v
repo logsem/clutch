@@ -5,6 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial neg_exp lazy_real_expr.
 From clutch.eris.examples Require Import math.
+From clutch.eris.examples.math Require Import iverson_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -267,10 +268,7 @@ Section Symmetric.
         intros ??.
         rewrite /NegExpSymm_ρ//=.
         rewrite /NegExp_ρ/NegExp_ρ0//=.
-        rewrite Iverson_True.
-        2: { lia. }
-        rewrite Iverson_True.
-        2: { rewrite /Icc. lra. }
+        simp_iverson.
         rewrite Nat.sub_0_r.
         lra.
       }

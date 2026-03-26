@@ -277,7 +277,7 @@ Section credits.
   Lemma G1_h_nn {F k b} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_h F k b.
   Proof.
     rewrite /G1_h.
-    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
+    iverson_sum_nonneg.
     apply G1_CreditV_nn; auto.
   Qed.
 
@@ -343,7 +343,7 @@ Section credits.
   Lemma G2_s_nn {F k x b} (Hnn : ∀ a b , 0 <= F a b) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_s F k x b.
   Proof.
     rewrite /G2_s.
-    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
+    iverson_sum_nonneg.
     apply G2_CreditV_nn; auto.
   Qed.
 
@@ -2762,9 +2762,7 @@ Section credits.
     }
     (* Cancel F *)
     rewrite /G2_s.
-    rewrite Iverson_True; [|intuition].
-    rewrite Iverson_False; [|intuition].
-    rewrite Rmult_1_l Rmult_0_l Rplus_0_r.
+    simp_iverson.
     rewrite -Rmult_assoc.
     rewrite (Rmult_assoc _ (F k x)) (Rmult_comm (F k x)) -(Rmult_assoc _ _ (F k x)).
     rewrite -Rmult_plus_distr_r.
@@ -2919,8 +2917,8 @@ Section program.
           rewrite /BNEHalf_CreditV.
           rewrite (Rmult_comm _ (F' true)) (Rmult_comm _ (F' false)).
           f_equal; f_equal; rewrite /BNEHalf_μ.
-          { rewrite Iverson_True; OK. rewrite Iverson_False; OK. }
-          { rewrite Iverson_False; OK. rewrite Iverson_True; OK. }
+          { simp_iverson; OK. }
+          { simp_iverson; OK. }
         }
       }
     }

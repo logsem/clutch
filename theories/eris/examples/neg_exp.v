@@ -3007,7 +3007,7 @@ Section AccuracyBound.
       iApply (wp_NegExp_gen' (M := (1 + 1)) E (AccF (ln (/ β)))).
       { intros x. rewrite /AccF.
         split.
-        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { iverson_sum_nonneg. }
         { apply Rplus_le_compat; apply Iverson_le_1. }
       }
       { apply AccF_IPCts.

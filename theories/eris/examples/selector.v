@@ -87,7 +87,7 @@ Section credits.
   Lemma Bii_μ_nn {k x b} (Hx : 0 <= x <= 1) : 0 <= Bii_μ k x b.
   Proof.
     rewrite /Bii_μ.
-    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
+    iverson_sum_nonneg.
     { apply error_credits.Rle_0_le_minus.
       rewrite -Rcomplements.Rdiv_le_1.
       { apply Rplus_le_compat; [lra|lra]. }
@@ -255,7 +255,7 @@ Section credits.
   Proof.
     intro H.
     rewrite /Bii_g.
-    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
+    iverson_sum_nonneg.
   Qed.
 
   Lemma Bii_h_nn {F k x} (Hnn : ∀ r, 0 <= F r) : 0 <= Bii_h F k x.
@@ -306,9 +306,7 @@ Section credits.
     rewrite Rplus_comm; f_equal.
     { f_equal.
       rewrite /Bii_μ.
-      rewrite Iverson_True;  [|intuition].
-      rewrite Iverson_False; [|intuition].
-      rewrite Rmult_0_l Rmult_1_l Rplus_0_r.
+      simp_iverson.
       rewrite (Rmult_comm _ (1 - x)) -Rmult_assoc Rmult_1_r.
       rewrite -Rdiv_plus_distr.
       rewrite -{1}(Rdiv_diag (2 * k + 2)); last first.
@@ -326,9 +324,7 @@ Section credits.
     }
     { f_equal.
       rewrite /Bii_μ.
-      rewrite Iverson_False; [|intuition].
-      rewrite Iverson_True;  [|intuition].
-      rewrite Rmult_0_l Rmult_1_l Rplus_0_l.
+      simp_iverson.
       rewrite (Rmult_comm _ x) -Rmult_assoc Rmult_1_r.
       rewrite -Rdiv_plus_distr.
       rewrite mult_INR.
@@ -340,14 +336,14 @@ Section credits.
   Lemma S_hz_nn {F k x N z w} (Hnn : ∀ r, 0 <= F r) (H : 0 <= x <= 1) (Hy : 0 <= z <= 1) : 0 <= S_hz F k x N z w.
   Proof.
     rewrite /S_hz.
-    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
+    iverson_sum_nonneg.
     apply S_CreditV_nn; auto.
   Qed.
 
   Lemma S_g_nn {F k x z N r} (Hnn : ∀ r, 0 <= F r) (H : 0 <= x <= 1) (Hy : 0 <= r <= 1) : 0 <= S_g F k x z N r.
   Proof.
     rewrite /S_g.
-    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
+    iverson_sum_nonneg.
     apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Bii_μ_nn; auto | auto ]).
     { apply S_hz_nn; auto. }
     { apply S_hz_nn; auto. }
@@ -603,17 +599,9 @@ Section credits.
       }
     }
     rewrite /Bii_μ.
-    rewrite Iverson_False; [|intuition].
-    rewrite Iverson_True;  [|intuition].
-    rewrite Iverson_True;  [|intuition].
-    rewrite Iverson_False; [|intuition].
-    rewrite Rmult_0_l Rmult_0_l Rmult_1_l Rmult_1_l Rplus_0_l Rplus_0_r.
+    simp_iverson.
     rewrite /S_hz.
-    rewrite Iverson_False; [|intuition].
-    rewrite Iverson_True;  [|intuition].
-    rewrite Iverson_True;  [|intuition].
-    rewrite Iverson_False; [|intuition].
-    rewrite Rmult_0_l Rmult_1_l.
+    simp_iverson.
     (* Rewrite is confused by the other terms for some reason  *)
     replace (λ x0 : R, (2 * k + x) / (2 * k + 2) * (0 + 1 * S_CreditV F k x x0 (N + 1)) +
                (1 - (2 * k + x) / (2 * k + 2)) * (F N + 0 * S_CreditV F k x x0 (N + 1))) with
@@ -1007,7 +995,7 @@ Section credits.
   Lemma B_g_nn {F b} (Hnn : ∀ r, 0 <= F r) :  0 <= B_g F b.
   Proof.
     rewrite /B_g.
-    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
+    iverson_sum_nonneg.
   Qed.
 
   Lemma B_g_expectation {F k x M} (Hf : forall b, 0 <= F b <= M) : B_CreditV F k x = S_CreditV (B_g F) k x x 0.
@@ -1136,12 +1124,8 @@ Section credits.
     f_equal; funext; intros n.
     (* Below proof very redundant *)
     destruct (ClassicalEpsilon.excluded_middle_informative (Zeven n)) as [Hev|Hev].
-    { rewrite Iverson_True; OK. rewrite Iverson_False; OK.
-      rewrite Rmult_1_l Rmult_0_l Rmult_0_l Rmult_0_r Rmult_0_l Rplus_0_r.
-      rewrite Iverson_True; OK.
-      rewrite Rmult_1_l.
+    { simp_iverson.
       repeat rewrite Nat.sub_0_r.
-      rewrite Rmult_1_l Rplus_0_r.
       f_equal.
       rewrite Rminus_def; f_equal.
       { repeat rewrite Rdiv_def.
@@ -1172,12 +1156,8 @@ Section credits.
         OK.
       }
     }
-    { rewrite Iverson_False; OK. rewrite Iverson_True; OK.
-      rewrite Rmult_1_l Rmult_0_l Rmult_0_l Rplus_0_l.
-      rewrite Iverson_True; OK.
-      rewrite Rmult_1_l.
+    { simp_iverson.
       repeat rewrite Nat.sub_0_r.
-      rewrite Rmult_1_l Rplus_0_l.
       rewrite Rmult_plus_distr_l.
       f_equal.
       rewrite Rminus_def; f_equal.
@@ -1287,9 +1267,7 @@ Section program.
           rewrite plus_INR; OK.
         }
         rewrite /C_F_nat.
-        rewrite Iverson_True; OK.
-        rewrite Iverson_False; OK.
-        rewrite Iverson_False; OK.
+        simp_iverson; OK.
       }
       { f_equal.
         { f_equal.
@@ -1300,18 +1278,14 @@ Section program.
           rewrite plus_INR; OK.
         }
         rewrite /C_F_nat.
-        rewrite Iverson_False; OK.
-        rewrite Iverson_True; OK.
-        rewrite Iverson_False; OK.
+        simp_iverson; OK.
       }
       rewrite SeriesC_scal_l.
       replace (λ x : nat, if bool_decide (Datatypes.S (Datatypes.S x) ≤ Z.to_nat (m + 1)) then C_F_nat (Datatypes.S (Datatypes.S x)) else 0)
          with (λ x : nat, if bool_decide (Datatypes.S (Datatypes.S x) ≤ Z.to_nat (m + 1)) then F 2%nat else 0); last first.
       { funexti. case_bool_decide; OK.
         rewrite /C_F_nat.
-        rewrite Iverson_False; OK.
-        rewrite Iverson_False; OK.
-        rewrite Iverson_True; OK.
+        simp_iverson; OK.
       }
       repeat rewrite Rdiv_def.
       rewrite (Rmult_comm m _) Rmult_1_l Rmult_assoc.
@@ -1346,9 +1320,7 @@ Section program.
       iApply ec_eq; [|iFrame].
       have He : (fin_to_nat n) = 0%nat by OK.
       rewrite /C_F_evil He /C_F_nat //=.
-      rewrite Iverson_True; OK.
-      rewrite Iverson_False; OK.
-      rewrite Iverson_False; OK.
+      simp_iverson; OK.
     }
     case_bool_decide; wp_pures.
     { inversion H0. rewrite H2.
@@ -1356,18 +1328,14 @@ Section program.
       iApply ec_eq; [|iFrame].
       have He : (fin_to_nat n) = 1%nat by OK.
       rewrite /C_F_evil He /C_F_nat //=.
-      rewrite Iverson_False; OK.
-      rewrite Iverson_True; OK.
-      rewrite Iverson_False; OK.
+      simp_iverson; OK.
     }
     iModIntro; iExists 2%nat; iSplitR; [|iSplitR]; OK.
     iApply ec_eq; [|iFrame].
     rewrite /C_F_evil/C_F_nat.
     destruct n; OK.
     destruct n0; OK.
-    rewrite Iverson_False; [|simpl; OK].
-    rewrite Iverson_False; [|simpl; OK].
-    rewrite Iverson_True; simpl; OK.
+    simp_iverson; OK.
   Qed.
 
   Theorem wp_Bii {E F} (k : nat) xα x (Hnn : ∀ r, 0 <= F r) (Hx : 0 <= x <= 1) :
