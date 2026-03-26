@@ -5,6 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial.
 From clutch.eris.examples Require Import math.
+From clutch.eris.examples.math Require Import iverson_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -25,7 +26,7 @@ Section credits.
   Proof.
     rewrite /Geo_μ.
     apply Rmult_le_pos; [|lra].
-    apply Rmult_le_pos; [apply Iverson_nonneg|].
+    apply Iverson_Rmult_nonneg.
     apply pow_le.
     lra.
   Qed.
@@ -38,7 +39,7 @@ Section credits.
     apply Rmult_le_pos; [auto|].
     rewrite /Geo_μ.
     apply Rmult_le_pos; [|lra].
-    apply Rmult_le_pos; [apply Iverson_nonneg|].
+    apply Iverson_Rmult_nonneg.
     apply pow_le.
     lra.
   Qed.
@@ -49,10 +50,8 @@ Section credits.
 
   Local Lemma g_nn {F 𝛾 N b} (Hnn : ∀ r, 0 <= F r) (H𝛾 : 0 <= 𝛾 <= 1) : 0 <= g F 𝛾 N b.
   Proof.
-    rewrite /g.
-    apply Rplus_le_le_0_compat.
-    { apply Rmult_le_pos; [apply Iverson_nonneg| apply Geo_CreditV_nn; auto]. }
-    { apply Rmult_le_pos; [apply Iverson_nonneg| auto ]. }
+    rewrite /g. apply Rplus_le_le_0_compat;
+      apply Iverson_Rmult_nonneg; [apply Geo_CreditV_nn; auto | auto].
   Qed.
 
   Local Lemma g_expectation {F 𝛾 N M} (Hnn : ∀ r, 0 <= F r <= M) (* (Hex : ex_seriesC F) *) (H𝛾 : 0 <= 𝛾 <= 1) :
@@ -160,11 +159,7 @@ Section program.
     iApply (pgl_wp_mono_frame (□ _) with "[Hε] IH"); last first.
     { iApply (wp_e E (g F 𝛾 N)); [intro b; apply (g_nn); OK | ].
       { apply Hnn. }
-      rewrite /g.
-      rewrite Iverson_True; [|intuition]; rewrite Iverson_False; [|intuition].
-      rewrite Iverson_False; [|intuition]; rewrite Iverson_True; [|intuition].
-      do 2 rewrite Rmult_1_l Rmult_0_l.
-      rewrite Rplus_0_r Rplus_0_l.
+      rewrite /g. simp_iverson.
       erewrite g_expectation; OK.
     }
     iIntros (v) "(#IH & [%b [-> Hε]])".
@@ -172,16 +167,12 @@ Section program.
     { wp_pure.
       wp_pure.
       iSpecialize ("IH" $!(Init.Nat.add N 1)  with "[Hε]"); last (rewrite Nat2Z.inj_add; iApply "IH").
-      rewrite /g.
-      rewrite Iverson_True; [|intuition]; rewrite Iverson_False; [|intuition].
-      by rewrite Rmult_1_l Rmult_0_l Rplus_0_r.
+      rewrite /g. by simp_iverson.
     }
     { wp_pures.
       iModIntro; iExists N.
       iSplitR; first done.
-      rewrite /g.
-      rewrite Iverson_False; [|intuition]; rewrite Iverson_True; [|intuition].
-      by rewrite Rmult_1_l Rmult_0_l Rplus_0_l.
+      rewrite /g. by simp_iverson.
     }
   Qed.
 

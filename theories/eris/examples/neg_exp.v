@@ -5,6 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial.
 From clutch.eris.examples Require Import math.
+From clutch.eris.examples.math Require Import iverson_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -2824,12 +2825,9 @@ Section program.
         rewrite /hx.
         intro n.
         split.
-        { apply Rplus_le_le_0_compat; apply Rmult_le_pos; try apply Iverson_nonneg.
-          { apply Hnn.  OK. }
-          { eapply NegExp_CreditV_nn; OK.
-            intros ???. apply Hnn; OK.
-
-          }
+        { apply Rplus_le_le_0_compat; apply Iverson_Rmult_nonneg.
+          { apply Hnn. OK. }
+          { eapply NegExp_CreditV_nn; OK. intros ???. apply Hnn; OK. }
         }
         { apply Rplus_le_compat.
           { rewrite -{2}(Rmult_1_l (F L xr)).
@@ -2858,8 +2856,8 @@ Section program.
       iSplitR; first done.
       unfold hx.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ].  OK. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg |]. apply NegExp_CreditV_nn; OK.
+      { apply Iverson_Rmult_nonneg; apply Hnn.  OK. }
+      { apply Iverson_Rmult_nonneg. apply NegExp_CreditV_nn; OK.
         intros ???. apply Hnn; OK.
       }
       rewrite Iverson_True; last done.
@@ -2869,8 +2867,8 @@ Section program.
     { do 2 wp_pure.
       rewrite {1}/NegExp.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]; OK. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | eapply NegExp_CreditV_nn; OK ].
+      { apply Iverson_Rmult_nonneg; apply Hnn; OK. }
+      { apply Iverson_Rmult_nonneg; eapply NegExp_CreditV_nn; OK.
         intros ???. apply Hnn; OK.
       }
       rewrite Iverson_True; last first.

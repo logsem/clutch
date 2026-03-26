@@ -6,6 +6,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real.
 From clutch.eris.examples Require Import math.
+From clutch.eris.examples.math Require Import iverson_tactics.
 
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
@@ -54,7 +55,7 @@ Section pmf.
   Qed.
 
   Lemma RealDecrTrial_μnn {x i n} (H : 0 <= x <= 1) : 0 <= RealDecrTrial_μ x i n.
-  Proof. rewrite /RealDecrTrial_μ. apply Rmult_le_pos; [apply Iverson_nonneg|apply RealDecrTrial_μ0nn; auto]. Qed.
+  Proof. rewrite /RealDecrTrial_μ. apply Iverson_Rmult_nonneg; apply RealDecrTrial_μ0nn; auto. Qed.
 
 End pmf.
 
@@ -75,9 +76,8 @@ Section credits.
 
   Lemma g_nonneg {F N rx r} (Hnn : ∀ n, 0 <= F n) (H : 0 <= r <= 1) : 0 <= g F N rx r.
   Proof.
-    rewrite /g. apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg|]).
-    { apply CreditV_nonneg; auto. }
-    { apply Hnn. }
+    rewrite /g. apply Rplus_le_le_0_compat;
+      apply Iverson_Rmult_nonneg; [apply CreditV_nonneg; auto | apply Hnn].
   Qed.
 
   Lemma RealDecrTrial_μ_le_1 {t m n} (H : 0 <= t <= 1) : RealDecrTrial_μ t m n <= 1.
@@ -628,9 +628,7 @@ Section credits.
           { apply ex_RInt_Rmult'. apply Hex'.  }
           { intros ??.
             apply Rmult_le_pos; [|apply Hbound].
-            apply Rmult_le_pos; [apply Iverson_nonneg|].
-            apply RealDecrTrial_μnn.
-            lra.
+            apply Iverson_Rmult_nonneg; apply RealDecrTrial_μnn; lra.
           }
         }
         { apply RInt_le; [lra | | | ].
@@ -638,9 +636,7 @@ Section credits.
           { apply ex_RInt_Rmult'. apply Hex'.  }
           { intros x Hx.
             apply Rmult_le_compat_l; [|apply Hbound].
-            apply Rmult_le_pos; [apply Iverson_nonneg|].
-            apply RealDecrTrial_μnn.
-            lra.
+            apply Iverson_Rmult_nonneg; apply RealDecrTrial_μnn; lra.
           }
         }
       }
@@ -677,7 +673,7 @@ Section credits.
         { eapply ex_seriesC_le; last eapply (RealDecrTrial_μ0_ex_seriesC (M := 0)).
           2: eapply Hrx.
           intros n.
-          split. { apply Rmult_le_pos; first apply Iverson_nonneg. apply RealDecrTrial_μ0nn; OK. }
+          split. { apply Iverson_Rmult_nonneg; apply RealDecrTrial_μ0nn; OK. }
           rewrite -(Rmult_1_l (RealDecrTrial_μ0 rx (n + 0))).
           apply Rmult_le_compat; OK.
           { apply Iverson_nonneg. }
@@ -692,7 +688,7 @@ Section credits.
         { funexti. f_equal. f_equal. OK. }
         apply (ex_seriesC_le _ (λ x : nat, 1 * RealDecrTrial_μ0 rx x)).
         { intro n.
-          split. { apply Rmult_le_pos; first apply Iverson_nonneg. apply RealDecrTrial_μ0nn; OK. }
+          split. { apply Iverson_Rmult_nonneg; apply RealDecrTrial_μ0nn; OK. }
           apply Rmult_le_compat; OK.
           { apply Iverson_nonneg. }
           { apply RealDecrTrial_μ0nn. OK. }
@@ -848,8 +844,8 @@ Section trial.
         iSplitR; first done.
         rewrite /g.
         iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto]. apply Hnn. }
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+        { apply Iverson_Rmult_nonneg; apply CreditV_nonneg; auto. apply Hnn. }
+        { apply Iverson_Rmult_nonneg; apply Hnn. }
         rewrite Iverson_True; [by rewrite Rmult_1_l | rewrite /uncurry//=].
       }
       iFrame.
@@ -862,8 +858,8 @@ Section trial.
       iSplitR "Hx"; last done.
       rewrite /g.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto ]. apply Hnn. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+      { apply Iverson_Rmult_nonneg; apply CreditV_nonneg; auto. apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply Hnn. }
       rewrite Iverson_True; [by rewrite Rmult_1_l | rewrite /uncurry//=; lra].
   Qed.
 

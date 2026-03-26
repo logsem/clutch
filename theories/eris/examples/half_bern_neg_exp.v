@@ -6,6 +6,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real real_decr_trial.
 From clutch.eris.examples Require Import math.
+From clutch.eris.examples.math Require Import iverson_tactics.
 
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
@@ -37,8 +38,8 @@ Section credits.
   Proof.
     rewrite /BNEHalf_μ.
     apply Rplus_le_le_0_compat.
-    { apply Rmult_le_pos; [apply Iverson_nonneg| auto ]. apply Rexp_nn. }
-    { apply Rmult_le_pos; [apply Iverson_nonneg| auto ].
+    { apply Iverson_Rmult_nonneg; auto. apply Rexp_nn. }
+    { apply Iverson_Rmult_nonneg; auto.
       apply error_credits.Rle_0_le_minus.
       have ? := @Rexp_range (Rdiv (-1) 2).
       lra.
@@ -64,11 +65,11 @@ Section credits.
   Proof.
     rewrite /g.
     apply Rplus_le_le_0_compat.
-    { apply Rmult_le_pos; [apply Iverson_nonneg| auto ].
+    { apply Iverson_Rmult_nonneg; auto.
       apply CreditV_nonneg; auto.
       intros ?; rewrite /LiftF//=.
     }
-    { apply Rmult_le_pos; [apply Iverson_nonneg| auto ]. }
+    { apply Iverson_Rmult_nonneg; auto. }
   Qed.
 
   Local Lemma ex_RInt_RealDecrTrial_CreditV {F} (Hf : forall n, 0 <= F n) : ex_RInt (RealDecrTrial_CreditV (LiftF F) 0) 0 1.
@@ -237,12 +238,12 @@ Section credits.
         { intros n.
           split.
           { apply Rmult_le_pos.
-            { apply Rmult_le_pos; [apply Iverson_nonneg|apply HF]. }
+            { apply Iverson_Rmult_nonneg; apply HF. }
             { apply RInt_ge_0; [lra | apply RealDecrTrial_μ_ex_RInt | ].
               intros x Hx. apply RealDecrTrial_μnn. lra. }
           }
           { apply Rmult_le_compat.
-            { apply Rmult_le_pos; [apply Iverson_nonneg|apply HF]. }
+            { apply Iverson_Rmult_nonneg; apply HF. }
             { apply RInt_ge_0; [lra | apply RealDecrTrial_μ_ex_RInt | ].
               intros x Hx. apply RealDecrTrial_μnn. lra. }
             { rewrite -(Rmult_1_l M).
@@ -297,7 +298,7 @@ Section credits.
           apply (ex_seriesC_le _ (fun n => (RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1)))).
           { intro n.
             split.
-            { apply Rmult_le_pos; [apply Iverson_nonneg|apply L]. }
+            { apply Iverson_Rmult_nonneg; apply L. }
             { rewrite -{2}(Rmult_1_l (RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1))).
               apply Rmult_le_compat.
               { apply Iverson_nonneg. }
@@ -329,12 +330,12 @@ Section credits.
         { intros n.
           split.
           { apply Rmult_le_pos.
-            { apply Rmult_le_pos; [apply Iverson_nonneg|apply HF]. }
+            { apply Iverson_Rmult_nonneg; apply HF. }
             { apply RInt_ge_0; [lra | apply RealDecrTrial_μ_ex_RInt | ].
               intros x Hx. apply RealDecrTrial_μnn. lra. }
           }
           { apply Rmult_le_compat.
-            { apply Rmult_le_pos; [apply Iverson_nonneg|apply HF]. }
+            { apply Iverson_Rmult_nonneg; apply HF. }
             { apply RInt_ge_0; [lra | apply RealDecrTrial_μ_ex_RInt | ].
               intros x Hx. apply RealDecrTrial_μnn. lra. }
             { rewrite -(Rmult_1_l M).
@@ -389,7 +390,7 @@ Section credits.
           apply (ex_seriesC_le _ (fun n => (RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1)))).
           { intro n.
             split.
-            { apply Rmult_le_pos; [apply Iverson_nonneg|apply L]. }
+            { apply Iverson_Rmult_nonneg; apply L. }
             { rewrite -{2}(Rmult_1_l (RealDecrTrial_μ0 0.5 (n - 0 + 1) - RealDecrTrial_μ0 0 (n - 0 + 1))).
               apply Rmult_le_compat.
               { apply Iverson_nonneg. }
@@ -795,8 +796,8 @@ Section program.
     { wp_pures.
       rewrite /g//=.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto]. intro n. apply Hnn. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+      { apply Iverson_Rmult_nonneg; apply CreditV_nonneg; auto. intro n. apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply Hnn. }
       wp_bind (lazyDecrR _ _).
       iApply (pgl_wp_mono with "[Hr Hε]"); last first.
       { iApply (wp_lazyDecrR_gen (LiftF F)); first rewrite /LiftF//=.
@@ -829,8 +830,8 @@ Section program.
       iSplitR; first done.
       rewrite /g.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply CreditV_nonneg; auto ]. intro n. apply Hnn. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+      { apply Iverson_Rmult_nonneg; apply CreditV_nonneg; auto. intro n. apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply Hnn. }
       rewrite Iverson_True; auto.
       rewrite Rmult_1_l.
       iFrame.

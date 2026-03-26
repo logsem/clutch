@@ -6,6 +6,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real half_bern_neg_exp.
 From clutch.eris.examples Require Import math.
+From clutch.eris.examples.math Require Import iverson_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -86,7 +87,7 @@ Section credits.
   Lemma Bii_μ_nn {k x b} (Hx : 0 <= x <= 1) : 0 <= Bii_μ k x b.
   Proof.
     rewrite /Bii_μ.
-    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
+    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
     { apply error_credits.Rle_0_le_minus.
       rewrite -Rcomplements.Rdiv_le_1.
       { apply Rplus_le_compat; [lra|lra]. }
@@ -162,7 +163,7 @@ Section credits.
   Lemma S_μ_nn {x k y N x'} (Hx : 0 <= x <= 1) (Hy : 0 <= y <= 1) : 0 <= S_μ k x y N x'.
   Proof.
     rewrite /S_μ.
-    apply Rmult_le_pos; first apply Iverson_nonneg.
+    apply Iverson_Rmult_nonneg.
     apply S_μ0_nn; auto.
   Qed.
 
@@ -254,7 +255,7 @@ Section credits.
   Proof.
     intro H.
     rewrite /Bii_g.
-    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg | auto ]).
+    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
   Qed.
 
   Lemma Bii_h_nn {F k x} (Hnn : ∀ r, 0 <= F r) : 0 <= Bii_h F k x.
@@ -347,14 +348,14 @@ Section credits.
   Lemma S_hz_nn {F k x N z w} (Hnn : ∀ r, 0 <= F r) (H : 0 <= x <= 1) (Hy : 0 <= z <= 1) : 0 <= S_hz F k x N z w.
   Proof.
     rewrite /S_hz.
-    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg | auto ]).
+    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
     apply S_CreditV_nn; auto.
   Qed.
 
   Lemma S_g_nn {F k x z N r} (Hnn : ∀ r, 0 <= F r) (H : 0 <= x <= 1) (Hy : 0 <= r <= 1) : 0 <= S_g F k x z N r.
   Proof.
     rewrite /S_g.
-    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg | auto ]).
+    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
     apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Bii_μ_nn; auto | auto ]).
     { apply S_hz_nn; auto. }
     { apply S_hz_nn; auto. }
@@ -821,14 +822,14 @@ Section credits.
           { apply Rmult_le_pos; [|apply pow_le; apply Lem1].
             apply Rmult_le_pos; [|apply Hf].
             rewrite Rdiv_def Rmult_assoc.
-            apply Rmult_le_pos; [apply Iverson_nonneg|].
+            apply Iverson_Rmult_nonneg.
             apply Rle_mult_inv_pos; [apply pow_le; OK|].
             apply INR_fact_lt_0.
           }
           apply Rmult_le_compat.
           { apply Rmult_le_pos; [|apply Hf].
             rewrite Rdiv_def Rmult_assoc.
-            apply Rmult_le_pos; [apply Iverson_nonneg|].
+            apply Iverson_Rmult_nonneg.
             apply Rle_mult_inv_pos; [apply pow_le; OK|].
             apply INR_fact_lt_0.
           }
@@ -836,13 +837,13 @@ Section credits.
           2: { rewrite -(pow1 (n + (N + 1) - (N + 1))). apply pow_incr; OK. }
           apply Rmult_le_compat.
           { rewrite Rdiv_def Rmult_assoc.
-            apply Rmult_le_pos; [apply Iverson_nonneg|].
+            apply Iverson_Rmult_nonneg.
             apply Rle_mult_inv_pos; [apply pow_le; OK|].
             apply INR_fact_lt_0. }
           { apply Hf. }
           2: { apply Hf. }
           apply Rmult_le_compat.
-          { apply Rmult_le_pos; [apply Iverson_nonneg|]. apply pow_le; OK. }
+          { apply Iverson_Rmult_nonneg. apply pow_le; OK. }
           { rewrite -(Rmult_1_l (/ _)). apply Rle_mult_inv_pos; OK.   apply INR_fact_lt_0. }
           2: { right. f_equal. f_equal. f_equal. OK. }
           apply Rmult_le_compat.
@@ -872,14 +873,14 @@ Section credits.
         { apply Rmult_le_pos; [|apply pow_le; apply Lem1].
           apply Rmult_le_pos; [|apply Hf].
           rewrite Rdiv_def Rmult_assoc.
-          apply Rmult_le_pos; [apply Iverson_nonneg|].
+          apply Iverson_Rmult_nonneg.
           apply Rle_mult_inv_pos; [apply pow_le; OK|].
           apply INR_fact_lt_0.
         }
         apply Rmult_le_compat.
         { apply Rmult_le_pos; [|apply Hf].
           rewrite Rdiv_def Rmult_assoc.
-          apply Rmult_le_pos; [apply Iverson_nonneg|].
+          apply Iverson_Rmult_nonneg.
           apply Rle_mult_inv_pos; [apply pow_le; OK|].
           apply INR_fact_lt_0.
         }
@@ -887,13 +888,13 @@ Section credits.
         2: { rewrite -(pow1 (n + (N + 1 ) - ((N + 1)) + 1)). apply pow_incr; OK. }
         apply Rmult_le_compat.
         { rewrite Rdiv_def Rmult_assoc.
-          apply Rmult_le_pos; [apply Iverson_nonneg|].
+          apply Iverson_Rmult_nonneg.
           apply Rle_mult_inv_pos; [apply pow_le; OK|].
           apply INR_fact_lt_0. }
         { apply Hf. }
         2: { apply Hf. }
         apply Rmult_le_compat.
-        { apply Rmult_le_pos; [apply Iverson_nonneg|]. apply pow_le; OK. }
+        { apply Iverson_Rmult_nonneg. apply pow_le; OK. }
         { rewrite -(Rmult_1_l (/ _)). apply Rle_mult_inv_pos; OK.   apply INR_fact_lt_0. }
         2: { right. f_equal. f_equal. f_equal. OK. }
         apply Rmult_le_compat.
@@ -1014,7 +1015,7 @@ Section credits.
   Lemma B_g_nn {F b} (Hnn : ∀ r, 0 <= F r) :  0 <= B_g F b.
   Proof.
     rewrite /B_g.
-    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg | auto ]).
+    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
   Qed.
 
   Lemma B_g_expectation {F k x M} (Hf : forall b, 0 <= F b <= M) : B_CreditV F k x = S_CreditV (B_g F) k x x 0.
@@ -1430,8 +1431,8 @@ Section program.
         iFrame.
         rewrite /Bii_g.
         iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+        { apply Iverson_Rmult_nonneg; apply Hnn. }
+        { apply Iverson_Rmult_nonneg; apply Hnn. }
         rewrite Iverson_True; [|done].
         rewrite Rmult_1_l.
         done.
@@ -1440,8 +1441,8 @@ Section program.
         iModIntro; iExists _; iSplitR; first done.
         iFrame.
         iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
+        { apply Iverson_Rmult_nonneg; apply Hnn. }
+        { apply Iverson_Rmult_nonneg; apply Hnn. }
         rewrite Iverson_True; [|lra].
         by rewrite Rmult_1_l.
       }
@@ -1485,16 +1486,16 @@ Section program.
       iModIntro; iExists N; iFrame; iSplitR; first done.
       rewrite /S_g.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply S_nn_1; auto. apply Hnn. }
       rewrite Iverson_True; [rewrite Rmult_1_l|done].
       done.
     }
     { wp_pures.
       rewrite /S_g.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply S_nn_1; auto. apply Hnn. }
       rewrite Iverson_True; [rewrite Rmult_1_l|lra].
       wp_bind (Bii _ _).
       iApply (pgl_wp_mono_frame (□ _ ∗ _  ∗ _)%I with "[Hx Hε ] [IH Hy Hz]"); last first.
@@ -1507,8 +1508,8 @@ Section program.
         iModIntro; iExists N; iFrame; iSplitR; first done.
         rewrite /S_hz.
         iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. apply Hnn. }
+        { apply Iverson_Rmult_nonneg; apply Hnn. }
+        { apply Iverson_Rmult_nonneg; apply S_CreditV_nn; auto. apply Hnn. }
         rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
         done.
       }
@@ -1518,8 +1519,8 @@ Section program.
         iFrame.
         rewrite /S_hz.
         iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. apply Hnn. }
+        { apply Iverson_Rmult_nonneg; apply Hnn. }
+        { apply Iverson_Rmult_nonneg; apply S_CreditV_nn; auto. apply Hnn. }
         rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
         iFrame.
         iPureIntro; auto.
@@ -1550,16 +1551,16 @@ Section program.
       iModIntro; iExists 0%nat; iFrame; iSplitR; first done.
       rewrite /S_g.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply S_nn_1; auto. apply Hnn. }
       rewrite Iverson_True; [rewrite Rmult_1_l|done].
       done.
     }
     { wp_pures.
       rewrite /S_g.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_nn_1; auto ]. apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply S_nn_1; auto. apply Hnn. }
       rewrite Iverson_True; [rewrite Rmult_1_l|lra].
       wp_bind (Bii _ _).
       iApply (pgl_wp_mono_frame (_ )%I with "[Hx Hε ] Hz"); last first.
@@ -1571,8 +1572,8 @@ Section program.
         iModIntro; iExists 0%nat; iFrame; iSplitR; first done.
         rewrite /S_hz.
         iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. apply Hnn. }
+        { apply Iverson_Rmult_nonneg; apply Hnn. }
+        { apply Iverson_Rmult_nonneg; apply S_CreditV_nn; auto. apply Hnn. }
         rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
         done.
       }
@@ -1581,8 +1582,8 @@ Section program.
         iFrame.
         rewrite /S_hz.
         iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-        { apply Rmult_le_pos; [apply Iverson_nonneg | apply S_CreditV_nn; auto ]. apply Hnn. }
+        { apply Iverson_Rmult_nonneg; apply Hnn. }
+        { apply Iverson_Rmult_nonneg; apply S_CreditV_nn; auto. apply Hnn. }
         rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
         iFrame. by iPureIntro.
       }
@@ -1629,8 +1630,8 @@ Section program.
     { iExists true; iSplitR; first done.
       rewrite /B_g.
       iPoseProof (ec_split _ _ with "Hec") as "(Hε & _)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | auto ]. apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply Hnn. }
+      { apply Iverson_Rmult_nonneg; auto. apply Hnn. }
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [by rewrite Rmult_1_l|].
       inversion H as [H'].
@@ -1639,8 +1640,8 @@ Section program.
     }
     { iExists false; iSplitR; first done.
       iPoseProof (ec_split _ _ with "Hec") as "(_ & Hε)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg | auto ]. apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply Hnn. }
+      { apply Iverson_Rmult_nonneg; auto. apply Hnn. }
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [by rewrite Rmult_1_l|].
       rewrite //=.

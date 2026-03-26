@@ -5,6 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial bern_geo half_bern_neg_exp bern_iter selector lazy_real_adequacy.
 From clutch.eris.examples Require Import math.
+From clutch.eris.examples.math Require Import iverson_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -276,7 +277,7 @@ Section credits.
   Lemma G1_h_nn {F k b} (Hnn : ∀ r, 0 <= F r) : 0 <= G1_h F k b.
   Proof.
     rewrite /G1_h.
-    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
+    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
     apply G1_CreditV_nn; auto.
   Qed.
 
@@ -352,7 +353,7 @@ Section credits.
   Lemma G2_s_nn {F k x b} (Hnn : ∀ a b , 0 <= F a b) (Hint : ∀ x' : nat, ex_RInt (F x') 0 1) : 0 <= G2_s F k x b.
   Proof.
     rewrite /G2_s.
-    apply Rplus_le_le_0_compat; (apply Rmult_le_pos; [apply Iverson_nonneg| auto ]).
+    apply Rplus_le_le_0_compat; (apply Iverson_Rmult_nonneg; auto).
     apply G2_CreditV_nn; auto.
   Qed.
 
@@ -3084,8 +3085,8 @@ Section program.
       iSplitR; first done.
       rewrite /G2_s.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg |]. apply G2_CreditV_nn; auto. apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply Hnn. }
+      { apply Iverson_Rmult_nonneg. apply G2_CreditV_nn; auto. apply Hnn. }
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [lra|done].
     }
@@ -3093,8 +3094,8 @@ Section program.
       iApply "IH".
       rewrite /G2_s.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
-      { apply Rmult_le_pos; [apply Iverson_nonneg | apply Hnn ]. }
-      { apply Rmult_le_pos; [apply Iverson_nonneg |]. apply G2_CreditV_nn; auto. apply Hnn. }
+      { apply Iverson_Rmult_nonneg; apply Hnn. }
+      { apply Iverson_Rmult_nonneg. apply G2_CreditV_nn; auto. apply Hnn. }
       iApply (ec_eq with "Hε").
       rewrite Iverson_True; [lra|done].
     }
