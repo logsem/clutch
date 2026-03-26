@@ -53,35 +53,47 @@ Section Symmetric.
   Definition Gauss_CreditV (F : R → R)  :=
     RInt_gen (fun x => Gauss_ρ x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
 
+  Lemma Gauss_ρ_nn (x : R) : 0 <= Gauss_ρ x.
+  Proof. rewrite /Gauss_ρ. apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn|apply GaussNorm_nn]. Qed.
+
+  Lemma Gauss_ρ_IPCts : IPCts Gauss_ρ.
+  Proof. apply IPCts_cts. rewrite /Gauss_ρ//=. intros ?. continuous_auto_derive. Qed.
+
+  Lemma GaussSymm_ρ_nn b k x : 0 <= GaussSymm_ρ b k x.
+  Proof.
+    rewrite /GaussSymm_ρ -Rdiv_mult_distr.
+    apply Rmult_le_pos; OK.
+    { apply Rexp_nn. }
+    apply Rlt_le, Rinv_0_lt_compat.
+    apply Rmult_lt_0_compat; OK.
+    apply Norm2_nn.
+  Qed.
+
+  Lemma ex_seriesC_Gauss_ρ_scal (c : R) :
+    ex_seriesC (λ x : nat, Gauss_ρ x * c).
+  Proof.
+    apply ex_seriesC_scal_r.
+    rewrite /Gauss_ρ.
+    replace (λ x : nat, exp (- x ^ 2 / 2) / GaussNorm) with (λ x : nat, exp (- x ^ 2 / 2) * / GaussNorm) by (funexti; OK).
+    apply ex_seriesC_scal_r.
+    apply Norm1_ex.
+  Qed.
+
   Lemma Gauss_Closed_ex_pos (F : R → R) {M} (Hnn : ∀ x, 0 <= F x <= M) (HP : IPCts F)  :
     ex_RInt_gen (λ x : R, Gauss_ρ x * F x) (at_point 0) (Rbar_locally Rbar.p_infty).
   Proof.
     apply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, Gauss_ρ x * M)).
-    { apply IPCts_cts.
-      rewrite /Gauss_ρ//=.
-      intros ?.
-      continuous_auto_derive.
-    }
-    { apply IPCts_mult.
-      { apply IPCts_cts.
-        rewrite /Gauss_ρ//=.
-        intros ?.
-        continuous_auto_derive.
-      }
-      apply HP.
+    { apply IPCts_cts. rewrite /Gauss_ρ//=. intros ?. continuous_auto_derive. }
+    { apply IPCts_mult; [apply Gauss_ρ_IPCts|apply HP].
     }
     { intros ?.
       split.
       { apply Rmult_le_pos.
-        { rewrite /Gauss_ρ.
-          apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
-        }
+        { apply Gauss_ρ_nn. }
         { apply Hnn. }
       }
       apply Rmult_le_compat.
-      { rewrite /Gauss_ρ.
-        apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
-      }
+      { apply Gauss_ρ_nn. }
       { apply Hnn. }
       { OK. }
       { apply Hnn. }
@@ -107,13 +119,7 @@ Section Symmetric.
     apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, Gauss_ρ x * F (- x))).
     { intros ??.
       apply IPCts_RInt.
-      apply IPCts_mult.
-      { apply IPCts_cts.
-        rewrite /Gauss_ρ//=.
-        intros ?.
-        continuous_auto_derive.
-      }
-      apply IPCts_opp, HP.
+      apply IPCts_mult; [apply Gauss_ρ_IPCts|apply IPCts_opp, HP].
     }
     eapply (Gauss_Closed_ex_pos (M := M) (fun x => F (- x))).
     { intros ?; apply Hnn. }
@@ -149,6 +155,19 @@ Section Symmetric.
     exp (- (- (x + n)) ^ 2 / 2) <= exp (- n ^ 2 / 2).
   Proof.
     replace ((- (x + n)) ^ 2) with ((x + n) ^ 2) by (rewrite //=; OK).
+    apply gauss_exp_sq_mono; OK.
+  Qed.
+
+  Lemma GaussSymm_ρ_mono b n x : 0 < x < 1 → GaussSymm_ρ b n x <= exp (- n ^ 2 / 2) * / Norm2 * / 2.
+  Proof.
+    intros ?.
+    rewrite /GaussSymm_ρ.
+    do 2 rewrite Rdiv_def.
+    repeat rewrite Rmult_assoc.
+    apply Rmult_le_compat_r.
+    { apply Rmult_le_pos; OK.
+      apply Rlt_le, Rinv_0_lt_compat, Norm2_nn.
+    }
     apply gauss_exp_sq_mono; OK.
   Qed.
 
@@ -191,21 +210,13 @@ Section Symmetric.
       { intros ??.
         apply IPCts_RInt.
         apply IPCts_mult.
-        { apply IPCts_cts.
-          rewrite /Gauss_ρ//=.
-          intros ?.
-          continuous_auto_derive.
-        }
+        { apply IPCts_cts. rewrite /Gauss_ρ//=. intros ?. continuous_auto_derive. }
         apply IPCts_opp, HP.
       }
       { intros ??.
         apply IPCts_RInt.
         apply IPCts_mult.
-        { apply IPCts_cts.
-          rewrite /Gauss_ρ//=.
-          intros ?.
-          continuous_auto_derive.
-        }
+        { apply IPCts_cts. rewrite /Gauss_ρ//=. intros ?. continuous_auto_derive. }
         apply HP.
       }
       (* Apply Sep *)
@@ -213,32 +224,18 @@ Section Symmetric.
       { intros ?.
         apply IPCts_RInt.
         apply IPCts_mult.
-        { apply IPCts_cts.
-          rewrite /Gauss_ρ//=.
-          intros ?.
-          continuous_auto_derive.
-        }
+        { apply IPCts_cts. rewrite /Gauss_ρ//=. intros ?. continuous_auto_derive. }
         apply IPCts_opp, HP.
       }
       { intros ???; split.
-        { apply Rmult_le_pos; [|apply Hnn].
-          rewrite /Gauss_ρ.
-          apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
-        }
+        { apply Rmult_le_pos; [apply Gauss_ρ_nn|apply Hnn]. }
         apply Rmult_le_compat.
-        { rewrite /Gauss_ρ.
-          apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
-        }
+        { apply Gauss_ρ_nn. }
         { apply Hnn. }
         2: { apply Hnn. }
         by apply Gauss_ρ_mono_neg.
       }
-      { apply ex_seriesC_scal_r.
-        rewrite /Gauss_ρ.
-        replace (λ x : nat, exp (- x ^ 2 / 2) / GaussNorm) with (λ x : nat, exp (- x ^ 2 / 2) * / GaussNorm) by (funexti; OK).
-        apply ex_seriesC_scal_r.
-        apply Norm1_ex.
-      }
+      { apply ex_seriesC_Gauss_ρ_scal. }
       { replace (λ x : R, Gauss_ρ (- x) * F (- x)) with (λ x : R, Gauss_ρ x * F (- x)).
         2: {
           funexti.
@@ -276,50 +273,12 @@ Section Symmetric.
       }
       { intros ???.
         rewrite Rabs_right.
-        2: {
-          apply Rle_ge.
-          apply Rmult_le_pos; [|apply Hnn].
-          rewrite /GaussSymm_ρ.
-          rewrite -Rdiv_mult_distr.
-          apply Rmult_le_pos; OK.
-          { apply Rexp_nn. }
-          apply Rlt_le.
-          apply Rinv_0_lt_compat.
-          apply Rmult_lt_0_compat; OK.
-          apply Norm2_nn.
-        }
-        apply Rmult_le_compat; [|apply Hnn | | apply Hnn].
-        { rewrite /GaussSymm_ρ.
-          rewrite -Rdiv_mult_distr.
-          apply Rmult_le_pos; OK.
-          { apply Rexp_nn. }
-          apply Rlt_le.
-          apply Rinv_0_lt_compat.
-          apply Rmult_lt_0_compat; OK.
-          apply Norm2_nn.
-        }
-        rewrite /GaussSymm_ρ.
-        do 2 rewrite Rdiv_def.
-        repeat rewrite Rmult_assoc.
-        apply Rmult_le_compat_r.
-        { apply Rmult_le_pos; OK.
-          apply Rlt_le, Rinv_0_lt_compat, Norm2_nn.
-        }
-        apply gauss_exp_sq_mono; OK.
+        2: { apply Rle_ge, Rmult_le_pos; [apply GaussSymm_ρ_nn|apply Hnn]. }
+        apply Rmult_le_compat; [apply GaussSymm_ρ_nn|apply Hnn| |apply Hnn].
+        apply GaussSymm_ρ_mono; OK.
       }
       { do 3 apply ex_seriesC_scal_r. apply Norm1_ex. }
-      { intros ???.
-        apply Rmult_le_pos.
-        2: { apply Hnn. }
-        rewrite /GaussSymm_ρ.
-        rewrite -Rdiv_mult_distr.
-        apply Rmult_le_pos; OK.
-        { apply Rexp_nn. }
-        apply Rlt_le.
-        apply Rinv_0_lt_compat.
-        apply Rmult_lt_0_compat; OK.
-        apply Norm2_nn.
-      }
+      { intros ???. apply Rmult_le_pos; [apply GaussSymm_ρ_nn|apply Hnn]. }
       { OK. }
       rewrite /bzu_to_R//=.
       rewrite /Gauss_ρ/GaussSymm_ρ//=.
@@ -340,33 +299,17 @@ Section Symmetric.
       rewrite (@RInt_sep _ (fun n => Gauss_ρ n * M)); first last.
       { intros ?.
         apply IPCts_RInt.
-        apply IPCts_mult.
-        { apply IPCts_cts.
-          rewrite /Gauss_ρ//=.
-          intros ?.
-          continuous_auto_derive.
-        }
-        apply HP.
+        apply IPCts_mult; [apply Gauss_ρ_IPCts|apply HP].
       }
       { intros ???; split.
-        { apply Rmult_le_pos; [|apply Hnn].
-          rewrite /Gauss_ρ.
-          apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
-        }
+        { apply Rmult_le_pos; [apply Gauss_ρ_nn|apply Hnn]. }
         apply Rmult_le_compat.
-        { rewrite /Gauss_ρ.
-          apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn |apply GaussNorm_nn].
-        }
+        { apply Gauss_ρ_nn. }
         { apply Hnn. }
         2: { apply Hnn. }
         by apply Gauss_ρ_mono_pos.
       }
-      { apply ex_seriesC_scal_r.
-        rewrite /Gauss_ρ.
-        replace (λ x : nat, exp (- x ^ 2 / 2) / GaussNorm) with (λ x : nat, exp (- x ^ 2 / 2) * / GaussNorm) by (funexti; OK).
-        apply ex_seriesC_scal_r.
-        apply Norm1_ex.
-      }
+      { apply ex_seriesC_Gauss_ρ_scal. }
       { eapply Gauss_Closed_ex_pos; OK. }
       (* Apply Fubini *)
       rewrite (FubiniIntegralSeriesC_Strong (fun k => (exp (- (k) ^ 2 / 2) * / Norm2 * / 2) * M)); first last.
@@ -392,50 +335,12 @@ Section Symmetric.
       }
       { intros ???.
         rewrite Rabs_right.
-        2: {
-          apply Rle_ge.
-          apply Rmult_le_pos; [|apply Hnn].
-          rewrite /GaussSymm_ρ.
-          rewrite -Rdiv_mult_distr.
-          apply Rmult_le_pos; OK.
-          { apply Rexp_nn. }
-          apply Rlt_le.
-          apply Rinv_0_lt_compat.
-          apply Rmult_lt_0_compat; OK.
-          apply Norm2_nn.
-        }
-        apply Rmult_le_compat; [|apply Hnn | | apply Hnn].
-        { rewrite /GaussSymm_ρ.
-          rewrite -Rdiv_mult_distr.
-          apply Rmult_le_pos; OK.
-          { apply Rexp_nn. }
-          apply Rlt_le.
-          apply Rinv_0_lt_compat.
-          apply Rmult_lt_0_compat; OK.
-          apply Norm2_nn.
-        }
-        rewrite /GaussSymm_ρ.
-        do 2 rewrite Rdiv_def.
-        repeat rewrite Rmult_assoc.
-        apply Rmult_le_compat_r.
-        { apply Rmult_le_pos; OK.
-          apply Rlt_le, Rinv_0_lt_compat, Norm2_nn.
-        }
-        apply gauss_exp_sq_mono; OK.
+        2: { apply Rle_ge, Rmult_le_pos; [apply GaussSymm_ρ_nn|apply Hnn]. }
+        apply Rmult_le_compat; [apply GaussSymm_ρ_nn|apply Hnn| |apply Hnn].
+        apply GaussSymm_ρ_mono; OK.
       }
       { do 3 apply ex_seriesC_scal_r. apply Norm1_ex. }
-      { intros ???.
-        apply Rmult_le_pos.
-        2: { apply Hnn. }
-        rewrite /GaussSymm_ρ.
-        rewrite -Rdiv_mult_distr.
-        apply Rmult_le_pos; OK.
-        { apply Rexp_nn. }
-        apply Rlt_le.
-        apply Rinv_0_lt_compat.
-        apply Rmult_lt_0_compat; OK.
-        apply Norm2_nn.
-      }
+      { intros ???. apply Rmult_le_pos; [apply GaussSymm_ρ_nn|apply Hnn]. }
       { OK. }
       rewrite /bzu_to_R//=.
       rewrite /Gauss_ρ/GaussSymm_ρ//=.
@@ -485,13 +390,8 @@ Section Symmetric.
         replace (λ r : R, (F 0%fin x1 r + F 1%fin x1 r) / 2)
           with (λ r : R, F 0%fin x1 r * / 2 + F 1%fin x1 r * / 2).
         2: (funexti; lra).
-        apply PCts_plus.
-        { apply PCts_mult; [apply HP|].
-          apply PCts_cts. intros ??. apply Continuity.continuous_const.
-        }
-        { apply PCts_mult; [apply HP|].
-          apply PCts_cts. intros ??. apply Continuity.continuous_const.
-        }
+        apply PCts_plus;
+          (apply PCts_mult; [apply HP|apply PCts_cts; intros ??; apply Continuity.continuous_const]).
       }
       { iApply (ec_eq with "Hε").
         rewrite /GaussSymm_CreditV.
@@ -509,13 +409,7 @@ Section Symmetric.
                 apply PCts_RInt, HP.
               }
               intros ??.
-              apply Rmult_le_pos.
-              { do 2 rewrite Rdiv_def.
-                apply Rcomplements.Rdiv_le_0_compat; OK.
-                apply Rcomplements.Rdiv_le_0_compat; [|apply Norm2_nn].
-                apply Rexp_nn.
-              }
-              apply Hnn.
+              apply Rmult_le_pos; [apply (GaussSymm_ρ_nn 0%fin)|apply Hnn].
             }
             { rewrite RInt_Rmult'.
               2: {
@@ -559,21 +453,12 @@ Section Symmetric.
             apply Rcomplements.Rdiv_le_0_compat; [|apply Norm2_nn].
             apply Rexp_nn.
           }
-          { apply ex_seriesC_scal_r.
-            apply ex_seriesC_scal_r.
-            apply Norm1_ex.
-          }
+          { do 2 apply ex_seriesC_scal_r. apply Norm1_ex. }
           { intros ???.
             rewrite Rabs_right.
-            2: {
-              apply Rle_ge.
-              apply Rcomplements.Rdiv_le_0_compat; OK.
-              apply Rcomplements.Rdiv_le_0_compat; [|apply Norm2_nn].
-              apply Rexp_nn.
-            }
-            rewrite Rdiv_def.
-            rewrite Rdiv_def.
-            repeat rewrite Rmult_assoc.
+            2: { apply Rle_ge. apply Rcomplements.Rdiv_le_0_compat; OK.
+                 apply Rcomplements.Rdiv_le_0_compat; [|apply Norm2_nn]. apply Rexp_nn. }
+            do 2 rewrite Rdiv_def. repeat rewrite Rmult_assoc.
             apply Rmult_le_compat; OK.
             { apply Rexp_nn. }
             { apply Rmult_le_pos; OK. apply Rlt_le, Rinv_0_lt_compat, Norm2_nn. }
@@ -587,21 +472,8 @@ Section Symmetric.
         rewrite /G2_CreditV.
         apply SeriesC_ext.
         intros n.
-        rewrite RInt_add.
-        2: {
-          apply ex_RInt_mult.
-          { rewrite /GaussSymm_ρ//=.
-            ex_RInt_auto_derive.
-          }
-          { apply PCts_RInt, HP. }
-        }
-        2: {
-          apply ex_RInt_mult.
-          { rewrite /GaussSymm_ρ//=.
-            ex_RInt_auto_derive.
-          }
-          { apply PCts_RInt, HP. }
-        }
+        rewrite RInt_add;
+          try (apply ex_RInt_mult; [rewrite /GaussSymm_ρ//=; ex_RInt_auto_derive|apply PCts_RInt, HP]).
         apply RInt_ext.
         intros ??.
         rewrite /GaussSymm_ρ//=.
@@ -688,6 +560,42 @@ Section Adequacy.
   Import Hierarchy.
 
 
+  Lemma Gauss_ρ_range x : 0 <= Gauss_ρ x <= 1 / GaussNorm.
+  Proof.
+    split.
+    { apply Gauss_ρ_nn. }
+    repeat rewrite Rdiv_def.
+    apply Rmult_le_compat.
+    { apply Rexp_nn. }
+    { apply Rlt_le, Rinv_0_lt_compat, GaussNorm_nn. }
+    { apply Rexp_range. suffices ? : 0 <= x ^ 2 by OK. apply pow2_ge_0. }
+    { OK. }
+  Qed.
+
+  Lemma ex_RInt_gen_Gauss_ρ_neg :
+    ex_RInt_gen (λ x : R, Gauss_ρ x) (Rbar_locally Rbar.m_infty) (at_point 0).
+  Proof.
+    rewrite /Gauss_ρ.
+    replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
+       with (λ x : R, exp (- (- x) ^ 2 / 2) * / GaussNorm).
+    2: { funexti. repeat rewrite Rdiv_def. do 4 f_equal. OK. }
+    apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, exp (- (x) ^ 2 / 2) * / GaussNorm)).
+    { intros ??. apply (ex_RInt_continuous (V := R_CompleteNormedModule)). intros ??. continuous_auto_derive. }
+    apply ex_RInt_gen_scal_r.
+    apply ex_RInt_gen_gauss.
+  Qed.
+
+  Lemma ex_RInt_gen_Gauss_ρ_pos :
+    ex_RInt_gen (λ x : R, Gauss_ρ x) (at_point 0) (Rbar_locally Rbar.p_infty).
+  Proof.
+    rewrite /Gauss_ρ.
+    replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
+       with (λ x : R, exp (- x ^ 2 / 2) * / GaussNorm).
+    2: { funexti. repeat rewrite Rdiv_def. do 4 f_equal. }
+    apply ex_RInt_gen_scal_r.
+    apply ex_RInt_gen_gauss.
+  Qed.
+
   Theorem Gauss_Adequate_Above :
      ∀ σ : state, ∀ B C : Z,
       pgl (lim_exec (lazy_real_cdf_checker (Gauss #()) B C, σ))
@@ -696,45 +604,11 @@ Section Adequacy.
   Proof.
     intros ?.
     apply (@lazy_real_expr_adequacy_above erisΣ _ (1 / GaussNorm) (Gauss #()) _ (fun x => exp (-x^2 / 2) / GaussNorm)).
-    { intros ?; split.
-      { apply Rcomplements.Rdiv_le_0_compat.
-        { apply Rexp_nn. }
-        { apply GaussNorm_nn. }
-      }
-      { repeat rewrite Rdiv_def.
-        apply Rmult_le_compat.
-        { apply Rexp_nn. }
-        { apply Rlt_le.
-          apply Rinv_0_lt_compat.
-          apply GaussNorm_nn.
-        }
-        { apply Rexp_range.
-          suffices ? : 0 <= x ^ 2 by OK.
-          apply pow2_ge_0.
-        }
-        { OK. }
-      }
-    }
+    { intros ?. apply Gauss_ρ_range. }
     { IPCts_auto_derive.
     }
-    { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
-         with (λ x : R, exp (- (- x) ^ 2 / 2) * / GaussNorm).
-      2: { funexti. repeat rewrite Rdiv_def. do 4 f_equal. OK. }
-      apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, exp (- (x) ^ 2 / 2) * / GaussNorm)).
-      { intros ??.
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros  ??.
-        continuous_auto_derive.
-      }
-      apply ex_RInt_gen_scal_r.
-      apply ex_RInt_gen_gauss.
-    }
-    { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
-         with (λ x : R, exp (- x ^ 2 / 2) * / GaussNorm).
-      2: { funexti. repeat rewrite Rdiv_def. do 4 f_equal. }
-      apply ex_RInt_gen_scal_r.
-      apply ex_RInt_gen_gauss.
-    }
+    { apply ex_RInt_gen_Gauss_ρ_neg. }
+    { apply ex_RInt_gen_Gauss_ρ_pos. }
     { intros ?????.
       destruct Hnn.
       iIntros "He".
@@ -753,45 +627,11 @@ Section Adequacy.
   Proof.
     intros ?.
     apply (@lazy_real_expr_adequacy_below erisΣ _ (1 / GaussNorm) (Gauss #()) _ (fun x => exp (-x^2 / 2) / GaussNorm)).
-    { intros ?; split.
-      { apply Rcomplements.Rdiv_le_0_compat.
-        { apply Rexp_nn. }
-        { apply GaussNorm_nn. }
-      }
-      { repeat rewrite Rdiv_def.
-        apply Rmult_le_compat.
-        { apply Rexp_nn. }
-        { apply Rlt_le.
-          apply Rinv_0_lt_compat.
-          apply GaussNorm_nn.
-        }
-        { apply Rexp_range.
-          suffices ? : 0 <= x ^ 2 by OK.
-          apply pow2_ge_0.
-        }
-        { OK. }
-      }
-    }
+    { intros ?. apply Gauss_ρ_range. }
     { IPCts_auto_derive.
     }
-    { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
-         with (λ x : R, exp (- (- x) ^ 2 / 2) * / GaussNorm).
-      2: { funexti. repeat rewrite Rdiv_def. do 4 f_equal. OK. }
-      apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, exp (- (x) ^ 2 / 2) * / GaussNorm)).
-      { intros ??.
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros  ??.
-        continuous_auto_derive.
-      }
-      apply ex_RInt_gen_scal_r.
-      apply ex_RInt_gen_gauss.
-    }
-    { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
-         with (λ x : R, exp (- x ^ 2 / 2) * / GaussNorm).
-      2: { funexti. repeat rewrite Rdiv_def. do 4 f_equal. }
-      apply ex_RInt_gen_scal_r.
-      apply ex_RInt_gen_gauss.
-    }
+    { apply ex_RInt_gen_Gauss_ρ_neg. }
+    { apply ex_RInt_gen_Gauss_ρ_pos. }
     { intros ?????.
       destruct Hnn.
       iIntros "He".
