@@ -314,8 +314,7 @@ Section Symmetric.
         }
       }
       { apply ex_RInt_gen_scal_r.
-        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
-        apply ex_RInt_gen_exp.
+        apply ex_RInt_gen_exp'.
       }
     }
 
@@ -352,8 +351,7 @@ Section Symmetric.
         }
       }
       { apply ex_RInt_gen_scal_r.
-        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
-        apply ex_RInt_gen_exp.
+        apply ex_RInt_gen_exp'.
       }
     }
 
@@ -881,8 +879,7 @@ Section Laplace0.
         { intros ??.
           ex_RInt_auto_derive.
         }
-        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
-        apply ex_RInt_gen_exp.
+        apply ex_RInt_gen_exp'.
       }
     }
     2: {
@@ -1015,8 +1012,7 @@ Section Laplace0.
         }
       }
       { apply ex_RInt_gen_scal_r.
-        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
-        apply ex_RInt_gen_exp.
+        apply ex_RInt_gen_exp'.
       }
     }
     2: {
@@ -1055,8 +1051,7 @@ Section Laplace0.
         }
       }
       { apply ex_RInt_gen_scal_r.
-        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
-        apply ex_RInt_gen_exp.
+        apply ex_RInt_gen_exp'.
       }
     }
 
@@ -1286,8 +1281,7 @@ Section Laplace0.
       }
       {
         apply ex_RInt_gen_scal_r.
-        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
-        apply ex_RInt_gen_exp.
+        apply ex_RInt_gen_exp'.
       }
       }
 
@@ -1421,8 +1415,7 @@ Section Laplace0.
           apply IPCts_RInt.
           IPCts_auto_derive.
         }
-        replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
-        apply ex_RInt_gen_exp.
+        apply ex_RInt_gen_exp'.
       }
       }
       { intros ??.

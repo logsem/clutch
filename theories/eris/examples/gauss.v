@@ -22,6 +22,8 @@ Section pmf.
 
 End pmf.
 
+Lemma G1_μ_as_mult : (λ k : nat, exp (- k ^ 2 / 2) / Norm1) = (λ k : nat, exp (- k ^ 2 / 2) * / Norm1).
+Proof. apply functional_extensionality; intros ?; apply Rdiv_def. Qed.
 
 Section credits.
   Import Hierarchy.
@@ -233,7 +235,7 @@ Section credits.
   Lemma G1_μ_pmf : SeriesC G1_μ = 1.
   Proof.
     rewrite /G1_μ.
-    replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with ((λ k : nat, exp (- k ^ 2 / 2) * / Norm1)) by (funexti; OK).
+    rewrite G1_μ_as_mult.
     rewrite SeriesC_scal_r.
     rewrite /Norm1.
     rewrite Rmult_inv_r; OK.
@@ -261,7 +263,7 @@ Section credits.
     }
     { apply ex_seriesC_scal_r.
       rewrite /G1_μ.
-      replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+      rewrite G1_μ_as_mult.
       apply ex_seriesC_scal_r.
       apply Norm1_ex.
     }
@@ -753,7 +755,7 @@ Section credits.
           apply ex_seriesC_scal_r.
           apply ex_seriesC_scal_r.
           rewrite /G1_μ.
-          replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+          rewrite G1_μ_as_mult.
           apply ex_seriesC_scal_r.
           apply Norm1_ex.
         }
@@ -801,7 +803,7 @@ Section credits.
           }
           { apply ex_seriesC_scal_r.
             rewrite /G1_μ.
-            replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+            rewrite G1_μ_as_mult.
             apply ex_seriesC_scal_r.
             apply Norm1_ex.
           }
@@ -947,7 +949,7 @@ Section credits.
       apply ex_seriesC_scal_r.
       apply ex_seriesC_scal_r.
       rewrite /G1_μ.
-      replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+      rewrite G1_μ_as_mult.
       apply ex_seriesC_scal_r.
       apply Norm1_ex.
     }
@@ -1072,7 +1074,7 @@ Section credits.
         apply (ex_RInt_SeriesC G1_μ); OK.
         { rewrite /G1_μ.
           rewrite ex_seriesC_nat.
-          replace (λ k0 : nat, exp (- k0 ^ 2 / 2) / Norm1) with (λ k0 : nat, exp (- k0 ^ 2 / 2) * / Norm1) by (funexti; OK).
+          rewrite G1_μ_as_mult.
           apply ex_seriesC_scal_r.
           apply Norm1_ex.
         }
@@ -1165,7 +1167,7 @@ Section credits.
       apply ex_RInt_Rmult.
       apply (ex_RInt_SeriesC G1_μ); OK.
       { rewrite /G1_μ.
-        replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+        rewrite G1_μ_as_mult.
         rewrite ex_seriesC_nat.
         apply ex_seriesC_scal_r.
         apply Norm1_ex.
@@ -1284,7 +1286,7 @@ Section credits.
           { apply le_clamp. }
         }
         { rewrite /G1_μ.
-          replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+          rewrite G1_μ_as_mult.
           apply Series.ex_series_scal_r.
           rewrite ex_seriesC_nat.
           apply Norm1_ex.
@@ -1328,7 +1330,7 @@ Section credits.
       { apply ex_RInt_Rmult.
         apply (ex_RInt_SeriesC G1_μ); OK.
         { rewrite /G1_μ.
-          replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+          rewrite G1_μ_as_mult.
           rewrite ex_seriesC_nat.
           apply ex_seriesC_scal_r.
           apply Norm1_ex.
@@ -1372,7 +1374,7 @@ Section credits.
         apply ex_RInt_Rmult.
         apply (ex_RInt_SeriesC G1_μ); OK.
         { rewrite /G1_μ.
-          replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+          rewrite G1_μ_as_mult.
           rewrite ex_seriesC_nat.
           apply ex_seriesC_scal_r.
           apply Norm1_ex.
@@ -1747,7 +1749,7 @@ Section credits.
       }
       apply ex_seriesC_scal_r.
       rewrite /G1_μ.
-      replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+      rewrite G1_μ_as_mult.
       apply ex_seriesC_scal_r.
       apply Norm1_ex.
     }
@@ -1822,7 +1824,7 @@ Section credits.
       }
       apply ex_seriesC_scal_r.
       rewrite /G1_μ.
-      replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+      rewrite G1_μ_as_mult.
       apply ex_seriesC_scal_r.
       apply Norm1_ex.
     }
@@ -1903,7 +1905,7 @@ Section credits.
         }
         apply ex_seriesC_scal_r.
         rewrite /G1_μ.
-        replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+        rewrite G1_μ_as_mult.
         apply ex_seriesC_scal_r.
         apply Norm1_ex.
       }
@@ -1919,7 +1921,7 @@ Section credits.
         }
         apply ex_seriesC_scal_r.
         rewrite /G1_μ.
-        replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+        rewrite G1_μ_as_mult.
         apply ex_seriesC_scal_r.
         apply Norm1_ex.
       }
@@ -2217,7 +2219,7 @@ Section credits.
     - rewrite ex_seriesC_nat.
       apply ex_seriesC_scal_r, ex_seriesC_scal_r.
       rewrite /G1_μ.
-      replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; lra).
+      rewrite G1_μ_as_mult.
       apply ex_seriesC_scal_r, Norm1_ex.
     - intros x0 n0 ?.
       rewrite Rabs_right.
@@ -2293,7 +2295,7 @@ Section credits.
       2: {
         apply ex_seriesC_scal_r.
         rewrite /G1_μ.
-        replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+        rewrite G1_μ_as_mult.
         apply ex_seriesC_scal_r.
         apply Norm1_ex.
       }
@@ -2355,7 +2357,7 @@ Section credits.
       2: {
         apply ex_seriesC_scal_r.
         rewrite /G1_μ.
-        replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+        rewrite G1_μ_as_mult.
         apply ex_seriesC_scal_r.
         apply Norm1_ex.
       }
@@ -2477,7 +2479,7 @@ Section credits.
       apply (ex_RInt_SeriesC G1_μ); OK.
       { rewrite /G1_μ.
         rewrite ex_seriesC_nat.
-        replace (λ k : nat, exp (- k ^ 2 / 2) / Norm1) with (λ k : nat, exp (- k ^ 2 / 2) * / Norm1) by (funexti; OK).
+        rewrite G1_μ_as_mult.
         apply ex_seriesC_scal_r.
         apply Norm1_ex.
       }

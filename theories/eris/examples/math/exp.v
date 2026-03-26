@@ -567,6 +567,13 @@ Proof.
       apply HexpBall.
 Qed.
 
+Lemma ex_RInt_gen_exp' : ex_RInt_gen (λ x : R, exp (- x)) (at_point 0) (Rbar_locally Rbar.p_infty).
+Proof.
+  apply (ex_RInt_gen_ext_eq_Ici (f := λ x, 1 * exp (- x))).
+  { intros ??. lra. }
+  apply ex_RInt_gen_exp.
+Qed.
+
 Lemma NegExp_Int {L} :
  RInt_gen (fun r => exp (-r)) (at_point L) (Rbar_locally Rbar.p_infty) = exp (- L).
 Proof.
