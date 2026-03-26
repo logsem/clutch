@@ -194,7 +194,7 @@ Section impl1.
       simplify_eq.
       by iDestruct (tapeN_tapeN_contradict with "[$][$]") as "%".
     }
-    iMod (ghost_map_insert with "[$]") as "[Hs Htoken]"; first by erewrite lookup_fmap, Hnone.
+    iMod (ghost_map_insert with "[$Hs]") as "[Hs Htoken]"; first by erewrite lookup_fmap, Hnone.
     iMod (abstract_tapes_new with "[$]") as "[Hm ?]"; first by erewrite lookup_fmap, Hnone.
     iMod ("Hclose" with "[Hts Ht Hs Hm]").
     { iNext. iExists (<[_:=_]>_). rewrite !fmap_insert.
@@ -308,7 +308,7 @@ Section impl2.
       iDestruct ("Hclose'" with "[$Ht]") as "Ht"; first done.
       iMod ("Hclose" with "[Hs Hm $Ht]"); last iFrame.
       + rewrite !fmap_insert (insert_id _ _ ()); first iFrame.
-        * by rewrite insert_insert.
+        * by rewrite insert_insert_eq.
         * rewrite lookup_fmap. by rewrite Hsome.
       + case_bool_decide as K2; iFrame; rewrite /rand_tapes2 /expander bind_app.
         * rewrite K1 K2/= -app_assoc. iFrame.
@@ -330,7 +330,7 @@ Section impl2.
       iDestruct ("Hclose'" with "[$Ht]") as "Ht"; first done.
       iMod ("Hclose" with "[Hs Hm $Ht]"); last iFrame.
       + rewrite !fmap_insert (insert_id _ _ ()); first iFrame.
-        * by rewrite insert_insert.
+        * by rewrite insert_insert_eq.
         * rewrite lookup_fmap. by rewrite Hsome.
       + case_bool_decide as K2; iFrame; rewrite /rand_tapes2 /expander bind_app.
         * assert (fin_to_nat n1 = 0) as ->.
@@ -372,7 +372,7 @@ Section impl2.
       simplify_eq.
       by iDestruct (tapeN_tapeN_contradict with "[$][$]") as "%".
     }
-    iMod (ghost_map_insert with "[$]") as "[Hs Htoken]"; first by erewrite lookup_fmap, Hnone.
+    iMod (ghost_map_insert with "[$Hs]") as "[Hs Htoken]"; first by erewrite lookup_fmap, Hnone.
     iMod (abstract_tapes_new with "[$]") as "[Hm ?]"; first by erewrite lookup_fmap, Hnone.
     iMod ("Hclose" with "[Hts Ht Hs Hm]").
     { iNext. iExists (<[_:=_]>_). rewrite !fmap_insert.
@@ -607,7 +607,7 @@ Section impl3.
       simplify_eq.
       by iDestruct (tapeN_tapeN_contradict with "[$][$]") as "%".
     }
-    iMod (ghost_map_insert with "[$]") as "[Hs Htoken]"; first by erewrite lookup_fmap, Hnone.
+    iMod (ghost_map_insert with "[$Hs]") as "[Hs Htoken]"; first by erewrite lookup_fmap, Hnone.
     iMod (abstract_tapes_new with "[$]") as "[Hm ?]"; first by erewrite lookup_fmap, Hnone.
     iMod ("Hclose" with "[Hts Ht Hs Hm]").
     { iNext. iExists (<[_:=_]>_). rewrite !fmap_insert.

@@ -415,7 +415,7 @@ Section defs.
       - rewrite /N.
         epose proof (nat_to_fin_list N [radv] _) as [l_fin Hlst].
         Unshelve. 2: {
-          intros x H; rewrite elem_of_list_singleton in H; subst. lia.
+          intros x H; rewrite list_elem_of_singleton in H; subst. lia.
         }
         rel_apply (refines_couple_couple_avoid N l_fin N).
         { apply (NoDup_fmap fin_to_nat). rewrite Hlst.
@@ -429,8 +429,8 @@ Section defs.
         {
           intro eq.
           apply Hnotin.
-          eapply elem_of_list_fmap_2_inj; first apply fin_to_nat_inj.
-          rewrite Hlst. rewrite eq. apply elem_of_list_singleton. done.
+          eapply list_elem_of_fmap_inj_2; first apply fin_to_nat_inj.
+          rewrite Hlst. rewrite eq. apply list_elem_of_singleton. done.
         }
         rel_apply refines_na_close. iFrame.
         iClear "Inv".
@@ -568,7 +568,7 @@ Section defs.
       - rewrite /N.
         epose proof (nat_to_fin_list N [radv] _) as [l_fin Hlst].
         Unshelve. 2: {
-          intros x H; rewrite elem_of_list_singleton in H; subst. lia.
+          intros x H; rewrite list_elem_of_singleton in H; subst. lia.
         }
         rel_apply (refines_couple_couple_avoid N l_fin N).
         { apply (NoDup_fmap fin_to_nat). rewrite Hlst.
@@ -582,8 +582,8 @@ Section defs.
         {
           intro eq.
           apply Hnotin.
-          eapply elem_of_list_fmap_2_inj; first apply fin_to_nat_inj.
-          rewrite Hlst. rewrite eq. apply elem_of_list_singleton. done.
+          eapply list_elem_of_fmap_inj_2; first apply fin_to_nat_inj.
+          rewrite Hlst. rewrite eq. apply list_elem_of_singleton. done.
         }
         rel_apply refines_na_close. iFrame.
         iClear "Inv".

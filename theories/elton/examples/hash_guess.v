@@ -460,7 +460,7 @@ Section prog.
               iFrame "Hl". iFrame "Hurn".
               iExists _.
               erewrite kmap_insert; last (intros ???; by simplify_eq).
-              rewrite insert_commute; last done.
+              rewrite insert_insert_ne; last done.
               iFrame.
               repeat iSplit; last iLeft; repeat iSplit.
               - iPureIntro; lia.
@@ -658,7 +658,7 @@ Section prog.
                  replace (Z.of_nat _ - _)%Z with (Z.of_nat (tries' - 1)) by lia.
                  iExists _, _.
                  erewrite kmap_insert; last (intros ???; by simplify_eq).
-                 rewrite insert_commute; last done. 
+                 rewrite insert_insert_ne; last done. 
                  iFrame "Hl Hurn Hf".
                  repeat iSplit; last iRight; last iFrame; iPureIntro. 
                  - lia.
@@ -835,7 +835,7 @@ Section prog.
             iMod ("Hclose" with "[-HΦ]").
             { iNext.
               iFrame "Hl".
-              rewrite insert_commute; last done.
+              rewrite insert_insert_ne; last done.
               iExists _.
               erewrite kmap_insert; first iFrame "Hf"; last (intros ???; by simplify_eq).
               iSplit; first done.

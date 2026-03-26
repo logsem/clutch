@@ -9,7 +9,7 @@ Proof.
   rewrite /bin_log_related.
   iIntros (vs) "H /=".
   rewrite (env_ltyped2_lookup _ _ x) //; last first.
-  { rewrite fmap_insert lookup_insert //. }
+  { rewrite fmap_insert lookup_insert_eq //. }
   iDestruct "H" as (v1 v2 ?) "#H"; simplify_map_eq.
   rewrite /lrel_car/=.
   iDestruct "H" as (α1 α2 M -> ->) "Hinv".
@@ -39,7 +39,7 @@ Proof.
   rewrite /bin_log_related.
   iIntros (vs) "H /=".
   rewrite (env_ltyped2_lookup _ _ x) //; last first.
-  { rewrite fmap_insert lookup_insert //. }
+  { rewrite fmap_insert lookup_insert_eq //. }
   iDestruct "H" as (v1 v2 ?) "H"; simplify_map_eq.
   rewrite /lrel_car/=.
   iDestruct "H" as (α1 α2 M -> ->) "Hinv".

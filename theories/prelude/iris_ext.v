@@ -31,7 +31,7 @@ End fupd.
 (* TODO: upstream? *)
 Section fupd_plainly_derived.
   Context {PROP : bi}.
-  Context `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP}.
+  Context `{!Sbi PROP, !BiFUpd PROP, !BiFUpdSbi PROP, !BiFUpdSbi PROP, !BiAffine PROP}.
 
   Lemma step_fupdN_fupd_swap {E : coPset} (P: PROP) (n: nat):
     (|={E}▷=>^n |={E}=> P) ⊢ |={E}=> |={E}▷=>^n P.
@@ -74,7 +74,9 @@ Section fupd_plainly_derived.
     { apply forall_intro=> x. apply step_fupdN_mono. eauto. }
     destruct n; [done|].
     trans (∀ x, |={E}=> ▷^(S n) ◇ Φ x)%I.
-    { apply forall_mono=> x. by rewrite step_fupdN_plain. }
+    { apply forall_mono=> x.
+      opose proof (@step_fupdN_plain PROP BiFUpd0 Sbi0).
+      by rewrite step_fupdN_plain. }
     rewrite -fupd_plain_forall'.
     rewrite -step_fupdN_except_0 /= -step_fupdN_intro //.
     apply fupd_elim.
@@ -153,9 +155,10 @@ End step_fupdN.
 
 Section class_instance_updates.
   Context {PROP : bi}.
+  Context `{!Sbi PROP}.
 
   Global Instance from_forall_step_fupdN
-    `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP} E {A} P (Φ : A → PROP) name n :
+    `{!BiFUpd PROP, !BiFUpdSbi PROP, !BiFUpdSbi PROP, !BiAffine PROP} E {A} P (Φ : A → PROP) name n :
     FromForall P Φ name → (∀ x, Plain (Φ x)) →
     FromForall (|={E}▷=>^n P) (λ a, |={E}▷=>^n (Φ a))%I name.
   Proof.
@@ -164,7 +167,7 @@ Section class_instance_updates.
   Qed.
 
   Global Instance from_forall_fupd_step_fupdN
-    `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP} E {A} P (Φ : A → PROP) name n :
+    `{!BiFUpd PROP, !BiFUpdSbi PROP, !BiFUpdSbi PROP, !BiAffine PROP} E {A} P (Φ : A → PROP) name n :
     FromForall P Φ name → (∀ x, Plain (Φ x)) →
     FromForall (|={E}=> |={E}▷=>^n P) (λ a, |={E}=> |={E}▷=>^n (Φ a))%I name.
   Proof.
@@ -232,3 +235,15 @@ Section choice.
   Qed.
   
 End choice.
+
+Lemma big_sepL2_Forall2 {PROP : bi} {A B} P (xs : list A) (ys : list B) :
+  ((([∗ list] x; y ∈ xs; ys, ⌜P x y⌝ : PROP) ⊢ ⌜Forall2 P xs ys⌝ : PROP)%I).
+Proof.
+  iRevert (ys). iInduction xs as [|x xs'] ; iIntros (ys) "h".
+  1: iDestruct (big_sepL2_length with "h") as "%len" ; destruct ys => //.
+  destruct ys. 1: iDestruct (big_sepL2_length with "h") as "%len" => //.
+  rewrite big_sepL2_cons.
+  iDestruct "h" as "[hx h]".
+  rewrite Forall2_cons_iff. iSplitL "hx" => //.
+  iApply "IHxs'". done.
+Qed.

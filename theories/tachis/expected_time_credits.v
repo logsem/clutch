@@ -1,7 +1,7 @@
 From Stdlib Require Import Reals RIneq Psatz.
 From clutch.prelude Require Export classical Reals_ext base NNRbar.
 From iris.prelude Require Import options.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Export auth numbers.
 From iris.base_logic.lib Require Import iprop own.
 

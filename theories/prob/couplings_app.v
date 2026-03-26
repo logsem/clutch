@@ -952,7 +952,7 @@ Proof.
         { replace (fin_enum _) with (enum (fin N)); last done.
           apply elem_of_enum.
         }
-        apply elem_of_list_split in H0.
+        apply list_elem_of_split in H0.
         destruct H0 as [?[? ->]].
         induction x.
         -- simpl. case_bool_decide; last done.
@@ -967,7 +967,7 @@ Proof.
       * induction (fin_enum N); first (simpl; lra).
         simpl.
         repeat case_bool_decide; subst.
-        -- apply elem_of_list_fmap_2_inj in H1; first done. by destruct H.
+        -- apply list_elem_of_fmap_inj_2 in H1; first done. by destruct H.
         -- set_solver.
         -- lra.
         -- set_solver.

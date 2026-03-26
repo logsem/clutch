@@ -100,7 +100,7 @@ Section adequacy.
         rewrite (Expval_support _ _ 1%R).
         exact H'.
       }
-      iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done].
+      iMod (pgl_dbind_adv' (A := (gmap loc urn)) (A' := (mstate_ret _)) with "[][-]"); [iPureIntro| |done].
       { destruct H as [r H].
         exists (Rmax r 1).
         intros. case_bool_decide; split; try lra.
@@ -206,7 +206,7 @@ Section adequacy.
         rewrite (Expval_support _ _ 1%R).
         exact H'.
       }
-      iMod (pgl_dbind_adv'  with "[][-]"); [iPureIntro| |done].
+      iMod (pgl_dbind_adv' (A := (gmap loc urn)) (A' := (mstate_ret _))  with "[][-]"); [iPureIntro| |done].
       { destruct H as [r H].
         exists (Rmax r 1).
         intros. case_bool_decide; split; try lra.
@@ -453,9 +453,11 @@ Proof.
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
   set (HeltonGS := HeapG Σ _ _ _ γH γU _).
-  iApply (wp_elton_adequacy ε'); try done.
+  (* iApply (wp_elton_adequacy ε' with "[-]"); try done. *)
+  iPoseProof (wp_elton_adequacy ε' with "[-]") as "adeq" ; try done.
   iFrame.
   by iApply Hwp.
+  Unshelve. apply _.
 Qed. 
 
 Lemma elton_adequacy_with_conditions Σ `{eltonGpreS Σ} (e:expr) (σ:state) (ε:R) m ϕ:

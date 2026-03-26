@@ -1,4 +1,4 @@
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.prelude Require Import options.
 From clutch.prelude Require Import NNRbar.
 From clutch.con_prob_lang Require Import lang.

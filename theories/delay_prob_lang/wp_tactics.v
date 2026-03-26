@@ -1,7 +1,7 @@
 From iris.bi Require Export bi updates.
 From iris.base_logic.lib Require Import fancy_updates.
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
-From iris.proofmode Require Export tactics.
+From iris.proofmode Require Export proofmode.
 
 (*From clutch.bi Require Import weakestpre.*)
 From clutch.delay_prob_lang Require Import lang tactics notation class_instances.

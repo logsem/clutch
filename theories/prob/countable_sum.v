@@ -2234,8 +2234,8 @@ Section Inj_finite.
         instantiate (2:= h <$> enum (fin M)).
         intros. case_bool_decide as H1; case_bool_decide as H2; try done.
         - exfalso.
-          apply H2. destruct H1. subst. apply elem_of_list_fmap_1, elem_of_enum.
-        - exfalso. apply H1. rewrite elem_of_list_fmap in H2. destruct H2 as [y[??]].
+          apply H2. destruct H1. subst. apply list_elem_of_fmap_2, elem_of_enum.
+        - exfalso. apply H1. rewrite list_elem_of_fmap in H2. destruct H2 as [y[??]].
           naive_solver.           
     }
     intros n.
@@ -2286,7 +2286,7 @@ Section Inj_finite.
              ++ subst. rewrite H1 in H4. naive_solver.
           -- intros [?[??]]. subst.
              rewrite Nat.le_succ_r in H5. destruct H5.
-             ++ apply elem_of_list_further. rewrite H1.
+             ++ apply list_elem_of_further. rewrite H1.
                 eexists _; by split.
              ++ apply encode_inv_Some_nat in H3. rewrite -H3 in H0. apply encode_nat_inj in H0.
                 apply Hinj in H0. set_solver.

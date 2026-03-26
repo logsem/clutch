@@ -294,11 +294,11 @@ Proof.
                  case_match; try (by inversion 1).
                  case_bool_decide; try (by inversion 1).
                  case_match; try (by inversion 1).
-                 intros. subst. eapply elem_of_list_fmap_1_alt; last first.
+                 intros. subst. eapply list_elem_of_fmap_2'; last first.
                  { repeat f_equal. instantiate (1 := Z.to_nat n). lia. }
                  apply bool_decide_eq_true_1 in H4.
                  rewrite elem_of_seq. lia.
-             --- intros H1. apply elem_of_list_fmap_2 in H1.
+             --- intros H1. apply list_elem_of_fmap_1 in H1.
                  destruct H1 as [n[H1 H2]].
                  inversion H1.
                  replace (bool_decide (_=_)) with true.
@@ -321,7 +321,7 @@ Proof.
       case_bool_decide; last first.
       + repeat (case_match; try (simpl; lra)).
         exfalso. apply H. subst.
-        eapply elem_of_list_fmap_1_alt; last first.
+        eapply list_elem_of_fmap_2'; last first.
         { apply bool_decide_eq_true_1 in H3, H4. repeat f_equal.
           - instantiate (1 := Z.to_nat n). lia.
           - done.
@@ -553,10 +553,10 @@ Proof.
                  case_match; try (by inversion 1).
                  case_bool_decide; try (by inversion 1).
                  case_match; try (by inversion 1).
-                 intros. subst. eapply elem_of_list_fmap_1_alt; last first.
+                 intros. subst. eapply list_elem_of_fmap_2'; last first.
                  { repeat f_equal. instantiate (1 := Z.to_nat n). lia. }
                  rewrite elem_of_seq. lia.
-             --- intros H1. apply elem_of_list_fmap_2 in H1.
+             --- intros H1. apply list_elem_of_fmap_1 in H1.
                  destruct H1 as [n[H1 H2]].
                  inversion H1.
                  replace (bool_decide (_=_)) with true.
@@ -575,7 +575,7 @@ Proof.
       case_bool_decide; last first.
       + repeat (case_match; try (simpl; lra)).
         exfalso. apply H. subst.
-        eapply elem_of_list_fmap_1_alt; last first.
+        eapply list_elem_of_fmap_2'; last first.
         { apply bool_decide_eq_true_1 in H3, H4. repeat f_equal.
           - instantiate (1 := Z.to_nat n). lia.
           - done.

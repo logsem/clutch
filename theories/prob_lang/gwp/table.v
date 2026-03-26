@@ -11,13 +11,13 @@ Lemma list_to_map_list_insert `{Countable K} {V} i (k : K) (v v' : V) xs :
 Proof.
   induction xs as [|[k' w] xs IH] in i, k, v, v' |-*; [done|].
   rewrite lookup_cons. destruct i => /=.
-  - intros ? [= -> <-]. rewrite insert_insert. done.
+  - intros ? [= -> <-]. rewrite insert_insert_eq. done.
   - intros [Hk' Hxs]%NoDup_cons Hlook => /=.
     assert (k ≠ k').
-    { intros <-. apply Hk'. apply elem_of_list_fmap.
+    { intros <-. apply Hk'. apply list_elem_of_fmap.
       eexists (k, v'). split; [done|].
-      by eapply elem_of_list_lookup_2. }
-    rewrite insert_commute; [|done].
+      by eapply list_elem_of_lookup_2. }
+    rewrite insert_insert_ne; [|done].
     by setoid_rewrite IH.
 Qed.
 
@@ -32,18 +32,18 @@ Proof.
   rewrite !NoDup_cons.
   intros Hlook [Hk' Hxs].
   split; [|by eapply IH].
-  rewrite elem_of_list_fmap.
+  rewrite list_elem_of_fmap.
   intros ([k'' w''] & ? & H). simplify_eq/=.
-  apply elem_of_list_lookup_1 in H as (j &?).
-  eapply Hk'. apply elem_of_list_fmap.
+  apply list_elem_of_lookup_1 in H as (j &?).
+  eapply Hk'. apply list_elem_of_fmap.
   (* Why is this necessary? *)
   replace list_alter with
     (alter (Alter := (list_alter (A := K * V)))) in H; [|done].
   destruct (decide (i = j)) as [<-|].
-  - rewrite list_lookup_alter Hlook in H. simplify_eq/=.
-    eexists (_, _). split; [done|]. apply elem_of_list_lookup. eauto.
+  - rewrite list_lookup_alter_eq Hlook in H. simplify_eq/=.
+    eexists (_, _). split; [done|]. apply list_elem_of_lookup. eauto.
   - rewrite list_lookup_alter_ne in H; [|done].
-    eexists (_, _). split; [done|]. apply elem_of_list_lookup. eauto.
+    eexists (_, _). split; [done|]. apply list_elem_of_lookup. eauto.
 Qed.
 
 Module Table.
@@ -153,7 +153,7 @@ Section Table.
       apply list_find_None in Hfind.
       apply NoDup_cons.
       split; [|done].
-      intros ([]&?&?)%elem_of_list_fmap.
+      intros ([]&?&?)%list_elem_of_fmap.
       simplify_eq/=.
       eapply Forall_forall in Hfind; [|done].
       simpl in Hfind. contradiction.
@@ -179,13 +179,13 @@ Section Table.
     destruct (list_find _ xs) as [(i & [k' v']) | ] eqn:Heq.
     - gwp_pures. iModIntro.
       assert (list_to_map xs !! k = Some v') as ->.
-      { apply list_find_Some in Heq as (?%elem_of_list_lookup_2 & <- & _).
+      { apply list_find_Some in Heq as (?%list_elem_of_lookup_2 & <- & _).
         by erewrite elem_of_list_to_map_1. }
       iApply "HΨ". by iFrame.
     - gwp_pures. iModIntro.
       assert (list_to_map xs !! k = None) as ->.
       { apply not_elem_of_list_to_map_1.
-        intros ([] & ? &?)%elem_of_list_fmap; simplify_eq/=.
+        intros ([] & ? &?)%list_elem_of_fmap; simplify_eq/=.
         eapply list_find_None, Forall_forall in Heq; [|done].
         simpl in Heq. contradiction. }
       iApply "HΨ". by iFrame.

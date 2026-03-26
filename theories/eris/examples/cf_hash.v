@@ -85,7 +85,7 @@ Section coll_free_hash.
     destruct (decide (n = k1)).
     - destruct (decide (n = k2)); simplify_eq; auto.
       destruct Hk2 as [|Hk2]; auto.
-      rewrite lookup_total_insert in Heq.
+      rewrite lookup_total_insert_eq in Heq.
       rewrite lookup_total_insert_ne // in Heq.
       apply lookup_lookup_total in Hk2.
       rewrite -Heq in Hk2.
@@ -97,7 +97,7 @@ Section coll_free_hash.
     - destruct (decide (n = k2)); simplify_eq; auto.
       {
         destruct Hk1 as [|Hk1]; auto.
-        rewrite lookup_total_insert in Heq.
+        rewrite lookup_total_insert_eq in Heq.
         rewrite lookup_total_insert_ne // in Heq.
         apply lookup_lookup_total in Hk1.
         rewrite Heq in Hk1.
@@ -617,7 +617,7 @@ Section coll_free_hash.
                  }
                  apply elem_of_map_img_1 in Hy as (i & Hi).
                  destruct (decide(n = i)) as [-> | Hneq].
-                 **** rewrite lookup_insert in Hi. inversion Hi.
+                 **** rewrite lookup_insert_eq in Hi. inversion Hi.
                      eapply (Rlt_le_trans _ (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))))); eauto.
                      { apply lt_INR. lia.  }
                      right. f_equal.
@@ -793,7 +793,7 @@ Section coll_free_hash.
                  }
                  apply elem_of_map_img_1 in Hy as (i & Hi).
                  destruct (decide(n = i)) as [-> | Hneq].
-                 ++ rewrite lookup_insert in Hi. inversion Hi.
+                 ++ rewrite lookup_insert_eq in Hi. inversion Hi.
                      eapply (Rlt_le_trans _ (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))))); eauto.
                      { apply lt_INR. lia. }
                      transitivity vsval.

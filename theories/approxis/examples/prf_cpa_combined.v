@@ -607,7 +607,7 @@ Proof with (rel_pures_l ; rel_pures_r).
           { apply not_elem_of_dom_1.
             rewrite -elem_of_elements.
             rewrite -Hl'.
-            intros K. apply elem_of_list_fmap_2_inj in K; last apply fin_to_nat_inj.
+            intros K. apply list_elem_of_fmap_inj_2 in K; last apply fin_to_nat_inj.
             done.
           }
           simpl...
@@ -631,7 +631,7 @@ Proof with (rel_pures_l ; rel_pures_r).
               rewrite -elem_of_elements.
               rewrite -Hl'.
               intros K.
-              apply elem_of_list_fmap_2_inj in K; last apply fin_to_nat_inj.
+              apply list_elem_of_fmap_inj_2 in K; last apply fin_to_nat_inj.
               done.
             - intros x.
               rewrite elem_of_elements.

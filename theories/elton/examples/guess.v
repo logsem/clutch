@@ -61,7 +61,7 @@ Section encr.
           { intros. rewrite /ε2'. case_bool_decide; lra. }
           iMod (pupd_resolve_urn _ _ (λ x, mknonnegreal _ (Hε2 x)) with "[$][$]") as "(%x&Herr&Hl&%Helem)".
           { apply (non_empty_inhabited_L 0%Z).
-            rewrite elem_of_list_to_set elem_of_list_fmap.
+            rewrite elem_of_list_to_set list_elem_of_fmap.
             setoid_rewrite elem_of_seq.
             exists 0%nat. lia.
           }
@@ -77,11 +77,11 @@ Section encr.
             symmetry.
             case_bool_decide; subst.
             - rewrite bool_decide_eq_true_2 /ε2'; first by rewrite bool_decide_eq_true_2.
-              rewrite elem_of_elements elem_of_list_to_set elem_of_list_fmap.
+              rewrite elem_of_elements elem_of_list_to_set list_elem_of_fmap.
               eexists (Z.to_nat n); split; first lia.
               rewrite elem_of_seq. lia.
             - case_bool_decide as H'; last done.
-              rewrite elem_of_elements elem_of_list_to_set elem_of_list_fmap in H'.
+              rewrite elem_of_elements elem_of_list_to_set list_elem_of_fmap in H'.
               setoid_rewrite elem_of_seq in H'.
               destruct!/=. rewrite /ε2'. by case_bool_decide.
           }
@@ -147,7 +147,7 @@ Section encr.
             { exfalso.
               apply H1.
               eapply (non_empty_inhabited_L 0%Z).
-              rewrite elem_of_list_to_set elem_of_list_fmap.
+              rewrite elem_of_list_to_set list_elem_of_fmap.
               setoid_rewrite elem_of_seq.
               exists 0%nat; lia.
             }
@@ -162,7 +162,7 @@ Section encr.
             rewrite urns_f_distr_insert in Hf; last first.
             - simpl.
                eapply (non_empty_inhabited_L 0%Z).
-               rewrite elem_of_list_to_set elem_of_list_fmap.
+               rewrite elem_of_list_to_set list_elem_of_fmap.
                setoid_rewrite elem_of_seq.
                exists 0%nat; lia.
             - by simplify_map_eq.
@@ -171,7 +171,7 @@ Section encr.
                rename select (urns_f_distr_compute_distr _ _>0)%R into Hcontra.
                rewrite /urns_f_distr_compute_distr/urns_f_distr_compute/pmf in Hcontra.
                case_bool_decide as Hcontra'; last lra.
-               rewrite elem_of_list_to_set elem_of_list_fmap in Hcontra'.
+               rewrite elem_of_list_to_set list_elem_of_fmap in Hcontra'.
                setoid_rewrite elem_of_seq in Hcontra'.
                destruct!/=. lia.
           }

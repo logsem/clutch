@@ -579,7 +579,17 @@ Proof.
     iIntros (n) "_".
     destruct n as [|[|n]].
     + tp_bind 0%nat (rand _)%E.
-      iMod (pupd_couple_tape_rand _ (λ x, if bool_decide (x<=1)%nat then 1-x else x)%nat with "[$][$]") as "(%n&Htape&Hspec&%)".
+      assert (Bij (λ x, if bool_decide (x<=1)%nat then 1-x else x)%nat) as hbij.
+      {
+        split.
+        ++ intros ???.
+           repeat case_bool_decide; lia.
+        ++ intros y.
+           destruct (decide (y<=1)).
+           ** exists (1-y). rewrite bool_decide_eq_true_2; lia.
+           ** exists y. rewrite bool_decide_eq_false_2; lia.
+      }
+      iMod (pupd_couple_tape_rand _ (λ x, if bool_decide (x<=1)%nat then 1-x else x)%nat (H:=hbij) with "[$][$]") as "(%n&Htape&Hspec&%)".
       { intros. case_bool_decide; lia. }
       simpl.
       wp_randtape.
@@ -612,16 +622,7 @@ Proof.
       rewrite bool_decide_eq_false_2.
       * wp_pures; wp_apply wp_diverge; first done; by iIntros.
       * intro . simplify_eq. lia.
-        Unshelve.
-        -- apply le_dec.
-        -- split.
-           ++ intros ???.
-              repeat case_bool_decide; lia.
-           ++ intros y.
-              destruct (decide (y<=1)).
-              ** exists (1-y). rewrite bool_decide_eq_true_2; lia.
-              ** exists y. rewrite bool_decide_eq_false_2; lia.
-Qed. 
+Qed.
 
   
 

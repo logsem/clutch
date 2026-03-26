@@ -228,7 +228,7 @@ Section conc_bloom_filter.
         split; [lia |].
         simpl.
         apply Nat.lt_succ_r.
-        apply elem_of_list_to_set, elem_of_list_lookup in Hk as [? ?].
+        apply elem_of_list_to_set, list_elem_of_lookup in Hk as [? ?].
         by eapply Hks.
       }
       iPoseProof (big_sepS_union with "Hkeys") as "(Hks&Hrest)"; [set_solver|].
@@ -380,7 +380,7 @@ Section conc_bloom_filter.
         - rewrite length_insert //.
         - intros i Hi.
           destruct (decide (i = v)) as [-> | Hneq]; auto.
-          + rewrite list_lookup_insert; [auto|lia].
+          + rewrite list_lookup_insert_eq; [auto|lia].
           + rewrite list_lookup_insert_ne; auto.
         - intros i Hi Hlookup.
           destruct (decide (i = v)) as [-> | Hneq]; auto.
@@ -656,7 +656,7 @@ Section conc_bloom_filter.
      iPureIntro.
      intros ? ? ?.
      simpl.
-     eapply elem_of_list_lookup_2; eauto.
+     eapply list_elem_of_lookup_2; eauto.
    }
    iIntros (?) "_".
    wp_pures.

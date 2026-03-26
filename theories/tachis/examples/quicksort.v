@@ -1,7 +1,7 @@
 (** * Exact time credit accounting for Quicksort *)
 From clutch.tachis Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
 From clutch.common Require Import inject.
-From iris.proofmode Require Export tactics.
+From iris.proofmode Require Export proofmode.
 From Stdlib Require Export Reals Psatz.
 From stdpp Require Import sorting.
 From Stdlib.Program Require Tactics.
@@ -299,8 +299,8 @@ Section sorting.
         rewrite bool_decide_false; [rewrite /=; lia| ].
         assert (R x L0).
         { eapply StronglySorted_app_1_elem_of; eauto.
-          - eapply elem_of_list_lookup_2. eauto.
-          - by apply elem_of_list_singleton.
+          - eapply list_elem_of_lookup_2. eauto.
+          - by apply list_elem_of_singleton.
         }
         intros Hcont.
         apply strict_spec_alt in Hcont.
@@ -326,7 +326,7 @@ Section sorting.
             rewrite bool_decide_true; [done|].
 
             apply strict_spec_alt; split.
-            --- eapply StronglySorted_app_1_elem_of; first eapply HS'; apply elem_of_list_here.
+            --- eapply StronglySorted_app_1_elem_of; first eapply HS'; apply list_elem_of_here.
             --- rewrite /not.
                 intros ->.
                 apply NoDup_remove in HU.

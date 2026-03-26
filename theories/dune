@@ -1,7 +1,8 @@
 (include_subdirs qualified)
-(coq.theory
+(rocq.theory
  (name clutch)
  (package rocq-clutch)
+ ; (generate_project_file true)
  (theories
    ; local
    discprob
@@ -22,7 +23,7 @@
    -w -undeclared-scope
    -w -ambiguous-paths
    -w -ssr-search-moved)
- (coqdoc_flags
+ (rocqdoc_flags
    :standard
    --toc-depth 2 --interpolate --index indexpage --no-lib-name --parse-comments
    --with-header %{dep:../coqdocjs/extra/header.html}

@@ -136,7 +136,7 @@ Section test.
       + iDestruct (hash_auth_duplicate with "[$]") as "#$"; first done. by iFrame.
       + iDestruct "Hlis" as "[H1 Hlis]".
         iMod (hash_auth_insert with "[$][$]") as "H"; first done.
-        iDestruct (hash_auth_duplicate with "[$]") as "#$"; first by rewrite lookup_insert.
+        iDestruct (hash_auth_duplicate with "[$]") as "#$"; first by rewrite lookup_insert_eq.
         iFrame. iModIntro. iIntros. by iFrame.
     - iNext. iIntros (res) "[(?&?&?)|(%&->&->&?&?&?)]".
       + iApply "HΦ". iFrame. iRight. iFrame.

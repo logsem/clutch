@@ -122,7 +122,7 @@ Section applications.
     iMod (inv_alloc nroot _ (foo_inv r) with "[Hr]") as "#I".
     { iModIntro. by iLeft. }
     rewrite -/new_lazyrand.
-    wp_apply (wp_par (λ _, ⊤) (λ _, ⊤) with "[Herr][]").
+    wp_apply (wp_par (λ _, emp)%I (λ _, emp)%I with "[Herr][]").
     - wp_apply (new_lazyrand_spec 1); auto.
       iIntros (v) "Hv".
       wp_pures.

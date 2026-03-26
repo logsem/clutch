@@ -755,7 +755,7 @@ Section modalities.
       rewrite !SeriesC_list; last first.
       + repeat setoid_rewrite NoDup_cons.
         repeat split; last by apply NoDup_nil.
-        * by rewrite elem_of_list_singleton. 
+        * by rewrite list_elem_of_singleton. 
         * set_solver.
       + done.
       + simpl.
@@ -803,7 +803,7 @@ Section modalities.
           rewrite bool_decide_eq_true_2; last done.
           by rewrite Rplus_0_l.
         * done.
-        * iPureIntro. by rewrite lookup_insert.
+        * iPureIntro. by rewrite lookup_insert_eq.
         * iPureIntro.
           intros.
           eapply Hdisjoint; set_solver.

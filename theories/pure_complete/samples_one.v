@@ -392,7 +392,7 @@ Proof.
   try (rewrite H10 in H1; inversion H1);
   subst; try lia. 
   apply inj_pair2 in H4, H6. subst. 
-  by rewrite !lookup_insert.   
+  by rewrite !lookup_insert_eq.
 Qed.
 
 Lemma SamplesOneTape_step_state_var l e σ1 σ2 v t e'1 σ'1 e'2 σ'2:
@@ -613,7 +613,7 @@ Proof.
   apply dbind_ext_right_strong. 
   intros.
   rewrite !dret_id_left'.  
-  eapply IHn; simpl; try by rewrite !lookup_insert. 
+  eapply IHn; simpl; try by rewrite !lookup_insert_eq.
   eapply SamplesOneTape_inv; eauto.
   simpl. erewrite Hs1. 
   eapply dmap_pos. 

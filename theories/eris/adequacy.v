@@ -101,7 +101,8 @@ Section adequacy.
       iDestruct "H" as "[%R' [%ε1' [%ε2' (%Hsum' & %Hlift' & Hwand')]]]".
       iModIntro.
       rewrite -(dret_id_left' (fun _ : () => (exec (S n) _)) tt).
-      iApply (step_fupdN_mono _ _ _ ⌜(pgl _ _ (ε1' + ε2')) ⌝).
+      epose proof (step_fupdN_mono _ _ _ ⌜(pgl _ _ (ε1' + ε2')) ⌝) as h.
+      iApply h.
       { iIntros "%H'"; iPureIntro. eapply pgl_mon_grading; eauto. }
       iApply (pgl_dbind').
       * iPureIntro; apply cond_nonneg.
@@ -133,7 +134,8 @@ Section adequacy.
         iMod ("H" $! e s with "[]") as "H";  [iPureIntro; eauto| iModIntro ].
         iDestruct "H" as "[%R' [%ε1' [%ε2' (%Hsum' & %Hlift' & Hwand')]]]".
         rewrite -(dret_id_left' (fun _ : () => (exec n (e, s))) tt).
-        iApply (step_fupdN_mono _ _ _ ⌜(pgl _ _ (ε1' + ε2')) ⌝).
+        epose proof (step_fupdN_mono _ _ _ ⌜(pgl _ _ (ε1' + ε2')) ⌝) as h.
+        iApply h.
         { iIntros "%H'"; iPureIntro. eapply pgl_mon_grading; eauto. }
         iApply (pgl_dbind').
         * iPureIntro; apply cond_nonneg.
@@ -154,7 +156,7 @@ Section adequacy.
                      |={∅}▷=>^(S n)
                        ⌜pgl (prim_step e1 σ1 ≫= exec n) φ ε''⌝)%I
                   with "H") as "H".
-      { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
+      { iIntros (i α Hα%list_elem_of_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
         replace (prim_step e1 σ1) with (step (e1, σ1)) => //.
         rewrite -exec_Sn_not_final; [|eauto].
         iApply (step_fupdN_mono _ _ _
@@ -174,7 +176,8 @@ Section adequacy.
           iMod ("H" with "[//]") as "H"; iModIntro.
           iDestruct "H" as "[%R' [%ε1' [%ε2' (%Hsum' & %Hlift' & Hwand')]]]".
           rewrite -(dret_id_left' (fun _ : () => (exec (S n) _)) tt).
-          iApply (step_fupdN_mono _ _ _ ⌜(pgl _ _ (ε1' + ε2')) ⌝).
+          epose proof (step_fupdN_mono _ _ _ ⌜(pgl _ _ (ε1' + ε2')) ⌝) as h.
+          iApply h.
           { iIntros "%H'"; iPureIntro. eapply pgl_mon_grading; eauto. }
           iApply (pgl_dbind').
           * iPureIntro; apply cond_nonneg.
@@ -363,7 +366,7 @@ Section adequacy.
                      |={∅}▷=>^(S n)
                        ⌜SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε''⌝)%I
                   with "H") as "H".
-      { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
+      { iIntros (i α Hα%list_elem_of_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
         iApply (step_fupdN_mono _ _ _
                   (⌜∀ σ2 , R2 σ2 → SeriesC (iterM (S n) prim_step_or_val (e1, σ2)) >= 1 - (ε2 (e1, σ2))⌝)%I).
         {
@@ -563,10 +566,12 @@ Proof.
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply (wp_refRcoupl_step_fupdN ε').
+  epose proof (wp_refRcoupl_step_fupdN ε') as h.
+  iApply h.
   iFrame.
   iApply Hwp.
   done.
+  Unshelve. apply _.
 Qed.
 
 Lemma pgl_closed_lim (e : expr) (σ : state) (ε : R) φ :
@@ -628,8 +633,9 @@ Proof.
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply (wp_safety_fupdN ε'). iFrame.
+  epose proof (wp_safety_fupdN ε') as h. iApply h. iFrame.
   iApply Hwp. done.
+  Unshelve. apply _.
 Qed.
 
 Lemma pexec_safety_relate (e:expr) σ n:

@@ -1,7 +1,7 @@
 From discprob.basic Require Import seq_ext.
 From stdpp Require Import list.
 From clutch.prelude Require Import tactics.
-From clutch.prob_lang Require Import erasure.
+From clutch.prob_lang Require Import erasure gwp.list.
 From clutch.prob Require Import couplings_dp differential_privacy.
 From clutch.diffpriv Require Import diffpriv.
 
@@ -38,6 +38,24 @@ Lemma list_Z_max_cons hd tl x a i:
     list_Z_max' tl (x+1) hd x
   else list_Z_max' tl (x+1)%nat a i.
 Proof. done. Qed. 
+
+Lemma list_max_index_eq xs : List_max_index xs = list_Z_max xs.
+Proof.
+  rewrite /List_max_index /list_Z_max.
+  destruct xs as [|xmax xs] => //.
+  rewrite /List_max_index_aux.
+  simpl.
+  intros. rewrite bool_decide_eq_false_2 //. 2: lia.
+  generalize 1%nat at 3 4 as inext. generalize 0%nat at 3 4 as imax.
+  revert xmax.
+  induction xs as [|x xs].
+  1: { simpl. done. }
+  intros.
+  simpl.
+  case_bool_decide ; destruct ((xmax <? x)%Z) eqn:hlt => //.
+  - apply Z.ltb_ge in hlt. lia.
+  - apply Z.ltb_lt in hlt. lia.
+Qed.
   
 Lemma pw_list_Z_max_bound l x a i:
   i<= x -> 
@@ -552,7 +570,7 @@ Proof.
   rewrite IHtl; last naive_solver.
   simpl.
   f_equal.
-  rewrite insert_commute; first done.
+  rewrite insert_insert_ne; first done.
   naive_solver.
 Qed. 
 
@@ -649,7 +667,7 @@ Proof.
   apply Forall_cons.
   split.
   - simpl.
-    by rewrite lookup_insert.
+    by rewrite lookup_insert_eq.
   - epose proof IHl _ (state_upd_tapes_laplace <[_:=_]> σ) _ _ as H.
     eapply Forall_impl; first done.
     intros [[[]]].
@@ -855,9 +873,9 @@ Section coupling_rule.
     iAssert (⌜Forall (λ '(ι, loc, lis), tapes_laplace σ!!ι = Some (Tape_Laplace num (2*den) loc lis)) ls⌝)%I as "%".
     { rewrite List.Forall_forall.
       iIntros ([[??]?]).
-      rewrite -elem_of_list_In.
+      rewrite -list_elem_of_In.
       rewrite /ls.
-      rewrite elem_of_list_lookup.
+      rewrite list_elem_of_lookup.
       iIntros ([k Hsome]).
       rewrite big_sepL2_alt.
       iDestruct "Hlist" as "[_ Hlist]".
@@ -882,7 +900,7 @@ Section coupling_rule.
       simpl in *.
       simplify_eq.
       iAssert (⌜_∈zip xιs xιs'⌝)%I as "%H".
-      { iPureIntro. eapply elem_of_list_lookup_2.
+      { iPureIntro. eapply list_elem_of_lookup_2.
         erewrite lookup_zip_Some. naive_solver.
       }
       iDestruct (big_sepL_elem_of with "[$]") as "H"; first done.
@@ -893,9 +911,9 @@ Section coupling_rule.
     iAssert (⌜Forall (λ '(ι, loc, lis), tapes_laplace σ'!!ι = Some (Tape_Laplace num (2*den) loc lis)) ls'⌝)%I as "%".
     { rewrite List.Forall_forall.
       iIntros ([[??]?]).
-      rewrite -elem_of_list_In.
+      rewrite -list_elem_of_In.
       rewrite /ls.
-      rewrite elem_of_list_lookup.
+      rewrite list_elem_of_lookup.
       iIntros ([k Hsome]).
       rewrite big_sepL2_alt.
       iDestruct "Hlist" as "[_ Hlist]".
@@ -920,7 +938,7 @@ Section coupling_rule.
       simpl in *.
       simplify_eq.
       iAssert (⌜_∈zip xιs xιs'⌝%I) as "%H'".
-      { iPureIntro. eapply elem_of_list_lookup_2.
+      { iPureIntro. eapply list_elem_of_lookup_2.
         erewrite lookup_zip_Some. naive_solver.
       }
       iDestruct (big_sepL_elem_of with "[$]") as "H"; first done.
@@ -942,7 +960,7 @@ Section coupling_rule.
       destruct!/=.
       iDestruct "Hlist" as "[_ Hlist]".
       iAssert (⌜_∈zip xιs xιs'⌝)%I as "%H'".
-      { iPureIntro. eapply elem_of_list_lookup_2.
+      { iPureIntro. eapply list_elem_of_lookup_2.
         erewrite lookup_zip_Some. naive_solver.
       }
       iDestruct (big_sepL_elem_of with "[$]") as "H"; first done.
