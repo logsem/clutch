@@ -408,6 +408,90 @@ Qed.
     { apply PCts_const_y. apply HPcts. }
   Qed.
 
+  Lemma B_nn {F L M} (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
+    ∀ n n0 : nat, ∀ x x0 : R, 0 <= x <= 1 → 0 <= x0 <= 1 → 0 <= B F L x n n0 x0.
+  Proof.
+    intros ??????.
+    rewrite /B.
+    apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
+    { apply RealDecrTrial_μnn. OK. }
+    { apply Iverson_nonneg. }
+    { apply NegExp_ρ_nn. }
+    { apply Hbound. OK. }
+  Qed.
+
+  Lemma B_PCts_y {F L} (HPcts : ∀ x1, PCts (F x1) 0 1) :
+    ∀ n : nat, ∀ x x0, PCts (λ x1 : R, B F L x n x0 x1) 0 1.
+  Proof.
+    intros ???.
+    apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
+    { PCts_auto_derive. }
+    { PCts_auto_derive. }
+    { apply NegExp_ρ_PCts. }
+    { apply HPcts. }
+  Qed.
+
+  Lemma B_PCts_x {F L} (HPcts : ∀ x1, PCts (F x1) 0 1) :
+    ∀ n : nat, ∀ k x, PCts (λ x0 : R, B F L x0 n k x) 0 1.
+  Proof.
+    intros ???.
+    apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
+    { apply RealDecrTrial_μ_PCts. }
+    { PCts_auto_derive. }
+    { PCts_auto_derive. }
+    { PCts_auto_derive. }
+  Qed.
+
+  Lemma B_PCts2_swap {F L n k} (HPcts : ∀ x1, PCts (F x1) 0 1) :
+    PCts2 (λ x y : R, B F L y n k x) 0 1 0 1.
+  Proof.
+    apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
+    { apply PCts_const_y. apply RealDecrTrial_μ_PCts. }
+    { apply PCts_const_y. PCts_auto_derive. }
+    { apply PCts_const_x. apply NegExp_ρ_PCts. }
+    { apply PCts_const_x. apply HPcts. }
+  Qed.
+
+  Lemma B_ub {F L M} (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
+    ∀ x n n0 t, 0 <= x <= 1 → 0 <= t <= 1 → B F L x n n0 t <= 1 * 1 * exp (- (n0 - (L + 1))%nat) * M.
+  Proof.
+    intros ??????.
+    rewrite /B.
+    apply Rmult_le_compat.
+    2: apply Hbound; OK.
+    3: apply Hbound; OK.
+    { apply Rmult_le_pos; [apply Rmult_le_pos|].
+      { apply RealDecrTrial_μnn. OK. }
+      { apply Iverson_nonneg. }
+      { apply NegExp_ρ_nn. }
+    }
+    apply Rmult_le_compat.
+    { apply Rmult_le_pos.
+      { apply RealDecrTrial_μnn. OK. }
+      { apply Iverson_nonneg. }
+    }
+    { apply NegExp_ρ_nn. }
+    2: { apply NegExp_ρ_ub. }
+    apply Rmult_le_compat.
+    { apply RealDecrTrial_μnn. OK. }
+    { apply Iverson_nonneg. }
+    2: apply Iverson_le_1.
+    apply RealDecrTrial_μ_le_1.
+    OK.
+  Qed.
+
+  Lemma ex_seriesC_exp_shifted (K : nat) :
+    ex_seriesC (λ x0 : nat, exp (- (x0 - K)%nat)).
+  Proof.
+    apply (ex_SeriesC_nat_shiftN_r K).
+    rewrite /compose//=.
+    replace (λ x0 : nat, exp (- (x0 + K - K)%nat))
+      with (λ x0 : nat, exp (- x0)%nat).
+    { apply ex_exp_geo_series. }
+    funexti.
+    do 3 f_equal.
+    OK.
+  Qed.
 
   Local Lemma g_ex_RInt M {F : nat → R → R} {L} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     ex_RInt (g F L) 0 1.
@@ -543,42 +627,19 @@ Qed.
       OK.
     }
     intros n.
-    apply Fubini_Step_ex_x.
-    rewrite /B.
-    apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
-    { apply PCts_const_y. apply RealDecrTrial_μ_PCts. }
-    { apply PCts_const_x.
-      PCts_auto_derive.
-    }
-    { apply PCts_const_x. apply NegExp_ρ_PCts. }
-    { apply PCts_const_x. apply HPcts. }
+    apply Fubini_Step_ex_x, (B_PCts2_swap HPcts).
   Qed.
 
 
   Lemma QuadExists6 M {F L} {n} (HPcts : ∀ x1, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= x <= 1 → 0 <= F n x <= M) :
     ex_RInt (λ x1 : R, SeriesC (λ x : nat, RInt (λ x0 : R, B F L x1 n x x0) 0 1)) 0 1.
   Proof.
-    have L3 : ∀ n n0 : nat, PCts2 (λ x y : R, B F L x n n0 y) 0 1 0 1.
-    { intros ??.
-      apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
-      { apply PCts_const_x. apply RealDecrTrial_μ_PCts. }
-      { apply PCts_const_x.
-        PCts_auto_derive.
-      }
-      { apply PCts_const_y. apply NegExp_ρ_PCts. }
-      { apply PCts_const_y. apply HPcts. }
-    }
-    have L4 : ∀ n : nat, ∀ x x0, PCts (λ x1 : R, B F L x n x0 x1) 0 1.
-    { intros ???.
-      apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
-      { PCts_auto_derive.
-      }
-      { PCts_auto_derive.
-      }
-      { apply NegExp_ρ_PCts. }
-      { apply HPcts. }
-    }
+    have L3 : ∀ n n0 : nat, PCts2 (λ x y : R, B F L x n n0 y) 0 1 0 1
+      := fun _ _ => B_PCts2 HPcts.
+    have L4 := B_PCts_y HPcts.
 
+    have L5 := @B_nn _ L _ Hbound.
+    have L6 := @B_ub _ L _ Hbound.
     have L2 : ∀ n n0 : nat, ex_RInt (λ x : R, RInt (λ x0 : R, B F L x n n0 x0) 0 1) 0 1.
     { intros ??. apply Fubini_Step_ex_x; OK.  }
     have L1 : ∀ n x, 0 < x < 1 → 0 <= SeriesC (λ k : nat, RInt (λ x0 : R, B F L x n k x0) 0 1).
@@ -587,59 +648,13 @@ Qed.
       intros ?.
       apply RInt_ge_0; OK.
       { apply PCts_RInt. apply L4. }
-      intros ??.
-      apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
-      { apply RealDecrTrial_μnn. OK. }
-      { apply Iverson_nonneg. }
-      { apply NegExp_ρ_nn. }
-      { apply Hbound. OK. }
-    }
-    have L5 : ∀ n n0 : nat, ∀ x x0 : R, 0 <= x <= 1 → 0 <= x0 <= 1 → 0 <= B F L x n n0 x0.
-    { intros ??????.
-      rewrite /B.
-      apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
-        { apply RealDecrTrial_μnn. OK. }
-        { apply Iverson_nonneg. }
-        { apply NegExp_ρ_nn. }
-        { apply Hbound. OK. }
-    }
-    have L6 : ∀ x n n0 t, 0 <= x <= 1 → 0 <= t <= 1 → B F L x n n0 t <= 1 * 1 * exp (- (n0 - (L + 1))%nat) * M.
-    { intros ??????.
-      rewrite /B.
-      apply Rmult_le_compat.
-      2: apply Hbound; OK.
-      3: apply Hbound; OK.
-      { apply Rmult_le_pos; [apply Rmult_le_pos|].
-        { apply RealDecrTrial_μnn. OK. }
-        { apply Iverson_nonneg. }
-        { apply NegExp_ρ_nn. }
-      }
-      apply Rmult_le_compat.
-      { apply Rmult_le_pos.
-        { apply RealDecrTrial_μnn. OK. }
-        { apply Iverson_nonneg. }
-      }
-      { apply NegExp_ρ_nn. }
-      2: { apply NegExp_ρ_ub. }
-      apply Rmult_le_compat.
-      { apply RealDecrTrial_μnn. OK. }
-      { apply Iverson_nonneg. }
-      2: apply Iverson_le_1.
-      apply RealDecrTrial_μ_le_1.
-      OK.
+      intros ??. apply L5; OK.
     }
       eapply (ex_RInt_SeriesC (fun n0 => ((* 1 / fact n*) 1 * 1 * exp (- (n0 - (L + 1))%nat) * M))); OK.
       { rewrite ex_seriesC_nat.
         apply ex_seriesC_scal_r.
         apply ex_seriesC_scal_l.
-        apply (ex_SeriesC_nat_shiftN_r (L + 1)%nat).
-        rewrite /compose//=.
-        replace (λ x0 : nat, exp (- (x0 + (L + 1) - (L + 1))%nat))
-          with (λ x0 : nat, exp (- x0)%nat).
-        { apply ex_exp_geo_series. }
-        funexti.
-        do 3 f_equal.
-        OK.
+        apply ex_seriesC_exp_shifted.
       }
       { intros ???.
         split.
@@ -859,14 +874,7 @@ Qed.
     replace (λ k : nat, SeriesC (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * exp (- (k - (L + 1))%nat) * M) 0 1))
        with (λ k : nat, exp (- (k - (L + 1))%nat) * SeriesC (λ n : nat, RInt (λ x : R, RealDecrTrial_μ x 0 n * Iverson (not ∘ Zeven) n * M) 0 1)).
     { apply ex_seriesC_scal_r.
-      apply (ex_SeriesC_nat_shiftN_r (L + 1)%nat).
-      rewrite /compose//=.
-      replace (λ x0 : nat, exp (- (x0 + (L + 1) - (L + 1))%nat))
-        with (λ x0 : nat, exp (- x0)%nat).
-      { apply ex_exp_geo_series. }
-      funexti.
-      do 3 f_equal.
-      OK.
+      apply ex_seriesC_exp_shifted.
     }
     funexti.
     rewrite -SeriesC_scal_l.
@@ -1000,27 +1008,12 @@ Qed.
     2: { f_equal; funexti. rewrite SeriesC_nat. done. }
     rewrite SeriesC_nat.
     symmetry.
-    have L3 : ∀ n n0 : nat, PCts2 (λ x y : R, B F L x n n0 y) 0 1 0 1.
-    { intros ??.
-      apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
-      { apply PCts_const_x. apply RealDecrTrial_μ_PCts. }
-      { apply PCts_const_x.
-        PCts_auto_derive.
-      }
-      { apply PCts_const_y. apply NegExp_ρ_PCts. }
-      { apply PCts_const_y. apply HPcts. }
-    }
-    have L4 : ∀ n : nat, ∀ x x0, PCts (λ x1 : R, B F L x n x0 x1) 0 1.
-    { intros ???.
-      apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
-      { PCts_auto_derive.
-      }
-      { PCts_auto_derive.
-      }
-      { apply NegExp_ρ_PCts. }
-      { apply HPcts. }
-    }
+    have L3 : ∀ n n0 : nat, PCts2 (λ x y : R, B F L x n n0 y) 0 1 0 1
+      := fun _ _ => B_PCts2 HPcts.
+    have L4 := B_PCts_y HPcts.
 
+    have L5 := @B_nn _ L _ Hbound.
+    have L6 := @B_ub _ L _ Hbound.
     have L2 : ∀ n n0 : nat, ex_RInt (λ x : R, RInt (λ x0 : R, B F L x n n0 x0) 0 1) 0 1.
     { intros ??. apply Fubini_Step_ex_x; OK.  }
     have L1 : ∀ n x, 0 < x < 1 → 0 <= SeriesC (λ k : nat, RInt (λ x0 : R, B F L x n k x0) 0 1).
@@ -1029,46 +1022,7 @@ Qed.
       intros ?.
       apply RInt_ge_0; OK.
       { apply PCts_RInt. apply L4. }
-      intros ??.
-      apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
-      { apply RealDecrTrial_μnn. OK. }
-      { apply Iverson_nonneg. }
-      { apply NegExp_ρ_nn. }
-      { apply Hbound. OK. }
-    }
-    have L5 : ∀ n n0 : nat, ∀ x x0 : R, 0 <= x <= 1 → 0 <= x0 <= 1 → 0 <= B F L x n n0 x0.
-    { intros ??????.
-      rewrite /B.
-      apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
-        { apply RealDecrTrial_μnn. OK. }
-        { apply Iverson_nonneg. }
-        { apply NegExp_ρ_nn. }
-        { apply Hbound. OK. }
-    }
-    have L6 : ∀ x n n0 t, 0 <= x <= 1 → 0 <= t <= 1 → B F L x n n0 t <= 1 * 1 * exp (- (n0 - (L + 1))%nat) * M.
-    { intros ??????.
-      rewrite /B.
-      apply Rmult_le_compat.
-      2: apply Hbound; OK.
-      3: apply Hbound; OK.
-      { apply Rmult_le_pos; [apply Rmult_le_pos|].
-        { apply RealDecrTrial_μnn. OK. }
-        { apply Iverson_nonneg. }
-        { apply NegExp_ρ_nn. }
-      }
-      apply Rmult_le_compat.
-      { apply Rmult_le_pos.
-        { apply RealDecrTrial_μnn. OK. }
-        { apply Iverson_nonneg. }
-      }
-      { apply NegExp_ρ_nn. }
-      2: { apply NegExp_ρ_ub. }
-      apply Rmult_le_compat.
-      { apply RealDecrTrial_μnn. OK. }
-      { apply Iverson_nonneg. }
-      2: apply Iverson_le_1.
-      apply RealDecrTrial_μ_le_1.
-      OK.
+      intros ??. apply L5; OK.
     }
     eapply (FubiniIntegralSeries_Strong (fun k : nat => (1 / fact k) * 1 * SeriesC (λ x0 : nat, RInt (λ x1 : R, NegExp_ρ (L + 1) x0 x1 * F x0 x1) 0 1))); OK.
     { rewrite ex_seriesC_nat.
@@ -1123,14 +1077,7 @@ Qed.
       { rewrite ex_seriesC_nat.
         apply ex_seriesC_scal_r.
         apply ex_seriesC_scal_l.
-        apply (ex_SeriesC_nat_shiftN_r (L + 1)%nat).
-        rewrite /compose//=.
-        replace (λ x0 : nat, exp (- (x0 + (L + 1) - (L + 1))%nat))
-          with (λ x0 : nat, exp (- x0)%nat).
-        { apply ex_exp_geo_series. }
-        funexti.
-        do 3 f_equal.
-        OK.
+        apply ex_seriesC_exp_shifted.
       }
       { intros ???.
         split.
@@ -1181,36 +1128,11 @@ Qed.
     rewrite SeriesC_nat.
     symmetry.
 
-    have L3 : ∀ n n0 : nat, PCts2 (λ x y : R, B F L x n n0 y) 0 1 0 1.
-    { intros ??.
-      apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
-      { apply PCts_const_x. apply RealDecrTrial_μ_PCts. }
-      { apply PCts_const_x.
-        PCts_auto_derive.
-      }
-      { apply PCts_const_y. apply NegExp_ρ_PCts. }
-      { apply PCts_const_y. apply HPcts. }
-    }
+    have L3 : ∀ n n0 : nat, PCts2 (λ x y : R, B F L x n n0 y) 0 1 0 1
+      := fun _ _ => B_PCts2 HPcts.
 
-    have L5 : ∀ n n0 : nat, ∀ x x0 : R, 0 <= x <= 1 → 0 <= x0 <= 1 → 0 <= B F L x n n0 x0.
-    { intros ??????.
-      rewrite /B.
-      apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
-        { apply RealDecrTrial_μnn. OK. }
-        { apply Iverson_nonneg. }
-        { apply NegExp_ρ_nn. }
-        { apply Hbound. OK. }
-    }
-    have L4 : ∀ n : nat, ∀ x x0, PCts (λ x1 : R, B F L x n x0 x1) 0 1.
-    { intros ???.
-      apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
-      { PCts_auto_derive.
-      }
-      { PCts_auto_derive.
-      }
-      { apply NegExp_ρ_PCts. }
-      { apply HPcts. }
-    }
+    have L5 := @B_nn _ L _ Hbound.
+    have L4 := B_PCts_y HPcts.
 
     have L1 : ∀ n x, 0 < x < 1 → 0 <= SeriesC (λ k : nat, RInt (λ x0 : R, B F L x n k x0) 0 1).
     { intros ???.
@@ -1218,14 +1140,8 @@ Qed.
       intros ?.
       apply RInt_ge_0; OK.
       { apply PCts_RInt. apply L4. }
-      intros ??.
-      apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
-      { apply RealDecrTrial_μnn. OK. }
-      { apply Iverson_nonneg. }
-      { apply NegExp_ρ_nn. }
-      { apply Hbound. OK. }
+      intros ??. apply L5; OK.
     }
-
 
     eapply (FubiniIntegralSeries_Strong (fun n0 => ((* 1 / fact n*) 1 * 1 * exp (- (n0 - (L + 1))%nat) * M))); OK.
     { intros ???.
@@ -1236,14 +1152,7 @@ Qed.
     { rewrite ex_seriesC_nat.
       apply ex_seriesC_scal_r.
       apply ex_seriesC_scal_l.
-      apply (ex_SeriesC_nat_shiftN_r (L + 1)%nat).
-      rewrite /compose//=.
-      replace (λ x0 : nat, exp (- (x0 + (L + 1) - (L + 1))%nat))
-        with (λ x0 : nat, exp (- x0)%nat).
-      { apply ex_exp_geo_series. }
-      funexti.
-      do 3 f_equal.
-      OK.
+      apply ex_seriesC_exp_shifted.
     }
     { intros ???.
       rewrite Rabs_right.
@@ -1354,38 +1263,12 @@ Qed.
       f_equal; funexti.
     }
 
-    have L3 : ∀ a b, PCts2 (λ x y : R, B F L y a b x) 0 1 0 1.
-    { intros ??.
-      apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
-      { apply PCts_const_y. apply RealDecrTrial_μ_PCts. }
-      { apply PCts_const_y.
-        PCts_auto_derive.
-      }
-      { apply PCts_const_x. apply NegExp_ρ_PCts. }
-      { apply PCts_const_x. apply HPcts. }
-    }
+    have L3 : ∀ a b, PCts2 (λ x y : R, B F L y a b x) 0 1 0 1
+      := fun _ _ => B_PCts2_swap HPcts.
 
-    have L4 : ∀ (a : nat) (b : nat), ∀ x, PCts (λ x0 : R, B F L x0 a b x) 0 1.
-    { intros ???.
-      apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
-      { apply RealDecrTrial_μ_PCts. }
-      { PCts_auto_derive.
-      }
-      { PCts_auto_derive.
-      }
-      { PCts_auto_derive.
-      }
-    }
+    have L4 := B_PCts_x HPcts.
 
-    have L5 : ∀ n n0 : nat, ∀ x x0 : R, 0 <= x <= 1 → 0 <= x0 <= 1 → 0 <= B F L x n n0 x0.
-    { intros ??????.
-      rewrite /B.
-      apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
-        { apply RealDecrTrial_μnn. OK. }
-        { apply Iverson_nonneg. }
-        { apply NegExp_ρ_nn. }
-        { apply Hbound. OK. }
-    }
+    have L5 := @B_nn _ L _ Hbound.
 
     have HB2 : ∀ a b, ex_RInt (λ x0 : R, RInt (λ x : R, B F L x a b x0) 0 1) 0 1.
     { intros ??.
@@ -1497,14 +1380,7 @@ Qed.
       }
       { apply ex_seriesC_scal_r.
         apply ex_seriesC_scal_l.
-        apply (ex_SeriesC_nat_shiftN_r (L + 1)%nat).
-        rewrite /compose//=.
-        replace (λ x0 : nat, exp (- (x0 + (L + 1) - (L + 1))%nat))
-          with (λ x0 : nat, exp (- x0)%nat).
-        { apply ex_exp_geo_series. }
-        funexti.
-        do 3 f_equal.
-        OK.
+        apply ex_seriesC_exp_shifted.
       }
     }
     { rewrite ex_seriesC_nat.
@@ -1525,14 +1401,7 @@ Qed.
           }
           apply ex_seriesC_scal_r.
           apply ex_seriesC_scal_l.
-          apply (ex_SeriesC_nat_shiftN_r (L + 1)%nat).
-          rewrite /compose//=.
-          replace (λ x0 : nat, exp (- (x0 + (L + 1) - (L + 1))%nat))
-            with (λ x0 : nat, exp (- x0)%nat).
-          { apply ex_exp_geo_series. }
-          funexti.
-          do 3 f_equal.
-          OK.
+          apply ex_seriesC_exp_shifted.
         }
         right.
         rewrite -SeriesC_scal_l.
@@ -1561,37 +1430,11 @@ Qed.
     2: { f_equal; funexti. rewrite SeriesC_nat. done. }
     symmetry.
 
-    have L3 : ∀ n n0 : nat,  PCts2 (λ x y : R, B F L y n k x) 0 1 0 1 .
-    { intros ??.
-      apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
-      { apply PCts_const_y. apply RealDecrTrial_μ_PCts. }
-      { apply PCts_const_x.
-        PCts_auto_derive.
-      }
-      { apply PCts_const_x. apply NegExp_ρ_PCts. }
-      { apply PCts_const_x. apply HPcts. }
-    }
+    have L3 : ∀ n n0 : nat, PCts2 (λ x y : R, B F L y n k x) 0 1 0 1
+      := fun _ _ => B_PCts2_swap HPcts.
 
-    have L5 : ∀ n n0 : nat, ∀ x x0 : R, 0 <= x <= 1 → 0 <= x0 <= 1 → 0 <= B F L x n n0 x0.
-    { intros ??????.
-      rewrite /B.
-      apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
-        { apply RealDecrTrial_μnn. OK. }
-        { apply Iverson_nonneg. }
-        { apply NegExp_ρ_nn. }
-        { apply Hbound. OK. }
-    }
-    have L4 : ∀ n : nat, ∀ x1 x0, PCts (λ x : R, B F L x n x0 x1) 0 1.
-    { intros ???.
-      apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
-      { apply RealDecrTrial_μ_PCts. }
-      { PCts_auto_derive.
-      }
-      { PCts_auto_derive.
-      }
-      { PCts_auto_derive.
-      }
-    }
+    have L5 := @B_nn _ L _ Hbound.
+    have L4 := B_PCts_x HPcts.
 
     have L1 : ∀ n x0, 0 < x0 < 1 → 0 <= SeriesC (λ k : nat, RInt (λ x : R, B F L x n k x0) 0 1).
     { intros ???.
@@ -1599,12 +1442,7 @@ Qed.
       intros ?.
       apply RInt_ge_0; OK.
       { apply PCts_RInt. apply L4. }
-      intros ??.
-      apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
-      { apply RealDecrTrial_μnn. OK. }
-      { apply Iverson_nonneg. }
-      { apply NegExp_ρ_nn. }
-      { apply Hbound. OK. }
+      intros ??. apply L5; OK.
     }
 
     symmetry.
@@ -1786,14 +1624,7 @@ Qed.
     }
     { apply ex_seriesC_scal_r.
       apply ex_seriesC_scal_l.
-      apply (ex_SeriesC_nat_shiftN_r (L)%nat).
-      rewrite /compose//=.
-      replace (λ x0 : nat, exp (- (x0 + (L) - (L))%nat))
-        with (λ x0 : nat, exp (- x0)%nat).
-      { apply ex_exp_geo_series. }
-      funexti.
-      do 3 f_equal.
-      OK.
+      apply (ex_seriesC_exp_shifted L).
     }
     { intros ?.
       apply ex_RInt_mult.
@@ -1988,14 +1819,7 @@ Qed.
           }
           { apply ex_seriesC_scal_r.
             apply ex_seriesC_scal_l.
-            apply (ex_SeriesC_nat_shiftN_r (L + 1)%nat).
-            rewrite /compose//=.
-            replace (λ x0 : nat, exp (- (x0 + (L + 1) - (L + 1))%nat))
-               with (λ x0 : nat, exp (- x0)%nat).
-            { apply ex_exp_geo_series. }
-            funexti.
-            do 3 f_equal.
-            OK.
+            apply ex_seriesC_exp_shifted.
           }
         }
         { replace (λ n : nat, SeriesC (λ k : nat, 1 / fact n * exp (- (k - (L + 1))%nat) * M))
@@ -2360,13 +2184,7 @@ Qed.
         apply (ex_seriesC_le _ (λ x : nat, exp (- ((x - L)%nat)) * M)).
         2: {
           apply ex_seriesC_scal_r.
-          apply (ex_SeriesC_nat_shiftN_r L).
-          rewrite /compose//=.
-          replace (λ x : nat, exp (- (x + L - L)%nat)) with (λ x : nat, exp (- x)).
-          { apply ex_exp_geo_series. }
-          funexti.
-          do 3 f_equal.
-          rewrite //=; OK.
+          apply (ex_seriesC_exp_shifted L).
         }
         intros ?.
         have HH : (0 <= RInt (λ x0 : R, Iverson (le (L + 1)) n * exp (- (x0 + (n - L)%nat)) * F n x0) 0 1).
@@ -2448,13 +2266,7 @@ Qed.
         apply (ex_seriesC_le _ (λ x : nat, exp (- ((x - L)%nat)) * M)).
         2: {
           apply ex_seriesC_scal_r.
-          apply (ex_SeriesC_nat_shiftN_r L).
-          rewrite /compose//=.
-          replace (λ x : nat, exp (- (x + L - L)%nat)) with (λ x : nat, exp (- x)).
-          { apply ex_exp_geo_series. }
-          funexti.
-          do 3 f_equal.
-          rewrite //=; OK.
+          apply (ex_seriesC_exp_shifted L).
         }
         intros ?.
         have HH : (0 <= RInt (λ x0 : R, Iverson (le (L + 1)) n * exp (- (x0 + (n - L)%nat)) * F n x0) 0 1).
@@ -2510,13 +2322,7 @@ Qed.
         apply (ex_seriesC_le _ (λ x : nat, exp (- ((x - L)%nat)) * M)).
         2: {
           apply ex_seriesC_scal_r.
-          apply (ex_SeriesC_nat_shiftN_r L).
-          rewrite /compose//=.
-          replace (λ x : nat, exp (- (x + L - L)%nat)) with (λ x : nat, exp (- x)).
-          { apply ex_exp_geo_series. }
-          funexti.
-          do 3 f_equal.
-          rewrite //=; OK.
+          apply (ex_seriesC_exp_shifted L).
         }
         intros ?.
         have HH : (0 <= RInt (λ x0 : R, Iverson (eq L) n * exp (- (x0 + (n - L)%nat)) * F n x0) 0 1).
