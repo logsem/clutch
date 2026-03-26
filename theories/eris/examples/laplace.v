@@ -2144,7 +2144,7 @@ Section AccuracyBound.
       eapply (@Laplace_exist1 (1+1) _ _ (λ x : R, AccF L (x))); OK.
       { intros x. rewrite /AccF.
         split.
-        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { iverson_sum_nonneg. }
         { apply Rplus_le_compat; apply Iverson_le_1. }
       }
       by apply AccF_IPCts.
@@ -2176,7 +2176,7 @@ Section AccuracyBound.
       apply (@Laplace_exist2 (1+1) _ _ (λ x : R, AccF L (x))); OK.
       { intros x. rewrite /AccF.
         split.
-        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { iverson_sum_nonneg. }
         { apply Rplus_le_compat; apply Iverson_le_1. }
       }
       by apply AccF_IPCts.
@@ -2213,7 +2213,7 @@ Section AccuracyBound.
       apply (@Laplace_exist2 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
       { intros x. rewrite /AccF.
         split.
-        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { iverson_sum_nonneg. }
         { apply Rplus_le_compat; apply Iverson_le_1. }
       }
       by apply AccF_IPCts.
@@ -2244,7 +2244,7 @@ Section AccuracyBound.
       apply (@Laplace_exist1 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
       { intros x. rewrite /AccF.
         split.
-        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { iverson_sum_nonneg. }
         { apply Rplus_le_compat; apply Iverson_le_1. }
       }
       by apply AccF_IPCts.
@@ -2283,7 +2283,7 @@ Section AccuracyBound.
       apply (@Laplace_exist2 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
       { intros x. rewrite /AccF.
         split.
-        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { iverson_sum_nonneg. }
         { apply Rplus_le_compat; apply Iverson_le_1. }
       }
       by apply AccF_IPCts.
@@ -2344,7 +2344,7 @@ Section AccuracyBound.
       apply (@Laplace_exist1 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
       { intros x. rewrite /AccF.
         split.
-        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { iverson_sum_nonneg. }
         { apply Rplus_le_compat; apply Iverson_le_1. }
       }
       by apply AccF_IPCts.
@@ -2401,11 +2401,11 @@ Section AccuracyBound.
       { intros ?; split.
         { apply Rmult_le_pos.
           { apply Rexp_nn. }
-          { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+          { iverson_sum_nonneg. }
         }
         { apply Rmult_le_compat; OK.
           { apply Rexp_nn. }
-          { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+          { iverson_sum_nonneg. }
           { apply Rplus_le_compat; apply Iverson_le_1. }
         }
       }
@@ -2478,7 +2478,7 @@ Section AccuracyBound.
       iApply (wp_Laplace E (M := (1 + 1)) (fun r => AccF ((ln (/ β)) / powerRZ 2 logε) (r - μ)) _ _ μ with "[Hε]").
       { intros x. rewrite /AccF.
         split.
-        { apply Rplus_le_le_0_compat; apply Iverson_nonneg. }
+        { iverson_sum_nonneg. }
         { apply Rplus_le_compat; apply Iverson_le_1. }
       }
       { replace (λ r : R, AccF (ln (/ β) / powerRZ 2 logε) (r - μ)) with (λ r : R, AccF (ln (/ β) / powerRZ 2 logε ) (- μ + r)) by (funexti; f_equal; OK).

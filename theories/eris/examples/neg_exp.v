@@ -2825,7 +2825,7 @@ Section program.
         rewrite /hx.
         intro n.
         split.
-        { apply Rplus_le_le_0_compat; apply Iverson_Rmult_nonneg.
+        { iverson_sum_nonneg.
           { apply Hnn. OK. }
           { eapply NegExp_CreditV_nn; OK. intros ???. apply Hnn; OK. }
         }
