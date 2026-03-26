@@ -256,6 +256,26 @@ Section Symmetric.
   Definition NegExpSymm_Closed_CreditV (F : R → R) : R :=
     RInt_gen (fun x => NegExpSymm_Closed x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
 
+  Lemma NegExpSymm_Closed_nn x : 0 <= NegExpSymm_Closed x.
+  Proof. apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn|lra]. Qed.
+
+  Lemma exp_div2_nn x : 0 <= exp (- x) / 2.
+  Proof. apply Rcomplements.Rdiv_le_0_compat; [apply Rexp_nn|lra]. Qed.
+
+  Lemma exp_div2_F_bound {M} {F : R → R} (HBound : ∀ x, 0 <= F x <= M) x :
+    0 <= exp (- Rabs x) / 2 * F x <= exp (- x) * (/ 2 * M).
+  Proof.
+    split.
+    { apply Rmult_le_pos; [apply exp_div2_nn|apply HBound]. }
+    { rewrite Rdiv_def Rmult_assoc.
+      apply Rmult_le_compat.
+      { apply Rexp_nn. }
+      { apply Rmult_le_pos; [lra|apply HBound]. }
+      { apply exp_mono, Ropp_le_contravar, RRle_abs. }
+      { apply Rmult_le_compat; [lra|apply HBound|lra|apply HBound]. }
+    }
+  Qed.
+
   Lemma NegExpSymm_CreditV_eq {M} {F : R → R} (HF : IPCts F) (HBound : ∀ x, 0 <= F x <= M) :
     NegExpSymm_Closed_CreditV F = NegExpSymm_CreditV (fun b n x => F (bzu_to_R b n x)).
   Proof.
@@ -295,27 +315,16 @@ Section Symmetric.
         { apply IPCts_cts. intros ?. apply Laplace_continuous. }
         by apply IPCts_opp.
       }
-      { intros ?.
-        split.
-        { apply Rmult_le_pos; [|apply HBound].
-          apply Rcomplements.Rdiv_le_0_compat; OK.
-          apply Rexp_nn.
-        }
-        { rewrite Rdiv_def.
-          rewrite Rmult_assoc.
-          apply Rmult_le_compat.
+      { intros ?. split.
+        { apply Rmult_le_pos; [apply exp_div2_nn|apply HBound]. }
+        { rewrite Rdiv_def Rmult_assoc. apply Rmult_le_compat.
           { apply Rexp_nn. }
-          { apply Rmult_le_pos; OK. apply HBound. }
-          { apply exp_mono.
-            apply Ropp_le_contravar.
-            apply RRle_abs.
-          }
-          { apply Rmult_le_compat; OK; apply HBound. }
+          { apply Rmult_le_pos; [lra|apply HBound]. }
+          { apply exp_mono. apply Ropp_le_contravar. etrans; last eapply RRle_abs. lra. }
+          { apply Rmult_le_compat; [lra|apply HBound|lra|apply HBound]. }
         }
       }
-      { apply ex_RInt_gen_scal_r.
-        apply ex_RInt_gen_exp'.
-      }
+      { apply ex_RInt_gen_scal_r, ex_RInt_gen_exp'. }
     }
 
     have Lem2 : ex_RInt_gen (λ x : R, exp (- Rabs x) / 2 * F x) (at_point 0) (Rbar_locally Rbar.p_infty).
@@ -332,27 +341,8 @@ Section Symmetric.
         intros ?.
         apply Laplace_continuous.
       }
-      { intros ?.
-        split.
-        { apply Rmult_le_pos; [|apply HBound].
-          apply Rcomplements.Rdiv_le_0_compat; OK.
-          apply Rexp_nn.
-        }
-        { rewrite Rdiv_def.
-          rewrite Rmult_assoc.
-          apply Rmult_le_compat.
-          { apply Rexp_nn. }
-          { apply Rmult_le_pos; OK. apply HBound. }
-          { apply exp_mono.
-            apply Ropp_le_contravar.
-            apply RRle_abs.
-          }
-          { apply Rmult_le_compat; OK; apply HBound. }
-        }
-      }
-      { apply ex_RInt_gen_scal_r.
-        apply ex_RInt_gen_exp'.
-      }
+      { intros ?. apply exp_div2_F_bound; done. }
+      { apply ex_RInt_gen_scal_r, ex_RInt_gen_exp'. }
     }
 
     rewrite -(@RInt_gen_Chasles R_CompleteNormedModule (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty)
@@ -409,8 +399,7 @@ Section Symmetric.
     { intros ???.
       split.
       { apply Rmult_le_pos; [|apply HBound].
-        apply Rcomplements.Rdiv_le_0_compat; OK.
-        apply Rexp_nn.
+        apply exp_div2_nn.
       }
       { rewrite Rdiv_def Rmult_assoc.
         apply Rmult_le_compat.
@@ -438,11 +427,10 @@ Section Symmetric.
       { intros ?.
         split.
         { apply Rmult_le_pos; [|apply HBound].
-          apply Rcomplements.Rdiv_le_0_compat; OK.
-          apply Rexp_nn.
+          apply exp_div2_nn.
         }
         { apply Rmult_le_compat.
-          { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+          { apply exp_div2_nn. }
           { apply HBound. }
           { apply Rmult_le_compat_r; OK.
             apply exp_mono.
@@ -483,7 +471,7 @@ Section Symmetric.
       2: {
         apply Rle_ge.
         apply Rmult_le_pos.
-        { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+        { apply exp_div2_nn. }
         { apply HBound. }
       }
       rewrite Rmult_comm.
@@ -507,7 +495,7 @@ Section Symmetric.
     }
     { intros ???.
       apply Rmult_le_pos.
-      { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+      { apply exp_div2_nn. }
       { apply HBound. }
     }
     { lra. }
@@ -568,8 +556,7 @@ Section Symmetric.
       intros ???.
       split.
       { apply Rmult_le_pos; [|apply HBound].
-        apply Rcomplements.Rdiv_le_0_compat; OK.
-        apply Rexp_nn.
+        apply exp_div2_nn.
       }
       { rewrite Rdiv_def Rmult_assoc.
         apply Rmult_le_compat.
@@ -605,11 +592,10 @@ Section Symmetric.
       { intros ?.
         split.
         { apply Rmult_le_pos; [|apply HBound].
-          apply Rcomplements.Rdiv_le_0_compat; OK.
-          apply Rexp_nn.
+          apply exp_div2_nn.
         }
         { apply Rmult_le_compat.
-          { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+          { apply exp_div2_nn. }
           { apply HBound. }
           { apply Rmult_le_compat_r; OK.
             apply exp_mono.
@@ -661,7 +647,7 @@ Section Symmetric.
       2: {
         apply Rle_ge.
         apply Rmult_le_pos.
-        { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+        { apply exp_div2_nn. }
         { apply HBound. }
       }
       rewrite Rmult_comm.
@@ -687,7 +673,7 @@ Section Symmetric.
     { rewrite /NegExpSymm_Closed.
       intros ???.
       apply Rmult_le_pos.
-      { apply Rcomplements.Rdiv_le_0_compat; OK. apply Rexp_nn. }
+      { apply exp_div2_nn. }
       { apply HBound. }
     }
     { lra. }
@@ -787,6 +773,14 @@ Section Laplace0.
   Definition Laplace0_CreditV (ε : R) (F : R → R) : R :=
     RInt_gen (fun x => Laplace0_μ ε x * F x) (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty).
 
+  Lemma Laplace0_μ_nn {ε} (He : 0 < ε) x : 0 <= Laplace0_μ ε x.
+  Proof.
+    rewrite /Laplace0_μ.
+    apply Rmult_le_pos; [lra|].
+    rewrite Rdiv_def.
+    apply Rmult_le_pos; [apply Rexp_nn|lra].
+  Qed.
+
   Lemma Laplace_CreditV_Scale {M} (ε : R) (F : R → R) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) (He : 0 < ε) :
     Laplace0_CreditV ε F = NegExpSymm_Closed_CreditV (λ r : R, F (r / ε)).
   Proof.
@@ -859,8 +853,7 @@ Section Laplace0.
       { intros ?.
         split.
         { apply Rmult_le_pos; [|apply Hnn].
-          apply Rcomplements.Rdiv_le_0_compat; OK.
-          apply Rexp_nn.
+          apply exp_div2_nn.
         }
         { rewrite Rdiv_def.
           rewrite Rmult_assoc.
@@ -916,8 +909,7 @@ Section Laplace0.
         split.
         { apply Rmult_le_pos; [|apply Hnn ].
           apply Rmult_le_pos; OK.
-          apply Rcomplements.Rdiv_le_0_compat; OK.
-          apply Rexp_nn.
+          apply exp_div2_nn.
         }
         { rewrite (Rmult_assoc ε).
           rewrite (Rmult_assoc ε).
@@ -996,8 +988,7 @@ Section Laplace0.
       { intros ?.
         split.
         { apply Rmult_le_pos; [|apply Hnn].
-          apply Rcomplements.Rdiv_le_0_compat; OK.
-          apply Rexp_nn.
+          apply exp_div2_nn.
         }
         { rewrite Rdiv_def.
           rewrite Rmult_assoc.
@@ -1035,8 +1026,7 @@ Section Laplace0.
       { intros ?.
         split.
         { apply Rmult_le_pos; [|apply Hnn ].
-          apply Rcomplements.Rdiv_le_0_compat; OK.
-          apply Rexp_nn.
+          apply exp_div2_nn.
         }
         { rewrite Rdiv_def.
           rewrite Rmult_assoc.
@@ -1654,21 +1644,11 @@ Section Laplace.
     }
     { intros; split.
       { apply Rmult_le_pos.
-        { rewrite /Laplace0_μ.
-          apply Rmult_le_pos; OK.
-          rewrite Rdiv_def.
-          apply Rmult_le_pos; OK.
-          apply Rexp_nn.
-        }
+        { apply Laplace0_μ_nn; OK. }
         { apply Hnn. }
       }
       { apply Rmult_le_compat.
-        { rewrite /Laplace0_μ.
-          apply Rmult_le_pos; OK.
-          rewrite Rdiv_def.
-          apply Rmult_le_pos; OK.
-          apply Rexp_nn.
-        }
+        { apply Laplace0_μ_nn; OK. }
         { apply Hnn. }
         { done. }
         { apply Hnn. }
@@ -1696,56 +1676,11 @@ Section Laplace.
   Lemma Laplace_exist2 {M} (ε μ : R) (F : R → R) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) (He : 0 < ε) :
     ex_RInt_gen (λ x : R, Laplace0_μ ε x * F (- x + μ)) (at_point 0) (Rbar_locally Rbar.p_infty).
   Proof.
-    eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, Laplace0_μ ε x * M)).
-    { apply IPCts_mult.
-      { apply Laplace0_IPCts. }
-      { apply IPCts_cts. apply Continuity.continuous_const. }
-    }
-    { apply IPCts_mult.
-      { apply Laplace0_IPCts. }
-      { apply (@IPCts_opp (λ x : R, F (x + μ))).
-        replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
-        by apply IPCts_shift.
-      }
-    }
-    { intros; split.
-      { apply Rmult_le_pos.
-        { rewrite /Laplace0_μ.
-          apply Rmult_le_pos; OK.
-          rewrite Rdiv_def.
-          apply Rmult_le_pos; OK.
-          apply Rexp_nn.
-        }
-        { apply Hnn. }
-      }
-      { apply Rmult_le_compat.
-        { rewrite /Laplace0_μ.
-          apply Rmult_le_pos; OK.
-          rewrite Rdiv_def.
-          apply Rmult_le_pos; OK.
-          apply Rexp_nn.
-        }
-        { apply Hnn. }
-        { done. }
-        { apply Hnn. }
-      }
-    }
-    { rewrite /Laplace0_μ.
-      apply (@ex_RInt_gen_scal_change_of_var (λ x : R, ε * (exp (- Rabs (x)) / 2) * M) ε); OK.
-      { intros ??.
-        eapply @ex_RInt_continuous.
-        intros ??.
-        apply @Continuity.continuous_mult; try apply Continuity.continuous_const.
-        apply @Continuity.continuous_mult; try apply Continuity.continuous_const.
-        apply @Laplace_continuous.
-      }
-      apply ex_RInt_gen_scal_r.
-      apply ex_RInt_gen_scal_l.
-      replace (λ x : R, exp (- Rabs x) / 2) with (λ x : R, /2 * exp (- Rabs x)) by (funexti; OK).
-      apply (@ex_RInt_gen_ext_eq_Ici (λ x : R, / 2 * exp (- x))).
-      { intros ??. rewrite Rabs_right; OK. }
-      eapply ex_RInt_gen_exp.
-    }
+    replace (λ x : R, Laplace0_μ ε x * F (- x + μ)) with (λ x : R, Laplace0_μ ε x * (fun r => F (- r)) (x + (- μ))) by (funexti; f_equal; f_equal; OK).
+    apply (@Laplace_exist1 M ε (-μ) (fun r => F (- r))).
+    { intros; apply Hnn. }
+    { apply IPCts_opp, HP. }
+    OK.
   Qed.
 
   Lemma Laplace_CreditV_eq {M} (ε μ : R) (F : R → R) (Hnn : ∀ r, 0 <= F r <= M) (HP : IPCts F) (He : 0 < ε) :
@@ -1761,14 +1696,9 @@ Section Laplace.
          with (λ x : R, Laplace0_μ ε (- μ + x) * F (- μ + x + μ)).
       2: { funexti; OK. repeat (f_equal; OK). }
       apply (@ex_RInt_gen_shift (λ x : R, Laplace0_μ ε x * F (x + μ)) (- μ)).
-      { intros ?.
-        apply IPCts_RInt.
-        apply IPCts_mult.
-        { apply Laplace0_IPCts. }
-        { replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
-          by apply IPCts_shift.
-        }
-      }
+      { intros ?. apply IPCts_RInt, IPCts_mult; [apply Laplace0_IPCts|].
+        replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
+        by apply IPCts_shift. }
       eapply @Laplace_exist1; OK.
     }
     { replace μ with (- (- μ)) by OK.
@@ -1776,14 +1706,9 @@ Section Laplace.
          with (λ x : R, Laplace0_μ ε (- μ + x) * F (- μ + x + μ)).
       2: { funexti; OK. repeat (f_equal; OK). }
       apply (@ex_RInt_gen_shift_neg (λ x : R, Laplace0_μ ε x * F (x + μ)) (- μ)).
-      { intros ?.
-        apply IPCts_RInt.
-        apply IPCts_mult.
-        { apply Laplace0_IPCts. }
-        { replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
-          by apply IPCts_shift.
-        }
-      }
+      { intros ?. apply IPCts_RInt, IPCts_mult; [apply Laplace0_IPCts|].
+        replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
+        by apply IPCts_shift. }
       (* Flip the negative side *)
       replace (λ x : R, Laplace0_μ ε x * F (x + μ))
          with (λ x : R, Laplace0_μ ε (- - x) * F (- -x + μ)) by (funexti; repeat (f_equal; OK)).
@@ -1865,14 +1790,9 @@ Section Laplace.
           eapply @Laplace_exist2; OK.
         }
       }
-      { intros ?.
-        apply IPCts_RInt.
-        apply IPCts_mult.
-        { apply Laplace0_IPCts. }
-        { replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
-          by apply IPCts_shift.
-        }
-      }
+      { intros ?. apply IPCts_RInt, IPCts_mult; [apply Laplace0_IPCts|].
+        replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
+        by apply IPCts_shift. }
       repeat (f_equal; OK).
       funexti.
       repeat (f_equal; OK).
@@ -1882,14 +1802,9 @@ Section Laplace.
       { replace (λ x : R, Laplace0_μ ε x * F (μ + x)) with  (λ x : R, Laplace0_μ ε x * F (x + μ)) by (funexti; repeat (f_equal; OK)).
         eapply @Laplace_exist1; OK.
       }
-      { intros ?.
-        apply IPCts_RInt.
-        apply IPCts_mult.
-        { apply Laplace0_IPCts. }
-        { replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
-          by apply IPCts_shift.
-        }
-      }
+      { intros ?. apply IPCts_RInt, IPCts_mult; [apply Laplace0_IPCts|].
+        replace (λ x : R, F (x + μ)) with (λ x : R, F (μ + x)) by (funexti; f_equal; OK).
+        by apply IPCts_shift. }
       rewrite Ropp_involutive.
       f_equal; funexti; f_equal; f_equal; OK.
     }
@@ -1972,6 +1887,13 @@ Section AccuracyBound.
     }
   Qed.
 
+  Lemma AccF_range L x : 0 <= AccF L x <= 1 + 1.
+  Proof.
+    rewrite /AccF. split.
+    { iverson_sum_nonneg. }
+    { apply Rplus_le_compat; apply Iverson_le_1. }
+  Qed.
+
   Lemma Laplace_Int_AccF {L} {μ ε} :
     0 <= L ->
     0 < ε →
@@ -1986,19 +1908,10 @@ Section AccuracyBound.
         with (λ x : R, Laplace0_μ ε (- μ + x) * AccF L (- μ + x)) by (funexti; repeat (f_equal; OK)).
       replace (at_point μ) with (at_point (- (- μ))) by (f_equal; OK).
       eapply (@ex_RInt_gen_shift (λ x : R, Laplace0_μ ε x * AccF L (x)) (- μ)).
-      { intros ?.
-        apply IPCts_RInt.
-        apply IPCts_mult.
-        { apply Laplace0_IPCts. }
-        { by apply AccF_IPCts. }
-      }
+      { intros ?. apply IPCts_RInt, IPCts_mult; [apply Laplace0_IPCts|by apply AccF_IPCts]. }
       replace (λ x : R, Laplace0_μ ε x * AccF L x) with (λ x : R, Laplace0_μ ε x * AccF L (x + 0)) by (funexti; repeat (f_equal; OK)).
       eapply (@Laplace_exist1 (1+1) _ _ (λ x : R, AccF L (x))); OK.
-      { intros x. rewrite /AccF.
-        split.
-        { iverson_sum_nonneg. }
-        { apply Rplus_le_compat; apply Iverson_le_1. }
-      }
+      { intros. apply AccF_range. }
       by apply AccF_IPCts.
     }
     { rewrite /Laplace_μ.
@@ -2006,12 +1919,7 @@ Section AccuracyBound.
       replace (λ r : R, Laplace0_μ ε (r - μ) * AccF L (r - μ))
         with (λ x : R, Laplace0_μ ε (- μ + x) * AccF L (- μ + x)) by (funexti; repeat (f_equal; OK)).
       apply (@ex_RInt_gen_shift_neg (λ x : R, Laplace0_μ ε x * AccF L (x)) (- μ)).
-      { intros ?.
-        apply IPCts_RInt.
-        apply IPCts_mult.
-        { apply Laplace0_IPCts. }
-        { by apply AccF_IPCts. }
-      }
+      { intros ?. apply IPCts_RInt, IPCts_mult; [apply Laplace0_IPCts|by apply AccF_IPCts]. }
       replace (λ x : R, Laplace0_μ ε x * AccF L x)
          with (λ x : R, Laplace0_μ ε (- - x) * AccF L (- - x)) by (funexti; repeat (f_equal; OK)).
       apply (@ex_RInt_gen_neg_change_of_var_rev (λ x : R, Laplace0_μ ε (- x) * AccF L (- x))).
@@ -2026,11 +1934,7 @@ Section AccuracyBound.
           with (λ x : R, Laplace0_μ ε (x) * AccF L (- x + 0)).
       2: { funexti. rewrite /Laplace0_μ. rewrite -Rabs_Ropp. repeat (f_equal; OK). }
       apply (@Laplace_exist2 (1+1) _ _ (λ x : R, AccF L (x))); OK.
-      { intros x. rewrite /AccF.
-        split.
-        { iverson_sum_nonneg. }
-        { apply Rplus_le_compat; apply Iverson_le_1. }
-      }
+      { intros. apply AccF_range. }
       by apply AccF_IPCts.
     }
     rewrite /plus//=.
@@ -2044,18 +1948,12 @@ Section AccuracyBound.
     rewrite -(@RInt_gen_shift_neg (λ r : R, Laplace_μ ε μ (μ + r) * AccF L (r)) (- μ)); first last.
     { replace (λ r : R, Laplace_μ ε μ (μ + r) * AccF L r) with (λ r : R, Laplace_μ ε μ (μ + - - r) * AccF L (- - r)) by (funexti; repeat (f_equal; OK)).
       apply (@ex_RInt_gen_neg_change_of_var_rev (λ r : R, Laplace_μ ε μ (μ + - r) * AccF L (- r))).
-      { intros ??.
-        apply IPCts_RInt.
-        apply IPCts_mult.
-        { apply (@IPCts_opp (λ x : R, Laplace_μ ε μ (μ + x))).
-          apply IPCts_shift.
+      { intros ??. apply IPCts_RInt, IPCts_mult.
+        { apply (@IPCts_opp (λ x, Laplace_μ ε μ (μ + x))), IPCts_shift.
           rewrite /Laplace_μ.
           replace (λ x : R, Laplace0_μ ε (x - μ)) with (λ x : R, Laplace0_μ ε (- μ + x)) by (funexti; repeat (f_equal; OK)).
-          apply IPCts_shift.
-          apply Laplace0_IPCts. }
-        { apply (@IPCts_opp).
-          by apply AccF_IPCts. }
-      }
+          apply IPCts_shift, Laplace0_IPCts. }
+        apply IPCts_opp; by apply AccF_IPCts. }
       replace (λ r : R, Laplace_μ ε μ (μ + - r) * AccF L (- r))
          with (λ r : R, Laplace0_μ ε r * AccF L (- r + 0)).
       2: { funexti. rewrite /Laplace_μ. rewrite /Laplace0_μ.
@@ -2063,21 +1961,15 @@ Section AccuracyBound.
            repeat (f_equal; OK).
       }
       apply (@Laplace_exist2 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
-      { intros x. rewrite /AccF.
-        split.
-        { iverson_sum_nonneg. }
-        { apply Rplus_le_compat; apply Iverson_le_1. }
-      }
+      { intros. apply AccF_range. }
       by apply AccF_IPCts.
     }
     { intros ?.
       apply IPCts_RInt.
-      apply IPCts_mult.
-      { rewrite /Laplace_μ.
-        replace (λ x : R, Laplace0_μ ε (μ + x - μ)) with  (λ x : R, Laplace0_μ ε x)  by (funexti; repeat (f_equal; OK)).
-        apply Laplace0_IPCts.
-      }
-      { by apply AccF_IPCts. }
+      apply IPCts_mult; [|by apply AccF_IPCts].
+      rewrite /Laplace_μ.
+      replace (λ x : R, Laplace0_μ ε (μ + x - μ)) with (λ x : R, Laplace0_μ ε x) by (funexti; repeat (f_equal; OK)).
+      apply Laplace0_IPCts.
     }
 
     rewrite -(@RInt_gen_shift (λ r : R, Laplace_μ ε μ (μ + r) * AccF L (r)) (- μ)); first last.
@@ -2094,38 +1986,26 @@ Section AccuracyBound.
            repeat (f_equal; OK).
       }
       apply (@Laplace_exist1 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
-      { intros x. rewrite /AccF.
-        split.
-        { iverson_sum_nonneg. }
-        { apply Rplus_le_compat; apply Iverson_le_1. }
-      }
+      { intros. apply AccF_range. }
       by apply AccF_IPCts.
     }
     { intros ?.
       apply IPCts_RInt.
-      apply IPCts_mult.
-      { rewrite /Laplace_μ.
-        replace (λ x : R, Laplace0_μ ε (μ + x - μ)) with  (λ x : R, Laplace0_μ ε x)  by (funexti; repeat (f_equal; OK)).
-        apply Laplace0_IPCts.
-      }
-      { by apply AccF_IPCts. }
+      apply IPCts_mult; [|by apply AccF_IPCts].
+      rewrite /Laplace_μ.
+      replace (λ x : R, Laplace0_μ ε (μ + x - μ)) with (λ x : R, Laplace0_μ ε x) by (funexti; repeat (f_equal; OK)).
+      apply Laplace0_IPCts.
     }
 
     rewrite -RInt_gen_neg_change_of_var; first last.
     { replace (λ r : R, Laplace_μ ε μ (μ + r) * AccF L r) with (λ r : R, Laplace_μ ε μ (μ + - - r) * AccF L (- - r)) by (funexti; repeat (f_equal; OK)).
       apply (@ex_RInt_gen_neg_change_of_var_rev (λ r : R, Laplace_μ ε μ (μ + - r) * AccF L (- r))).
-      { intros ??.
-        apply IPCts_RInt.
-        apply IPCts_mult.
-        { apply (@IPCts_opp (λ x : R, Laplace_μ ε μ (μ + x))).
-          apply IPCts_shift.
+      { intros ??. apply IPCts_RInt, IPCts_mult.
+        { apply (@IPCts_opp (λ x, Laplace_μ ε μ (μ + x))), IPCts_shift.
           rewrite /Laplace_μ.
           replace (λ x : R, Laplace0_μ ε (x - μ)) with (λ x : R, Laplace0_μ ε (- μ + x)) by (funexti; repeat (f_equal; OK)).
-          apply IPCts_shift.
-          apply Laplace0_IPCts. }
-        { apply (@IPCts_opp).
-          by apply AccF_IPCts. }
-      }
+          apply IPCts_shift, Laplace0_IPCts. }
+        apply IPCts_opp; by apply AccF_IPCts. }
       replace (λ r : R, Laplace_μ ε μ (μ + - r) * AccF L (- r))
          with (λ r : R, Laplace0_μ ε r * AccF L (- r + 0)).
       2: { funexti. rewrite /Laplace_μ. rewrite /Laplace0_μ.
@@ -2133,11 +2013,7 @@ Section AccuracyBound.
            repeat (f_equal; OK).
       }
       apply (@Laplace_exist2 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
-      { intros x. rewrite /AccF.
-        split.
-        { iverson_sum_nonneg. }
-        { apply Rplus_le_compat; apply Iverson_le_1. }
-      }
+      { intros. apply AccF_range. }
       by apply AccF_IPCts.
     }
     { intros ??.
@@ -2194,11 +2070,7 @@ Section AccuracyBound.
            repeat (f_equal; OK).
       }
       apply (@Laplace_exist1 (1+1) _ 0 (λ x : R, AccF L (x))); OK.
-      { intros x. rewrite /AccF.
-        split.
-        { iverson_sum_nonneg. }
-        { apply Rplus_le_compat; apply Iverson_le_1. }
-      }
+      { intros. apply AccF_range. }
       by apply AccF_IPCts.
     }
     rewrite RInt_gen_scal_l; [|done].
@@ -2316,11 +2188,7 @@ Section AccuracyBound.
     iApply (pgl_wp_mono with "[Hε Happrox]").
     2: {
       iApply (wp_Laplace E (M := (1 + 1)) (fun r => AccF ((ln (/ β)) / powerRZ 2 logε) (r - μ)) _ _ μ with "[Hε]").
-      { intros x. rewrite /AccF.
-        split.
-        { iverson_sum_nonneg. }
-        { apply Rplus_le_compat; apply Iverson_le_1. }
-      }
+      { intros. apply AccF_range. }
       { replace (λ r : R, AccF (ln (/ β) / powerRZ 2 logε) (r - μ)) with (λ r : R, AccF (ln (/ β) / powerRZ 2 logε ) (- μ + r)) by (funexti; f_equal; OK).
         apply IPCts_shift.
         apply AccF_IPCts.
