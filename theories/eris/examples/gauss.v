@@ -285,18 +285,8 @@ Section credits.
   Proof.
     rewrite /G1_h.
     destruct b.
-    { rewrite Iverson_True; OK.
-      rewrite Iverson_False; OK.
-      rewrite Rmult_1_l Rmult_0_l.
-      rewrite Rplus_0_r.
-      apply Hnn.
-    }
-    { rewrite Iverson_False; OK.
-      rewrite Iverson_True; OK.
-      rewrite Rmult_1_l Rmult_0_l.
-      rewrite Rplus_0_l.
-      apply G1_CreditV_ub; OK.
-    }
+    { simp_iverson. apply Hnn. }
+    { simp_iverson. apply G1_CreditV_ub; OK. }
   Qed.
 
   Lemma G1_f_ub {F k M} (Hnn : ∀ r, 0 <= F r <= M) : G1_f F k <= M.
@@ -558,13 +548,7 @@ Section credits.
   Proof.
     rewrite /G2_g.
     rewrite /G2_s.
-    rewrite Iverson_True; OK.
-    rewrite Iverson_False; OK.
-    rewrite Iverson_False; OK.
-    rewrite Iverson_True; OK.
-    repeat rewrite Rmult_1_l.
-    repeat rewrite Rmult_0_l.
-    rewrite Rplus_0_r Rplus_0_l.
+    simp_iverson.
     suffices H : exp (- t * (2 * r + t) / 2) * M + (1 - exp (- t * (2 * r + t) / 2)) * M <= M; last first.
     { rewrite -Rmult_plus_distr_r. OK. }
     etrans; last apply H.
@@ -2971,12 +2955,7 @@ Section program.
           { apply Rmax_l. }
         }
         iApply (ec_eq with "Hε").
-        rewrite /BNEHalf_CreditV/BNEHalf_μ.
-        rewrite Iverson_True; [|intuition].
-        rewrite Iverson_False; [|intuition].
-        rewrite Iverson_False; [|intuition].
-        rewrite Iverson_True; [|intuition].
-        lra.
+        rewrite /BNEHalf_CreditV/BNEHalf_μ. simp_iverson. lra.
       }
     }
     iIntros (v) "(#IH & [%b [-> [Hε _]]])".
@@ -2986,16 +2965,12 @@ Section program.
       iExists n.
       iSplitR; first done.
       iApply (ec_eq with "Hε").
-      rewrite /G1_h.
-      rewrite Iverson_True; [|intuition]; rewrite Iverson_False; [|intuition].
-      by rewrite Rmult_1_l Rmult_0_l Rplus_0_r.
+      rewrite /G1_h. by simp_iverson.
     }
     { wp_pure.
       iApply "IH".
       iApply (ec_eq with "Hε").
-      rewrite /G1_h.
-      rewrite Iverson_False; [|intuition]; rewrite Iverson_True; [|intuition].
-      by rewrite Rmult_0_l Rmult_1_l Rplus_0_l.
+      rewrite /G1_h. by simp_iverson.
     }
   Qed.
 

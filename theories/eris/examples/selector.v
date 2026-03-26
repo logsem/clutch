@@ -282,15 +282,7 @@ Section credits.
     rewrite /Bii_CreditV.
     rewrite /C_CreditV.
     rewrite /Bii_h.
-    rewrite Iverson_True;  [rewrite Rmult_1_l|done].
-    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_r|done].
-    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_r|done].
-    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_l|simpl;lra].
-    rewrite Iverson_True;  [rewrite Rmult_1_l|done].
-    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_r|simpl;lra].
-    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_l|simpl;lra].
-    rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_l|simpl;lra].
-    rewrite Iverson_True;  [rewrite Rmult_1_l|done].
+    simp_iverson.
     rewrite /Bii_g.
     (* Evaluate the inner integral *)
     rewrite -RInt_add.
@@ -1401,24 +1393,15 @@ Section program.
       iModIntro; iExists true; iFrame.
       iSplitR; first done.
       iApply (ec_eq with "Hε").
-      rewrite /Bii_h//=.
-      rewrite Iverson_True; [rewrite Rmult_1_l|done].
-      rewrite Iverson_False; [rewrite Rmult_0_l|done].
-      rewrite Iverson_False; [rewrite Rmult_0_l|done].
-      lra.
+      rewrite /Bii_h//=. simp_iverson. lra.
     }
     { wp_pures.
       wp_apply wp_init; first done.
       iIntros (r) "Hr".
       iApply (wp_lazy_real_presample_adv_comp _ _ r _ (Bii_h F x 1) (Bii_g F x)); auto.
       { intros ??. apply Bii_g_nn; auto. }
-      { rewrite /Bii_h.
-        rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_l|simpl; lra].
-        rewrite Iverson_True; [rewrite Rmult_1_l|done].
-        rewrite Iverson_False; [rewrite Rmult_0_l Rplus_0_r|simpl; lra].
-        apply Bii_g_correct.
-        done.
-      }
+      { rewrite /Bii_h. simp_iverson.
+        apply Bii_g_correct. done. }
       iSplitL "Hr"; [done|].
       iSplitL "Hε"; [done|].
       iIntros (rv) "(% & Hε & Hr)".
@@ -1454,11 +1437,7 @@ Section program.
       iModIntro; iExists false; iFrame.
       iSplitR; first done.
       iApply (ec_eq with "Hε").
-      rewrite /Bii_h//=.
-      rewrite Iverson_False; [rewrite Rmult_0_l|lra].
-      rewrite Iverson_False; [rewrite Rmult_0_l|lra].
-      rewrite Iverson_True; [rewrite Rmult_1_l|done].
-      lra.
+      rewrite /Bii_h//=. simp_iverson. lra.
     }
   Qed.
 
@@ -1488,15 +1467,14 @@ Section program.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
       { apply Iverson_Rmult_nonneg; apply Hnn. }
       { apply Iverson_Rmult_nonneg; apply S_nn_1; auto. apply Hnn. }
-      rewrite Iverson_True; [rewrite Rmult_1_l|done].
-      done.
+      by simp_iverson.
     }
     { wp_pures.
       rewrite /S_g.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
       { apply Iverson_Rmult_nonneg; apply Hnn. }
       { apply Iverson_Rmult_nonneg; apply S_nn_1; auto. apply Hnn. }
-      rewrite Iverson_True; [rewrite Rmult_1_l|lra].
+      simp_iverson.
       wp_bind (Bii _ _).
       iApply (pgl_wp_mono_frame (□ _ ∗ _  ∗ _)%I with "[Hx Hε ] [IH Hy Hz]"); last first.
       { iSplitR; first iExact "IH". iSplitL "Hy"; first iExact "Hy". iExact "Hz". }
@@ -1510,8 +1488,7 @@ Section program.
         iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
         { apply Iverson_Rmult_nonneg; apply Hnn. }
         { apply Iverson_Rmult_nonneg; apply S_CreditV_nn; auto. apply Hnn. }
-        rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
-        done.
+        by simp_iverson.
       }
       { do 2 wp_pure.
         rewrite -Nat2Z.inj_add.
@@ -1521,8 +1498,7 @@ Section program.
         iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
         { apply Iverson_Rmult_nonneg; apply Hnn. }
         { apply Iverson_Rmult_nonneg; apply S_CreditV_nn; auto. apply Hnn. }
-        rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
-        iFrame.
+        simp_iverson. iFrame.
         iPureIntro; auto.
       }
     }
@@ -1553,15 +1529,14 @@ Section program.
       iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
       { apply Iverson_Rmult_nonneg; apply Hnn. }
       { apply Iverson_Rmult_nonneg; apply S_nn_1; auto. apply Hnn. }
-      rewrite Iverson_True; [rewrite Rmult_1_l|done].
-      done.
+      by simp_iverson.
     }
     { wp_pures.
       rewrite /S_g.
       iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
       { apply Iverson_Rmult_nonneg; apply Hnn. }
       { apply Iverson_Rmult_nonneg; apply S_nn_1; auto. apply Hnn. }
-      rewrite Iverson_True; [rewrite Rmult_1_l|lra].
+      simp_iverson.
       wp_bind (Bii _ _).
       iApply (pgl_wp_mono_frame (_ )%I with "[Hx Hε ] Hz"); last first.
       { iApply (@wp_Bii _ (S_hz F k x _ _)); last iFrame; last done.
@@ -1574,8 +1549,7 @@ Section program.
         iPoseProof (ec_split _ _ with "Hε") as "(Hε & _)".
         { apply Iverson_Rmult_nonneg; apply Hnn. }
         { apply Iverson_Rmult_nonneg; apply S_CreditV_nn; auto. apply Hnn. }
-        rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
-        done.
+        by simp_iverson.
       }
       { wp_pure.
         iApply wp_S; auto.
@@ -1584,8 +1558,7 @@ Section program.
         iPoseProof (ec_split _ _ with "Hε") as "(_ & Hε)".
         { apply Iverson_Rmult_nonneg; apply Hnn. }
         { apply Iverson_Rmult_nonneg; apply S_CreditV_nn; auto. apply Hnn. }
-        rewrite Iverson_True; [rewrite Rmult_1_l|intuition].
-        iFrame. by iPureIntro.
+        simp_iverson. iFrame. by iPureIntro.
       }
     }
   Qed.

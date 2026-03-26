@@ -21,7 +21,14 @@ Ltac solve_iverson_side :=
   first [ done
         | cbv; tauto
         | cbv; done
-        | tauto ].
+        | tauto
+        | lia
+        | lra
+        | simpl; lia
+        | simpl; lra
+        | intuition done
+        | intuition lia
+        | intuition lra ].
 
 (** Simplify a single Iverson bracket applied to a concrete value.
     Uses [assert] + [rewrite] to fully commit only when the side condition
