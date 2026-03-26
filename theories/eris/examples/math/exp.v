@@ -1,4 +1,4 @@
-From clutch.eris.examples.math Require Import prelude series iverson sets improper piecewise.
+From clutch.eris.examples.math Require Import prelude series iverson sets improper piecewise auto_derive_tactics.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -405,8 +405,7 @@ Lemma exp_neg_RInt : ex_RInt (λ x : R, exp (- x ^ 2 / 2)) 0 1.
 Proof.
   eapply (ex_RInt_continuous (V := R_CompleteNormedModule)).
   intros ??.
-  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-  by auto_derive.
+  continuous_auto_derive.
 Qed.
 
 (** Definite integral of terms in the exp power series *)
@@ -444,7 +443,7 @@ rewrite RInt_Derive.
   replace (fun x1 : R => x1 ^ (M + 1) / fact (M + 1)) with (fun x1 : R => x1 ^ (M + 1) * / fact (M + 1)); last first.
   { apply functional_extensionality; intros ?; lra. }
   replace (Derive.Derive (λ x1 : R, x1 ^ (M + 1) * / fact (M + 1))) with (fun x1 : R => x1 ^ M / fact M).
-  { apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)). by auto_derive. }
+  { continuous_auto_derive. }
   apply functional_extensionality; intros ?.
   rewrite Derive.Derive_scal_l.
   rewrite Derive.Derive_pow; [|by auto_derive].
@@ -505,8 +504,7 @@ Proof.
   { intros b.
     apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
     intros z Hz.
-    apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-    by auto_derive. }
+    continuous_auto_derive. }
   apply RInt_gen_ex_Ici.
   2: { intros b. apply Hex. }
   exists M.
@@ -517,7 +515,7 @@ Proof.
     replace (M - M * exp (- b)) with (- M * exp (- b) - - M * exp (- 0)) by (rewrite E0; lra).
     apply (is_RInt_derive (V := R_CompleteNormedModule) (λ x : R, - M * exp (- x)) (λ x : R, M * exp (- x))).
     - intros x0 Hx0. auto_derive; [done | lra].
-    - intros x0 Hx0. apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)). by auto_derive.
+    - intros x0 Hx0. continuous_auto_derive.
   }
   rewrite /filterlimi /= /filter_le /= /filtermapi /=.
   intros P HP.
@@ -576,14 +574,13 @@ Proof.
   { intros b.
     apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
     intros z Hz.
-    apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-    by auto_derive. }
+    continuous_auto_derive. }
   have Hint : ∀ b,  is_RInt (λ r : R, exp (- r)) L b (exp (- L) - exp (- b)).
   { intros b Hb.
     replace (exp (- L) - exp (- b)) with (- exp (- b) - - exp (- L)) by lra.
     apply (is_RInt_derive (V := R_CompleteNormedModule) (λ r : R, - exp (- r)) (λ r : R, exp (- r))).
     - intros x0 Hx0. auto_derive; [done | lra].
-    - intros x0 Hx0. apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)). by auto_derive. }
+    - intros x0 Hx0. continuous_auto_derive. }
   have Hlimit : filterlimi (λ b : R, is_RInt (λ r : R, exp (- r)) L b) (Rbar_locally Rbar.p_infty) (locally (exp (- L))).
   { rewrite /filterlimi /= /filter_le /= /filtermapi /=.
     intros P HP.
@@ -642,8 +639,7 @@ Proof.
       apply IPCts_PCts.
       apply IPCts_cts.
       intros.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     - intros.
       apply PCts_mult.
       + apply IPCts_PCts.
@@ -651,8 +647,7 @@ Proof.
       + apply IPCts_PCts.
         apply IPCts_cts.
         intros.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
     - intros.
       split.
       + apply Rmult_le_pos.
@@ -668,8 +663,7 @@ Proof.
       apply IPCts_PCts.
       apply IPCts_cts.
       intros.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     - intros.
       apply PCts_mult.
       + apply IPCts_PCts.
@@ -677,8 +671,7 @@ Proof.
       + apply IPCts_PCts.
         apply IPCts_cts.
         intros.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
     - intros.
       split.
       + apply Rmult_le_pos.
@@ -719,8 +712,7 @@ Proof.
     apply IPCts_RInt.
     apply IPCts_cts.
     intros.
-    apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-    by auto_derive.
+    continuous_auto_derive.
   }
   erewrite <-RInt_gen_Chasles; last done; last first.
   { apply ex_RInt_gen_at_point.
@@ -731,8 +723,7 @@ Proof.
     - apply IPCts_PCts.
       apply IPCts_cts.
       intros.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive. }
+      continuous_auto_derive. }
   replace (RInt_gen _ (at_point _) (at_point _)) with 0; first by rewrite plus_zero_l.
   symmetry.
   erewrite (RInt_gen_ext _ (λ _, 0)).
@@ -755,8 +746,7 @@ Proof.
     + apply IPCts_PCts.
       apply IPCts_cts.
       intros.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
 Qed. 
 
 Lemma ex_exp_geo_series : ex_seriesC (λ x : nat, exp (- x)).
@@ -795,6 +785,5 @@ Proof.
   apply ElemFct.continuous_exp_comp.
   apply (@Continuity.continuous_opp R_UniformSpace R_AbsRing R_NormedModule (λ x, Rabs (e * x)) z).
   apply @ElemFct.continuous_Rabs_comp.
-  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-  by auto_derive.
+  continuous_auto_derive.
 Qed.

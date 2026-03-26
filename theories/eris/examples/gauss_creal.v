@@ -5,6 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial bern_geo half_bern_neg_exp bern_iter selector lazy_real_adequacy gauss lazy_real_expr.
 From clutch.eris.examples Require Import math.
+From clutch.eris.examples.math Require Import auto_derive_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -59,15 +60,13 @@ Section Symmetric.
     { apply IPCts_cts.
       rewrite /Gauss_ρ//=.
       intros ?.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
     { apply IPCts_mult.
       { apply IPCts_cts.
         rewrite /Gauss_ρ//=.
         intros ?.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       apply HP.
     }
@@ -112,8 +111,7 @@ Section Symmetric.
       { apply IPCts_cts.
         rewrite /Gauss_ρ//=.
         intros ?.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       apply IPCts_opp, HP.
     }
@@ -197,8 +195,7 @@ Section Symmetric.
         { apply IPCts_cts.
           rewrite /Gauss_ρ//=.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         apply IPCts_opp, HP.
       }
@@ -208,8 +205,7 @@ Section Symmetric.
         { apply IPCts_cts.
           rewrite /Gauss_ρ//=.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         apply HP.
       }
@@ -221,8 +217,7 @@ Section Symmetric.
         { apply IPCts_cts.
           rewrite /Gauss_ρ//=.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         apply IPCts_opp, HP.
       }
@@ -263,8 +258,7 @@ Section Symmetric.
         { rewrite /GaussSymm_ρ//=.
           apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
           intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { rewrite /bzu_to_R//=.
           (* Change of variables, then IPCts *)
@@ -363,8 +357,7 @@ Section Symmetric.
         { apply IPCts_cts.
           rewrite /Gauss_ρ//=.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         apply HP.
       }
@@ -395,8 +388,7 @@ Section Symmetric.
         { rewrite /GaussSymm_ρ//=.
           apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
           intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { rewrite /bzu_to_R//=.
           (* Change of variables, then IPCts *)
@@ -539,8 +531,7 @@ Section Symmetric.
               { apply ex_RInt_mult.
                 { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
                   intros ??.
-                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                  by auto_derive.
+                  continuous_auto_derive.
                 }
                 apply PCts_RInt, HP.
               }
@@ -557,21 +548,18 @@ Section Symmetric.
               2: {
                 apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
                 intros ??.
-                apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                by auto_derive.
+                continuous_auto_derive.
               }
               apply RInt_le; OK.
               2: {
                 apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
                 intros ??.
-                apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                by auto_derive.
+                continuous_auto_derive.
               }
               { apply ex_RInt_mult.
                 { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
                   intros ??.
-                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                  by auto_derive.
+                  continuous_auto_derive.
                  }
                 apply PCts_RInt, HP.
                }
@@ -635,8 +623,7 @@ Section Symmetric.
           { intros ?.
             apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
             intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
+            continuous_auto_derive.
           }
         }
         rewrite -SeriesC_plus; OK.
@@ -649,8 +636,7 @@ Section Symmetric.
           { rewrite /GaussSymm_ρ//=.
             apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
             intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
+            continuous_auto_derive.
           }
           { apply PCts_RInt, HP. }
         }
@@ -659,8 +645,7 @@ Section Symmetric.
           { rewrite /GaussSymm_ρ//=.
             apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
             intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
+            continuous_auto_derive.
           }
           { apply PCts_RInt, HP. }
         }
@@ -779,8 +764,7 @@ Section Adequacy.
     }
     { apply IPCts_cts.
       intros ?.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
     { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
          with (λ x : R, exp (- (- x) ^ 2 / 2) * / GaussNorm).
@@ -789,8 +773,7 @@ Section Adequacy.
       { intros ??.
         apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
         intros  ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       apply ex_RInt_gen_scal_r.
       apply ex_RInt_gen_gauss.
@@ -840,8 +823,7 @@ Section Adequacy.
     }
     { apply IPCts_cts.
       intros ?.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
     { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
          with (λ x : R, exp (- (- x) ^ 2 / 2) * / GaussNorm).
@@ -850,8 +832,7 @@ Section Adequacy.
       { intros ??.
         apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
         intros  ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       apply ex_RInt_gen_scal_r.
       apply ex_RInt_gen_gauss.

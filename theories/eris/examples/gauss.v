@@ -5,7 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial bern_geo half_bern_neg_exp bern_iter selector lazy_real_adequacy.
 From clutch.eris.examples Require Import math.
-From clutch.eris.examples.math Require Import iverson_tactics.
+From clutch.eris.examples.math Require Import iverson_tactics auto_derive_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -140,10 +140,7 @@ Section credits.
       rewrite Rplus_0_l; apply pos_INR.
     }
     { intros n.
-      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-      intros ??.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      ex_RInt_auto_derive.
     }
   Qed.
 
@@ -372,10 +369,7 @@ Section credits.
     rewrite /G2_g.
     apply (ex_RInt_plus (V := R_CompleteNormedModule)).
     { apply ex_RInt_mult.
-      { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros z Hz.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+      { ex_RInt_auto_derive.
       }
       { rewrite /G2_s.
         rewrite Iverson_True; OK.
@@ -385,10 +379,7 @@ Section credits.
       }
     }
     { apply ex_RInt_mult.
-      { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros z Hz.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+      { ex_RInt_auto_derive.
       }
       { rewrite /G2_s.
         rewrite Iverson_False; OK.
@@ -469,8 +460,7 @@ Section credits.
         { intros ?.
           apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
           intros z Hz.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
       }
     }
@@ -537,10 +527,7 @@ Section credits.
       { rewrite Rplus_0_l; apply pos_INR. }
     }
     { intros n.
-      apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-      intros ??.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      ex_RInt_auto_derive.
     }
   Qed.
 
@@ -1104,10 +1091,7 @@ Section credits.
         { intros ?.
           apply ex_RInt_mult.
           { apply ex_RInt_const.  }
-          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
+          { ex_RInt_auto_derive.
           }
         }
       + intros x0 _.
@@ -1119,8 +1103,7 @@ Section credits.
         apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
         intros ??.
         rewrite /G2_μ.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply ex_RInt_const. }
   Qed.
@@ -1199,10 +1182,7 @@ Section credits.
       }
       { intros ?.
         apply ex_RInt_Rmult.
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        ex_RInt_auto_derive.
       }
     }
 
@@ -1277,8 +1257,7 @@ Section credits.
         rewrite Rmax_right; OK.
         intros ??.
         rewrite /G2_μ.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_const_x. apply HPcs. }
       { apply PCts_const_y.
@@ -1296,8 +1275,7 @@ Section credits.
           apply @Continuity.continuous_mult.
           { apply Continuity.continuous_const. }
           apply clamp_continuous.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         apply (UniformConverge_Series G1_μ).
         { intros ??.
@@ -1367,10 +1345,7 @@ Section credits.
         }
         { intros ?.
           apply ex_RInt_Rmult.
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          ex_RInt_auto_derive.
         }
       }
       { intros ??.
@@ -1414,10 +1389,7 @@ Section credits.
         }
         { intros ?.
           apply ex_RInt_Rmult.
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          ex_RInt_auto_derive.
         }
       }
       apply RInt_ext.
@@ -1485,10 +1457,7 @@ Section credits.
         apply pow_incr.
         split; [rewrite Rplus_0_l; apply pos_INR | lra].
       + intros n0.
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros z Hz.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        auto_derive; done.
+        ex_RInt_auto_derive.
     - intros x n0 ?.
       rewrite (RInt_ext _ (fun x1 => G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * (G2_μ n0 x1 * F n0 x1))).
       2: { intros; lra. }
@@ -1611,8 +1580,7 @@ Section credits.
       + apply ex_RInt_mult.
         * apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
           intros z Hz.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          auto_derive; done.
+          continuous_auto_derive.
         * apply ex_RInt_const.
   Qed.
 
@@ -1675,15 +1643,13 @@ Section credits.
       { apply PCts_const_y.
         apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        auto_derive; done.
+        continuous_auto_derive.
       }
       { apply PCts_const_x.
         apply PCts_cts.
         intros ??.
         rewrite /G2_μ.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        auto_derive; done.
+        continuous_auto_derive.
       }
       { apply PCts_const_x.
         apply HPcts.
@@ -1708,15 +1674,13 @@ Section credits.
         { apply PCts_const_y.
           apply PCts_cts.
           intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          auto_derive; done.
+          continuous_auto_derive.
         }
         { apply PCts_const_x.
           apply PCts_cts.
           intros ??.
           rewrite /G2_μ.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          auto_derive; done.
+          continuous_auto_derive.
         }
         { apply PCts_const_x. apply HPcts. }
       }
@@ -1899,10 +1863,7 @@ Section credits.
         2: { apply ex_RInt_const. }
         { apply @ex_RInt_Rmult'.
           apply @ex_RInt_Rmult.
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          auto_derive; done.
+          ex_RInt_auto_derive.
         }
         { intros ??.
           apply Rmult_le_compat; OK.
@@ -1939,10 +1900,7 @@ Section credits.
           f_equal. funexti.
           rewrite RInt_Rmult.
           2: {
-            apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            auto_derive; done.
+            ex_RInt_auto_derive.
           }
           f_equal. funexti.
           OK.
@@ -2007,15 +1965,13 @@ Section credits.
     { apply PCts_const_y.
       apply PCts_cts.
       intros ??.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      auto_derive; done.
+      continuous_auto_derive.
     }
     { apply PCts_const_x.
       apply PCts_cts.
       intros ??.
       rewrite /G2_μ.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      auto_derive; done.
+      continuous_auto_derive.
     }
     { apply PCts_const_x.
       apply HPcts.
@@ -2041,8 +1997,7 @@ Section credits.
         apply ex_RInt_mult; [apply ex_RInt_const|].
         apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        auto_derive; done.
+        continuous_auto_derive.
       }
       { intros ??.
         apply Rmult_le_pos; [|apply Hbound].
@@ -2073,10 +2028,7 @@ Section credits.
         { apply ex_RInt_mult; [|apply ex_RInt_const].
           apply ex_RInt_mult; [|apply ex_RInt_const].
           apply ex_RInt_mult; [apply ex_RInt_const|].
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          auto_derive; done.
+          ex_RInt_auto_derive.
         }
         { intros ??.
           apply Rmult_le_pos; [|apply Hbound].
@@ -2098,25 +2050,16 @@ Section credits.
         2: {
           apply ex_RInt_mult; [|apply ex_RInt_const].
           apply ex_RInt_mult; [apply ex_RInt_const|].
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          auto_derive; done.
+          ex_RInt_auto_derive.
         }
         rewrite -@RInt_Rmult'.
         2: {
           apply ex_RInt_mult; [apply ex_RInt_const|].
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          auto_derive; done.
+          ex_RInt_auto_derive.
         }
         rewrite -@RInt_Rmult.
         2: {
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          auto_derive; done.
+          ex_RInt_auto_derive.
         }
         apply Rmult_le_compat; OK.
         2: { apply Hbound. }
@@ -2124,10 +2067,7 @@ Section credits.
         { apply Rmult_le_pos; [|apply G2_μ_nn; OK].
           apply Rmult_le_pos; [apply G1_μ_nn|].
           apply RInt_ge_0; OK.
-          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            auto_derive; done.
+          { ex_RInt_auto_derive.
           }
           intros ??.
           suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
@@ -2160,10 +2100,7 @@ Section credits.
         { apply Rmult_le_pos.
           { apply G1_μ_nn. }
           apply RInt_ge_0; OK.
-          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            auto_derive; done.
+          { ex_RInt_auto_derive.
           }
           intros ??.
           suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
@@ -2179,10 +2116,7 @@ Section credits.
         { apply Rmult_le_compat; OK.
           { apply G1_μ_nn. }
           { apply RInt_ge_0; OK.
-            { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-              intros ??.
-              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-              auto_derive; done.
+            { ex_RInt_auto_derive.
             }
             intros ??.
             suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
@@ -2201,10 +2135,7 @@ Section credits.
             rewrite Rabs_right; OK.
             apply Rle_ge.
             apply RInt_ge_0; OK.
-            { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-              intros ??.
-              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-              auto_derive; done.
+            { ex_RInt_auto_derive.
             }
             intros ??.
             suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
@@ -2218,10 +2149,7 @@ Section credits.
             apply pos_INR.
           }
           etrans; first eapply (abs_RInt_le_const  _ _ _ 1); OK.
-          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            auto_derive; done.
+          { ex_RInt_auto_derive.
           }
           intros ??.
           rewrite Rabs_right.
@@ -2245,10 +2173,7 @@ Section credits.
     2: {
       funexti.
       rewrite RInt_Rmult.
-      2: { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            auto_derive; done.
+      2: { ex_RInt_auto_derive.
       }
       f_equal; funexti. OK.
     }
@@ -2321,10 +2246,7 @@ Section credits.
     - intros n0.
       apply (ex_RInt_ext (λ x0 : R, G1_μ n0 * (1 - exp (- x0 * (2 * n0 + x0) / 2)) * (G2_μ n x * F n x))).
       + intros; lra.
-      + apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros z Hz.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        auto_derive; done.
+      + ex_RInt_auto_derive.
   Qed.
 
   Lemma G2_f_expectation {F M} (HPcts : ∀ x1 : nat, PCts (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
@@ -2351,10 +2273,7 @@ Section credits.
            with (λ x : R, exp (- x * (2 * k + x) / 2) * (F k x)); last first.
          { funexti. OK. }
          apply ex_RInt_mult.
-         { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-           intros ??.
-           apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-           by auto_derive.
+         { ex_RInt_auto_derive.
          }
          { apply Hex. }
        }
@@ -2366,10 +2285,7 @@ Section credits.
             with (λ x : R, (1 - exp (- x * (2 * k + x) / 2)) * (G2_CreditV F)); last first.
          { funexti. OK. }
          apply ex_RInt_mult.
-         { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-           intros ??.
-           apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-           by auto_derive.
+         { ex_RInt_auto_derive.
          }
          { apply ex_RInt_const. }
         }
@@ -2391,10 +2307,7 @@ Section credits.
       { apply Rmult_le_pos; [apply G1_μ_nn|].
         apply RInt_ge_0; OK.
         { apply ex_RInt_mult.
-          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
+          { ex_RInt_auto_derive.
           }
           { replace (λ y : R, 1 * F n y + 0 * G2_CreditV F) with (F n) by (funexti; OK).
             apply Hex.
@@ -2404,10 +2317,7 @@ Section credits.
       }
       { have Hex' : ex_RInt (λ x : R, exp (- x * (2 * n + x) / 2) * (1 * F n x + 0 * G2_CreditV F)) 0 1.
         { apply ex_RInt_mult.
-          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
+          { ex_RInt_auto_derive.
           }
           { replace (λ y : R, 1 * F n y + 0 * G2_CreditV F) with (F n) by (funexti; OK).
             apply Hex.
@@ -2472,10 +2382,7 @@ Section credits.
       { apply Rmult_le_pos; [apply G1_μ_nn|].
         apply RInt_ge_0; OK.
         { apply ex_RInt_mult.
-          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
+          { ex_RInt_auto_derive.
           }
           { replace (λ y : R, 0 * F n y + 1 * G2_CreditV F) with (fun y : R => G2_CreditV F) by (funexti; OK).
             apply ex_RInt_const.
@@ -2490,10 +2397,7 @@ Section credits.
       }
       { have Hex' : ex_RInt (λ x : R, (1 - exp (- x * (2 * n + x) / 2)) * (0 * F n x + 1 * G2_CreditV F)) 0 1.
         { apply ex_RInt_mult.
-          { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
+          { ex_RInt_auto_derive.
           }
           { replace (λ y : R, 0 * F n y + 1 * G2_CreditV F) with (fun y : R => G2_CreditV F) by (funexti; OK).
             apply ex_RInt_const.
@@ -2554,10 +2458,7 @@ Section credits.
       rewrite Iverson_True; [|intuition].
       rewrite Iverson_False; [|intuition].
       apply ex_RInt_mult.
-      { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+      { ex_RInt_auto_derive.
       }
       { replace (λ y : R, 1 * F k y + 0 * G2_CreditV F) with (F k) by (funexti; OK).
         apply Hex.
@@ -2602,10 +2503,7 @@ Section credits.
       { intros ?.
         apply ex_RInt_mult.
         { apply ex_RInt_const.  }
-        { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+        { ex_RInt_auto_derive.
         }
       }
     }
@@ -2631,8 +2529,7 @@ Section credits.
           { apply ex_RInt_const. }
           apply ex_RInt_continuous.
           intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { replace (λ y : R, 0 * F x y + 1 * G2_CreditV F) with (λ _ : R, G2_CreditV F) by (funexti; OK).
           apply ex_RInt_const.
@@ -2734,10 +2631,7 @@ Section credits.
     rewrite RInt_Rmult.
     2: {
       apply ex_RInt_mult.
-      { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+      { ex_RInt_auto_derive.
       }
       rewrite /G2_s//=.
       apply (ex_RInt_plus (V := R_CompleteNormedModule)); [|apply ex_RInt_const].
@@ -3095,20 +2989,17 @@ Section adequacy.
       apply IPCts_RInt.
       apply IPCts_cts.
       intros.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive. 
+      continuous_auto_derive.
     }
     apply (ex_RInt_gen_Ici_compare_PCts' (F:= λ x, exp (-x))).
     - intros. apply IPCts_PCts.
       apply IPCts_cts.
       intros.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive. 
+      continuous_auto_derive.
     - intros. apply IPCts_PCts.
       apply IPCts_cts.
       intros.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     - intros.
       split.
       + left. apply exp_pos.
@@ -3128,8 +3019,7 @@ Section adequacy.
       apply IPCts_RInt.
       apply IPCts_cts.
       intros.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
       Unshelve.
       apply _.
   Qed. 
@@ -3145,15 +3035,13 @@ Section adequacy.
       + intros; simpl; lra.
       + by apply Forall_nil.
       + intros. 
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
     - intros.
       apply Rcomplements.Rdiv_le_0_compat; last apply Norm2_nn.
       apply Rexp_nn.
     - intros. apply: ex_RInt_continuous.
       intros.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     - (* show improper integral exists,  *)
       apply ex_RInt_gen_div.
       apply ex_RInt_gen_gauss.
@@ -3212,8 +3100,7 @@ Section adequacy.
              apply ex_RInt_mult.
              ++ apply: ex_RInt_continuous.
                 intros.
-                apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                by auto_derive. 
+                continuous_auto_derive.
              ++ by apply PCts_RInt.
         * (* show improper integral exists, use ex_RInt_gen_Ici_compare_PCts' *)
           apply (ex_RInt_gen_Ici_compare_PCts' (F:= λ x0 : R, exp (- x0 ^ 2 / 2) / Norm2 * M)).
@@ -3221,15 +3108,13 @@ Section adequacy.
              apply IPCts_PCts.
              apply IPCts_cts.
              intros.
-             apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-             by auto_derive. 
+             continuous_auto_derive.
           -- intros.
              apply PCts_mult.
              ++ apply IPCts_PCts.
                 apply IPCts_cts.
                 intros.
-                apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                by auto_derive.
+                continuous_auto_derive.
              ++ apply PCts_unit_implies_all; [lra|done].
           -- intros. split.
              ++ apply Rmult_le_pos; last naive_solver.
@@ -3270,8 +3155,7 @@ Section adequacy.
           apply ex_RInt_mult.
           -- apply: ex_RInt_continuous.
              intros.
-             apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-             by auto_derive. 
+             continuous_auto_derive.
           -- apply PCts_RInt.
              apply PCts_unit_implies_all; last done.
              lra.

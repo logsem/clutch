@@ -1,5 +1,5 @@
 From Coquelicot Require Import Continuity.
-From clutch.eris.examples.math Require Import prelude continuity2 iverson sets.
+From clutch.eris.examples.math Require Import prelude continuity2 iverson sets auto_derive_tactics.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -419,8 +419,7 @@ Proof.
     unshelve epose proof H (x-r) _.
     { unfold Icc, Rmin, Rmax in *. repeat case_match; lra. }
     apply Continuity.continuous_comp; last done.
-    apply: Derive.ex_derive_continuous.
-    by auto_derive.
+    continuous_auto_derive.
 Qed.
 
 Lemma PCts_unit_implies_all_nat (F:nat -> R -> R) (n:nat):
@@ -824,13 +823,11 @@ Proof.
     apply Forall_cons in HLC as [H1 H2].
     intros. 
     apply Continuity.continuous_comp; last apply H1.
-    + apply: Derive.ex_derive_continuous.
-      by auto_derive.
+    + continuous_auto_derive.
     + unfold Icc, Rmin, Rmax in *. repeat case_match; lra.
   - intros x. 
     apply Continuity.continuous_comp; last done.
-    apply: Derive.ex_derive_continuous.
-    by auto_derive.
+    continuous_auto_derive.
 Qed. 
 
 Lemma IPCts_Iio L:
@@ -845,8 +842,7 @@ Proof.
     intros. repeat (case_bool_decide||case_match); lra.
   + apply Forall_singleton.
     intros ??.
-    apply: Derive.ex_derive_continuous.
-    by auto_derive.
+    continuous_auto_derive.
   + intros ??[eps Heps].
     exists eps.
     intros.
@@ -871,8 +867,7 @@ Proof.
     intros. repeat (case_bool_decide||case_match); lra.
   + apply Forall_singleton.
     intros ??.
-    apply: Derive.ex_derive_continuous.
-    by auto_derive.
+    continuous_auto_derive.
   + intros ??[eps Heps].
     exists eps.
     intros.
@@ -1260,8 +1255,7 @@ Proof.
   { rewrite /Icc//=. rewrite Rmin_left; try lra. intuition. lra. }
   apply Forall_singleton.
   intros ??.
-  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-  by auto_derive.
+  continuous_auto_derive.
 Qed.
 
 Definition rect_swap (rect : (R → R → R) * R * R * R * R) : (R → R → R) * R * R * R * R :=
@@ -1392,8 +1386,7 @@ Proof.
         specialize Hcont with (x / S).
         clear IH.
         apply Continuity.continuous_comp.
-        ** apply: Derive.ex_derive_continuous.
-           by auto_derive.
+        ** continuous_auto_derive.
         ** apply Hcont.
            rewrite /Rmin /Rmax in H |- *.
            assert (x = S * (x / S)) by (field; lra).
@@ -1404,8 +1397,7 @@ Proof.
         by inversion Hcont.
   - intros x.
     apply Continuity.continuous_comp.
-    + apply: Derive.ex_derive_continuous.
-      by auto_derive.
+    + continuous_auto_derive.
     + apply Hf0.
 Qed.
 

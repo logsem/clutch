@@ -5,7 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial.
 From clutch.eris.examples Require Import math.
-From clutch.eris.examples.math Require Import iverson_tactics.
+From clutch.eris.examples.math Require Import iverson_tactics auto_derive_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -18,8 +18,7 @@ Section pmf.
     rewrite /RealDecrTrial_μ0.
     apply PCts_cts.
     intros ??.
-    apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-    by auto_derive.
+    continuous_auto_derive.
   Qed.
 
   Lemma RealDecrTrial_μ_PCts {n} : PCts (λ y : R, RealDecrTrial_μ y 0 n) 0 1.
@@ -28,8 +27,7 @@ Section pmf.
     apply PCts_mult.
     { apply PCts_cts.
       intros ??.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
     apply RealDecrTrial_μ0_PCts.
   Qed.
@@ -83,8 +81,7 @@ Section pmf.
     2: {
       apply PCts_cts.
       intros ??.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
     apply Icc_PCts.
   Qed.
@@ -96,8 +93,7 @@ Section pmf.
     {
       apply PCts_cts.
       intros ??.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
     apply NegExp_ρ0_PCts.
   Qed.
@@ -232,14 +228,12 @@ Section credits.
   { apply (@ex_RInt_gen_Ici_compare_IPCts _ (fun x => M * exp (- x))).
     { apply IPCts_cts.
       intros ?.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
     { apply IPCts_mult; OK.
       apply IPCts_cts.
       intros ?.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
     { intros ?.
       split.
@@ -276,8 +270,7 @@ Section credits.
     { apply IPCts_RInt; OK. }
     { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
       intros ??.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
   }
 Qed.
@@ -428,8 +421,7 @@ Qed.
       apply @Continuity.continuous_mult.
       1: { apply @Continuity.continuous_const. }
       rewrite /RealDecrTrial_μ0.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
     { apply PCts_const_y. apply NegExp_ρ_PCts. }
     { apply PCts_const_y. apply HPcts. }
@@ -577,8 +569,7 @@ Qed.
     { apply PCts_const_x.
       apply PCts_cts.
       intros ??.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
     { apply PCts_const_x. apply NegExp_ρ_PCts. }
     { apply PCts_const_x. apply HPcts. }
@@ -595,8 +586,7 @@ Qed.
       { apply PCts_const_x.
         apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_const_y. apply NegExp_ρ_PCts. }
       { apply PCts_const_y. apply HPcts. }
@@ -606,13 +596,11 @@ Qed.
       apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply NegExp_ρ_PCts. }
       { apply HPcts. }
@@ -1046,8 +1034,7 @@ Qed.
       { apply PCts_const_x.
         apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_const_y. apply NegExp_ρ_PCts. }
       { apply PCts_const_y. apply HPcts. }
@@ -1057,13 +1044,11 @@ Qed.
       apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply NegExp_ρ_PCts. }
       { apply HPcts. }
@@ -1236,8 +1221,7 @@ Qed.
       { apply PCts_const_x.
         apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_const_y. apply NegExp_ρ_PCts. }
       { apply PCts_const_y. apply HPcts. }
@@ -1257,13 +1241,11 @@ Qed.
       apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply NegExp_ρ_PCts. }
       { apply HPcts. }
@@ -1418,8 +1400,7 @@ Qed.
       { apply PCts_const_y.
         apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_const_x. apply NegExp_ρ_PCts. }
       { apply PCts_const_x. apply HPcts. }
@@ -1431,18 +1412,15 @@ Qed.
       { apply RealDecrTrial_μ_PCts. }
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
     }
 
@@ -1637,8 +1615,7 @@ Qed.
       { apply PCts_const_x.
         apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_const_x. apply NegExp_ρ_PCts. }
       { apply PCts_const_x. apply HPcts. }
@@ -1659,18 +1636,15 @@ Qed.
       { apply RealDecrTrial_μ_PCts. }
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply PCts_cts.
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
     }
 
@@ -1883,8 +1857,7 @@ Qed.
       apply PCts_RInt.
       apply PCts_cts.
       intros ??.
-      apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-      by auto_derive.
+      continuous_auto_derive.
     }
   Qed.
 
@@ -2464,10 +2437,7 @@ Qed.
         { apply RInt_ge_0; OK.
           { apply ex_RInt_mult; [apply ex_RInt_mult|].
             { apply ex_RInt_const. }
-            { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-              intros ??.
-              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-              by auto_derive.
+            { ex_RInt_auto_derive.
             }
             { apply PCts_RInt, HPcts. }
           }
@@ -2484,10 +2454,7 @@ Qed.
         { eapply (abs_RInt_le_const _ _ _ (1 * exp (- ((n - L)%nat)) * M)); OK.
           { apply ex_RInt_mult; [apply ex_RInt_mult|].
             { apply ex_RInt_const. }
-            { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-              intros ??.
-              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-              by auto_derive.
+            { ex_RInt_auto_derive.
             }
             { apply PCts_RInt, HPcts. }
           }
@@ -2530,8 +2497,7 @@ Qed.
         apply ex_RInt_Rmult.
         apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       done.
     }
@@ -2559,10 +2525,7 @@ Qed.
         { apply RInt_ge_0; OK.
           { apply ex_RInt_mult; [apply ex_RInt_mult|].
             { apply ex_RInt_const. }
-            { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-              intros ??.
-              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-              by auto_derive.
+            { ex_RInt_auto_derive.
             }
             { apply PCts_RInt, HPcts. }
           }
@@ -2579,10 +2542,7 @@ Qed.
         { eapply (abs_RInt_le_const _ _ _ (1 * exp (- ((n - L)%nat)) * M)); OK.
           { apply ex_RInt_mult; [apply ex_RInt_mult|].
             { apply ex_RInt_const. }
-            { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-              intros ??.
-              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-              by auto_derive.
+            { ex_RInt_auto_derive.
             }
             { apply PCts_RInt, HPcts. }
           }
@@ -2627,10 +2587,7 @@ Qed.
         { apply RInt_ge_0; OK.
           { apply ex_RInt_mult; [apply ex_RInt_mult|].
             { apply ex_RInt_const. }
-            { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-              intros ??.
-              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-              by auto_derive.
+            { ex_RInt_auto_derive.
             }
             { apply PCts_RInt, HPcts. }
           }
@@ -2647,10 +2604,7 @@ Qed.
         { eapply (abs_RInt_le_const _ _ _ (1 * exp (- ((n - L)%nat)) * M)); OK.
           { apply ex_RInt_mult; [apply ex_RInt_mult|].
             { apply ex_RInt_const. }
-            { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-              intros ??.
-              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-              by auto_derive.
+            { ex_RInt_auto_derive.
             }
             { apply PCts_RInt, HPcts. }
           }
@@ -2690,8 +2644,7 @@ Qed.
         apply ex_RInt_Rmult.
         apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       2: {
         apply ex_RInt_mult.
@@ -2699,8 +2652,7 @@ Qed.
         apply ex_RInt_Rmult.
         apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
         intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       apply RInt_ext.
       rewrite Rmin_left; OK.

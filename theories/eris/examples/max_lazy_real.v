@@ -4,6 +4,7 @@ From Coquelicot Require SF_seq Hierarchy.
 From Coquelicot Require Import RInt RInt_analysis AutoDerive.
 From clutch.eris Require Import infinite_tape lazy_real.
 From clutch.eris.examples Require Import lazy_real half_bern_neg_exp math.
+From clutch.eris.examples.math Require Import auto_derive_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -363,11 +364,7 @@ Proof.
     2: {
       replace (λ x : R, RInt (λ _ : R, F x) 0 x) with (λ x : R, x * F x).
       { apply ex_RInt_mult.
-        { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
-        }
+        { ex_RInt_auto_derive. }
         { apply PCts_RInt; OK. }
       }
       funexti.

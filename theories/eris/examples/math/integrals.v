@@ -1,4 +1,4 @@
-From clutch.eris.examples.math Require Import prelude axioms iverson sets piecewise.
+From clutch.eris.examples.math Require Import prelude axioms iverson sets piecewise auto_derive_tactics.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -52,8 +52,7 @@ Lemma ex_RInt_pow {a b N} : ex_RInt (λ y : R, y ^ N) a b.
 Proof.
   apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
   intros ??.
-  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-  by auto_derive.
+  continuous_auto_derive.
 Qed.
 
 (** Integrability of sum *)
@@ -83,8 +82,7 @@ Proof.
   intros ?.
   apply (ex_RInt_comp_cts f (fun x => x ^ 2)); [|done].
   intros ?.
-  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-  by auto_derive.
+  continuous_auto_derive.
 Qed.
 
 (** Integrability of product *)
@@ -130,8 +128,7 @@ Proof.
   { intros ??. by auto_derive. }
   { intros ??.
     rewrite -H.
-    apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-    by auto_derive.
+    continuous_auto_derive.
   }
 Qed.
 

@@ -5,7 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial neg_exp lazy_real_expr.
 From clutch.eris.examples Require Import math.
-From clutch.eris.examples.math Require Import iverson_tactics.
+From clutch.eris.examples.math Require Import iverson_tactics auto_derive_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -78,10 +78,7 @@ Section Symmetric.
             { apply RInt_ge_0; try lra.
               { apply ex_RInt_mult.
                 { rewrite /NegExpSymm_ρ//=.
-                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                  intros ??.
-                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                  by auto_derive.
+                  ex_RInt_auto_derive.
                 }
                 { apply PCts_RInt, HP. }
               }
@@ -95,27 +92,18 @@ Section Symmetric.
             }
             { rewrite RInt_Rmult'.
               2: {
-                apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                intros ??.
-                apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                by auto_derive.
+                ex_RInt_auto_derive.
               }
               apply RInt_le; try lra.
               { apply ex_RInt_mult.
                 { rewrite /NegExpSymm_ρ//=.
-                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                  intros ??.
-                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                  by auto_derive.
+                  ex_RInt_auto_derive.
                 }
                 { apply PCts_RInt, HP. }
               }
               { apply ex_RInt_mult.
                 { rewrite /NegExpSymm_ρ//=.
-                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                  intros ??.
-                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                  by auto_derive.
+                  ex_RInt_auto_derive.
                 }
                 { apply ex_RInt_const. }
               }
@@ -148,10 +136,7 @@ Section Symmetric.
               }
             }
             { intros ?.
-              apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-              intros ??.
-              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-              by auto_derive.
+              ex_RInt_auto_derive.
             }
           }
         }
@@ -163,10 +148,7 @@ Section Symmetric.
             { apply RInt_ge_0; try lra.
               { apply ex_RInt_mult.
                 { rewrite /NegExpSymm_ρ//=.
-                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                  intros ??.
-                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                  by auto_derive.
+                  ex_RInt_auto_derive.
                 }
                 { apply PCts_RInt, HP. }
               }
@@ -180,27 +162,18 @@ Section Symmetric.
             }
             { rewrite RInt_Rmult'.
               2: {
-                apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                intros ??.
-                apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                by auto_derive.
+                ex_RInt_auto_derive.
               }
               apply RInt_le; try lra.
               { apply ex_RInt_mult.
                 { rewrite /NegExpSymm_ρ//=.
-                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                  intros ??.
-                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                  by auto_derive.
+                  ex_RInt_auto_derive.
                 }
                 { apply PCts_RInt, HP. }
               }
               { apply ex_RInt_mult.
                 { rewrite /NegExpSymm_ρ//=.
-                  apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                  intros ??.
-                  apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-                  by auto_derive.
+                  ex_RInt_auto_derive.
                 }
                 { apply ex_RInt_const. }
               }
@@ -233,10 +206,7 @@ Section Symmetric.
               }
             }
             { intros ?.
-              apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-              intros ??.
-              apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-              by auto_derive.
+              ex_RInt_auto_derive.
             }
           }
         }
@@ -247,20 +217,14 @@ Section Symmetric.
         2: {
           apply ex_RInt_mult.
           { rewrite /NegExpSymm_ρ//=.
-            apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
+            ex_RInt_auto_derive.
           }
           { apply PCts_RInt, HP. }
         }
         2: {
           apply ex_RInt_mult.
           { rewrite /NegExpSymm_ρ//=.
-            apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
+            ex_RInt_auto_derive.
           }
           { apply PCts_RInt, HP. }
         }
@@ -315,10 +279,7 @@ Section Symmetric.
           repeat f_equal.
           rewrite Rabs_left; OK.
         }
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        ex_RInt_auto_derive.
       }
       replace (λ x : R, exp (- Rabs (- x)) / 2 * F (- x)) with (λ x : R, exp (- Rabs x) / 2 * F (- x)).
       2: { funexti; do 3 f_equal; OK. rewrite Rabs_Ropp. done. }
@@ -326,13 +287,11 @@ Section Symmetric.
       { apply IPCts_mult.
         2: {
           apply IPCts_cts. intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -368,13 +327,11 @@ Section Symmetric.
       { apply IPCts_mult.
         2: {
           apply IPCts_cts. intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
       }
       { apply IPCts_mult; [|done].
@@ -481,8 +438,7 @@ Section Symmetric.
       }
     { apply (@ex_RInt_gen_Ici_compare_IPCts _ (fun x => exp (- x) / 2 * M)).
       { apply IPCts_cts. intros ?.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply IPCts_mult; [|done].
         apply IPCts_cts. intros ?.
@@ -522,10 +478,7 @@ Section Symmetric.
           apply Rplus_le_le_0_compat; try lra.
           apply pos_INR.
         }
-        { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+        { ex_RInt_auto_derive.
         }
       }
       { replace (λ y : R, F (y + n)) with (λ y : R, scal 1 (F (1 * y + n))).
@@ -575,10 +528,7 @@ Section Symmetric.
       apply (ex_RInt_ext (λ x : R, exp (- x) / 2 * F (- x))).
       2: {
         apply ex_RInt_mult.
-        { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+        { ex_RInt_auto_derive.
         }
         { apply IPCts_RInt; by apply IPCts_opp. }
       }
@@ -598,10 +548,7 @@ Section Symmetric.
       rewrite /NegExpSymm_Closed.
       apply (ex_RInt_ext (λ x : R, exp (x) / 2)).
       2: {
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        ex_RInt_auto_derive.
       }
       rewrite Rmin_left; OK.
       rewrite Rmax_right; OK.
@@ -654,8 +601,7 @@ Section Symmetric.
     { rewrite /NegExpSymm_Closed.
       apply (@ex_RInt_gen_Ici_compare_IPCts _ (fun x => exp (- x) / 2 * M)).
       { apply IPCts_cts. intros ?.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply IPCts_mult.
         2: { apply IPCts_opp. done. }
@@ -704,10 +650,7 @@ Section Symmetric.
           apply Rplus_le_le_0_compat; try lra.
           apply pos_INR.
         }
-        { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+        { ex_RInt_auto_derive.
         }
       }
       { replace (λ y : R, F (- (y + n))) with (λ y : R, F ((-y) + -n)).
@@ -891,10 +834,7 @@ Section Laplace0.
           apply Rle_ge.
           apply Rmult_le_pos; OK.
         }
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        ex_RInt_auto_derive.
       }
       replace (λ x : R, ε * (exp (- Rabs (- (ε * x))) / 2) * F (- x))
         with (λ x : R, ε * ((exp (- Rabs ((ε * x))) / 2) * F (- x))).
@@ -913,13 +853,11 @@ Section Laplace0.
       { apply IPCts_mult.
         2: {
           apply IPCts_cts. intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -952,10 +890,7 @@ Section Laplace0.
       { apply ex_RInt_gen_scal_r.
         apply (@ex_RInt_gen_scal_change_of_var (λ x : R, exp (- (x)))); OK.
         { intros ??.
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          ex_RInt_auto_derive.
         }
         replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
         apply ex_RInt_gen_exp.
@@ -967,21 +902,18 @@ Section Laplace0.
       { apply IPCts_mult.
         2: {
           apply IPCts_cts. intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
       }
       { apply IPCts_mult.
         { apply IPCts_mult.
           { apply IPCts_cts.
             intros ?.
-            apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-            by auto_derive.
+            continuous_auto_derive.
           }
           replace (λ x : R, exp (- Rabs (ε * x)) / 2) with (λ x : R, exp (- Rabs (x / (/ ε))) / 2).
           2: {
@@ -1031,10 +963,7 @@ Section Laplace0.
           with (λ x : R, ε * (/2 * M * exp (- (ε * x)))) by (funexti; lra).
         apply (@ex_RInt_gen_scal_change_of_var (λ x : R, ε * (/ 2 * M * exp (- (x))))); OK.
         { intros ??.
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          ex_RInt_auto_derive.
         }
         apply ex_RInt_gen_scal_l.
         apply ex_RInt_gen_exp.
@@ -1064,10 +993,7 @@ Section Laplace0.
           repeat f_equal.
           rewrite Rabs_left; OK.
         }
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        ex_RInt_auto_derive.
       }
       replace (λ x : R, exp (- Rabs (- x)) / 2 * F (- (x / ε))) with (λ x : R, exp (- Rabs x) / 2 * F (- (x / ε))).
       2: { funexti; do 3 f_equal; OK. rewrite Rabs_Ropp. done. }
@@ -1075,13 +1001,11 @@ Section Laplace0.
       { apply IPCts_mult.
         2: {
           apply IPCts_cts. intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -1120,13 +1044,11 @@ Section Laplace0.
       { apply IPCts_mult.
         2: {
           apply IPCts_cts. intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -1165,13 +1087,11 @@ Section Laplace0.
       { apply IPCts_mult.
         2: {
           apply IPCts_cts. intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
       }
       { apply IPCts_mult; [|done].
@@ -1211,10 +1131,7 @@ Section Laplace0.
           with (λ x : R,  (/2 * M * exp (- (ε * x)))) by (funexti; lra).
         apply (@ex_RInt_gen_scal_change_of_var (λ x : R, (/ 2 * M * exp (- (x))))); OK.
         { intros ??.
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          ex_RInt_auto_derive.
         }
         apply ex_RInt_gen_exp.
       }
@@ -1242,13 +1159,11 @@ Section Laplace0.
       { apply IPCts_mult.
         2: {
           apply IPCts_cts. intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -1289,10 +1204,7 @@ Section Laplace0.
           with (λ x : R,  (/2 * M * exp (- (ε * x)))) by (funexti; lra).
         apply (@ex_RInt_gen_scal_change_of_var (λ x : R, (/ 2 * M * exp (- (x))))); OK.
         { intros ??.
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          ex_RInt_auto_derive.
         }
         apply ex_RInt_gen_exp.
       }
@@ -1348,10 +1260,7 @@ Section Laplace0.
           rewrite -Rmult_assoc.
           rewrite Rmult_inv_r; OK.
         }
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        ex_RInt_auto_derive.
       }
       replace (λ x : R, exp (- Rabs (/ ε * x) * ε ) / 2 * F (- ( / ε * x)))
         with  (λ x : R, exp (- Rabs x) / 2 * F (- (/ε * x))); OK.
@@ -1371,13 +1280,11 @@ Section Laplace0.
       { apply IPCts_mult.
         2: {
           apply IPCts_cts. intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -1484,10 +1391,7 @@ Section Laplace0.
           apply Rle_ge.
           apply Rmult_le_pos; OK.
         }
-        apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-        intros ??.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        ex_RInt_auto_derive.
       }
       replace (λ x : R, ε * exp (- Rabs (ε * x)) / 2 * F (ε * - x / ε))
          with (λ x : R, ε * (exp (- Rabs (ε * x)) / 2 * F (- x))).
@@ -1510,13 +1414,11 @@ Section Laplace0.
       { apply IPCts_mult.
         2: {
           apply IPCts_cts. intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -1553,8 +1455,7 @@ Section Laplace0.
           apply IPCts_RInt.
           apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
         apply ex_RInt_gen_exp.
@@ -1567,8 +1468,7 @@ Section Laplace0.
         apply IPCts_mult.
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         apply IPCts_cts.
         intros ?.
@@ -1588,8 +1488,7 @@ Section Laplace0.
         apply IPCts_mult.
         { apply IPCts_cts.
           intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         apply IPCts_cts.
         intros ?.
@@ -2386,13 +2285,11 @@ Section AccuracyBound.
     have H2 : ex_RInt_gen (λ x : R, exp (- x) * (Iverson (Iio 0) x + Iverson (Ioi (ε * L)) x)) (at_point 0) (Rbar_locally Rbar.p_infty).
     { eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- x) * (1 + 1))).
       { apply IPCts_cts; intros ?.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       { apply IPCts_mult.
         { apply IPCts_cts; intros ?.
-          apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-          by auto_derive.
+          continuous_auto_derive.
         }
         apply IPCts_plus.
         { apply IPCts_Iio. }
@@ -2421,8 +2318,7 @@ Section AccuracyBound.
       { apply IPCts_cts; intros ?. apply Continuity.continuous_const. }
       apply IPCts_mult.
       { apply IPCts_cts; intros ?.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       apply IPCts_plus.
       { replace (λ x : R, Iverson (Iio 0) (ε * x)) with (λ x : R, Iverson (Iio 0) ( x / / ε)).
@@ -2443,8 +2339,7 @@ Section AccuracyBound.
       apply IPCts_RInt.
       apply IPCts_mult.
       { apply IPCts_cts; intros ?.
-        apply (Derive.ex_derive_continuous (V := R_CompleteNormedModule)).
-        by auto_derive.
+        continuous_auto_derive.
       }
       apply IPCts_plus.
       { apply IPCts_Iio. }
