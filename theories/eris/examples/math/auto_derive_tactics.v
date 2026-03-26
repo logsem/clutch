@@ -25,3 +25,4 @@ Ltac ex_RInt_auto_derive :=
   apply (ex_RInt_continuous (V := R_CompleteNormedModule));
   intros ??;
   continuous_auto_derive.
+

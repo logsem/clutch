@@ -5,7 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial bern_geo half_bern_neg_exp bern_iter selector lazy_real_adequacy gauss lazy_real_expr.
 From clutch.eris.examples Require Import math.
-From clutch.eris.examples.math Require Import auto_derive_tactics.
+From clutch.eris.examples.math Require Import auto_derive_tactics pcts_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -256,9 +256,7 @@ Section Symmetric.
       { intros ?.
         apply ex_RInt_mult.
         { rewrite /GaussSymm_ρ//=.
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          continuous_auto_derive.
+          ex_RInt_auto_derive.
         }
         { rewrite /bzu_to_R//=.
           (* Change of variables, then IPCts *)
@@ -386,9 +384,7 @@ Section Symmetric.
       { intros ?.
         apply ex_RInt_mult.
         { rewrite /GaussSymm_ρ//=.
-          apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-          intros ??.
-          continuous_auto_derive.
+          ex_RInt_auto_derive.
         }
         { rewrite /bzu_to_R//=.
           (* Change of variables, then IPCts *)
@@ -529,9 +525,7 @@ Section Symmetric.
             split.
             { apply RInt_ge_0; OK.
               { apply ex_RInt_mult.
-                { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                  intros ??.
-                  continuous_auto_derive.
+                { ex_RInt_auto_derive.
                 }
                 apply PCts_RInt, HP.
               }
@@ -546,20 +540,14 @@ Section Symmetric.
             }
             { rewrite RInt_Rmult'.
               2: {
-                apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                intros ??.
-                continuous_auto_derive.
+                ex_RInt_auto_derive.
               }
               apply RInt_le; OK.
               2: {
-                apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                intros ??.
-                continuous_auto_derive.
+                ex_RInt_auto_derive.
               }
               { apply ex_RInt_mult.
-                { apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-                  intros ??.
-                  continuous_auto_derive.
+                { ex_RInt_auto_derive.
                  }
                 apply PCts_RInt, HP.
                }
@@ -621,9 +609,7 @@ Section Symmetric.
             OK.
           }
           { intros ?.
-            apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            continuous_auto_derive.
+            ex_RInt_auto_derive.
           }
         }
         rewrite -SeriesC_plus; OK.
@@ -634,18 +620,14 @@ Section Symmetric.
         2: {
           apply ex_RInt_mult.
           { rewrite /GaussSymm_ρ//=.
-            apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            continuous_auto_derive.
+            ex_RInt_auto_derive.
           }
           { apply PCts_RInt, HP. }
         }
         2: {
           apply ex_RInt_mult.
           { rewrite /GaussSymm_ρ//=.
-            apply (ex_RInt_continuous (V := R_CompleteNormedModule)).
-            intros ??.
-            continuous_auto_derive.
+            ex_RInt_auto_derive.
           }
           { apply PCts_RInt, HP. }
         }
@@ -762,9 +744,7 @@ Section Adequacy.
         { OK. }
       }
     }
-    { apply IPCts_cts.
-      intros ?.
-      continuous_auto_derive.
+    { IPCts_auto_derive.
     }
     { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
          with (λ x : R, exp (- (- x) ^ 2 / 2) * / GaussNorm).
@@ -821,9 +801,7 @@ Section Adequacy.
         { OK. }
       }
     }
-    { apply IPCts_cts.
-      intros ?.
-      continuous_auto_derive.
+    { IPCts_auto_derive.
     }
     { replace (λ x : R, exp (- x ^ 2 / 2) / GaussNorm)
          with (λ x : R, exp (- (- x) ^ 2 / 2) * / GaussNorm).

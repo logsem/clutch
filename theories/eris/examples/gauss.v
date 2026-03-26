@@ -5,7 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial bern_geo half_bern_neg_exp bern_iter selector lazy_real_adequacy.
 From clutch.eris.examples Require Import math.
-From clutch.eris.examples.math Require Import iverson_tactics auto_derive_tactics.
+From clutch.eris.examples.math Require Import iverson_tactics auto_derive_tactics pcts_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -1641,9 +1641,7 @@ Section credits.
         rewrite /uncurry//=.
       }
       { apply PCts_const_y.
-        apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+        PCts_auto_derive.
       }
       { apply PCts_const_x.
         apply PCts_cts.
@@ -1672,9 +1670,7 @@ Section credits.
         apply Fubini_Step_ex_y.
         apply PCts2_mult; [apply PCts2_mult|].
         { apply PCts_const_y.
-          apply PCts_cts.
-          intros ??.
-          continuous_auto_derive.
+          PCts_auto_derive.
         }
         { apply PCts_const_x.
           apply PCts_cts.
@@ -1963,9 +1959,7 @@ Section credits.
       rewrite /uncurry//=.
     }
     { apply PCts_const_y.
-      apply PCts_cts.
-      intros ??.
-      continuous_auto_derive.
+      PCts_auto_derive.
     }
     { apply PCts_const_x.
       apply PCts_cts.
@@ -2987,19 +2981,13 @@ Section adequacy.
     apply (ex_RInt_gen_Chasles_exists (xa := 2)); last first.
     { rewrite ex_RInt_gen_at_point.
       apply IPCts_RInt.
-      apply IPCts_cts.
-      intros.
-      continuous_auto_derive.
+      IPCts_auto_derive.
     }
     apply (ex_RInt_gen_Ici_compare_PCts' (F:= λ x, exp (-x))).
     - intros. apply IPCts_PCts.
-      apply IPCts_cts.
-      intros.
-      continuous_auto_derive.
+      IPCts_auto_derive.
     - intros. apply IPCts_PCts.
-      apply IPCts_cts.
-      intros.
-      continuous_auto_derive.
+      IPCts_auto_derive.
     - intros.
       split.
       + left. apply exp_pos.
@@ -3017,9 +3005,7 @@ Section adequacy.
         * intros. lra.
       + rewrite ex_RInt_gen_at_point.
       apply IPCts_RInt.
-      apply IPCts_cts.
-      intros.
-      continuous_auto_derive.
+      IPCts_auto_derive.
       Unshelve.
       apply _.
   Qed. 
@@ -3106,15 +3092,11 @@ Section adequacy.
           apply (ex_RInt_gen_Ici_compare_PCts' (F:= λ x0 : R, exp (- x0 ^ 2 / 2) / Norm2 * M)).
           -- intros.
              apply IPCts_PCts.
-             apply IPCts_cts.
-             intros.
-             continuous_auto_derive.
+             IPCts_auto_derive.
           -- intros.
              apply PCts_mult.
              ++ apply IPCts_PCts.
-                apply IPCts_cts.
-                intros.
-                continuous_auto_derive.
+                IPCts_auto_derive.
              ++ apply PCts_unit_implies_all; [lra|done].
           -- intros. split.
              ++ apply Rmult_le_pos; last naive_solver.

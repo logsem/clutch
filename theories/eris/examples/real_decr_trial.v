@@ -192,13 +192,6 @@ Section credits.
     apply RealDecrTrial_μ0_ex_RInt.
   Qed.
 
-  (*
-  Lemma Series_Converge {F : nat → R_CompleteNormedModule} :
-      Series.ex_series F →
-      filterlim (λ (M : nat), sum_n F M) eventually (locally (Series F)).
-  Proof. A dmitted.
-*)
-
   Lemma RealDecrTrial_CreditV_ex_RInt {F N M} (Hbound : forall n, 0 <= F n <= M) :
     ex_RInt (RealDecrTrial_CreditV F N) 0 1.
   Proof.

@@ -5,7 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial neg_exp lazy_real_expr.
 From clutch.eris.examples Require Import math.
-From clutch.eris.examples.math Require Import iverson_tactics auto_derive_tactics.
+From clutch.eris.examples.math Require Import iverson_tactics auto_derive_tactics pcts_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -286,12 +286,9 @@ Section Symmetric.
       eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp ( - x) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
-          apply IPCts_cts. intros ?.
-          continuous_auto_derive.
+          IPCts_auto_derive.
         }
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -326,12 +323,9 @@ Section Symmetric.
     { eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- x) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
-          apply IPCts_cts. intros ?.
-          continuous_auto_derive.
+          IPCts_auto_derive.
         }
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
       }
       { apply IPCts_mult; [|done].
@@ -437,8 +431,7 @@ Section Symmetric.
       apply ex_exp_geo_series.
       }
     { apply (@ex_RInt_gen_Ici_compare_IPCts _ (fun x => exp (- x) / 2 * M)).
-      { apply IPCts_cts. intros ?.
-        continuous_auto_derive.
+      { IPCts_auto_derive.
       }
       { apply IPCts_mult; [|done].
         apply IPCts_cts. intros ?.
@@ -600,8 +593,7 @@ Section Symmetric.
       }
     { rewrite /NegExpSymm_Closed.
       apply (@ex_RInt_gen_Ici_compare_IPCts _ (fun x => exp (- x) / 2 * M)).
-      { apply IPCts_cts. intros ?.
-        continuous_auto_derive.
+      { IPCts_auto_derive.
       }
       { apply IPCts_mult.
         2: { apply IPCts_opp. done. }
@@ -852,12 +844,9 @@ Section Laplace0.
       eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp ( - (ε * x)) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
-          apply IPCts_cts. intros ?.
-          continuous_auto_derive.
+          IPCts_auto_derive.
         }
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -901,19 +890,14 @@ Section Laplace0.
       eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, ε * exp (- (ε * x)) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
-          apply IPCts_cts. intros ?.
-          continuous_auto_derive.
+          IPCts_auto_derive.
         }
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
       }
       { apply IPCts_mult.
         { apply IPCts_mult.
-          { apply IPCts_cts.
-            intros ?.
-            continuous_auto_derive.
+          { IPCts_auto_derive.
           }
           replace (λ x : R, exp (- Rabs (ε * x)) / 2) with (λ x : R, exp (- Rabs (x / (/ ε))) / 2).
           2: {
@@ -1000,12 +984,9 @@ Section Laplace0.
       eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp ( - x) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
-          apply IPCts_cts. intros ?.
-          continuous_auto_derive.
+          IPCts_auto_derive.
         }
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -1043,12 +1024,9 @@ Section Laplace0.
       eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- x) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
-          apply IPCts_cts. intros ?.
-          continuous_auto_derive.
+          IPCts_auto_derive.
         }
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -1086,12 +1064,9 @@ Section Laplace0.
     { eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- (ε * x)) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
-          apply IPCts_cts. intros ?.
-          continuous_auto_derive.
+          IPCts_auto_derive.
         }
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
       }
       { apply IPCts_mult; [|done].
@@ -1158,12 +1133,9 @@ Section Laplace0.
       eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- (ε * x)) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
-          apply IPCts_cts. intros ?.
-          continuous_auto_derive.
+          IPCts_auto_derive.
         }
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -1279,12 +1251,9 @@ Section Laplace0.
       eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- (x)) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
-          apply IPCts_cts. intros ?.
-          continuous_auto_derive.
+          IPCts_auto_derive.
         }
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -1413,12 +1382,9 @@ Section Laplace0.
       eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- (ε * x)) * (/ 2 * M))).
       { apply IPCts_mult.
         2: {
-          apply IPCts_cts. intros ?.
-          continuous_auto_derive.
+          IPCts_auto_derive.
         }
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
       }
       { apply IPCts_mult.
@@ -1453,9 +1419,7 @@ Section Laplace0.
         apply (@ex_RInt_gen_scal_change_of_var (λ x : R, exp (- (x)))); OK.
         { intros ??.
           apply IPCts_RInt.
-          apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+          IPCts_auto_derive.
         }
         replace (λ x : R, exp (- x)) with (λ x : R, 1 * exp (- x)) by (funexti; OK).
         apply ex_RInt_gen_exp.
@@ -1466,9 +1430,7 @@ Section Laplace0.
         apply IPCts_mult; [|].
         2: { apply (@IPCts_opp (λ x : R, F x)); OK. }
         apply IPCts_mult.
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
         apply IPCts_cts.
         intros ?.
@@ -1486,9 +1448,7 @@ Section Laplace0.
         apply IPCts_RInt.
         apply IPCts_mult; [|OK].
         apply IPCts_mult.
-        { apply IPCts_cts.
-          intros ?.
-          continuous_auto_derive.
+        { IPCts_auto_derive.
         }
         apply IPCts_cts.
         intros ?.
@@ -2284,13 +2244,9 @@ Section AccuracyBound.
     }
     have H2 : ex_RInt_gen (λ x : R, exp (- x) * (Iverson (Iio 0) x + Iverson (Ioi (ε * L)) x)) (at_point 0) (Rbar_locally Rbar.p_infty).
     { eapply (@ex_RInt_gen_Ici_compare_IPCts _ (λ x : R, exp (- x) * (1 + 1))).
-      { apply IPCts_cts; intros ?.
-        continuous_auto_derive.
-      }
+      { IPCts_auto_derive. }
       { apply IPCts_mult.
-        { apply IPCts_cts; intros ?.
-          continuous_auto_derive.
-        }
+        { IPCts_auto_derive. }
         apply IPCts_plus.
         { apply IPCts_Iio. }
         { apply IPCts_Ioi. }
@@ -2317,9 +2273,7 @@ Section AccuracyBound.
       apply IPCts_mult.
       { apply IPCts_cts; intros ?. apply Continuity.continuous_const. }
       apply IPCts_mult.
-      { apply IPCts_cts; intros ?.
-        continuous_auto_derive.
-      }
+      { IPCts_auto_derive. }
       apply IPCts_plus.
       { replace (λ x : R, Iverson (Iio 0) (ε * x)) with (λ x : R, Iverson (Iio 0) ( x / / ε)).
         2: { funexti. f_equal. rewrite Rdiv_def.  rewrite Rinv_inv. OK. }
@@ -2338,9 +2292,7 @@ Section AccuracyBound.
       apply ex_RInt_Rmult.
       apply IPCts_RInt.
       apply IPCts_mult.
-      { apply IPCts_cts; intros ?.
-        continuous_auto_derive.
-      }
+      { IPCts_auto_derive. }
       apply IPCts_plus.
       { apply IPCts_Iio. }
       { apply IPCts_Ioi. }

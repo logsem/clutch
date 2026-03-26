@@ -1,4 +1,4 @@
-From clutch.eris.examples.math Require Import prelude series iverson sets improper piecewise auto_derive_tactics.
+From clutch.eris.examples.math Require Import prelude series iverson sets improper piecewise auto_derive_tactics pcts_tactics.
 From clutch.eris Require Import infinite_tape.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -637,17 +637,13 @@ Proof.
   { eapply (ex_RInt_gen_Ici_compare_PCts (F:=λ x, 1* exp (-x))).
     - intros.
       apply IPCts_PCts.
-      apply IPCts_cts.
-      intros.
-      continuous_auto_derive.
+      IPCts_auto_derive.
     - intros.
       apply PCts_mult.
       + apply IPCts_PCts.
         apply IPCts_Iio.
       + apply IPCts_PCts.
-        apply IPCts_cts.
-        intros.
-        continuous_auto_derive.
+        IPCts_auto_derive.
     - intros.
       split.
       + apply Rmult_le_pos.
@@ -661,17 +657,13 @@ Proof.
   { eapply (ex_RInt_gen_Ici_compare_PCts (F:=λ x, 1* exp (-x))).
     - intros.
       apply IPCts_PCts.
-      apply IPCts_cts.
-      intros.
-      continuous_auto_derive.
+      IPCts_auto_derive.
     - intros.
       apply PCts_mult.
       + apply IPCts_PCts.
         apply IPCts_Ioi.
       + apply IPCts_PCts.
-        apply IPCts_cts.
-        intros.
-        continuous_auto_derive.
+        IPCts_auto_derive.
     - intros.
       split.
       + apply Rmult_le_pos.
@@ -710,9 +702,7 @@ Proof.
     eapply ex_RInt_gen_Chasles; last apply ex_RInt_gen_exp.
     rewrite ex_RInt_gen_at_point.
     apply IPCts_RInt.
-    apply IPCts_cts.
-    intros.
-    continuous_auto_derive.
+    IPCts_auto_derive.
   }
   erewrite <-RInt_gen_Chasles; last done; last first.
   { apply ex_RInt_gen_at_point.
@@ -721,9 +711,7 @@ Proof.
     - apply IPCts_PCts.
       apply IPCts_Ioi.
     - apply IPCts_PCts.
-      apply IPCts_cts.
-      intros.
-      continuous_auto_derive. }
+      IPCts_auto_derive. }
   replace (RInt_gen _ (at_point _) (at_point _)) with 0; first by rewrite plus_zero_l.
   symmetry.
   erewrite (RInt_gen_ext _ (λ _, 0)).
@@ -744,9 +732,7 @@ Proof.
     + apply IPCts_PCts.
       apply IPCts_Ioi.
     + apply IPCts_PCts.
-      apply IPCts_cts.
-      intros.
-      continuous_auto_derive.
+      IPCts_auto_derive.
 Qed. 
 
 Lemma ex_exp_geo_series : ex_seriesC (λ x : nat, exp (- x)).

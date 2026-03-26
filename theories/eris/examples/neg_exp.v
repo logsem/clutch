@@ -5,7 +5,7 @@ From Coquelicot Require Import RInt RInt_analysis AutoDerive RInt_gen.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real max_lazy_real real_decr_trial.
 From clutch.eris.examples Require Import math.
-From clutch.eris.examples.math Require Import iverson_tactics auto_derive_tactics.
+From clutch.eris.examples.math Require Import iverson_tactics auto_derive_tactics pcts_tactics.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
@@ -16,18 +16,14 @@ Section pmf.
   Lemma RealDecrTrial_μ0_PCts {n} : PCts (λ y : R, RealDecrTrial_μ0 y n) 0 1.
   Proof.
     rewrite /RealDecrTrial_μ0.
-    apply PCts_cts.
-    intros ??.
-    continuous_auto_derive.
+    PCts_auto_derive.
   Qed.
 
   Lemma RealDecrTrial_μ_PCts {n} : PCts (λ y : R, RealDecrTrial_μ y 0 n) 0 1.
   Proof.
     rewrite /RealDecrTrial_μ.
     apply PCts_mult.
-    { apply PCts_cts.
-      intros ??.
-      continuous_auto_derive.
+    { PCts_auto_derive.
     }
     apply RealDecrTrial_μ0_PCts.
   Qed.
@@ -79,9 +75,7 @@ Section pmf.
     rewrite /NegExp_ρ0.
     apply PCts_mult.
     2: {
-      apply PCts_cts.
-      intros ??.
-      continuous_auto_derive.
+      PCts_auto_derive.
     }
     apply Icc_PCts.
   Qed.
@@ -91,9 +85,7 @@ Section pmf.
     rewrite /NegExp_ρ.
     apply PCts_mult.
     {
-      apply PCts_cts.
-      intros ??.
-      continuous_auto_derive.
+      PCts_auto_derive.
     }
     apply NegExp_ρ0_PCts.
   Qed.
@@ -146,10 +138,6 @@ Section credits.
 
   Definition NegExp_CreditV (F : nat → R → R) (L : nat) : R :=
     SeriesC (fun (k : nat) => RInt (fun x => NegExp_ρ L k x * F k x) 0 1).
-
-  (* NegExp_CreditV but no integers *)
-  Definition NegExp_CreditV'' (F : nat → R → R) (L : nat) : R :=
-    SeriesC (fun (k : nat) => RInt (fun x => Iverson (Ioo 0 1) x * NegExp_ρ L k x * F k x) 0 1).
 
   Lemma NegExp_CreditV_nn {F L} (HP : ∀ x, PCts (F x) 0 1) (HB : ∀ x y, (0 <= y <= 1) → 0 <= F x y) : 0 <= NegExp_CreditV F L.
   Proof.
@@ -226,14 +214,10 @@ Section credits.
     }
   }
   { apply (@ex_RInt_gen_Ici_compare_IPCts _ (fun x => M * exp (- x))).
-    { apply IPCts_cts.
-      intros ?.
-      continuous_auto_derive.
+    { IPCts_auto_derive.
     }
     { apply IPCts_mult; OK.
-      apply IPCts_cts.
-      intros ?.
-      continuous_auto_derive.
+      IPCts_auto_derive.
     }
     { intros ?.
       split.
@@ -567,9 +551,7 @@ Qed.
     apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
     { apply PCts_const_y. apply RealDecrTrial_μ_PCts. }
     { apply PCts_const_x.
-      apply PCts_cts.
-      intros ??.
-      continuous_auto_derive.
+      PCts_auto_derive.
     }
     { apply PCts_const_x. apply NegExp_ρ_PCts. }
     { apply PCts_const_x. apply HPcts. }
@@ -584,9 +566,7 @@ Qed.
       apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
       { apply PCts_const_x. apply RealDecrTrial_μ_PCts. }
       { apply PCts_const_x.
-        apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+        PCts_auto_derive.
       }
       { apply PCts_const_y. apply NegExp_ρ_PCts. }
       { apply PCts_const_y. apply HPcts. }
@@ -594,13 +574,9 @@ Qed.
     have L4 : ∀ n : nat, ∀ x x0, PCts (λ x1 : R, B F L x n x0 x1) 0 1.
     { intros ???.
       apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
       { apply NegExp_ρ_PCts. }
       { apply HPcts. }
@@ -1032,9 +1008,7 @@ Qed.
       apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
       { apply PCts_const_x. apply RealDecrTrial_μ_PCts. }
       { apply PCts_const_x.
-        apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+        PCts_auto_derive.
       }
       { apply PCts_const_y. apply NegExp_ρ_PCts. }
       { apply PCts_const_y. apply HPcts. }
@@ -1042,13 +1016,9 @@ Qed.
     have L4 : ∀ n : nat, ∀ x x0, PCts (λ x1 : R, B F L x n x0 x1) 0 1.
     { intros ???.
       apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
       { apply NegExp_ρ_PCts. }
       { apply HPcts. }
@@ -1219,9 +1189,7 @@ Qed.
       apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
       { apply PCts_const_x. apply RealDecrTrial_μ_PCts. }
       { apply PCts_const_x.
-        apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+        PCts_auto_derive.
       }
       { apply PCts_const_y. apply NegExp_ρ_PCts. }
       { apply PCts_const_y. apply HPcts. }
@@ -1239,13 +1207,9 @@ Qed.
     have L4 : ∀ n : nat, ∀ x x0, PCts (λ x1 : R, B F L x n x0 x1) 0 1.
     { intros ???.
       apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
       { apply NegExp_ρ_PCts. }
       { apply HPcts. }
@@ -1398,9 +1362,7 @@ Qed.
       apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
       { apply PCts_const_y. apply RealDecrTrial_μ_PCts. }
       { apply PCts_const_y.
-        apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+        PCts_auto_derive.
       }
       { apply PCts_const_x. apply NegExp_ρ_PCts. }
       { apply PCts_const_x. apply HPcts. }
@@ -1410,17 +1372,11 @@ Qed.
     { intros ???.
       apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
       { apply RealDecrTrial_μ_PCts. }
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
     }
 
@@ -1613,9 +1569,7 @@ Qed.
       apply PCts2_mult; [apply PCts2_mult; [apply PCts2_mult|]|].
       { apply PCts_const_y. apply RealDecrTrial_μ_PCts. }
       { apply PCts_const_x.
-        apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+        PCts_auto_derive.
       }
       { apply PCts_const_x. apply NegExp_ρ_PCts. }
       { apply PCts_const_x. apply HPcts. }
@@ -1634,17 +1588,11 @@ Qed.
     { intros ???.
       apply PCts_mult; [apply PCts_mult; [apply PCts_mult|]|].
       { apply RealDecrTrial_μ_PCts. }
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
-      { apply PCts_cts.
-        intros ??.
-        continuous_auto_derive.
+      { PCts_auto_derive.
       }
     }
 
@@ -1855,9 +1803,7 @@ Qed.
       2: { apply PCts_RInt; apply HPcts. }
       apply ex_RInt_Rmult.
       apply PCts_RInt.
-      apply PCts_cts.
-      intros ??.
-      continuous_auto_derive.
+      PCts_auto_derive.
     }
   Qed.
 
