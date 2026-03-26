@@ -172,12 +172,9 @@ Section credits.
         rewrite Rmult_comm.
         f_equal; [| f_equal; OK].
         rewrite /NegExp_ρ.
-        rewrite Iverson_True; OK.
-        rewrite Rmult_1_l.
+        simp_iverson.
         rewrite /NegExp_ρ0.
-        rewrite Iverson_True; OK.
-        2: { rewrite /Icc; OK. }
-        rewrite Rmult_1_l.
+        simp_iverson.
         repeat f_equal.
         OK.
       }
@@ -2183,9 +2180,7 @@ Qed.
         intros ?.
         f_equal.
         rewrite RealDecrTrial_μ_RInt.
-        rewrite Iverson_True; OK.
-        2: { rewrite /uncurry //=. OK. }
-        rewrite Rmult_1_l.
+        simp_iverson.
         repeat f_equal; OK.
       }
       replace (λ n : nat, Iverson (not ∘ Zeven) n * (RealDecrTrial_μ0 1 (n + 1) - RealDecrTrial_μ0 0 (n + 1)))
@@ -2237,8 +2232,7 @@ Qed.
         rewrite ex_seriesC_nat.
         apply Hexp_ex_even.
       }
-      rewrite Iverson_True; OK.
-      rewrite Rmult_1_l.
+      simp_iverson.
       rewrite pow_O.
       rewrite {1}/fact//=.
       rewrite ExpSeriesEven.
@@ -2263,9 +2257,7 @@ Qed.
       rewrite Rmax_right; OK.
       intros ??.
       symmetry.
-      rewrite Iverson_True.
-      2: { rewrite /uncurry//=. OK. }
-      rewrite Rmult_1_l.
+      simp_iverson.
       f_equal.
       { repeat f_equal. OK. }
       repeat rewrite Rmult_assoc.
@@ -2296,9 +2288,7 @@ Qed.
       intros ??.
       f_equal.
       f_equal.
-      rewrite Iverson_True; OK.
-      rewrite /Icc//=.
-      OK.
+      simp_iverson; OK.
     }
 
     (* Split series on LHS *)
@@ -2758,8 +2748,7 @@ Section program.
       { apply Iverson_Rmult_nonneg. apply NegExp_CreditV_nn; OK.
         intros ???. apply Hnn; OK.
       }
-      rewrite Iverson_True; last done.
-      rewrite Rmult_1_l; iFrame.
+      simp_iverson; iFrame.
       iPureIntro. OK.
     }
     { do 2 wp_pure.
