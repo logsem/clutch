@@ -131,50 +131,49 @@ Section Symmetric.
     { eapply Gauss_Closed_ex_pos; OK. }
   Qed.
 
-  Lemma Gauss_ρ_mono_neg {n : nat} {x : R} : 0 < x < 1 → Gauss_ρ (- (x + n)) <= Gauss_ρ n.
+  Lemma gauss_exp_sq_mono {n : nat} {x : R} (Hx : 0 <= x) :
+    exp (- (x + n) ^ 2 / 2) <= exp (- n ^ 2 / 2).
   Proof.
-    intros ?.
-    rewrite /Gauss_ρ.
-    rewrite Rdiv_def.
-    rewrite Rdiv_def.
-    repeat rewrite Rmult_assoc.
-    apply Rmult_le_compat; OK.
-    { apply Rexp_nn. }
-    { apply Rlt_le, Rinv_0_lt_compat, GaussNorm_nn. }
     apply exp_mono.
-    rewrite Rdiv_def.
+    do 2 rewrite Rdiv_def.
     do 2 rewrite Ropp_mult_distr_l_reverse.
     apply Ropp_le_contravar.
     apply Rmult_le_compat; OK.
     { apply pow2_ge_0. }
-    replace ((- (x + n)) ^ 2) with (((x + n)) ^ 2).
-    2: { rewrite //=; OK. }
     apply pow_incr.
     have ? := pos_INR n.
     OK.
+  Qed.
+
+  Lemma gauss_exp_sq_mono_neg {n : nat} {x : R} (Hx : 0 <= x) :
+    exp (- (- (x + n)) ^ 2 / 2) <= exp (- n ^ 2 / 2).
+  Proof.
+    replace ((- (x + n)) ^ 2) with ((x + n) ^ 2) by (rewrite //=; OK).
+    apply gauss_exp_sq_mono; OK.
+  Qed.
+
+  Lemma Gauss_ρ_mono_neg {n : nat} {x : R} : 0 < x < 1 → Gauss_ρ (- (x + n)) <= Gauss_ρ n.
+  Proof.
+    intros ?.
+    rewrite /Gauss_ρ.
+    do 2 rewrite Rdiv_def.
+    repeat rewrite Rmult_assoc.
+    apply Rmult_le_compat; OK.
+    { apply Rexp_nn. }
+    { apply Rlt_le, Rinv_0_lt_compat, GaussNorm_nn. }
+    apply gauss_exp_sq_mono_neg; OK.
   Qed.
 
   Lemma Gauss_ρ_mono_pos {n : nat} {x : R} : 0 < x < 1 → Gauss_ρ (x + n) <= Gauss_ρ n.
   Proof.
     intros ?.
     rewrite /Gauss_ρ.
-    rewrite Rdiv_def.
-    rewrite Rdiv_def.
+    do 2 rewrite Rdiv_def.
     repeat rewrite Rmult_assoc.
     apply Rmult_le_compat; OK.
     { apply Rexp_nn. }
     { apply Rlt_le, Rinv_0_lt_compat, GaussNorm_nn. }
-    apply exp_mono.
-    rewrite Rdiv_def.
-    do 2 rewrite Ropp_mult_distr_l_reverse.
-    apply Ropp_le_contravar.
-    apply Rmult_le_compat; OK.
-    { apply pow2_ge_0. }
-    replace ((- (x + n)) ^ 2) with (((x + n)) ^ 2).
-    2: { rewrite //=; OK. }
-    apply pow_incr.
-    have ? := pos_INR n.
-    OK.
+    apply gauss_exp_sq_mono; OK.
   Qed.
 
   Lemma Gauss_Closed (F : R → R) {M} (Hnn : ∀ x, 0 <= F x <= M) (HP : IPCts F)  :
@@ -306,17 +305,7 @@ Section Symmetric.
         { apply Rmult_le_pos; OK.
           apply Rlt_le, Rinv_0_lt_compat, Norm2_nn.
         }
-        apply exp_mono.
-        do 2 rewrite Rdiv_def.
-        do 2 rewrite Ropp_mult_distr_l_reverse.
-        apply Ropp_le_contravar.
-        apply Rmult_le_compat; OK.
-        { apply pow2_ge_0. }
-        replace ((- (x + n)) ^ 2) with (((x + n)) ^ 2).
-        2: { rewrite //=; OK. }
-        apply pow_incr.
-        have ? := pos_INR n.
-        OK.
+        apply gauss_exp_sq_mono; OK.
       }
       { do 3 apply ex_seriesC_scal_r. apply Norm1_ex. }
       { intros ???.
@@ -432,17 +421,7 @@ Section Symmetric.
         { apply Rmult_le_pos; OK.
           apply Rlt_le, Rinv_0_lt_compat, Norm2_nn.
         }
-        apply exp_mono.
-        do 2 rewrite Rdiv_def.
-        do 2 rewrite Ropp_mult_distr_l_reverse.
-        apply Ropp_le_contravar.
-        apply Rmult_le_compat; OK.
-        { apply pow2_ge_0. }
-        replace ((- (x + n)) ^ 2) with (((x + n)) ^ 2).
-        2: { rewrite //=; OK. }
-        apply pow_incr.
-        have ? := pos_INR n.
-        OK.
+        apply gauss_exp_sq_mono; OK.
       }
       { do 3 apply ex_seriesC_scal_r. apply Norm1_ex. }
       { intros ???.
@@ -598,15 +577,7 @@ Section Symmetric.
             apply Rmult_le_compat; OK.
             { apply Rexp_nn. }
             { apply Rmult_le_pos; OK. apply Rlt_le, Rinv_0_lt_compat, Norm2_nn. }
-            apply exp_mono.
-            do 2 rewrite Rdiv_def.
-            do 2 rewrite Ropp_mult_distr_l_reverse.
-            apply Ropp_le_contravar.
-            apply Rmult_le_compat; OK.
-            { apply pow2_ge_0. }
-            apply pow_incr; OK.
-            have ? := pos_INR n.
-            OK.
+            apply gauss_exp_sq_mono; OK.
           }
           { intros ?.
             ex_RInt_auto_derive.

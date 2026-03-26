@@ -108,6 +108,31 @@ Section credits.
     lra.
   Qed.
 
+  Lemma gauss_exp_le_1 {x : R} {n : nat} (Hx : 0 <= x) :
+    exp (- x * (2 * n + x) / 2) <= 1.
+  Proof.
+    apply Rexp_range.
+    replace (- x * (2 * n + x) / 2) with ((-1 / 2) * (x * (2 * n + x))) by OK.
+    replace 0 with ((-1/2) * 0) by OK.
+    apply Rmult_le_compat_neg_l; OK.
+    apply Rmult_le_pos; OK.
+    apply Rplus_le_le_0_compat; OK.
+    apply Rmult_le_pos; OK.
+    apply pos_INR.
+  Qed.
+
+  Lemma gauss_one_minus_exp_nn {x : R} {n : nat} (Hx : 0 <= x) :
+    0 <= 1 - exp (- x * (2 * n + x) / 2).
+  Proof. suffices ? : exp (- x * (2 * n + x) / 2) <= 1 by OK. apply gauss_exp_le_1; OK. Qed.
+
+  Lemma gauss_one_minus_exp_le_1 {x : R} {n : nat} (Hx : 0 <= x) :
+    1 - exp (- x * (2 * n + x) / 2) <= 1.
+  Proof. suffices ? : 0 <= exp (- x * (2 * n + x) / 2) by OK. apply Rexp_nn. Qed.
+
+  Lemma gauss_one_minus_exp_range {x : R} {n : nat} (Hx : 0 <= x) :
+    0 <= 1 - exp (- x * (2 * n + x) / 2) <= 1.
+  Proof. split; [apply gauss_one_minus_exp_nn | apply gauss_one_minus_exp_le_1]; OK. Qed.
+
   Theorem Norm2_ex' {y : R} : 0 <= y <= 1 → ex_seriesC (λ x0 : nat, exp (- (y + x0) ^ 2 / 2)).
   Proof.
     intros H.
@@ -1057,20 +1082,7 @@ Section credits.
       + symmetry.
         apply RInt_Rmult.
         have HL : ∀ (n : nat) x0, 0 <= x0 <= 1 → 0 <= (1 - exp (- x0 * (2 * n + x0) / 2)) <= 1.
-        { intros ???.
-          suffices ? : 0 <= exp (- x0 * (2 * n + x0) / 2) <= 1 by OK.
-          split.
-          { apply Rexp_nn. }
-          { apply Rexp_range.
-            replace (- x0 * (2 * n + x0) / 2) with ((-1 / 2) * (x0 * (2 * n + x0))) by OK.
-            replace 0 with ((-1/2) * 0) by OK.
-            apply Rmult_le_compat_neg_l; OK.
-            apply Rmult_le_pos; OK.
-            apply Rplus_le_le_0_compat; OK.
-            apply Rmult_le_pos; OK.
-            apply pos_INR.
-          }
-        }
+        { intros ???. apply gauss_one_minus_exp_range; OK. }
         apply (ex_RInt_SeriesC G1_μ); OK.
         { rewrite /G1_μ.
           rewrite ex_seriesC_nat.
@@ -1153,14 +1165,7 @@ Section credits.
     }
 
     have HFubiniEx4 : ∀ x (x0 : nat), 0 <= x <= 1 → 0 <= 1 - exp (- x * (2 * x0 + x) / 2).
-    { intros ???.
-      suffices ? : exp (- x * (2 * x0 + x) / 2) <= 1 by OK.
-      apply Rexp_range.
-      apply Rcomplements.Rmult_le_0_r; OK.
-      apply Rcomplements.Rmult_le_0_r; OK.
-      have ? := pos_INR x0.
-      OK.
-    }
+    { intros ???. apply gauss_one_minus_exp_nn; OK. }
 
     have HFubiniEx5 : ∀ n t, 0 <= t <= 1 → ex_RInt (λ x0 : R, G2_μ n t * F n t * SeriesC (λ x : nat, G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)))) 0 1.
     { intros ???.
@@ -1240,13 +1245,7 @@ Section credits.
         rewrite clamp_eq; OK.
         split.
         { suffices ? : exp (- x0 * (2 * x1 + x0) / 2) <= 1 by OK.
-          apply Rexp_range.
-          have ? : 0 <= INR x1 by apply pos_INR.
-          rewrite Rmin_left in H; OK.
-          rewrite Rmax_right in H; OK.
-          suffices ? : - x0 * (2 * x1 + x0) <= 0 by OK.
-          apply Rcomplements.Rmult_le_0_r; OK.
-        }
+          apply gauss_exp_le_1. rewrite Rmin_left in H; [|OK]. rewrite Rmax_right in H; OK. }
         { suffices ? : 0 <= exp (- x0 * (2 * x1 + x0) / 2) by OK.
           apply Rexp_nn. }
       }
@@ -1404,6 +1403,18 @@ Section credits.
     apply Norm1_ex.
   Qed.
 
+  Lemma gauss_4factor_nn {F M n k} (Hbound : ∀ n x, 0 <= F n x <= M) :
+    ∀ x x0, 0 < x < 1 → 0 < x0 < 1 →
+      0 <= G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * G2_μ k x0 * F k x0.
+  Proof.
+    intros ????.
+    apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos | ] | ].
+    { apply G1_μ_nn. }
+    { apply gauss_one_minus_exp_nn; OK. }
+    { apply G2_μ_nn; OK. }
+    { apply Hbound. }
+  Qed.
+
   Lemma HR1 {F M} (Hex : ∀ x1, ex_RInt (F x1) 0 1) (Hbound : ∀ n x, 0 <= F n x <= M) :
     Series.Series (λ x : nat, Series.Series (λ k : nat, RInt (λ x0 : R, RInt (λ x1 : R, (G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1) 0 1)) =
     Series.Series (λ x : nat, RInt (λ x0 : R, Series.Series (λ k : nat, RInt (λ x1 : R, (G1_μ x * (1 - exp (- x0 * (2 * x + x0) / 2)) * G2_μ k x1 * F k x1)) 0 1)) 0 1).
@@ -1421,22 +1432,7 @@ Section credits.
       apply G2_exRInt.
       }
       have L2 :  ∀ x0 : R, 0 < x0 < 1 → 0 <= G1_μ n * (1 - exp (- x * (2 * n + x) / 2)) * G2_μ n0 x0 * F n0 x0.
-      { intros x1 Hx1.
-        apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos|]|].
-        { apply G1_μ_nn. }
-        { suffices ? :  exp (- x * (2 * n + x) / 2) <= 1 by OK.
-          apply Rexp_range.
-          replace (- x * (2 * n + x) / 2) with ((-1 / 2) * (x * (2 * n + x))) by OK.
-          replace 0 with ((-1/2) * 0) by OK.
-          apply Rmult_le_compat_neg_l; OK.
-          apply Rmult_le_pos; OK.
-          apply Rplus_le_le_0_compat; OK.
-          apply Rmult_le_pos; OK.
-          apply pos_INR.
-          }
-        { apply G2_μ_nn. OK. }
-        { apply Hbound. }
-      }
+      { intros ??. apply (gauss_4factor_nn Hbound); OK. }
       apply RInt_ge_0; OK.
     - (* Goal 1: Series convergence - COMPLETED *)
       rewrite ex_seriesC_nat.
@@ -1609,21 +1605,7 @@ Section credits.
       reflexivity.
     }
     have HL3 : ∀ (a b : nat) (x x0 : R), 0 < x < 1 → 0 < x0 < 1 → 0 <= G1_μ b * (1 - exp (- x * (2 * b + x) / 2)) * G2_μ a x0 * F a x0.
-    { intros ??????.
-      apply Rmult_le_pos; [apply Rmult_le_pos; [apply Rmult_le_pos | ] | ].
-      { apply G1_μ_nn. }
-      2: { apply G2_μ_nn; OK. }
-      2: { apply Hbound. }
-      suffices ? : exp (- x * (2 * b + x) / 2) <= 1 by OK.
-      apply Rexp_range.
-      replace (- x * (2 * b + x) / 2) with ((-1 / 2) * (x * (2 * b + x))) by OK.
-      replace 0 with ((-1/2) * 0) by OK.
-      apply Rmult_le_compat_neg_l; OK.
-      apply Rmult_le_pos; OK.
-      apply Rplus_le_le_0_compat; OK.
-      apply Rmult_le_pos; OK.
-      apply pos_INR.
-    }
+    { intros ??????. apply (gauss_4factor_nn Hbound); OK. }
     have HL2 : ∀ (a b : nat) (x : R), 0 < x < 1 → ex_RInt (λ x1 : R, G1_μ b * (1 - exp (- x * (2 * b + x) / 2)) * G2_μ a x1 * F a x1) 0 1.
     { intros ????.
       apply ex_RInt_mult.
@@ -1715,14 +1697,7 @@ Section credits.
           apply Rmult_le_pos; [|apply Hbound].
           apply Rmult_le_pos; [|apply G2_μ_nn; OK].
           suffices ? : exp (- x * (2 * n + x) / 2) <= 1 by OK.
-          apply Rexp_range.
-          replace (- x * (2 * n + x) / 2) with ((-1 / 2) * (x * (2 * n + x))) by OK.
-          replace 0 with ((-1/2) * 0) by OK.
-          apply Rmult_le_compat_neg_l; OK.
-          apply Rmult_le_pos; OK.
-          apply Rplus_le_le_0_compat; OK.
-          apply Rmult_le_pos; OK.
-          apply pos_INR.
+          apply gauss_exp_le_1; OK.
         }
         split; first apply Hlem1.
         apply Rmult_le_compat_l.
@@ -1784,14 +1759,7 @@ Section credits.
             intros ??.
             have Hlem2 : 0 <= (1 - exp (- x * (2 * n0 + x) / 2)).
             { suffices ? : exp (- x * (2 * n0 + x) / 2) <= 1 by OK.
-              apply Rexp_range.
-              replace (- x * (2 * n0 + x) / 2) with ((-1 / 2) * (x * (2 * n0 + x))) by OK.
-              replace 0 with ((-1/2) * 0) by OK.
-              apply Rmult_le_compat_neg_l; OK.
-              apply Rmult_le_pos; OK.
-              apply Rplus_le_le_0_compat; OK.
-              apply Rmult_le_pos; OK.
-              apply pos_INR.
+              apply gauss_exp_le_1; OK.
             }
             have Hlem3 : (1 - exp (- x * (2 * n0 + x) / 2)) <= 1.
             { suffices ? : 0 <= exp (- x * (2 * n0 + x) / 2) by OK.
@@ -2000,14 +1968,7 @@ Section credits.
         apply Rmult_le_pos; [|apply G2_μ_nn; OK].
         apply Rmult_le_pos; [apply G1_μ_nn|].
         suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
-        apply Rexp_range.
-        replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
-        replace 0 with ((-1/2) * 0) by OK.
-        apply Rmult_le_compat_neg_l; OK.
-        apply Rmult_le_pos; OK.
-        apply Rplus_le_le_0_compat; OK.
-        apply Rmult_le_pos; OK.
-        apply pos_INR.
+        apply gauss_exp_le_1; OK.
       }
     }
     { (* UB series must exist *)
@@ -2031,14 +1992,7 @@ Section credits.
           apply Rmult_le_pos; [|apply G2_μ_nn; OK].
           apply Rmult_le_pos; [apply G1_μ_nn|].
           suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
-          apply Rexp_range.
-          replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
-          replace 0 with ((-1/2) * 0) by OK.
-          apply Rmult_le_compat_neg_l; OK.
-          apply Rmult_le_pos; OK.
-          apply Rplus_le_le_0_compat; OK.
-          apply Rmult_le_pos; OK.
-          apply pos_INR.
+          apply gauss_exp_le_1; OK.
         }
       }
       {
@@ -2067,14 +2021,7 @@ Section credits.
           }
           intros ??.
           suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
-          apply Rexp_range.
-          replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
-          replace 0 with ((-1/2) * 0) by OK.
-          apply Rmult_le_compat_neg_l; OK.
-          apply Rmult_le_pos; OK.
-          apply Rplus_le_le_0_compat; OK.
-          apply Rmult_le_pos; OK.
-          apply pos_INR.
+          apply gauss_exp_le_1; OK.
         }
         rewrite -{2}(Rmult_1_r (G1_μ n0)).
         apply Rmult_le_compat; OK.
@@ -2100,14 +2047,7 @@ Section credits.
           }
           intros ??.
           suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
-          apply Rexp_range.
-          replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
-          replace 0 with ((-1/2) * 0) by OK.
-          apply Rmult_le_compat_neg_l; OK.
-          apply Rmult_le_pos; OK.
-          apply Rplus_le_le_0_compat; OK.
-          apply Rmult_le_pos; OK.
-          apply pos_INR.
+          apply gauss_exp_le_1; OK.
         }
         { apply Rmult_le_compat; OK.
           { apply G1_μ_nn. }
@@ -2116,14 +2056,7 @@ Section credits.
             }
             intros ??.
             suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
-            apply Rexp_range.
-            replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
-            replace 0 with ((-1/2) * 0) by OK.
-            apply Rmult_le_compat_neg_l; OK.
-            apply Rmult_le_pos; OK.
-            apply Rplus_le_le_0_compat; OK.
-            apply Rmult_le_pos; OK.
-            apply pos_INR.
+            apply gauss_exp_le_1; OK.
           }
           replace (RInt (λ x0 : R, 1 - exp (- x0 * (2 * n0 + x0) / 2)) 0 1)
              with (Rabs ( RInt (λ x0 : R, 1 - exp (- x0 * (2 * n0 + x0) / 2)) 0 1)).
@@ -2135,14 +2068,7 @@ Section credits.
             }
             intros ??.
             suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
-            apply Rexp_range.
-            replace (- x0 * (2 * n0 + x0) / 2) with ((-1 / 2) * (x0 * (2 * n0 + x0))) by OK.
-            replace 0 with ((-1/2) * 0) by OK.
-            apply Rmult_le_compat_neg_l; OK.
-            apply Rmult_le_pos; OK.
-            apply Rplus_le_le_0_compat; OK.
-            apply Rmult_le_pos; OK.
-            apply pos_INR.
+            apply gauss_exp_le_1; OK.
           }
           etrans; first eapply (abs_RInt_le_const  _ _ _ 1); OK.
           { ex_RInt_auto_derive.
@@ -2152,14 +2078,7 @@ Section credits.
           { suffices ? : 0 <= exp (- t * (2 * n0 + t) / 2) by OK. apply Rexp_nn. }
           apply Rle_ge.
           suffices ? : exp (- t * (2 * n0 + t) / 2) <= 1 by OK.
-          apply Rexp_range.
-          replace (- t * (2 * n0 + t) / 2) with ((-1 / 2) * (t * (2 * n0 + t))) by OK.
-          replace 0 with ((-1/2) * 0) by OK.
-          apply Rmult_le_compat_neg_l; OK.
-          apply Rmult_le_pos; OK.
-          apply Rplus_le_le_0_compat; OK.
-          apply Rmult_le_pos; OK.
-          apply pos_INR.
+          apply gauss_exp_le_1; OK.
         }
       }
     }
@@ -2184,22 +2103,10 @@ Section credits.
     Series.Series (λ x0 : nat, RInt (λ x1 : R, G1_μ x0 * (1 - exp (- x1 * (2 * x0 + x1) / 2)) * G2_μ n x * F n x) 0 1).
   Proof.
     symmetry.
-    have H : ∀ n0 x0, 0 < x0 < 1 → 1 - exp (- x0 * (2 * n0 + x0) / 2) <= 1.
-    { intros ???.
-      suffices ? : 0 <= exp (- x0 * (2 * n0 + x0) / 2) by OK.
-      apply Rexp_nn.
-    }
+    have H : ∀ (n0 : nat) (x0 : R), 0 < x0 < 1 → 1 - exp (- x0 * (2 * n0 + x0) / 2) <= 1.
+    { intros ???. apply gauss_one_minus_exp_le_1; OK. }
     have H' : ∀ (n0 : nat) (x0 : R), 0 < x0 < 1 → 0 <= 1 - exp (- x0 * (2 * n0 + x0) / 2).
-    { intros ???.
-      suffices ? : exp (- x0 * (2 * n0 + x0) / 2) <= 1 by OK.
-      apply Rexp_range.
-      rewrite Rdiv_def.
-      apply Rcomplements.Rmult_le_0_r; OK.
-      apply Rcomplements.Rmult_le_0_r; OK.
-      apply Rplus_le_le_0_compat; OK.
-      apply Rmult_le_pos; OK.
-      apply pos_INR.
-    }
+    { intros ???. apply gauss_one_minus_exp_nn; OK. }
     apply (FubiniIntegralSeries_Strong (fun x0 => G1_μ x0 * G2_μ n x * M)).
     - OK.
     - intros ???.
@@ -2365,14 +2272,7 @@ Section credits.
       have Hlem1 : ∀ x, 0 <= x <= 1 → 0 <= (1 - exp (- x * (2 * n + x) / 2)).
       { intros ??.
         suffices ? : exp (- x * (2 * n + x) / 2) <= 1 by OK.
-        apply Rexp_range.
-        replace (- x * (2 * n + x) / 2) with ((-1 / 2) * (x * (2 * n + x))) by OK.
-        replace 0 with ((-1/2) * 0) by OK.
-        apply Rmult_le_compat_neg_l; OK.
-        apply Rmult_le_pos; OK.
-        apply Rplus_le_le_0_compat; OK.
-        apply Rmult_le_pos; OK.
-        apply pos_INR.
+        apply gauss_exp_le_1; OK.
       }
       split.
       { apply Rmult_le_pos; [apply G1_μ_nn|].
