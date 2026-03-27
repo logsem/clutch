@@ -657,7 +657,7 @@ Section Lib.
                         WP (rec: "cmp" "x" "y" "n" :=
                               let: "cx" := "x" "n" in
                               let: "cy" := "y" "n" in
-                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
+                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" - #1))%V vx vy
                              #n0
                         @ E
                         {{ r, ⌜r = #(-1)⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E  }})
@@ -687,7 +687,7 @@ Section Lib.
                         WP (rec: "cmp" "x" "y" "n" :=
                               let: "cx" := "x" "n" in
                               let: "cy" := "y" "n" in
-                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
+                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" - #1))%V vx vy
                              #n0
                         @ E
                         {{ r, ⌜r = #(-1)⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E }})
@@ -745,7 +745,7 @@ Section Lib.
                         WP (rec: "cmp" "x" "y" "n" :=
                               let: "cx" := "x" "n" in
                               let: "cy" := "y" "n" in
-                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
+                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" - #1))%V vx vy
                              #n0
                         @ E
                         {{ r, ⌜r = #1⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E }})
@@ -774,7 +774,7 @@ Section Lib.
                         WP (rec: "cmp" "x" "y" "n" :=
                               let: "cx" := "x" "n" in
                               let: "cy" := "y" "n" in
-                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
+                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" - #1))%V vx vy
                              #n0
                         @ E
                         {{ r, ⌜r = #1⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E }})

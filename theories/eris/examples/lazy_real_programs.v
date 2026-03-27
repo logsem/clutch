@@ -90,7 +90,7 @@ Definition R_cmp : val :=
     let: "cy" := "y" "n" in
     if: ("cx" + #2 < "cy") then #(-1) else
     if: ("cy" + #2 < "cx") then #(1) else
-    "cmp" "x" "y" ("n" + #1).
+    "cmp" "x" "y" ("n" - #1).
 
 Definition ToLazyReal : val :=
   λ: "e",

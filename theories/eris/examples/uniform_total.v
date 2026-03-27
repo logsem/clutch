@@ -49,6 +49,7 @@ Section uniform_total.
     (0 < ε)%R →
     ⊢ ↯ ε -∗ WP lazy_real_cdf_checker UnifSampler B C @ E [{ v, ⌜ True ⌝ }].
   Proof.
+    (*
     iIntros (Hε) "Hε".
     rewrite /UnifSampler /lazy_real_cdf_checker.
     wp_bind (init _)%E.
@@ -102,6 +103,7 @@ Section uniform_total.
     { by wp_pures. }
        We need TWP lemmas for get_bits/get_chunk, or a different approach. *)
     admit.
+    *)
   Admitted.
 
 End uniform_total.
@@ -335,7 +337,7 @@ Proof.
     iExists r. iFrame.
   - apply uniform_density_mass.
   - intros B' C'. apply (uniform_cdf_checker_terminates Σ σ B' C').
-Admitted.
+Qed.
 
 (** Closed theorem: instantiate with erisΣ *)
 Theorem uniform_cdf_prob_closed (σ : state) :
