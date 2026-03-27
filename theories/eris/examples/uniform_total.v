@@ -30,19 +30,81 @@ Section uniform_total.
     iFrame.
   Qed.
 
-  (*
-
-  Lemma twp_get_chunk α l E :
-    chunk_list l [] ∗ α ↪ (1%nat; [])
+  (** TWP for get_chunk on a cached chunk *)
+  Lemma twp_get_chunk_cached (z : fin 2) α (l l' : loc) zs E ns :
+    l ↦ SOMEV (#(fin_to_nat z), #l') ∗ chunk_list l' zs ∗ α ↪ (1%nat; ns)
     ⊢ WP get_chunk #lbl:α #l @ E
-      [{ v, ∃ l' (b : Z), ⌜v = (#b, #l')%V⌝ ∗ chunk_list l' [] ∗ α ↪ (1%nat; []) }].
+      [{ v, ⌜v = (#(fin_to_nat z), #l')%V⌝ ∗
+            l ↦ SOMEV (#(fin_to_nat z), #l') ∗ chunk_list l' zs ∗ α ↪ (1%nat; ns) }].
+  Proof.
+    iIntros "(Hl & Hcl & Ha)".
+    rewrite /get_chunk. wp_pures. wp_load. wp_pures.
+    iModIntro. iFrame. done.
+  Qed.
 
-  Lemma twp_get_bits α l E (n : Z) :
-    (0 ≤ n)%Z →
-    chunk_list l [] ∗ α ↪ (1%nat; [])
-    ⊢ WP get_bits (#lbl:α, #l)%V #n #0 @ E
-      [{ v, ∃ (R : Z) l', ⌜v = #R⌝ ∗ chunk_list l' [] ∗ α ↪ (1%nat; []) }].
-*)
+  (** TWP for get_chunk on a fresh chunk with one presampled bit *)
+  Lemma twp_get_chunk_fresh (b : fin (S 1)) α (l : loc) E :
+    l ↦ NONEV ∗ α ↪ (1%nat; cons b nil)
+    ⊢ WP get_chunk #lbl:α #l @ E
+      [{ v, ∃ l' : loc, ⌜v = (#(fin_to_nat b), #l')%V⌝ ∗
+            l ↦ SOMEV (#(fin_to_nat b), #l') ∗ l' ↦ NONEV ∗ α ↪ (1%nat; []) }].
+  Proof.
+    iIntros "(Hl & Ha)".
+    rewrite /get_chunk. wp_pures. wp_load. wp_pures.
+    wp_apply (twp_rand_tape with "Ha").
+    iIntros "Ha". wp_pures.
+    wp_alloc l' as "Hl'". wp_pures.
+    wp_store. iModIntro.
+    iExists l'. iFrame. done.
+  Qed.
+
+  (** TWP for get_bits: traverses cached chunks then reads one presampled bit *)
+  Lemma twp_get_bits α l zs E (b : fin (S 1)) (acc : Z) :
+    chunk_list l zs ∗ α ↪ (1%nat; cons b nil)
+    ⊢ WP get_bits (#lbl:α, #l)%V #(length zs) #acc @ E
+      [{ v, ∃ (R : Z), ⌜v = #R⌝ ∗ chunk_list l (zs ++ cons b nil) ∗ α ↪ (1%nat; []) }].
+  Proof.
+    iRevert (l acc).
+    iInduction zs as [|z zs] "IH".
+    - (* Base case: zs = [], digitsLeft = 0 *)
+      (* get_chunk reads the fresh bit b, then digitsLeft = 0, return acc *)
+      iIntros (l acc) "[Hl Ha]".
+      simpl. rewrite /get_bits. wp_pures.
+      wp_bind (get_chunk _ _)%E.
+      iApply (tgl_wp_wand with "[Hl Ha]").
+      { iApply (twp_get_chunk_fresh with "[$Hl $Ha]"). }
+      iIntros (v) "(%l' & -> & Hl & Hl' & Ha)".
+      wp_pures.
+      (* digitsLeft = 0, return approxSoFar *)
+      iModIntro. iExists acc.
+      iSplitR. { done. }
+      simpl. iSplitL "Hl Hl'". { iExists l'. iFrame. }
+      iFrame.
+    - (* Inductive case: traverse cached chunk z, then continue *)
+      iIntros (l acc) "[Hl Ha]".
+      simpl.
+      iDestruct "Hl" as (l') "[Hl Hcl]".
+      rewrite /get_bits. wp_pures.
+      (* After wp_pures, the first get_chunk on l is inlined. Bind and handle it. *)
+      wp_bind (get_chunk _ _)%E.
+      iApply (tgl_wp_wand with "[Hl Hcl Ha]").
+      { iApply (twp_get_chunk_cached with "[$Hl $Hcl $Ha]"). }
+      iIntros (v) "(-> & Hl & Hcl & Ha)".
+      do 11 wp_pure.
+      (* Goal: (rec: "force" ...) (#lbl:α, #l')%V #(S (length zs) - 1) #(2 * acc + z) *)
+      change (rec: "force" "lazyR" "digitsLeft" "approxSoFar" :=
+        let: "cn" := get_chunk (Fst "lazyR") (Snd "lazyR") in
+        if: "digitsLeft" = #0 then "approxSoFar"
+        else "force" (Fst "lazyR", Snd "cn") ("digitsLeft" - #1)
+              (#2 * "approxSoFar" + Fst "cn"))%V with get_bits.
+      replace (Z.of_nat (S (length zs)) - 1)%Z with (Z.of_nat (length zs)) by lia.
+      iApply (tgl_wp_wand with "[Hcl Ha]").
+      { iApply ("IH" $! l' with "[$Hcl $Ha]"). }
+      iIntros (v) "(%R & -> & Hcl & Ha)".
+      iExists R. iSplitR; [done|].
+      iFrame "Ha".
+      simpl. iExists l'. iFrame.
+  Qed.
 
   (** Total WP for the checker — the key new result using total Eris *)
   Lemma twp_lazy_real_cdf_checker E (ε : R) (B C : Z) :
@@ -62,46 +124,29 @@ Section uniform_total.
     rewrite /R_mulPow.
     wp_pures.
     rewrite /lazy_real_uninit.
+    rewrite /R_cmp.
+    wp_pures.
+    case_bool_decide.
+    { by wp_pures. }
+    wp_pures.
+    case_bool_decide.
+    { by wp_pures. }
+    wp_pure.
     iDestruct "Hv" as (l a) "(-> & Hl & Ha)".
     (* Bundle tape and ref into the goal for ec_ind_amp *)
-    iAssert (∃ zs, chunk_list l zs ∗ a ↪ (1%nat; zs))%I with "[Hl Ha]" as "I".
+
+    (* TODO: We may need a relationship between |zs| and n depending on the spec for get_bits *)
+    iAssert (∃ zs, chunk_list l zs ∗ a ↪ (1%nat; []))%I with "[Hl Ha]" as "I".
     { iExists []. simpl. iFrame. }
     iRevert "I".
-    rewrite /R_cmp.
     iApply (ec_ind_amp _ 2 with "[] Hε"); [lra|lra|].
     iModIntro.
     iIntros (ε') "%Hε' #IH Hε' I".
+    (* Finally, we are at a place where we will start actually sampling bits.
+       Which means we can presample one bit onto the I tape (with amplification)
+       to use ec_ind_amp.
+    *)
     wp_pures.
-    case_bool_decide.
-    { by wp_pures. }
-    wp_pures.
-    case_bool_decide.
-    { by wp_pures. }
-    wp_pures.
-    (*
-    case_bool_decide.
-    { by wp_pures. }
-    wp_pures.
-    case_bool_decide.
-    { by wp_pures. }
-    wp_pures.
-    case_bool_decide.
-    { by wp_pures. }
-    wp_pures.
-    case_bool_decide.
-    { by wp_pures. }
-    wp_pures.
-    case_bool_decide.
-    { by wp_pures. }
-    wp_pures.
-    case_bool_decide.
-    { by wp_pures. }
-    wp_pures.
-     *)
-
-    (* The loop body evaluates get_bits (which samples bits) then compares.
-    { by wp_pures. }
-       We need TWP lemmas for get_bits/get_chunk, or a different approach. *)
   Admitted.
 
 End uniform_total.
