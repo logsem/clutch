@@ -59,11 +59,12 @@ Section uniform_total.
   Qed.
 
   (** TWP for get_bits: traverses cached chunks then reads one presampled bit *)
-  Lemma twp_get_bits α l zs E (b : fin (S 1)) (acc : Z) :
+  Lemma twp_get_bits α l zs E (b : fin (S 1)) (acc : Z) (X : Z) (Hx : X = length zs ):
     chunk_list l zs ∗ α ↪ (1%nat; cons b nil)
-    ⊢ WP get_bits (#lbl:α, #l)%V #(length zs) #acc @ E
+    ⊢ WP get_bits (#lbl:α, #l)%V #X #acc @ E
       [{ v, ∃ (R : Z), ⌜v = #R⌝ ∗ chunk_list l (zs ++ cons b nil) ∗ α ↪ (1%nat; []) }].
   Proof.
+    rewrite Hx; clear Hx X.
     iRevert (l acc).
     iInduction zs as [|z zs] "IH".
     - (* Base case: zs = [], digitsLeft = 0 *)
@@ -133,20 +134,76 @@ Section uniform_total.
     { by wp_pures. }
     wp_pure.
     iDestruct "Hv" as (l a) "(-> & Hl & Ha)".
-    (* Bundle tape and ref into the goal for ec_ind_amp *)
+    wp_pure.
+    (* HERE:
+         It suffices to show that for all n,
+          ↯ ε -∗
+          chunk_list l [] -∗
+          a ↪[erisGS_tapes_name] (1%nat; []) -∗
+         WP (rec: "cmp" "x" "y" "n" :=
+               let: "cx" := "x" "n" in
+               let: "cy" := "y" "n" in
+               if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" - #1))%V
+              (λ: "prec", if: #0 ≤ "prec" then #0 else get_bits (#lbl:a, #l)%V (#(-1) * "prec") #0)%V
+              (λ: "prec", (λ: "prec", #B ≫ "prec")%V (#C + "prec"))%V #n
+         @ E
+         [{ _, True }]
+     *)
 
-    (* TODO: We may need a relationship between |zs| and n depending on the spec for get_bits *)
-    iAssert (∃ zs, chunk_list l zs ∗ a ↪ (1%nat; []))%I with "[Hl Ha]" as "I".
-    { iExists []. simpl. iFrame. }
-    iRevert "I".
+    clear H H0.
+    iAssert (∀ n : Z, ⌜(n < 0)%Z⌝ -∗
+      ↯ ε -∗
+      (∃ zs, ⌜((-1) * n = Z.of_nat (S (length zs)))%Z⌝ ∗ chunk_list l zs ∗ a ↪ (1%nat; [])) -∗
+      WP (rec: "cmp" "x" "y" "n" :=
+            let: "cx" := "x" "n" in
+            let: "cy" := "y" "n" in
+            if: "cx" + #2 < "cy" then #(-1)
+            else if: "cy" + #2 < "cx" then #1
+            else "cmp" "x" "y" ("n" - #1))%V
+        (λ: "prec", if: #0 ≤ "prec" then #0
+           else get_bits (#lbl:a, #l)%V (#(-1) * "prec") #0)%V
+        (λ: "prec", (λ: "prec", #B ≫ "prec")%V (#C + "prec"))%V
+        #n @ E [{ _, True }])%I as "Hgen".
+    2: { (* Sufficiency *)
+      iApply ("Hgen" with "[] Hε [Hl Ha]"); [iPureIntro; lia|].
+      iExists []. simpl. iFrame. iPureIntro. lia. }
+    (* Main proof: ∀ n, ... *)
+    iIntros (n) "%Hn Hε (%zs & %Hinv & Hcl & Ha)".
+    iRevert (n Hn Hinv) "Hcl Ha".
     iApply (ec_ind_amp _ 2 with "[] Hε"); [lra|lra|].
     iModIntro.
-    iIntros (ε') "%Hε' #IH Hε' I".
-    (* Finally, we are at a place where we will start actually sampling bits.
-       Which means we can presample one bit onto the I tape (with amplification)
-       to use ec_ind_amp.
-    *)
+    iIntros (ε') "%Hε' #IH Hε'".
+    iIntros (n Hn Hinv) "Hcl Ha".
+
+    (* Presample one bit onto the tape a.
+        f(0) = 0
+        f(1) = 2 * ε'
+     *)
+    set (ε2 := fun (b : fin 2) => if (fin_to_nat b =? 0)%nat then 0%R else (2 * ε')%R).
+    wp_apply (twp_presample_adv_comp 1 1 E _ a _ [] ε' ε2 with "[$Ha $Hε' Hcl]").
+    { done. }
+    { intros b'. subst ε2. simpl. destruct (fin_to_nat b' =? 0)%nat eqn:E'; [lra|lra]. }
+    { subst ε2. rewrite SeriesC_finite_foldr. simpl. lra. }
+    iIntros (b) "[Hε2 Ha]".
+
     wp_pures.
+    case_bool_decide; [lia|].
+    wp_pures.
+
+    wp_bind (get_bits _ _ _).
+    iApply (tgl_wp_wand with "[Hcl Ha]").
+    {
+      iApply (twp_get_bits _ _ zs).
+      (* Stuck due to this side condition... we will revisit. *)
+      { admit. }
+      iFrame.
+    }
+    iIntros (?) "[%cx [-> [Hcl Ha]]]".
+    wp_pures.
+
+
+
+    admit.
   Admitted.
 
 End uniform_total.
@@ -317,20 +374,40 @@ Proof.
   rewrite -(@RInt_gen_Chasles R_CompleteNormedModule
     (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) _ _
     (fun x => uniform_density x * F x) 0).
-  3: { admit. }
-  2: { admit. }
+  3: { (* ex_RInt_gen pos half *)
+       have Htail : ex_RInt_gen (fun x => uniform_density x * F x) (at_point 1) (Rbar_locally Rbar.p_infty).
+       { eapply ex_RInt_gen_ext_eq_Ioi; last apply (ex_RInt_gen_0 1).
+         intros x Hx. rewrite uniform_density_zero_right; [ring|done]. }
+       have Hfin : ex_RInt_gen (fun x => uniform_density x * F x) (at_point 0) (at_point 1).
+       { rewrite ex_RInt_gen_at_point. apply ex_RInt_mult.
+         { apply IPCts_RInt, IPCts_uniform. } { apply IPCts_RInt. done. } }
+       destruct Htail as [lt Hlt]. destruct Hfin as [lf Hlf].
+       exists (plus lf lt). eapply is_RInt_gen_Chasles; eassumption. }
+  2: { (* ex_RInt_gen neg half *)
+       eapply ex_RInt_gen_ext_eq_Iio; last first.
+       { eapply ex_RInt_gen_neg_change_of_var_rev.
+         - intros b Hb. apply ex_RInt_const.
+         - apply ex_RInt_gen_0. }
+       intros x Hx. rewrite uniform_density_zero_left; [ring|done]. }
   rewrite (RInt_gen_ext_eq_Iio
     (f := fun x => uniform_density x * F x) (g := fun _ => 0)).
-  3: { admit. }
+  3: { eapply ex_RInt_gen_ext_eq_Iio; last first.
+       { eapply ex_RInt_gen_neg_change_of_var_rev.
+         - intros b Hb. apply ex_RInt_const.
+         - apply ex_RInt_gen_0. }
+       intros x Hx. rewrite uniform_density_zero_left; [ring|done]. }
   2: { intros x Hx. rewrite uniform_density_zero_left; [ring|done]. }
   rewrite -(@RInt_gen_Chasles R_CompleteNormedModule
     (at_point 0) (Rbar_locally Rbar.p_infty) _ _
     (fun x => uniform_density x * F x) 1).
-  3: { admit. }
-  2: { admit. }
+  3: { eapply ex_RInt_gen_ext_eq_Ioi; last apply (ex_RInt_gen_0 1).
+       intros x Hx. rewrite uniform_density_zero_right; [ring|done]. }
+  2: { rewrite ex_RInt_gen_at_point. apply ex_RInt_mult.
+       { apply IPCts_RInt, IPCts_uniform. } { apply IPCts_RInt. done. } }
   rewrite (RInt_gen_ext_eq_Ioi
     (f := fun x => uniform_density x * F x) (g := fun _ => 0)).
-  3: { admit. }
+  3: { eapply ex_RInt_gen_ext_eq_Ioi; last apply (ex_RInt_gen_0 1).
+       intros x Hx. rewrite uniform_density_zero_right; [ring|done]. }
   2: { intros x Hx. rewrite uniform_density_zero_right; [ring|done]. }
   rewrite RInt_gen_0 RInt_gen_0_neg RInt_gen_at_point.
   2: { apply ex_RInt_mult. { apply IPCts_RInt, IPCts_uniform. } { apply IPCts_RInt. done. } }
@@ -347,7 +424,7 @@ Proof.
   }
   rewrite /plus//=.
   OK.
-Admitted.
+Qed.
 
 (** Main theorem: the uniform sampler correctly implements the CDF *)
 Theorem uniform_cdf_prob Σ `{erisGpreS Σ} (σ : state) :
