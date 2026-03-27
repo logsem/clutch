@@ -125,11 +125,69 @@ Proof.
 Qed.
 
 (** Total mass is 1 *)
+Lemma uniform_density_zero_left x : x < 0 → uniform_density x = 0.
+Proof.
+  intros. rewrite /uniform_density /Iverson /Icc.
+  rewrite Rmin_left; [|lra]. rewrite Rmax_right; [|lra].
+  case_decide; lra.
+Qed.
+
+Lemma uniform_density_zero_right x : 1 < x → uniform_density x = 0.
+Proof.
+  intros. rewrite /uniform_density /Iverson /Icc.
+  rewrite Rmin_left; [|lra]. rewrite Rmax_right; [|lra].
+  case_decide; lra.
+Qed.
+
+Lemma uniform_density_one x : 0 <= x <= 1 → uniform_density x = 1.
+Proof.
+  intros. rewrite /uniform_density /Iverson /Icc.
+  rewrite Rmin_left; [|lra]. rewrite Rmax_right; [|lra].
+  case_decide; lra.
+Qed.
+
+Lemma RInt_gen_0_neg :
+  RInt_gen (λ _ : R, 0) (Rbar_locally Rbar.m_infty) (at_point 0) = 0.
+Proof.
+  rewrite -(@RInt_gen_neg_change_of_var (λ _, 0)).
+  - apply RInt_gen_0.
+  - intros. apply ex_RInt_const.
+  - intros. apply ex_RInt_const.
+  - eapply (@ex_RInt_gen_neg_change_of_var_rev (fun _ : R => 0)).
+    + intros. apply ex_RInt_const.
+    + apply ex_RInt_gen_0.
+Qed.
+
 Lemma uniform_density_mass :
   RInt_gen uniform_density (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) = 1.
 Proof.
-Admitted.
-(* TODO: split at 0 and 1, show left tail = 0, middle = 1, right tail = 0 *)
+  rewrite -(@RInt_gen_Chasles R_CompleteNormedModule
+    (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) _ _
+    uniform_density 0).
+  3: { apply ex_RInt_gen_uniform_pos. }
+  2: { apply ex_RInt_gen_uniform_neg. }
+  rewrite (RInt_gen_ext_eq_Iio (f := uniform_density) (g := fun _ => 0)).
+  3: { apply ex_RInt_gen_uniform_neg. }
+  2: { intros. apply uniform_density_zero_left. done. }
+  rewrite -(@RInt_gen_Chasles R_CompleteNormedModule
+    (at_point 0) (Rbar_locally Rbar.p_infty) _ _
+    uniform_density 1).
+  3: { eapply ex_RInt_gen_ext_eq_Ioi;
+       [intros; symmetry; apply uniform_density_zero_right; done
+       |apply (ex_RInt_gen_0 1)]. }
+  2: { rewrite ex_RInt_gen_at_point. apply IPCts_RInt, IPCts_uniform. }
+  rewrite (RInt_gen_ext_eq_Ioi (f := uniform_density) (g := fun _ => 0)).
+  3: { eapply ex_RInt_gen_ext_eq_Ioi;
+       [intros; symmetry; apply uniform_density_zero_right; done
+       |apply (ex_RInt_gen_0 1)]. }
+  2: { intros. apply uniform_density_zero_right. done. }
+  rewrite RInt_gen_0 RInt_gen_0_neg RInt_gen_at_point.
+  2: { apply IPCts_RInt, IPCts_uniform. }
+  rewrite (RInt_ext uniform_density (fun _ => 1)).
+  2: { intros x [Hx1 Hx2]. apply uniform_density_one.
+       rewrite Rmin_left in Hx1; [|lra]. rewrite Rmax_right in Hx2; [|lra]. lra. }
+  rewrite RInt_const /scal /= /mult /plus /=. lra.
+Qed.
 
 (** Main theorem: the uniform sampler correctly implements the CDF *)
 Theorem uniform_cdf_prob Σ `{erisGpreS Σ} (σ : state) :
