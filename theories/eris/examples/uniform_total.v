@@ -49,7 +49,6 @@ Section uniform_total.
     (0 < ε)%R →
     ⊢ ↯ ε -∗ WP lazy_real_cdf_checker UnifSampler B C @ E [{ v, ⌜ True ⌝ }].
   Proof.
-    (*
     iIntros (Hε) "Hε".
     rewrite /UnifSampler /lazy_real_cdf_checker.
     wp_bind (init _)%E.
@@ -78,8 +77,8 @@ Section uniform_total.
     wp_pures.
     case_bool_decide.
     { by wp_pures. }
-    wp_pure.
     wp_pures.
+    (*
     case_bool_decide.
     { by wp_pures. }
     wp_pures.
@@ -98,12 +97,11 @@ Section uniform_total.
     case_bool_decide.
     { by wp_pures. }
     wp_pures.
+     *)
 
     (* The loop body evaluates get_bits (which samples bits) then compares.
     { by wp_pures. }
        We need TWP lemmas for get_bits/get_chunk, or a different approach. *)
-    admit.
-    *)
   Admitted.
 
 End uniform_total.
