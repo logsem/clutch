@@ -823,13 +823,6 @@ Qed.
 
 Section CReal.
 
-Definition lazy_real_cdf_checker (sampler : expr) (B C : Z) : expr :=
-  let: "sample" := sampler in
-  let: "num" := R_ofZ #B in
-  let: "bound" := R_mulPow "num" #C in
-  R_cmp "sample" "bound" #0%nat.
-
-
 Theorem RInt_gen_ex_pos {μ X} (HC : IPCts μ)
     (Hhi : ex_RInt_gen μ (at_point 0) (Rbar_locally Rbar.p_infty)) :
     ex_RInt_gen μ (at_point X) (Rbar_locally Rbar.p_infty).

@@ -58,3 +58,49 @@ Definition get_bits : val :=
     if: ("digitsLeft" = #0)
       then "approxSoFar"
       else "force" ((Fst "lazyR"), (Snd "cn")) ("digitsLeft" - #1) (#2 * "approxSoFar" + (Fst "cn")).
+
+(** Computable real arithmetic programs *)
+
+Definition VDiv4Rounded : val :=
+  λ: "z", (("z" `quot` #4) + (("z" `rem` #4) `quot` #2)).
+
+Definition R_ofZ : val :=
+  λ: "vZ",
+    λ: "prec", ("vZ" ≫ "prec").
+
+Definition R_mulPow : val :=
+  λ: "f" "vZ",
+    λ: "prec", "f" ("vZ" + "prec").
+
+Definition R_plus : val :=
+  λ: "f" "g",
+    λ: "prec", VDiv4Rounded ("f" ("prec" - #2) + "g" ("prec" - #2)).
+
+Definition R_neg : val :=
+  λ: "f",
+    λ: "prec", #(- 1) * "f" "prec".
+
+Definition R_ofUnif : val :=
+  λ: "v",
+    λ: "prec", if: (#0 ≤ "prec") then #0 else  get_bits "v" (#(-1) * "prec") #0.
+
+Definition R_cmp : val :=
+  rec: "cmp" "x" "y" "n" :=
+    let: "cx" := "x" "n" in
+    let: "cy" := "y" "n" in
+    if: ("cx" + #2 < "cy") then #(-1) else
+    if: ("cy" + #2 < "cx") then #(1) else
+    "cmp" "x" "y" ("n" + #1).
+
+Definition ToLazyReal : val :=
+  λ: "e",
+    let: "U" := R_ofUnif (Snd (Snd "e")) in
+    let: "Z" := R_ofZ (Fst (Snd "e")) in
+    let: "ZU" := R_plus "U" "Z" in
+    if: (Fst "e" = #1) then R_neg "ZU" else "ZU".
+
+Definition lazy_real_cdf_checker (sampler : expr) (B C : Z) : expr :=
+  let: "sample" := sampler in
+  let: "num" := R_ofZ #B in
+  let: "bound" := R_mulPow "num" #C in
+  R_cmp "sample" "bound" #0%nat.
