@@ -14,11 +14,94 @@ Definition UnifSampler : expr := R_ofUnif (init #()).
 Section uniform_total.
   Context `{!erisGS Σ}.
 
+  (** TWP for init: allocate a lazy real *)
+  Lemma twp_init E :
+    ⊢ WP init #() @ E [{ v, lazy_real_uninit v }].
+  Proof.
+    rewrite /init.
+    wp_pures.
+    wp_alloc l as "Hl".
+    wp_pures.
+    wp_apply (twp_alloc_tape); [done|].
+    iIntros (α) "Hα".
+    wp_pures.
+    iModIntro.
+    iExists _, _. iSplit; [done|].
+    iFrame.
+  Qed.
+
+  (*
+
+  Lemma twp_get_chunk α l E :
+    chunk_list l [] ∗ α ↪ (1%nat; [])
+    ⊢ WP get_chunk #lbl:α #l @ E
+      [{ v, ∃ l' (b : Z), ⌜v = (#b, #l')%V⌝ ∗ chunk_list l' [] ∗ α ↪ (1%nat; []) }].
+
+  Lemma twp_get_bits α l E (n : Z) :
+    (0 ≤ n)%Z →
+    chunk_list l [] ∗ α ↪ (1%nat; [])
+    ⊢ WP get_bits (#lbl:α, #l)%V #n #0 @ E
+      [{ v, ∃ (R : Z) l', ⌜v = #R⌝ ∗ chunk_list l' [] ∗ α ↪ (1%nat; []) }].
+*)
+
   (** Total WP for the checker — the key new result using total Eris *)
   Lemma twp_lazy_real_cdf_checker E (ε : R) (B C : Z) :
     (0 < ε)%R →
     ⊢ ↯ ε -∗ WP lazy_real_cdf_checker UnifSampler B C @ E [{ v, ⌜ True ⌝ }].
   Proof.
+    iIntros (Hε) "Hε".
+    rewrite /UnifSampler /lazy_real_cdf_checker.
+    wp_bind (init _)%E.
+    iApply (tgl_wp_wand with "[]").
+    { iApply twp_init. }
+    iIntros (v) "Hv".
+    rewrite /R_ofUnif.
+    wp_pures.
+    rewrite /R_ofZ.
+    wp_pures.
+    rewrite /R_mulPow.
+    wp_pures.
+    rewrite /lazy_real_uninit.
+    iDestruct "Hv" as (l a) "(-> & Hl & Ha)".
+    (* Bundle tape and ref into the goal for ec_ind_amp *)
+    iAssert (∃ zs, chunk_list l zs ∗ a ↪ (1%nat; zs))%I with "[Hl Ha]" as "I".
+    { iExists []. simpl. iFrame. }
+    iRevert "I".
+    rewrite /R_cmp.
+    iApply (ec_ind_amp _ 2 with "[] Hε"); [lra|lra|].
+    iModIntro.
+    iIntros (ε') "%Hε' #IH Hε' I".
+    wp_pures.
+    case_bool_decide.
+    { by wp_pures. }
+    wp_pures.
+    case_bool_decide.
+    { by wp_pures. }
+    wp_pure.
+    wp_pures.
+    case_bool_decide.
+    { by wp_pures. }
+    wp_pures.
+    case_bool_decide.
+    { by wp_pures. }
+    wp_pures.
+    case_bool_decide.
+    { by wp_pures. }
+    wp_pures.
+    case_bool_decide.
+    { by wp_pures. }
+    wp_pures.
+    case_bool_decide.
+    { by wp_pures. }
+    wp_pures.
+    case_bool_decide.
+    { by wp_pures. }
+    wp_pures.
+
+    (* The loop body evaluates get_bits (which samples bits) then compares.
+    { by wp_pures. }
+       We need TWP lemmas for get_bits/get_chunk, or a different approach. *)
+    admit.
   Admitted.
 
 End uniform_total.
@@ -244,7 +327,7 @@ Proof.
     { apply (@RInt_correct R_CompleteNormedModule F 0 1), IPCts_RInt. done. }
     iFrame "Hv".
     iSplitL "Hε".
-    { iApply ec_eq. { apply uniform_density_RInt_gen_eq. { intros; apply HM. } done. } iFrame. }
+    { iApply ec_eq. { apply (@uniform_density_RInt_gen_eq F M). { intros; apply HM. } done. } iFrame. }
     iIntros (r) "(%Hr & Hε & Hr)".
     iApply (pgl_wp_wand with "[Hr]").
     { iApply (wp_R_ofUnif r with "Hr"). }
