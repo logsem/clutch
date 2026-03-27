@@ -14,14 +14,6 @@ Definition UnifSampler : expr := R_ofUnif (init #()).
 Section uniform_total.
   Context `{!erisGS Σ}.
 
-  (** Hspec: the uniform sampler satisfies the lazy_real_expr spec *)
-  Lemma wp_UnifSampler E (F : R → R) {M}
-      (Hnn : ∀ x, 0 <= F x <= M) (HP : IPCts F) :
-    ⊢ ↯ (RInt F 0 1) -∗
-      WP UnifSampler @ E {{ cont, ∃ r, IsApprox cont r E ∗ ↯(F r) }}.
-  Proof.
-  Admitted.
-
   (** Total WP for the checker — the key new result using total Eris *)
   Lemma twp_lazy_real_cdf_checker E (ε : R) (B C : Z) :
     (0 < ε)%R →
@@ -189,6 +181,46 @@ Proof.
   rewrite RInt_const /scal /= /mult /plus /=. lra.
 Qed.
 
+Lemma uniform_density_RInt_gen_eq (F : R → R) {M}
+    (Hnn : ∀ x, 0 <= F x <= M) (HP : IPCts F) :
+  RInt_gen (fun x => uniform_density x * F x)
+    (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) = RInt F 0 1.
+Proof.
+  rewrite -(@RInt_gen_Chasles R_CompleteNormedModule
+    (Rbar_locally Rbar.m_infty) (Rbar_locally Rbar.p_infty) _ _
+    (fun x => uniform_density x * F x) 0).
+  3: { admit. }
+  2: { admit. }
+  rewrite (RInt_gen_ext_eq_Iio
+    (f := fun x => uniform_density x * F x) (g := fun _ => 0)).
+  3: { admit. }
+  2: { intros x Hx. rewrite uniform_density_zero_left; [ring|done]. }
+  rewrite -(@RInt_gen_Chasles R_CompleteNormedModule
+    (at_point 0) (Rbar_locally Rbar.p_infty) _ _
+    (fun x => uniform_density x * F x) 1).
+  3: { admit. }
+  2: { admit. }
+  rewrite (RInt_gen_ext_eq_Ioi
+    (f := fun x => uniform_density x * F x) (g := fun _ => 0)).
+  3: { admit. }
+  2: { intros x Hx. rewrite uniform_density_zero_right; [ring|done]. }
+  rewrite RInt_gen_0 RInt_gen_0_neg RInt_gen_at_point.
+  2: { apply ex_RInt_mult. { apply IPCts_RInt, IPCts_uniform. } { apply IPCts_RInt. done. } }
+  rewrite (RInt_ext (fun x => uniform_density x * F x) F).
+  2: { intros x [Hx1 Hx2].
+       rewrite Rmin_left in Hx1; [|lra]. rewrite Rmax_right in Hx2; [|lra].
+       rewrite /uniform_density/Iverson/=.
+       case_decide; try lra.
+       exfalso.
+       revert H.
+       rewrite /Icc//=.
+       rewrite Rmin_left; OK.
+       rewrite Rmax_right; OK.
+  }
+  rewrite /plus//=.
+  OK.
+Admitted.
+
 (** Main theorem: the uniform sampler correctly implements the CDF *)
 Theorem uniform_cdf_prob Σ `{erisGpreS Σ} (σ : state) :
   ∀ B C : Z,
@@ -202,7 +234,22 @@ Proof.
   - apply IPCts_uniform.
   - apply ex_RInt_gen_uniform_neg.
   - apply ex_RInt_gen_uniform_pos.
-  - (* Hspec *) admit.
+  - iIntros (?? F [M HM] HI) "Hε".
+    unfold UnifSampler.
+    wp_bind (init _)%E.
+    iApply wp_init; [done|].
+    iIntros (v) "Hv".
+    iApply (wp_lazy_real_presample_adv_comp E (R_ofUnif v) v _ (RInt F 0 1) F with "[-]"); auto.
+    { intros r Hr. apply HM. }
+    { apply (@RInt_correct R_CompleteNormedModule F 0 1), IPCts_RInt. done. }
+    iFrame "Hv".
+    iSplitL "Hε".
+    { iApply ec_eq. { apply uniform_density_RInt_gen_eq. { intros; apply HM. } done. } iFrame. }
+    iIntros (r) "(%Hr & Hε & Hr)".
+    iApply (pgl_wp_wand with "[Hr]").
+    { iApply (wp_R_ofUnif r with "Hr"). }
+    iIntros (cont) "Happrox".
+    iExists r. iFrame.
   - apply uniform_density_mass.
   - intros B' C'. apply (uniform_cdf_checker_terminates Σ σ B' C').
 Admitted.
