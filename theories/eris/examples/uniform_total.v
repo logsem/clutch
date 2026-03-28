@@ -8,6 +8,194 @@ Import Hierarchy.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
+(** Determine if a presampled bitstring keeps the comparison "in the gap",
+    i.e., neither comparison resolves for any of the bits.
+    - [cx]: accumulated integer from cached bits (the prefix)
+    - [B]:  threshold base
+    - [s]:  current shift amount (initially C + n)
+    - [bs]: presampled bitstring *)
+Fixpoint in_gap (cx : Z) (B s : Z) (bs : list (fin 2)) : bool :=
+  match bs with
+  | [] => true
+  | b :: bs' =>
+    let cx' := (2 * cx + Z.of_nat (fin_to_nat b))%Z in
+    let cy := Z.shiftr B s in
+    negb (cx' + 2 <? cy)%Z && negb (cy + 2 <? cx')%Z && in_gap cx' B (s - 1) bs'
+  end.
+
+(** Integer encoded by a bitstring with accumulator (MSB first) *)
+Definition bits_to_Z_acc (acc : Z) (bs : list (fin 2)) : Z :=
+  fold_left (fun a (b : fin 2) => 2 * a + Z.of_nat (fin_to_nat b))%Z bs acc.
+
+(** Integer encoded by a bitstring (MSB first) *)
+Definition bits_to_Z (bs : list (fin 2)) : Z := bits_to_Z_acc 0 bs.
+
+Lemma bits_to_Z_acc_cons acc (b : fin 2) bs :
+  bits_to_Z_acc acc (b :: bs) = bits_to_Z_acc (2 * acc + Z.of_nat (fin_to_nat b))%Z bs.
+Proof. done. Qed.
+
+Lemma bits_to_Z_acc_shift acc bs :
+  bits_to_Z_acc acc bs = (2 ^ Z.of_nat (length bs) * acc + bits_to_Z bs)%Z.
+Proof.
+  revert acc.
+  induction bs as [|b bs' IH]; intros acc.
+  - simpl. rewrite /bits_to_Z//=. lia.
+  - rewrite bits_to_Z_acc_cons /bits_to_Z bits_to_Z_acc_cons.
+    rewrite IH.
+    rewrite (IH (Z.of_nat (fin_to_nat b))).
+    simpl length. rewrite Nat2Z.inj_succ Z.pow_succ_r; [|lia]. lia.
+Qed.
+
+(** in_gap implies the last step's gap condition holds.
+    Stated via bits_to_Z_acc which equals the final cx. *)
+Lemma in_gap_last_step cx B s b bs' :
+  in_gap cx B s (b :: bs') = true →
+  let cx_final := bits_to_Z_acc (2 * cx + Z.of_nat (fin_to_nat b))%Z bs' in
+  let cy_final := Z.shiftr B (s - Z.of_nat (length bs')) in
+  (cy_final - 2 ≤ cx_final ∧ cx_final ≤ cy_final + 2)%Z.
+Proof.
+  revert cx s b.
+  induction bs' as [|b' bs'' IH]; intros cx s b Hgap.
+  + simpl in Hgap.
+    rewrite andb_true_r in Hgap.
+    apply andb_true_iff in Hgap as [H1 H2].
+    apply negb_true_iff in H1. apply Z.ltb_nlt in H1.
+    apply negb_true_iff in H2. apply Z.ltb_nlt in H2.
+    simpl. rewrite Z.sub_0_r. lia.
+  + simpl in Hgap.
+    apply andb_true_iff in Hgap as [_ Hrest].
+    simpl length.
+    replace (s - Z.of_nat (S (length bs'')))%Z
+      with (s - 1 - Z.of_nat (length bs''))%Z by lia.
+    simpl.
+    apply (IH (2 * cx + Z.of_nat (fin_to_nat b))%Z (s - 1)%Z b').
+    exact Hrest.
+Qed.
+
+(** Necessary condition: bits_to_Z is constrained to a 5-element range *)
+Lemma in_gap_necessary cx B s b bs' :
+  in_gap cx B s (b :: bs') = true →
+  let N := Z.of_nat (length (b :: bs')) in
+  let cx_final := (2 ^ N * cx + bits_to_Z (b :: bs'))%Z in
+  let cy_final := Z.shiftr B (s - Z.of_nat (length bs')) in
+  (cy_final - 2 ≤ cx_final ∧ cx_final ≤ cy_final + 2)%Z.
+Proof.
+  intros Hgap. simpl.
+  pose proof (in_gap_last_step cx B s b bs' Hgap) as H.
+  simpl in H.
+  rewrite /bits_to_Z bits_to_Z_acc_cons.
+  rewrite bits_to_Z_acc_shift in H |- *.
+  rewrite bits_to_Z_acc_shift.
+  rewrite Nat2Z.inj_succ Z.pow_succ_r; [|lia]. lia.
+Qed.
+
+(** Range of bits_to_Z *)
+Lemma bits_to_Z_range bs :
+  (0 ≤ bits_to_Z bs < 2 ^ Z.of_nat (length bs))%Z.
+Proof.
+  induction bs as [|b bs' IH].
+  + rewrite /bits_to_Z /bits_to_Z_acc /=. lia.
+  + rewrite /bits_to_Z bits_to_Z_acc_cons bits_to_Z_acc_shift.
+    simpl length. rewrite Nat2Z.inj_succ Z.pow_succ_r; [|lia].
+    assert (Hb : (0 ≤ Z.of_nat (fin_to_nat b) ≤ 1)%Z).
+    { pose proof (fin.fin_to_nat_lt b). lia. }
+    nia.
+Qed.
+
+(** bits_to_Z is injective on same-length lists *)
+Lemma bits_to_Z_inj bs1 bs2 :
+  length bs1 = length bs2 →
+  bits_to_Z bs1 = bits_to_Z bs2 →
+  bs1 = bs2.
+Proof.
+  revert bs2.
+  induction bs1 as [|b1 bs1' IH]; intros [|b2 bs2'] Hlen Heq;
+    try discriminate; try done.
+  simpl in Hlen. injection Hlen as Hlen.
+  rewrite /bits_to_Z !bits_to_Z_acc_cons !bits_to_Z_acc_shift in Heq.
+  pose proof (bits_to_Z_range bs1') as [Hr1a Hr1b].
+  pose proof (bits_to_Z_range bs2') as [Hr2a Hr2b].
+  assert (Hb1 : (0 ≤ Z.of_nat (fin_to_nat b1) ≤ 1)%Z)
+    by (pose proof (fin.fin_to_nat_lt b1); lia).
+  assert (Hb2 : (0 ≤ Z.of_nat (fin_to_nat b2) ≤ 1)%Z)
+    by (pose proof (fin.fin_to_nat_lt b2); lia).
+  rewrite Hlen in Heq Hr1b.
+  assert (Hbeq : Z.of_nat (fin_to_nat b1) = Z.of_nat (fin_to_nat b2)) by nia.
+  assert (Hbseq : bits_to_Z bs1' = bits_to_Z bs2') by nia.
+  f_equal.
+  + apply fin_to_nat_inj. lia.
+  + apply IH; assumption.
+Qed.
+
+(** NoDup preserved by map when function is injective on list elements *)
+Lemma NoDup_map_inj_on {A B} (f : A → B) (l : list A) :
+  NoDup l →
+  (∀ x y, x ∈ l → y ∈ l → f x = f y → x = y) →
+  NoDup (map f l).
+Proof.
+  induction l as [|a l' IH]; intros Hnd Hinj.
+  + constructor.
+  + simpl. constructor.
+    * inversion Hnd; subst.
+      rewrite elem_of_list_fmap.
+      intros [y [Hfy Hy]].
+      assert (a = y) by (apply Hinj; [left|right; exact Hy|exact Hfy]).
+      subst. contradiction.
+    * apply IH.
+      { inversion Hnd; assumption. }
+      { intros x y Hx Hy. apply Hinj; right; assumption. }
+Qed.
+
+(** All elements of enum_uniform_fin_list have the specified length *)
+Lemma enum_uniform_fin_list_length_elem N p bs :
+  bs ∈ enum_uniform_fin_list N p → length bs = p.
+Proof. rewrite elem_of_enum_uniform_fin_list. done. Qed.
+
+(** At most 5 bitstrings of length N are in the gap *)
+Lemma in_gap_count cx B s N :
+  length (filter (fun bs => in_gap cx B s bs) (enum_uniform_fin_list 1 N)) ≤ 5.
+Proof.
+  destruct N as [|N'].
+  + simpl. lia.
+  + set (filtered := filter _ _).
+    set (C := (Z.shiftr B (s - Z.of_nat N') - 2 ^ Z.of_nat (S N') * cx)%Z).
+    enough (Hsub : map bits_to_Z filtered ⊆+ [C - 2; C - 1; C; C + 1; C + 2]%Z).
+    { rewrite -(map_length bits_to_Z filtered).
+      apply submseteq_length in Hsub. simpl in Hsub. lia. }
+    apply NoDup_submseteq.
+    * apply NoDup_map_inj_on.
+      { subst filtered. apply NoDup_filter, NoDup_enum_uniform_fin_list. }
+      { intros x y Hx Hy Hfxy.
+        apply bits_to_Z_inj; [|exact Hfxy].
+        subst filtered.
+        apply elem_of_list_filter in Hx as [_ Hx].
+        apply elem_of_list_filter in Hy as [_ Hy].
+        apply enum_uniform_fin_list_length_elem in Hx.
+        apply enum_uniform_fin_list_length_elem in Hy.
+        lia. }
+    * intros z Hz.
+      apply elem_of_list_fmap in Hz as [bs [Hzeq Hbs]].
+      subst filtered.
+      apply elem_of_list_filter in Hbs as [Hgap Helem].
+      apply Is_true_eq_true in Hgap.
+      apply elem_of_enum_uniform_fin_list in Helem.
+      destruct bs as [|b bs']; [discriminate|].
+      simpl in Helem. injection Helem as Helem.
+      pose proof (in_gap_necessary cx B s b bs' Hgap) as [Hlo Hhi].
+      simpl in Hlo, Hhi. rewrite Helem in Hlo, Hhi.
+      subst z C.
+      (* bits_to_Z (b :: bs') ∈ {C-2, C-1, C, C+1, C+2} where
+         C = B ≫ (s - N') - 2^(S N') * cx
+         Hlo: C - 2 ≤ bits_to_Z (b :: bs')
+         Hhi: bits_to_Z (b :: bs') ≤ C + 2 *)
+      assert (Hv : bits_to_Z (b :: bs') = (B ≫ (s - N') - 2 ^ Z.of_nat (S N') * cx - 2)%Z ∨
+                   bits_to_Z (b :: bs') = (B ≫ (s - N') - 2 ^ Z.of_nat (S N') * cx - 1)%Z ∨
+                   bits_to_Z (b :: bs') = (B ≫ (s - N') - 2 ^ Z.of_nat (S N') * cx)%Z ∨
+                   bits_to_Z (b :: bs') = (B ≫ (s - N') - 2 ^ Z.of_nat (S N') * cx + 1)%Z ∨
+                   bits_to_Z (b :: bs') = (B ≫ (s - N') - 2 ^ Z.of_nat (S N') * cx + 2)%Z) by lia.
+      destruct Hv as [-> | [-> | [-> | [-> | ->]]]]; set_solver.
+Qed.
+
 (** The uniform sampler: sample a lazy real and convert to approximation sequence *)
 Definition UnifSampler : expr := R_ofUnif (init #()).
 
@@ -58,11 +246,31 @@ Section uniform_total.
     iExists l'. iFrame. done.
   Qed.
 
-  (** TWP for get_bits: traverses cached chunks then reads one presampled bit *)
-  Lemma twp_get_bits α l zs E (b : fin (S 1)) (acc : Z) (X : Z) (Hx : X = length zs ):
-    chunk_list l zs ∗ α ↪ (1%nat; cons b nil)
+  (** TWP for get_chunk on a fresh chunk with remaining bits on tape *)
+  Lemma twp_get_chunk_fresh_remaining (b : fin (S 1)) (remaining : list (fin (S 1))) α (l : loc) E :
+    l ↦ NONEV ∗ α ↪ (1%nat; b :: remaining)
+    ⊢ WP get_chunk #lbl:α #l @ E
+      [{ v, ∃ l' : loc, ⌜v = (#(fin_to_nat b), #l')%V⌝ ∗
+            l ↦ SOMEV (#(fin_to_nat b), #l') ∗ l' ↦ NONEV ∗ α ↪ (1%nat; remaining) }].
+  Proof.
+    iIntros "(Hl & Ha)".
+    rewrite /get_chunk. wp_pures. wp_load. wp_pures.
+    wp_apply (twp_rand_tape with "Ha").
+    iIntros "Ha". wp_pures.
+    wp_alloc l' as "Hl'". wp_pures.
+    wp_store. iModIntro.
+    iExists l'. iFrame. done.
+  Qed.
+
+  Definition of_bits (zs : list (fin (S 1))) (acc : Z) : Z :=
+    (fold_left (fun a z => 2*a + fin_to_nat z) zs acc)%Z.
+
+  (** TWP for get_bits with remaining bits on tape *)
+  Lemma twp_get_bits α l zs E (b : fin (S 1)) (remaining : list (fin (S 1)))
+      (X : Z) (Hx : X = length zs) (acc : Z) :
+    chunk_list l zs ∗ α ↪ (1%nat; b :: remaining)
     ⊢ WP get_bits (#lbl:α, #l)%V #X #acc @ E
-      [{ v, ∃ (R : Z), ⌜v = #R⌝ ∗ chunk_list l (zs ++ cons b nil) ∗ α ↪ (1%nat; []) }].
+      [{ v, ⌜v = #(of_bits zs acc)⌝ ∗ chunk_list l (zs ++ cons b nil) ∗ α ↪ (1%nat; remaining) }].
   Proof.
     rewrite Hx; clear Hx X.
     iRevert (l acc).
@@ -73,14 +281,14 @@ Section uniform_total.
       simpl. rewrite /get_bits. wp_pures.
       wp_bind (get_chunk _ _)%E.
       iApply (tgl_wp_wand with "[Hl Ha]").
-      { iApply (twp_get_chunk_fresh with "[$Hl $Ha]"). }
+      { iApply (twp_get_chunk_fresh_remaining with "[$Hl $Ha]"). }
       iIntros (v) "(%l' & -> & Hl & Hl' & Ha)".
       wp_pures.
       (* digitsLeft = 0, return approxSoFar *)
-      iModIntro. iExists acc.
-      iSplitR. { done. }
-      simpl. iSplitL "Hl Hl'". { iExists l'. iFrame. }
-      iFrame.
+      iModIntro.
+      iSplitR.
+      2: { simpl. iSplitL "Hl Hl'". { iExists l'. iFrame. } iFrame. }
+      { done. }
     - (* Inductive case: traverse cached chunk z, then continue *)
       iIntros (l acc) "[Hl Ha]".
       simpl.
@@ -101,11 +309,84 @@ Section uniform_total.
       replace (Z.of_nat (S (length zs)) - 1)%Z with (Z.of_nat (length zs)) by lia.
       iApply (tgl_wp_wand with "[Hcl Ha]").
       { iApply ("IH" $! l' with "[$Hcl $Ha]"). }
-      iIntros (v) "(%R & -> & Hcl & Ha)".
-      iExists R. iSplitR; [done|].
-      iFrame "Ha".
-      simpl. iExists l'. iFrame.
+      iIntros (v) "(-> & Hc & Ha)".
+      iFrame.
+      done.
   Qed.
+
+  (** If the presampled bitstring is NOT in the gap, the comparison terminates
+      without error credits. *)
+  Lemma twp_cmp_not_in_gap E (B C n : Z) (zs : list (fin 2)) (bs : list (fin 2)) a l :
+    (n < 0)%Z →
+    (-1 * n)%Z = Z.of_nat (length zs) →
+    in_gap (of_bits zs 0) B (C + n) bs = false →
+    chunk_list l zs ∗ a ↪ (1%nat; bs)
+    ⊢ WP (rec: "cmp" "x" "y" "n" :=
+            let: "cx" := "x" "n" in
+            let: "cy" := "y" "n" in
+            if: "cx" + #2 < "cy" then #(-1)
+            else if: "cy" + #2 < "cx" then #1
+            else "cmp" "x" "y" ("n" - #1))%V
+        (λ: "prec", if: #0 ≤ "prec" then #0
+           else get_bits (#lbl:a, #l)%V (#(-1) * "prec") #0)%V
+        (λ: "prec", (λ: "prec", #B ≫ "prec")%V (#C + "prec"))%V
+        #n @ E [{ _, True }].
+  Proof.
+    iIntros (Hn Hinv Hgap) "[Hcl Ha]".
+    iRevert (n zs Hn Hinv Hgap) "Hcl Ha".
+    iInduction bs as [|b bs'] "IH".
+    - (* bs = []: in_gap _ _ _ [] = true, contradiction *)
+      iIntros (n zs Hn Hinv Hgap) "Hcl Ha". simpl in Hgap. discriminate.
+    - (* bs = b :: bs' *)
+      iIntros (n zs Hn Hinv Hgap) "Hcl Ha".
+      simpl in Hgap.
+      (* Step through one iteration of the cmp loop *)
+      wp_pures.
+      (* Evaluate x(n): since n < 0, we go to get_bits *)
+      case_bool_decide; [lia|].
+      wp_pures.
+      (* Call get_bits *)
+      wp_bind (get_bits _ _ _).
+      iApply (tgl_wp_wand with "[Hcl Ha]").
+      { iApply (twp_get_bits _ _ zs _ b bs').
+        { lia. }
+        iFrame. }
+      iIntros (v) "(-> & Hcl & Ha)".
+      wp_pures.
+      case_bool_decide.
+      { wp_pures. done. }
+      wp_pures.
+      case_bool_decide.
+      { wp_pures. done. }
+      do 2 wp_pure.
+      iApply ("IH" $! (n-1)%Z with "[] [] [] Hcl Ha").
+      { iPureIntro. lia. }
+      { iPureIntro. rewrite app_length //=. lia. }
+      { iPureIntro.
+
+(*  
+  Σ : gFunctors
+  erisGS0 : erisGS Σ
+  E : coPset
+  B, C : Z
+  b : fin 2
+  bs' : list (fin 2)
+  a, l : loc
+  n : Z
+  zs : list (fin 2)
+  Hn : (n < 0)%Z
+  Hinv : (-1 * n)%Z = length zs
+  Hgap : negb (2 * of_bits zs 0 + b + 2 <? B ≫ (C + n))%Z && negb (B ≫ (C + n) + 2 <? 2 * of_bits zs 0 + b)%Z &&
+         in_gap (2 * of_bits zs 0 + b) B (C + n - 1) bs' = false
+  H : ¬ (0 <= n)%Z
+  H0 : ¬ (of_bits zs 0 + 2 < B ≫ (C + n))%Z
+  H1 : ¬ (B ≫ (C + n) + 2 < of_bits zs 0)%Z
+  ============================
+  in_gap (of_bits (zs ++ [b]) 0) B (C + (n - 1)) bs' = false
+*)
+
+        admit. }
+  Admitted.
 
   (** Total WP for the checker — the key new result using total Eris *)
   Lemma twp_lazy_real_cdf_checker E (ε : R) (B C : Z) :
@@ -135,21 +416,10 @@ Section uniform_total.
     wp_pure.
     iDestruct "Hv" as (l a) "(-> & Hl & Ha)".
     wp_pure.
-    (* HERE:
-         It suffices to show that for all n,
-          ↯ ε -∗
-          chunk_list l [] -∗
-          a ↪[erisGS_tapes_name] (1%nat; []) -∗
-         WP (rec: "cmp" "x" "y" "n" :=
-               let: "cx" := "x" "n" in
-               let: "cy" := "y" "n" in
-               if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" - #1))%V
-              (λ: "prec", if: #0 ≤ "prec" then #0 else get_bits (#lbl:a, #l)%V (#(-1) * "prec") #0)%V
-              (λ: "prec", (λ: "prec", #B ≫ "prec")%V (#C + "prec"))%V #n
-         @ E
-         [{ _, True }]
-     *)
 
+
+
+    (*  Old proof: Ignore but do not delete
     clear H H0.
     iAssert (∀ n : Z, ⌜(n < 0)%Z⌝ -∗
       ↯ ε -∗
@@ -198,11 +468,9 @@ Section uniform_total.
       { admit. }
       iFrame.
     }
-    iIntros (?) "[%cx [-> [Hcl Ha]]]".
+    iIntros (?) "(-> & Hcl & Ha)".
     wp_pures.
-
-
-
+    *)
     admit.
   Admitted.
 
