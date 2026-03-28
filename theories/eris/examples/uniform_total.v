@@ -2,7 +2,7 @@ From clutch.eris Require Export eris adequacy total_adequacy.
 From clutch.eris Require Import infinite_tape.
 From clutch.eris.examples Require Import lazy_real_programs.
 From clutch.eris.examples Require Import lazy_real lazy_real_expr lazy_real_adequacy.
-From clutch.eris.examples Require Import math.
+From clutch.eris.examples Require Import math presample_many.
 From Coquelicot Require Import RInt RInt_gen.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -386,6 +386,118 @@ Section uniform_total.
       iExists b. iFrame. done.
   Qed.
 
+  (** TWP for get_bits with X = S(length zs): reads cached + 2 fresh bits *)
+  Lemma twp_get_bits_S α l zs E (b b' : fin (S 1)) (remaining : list (fin (S 1)))
+      (X : Z) (Hx : X = S (length zs)) (acc : Z) :
+    chunk_list l zs ∗ α ↪ (1%nat; b :: b' :: remaining)
+    ⊢ WP get_bits (#lbl:α, #l)%V #X #acc @ E
+      [{ v, ⌜v = #(of_bits (zs ++ cons b nil) acc)⌝ ∗
+            chunk_list l (zs ++ [b; b']) ∗ α ↪ (1%nat; remaining) }].
+  Proof.
+    rewrite Hx; clear Hx X.
+    iRevert (l acc).
+    iInduction zs as [|z zs'] "IH".
+    - (* zs = [], X = 1: read b fresh, then b' fresh at base case *)
+      iIntros (l acc) "[Hl Ha]".
+      simpl. rewrite /get_bits. wp_pures.
+      wp_bind (get_chunk _ _)%E.
+      iApply (tgl_wp_wand with "[Hl Ha]").
+      { iApply (twp_get_chunk_fresh_remaining with "[$Hl $Ha]"). }
+      iIntros (v) "(%l' & -> & Hl & Hl' & Ha)".
+      do 11 wp_pure.
+      change (rec: "force" "lazyR" "digitsLeft" "approxSoFar" :=
+        let: "cn" := get_chunk (Fst "lazyR") (Snd "lazyR") in
+        if: "digitsLeft" = #0 then "approxSoFar"
+        else "force" (Fst "lazyR", Snd "cn") ("digitsLeft" - #1)
+              (#2 * "approxSoFar" + Fst "cn"))%V with get_bits.
+      iApply (tgl_wp_wand with "[Hl' Ha]").
+      { iApply (twp_get_bits _ _ [] _ b' remaining).
+        { simpl. done. }
+        iFrame. }
+      iIntros (v) "(-> & Hcl' & Ha)".
+      simpl. iSplitR.
+      { done. }
+      iSplitL "Hl Hcl'".
+      { iExists l'. iFrame. }
+      iFrame.
+    - (* zs = z :: zs': read cached z, then IH *)
+      iIntros (l acc) "[Hl Ha]".
+      simpl.
+      iDestruct "Hl" as (l') "[Hl Hcl]".
+      rewrite /get_bits. wp_pures.
+      wp_bind (get_chunk _ _)%E.
+      iApply (tgl_wp_wand with "[Hl Hcl Ha]").
+      { iApply (twp_get_chunk_cached with "[$Hl $Hcl $Ha]"). }
+      iIntros (v) "(-> & Hl & Hcl & Ha)".
+      do 11 wp_pure.
+      change (rec: "force" "lazyR" "digitsLeft" "approxSoFar" :=
+        let: "cn" := get_chunk (Fst "lazyR") (Snd "lazyR") in
+        if: "digitsLeft" = #0 then "approxSoFar"
+        else "force" (Fst "lazyR", Snd "cn") ("digitsLeft" - #1)
+              (#2 * "approxSoFar" + Fst "cn"))%V with get_bits.
+      replace (Z.of_nat (S (S (length zs'))) - 1)%Z with (Z.of_nat (S (length zs'))) by lia.
+      iApply (tgl_wp_wand with "[Hcl Ha]").
+      { iApply ("IH" $! l' with "[$Hcl $Ha]"). }
+      iIntros (v) "(-> & Hc & Ha)".
+      iSplitR; [done|]. iSplitL "Hl Hc"; [iExists l'; iFrame|]. iFrame.
+  Qed.
+
+  (** TWP for get_bits with X = S(length zs) and only one bit on tape *)
+  Lemma twp_get_bits_S_last α l zs E (b : fin (S 1))
+      (X : Z) (Hx : X = S (length zs)) (acc : Z) :
+    chunk_list l zs ∗ α ↪ (1%nat; cons b nil)
+    ⊢ WP get_bits (#lbl:α, #l)%V #X #acc @ E
+      [{ v, ∃ (b' : fin 2), ⌜v = #(of_bits (zs ++ cons b nil) acc)⌝ ∗
+            chunk_list l (zs ++ cons b (cons b' nil)) ∗ α ↪ (1%nat; []) }].
+  Proof.
+    rewrite Hx; clear Hx X.
+    iRevert (l acc).
+    iInduction zs as [|z zs'] "IH".
+    - (* zs = [], X = 1: read b fresh, then random at base case *)
+      iIntros (l acc) "[Hl Ha]".
+      simpl. rewrite /get_bits. wp_pures.
+      wp_bind (get_chunk _ _)%E.
+      iApply (tgl_wp_wand with "[Hl Ha]").
+      { iApply (twp_get_chunk_fresh_remaining with "[$Hl $Ha]"). }
+      iIntros (v) "(%l' & -> & Hl & Hl' & Ha)".
+      do 11 wp_pure.
+      change (rec: "force" "lazyR" "digitsLeft" "approxSoFar" :=
+        let: "cn" := get_chunk (Fst "lazyR") (Snd "lazyR") in
+        if: "digitsLeft" = #0 then "approxSoFar"
+        else "force" (Fst "lazyR", Snd "cn") ("digitsLeft" - #1)
+              (#2 * "approxSoFar" + Fst "cn"))%V with get_bits.
+      iApply (tgl_wp_wand with "[Hl' Ha]").
+      { iApply (twp_get_bits_empty _ _ []).
+        { simpl. done. }
+        iFrame. }
+      iIntros (v) "(%b' & -> & Hcl' & Ha)".
+      simpl. iExists b'. iSplitR.
+      { done. }
+      iSplitL "Hl Hcl'".
+      { iExists l'. iFrame. }
+      iFrame.
+    - (* zs = z :: zs': read cached z, then IH *)
+      iIntros (l acc) "[Hl Ha]".
+      simpl.
+      iDestruct "Hl" as (l') "[Hl Hcl]".
+      rewrite /get_bits. wp_pures.
+      wp_bind (get_chunk _ _)%E.
+      iApply (tgl_wp_wand with "[Hl Hcl Ha]").
+      { iApply (twp_get_chunk_cached with "[$Hl $Hcl $Ha]"). }
+      iIntros (v) "(-> & Hl & Hcl & Ha)".
+      do 11 wp_pure.
+      change (rec: "force" "lazyR" "digitsLeft" "approxSoFar" :=
+        let: "cn" := get_chunk (Fst "lazyR") (Snd "lazyR") in
+        if: "digitsLeft" = #0 then "approxSoFar"
+        else "force" (Fst "lazyR", Snd "cn") ("digitsLeft" - #1)
+              (#2 * "approxSoFar" + Fst "cn"))%V with get_bits.
+      replace (Z.of_nat (S (S (length zs'))) - 1)%Z with (Z.of_nat (S (length zs'))) by lia.
+      iApply (tgl_wp_wand with "[Hcl Ha]").
+      { iApply ("IH" $! l' with "[$Hcl $Ha]"). }
+      iIntros (v) "(%b' & -> & Hc & Ha)".
+      iExists b'. iSplitR; [done|]. iSplitL "Hl Hc"; [iExists l'; iFrame|]. iFrame.
+  Qed.
+
   (** If the presampled bitstring is NOT in the gap, the comparison terminates
       without error credits. *)
   Lemma twp_cmp_not_in_gap E (B C n : Z) (zs : list (fin 2)) (bs : list (fin 2)) a l :
@@ -519,6 +631,189 @@ Section uniform_total.
           exact Htail. }
   Qed.
 
+  (** Variant of twp_cmp_not_in_gap for entry state where (-1)*n = S (length zs).
+      Uses shift C + n (not C + n - 1) because get_bits reads one extra fresh bit. *)
+  Lemma twp_cmp_not_in_gap_S E (B C n : Z) (zs : list (fin 2)) (bs : list (fin 2)) a l :
+    (n < 0)%Z →
+    (-1 * n)%Z = Z.of_nat (S (length zs)) →
+    in_gap (of_bits zs 0) B (C + n) bs = false →
+    chunk_list l zs ∗ a ↪ (1%nat; bs)
+    ⊢ WP (rec: "cmp" "x" "y" "n" :=
+            let: "cx" := "x" "n" in
+            let: "cy" := "y" "n" in
+            if: "cx" + #2 < "cy" then #(-1)
+            else if: "cy" + #2 < "cx" then #1
+            else "cmp" "x" "y" ("n" - #1))%V
+        (λ: "prec", if: #0 ≤ "prec" then #0
+           else get_bits (#lbl:a, #l)%V (#(-1) * "prec") #0)%V
+        (λ: "prec", (λ: "prec", #B ≫ "prec")%V (#C + "prec"))%V
+        #n @ E [{ _, True }].
+  Proof.
+    iIntros (Hn Hinv Hgap) "[Hcl Ha]".
+    iRevert (n zs Hn Hinv Hgap) "Hcl Ha".
+    iInduction bs as [|b bs'] "IH".
+    - (* bs = []: in_gap _ _ _ [] = true, contradiction *)
+      iIntros (n zs Hn Hinv Hgap) "Hcl Ha". simpl in Hgap. discriminate.
+    - (* bs = b :: bs' *)
+      iIntros (n zs Hn Hinv Hgap) "Hcl Ha".
+      simpl in Hgap.
+      (* Step through one iteration of the cmp loop *)
+      wp_pures.
+      case_bool_decide; [lia|].
+      wp_pures.
+      (* Call get_bits with X = S(length zs) *)
+      wp_bind (get_bits _ _ _).
+      destruct bs' as [|b' bs''].
+      + (* bs' = []: tape = [b]. Comparison must resolve. *)
+        iApply (tgl_wp_wand with "[Hcl Ha]").
+        { iApply (twp_get_bits_S_last _ _ zs _ b).
+          { lia. }
+          iFrame. }
+        iIntros (v) "(%b' & -> & Hcl & Ha)".
+        wp_pures.
+        (* in_gap ... [b] = false: first check resolves *)
+        rewrite andb_true_r in Hgap.
+        apply andb_false_iff in Hgap as [Hgap|Hgap].
+        * apply negb_false_iff in Hgap. apply Z.ltb_lt in Hgap.
+          case_bool_decide.
+          { wp_pures. done. }
+          exfalso. have Eq2 := of_bits_app' zs b.
+          rewrite Eq2 in H0. lia.
+        * apply negb_false_iff in Hgap. apply Z.ltb_lt in Hgap.
+          case_bool_decide.
+          { wp_pures. done. }
+          wp_pures.
+          case_bool_decide.
+          { wp_pures. done. }
+          exfalso. have Eq2 := of_bits_app' zs b.
+          rewrite Eq2 in H1. lia.
+      + (* bs' = b' :: bs'': tape = b :: b' :: bs'' *)
+        iApply (tgl_wp_wand with "[Hcl Ha]").
+        { iApply (twp_get_bits_S _ _ zs _ b b' bs'').
+          { lia. }
+          iFrame. }
+        iIntros (v) "(-> & Hcl & Ha)".
+        wp_pures.
+        case_bool_decide.
+        { wp_pures. done. }
+        wp_pures.
+        case_bool_decide.
+        { wp_pures. done. }
+        do 2 wp_pure.
+        (* Neither comparison resolved at level n.
+           in_gap's first check is the same comparison, so it also didn't resolve.
+           Extract the tail condition. *)
+        apply andb_false_iff in Hgap as [Hgap|Htail].
+        * (* in_gap's first check resolves — contradiction with program *)
+          apply andb_false_iff in Hgap as [Hgap|Hgap].
+          { apply negb_false_iff in Hgap. apply Z.ltb_lt in Hgap.
+            exfalso. have Eq2 := of_bits_app' zs b.
+            rewrite Eq2 in H0. lia.
+          }
+          { apply negb_false_iff in Hgap. apply Z.ltb_lt in Hgap.
+            exfalso. have Eq2 := of_bits_app' zs b.
+            rewrite Eq2 in H1. lia.
+          }
+        * (* Tail: in_gap (of_bits(zs++[b]) 0) B (C+n-1) (b'::bs'') = false.
+             After get_bits_S, chunk_list = zs ++ [b; b'], tape = bs''.
+             (-1)*(n-1) = length(zs ++ [b; b']). Original invariant!
+             Decompose Htail to get the in_gap condition for twp_cmp_not_in_gap. *)
+          simpl in Htail.
+          apply andb_false_iff in Htail as [Htail2|Htail2].
+          -- (* in_gap's check at b' resolves: step through n-1 manually *)
+             apply andb_false_iff in Htail2 as [Htail2|Htail2].
+             ++ (* cx'' + 2 < B ≫ (C+n-1): program at n-1 returns -1 *)
+                apply negb_false_iff in Htail2. apply Z.ltb_lt in Htail2.
+                destruct bs'' as [|b'' bs'''].
+                { wp_pures. case_bool_decide; [lia|]. wp_pures.
+                  wp_bind (get_bits _ _ _).
+                  iApply (tgl_wp_wand with "[Hcl Ha]").
+                  { iApply (twp_get_bits_empty _ _ (zs ++ cons b (cons b' nil))).
+                    { rewrite app_length /=. lia. }
+                    iFrame. }
+                  iIntros (v) "(%b'' & -> & Hcl & Ha)".
+                  wp_pures.
+                  case_bool_decide; [wp_pures; done|].
+                  exfalso. have Eq1 := of_bits_app' (zs ++ cons b nil) b'.
+                  have Eq2 := of_bits_app' zs b.
+                  assert (Heq : of_bits (zs ++ [b; b']) 0 = (2 * (2 * of_bits zs 0 + b) + b')%Z).
+                  { rewrite /of_bits fold_left_app /=. lia. }
+                  rewrite Heq in H3. replace (C + (n - 1))%Z with (C + n - 1)%Z in H3 by lia. lia.
+                }
+                wp_pures. case_bool_decide; [lia|]. wp_pures.
+                wp_bind (get_bits _ _ _).
+                iApply (tgl_wp_wand with "[Hcl Ha]").
+                { iApply (twp_get_bits _ _ (zs ++ cons b (cons b' nil)) _ b'' bs''').
+                  { rewrite app_length /=. lia. }
+                  iFrame. }
+                iIntros (v) "(-> & Hcl & Ha)".
+                wp_pures.
+                case_bool_decide; [wp_pures; done|].
+                exfalso. have Eq1 := of_bits_app' (zs ++ cons b nil) b'.
+                have Eq2 := of_bits_app' zs b.
+                assert (Heq : of_bits (zs ++ [b; b']) 0 = (2 * (2 * of_bits zs 0 + b) + b')%Z).
+                { rewrite /of_bits fold_left_app /=. lia. }
+                rewrite Heq in H3. replace (C + (n - 1))%Z with (C + n - 1)%Z in H3 by lia. lia.
+             ++ (* B ≫ (C+n-1) + 2 < cx'': program at n-1 returns 1 *)
+                apply negb_false_iff in Htail2. apply Z.ltb_lt in Htail2.
+                destruct bs'' as [|b'' bs'''].
+                { wp_pures. case_bool_decide; [lia|]. wp_pures.
+                  wp_bind (get_bits _ _ _).
+                  iApply (tgl_wp_wand with "[Hcl Ha]").
+                  { iApply (twp_get_bits_empty _ _ (zs ++ cons b (cons b' nil))).
+                    { rewrite app_length /=. lia. }
+                    iFrame. }
+                  iIntros (v) "(%b'' & -> & Hcl & Ha)".
+                  wp_pures.
+                  case_bool_decide; [wp_pures; done|].
+                  wp_pures.
+                  case_bool_decide; [wp_pures; done|].
+                  exfalso. have Eq1 := of_bits_app' (zs ++ cons b nil) b'.
+                  have Eq2 := of_bits_app' zs b.
+                  assert (Heq : of_bits (zs ++ [b; b']) 0 = (2 * (2 * of_bits zs 0 + b) + b')%Z).
+                  { rewrite /of_bits fold_left_app /=. lia. }
+                  rewrite Heq in H4. replace (C + (n - 1))%Z with (C + n - 1)%Z in H4 by lia. lia.
+                }
+                wp_pures. case_bool_decide; [lia|]. wp_pures.
+                wp_bind (get_bits _ _ _).
+                iApply (tgl_wp_wand with "[Hcl Ha]").
+                { iApply (twp_get_bits _ _ (zs ++ cons b (cons b' nil)) _ b'' bs''').
+                  { rewrite app_length /=. lia. }
+                  iFrame. }
+                iIntros (v) "(-> & Hcl & Ha)".
+                wp_pures.
+                case_bool_decide; [wp_pures; done|].
+                wp_pures.
+                case_bool_decide; [wp_pures; done|].
+                exfalso. have Eq1 := of_bits_app' (zs ++ cons b nil) b'.
+                have Eq2 := of_bits_app' zs b.
+                assert (Heq : of_bits (zs ++ [b; b']) 0 = (2 * (2 * of_bits zs 0 + b) + b')%Z).
+                { rewrite /of_bits fold_left_app /=. lia. }
+                rewrite Heq in H4. replace (C + (n - 1))%Z with (C + n - 1)%Z in H4 by lia. lia.
+          -- (* Tail of tail: in_gap ... bs'' = false. Apply original directly. *)
+             iApply (twp_cmp_not_in_gap _ B C (n-1) (zs ++ cons b (cons b' nil)) bs'' with "[$Hcl $Ha]").
+             { lia. }
+             { rewrite app_length /=. lia. }
+             { replace (C + (n - 1) - 1)%Z with (C + n - 1 - 1)%Z by lia.
+                 replace (of_bits (zs ++ [b; b']) 0) with (2 * (2 * of_bits zs 0 + b) + b')%Z.
+                { exact Htail2. }
+                { rewrite /of_bits fold_left_app /=. lia. }
+              }
+  Qed.
+
+  (** Error credit distribution for presampling: 0 if the bitstring resolves
+      the comparison (not in gap), 1 if it stays in the gap. *)
+  Definition ε_gap (cx B s : Z) (k : nat)
+      (bs : {ls : list (fin (S 1)) | length ls = k}) : R :=
+    if in_gap cx B s (proj1_sig bs) then 1%R else 0%R.
+
+  (** Number of bits to presample so that 5 / 2^N < ε. *)
+  Definition numSamples (ε : R) : nat :=
+    S (Z.to_nat (up (Rlog 2 (5 / ε)))).
+
+  Lemma numSamples_spec (ε : R) : (0 < ε)%R → (5 / 2 ^ numSamples ε < ε)%R.
+  Proof. Admitted.
+
   (** Total WP for the checker — the key new result using total Eris *)
   Lemma twp_lazy_real_cdf_checker E (ε : R) (B C : Z) :
     (0 < ε)%R →
@@ -549,60 +844,26 @@ Section uniform_total.
     wp_pure.
 
 
-
-    (*  Old proof: Ignore but do not delete
-    clear H H0.
-    iAssert (∀ n : Z, ⌜(n < 0)%Z⌝ -∗
-      ↯ ε -∗
-      (∃ zs, ⌜((-1) * n = Z.of_nat (S (length zs)))%Z⌝ ∗ chunk_list l zs ∗ a ↪ (1%nat; [])) -∗
-      WP (rec: "cmp" "x" "y" "n" :=
-            let: "cx" := "x" "n" in
-            let: "cy" := "y" "n" in
-            if: "cx" + #2 < "cy" then #(-1)
-            else if: "cy" + #2 < "cx" then #1
-            else "cmp" "x" "y" ("n" - #1))%V
-        (λ: "prec", if: #0 ≤ "prec" then #0
-           else get_bits (#lbl:a, #l)%V (#(-1) * "prec") #0)%V
-        (λ: "prec", (λ: "prec", #B ≫ "prec")%V (#C + "prec"))%V
-        #n @ E [{ _, True }])%I as "Hgen".
-    2: { (* Sufficiency *)
-      iApply ("Hgen" with "[] Hε [Hl Ha]"); [iPureIntro; lia|].
-      iExists []. simpl. iFrame. iPureIntro. lia. }
-    (* Main proof: ∀ n, ... *)
-    iIntros (n) "%Hn Hε (%zs & %Hinv & Hcl & Ha)".
-    iRevert (n Hn Hinv) "Hcl Ha".
-    iApply (ec_ind_amp _ 2 with "[] Hε"); [lra|lra|].
-    iModIntro.
-    iIntros (ε') "%Hε' #IH Hε'".
-    iIntros (n Hn Hinv) "Hcl Ha".
-
-    (* Presample one bit onto the tape a.
-        f(0) = 0
-        f(1) = 2 * ε'
-     *)
-    set (ε2 := fun (b : fin 2) => if (fin_to_nat b =? 0)%nat then 0%R else (2 * ε')%R).
-    wp_apply (twp_presample_adv_comp 1 1 E _ a _ [] ε' ε2 with "[$Ha $Hε' Hcl]").
+    (* Presample numSamples ε' bits onto the tape a *)
+    set (k := numSamples ε).
+    wp_apply (twp_presample_many_adv_comp 1 1 E _ a _ [] k ε
+      (ε_gap 0 B (C + (-1)) k) with "[$Ha $Hε Hl]").
     { done. }
-    { intros b'. subst ε2. simpl. destruct (fin_to_nat b' =? 0)%nat eqn:E'; [lra|lra]. }
-    { subst ε2. rewrite SeriesC_finite_foldr. simpl. lra. }
-    iIntros (b) "[Hε2 Ha]".
-
-    wp_pures.
-    case_bool_decide; [lia|].
-    wp_pures.
-
-    wp_bind (get_bits _ _ _).
-    iApply (tgl_wp_wand with "[Hcl Ha]").
-    {
-      iApply (twp_get_bits _ _ zs).
-      (* Stuck due to this side condition... we will revisit. *)
-      { admit. }
-      iFrame.
-    }
-    iIntros (?) "(-> & Hcl & Ha)".
-    wp_pures.
-    *)
-    admit.
+    { intros ns'. rewrite /ε_gap. destruct (in_gap _ _ _ _); lra. }
+    { admit. (* SeriesC condition: need ≤ 5/2^k < ε *) }
+    iIntros (bs) "[Hεbs Ha]".
+    rewrite app_nil_l.
+    destruct (in_gap 0 B (C + -1) (`bs)) eqn:Hgap.
+    - (* in_gap = true: bs is in the gap, we have ↯ 1 *)
+      iAssert (↯ 1)%I with "[Hεbs]" as "Hε1".
+      { rewrite /ε_gap Hgap. done. }
+      admit.
+    - (* in_gap = false: apply twp_cmp_not_in_gap_S *)
+      iClear "Hεbs".
+      iApply (twp_cmp_not_in_gap_S _ B C (-1) [] (`bs) with "[$Hl $Ha]").
+      { lia. }
+      { simpl. lia. }
+      { exact Hgap. }
   Admitted.
 
 End uniform_total.
