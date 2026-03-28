@@ -265,6 +265,10 @@ Section uniform_total.
   Definition of_bits (zs : list (fin (S 1))) (acc : Z) : Z :=
     (fold_left (fun a z => 2*a + fin_to_nat z) zs acc)%Z.
 
+  Lemma of_bits_app zs (b : fin (S 1)) :
+    of_bits (zs ++ cons b nil) 0 = (2 * of_bits zs 0 + Z.of_nat (fin_to_nat b))%Z.
+  Proof. rewrite /of_bits fold_left_app /=. lia. Qed.
+
   (** TWP for get_bits with remaining bits on tape *)
   Lemma twp_get_bits α l zs E (b : fin (S 1)) (remaining : list (fin (S 1)))
       (X : Z) (Hx : X = length zs) (acc : Z) :
@@ -319,7 +323,7 @@ Section uniform_total.
   Lemma twp_cmp_not_in_gap E (B C n : Z) (zs : list (fin 2)) (bs : list (fin 2)) a l :
     (n < 0)%Z →
     (-1 * n)%Z = Z.of_nat (length zs) →
-    in_gap (of_bits zs 0) B (C + n) bs = false →
+    in_gap (of_bits zs 0) B (C + n - 1) bs = false →
     chunk_list l zs ∗ a ↪ (1%nat; bs)
     ⊢ WP (rec: "cmp" "x" "y" "n" :=
             let: "cx" := "x" "n" in
@@ -359,33 +363,61 @@ Section uniform_total.
       case_bool_decide.
       { wp_pures. done. }
       do 2 wp_pure.
-      iApply ("IH" $! (n-1)%Z with "[] [] [] Hcl Ha").
-      { iPureIntro. lia. }
-      { iPureIntro. rewrite app_length //=. lia. }
-      { iPureIntro.
-
-(*  
-  Σ : gFunctors
-  erisGS0 : erisGS Σ
-  E : coPset
-  B, C : Z
-  b : fin 2
-  bs' : list (fin 2)
-  a, l : loc
-  n : Z
-  zs : list (fin 2)
-  Hn : (n < 0)%Z
-  Hinv : (-1 * n)%Z = length zs
-  Hgap : negb (2 * of_bits zs 0 + b + 2 <? B ≫ (C + n))%Z && negb (B ≫ (C + n) + 2 <? 2 * of_bits zs 0 + b)%Z &&
-         in_gap (2 * of_bits zs 0 + b) B (C + n - 1) bs' = false
-  H : ¬ (0 <= n)%Z
-  H0 : ¬ (of_bits zs 0 + 2 < B ≫ (C + n))%Z
-  H1 : ¬ (B ≫ (C + n) + 2 < of_bits zs 0)%Z
-  ============================
-  in_gap (of_bits (zs ++ [b]) 0) B (C + (n - 1)) bs' = false
-*)
-
-        admit. }
+      (* Neither comparison resolved at level n (H0, H1).
+         Now we're in the recursive call at level n-1.
+         Case split on Hgap: does in_gap's first step resolve? *)
+      apply andb_false_iff in Hgap as [Hgap|Htail].
+      + (* in_gap's first comparison resolves at level n-1.
+           Step through one more program iteration — it will terminate. *)
+        apply andb_false_iff in Hgap as [Hgap|Hgap].
+        * (* cx' + 2 < B ≫ (C+n-1): program at level n-1 returns -1 *)
+          apply negb_false_iff in Hgap. apply Z.ltb_lt in Hgap.
+          destruct bs' as [|b' bs''].
+          { (* bs' = []: tape empty, need twp_get_bits with empty tape *)
+            admit. }
+          wp_pures.
+          case_bool_decide; [lia|].
+          wp_pures.
+          wp_bind (get_bits _ _ _).
+          iApply (tgl_wp_wand with "[Hcl Ha]").
+          { iApply (twp_get_bits _ _ (zs ++ cons b nil) _ b' bs'').
+            { rewrite app_length /=. lia. }
+            iFrame. }
+          iIntros (v) "(-> & Hcl & Ha)".
+          wp_pures.
+          case_bool_decide.
+          { wp_pures. done. }
+          exfalso. admit.
+        * (* B ≫ (C+n-1) + 2 < cx': program at level n-1 returns 1 *)
+          apply negb_false_iff in Hgap. apply Z.ltb_lt in Hgap.
+          destruct bs' as [|b' bs''].
+          { (* bs' = []: tape empty *)
+            admit. }
+          wp_pures.
+          case_bool_decide; [lia|].
+          wp_pures.
+          wp_bind (get_bits _ _ _).
+          iApply (tgl_wp_wand with "[Hcl Ha]").
+          { iApply (twp_get_bits _ _ (zs ++ cons b nil) _ b' bs'').
+            { rewrite app_length /=. lia. }
+            iFrame. }
+          iIntros (v) "(-> & Hcl & Ha)".
+          wp_pures.
+          case_bool_decide.
+          { wp_pures. done. }
+          wp_pures.
+          case_bool_decide.
+          { wp_pures. done. }
+          exfalso. admit.
+      + (* Tail: in_gap cx' B (C+n-1-1) bs' = false — use IH *)
+        iApply ("IH" $! (n-1)%Z with "[] [] [] Hcl Ha").
+        { iPureIntro. lia. }
+        { iPureIntro. rewrite app_length //=. lia. }
+        { iPureIntro.
+          replace (C + (n - 1) - 1)%Z with (C + n - 1 - 1)%Z by lia.
+          rewrite of_bits_app.
+          rewrite /of_bits in Htail.
+          exact Htail. }
   Admitted.
 
   (** Total WP for the checker — the key new result using total Eris *)
