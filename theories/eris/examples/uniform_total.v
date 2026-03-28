@@ -812,7 +812,93 @@ Section uniform_total.
     S (Z.to_nat (up (Rlog 2 (5 / ε)))).
 
   Lemma numSamples_spec (ε : R) : (0 < ε)%R → (5 / 2 ^ numSamples ε < ε)%R.
-  Proof. Admitted.
+  Proof.
+    intros Hε.
+    rewrite /numSamples.
+    set (r := Rlog 2 (5 / ε)).
+    set (n := S (Z.to_nat (up r))).
+    assert (Hpow_pos : (0 < 2 ^ n)%R) by (apply pow_lt; lra).
+    assert (Hpos5e : (0 < 5 / ε)%R) by (apply Rdiv_lt_0_compat; lra).
+    assert (Hrn : (r < INR n)%R).
+    { rewrite /n. destruct (archimed r) as [Hup _].
+      destruct (Z_le_dec 0 (up r)).
+      - rewrite S_INR INR_IZR_INZ Z2Nat.id; [lra|lia].
+      - assert (Z.to_nat (up r) = 0%nat) as -> by lia.
+        simpl. apply Rlt_le_trans with 0%R; [|lra].
+        apply Rlt_le_trans with (IZR (up r)); [lra|].
+        apply IZR_le. lia. }
+    assert (Hpow_r : (Rpower 2 r = 5 / ε)%R).
+    { rewrite /r /Rlog /Rpower.
+      replace (ln (5 / ε) / ln 2 * ln 2)%R with (ln (5 / ε))%R.
+      - rewrite exp_ln; [lra|lra].
+      - field. apply Rgt_not_eq.
+        apply Rlt_gt.
+        eapply Rle_lt_trans; [|apply ln_lt_2].
+        lra.
+      }
+    assert (Hpow_n : (Rpower 2 r < 2 ^ n)%R).
+    { rewrite -(Rpower_pow n 2); [|lra].
+      apply Rpower_lt; [lra|exact Hrn]. }
+    (* Combine: 5/2^n < ε *)
+    rewrite Hpow_r in Hpow_n.
+    apply (Rmult_lt_reg_r (2 ^ n)); [exact Hpow_pos|].
+    unfold Rdiv. rewrite Rmult_assoc Rinv_l; [|lra].
+    rewrite Rmult_1_r.
+    assert (5 = ε * (5 / ε))%R as -> by (field; lra). nra.
+  Qed.
+
+  (* Helper: SeriesC of a {0,1}-valued function over a finite type
+     is bounded by the length of the filter on enum *)
+  Lemma SeriesC_bool_indicator_le {A : Type} `{Finite A}
+      (P : A → bool) (n : nat) :
+    length (filter P (enum A)) ≤ n →
+    (SeriesC (λ a : A, if P a then 1 else 0)%R <= INR n)%R.
+  Proof.
+    intros Hlen.
+    rewrite SeriesC_finite_foldr.
+    cut (foldr (Rplus ∘ (λ a : A, if P a then 1 else 0)%R) 0%R (enum A) <=
+         INR (length (filter P (enum A))))%R.
+    { intros Hfoldr. etrans; [exact Hfoldr|]. apply le_INR. exact Hlen. }
+    clear Hlen n. induction (enum A) as [|x xs IH]; simpl.
+    - lra.
+    - rewrite filter_cons. destruct (decide (P x)) as [Hd|Hd];
+        destruct (P x) eqn:HP.
+      + simpl length. rewrite S_INR. lra.
+      + contradiction.
+      + exfalso. apply Hd. done.
+      + lra.
+  Qed.
+
+  Lemma filter_in_gap_sig_le cx B s k :
+    length (filter (λ ns' : {ls : list (fin 2) | length ls = k},
+                      in_gap cx B s (proj1_sig ns'))
+                   (enum {ls : list (fin 2) | length ls = k})) ≤ 5.
+  Proof.
+    etrans; last apply (in_gap_count cx B s k).
+    rewrite -(map_length proj1_sig).
+    apply submseteq_length. apply NoDup_submseteq.
+    { apply NoDup_fmap.
+      { intros x y Heq. destruct x, y. simpl in Heq. subst. f_equal. apply proof_irrel. }
+      apply NoDup_filter. apply NoDup_enum. }
+    intros x Hx.
+    apply elem_of_list_fmap in Hx as [y [Heq Hy]].
+    apply elem_of_list_filter in Hy as [Hgap Helem]. subst x.
+    apply elem_of_list_filter. split; [exact Hgap|].
+    apply elem_of_enum_uniform_fin_list. destruct y as [l Hl]. simpl. exact Hl.
+  Qed.
+
+  Lemma ε_gap_sum_le cx B s k :
+    (SeriesC (λ ns' : {ls : list (fin 2) | length ls = k},
+       (1 / 2 ^ k) * ε_gap cx B s k ns')%R <= 5 / 2 ^ k)%R.
+  Proof.
+    assert (Hpow_pos : (0 < 2 ^ k)%R) by (apply pow_lt; lra).
+    rewrite SeriesC_scal_l.
+    replace (5 / 2 ^ k)%R with (1 / 2 ^ k * INR 5)%R by (simpl; lra).
+    apply Rmult_le_compat_l.
+    { apply Rcomplements.Rdiv_le_0_compat; lra. }
+    apply (SeriesC_bool_indicator_le (λ ns', in_gap cx B s (proj1_sig ns')) 5).
+    apply filter_in_gap_sig_le.
+  Qed.
 
   (** Total WP for the checker — the key new result using total Eris *)
   Lemma twp_lazy_real_cdf_checker E (ε : R) (B C : Z) :
@@ -846,25 +932,36 @@ Section uniform_total.
 
     (* Presample numSamples ε' bits onto the tape a *)
     set (k := numSamples ε).
-    wp_apply (twp_presample_many_adv_comp 1 1 E _ a _ [] k ε
+    set (ε_sum := SeriesC (λ ns' : {ls : list (fin 2) | length ls = k},
+                    (1 / 2 ^ k) * ε_gap 0 B (C + (-1)) k ns')%R).
+    iAssert (↯ ε_sum ∗ ↯ (ε - ε_sum))%I with "[Hε]" as "[Hε Hε_left]".
+    { iApply ec_split_le; [|done]. split.
+      - rewrite /ε_sum. apply SeriesC_ge_0'. intros.
+        apply Rmult_le_pos.
+        + apply Rcomplements.Rdiv_le_0_compat; first lra.
+          apply pow_lt. lra.
+        + rewrite /ε_gap. destruct (in_gap _ _ _ _); lra.
+      - rewrite /ε_sum. etrans; first apply ε_gap_sum_le.
+        apply Rlt_le. apply numSamples_spec. done. }
+    wp_apply (twp_presample_many_adv_comp 1 1 E _ a _ [] k ε_sum
       (ε_gap 0 B (C + (-1)) k) with "[$Ha $Hε Hl]").
     { done. }
     { intros ns'. rewrite /ε_gap. destruct (in_gap _ _ _ _); lra. }
-    { admit. (* SeriesC condition: need ≤ 5/2^k < ε *) }
+    { reflexivity. }
     iIntros (bs) "[Hεbs Ha]".
     rewrite app_nil_l.
     destruct (in_gap 0 B (C + -1) (`bs)) eqn:Hgap.
     - (* in_gap = true: bs is in the gap, we have ↯ 1 *)
       iAssert (↯ 1)%I with "[Hεbs]" as "Hε1".
       { rewrite /ε_gap Hgap. done. }
-      admit.
+      iExFalso. iApply (ec_contradict with "Hε1"). lra.
     - (* in_gap = false: apply twp_cmp_not_in_gap_S *)
       iClear "Hεbs".
       iApply (twp_cmp_not_in_gap_S _ B C (-1) [] (`bs) with "[$Hl $Ha]").
       { lia. }
       { simpl. lia. }
       { exact Hgap. }
-  Admitted.
+  Qed.
 
 End uniform_total.
 
