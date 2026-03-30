@@ -40,48 +40,10 @@ Section implementation.
     | effect CRS "x", rec "k" => "k" "crs"
     | return "y" => "y" end.
                                                                                             
-  Definition OT_Real f : expr :=
-    (* This should be encapsulated in the CRS effect *)
-    handle: handle: f with
-    | effect Receiver "b", "k" =>
-        let, ("h1", "h0", "g1", "g0") := (do: CRS #()%V) in
-        (* to avoid sampling the unit, as otherwise the protocol fails *)
-        let: "x" := sample #()%V in
-        let, ("gb", "hb") := if: "b" then ("g0", "h0") else ("g1", "h1") in
-        let: "uv" := ("gb"^"x", "hb"^"x") in
-        (do: channel (Send ("uv", bob)));;
-        let: "r" := (do: channel (RecvV bob)) in
-        match: "r" with
-          NONE => Protocol_Done Receiver ("k" NONE)
-        | SOME "cd" =>
-            let, ("cd0", "cd1") := "cd" in
-            let: "m" := if: "b" then (dec "x" "cd0") else (dec "x" "cd1") in
-            Protocol_Done Receiver ("k" (SOME "m"))
-        end 
-    | return "y" => "y" end
-  with
-| effect Sender "m", "k" =>
-    let, ("h1", "h0", "g1", "g0") := (do: CRS #()%V) in
-    let: "r" := (do: channel (Recv alice)) in
-    match: "r" with
-      SOME "uv" =>
-        let, ("u", "v") := "uv" in 
-        if: veq "u" vunit then Protocol_Done Sender ("k" #()%V) else
-          let: "pk0" := ("g0", "h0", "u", "v") in
-          let: "pk1" := ("g1", "h1", "u", "v") in
-          let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
-          let: "e0" := enc "pk0" "m0" "r0" "s0" in
-          let: "e1" := enc "pk1" "m1" "r1" "s1" in
-          (do: channel (Send (("e0", "e1"), alice)));;
-          Protocol_Done Sender ("k" #()%V)
-    | NONE => Protocol_Done Sender ("k" #()%V)
-    end
-| return "y" => "y" end. 
-
   (* Assumes an authenticated channel *)
   Definition OT_Real_Receiver_Corrupted f : expr :=
     handle: f  with
-    | effect Sender "mm", "k" as multi =>
+    | effect Sender "mm", "k" =>
         let, ("h1", "h0", "g1", "g0") := (do: CRS #()%V) in
         let, ("m0", "m1") := "mm" in
         let: "r" := (do: channel (Recv alice)) in
@@ -104,7 +66,7 @@ Section implementation.
   Definition D_Sender f : val :=
     (λ: "FOT", 
        handle: f with
-    | effect Sender "mm", "k" as multi => let, ("m0", "m1") := "mm" in "FOT" "m0" "m1";; Protocol_Done Sender ("k" #()%V)
+    | effect Sender "mm", "k" => let, ("m0", "m1") := "mm" in "FOT" "m0" "m1";; Protocol_Done Sender ("k" #()%V)
     | return "y" => "y"
      end).
 
@@ -140,7 +102,7 @@ Section implementation.
     (* since (D_Sender f) is a value, "crs" is technically not substituted into f when sampled, because of our implementation of subst *)
    handle: handle: (D_Sender f) "fots" with
     (* only the ideal functionality can use this effect *) 
-    | effect Leak "x", "k" as multi =>
+    | effect Leak "x", "k" =>
         match: "x" with
         | InjL <> => 
             let: "r" := (do: channel (Recv alice)) in

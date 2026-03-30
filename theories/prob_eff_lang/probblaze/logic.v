@@ -128,6 +128,7 @@ Section theories.
   Lemma to_iThyIfMonoMS L : to_iThyIfMono MS L = L.
   Proof. by induction L as [|((?,?),?)]; [|rewrite //= IHL]. Qed.
 
+
   (* ----------------------------------------------------------------------- *)
   (* Interpretation of theory lists. *)
 
@@ -204,12 +205,20 @@ Section theories.
     - iIntros "(%Q' & HX & HQ')". simpl.
       iExists Q'. iSplitL "HX"; [by iApply "Hle"|done].
     - simpl. done.
-  Qed. 
-      
+  Qed.
+
   Lemma iThy_le_iThyMono (X Y : iThy Σ) :
     iThy_le X Y -∗ iThy_le (iThyMono X) (iThyMono Y).
   Proof. by iApply (iThy_le_iThyIfMono _ _ OS).  Qed. 
-    
+
+  Lemma iThy_le_iThyMono_idemp X : ⊢ iThy_le (iThyMono (iThyMono X)) (iThyMono X).
+  Proof.
+    iIntros "!> %%% (%Q' & (%Q'' & HX & HQ''Q') & HQ'Q)".
+    iExists Q''. iFrame.
+    iIntros (??) "!> HQ''". iApply "HQ'Q".
+    by iApply "HQ''Q'".
+  Qed.
+
   Lemma iThy_le_sum_swap (X Y : iThy Σ) :
     ⊢ iThy_le (iThySum X Y) (iThySum Y X).
   Proof. by iIntros "!> %%% [?|?]"; [iRight|iLeft]. Qed.
@@ -2624,6 +2633,22 @@ Section basic_properties.
       + by iApply valid_l_to_iThy_bot.
       + by iApply valid_r_to_iThy_bot.
   Qed.
+
+  Lemma to_iThy_le_to_iThyIfMono_idemp L m :
+    ⊢ to_iThy_le (to_iThyIfMono m (to_iThyIfMono m L)) (to_iThyIfMono m L).
+  Proof.
+    destruct m; last first.
+    - rewrite to_iThyIfMonoMS. iApply to_iThy_le_refl.
+    - iSplit; last first.
+      + iSplit.
+        * iIntros "!# Hvalid". by rewrite valid_to_iThyIfMono.
+        * iIntros "!# %Hdistinct". iPureIntro.
+          by erewrite distinct_to_iThyIfMono in Hdistinct.
+      + iApply iThy_le_trans; first iApply iThy_le_to_iThyIfMono_to_iThy.
+        iApply iThy_le_trans; first iApply iThy_le_iThyIfMono; first iApply iThy_le_to_iThyIfMono_to_iThy.
+        iApply iThy_le_trans; last iApply iThy_le_to_iThy_to_iThyIfMono.
+        iApply iThy_le_iThyMono_idemp.
+  Qed. 
 
   Definition HandleCtxs (lhrs : list (handler_semantics * mode * label * expr * expr)) :=
     map (λ '(hs, m, l, h, r), HandleCtx hs m l h r) lhrs.
