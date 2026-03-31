@@ -799,64 +799,65 @@ Section handlee_verification.
         iSplitL; [|iIntros (??) "!# H"; iApply "H"].
         iRight. iLeft.
         iExists _,_,_,_.
-        iSplit.
+        iSplit; first admit.
 
 
-        rewrite -!expgM.
-        rewrite -!expgnDr.
-        rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln t1 s1))).
-        1 : rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 (f' r1)) (ssrnat.muln t1 (g' s1)))).
-        2,3 : rewrite -g_nontriv; apply expg_order.
-        unshelve rewrite enc_fin_cancel1 //.
-        2,3 : rewrite Rcomplements.SSR_leq; lia.
-        rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.addn 1 _) _)).
-        2: rewrite -g_nontriv; apply expg_order.
-        rewrite enc_fin_cancel2 //.
-        3, 4 : rewrite Rcomplements.SSR_leq; lia.
-        2 : admit.
-        rewrite !expg_mod.
-        2,3 : rewrite -g_nontriv; apply expg_order.
-        brel_pures.
-        iApply (brel_introduction' [channel]). { repeat constructor. }
-        iExists _,_,[AppRCtx _],[AppRCtx _ ],_.
-        do 2 (iSplit; [done|];
-              iSplit; [iPureIntro; apply AppRCtx_NeutralEctx; apply NeutralEctx_nil|]).
-        iSplitL; [|iIntros (??) "!# H"; iApply "H"].
-        iRight. iLeft.
-        iExists _,_,_,_.
-        iSplit.
-        { iMod (inv_acc with "Hinvtb") as "([>(Htok & Hagree) | >#Hfrac] & Hclose)"; try done.
-          - iModIntro. iLeft. iIntros "#Hfrac".
-            iMod (auth_upd ((vgval (g ^+ ssrnat.addn (ssrnat.muln g0 r0) (ssrnat.muln t0 s0)),
-                               vgval (m0 * g ^+ ssrnat.muln ku r0 * g ^+ ssrnat.muln kv s0)),
-                              (vgval (g ^+ ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln t1 s1)),
-                                 vgval (g ^+ ssrnat.addn (ssrnat.addn km (ssrnat.muln ku r1)) (ssrnat.muln kv s1))))%V
-                   with "Hagree") as "Hagree".
-            iMod (auth_persist with "Hagree") as "#Hagree".
-            iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#".
-            by iModIntro.
-          - iRight. iFrame "#".
-            iModIntro. iApply "Hclose". iNext.
-            by iRight. }
-        iSplit; first (iSplit; done).
-        iModIntro. simpl.
-        (* Protocol done loop *)
-        { brel_pures. iDestruct ("Hkont" with "HQ") as "Hfill".
-          iClear "Hkont".
-          iRevert (k1' k2' H1 H2) "Hfill".
-          iLöb as "IH". iIntros (????) "#Hfill".
-          iApply (brel_exhaustion _ _ [_] [_]); [set_solver|set_solver|iApply "Hfill"|].
-          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-          iIntros (???????) "!#". iIntros "(%&%&->&->&#HQ') #Hkont'".
-          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-          iIntros (rl) "!> Hrl".
-          iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-          iIntros (rr) "Hrr". 
-          brel_pures.
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]").
-          iDestruct ("Hkont'" with "HQ'") as "Hfill'".
-          by iApply "IH". }
+        (* rewrite -!expgM.
+           rewrite -!expgnDr.
+           rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln t1 s1))).
+           1 : rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 (f' r1)) (ssrnat.muln t1 (g' s1)))).
+           2,3 : rewrite -g_nontriv; apply expg_order.
+           unshelve rewrite enc_fin_cancel1 //.
+           2,3 : rewrite Rcomplements.SSR_leq; lia.
+           rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.addn 1 _) _)).
+           2: rewrite -g_nontriv; apply expg_order.
+           rewrite enc_fin_cancel2 //.
+           3, 4 : rewrite Rcomplements.SSR_leq; lia.
+           2 : admit.
+           rewrite !expg_mod.
+           2,3 : rewrite -g_nontriv; apply expg_order.
+           brel_pures.
+           iApply (brel_introduction' [channel]). { repeat constructor. }
+           iExists _,_,[AppRCtx _],[AppRCtx _ ],_.
+           do 2 (iSplit; [done|];
+                 iSplit; [iPureIntro; apply AppRCtx_NeutralEctx; apply NeutralEctx_nil|]).
+           iSplitL; [|iIntros (??) "!# H"; iApply "H"].
+           iRight. iLeft.
+           iExists _,_,_,_.
+           iSplit.
+           { iMod (inv_acc with "Hinvtb") as "([>(Htok & Hagree) | >#Hfrac] & Hclose)"; try done.
+             - iModIntro. iLeft. iIntros "#Hfrac".
+               iMod (auth_upd ((vgval (g ^+ ssrnat.addn (ssrnat.muln g0 r0) (ssrnat.muln t0 s0)),
+                                  vgval (m0 * g ^+ ssrnat.muln ku r0 * g ^+ ssrnat.muln kv s0)),
+                                 (vgval (g ^+ ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln t1 s1)),
+                                    vgval (g ^+ ssrnat.addn (ssrnat.addn km (ssrnat.muln ku r1)) (ssrnat.muln kv s1))))%V
+                      with "Hagree") as "Hagree".
+               iMod (auth_persist with "Hagree") as "#Hagree".
+               iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#".
+               by iModIntro.
+             - iRight. iFrame "#".
+               iModIntro. iApply "Hclose". iNext.
+               by iRight. }
+           iSplit; first (iSplit; done).
+           iModIntro. simpl.
+           (* Protocol done loop *)
+           { brel_pures. iDestruct ("Hkont" with "HQ") as "Hfill".
+             iClear "Hkont".
+             iRevert (k1' k2' H1 H2) "Hfill".
+             iLöb as "IH". iIntros (????) "#Hfill".
+             iApply (brel_exhaustion _ _ [_] [_]); [set_solver|set_solver|iApply "Hfill"|].
+             iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+             iIntros (???????) "!#". iIntros "(%&%&->&->&#HQ') #Hkont'".
+             iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+             iIntros (rl) "!> Hrl".
+             iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+             iIntros (rr) "Hrr". 
+             brel_pures.
+             iApply (brel_cont_l with "[$]"). iModIntro.
+             iApply (brel_cont_r with "[$]").
+             iDestruct ("Hkont'" with "HQ'") as "Hfill'".
+             by iApply "IH". } *)
+        admit.
       (* (e1,e2) = (enc(g), enc(m1)) - couple enc(m0) and enc(g) *)
       + iApply (brel_handle_os_r [AppRCtx _] [AppRCtx _]); [set_solver|].
         iIntros (?) "Hcont". brel_pures.
@@ -931,7 +932,7 @@ Section handlee_verification.
           - iRight. iFrame "#".
             iModIntro. iApply "Hclose". iNext.
             by iRight. }
-        iSplit; first (iSplit; done).
+        iSplit; first (iSplit; admit).
         iModIntro. simpl.
         (* Protocol done loop *)
         { brel_pures. iDestruct ("Hkont" with "HQ") as "Hfill".
@@ -950,46 +951,6 @@ Section handlee_verification.
           iApply (brel_cont_r with "[$]").
           iDestruct ("Hkont'" with "HQ'") as "Hfill'".
           by iApply "IH". }
-        
-        
-        brel_exp_r. iApply brel_eq_r.
-        destruct (bool_decide (v =  (u ^+ (f n'' g1 t1))%g)) eqn:Heq2; brel_pures.
-        * iApply (brel_handle_os_r [AppRCtx _] [AppRCtx _]); [set_solver|].
-          iIntros (?) "Hcont". brel_pures.
-          iApply (brel_cont_r with "[$]").
-          brel_pures.
-          iApply (brel_load_r with "[$Hlm1]"). iIntros "_". 
-          brel_pures. brel_exp_r. brel_pures. 
-          iApply brel_couple_rand_rand; [done|]. iIntros (s1 Hs1). brel_pures.
-          iApply brel_couple_rand_rand; [done|]. iIntros (r1 Hr1). brel_pures.
-          iApply brel_couple_rand_rand; [done|]. iIntros (s0 Hs0). brel_pures.
-          iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures.
-          iApply brel_exp_l. iApply brel_exp_r. brel_pures.
-          brel_exp_r. brel_mult_r. brel_mult_l. brel_mult_r. brel_exp_r.
-          brel_exp_r. brel_mult_r.
-          brel_mult_l. do 2 brel_exp_l. brel_mult_l. brel_pures.
-          brel_exp_l. brel_mult_l. brel_mult_l. brel_exp_l. brel_exp_l.
-          brel_mult_l. 
-          do 2 brel_exp_r. do 2 brel_mult_r. do 2brel_exp_r. brel_mult_r.
-          brel_pures. admit. 
-        * iApply (brel_handle_os_r [AppRCtx _] [AppRCtx _]); [set_solver|].
-          iIntros (?) "Hcont". brel_pures.
-          iApply (brel_cont_r with "[$]").
-          brel_pures.
-          iApply (brel_load_r with "[$Hlm0]"). iIntros "_". 
-          brel_pures. brel_exp_r. brel_pures. 
-          iApply brel_couple_rand_rand; [done|]. iIntros (s1 Hs1). brel_pures.
-          iApply brel_couple_rand_rand; [done|]. iIntros (r1 Hr1). brel_pures.
-          iApply brel_couple_rand_rand; [done|]. iIntros (s0 Hs0). brel_pures.
-          iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures.
-          iApply brel_exp_l. iApply brel_exp_r. brel_pures.
-          brel_exp_r. brel_mult_r. brel_mult_l. brel_mult_r. brel_exp_r.
-          brel_exp_r. brel_mult_r.
-          brel_mult_l. do 2 brel_exp_l. brel_mult_l. brel_pures.
-          brel_exp_l. brel_mult_l. brel_mult_l. brel_exp_l. brel_exp_l.
-          brel_mult_l. 
-          do 2 brel_exp_r. do 2 brel_mult_r. do 2brel_exp_r. brel_mult_r.
-          brel_pures. admit. 
   Admitted. 
 
 End handlee_verification.
