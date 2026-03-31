@@ -260,6 +260,7 @@ Section handlee_verification.
     iMod (auth_persist with "Hb") as "#Hb".
     iModIntro.
 
+    (* Store resources before induction *)
     iApply fupd_brel.
     iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
     { iNext; iLeft;iFrame. }
@@ -288,6 +289,8 @@ Section handlee_verification.
     { iApply to_iThy_le_intro'. simpl. eapply submseteq_trans; last apply submseteq_swap. by apply submseteq_cons. }
     iApply (brel_exhaustion with "[$]"); [done|done|].
 
+    (* getKey can be called multiple times *)
+    (* hence the token/receipt is stored in an invariant, s.t. we can distinguish the first getKey call from the subsequent *)
     iLöb as "IH".
     
     iSplit; [iIntros (v1 v2) "!# (-> & ->)"; by brel_pures|].
