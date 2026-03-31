@@ -289,11 +289,12 @@ Section handlee_verification.
     { iApply to_iThy_le_intro'. simpl. eapply submseteq_trans; last apply submseteq_swap. by apply submseteq_cons. }
     iApply (brel_exhaustion with "[$]"); [done|done|].
 
-    (* getKey can be called multiple times *)
-    (* hence the token/receipt is stored in an invariant, s.t. we can distinguish the first getKey call from the subsequent *)
+    (* getKey can be called multiple times, why we need induction *)
+    (* the token is given away at the first call, so we need to store it in an invariant that holds for all calls to getKey *)
     iLöb as "IH".
     
     iSplit; [iIntros (v1 v2) "!# (-> & ->)"; by brel_pures|].
+    (* getKeyAlice or getKeyBob *)
     iIntros (?????) "!# %Hk1 %Hk2 [(-> & -> & #(Hnone & Hsome))|(-> & -> & #(Hnone & Hsome))] #Hcont".
 
     1 : {
