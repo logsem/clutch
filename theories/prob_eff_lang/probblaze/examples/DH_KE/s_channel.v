@@ -20,15 +20,40 @@ Section secure_channel.
   Definition SendSecure (e : expr) := InjL e.
   Definition RecvSecure (e : expr) := InjR e.
 
-  (*ONE-SHOT auhtneticated channel ideal functionality*)
-  (*Definition F_OAUTH*)
+  (*In this implementation, we are not parametrizing by the party*)
+  (*ONE-SHOT authenticated channel ideal functionality*)
+  Definition F_OAUTH (channel : label) f : expr :=
+     let: "message" := ref NONEV in
+     handle: f with
+     | effect channel "payload", rec "k" as multi =>
+      match: "payload" with
+      (*Send Auth*)
+      | InjL "payload" =>
+          let, ("m", "dst") := "payload" in
+          match: !"message" with
+          | NONE => "message" <- SOME "m" ;;
+                   (do: channel (Send ("m", "dst")));; "k" #()%V
+          | SOME "message" => "k" #()%V
+          end
+      (* Receive Auth *)
+      | InjR "from" => 
+          let: "r" := (do: channel (Recv "from")) in
+          match: "r" with
+          | NONE => "k" NONEV
+          | SOME "x" => "k" !"message"                         
+          end
+      end
+     | return "y" => #()%V
+    end.
+
 
   (*placeholder for now *)
   Definition xor (e1 e2 : expr) : expr := #()%V.  
 
   
-  (*ONE-SHOT Secure channel functionality*)
-  Definition CHAN (channel : label) f : expr :=
+  (*ONE-SHOT Secure channel functionality
+   Assumes a fix direction of sending the message, from Alice to Bob*)
+  Definition CHAN (getKey channel : label) f : expr :=
     let: "message" := ref NONEV in
     handle: f with
     | effect channel "payload", rec "k" as multi =>
@@ -36,7 +61,19 @@ Section secure_channel.
           (*SendSecure*)
         | InjL "payload" =>
             let, ("m", "dst") := "payload" in
-            match: "dst" with
+            match: !"message" with
+            | NONE => "message" <- SOME "m";;
+                     let: "key" := do: getKey ("dst") in
+                                              match: "key" with
+                                                (*is this correct?*)
+                                              | NONE => "k" NONEV
+                                              | SOME "x" =>
+                                                  let: "enc_m" := xor "x" "m" in
+                                                  (do: channel (Send ("enc_m", bob)));; "k" #()%V
+                                              end    
+            | SOME "message" => "k" NONEV
+            end
+            (*match: "dst" with
             (*Alice *)
             | InjL <> => match: !"message" with
                        | NONE => "message" <- SOME "m";;
@@ -63,11 +100,11 @@ Section secure_channel.
                                               end
                       | SOME "message" => "k" NONEV (*is this correct? *)
                       end                                                           
-            end
+            end*)
               
             (*ReceiveSecure*)
                                             |InjR "from" =>
-                                               let: "key" := do: "getKey" ("from") in
+                                               let: "key" := do: getKey ("from") in
                                                              match: "key" with
                                                                (*is this correct?*)
                                                              | NONE => "k" NONEV
@@ -122,9 +159,25 @@ Section secure_channel.
     | effect channel "payload", rec "k" as multi =>
         match: "payload" with
           (*Leak effect for sending a message *)
-        | InjL "payload" => (*"k" NONE*)
+        | InjL "payload" => 
             let, ("m", "dst") := "payload" in
-            match: "dst" with
+            (do: channel (Send (#0, alice)));;
+                let: "r" := do: channel (Recv bob) in
+                              match: "r" with
+                              | NONE => "k" NONE
+                              | SOME "x" =>
+                                  let: "m" :=
+                                    (match: !"message" with
+                                     | NONE =>
+                                         let:
+                                           "m":= (samplelbl "α" #()%V) in "message" <- SOME "m";; "m"
+                                     | SOME "m" => "m"
+                                     end) in
+                                  let: "mA" := g^"m" in
+                                  (do: channel (Send ("mA", alice)));;
+                                  "k" #()%V
+                              end
+            (*match: "dst" with
               (*Alice *)
              | InjL <> =>
                 (do: channel (Send (#0, alice)));;
@@ -161,7 +214,7 @@ Section secure_channel.
                                   (do: channel (Send ("mB", bob)));;
                                   "k" #()%V
                               end                      
-            end
+            end*)
           (*Leak effect for receiving a message *)
          | InjR "from" =>
             let: "r" := do: channel (Recv "from") in
