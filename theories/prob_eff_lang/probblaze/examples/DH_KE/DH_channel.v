@@ -208,6 +208,17 @@ Section handlee_verification.
 
   Definition LblAdv : iLblThy Σ :=  [([getKey1],[getKey2], (iThySum GetKey1 GetKey2))].
 
+  Tactic Notation "foldkont" ident(k) open_constr(kctx) :=
+    match goal with
+    | |- context[KontV ?kont] =>
+        unify kont kctx ; set (k := KontV kont)
+    end.
+
+  Tactic Notation "foldkont" ident(k) := foldkont k _.
+
+  Tactic Notation "foldkont" := let k := fresh "kont" in foldkont k.
+
+
   (* Verification of DH_KE ≤ C[DH_real] *)
   (*------------------------------------------------------------*)
   
@@ -221,7 +232,7 @@ Section handlee_verification.
     own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) -∗
     BREL f1 ≤ f2 <|LblAdv ++ L|> {{ (λ v1 v2, ⌜v1 = #()%V ∧ v2 = #()%V⌝) }} -∗
     BREL (DH_KE getKey1 channel1 f1) ≤ (C getKey2 channel2 DH_real f2) <|([getKey1], [getKey2], X) :: LblThy ++ L|> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
-  Proof using G.
+  Proof with (repeat foldkont) using G.
     iIntros (LblThy Hf1closed Hf2closed) "Htoka Htokb Ha Hb Hff".
     iApply brel_alloctape_l. iIntros (α) "!> Hα". brel_pures_l.
     iApply brel_alloctape_l. iIntros (β) "!> Hβ". brel_pures_l.
@@ -283,7 +294,9 @@ Section handlee_verification.
     iIntros (?????) "!# %Hk1 %Hk2 [(-> & -> & #(Hnone & Hsome))|(-> & -> & #(Hnone & Hsome))] #Hcont".
 
     1 : {
-      brel_pures; [apply Hk1; set_solver|apply Hk2; set_solver|].
+      brel_pures; [apply Hk1; set_solver|apply Hk2; set_solver|]...
+      (* bind the match ... end block and prove (by casing on the invariant) that in either case "a" will become the value a (from the tape or the reference read), then continue only with one branch *)
+      (* in other words, prove a spec for sample_or_load *)
       iApply (brel_na_inv _ _ alphaN); first set_solver.
       iFrame "Hinva".
       iIntros "([(Hα & Hla) | (#Hα & #Hla)] & Hclose)".
