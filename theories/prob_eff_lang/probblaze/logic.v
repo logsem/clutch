@@ -1372,11 +1372,11 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.
 
-  Lemma rel_handle_os_l k k' hs (l : label) (v : val) (h ret : expr) e2 X R :
+  Lemma rel_handle_os_l k k' hs (l : label) (v : val) (h ret : expr) e2 E X R :
     let c := match hs with Deep => HandleCtx hs OS l h ret :: k' | Shallow => k' end in
     l ∉ ectx_labels k' →
-    (▷ ∀ r, unshot r -∗ REL fill k (App (App h v) (ContV r c)) ≤ e2 <|X|> {{R}}) -∗
-    REL fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) ≤ e2 <|X|> {{R}}.
+    (▷ ∀ r, unshot r -∗ REL fill k (App (App h v) (ContV r c)) ≤ e2 @ E <|X|> {{R}}) -∗
+    REL fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) ≤ e2 @ E <|X|> {{R}}.
   Proof.
     iIntros (? Hnot_in_k') "Hrel".
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
@@ -1390,11 +1390,11 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.
 
-  Lemma rel_handle_os_r k k' hs (l : label) (v : val) (h ret : expr) e1 X R :
+  Lemma rel_handle_os_r k k' hs (l : label) (v : val) (h ret : expr) e1 E X R :
     let c := match hs with Deep => HandleCtx hs OS l h ret :: k' | Shallow => k' end in
     l ∉ ectx_labels k' →
-    (∀ r, unshotₛ r -∗ REL e1 ≤ fill k (App (App h v) (ContV r c)) <|X|> {{R}}) -∗
-    REL e1 ≤ fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) <|X|> {{R}}.
+    (∀ r, unshotₛ r -∗ REL e1 ≤ fill k (App (App h v) (ContV r c)) @ E <|X|> {{R}}) -∗
+    REL e1 ≤ fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) @ E <|X|> {{R}}.
   Proof.
     iIntros (? Hnot_in_k') "Hrel".
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
@@ -1407,10 +1407,10 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     iApply ("Hrel" with "Hkwp Hj Hnais Herr"). done.
   Qed.
 
-  Lemma rel_cont_l k k' (v : val) r e2 X R :
+  Lemma rel_cont_l k k' (v : val) r e2 E X R :
     ▷ unshot r -∗
-    ▷ REL fill k (fill k' v) ≤ e2 <|X|> {{R}} -∗
-    REL fill k (App (ContV r k') v) ≤ e2 <|X|> {{R}}.
+    ▷ REL fill k (fill k' v) ≤ e2 @ E <|X|> {{R}} -∗
+    REL fill k (App (ContV r k') v) ≤ e2 @ E <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     iIntros "Hr Hwp".
@@ -1421,10 +1421,10 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     by iApply ("Hwp" with "Hkwp Hj Hnais Herr").
   Qed.
 
-  Lemma rel_cont_r k k' (v : val) r e1 X R :
+  Lemma rel_cont_r k k' (v : val) r e1 E X R :
     unshotₛ r -∗ 
-    REL e1 ≤ fill k (fill k' v) <|X|> {{R}} -∗
-    REL e1 ≤ fill k (App (ContV r k') v) <|X|> {{R}}.
+    REL e1 ≤ fill k (fill k' v) @ E <|X|> {{R}} -∗
+    REL e1 ≤ fill k (App (ContV r k') v) @ E <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     iIntros "Hr Hwp".
@@ -3288,11 +3288,11 @@ Section brel_effect_rules.
     }
   Qed.
 
-  Lemma brel_handle_os_l k k' hs (l : label) (v : val) (h ret : expr) e2 L R :
+  Lemma brel_handle_os_l k k' hs (l : label) (v : val) (h ret : expr) e2 E L R :
     let c := match hs with Deep => HandleCtx hs OS l h ret :: k' | Shallow => k' end in
     l ∉ ectx_labels k' →
-    (▷ ∀ r, unshot r -∗ BREL fill k (App (App h v) (ContV r c)) ≤ e2 <|L|> {{R}}) -∗
-    BREL fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) ≤ e2 <|L|> {{R}}.
+    (▷ ∀ r, unshot r -∗ BREL fill k (App (App h v) (ContV r c)) ≤ e2 @ E <|L|> {{R}}) -∗
+    BREL fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) ≤ e2 @ E <|L|> {{R}}.
   Proof.
     iIntros (? Hnot_in_k') "Hbrel".
     iIntros "#Hvalid #Hdistinct".
@@ -3301,11 +3301,11 @@ Section brel_effect_rules.
     by iApply ("Hbrel" with "Hunshot").
   Qed.
 
-  Lemma brel_handle_os_r k k' hs (l : label) (v : val) (h ret : expr) e1 L R :
+  Lemma brel_handle_os_r k k' hs (l : label) (v : val) (h ret : expr) e1 E L R :
     let c := match hs with Deep => HandleCtx hs OS l h ret :: k' | Shallow => k' end in
     l ∉ ectx_labels k' →
-    (∀ r, unshotₛ r -∗ BREL e1 ≤ fill k (App (App h v) (ContV r c)) <|L|> {{R}}) -∗
-    BREL e1 ≤ fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) <|L|> {{R}}.
+    (∀ r, unshotₛ r -∗ BREL e1 ≤ fill k (App (App h v) (ContV r c)) @ E <|L|> {{R}}) -∗
+    BREL e1 ≤ fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) v)) h ret) @ E <|L|> {{R}}.
   Proof.
     iIntros (? Hnot_in_k') "Hbrel".
     iIntros "#Hvalid #Hdistinct".
@@ -3314,10 +3314,10 @@ Section brel_effect_rules.
     by iApply ("Hbrel" with "Hunshot").
   Qed.
 
-  Lemma brel_cont_l k k' (v : val) r e2 L R :
+  Lemma brel_cont_l k k' (v : val) r e2 E L R :
     ▷ unshot r -∗
-    ▷ BREL fill k (fill k' v) ≤ e2 <|L|> {{R}} -∗
-    BREL fill k (App (ContV r k') v) ≤ e2 <|L|> {{R}}.
+    ▷ BREL fill k (fill k' v) ≤ e2 @ E <|L|> {{R}} -∗
+    BREL fill k (App (ContV r k') v) ≤ e2 @ E <|L|> {{R}}.
   Proof.
     iIntros "Hunshot Hbrel".
     iIntros "#Hvalid #Hdistinct".
@@ -3325,10 +3325,10 @@ Section brel_effect_rules.
     by iApply "Hbrel".
   Qed.
 
-  Lemma brel_cont_r k k' (v : val) r e1 L R :
+  Lemma brel_cont_r k k' (v : val) r e1 E L R :
     unshotₛ r -∗ 
-    BREL e1 ≤ fill k (fill k' v) <|L|> {{R}} -∗
-    BREL e1 ≤ fill k (App (ContV r k') v) <|L|> {{R}}.
+    BREL e1 ≤ fill k (fill k' v) @ E <|L|> {{R}} -∗
+    BREL e1 ≤ fill k (App (ContV r k') v) @ E <|L|> {{R}}.
   Proof.
     iIntros "Hunshot Hbrel".
     iIntros "#Hvalid #Hdistinct".
