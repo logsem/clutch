@@ -152,9 +152,9 @@ Section secure_channel.
     | return "y" => #()%V end.
   
     
-  Definition CHAN_SIM (channel : label) (f : expr) : expr :=
-      let: "message" := ref NONEV in
-      
+   Definition CHAN_SIM (channel : label) (f : expr) : expr :=
+      let: "α" := alloc #n in 
+      let: "message" := ref NONEV in      
     handle: f with
     | effect channel "payload", rec "k" as multi =>
         match: "payload" with
