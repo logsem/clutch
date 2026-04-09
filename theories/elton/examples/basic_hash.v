@@ -153,6 +153,25 @@ Section prog.
       iIntros (n2) "Herr1".
       case_bool_decide; first (by iDestruct (ec_contradict with "[$Herr1]") as "[]").
       wp_pures.
+
+  (*
+    Let k1 = l/S tag_range and k2 = l%S tag_range
+     Here h1 is storing h (n1 || k1)
+     Here h2 is storing either h (n2 || k1) or (n2 || l%k2)
+
+     Let s1 be the range of values k1 can be, similarly be s2.
+     This means initially s1 and s2 = {0, ... , tag_range}
+     Initially the urn l is storing s1 ** s2,
+     where (x ** y) is a set of all elements (a*S tag_range + b) for all a in x, b in y
+
+     Now each time the adversary queries the hash, say with input i,
+     let i' = i%(S tag_range), we pay errors to ensure i' is not stored in s1 or s2
+     This way, i is never (n1||k1) or (n2||k2)
+
+     The adversary gets tries+1 attempt, including the final one attempt when it returns
+
+     Hence the error is 2*(tries+1)/(S tag_range)
+   *)
   Admitted. 
   (*     iMod (ec_zero) as "Hzero". *)
   (*     wp_apply (wp_insert_new _ _ _ _ _ _ (λ _, 0)%R True with "[$Hf $Hzero]"). *)
