@@ -8,7 +8,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   class_instances.
 From clutch.prob_eff_lang.probblaze Require Import definition.
 From clutch.prob_eff_lang.probblaze Require Import DH_channel.
-From clutch.prob_eff_lang.probblaze Require Import s_channel.
+From clutch.prob_eff_lang.probblaze Require Import sec_channel.
 
 
 Import fingroup.
@@ -18,42 +18,22 @@ Import fingroup.fingroup.
 Import valgroup_notation.
 Import valgroup_tactics.
 
-Section sec_channel_verification.
+Section s_channel_verification.
   Context `{probblazeRGS Σ}.
-  Context (channel1 channel2 getKey1 getKey2 : label).
+  Context (channel1 channel2 getKey1 getKey2 leak1 leak2 : label).
   Context {vg: val_group}.
   Context {cg: clutch_group_struct}.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg : @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
   
-  (*Definition atokN : namespace := nroot .@ "atokN".
-  Definition btokN : namespace := nroot .@ "btokN".*)
-
-
-
   (*Theories for the interaction of the secure channel with the environment*)
-  (*---------------------------------------------------------*)
-  Print Val.
-
- (* Program Definition SendSecBob : iThy Σ :=
-  λ e1 e2, (λne Q,
-              ∀ m1 m2 : nat,
-                ⌜e1 = (do: channel1 (SendV (#m1, bob)))⌝%E ∗ 
-                           ⌜ e2 = do: channel2 (SendV (#m2, bob)) ⌝%E ∗ 
-                                    □ ((Q (SOMEV #m1) (SOMEV #m2)) /\ Q NONEV NONEV))%I.*)
-
-  Print val.
-  Print base_lit.
-  Definition leak_or_broadcast (m1 m2 : val) : iProp Σ := ⌜True⌝.
-  (*(□ (⌜((m1 = #0)%E /\ (m2 = #0)%E) \/ (∃ n1 n2 : nat, m1 == #(S n1)%E /\ m2 == #(S n2)%E)⌝))%I.*)  
-
-  
-  Program Definition SendSecBob : iThy Σ :=
+  (*-------------------------------------------------------------*)
+   Program Definition SendSecBob : iThy Σ :=
   λ e1 e2, (λne Q,
               ∀ m1 m2 : val,
                 ⌜e1 = (do: channel1 (SendV (m1, bob)))⌝%E ∗ 
-                           ⌜ e2 = do: channel2 (SendV (m2, bob)) ⌝%E ∗ □ (leak_or_broadcast m1 m2) ∗ 
+                           ⌜ e2 = do: channel2 (SendV (m2, bob)) ⌝%E ∗
                                       □ Q (Val #()%V) (Val #()%V))%I.
   Next Obligation. solve_proper. Qed.
 
@@ -61,10 +41,10 @@ Section sec_channel_verification.
   λ e1 e2, (λne Q,
               ∀ m1 m2 : val,
                 ⌜e1 = (do: channel1 (SendV (m1, alice)))⌝%E ∗ 
-                           ⌜ e2 = do: channel2 (SendV (m2, alice)) ⌝%E ∗ □ (leak_or_broadcast m1 m2) ∗ 
+                           ⌜ e2 = do: channel2 (SendV (m2, alice)) ⌝%E ∗
                                       □ Q (Val #()%V) (Val #()%V))%I.
   Next Obligation. solve_proper. Qed.
-  
+
   Program Definition RecvSecBob : iThy Σ :=
    λ e1 e2, (λne Q,
                 ⌜ e1 = do: channel1 (RecvV bob) ⌝%E ∗
@@ -80,12 +60,28 @@ Section sec_channel_verification.
                 □ ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed.
-  
-  Definition LblEnvSec := [([channel1], [channel2],iThySum (iThySum SendSecBob RecvSecAlice) (iThySum RecvSecBob RecvSecAlice))].
 
-(*Theories for the implementation of the secure channel*)
-(*---------------------------------------------------------*)
-  Program Definition SendSecBobImpl γtok γfrac γsec ℓ : iThy Σ :=
+  Program Definition LeakAlice : iThy Σ :=
+    λ e1 e2, (λne Q,
+                ⌜ e1 = do: leak1 (alice) ⌝%E ∗
+                           ⌜ e2 = do: leak2 (alice) ⌝%E ∗
+                                      □ Q (Val #()%V) (Val #()%V))%I.
+  Next Obligation. solve_proper. Qed.
+
+  Program Definition LeakBob : iThy Σ :=
+    λ e1 e2, (λne Q,
+                ⌜ e1 = do: leak1 (bob) ⌝%E ∗
+                           ⌜ e2 = do: leak2 (bob) ⌝%E ∗
+                                      □ Q (Val #()%V) (Val #()%V))%I.
+  Next Obligation. solve_proper. Qed.
+
+  
+
+  Definition LblEnvSec := [([channel1], [channel2],iThySum (iThySum SendSecBob RecvSecAlice) (iThySum RecvSecBob RecvSecAlice)); ([leak1], [leak2], iThySum LeakAlice LeakBob)].
+
+  (*Theories for the implementation of the secure channel*)
+  (*---------------------------------------------------------*)
+   Program Definition SendSecBobImpl γtok γfrac γsec ℓ : iThy Σ :=
      λ e1 e2, (λne Q,
                 ∃ m m': val, ((|={⊤, ⊤ ∖ ↑ℓ }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ℓ, ⊤}=> token γtok ∗ own γsec (to_dfrac_agree DfracDiscarded m) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ℓ , ⊤}=> own γfrac DfracDiscarded)) ∗  
                             (⌜ e1 = do: channel1 (SendV (m, alice)) ⌝%E ∗
@@ -123,9 +119,10 @@ Section sec_channel_verification.
 
   Definition LblSecChannel γtoka atokN γfraca γseca γsecb : iLblThy Σ :=
     [([channel1],[channel2], (iThySum (SendSecAliceImpl γtoka γfraca γseca atokN) (RecvSecBobImpl γsecb)))].
-                            (*    (iThySum (SendSecBobImpl γtokb γfracb γsecb btokN) (RecvSecAliceImpl γseca))))].*)
+  (*    (iThySum (SendSecBobImpl γtokb γfracb γsecb btokN) (RecvSecAliceImpl γseca))))].*)
 
-(*Verification of F_OAUTH[F_KE[CHAN[]]] ≤ CHAN_SIM[F_CHAN[]]*)
+
+(*Verification of F_OAUTH[F_KE_L[CHAN[]]] ≤ CHAN_SIM[F_CHAN[]]*)
 (*----------------------------------------------------------*)
 Lemma F_KE_CHAN_SIM f1 f2 γtoka γfraca γseca γsecb L :
     let LblThy := LblSecChannel γtoka atokN γfraca γseca γsecb in
@@ -136,15 +133,15 @@ Lemma F_KE_CHAN_SIM f1 f2 γtoka γfraca γseca γsecb L :
     own γseca (to_dfrac_agree (DfracOwn 1) #()%V) -∗ 
     own γsecb (to_dfrac_agree (DfracOwn 1) #()%V) -∗ 
     BREL f1 ≤ f2 <| LblThy ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝)  }} -∗ 
-    BREL (F_OAUTH channel1 (DH_KE getKey1 channel1 (CHAN getKey1 channel1 f1)))
-    ≤ CHAN_SIM channel2 (F_CHAN channel2 f2)<| LblEnvSec ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
+    BREL (F_OAUTH channel1 (F_KE_L getKey1 channel1 leak1 (CHAN getKey1 channel1 f1)))
+    ≤ CHAN_SIM channel2 leak2 (F_CHAN channel2 f2)<| LblEnvSec ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
 Proof.
 Admitted.
 
 
 
 
-(*Verification of CHAN_SIM[F_CHAN[]] ≤ F_OAUTH[F_KE[CHAN[]]]*)
+(*Verification of CHAN_SIM[F_CHAN[]] ≤ F_OAUTH[F_KE_L[CHAN[]]]*)
 (*---------------------------------------------------------*)
 Lemma SIM_F_KE_CHAN f1 f2 γtoka γfraca γseca γsecb L :
     let LblThy := LblSecChannel γtoka atokN γfraca γseca γsecb in
@@ -155,9 +152,12 @@ Lemma SIM_F_KE_CHAN f1 f2 γtoka γfraca γseca γsecb L :
     own γseca (to_dfrac_agree (DfracOwn 1) #()%V) -∗ 
     own γsecb (to_dfrac_agree (DfracOwn 1) #()%V) -∗ 
     BREL f1 ≤ f2 <| LblThy ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝)  }} -∗ 
-    BREL (CHAN_SIM channel1 (F_CHAN channel1 f1))
-    ≤ (F_OAUTH channel2 (DH_KE getKey2 channel2 (CHAN getKey2 channel2 f2))) <| LblEnvSec ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
+    BREL (CHAN_SIM channel1 leak1 (F_CHAN channel1 f1))
+    ≤ (F_OAUTH channel2 (F_KE_L getKey2 channel2 leak2 (CHAN getKey2 channel2 f2))) <| LblEnvSec ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
 Proof.
 Admitted.   
 
-End sec_channel_verification.
+
+  
+  
+End s_channel_verification.
