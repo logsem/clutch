@@ -73,24 +73,25 @@ Section prog.
   Lemma basic_hash_game A:
     ∅ ⊢ₜ A : ((TInt* TInt) → (TInt* TInt) → (TInt → (TUnit+TInt))  → TInt) ->
              pgl (lim_exec ((prog A), {|heap:=∅; urns:= ∅|})) (λ v, v=#false)
-               (1/(nounce_range +1 )%nat + (2*(tries+1)%nat)/(tag_range+1)%nat).
+               (1/2 + 1/(nounce_range +1 )%nat + (2*(tries)%nat)/(tag_range+1)%nat).
   Proof.
     intros Htyped.
-    destruct (decide (2*(tries+1)<tag_range+1)) as [initial_ineq|]; last first.
+    destruct (decide (2*(tries)<tag_range+1)) as [initial_ineq|]; last first.
     {
       apply pgl_1.
-      apply Rle_plus_r; last apply Rdiv_INR_ge_0.
-      apply Rcomplements.Rle_div_r; first (apply Rlt_gt; apply lt_0_INR; lia).
-      rewrite Rmult_1_l.
-      replace 2%R with (INR 2) by done.
-      rewrite -mult_INR.
-      apply le_INR.
-      lia.
+      apply Rle_plus_r; last first.
+      - apply Rle_plus_r; last lra. apply Rdiv_INR_ge_0.
+      - apply Rcomplements.Rle_div_r; first (apply Rlt_gt; apply lt_0_INR; lia).
+        rewrite Rmult_1_l.
+        replace 2%R with (INR 2) by done.
+        rewrite -mult_INR.
+        apply le_INR.
+        lia.
     }
     eapply (elton_adequacy_remove_drand (#[eltonΣ; tokenΣ]) (prog' A)).
     { simpl; by erewrite typed_remove_drand_expr. }
-    { apply Rplus_le_le_0_compat; first apply Rdiv_INR_ge_0.
-      real_solver. }
+    { apply Rplus_le_le_0_compat; last real_solver.
+      apply Rplus_le_le_0_compat; first lra. apply Rdiv_INR_ge_0. }
     rewrite /prog'.
     iIntros (? Φ).
     iModIntro.
@@ -142,17 +143,22 @@ Section prog.
       iIntros (n1) "_".
       wp_pures.
 
-      iDestruct (ec_split with "[$]") as "[Herr1 Herr2]"; [real_solver..|].
+      iDestruct (ec_split with "[$]") as "[Herr1 Herr2]"; [|real_solver|].
+      { apply Rplus_le_le_0_compat; real_solver. }
 
-      wp_apply (wp_couple_rand_adv_comp' _ _ _ _ (λ x, if bool_decide (x = n1) then nnreal_one else nnreal_zero)with "[$Herr1]").
+      
+      iDestruct (ec_split with "[$Herr1]") as "[Herr1 Herr1']"; [real_solver..|].
+
+      wp_apply (wp_couple_rand_adv_comp' _ _ _ _ (λ x, if bool_decide (x = n1) then nnreal_one else nnreal_zero)with "[$Herr1']").
       { intros. case_bool_decide; simpl; lra. }
       { rewrite SeriesC_scal_l. rewrite SeriesC_singleton.
         rewrite Rmult_1_r.
         rewrite S_INR. by rewrite plus_INR. 
       }
-      iIntros (n2) "Herr1".
-      case_bool_decide; first (by iDestruct (ec_contradict with "[$Herr1]") as "[]").
+      iIntros (n2) "Herr1'".
+      case_bool_decide; first (by iDestruct (ec_contradict with "[$Herr1']") as "[]").
       wp_pures.
+      iClear "Herr1'".
 
   (*
     Let k1 = l/S tag_range and k2 = l%S tag_range
@@ -168,10 +174,24 @@ Section prog.
      let i' = i%(S tag_range), we pay errors to ensure i' is not stored in s1 or s2
      This way, i is never (n1||k1) or (n2||k2)
 
-     The adversary gets tries+1 attempt, including the final one attempt when it returns
+     The adversary gets "tries" attempt, and a 1/2 chance to get the b correct
 
-     Hence the error is 2*(tries+1)/(S tag_range)
+     Hence the error is 2*(tries)/(S tag_range) + 1/2
    *)
+
+  (** ( ∃ (tries':nat) (m:gmap Z _) x y,
+                hashfun val_size f (<[_:=x]> <[_:=x]> (kmap (λ x, LitInt (x)) m))∗
+                lt ↦ #tries' ∗ (⌜(tries'<=tries)%nat ⌝) ∗
+                ∃ (s':gset Z),
+                  ⌜s' ## ((dom m):gset _)⌝ ∗
+                  ⌜s'≠∅⌝ ∗
+                  l↪ urn_unif (s')∗
+                  error credit for urns ∗
+                  size for s' ∗
+                ((
+                     urn for b not resolved ∗ ↯ 1/2
+                 )∨ (token γ) ∗ urn for b resolved )
+            )%I  *)
   Admitted. 
   (*     iMod (ec_zero) as "Hzero". *)
   (*     wp_apply (wp_insert_new _ _ _ _ _ _ (λ _, 0)%R True with "[$Hf $Hzero]"). *)
