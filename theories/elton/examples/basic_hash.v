@@ -21,7 +21,7 @@ Qed.
 
 Section prog.
   Variable tag_range:nat.
-  Variable nounce_range:nat.
+  Variable nonce_range:nat.
   Variable val_size: nat.
   Variable tries: nat.
 
@@ -32,9 +32,9 @@ Section prog.
       let: "b" := rand #1 in
       let: "T1" := "pair" `quot` #(tag_range+1) in
       let: "T2" := "b" * "T1" + (#1-"b") * ("pair" `rem` #(tag_range+1)) in
-      let: "n1" := rand #nounce_range in
+      let: "n1" := rand #nonce_range in
       (* Pay error for n2 to avoid colliding with n1*) 
-      let: "n2" := rand #nounce_range in
+      let: "n2" := rand #nonce_range in
       let: "h1" := "hashf" ("n1"*#(tag_range+1) +"T1") in 
       let: "h2" := "hashf" ("n2"*#(tag_range+1) +"T2") in
       
@@ -54,8 +54,8 @@ Section prog.
       let: "b" := drand #1 in
       let: "T1" := "pair" `quot` #(tag_range+1) in
       let: "T2" := "b" * "T1" + (#1-"b") * ("pair" `rem` #(tag_range+1)) in
-      let: "n1" := rand #nounce_range in 
-      let: "n2" := rand #nounce_range in
+      let: "n1" := rand #nonce_range in
+      let: "n2" := rand #nonce_range in
       let: "h1" := "hashf" ("n1"*#(tag_range+1) +"T1") in 
       let: "h2" := "hashf" ("n2"*#(tag_range+1) +"T2") in
       
@@ -73,7 +73,7 @@ Section prog.
   Lemma basic_hash_game A:
     ∅ ⊢ₜ A : ((TInt* TInt) → (TInt* TInt) → (TInt → (TUnit+TInt))  → TInt) ->
              pgl (lim_exec ((prog A), {|heap:=∅; urns:= ∅|})) (λ v, v=#false)
-               (1/2 + 1/(nounce_range +1 )%nat + (2*(tries)%nat)/(tag_range+1)%nat).
+               (1/2 + 1/(nonce_range +1 )%nat + (2*(tries)%nat)/(tag_range+1)%nat).
   Proof.
     intros Htyped.
     destruct (decide (2*(tries)<tag_range+1)) as [initial_ineq|]; last first.
@@ -156,10 +156,82 @@ Section prog.
         rewrite S_INR. by rewrite plus_INR. 
       }
       iIntros (n2) "Herr1'".
-      case_bool_decide; first (by iDestruct (ec_contradict with "[$Herr1']") as "[]").
+      case_bool_decide as nonce_neq; first (by iDestruct (ec_contradict with "[$Herr1']") as "[]").
       wp_pures.
       iClear "Herr1'".
 
+      iMod (ec_zero) as "Hzero".
+      wp_apply (wp_insert_new _ _ _ _ _ _ (λ _, 0)%R True with "[$Hf $Hzero]").
+      { done. }
+      { by intros. }
+      { right. apply SeriesC_0. intros. lra. }
+      { iModIntro. rewrite dom_empty_L. by rewrite big_sepS_empty. }
+      iIntros (h1) "(Hf&_)".
+      wp_pures.
+
+      iMod (ec_zero) as "Hzero".
+      wp_apply (wp_insert_new _ _ _ _ _ _ (λ _, 0)%R ((l↪ _) ∗ (b↪ _)) with "[$Hf $Hzero $Hl $Hb]").
+      { done. }
+      { by intros. }
+      { right. apply SeriesC_0. intros. lra. }
+      { iModIntro.
+        rewrite insert_empty.
+        rewrite dom_singleton_L.
+        iApply big_sepS_intro.
+        iModIntro.
+        iIntros (?) "%Hlookup'".
+        iIntros "[Hl Hb]".
+
+        rewrite rupd_unseal/rupd_def.
+        iIntros  (?) "[? Hu]". iSplit; last iFrame.
+        iDestruct (ghost_map_lookup with "Hu [$Hb]") as "%Hlookup_b".
+        iDestruct (ghost_map_lookup with "Hu [$Hl]") as "%Hlookup_l".
+        iPureIntro.
+        intros.
+        exists false. split => //.
+        eapply urns_f_distr_lookup in Hlookup_l ; last done.
+        2:{ admit. }
+        eapply urns_f_distr_lookup in Hlookup_b ; last done.
+        2:{ admit. }
+        destruct Hlookup_l as (?&Hsome_l&Hin).
+        destruct Hlookup_b as (?&Hsome_b&Hin').
+        simpl.
+        rewrite Hsome_l Hsome_b. simpl.
+        set_unfold in Hlookup'. simplify_eq.
+        simpl. rewrite Hsome_l. simpl. f_equal.
+        case_bool_decide as hh ; try done. exfalso.
+        clear -hh nonce_neq Hin Hin'.
+        simpl in Hin'.
+        set_unfold in Hin'.
+        set_unfold in Hin.
+        destruct Hin as [? [? []]]. simplify_eq.
+
+        opose proof (Zdiv_mod_unique (tag_range+1) n1 n2
+                       (x `quot` (tag_range + 1))
+                       (x1 * x `quot` (tag_range + 1) + (1 - x1) * x `rem` (tag_range + 1))
+                       _ _) as h.
+        - apply Zabs_ind ; intros ; try lia. split.
+          + apply Z.quot_pos ; lia.
+          + apply Z.quot_lt_upper_bound ; lia.
+        - apply Zabs_ind ; intros ; try lia. split.
+          + apply Z.add_nonneg_nonneg ; apply Z.mul_nonneg_nonneg ; try lia.
+            * apply Z.quot_pos ; lia.
+            * apply Z.rem_nonneg ; lia.
+          +
+            destruct!/=.
+            * rewrite Z.mul_0_l Z.add_0_l. rewrite Z.sub_0_r Z.mul_1_l.
+              apply Z.rem_bound_pos_pos ; lia.
+            * rewrite Z.mul_1_l Z.sub_diag Z.mul_0_l Z.add_0_r.
+              apply Z.quot_lt_upper_bound ; lia.
+        - apply nonce_neq.
+          unshelve epose proof (h _) as [] ; last by simplify_eq.
+          lia.
+      }
+      iIntros (h2) "(Hf&(Hl&Hb)&_)".
+      wp_pures.
+
+      wp_alloc lt as "Hr".
+      wp_pures.
   (*
     Let k1 = l/S tag_range and k2 = l%S tag_range
      Here h1 is storing h (n1 || k1)
@@ -178,31 +250,45 @@ Section prog.
 
      Hence the error is 2*(tries)/(S tag_range) + 1/2
    *)
+      assert (gset Z -> gset Z -> gset Z ) as setprod.
+      1: admit.
+      set (n1_b_n2_T2 := ((n2 * (tag_range + 1))%Z +ᵥ
+               ((LitLbl b *ᵥ QuotOp' (LitLbl l) (tag_range + 1)%Z) +ᵥ
+                ((1%Z -ᵥ LitLbl b) *ᵥ RemOp' (LitLbl l) (tag_range + 1)%Z)))%V).
+      set (n1_T1 := ((n1 * (tag_range + 1))%Z +ᵥ
+                  QuotOp' (LitLbl l) (tag_range + 1)%Z)%V).
 
-  (** ( ∃ (tries':nat) (m:gmap Z _) x y,
-                hashfun val_size f (<[_:=x]> <[_:=x]> (kmap (λ x, LitInt (x)) m))∗
-                lt ↦ #tries' ∗ (⌜(tries'<=tries)%nat ⌝) ∗
-                ∃ (s':gset Z),
-                  ⌜s' ## ((dom m):gset _)⌝ ∗
-                  ⌜s'≠∅⌝ ∗
-                  l↪ urn_unif (s')∗
-                  error credit for urns ∗
-                  size for s' ∗
-                ((
-                     urn for b not resolved ∗ ↯ 1/2
-                 )∨ (token γ) ∗ urn for b resolved )
-            )%I  *)
-  Admitted. 
-  (*     iMod (ec_zero) as "Hzero". *)
-  (*     wp_apply (wp_insert_new _ _ _ _ _ _ (λ _, 0)%R True with "[$Hf $Hzero]"). *)
-  (*     { done. } *)
-  (*     { by intros. } *)
-  (*     { right. apply SeriesC_0. intros. lra. } *)
-  (*     { iModIntro. rewrite dom_empty_L. by rewrite big_sepS_empty. } *)
-  (*     iIntros (secret) "(Hf&_)". *)
-  (*     wp_pures. *)
-  (*     wp_alloc lt as "Hr". *)
-  (*     wp_pures. *)
+      iMod (token_alloc) as (γ) "Htoken".
+
+      set (inv :=
+  ( ∃ (tries':nat) (m:gmap Z nat) (x y : fin (S val_size)),
+             hashfun val_size f (<[n1_b_n2_T2:=fin_to_nat x]> (<[n1_T1:=fin_to_nat y]> (kmap (λ x, LitInt (x)) m)))∗
+             lt ↦ #tries' ∗ (⌜(tries'<=tries)%nat ⌝) ∗
+             ∃ (s1 s2 : gset Z),
+               ⌜∀ x : Z, x ∈ s1 -> (n1 * (tag_range + 1) + x ∉ ((dom m) : gset _))%Z⌝ ∗
+               (* morally, depends on b which one we need; we'll just keep both. *)
+               ⌜∀ x : Z, x ∈ s1 -> (n2 * (tag_range + 1) + x ∉ ((dom m) : gset _))%Z⌝ ∗
+               ⌜∀ x : Z, x ∈ s2 -> (n2 * (tag_range + 1) + x ∉ ((dom m) : gset _))%Z⌝ ∗
+
+                     ⌜∀ x : Z, x ∈ s1 -> 0 <= x <= tag_range⌝%Z ∗ ⌜∀ x : Z, x ∈ s2 -> 0 <= x <= tag_range⌝%Z ∗
+
+                     ⌜s1 ≠ ∅⌝ ∗ ⌜s2 ≠ ∅⌝ ∗
+                     l↪ urn_unif (setprod s1  s2)∗
+                     ↯ (tries' / size s1) ∗ ↯ (tries' / size s2) ∗
+                     ⌜(S tag_range - (tries - tries')) <= size s1⌝ ∗
+                     ⌜(S tag_range - (tries - tries')) <= size s2⌝ ∗
+                   ((
+                     b ↪ urn_unif (list_to_set (Z.of_nat <$> seq 0 2)) ∗
+                     ↯ (1/2)
+                    ) ∨ ((token γ) ∗ ∃ (b_resolved : nat), ⌜b_resolved <= 1⌝ ∗ b ↪ urn_unif {[Z.of_nat b_resolved]}) )
+               )%I).
+      iMod (inv_alloc (nroot) _ inv with "[-]") as "#Hinv".
+      {
+        iNext. iExists _,_,_,_. iFrame "Hr".
+        instantiate (1 := ∅). rewrite kmap_empty. iFrame "Hf".
+        iSplit => //. iExists _,_.
+  Abort.
+
   (*     iAssert (∃s, l↪urn_unif s ∗ ⌜size s = S secret_range⌝)%I with "[$Hl]" as "H'". *)
   (*     { iPureIntro. *)
   (*       rewrite size_list_to_set. *)
