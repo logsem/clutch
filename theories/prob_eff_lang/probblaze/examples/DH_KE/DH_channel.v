@@ -6,6 +6,7 @@ From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
   spec_rules spec_ra 
   class_instances.
+From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import definition.
 
 Import fingroup.
@@ -208,7 +209,7 @@ Section handlee_verification.
 
   Definition LblAdv : iLblThy Σ :=  [([getKey1],[getKey2], (iThySum GetKey1 GetKey2))].
 
-  Tactic Notation "foldkont" ident(k) open_constr(kctx) :=
+ (* Tactic Notation "foldkont" ident(k) open_constr(kctx) :=
     match goal with
     | |- context[KontV ?kont] =>
         unify kont kctx ; set (k := KontV kont)
@@ -216,7 +217,7 @@ Section handlee_verification.
 
   Tactic Notation "foldkont" ident(k) := foldkont k _.
 
-  Tactic Notation "foldkont" := let k := fresh "kont" in foldkont k.
+  Tactic Notation "foldkont" := let k := fresh "kont" in foldkont k.*)
 
 
   (* Verification of DH_KE ≤ C[DH_real] *)

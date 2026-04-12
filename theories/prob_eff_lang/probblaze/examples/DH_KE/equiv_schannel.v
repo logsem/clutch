@@ -6,9 +6,10 @@ From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
   spec_rules spec_ra 
   class_instances.
+From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import definition.
 From clutch.prob_eff_lang.probblaze Require Import DH_channel.
-From clutch.prob_eff_lang.probblaze Require Import sec_channel.
+From clutch.prob_eff_lang.probblaze Require Import s_channel.
 
 
 Import fingroup.
@@ -26,7 +27,8 @@ Section s_channel_verification.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg : @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
-  
+
+
   (*Theories for the interaction of the secure channel with the environment*)
   (*-------------------------------------------------------------*)
    Program Definition SendSecBob : iThy Σ :=
@@ -135,7 +137,20 @@ Lemma F_KE_CHAN_SIM f1 f2 γtoka γfraca γseca γsecb L :
     BREL f1 ≤ f2 <| LblThy ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝)  }} -∗ 
     BREL (F_OAUTH channel1 (F_KE_L getKey1 channel1 leak1 (CHAN getKey1 channel1 f1)))
     ≤ CHAN_SIM channel2 leak2 (F_CHAN channel2 f2)<| LblEnvSec ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
-Proof.
+Proof with (repeat foldkont) using G.
+  iIntros (LblThy Hf1 Hf2) "Htoka Howna Hownb Hf1f2".
+  iApply brel_alloctape_r. iIntros (α) "Hα". brel_pures_r.
+  iApply brel_alloc_r. iIntros (l2) "Hl2". brel_pures_r.
+  iApply brel_alloc_l. iIntros (l1) "!>Hl1". brel_pures_l.
+  rewrite subst_is_closed_empty; try done. 
+  Locate "foldkont".
+  Search "handle".
+  Search "brel_introduction".
+  Search "brel_exhaustion".
+  iApply brel_exhaustion; try (repeat simpl); try done.
+  { admit. }
+  { admit. }
+  { iApply brel_exhaustion.}
 Admitted.
 
 
