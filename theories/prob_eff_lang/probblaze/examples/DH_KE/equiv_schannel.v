@@ -142,15 +142,20 @@ Proof with (repeat foldkont) using G.
   iApply brel_alloctape_r. iIntros (α) "Hα". brel_pures_r.
   iApply brel_alloc_r. iIntros (l2) "Hl2". brel_pures_r.
   iApply brel_alloc_l. iIntros (l1) "!>Hl1". brel_pures_l.
-  rewrite subst_is_closed_empty; try done. 
-  Locate "foldkont".
+  rewrite subst_is_closed_empty; try done.
+  iApply brel_alloc_r. iIntros (l0) "Hl0".
+  Search "couple" "brel".
+  iApply brel_couple_UT; try done.
+  iFrame. iSplit; first done. iIntros (n) "!>Hn Hα".
+  brel_pures_l. brel_exp_l. brel_pures_l. iApply brel_alloc_l.
+  iIntros (l3) "!>Hl3". brel_pures_l. repeat (rewrite subst_is_closed_empty; try done). brel_pures_r. rewrite subst_is_closed_empty; try done.
+  iApply brel_exhaustion.
   Search "handle".
-  Search "brel_introduction".
-  Search "brel_exhaustion".
-  iApply brel_exhaustion; try (repeat simpl); try done.
-  { admit. }
-  { admit. }
-  { iApply brel_exhaustion.}
+  About brel_exhaustion.
+  About PureExec.
+  About unshot.
+  Search unshot.
+  About ContV.
 Admitted.
 
 
