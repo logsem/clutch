@@ -102,22 +102,364 @@ Section syntax.
      declaring the _absence_ of an effect. *)
   Definition SAbs (s : eff_name) := SSig s TBot TTop.
 
-  (** Autosubst instances *)
-  Global Instance Ids_type : Ids type. derive. Defined.
-  Global Instance Rename_type : Rename type. derive. Defined.
-  Global Instance Subst_type : Subst type. derive. Defined.
-  Global Instance SubstLemmas_type : SubstLemmas type. derive. Qed.
+  Global Instance Ids_vmode : Ids vmode. derive. Defined.
+  Global Instance Rename_vmode : Rename vmode. derive. Defined.
+  Global Instance Subst_vmode : Subst vmode. derive. Defined.
+  Global Instance SubstLemmas_vmode : SubstLemmas vmode. derive. Qed.
 
   Global Instance Ids_row : Ids row. derive. Defined.
-  Global Instance Rename_row : Rename row. derive. Defined.
-  Global Instance Subst_row : Subst row. derive. Defined.
-  Global Instance SubstLemmas_row : SubstLemmas row. derive. Defined.
+  Global Instance Ids_type : Ids type. derive. Defined.
 
-  Global Instance Ids_mode : Ids vmode. derive. Defined.
-  Global Instance Rename_mode : Rename vmode. derive. Defined.
-  Global Instance Subst_mode : Subst vmode. derive. Defined.
-  Global Instance SubstLemmas_mode : SubstLemmas vmode. derive. Defined.
+  Fixpoint hsubst_vmode_type (σ : var → vmode) (τ : type) : type :=
+    let _ := hsubst_vmode_type : HSubst vmode type in
+    let _ := hsubst_vmode_row : HSubst vmode row in
+    match τ with
+    | TBot
+    | TTop
+    | TUnit
+    | TBool
+    | TInt 
+    | TNat
+    | TTape
+    | TVar _ => τ
+    | TRef α => α.|[σ]
+    | TProd α β => TProd α.|[σ] β.|[σ]
+    | TSum α β => TSum α.|[σ] β.|[σ]
+    | TArrow α ρ β => TArrow α.|[σ] ρ.|[σ] β.|[σ]
+    | TForallT τ => TForallT τ.|[σ]
+    | TForallR τ => TForallR τ.|[σ]
+    | TExists τ => TExists τ.|[σ] 
+    | TRec τ => TRec τ.|[σ]
+    | TBang m τ => TBang m.[σ] τ
+    | TForallM τ => TForallM τ.|[up σ]
+    end
+  with hsubst_vmode_row (σ : var → vmode) (ρ : row) : row :=
+         let _ := hsubst_vmode_row : HSubst vmode row in
+         let _ := hsubst_vmode_eff_sig : HSubst vmode eff_sig in
+         match ρ with
+         | RFlip m ρ => RFlip m.[σ] ρ.|[σ]
+         | RNil
+         | RVar _ => ρ
+         | RRec ρ => RRec ρ.|[σ]
+         | RCons s ρ => RCons s.|[σ] ρ.|[σ]
+         end
+  with hsubst_vmode_eff_sig (σ : var → vmode) (s : eff_sig) : eff_sig :=
+         let _ := hsubst_vmode_eff_sig : HSubst vmode eff_sig in
+         let _ := hsubst_vmode_type : HSubst vmode type in
+         match s with
+         | SSig e α β => SSig e α.|[σ] β.|[σ] 
+         | SFlip m s => SFlip m.[σ] s.|[σ]
+         end.
+
   
+  Fixpoint rename_type (ξ : var → var) (τ : type) : type :=
+    let _ := rename_type : Rename type in 
+    match τ with
+    | TBot
+    | TTop
+    | TUnit
+    | TBool
+    | TInt 
+    | TNat
+    | TTape => τ
+    | TVar i => TVar (ξ i)
+    | TRef α => TRef (rename ξ α)
+    | TProd α β => TProd (rename ξ α) (rename ξ β)
+    | TSum α β => TSum (rename ξ α) (rename ξ β)
+    | TArrow α ρ β => TArrow (rename ξ α) (rename_type_row ξ ρ) (rename ξ β)
+    | TForallT τ => TForallT (rename (upren ξ) τ)
+    | TForallR τ => TForallR (rename ξ τ)
+    | TForallM τ => TForallM (rename ξ τ)
+    | TExists τ => TExists (rename (upren ξ) τ)
+    | TRec τ => TRec (rename (upren ξ) τ)
+    | TBang m τ => TBang m (rename ξ τ)
+    end
+  with rename_type_row (ξ : var → var) (ρ : row) : row :=
+         match ρ with
+         | RNil
+         | RVar _ => ρ
+         | RFlip m ρ => RFlip m (rename_type_row ξ ρ)
+         | RRec ρ => RRec (rename_type_row ξ ρ)
+         | RCons s ρ => RCons (rename_type_eff_sig ξ s) (rename_type_row ξ ρ)
+         end
+  with rename_type_eff_sig (ξ : var → var) (s : eff_sig) : eff_sig :=
+         let _ := rename_type : Rename type in
+         match s with
+         | SSig e α β => SSig e (rename (upren ξ) α) (rename (upren ξ) β)
+         | SFlip m s => SFlip m (rename_type_eff_sig ξ s)
+         end.
+  
+  Global Instance Rename_type : Rename type := rename_type.
+
+  Fixpoint rename_row (ξ : var → var) (ρ : row) : row :=
+    let _ := rename_row : Rename row in
+    match ρ with
+    | RFlip m ρ => RFlip m (rename ξ ρ)
+    | RNil => ρ
+    | RVar i => RVar (ξ i)
+    | RRec ρ => RRec (rename ξ ρ)
+    | RCons s ρ => RCons (rename_row_eff_sig ξ s) (rename ξ ρ)
+    end
+  with rename_row_type (ξ : var → var) (τ : type) : type :=
+         let _ := rename_row : Rename row in
+         match τ with
+         | TBot
+         | TTop
+         | TUnit
+         | TBool
+         | TInt 
+         | TNat
+         | TTape
+         | TVar _ => τ
+         | TProd α β => TProd (rename_row_type ξ α) (rename_row_type ξ β)
+         | TSum α β => TSum (rename_row_type ξ α) (rename_row_type ξ β)
+         | TArrow α ρ β => TArrow (rename_row_type ξ α) (rename ξ ρ) (rename_row_type ξ β)
+         | TForallT α => TForallT (rename_row_type ξ α)
+         | TForallM α => TForallM (rename_row_type ξ α)
+         | TForallR α => TForallR (rename_row_type (upren ξ) α)
+         | TExists α => TExists (rename_row_type ξ α)
+         | TRec α => TRec (rename_row_type ξ α)
+         | TBang m α => TBang m (rename_row_type ξ α)
+         | TRef α => TRef (rename_row_type ξ α)
+         end
+  with rename_row_eff_sig (ξ : var → var) (s : eff_sig) : eff_sig :=
+         match s with
+         | SSig e α β => SSig e (rename_row_type ξ α) (rename_row_type ξ β)
+         | SFlip m s => SFlip m (rename_row_eff_sig ξ s)
+         end.
+
+  Global Instance Rename_row : Rename row := rename_row.
+  
+  Fixpoint subst_type (σ : var → type) (τ : type) : type :=
+    let _ := subst_type : Subst type in
+    let _ := hsubst_type_row : HSubst type row in
+    match τ with
+    | TBot
+    | TTop
+    | TUnit
+    | TBool
+    | TInt
+    | TNat
+    | TTape => τ
+    | TVar i => σ i
+    | TRef α => TRef α.[σ]
+    | TProd α β => TProd α.[σ] β.[σ]
+    | TSum α β =>  TSum α.[σ] β.[σ]
+    | TArrow α ρ β => TArrow α.[σ] ρ.|[σ] β.[σ]
+    | TExists α => TExists α.[up σ]
+    | TRec α => TRec α.[up σ]
+    | TBang m α => TBang m α.[σ]
+    | TForallM α => TForallM α.[σ]
+    | TForallT α => TForallT α.[up σ]
+    | TForallR α => TForallR α.[σ]
+    end
+  with hsubst_type_row (σ : var → type) (ρ : row) : row :=
+         let _ := hsubst_type_row : HSubst type row in
+         let _ := hsubst_type_eff_sig : HSubst type eff_sig in
+         match ρ with
+         | RFlip m ρ => RFlip m ρ.|[σ]
+         | RNil
+         | RVar _ => ρ
+         | RRec ρ => RRec ρ.|[σ]
+         | RCons s ρ => RCons s.|[σ] ρ.|[σ]
+         end
+  with hsubst_type_eff_sig (σ : var → type) (s : eff_sig) : eff_sig :=
+         let _ := hsubst_type_eff_sig : HSubst type eff_sig in
+         let _ := subst_type : Subst type in
+         match s with
+         | SSig e α β => SSig e α.[up σ] β.[up σ]
+         | SFlip m s => SFlip m s.|[σ]
+         end.
+
+  Fixpoint subst_row (σ : var → row) (ρ : row) : row :=
+    let _ := subst_row : Subst row in
+    let _ := hsubst_row_eff_sig : HSubst row eff_sig in 
+    match ρ with
+    | RNil => ρ
+    | RVar i => σ i
+    | RFlip m ρ => RFlip m ρ.[σ]
+    | RRec ρ => RRec ρ.[σ]
+    | RCons s ρ => RCons s.|[σ] ρ.[σ]
+    end
+  with hsubst_row_type (σ : var → row) (τ : type) : type :=
+         let _ := subst_row : Subst row in
+         let _ := hsubst_row_type : HSubst row type in
+         match τ with
+         | TBot
+         | TTop
+         | TUnit
+         | TBool
+         | TInt
+         | TNat
+         | TTape
+         | TVar _ => τ
+         | TRef α => TRef α.|[σ]
+         | TProd α β => TProd α.|[σ] β.|[σ]
+         | TSum α β =>  TSum α.|[σ] β.|[σ]
+         | TArrow α ρ β => TArrow α.|[σ] ρ.[σ] β.|[σ]
+         | TExists α => TExists α.|[σ]
+         | TRec α => TRec α.|[σ]
+         | TBang m α => TBang m α.|[σ]
+         | TForallM α => TForallM α.|[σ]
+         | TForallT α => TForallT α.|[σ]
+         | TForallR α => TForallR α.|[up σ]
+         end
+  with hsubst_row_eff_sig (σ : var → row) (s : eff_sig) : eff_sig :=
+         let _ := hsubst_row_type : HSubst row type in
+         let _ := hsubst_row_eff_sig : HSubst row eff_sig in
+         match s with
+         | SSig e α β => SSig e α.|[σ] β.|[σ]
+         | SFlip m α => SFlip m α.|[σ]
+         end.
+
+  Global Instance Subst_type : Subst type := subst_type.
+  Global Instance HSubst_row_type : HSubst row type := hsubst_row_type.
+
+  Global Instance Subst_row : Subst row := subst_row.
+  Global Instance HSubst_type_row : HSubst type row := hsubst_type_row.
+
+  Global Instance HSubst_row_eff_sig : HSubst row eff_sig := hsubst_row_eff_sig.
+  Global Instance HSubst_type_eff_sig : HSubst type eff_sig := hsubst_type_eff_sig.
+
+  Local Lemma rename_type_row_hsubst_ren (ξ : var → var) ρ :
+    rename_type_row ξ ρ = ρ.|[ren ξ]
+    with rename_type_eff_sig_hsubst_ren (ξ : var → var) s :
+      rename_type_eff_sig ξ s = s.|[ren ξ]
+    with rename_subst_type (ξ : var → var) (τ : type) :
+      rename ξ τ = τ.[ren ξ].
+  Proof.
+    - destruct ρ; rewrite /= ?rename_type_row_hsubst_ren ?rename_type_eff_sig_hsubst_ren //.
+    - destruct s; rewrite /= ?rename_type_eff_sig_hsubst_ren ?rename_subst_type ?up_upren_internal //.
+    - destruct τ; rewrite /= ?rename_subst_type ?rename_type_row_hsubst_ren ?up_upren_internal //.
+  Qed. 
+
+  Local Lemma rename_row_eff_sig_hsubst_ren (ξ : var → var) (s : eff_sig) :
+    rename_row_eff_sig ξ s = hsubst_row_eff_sig (ren ξ) s
+  with rename_row_type_hsubst_ren (ξ : var → var) (τ : type) :
+    rename_row_type ξ τ = τ.|[ren ξ]
+  with rename_subst_row (ξ : var → var) (ρ : row) :
+    rename ξ ρ = ρ.[ren ξ].
+  Proof.
+    - destruct s; rewrite /= ?rename_row_eff_sig_hsubst_ren ?rename_row_type_hsubst_ren //.
+    - destruct τ; rewrite /= ?rename_row_type_hsubst_ren ?up_upren_internal //.
+      rewrite rename_subst_row //.
+    - destruct ρ; rewrite /= ?rename_subst_row ?rename_row_eff_sig_hsubst_ren //.
+  Qed. 
+
+  Local Lemma subst_row_id (ρ : row) : ρ.[ids] = ρ
+    with hsubst_row_eff_sig_id (e : eff_sig) : e.|[ids : var → row] = e
+      with hsubst_row_type_id (τ : type) : τ.|[ids : var → row] = τ.
+  Proof.
+    - destruct ρ; rewrite /= ?subst_row_id ?hsubst_row_eff_sig_id //.
+    - destruct e; rewrite /= ?up_id ?hsubst_row_eff_sig_id ?hsubst_row_type_id //.
+    - destruct τ; rewrite /= ?up_id_internal ?hsubst_row_type_id ?subst_row_id //.
+  Qed.   
+
+  Local Lemma subst_type_id (τ : type) : τ.[ids] = τ
+    with hsubst_type_eff_sig_id (e : eff_sig) : e.|[ids : var → type] = e
+      with hsubst_type_row_id (ρ : row) : ρ.|[ids : var → type] = ρ.
+  Proof.
+    - destruct τ; rewrite /= ?up_id_internal ?subst_type_id ?hsubst_type_row_id //.
+    - destruct e; rewrite /= ?hsubst_type_eff_sig_id ?up_id_internal ?subst_type_id //.
+    - destruct ρ; rewrite /= ?hsubst_type_eff_sig_id ?hsubst_type_row_id //.
+  Qed.
+  
+  Local Lemma rename_subst_subst_comp_type (ξ : var → var) (σ : var → type) (τ : type) :
+    (rename ξ τ).[σ] = τ.[ξ >>> σ]
+    with rename_hsubst_hsubst_comp_type_row  (ξ : var → var) (σ : var → type) (ρ : row) :
+      (rename_type_row ξ ρ).|[σ] = ρ.|[ξ >>> σ]
+      with rename_hsubst_hsubst_comp_type_eff_sig  (ξ : var → var) (σ : var → type) (e : eff_sig) :
+    (rename_type_eff_sig ξ e).|[σ] = e.|[ξ >>> σ].
+  Proof. 
+    - destruct τ; rewrite /= ?rename_subst_subst_comp_type ?rename_hsubst_hsubst_comp_type_row  //; rewrite up_comp_ren_subst //.
+    - destruct ρ; rewrite /= ?rename_hsubst_hsubst_comp_type_row ?rename_hsubst_hsubst_comp_type_eff_sig //.
+    - destruct e; rewrite /= ?rename_hsubst_hsubst_comp_type_eff_sig ?rename_subst_subst_comp_type //; rewrite up_comp_ren_subst //.
+  Qed. 
+
+  Local Lemma rename_subst_comp_type_rename (ξ : var → var) (σ : var → type) (τ : type) :
+    rename ξ τ.[σ] = τ.[σ >>> rename ξ]
+    with rename_hsubst_comp_type_row_rename  (ξ : var → var) (σ : var → type) (ρ : row) :
+      rename_type_row ξ ρ.|[σ] = ρ.|[σ >>> rename ξ]
+      with rename_hsubst_comp_type_eff_sig_rename  (ξ : var → var) (σ : var → type) (e : eff_sig) :
+    rename_type_eff_sig ξ e.|[σ] = e.|[σ >>> rename ξ].
+  Proof with auto using rename_subst_subst_comp_type, rename_subst_type. 
+    - destruct τ; rewrite /= ?rename_subst_comp_type_rename ?rename_hsubst_comp_type_row_rename //; rewrite up_comp_subst_ren_internal //...
+    - destruct ρ; rewrite /= ?rename_hsubst_comp_type_row_rename ?rename_hsubst_comp_type_eff_sig_rename //.
+    - destruct e; rewrite /= ?rename_hsubst_comp_type_eff_sig_rename ?rename_subst_comp_type_rename //; rewrite up_comp_subst_ren_internal //...
+  Qed.
+  
+  Local Lemma subst_type_comp (σ σ' : var → type) (τ : type) : τ.[σ].[σ'] = τ.[σ >> σ']
+    with hsubst_type_eff_sig_comp (σ σ' : var → type) (e : eff_sig) : e.|[σ].|[σ'] = e.|[σ >> σ']
+      with hsubst_type_row_comp (σ σ' : var → type) (ρ : row) : ρ.|[σ].|[σ'] = ρ.|[σ >> σ'].
+  Proof with auto using rename_subst_subst_comp_type, rename_subst_comp_type_rename. 
+    - destruct τ; rewrite /= ?subst_type_comp ?hsubst_type_row_comp ?up_comp_internal //...
+    - destruct e; rewrite /= ?hsubst_type_eff_sig_comp ?subst_type_comp ?up_comp_internal //...
+    - destruct ρ; rewrite /= ?hsubst_type_row_comp ?hsubst_type_eff_sig_comp  //.
+  Qed. 
+
+  Global Instance SubstLemmas_type : SubstLemmas type.
+  Proof.
+    constructor; [| |done|].
+    - apply rename_subst_type.
+    - apply subst_type_id.
+    - apply subst_type_comp. 
+  Qed. 
+
+  Global Instance HSubstLemmas_type_row : HSubstLemmas type row.
+  Proof. 
+    constructor; try done.
+    - apply hsubst_type_row_id.
+    - apply hsubst_type_row_comp. 
+  Qed. 
+
+  Local Lemma rename_subst_subst_comp_row (ξ : var → var) (σ : var → row) (ρ : row) :
+    (rename ξ ρ).[σ] = ρ.[ξ >>> σ]
+    with rename_hsubst_hsubst_comp_row_type (ξ : var → var) (σ : var → row) (τ : type) :
+      (rename_row_type ξ τ).|[σ] = τ.|[ξ >>> σ]
+      with rename_hsubst_hsubst_comp_row_eff_sig (ξ : var → var) (σ : var → row) (e : eff_sig) :
+        (rename_row_eff_sig ξ e).|[σ] = e.|[ξ >>> σ].
+  Proof.
+    - destruct ρ; rewrite /= ?rename_subst_subst_comp_row ?rename_hsubst_hsubst_comp_row_eff_sig//.
+    - destruct τ; rewrite /= ?rename_hsubst_hsubst_comp_row_type ?rename_subst_subst_comp_row //; rewrite up_comp_ren_subst //.
+    - destruct e; rewrite /= ?rename_hsubst_hsubst_comp_row_eff_sig ?rename_hsubst_hsubst_comp_row_type //.
+  Qed. 
+
+  Local Lemma rename_subst_comp_row_rename (ξ : var → var) (σ : var → row) (ρ : row) :
+    rename ξ ρ.[σ] = ρ.[σ >>> rename ξ]
+    with rename_hsubst_comp_row_type_rename (ξ : var → var) (σ : var → row) (τ : type) :
+      rename_row_type ξ τ.|[σ] = τ.|[σ >>> rename ξ]
+      with rename_hsubst_comp_row_eff_sig_rename (ξ : var → var) (σ : var → row) (e : eff_sig) :
+        rename_row_eff_sig ξ e.|[σ] = e.|[σ >>> rename ξ].
+  Proof with auto using rename_subst_subst_comp_row, rename_subst_row. 
+    - destruct ρ; rewrite /= ?rename_subst_comp_row_rename ?rename_hsubst_comp_row_eff_sig_rename //.
+    - destruct τ; rewrite /= ?rename_hsubst_comp_row_type_rename ?rename_subst_comp_row_rename //; rewrite up_comp_subst_ren_internal //...
+    - destruct e; rewrite /= ?rename_hsubst_comp_row_eff_sig_rename ?rename_hsubst_comp_row_type_rename //.
+  Qed. 
+
+  Local Lemma subst_row_comp (σ σ' : var → row) (ρ : row) : ρ.[σ].[σ'] = ρ.[σ >> σ']
+    with hsubst_row_eff_sig_comp (σ σ' : var → row) (e : eff_sig) : e.|[σ].|[σ'] = e.|[σ >> σ']
+      with hsubst_row_type_comp (σ σ' : var → row) (τ : type) : τ.|[σ].|[σ'] = τ.|[σ >> σ'].
+  Proof with auto using rename_subst_subst_comp_row, rename_subst_comp_row_rename. 
+    - destruct ρ; rewrite /= ?subst_row_comp ?hsubst_row_eff_sig_comp //.
+    - destruct e; rewrite /= ?hsubst_row_eff_sig_comp ?hsubst_row_type_comp //.
+    - destruct τ; rewrite /= ?hsubst_row_type_comp ?subst_row_comp ?up_comp_internal //...
+  Qed.   
+
+  Global Instance SubstLemmas_row : SubstLemmas row.
+  Proof. 
+    constructor; [| |done|].
+    - apply rename_subst_row.
+    - apply subst_row_id.
+    - apply subst_row_comp.
+  Qed. 
+
+  Global Instance HSubstLemmas_row_type : HSubstLemmas row type.
+  Proof.
+    constructor; try done.   
+    - apply hsubst_row_type_id.
+    - apply hsubst_row_type_comp.
+  Qed. 
+
 End syntax.
 
 
@@ -168,48 +510,78 @@ Notation "![ m ] τ" := (TBang m τ%ty) (at level 10, τ at next level, right as
 
 Section ctx.
 
-  (* A ctx is a multiset of key-value pairs restricting the value to be the same for each instance of the key *)
-  Definition ctx := gmap string (type * nat).
+  (* (* A ctx is a multiset of key-value pairs restricting the value to be the same for each instance of the key *)
+     Definition ctx := gmap string (type * nat).
+     
+     (* insert sets the multiplicity to 1 *)
+     Definition ctx_insert (x : string) (t : type) (Γ : ctx) : ctx := <[ x := (t, 1) ]> Γ.
+     
+     (* duplicate a variable in the ctx *)
+     Definition ctx_contraction (x : string) (Γ : ctx) : ctx :=
+       match Γ !! x with
+       | Some (t, n) => <[ x := (t, S n) ]> Γ
+       | None => Γ
+       end. 
+     
+     Definition ctx_remove (x : string) (Γ : ctx) : ctx :=
+     match Γ !! x with
+     | Some (t, S n) => 
+         if decide (n = 0) 
+         then delete x Γ 
+         else <[ x := (t, n) ]> Γ
+     (* Not strictly necessary since we remove an instance of 0 multiplicity *)
+     | Some (t, 0) => delete x Γ
+     | _ => Γ
+     end.
+     
+     Definition ctx_lookup (x : string) (Γ : ctx) : option type := fmap fst (Γ !! x).
+     
+     (* We shouldn't merge to ctx where (x : t) ∈ Γ1 and (x : t') ∈ Γ2 s.t. t ≠ t'  *)
+     Definition merge_aux : option (type * nat) → option (type * nat) → option (type * nat) :=
+       λ a b,
+         match a, b with
+         | x, None
+         | None, x => x
+         | Some (t, n), Some (t', n') => Some (t, n + n')
+         end. 
+     Definition ctx_append (Γ1 Γ2 : ctx) : ctx := gmap_merge _ _ _ merge_aux Γ1 Γ2. *)
 
-  (* insert sets the multiplicity to 1 *)
-  Definition ctx_insert (x : string) (t : type) (Γ : ctx) : ctx := <[ x := (t, 1) ]> Γ.
+  (* Definition ctx := list (string * type).
+     
+     Definition ctx_insert (x : string) (t : type) (Γ : ctx) := (x, t) :: Γ.
+     
+     Definition ctx_append (Γ1 Γ2 : ctx) := Γ1 ++ Γ2.
+     
+     Global Instance empty_ctx : Empty ctx := [].
+     
+     Definition ctx_dom (Γ : ctx) : gset string := ⋃ ((λ '(s, _), {[s]}) <$> Γ). *)
 
-  (* duplicate a variable in the ctx *)
-  Definition ctx_contraction (x : string) (Γ : ctx) : ctx :=
+  Definition ctx := gmap string (list type).
+
+  Definition ctx_insert (x : string) (τ : type) (Γ : ctx) :=
     match Γ !! x with
-    | Some (t, n) => <[ x := (t, S n) ]> Γ
-    | None => Γ
-    end. 
+    | None => <[ x := [τ] ]> Γ
+    | Some ls => <[ x := τ :: ls ]> Γ
+    end.
 
-  Definition ctx_remove (x : string) (Γ : ctx) : ctx :=
-  match Γ !! x with
-  | Some (t, S n) => 
-      if decide (n = 0) 
-      then delete x Γ 
-      else <[ x := (t, n) ]> Γ
-  (* Not strictly necessary since we remove an instance of 0 multiplicity *)
-  | Some (t, 0) => delete x Γ
-  | _ => Γ
-  end.
+  Definition ctx_overwrite (x : string) (τ : type) (Γ : ctx) := <[ x := [τ] ]> Γ.
 
-  Definition ctx_lookup (x : string) (Γ : ctx) : option type := fmap fst (Γ !! x).
-
-  (* We shouldn't merge to ctx where (x : t) ∈ Γ1 and (x : t') ∈ Γ2 s.t. t ≠ t'  *)
-  Definition merge_aux : option (type * nat) → option (type * nat) → option (type * nat) :=
-    λ a b,
-      match a, b with
-      | x, None
-      | None, x => x
-      | Some (t, n), Some (t', n') => Some (t, n + n')
-      end. 
+  Definition merge_aux : option (list type) → option (list type) → option (list type) :=
+    λ xs ys, match xs, ys with
+             | x, None
+             | None, x => x
+             | Some x, Some y => Some (x ++ y)
+             end.
   Definition ctx_append (Γ1 Γ2 : ctx) : ctx := gmap_merge _ _ _ merge_aux Γ1 Γ2.
 
+  Definition ctx_dom (Γ : ctx) := dom Γ.
+  
 End ctx.
 
 Notation "'<[' x ':=c' t ']>' Γ" := (ctx_insert x t Γ).
-Notation "Γ '!!c' x" := (ctx_lookup x Γ) (at level 100, x at next level).
-Notation "'<[' x ':=c + ]>' Γ" := (ctx_contraction x Γ).
-Notation "'<[' x ':=c - ]>' Γ" := (ctx_remove x Γ).
+(* Notation "Γ '!!c' x" := (ctx_lookup x Γ) (at level 100, x at next level). *)
+(* Notation "'<[' x ':=c + ]>' Γ" := (ctx_contraction x Γ).
+   Notation "'<[' x ':=c - ]>' Γ" := (ctx_remove x Γ). *)
 Notation "Γ1 ';;' Γ2" := (ctx_append Γ1 Γ2) (at level 100).
 
 (** * Weakening Relation. *)
@@ -326,8 +698,8 @@ Module le.
     _row D b ρ2 ρ3 →
     _row D b ρ1 ρ3
 
-  | RUnfold_le D b ρ : _row D b (RRec ρ) (ρ.[RRec ρ/])
-  | RFold_le D b ρ : _row D b (ρ.[RRec ρ/]) ρ
+  (* | RUnfold_le D b ρ : _row D b (RRec ρ) (ρ.[RRec ρ/])
+     | RFold_le D b ρ : _row D b (ρ.[RRec ρ/]) ρ *)
 
   | RFlipNil_le D b m : _row D b (RFlip m RNil) RNil
   | RFlipCons_le D b m σ ρ : _row D b (RFlip m (RCons σ ρ)) (RCons (SFlip m σ) (RFlip m ρ))
@@ -399,7 +771,10 @@ Module le.
   Definition OnceR (ρ : row) : Prop := ∃ b, _row ∅ b (RFlip MS ρ) ρ. 
 
   (* Lifting Multi from types to ctx *)
-  Definition MultiC (Γ : ctx) : Prop := Forall MultiT (fmap fst (fmap snd (map_to_list Γ))). 
+  (* for multiset map *)
+  (* Definition MultiC (Γ : ctx) : Prop := Forall MultiT (fmap fst (fmap snd (map_to_list Γ))).  *)
+  (* for lists *)
+  Definition MultiC (Γ : ctx) : Prop := Forall MultiT (concat (snd <$> (map_to_list Γ))).
 
   Inductive _mode_type : vmode → type → Prop :=
   | OS_le τ : _mode_type OS τ
@@ -535,11 +910,17 @@ Module vars.
   Definition _row : row → gset eff_name :=
     _row_pre _ty.
   
+  (* Definition _ctx (Γ : ctx) : gset eff_name :=
+       ⋃ ((λ '(_, (α, _)), _ty α) <$> (map_to_list Γ)). *)
+  (* Definition _ctx (Γ : ctx) : gset eff_name :=
+         ⋃ ((λ '(_, α), _ty α) <$> Γ). *)
   Definition _ctx (Γ : ctx) : gset eff_name :=
-    ⋃ ((λ '(_, (α, _)), _ty α) <$> (map_to_list Γ)).
+     ⋃ ((λ '(_, αs), ⋃ (_ty <$> αs)) <$> (map_to_list Γ)).
 
   (* REMARK : unsure if we need to make the check that s is free in dom Γ *)
   (* since this is probably dependent on the implementation of subst *)
+  (* the reason is that we can tell eff_names and variables apart *)
+  
   (* The assertion [fresh s Γ ρ α] holds if the string [s] is free in
      [ρ], [α], and [Γ], when seen as an effect name, and it must also not
      appear in the domain of [Γ]. *)
@@ -561,8 +942,8 @@ Inductive typed :
   stringmap unit → ctx → expr → row → type → ctx → Prop :=
 
 | Var_typed Δ Γ x τ :
-  ctx_lookup x Γ = Some τ →
-  Δ .| Γ ⊢ₜ Var x : RNil : τ ⊣ (ctx_remove x Γ)
+  (∃ αs, Γ !! x = Some αs ∧ τ ∈ αs) → 
+  Δ .| Γ ⊢ₜ Var x : RNil : τ ⊣ Γ
 
 | Val_typed Δ Γ v ρ τ :
   ⊢ᵥ v : τ →
@@ -598,14 +979,31 @@ Inductive typed :
                                         Δ .| Γ2 ⊢ₜ e2 : ρ : τ ⊣ Γ3 →
                                                            Δ .| Γ1 ⊢ₜ If e0 e1 e2 : ρ : τ ⊣ Γ3
 (* TODO: consider other rules for affine function types *)
-| Rec_typed Δ Γ f x e ρ τ κ :
+| Rec_typed Δ Γ Γ' f x e ρ τ κ :
+  (* match f with BNamed f => BNamed f ≠ x | BAnon => True end → *)
   Δ .| <[ f :=c (τ -{ ρ }-> κ)%ty ]> <[ x :=c τ ]> Γ ⊢ₜ e : ρ : κ ⊣ ∅ →
-                                                             Δ .| Γ ⊢ₜ Rec f x e : RNil : τ -{ ρ }-> κ ⊣ ∅
+                                                                Δ .| Γ ;; Γ' ⊢ₜ Rec f x e : RNil : τ -{ ρ }-> κ ⊣ Γ'
+(* A analogous rule for -∘ can be derived from Sub_typed and Rec_typed *)
+
 (* TODO: generalize according to Fig. 5 in Affect *)
-| App_typed Δ Γ1 Γ2 Γ3 e1 e2 ρ τ κ :
+| App_typed Δ Γ1 Γ2 Γ3 e1 e2 ρ ρ' ρ'' b τ κ :
+  let D := le.row_to_disj_ctx ρ in 
+  D ⊢ ρ' ≤R ρ @ b → D ⊢ ρ'' ≤R ρ @ b →
+  ρ' R⪯T τ → ρ'' R⪯C Γ3 →
   Δ .| Γ1 ⊢ₜ e2 : ρ : τ ⊣ Γ2 →
-                     Δ .| Γ2 ⊢ₜ e1 : ρ : τ -{ ρ }-∘ κ ⊣ Γ3 →
+                     Δ .| Γ2 ⊢ₜ e1 : ρ' : τ -{ ρ'' }-∘ κ ⊣ Γ3 →
                                         Δ .| Γ1 ⊢ₜ App e1 e2 : ρ : κ ⊣ Γ3
+
+| TAbsElim_typed Δ Γ1 Γ2 e ρ τ τ' :
+  Δ .| Γ1 ⊢ₜ e : ρ : ∀T: τ ⊣ Γ2 →
+                     Δ .| Γ1 ⊢ₜ e : ρ : τ.[τ'/] ⊣ Γ2
+| RAbsElim_typed Δ Γ1 Γ2 e (ρ ρ' : row) τ :
+  Δ .| Γ1 ⊢ₜ e : ρ : ∀R: τ ⊣ Γ2 →
+                     Δ .| Γ1 ⊢ₜ e : ρ : τ(* .[ρ'/] *) ⊣ Γ2
+| MAbsElim_typed Δ Γ1 Γ2 e ρ τ (m : mode):
+  Δ .| Γ1 ⊢ₜ e : ρ : ∀M: τ ⊣ Γ2 →
+                     Δ .| Γ1 ⊢ₜ e : ρ : τ(* .[m/] *) ⊣ Γ2
+                    
 
 | TAlloc Δ Γ1 e ρ τ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2  → Δ .| Γ1 ⊢ₜ AllocN (Val $ LitV $ LitInt 1) e : ρ : ref τ ⊣ Γ2
 | TLoad Δ Γ1 e ρ τ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : ref τ ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Load e : ρ : τ ⊣ Γ2
