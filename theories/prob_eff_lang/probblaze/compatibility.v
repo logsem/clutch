@@ -39,7 +39,7 @@ Section compatibility.
      Qed. *)
 
   Lemma sem_typed_val τ Γ v1 v2 : 
-    ⊢  ⊨ᵥ v1 ≤ v2 : τ -∗ sem_typed Γ v1 v2 sem_row_nil τ Γ.
+    ⊢  ⊨ᵥ v1 ≤ v2 : τ -∗ sem_typed Γ v1 v2 ⊥ τ Γ.
   Proof.
     iIntros "#Hv". iIntros "!# %vvs HΓ /=".
     iApply brel_value. iFrame. unfold sem_val_typed. simpl. iIntros. iFrame. done.
@@ -372,7 +372,6 @@ Section compatibility.
          iDestruct ("He" with "HΓ") as "Hbrel". simpl.
          iApply (brel_wand with "Hbrel").
          iModIntro. iIntros "% % (Hτ & $)".
-         iApply (pwp_wand with "(He HΓ)"). iIntros "% $".
      Qed. *)
 
   (* Generic App Rule *)

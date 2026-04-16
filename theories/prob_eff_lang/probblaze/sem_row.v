@@ -206,28 +206,52 @@ Section row_sub_typing.
     - iIntros "(#Hl1 & #Hl2 & #(Hvalidl & Hvalidr))".
       iFrame "#". simpl. done.
   Qed. 
-  
+
+  (* additional assumptions required analogously to the boolean in TES *)
+  (* row_le(false) adds the first two assumptions in the semantic model  *)
+  (* the justification is that the only way to add signatures to the left is by using the ERASE rule (adding ⊥) *)
+  (* but then you can't use the cons rule afterwards (due to the boolean flag) *)
   Lemma row_le_cons_comp (ρ ρ' : sem_row Σ) (op op' : label) (σ σ' : sem_sig Σ) :
-    op ∉ labels_l (iLblSig_to_iLblThy ρ) → op' ∉ labels_r (iLblSig_to_iLblThy ρ) →
+    labels_l (iLblSig_to_iLblThy ρ) ⊆+ labels_l (iLblSig_to_iLblThy ρ') →
+    labels_r (iLblSig_to_iLblThy ρ) ⊆+ labels_r (iLblSig_to_iLblThy ρ') →
     σ ≤ₛ σ' -∗ ρ ≤ᵣ ρ' -∗ sem_row_cons op op' σ ρ ≤ᵣ sem_row_cons op op' σ' ρ'.
   Proof.
-    iIntros "%Hop %Hop' #Hσσ' #Hρρ'".
+    iIntros "%Hsub %Hsub' #Hσσ' #Hρρ'".
     unfold row_le. simpl.
     iSplit; last iSplit.
     { iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
       iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
       iApply iThy_le_sum_map; last (iDestruct "Hρρ'" as "($&_)").
       iIntros (???) "!# (%&%&%&%&%&$&$&$&$&H&$)". by iApply "Hσσ'". }
-    { iIntros "!# #H". iApply valid_cons_singleton.
-      iDestruct (valid_cons_singleton with "H") as "($&$&Hvalid)".
-      iDestruct "Hρρ'" as "(_&#Hρρ'&_)". by iApply "Hρρ'". }
-    { iIntros "!# #H". iDestruct "Hρρ'" as "(_&_&#Hρρ')". iDestruct "Hρρ'" as "%Hρρ'".
-      iDestruct "H" as "(%Hdistinctl&%Hdistinctr)". iPureIntro. unfold distinct_l in Hdistinctl.
-      split; simpl;
-        apply NoDup_cons in Hdistinctl as (Hopρ' & Hρ'l);
-        apply NoDup_cons in Hdistinctr as (Hop'ρ' & Hρ'r);
-        apply NoDup_cons; split; try done; by apply Hρρ'. }
+    { iModIntro. iApply valid_submseteq'; by constructor. }
+    { iIntros "!# %Hd"; iPureIntro. eapply distinct_submseteq'; last done; by constructor. }
+    (* { iIntros "!# #H". iApply valid_cons_singleton.
+         iDestruct (valid_cons_singleton with "H") as "($&$&Hvalid)".
+         iDestruct "Hρρ'" as "(_&#Hρρ'&_)". by iApply "Hρρ'". }
+       { iIntros "!# #H". iDestruct "Hρρ'" as "(_&_&#Hρρ')". iDestruct "Hρρ'" as "%Hρρ'".
+         iDestruct "H" as "(%Hdistinctl&%Hdistinctr)". iPureIntro.
+         unfold distinct_l in Hdistinctl.
+         split; simpl;
+           apply NoDup_cons in Hdistinctl as (Hopρ' & Hρ'l);
+           apply NoDup_cons in Hdistinctr as (Hop'ρ' & Hρ'r);
+           apply NoDup_cons; split; try done; by apply Hρρ'. } *)
   Qed. 
+ 
+  (* Lemma row_le_erase (op1 op2 : label) (ρ : sem_row Σ) :
+       op1 ∉ labels_l (iLblSig_to_iLblThy ρ) →
+       op2 ∉ labels_r (iLblSig_to_iLblThy ρ) → 
+       ⊢ sem_row_cons op1 op2 ⊥ ρ ≤ᵣ ρ.
+     Proof.
+       iIntros (Hl Hr).
+       unfold row_le. simpl.
+       iSplit; last iSplit.
+       - iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
+         iApply iThy_le_trans; last iApply iThy_le_sum_bot_l.
+         iApply iThy_le_sum_l.
+         iIntros (???) "!# (%&%&%&%&%&%&%&%&%&(%&%&%&%&%&$&H')&H)". 
+       - iModIntro. iApply valid_submseteq'.
+         + unfold labels_l. simpl. *)
+      
   
   Lemma row_le_swap_second (op1 op1' op2 op2' : label) (σ σ' : sem_sig Σ) (ρ : sem_row Σ) : 
     ⊢ (op1, op2, σ) · (op1', op2', σ') · ρ ≤ᵣ (op1', op2', σ') · (op1, op2, σ) · ρ. 

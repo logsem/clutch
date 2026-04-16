@@ -122,7 +122,7 @@ Section syntax.
     | TNat
     | TTape
     | TVar _ => τ
-    | TRef α => α.|[σ]
+    | TRef α => TRef α.|[σ]
     | TProd α β => TProd α.|[σ] β.|[σ]
     | TSum α β => TSum α.|[σ] β.|[σ]
     | TArrow α ρ β => TArrow α.|[σ] ρ.|[σ] β.|[σ]
@@ -151,7 +151,46 @@ Section syntax.
          | SFlip m s => SFlip m.[σ] s.|[σ]
          end.
 
+  Global Instance HSubst_vmode_type : HSubst vmode type := hsubst_vmode_type.
+  Global Instance HSubst_vmode_row : HSubst vmode row := hsubst_vmode_row.
+  Global Instance HSubst_vmode_eff_sig : HSubst vmode eff_sig := hsubst_vmode_eff_sig.
+
+  Local Lemma hsubst_vmode_type_id (τ : type) : τ.|[ids : var → vmode] = τ
+  with hsubst_vmode_row_id (ρ : row) : ρ.|[ids : var → vmode] = ρ
+    with hsubst_vmode_eff_sig_id (e : eff_sig) : e.|[ids : var → vmode] = e.
+  Proof.
+    - destruct τ; rewrite /= ?up_id ?hsubst_vmode_type_id ?hsubst_vmode_row_id ?subst_id//.
+    - destruct ρ; rewrite /= ?hsubst_vmode_row_id ?subst_id ?hsubst_vmode_eff_sig_id //.
+    - destruct e; rewrite /= ?hsubst_vmode_type_id ?hsubst_vmode_row_id ?hsubst_vmode_eff_sig_id ?subst_id //.
+  Qed. 
+
+  (* Local Lemma rename_hsubst_hsubst_vmode_type_comp (ξ : var → var) (σ : var → vmode) (τ : type) :
+       (rename ξ τ).[σ] = τ.|[σ >>> rename ξ]. *)
+                                                           
+
+  Local Lemma hsubst_vmode_type_comp (σ σ' : var → vmode) (τ : type) : τ.|[σ].|[σ'] = τ.|[σ >> σ']
+    with hsubst_vmode_row_comp (σ σ' : var → vmode) (ρ : row) : ρ.|[σ].|[σ'] = ρ.|[σ >> σ']
+      with hsubst_vmode_eff_sig_comp (σ σ' : var → vmode) (e : eff_sig) : e.|[σ].|[σ'] = e.|[σ >> σ'].
+  Proof.
+    - destruct τ; rewrite /= ?hsubst_vmode_type_comp ?hsubst_vmode_row_comp ?subst_comp //. rewrite up_comp //.
+    - destruct ρ; rewrite /= ?hsubst_vmode_row_comp ?hsubst_vmode_eff_sig_comp ?subst_comp//.
+    - destruct e; rewrite /= ?hsubst_vmode_eff_sig_comp ?hsubst_vmode_type_comp ?hsubst_vmode_row_comp ?subst_comp //.
+  Qed.
   
+  Global Instance HSubstLemmas_vmode_type : HSubstLemmas vmode type.
+  Proof.
+    constructor; try done.
+    - apply hsubst_vmode_type_id.
+    - apply hsubst_vmode_type_comp.
+  Qed. 
+
+  Global Instance HSubstLemmas_vmode_row : HSubstLemmas vmode row.
+  Proof.
+    constructor; try done.
+    - apply hsubst_vmode_row_id.
+    - apply hsubst_vmode_row_comp.
+  Qed. 
+
   Fixpoint rename_type (ξ : var → var) (τ : type) : type :=
     let _ := rename_type : Rename type in 
     match τ with
@@ -579,6 +618,7 @@ Section ctx.
 End ctx.
 
 Notation "'<[' x ':=c' t ']>' Γ" := (ctx_insert x t Γ).
+Notation "'<[' x ':=o' t ']>' Γ" := (ctx_overwrite x t Γ).
 (* Notation "Γ '!!c' x" := (ctx_lookup x Γ) (at level 100, x at next level). *)
 (* Notation "'<[' x ':=c + ]>' Γ" := (ctx_contraction x Γ).
    Notation "'<[' x ':=c - ]>' Γ" := (ctx_remove x Γ). *)
@@ -766,6 +806,13 @@ Module le.
   | TBangTForallRComm1_le D m α : _type D (TBang m (TForallR α)) (TForallR (TBang m α))
   | TBangTForallRComm2_le D m α : _type D (TForallR (TBang m α)) (TBang m (TForallR α)).
 
+  Definition _ctx (D : disj_ctx) (Γ1 Γ2 : ctx) : Prop :=
+    Forall (λ y : (string * list type), let (x, ts) := y in 
+                 match Γ1 !! x with
+                 | None => False
+                 | Some rs => Forall (λ t, Exists (λ r, _type D r t) rs) ts
+                 end) (map_to_list Γ2).
+
   Definition MultiT (τ : type) : Prop := _type ∅ τ (![MS] τ).
 
   Definition OnceR (ρ : row) : Prop := ∃ b, _row ∅ b (RFlip MS ρ) ρ. 
@@ -800,6 +847,8 @@ Notation "D ⊢ ρ ≤R ρ' @ b" := (le._row D b ρ ρ')
   (at level 74, ρ, ρ', b at next level).
 Notation "D ⊢ σ ≤S σ'" := (le._eff_sig D σ σ')
   (at level 74, σ, σ' at next level).
+Notation "D ⊢ Γ ≤C Γ'" := (le._ctx D Γ Γ')
+  (at level 74, Γ, Γ' at next level).
 Notation "⊢ m ≤M m'" := (le._mode m m')
   (at level 74, m, m' at next level).
 Notation "m 'm⪯T' τ" := (le._mode_type m τ) (at level 74, τ at next level).  
@@ -931,6 +980,10 @@ Module vars.
 
 End vars.
 
+(* Shift all the indices in the context by one, *)
+(*    used when inserting a new type interpretation in Δ. *)
+Definition up_list_type (ts : list type) : list type := subst (ren (+1)) <$> ts.
+Notation "⤉ Γ" := (up_list_type <$> (Γ : ctx)) (at level 10, format "⤉ Γ").
 
 Reserved Notation "Δ '.|' Γ1 '⊢ₜ' e ':' ρ ':' τ '⊣' Γ2"
   (at level 74, Γ1, e, ρ, τ, Γ2 at next level).
@@ -981,7 +1034,7 @@ Inductive typed :
 (* TODO: consider other rules for affine function types *)
 | Rec_typed Δ Γ Γ' f x e ρ τ κ :
   (* match f with BNamed f => BNamed f ≠ x | BAnon => True end → *)
-  Δ .| <[ f :=c (τ -{ ρ }-> κ)%ty ]> <[ x :=c τ ]> Γ ⊢ₜ e : ρ : κ ⊣ ∅ →
+  Δ .| <[ f :=o (τ -{ ρ }-> κ)%ty ]> <[ x :=o τ ]> Γ ⊢ₜ e : ρ : κ ⊣ ∅ →
                                                                 Δ .| Γ ;; Γ' ⊢ₜ Rec f x e : RNil : τ -{ ρ }-> κ ⊣ Γ'
 (* A analogous rule for -∘ can be derived from Sub_typed and Rec_typed *)
 
@@ -999,10 +1052,10 @@ Inductive typed :
                      Δ .| Γ1 ⊢ₜ e : ρ : τ.[τ'/] ⊣ Γ2
 | RAbsElim_typed Δ Γ1 Γ2 e (ρ ρ' : row) τ :
   Δ .| Γ1 ⊢ₜ e : ρ : ∀R: τ ⊣ Γ2 →
-                     Δ .| Γ1 ⊢ₜ e : ρ : τ(* .[ρ'/] *) ⊣ Γ2
-| MAbsElim_typed Δ Γ1 Γ2 e ρ τ (m : mode):
+                     Δ .| Γ1 ⊢ₜ e : ρ : τ.|[ρ'/] ⊣ Γ2
+| MAbsElim_typed Δ Γ1 Γ2 e ρ τ m :
   Δ .| Γ1 ⊢ₜ e : ρ : ∀M: τ ⊣ Γ2 →
-                     Δ .| Γ1 ⊢ₜ e : ρ : τ(* .[m/] *) ⊣ Γ2
+                     Δ .| Γ1 ⊢ₜ e : ρ : τ.|[m/] ⊣ Γ2
                     
 
 | TAlloc Δ Γ1 e ρ τ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2  → Δ .| Γ1 ⊢ₜ AllocN (Val $ LitV $ LitInt 1) e : ρ : ref τ ⊣ Γ2
@@ -1014,6 +1067,19 @@ Inductive typed :
 | TAllocTape Δ Γ1 e ρ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : ℕ ⊣ Γ2 →  Δ .| Γ1 ⊢ₜ AllocTape e : ρ : TTape ⊣ Γ2
 | TRand Δ Γ1 Γ2 Γ3 e1 e2 ρ : Δ .| Γ2 ⊢ₜ e1 : ρ : ℕ ⊣ Γ3 → Δ .| Γ1 ⊢ₜ e2 : ρ : TTape ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Rand e1 e2 : ρ : ℕ ⊣ Γ3
 | TRandU Δ Γ1 Γ2 Γ3 e1 e2 ρ : Δ .| Γ2 ⊢ₜ e1 : ρ : ℕ ⊣ Γ3 → Δ .| Γ1 ⊢ₜ e2 : ρ : () ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Rand e1 e2 : ρ : ℕ ⊣ Γ3
+| TFold Δ Γ1 e ρ τ Γ2 :
+     Δ .| Γ1 ⊢ₜ e : ρ : τ.[(μ: τ)%ty/] ⊣ Γ2 →
+     Δ .| Γ1 ⊢ₜ e : ρ : (μ: τ) ⊣ Γ2
+| TUnfold Δ Γ1 e ρ τ Γ2 :
+     Δ .| Γ1 ⊢ₜ e : ρ : (μ: τ)%ty ⊣ Γ2 →
+     Δ .| Γ1 ⊢ₜ rec_unfold e : ρ : τ.[(μ: τ)%ty/] ⊣ Γ2
+| TPack Δ Γ1 e ρ τ τ' Γ2 :
+     Δ .| Γ1 ⊢ₜ e : ρ : τ.[τ'/] ⊣ Γ2 →
+     Δ .| Γ1 ⊢ₜ e : ρ : (∃: τ) ⊣ Γ2
+| TUnpack Δ Γ1 Γ2 Γ3 e1 x e2 ρ τ τ2 :
+     Δ .| Γ1 ⊢ₜ e1 : ρ : (∃: τ) ⊣ Γ2 →
+     Δ .| <[x:=o τ]> (⤉ Γ2) ⊢ₜ e2 : ρ : τ2.[ren (+1)] ⊣ Γ3 →
+     Δ .| Γ1 ⊢ₜ (unpack: x := e1 in e2) : ρ : τ2 ⊣ Γ3
 (* TODO: add to subsumption rules
    | Subsume_int_nat Γ e : Γ ⊢ₜ e : TNat → Γ ⊢ₜ e : TInt *)
 
@@ -1023,229 +1089,74 @@ Inductive typed :
   vars._fresh s Γ1 ρ τ →
   (<[ s := () ]> Δ) .| Γ1 ⊢ₜ e : Abs_ρ : τ ⊣ Γ2 →
   Δ .| Γ1 ⊢ₜ Effect s e : ρ : τ ⊣ Γ2
+
 | Do_typed Δ Γ1 s e ρ' τ ι κ m Γ2 :
   m m⪯C Γ2 →
   Δ !! s = Some () →
   let ρ := RCons (SFlip m (SSig s ι κ)) ρ' in
   Δ .| Γ1 ⊢ₜ e : ρ : ι.[τ/] ⊣ Γ2 →
                     Δ .| Γ1 ⊢ₜ Do (EffName s) e : ρ : κ.[τ/] ⊣ Γ2
-| DeepHandle_typed Δ Γ1 Γ2 Γ (m : mode) s e x k h y r ρ0 σ τ τ' ι κ :
+
+| DeepHandle_typed Δ Γ1 Γ2 Γ3 Γ (m : mode) s e x k h y r ρ0 σ τ τ' ι κ :
   le.MultiC Γ →
   Δ !! s = Some () →
   le.eff_name_from_sig σ = s →
   let ρ := RCons σ ρ0 in
   let ρ' := RCons (SFlip m (SSig s ι κ)) ρ0 in
   Δ .| Γ1 ⊢ₜ e : ρ' : τ ⊣ Γ2 →
-  Δ .| <[ y :=c τ ]> (Γ2 ;; Γ) ⊢ₜ r : ρ : τ' ⊣ Γ →
-  Δ .| <[ x :=c ι ]> <[ k :=c ![m] (κ -{ ρ }-∘ τ') ]> Γ ⊢ₜ h : ρ : τ' ⊣ Γ →
-  Δ .| (Γ1 ;; Γ) ⊢ₜ (Handle Deep m s e (Lam x (Lam k h)) (Lam y r)) : ρ : τ' ⊣ Γ
+  Δ .| <[ y :=o τ ]> (Γ2 ;; Γ) ⊢ₜ r : ρ : τ' ⊣ Γ3 →
+  Δ .| <[ x :=o ι ]> <[ k :=c ![m] (κ -{ ρ }-∘ τ') ]> Γ ⊢ₜ h : ρ : τ' ⊣ Γ3 →
+  Δ .| (Γ1 ;; Γ) ⊢ₜ (Handle Deep m s e (Lam x (Lam k h)) (Lam y r)) : ρ : τ' ⊣ Γ3
+
+| ShallowHandle_typed Δ Γ1 Γ2 Γ3 Γ (m : mode) s e x k h y r ρ0 σ τ τ' ι κ :
+  Δ !! s = Some () →
+  le.eff_name_from_sig σ = s →
+  let ρ := RCons σ ρ0 in
+  ρ R⪯C Γ →
+  let ρ' := RCons (SFlip m (SSig s ι κ)) ρ0 in
+  Δ .| Γ1 ⊢ₜ e : ρ' : τ ⊣ Γ2 →
+  Δ .| <[ y :=o τ ]> (Γ2 ;; Γ) ⊢ₜ r : ρ : τ' ⊣ Γ3 →
+  Δ .| <[ x :=o ι ]> <[ k :=o ![m] (κ -{ ρ' }-∘ τ) ]> Γ ⊢ₜ h : ρ : τ' ⊣ Γ3 →
+  Δ .| (Γ1 ;; Γ) ⊢ₜ Handle Shallow m s e (Lam x (Lam k h)) (Lam y r) : ρ : τ' ⊣ Γ3
+    
+| Sub_typed Δ Γ1 Γ1' Γ2 Γ2' ρ ρ' b τ τ' e : 
+  let D := le.row_to_disj_ctx ρ in
+  D ⊢ Γ1 ≤C Γ1' → D ⊢ Γ2' ≤C Γ2 →
+  D ⊢ ρ' ≤R ρ @ b → D ⊢ τ' ≤T τ →
+  Δ .| Γ1' ⊢ₜ e : ρ' : τ' ⊣ Γ2' →
+                       Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2
+
+  
+
 with val_typed : val → type → Prop :=
 | Unit_val_typed : ⊢ᵥ LitV LitUnit : ()
+| Int_val_typed (n : Z) : ⊢ᵥ LitV (LitInt n) : ℤ
+| Nat_val_typed (n : nat) : ⊢ᵥ LitV (LitInt n) : ℕ
+| Bool_val_typed (b : bool) : ⊢ᵥ LitV (LitBool b) : 𝔹
+| Pair_val_typed v1 v2 τ1 τ2 :
+  ⊢ᵥ v1 : τ1 →
+          ⊢ᵥ v2 : τ2 →
+                  ⊢ᵥ PairV v1 v2 : (τ1 * τ2)
+| InjL_val_typed v τ1 τ2 :
+  ⊢ᵥ v : τ1 →
+         ⊢ᵥ InjLV v : (τ1 + τ2)
+| InjR_val_typed v τ1 τ2 :
+  ⊢ᵥ v : τ2 →
+         ⊢ᵥ InjRV v : (τ1 + τ2)
+| Rec_val_typed f x e τ1 ρ τ2 :
+  ∅ .| <[f:=o τ1 -{ ρ }-> τ2]>(<[x:=o τ1]> ∅) ⊢ₜ e : ρ : τ2 ⊣ ∅ →
+                                         ⊢ᵥ RecV f x e : (τ1 -{ ρ }-> τ2)
+| TAbs_val_typed v τ :
+  ⊢ᵥ v : τ →
+           ⊢ᵥ v : (∀T: τ)
+| RAbs_val_typed v τ :
+  ⊢ᵥ v : τ →
+           ⊢ᵥ v : (∀R: τ)
+| MAbs_val_typed v τ :
+  ⊢ᵥ v : τ →
+           ⊢ᵥ v : (∀M: τ)
+(* TODO: I don't know how to add BangIntro *)
 where "Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2" := (typed Δ Γ1 e ρ τ Γ2)
 and "⊢ᵥ e : τ" := (val_typed e τ).                   
-
-
-
-(* (** * Manipulation of de Bruijn Indices. *)
-   
-   (* We define the lifting and substitution of both row and type variables.
-      The definitions are standard.
-   *)
-   
-   (** Lifting of row variables. *)
-   
-   Module rvar_lift.
-   
-     Fixpoint _eff_sig_pre
-       (f : nat → type → type)
-       (n : nat) (σ : eff_sig) : eff_sig :=
-       match σ with
-       | EFlip m σ => EFlip m (_eff_sig_pre f n σ)
-       | ESig s α β => ESig s (f n α) (f n β)
-       end. 
-   
-     Fixpoint _row_pre
-       (f : nat → type → type)
-       (n : nat) (ρ : row) : row :=
-       match ρ with
-       | RNil => ρ
-       | RCons σ ρ => RCons (_eff_sig_pre f n σ) (_row_pre f n ρ)
-       | RVar m => let m' := if (decide (m < n)) then m else (S m) in RVar m'
-       | RFlip m ρ => RFlip m (_row_pre f n ρ)
-       | RRec ρ => RRec (_row_pre f n ρ)
-       end.
-              
-     Fixpoint _ty (n : nat) (α : type) : type :=
-       match α with
-       | TUnit
-       | TBool
-       | TInt
-       | TTop
-       | TBot
-       | TTape
-       | TVar _ =>
-           α
-       | TRef α =>
-           TRef (_ty n α)
-       | TProd α β =>
-           TProd (_ty n α) (_ty n β)
-       | TSum α β =>
-           TSum (_ty n α) (_ty n β)
-       | TArrow α ρ β =>
-           TArrow (_ty n α)
-                (_row_pre _ty n ρ)
-                (_ty n β)
-       | TForall R α =>
-           TForall R (_ty (S n) α)
-       | TForall m α =>
-           TForall m (_ty n α)
-       | TExists α =>
-           TExists (_ty n α)
-       | TRec α =>
-           TRec (_ty n α)
-       | TBang m α =>
-           TBang m (_ty n α)
-       end.
-   
-     Definition _eff_sig : nat → eff_sig → eff_sig :=
-       _eff_sig_pre _ty.
-   
-     Definition _row : nat → row → row :=
-       _row_pre _ty.
-   
-   End rvar_lift.
-   
-   (** Lifting of type variables *)
-   
-   Module tvar_lift.
-     
-     Fixpoint _eff_sig_pre
-       (f : nat → type → type)
-       (n : nat) (σ : eff_sig) : eff_sig :=
-       match σ with
-       | EFlip m σ => EFlip m (_eff_sig_pre f n σ)
-       | ESig s α β => ESig s (f n α) (f n β)
-       end. 
-   
-     Fixpoint _row_pre
-       (f : nat → type → type)
-       (n : nat) (ρ : row) : row :=
-       match ρ with
-       | RNil 
-       | RVar _ => ρ
-       | RCons σ ρ => RCons (_eff_sig_pre f n σ) (_row_pre f n ρ)
-       | RFlip m ρ => RFlip m (_row_pre f n ρ)
-       | RRec ρ => RRec (_row_pre f n ρ)
-       end.
-   
-      Fixpoint _ty (n : nat) (α : type) : type :=
-       match α with
-       | TUnit
-       | TBool
-       | TInt
-       | TTop
-       | TBot
-       | TTape =>
-           α
-       | TRef α =>
-           TRef (_ty n α)
-       | TProd α β =>
-           TProd (_ty n α) (_ty n β)
-       | TSum α β =>
-           TSum (_ty n α) (_ty n β)
-       | TArrow α ρ β =>
-           TArrow (_ty n α)
-                (_row_pre _ty n ρ)
-                (_ty n β)
-       | TForall T α =>
-           TForall T (_ty (S n) α)
-       | TForall m α =>
-           TForall m (_ty n α)
-       | TExists α =>
-           TExists (_ty (S n) α)
-       | TRec α =>
-           TRec (_ty (S n) α)
-       | TBang m α =>
-           TBang m (_ty n α)
-       | TVar m => let m' := if (decide (m < n)) then m else (S m) in TVar m'
-       end.
-   
-     Definition _eff_sig : nat → eff_sig → eff_sig :=
-       _eff_sig_pre _ty.
-   
-     Definition _row : nat → row → row :=
-       _row_pre _ty.
-   
-   End tvar_lift.
-   
-   (** Lifting of mode variables *)
-   
-   Module mvar_lift.
-   
-       Fixpoint _eff_sig_pre
-       (f : nat → type → type)
-       (n : nat) (σ : eff_sig) : eff_sig :=
-       match σ with
-       | EFlip (MVar m) σ => let m' := if (decide (m < n)) then m else (S m) in EFlip (MVar m') (_eff_sig_pre f n σ)
-       | EFlip m σ => EFlip m (_eff_sig_pre f n σ)
-       | ESig s α β => ESig s (f n α) (f n β)
-       end. 
-   
-     Fixpoint _row_pre
-       (f : nat → type → type)
-       (n : nat) (ρ : row) : row :=
-       match ρ with
-       | RNil 
-       | RVar _ => ρ
-       | RCons σ ρ => RCons (_eff_sig_pre f n σ) (_row_pre f n ρ)
-       | RFlip (MVar m) ρ => let m' := if (decide (m < n)) then m else (S m) in RFlip (MVar m') (_row_pre f n ρ)
-       | RFlip m ρ => RFlip m (_row_pre f n ρ)
-       | RRec ρ => RRec (_row_pre f n ρ)
-       end.
-   
-      Fixpoint _ty (n : nat) (α : type) : type :=
-       match α with
-       | TUnit
-       | TBool
-       | TInt
-       | TTop
-       | TBot
-       | TTape
-       | TVar _ =>
-           α
-       | TRef α =>
-           TRef (_ty n α)
-       | TProd α β =>
-           TProd (_ty n α) (_ty n β)
-       | TSum α β =>
-           TSum (_ty n α) (_ty n β)
-       | TArrow α ρ β =>
-           TArrow (_ty n α)
-                (_row_pre _ty n ρ)
-                (_ty n β)
-       | TForall T α =>
-           TForall T (_ty (S n) α)
-       | TForall m α =>
-           TForall m (_ty n α)
-       | TExists α =>
-           TExists (_ty (S n) α)
-       | TRec α =>
-           TRec (_ty (S n) α)
-       | TBang (MVar m) α => let m' := if (decide (m < n)) then m else (S m) in
-                                            TBang (MVar m') (_ty n α)
-       | TBang m α => TBang m (_ty n α)
-       end.
-   
-     Definition _eff_sig : nat → eff_sig → eff_sig :=
-       _eff_sig_pre _ty.
-   
-     Definition _row : nat → row → row :=
-       _row_pre _ty.
-   
-   End mvar_lift.
-   
-   (* Substitution of row variables *)
-   
-   Module rvar_subst. *)
-
+ 
   
