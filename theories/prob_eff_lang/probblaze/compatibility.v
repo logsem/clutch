@@ -8,7 +8,7 @@ From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Import iprop invariants.
 
 (* Local imports *)
-From clutch.prob_eff_lang.probblaze Require Import notation class_instances proofmode  mode sem_def sem_sig sem_types sem_row sem_env logic sem_judgement sem_operators.
+From clutch.prob_eff_lang.probblaze Require Import notation class_instances proofmode  mode sem_def sem_sig sem_types sem_row sem_env logic sem_judgement sem_operators pure_weakestpre.
 
 
 Open Scope stdpp_scope.
@@ -22,21 +22,24 @@ Section compatibility.
   Context `{!probblazeRGS Σ}.
 
    Lemma sem_oval_typed_val τ v1 v2 : 
-    ⊢ ⊨ᵥ v1 ≤ v2 : τ -∗ (* [] ⊨ₚ v : τ. *) τ v1 v2.
+    ⊢ ⊨ᵥ v1 ≤ v2 : τ -∗ sem_oval_typed [] v1 v2 τ.
    Proof.
-     iIntros "#Hv". unfold sem_val_typed. simpl. 
-     done.
+     iIntros "#Hv". 
+     rewrite /sem_oval_typed /sem_val_typed /=.
+     iIntros (?) "!> H /=". 
+     by rewrite /prel /=.
    Qed.
 
-   (* With the current definition of ⊨ₚ as just lying in the type, this is just brel_value *)
-  (* Lemma sem_typed_oval τ Γ₁ Γ₂ e :
-       (Γ₁ ⊨ₚ e : τ) -∗ (Γ₁ ++ Γ₂ ⊨ e : ⟨⟩ : τ ⫤ Γ₂).
-     Proof.
-       iIntros "#Hv !# %γ HΓ₁₂ /=". iApply pwp_ewpw. 
-       rewrite env_sem_typed_app. iDestruct "HΓ₁₂" as "[HΓ₁ HΓ₂]".
-       iApply (pwp_strong_mono with "[HΓ₁] [HΓ₂]"); [reflexivity|by iApply "Hv"|].
-       iIntros (?) "Hτ". iFrame.
-     Qed. *)
+  Lemma sem_typed_oval τ Γ1 Γ2 e1 e2 :
+    ⊢ (sem_oval_typed Γ1 e1 e2 τ) -∗ (sem_typed (Γ1 ++ Γ2) e1 e2 ⟨⟩ τ Γ2).
+  Proof.
+    iIntros "#Hv !# %γ HΓ12 /=". 
+    iApply prel_brel. 
+    rewrite env_sem_typed_app. iDestruct "HΓ12" as "(HΓ1 & HΓ2)". 
+    iDestruct ("Hv" with "HΓ1") as "Hprel".
+    iApply (prel_mono with "[HΓ2][$]").
+    by iIntros (??) "$".
+  Qed.
 
   Lemma sem_typed_val τ Γ v1 v2 : 
     ⊢  ⊨ᵥ v1 ≤ v2 : τ -∗ sem_typed Γ v1 v2 ⊥ τ Γ.
@@ -360,19 +363,146 @@ Section compatibility.
     iApply sem_typed_sub_nil. iApply sem_typed_var.
   Qed.
 
-  (* (* bang intro *)
-     Lemma sem_typed_mbang m Γ v1 v2 τ `{ m ₘ⪯ₑ Γ } :
-       ⊢ (sem_typed Γ (of_val v1) (of_val v2) ⊥ τ []) -∗
-       sem_typed Γ (of_val v1) (of_val v2) ⊥ (![m] τ) [].
+  (* bang intro *)
+  Lemma sem_typed_mbang m Γ e1 e2 τ `{ m ₘ⪯ₑ Γ } :
+    ⊢ (sem_oval_typed Γ e1 e2 τ) -∗
+    sem_oval_typed Γ e1 e2 (![m] τ).
+  Proof.
+    iIntros "#He !# %γ HΓ /=". 
+    inv H. iDestruct (mode_env_sub with "HΓ") as "HΓ". destruct m; simpl.
+    - iDestruct ("He" with "HΓ") as "He'". done.
+    - rewrite /sem_ty_mbang /=. iDestruct "HΓ" as "#HΓ".
+      iDestruct ("He" with "HΓ") as "Hprel".
+      by iDestruct (prel_intuitionistically with "Hprel") as "H".
+  Qed.
+
+  (* λ-calculus rules *)
+ 
+  Lemma sem_oval_typed_afun τ ρ Γ1 x e1 e2 κ: 
+    x ∉ (env_dom Γ1) →
+    ⊢ sem_typed ((x,τ) ::? Γ1) e1 e2 ρ κ [] -∗
+    sem_oval_typed Γ1 (λ: x, e1) (λ: x, e2) (τ -{ ρ }-∘ κ).
+  Proof.
+    iIntros (?) "#He !# %γ HΓ1 //=".
+    rewrite /prel /=. iExists _,_,1%nat,1%nat,_,_.
+    iSplit.
+    - iPureIntro. repeat split.
+      2,4 : apply pure_recc. all : done.
+    - rewrite /sem_ty_arr /=. 
+      iIntros (??) "Hτ".
+      iApply brel_pure_step_r; first done. 
+      iApply brel_pure_step_later; first done; iModIntro. simpl.
+      rewrite -!subst_map_binder_insert.
+      assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (-> & ->) by done.
+      rewrite -!binder_insert_fmap /=.
+      iApply (brel_wand with "[HΓ1 Hτ]"); [iApply "He"| iIntros "!# % % [$ _] //="].
+      destruct x; solve_env.
+  Qed. 
+
+  (* Corollary sem_typed_afun τ ρ Γ₁ Γ₂ x e κ: 
+       x ∉ (env_dom Γ₁) → x ∉ (env_dom Γ₂) →
+       (x,τ) ::? Γ₁ ⊨ e : ρ : κ ⫤ [] -∗
+       Γ₁ ++ Γ₂ ⊨ (λ: x, e) : ⟨⟩ : (τ -{ ρ }-∘ κ) ⫤ Γ₂.
      Proof.
-       iIntros "#He !# %γ HΓ₁ /=".
-       inv H. iDestruct (mode_env_sub with "HΓ₁") as "HΓ". destruct m; simpl.
-       - iDestruct ("He" with "HΓ") as "He'". done.
-       - rewrite /sem_ty_mbang /=. iDestruct "HΓ" as "#HΓ".
-         iDestruct ("He" with "HΓ") as "Hbrel". simpl.
-         iApply (brel_wand with "Hbrel").
-         iModIntro. iIntros "% % (Hτ & $)".
+       iIntros (??) "He". iApply sem_typed_oval. by iApply sem_oval_typed_afun.
+     Qed.
+     
+     Lemma sem_oval_typed_ufun τ ρ κ Γ₁ f x e `{! MultiE Γ₁ }:
+       x ∉ (env_dom Γ₁) → f ∉ (env_dom Γ₁) → 
+       match f with BNamed f => BNamed f ≠ x | BAnon => True end →
+       (x, τ) ::? (f, τ -{ ρ }-> κ) ::? Γ₁ ⊨ e : ρ : κ ⫤ [] -∗
+       Γ₁ ⊨ₚ (rec: f x := e) : (τ -{ ρ }-> κ).
+     Proof.
+       iIntros (???) "#He !# %γ HΓ₁ //=".
+       iApply pwp_pure_step'; [by auto using pure_prim_step_Rec|]. iApply pwp_value'.
+       iDestruct "HΓ₁" as "#HΓ₁".
+       iLöb as "IH". rewrite /sem_ty_mbang /sem_ty_arr /=.
+       iIntros "!# %w Hτ".
+       ewpw_pure_steps. destruct f; destruct x; simpl.
+       - iApply ewpw_mono; [by iApply "He"|iIntros "!# % [$ _] //="].
+       - rewrite -subst_map_insert. 
+         iApply (ewpw_mono with "[Hτ]"); 
+           [iApply "He"; solve_env|iIntros "!# % [$ _] //="].
+       - rewrite -subst_map_insert.
+         iApply (ewpw_mono with "[Hτ]"); 
+           [iApply "He"; solve_env|iIntros "!# % [$ _] //="].
+       - assert (s ≠ s0) by (intros ?; simplify_eq).
+         rewrite subst_subst_ne; last done.
+         rewrite -subst_map_insert.
+         rewrite -delete_insert_ne; last done. 
+         rewrite -subst_map_insert.
+         iApply (ewpw_mono with "[Hτ]"); 
+           [iApply "He"; solve_env|iIntros "!# % [$ _] //="].
+         by do 2 (rewrite -env_sem_typed_insert; last done).
+     Qed.
+     
+     Corollary sem_typed_ufun τ ρ κ Γ₁ Γ₂ f x e `{! MultiE Γ₁ }:
+       x ∉ (env_dom Γ₁) → f ∉ (env_dom Γ₁) → 
+       match f with BNamed f => BNamed f ≠ x | BAnon => True end →
+       (x, τ) ::? (f, τ -{ ρ }-> κ) ::? Γ₁ ⊨ e : ρ : κ ⫤ [] -∗
+       Γ₁ ++ Γ₂ ⊨ (rec: f x := e) : ⟨⟩ : (τ -{ ρ }-> κ) ⫤ Γ₂.
+     Proof.
+       iIntros (???) "He".
+       iApply sem_typed_oval. by iApply sem_oval_typed_ufun.
+     Qed.
+     
+     Lemma sem_typed_ufun_poly_rec τ ρ κ Γ₁ f x e `{! MultiE Γ₁ }:
+       x ∉ (env_dom Γ₁) → f ∉ (env_dom Γ₁) → 
+       match x with BNamed x => BNamed x ≠ f | BAnon => True end →
+       (∀ ι, (x, τ ι) ::? (f, ∀ₜ α, τ α -{ ρ α }-> κ α) ::? Γ₁ ⊨ e : ρ ι : κ ι ⫤ []) -∗
+       Γ₁ ⊨ₚ (rec: f x := e) : (∀ₜ α, τ α -{ ρ α }-> κ α).
+     Proof.
+       iIntros (???) "#He !# %γ HΓ₁ //=".
+       iApply pwp_pure_step'; [by auto using pure_prim_step_Rec|]. iApply pwp_value'.
+       iDestruct "HΓ₁" as "#HΓ₁".
+       iLöb as "IH".
+       iIntros (α) "/=". rewrite /sem_ty_mbang /sem_ty_arr /=.
+       iIntros (v) "!# Hτ". destruct f; destruct x; simpl; ewpw_pure_steps.
+       - iApply (ewpw_mono with "[Hτ]"); first (iApply "He"; solve_env).  
+         iIntros "!# % [$ _] //=".
+       - rewrite -subst_map_insert. 
+         iApply (ewpw_mono with "[Hτ]"); first (iApply "He"; solve_env).  
+         iIntros "!# % [$ _] //=".
+       - rewrite -subst_map_insert.
+         iApply (ewpw_mono with "[Hτ]"); first (iApply "He"; solve_env; by iApply "IH") .
+         iIntros "!# % [$ _] //=".
+       - assert (s ≠ s0) by (intros ?; simplify_eq).
+         rewrite subst_subst_ne; last done.
+         rewrite -subst_map_insert.
+         rewrite -delete_insert_ne; last done. 
+         rewrite -subst_map_insert.
+         iApply (ewpw_mono with "[Hτ]"); first (iApply "He"; solve_env).  
+         + by do 2 (rewrite -env_sem_typed_insert; last done).
+         + iIntros "!# % [$ _] //=".
+     Qed.
+     
+     Corollary sem_typed_fun τ ρ Γ₁ x e κ m `{ m ₘ⪯ₑ Γ₁ } :
+       x ∉ (env_dom Γ₁) →
+       (x,τ) ::? Γ₁ ⊨ e : ρ : κ ⫤ [] -∗
+       Γ₁ ⊨ₚ (λ: x, e) : (τ -{ ρ }-[m]-> κ).
+     Proof.
+       iIntros (?) "#He". iApply sem_typed_mbang.
+       iEval (rewrite -(app_nil_r Γ₁)). iApply sem_oval_typed_afun; auto;
+       rewrite app_nil_r; first done. iApply "He".
+     Qed.
+     
+     Lemma sem_typed_let τ ρ κ Γ₁ Γ₂ Γ₃ x e₁ e₂: 
+       x ∉ (env_dom Γ₂) → x ∉ (env_dom Γ₃) →
+       Γ₁ ⊨ e₁ : ρ : τ ⫤ Γ₂ -∗
+       (x, τ) :: Γ₂ ⊨ e₂ : ρ : κ ⫤ Γ₃ -∗
+       Γ₁ ⊨ (let: x := e₁ in e₂) : ρ : κ ⫤ Γ₃.
+     Proof.
+       iIntros (??) "#He₁ #He₂ !# %γ HΓ₁ /=".
+       iApply (ewpw_bind [AppRCtx _]); first done. simpl.
+       iApply (ewpw_mono with "[HΓ₁]"); first (by iApply "He₁").
+       iIntros "!# % [Hτ HΓ₂] !> /=". ewpw_pure_steps.
+       rewrite -subst_map_insert.
+       iApply (ewpw_mono with "[Hτ HΓ₂]"); first (iApply "He₂"; solve_env).
+       iIntros "!# % [Hτκ HΓ₃] !> /=".
+       solve_env.
      Qed. *)
+
+
 
   (* Generic App Rule *)
   Lemma sem_typed_app_gen τ ρ' ρ ρ'' κ Γ1 Γ2 Γ3 e1 e1' e2 e2' `{ ρ' ᵣ⪯ₜ τ } `{ ρ'' ᵣ⪯ₑ Γ3 } :

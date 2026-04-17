@@ -8,7 +8,7 @@ From iris.algebra Require Import list.
 From stdpp Require Import base gmap.
 
 (* Local imports *)
-From clutch.prob_eff_lang.probblaze Require Import notation mode sem_def sem_sig sem_row sem_types logic mode. 
+From clutch.prob_eff_lang.probblaze Require Import notation mode sem_def sem_sig sem_row sem_types logic mode pure_weakestpre. 
 
 (* Semantic typing judgment. *)
 
@@ -61,7 +61,7 @@ Notation "⊨ e1 ≤ e2 : ρ : τ" := (sem_typed [] e1%E e2%E ρ%R τ%T [])
    Notation "⊨ₚ e : α" := (sem_oval_typed [] e%E α%T [])
      (at level 74, e, α at next level) : bi_scope. *)
 
-Definition sem_val_typed `{!probblazeRGS Σ} 
+Definition sem_val_typed `{!probblazeRGS Σ}
   (v1 v2 : val) 
   (A : sem_ty Σ) : iProp Σ := tc_opaque (□ (A v1 v2))%I.
 
@@ -75,3 +75,19 @@ Global Instance sem_typed_val_persistent `{!probblazeRGS Σ} v1 v2 τ :
 Proof.
   unfold sem_val_typed, tc_opaque. apply _.
 Qed.
+
+Definition sem_oval_typed `{!probblazeRGS Σ} (Γ : env Σ) e1 e2 τ : iProp Σ :=
+  tc_opaque (□ (∀ vs : (gmap string (val * val)), 
+               env_sem_typed Γ vs -∗
+               prel (subst_map (fst <$> vs) e1) (subst_map (snd <$> vs) e2) τ))%I.
+
+Global Instance sem_oval_typed_persistent `{!probblazeRGS Σ} Γ e1 e2 τ :
+  Persistent (sem_oval_typed Γ e1 e2 τ).
+Proof.
+  unfold sem_oval_typed, tc_opaque. apply _.
+Qed. 
+
+Notation "Γ ⊨ₚ e1 ≤ e2 : α" := (sem_oval_typed Γ e1%E e2%E α%T)
+  (at level 74, e1, e2, α at next level) : bi_scope.  
+Notation "⊨ₚ e1 ≤ e2 : α" := (sem_oval_typed [] e1%E e2%E α%T)
+  (at level 74, e1, e2, α at next level) : bi_scope.

@@ -281,6 +281,20 @@ the same variable occurs twice in Γ we get that:
   it would be impossible to provide env_sem_typed proof.
 *)
 
+Global Instance elem_binder_string : (ElemOf binder (list string)) | 10 := 
+  (λ b xs, match b with
+              BAnon => False%type
+            | BNamed x => x ∈ xs
+           end).
+
+Definition cons_maybe {A} (x : binder * A) (xs : list (string * A)) : list (string * A) :=
+  match x with
+    (BAnon, _) => xs
+  | (BNamed x', a) => (x',a) :: xs
+  end.
+Infix "::?" := cons_maybe (at level 60, right associativity) : list_scope.
+
+
 Definition env Σ := (list (string * sem_ty Σ)).
 
 Declare Scope sem_env_scope.

@@ -738,8 +738,8 @@ Module le.
     _row D b ρ2 ρ3 →
     _row D b ρ1 ρ3
 
-  (* | RUnfold_le D b ρ : _row D b (RRec ρ) (ρ.[RRec ρ/])
-     | RFold_le D b ρ : _row D b (ρ.[RRec ρ/]) ρ *)
+  | RUnfold_le D b ρ : _row D b (RRec ρ) (ρ.[RRec ρ/])
+  | RFold_le D b ρ : _row D b (ρ.[RRec ρ/]) (RRec ρ)
 
   | RFlipNil_le D b m : _row D b (RFlip m RNil) RNil
   | RFlipCons_le D b m σ ρ : _row D b (RFlip m (RCons σ ρ)) (RCons (SFlip m σ) (RFlip m ρ))
@@ -806,12 +806,14 @@ Module le.
   | TBangTForallRComm1_le D m α : _type D (TBang m (TForallR α)) (TForallR (TBang m α))
   | TBangTForallRComm2_le D m α : _type D (TForallR (TBang m α)) (TBang m (TForallR α)).
 
-  Definition _ctx (D : disj_ctx) (Γ1 Γ2 : ctx) : Prop :=
-    Forall (λ y : (string * list type), let (x, ts) := y in 
-                 match Γ1 !! x with
-                 | None => False
-                 | Some rs => Forall (λ t, Exists (λ r, _type D r t) rs) ts
-                 end) (map_to_list Γ2).
+  Definition list_type_le D (ts rs : list type) : Prop :=
+    ∃ l, l ⊆+ rs → Forall2 (_type D) ts l.  
+
+  Definition _ctx (D : disj_ctx) (Γ1 Γ2 : ctx) : Prop := Forall (λ (y : (string * list type)), let (x, ts) := y in
+                                                                   match Γ1 !! x with
+                                                                           | None => False 
+                                                                           | Some rs => list_type_le D rs ts
+                                                                           end) (map_to_list Γ2).
 
   Definition MultiT (τ : type) : Prop := _type ∅ τ (![MS] τ).
 
@@ -1126,7 +1128,14 @@ Inductive typed :
   Δ .| Γ1' ⊢ₜ e : ρ' : τ' ⊣ Γ2' →
                        Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2
 
-  
+| Contraction_typed Δ Γ1 Γ2 e ρ τ x κ :
+  le.MultiT κ →
+  Δ .| <[ x :=c κ ]> <[ x :=c κ ]> Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2 →
+  Δ .| <[ x :=c κ ]> Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2
+                           
+| Weakening_typed Δ Γ1 Γ2 e ρ τ x κ :
+  Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2 →
+  Δ .| <[ x :=c κ ]> Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2
 
 with val_typed : val → type → Prop :=
 | Unit_val_typed : ⊢ᵥ LitV LitUnit : ()
@@ -1159,4 +1168,25 @@ with val_typed : val → type → Prop :=
 where "Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2" := (typed Δ Γ1 e ρ τ Γ2)
 and "⊢ᵥ e : τ" := (val_typed e τ).                   
  
-  
+Section derived_rules. 
+
+  Lemma CRefl_le D Γ : D ⊢ Γ ≤C Γ.
+  Proof. 
+  Admitted. 
+
+  Lemma SRefl_le D e : D ⊢ e ≤S e.
+  Proof. 
+    induction e; by repeat constructor.
+  Qed. 
+
+  Lemma RRefl_le D ρ b : D ⊢ ρ ≤R ρ @ b.
+  Proof.
+    generalize dependent b. revert ρ. induction ρ; intros b; repeat constructor.
+    - apply SRefl_le.
+    - apply IHρ.
+    - apply IHρ.
+    - eapply le.RTrans_le.
+      + apply le.RUnfold_le.
+      + apply le.RFold_le.
+  Qed. 
+
