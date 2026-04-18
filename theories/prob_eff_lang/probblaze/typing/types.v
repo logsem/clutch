@@ -585,40 +585,40 @@ Section ctx.
          end. 
      Definition ctx_append (Γ1 Γ2 : ctx) : ctx := gmap_merge _ _ _ merge_aux Γ1 Γ2. *)
 
-  (* Definition ctx := list (string * type).
+  Definition ctx := list (string * type).
+  
+  Definition ctx_insert (x : string) (t : type) (Γ : ctx) := (x, t) :: Γ.
+  
+  Definition ctx_append (Γ1 Γ2 : ctx) := Γ1 ++ Γ2.
+  
+  Global Instance empty_ctx : Empty ctx := [].
+  
+  Definition ctx_dom (Γ : ctx) : gset string := ⋃ ((λ '(s, _), {[s]}) <$> Γ).
+
+  (* Definition ctx := gmap string (list type).
      
-     Definition ctx_insert (x : string) (t : type) (Γ : ctx) := (x, t) :: Γ.
+     Definition ctx_insert (x : string) (τ : type) (Γ : ctx) :=
+       match Γ !! x with
+       | None => <[ x := [τ] ]> Γ
+       | Some ls => <[ x := τ :: ls ]> Γ
+       end.
      
-     Definition ctx_append (Γ1 Γ2 : ctx) := Γ1 ++ Γ2.
+     Definition ctx_overwrite (x : string) (τ : type) (Γ : ctx) := <[ x := [τ] ]> Γ.
      
-     Global Instance empty_ctx : Empty ctx := [].
+     Definition merge_aux : option (list type) → option (list type) → option (list type) :=
+       λ xs ys, match xs, ys with
+                | x, None
+                | None, x => x
+                | Some x, Some y => Some (x ++ y)
+                end.
+     Definition ctx_append (Γ1 Γ2 : ctx) : ctx := gmap_merge _ _ _ merge_aux Γ1 Γ2.
      
-     Definition ctx_dom (Γ : ctx) : gset string := ⋃ ((λ '(s, _), {[s]}) <$> Γ). *)
-
-  Definition ctx := gmap string (list type).
-
-  Definition ctx_insert (x : string) (τ : type) (Γ : ctx) :=
-    match Γ !! x with
-    | None => <[ x := [τ] ]> Γ
-    | Some ls => <[ x := τ :: ls ]> Γ
-    end.
-
-  Definition ctx_overwrite (x : string) (τ : type) (Γ : ctx) := <[ x := [τ] ]> Γ.
-
-  Definition merge_aux : option (list type) → option (list type) → option (list type) :=
-    λ xs ys, match xs, ys with
-             | x, None
-             | None, x => x
-             | Some x, Some y => Some (x ++ y)
-             end.
-  Definition ctx_append (Γ1 Γ2 : ctx) : ctx := gmap_merge _ _ _ merge_aux Γ1 Γ2.
-
-  Definition ctx_dom (Γ : ctx) := dom Γ.
+     Definition ctx_dom (Γ : ctx) := dom Γ. *)
   
 End ctx.
 
 Notation "'<[' x ':=c' t ']>' Γ" := (ctx_insert x t Γ).
-Notation "'<[' x ':=o' t ']>' Γ" := (ctx_overwrite x t Γ).
+(* Notation "'<[' x ':=o' t ']>' Γ" := (ctx_overwrite x t Γ). *)
 (* Notation "Γ '!!c' x" := (ctx_lookup x Γ) (at level 100, x at next level). *)
 (* Notation "'<[' x ':=c + ]>' Γ" := (ctx_contraction x Γ).
    Notation "'<[' x ':=c - ]>' Γ" := (ctx_remove x Γ). *)
@@ -806,14 +806,28 @@ Module le.
   | TBangTForallRComm1_le D m α : _type D (TBang m (TForallR α)) (TForallR (TBang m α))
   | TBangTForallRComm2_le D m α : _type D (TForallR (TBang m α)) (TBang m (TForallR α)).
 
-  Definition list_type_le D (ts rs : list type) : Prop :=
-    ∃ l, l ⊆+ rs → Forall2 (_type D) ts l.  
+  (* Definition list_type_le D (ts rs : list type) : Prop :=
+       ∃ l, l ⊆+ rs → Forall2 (_type D) ts l.  
+     
+     Definition _ctx (D : disj_ctx) (Γ1 Γ2 : ctx) : Prop := Forall (λ (y : (string * list type)), let (x, ts) := y in
+                                                                      match Γ1 !! x with
+                                                                              | None => False 
+                                                                              | Some rs => list_type_le D rs ts
+                                                                              end) (map_to_list Γ2). *)
 
-  Definition _ctx (D : disj_ctx) (Γ1 Γ2 : ctx) : Prop := Forall (λ (y : (string * list type)), let (x, ts) := y in
-                                                                   match Γ1 !! x with
-                                                                           | None => False 
-                                                                           | Some rs => list_type_le D rs ts
-                                                                           end) (map_to_list Γ2).
+  Fixpoint _ctx (D : disj_ctx) (Γ Γ' : ctx) : Prop := 
+    match Γ with
+    | [] => True
+    | (x,t) :: Γ_tail => 
+        ∃ t' pre post, Γ' = pre ++ (x, t') :: post ∧ _type D t t' ∧ _ctx D Γ_tail (pre ++ post)
+  end.
+
+  (* Fixpoint _ctx D (Γ Γ' : ctx) : Prop := 
+       match Γ, Γ' with
+       | (x,t) :: Γ, [] => False
+       | (x,t) :: Γ, (x',t') :: Γ' => x = x' ∧ _type D t t' ∧ _ctx D Γ Γ'
+       | [], _ => True
+       end.  *)
 
   Definition MultiT (τ : type) : Prop := _type ∅ τ (![MS] τ).
 
@@ -821,9 +835,9 @@ Module le.
 
   (* Lifting Multi from types to ctx *)
   (* for multiset map *)
-  (* Definition MultiC (Γ : ctx) : Prop := Forall MultiT (fmap fst (fmap snd (map_to_list Γ))).  *)
+  (* Definition MultiC (Γ : ctx) : Prop := Forall MultiT (fmap fst (fmap snd (map_to_list Γ))). *)
   (* for lists *)
-  Definition MultiC (Γ : ctx) : Prop := Forall MultiT (concat (snd <$> (map_to_list Γ))).
+  Definition MultiC (Γ : ctx) : Prop := Forall MultiT (snd <$> Γ).
 
   Inductive _mode_type : vmode → type → Prop :=
   | OS_le τ : _mode_type OS τ
@@ -965,8 +979,11 @@ Module vars.
        ⋃ ((λ '(_, (α, _)), _ty α) <$> (map_to_list Γ)). *)
   (* Definition _ctx (Γ : ctx) : gset eff_name :=
          ⋃ ((λ '(_, α), _ty α) <$> Γ). *)
+  (* Definition _ctx (Γ : ctx) : gset eff_name :=
+        ⋃ ((λ '(_, αs), ⋃ (_ty <$> αs)) <$> (map_to_list Γ)). *)
   Definition _ctx (Γ : ctx) : gset eff_name :=
-     ⋃ ((λ '(_, αs), ⋃ (_ty <$> αs)) <$> (map_to_list Γ)).
+    ⋃ ((λ '(_, α), _ty α) <$> Γ).
+
 
   (* REMARK : unsure if we need to make the check that s is free in dom Γ *)
   (* since this is probably dependent on the implementation of subst *)
@@ -984,8 +1001,8 @@ End vars.
 
 (* Shift all the indices in the context by one, *)
 (*    used when inserting a new type interpretation in Δ. *)
-Definition up_list_type (ts : list type) : list type := subst (ren (+1)) <$> ts.
-Notation "⤉ Γ" := (up_list_type <$> (Γ : ctx)) (at level 10, format "⤉ Γ").
+(* Definition up_list_type (ts : list type) : list type := subst (ren (+1)) <$> ts. *)
+Notation "⤉ Γ" := ((λ '(x, α), (x, α.[ren (+1)])) <$> (Γ : ctx)) (at level 10, format "⤉ Γ").
 
 Reserved Notation "Δ '.|' Γ1 '⊢ₜ' e ':' ρ ':' τ '⊣' Γ2"
   (at level 74, Γ1, e, ρ, τ, Γ2 at next level).
@@ -997,8 +1014,7 @@ Inductive typed :
   stringmap unit → ctx → expr → row → type → ctx → Prop :=
 
 | Var_typed Δ Γ x τ :
-  (∃ αs, Γ !! x = Some αs ∧ τ ∈ αs) → 
-  Δ .| Γ ⊢ₜ Var x : RNil : τ ⊣ Γ
+  Δ .| <[ x :=c τ ]> Γ ⊢ₜ Var x : RNil : τ ⊣ Γ
 
 | Val_typed Δ Γ v ρ τ :
   ⊢ᵥ v : τ →
@@ -1036,7 +1052,7 @@ Inductive typed :
 (* TODO: consider other rules for affine function types *)
 | Rec_typed Δ Γ Γ' f x e ρ τ κ :
   (* match f with BNamed f => BNamed f ≠ x | BAnon => True end → *)
-  Δ .| <[ f :=o (τ -{ ρ }-> κ)%ty ]> <[ x :=o τ ]> Γ ⊢ₜ e : ρ : κ ⊣ ∅ →
+  Δ .| <[ f :=c (τ -{ ρ }-> κ)%ty ]> <[ x :=c τ ]> Γ ⊢ₜ e : ρ : κ ⊣ ∅ →
                                                                 Δ .| Γ ;; Γ' ⊢ₜ Rec f x e : RNil : τ -{ ρ }-> κ ⊣ Γ'
 (* A analogous rule for -∘ can be derived from Sub_typed and Rec_typed *)
 
@@ -1080,7 +1096,7 @@ Inductive typed :
      Δ .| Γ1 ⊢ₜ e : ρ : (∃: τ) ⊣ Γ2
 | TUnpack Δ Γ1 Γ2 Γ3 e1 x e2 ρ τ τ2 :
      Δ .| Γ1 ⊢ₜ e1 : ρ : (∃: τ) ⊣ Γ2 →
-     Δ .| <[x:=o τ]> (⤉ Γ2) ⊢ₜ e2 : ρ : τ2.[ren (+1)] ⊣ Γ3 →
+     Δ .| <[x:=c τ]> (⤉ Γ2) ⊢ₜ e2 : ρ : τ2.[ren (+1)] ⊣ Γ3 →
      Δ .| Γ1 ⊢ₜ (unpack: x := e1 in e2) : ρ : τ2 ⊣ Γ3
 (* TODO: add to subsumption rules
    | Subsume_int_nat Γ e : Γ ⊢ₜ e : TNat → Γ ⊢ₜ e : TInt *)
@@ -1106,8 +1122,8 @@ Inductive typed :
   let ρ := RCons σ ρ0 in
   let ρ' := RCons (SFlip m (SSig s ι κ)) ρ0 in
   Δ .| Γ1 ⊢ₜ e : ρ' : τ ⊣ Γ2 →
-  Δ .| <[ y :=o τ ]> (Γ2 ;; Γ) ⊢ₜ r : ρ : τ' ⊣ Γ3 →
-  Δ .| <[ x :=o ι ]> <[ k :=c ![m] (κ -{ ρ }-∘ τ') ]> Γ ⊢ₜ h : ρ : τ' ⊣ Γ3 →
+  Δ .| <[ y :=c τ ]> (Γ2 ;; Γ) ⊢ₜ r : ρ : τ' ⊣ Γ3 →
+  Δ .| <[ x :=c ι ]> <[ k :=c ![m] (κ -{ ρ }-∘ τ') ]> Γ ⊢ₜ h : ρ : τ' ⊣ Γ3 →
   Δ .| (Γ1 ;; Γ) ⊢ₜ (Handle Deep m s e (Lam x (Lam k h)) (Lam y r)) : ρ : τ' ⊣ Γ3
 
 | ShallowHandle_typed Δ Γ1 Γ2 Γ3 Γ (m : mode) s e x k h y r ρ0 σ τ τ' ι κ :
@@ -1117,8 +1133,8 @@ Inductive typed :
   ρ R⪯C Γ →
   let ρ' := RCons (SFlip m (SSig s ι κ)) ρ0 in
   Δ .| Γ1 ⊢ₜ e : ρ' : τ ⊣ Γ2 →
-  Δ .| <[ y :=o τ ]> (Γ2 ;; Γ) ⊢ₜ r : ρ : τ' ⊣ Γ3 →
-  Δ .| <[ x :=o ι ]> <[ k :=o ![m] (κ -{ ρ' }-∘ τ) ]> Γ ⊢ₜ h : ρ : τ' ⊣ Γ3 →
+  Δ .| <[ y :=c τ ]> (Γ2 ;; Γ) ⊢ₜ r : ρ : τ' ⊣ Γ3 →
+  Δ .| <[ x :=c ι ]> <[ k :=c ![m] (κ -{ ρ' }-∘ τ) ]> Γ ⊢ₜ h : ρ : τ' ⊣ Γ3 →
   Δ .| (Γ1 ;; Γ) ⊢ₜ Handle Shallow m s e (Lam x (Lam k h)) (Lam y r) : ρ : τ' ⊣ Γ3
     
 | Sub_typed Δ Γ1 Γ1' Γ2 Γ2' ρ ρ' b τ τ' e : 
@@ -1153,7 +1169,7 @@ with val_typed : val → type → Prop :=
   ⊢ᵥ v : τ2 →
          ⊢ᵥ InjRV v : (τ1 + τ2)
 | Rec_val_typed f x e τ1 ρ τ2 :
-  ∅ .| <[f:=o τ1 -{ ρ }-> τ2]>(<[x:=o τ1]> ∅) ⊢ₜ e : ρ : τ2 ⊣ ∅ →
+  ∅ .| <[f:=c τ1 -{ ρ }-> τ2]>(<[x:=c τ1]> ∅) ⊢ₜ e : ρ : τ2 ⊣ ∅ →
                                          ⊢ᵥ RecV f x e : (τ1 -{ ρ }-> τ2)
 | TAbs_val_typed v τ :
   ⊢ᵥ v : τ →
@@ -1170,8 +1186,54 @@ and "⊢ᵥ e : τ" := (val_typed e τ).
  
 Section derived_rules. 
 
-  Lemma CRefl_le D Γ : D ⊢ Γ ≤C Γ.
+  Lemma CRefl_le D Γ :
+      D ⊢  Γ ≤C Γ.
+  Proof.
+    induction Γ as [| [x t] Γ_tail IH].
+    - simpl. exact I.
+    - simpl.
+      (* We need to provide t', pre, and post *)
+      exists t, [], Γ_tail.
+      split; [reflexivity |].
+      split; [apply le.TRefl_le |].
+      apply IH.
+  Qed.
+
+  (* Lemma: If Γ' is a permutation of Γ'', and we can match Γ into Γ', 
+   we can also match it into Γ''. *)
+  Lemma _ctx_perm_right : forall D Γ Γ' Γ'',
+      le._ctx D Γ Γ' ->
+      Permutation Γ' Γ'' ->
+      le._ctx D Γ Γ''.
+  Proof.
+    intros D Γ. induction Γ as [| [x t] Γ_tail IH].
+    - simpl. auto.
+    - intros Γ' Γ'' Hctx Hperm. simpl in *.
+      destruct Hctx as [t' [pre [post [Heq [Htype Hrest]]]]].
+      subst Γ'.
+      (* Since (pre ++ (x, t') :: post) is permuted to Γ'', 
+       (x, t') must exist somewhere in Γ'' *)
+      assert (H_in: In (x, t') Γ''). {
+        apply Permutation_in with (l := pre ++ (x, t') :: post); first done.
+        apply in_elt.
+      }
+      (* Decompose Γ'' around (x, t') *)
+      apply in_split in H_in. destruct H_in as [pre' [post' Heq'']].
+      exists t', pre', post'.
+      split. { assumption. }
+      split. { assumption. }
+      (* The key: the remainders are also permutations *)
+      apply IH with (Γ' := pre ++ post).
+      + assumption.
+      + admit.
+  Admitted. 
+
+  Lemma CTrans_le D Γ1 Γ2 Γ3 :
+    D ⊢ Γ1 ≤C Γ2 → D ⊢ Γ2 ≤C Γ3 → D ⊢ Γ1 ≤C Γ3.
   Proof. 
+    induction Γ1 as [| [x t1] Γ1_tail IH]; [done|].
+    intros (τ&pre&post&->&Hle1) Hle2.
+    simpl in *.
   Admitted. 
 
   Lemma SRefl_le D e : D ⊢ e ≤S e.
@@ -1190,3 +1252,4 @@ Section derived_rules.
       + apply le.RFold_le.
   Qed. 
 
+End derived_rules.
