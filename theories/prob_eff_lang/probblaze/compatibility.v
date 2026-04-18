@@ -384,10 +384,10 @@ Section compatibility.
     sem_oval_typed Γ1 (λ: x, e1) (λ: x, e2) (τ -{ ρ }-∘ κ).
   Proof.
     iIntros (?) "#He !# %γ HΓ1 //=".
-    rewrite /prel /=. iExists _,_,1%nat,1%nat,_,_.
+    rewrite /prel /=. iExists _,_,1%nat,1%nat.
     iSplit.
     - iPureIntro. repeat split.
-      2,4 : apply pure_recc. all : done.
+      all: by apply pure_recc.
     - rewrite /sem_ty_arr /=. 
       iIntros (??) "Hτ".
       iApply brel_pure_step_r; first done. 
@@ -405,38 +405,50 @@ Section compatibility.
        Γ₁ ++ Γ₂ ⊨ (λ: x, e) : ⟨⟩ : (τ -{ ρ }-∘ κ) ⫤ Γ₂.
      Proof.
        iIntros (??) "He". iApply sem_typed_oval. by iApply sem_oval_typed_afun.
-     Qed.
+     Qed. *)
      
-     Lemma sem_oval_typed_ufun τ ρ κ Γ₁ f x e `{! MultiE Γ₁ }:
-       x ∉ (env_dom Γ₁) → f ∉ (env_dom Γ₁) → 
+     Lemma sem_oval_typed_ufun τ ρ κ Γ1 f x e1 e2 `{! MultiE Γ1 }:
+       x ∉ (env_dom Γ1) → f ∉ (env_dom Γ1) → 
        match f with BNamed f => BNamed f ≠ x | BAnon => True end →
-       (x, τ) ::? (f, τ -{ ρ }-> κ) ::? Γ₁ ⊨ e : ρ : κ ⫤ [] -∗
-       Γ₁ ⊨ₚ (rec: f x := e) : (τ -{ ρ }-> κ).
+       ⊢ sem_typed ((x, τ) ::? (f, τ -{ ρ }-> κ) ::? Γ1) e1 e2 ρ κ [] -∗
+       sem_oval_typed Γ1 (rec: f x := e1) (rec: f x := e2) (τ -{ ρ }-> κ).
      Proof.
-       iIntros (???) "#He !# %γ HΓ₁ //=".
-       iApply pwp_pure_step'; [by auto using pure_prim_step_Rec|]. iApply pwp_value'.
-       iDestruct "HΓ₁" as "#HΓ₁".
+       iIntros (???) "#He !# %γ #HΓ1 //=".
+       rewrite /prel /=. iExists _,_,1%nat,1%nat.
+       iSplit; first (iPureIntro; repeat split; by apply pure_recc).
        iLöb as "IH". rewrite /sem_ty_mbang /sem_ty_arr /=.
-       iIntros "!# %w Hτ".
-       ewpw_pure_steps. destruct f; destruct x; simpl.
-       - iApply ewpw_mono; [by iApply "He"|iIntros "!# % [$ _] //="].
-       - rewrite -subst_map_insert. 
-         iApply (ewpw_mono with "[Hτ]"); 
-           [iApply "He"; solve_env|iIntros "!# % [$ _] //="].
-       - rewrite -subst_map_insert.
-         iApply (ewpw_mono with "[Hτ]"); 
-           [iApply "He"; solve_env|iIntros "!# % [$ _] //="].
+       iIntros "!# % % Hτ".
+       iApply brel_pure_step_r; first done.
+       iApply brel_pure_step_later; first done. iModIntro.
+       destruct f; destruct x; simpl.
+       - iApply brel_wand; [by iApply "He"|iIntros (??) "!# ($&_)"].
+       - rewrite -!subst_map_insert.
+         assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (->&->) by done.
+         rewrite -!fmap_insert. simpl. 
+         iApply (brel_wand with "[Hτ]"); [iApply "He"|iIntros (??) "!# ($&_)"].
+         solve_env.
+       - rewrite -!subst_map_insert.
+         assert ((rec: _ _ := _)%V = fst (_,(rec: s <> := subst_map (delete s (snd <$> γ)) e2)%V)) as -> by done.
+         assert ((rec: s <> := subst_map _ e2)%V = snd ((rec: s <> := subst_map (delete s (fst <$> γ)) e1)%V, _)) as -> by done.
+         rewrite -!fmap_insert; simpl.
+         iApply brel_wand; [iApply "He"|iIntros (??) "!# ($&_)"].
+         solve_env.
        - assert (s ≠ s0) by (intros ?; simplify_eq).
-         rewrite subst_subst_ne; last done.
-         rewrite -subst_map_insert.
-         rewrite -delete_insert_ne; last done. 
-         rewrite -subst_map_insert.
-         iApply (ewpw_mono with "[Hτ]"); 
-           [iApply "He"; solve_env|iIntros "!# % [$ _] //="].
+         do 2 (rewrite subst_subst_ne; last done;
+               rewrite -subst_map_insert;
+               rewrite -delete_insert_ne; last done;
+               rewrite -subst_map_insert).
+         assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (->&->) by done.
+         rewrite -!fmap_insert; simpl.
+         assert ((rec: _ _ := _)%V = fst (_,(rec: s s0 := subst_map (delete s0 (delete s (snd <$> γ))) e2)%V)) as -> by done.
+         assert ((rec: s s0 := subst_map _ e2)%V = snd ((rec: s s0 := subst_map (delete s0 (delete s (fst <$> γ)))  e1)%V, _)) as -> by done.
+         rewrite -!fmap_insert; simpl.
+         iApply (brel_wand with "[Hτ]"); [iApply "He"|iIntros (??) "!# ($ &_)"].
+         solve_env.
          by do 2 (rewrite -env_sem_typed_insert; last done).
-     Qed.
-     
-     Corollary sem_typed_ufun τ ρ κ Γ₁ Γ₂ f x e `{! MultiE Γ₁ }:
+     Qed.          
+
+   (*  Corollary sem_typed_ufun τ ρ κ Γ₁ Γ₂ f x e `{! MultiE Γ₁ }:
        x ∉ (env_dom Γ₁) → f ∉ (env_dom Γ₁) → 
        match f with BNamed f => BNamed f ≠ x | BAnon => True end →
        (x, τ) ::? (f, τ -{ ρ }-> κ) ::? Γ₁ ⊨ e : ρ : κ ⫤ [] -∗
@@ -760,11 +772,14 @@ Section compatibility.
   Qed.
 
   (* Type abstraction and application *)
-  Lemma sem_typed_TLam C (* Γ1 *) v1 v2 : 
-    ⊢ (∀ α, (* (∀ γ, Γ1 ⊨ₑ γ -∗ *) (C α) (* (subst_map (fst <$> γ) *) (Val v1)(* ) *) (* (subst_map (snd <$> γ) *) (Val v2))(*) ) *) -∗
-    ((* ∀ γ, Γ1 ⊨ₑ γ -∗  *)(∀ₜ α , C α) (* (subst_map (fst <$> γ) *) v1(* )  (subst_map (snd <$> γ) *) v2(* ) *)).
+  (* TODO: relies on prel_forall *)
+  Lemma sem_typed_TLam C Γ1 e1 e2 : 
+     ⊢ (∀ α, sem_oval_typed Γ1 e1 e2 (C α)) -∗
+           sem_oval_typed Γ1 e1 e2 (∀ₜ α, C α).
   Proof.
-    iIntros "Hv //=".
+     iIntros "#He !# %γ HΓ1 //=".
+     iApply prel_forall.
+     iIntros (α). by iApply "He".
   Qed.
 
   Lemma sem_typed_TApp C τ ρ Γ1 Γ2 e1 e2 :
@@ -777,10 +792,13 @@ Section compatibility.
   Qed.
 
   (* row abstraction and application *)
-  Lemma sem_typed_RLam C v1 v2 :
-    ⊢ (∀ θ, (C θ) v1 v2) -∗ (∀ᵣ θ, C θ) v1 v2.
+  Lemma sem_typed_RLam C Γ1 e1 e2 :
+    ⊢ (∀ α, sem_oval_typed Γ1 e1 e2 (C α)) -∗
+    sem_oval_typed Γ1 e1 e2 (∀ᵣ α, C α).
   Proof.
-    iIntros "Hvv //=".
+     iIntros "#He !# %γ HΓ1 //=".
+     iApply prel_forall.
+     iIntros (α). by iApply "He".
   Qed.
 
   Lemma sem_typed_RApp C ρ ρ' Γ1 Γ2 e1 e2 :
@@ -793,10 +811,13 @@ Section compatibility.
   Qed.
 
   (* mode abstraction and application *)
-  Lemma sem_typed_MLam C v1 v2 : 
-    ⊢ (∀ ν, (C ν) v1 v2) -∗ (∀ₘ ν, C ν) v1 v2.
+  Lemma sem_typed_MLam C Γ1 e1 e2 : 
+    ⊢ (∀ α, sem_oval_typed Γ1 e1 e2 (C α)) -∗
+    sem_oval_typed Γ1 e1 e2 (∀ₘ α, C α).
   Proof.
-    iIntros "Hvv //=".
+     iIntros "#He !# %γ HΓ1 //=".
+     iApply prel_forall.
+     iIntros (α). by iApply "He".
   Qed.
 
   Lemma sem_typed_MApp C ρ m Γ1 Γ2 e1 e2 :
@@ -817,7 +838,6 @@ Section compatibility.
     iApply (brel_wand with "[HΓ1]"); first by iApply "He".
     iIntros "!# % % (HC & $) //=". by iExists _. 
   Qed.
-
 
   Lemma sem_typed_unpack C κ ρ Γ1 Γ2 Γ3 x e1 e1' e2 e2' :
     x ∉ env_dom Γ2 → x ∉ env_dom Γ3 →
