@@ -241,6 +241,7 @@ Section handlee_verification.
     iApply brel_alloc_l. iIntros (lb) "!> Hlb".
     brel_pures_r.
     do 3 rewrite subst_is_closed_empty; try done.
+    
     iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
     iApply brel_couple_TU; [done|]. iFrame. simpl. iIntros (a) "Hα".
     iDestruct "Hβ" as (ms) "(%Hf' & Hβ)". apply map_eq_nil in Hf'. simplify_eq.
@@ -562,8 +563,7 @@ Section handlee_verification.
     { iNext; iLeft;iFrame. }
     iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
     { iNext; iFrame. }
-    iModIntro.
-    
+    iModIntro.    
     iApply (brel_na_alloc
               ((β ↪ₛN (n; [b]) ∗ lb ↦ₛ NONEV)
                ∨ (β ↪ₛ□ (n; [])
@@ -586,6 +586,7 @@ Section handlee_verification.
     iApply (brel_exhaustion with "[$]"); [done|done|].
 
     iLöb as "IH".
+    
     
     iSplit; [iIntros (v1 v2) "!# (-> & ->)"; by brel_pures|].
     

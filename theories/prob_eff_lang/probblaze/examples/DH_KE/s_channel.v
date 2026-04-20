@@ -20,7 +20,7 @@ Section sec_channel.
 
   (*In this implementation, we are not parametrizing by the party*)
   (*Unidirectional channel ideal functionality for sending ONE message *)
-  Definition F_OAUTH (channel : label) f : expr :=
+  Definition F_OAUTH (leak' channel : label) f : expr :=
      let: "message" := ref NONEV in
      handle: f with
      | effect channel "payload", rec "k" as multi =>
@@ -30,12 +30,12 @@ Section sec_channel.
           let, ("m", "dst") := "payload" in
           match: !"message" with
           | NONE => "message" <- SOME "m" ;;
-                   (do: channel (Send ("m", "dst")));; "k" #()%V
+                   (do: leak' (Send ("m", "dst")));; "k" #()%V
           | SOME "message" => "k" #()%V
           end
       (* Receive Auth *)
       | InjR "from" => 
-          let: "r" := (do: channel (Recv "from")) in
+          let: "r" := (do: leak' (Recv "from")) in
           match: "r" with
           | NONE => "k" NONEV
           | SOME "x" => "k" !"message"                         
@@ -50,10 +50,10 @@ Section sec_channel.
 
   (*ONE message unidirectional secure channel functionality.
     Assume a fixed direction of sending the message, from Alice to Bob *)
-  Definition CHAN (getKey channel : label) f : expr :=
+  Definition CHAN (getKey schannel channel : label) f : expr :=
     let: "message" := ref NONEV in
     handle: f with
-    | effect channel "payload", rec "k" as multi =>
+    | effect schannel "payload", rec "k" as multi =>
         match: "payload" with
           (*SendSecure*)
         | InjL "payload" =>
@@ -91,10 +91,10 @@ Section sec_channel.
   
                                            
   (* Ideal functionality of the ONE-SHOT secure channel *)
-  Definition F_CHAN (channel : label) f : expr :=
+  Definition F_CHAN (schannel channel : label) f : expr :=
     let: "message" := ref NONEV in
     handle: f with
-    | effect channel "payload", rec "k" as multi =>
+    | effect schannel "payload", rec "k" as multi =>
         match: "payload" with
           (*SendSecure*)
         | InjL "payload" =>
@@ -118,7 +118,7 @@ Section sec_channel.
                         
  (*Simulator for the one message secure channel *)
  (* Assumes a fixed direction from Alice to Bob *)       
-  Definition CHAN_SIM (channel leak : label) (f : expr) : expr :=
+  Definition CHAN_SIM (leak' leak channel : label) (f : expr) : expr :=
     let: "α" := alloc #n in
     let: "message" := ref NONEV in
     handle: f with
@@ -141,12 +141,12 @@ Section sec_channel.
                                      | SOME "m" => "m"
                                      end) in
                               let: "mA" := g^"m" in
-                              (do: channel (Send ("mA", alice)));;
+                              (do: leak' (Send ("mA", alice)));;
                               "k" #()%V
                           end
                             
          | InjR "from " =>
-             let: "r" := do: channel (Recv "from") in
+             let: "r" := do: leak' (Recv "from") in
                            match: "r" with
                            | NONE => "k" NONE
                            | SOME "x" =>
@@ -154,7 +154,21 @@ Section sec_channel.
                                "k" (SOME #0)
                            end                             
         end
-    | return "y" => "y" end.
+     | return "y" => #()%V end.
+
+                           
+    (*Definition CHAN_SIM (channel leak : label) (f : expr) : expr :=
+      let: "α" := alloc #n in
+      let: "message" := ref NONEV in
+      handle: f with
+      | effect channel "payload", rec "k" as multi =>
+          match: "payload" with
+          | InjL "payload" =>
+              let, ("m", "dst") := "payload" in
+              
+          | InjR "from" =>
+          end
+      | return "y" => #()%V end.*)
 
 
     Definition F_KE_L (getKey channel leak : label) f : expr :=
