@@ -1924,7 +1924,7 @@ End baze_rules.
 (* blaze: A Logic for Dynamic Labels. *)
 
 (* ------------------------------------------------------------------------- *)
-(* Model. TODO: adapt brel to invariants and OS/Shallow handler *)
+(* Model. *)
 
 Section brel.
   Context `{!probblazeRGS Σ}.
@@ -2405,6 +2405,29 @@ Section to_iThy.
       - iIntros "!>". by iApply valid_submseteq.
       - iIntros "!>". iPureIntro. by apply distinct_submseteq.
     Qed.
+
+    Lemma to_iThy_le_sum (L : iLblThy Σ) ls1 ls2 ls1' ls2' X Y :
+      ⊢ to_iThy_le ((ls1 ++ ls1', ls2 ++ ls2', iThySum X Y) :: L) ((ls1, ls2, X) :: (ls1', ls2', Y) :: L).
+    Proof. 
+      iSplit; last first.
+      - iSplit; iModIntro.
+        + iIntros "#(Hleft & Hright)"; iSplit; [iApply valid_l_submseteq; last done; unfold labels_l | iApply valid_r_submseteq; last done; unfold labels_r]; 
+            simpl; by rewrite app_assoc.
+        + iIntros "#(%&%)"; iPureIntro; split; [eapply distinct_l_submseteq; last done; unfold labels_l | eapply distinct_r_submseteq; last done; unfold labels_r];
+            simpl; by rewrite app_assoc.
+      - iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum. 
+        assert ((ls1, ls2, X) :: (ls1', ls2', Y) :: L = [(ls1, ls2, X); (ls1', ls2', Y)] ++ L) as -> by done.
+        iApply iThy_le_trans; last iApply (iThy_le_to_iThy_app _ L).
+        iApply iThy_le_sum_l.
+        iIntros (???) "!# (%&%&%&%&%&%&%&%&%&[Hthy|Hthy]&#H)".
+        + iExists _,_,_. iSplitR; first (iPureIntro; apply list_elem_of_here).
+          iExists _,_,_,_,_. iFrame. iFrame "#". repeat iSplit; try by iPureIntro.
+          1,2: iPureIntro; by eapply NeutralEctx_label_app.
+        + iExists _,_,_. iSplitR; first (iPureIntro; apply list_elem_of_further; constructor).
+          iExists _,_,_,_,_. iFrame. iFrame "#". repeat iSplit; try by iPureIntro.
+          1,2: iPureIntro; eapply NeutralEctx_label_app; eapply NeutralEctx_perm. 
+          2,4: done. all: apply Permutation_app_comm.
+    Qed. 
 
   End to_iThy_le.
 

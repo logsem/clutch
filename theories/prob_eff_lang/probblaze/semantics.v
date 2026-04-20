@@ -453,6 +453,26 @@ Proof.
   apply neutral_ectx. rewrite elem_of_cons. by right.
 Qed.
 
+Instance NeutralEctx_perm ls1 ls2 k :
+  ls1 ≡ₚ ls2 → NeutralEctx ls1 k → NeutralEctx ls2 k.
+Proof.
+  intros Hperm Hk. constructor.
+  intros l Hls2.
+  assert (l ∈ ls1) as Hin. 
+  { eapply elem_of_Permutation_proper in Hperm. by apply Hperm. }
+  by apply Hk.
+Qed. 
+
+Instance NeutralEctx_label_app ls1 ls2 k :
+  NeutralEctx (ls1 ++ ls2) k → NeutralEctx ls1 k.
+Proof.
+  induction ls2; first by rewrite app_nil_r.
+  intros Hk. apply IHls2.
+  eapply NeutralEctx_label_cons_inv_2.
+  eapply NeutralEctx_perm; last apply Hk.
+  by rewrite -Permutation_middle.
+Qed.  
+
 (* ------------------------------------------------------------------------- *)
 (** Effects. *)
 
