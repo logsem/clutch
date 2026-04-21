@@ -20,7 +20,7 @@ Section sec_channel.
 
   (*In this implementation, we are not parametrizing by the party*)
   (*Unidirectional channel ideal functionality for sending ONE message *)
-  Definition F_OAUTH (leak' channel : label) f : expr :=
+  Definition F_OAUTH (leakauth channel : label) f : expr :=
      let: "message" := ref NONEV in
      handle: f with
      | effect channel "payload", rec "k" as multi =>
@@ -30,12 +30,12 @@ Section sec_channel.
           let, ("m", "dst") := "payload" in
           match: !"message" with
           | NONE => "message" <- SOME "m" ;;
-                   (do: leak' (Send ("m", "dst")));; "k" #()%V
+                   (do: leakauth (Send ("m", "dst")));; "k" #()%V
           | SOME "message" => "k" #()%V
           end
       (* Receive Auth *)
       | InjR "from" => 
-          let: "r" := (do: leak' (Recv "from")) in
+          let: "r" := (do: leakauth (Recv "from")) in
           match: "r" with
           | NONE => "k" NONEV
           | SOME "x" => "k" !"message"                         
@@ -91,7 +91,7 @@ Section sec_channel.
   
                                            
   (* Ideal functionality of the ONE-SHOT secure channel *)
-  Definition F_CHAN (schannel channel : label) f : expr :=
+  Definition F_CHAN (schannel leaksec: label) f : expr :=
     let: "message" := ref NONEV in
     handle: f with
     | effect schannel "payload", rec "k" as multi =>
@@ -101,13 +101,13 @@ Section sec_channel.
             let, ("m", "dst") := "payload" in
             match: !"message" with
             | NONE => "message" <- SOME "m";;
-                     (do: channel (Send (#0, "dst")));;
+                     (do: leaksec (Send ("dst")));;
                      "k" #()%V 
             | SOME "x" => "k" #()%V
             end
           (*ReceiveSecure*)
         | InjR "from" =>
-            let: "r" := (do: channel (Recv "from")) in
+            let: "r" := (do: leaksec (Recv "from")) in
             match: "r" with
             | NONE => "k" NONEV
             | SOME "x" => "k" !"message"
@@ -118,20 +118,21 @@ Section sec_channel.
                         
  (*Simulator for the one message secure channel *)
  (* Assumes a fixed direction from Alice to Bob *)       
-  Definition CHAN_SIM (leak' leak channel : label) (f : expr) : expr :=
+  Definition CHAN_SIM (leakauth keyleak leaksec : label) (f : expr) : expr :=
     let: "α" := alloc #n in
     let: "message" := ref NONEV in
     handle: f with
-    | effect channel "payload", rec "k" as multi =>
+    | effect leaksec "payload", rec "k" as multi =>
         match: "payload" with
           (*Broadcast a message*)
         | InjL "payload" =>
             (* assuming "dst" is alice for now *)
             let, ("m", "dst") := "payload" in
-            (do: leak ("dst"));;
-            let: "r" := do: channel (Recv bob) in
+            (do: keyleak (Send("dst")));;
+            let: "r" := do: keyleak (Recv bob) in
                           match: "r" with
-                          | NONE => "k" NONE
+                          | NONE =>
+                              "k" NONE
                           | SOME "x" =>
                               let: "m" :=
                                 (match: !"message" with
@@ -141,16 +142,19 @@ Section sec_channel.
                                      | SOME "m" => "m"
                                      end) in
                               let: "mA" := g^"m" in
-                              (do: leak' (Send ("mA", alice)));;
+                              (do: leakauth (Send ("mA", alice)));;
                               "k" #()%V
                           end
                             
-         | InjR "from " =>
-             let: "r" := do: leak' (Recv "from") in
+         | InjR "from" =>
+             let: "r" := do: keyleak (Recv "from") in
                            match: "r" with
-                           | NONE => "k" NONE
+                           | NONE =>
+                               (*(do: leakauth ("from"));;*)
+                               "k" NONE
                            | SOME "x" =>
-                               (do: leak ("from"));;
+                               (do: keyleak (Send (bob)));;
+                               (do: leakauth (Recv "from"));;
                                "k" (SOME #0)
                            end                             
         end
@@ -171,7 +175,7 @@ Section sec_channel.
       | return "y" => #()%V end.*)
 
 
-    Definition F_KE_L (getKey channel leak : label) f : expr :=
+    Definition F_KE_L (getKey keyleak : label) f : expr :=
     (* Magically share a presampled key *)
     let: "c" := (sample #()%V) in
     let: "key" := g ^ "c" in
@@ -182,20 +186,20 @@ Section sec_channel.
           (* Alice *)
           InjL <> =>
             (* Send a dummy value *)
-            (do: leak (bob));;
+            (do: keyleak (Send(alice)));;
             (* Receive a dummy value *)
-            let: "r" := do: channel Recv bob in
+            let: "r" := do:  keyleak (Recv bob) in
             match: "r" with
               NONE => "k" NONEV
             | SOME "w" => "k" (SOME "key")
             end
         (* Bob  *)
         | InjR <> =>
-            let: "r" := do: channel Recv alice in
+            let: "r" := do: keyleak (Recv alice) in
             match: "r" with
               NONE => "k" NONEV
             | SOME "w" => 
-                (do: leak (alice));;
+                (do: keyleak (Send bob));;
                 "k" (SOME "key")
             end
        end

@@ -21,7 +21,7 @@ Import valgroup_tactics.
 
 Section s_channel_verification.
   Context `{probblazeRGS Σ}.
-  Context (channel1 channel2 getKey1 getKey2 leak1 leak2 leak'1 leak'2 schannel1 schannel2: label).
+  Context (channel leaksec getKey1 getKey2 leakauth1 leakauth2 keyleak1 keyleak2 schannel1 schannel2: label).
   Context {vg: val_group}.
   Context {cg: clutch_group_struct}.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
@@ -34,88 +34,163 @@ Section s_channel_verification.
 
   (*Theories for the interaction of the secure channel with the environment*)
   (*-------------------------------------------------------------*)
-   Program Definition SendSecBob : iThy Σ :=
+
+  (* Theories for the authenticated channel leaks *)
+  (*-------------------------------------------------------------*)
+   Program Definition LASendBob : iThy Σ :=
   λ e1 e2, (λne Q,
               ∃ m1 m2 : val,
-                ⌜e1 = (do: leak'1 (SendV (m1, bob)))⌝%E ∗ 
-                           ⌜ e2 = do: leak'2 (SendV (m2, bob)) ⌝%E ∗
+                ⌜e1 = (do: leakauth1 (SendV (m1, bob)))⌝%E ∗ 
+                           ⌜ e2 = do: leakauth2 (SendV (m2, bob)) ⌝%E ∗
                                       □ Q (Val #()%V) (Val #()%V))%I.
   Next Obligation. solve_proper. Qed.
 
-  Program Definition SendSecAlice : iThy Σ :=
+  Program Definition LASendAlice : iThy Σ :=
   λ e1 e2, (λne Q,
               ∃ m1 m2 : val,
-                ⌜e1 = (do: leak'1 (SendV (m1, alice)))⌝%E ∗ 
-                           ⌜ e2 = do: leak'2 (SendV (m2, alice)) ⌝%E ∗
+                ⌜e1 = (do: leakauth1 (SendV (m1, alice)))⌝%E ∗ 
+                           ⌜ e2 = do: leakauth2 (SendV (m2, alice)) ⌝%E ∗
                                       □ Q (Val #()%V) (Val #()%V))%I.
   Next Obligation. solve_proper. Qed.
 
-  Program Definition RecvSecBob : iThy Σ :=
+  Program Definition LARecvBob : iThy Σ :=
    λ e1 e2, (λne Q,
-                ⌜ e1 = do: leak'1 (RecvV bob) ⌝%E ∗
-                ⌜ e2 = do: leak'2 (RecvV bob) ⌝%E ∗
+                ⌜ e1 = do: leakauth1 (RecvV bob) ⌝%E ∗
+                ⌜ e2 = do: leakauth2 (RecvV bob) ⌝%E ∗
                 □ ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed.
 
-  Program Definition RecvSecAlice : iThy Σ :=
+  Program Definition LARecvAlice : iThy Σ :=
      λ e1 e2, (λne Q,
-                ⌜ e1 = do: leak'1 (RecvV alice) ⌝%E ∗
-                ⌜ e2 = do: leak'2 (RecvV alice) ⌝%E ∗
+                ⌜ e1 = do: leakauth1 (RecvV alice) ⌝%E ∗
+                ⌜ e2 = do: leakauth2 (RecvV alice) ⌝%E ∗
                 □ ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed.
 
-  Program Definition LeakAlice : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: leak1 (alice) ⌝%E ∗
-                           ⌜ e2 = do: leak2 (alice) ⌝%E ∗
-                                      □ Q (Val #()%V) (Val #()%V))%I.
-  Next Obligation. solve_proper. Qed.
-
-  Program Definition LeakBob : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: leak1 (bob) ⌝%E ∗
-                           ⌜ e2 = do: leak2 (bob) ⌝%E ∗
-                                      □ Q (Val #()%V) (Val #()%V))%I.
-  Next Obligation. solve_proper. Qed.
-
-
-  Definition LblEnvSec := [ ([channel1; getKey1; schannel1], [channel2; schannel2], iThyBot)    ; ([leak'1], [leak'2],iThySum (iThySum SendSecBob RecvSecAlice) (iThySum RecvSecBob RecvSecAlice)); ([leak1], [leak2], iThySum LeakAlice LeakBob)].
-
-  (*Theories for the implementation of the secure channel*)
+  
+  (* Theories for the key exchange leaks*)
   (*---------------------------------------------------------*)
-   Program Definition SendSecBobImpl γtok γfrac γsec ℓ : iThy Σ :=
+  Program Definition KLeakSendAlice : iThy Σ :=
+    λ e1 e2, (λne Q,
+                ⌜ e1 = do: keyleak1 (SendV alice) ⌝%E ∗
+                           ⌜ e2 = do: keyleak2 (SendV alice) ⌝%E ∗
+                                      □ Q (Val #()%V) (Val #()%V))%I.
+  Next Obligation. solve_proper. Qed.
+
+  Program Definition KLeakSendBob : iThy Σ :=
+    λ e1 e2, (λne Q,
+                ⌜ e1 = do: keyleak1 (SendV bob) ⌝%E ∗
+                           ⌜ e2 = do: keyleak2 (SendV bob) ⌝%E ∗
+                                      □ Q (Val #()%V) (Val #()%V))%I.
+  Next Obligation. solve_proper. Qed.
+
+
+  Program Definition KLeakRecvAlice : iThy Σ :=
+    λ e1 e2, (λne Q,
+                ⌜ e1 = do: keyleak1 (RecvV alice) ⌝%E ∗
+                           ⌜ e2 = do: keyleak2 (RecvV alice) ⌝%E ∗
+                                      □ Q (Val #()%V) (Val #()%V))%I.
+  Next Obligation. solve_proper. Qed.
+
+  Program Definition KLeakRecvBob : iThy Σ :=
+     λ e1 e2, (λne Q,
+                ⌜ e1 = do: keyleak1 (RecvV bob) ⌝%E ∗
+                           ⌜ e2 = do: keyleak2 (RecvV bob) ⌝%E ∗
+                                      □ Q (Val #()%V) (Val #()%V))%I.
+  Next Obligation. solve_proper. Qed.
+  
+  (* Theories relating the authenticated channel with the secure channel leak*)
+  (*-----------------------------------------------------------------------------*)
+  Program Definition SendALSAlice : iThy Σ :=
+    λ e1 e2, (λne Q,
+                ∃ m : val,
+                  (⌜ e1 = do: channel (SendV (m, alice)) ⌝%E ∗
+                  ⌜  e2 = do: leaksec (SendV alice)⌝%E) ∗ □ (Q (Val #()%V) (Val #()%V)))%I.
+  Next Obligation. solve_proper. Qed.
+
+  Program Definition SendALSBob : iThy Σ :=
+    λ e1 e2, (λne Q,
+                ∃ m : val,
+                  (⌜ e1 = do: channel (SendV (m, bob)) ⌝%E ∗
+                  ⌜  e2 = do: leaksec (SendV bob)⌝%E) ∗ □ (Q (Val #()%V) (Val #()%V)))%I.
+  Next Obligation. solve_proper. Qed. 
+
+  Program Definition RecvALSAlice : iThy Σ :=
+    λ e1 e2, (λne Q,
+                ∃ m : val,
+                  (⌜ e1 = do: channel (RecvV alice) ⌝%E ∗
+                  ⌜  e2 = do: leaksec (RecvV alice)⌝%E) ∗ □ (Q (Val #()%V) (Val #()%V)))%I.
+  Next Obligation. solve_proper. Qed.    
+
+  Program Definition RecvALSBob : iThy Σ := 
+    λ e1 e2, (λne Q,
+                ∃ m : val,
+                  (⌜ e1 = do: channel (RecvV bob) ⌝%E ∗
+                  ⌜  e2 = do: leaksec (RecvV bob)⌝%E) ∗ □ (Q (Val #()%V) (Val #()%V)))%I.
+  Next Obligation. solve_proper. Qed.  
+
+
+  
+  Definition LblEnvSec := [ ([channel; getKey1], [leaksec; getKey2], iThyBot)    ;
+                            ([keyleak1], [keyleak2],iThySum (iThySum KLeakSendAlice KLeakRecvAlice) (iThySum KLeakSendBob KLeakRecvAlice));
+                            ([leakauth1], [leakauth2], iThySum (iThySum LASendAlice LASendBob) (iThySum LARecvAlice LARecvBob))].
+
+  (*Definition LblEnvSec := [([leak'1], [leak'2],iThySum (iThySum SendSecBob RecvSecAlice) (iThySum RecvSecBob RecvSecAlice)); ([leak1], [leak2], iThySum LeakAlice LeakBob)].*)
+
+  (*Theories relating the secure channel effects for the client*)
+  (*---------------------------------------------------------*)
+  Program Definition SendSecBob : iThy Σ :=
+     λ e1 e2, (λne Q,
+                ∃ m m': val, 
+                            (⌜ e1 = do: schannel1 (SendV (m, alice)) ⌝%E ∗
+                             ⌜ e2 = do: schannel2 (SendV (m', alice)) ⌝%E)  ∗ 
+                            □ (Q (Val #()%V) (Val #()%V))
+             )%I.
+  Next Obligation. solve_proper. Qed.
+  
+  
+   (*Program Definition SendSecBobImpl γtok γfrac γsec ℓ : iThy Σ :=
      λ e1 e2, (λne Q,
                 ∃ m m': val, ((|={⊤, ⊤ ∖ ↑ℓ }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ℓ, ⊤}=> token γtok ∗ own γsec (to_dfrac_agree DfracDiscarded m) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ℓ , ⊤}=> own γfrac DfracDiscarded)) ∗  
                             (⌜ e1 = do: schannel1 (SendV (m, alice)) ⌝%E ∗
                              ⌜ e2 = do: schannel2 (SendV (m', alice)) ⌝%E)  ∗ 
                             □ (Q (Val #()%V) (Val #()%V)))
              )%I.
-  Next Obligation. solve_proper. Qed.
+  Next Obligation. solve_proper. Qed.*)
   
-  Program Definition SendSecAliceImpl γtok γfrac γsec ℓ : iThy Σ :=
+  Program Definition SendSecAlice : iThy Σ :=
+     λ e1 e2, (λne Q,
+                ∃ m m' : val,   
+                             (⌜ e1 = do: schannel1 (SendV (m, bob)) ⌝%E ∗
+                              ⌜ e2 = do: schannel2 (SendV (m', bob)) ⌝%E)  ∗ 
+                             □ (Q (Val #()%V) (Val #()%V))
+             )%I.
+  Next Obligation. solve_proper. Qed.
+
+   (* Program Definition SendSecAliceImpl γtok γfrac γsec ℓ : iThy Σ :=
      λ e1 e2, (λne Q,
                 ∃ m m' : val, ((|={⊤, ⊤ ∖ ↑ℓ }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ℓ, ⊤}=> token γtok ∗ own γsec (to_dfrac_agree DfracDiscarded m) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ℓ , ⊤}=> own γfrac DfracDiscarded)) ∗  
                              (⌜ e1 = do: schannel1 (SendV (m, bob)) ⌝%E ∗
                               ⌜ e2 = do: schannel2 (SendV (m', bob)) ⌝%E)  ∗ 
                              □ (Q (Val #()%V) (Val #()%V)))
              )%I.
-  Next Obligation. solve_proper. Qed.
+  Next Obligation. solve_proper. Qed.*)
   
-  Program Definition RecvSecBobImpl γsec : iThy Σ :=
+  Program Definition RecvSecBob : iThy Σ :=
      λ e1 e2, (λne Q,
                 ⌜ e1 = do: schannel1 (RecvV bob) ⌝%E ∗
                 ⌜ e2 = do: schannel2 (RecvV bob) ⌝%E ∗
-                □ (Q NONEV NONEV ∗ (∀ m, own γsec (to_dfrac_agree DfracDiscarded m) -∗ Q (SOMEV m) (SOMEV m)))
+                □ (Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed. 
     
-  Program Definition RecvSecAliceImpl γsec : iThy Σ :=
+  Program Definition RecvSecAlice : iThy Σ :=
      λ e1 e2, (λne Q,
                  ⌜ e1 = do: schannel1 (RecvV alice) ⌝%E ∗
                  ⌜ e2 = do: schannel2 (RecvV alice) ⌝%E ∗
-                 □ (Q NONEV NONEV ∗ (∀ m, own γsec (to_dfrac_agree DfracDiscarded m) -∗ Q (SOMEV m) (SOMEV m)))
+                 □ (Q NONEV NONEV )
              )%I.
   Next Obligation. solve_proper. Qed.
 
@@ -124,11 +199,13 @@ Section s_channel_verification.
   (*Definition LblSecChannel γtoka atokN γfraca γseca γsecb : iLblThy Σ :=
     [([channel1; getKey1],[channel2], (iThySum (SendSecAliceImpl γtoka γfraca γseca atokN) (RecvSecBobImpl γsecb)))].*)
   (*    (iThySum (SendSecBobImpl γtokb γfracb γsecb btokN) (RecvSecAliceImpl γseca))))].*)
-  Definition SecChannelThy  γtoka atokN' γfraca γseca γsecb : iThy Σ :=
-    (iThySum (SendSecAliceImpl γtoka γfraca γseca atokN') (RecvSecBobImpl γsecb)).
+  (*Definition SecChannelThy  γtoka atokN' γfraca γseca γsecb : iThy Σ :=
+    (iThySum (SendSecAliceImpl γtoka γfraca γseca atokN') (RecvSecBobImpl γsecb)).*)
+  
+   Definition SecChannelThy : iThy Σ :=
+   iThySum (iThySum (SendSecAlice) (RecvSecBob)) (iThySum (SendSecBob) (RecvSecAlice)).
 
-
-  Program Definition SendAuthBobImpl γtok γfrac γauth ι : iThy Σ :=
+  (*Program Definition SendAuthBobImpl γtok γfrac γauth ι : iThy Σ :=
     λ e1 e2, (λne Q,
                 ∃ m m': val, ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded m) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
                             (⌜ e1 = do: channel1 (SendV (m, alice)) ⌝%E ∗
@@ -166,16 +243,31 @@ Section s_channel_verification.
    
   Definition AuthChannelThy γtoka atokN γtokb btokN γfraca γfracb γautha γauthb : iThy Σ :=
     (iThySum (iThySum (SendAuthAliceImpl γtoka γfraca γautha atokN) (RecvAuthBobImpl γauthb))
-                                (iThySum (SendAuthBobImpl γtokb γfracb γauthb btokN) (RecvAuthAliceImpl γautha))).
-  Definition ClientThy γtoka atokN γfraca γseca γsecb γtoka1 γtokb1 γfraca1 γfracb1 γautha γauthb atokN1 btokN1  : iThy Σ :=
+       (iThySum (SendAuthBobImpl γtokb γfracb γauthb btokN) (RecvAuthAliceImpl γautha))).
+  *)
+  (*Definition ClientThy γtoka atokN γfraca γseca γsecb γtoka1 γtokb1 γfraca1 γfracb1 γautha γauthb atokN1 btokN1  : iThy Σ :=
     (iThySum (SecChannelThy γtoka atokN γfraca γseca γsecb) (AuthChannelThy γtoka1 atokN1 γtokb1 btokN1 γfraca1 γfracb1 γautha
     γauthb)).
+  
   Definition LblClients γtoka atokN γfraca γseca γsecb γtoka1 γtokb1 γfraca1 γfracb1 γautha γauthb atokN1 btokN1 : iLblThy Σ :=
-    [([schannel1; getKey1; channel1],[schannel2; channel2], ClientThy γtoka atokN γfraca γseca γsecb γtoka1 γtokb1 γfraca1 γfracb1 γautha γauthb atokN1 btokN1)].
+    [([schannel1; getKey1; channel1],[schannel2; channel2], ClientThy γtoka atokN γfraca γseca γsecb γtoka1 γtokb1 γfraca1 γfracb1 γautha γauthb atokN1 btokN1)].*)
+  Definition GetKey1bot : iThy Σ :=
+    λ e1 ex, (λne True, ⌜ e1 = do: getKey1 (ex) ⌝%E ∗ False)%I.
+
+  Program Definition ChanImpl : iThy Σ :=
+    λ e1 e2, (λne Q,
+                 (⌜ e1 = do: channel (RecvV bob) ⌝%E ∗
+                  ⌜ e2 = do: leaksec (RecvV bob) ⌝%E)  ∗ 
+                  □ (Q (Val #()%V) (Val #()%V)))%I.
+  Next Obligation. solve_proper. Qed.
+  
+  Definition LblClients : iLblThy Σ :=
+     [([schannel1; getKey1; channel],[schannel2; getKey2; leaksec], (SecChannelThy))].
+    (*[([schannel1; getKey1],[schannel2], (iThySum (GetKey1bot) (SecChannelThy)))].*)
   
 (*Verification of F_OAUTH[F_KE_L[CHAN[]]] ≤ CHAN_SIM[F_CHAN[]]*)
 (*----------------------------------------------------------*)
-Lemma F_KE_CHAN_SIM f1 f2 γtoka atokN γfraca γseca γsecb γtoka1 γtokb1 γfraca1 γfracb1 γautha γauthb atokN1 btokN1 L :
+(*Lemma F_KE_CHAN_SIM f1 f2 γtoka atokN γfraca γseca γsecb γtoka1 γtokb1 γfraca1 γfracb1 γautha γauthb atokN1 btokN1 L :
   let LblThy := LblClients γtoka atokN γfraca γseca γsecb γtoka1 γtokb1 γfraca1 γfracb1 γautha γauthb atokN1 btokN1 in
   let Xthy := iThySum (iThySum SendSecBob RecvSecAlice)
         (iThySum RecvSecBob RecvSecAlice) in 
@@ -190,9 +282,17 @@ Lemma F_KE_CHAN_SIM f1 f2 γtoka atokN γfraca γseca γsecb γtoka1 γtokb1 γf
     own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) -∗ 
     BREL f1 ≤ f2 <| LblThy ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝)  }} -∗ 
     BREL (F_OAUTH leak'1 channel1 (F_KE_L getKey1 channel1 leak1 (CHAN getKey1 schannel1 channel1 f1)))
-    ≤ CHAN_SIM leak'2 leak2 channel2 (F_CHAN schannel2 channel2 f2)<| LblEnvSec ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
+    ≤ CHAN_SIM leak'2 leak2 channel2 (F_CHAN schannel2 channel2 f2)<| LblEnvSec ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.*)
+  Lemma F_KE_CHAN_SIM f1 f2 L :
+    is_closed_expr ∅ f1 ->
+    is_closed_expr ∅ f2 ->
+    BREL f1 ≤ f2 <| LblClients ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }} -∗
+    BREL (F_OAUTH leakauth1 channel (F_KE_L getKey1 keyleak1 (CHAN getKey1 schannel1 channel f1)))
+    ≤ CHAN_SIM leakauth2 keyleak2 leaksec (F_CHAN schannel2 leaksec f2)<| LblEnvSec ++ L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
 Proof with (repeat foldkont) using G.
-  iIntros (LblThy Xthy Hf1 Hf2) "Htoka Htoka1 Htokb1 Hsecowna Hsecownb Hauthowna Hauthownb Hf1f2". repeat simpl. 
+
+  (*iIntros (LblThy Xthy Hf1 Hf2) "Htoka Htoka1 Htokb1 Hsecowna Hsecownb Hauthowna Hauthownb Hf1f2". repeat simpl.*)
+  iIntros (Hf1 Hf2)  "Hrelf1f2". repeat simpl.
   iApply brel_alloctape_r. iIntros (β) "Hβ". brel_pures_r. 
   iApply brel_alloc_r. iIntros (l2) "Hl2". brel_pures_r.
   iApply brel_alloc_l. iIntros (l1) "!>Hl1". brel_pures_l.
@@ -205,17 +305,8 @@ Proof with (repeat foldkont) using G.
   iApply brel_alloc_l. iIntros (l3) "!>Hl3". brel_pures_l.
   simpl. do 2 rewrite subst_is_closed_empty; try done.
   iApply brel_alloc_r. iIntros (l0) "Hl0". brel_pures_r.
-  rewrite subst_is_closed_empty; try done.
-  iApply (brel_exhaustion f1 f2); try simpl. 
-  (* use update modality to change the value associated
-to the token Alic owns to the message to be sent*)
-  iApply fupd_brel.
-  set (gn := (g^+ n)%g).
-  iMod (auth_upd (vgval (g ^+n)%g) with "Howna") as "Howna".
-  iMod (auth_persist with "Howna") as "#Howna".
-  iMod (auth_persist with "Hownb") as "#Hownb".
-  iModIntro.
-
+  rewrite subst_is_closed_empty; try done. 
+  
   (*use update modality, add the token atokN to the namespace of open invariants, and then allocate an invariant corresponding to either a sample is drawn from the tape or not*)
   (*iApply fupd_brel.
   iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
