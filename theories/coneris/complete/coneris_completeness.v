@@ -1,5 +1,5 @@
 
-From clutch.coneris.complete Require Export coneris_completeness_prelims.
+From clutch.coneris.complete Require Export coneris_completeness_prelims con_err_lb.
 From clutch.base_logic Require Import error_credits.
 From clutch.con_prob_lang Require Import lang.
 From clutch.coneris Require Import weakestpre.
@@ -40,7 +40,8 @@ Class coneris_lang_completeness_gen Σ
                      (λ '(e'', σ'', efs), ε1 (<[n' := e'']> C' ++ efs, σ''))
                 <= ε1 (C', σ') ⌝ →
           ⌜∀ ρ, 0 <= ε1 ρ⌝ →
-          ⌜∀ C' σ' n' e', C' !! n' = Some e' → stuck e' σ' → ε1 (C', σ') = 1⌝ →
+          ⌜∀ C' σ' n' e', 
+              C' !! n' = Some e' → stuck e' σ' → ε1 (C', σ') = 1⌝ →
           (▷ ∀ v2 σ' efs,
             ⌜head_step e1' σ (of_val v2, σ', efs) > 0⌝ -∗
             n ↪cthread e1 -∗
@@ -69,30 +70,6 @@ Class coneris_lang_completeness_gen Σ
 Global Existing Instance heap_inv_timeless.
 
 End lang_complete.
-
-Definition err_lb_con (φ : val con_prob_lang → Prop) (n : nat)
-    (ρ : cfg con_prob_lang) : R. Admitted.
-
-Lemma err_lb_con_nn φ n ρ : 0 <= err_lb_con φ n ρ. 
-Admitted.
-Lemma err_lb_con_bound φ n ρ : err_lb_con φ n ρ <= 1. 
-Admitted.
-
-Lemma err_lb_con_val φ v n ρ :
-  ρ.1 !! n = Some (Val v) →
-  err_lb_con φ n ρ = if bool_decide (φ v) then 0 else 1. 
-Admitted.
-
-Lemma err_lb_con_step φ n m C σ e :
-  C !! m = Some e → reducible e σ →
-  Expval (prim_step e σ) (λ '(e', σ', efs), err_lb_con φ n (<[m := e']> C ++ efs, σ')) <= err_lb_con φ n (C, σ). 
-Admitted.
-
-Lemma err_lb_con_stuck φ C n m e σ : 
-  C !! m = Some e → 
-  stuck e σ → 
-  err_lb_con φ n (C, σ) = 1. 
-Admitted.
 
 Lemma reducible_to_head (e : expr con_prob_lang) σ:
   reducible e σ →
@@ -170,6 +147,8 @@ Proof.
   - iMod "H". iModIntro. by iIntros.
 Qed.
 
+Arguments err_lb_con sch_int_state {_} {_}.
+
 Section completeness.
 
 Context {Σ : gFunctors}.
@@ -178,6 +157,8 @@ Context `{!coneristpinvGS Σ con_prob_ectx_lang,
           !conerisWpGS con_prob_lang Σ,
           !cinvG Σ,
           !coneris_lang_completeness_gen Σ}.
+
+Context `{Countable sch_int_state} `{Hinf: Infinite sch_int_state}.
 
 Lemma fractional_divide_n (Q : Qp → iProp Σ) (Hf : Fractional Q) (p : positive) q :
   Q q -∗
@@ -199,21 +180,21 @@ Qed.
 
 Let N := nroot .@ "completeness".
 
-Definition cfg_inv φ n : iProp Σ :=
+Definition cfg_inv φ : iProp Σ :=
   ∃ cfg,
     heap_inv (fst cfg) (snd cfg) ∗
     tp_inv (fst cfg) ∗
-    ↯ (err_lb_con φ n cfg).
+    ↯ (err_lb_con sch_int_state φ cfg).
 
-Definition is_ccfg φ n γ : iProp Σ :=
-  cinv N γ (cfg_inv φ n).
+Definition is_ccfg φ γ : iProp Σ :=
+  cinv N γ (cfg_inv φ).
 
 Lemma wp_completeness φ γ q n e:
-  is_ccfg φ 0 γ -∗
+  is_ccfg φ γ -∗
   cinv_own γ q -∗
   n ↪cthread e -∗
   WP e @ ⊤ {{λ v, n ↪cthread (Val v) ∗ ∃ q', cinv_own γ q'}}.
-Proof.
+Proof using Hinf.
   iIntros "#Hinv".
   iLöb as "IH" forall (q e n).
   iIntros "Hq He". 
@@ -273,7 +254,10 @@ Proof.
     { intros. by erewrite err_lb_con_stuck. }
   - iDestruct "H" as "(Hheap & Htpinv & H)". iModIntro. iRight.
     iMod ("Hclose" with "[Hheap Htpinv Hx]") as "?".
-    { iNext. iExists (_, _). simpl. iFrame. by destruct cfg. }
+    { iNext. iExists (_, _). simpl. 
+      iSplitL "Hheap"; first iFrame. 
+      iFrame. by destruct cfg.
+    }
     iModIntro. iApply ("H" with "[Hq]").
     iNext. iMod (cinv_acc with "Hinv Hq") as "(>Hinv2&Hq&Hclose)". 1: done.
     iDestruct "Hinv2" as "(%cfg2&Hheap&Htpinv&Herr)".
@@ -286,12 +270,10 @@ Proof.
     iMod ("Hclose" with "[Hheap Htpinv Herr]") as "_".
     {
       iNext.
-      iExists (_, _). simpl. iFrame. 
+      iExists (_, _). simpl. iSplitL "Hheap"; iFrame. 
       inversion Hpure. destruct cfg2 as [C' σ']. 
       iApply (ec_weaken with "Herr"); split; first by apply err_lb_con_nn.
-      etrans; last eapply err_lb_con_step; [| eauto| apply pure_step_safe]. 
-      eapply pmf_1_eq_dret in pure_step_det as ->.
-      rewrite Expval_dret //=. by rewrite app_nil_r.
+      erewrite err_lb_con_pure_step; last apply pure_step_safe; done. 
     }
     iModIntro.
     iApply (pgl_wp_wand with "[-]").
@@ -302,6 +284,8 @@ Qed.
 End completeness.
 
 Lemma coneris_sem_completeness `{
+          Countable sch_int_state, 
+          Infinite sch_int_state,
           !coneristpinvGS Σ con_prob_ectx_lang,
           !ecGS Σ,
           !conerisWpGS con_prob_lang Σ,
@@ -309,26 +293,26 @@ Lemma coneris_sem_completeness `{
           !coneris_lang_completeness_gen Σ} e σ φ :
   tp_inv_ini -∗
   heap_inv [e] σ -∗ 
-  ↯ (err_lb_con φ 0 ([e], σ)) -∗
+  ↯ (err_lb_con sch_int_state φ ([e], σ)) -∗
   WP e @ ⊤ {{ v, ⌜φ v⌝ }}.
-Proof.
+Proof.  
   iIntros "Hini Hheap Herr".
   iApply fupd_pgl_wp.
   iMod (tp_inv_set [e] with "Hini") as "(Hauth&Hfrags)".
-  iMod (cinv_alloc _ _ (cfg_inv φ 0) with "[Hauth Hheap Herr]") as (γ') "(#Hinv&Hq)".
-  { iNext. iFrame. }
+  iMod (cinv_alloc _ _ (cfg_inv φ) with "[Hauth Hheap Herr]") as (γ') "(#Hinv&Hq)".
+  { iNext. iFrame.  }
   rewrite big_sepL_singleton.
   iModIntro.
   iApply pgl_wp_fupd.
-  iApply (pgl_wp_wand with "[-]").
-  1: iApply (wp_completeness φ γ' with "Hinv Hq Hfrags").
+  iApply (pgl_wp_wand with "[-]"). 
+  { iApply (wp_completeness φ γ' with "Hinv Hq Hfrags"). }
   iIntros (v) "(Hv&%q'&Hq')".
   iMod (cinv_acc with "Hinv Hq'") as "(>Hinv2&Hq'&Hclose2)". 1: done.
   iDestruct "Hinv2" as "(%&Hheap&Htpinv&Herr)".
   iPoseProof (tp_inv_lookup with "Htpinv Hv") as "%Hlu".
   destruct (decide (φ v)). 2 : {
     iExFalso. iApply ec_contradict; last iFrame.
-    erewrite err_lb_con_val; eauto.
+    etrans; last by eapply err_lb_con_val.
     by case_bool_decide.
   }
   iMod ("Hclose2" with "[-Hv Hq']").

@@ -9,6 +9,7 @@ From clutch.con_prob_lang Require Import erasure notation.
 From clutch.common Require Export con_language sch_erasable.
 From clutch.base_logic Require Import error_credits.
 From clutch.coneris Require Import weakestpre primitive_laws.
+From clutch.foxtrot Require Import oscheduler.
 From clutch.prob Require Import distribution.
 Import uPred.
 
@@ -746,3 +747,265 @@ Proof.
   by iApply Hwp.
 Qed.
 
+(* Theorem wp_pgl_lim_osch Σ `{conerisGpreS Σ} `{Countable ost} (ζ : ost)
+    (e : expr) (σ : state) (ε : R) (osch : oscheduler ost) φ
+    `{!oTapeOblivious ost osch} :
+  0 <= ε →
+  (∀ `{conerisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  pgl (osch_lim_exec_val osch (ζ, ([e], σ))) φ ε.
+Proof.
+  intros Hε Hwp.
+  destruct (osch_to_sch osch) as (sch & HTapeObl & Hleq).
+  have I : TapeOblivious ost sch := HTapeObl.
+  pose proof wp_pgl_lim Σ ζ e σ ε sch φ Hε Hwp as Hpgl.
+  (* pgl is antitone in the distribution *)
+  rewrite /pgl /prob in Hpgl.
+  eapply Rle_trans; last exact Hpgl.
+  apply SeriesC_le.
+  - intros v; split. 
+    + by case_bool_decide; simpl.
+    + by case_bool_decide; simpl; [|apply Hleq].
+  - apply ex_seriesC_filter_bool_pos; done.
+Qed.
+
+(** Oscheduler safety *)
+
+(** An oscheduler has full-mass distributions whenever it is not done *)
+Definition osch_mass_1_gen `{Countable ost} (osch : oscheduler ost) : Prop :=
+  ∀ ρ μ, osch ρ = Some μ → SeriesC μ = 1.
+
+(** Helper: osch_pexec is dret when the oscheduler has terminated *)
+Lemma osch_pexec_is_none `{Countable ost} (osch : oscheduler ost) n ρ :
+  osch ρ = None →
+  osch_pexec osch n ρ = dret ρ.
+Proof.
+  intros Hnone.
+  induction n.
+  - by rewrite osch_pexec_O.
+  - rewrite osch_pexec_Sn osch_step_or_none_is_none // dret_id_left //.
+Qed.
+
+(**
+  Key erasure lemma: if μ is a tape-sampling distribution (satisfying
+  [sch_erasable (TapeOblivious) μ σ]), then for any [oTapeOblivious] oscheduler
+  the distribution over thread-lists is unchanged when we pre-compose with μ.
+  The proof goes by induction on n, using [oTapeOblivious] at each step.
+*)
+Lemma sch_erasable_to_osch_erasable
+    `{Countable ost} (osch : oscheduler ost) `{!oTapeOblivious ost osch}
+    μ σ n es ζ :
+  sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ →
+  dmap (λ x, x.2.1) (μ ≫= λ σ', osch_pexec osch n (ζ, (es, σ'))) =
+  dmap (λ x, x.2.1) (osch_pexec osch n (ζ, (es, σ))).
+Proof.
+Admitted.
+
+(**
+  Erasure for prim_step composed with osch_pexec: the tape-sampling distribution μ
+  commutes with [prim_step e1] followed by [osch_pexec].
+  This is the oscheduler analogue of [prim_coupl_step_prim_pexec_sch_erasable].
+*)
+Lemma prim_coupl_step_prim_pexec_osch_erasable
+    `{Countable ost} (osch : oscheduler ost) `{!oTapeOblivious ost osch}
+    e n es1 σ1 ζ e1 (num : nat) μ :
+  sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 →
+  (e :: es1) !! num = Some e1 →
+  to_val e = None →
+  to_val e1 = None →
+  Rcoupl
+    (dmap (λ ρ, ρ.2.1)
+      (prim_step e1 σ1 ≫= λ '(e', s, l),
+         osch_pexec osch n (ζ, (<[num:=e']> (e :: es1) ++ l, s))))
+    (dmap (λ ρ, ρ.2.1)
+      (μ ≫= λ σ2, prim_step e1 σ2 ≫= λ '(e', s, l),
+         osch_pexec osch n (ζ, (<[num:=e']> (e :: es1) ++ l, s))))
+    eq.
+Proof.
+Admitted.
+
+Section osch_safety.
+  Context `{!conerisGS Σ}.
+
+  (**
+    Analogue of [state_step_coupl_erasure_safety]: tape-sampling steps in
+    [state_step_coupl] are transparent to [osch_pexec].
+
+    Cases 1–3 (trivial / ε-limit) are identical to the regular proof.
+    Case 4 (tape-sampling with μ): SeriesC μ = 1 comes from the existing
+    [sch_erasable_mass]; mass equality uses [sch_erasable_to_osch_erasable].
+  *)
+  Lemma state_step_coupl_erasure_safety_osch
+      `{Countable ost} (ζ : ost) es σ ε Z n
+      (osch : oscheduler ost) `{H0 : !oTapeOblivious ost osch} :
+    state_step_coupl σ ε Z -∗
+    (∀ σ2 ε2, Z σ2 ε2 ={∅}=∗ |={∅}▷=>^n
+                ⌜SeriesC (osch_pexec osch n (ζ, (es, σ2))) >= 1 - ε2⌝) -∗
+    |={∅}=> |={∅}▷=>^n
+      ⌜SeriesC (osch_pexec osch n (ζ, (es, σ))) >= 1 - nonneg ε⌝.
+  Proof.
+    iRevert (σ ε).
+    iApply state_step_coupl_ind.
+    iIntros "!>" (σ ε) "[%|[?|[H|(%μ&%ε2&%Herasable&%&%Hineq&H)]]] Hcont".
+    - iApply step_fupdN_intro; first done.
+      iPureIntro. trans 0; try lra. by apply Rle_ge.
+    - by iMod ("Hcont" with "[$]").
+    - iApply (step_fupdN_mono _ _ _
+                (⌜∀ ε', ε < ε' →
+                   SeriesC (osch_pexec osch n (ζ, (es, σ))) >= 1 - ε'⌝)).
+      { iPureIntro. intros H1. apply Rle_ge. apply Rle_plus_epsilon.
+        intros eps Heps.
+        assert (SeriesC (osch_pexec osch n (ζ, (es, σ))) >= 1 - (ε + eps)) as H2.
+        - apply H1. lra.
+        - apply Rge_le in H2. rewrite Rminus_plus_distr in H2.
+          by rewrite Rcomplements.Rle_minus_l in H2. }
+      iIntros (ε' ?).
+      unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]";
+        [pose proof cond_nonneg ε; simpl in *; lra | done | simpl].
+      iApply ("H" with "[$]").
+    - (* tape-sampling case: replace SeriesC over σ with SeriesC over μ ≫= ... *)
+      replace (SeriesC _)
+        with (SeriesC (μ ≫= λ σ', osch_pexec osch n (ζ, (es, σ')))); last first.
+      { assert (SeriesC (dmap (λ x, x.2.1)
+                   (μ ≫= λ σ', osch_pexec osch n (ζ, (es, σ')))) =
+                SeriesC (dmap (λ x, x.2.1)
+                   (osch_pexec osch n (ζ, (es, σ))))) as Heq.
+        { f_equal. by eapply sch_erasable_to_osch_erasable. }
+        by rewrite !dmap_mass in Heq. }
+      iApply (step_fupdN_mono _ _ _
+                (⌜SeriesC (μ ≫= λ σ', osch_pexec osch n (ζ, (es, σ')))
+                   >= 1 - (0 + Expval μ ε2)⌝)).
+      { iPureIntro. intros. etrans; first exact. apply Rle_ge.
+        apply Ropp_le_cancel. rewrite !Ropp_minus_distr Rplus_0_l.
+        by apply Rplus_le_compat_r. }
+      iApply (safety_dbind_adv' _ _ _ (_)); [| | iPureIntro; by apply pgl_trivial |].
+      { iPureIntro. eapply sch_erasable_mass; last first; done. }
+      { iPureIntro. naive_solver. }
+      iIntros (a HR).
+      iMod ("H" $! _) as "[H _]".
+      by iMod ("H" with "[$]").
+  Qed.
+
+  (**
+    Analogue of [state_step_coupl_erasure_safety']: tape-sampling commutes with
+    [prim_step e'] followed by [osch_pexec].
+    The tape-sampling case uses [prim_coupl_step_prim_pexec_osch_erasable].
+  *)
+  Lemma state_step_coupl_erasure_safety_osch'
+      `{Countable ost} (ζ : ost) e es e' σ ε Z n num
+      (osch : oscheduler ost) `{!oTapeOblivious ost osch} :
+    (e :: es) !! num = Some e' →
+    to_val e = None →
+    to_val e' = None →
+    state_step_coupl σ ε Z -∗
+    (∀ σ2 ε2, Z σ2 ε2 ={∅}=∗ |={∅}▷=>^(S n)
+       ⌜SeriesC (prim_step e' σ2 ≫= λ '(e3, σ3, efs),
+            osch_pexec osch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) >= 1 - ε2⌝) -∗
+    |={∅}=> |={∅}▷=>^(S n)
+      ⌜SeriesC (prim_step e' σ ≫= λ '(e3, σ3, efs),
+           osch_pexec osch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) >= 1 - nonneg ε⌝.
+  Proof.
+    intros ???.
+    iRevert (σ ε).
+    iApply state_step_coupl_ind.
+    iIntros "!>" (σ ε) "[%|[?|[H|(%μ&%ε2&%Herasable&%&%Hineq&H)]]] Hcont".
+    - iApply step_fupdN_intro; first done.
+      iPureIntro. trans 0; try lra. by apply Rle_ge.
+    - by iMod ("Hcont" with "[$]").
+    - iApply (step_fupdN_mono _ _ _
+                (⌜∀ ε', ε < ε' →
+                   SeriesC (prim_step e' σ ≫= λ '(e3, σ3, efs),
+                     osch_pexec osch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3)))
+                   >= 1 - ε'⌝)).
+      { iPureIntro. intros H1. apply Rle_ge. apply Rle_plus_epsilon.
+        intros eps Heps.
+        assert (SeriesC (prim_step e' σ ≫= λ '(e3, σ3, efs),
+                  osch_pexec osch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3)))
+                >= 1 - (ε + eps)) as H2.
+        - apply H1. lra.
+        - apply Rge_le in H2. rewrite Rminus_plus_distr in H2.
+          by rewrite Rcomplements.Rle_minus_l in H2. }
+      iIntros (ε' ?).
+      unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]";
+        [pose proof cond_nonneg ε; simpl in *; lra | done | simpl].
+      iApply ("H" with "[$]").
+    - unshelve erewrite (Rcoupl_eq_elim _ _
+        (prim_coupl_step_prim_pexec_osch_erasable osch e n es σ ζ e' num μ _ _ _ _));
+        [done..].
+      iApply (step_fupdN_mono _ _ _ (⌜SeriesC _ >= 1 - (0 + _)⌝)).
+      { iPureIntro. intros. etrans; first exact. apply Rle_ge.
+        apply Ropp_le_cancel. rewrite !Ropp_minus_distr Rplus_0_l.
+        by apply Rplus_le_compat_r. }
+      iApply (safety_dbind_adv' _ _ _ (_)); [| | iPureIntro; by apply pgl_trivial |].
+      { iPureIntro. eapply sch_erasable_mass; last first; done. }
+      { iPureIntro. naive_solver. }
+      iIntros (a HR).
+      iMod ("H" $! _) as "[H _]".
+      by iMod ("H" with "[$]").
+  Qed.
+
+  (**
+    Main safety induction for oschedulers, mirroring [wp_safety_step_fupdN].
+
+    Induction on n. The base case is trivial (dret has mass 1).
+    For the step:
+      - If [osch (ζ, (e::es, σ)) = None]: [osch_pexec_is_none] gives
+        [osch_pexec n ρ = dret ρ], so SeriesC = 1 ≥ 1 - ε.
+      - If [osch (ζ, (e::es, σ)) = Some μ]: unfold [osch_step], apply
+        [safety_dbind'] using [osch_mass_1_gen], then case-split on the
+        chosen thread index exactly as in the regular proof, using
+        [state_step_coupl_erasure_safety_osch'] and [state_step_coupl_erasure_safety_osch]
+        for the tape-sampling sub-steps, and the IH for the continuation.
+  *)
+  Lemma wp_safety_step_fupdN_osch
+      `{Countable ost} (ζ : ost) (ε : nonnegreal)
+      (e : expr) es (σ : state) n φ
+      (osch : oscheduler ost) `{!oTapeOblivious ost osch} :
+    osch_mass_1_gen osch →
+    state_interp σ ∗ err_interp ε ∗ WP e {{ v, ⌜φ v⌝ }} ∗
+    ([∗ list] e' ∈ es, WP e' {{ _, True }}) ⊢
+    |={⊤,∅}=> |={∅}▷=>^n
+      ⌜SeriesC (osch_pexec osch n (ζ, (e::es, σ))) >= 1 - ε⌝.
+  Proof.
+  Admitted.
+
+End osch_safety.
+
+Theorem wp_safety_osch_multi Σ `{conerisGpreS Σ} `{Countable ost} (ζ : ost) n
+    (e : expr) es (σ : state) (ε : R)
+    (osch : oscheduler ost) φ `{!oTapeOblivious ost osch} :
+  0 <= ε →
+  osch_mass_1_gen osch →
+  (∀ `{conerisGS Σ},
+    ⊢ ↯ ε -∗ (WP e {{ v, ⌜φ v⌝ }} ∗ [∗ list] e' ∈ es, WP e' {{ _, True }})) →
+  SeriesC (osch_pexec osch n (ζ, (e::es, σ))) >= 1 - ε.
+Proof.
+  intros Hε Hmass Hwp.
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
+  iIntros (Hinv) "_".
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
+  { iClear "Hh Ht".
+    iApply fupd_mask_intro; [eauto|]. iIntros "_".
+    iApply step_fupdN_intro; [eauto|]. iApply laterN_intro. iPureIntro.
+    trans 0; [by apply Rle_ge, SeriesC_ge_0 | lra]. }
+  set ε' := mknonnegreal _ Hε.
+  iMod (ec_alloc ε') as (?) "[??]"; [done|].
+  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
+  iApply (wp_safety_step_fupdN_osch _ ε'); first done.
+  iFrame. by iApply Hwp.
+Qed.
+
+Theorem wp_safety_osch Σ `{conerisGpreS Σ} `{Countable ost} (ζ : ost) n
+    (e : expr) (σ : state) (ε : R)
+    (osch : oscheduler ost) φ `{!oTapeOblivious ost osch} :
+  0 <= ε →
+  osch_mass_1_gen osch →
+  (∀ `{conerisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  SeriesC (osch_pexec osch n (ζ, ([e], σ))) >= 1 - ε.
+Proof.
+  intros Hε Hmass Hwp.
+  eapply wp_safety_osch_multi; [done..| ].
+  simpl. iIntros. iSplitL; last done.
+  by iApply Hwp.
+Qed. *)

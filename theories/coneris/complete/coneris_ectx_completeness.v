@@ -169,7 +169,7 @@ Global Program Instance coneris_ectx_to_lang
 Next Obligation.
   intros ???????????.
   by apply wp_ectx_to_prim_completeness.
-Defined. 
+Qed. 
 
 From clutch.coneris Require Import primitive_laws derived_laws error_rules.
 
@@ -780,15 +780,16 @@ Qed.
 
 End completeness.
 
-Lemma coneris_wp_completeness `{!ghost_mapG Σ nat expr, !cinvG Σ, !conerisGS Σ} e σ φ ε:
-  (err_lb_con φ 0 ([e], σ) <= ε)%R →
+Lemma coneris_wp_completeness `{Countable sch_int_state, Infinite sch_int_state, !ghost_mapG Σ nat expr, !cinvG Σ, !conerisGS Σ} e σ φ ε:
+  (err_lb_con sch_int_state φ ([e], σ) <= ε)%R →
   con_heap_inv [e] σ -∗
   ↯ ε -∗ 
   WP e @ ⊤ {{ v, ⌜φ v⌝ }}.
 Proof.
   iIntros (Hε) "Hheap Herr".
   iPoseProof (ec_weaken with "Herr") as "Herr";
-    first by split; [apply err_lb_con_nn | done].
+    first by split; [apply (err_lb_con_nn (sch_int_state := sch_int_state)) | done].
   iMod tp_inv_alloc as (γ) "Htp".
   iApply (coneris_sem_completeness  (coneris_lang_completeness_gen0 := coneris_ectx_to_lang (coneris_ectx_lang_completeness_gen0 := coneris_ectx_lang_completeness)) with "[$] [$] Herr").
+  Unshelve. auto.
 Qed.
