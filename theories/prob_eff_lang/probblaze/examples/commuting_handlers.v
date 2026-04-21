@@ -7,6 +7,7 @@ Import valgroup_tactics.
 Section proof.
 Context {s t : label}.
 Context `{probblazeRGS Σ}.
+(* The types used in the signatures *)
 Context {V1 H1 V2 H2 : (val → val → iProp Σ)}.
 
 
@@ -15,14 +16,14 @@ Definition handler s h r f: expr :=
   | effect s "x", "k" as multi => h
   | return "y" => r
 end. 
-
+(* the signature of T *)
 Program Definition T : iThy Σ := (λ e1 e2, λne Q,
                                     ∃ v1 v2 : val, V1 v1 v2 ∗ 
                                              (⌜ e1 = do: s v1 ⌝%E ∗
                                              ⌜ e2 = do: s v2 ⌝%E ∗
                                              □ (∀ w1 w2, H1 w1 w2 -∗ Q w1 w2)))%I.
 Next Obligation. solve_proper. Qed.
-
+(* the signature of S *)
 Program Definition S : iThy Σ :=  (λ e1 e2, λne Q,
                                      ∃ v1 v2 : val, V2 v1 v2 ∗ 
                                   (⌜ e1 = do: t v1 ⌝%E ∗
