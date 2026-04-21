@@ -1479,7 +1479,7 @@ Section prog.
         simpl.
         rewrite size_difference; last first.
         + set_unfold. intros. exists 1. split; first done. lia.
-        + rewrite size_list_to_set; last first. 
+        + rewrite size_list_to_set; last first.
           * apply NoDup_fmap; first (intros ???; by simplify_eq).
             apply NoDup_seq.
           * rewrite size_singleton.
