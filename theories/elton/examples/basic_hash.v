@@ -420,12 +420,440 @@ Section prog.
         + destruct (decide (guess ∈ (( (dom m)):gset _))) as [Hlookup|].
           { (** it has been queried before *)
             rewrite elem_of_dom in Hlookup.
-            destruct Hlookup.
-
-            wp_apply (wp_hashfun_prev _ _ _ _ _ _ guess (l↪ _) with "[$Hurn $Hf]").
+            destruct Hlookup as [m_guess H_m_guess].
+            wp_apply (wp_hashfun_prev _ _ _ _ _ _ guess (l ↪ _ ∗ l' ↪ _ ∗ b ↪ _) with "[$Hurn $Hf $Hurn' $Hb]").
             - done.
-            -
+            - simplify_map_eq.
+              erewrite lookup_kmap_Some; first naive_solver.
+              intros ???. by simplify_eq.
+            - iSplit.
+              + iModIntro.
+                iIntros "(?&?&?)".
+                rewrite rupd_unseal/rupd_def.
+                iIntros (?) "[? Hu]". iSplit; last iFrame.
+                iDestruct (ghost_map_lookup with "Hu [$]") as "%Hlookup".
+                iPureIntro.
+                intros. simpl. case_bool_decide; naive_solver.
+              + iModIntro.
+                iApply big_sepS_intro.
+                iModIntro.
+                setoid_rewrite elem_of_difference.
+                iIntros (?) "[%Hlookup' %]".
+                iIntros "(Hl&Hl'&Hb)".
+                rewrite rupd_unseal/rupd_def.
+                iIntros  (?) "[? Hu]". iSplit; last iFrame.
+                iDestruct (ghost_map_lookup with "Hu [$Hl]") as "%Hlookup_l".
+                iDestruct (ghost_map_lookup with "Hu [$Hl']") as "%Hlookup_l'".
+                iDestruct (ghost_map_lookup with "Hu [$Hb]") as "%Hlookup_b".
+                iPureIntro.
+                intros.
+                eapply urns_f_distr_lookup in Hlookup_l; last done; last done.
+                eapply urns_f_distr_lookup in Hlookup_l'; last done; last done.
+                eapply urns_f_distr_lookup in Hlookup_b; last done; last done.
+                destruct Hlookup_l as (?&Hsome_l&Hin_l).
+                destruct Hlookup_l' as (?&Hsome_l'&Hin_l').
+                destruct Hlookup_b as (?&Hsome_b&Hin_b).
+                eexists _; split; last done.
+                simpl.
+                rewrite elem_of_dom in Hlookup'.
+                destruct Hlookup' as [? Hlookup'].
+                rewrite lookup_insert_Some in Hlookup'.
+                rewrite lookup_insert_Some in Hlookup'.
+                destruct!/=.
+                * rewrite Hsome_l Hsome_l' Hsome_b/=. rewrite bool_decide_eq_false_2 ; first done.
+                  (* guess ∈ dom m *)
+                  (* both x1 and x2 are in s' *)
+                  (* but that contradiction Hdisjoint2. *)
+                  intros ?. simplify_eq.
+                  set_unfold in Hin_b. destruct!/=.
+                  -- eapply Hdisjoint2.
+                     1: apply Hin_l'.
+                     rewrite elem_of_dom.
+                     eexists.
+                     erewrite <- H_m_guess.
+                     repeat f_equal. lia.
+                  -- eapply Hdisjoint2.
+                     1: apply Hin_l.
+                     rewrite elem_of_dom.
+                     eexists.
+                     erewrite <- H_m_guess.
+                     repeat f_equal. lia.
+                * rewrite Hsome_l.
+                  simpl.
+                  rewrite bool_decide_eq_false_2 ; first done.
+                  intros ?. simplify_eq.
+                  eapply Hdisjoint1.
+                     1: apply Hin_l.
+                     rewrite elem_of_dom.
+                     eexists.
+                     erewrite <- H_m_guess.
+                     repeat f_equal.
+                * simpl.
+                  rename select (kmap _ _ !! _ = _) into K1.
+                  apply lookup_kmap_Some in K1; last (intros ???; by simplify_eq).
+                  destruct!/=. rewrite bool_decide_eq_false_2; first done.
+                  intros ?. simplify_eq.
+                  set_unfold. simplify_eq.
+            - iIntros "(?&?&?&?)". wp_pures.
+              iMod ("Hclose" with "[-]").
+              2: iExists _; iModIntro ; iPureIntro ; right ; naive_solver.
+              iNext. rewrite /inv.
+              assert ((tries' ≠ 0)%nat). 1: intros -> ; naive_solver.
+              replace (Z.of_nat tries' - 1)%Z with (Z.of_nat (tries' - 1)). 2: lia.
+              iFrame "Hlt".
+              iFrame.
+              repeat iSplit.
+              1: iPureIntro ; lia.
+              1: iPureIntro ; done.
+              1: iPureIntro ; done.
+              1: iPureIntro ; done.
+              1: iPureIntro ; done.
+              iSplitL "Herr".
+              1: admit.
+              iSplitL "Herr'".
+              1: admit.
+              iSplit.
+              1: iPureIntro ; lia.
+              iLeft. iFrame.
           }
+          (* [guess] has not been queried before (the interesting part: pay to avoid) *)
+          pose proof (Z_div_mod_eq_full guess (tag_range + 1)) as guess_part. rewrite guess_part.
+          set (guess_rem := (guess `mod` (tag_range + 1))%Z).
+          set (guess_quot := ((tag_range + 1) * guess `div` (tag_range + 1))%Z).
+          fold guess_rem guess_quot in guess_part.
+
+          assert (tries' ≠ 0).
+          { intros ?. simplify_eq. }
+          (* We can update the urns from s' to s'' and ensure that [ guess_rem ∉ s'' ]. *)
+          (* That assumption allows us to update the hash function map [m] such that TODO *)
+          (* [ m[guess] := z ] for some [ z : fin (S val_size) ], and the two *)
+          (* disjointness conditions are maintained, i.e., *)
+          (* [ ∀ x ∈ s'', n1 * (tag_range+1) + x ∉ dom m ] *)
+          (* in particular, [ guess ∉ dom m ] since [ guess = guess_quot + guess_rem ] *)
+
+          iAssert (pupd ∅ ∅ (∃s'', ⌜ s'' ⊆ s' ⌝ ∗ ⌜ s''≠∅⌝ ∗
+                                   l ↪ urn_unif s'' ∗
+                                   l' ↪ urn_unif s'' ∗
+                                   ⌜guess_rem ∉ s''⌝%Z ∗
+                                   ⌜size s'<=size s''+1⌝ ∗
+                                   ↯ ((tries'-1)%nat/size s'') ∗
+                                   ↯ ((tries'-1)%nat/size s'')
+                  ))%I with "[Hurn Herr Hurn' Herr']" as ">H_l".
+          { destruct (decide (guess `mod` (tag_range + 1) ∈ s')%Z); last first.
+           - iModIntro.
+             iFrame.
+             repeat iSplit; try done.
+             + iPureIntro; lia.
+             + iSplitL "Herr".
+               {
+               iApply (ec_weaken with "[$]").
+               split.
+               * apply INR_div_pos.
+               * rewrite !Rdiv_def.
+                 apply Rmult_le_compat_r.
+                 -- rewrite -Rdiv_1_l. apply Rdiv_INR_ge_0.
+                 -- apply le_INR. lia.
+               }
+               {
+               iApply (ec_weaken with "[$]").
+               split.
+               * apply INR_div_pos.
+               * rewrite !Rdiv_def.
+                 apply Rmult_le_compat_r.
+                 -- rewrite -Rdiv_1_l. apply Rdiv_INR_ge_0.
+                 -- apply le_INR. lia.
+               }
+           - assert (0<= (tries'-1)%nat/(size s' -1)%nat)%R as err_ineq.
+             { apply INR_div_pos. }
+             iAssert (⌜2<=size s'⌝)%I as "%".
+             { destruct (size s') as [|[|]]eqn:Hcontra; last (iPureIntro; lia).
+               - apply size_empty_inv in Hcontra.
+                 by rewrite leibniz_equiv_iff in Hcontra.
+               - iDestruct (ec_contradict with "[$]") as "[]".
+                 simpl.
+                 rewrite Rdiv_1_r.
+                 replace 1%R with (INR 1) by done.
+                 apply le_INR. lia.
+             }
+             iMod (pupd_partial_resolve_urn _ _ (λ x, if bool_decide (x=({[guess_rem]} : gset _)) then nnreal_one else mknonnegreal _ err_ineq) _ _ (({[guess_rem]} ::(s'∖{[guess_rem]}) ::[]): list (gset _)) with "[$Herr] [$Hurn]")%Z as "H'".
+             + done.
+             + simpl.
+               rewrite union_empty_r_L.
+               rewrite -union_difference_L; first done.
+               set_solver.
+             + repeat setoid_rewrite NoDup_cons.
+               repeat split; last by apply NoDup_nil.
+               -- set_unfold.
+                  intros ?. destruct!/=. set_solver.
+               -- set_solver.
+             + set_unfold.
+               intros ?.
+               destruct!/=.
+               rename select (_=_∖_) into Hcontra.
+               apply (f_equal size) in Hcontra.
+               rewrite size_empty size_difference in Hcontra; last set_solver.
+               rewrite size_singleton in Hcontra. lia.
+             + intros.
+               set_unfold.
+               destruct!/=; set_solver.
+             + rewrite SeriesC_list; last first.
+               { repeat setoid_rewrite NoDup_cons.
+                 repeat split; last by apply NoDup_nil.
+                 - set_unfold.
+                   intros ?. destruct!/=. set_solver.
+                 - set_solver. }
+               Local Opaque size.
+               simpl.
+               rewrite bool_decide_eq_true_2; last done.
+               rewrite Rmult_1_l size_singleton.
+               rewrite bool_decide_eq_false_2; last set_solver.
+               rewrite Rplus_0_r.
+               simpl.
+               rewrite size_difference; last set_solver.
+
+               (* replace (_-_+_) with tries' by lia. *)
+               rewrite !Rdiv_def.
+               apply Rmult_le_compat_r.
+               * rewrite -Rdiv_1_l.
+                 apply Rdiv_INR_ge_0.
+               * rewrite size_singleton.
+                 (* rewrite plus_INR. *)
+                 simpl.
+                 rewrite Rmult_assoc.
+                 rewrite (Rmult_comm (/ _)%R).
+                 rewrite minus_INR. 2: lia.
+                 assert ((size s' - 1)%nat */(size s' -1)%nat=1)%R as -> ; simpl ; last lra.
+                 rewrite -Rdiv_def.
+                 rewrite Rdiv_diag; first done.
+                 rewrite minus_INR; last lia.
+                 simpl.
+                 assert (INR (size s') ≠ 1)%R; last lra.
+                 replace 1%R with (INR 1) by done.
+                 apply not_INR. lia.
+             + eexists (Rmax _ _).
+               intros.
+               case_bool_decide.
+               -- apply Rmax_l.
+               -- apply Rmax_r.
+             +
+               iDestruct "H'" as "(%&Herr&Hurn &%h3)".
+               set_unfold in h3.
+               destruct!/=.
+               * rewrite bool_decide_eq_true_2; last done.
+                 by iDestruct (ec_contradict with "[$]") as "[]".
+               * rewrite bool_decide_eq_false_2; last set_solver.
+{
+                 iMod (pupd_partial_resolve_urn _ _ (λ x, if bool_decide (x=({[guess_rem]} : gset _)) then nnreal_one else mknonnegreal _ err_ineq) _ _ (({[guess_rem]} ::(s'∖{[guess_rem]}) ::[]): list (gset _)) with "[$Herr'] [$Hurn']")%Z as "H'".
+
+             + done.
+             + simpl.
+               rewrite union_empty_r_L.
+               rewrite -union_difference_L; first done.
+               set_solver.
+             + repeat setoid_rewrite NoDup_cons.
+               repeat split; last by apply NoDup_nil.
+               -- set_unfold.
+                  intros ?. destruct!/=. set_solver.
+               -- set_solver.
+             + set_unfold.
+               intros ?.
+               destruct!/=.
+               rename select (_=_∖_) into Hcontra.
+               apply (f_equal size) in Hcontra.
+               rewrite size_empty size_difference in Hcontra; last set_solver.
+               rewrite size_singleton in Hcontra. lia.
+             + intros.
+               set_unfold.
+               destruct!/=; set_solver.
+             + rewrite SeriesC_list; last first.
+               { repeat setoid_rewrite NoDup_cons.
+                 repeat split; last by apply NoDup_nil.
+                 - set_unfold.
+                   intros ?. destruct!/=. set_solver.
+                 - set_solver. }
+               Local Opaque size.
+               simpl.
+               rewrite bool_decide_eq_true_2; last done.
+               rewrite Rmult_1_l size_singleton.
+               rewrite bool_decide_eq_false_2; last set_solver.
+               rewrite Rplus_0_r.
+               simpl.
+               rewrite size_difference; last set_solver.
+
+               (* replace (_-_+_) with tries' by lia. *)
+               rewrite !Rdiv_def.
+               apply Rmult_le_compat_r.
+               * rewrite -Rdiv_1_l.
+                 apply Rdiv_INR_ge_0.
+               * rewrite size_singleton.
+                 (* rewrite plus_INR. *)
+                 simpl.
+                 rewrite Rmult_assoc.
+                 rewrite (Rmult_comm (/ _)%R).
+                 rewrite minus_INR. 2: lia.
+                 assert ((size s' - 1)%nat */(size s' -1)%nat=1)%R as -> ; simpl ; last lra.
+                 rewrite -Rdiv_def.
+                 rewrite Rdiv_diag; first done.
+                 rewrite minus_INR; last lia.
+                 simpl.
+                 assert (INR (size s') ≠ 1)%R; last lra.
+                 replace 1%R with (INR 1) by done.
+                 apply not_INR. lia.
+             + eexists (Rmax _ _).
+               intros.
+               case_bool_decide.
+               -- apply Rmax_l.
+               -- apply Rmax_r.
+             + iDestruct "H'" as "(%&Herr'&Hurn' &%h3)".
+               set_unfold in h3.
+               destruct!/=.
+               * rewrite bool_decide_eq_true_2; last done.
+                 by iDestruct (ec_contradict with "[$]") as "[]".
+               * rewrite bool_decide_eq_false_2 ; last set_solver.
+                 iFrame.
+                 simpl.
+                 iModIntro.
+                 repeat iSplit; try iPureIntro.
+                 -- set_solver.
+                 -- intros Hcontra.
+                    apply (f_equal size) in Hcontra.
+                    rewrite size_empty size_difference in Hcontra; last set_solver.
+                    rewrite size_singleton in Hcontra. lia.
+                 -- set_solver.
+                 -- rewrite size_difference; last set_solver.
+                    rewrite size_singleton. lia.
+                 -- iSplitL "Herr".
+                    ++ iApply (ec_eq with "[$]").
+                       simpl. rewrite size_difference; last set_solver.
+                       by rewrite size_singleton.
+                    ++ iApply (ec_eq with "[$]").
+                       simpl. rewrite size_difference; last set_solver.
+                       by rewrite size_singleton.
+          }
+          }
+          iDestruct "H_l" as "(%&%&%&H_l&H_l'&%&%&Herr&Herr')".
+
+          (* TODO *)
+
+(guess `mod` (tag_range + 1) ∈ s')%Z
+
+          wp_apply (wp_insert_new _ _ _ _ _ _
+                      (λ x, if bool_decide (x = secret) then nnreal_one else nnreal_zero)%R
+                      (l↪ _) with "[$Hf $Herr1' $Hurn]").
+
+          iAssert (pupd ∅ ∅ (∃s'', ⌜ s'' ⊆ s' ⌝ ∗ ⌜ s''≠∅⌝ ∗
+                                   l' ↪ urn_unif s'' ∗ ⌜guess `mod` (tag_range + 1) ∉ s''⌝%Z ∗
+                                   ⌜size s'<=size s''+1⌝ ∗
+                                   ↯ ((tries'-1)%nat/size s'')
+                  ))%I with "[Hurn' Herr']" as ">H_l'".
+          { destruct (decide (guess `mod` (tag_range + 1) ∈ s')%Z); last first.
+           - iModIntro.
+             iFrame.
+             repeat iSplit; try done.
+             + iPureIntro; lia.
+             + iApply (ec_weaken with "[$]").
+               split.
+               * apply INR_div_pos.
+               * rewrite !Rdiv_def.
+                 apply Rmult_le_compat_r.
+                 -- rewrite -Rdiv_1_l. apply Rdiv_INR_ge_0.
+                 -- apply le_INR. lia.
+           - assert (0<= (tries'-1)%nat/(size s' -1)%nat)%R as err_ineq.
+             { apply INR_div_pos. }
+             iAssert (⌜2<=size s'⌝)%I as "%".
+             { destruct (size s') as [|[|]]eqn:Hcontra; last (iPureIntro; lia).
+               - apply size_empty_inv in Hcontra.
+                 by rewrite leibniz_equiv_iff in Hcontra.
+               - iDestruct (ec_contradict with "[$]") as "[]".
+                 simpl.
+                 rewrite Rdiv_1_r.
+                 replace 1%R with (INR 1) by done.
+                 apply le_INR. lia.
+             }
+             set (guess_rem := (guess `mod` (tag_range + 1))%Z).
+             iMod (pupd_partial_resolve_urn _ _ (λ x, if bool_decide (x=({[guess_rem]} : gset _)) then nnreal_one else mknonnegreal _ err_ineq) _ _ (({[guess_rem]} ::(s'∖{[guess_rem]}) ::[]): list (gset _)) with "[$][$]")%Z as "H'".
+             + done.
+             + simpl.
+               rewrite union_empty_r_L.
+               rewrite -union_difference_L; first done.
+               set_solver.
+             + repeat setoid_rewrite NoDup_cons.
+               repeat split; last by apply NoDup_nil.
+               -- set_unfold.
+                  intros ?. destruct!/=. set_solver.
+               -- set_solver.
+             + set_unfold.
+               intros ?.
+               destruct!/=.
+               rename select (_=_∖_) into Hcontra.
+               apply (f_equal size) in Hcontra.
+               rewrite size_empty size_difference in Hcontra; last set_solver.
+               rewrite size_singleton in Hcontra. lia.
+             + intros.
+               set_unfold.
+               destruct!/=; set_solver.
+             + rewrite SeriesC_list; last first.
+               { repeat setoid_rewrite NoDup_cons.
+                 repeat split; last by apply NoDup_nil.
+                 - set_unfold.
+                   intros ?. destruct!/=. set_solver.
+                 - set_solver. }
+               Local Opaque size.
+               simpl.
+               rewrite bool_decide_eq_true_2; last done.
+               rewrite Rmult_1_l size_singleton.
+               rewrite bool_decide_eq_false_2; last set_solver.
+               rewrite Rplus_0_r.
+               simpl.
+               rewrite size_difference; last set_solver.
+
+               (* replace (_-_+_) with tries' by lia. *)
+               rewrite !Rdiv_def.
+               apply Rmult_le_compat_r.
+               * rewrite -Rdiv_1_l.
+                 apply Rdiv_INR_ge_0.
+               * rewrite size_singleton.
+                 (* rewrite plus_INR. *)
+                 simpl.
+                 rewrite Rmult_assoc.
+                 rewrite (Rmult_comm (/ _)%R).
+                 rewrite minus_INR. 2: lia.
+                 assert ((size s' - 1)%nat */(size s' -1)%nat=1)%R as -> ; simpl ; last lra.
+                 rewrite -Rdiv_def.
+                 rewrite Rdiv_diag; first done.
+                 rewrite minus_INR; last lia.
+                 simpl.
+                 assert (INR (size s') ≠ 1)%R; last lra.
+                 replace 1%R with (INR 1) by done.
+                 apply not_INR. lia.
+             + eexists (Rmax _ _).
+               intros.
+               case_bool_decide.
+               -- apply Rmax_l.
+               -- apply Rmax_r.
+             + iDestruct "H'" as "(%&Herr&Hurn &%)".
+               set_unfold.
+               destruct!/=.
+               * rewrite bool_decide_eq_true_2; last done.
+                 by iDestruct (ec_contradict with "[$]") as "[]".
+               * rewrite bool_decide_eq_false_2; last set_solver.
+                 iFrame.
+                 iModIntro.
+                 repeat iSplit; try iPureIntro.
+                 -- set_solver.
+                 -- intros Hcontra.
+                    apply (f_equal size) in Hcontra.
+                    rewrite size_empty size_difference in Hcontra; last set_solver.
+                    rewrite size_singleton in Hcontra. lia.
+                 -- set_solver.
+                 -- rewrite size_difference; last set_solver.
+                    rewrite size_singleton. lia.
+                 -- iApply (ec_eq with "[$]").
+                    simpl. rewrite size_difference; last set_solver.
+                    by rewrite size_singleton.
+          }
+          iDestruct "H_l" as "(% & %)"
+
 
 
 
