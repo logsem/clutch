@@ -527,6 +527,8 @@ Notation "α '-{' ρ '}->' β" := (TBang MS (TArrow α%ty ρ β%ty))
                                  (at level 100, ρ, β at level 200) : FType_scope.
 Notation "α ⇾ β" := (TBang MS (TArrow α%ty RNil β%ty))
                        (at level 100, β at level 200) : FType_scope.
+Notation "α '-{' ρ '}-[' m ']->' β" := (TBang m (TArrow α ρ β))
+                                         (at level 100, ρ, m, β at level 200) : FType_scope.
 Notation "μ: τ" :=
   (TRec τ%ty)
   (at level 100, τ at level 200) : FType_scope.
@@ -587,7 +589,10 @@ Section ctx.
 
   Definition ctx := list (string * type).
   
-  Definition ctx_insert (x : string) (t : type) (Γ : ctx) := (x, t) :: Γ.
+  Definition ctx_insert (x : binder) (t : type) (Γ : ctx) := match x with 
+                                                             | BAnon => Γ 
+                                                             | BNamed s => (s, t) :: Γ
+                                                             end.
   
   Definition ctx_append (Γ1 Γ2 : ctx) := Γ1 ++ Γ2.
   
@@ -614,6 +619,13 @@ Section ctx.
      Definition ctx_append (Γ1 Γ2 : ctx) : ctx := gmap_merge _ _ _ merge_aux Γ1 Γ2.
      
      Definition ctx_dom (Γ : ctx) := dom Γ. *)
+
+  Global Instance elem_binder_string : (ElemOf binder stringset) | 10 := 
+    (λ b xs, match b with
+               BAnon => False%type
+             | BNamed x => x ∈ xs
+             end).
+
   
 End ctx.
 
@@ -1007,18 +1019,21 @@ Notation "⤉ Γ" := ((λ '(x, α), (x, α.[ren (+1)])) <$> (Γ : ctx)) (at leve
 Reserved Notation "Δ '.|' Γ1 '⊢ₜ' e ':' ρ ':' τ '⊣' Γ2"
   (at level 74, Γ1, e, ρ, τ, Γ2 at next level).
 Reserved Notation "'⊢ᵥ' v ':' τ"  (at level 20, v, τ at next level).
+Reserved Notation "Γ '⊢ₚ' e ':' τ" (at level 20, e, τ at next level). 
 
-(* From clutch.prob_eff_lang.probblaze Require Import notation. *)
 
 Inductive typed :
   stringmap unit → ctx → expr → row → type → ctx → Prop :=
 
-| Var_typed Δ Γ x τ :
+| Var_typed Δ Γ (x : string) τ :
   Δ .| <[ x :=c τ ]> Γ ⊢ₜ Var x : RNil : τ ⊣ Γ
 
-| Val_typed Δ Γ v ρ τ :
+| Val_typed Δ Γ v τ :
   ⊢ᵥ v : τ →
-  Δ .| Γ ⊢ₜ Val v : ρ : τ ⊣ Γ
+  Δ .| Γ ⊢ₜ Val v : RNil : τ ⊣ Γ
+
+| Pure_typed Δ Γ1 Γ2 e τ :
+  Γ1 ⊢ₚ e : τ → Δ .| Γ2 ;; Γ1 ⊢ₜ e : RNil : τ ⊣ Γ2
 
 | Pair_typed Δ Γ1 Γ2 Γ3 e1 e2 ρ τ1 τ2 :
   Δ .| Γ1 ⊢ₜ e1 : ρ : τ1 ⊣ Γ2 →
@@ -1049,12 +1064,12 @@ Inductive typed :
                      Δ .| Γ2 ⊢ₜ e1 : ρ : τ ⊣ Γ3 →
                                         Δ .| Γ2 ⊢ₜ e2 : ρ : τ ⊣ Γ3 →
                                                            Δ .| Γ1 ⊢ₜ If e0 e1 e2 : ρ : τ ⊣ Γ3
-(* TODO: consider other rules for affine function types *)
-| Rec_typed Δ Γ Γ' f x e ρ τ κ :
-  (* match f with BNamed f => BNamed f ≠ x | BAnon => True end → *)
-  Δ .| <[ f :=c (τ -{ ρ }-> κ)%ty ]> <[ x :=c τ ]> Γ ⊢ₜ e : ρ : κ ⊣ ∅ →
-                                                                Δ .| Γ ;; Γ' ⊢ₜ Rec f x e : RNil : τ -{ ρ }-> κ ⊣ Γ'
-(* A analogous rule for -∘ can be derived from Sub_typed and Rec_typed *)
+| Rec_typed Δ Γ Γ' f x e m ρ τ κ :
+  match f with BNamed f => BNamed f ≠ x | BAnon => True end →
+  (* TODO: for now we have to have this restriction *)
+  f ∉ ctx_dom Γ → x ∉ ctx_dom Γ →  m m⪯C Γ →
+  Δ .| <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> <[ x :=c τ ]> Γ ⊢ₜ e : ρ : κ ⊣ ∅ →
+                                                                Δ .| Γ ;; Γ' ⊢ₜ Rec f x e : RNil : τ -{ ρ }-[m]-> κ ⊣ Γ'
 
 (* TODO: generalize according to Fig. 5 in Affect *)
 | App_typed Δ Γ1 Γ2 Γ3 e1 e2 ρ ρ' ρ'' b τ κ :
@@ -1153,6 +1168,42 @@ Inductive typed :
   Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2 →
   Δ .| <[ x :=c κ ]> Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2
 
+(* Pure_typed is used for value restriction, but allowing a bit more freedom. Can be extended later to cover all pure expressions *)
+with pure_typed  : ctx → expr → type → Prop :=
+| Val_pure_typed v τ : 
+  ⊢ᵥ v : τ → [] ⊢ₚ v : τ
+
+| Rec_pure_typed Γ1 f x e m τ ρ κ : 
+  match f with BNamed f => BNamed f ≠ x | BAnon => True end →
+  (* TODO: for now we have to have this restriction *)
+  f ∉ ctx_dom Γ1 → x ∉ ctx_dom Γ1 →
+  m m⪯C Γ1 → 
+  ∅ .| <[ x :=c τ ]> <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> Γ1 ⊢ₜ e : ρ : κ ⊣ [] → Γ1 ⊢ₚ Rec f x e : (τ -{ ρ }-[m]-> κ)%ty
+
+
+| Pair_pure_typed Γ e1 e2 τ1 τ2 : 
+  Γ ⊢ₚ e1 : τ1 → Γ ⊢ₚ e2 : τ2 → Γ ⊢ₚ Pair e1 e2 : (τ1 * τ2)%ty
+
+| InjL_pure_typed Γ e τ1 τ2 : 
+  Γ ⊢ₚ e : τ1 → Γ ⊢ₚ InjL e : (τ1 + τ2)%ty
+| InjR_pure_typed Γ e τ1 τ2 : 
+  Γ ⊢ₚ e : τ2 → Γ ⊢ₚ InjR e : (τ1 + τ2)%ty
+
+| Var_pure_typed Γ (x : string) τ : 
+   <[ x :=c τ ]> Γ ⊢ₚ Var x : τ 
+
+| BangIntro_pure_typed Γ e m τ :
+  m m⪯C Γ → Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (![m] τ)%ty
+
+| TAbs_pure_typed Γ e τ :
+  Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (∀T: τ)
+| RAbs_pure_typed Γ e τ :
+  Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (∀R: τ)
+| MAbs_pure_typed Γ e τ :
+  Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (∀M: τ)
+
+
+
 with val_typed : val → type → Prop :=
 | Unit_val_typed : ⊢ᵥ LitV LitUnit : ()
 | Int_val_typed (n : Z) : ⊢ᵥ LitV (LitInt n) : ℤ
@@ -1180,9 +1231,10 @@ with val_typed : val → type → Prop :=
 | MAbs_val_typed v τ :
   ⊢ᵥ v : τ →
            ⊢ᵥ v : (∀M: τ)
-(* TODO: I don't know how to add BangIntro *)
-where "Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2" := (typed Δ Γ1 e ρ τ Γ2)
-and "⊢ᵥ e : τ" := (val_typed e τ).                   
+
+where "Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2" := (typed Δ Γ1 e%E ρ τ%ty Γ2)
+and "⊢ᵥ e : τ" := (val_typed e τ%ty)
+and "Γ ⊢ₚ e : τ" := (pure_typed Γ e%E τ%ty).                   
  
 Section derived_rules. 
 
@@ -1225,16 +1277,49 @@ Section derived_rules.
       (* The key: the remainders are also permutations *)
       apply IH with (Γ' := pre ++ post).
       + assumption.
-      + admit.
-  Admitted. 
+      + eapply Permutation_cons_inv. 
+        rewrite !Permutation_middle. 
+        erewrite Hperm. by rewrite Heq''.
+  Qed. 
 
+  Lemma _ctx_perm_left D Γ1 Γ2 Γ3 : 
+    D ⊢ Γ1 ≤C Γ2 → 
+    Permutation Γ1 Γ3 →
+    D ⊢ Γ3 ≤C Γ2. 
+  Proof. 
+    intros Hle1 Hperm.
+    generalize dependent Γ2.
+    induction Hperm; intros Γ3 Hle1.
+    - exact Hle1.
+    - simpl in *. destruct x as (x, t).
+      destruct Hle1 as [t' [pre [post [Heq [Htyp Htail]]]]].
+      exists t', pre, post.
+      split; [assumption | split; [assumption |]].
+      apply IHHperm. exact Htail.
+    - destruct x as (x,t).
+      destruct y as (y, t').
+      destruct Hle1 as (t''&pre&post&->&Ht''&Hle).
+      destruct Hle as (r&pre'&post'&Heq&Ht&Hle).
+      eapply _ctx_perm_right; last apply Permutation_middle.
+      exists r, ((y,t'')::pre'), post'.
+      split. { rewrite -app_comm_cons. by rewrite -Heq. }
+      split; first done.
+      exists t'', [], (pre' ++ post'). split; first done.
+      split; done.
+    - apply IHHperm2, IHHperm1, Hle1.
+  Qed.
+    
   Lemma CTrans_le D Γ1 Γ2 Γ3 :
     D ⊢ Γ1 ≤C Γ2 → D ⊢ Γ2 ≤C Γ3 → D ⊢ Γ1 ≤C Γ3.
   Proof. 
-    induction Γ1 as [| [x t1] Γ1_tail IH]; [done|].
-    intros (τ&pre&post&->&Hle1) Hle2.
-    simpl in *.
-  Admitted. 
+    generalize Γ2 Γ3. induction Γ1 as [| [x t1] Γ1_tail IH]; [done|].
+    intros Γ2' Γ3' (τ&pre&post&->&Hτ&Hle1) Hle2.
+    eapply _ctx_perm_left in Hle2; last by rewrite -Permutation_middle.
+    destruct Hle2 as (τ'&pre'&post'&->&Hτ'&Hle3).
+    exists τ', pre', post'.
+    split; first done. split; first by eapply le.TTrans_le.
+    by eapply IH.
+  Qed. 
 
   Lemma SRefl_le D e : D ⊢ e ≤S e.
   Proof. 
