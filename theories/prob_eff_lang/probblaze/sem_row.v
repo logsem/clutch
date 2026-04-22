@@ -11,15 +11,16 @@ From iris.base_logic Require Export iprop upred invariants.
 From clutch.prob_eff_lang.probblaze Require Import logic notation sem_def mode sem_sig.
 
 (* Nil Row *)
-Program Definition sem_row_nil {Σ} : sem_row Σ := @SemRow Σ ⊥ _ _. 
+Program Definition sem_row_nil {Σ} : sem_row Σ := @SemRow Σ ⊥ _ (* _ *). 
 Next Obligation. iIntros (?????) "?". iIntros (???) "(%Hcontra & _)". by apply elem_of_nil in Hcontra. Qed.
-Next Obligation. iIntros (????) "(%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed.
+(* Next Obligation. iIntros (????) "(%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed. *)
 
 Global Instance sem_row_bottom {Σ} : Bottom (sem_row Σ) := sem_row_nil.
-(* TODO: update to use iLblThy s.t. we can use BREL *)
+
 (* Cons Row *)
-Program Definition sem_row_cons {Σ} (op1 op2 : label) : sem_sig Σ -d> sem_row Σ -d> sem_row Σ :=
-    λ σ ρ, (@SemRow Σ ((([op1], [op2]), σ) :: (sem_row_car ρ)) _ _ ) .
+Program Definition sem_row_cons {Σ} : sem_sig Σ -d> sem_row Σ -d> sem_row Σ :=
+    λ σ ρ, 
+      (@SemRow Σ ((([(sem_sig_labels Σ σ).1], [(sem_sig_labels Σ σ).2]), σ) :: (sem_row_car ρ)) _ (* _ *) ) .
               (* (λ e1 e2, λne Φ, ∃ (op' : label) (v1 v2 : val), 
                               ⌜ e1 = (do: op' v1)%E ⌝ ∗ ⌜ e2 = (do: op' v2)%E ⌝ ∗
                                if decide (op = op') then 
@@ -27,22 +28,24 @@ Program Definition sem_row_cons {Σ} (op1 op2 : label) : sem_sig Σ -d> sem_row 
                                else
                                  (pmono_prot_car (sem_row_car ρ)) (do: op' v1)%E (do: op' v2)%E Φ)%I) _). *)
 Next Obligation.
-  intros ?????. iIntros (????) "#H1 % % % (%Hin & H2)". iSplit; first done.
+  intros ???. iIntros (????) "#H1 % % % (%Hin & H2)". iSplit; first done.
   iDestruct "H2" as "(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)".
   iExists _,_,_,_,_. repeat (iSplit; first done).
   iIntros (??) "!# HS". iApply "H1". by iApply "Hcont".
 Qed. 
-Next Obligation.
-  iIntros (????????) "H". 
-  iDestruct (to_iThy_cons with "H") as "H". 
-  iDestruct "H" as "[(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)|(%&%&%&%&%&%&%&%&%&->&%&->&%&Hσ&#Hcont)]".
-  - destruct σ. iDestruct sem_sig_prop as "H1". iExists _, _.
-    iDestruct ("H1" with "Hσ") as (????) "H". iExists op0, op3, v1,v2.
-    iDestruct "H" as "(-> & ->)". done.
-  - apply in_iLblSig in H as (X' & ->).
-    iDestruct (sem_sig_prop with "Hσ") as (op3 op4 v1 v2) "(-> & ->)".
-    iExists _,_,_,_,_,_. done.
-Qed.
+(* Next Obligation.
+     iIntros (????????) "H". 
+     iDestruct (to_iThy_cons with "H") as "H". 
+     iDestruct "H" as "[(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)|(%&%&%&%&%&%&%&%&%&->&%&->&%&Hσ&#Hcont)]".
+     - destruct σ. iDestruct sem_sig_prop as "H1". iExists _, _, op1, op2.
+       
+       iDestruct ("H1" with "Hσ") as "H". d
+       iDestruct ("H1" with "Hσ") as (??) "H". iExists op0, op3, v1,v2.
+       iDestruct "H" as "(-> & ->)". done.
+     - apply in_iLblSig in H as (X' & ->).
+       iDestruct (sem_sig_prop with "Hσ") as (op3 op4 v1 v2) "(-> & ->)".
+       iExists _,_,_,_,_,_. done.
+   Qed. *)
 
 (* Recursive Row *)
 Definition sem_row_rec {Σ} (R : sem_row Σ → sem_row Σ) `{Contractive R} : sem_row Σ :=
@@ -62,7 +65,7 @@ Definition iThyIfMono_iLblSig {Σ} (m: mode) (L : iLblSig Σ) : iLblSig Σ :=
   (map (λ '(l1s, l2s, X), (l1s, l2s, sem_sig_flip_mbang m X)) L).
   
 Program Definition sem_row_flip_mbang {Σ} (m : mode) (ρ : sem_row Σ) : sem_row Σ := 
-  @SemRow Σ (iThyIfMono_iLblSig m ρ) _ _.
+  @SemRow Σ (iThyIfMono_iLblSig m ρ) _ (* _ *).
 Next Obligation.
   iIntros (???????) "#HΦ".
   iIntros (???) "($ & H2)".
@@ -70,32 +73,32 @@ Next Obligation.
   iExists _,_,_,_,_. repeat (iSplit; first done).
   iIntros (??) "!# HS". iApply "HΦ". by iApply "Hcont".
 Qed.
-Next Obligation.
-  iIntros (??????) "Hρ".
-  simpl. iDestruct "Hρ" as (????????? -> ? -> ?) "(HX & #Hcont)".
-  apply in_iLblSig in H as (X' & ->).
-  iDestruct (sem_sig_prop with "HX") as (op3 op4 v1 v2) "(-> & ->)".
-  iExists _,_,_,_,_,_. done.
-Qed.
+(* Next Obligation.
+     iIntros (??????) "Hρ".
+     simpl. iDestruct "Hρ" as (????????? -> ? -> ?) "(HX & #Hcont)".
+     apply in_iLblSig in H as (X' & ->).
+     iDestruct (sem_sig_prop with "HX") as (op3 op4 v1 v2) "(-> & ->)".
+     iExists _,_,_,_,_,_. done.
+   Qed. *)
 (* Notations. *)
 Notation "⟨⟩" := (sem_row_nil) : sem_row_scope.
-Notation "opσ · ρ" := (sem_row_cons opσ.1.1 opσ.1.2 opσ.2 ρ) (at level 80, right associativity) : sem_row_scope.
+Notation "σ · ρ" := (sem_row_cons (* opσ.1.1 opσ.1.2 *) σ ρ) (at level 80, right associativity) : sem_row_scope.
 Notation "¡[ m ] ρ" := (sem_row_flip_mbang m ρ) (at level 10) : sem_row_scope.
 Notation "¡ ρ" := (sem_row_flip_mbang OS ρ) (at level 10) : sem_row_scope.
 Notation "'μᵣ' θ , ρ " := (sem_row_rec (λ θ, ρ%R)) (at level 50) : sem_row_scope.
 
 Section row_properties.
   (* TODO: finish proofs in this section *)
-  Global Instance sem_row_cons_ne {Σ} op op' : NonExpansive2 (@sem_row_cons Σ op op').
+  Global Instance sem_row_cons_ne {Σ} (* op op' *) : NonExpansive2 (@sem_row_cons Σ (* op op' *)).
   Proof. 
   (*   intros ???????. f_equiv. apply non_dep_fun_dist.
        simpl. do 2 f_equiv; apply non_dep_fun_dist; by f_equiv.  
      Qed. *)
   Admitted. 
-  Global Instance sem_row_cons_Proper {Σ} op op': Proper ((≡) ==> (≡) ==> (≡)) (@sem_row_cons Σ op op').
+  Global Instance sem_row_cons_Proper {Σ} (* op op' *): Proper ((≡) ==> (≡) ==> (≡)) (@sem_row_cons Σ (* op op' *)).
   Proof. apply ne_proper_2. apply _. Qed.
   
-  Global Instance sem_row_cons_contractive {Σ} op n : Proper (dist_later n ==> dist n ==> dist n) (@sem_row_cons Σ op).
+  Global Instance sem_row_cons_contractive {Σ} (* op *) n : Proper (dist_later n ==> dist n ==> dist n) (@sem_row_cons Σ (* op *)).
   Proof. 
   (*   intros ???????. rewrite /sem_row_cons. 
        intros ?. simpl. do 6 f_equiv; first f_contractive; f_equiv; apply non_dep_fun_dist; by f_equiv.
@@ -140,11 +143,11 @@ Section once_row.
       iAssert (⌜(l1s0, l2s0, X) ∈ iLblSig_to_iLblThy ((l1s, l2s, σ) :: l)⌝ ∗ iThyTraverse l1s0 l2s0 X v1 v2 Φ)%I with "[H2]" as "Htemp".
       { iSplit; last done. iPureIntro. by apply list_elem_of_further. }
       iDestruct ("HΨ" with "Htemp") as "(% & $)".
-    - iIntros (???) "HΦ".
-      iPoseProof Hprop as "Hprop". 
-      iAssert (to_iThy (iLblSig_to_iLblThy ((l1s, l2s, σ) :: l)) e1 e2 Φ) with "[HΦ]" as "HΦ".
-      { iDestruct "HΦ" as (????) "HΦ". iExists _,_,_. iSplit; [iPureIntro; by apply list_elem_of_further |done]. }
-      iDestruct ("Hprop" with "HΦ") as "HΦ". done.
+    (* - iIntros (???) "HΦ".
+         iPoseProof Hprop as "Hprop". 
+         iAssert (to_iThy (iLblSig_to_iLblThy ((l1s, l2s, σ) :: l)) e1 e2 Φ) with "[HΦ]" as "HΦ".
+         { iDestruct "HΦ" as (????) "HΦ". iExists _,_,_. iSplit; [iPureIntro; by apply list_elem_of_further |done]. }
+         iDestruct ("Hprop" with "HΦ") as "HΦ". done. *)
   Qed. 
 
   Definition mono_prot_on_prop {Σ} (Ψ : sem_row Σ) (P : iProp Σ) : iProp Σ :=
@@ -192,8 +195,8 @@ Section row_sub_typing.
     ⊢ ⟨⟩ ≤ᵣ ρ.
   Proof. iApply to_iThy_le_bot. Qed.
 
-  Lemma valid_cons_singleton (op1 op2 : label) (σ : sem_sig Σ) (ρ : sem_row Σ) :
-    ⊢  logic.valid (iLblSig_to_iLblThy (sem_row_cons op1 op2 σ ρ)) ∗-∗ is_label op1 DfracDiscarded ∗ spec_labels_frag op2 DfracDiscarded ∗ (logic.valid (iLblSig_to_iLblThy ρ)).
+  Lemma valid_cons_singleton (* (op1 op2 : label)  *)(σ : sem_sig Σ) (ρ : sem_row Σ) :
+    ⊢  logic.valid (iLblSig_to_iLblThy (sem_row_cons (* op1 op2 *) σ ρ)) ∗-∗ is_label (sem_sig_labels Σ σ).1 DfracDiscarded ∗ spec_labels_frag (sem_sig_labels Σ σ).2 DfracDiscarded ∗ (logic.valid (iLblSig_to_iLblThy ρ)).
   Proof.                                                                                    
     iSplit.
     - iIntros "#Hvalid".
@@ -211,30 +214,20 @@ Section row_sub_typing.
   (* row_le(false) adds the first two assumptions in the semantic model  *)
   (* the justification is that the only way to add signatures to the left is by using the ERASE rule (adding ⊥) *)
   (* but then you can't use the cons rule afterwards (due to the boolean flag) *)
-  Lemma row_le_cons_comp (ρ ρ' : sem_row Σ) (op op' : label) (σ σ' : sem_sig Σ) :
+  Lemma row_le_cons_comp (ρ ρ' : sem_row Σ) (* (op op' : label)  *)(σ σ' : sem_sig Σ) :
     labels_l (iLblSig_to_iLblThy ρ) ⊆+ labels_l (iLblSig_to_iLblThy ρ') →
     labels_r (iLblSig_to_iLblThy ρ) ⊆+ labels_r (iLblSig_to_iLblThy ρ') →
-    σ ≤ₛ σ' -∗ ρ ≤ᵣ ρ' -∗ sem_row_cons op op' σ ρ ≤ᵣ sem_row_cons op op' σ' ρ'.
+    σ ≤ₛ σ' -∗ ρ ≤ᵣ ρ' -∗ sem_row_cons (* op op' *) σ ρ ≤ᵣ sem_row_cons (* op op' *) σ' ρ'.
   Proof.
-    iIntros "%Hsub %Hsub' #Hσσ' #Hρρ'".
-    unfold row_le. simpl.
+    unfold row_le; unfold sem_row_cons. simpl.
+    iIntros "%Hsub %Hsub' #(->&Hσσ') #Hρρ'".
     iSplit; last iSplit.
     { iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
       iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
-      iApply iThy_le_sum_map; last (iDestruct "Hρρ'" as "($&_)").
+      iApply iThy_le_sum_map; last (iDestruct "Hρρ'" as "($&_)"). 
       iIntros (???) "!# (%&%&%&%&%&$&$&$&$&H&$)". by iApply "Hσσ'". }
     { iModIntro. iApply valid_submseteq'; by constructor. }
     { iIntros "!# %Hd"; iPureIntro. eapply distinct_submseteq'; last done; by constructor. }
-    (* { iIntros "!# #H". iApply valid_cons_singleton.
-         iDestruct (valid_cons_singleton with "H") as "($&$&Hvalid)".
-         iDestruct "Hρρ'" as "(_&#Hρρ'&_)". by iApply "Hρρ'". }
-       { iIntros "!# #H". iDestruct "Hρρ'" as "(_&_&#Hρρ')". iDestruct "Hρρ'" as "%Hρρ'".
-         iDestruct "H" as "(%Hdistinctl&%Hdistinctr)". iPureIntro.
-         unfold distinct_l in Hdistinctl.
-         split; simpl;
-           apply NoDup_cons in Hdistinctl as (Hopρ' & Hρ'l);
-           apply NoDup_cons in Hdistinctr as (Hop'ρ' & Hρ'r);
-           apply NoDup_cons; split; try done; by apply Hρρ'. } *)
   Qed. 
  
   (* Lemma row_le_erase (op1 op2 : label) (ρ : sem_row Σ) :
@@ -253,10 +246,10 @@ Section row_sub_typing.
          + unfold labels_l. simpl. *)
       
   
-  Lemma row_le_swap_second (op1 op1' op2 op2' : label) (σ σ' : sem_sig Σ) (ρ : sem_row Σ) : 
-    ⊢ (op1, op2, σ) · (op1', op2', σ') · ρ ≤ᵣ (op1', op2', σ') · (op1, op2, σ) · ρ. 
+  Lemma row_le_swap_second (σ σ' : sem_sig Σ) (ρ : sem_row Σ) : 
+    ⊢ σ · σ' · ρ ≤ᵣ σ' · σ · ρ. 
   Proof.
-    iApply to_iThy_le_intro'. simpl. apply submseteq_swap.
+    iApply to_iThy_le_intro'. simpl. unfold sem_row_cons. apply submseteq_swap.
   Qed. 
   
   (* Corollary row_le_swap_third (op1 op1' op1'' op2 op2' op2'' : label) (σ σ' σ'' : sem_sig Σ) (ρ : sem_row Σ) : 
@@ -350,15 +343,15 @@ Section row_sub_typing.
       + iIntros "!# Hd". iDestruct "Hleσ" as "(_&_&Hleσ)". unfold distinct'. repeat rewrite -distinct_to_iThyIfMono. by iApply "Hleσ".
   Qed. 
   
-  Lemma row_le_mfbang_dist_cons op1 op2 m σ (ρ : sem_row Σ) :
-    ⊢ ¡[ m ] ((op1, op2, σ) · ρ) ≤ᵣ (op1, op2, ¡[ m ] σ)%S · (¡[ m ] ρ).
+  Lemma row_le_mfbang_dist_cons m σ (ρ : sem_row Σ) :
+    ⊢ ¡[ m ] (σ · ρ) ≤ᵣ (¡[ m ] σ)%S · (¡[ m ] ρ).
   Proof.
     unfold row_le. simpl.
     rewrite iThyIfMono_iLblSig_to_iThyIfMono. iApply to_iThy_le_refl.
   Qed.
   
-  Global Instance row_cons_once (ρ : sem_row Σ) op1 op2 (σ : sem_sig Σ) `{! OnceS σ, ! OnceR ρ } :
-    OnceR ((op1, op2, σ) · ρ)%R.
+  Global Instance row_cons_once (ρ : sem_row Σ) (σ : sem_sig Σ) `{! OnceS σ, ! OnceR ρ } :
+    OnceR (σ · ρ)%R.
   Proof.
     constructor. inv OnceS0. inv OnceR0. simpl.
     iSplit; last iSplit.
@@ -366,7 +359,8 @@ Section row_sub_typing.
       iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy. simpl.
       iApply iThy_le_sum_map.
       - iIntros (???) "!# (%&%&%&%&%&$&$&$&$&H&$)".
-        by iApply sig_le_mfbang_elim.
+        iDestruct sig_le_mfbang_elim as "(?&H')".
+        by iApply "H'".
       - by iDestruct row_le_mfbang_elim0 as "($&_&_)". }
     { iIntros "!# H". rewrite iThyIfMono_iLblSig_to_iThyIfMono. by rewrite <-valid_to_iThyIfMono. }
     { iIntros "!# H". rewrite iThyIfMono_iLblSig_to_iThyIfMono. iDestruct "H" as "%Hdistinct". iPureIntro. by rewrite <-distinct_to_iThyIfMono. }

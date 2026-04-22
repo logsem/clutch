@@ -112,14 +112,15 @@ Arguments pmono_protO : clear implicits.
 
 (** * Semantic Effect Signatures. *)
 
-Definition sem_sig_val_prop {Σ} (Ψ : iThy Σ) : iProp Σ := 
-  ∀ (e1 e2 : expr) Φ, Ψ e1 e2 Φ -∗ ∃ (op1 op2 : label) (v1 v2 : val), ⌜ e1 = (do: op1 v1)%E ⌝ ∗ ⌜ e2 = (do: op2 v2)%E ⌝.
+Definition sem_sig_val_prop {Σ} (labels : (label * label)) (Ψ : iThy Σ) : iProp Σ := 
+  ∀ (e1 e2 : expr) Φ, Ψ e1 e2 Φ -∗ let (op1,op2) := labels in ∃ (v1 v2 : val), ⌜ e1 = (do: op1 v1)%E ⌝ ∗ ⌜ e2 = (do: op2 v2)%E ⌝.
 
 Record sem_sig Σ := SemSig {
-                            sem_sig_car :> pmono_prot Σ;
-                            sem_sig_prop : ⊢ sem_sig_val_prop (pmono_prot_car sem_sig_car)
+                        sem_sig_car :> pmono_prot Σ;
+                        sem_sig_labels : (label * label);
+                            sem_sig_prop : ⊢ sem_sig_val_prop sem_sig_labels (pmono_prot_car sem_sig_car);
                           }.
-Arguments SemSig {_} _%_I {_}.
+Arguments SemSig {_} {_} _%_I {_}.
 Arguments sem_sig_car {_} _ : simpl never.
 Declare Scope sem_sig_scope.
 Delimit Scope sem_sig_scope with S.
@@ -142,7 +143,8 @@ Section sem_sig_cofe.
   Admitted.
  
   Global Program Instance sem_sig_inhabited : Inhabited (sem_sig Σ) := 
-    populate (@SemSig Σ ⊥ _).
+    populate (@SemSig Σ ⊥ _ _ ).
+  Next Obligation. split; apply label_inhabited. Qed.
   Next Obligation. iIntros (???) "? /=". done. Qed.
   
   Global Instance sem_sig_car_ne n : Proper (dist n ==> dist n) sem_sig_car.
@@ -150,9 +152,9 @@ Section sem_sig_cofe.
   Global Instance sem_sig_car_proper : Proper ((≡) ==> (≡)) (@sem_sig_car Σ).
   Proof. by intros Ψ1 Ψ2 ?. Qed.
   
-  Global Instance sem_sig_ne n Ψ : Proper ((λ _ _, True) ==> dist n) (@SemSig Σ Ψ).
+  Global Instance sem_sig_ne n Ψ ops : Proper ((λ _ _, True) ==> dist n) (@SemSig Σ Ψ ops).
   Proof. intros P1 P2 _ ?. apply non_dep_fun_dist. rewrite /sem_sig_car //. Qed.
-  Global Instance sem_sig_proper Ψ : Proper ((λ _ _, True) ==> (≡)) (@SemSig Σ Ψ).
+  Global Instance sem_sig_proper Ψ ops : Proper ((λ _ _, True) ==> (≡)) (@SemSig Σ Ψ ops).
   Proof. intros P1 P2 _ ?. apply non_dep_fun_equiv. rewrite /sem_sig_car //. Qed.
 
 End sem_sig_cofe.
@@ -200,9 +202,9 @@ Definition pers_mono_row {Σ} (Ψ : iLblThy Σ) : iProp Σ :=
 Record sem_row Σ := SemRow {
                         sem_row_car :> iLblSig Σ;
                         sem_row_mono : ⊢ pers_mono_row (iLblSig_to_iLblThy sem_row_car);
-                        sem_row_prop : ⊢ sem_row_val_prop sem_row_car
+                        (* sem_row_prop : ⊢ sem_row_val_prop sem_row_car *)
 }.
-Arguments SemRow {_} _%_I {_}.
+Arguments SemRow {_} _%_I (* {_} *).
 Arguments sem_row_car {_} _ : simpl never.
 
 (** * The COFE structure on semantic rows *)
@@ -235,9 +237,9 @@ Section sem_row_cofe.
   Admitted. 
 
   Global Program Instance sem_row_inhabited : Inhabited (sem_row Σ) := 
-    populate (@SemRow Σ ⊥ _ _).
+    populate (@SemRow Σ ⊥ _ (* _ *)).
   Next Obligation. iIntros (????) "?". iIntros (???) "(%Hcontra & _)". by apply elem_of_nil in Hcontra. Qed.
-  Next Obligation. iIntros (???) "(%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed.
+  (* Next Obligation. iIntros (???) "(%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed. *)
 
   Global Instance sem_row_car_ne n : Proper (dist n ==> dist n) sem_row_car.
   Proof. by intros Ψ1 Ψ2 ?. Qed.
@@ -341,7 +343,7 @@ Proof.
   unfold ty_le, tc_opaque. apply _.
 Qed.
 
-Definition sig_le {Σ} (σ σ' : sem_sig Σ) := tc_opaque (iThy_le σ σ')%I.
+Definition sig_le {Σ} (σ σ' : sem_sig Σ) := tc_opaque (⌜ sem_sig_labels Σ σ = sem_sig_labels Σ σ' ⌝ ∗ iThy_le σ σ')%I.
 Global Instance sig_le_persistent {Σ} σ σ' :
   Persistent (@sig_le Σ σ σ').
 Proof.
@@ -399,8 +401,8 @@ Global Instance sig_le_ne {Σ} :
   NonExpansive2 (@sig_le Σ).
 Proof.
   intros n σ₁ σ₂ Hequiv σ₁' σ₂' Hequiv'. 
-  rewrite /sig_le /tc_opaque. by apply iThy_le_ne. 
-Qed.
+  rewrite /sig_le /tc_opaque. f_equiv; last by apply iThy_le_ne.
+Admitted.
 
 Global Instance sig_le_proper {Σ} :
   Proper ((≡) ==> (≡) ==> (≡)) (@sig_le Σ).

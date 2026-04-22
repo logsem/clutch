@@ -13,7 +13,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic sem_def syntax semantic
 Program Definition sem_sig_eff {Σ} : label -d> label -d> (sem_ty Σ -d> sem_ty Σ) -d> (sem_ty Σ -d> sem_ty Σ) -d> sem_sig Σ :=
   λ op1 op2 A B,
   (@SemSig Σ (@PMonoProt Σ (λ e1 e2, λne Φ, ∃ αs v1 v2, ⌜ e1 = (do: (EffLabel op1) (Val v1))%E ⌝ ∗ ⌜ e2 = (do: (EffLabel op2) (Val v2))%E ⌝ ∗  A αs v1 v2 
-                                               ∗ □ (∀ w1 w2, ∀ v1 v2, ⌜ w1 = Val v1 ⌝ ∗ ⌜ w2 = Val v2 ⌝ ∗ B αs v1 v2 -∗ Φ w1 w2))%I _) _).
+                                               ∗ □ (∀ w1 w2, ∀ v1 v2, ⌜ w1 = Val v1 ⌝ ∗ ⌜ w2 = Val v2 ⌝ ∗ B αs v1 v2 -∗ Φ w1 w2))%I _) (op1, op2) _).
 Next Obligation.
   iIntros (???????????). repeat f_equiv.
 Qed.
@@ -25,13 +25,13 @@ Next Obligation.
   iIntros "H". iApply "HΦ". by iApply "HB".
 Qed.
 Next Obligation.
-  iIntros (????????) "(%&%&%&->&->&_)". iExists _,_,_,_. iSplit; iPureIntro; reflexivity.
+  iIntros (????????) "(%&%&%&->&->&_)". iExists _,_. iSplit; iPureIntro; reflexivity.
 Qed.
 
-Global Instance sem_sig_bottom {Σ} : Bottom (sem_sig Σ) := @sem_sig_eff Σ 0%nat 0%nat (λ _, (λ v1 v2, False)%I) (λ _, (λ v1 v2, True)%I).
+Global Instance sem_sig_bottom {Σ} op1 op2 : Bottom (sem_sig Σ) := @sem_sig_eff Σ op1 op2 (λ _, (λ v1 v2, False)%I) (λ _, (λ v1 v2, True)%I).
 
 (* Flip-Bang Signature *)
-Program Definition sem_sig_flip_mbang {Σ} (m : mode) (σ : sem_sig Σ) : sem_sig Σ := @SemSig Σ (@PMonoProt Σ (iThyIfMono m σ) _) _.
+Program Definition sem_sig_flip_mbang {Σ} (m : mode) (σ : sem_sig Σ) : sem_sig Σ := @SemSig Σ (@PMonoProt Σ (iThyIfMono m σ) _) (sem_sig_labels Σ σ) _.
 Next Obligation.
   iIntros (???????) "#HΦ Hσ". 
   destruct m.
@@ -165,14 +165,15 @@ Section sig_sub_typing.
   (* TODO: finish lemmas in here *)
   
   Lemma sig_le_refl {Σ} (σ : sem_sig Σ) : ⊢ σ ≤ₛ σ.
-  Proof. iApply iThy_le_refl. Qed.
+  Proof. iSplit; first done. iApply iThy_le_refl. Qed.
   
   Lemma sig_le_trans {Σ} (σ₁ σ₂ σ₃: sem_sig Σ) : 
       σ₁ ≤ₛ σ₂ -∗
       σ₂ ≤ₛ σ₃ -∗
       σ₁ ≤ₛ σ₃. 
   Proof. 
-    iIntros "#Hp₁₂ #Hp₂₃"; rewrite /sig_le /tc_opaque. 
+    iIntros "#(%&Hp₁₂) #(%&Hp₂₃)"; rewrite /sig_le /tc_opaque. 
+    iSplit; first (iPureIntro; by rewrite H).
     iApply iThy_le_trans; [iApply "Hp₁₂"|iApply "Hp₂₃"].
   Qed.
   
@@ -196,7 +197,7 @@ Section sig_sub_typing.
   Lemma sig_le_mfbang_intro {Σ} m (σ : sem_sig Σ) :
     ⊢ σ ≤ₛ ¡[ m ] σ.
   Proof.
-    rewrite /sem_sig_flip_mbang. 
+    rewrite /sem_sig_flip_mbang. iSplit; first done.
     iIntros (v1 v2 Φ) "!# Hσ". destruct m; try done; simpl.
     iExists Φ. iFrame. iNext. iIntros "% % $".
   Qed.
@@ -204,7 +205,7 @@ Section sig_sub_typing.
   Lemma sig_le_mfbang_elim_ms {Σ} (σ : sem_sig Σ) :
     ⊢ ¡[ MS ] σ ≤ₛ σ.
   Proof.
-    rewrite /sem_sig_flip_mbang. 
+    rewrite /sem_sig_flip_mbang. iSplit; first done.
     iIntros (v1 v2 Φ)"!#". simpl. iIntros "$". 
   Qed.
   
@@ -212,19 +213,23 @@ Section sig_sub_typing.
     m' ≤ₘ m -∗ σ ≤ₛ σ' -∗ 
     ¡[ m ] σ ≤ₛ ¡[ m' ] σ'.
   Proof.
-    iIntros "#Hlem #Hleσ". destruct m.
+    iIntros "#Hlem #Hleσ".
+    destruct m.
     - iDestruct (mode_le_OS_inv with "Hlem") as "->".
       rewrite /sig_le /sem_sig_flip_mbang /tc_opaque. simpl.
+      iDestruct "Hleσ" as "($&Hle)".
       by iApply iThy_le_iThyMono.
     - iApply sig_le_trans; first iApply sig_le_mfbang_elim_ms. 
       iApply sig_le_trans; first iApply (sig_le_mfbang_intro m').
       rewrite /sig_le /sem_sig_flip_mbang /tc_opaque.
+      iDestruct "Hleσ" as "($&Hle)".
       by iApply iThy_le_iThyIfMono.
   Qed.
   
   Lemma sig_le_mfbang_idemp {Σ} m (σ : sem_sig Σ) :
     ⊢ (¡[ m ] (¡[ m ] σ)) ≤ₛ ((¡[ m ] σ)).
   Proof.
+    iSplit; first done.
     iIntros (v1 v2 Φ) "!# H". rewrite /sem_sig_flip_mbang /=.
     destruct m;[|done].
     simpl. iDestruct "H" as (Q') "(H & HQ')". iDestruct "H" as (Q'') "(H & HQ'')".

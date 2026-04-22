@@ -1028,10 +1028,10 @@ Section compatibility.
   
   (* Effect allocation rule *)
   (* TODO: type-related rules -- figure out where to place these *)
-  Lemma brel_add_label_l_sem_sig e1 e2 l1 l1s l2s L R :
+  Lemma brel_add_label_l_sem_sig e1 e2 l1 l1s l2 l2s L R :
     ⊢ is_label l1 (DfracOwn 1) -∗
-    BREL e1 ≤ e2 <|((l1 :: l1s, l2s, sem_sig_bottom : iThy Σ) :: L)|> {{R}} -∗
-    BREL e1 ≤ e2 <|((l1s, l2s, sem_sig_bottom : iThy Σ) :: L)|> {{R}}.
+    BREL e1 ≤ e2 <|((l1 :: l1s, l2s, sem_sig_bottom l1 l2 : iThy Σ) :: L)|> {{R}} -∗
+    BREL e1 ≤ e2 <|((l1s, l2s, sem_sig_bottom l1 l2 : iThy Σ) :: L)|> {{R}}.
   Proof.
     iIntros "Hl1 Hbrel
       [#Hvalid_l1s #Hvalid_l2s]
@@ -1044,16 +1044,17 @@ Section compatibility.
     { by iSplit. }
     iApply (rel_introduction_mono with "Hbrel").
     iApply (iThy_le_trans _ (to_iThy L)).
-    { iApply (iThy_le_trans _ (iThySum (iThyTraverse (l1 :: l1s) l2s sem_sig_bottom) (to_iThy L))).
+    { iApply (iThy_le_trans _ (iThySum (iThyTraverse (l1 :: l1s) l2s (sem_sig_bottom l1 l2)) (to_iThy L))).
       { iApply iThy_le_to_iThy_sum. }
-      iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H'&?)&?)|?]";[done|done]. }
+      iApply iThy_le_sum_1; last iApply iThy_le_refl. 
+      by iIntros (???) "!> (%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H&_)&_)". }
     { by iApply iThy_le_to_iThy_2. }
   Qed.
  
-  Lemma brel_add_label_r_sem_sig e1 e2 l1s l2 l2s L R :
+  Lemma brel_add_label_r_sem_sig e1 e2 l1 l1s l2 l2s L R :
     ⊢ spec_labels_frag l2 (DfracOwn 1) -∗
-    BREL e1 ≤ e2 <|((l1s, l2 :: l2s, sem_sig_bottom : iThy Σ) :: L)|> {{R}} -∗
-    BREL e1 ≤ e2 <|((l1s, l2s, sem_sig_bottom : iThy Σ) :: L)|> {{R}}.
+    BREL e1 ≤ e2 <|((l1s, l2 :: l2s, sem_sig_bottom l1 l2 : iThy Σ) :: L)|> {{R}} -∗
+    BREL e1 ≤ e2 <|((l1s, l2s, sem_sig_bottom l1 l2 : iThy Σ) :: L)|> {{R}}.
   Proof.
     iIntros "Hl2 Hbrel
       [#Hvalid_l1s #Hvalid_l2s]
@@ -1066,23 +1067,24 @@ Section compatibility.
     { by iSplit. }
     iApply (rel_introduction_mono with "Hbrel").
     iApply (iThy_le_trans _ (to_iThy L)).
-    { iApply (iThy_le_trans _ (iThySum (iThyTraverse l1s (l2 :: l2s) sem_sig_bottom) (to_iThy L))).
+    { iApply (iThy_le_trans _ (iThySum (iThyTraverse l1s (l2 :: l2s) (sem_sig_bottom l1 l2)) (to_iThy L))).
       { iApply iThy_le_to_iThy_sum. }
-      iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H'&?)&?)|?]";[done|done]. }
+      iApply iThy_le_sum_1; last iApply iThy_le_refl. 
+      by iIntros (???) "!> (%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H&_)&_)". }
     { by iApply iThy_le_to_iThy_2. }
   Qed.
   
   Lemma sem_typed_effect Γ e1 e2 (ρ : sem_row Σ) τ :
-    ⊢ (∀ l1 l2 : label, sem_typed Γ (lbl_subst "s" l1 e1) (lbl_subst "s'" l2 e2) (sem_row_cons l1 l2 (⊥ : sem_sig Σ) ρ) τ Γ) -∗
+    ⊢ (∀ l1 l2 : label, sem_typed Γ (lbl_subst "s" l1 e1) (lbl_subst "s'" l2 e2) (sem_row_cons (sem_sig_bottom l1 l2) ρ) τ Γ) -∗
     sem_typed Γ (effect "s" e1) (effect "s'" e2) ρ τ Γ.
   Proof.
     iIntros "#H !# % Hvs /=".
     iApply (brel_effect_l _ _ []). iIntros (l1) "!> Hl1 !>". 
     iApply (brel_effect_r _ _ _ []). iIntros (l2) "Hl2 !>". simpl.
     iDestruct ("H" $! l1 l2 with "Hvs") as "He".
-    iApply (brel_introduction_mono (([], [], sem_sig_bottom : iThy Σ) :: (iLblSig_to_iLblThy ρ))).
+    iApply (brel_introduction_mono (([], [], sem_sig_bottom l1 l2 : iThy Σ) :: (iLblSig_to_iLblThy ρ))).
     { iSplit.
-      - iApply (iThy_le_trans _ (iThySum (iThyTraverse [] [] sem_sig_bottom) (to_iThy (iLblSig_to_iLblThy ρ)))).
+      - iApply (iThy_le_trans _ (iThySum (iThyTraverse [] [] (sem_sig_bottom l1 l2)) (to_iThy (iLblSig_to_iLblThy ρ)))).
         { simpl. iApply iThy_le_to_iThy_sum. }
         iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H'&?)&?)|?]";[done|done].
       - iSplit; iModIntro.
@@ -1097,7 +1099,7 @@ Section compatibility.
   (* TODO: tech debt from sem_sig -- sigs are only allowed to depend on one type variable compared to a tele from affect *)
   Lemma sem_typed_do m τ ρ' op (A B : sem_ty Σ → sem_ty Σ) Γ1 Γ2 e1 e2 `{ m ₘ⪯ₑ Γ2 } :
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, (A α) =[ m ]=> (B α))%S in
-    let ρ := ((op, σ) · ρ')%R in
+    let ρ := (σ · ρ')%R in
     ⊢ sem_typed Γ1 e1 e2 ρ (A τ) Γ2 -∗
     sem_typed Γ1 (do: op.1 e1) (do: op.2 e2) ρ (B τ) Γ2.
   Proof.
@@ -1126,7 +1128,7 @@ Section compatibility.
   Lemma sem_typed_shallow_handler_MS op (A B : sem_ty Σ → sem_ty Σ) m τ τ' ρ' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
     x ∉ env_dom Γ2 →  x ∉ env_dom Γ3 → k ∉ env_dom Γ3 → x ≠ k →
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, A α =[m]=> B α)%S in
-    let ρ := ((op, σ) · ρ')%R in
+    let ρ := (σ · ρ')%R in
     ⊢ valid (iLblSig_to_iLblThy ρ) -∗
     distinct' (iLblSig_to_iLblThy ρ) -∗
     sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
@@ -1223,7 +1225,7 @@ Section compatibility.
  Lemma sem_typed_deep_handler_MS op (A B : sem_ty Σ → sem_ty Σ) m τ τ' ρ' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
     x ∉ env_dom Γ2 →  x ∉ env_dom Γ3 → k ∉ env_dom Γ3 → x ≠ k →
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, A α =[m]=> B α)%S in
-    let ρ := ((op, σ) · ρ')%R in
+    let ρ := (σ · ρ')%R in
     ⊢ valid (iLblSig_to_iLblThy ρ) -∗
     distinct' (iLblSig_to_iLblThy ρ) -∗
     sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
@@ -1414,7 +1416,7 @@ Section compatibility.
   Lemma sem_typed_shallow_handler_OS op (A B : sem_ty Σ → sem_ty Σ) τ τ' ρ' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
     x ∉ env_dom Γ2 →  x ∉ env_dom Γ3 → k ∉ env_dom Γ3 → x ≠ k →
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, A α =[OS]=> B α)%S in
-    let ρ := ((op, σ) · ρ')%R in
+    let ρ := (σ · ρ')%R in
     ⊢ valid (iLblSig_to_iLblThy ρ) -∗
     distinct' (iLblSig_to_iLblThy ρ) -∗
     sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
@@ -1490,7 +1492,7 @@ Section compatibility.
   Lemma sem_typed_deep_handler_OS op (A B : sem_ty Σ → sem_ty Σ) τ τ' ρ' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
     x ∉ env_dom Γ2 →  x ∉ env_dom Γ3 → k ∉ env_dom Γ3 → x ≠ k →
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, A α =[OS]=> B α)%S in
-    let ρ := ((op, σ) · ρ')%R in
+    let ρ := (σ · ρ')%R in
     ⊢ valid (iLblSig_to_iLblThy ρ) -∗
     distinct' (iLblSig_to_iLblThy ρ) -∗
     sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
