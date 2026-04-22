@@ -55,6 +55,19 @@ Proof.
     - rewrite list_lookup_insert_ne // lookup_insert_ne //.
 Qed.
 
+Lemma big_sepM_map_seq_helper {A} (Φ : nat → A → iProp Σ) (start : nat) (l : list A) :
+  ([∗ map] k↦x ∈ map_seq start l, Φ k x) ⊣⊢ [∗ list] k↦x ∈ l, Φ (start + k)%nat x.
+Proof.
+  revert start. induction l as [|x xs IH]; intros start.
+  - by rewrite big_sepM_empty.
+  - rewrite map_seq_cons big_sepM_insert; last exact (map_seq_cons_disjoint start xs).
+    rewrite IH /= Nat.add_0_r. iSplit.
+    + iIntros "($&H)". iApply (big_sepL_mono with "H"). iIntros (k y _) "Hy".
+      replace (start + S k)%nat with (S (start + k))%nat by lia. iExact "Hy".
+    + iIntros "($&H)". iApply (big_sepL_mono with "H"). iIntros (k y _) "Hy".
+      replace (S (start + k))%nat with (start + S k)%nat by lia. iExact "Hy".
+Qed.
+
 Lemma tp_inv_new_threads C efs :
   tp_inv C ==∗
   tp_inv (C ++ efs) ∗ [∗ list] k↦e ∈ efs, (length C + k) ↪cthread e.
@@ -63,8 +76,16 @@ Proof.
   iMod (ghost_map_insert_big (map_seq (length C) efs)  with "Hm") as "(Hm&Hefs)".
   - eapply map_disjoint_spec. intros n e1 e2 (Hlen&Hluefs)%lookup_map_seq_Some Hl2.
     rewrite Hm in Hl2. eapply lookup_lt_Some in Hl2. lia.
-  - 
-Admitted.
+  - iModIntro. rewrite big_sepM_map_seq_helper. iFrame "Hefs".
+    iExists _. iFrame. iPureIntro.
+    intros n. destruct (decide (n < length C)%nat) as [Hlt|Hge].
+    + rewrite lookup_union_r; [|rewrite lookup_map_seq_None; left; lia].
+      rewrite lookup_app_l; [|lia]. apply Hm.
+    + assert (Hge' : length C ≤ n) by lia.
+      rewrite lookup_union_l; [|rewrite Hm; apply lookup_ge_None_2; lia].
+      rewrite lookup_app_r; [|lia].
+      rewrite lookup_map_seq (option_guard_True _ _ Hge'). done.
+Qed.
 
 Lemma tp_inv_set C :
   tp_inv_ini ==∗ tp_inv C ∗ [∗ list] n↦e ∈ C, n ↪cthread e.
@@ -190,12 +211,50 @@ Lemma no_alloc_subst' (bx : binder) (v : val) (e : expr) :
   no_alloc_val v → no_alloc_expr e → no_alloc_expr (subst' bx v e).
 Proof. destruct bx; simpl; [done | apply no_alloc_subst]. Qed.
 
+Lemma un_op_eval_no_alloc op v v' : un_op_eval op v = Some v' → no_alloc_val v'.
+Proof.
+  destruct op, v; simpl; try discriminate;
+  try destruct l; try discriminate; intro H; injection H as <-; done.
+Qed.
+
+Lemma bin_op_eval_no_alloc op v1 v2 v' : bin_op_eval op v1 v2 = Some v' → no_alloc_val v'.
+Proof.
+  unfold bin_op_eval.
+  case_decide.
+  { case_decide; intro Heq; [injection Heq as <-; done | discriminate]. }
+  destruct v1 as [l1| | | |], v2 as [l2| | | |]; simpl; try discriminate;
+  try by destruct l1.
+  intros. destruct l1, l2; simplify_eq; 
+  (try by econstructor); 
+  (try by destruct (bin_op_eval_loc op l); simpl in *; simplify_eq);
+  by destruct (bin_op_eval_bool op b b0); simpl in *; simplify_eq.
+Qed.
+
 Lemma no_alloc_head_step_val (e1 : expr) (v2 : val) (σ : state)
     (HnoallocH : map_Forall (λ _ v, no_alloc_val v) σ.(heap)) :
   no_alloc_expr e1 →
   head_step_rel e1 σ (of_val v2) σ [] →
   no_alloc_val v2.
 Proof.
-Admitted.
+  intros Hna Hstep.
+  inversion Hstep; subst; simpl in Hna |- *.
+  all: try contradiction.
+  all: try (split; last done; eapply (map_Forall_lookup_1 (λ _ v, no_alloc_val v)); [exact HnoallocH | eassumption]).
+  all: try (eapply (map_Forall_lookup_1 (λ _ v, no_alloc_val v)); [exact HnoallocH | eassumption]).
+  all: try assumption.
+  all: try tauto.
+  all: try done.
+  all: try (eapply un_op_eval_no_alloc; eassumption).
+  all: try (eapply bin_op_eval_no_alloc; eassumption).
+  all: try by rewrite lookup_insert in H2; simplify_eq; tauto.
+  all: try by case_bool_decide; simplify_eq; [tauto|split; last tauto; eapply (map_Forall_lookup_1 (λ _ v, no_alloc_val v)); [exact HnoallocH | eassumption]].
+  destruct Hna as [Hna_body Hna_arg].
+  have H1 : no_alloc_expr (subst' f (RecV f x e0) e0).
+  { apply no_alloc_subst'; simpl; exact Hna_body. }
+  have H2 : no_alloc_expr (subst' x v0 (subst' f (RecV f x e0) e0)).
+  { apply no_alloc_subst'; [exact Hna_arg | exact H1]. }
+  match goal with | Heq : Val v2 = _ |- _ => rewrite -Heq in H2 end.
+  exact H2.
+Qed.
 
 End NoAlloc.
