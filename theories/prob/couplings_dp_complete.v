@@ -549,6 +549,103 @@ Proof.
     exact Hhi.
 Qed.
 
+Lemma step_approx_bound_rel
+  `{Countable A, Countable B}
+  (μ1 : distr A) (μ2 : distr B) (S : A -> B -> Prop) (ε δ : R) :
+  (forall P Q : _ -> Prop,
+     (forall a b, S a b -> P a -> Q b) ->
+     SeriesC (fun a => if @bool_decide (P a) (make_decision _) then μ1 a else 0)
+       <=
+       exp ε *
+         SeriesC (fun b => if @bool_decide (Q b) (make_decision _) then μ2 b else 0) + δ)
+  ->
+  forall n f g,
+    (0 < n)%nat ->
+    (forall a b, S a b -> f a <= g b) ->
+    SeriesC (fun a => μ1 a * step_approx n f a)
+      <=
+    exp ε * SeriesC (fun b => μ2 b * step_approx n g b) + δ.
+Proof.
+  intros h n f g Hn Hfg.
+  rewrite (SeriesC_step_approx μ1 n f Hn).
+  rewrite (SeriesC_step_approx μ2 n g Hn).
+
+  set (Tf := fun k =>
+    SeriesC (fun a =>
+      if @bool_decide (INR (Datatypes.S k) / INR n <= f a) (make_decision _) then μ1 a else 0)).
+  set (Tg := fun k =>
+    SeriesC (fun b =>
+      if @bool_decide (INR (Datatypes.S k) / INR n <= g b) (make_decision _) then μ2 b else 0)).
+
+  assert (Hk :
+    forall k, (k <= pred n)%nat ->
+      Tf k <= exp ε * Tg k + δ).
+  {
+    intros k Hkbound.
+    unfold Tf, Tg.
+    eapply h.
+    intros a b HS Hfa.
+    specialize (Hfg a b HS).
+    lra.
+  }
+
+  assert (Hs :
+    sum_f_R0 Tf (pred n)
+      <=
+    sum_f_R0 (fun k => exp ε * Tg k + δ) (pred n)).
+  {
+    apply sum_f_R0_le.
+    intros k Hkbound.
+    apply Hk. real_solver.
+  }
+
+  unshelve epose proof (Rinv_0_le_compat (INR n) _) as hn.
+  1: real_solver.
+  eapply Rle_trans ; [eapply (Rmult_le_compat_l _ _ _ hn Hs)|].
+
+  replace ((/ INR n) * sum_f_R0 (fun _ => δ) (pred n)) with δ.
+  2:{
+    set (sum_f_R0_const := sum_cte).
+    rewrite sum_f_R0_const.
+    erewrite Nat.lt_succ_pred. 2: done.
+    field.
+    apply not_0_INR. lia.
+  }
+
+  replace ((/ INR n) * sum_f_R0 (fun k => exp ε * Tg k) (pred n))
+    with (exp ε * ((/ INR n) * sum_f_R0 Tg (pred n))).
+  2:{
+    rewrite -Rmult_assoc.
+    rewrite (Rmult_comm (exp ε)).
+    rewrite Rmult_assoc.
+    rewrite scal_sum.
+    transitivity (/ n * sum_f_R0 (λ k : nat, Tg k * exp ε) (pred n)).
+    1: field ; apply not_0_INR ; lia.
+    apply Rmult_eq_compat_l.
+    apply sum_eq.
+    intros.
+    rewrite (Rmult_comm (exp ε)).
+    done.
+  }
+
+  rewrite scal_sum.
+  rewrite scal_sum.
+  rewrite scal_sum.
+
+  transitivity
+    (sum_f_R0
+       (fun i : nat => ((exp ε * Tg i) * / n) + (δ * / n))
+       (pred n)).
+  - right. apply sum_eq. intros. lra.
+  - rewrite sum_plus. rewrite sum_cte.
+    apply Rplus_le_compat.
+    + right. apply sum_eq. intros. lra.
+    + field_simplify. 2: apply not_0_INR ; lia.
+      erewrite Nat.lt_succ_pred. 2: done.
+      right. field. apply not_0_INR ; lia.
+Qed.
+
+
 Lemma SeriesC_step_approx_upper `{Countable A} (μ : distr A) (n : nat) (u : A -> R) :
   (0 < n)%nat ->
   (forall a, 0 <= u a <= 1) ->
@@ -686,38 +783,48 @@ Proof.
   lra.
 Qed.
 
-Lemma DPCoupl_complete `{Countable A} (μ1 μ2 : distr A) (ε δ : nonnegreal) :
-   (∀ P, prob μ1 (λ a, bool_decide (P a)) <= exp ε * prob μ2 (λ a, bool_decide (P a)) + δ) ->
-   DPcoupl μ1 μ2 eq ε δ.
+Lemma DPCoupl_complete_rel
+  `{Countable A, Countable B}
+  (μ1 : distr A) (μ2 : distr B) (S : A -> B -> Prop)
+  (ε δ : nonnegreal) :
+  (forall P Q : _ -> Prop,
+     (forall a b, S a b -> P a -> Q b) ->
+     prob μ1 (fun a => bool_decide (P a))
+       <=
+     exp ε * prob μ2 (fun b => bool_decide (Q b)) + δ) ->
+  DPcoupl μ1 μ2 S ε δ.
 Proof.
   intros h f g Hf Hg Hfg.
-  assert (Hfg' : forall a, f a <= g a) by (intro a; apply Hfg; reflexivity).
 
   assert (Hstep :
     forall n, (0 < n)%nat ->
       SeriesC (fun a => μ1 a * step_approx n f a)
-      <= exp ε * SeriesC (fun a => μ2 a * step_approx n g a) + δ).
+      <=
+      exp ε * SeriesC (fun b => μ2 b * step_approx n g b) + δ).
   {
     intros n Hn.
-    eapply step_approx_bound; eauto.
+    eapply step_approx_bound_rel; eauto.
   }
 
   assert (Hleft :
     forall n, (0 < n)%nat ->
-              SeriesC (fun a => μ1 a * f a) - / INR n
-              <= SeriesC (fun a => μ1 a * step_approx n f a)).
+      SeriesC (fun a => μ1 a * f a) - / INR n
+      <=
+      SeriesC (fun a => μ1 a * step_approx n f a)).
   { intros n Hn; apply SeriesC_step_approx_lower; auto. }
 
   assert (Hright :
-           forall n, (0 < n)%nat ->
-                     SeriesC (fun a => μ2 a * step_approx n g a)
-                     <= SeriesC (fun a => μ2 a * g a)).
+    forall n, (0 < n)%nat ->
+      SeriesC (fun b => μ2 b * step_approx n g b)
+      <=
+      SeriesC (fun b => μ2 b * g b)).
   { intros n Hn; apply SeriesC_step_approx_upper; auto. }
 
   assert (Hnfinal :
-           forall n, (0 < n)%nat ->
-                     SeriesC (fun a => μ1 a * f a) - / INR n
-                     <= exp ε * SeriesC (fun a => μ2 a * g a) + δ).
+    forall n, (0 < n)%nat ->
+      SeriesC (fun a => μ1 a * f a) - / INR n
+      <=
+      exp ε * SeriesC (fun b => μ2 b * g b) + δ).
   {
     intros n Hn.
     eapply Rle_trans.
@@ -730,12 +837,10 @@ Proof.
         * apply Hright; exact Hn.
   }
 
-
-
   apply Rnot_gt_le.
   intro Hcontra.
   set (x := SeriesC (fun a => μ1 a * f a)).
-  set (y := exp ε * SeriesC (fun a => μ2 a * g a) + δ).
+  set (y := exp ε * SeriesC (fun b => μ2 b * g b) + δ).
 
   assert (Hxy : y < x).
   { apply Rnot_le_lt. fold x y in Hcontra. lra. }
@@ -744,8 +849,29 @@ Proof.
   { lra. }
 
   destruct (archimed_cor1 (x - y) Hgap) as [m [Hm Hmpos]].
-
   specialize (Hnfinal m Hmpos).
   change (x - / INR m <= y) in Hnfinal.
   lra.
+Qed.
+
+Corollary DPCoupl_complete
+  `{Countable A} (μ1 μ2 : distr A) (ε δ : nonnegreal) :
+   (forall P,
+      prob μ1 (fun a => bool_decide (P a))
+        <=
+      exp ε * prob μ2 (fun a => bool_decide (P a)) + δ) ->
+   DPcoupl μ1 μ2 eq ε δ.
+Proof.
+  intros h.
+  eapply DPCoupl_complete_rel.
+  intros P Q HPQ.
+  eapply Rle_trans.
+  - apply h.
+  - apply Rplus_le_compat_r.
+    apply Rmult_le_compat_l.
+    + left; apply exp_pos.
+    + rewrite /prob.
+      apply SeriesC_indicator_le.
+      intros a Ha.
+      eapply HPQ; [reflexivity|exact Ha].
 Qed.
