@@ -30,16 +30,27 @@ Proof.
   done.
 Qed.
 
-Definition dp_coupl {A} `{Countable B} (dA : A → A → R) (f : A -> distr B) (ε δ : R) :=
+Definition diffpriv_coupl {A} `{Countable B} (dA : A → A → R) (f : A -> distr B) (ε δ : R) :=
   ∀ a1 a2, (dA a1 a2 <= 1)%R → DPcoupl (f a1) (f a2) eq ε δ.
 
-Lemma dp_coupl_seq_comp
+Corollary diffpriv_DPcoupl {A B : Type} `{Countable B}
+  (d : A → A → R) (f : A → distr B) (ε δ : nonnegreal) :
+  diffpriv_approx d f ε δ → diffpriv_coupl d f ε δ
+.
+Proof.
+  intros dipr.
+  intros a1 a2 d12.
+  eapply DPcoupl_complete_eq.
+  by apply dipr.
+Qed.
+
+Lemma diffpriv_coupl_seq_comp
   {DB B C : Type} `{Countable B, Countable C} (dDB : DB -> DB -> R)
   (f : DB -> distr B) (g : DB * B -> distr C) (ε1 δ1 ε2 δ2 : nonnegreal)
-  (dp_f : dp_coupl dDB f ε1 δ1)
-  (dp_g : ∀ b, dp_coupl dDB (λ x, g (x, b)) ε2 δ2)
+  (dp_f : diffpriv_coupl dDB f ε1 δ1)
+  (dp_g : ∀ b, diffpriv_coupl dDB (λ x, g (x, b)) ε2 δ2)
    :
-   dp_coupl dDB
+   diffpriv_coupl dDB
      (λ x, dbind (λ b, g (x, b)) (f x))
      (ε1 + ε2)
      (δ1 + δ2).
@@ -64,12 +75,9 @@ Lemma dp_seq_comp
 Proof.
   intros a1 a2 adj PC.
   eapply DPcoupl_eq_elim_dp.
-  eapply dp_coupl_seq_comp. 3: eassumption.
-  - intros a1' a2' adj'. apply DPCoupl_complete. intros.
-    eapply dp_f. done.
-  - intros b ???.
-    apply DPCoupl_complete. intros.
-    eapply (dp_g b). done.
+  eapply diffpriv_coupl_seq_comp. 3: eassumption.
+  - eapply diffpriv_DPcoupl => //.
+  - intros ; eapply diffpriv_DPcoupl => //.
 Qed.
 
 Lemma metric_comp_laplace' {DB : Type} (dDB : DB -> DB -> R) (k : nat) f :
@@ -86,14 +94,14 @@ Proof.
     apply le_IZR.
     etrans. 1: apply fsens.
     replace (IZR (Z.of_nat k)) with ((IZR (Z.of_nat k)) * 1) by lra.
-    rewrite -INR_IZR_Zofnat.
+    rewrite -INR_IZR_INZ.
     apply Rmult_le_compat_l ; try done.
     qify_r ; zify_q ; lia.
   }
   eapply Mcoupl_mono.
   5: apply H0.
   all: try intuition real_solver.
-  rewrite -INR_IZR_Zofnat.
+  rewrite -INR_IZR_INZ.
   lra.
 Qed.
 
@@ -111,8 +119,3 @@ Proof.
   eapply metric_comp_laplace'.
   done.
 Qed.
-
-
-(* Print Assumptions dp_postprocessing.
-   Print Assumptions dp_seq_comp.
-   Print Assumptions metric_comp_laplace. *)
