@@ -1,4 +1,5 @@
 From Stdlib Require Import Reals Psatz.
+From Stdlib.Logic Require Import ClassicalEpsilon.
 From iris.algebra Require Import ofe.
 From Stdlib Require Export Reals.
 From clutch.common Require Import con_language.
@@ -23,9 +24,67 @@ Class Pointed (A : Type) := {
 
 End point.
 
-Global Instance CountableInfPointed `{Countable A} `{Infinite A}: 
+Global Instance CountableInfPointed `{Countable A} `{Infinite A}:
   Pointed A.
-Admitted.
+Proof.
+  pose (fl := fix fl (n : nat) : list A :=
+    match n with
+    | 0 => []
+    | S m => fl m ++ [fresh (fl m)]
+    end).
+  pose (f := fun n : nat => fresh (fl n)).
+  assert (Hfl : ∀ n, fl n = f <$> seq 0%nat n). {
+    intros n. induction n as [|m IH]; [done|].
+    change (fl (S m)) with (fl m ++ [fresh (fl m)]).
+    change (fresh (fl m)) with (f m).
+    rewrite IH (seq_S m 0%nat) fmap_app //= Nat.add_0_l //.
+  }
+  assert (Hfresh : ∀ n, f n ∉ fl n) by (intro n; apply infinite_is_fresh).
+  assert (Hf_inj : Inj (=) (=) f). {
+    intros n m Heq.
+    destruct (Nat.lt_total n m) as [Hnm|[->|Hmn]]; [|done|].
+    - exfalso. apply (Hfresh m). rewrite Hfl.
+      apply elem_of_list_fmap. exists n.
+      split; [done|]. rewrite elem_of_seq. lia.
+    - exfalso. apply (Hfresh n). rewrite Hfl.
+      apply elem_of_list_fmap. exists m.
+      split; [done|]. rewrite elem_of_seq. lia.
+  }
+  refine {|
+    point := f 0%nat;
+    penc := fun x =>
+      match make_decision (∃ n, f n = x) with
+      | left H => f (S (proj1_sig (constructive_indefinite_description _ H)))
+      | right _ => x
+      end;
+    pdec := fun y =>
+      match make_decision (∃ n, f (S n) = y) with
+      | left H => f (proj1_sig (constructive_indefinite_description _ H))
+      | right _ => y
+      end;
+    penc_dec := _;
+    penc_not_point := _
+  |}.
+  - (* penc_dec *)
+    intros x.
+    destruct (make_decision (∃ n, f n = x)) as [Hex|Hnex]; simpl.
+    + destruct (constructive_indefinite_description _ Hex) as [n Hn]; simpl.
+      destruct (make_decision (∃ k, f (S k) = f (S n))) as [Hk|Hnk]; simpl.
+      * destruct (constructive_indefinite_description _ Hk) as [k Hkk]; simpl.
+        have Hkn : k = n by (apply Nat.succ_inj, Hf_inj; done).
+        subst. done.
+      * exfalso. apply Hnk. by exists n.
+    + destruct (make_decision (∃ k, f (S k) = x)) as [Hk|Hnk]; simpl.
+      * destruct (constructive_indefinite_description _ Hk) as [k Hkk]; simpl.
+        exfalso. apply Hnex. by exists (S k).
+      * done.
+  - (* penc_not_point *)
+    intros x.
+    destruct (make_decision (∃ n, f n = x)) as [Hex|Hnex]; simpl.
+    + destruct (constructive_indefinite_description _ Hex) as [n Hn]; simpl.
+      intro Heq. have : S n = 0%nat by (apply Hf_inj; done). discriminate.
+    + intro Heq. subst x. apply Hnex. by exists 0%nat.
+Qed.
 
 Section point.
 
@@ -45,7 +104,49 @@ End point.
 Global Instance CountableInfAPointed `{Countable A} `{Countable B} `{Infinite A} `{Inhabited B}: 
   APointed A B.
 Proof.
-Admitted.
+  pose (fl := fix fl (n : nat) : list A :=
+    match n with
+    | 0 => []
+    | S m => fl m ++ [fresh (fl m)]
+    end).
+  pose (f := fun n : nat => fresh (fl n)).
+  pose (g := encode_nat (A := B * A)).
+  assert (Hfl : ∀ n, fl n = f <$> seq 0%nat n). {
+    intros n. induction n as [|m IH]; [done|].
+    change (fl (S m)) with (fl m ++ [fresh (fl m)]).
+    change (fresh (fl m)) with (f m).
+    rewrite IH (seq_S m 0%nat) fmap_app //= Nat.add_0_l //.
+  }
+  assert (Hfresh : ∀ n, f n ∉ fl n) by (intro n; apply infinite_is_fresh).
+  assert (Hf_inj : Inj (=) (=) f). {
+    intros n m Heq.
+    destruct (Nat.lt_total n m) as [Hnm|[->|Hmn]]; [|done|].
+    - exfalso. apply (Hfresh m). rewrite Hfl.
+      apply elem_of_list_fmap. exists n.
+      split; [done|]. rewrite elem_of_seq. lia.
+    - exfalso. apply (Hfresh n). rewrite Hfl.
+      apply elem_of_list_fmap. exists m.
+      split; [done|]. rewrite elem_of_seq. lia.
+  }
+  assert (Hg_inj : Inj (=) (=) g); first by apply encode_nat_inj.
+  refine {|
+    apoint1 := f 0%nat;
+    apoint2 := f 1%nat;
+    apoint1_not_point2 := _;
+    apenc := λ '(b, a), f (g (b, a) + 2)%nat;
+    apdec := fun y =>
+      match decide (∃ p : B * A, f (g p + 2)%nat = y) with
+      | left H => proj1_sig (constructive_indefinite_description _ H)
+      | right _ => (inhabitant, f 0%nat)
+      end;
+  |}.
+  - by intros Hc; apply Hf_inj in Hc.
+  - intros. case_decide as Hex; last by exfalso; apply Hex; eauto.
+    destruct (constructive_indefinite_description _ Hex) as [[b' a'] Heq]; simpl.
+    by apply Hf_inj, Nat.add_cancel_r, Hg_inj in Heq. 
+  - by intros b a Heq; apply Hf_inj in Heq; lia.
+  - by intros b a Heq; apply Hf_inj in Heq; lia.
+Qed.
 
 Lemma ex_seriesC_minus `{Countable A} (f g : A → R) :
   ex_seriesC f →
