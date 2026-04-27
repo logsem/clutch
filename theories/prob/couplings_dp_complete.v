@@ -361,7 +361,7 @@ Qed.
 Lemma DPcoupl_complete
   `{Countable A, Countable B}
   (μ1 : distr A) (μ2 : distr B) (S : A -> B -> Prop)
-  (ε δ : nonnegreal) :
+  (ε δ : R) :
   (∀ (P : A -> Prop) (Q : B -> Prop),
       (∀ a b, S a b -> P a -> Q b) ->
       prob μ1 (λ a, bool_decide (P a)) <=
@@ -396,7 +396,32 @@ Proof.
   pose proof (Hnfinal m Hmpos) as hnf. lra.
 Qed.
 
-Corollary DPcoupl_complete_eq `{Countable A} (μ1 μ2 : distr A) (ε δ : nonnegreal) :
+Definition image_rel {A B} (S : A -> B -> Prop) (P : A -> Prop) : B -> Prop :=
+  λ b, exists a, P a /\ S a b.
+
+Corollary DPCoupl_complete_rel_image
+  `{Countable A, Countable B}
+  (μ1 : distr A) (μ2 : distr B) (S : A -> B -> Prop)
+  (ε δ : nonnegreal) :
+  (forall P,
+      prob μ1 (λ a, bool_decide (P a))
+      <=
+        exp ε * prob μ2 (λ b, bool_decide (image_rel S P b)) + δ) ->
+  DPcoupl μ1 μ2 S ε δ.
+Proof.
+  intros h.
+  eapply DPcoupl_complete.
+  intros P Q HPQ.
+  etrans ; first apply h.
+  apply Rplus_le_compat_r, Rmult_le_compat_l.
+  1: left; apply exp_pos.
+  rewrite /prob.
+  apply SeriesC_indicator_le.
+  intros b [a [Ha HS]].
+  eapply HPQ. all: eauto.
+Qed.
+
+Corollary DPcoupl_complete_eq `{Countable A} (μ1 μ2 : distr A) (ε δ : R) :
   (∀ P, prob μ1 (λ a, bool_decide (P a)) <=
           exp ε * prob μ2 (λ a, bool_decide (P a)) + δ) ->
   DPcoupl μ1 μ2 eq ε δ.
@@ -405,4 +430,21 @@ Proof.
   etrans. { exact (h P). }
   apply Rplus_le_compat_r. apply Rmult_le_compat_l. { left. apply exp_pos. }
   apply SeriesC_indicator_le. intros a Ha. exact (HPQ a a eq_refl Ha).
+Qed.
+
+Corollary ARcoupl_complete
+  `{Countable A, Countable B}
+  (μ1 : distr A) (μ2 : distr B) (S : A -> B -> Prop)
+  (δ : R) :
+  (∀ (P : A -> Prop) (Q : B -> Prop),
+      (∀ a b, S a b -> P a -> Q b) ->
+      prob μ1 (λ a, bool_decide (P a)) <=
+        prob μ2 (λ b, bool_decide (Q b)) + δ) ->
+  ARcoupl μ1 μ2 S δ.
+Proof.
+  intros. apply couplings_dp.DPcoupl_to_ARcoupl.
+  rewrite (eq_refl : 0 = (nonneg (mknonnegreal 0 _))).
+  apply DPcoupl_complete.
+  simpl.
+  setoid_rewrite exp_0. setoid_rewrite Rmult_1_l. assumption.
 Qed.

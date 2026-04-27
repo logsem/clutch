@@ -3,6 +3,7 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
 From clutch.common Require Import language ectx_language ectxi_language locations.
 From clutch.prelude Require Import fin.
+From clutch.prob Require Import couplings_dp_complete.
 From clutch.prob_lang Require Import notation lang.
 From clutch.prob_lang.spec Require Import spec_ra spec_rules spec_tactics.
 From clutch.approxis Require Import ectx_lifting app_weakestpre model.
@@ -1080,4 +1081,25 @@ Proof.
   iIntros "% (Hsv & %)"; subst; iFrame. 
   by iPureIntro. 
 Qed.  
+
+Fact SamplesOneTape_exec_wp (e1 e2 : expr) (σ1 σ2 : state) l1 l2 t1 t2 ψ ε ε':
+  SamplesOneTape l1 e1 -> SamplesOneTape l2 e2 ->
+  σ1.(tapes) !! l1 = Some (2%nat; t1) -> σ2.(tapes) !! l2 = Some (2%nat; t2) ->
+  SeriesC (lim_exec (e1, σ1)) = 1 ->
+  0 <= ε -> ε < ε' ->
+
+  (∀ (P : val -> Prop) (Q : val -> Prop),
+      (∀ a b, ψ a b -> P a -> Q b) ->
+      prob (lim_exec (e1, σ1)) (λ a, bool_decide (P a)) <=
+        prob (lim_exec (e2, σ2)) (λ b, bool_decide (Q b)) + ε) →
+
+  ↯ ε' ∗ l1 ↪ (2%nat; t1) ∗ l2 ↪ₛ (2%nat; t2) ∗ ⤇ e2 -∗
+    WP e1 {{ v, ∃ v', ⤇ (Val v') ∗ ⌜ψ v v'⌝ }}.
+Proof.
+  intros.
+  eapply SamplesOneTape_coupl_wp => //.
+  eapply ARcoupl_complete.
+  done.
+Qed.
+
 End Coupl.
