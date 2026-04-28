@@ -327,7 +327,7 @@ Section miller_rabin_code.
           rewrite <- Hr2.
           rewrite Z.quot_div_nonneg; try lia.
           rewrite Z.rem_mod_nonneg; try lia.
-          rewrite -Zpow_facts.Zpower_mod; [ | lia].
+          rewrite Z.mod_pow_l.
           rewrite -Z.pow_2_r.
           rewrite -Z.pow_mul_r; try lia; [ | apply Z.div_pos; lia].
           assert (2 * e `div` 2 = e)%Z as ->; auto.
@@ -349,7 +349,7 @@ Section miller_rabin_code.
             apply Z.rem_nonneg; lia.
           }
           rewrite Z.rem_mod_nonneg; try lia.
-          rewrite -Zpow_facts.Zpower_mod; [ | lia].
+          rewrite Z.mod_pow_l.
           rewrite -Z.pow_2_r.
           rewrite -Z.pow_mul_r; try lia; [ | apply Z.div_pos; lia].
           rewrite Zmult_mod.
@@ -426,7 +426,7 @@ Section miller_rabin_code.
              *** lia.
              *** rewrite -Hx2.
                  rewrite Z.rem_mod_nonneg; try lia.
-                 rewrite -Zpow_facts.Zpower_mod; [ | lia].
+                 rewrite Z.mod_pow_l.
                  f_equal.
                  rewrite -Z.pow_2_r -Z.pow_mul_r; try lia.
                  f_equal.
@@ -443,14 +443,15 @@ Section miller_rabin_code.
              exists (x-1)%Z.
              split; [lia |].
              rewrite -Hx2.
-                 rewrite Z.rem_mod_nonneg; try lia.
-                 rewrite -Zpow_facts.Zpower_mod; [ | lia].
-                 f_equal.
-                 rewrite -Z.pow_2_r -Z.pow_mul_r; try lia.
-                 f_equal.
-                 rewrite -{1}(Z.pow_1_r 2).
-                 rewrite -Z.pow_add_r; try lia.
-                 f_equal. lia.
+             rewrite Z.rem_mod_nonneg; try lia.
+             
+             rewrite Z.mod_pow_l.
+             f_equal.
+             rewrite -Z.pow_2_r -Z.pow_mul_r; try lia.
+             f_equal.
+             rewrite -{1}(Z.pow_1_r 2).
+             rewrite -Z.pow_add_r; try lia.
+             f_equal. lia.
   Qed.
 
 
@@ -482,7 +483,7 @@ Section miller_rabin_code.
     exists i.
     split; auto.
     rewrite -Hi2.
-    rewrite -Zpow_facts.Zpower_mod; [|lia].
+    rewrite Z.mod_pow_l.
     f_equal.
     rewrite -Z.pow_mul_r; try lia.
     f_equal. lia.
@@ -513,7 +514,7 @@ Section miller_rabin_code.
     destruct H2 as (?&?&?&?&Hi3).
     apply (Hi3 i); auto.
     rewrite -Hi2.
-    rewrite -Zpow_facts.Zpower_mod; [|lia].
+    rewrite Z.mod_pow_l.
     f_equal.
     rewrite -Z.pow_mul_r; try lia.
     f_equal. lia.
