@@ -3220,6 +3220,62 @@ Section brel_effect_rules.
       iApply "Hk".
   Qed.
 
+  Lemma brel_exhaustion_abs   e1 e2 k1 k2 (X Y : iThy Σ) L R S l1s l2s l1s' l2s' :
+    ectx_labels k1 ⊆ (l1s ++ l1s') →
+    ectx_labels k2 ⊆ (l2s ++ l2s') →
+
+    BREL e1 ≤ e2 <|((l1s, l2s, X) :: (l1s', l2s', ⊥) :: L)|> {{R}} -∗
+
+    ((* Value case. *)
+      (□ ∀ v1 v2,
+      R v1 v2 -∗
+      BREL fill k1 v1 ≤ fill k2 v2 <|((l1s, l2s, Y) :: (l1s', l2s', ⊥) :: L)|> {{S}})
+
+      ∧
+
+     (* Effect case. *)
+      (□ ∀ k1' k2' e1' e2' Q,
+      ⌜ NeutralEctx l1s k1' ⌝ →
+      ⌜ NeutralEctx l2s k2' ⌝ →
+      X e1' e2' Q -∗
+      (□ ▷ ∀ s1' s2', Q s1' s2' -∗
+      BREL fill k1' s1' ≤ fill k2' s2' <|((l1s, l2s, X) :: (l1s', l2s', ⊥) :: L)|> {{R}}) -∗
+      BREL fill (k1 ++ k1') e1' ≤ fill (k2 ++ k2') e2' <|((l1s, l2s, Y) :: (l1s', l2s', ⊥) :: L)|> {{S}})
+    ) -∗
+
+    BREL fill k1 e1 ≤ fill k2 e2 <|((l1s, l2s, Y) :: (l1s', l2s', ⊥) :: L)|> {{S}}.
+  Proof.
+    iIntros (Hk1 Hk2) "Hbrel [#Hvalue #Heffect] #Hvalid %Hdistinct".
+    iApply (rel_introduction_mono with "[Hbrel]"); last iApply iThy_le_sum_to_iThy.
+    iApply (rel_exhaustion_sum_r  with "[] [Hbrel]").
+    { iApply traversable_to_iThy_cons; last first.
+      - iApply traversable_ectx_labels; try done. eapply distinct_submseteq'; last done.
+        + rewrite !labels_l_cons. by rewrite app_assoc.
+        + rewrite !labels_r_cons; by rewrite app_assoc.
+      - iApply traversable_le; [iApply iThy_le_bot|iApply iThy_le_iThyTraverse_bot|iApply traversable_bot]. }
+    { iApply (rel_introduction_mono with "[Hbrel]").
+      { by iApply "Hbrel". } { by iApply iThy_le_to_iThy_sum. }
+    }
+    clear e1 e2. simpl.
+    iIntros "!>". iSplit.
+    - iIntros (v1 v2) "HR".
+      iApply (rel_introduction_mono with "[HR]"); last iApply iThy_le_to_iThy_sum.
+      by iApply ("Hvalue" with "HR").
+    - iIntros "%e1 %e2 %Q HX #Hk".
+      iDestruct "HX" as
+        "[%e1' [%e2' [%k1' [%k2' [%Q' (-> & % & -> & % & HX & # HQ')]]]]]".
+      iApply (rel_introduction_mono with "[HX]"); last iApply iThy_le_to_iThy_sum.
+      rewrite -!fill_app.
+      iApply ("Heffect" with "[//] [//] HX"); try done.
+      iIntros "!> !> %s1' %s2' HQ".
+      iSpecialize ("HQ'" with "HQ").
+      iSpecialize ("Hk" with "HQ'").
+      iIntros "_ _".
+      iApply (rel_introduction_mono with "[Hk]"); last iApply iThy_le_sum_to_iThy.
+      iApply "Hk".
+      Unshelve. done.
+  Qed. 
+
    Lemma brel_bind k1 k2 E (L M : iLblThy Σ) R e1 e2 :
     traversable k1 k2 (to_iThy L) -∗
     to_iThy_le L M -∗
