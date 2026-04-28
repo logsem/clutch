@@ -1,4 +1,4 @@
-From clutch.prob_eff_lang.probblaze Require Import logic notation.
+From clutch.prob_eff_lang.probblaze Require Import logic notation sem_types sem_def.
 From iris.proofmode Require Import base proofmode classes.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import valgroup.
 
@@ -85,7 +85,7 @@ Section proofs.
   (* The types used in the signatures *)
   Context {Pp Pr Ip Ir Sp Sr : (val → val → iProp Σ)}.
 
-  Lemma composition_mut_handler h1 h2 h3 (f1 f2 : val) R :
+  Lemma composition_mut_handler_1 h1 h2 h3 (f1 f2 : val) R :
     
     (* sim and f has to appear to avoid f1 and f2 to interfer with the protocol *)
     BREL f1 #()%V ≤ f2 #()%V <| [([p],[p], @client p Σ Pp Pr);([sim;f],[sim;f],⊥)] |> {{ R }} -∗
@@ -173,6 +173,40 @@ Section proofs.
           - iIntros "_". iPureIntro. apply distinct_to_iThy_bot. by split. }
 
     simpl. iIntros (??) "!# HR". by brel_pures. 
+  Qed. 
+
+  Lemma composition_mut_handler_2 h (g g' : val) (c1 c2 : val) R: 
+    □ (BREL c1 #()%V ≤ c2 #()%V <| [([p],[p],@client p Σ Pp Pr)] |> {{ R }}) -∗
+
+    □ (∀ f1 f2 : val, BREL f1 #()%V ≤ f2 #()%V <| [([p],[p],@client p Σ Pp Pr); ([f],[f], @ideal f Σ Ip Ir)] |> {{ R }} -∗
+                      BREL g f1 ≤ g' f2 <| [([sim],[sim], @simulator sim Σ Sp Sr)] |> {{ R }}) -∗
+    
+    □ (∀ k1 k2 v1 v2, Sp v1 v2 -∗
+                      (∀ w1 w2, Sr w1 w2 -∗ BREL fill k1 w1 ≤ fill k2 w2 <| [([sim],[sim], @simulator sim Σ Sp Sr)] |> {{ R }}) -∗
+                      BREL val_subst "k" (KontV k1) (val_subst "x" v1 h) ≤
+                        val_subst "k" (KontV k2) (val_subst "x" v2 h) <| [([f],[f], @ideal f Σ Ip Ir)] |> {{ R }}) -∗
+
+    BREL mut_handler_constructor (mut_handler sim h) g c1 ≤ mut_handler_constructor (mut_handler sim h) g' c2 <| [([sim],[sim], ⊥)] |> {{ R }}.
+  Proof. 
+    iIntros "#Hcc #Hgg #Hh".
+    unfold mut_handler_constructor, mut_handler. 
+    brel_pures.
+    iApply (brel_exhaustion (g c1) (g' c2)); [set_solver|set_solver| |].
+    { iApply "Hgg". iApply brel_introduction_mono; [iApply to_iThy_le_intro' | iExact "Hcc"]. constructor; apply submseteq_nil_l. }
+    iSplit; [iModIntro; iIntros (??) "HR"; by brel_pures|].
+    
+    iLöb as "IH".
+
+    iIntros (?????) "!# %Hk1 %Hk2 (%&%&HSp&->&->&#HSrQ) #Hkont1".
+    brel_pures.
+    1,2 : apply neutral_ectx; set_solver.
+    iApply (brel_exhaustion (g _) (g' _) with "[HSp]"); [set_solver|set_solver| |].
+    { iApply "Hgg". brel_pures. iApply brel_introduction_mono; [iApply to_iThy_le_intro'; by apply submseteq_cons|].  
+      iApply ("Hh" with "HSp"). iIntros (??) "HSr". 
+      iApply brel_introduction_mono; [iApply to_iThy_le_intro'; apply submseteq_skip; apply submseteq_nil_l|]. 
+      iApply "Hkont1". by iApply "HSrQ". }
+    iSplit; [iModIntro; iIntros (??) "HR"; by brel_pures|].
+    iExact "IH".
   Qed. 
 
 End proofs.    
