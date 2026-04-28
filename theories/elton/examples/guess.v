@@ -5,13 +5,13 @@ Section encr.
   
   Definition prog : expr :=
     λ: "f",
-    let: "secret" := rand #N in
+    let: "secret" := (rand #N)+#1 in
     let: "guess" := "f" #() in
     "secret" ≠ "guess".
 
   Definition prog' : expr :=
     λ: "f",
-    let: "secret" := drand #N in
+    let: "secret" := (drand #N)+#1 in
     let: "guess" := "f" #() in
     "secret" ≠ "guess".
 
@@ -54,12 +54,12 @@ Section encr.
         iApply (pgl_wp_wand); first by iApply "Hinterp".
         simpl.
         iIntros (?) "[%n ->]".
-        destruct (decide (0<=n<S N))%Z as [K|K].
+        destruct (decide (0<n<=S N))%Z as [K|K].
         * (* maybe guessed right*)
-          pose (ε2' := λ x, if bool_decide (x=n) then 1%R else 0%R).
+          pose (ε2' := λ (x:Z), if bool_decide (x=n-1)%Z then 1%R else 0%R).
           assert (∀ x, 0<=ε2' x)%R as Hε2.
           { intros. rewrite /ε2'. case_bool_decide; lra. }
-          iMod (pupd_resolve_urn _ _ (λ x, mknonnegreal _ (Hε2 x)) with "[$][$]") as "(%x&Herr&Hl&%Helem)".
+          iMod (pupd_resolve_urn _ _ (λ (x:Z), mknonnegreal _ (Hε2 x)) with "[$][$]") as "(%x&Herr&Hl&%Helem)".
           { apply (non_empty_inhabited_L 0%Z).
             rewrite elem_of_list_to_set list_elem_of_fmap.
             setoid_rewrite elem_of_seq.
@@ -71,14 +71,14 @@ Section encr.
             simpl.
             right.
             f_equal.
-            erewrite (SeriesC_ext _ (λ x, if bool_decide (x = n) then 1 else 0));
+            erewrite (SeriesC_ext _ (λ x, if bool_decide (x = n-1)%Z then 1 else 0));
               first by rewrite SeriesC_singleton_dependent.
             intros.
             symmetry.
             case_bool_decide; subst.
             - rewrite bool_decide_eq_true_2 /ε2'; first by rewrite bool_decide_eq_true_2.
               rewrite elem_of_elements elem_of_list_to_set list_elem_of_fmap.
-              eexists (Z.to_nat n); split; first lia.
+              eexists (Z.to_nat (n-1)); split; first lia.
               rewrite elem_of_seq. lia.
             - case_bool_decide as H'; last done.
               rewrite elem_of_elements elem_of_list_to_set list_elem_of_fmap in H'.
@@ -123,7 +123,9 @@ Section encr.
               case_bool_decide as H2; last lra.
               set_unfold in H2.
               subst.
-              case_bool_decide; naive_solver.
+              eexists _; split; last done.
+              rewrite bool_decide_eq_false_2; first done.
+              intros ?. simplify_eq. lia.
           } 
           (* guess is out of bound *)
           iIntros.
