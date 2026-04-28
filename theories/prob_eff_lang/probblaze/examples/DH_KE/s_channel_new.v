@@ -8,7 +8,7 @@ Import fingroup.fingroup.
 Import valgroup_notation.
 Import valgroup_tactics.
 
-Section sec_channel.
+Section sec_channel_n.
   Context {vg : val_group}.
   Context {cg : clutch_group_struct}.
   Context {vgg : @val_group_generator vg}.
@@ -90,16 +90,13 @@ Section sec_channel.
   end.*)
 
   Definition CHAN (getKey schannel channel : label) f : expr:=
-    let: "message" := ref NONEV in
     handle: f with
       | effect schannel "payload", rec "k" as multi =>
         match: "payload" with
           (*SendSecure*)
         | InjL "payload" =>
             let, ("m", "dst") := "payload" in
-            match: !"message" with
-              | NONE => "message" <- SOME "m";;
-                     let: "key" := do: getKey ("dst") in
+            let: "key" := do: getKey ("dst") in
                                      match: "key" with
                                      | NONE => "k" #()%V
                                      | SOME "x" =>
@@ -107,8 +104,6 @@ Section sec_channel.
                                          (do: channel (Send ("enc_m", bob)));;
                                          "k" #()%V
                                      end
-              | SOME "m" => "k" #()%V
-               end
           (*RecvSecure*)
         | InjR "from" =>
             let: "key" := do: getKey ("from") in
@@ -137,9 +132,9 @@ Section sec_channel.
           (*SendSecure*)
         | InjL "payload" =>
             let, ("m", "dst") := "payload" in
+            (do: leaksec (Send ("dst")));;
             match: !"message" with
             | NONE => "message" <- SOME "m";;
-                     (do: leaksec (Send ("dst")));;
                      "k" #()%V 
             | SOME "x" => "k" #()%V
             end
@@ -261,4 +256,4 @@ Section sec_channel.
     | return "y" => "y" end.
 
 
-End sec_channel.
+End sec_channel_n.

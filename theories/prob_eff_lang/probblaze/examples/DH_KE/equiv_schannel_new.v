@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base proofmode classes.                
+From iris.proofmode Require Import base proofmode classes.                  
 From iris.base_logic.lib Require Import  na_invariants.  
 From iris.algebra Require Import agree excl auth frac excl_auth.
 From iris.algebra.lib Require Import dfrac_agree.
@@ -9,7 +9,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
 From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import definition.
 From clutch.prob_eff_lang.probblaze Require Import DH_channel.
-From clutch.prob_eff_lang.probblaze Require Import s_channel.
+From clutch.prob_eff_lang.probblaze Require Import s_channel_new.
 
 
 Import fingroup.
@@ -19,7 +19,7 @@ Import fingroup.fingroup.
 Import valgroup_notation.
 Import valgroup_tactics.
 
-Section s_channel_verification.
+Section s_channel_new_verification.
   Context `{probblazeRGS Σ}.
   Context (channel leaksec getKey1 getKey2 leakauth1 leakauth2 keyleak1 keyleak2 schannel1 schannel2: label).
   Context {vg: val_group}.
@@ -309,26 +309,19 @@ Proof with (repeat foldkont) using G.
   iIntros (n ?) "!> Hα". brel_pures.
   rewrite subst_is_closed_empty; try done.
   brel_exp_l. brel_pures.
-  iApply brel_alloc_l. iIntros (l_rchan) "!>Hlrchan". brel_pures_l.
-  simpl. repeat (rewrite subst_is_closed_empty; try done).
-  iApply brel_alloc_r. iIntros (l_fchan) "Hlfchan". brel_pures_r.
-  rewrite subst_is_closed_empty; try done.
+  iApply brel_alloc_r. iIntros (l_fchan) "Hlfchan". brel_pures_r. 
+  do 2 (rewrite subst_is_closed_empty; try done).
   set (kl1 :=  (match: "payload" with
          InjL "payload" =>
            let: "dst" := "payload" in
            let: "m" := Fst "dst" in
            let: "dst" := Snd "dst" in
-           match: ! #l_rchan with
-             InjL <> =>
-               #l_rchan <- InjR "m";; 
-               let: "key" := do: getKey1 "dst" in
-               match: "key" with
-                 InjL <> => "k" #()%V
-               | InjR "x" =>
-                 let: "enc_m" := xor "x" "m" in
-                 (do: channel InjL ("enc_m", bob));; "k" #()%V
-               end
-           | InjR "m" => "k" #()%V
+           let: "key" := do: getKey1 "dst" in
+           match: "key" with
+             InjL <> => "k" #()%V
+           | InjR "x" =>
+             let: "enc_m" := xor "x" "m" in
+             (do: channel InjL ("enc_m", bob));; "k" #()%V
            end
        | InjR "from" =>
          let: "key" := do: getKey1 "from" in
@@ -339,7 +332,8 @@ Proof with (repeat foldkont) using G.
            match: "r" with
              InjL <> => "k" (InjLV #()%V)
            | InjR "x" =>
-             let: "enc_m" := xor "key" "x" in "k" (InjR "enc_m")
+             let: "enc_m" := xor "key" "x" in
+             "k" (InjR "enc_m")
            end
          end
        end)%E).
@@ -374,20 +368,19 @@ Proof with (repeat foldkont) using G.
                        end)%E). 
   set (kr1 := ( match: "payload" with
          InjL "payload" =>
+           (do: leaksec InjL "dst");; 
            let: "dst" := "payload" in
            let: "m" := Fst "dst" in
            let: "dst" := Snd "dst" in
            match: ! #l_fchan with
-             InjL <> =>
-               #l_fchan <- InjR "m";; 
-               (do: leaksec InjL "dst");; "k" #()%V
+             InjL <> => #l_fchan <- InjR "m";; "k" #()%V
            | InjR "x" => "k" #()%V
            end
        | InjR "from" =>
          let: "r" := do: leaksec InjR "from" in
          match: "r" with
            InjL <> => "k" (InjLV #()%V)
-         | InjR "x" => "k" (InjR "x")
+         | InjR "x" => "k" (InjR ! #l_fchan)
          end
        end)%E). 
   set (kr2 := ( match: "payload" with
@@ -427,7 +420,7 @@ Proof with (repeat foldkont) using G.
            | InjR "x" => "k" ! #l_sim
            end
          end
-       end)%E).
+       end)%E). 
   iAssert ( brel ⊤ f1 f2
     (([channel; getKey1; schannel1], [leaksec; schannel2; getKey2], SecChannelThy)
      :: ([keyleak1], [keyleak2],
@@ -443,10 +436,10 @@ Proof with (repeat foldkont) using G.
    iSplitL "Hα Hl_sim Hl_auth"; [iNext; iFrame; iLeft; iFrame|].
    iIntros "#Hinvα".
    iApply (brel_na_alloc
-              ((l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV)
-               ∨ (l_fchan ↦ₛ□ SOMEV #0 ∗  l_rchan ↦□ SOMEV #0))%I
+              ((l_fchan ↦ₛ NONEV )
+               ∨ (l_fchan ↦ₛ□ SOMEV #0))%I
               betaN).
-   iSplitL  "Hlrchan Hlfchan"; [iNext; iFrame; iLeft; iFrame|].
+   iSplitL  "Hlfchan"; [iNext; iFrame; iLeft; iFrame|].
    iIntros "#Hinvβ" .
    iApply ((brel_exhaustion f1 f2 _ _ _ _ _ _ _ _ _) with "[Hrelf1f2mono]"); try simpl; try auto; try (apply sublist_subseteq); try (apply singleton_sublist_l);
      try (apply list_elem_of_In); try simpl; try auto.
@@ -455,66 +448,26 @@ Proof with (repeat foldkont) using G.
    iSplit; [iIntros (v1 v2) "%Hv1v2"; iModIntro; brel_pures; iModIntro; done |]. 
    iIntros (?????) "!# %Hk1 %Hk2 HXQ #Hrel".
    iDestruct "HXQ" as "[HSendAlice | HRecvBob]".
+   
    (* Send to Bob*) 
       + iDestruct "HSendAlice" as (?m ?m') "[[%He1 %He2] #HmQ]".         
          rewrite -> He1. rewrite -> He2. brel_pures.
          { admit. }
-         { admit. } 
-         iApply (brel_na_inv _ _ betaN); first set_solver.
-         iFrame "Hinvβ".
-         iIntros "([(>Hl_fchan  & >Hl_rchan) | (#>Hl_fchan & #>Hl_rchan)] & Hclose)".
-         (* First message to be sent by the secure channel*)
-        ++  iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
-             iIntros "Hl_fchan".
-             iApply (brel_load_l _ _ _  [HandleCtx Deep MS channel _ _ ; HandleCtx Deep MS getKey1 _ _; CaseCtx _ _] with "Hl_rchan").
-             iIntros "!>Hl_rchan". brel_pures.
-             simpl. brel_pures. 
-             iApply (brel_store_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_fchan"). iIntros "Hl_fchan".
-             simpl.
-             brel_pures.
-             { simpl. apply not_elem_of_nil. }
-             iApply (brel_store_l _ _ _  [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_rchan").
-             iIntros "!>Hl_rchan". brel_pures; try (simpl); try (apply not_elem_of_nil).
-             iApply fupd_brel.
-             iMod (ghost_map_elem_persist with "Hl_fchan") as "#Hl_fchan".
-             iMod (ghost_map_elem_persist with "Hl_rchan") as "#Hl_rchan".
-             iModIntro.
-             iApply brel_na_close. iFrame.
-             iSplitL; [iModIntro; iRight; iFrame "#"|].
-             set (keytheory := [([keyleak1], [keyleak2],
+         { admit. }
+         brel_pures.
+         set (keytheory := [([keyleak1], [keyleak2],
          iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
            (iThySum KLeakSendBob KLeakRecvBob))]).
-            set (M := (([channel; getKey1; schannel1], [leaksec; schannel2; getKey2], iThyBot)
-        :: ([leakauth1], [leakauth2],
+         set (M := (([channel; getKey1; schannel1], [leaksec; schannel2; getKey2], iThyBot)
+             :: ([leakauth1], [leakauth2],
              iThySum (iThySum LASendAlice LASendBob) (iThySum LARecvAlice LARecvBob)) :: L)).
-            set (N := (([channel; getKey1; schannel1], [leaksec; schannel2; getKey2], iThyBot)
-     :: ([keyleak1], [keyleak2],
-         iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
+          set (N := (([channel; getKey1; schannel1], [leaksec; schannel2; getKey2], iThyBot)
+            :: ([keyleak1], [keyleak2],
+           iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
            (iThySum KLeakSendBob KLeakRecvBob))
-        :: ([leakauth1], [leakauth2],
+           :: ([leakauth1], [leakauth2],
              iThySum (iThySum LASendAlice LASendBob) (iThySum LARecvAlice LARecvBob)) :: L)).
-            simpl.
-            repeat foldkont.
-            simpl.
-             set (kontleftbind := (let: "r" := do: keyleak1 InjR bob in
-             match: "r" with
-               InjL <> => kont (InjLV #()%V)
-             | InjR "w" => kont (InjR (vgval (g ^+ n)))
-             end)%E).
-           set (kontrightbind := (let: "r" := do: keyleak2 InjR bob in
-     match: "r" with
-       InjL <> => kont0 (InjLV #()%V)
-     | InjR "x" =>
-       match: ! #l_sim with
-         InjL <> =>
-           let: "m'" := #()%V;; rand(#lbl:α) #(S n'') in
-           let: "mA" := g ^ "m'" in
-           #l_sim <- InjR "m'";; 
-           (do: leakauth2 InjL ("mA", bob));; kont0 #()%V
-       | InjR "m" => kont0 #()%V
-       end
-     end)%E).
-           iApply (brel_bind'' [HandleCtx Deep _ _ _ _; AppRCtx _] [AppRCtx _] keytheory M N  (λ v1 v2 : val, ⌜v1 = v2⌝%I) (Do keyleak1 (InjLV bob)) (Do keyleak2 (InjLV bob))).
+          iApply (brel_bind'' [HandleCtx Deep _ _ _ _; AppRCtx _] [AppRCtx _] keytheory M N  (λ v1 v2 : val, ⌜v1 = v2⌝%I) (Do keyleak1 (InjLV bob)) (Do keyleak2 (InjLV bob))).
              { simpl. admit. }
              { simpl. apply list_subseteq_nil. }
              { simpl. admit. } 
@@ -528,7 +481,7 @@ Proof with (repeat foldkont) using G.
                 repeat (iSplit; try (iPureIntro); try (unfold SendV); try reflexivity).
                 iModIntro.
                 iApply brel_value.
-                iIntros "$ !>". brel_pures.
+                iIntros "$ !>". brel_pures. 
                 iApply (brel_bind'' _ _ keytheory M N  (λ v1 v2 : val, ⌜v1 = v2⌝%I) (Do keyleak1 (InjRV bob)) (Do keyleak2 (InjRV bob))).
                 { simpl. admit. }
                 { simpl. apply list_subseteq_nil. }
@@ -541,29 +494,55 @@ Proof with (repeat foldkont) using G.
                 iSplitL;  [|by iIntros "!>" (??) "H"; iApply "H"].
                 iRight. iRight. simpl.
                 repeat (iSplit; try (iPureIntro); try (unfold RecvV); try reflexivity);
-                  try (iModIntro); simpl.                                                                  iSplitL.
-                  +++ iApply brel_value.
-                      iIntros "$ !>". brel_pures.
-                      simpl. brel_pures.
-                      iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)). 
+                  try (iModIntro); simpl.
+                brel_pures.
+                About brel_value.
+                repeat foldkont.
+                iSplitL.                  
+                (*keyleak doesnt return with a value *)
+                  - iApply brel_value. iIntros "$ !>".
+                    brel_pures.
+                    iApply (brel_na_inv _ _ betaN); first set_solver.
+                    iFrame "Hinvβ".
+                    iIntros "([>Hl_fchan | #>Hl_fchan] & Hclose)".
+                    
+                    (* No message has been sent yet by the secure channel*)
+                    ++ iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
+                       iIntros "Hl_fchan". brel_pures.
+                        iApply (brel_store_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_fchan"). iIntros "Hl_fchan".
+                        simpl. brel_pures.
+                         iApply fupd_brel.
+                         iMod (ghost_map_elem_persist with "Hl_fchan") as "#Hl_fchan".
+                          iModIntro.
+             iApply brel_na_close. iFrame.
+             iSplitL; [iModIntro; iRight; iFrame "#"|].
+               iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)). 
                       { simpl. auto. }
                       { simpl. admit. }
                       { iApply "Hrel". iApply "HmQ". }
                       { iApply "IH". }
-                  +++ iApply brel_value.
-                      iIntros "$ !>". brel_pures.
+                      
+                      (* A message has been sent by the secure channel*)
+                   ++ iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
+                       iIntros "Hl_fchan'". brel_pures.
+                       iApply brel_na_close. iFrame.
+                       iSplitL; [iModIntro; iRight; iFrame "#"|].
+                       iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)). 
+                      { simpl. auto. }
                       { simpl. admit. }
-                      { simpl.
+                      { iApply "Hrel". iApply "HmQ". }
+                      { iApply "IH". }
+                      (*keyleak returns with a value *)
+                      - iApply brel_value. iIntros "$ !>".
+                        brel_pures.
+                        { simpl. admit. }
                         iApply (brel_na_inv _ _ alphaN); first set_solver.
                         iFrame "Hinvα".
-                        iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | (#>Hα & #>Hl_sim & #>Hl_auth) ] & Hclose)". 
-                        (*first message ot be sent by the authenticated channel*)
-                        - iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_auth"). 
-                          (*iIntros "HvN HdN".
-                          iApply (rel_load_l_mask [CaseCtx _ _]).*)                                          
+                        iIntros "([(>Hα & >Hl_sim & >Hl_auth) | (#>Hα & #>Hl_sim & #>Hl_auth)] & Hclose)".
+                        (* A message is being sent using the authenticated channel for the first time*)
+                        ++  iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_auth").                    
                           iIntros "!> Hl_auth".
                           simpl. brel_pures_l.
-                          (*iApply (rel_load_r_with_mask _ _ _ _ [CaseCtx _ _] with "Hl_sim").*) 
                           iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_sim").
                           iIntros "Hl_sim". rel_pures.
                           iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl_auth").
@@ -572,7 +551,7 @@ Proof with (repeat foldkont) using G.
                           iIntros "Hα %Hn".
                           brel_pures.
                           repeat foldkont.
-                          iApply (brel_exp_r [AppRCtx _]).
+                           iApply (brel_exp_r [AppRCtx _]).
                           brel_pures.
                           iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl_sim").
                           iIntros "Hl_sim". rel_pures.
@@ -589,77 +568,119 @@ Proof with (repeat foldkont) using G.
                           simpl.
                           brel_pures.
                           set (leakatheory := [([leakauth1], [leakauth2],
-           iThySum (iThySum LASendAlice LASendBob)
-             (iThySum LARecvAlice LARecvBob))]).
+                            iThySum (iThySum LASendAlice LASendBob)
+                             (iThySum LARecvAlice LARecvBob))]).
                           iApply (brel_bind _ _ _ leakatheory N _ (Do leakauth1 (InjLV (xor "x" "m", bob))) (Do leakauth2 (InjLV (vgval (g ^+ n) , bob)))).
                           { simpl. unfold leakatheory. auto. admit. }
                           { simpl. auto. admit. }
                           { iApply (brel_introduction' [leakauth1] [leakauth2]); try (unfold leakatheory);
                             try (apply list_elem_of_here).
                            iExists _, _, [], [],_.
-                do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-                iSplitL;  [|by iIntros "!>" (??) "H"; iApply "H"].
-                iLeft. iLeft. simpl.
-                iExists _,_. repeat (iSplit; try (iPureIntro); try (unfold SendV); try reflexivity).
-                iModIntro. iApply brel_value. iIntros "$ !>".
-                brel_pures.
-                iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-                            { simpl. auto. }
-                            { simpl. auto. admit. }
-                            { iApply "Hrel". iApply "HmQ". }
-                            { iApply "IH". }          }                                                   
-                      (*a message has already been sent by the authenticated channel*)
-                        -  iApply brel_na_close. iFrame.
-                           iSplitL; [iModIntro; iRight; iFrame "#"|].
-                            iApply (brel_load_l _ _ _  [CaseCtx _ _] with "Hl_auth").
-                            iIntros "!> Hl_auth'".
-                            brel_pures.
-                            iApply (brel_load_r _ _ _ _  [CaseCtx _ _] with "Hl_sim").
-                            iIntros "Hl_sim'".
-                            brel_pures.
+                           do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+                           iSplitL;  [|by iIntros "!>" (??) "H"; iApply "H"].
+                           iLeft. iLeft. simpl.
+                           iExists _,_. repeat (iSplit; try (iPureIntro); try (unfold SendV); try reflexivity).
+                           iModIntro. iApply brel_value. iIntros "$ !>".
+                           brel_pures.
+                           iApply (brel_na_inv _ _ betaN); first set_solver.
+                           iFrame "Hinvβ".
+                           iIntros "([ >Hl_fchan | #>Hl_fchan ] & Hclose)".
+                           (* No message has been sent by the secure channel*)
+                            +++  iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
+                            iIntros "Hl_fchan". simpl. brel_pures.
+                            iApply (brel_store_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_fchan"). iIntros "Hl_fchan". simpl. brel_pures.
+                            iApply fupd_brel.
+                            iMod (ghost_map_elem_persist with "Hl_fchan") as "#Hl_fchan".
+                            iModIntro.
+                            iApply brel_na_close. iFrame.
+                            iSplitL; [iModIntro; iRight; iFrame "#"|].
+                            simpl.
                             iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
                             { simpl. auto. }
                             { simpl. auto. admit. }
                             { iApply "Hrel". iApply "HmQ". }
-                            { iApply "IH". } } } }
-         (* A message has already been sent by the secure channel*)
-        ++ iApply brel_na_close. iFrame.
-           iSplitL; [iModIntro; iRight; iFrame "#"|].
-           iApply (brel_load_l _ _ _  [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_rchan").
-           iIntros "!> Hl_rchan'".
-           brel_pures.
-           iApply (brel_load_r _ _ _ _  [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
-           iIntros "Hl_fchan'".
-           brel_pures.
-           iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-           { simpl. auto. }
-           { simpl. auto. admit. }
-           { iApply "Hrel". iApply "HmQ". }
-           { iApply "IH". }
-     (* Recieved by Bob *)
-      + iDestruct "HRecvBob" as "[%He1 [%He2 #HmQ]]".
-        rewrite -> He1. rewrite -> He2. brel_pures.
-        { simpl. admit. }
-        { simpl. admit. }
-        set (N := (([channel; getKey1; schannel1], [leaksec; schannel2; getKey2],
-      iThyBot)
-     :: ([keyleak1], [keyleak2],
-         iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
-           (iThySum KLeakSendBob KLeakRecvBob))
-        :: ([leakauth1], [leakauth2],
-            iThySum (iThySum LASendAlice LASendBob)
-              (iThySum LARecvAlice LARecvBob))
-        :: L)).
-        set (keyleakthy := [([keyleak1], [keyleak2],
-         iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
-           (iThySum KLeakSendBob KLeakRecvBob))]).
-        set (M := [([channel; getKey1; schannel1],
+                            { iApply "IH". }
+                            (*A message has already been sent by the secure channel*)
+                            +++  iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
+                             iIntros "Hl_fchan'". simpl. brel_pures.
+                             iApply fupd_brel.
+                             iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
+                             iModIntro.
+                             iApply brel_na_close. iFrame.
+                             iSplitL; [iModIntro; iRight; iFrame "#"|].
+                              simpl.
+                             iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
+                            { simpl. auto. }
+                            { simpl. auto. admit. }
+                            { iApply "Hrel". iApply "HmQ". }
+                            { iApply "IH". } }
+                          (* A message has already been sent by the authenticated channel*)
+                      ++  iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_auth").                    
+                          iIntros "!> Hl_auth'".
+                          simpl. brel_pures_l.
+                          iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_sim").
+                          iIntros "Hl_sim'". brel_pures.
+                           iApply brel_na_close. iFrame.
+                          iSplitL; [iModIntro; iRight; iFrame "#"|].
+                          simpl.
+                          iApply (brel_na_inv _ _ betaN); first set_solver.
+                          iFrame "Hinvβ".
+                          iIntros "([>Hl_fchan | #>Hl_fchan] & Hclose)".
+                    (* No message has been sent yet by the secure channel*)
+                          +++ iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
+                           iIntros "Hl_fchan". brel_pures.
+                           iApply (brel_store_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_fchan").
+                                                                                                                                  iIntros "Hl_fchan".
+                           simpl.
+                           brel_pures.
+                           iApply fupd_brel.
+                           iMod (ghost_map_elem_persist with "Hl_fchan") as "#Hl_fchan".
+                           iModIntro.
+                           iApply brel_na_close. iFrame.
+                           iSplitL; [iModIntro; iRight; iFrame "#"|].
+                           simpl.
+                           iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
+                            { simpl. auto. }
+                            { simpl. auto. admit. }
+                            { iApply "Hrel". iApply "HmQ". }
+                            { iApply "IH". }
+                            (* A message has already been sent by the secure channel*)
+                           +++ iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
+
+                               iIntros "Hl_fchan'". brel_pures.
+                               iApply brel_na_close. iFrame.
+                               iSplitL; [iModIntro; iRight; iFrame "#"|].
+                               simpl.
+                               iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
+                               { simpl. auto. }
+                               { simpl. auto. admit. }
+                               { iApply "Hrel". iApply "HmQ". }
+                               { iApply "IH". } } }
+
+             
+             (* Received by Bob*)
+             + iDestruct "HRecvBob" as "[%He1 [%He2 #HmQ]]".
+               rewrite -> He1. rewrite -> He2. brel_pures.
+               { simpl. admit. }
+               { simpl. admit. }
+               set (N := (([channel; getKey1; schannel1], [leaksec; schannel2; getKey2],
+                 iThyBot)
+                 :: ([keyleak1], [keyleak2],
+                iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
+                (iThySum KLeakSendBob KLeakRecvBob))
+                 :: ([leakauth1], [leakauth2],
+                iThySum (iThySum LASendAlice LASendBob)
+                (iThySum LARecvAlice LARecvBob)) :: L)).
+              set (keyleakthy := [([keyleak1], [keyleak2],
+                iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
+                (iThySum KLeakSendBob KLeakRecvBob))]).
+              set (M := [([channel; getKey1; schannel1],
                  [leaksec; schannel2; getKey2], SecChannelThy)]).
-        iApply (brel_bind'' _ _ keyleakthy M N _ (Do keyleak1 (InjLV bob)) (Do keyleak2 (InjLV bob))).
-        { simpl. unfold M. admit. }
-        { simpl. admit. }
-        { admit. }
-        {  iApply (brel_introduction' [keyleak1] [keyleak2]).
+              iApply (brel_bind'' _ _ keyleakthy M N _ (Do keyleak1 (InjLV bob)) (Do keyleak2 (InjLV bob))).
+              { simpl. unfold M. admit. }
+              { simpl. admit. }
+              { admit. }
+              {  iApply (brel_introduction' [keyleak1] [keyleak2]).
                 1: { unfold keyleakthy.
                      eapply list_elem_of_here. }
                 iExists _, _, [], [],_.
@@ -667,7 +688,7 @@ Proof with (repeat foldkont) using G.
                 iSplitL;  [|by iIntros "!>" (??) "H"; iApply "H"].
                 iRight. iLeft. simpl.
                 repeat (iSplit; try (iPureIntro); try (unfold SendV); try reflexivity).
-                iModIntro. iApply brel_value. 
+                 iModIntro. iApply brel_value. 
                 iIntros "$ !>". brel_pures.
                 iApply (brel_bind'' _ _ keyleakthy M N _ (Do keyleak1 (InjRV bob)) (Do keyleak2 (InjRV bob))).
                 { simpl. unfold M. admit. }
@@ -680,23 +701,23 @@ Proof with (repeat foldkont) using G.
                 do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
                 iSplitL;  [|by iIntros "!>" (??) "H"; iApply "H"].
                 iRight. iRight. simpl.
-                repeat (iSplit; try (iPureIntro); try (unfold RecvV); try reflexivity).
-                iModIntro. iSplitL; iApply brel_value; iIntros "$ !>" ; brel_pures.
-                (* Key not received by Bob*)
-                   ++ iApply (brel_exhaustion (fill k1'(InjLV #()%V)) (fill k2' (InjLV #()%V))). 
+                 repeat (iSplit; try (iPureIntro); try (unfold RecvV); try reflexivity).
+                 iModIntro.  iSplitL; iApply brel_value; iIntros "$ !>" ; brel_pures.
+                 (*Keyleak didnt return a value *)
+                   - iApply (brel_exhaustion (fill k1'(InjLV #()%V)) (fill k2' (InjLV #()%V))). 
                       { simpl. auto. }
                       { simpl. admit. }
                       { iApply "Hrel". iApply "HmQ". }
                       { iApply "IH". }
-                      (* Key received by Bob *)
-                   ++  simpl. admit.
-                   ++ set (leakauththy := [([leakauth1], [leakauth2],
+                      (*Keyleak returned a value *)
+                   - { simpl. admit. }
+                   - set (leakauththy := [([leakauth1], [leakauth2],
                        iThySum (iThySum LASendAlice LASendBob) (iThySum LARecvAlice LARecvBob))]).
                       iApply (brel_bind'' _ _ leakauththy _ N _ (Do leakauth1 (InjRV bob)) (Do leakauth2 (InjRV bob))).
                       { simpl. admit. }
                       { simpl. admit. }
                       { admit. }
-                      { iApply (brel_introduction' [leakauth1] [leakauth2]).
+                      {  iApply (brel_introduction' [leakauth1] [leakauth2]).
                         1: { unfold leakauththy.
                              eapply list_elem_of_here. }
                         simpl.
@@ -705,9 +726,9 @@ Proof with (repeat foldkont) using G.
                         iSplitL;  [|by iIntros "!>" (??) "H"; iApply "H"].
                         iRight. iRight. simpl.
                         repeat (iSplit; try (iPureIntro); try (unfold RecvV); try reflexivity).
-                        iModIntro. iSplit.
+                        iModIntro.  iSplit.
                         (* leakauth returns successfully with a value*)
-                        - iIntros (b1 b2). iApply brel_value. iIntros "$ !>".
+                        ++ iIntros (b1 b2). iApply brel_value. iIntros "$ !>".
                           brel_pures. simpl.
                           iApply (brel_na_inv _ _ alphaN); first set_solver.
                           iFrame "Hinvα".
@@ -727,8 +748,8 @@ Proof with (repeat foldkont) using G.
                                { simpl. admit. }
                                { iApply "Hrel". iApply "HmQ". }
                                { iApply "IH". }
-                               (*second case for the invariant, when a message isi stored in the authenticated channel*)
-                          +++ simpl. brel_pures.
+                               (* a message has been sent by the authenticated channel*)
+                           +++ simpl. brel_pures.
                               iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hl_sim").
                               iIntros "Hl_sim'".
                               iApply (brel_load_l _ _ _ [AppRCtx _] with "Hl_auth").
@@ -737,13 +758,14 @@ Proof with (repeat foldkont) using G.
                               brel_pures.
                               iApply brel_na_close. iFrame.
                               iSplitL; [iModIntro; iRight; iFrame "#" |].
+                              brel_pures. simpl.
                               iApply (brel_exhaustion (fill k1'((InjRV (xor "key" "x"))%V)) (fill k2' ((InjRV #n)%V))).
                                { simpl. auto. }
                                { simpl. admit. }
                                { iApply "Hrel". (*iApply "HmQ".*) admit. }
                                { iApply "IH". } 
-                         (*leakauth doesnot return with a value*)                             
-                        - brel_pures.
+                               (*leakauth doesnt return with a value *)
+                               ++  brel_pures.
                           iApply brel_value.
                           iIntros "$ !>". brel_pures.
                           iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
@@ -752,8 +774,7 @@ Proof with (repeat foldkont) using G.
                           { iApply "Hrel". iApply "HmQ". }
                           {iApply "IH". }
 Admitted.
-
-
+                        
 
 
 (*Verification of CHAN_SIM[F_CHAN[]] ≤ F_OAUTH[F_KE_L[CHAN[]]]*)
@@ -782,4 +803,4 @@ Admitted.
 
   
   
-End s_channel_verification.
+End s_channel_new_verification.

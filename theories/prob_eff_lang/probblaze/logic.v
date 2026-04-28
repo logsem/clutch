@@ -2821,6 +2821,9 @@ Section blaze_rules.
   Lemma brel_value E (v1 v2 : val) L R : (na_ownP E ={⊤}=∗ na_ownP ⊤ ∗ R v1 v2) ⊢ BREL v1 ≤ v2 @ E <|L|> {{R}}.
   Proof. iIntros "HR _ _". by iApply rel_value_mask. Qed.
 
+  Lemma brel_value_mask E (v1 v2 : val) L R: (na_ownP E ={⊤}=∗ na_ownP E ∗ R v1 v2) ⊢ BREL v1 ≤ v2 @ E <|L|> {{R}}.
+  Proof. Admitted.
+
   Lemma brel_wand e1 e2 L R S :
     BREL e1 ≤ e2 <|L|> {{R}} -∗ □ (∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
     BREL e1 ≤ e2 <|L|> {{S}}.
@@ -2877,6 +2880,13 @@ Section blaze_rules.
     by iApply (brel_introduction _ _ _ Q with "HX"); last auto.
   Qed.
 
+  Lemma brel_introduction_mask' E l1s l2s X e1 e2 L R :
+     ((l1s, l2s), X) ∈ L →
+    iThyTraverse l1s l2s X e1 e2 (λ s1 s2, BREL s1 ≤ s2 @ E <|L|> {{R}}) -∗
+    BREL e1 ≤ e2  @ E <|L|> {{R}}.
+  Proof.
+    Admitted.
+  
   Lemma fupd_brel E e1 e2 L R :
     (|={⊤}=> BREL e1 ≤ e2 @ E <|L|> {{R}}) ⊢ BREL e1 ≤ e2 @ E <|L|> {{R}}.
   Proof.
@@ -3366,7 +3376,16 @@ Section brel_effect_rules.
       reflexivity.
     }
   Qed.
-
+  
+  Lemma brel_bind_mask'' k1 k2 E (L M N : iLblThy Σ) R e1 e2 :
+    ectx_labels k1 ⊆ labels_l M ->
+    ectx_labels k2 ⊆ labels_r M ->
+    to_iThy_le (L ++ M) N -∗
+    BREL e1 ≤ e2 @ E <|L|> {{ (λ v1 v2, BREL fill k1 v1 ≤ fill k2 v2 <|N|> {{R}}) }} -∗
+    BREL fill k1 e1 ≤ fill k2 e2 @ E <|N|> {{R}}.
+  Proof.
+  Admitted.
+  
   Lemma brel_handle_os_l k k' hs (l : label) (v : val) (h ret : expr) e2 E L R :
     let c := match hs with Deep => HandleCtx hs OS l h ret :: k' | Shallow => k' end in
     l ∉ ectx_labels k' →
