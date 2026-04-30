@@ -49,7 +49,7 @@ Definition tapes_auth `{foxtrotGS Σ} :=
 
 Global Instance foxtrotGS_irisGS `{!foxtrotGS Σ} : foxtrotWpGS con_prob_lang Σ := {
   foxtrotWpGS_invGS := foxtrotGS_invG;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+  state_interp σ := (heap_auth (DfracOwn 1) σ.(heap) ∗ tapes_auth (DfracOwn 1) σ.(tapes))%I;
   spec_interp ρ := spec_auth ρ;
   fork_post v :=  True%I;
   err_interp := ec_supply;

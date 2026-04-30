@@ -60,7 +60,7 @@ Definition add_ec_supply `{diffprivGS Σ} :=
 
 Global Instance diffprivGS_irisGS `{!diffprivGS Σ} : diffprivWpGS prob_lang Σ := {
   diffprivWpGS_invGS := diffprivGS_invG;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes) ∗ tapes_laplace_auth 1 σ.(tapes_laplace))%I;
+  state_interp σ := (heap_auth (DfracOwn 1) σ.(heap) ∗ tapes_auth (DfracOwn 1) σ.(tapes) ∗ tapes_laplace_auth (DfracOwn 1) σ.(tapes_laplace))%I;
   err_interp ε δ := ((mult_ec_supply ε) ∗ (add_ec_supply δ))%I;
 }.
 

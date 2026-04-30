@@ -21,7 +21,7 @@ Local Open Scope NNR_scope.
     error (i.e. terminating in a state that does not satisfy the postcondition)
  *)
 Class erisWpGS (Λ : language) (Σ : gFunctors) := ErisWpGS {
-  erisWpGS_invGS :: invGS_gen HasNoLc Σ;
+  erisWpGS_invGS :: invGS_gen HasLc Σ;
   state_interp : state Λ → iProp Σ;
   err_interp : nonnegreal → iProp Σ;
 }.

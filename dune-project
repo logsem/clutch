@@ -4,7 +4,7 @@
 
 ; (name clutch)
 
-(generate_opam_files true)
+(generate_opam_files false)
 
 (source (github logsem/clutch))
 
@@ -33,7 +33,7 @@
   ; at least rocq 9.1 is needed to work with dune's rocq-lang feature
   (rocq-core (and (>= 9.1.1) (< "9.2~")))
   (rocq-stdlib (and (>= 9.0.0) (< "9.2~")))
-  (rocq-iris (= "4.5.0"))
+  (rocq-iris (= "dev"))
   (rocq-stdpp (= "1.13.0"))
   (coq-coquelicot (= "3.4.4"))
   (coq-autosubst (= "dev"))

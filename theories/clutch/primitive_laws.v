@@ -43,7 +43,7 @@ Definition tapes_auth `{clutchGS Σ} :=
 
 #[global] Instance clutchGS_clutchWpGS `{!clutchGS Σ} : clutchWpGS prob_lang Σ := {
   clutchWpGS_invGS := clutchGS_invG;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+  state_interp σ := (heap_auth (DfracOwn 1) σ.(heap) ∗ tapes_auth (DfracOwn 1) σ.(tapes))%I;
 }.
 
 (** Heap *)

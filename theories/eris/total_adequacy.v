@@ -249,30 +249,36 @@ Qed.
 Section adequacy.
   Context `{!erisGS Σ}.
 
+  (** Helper: lift a pure-monotone implication through [◇ ⌜·⌝]. *)
+  Local Lemma except_0_pure_mono_iprop (P Q : Prop) :
+    (P → Q) → ((◇ ⌜P⌝ : iProp Σ) ⊢ ◇ ⌜Q⌝).
+  Proof. intros HPQ. apply bi.except_0_mono, bi.pure_mono, HPQ. Qed.
+
   Lemma tgl_dbind' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε':
     ⌜ 0 <= ε ⌝ -∗
     ⌜ 0 <= ε'⌝ -∗
     ⌜tgl μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ -∗ |={∅}=> ⌜tgl (f a) T ε'⌝) -∗
-    |={∅}=> ⌜tgl (dbind f μ) T (ε + ε')⌝ : iProp Σ.
+    (∀ a , ⌜R a⌝ -∗ |={0; ∅|}=> ◇ ⌜tgl (f a) T ε'⌝) -∗
+    |={0; ∅|}=> ◇ ⌜tgl (dbind f μ) T (ε + ε')⌝ : iProp Σ.
   Proof.
-    iIntros (???) "H".
-    iApply (fupd_mono _ _ (⌜(∀ a b, R a → tgl (f a) T ε')⌝)).
-    { iIntros (?). iPureIntro. eapply tgl_dbind; eauto. }
-    iIntros (???) "/=".
-    iMod ("H" with "[//]"); auto.
+    iIntros (Hε Hε' HR) "H".
+    iApply (hfupd_mono _ _ (◇ ⌜∀ a, R a → tgl (f a) T ε'⌝)%I).
+    { apply except_0_pure_mono_iprop. intros Hall.
+      eapply tgl_dbind; eauto. }
+    iIntros (a HRa). iApply ("H" with "[//]").
   Qed.
-
 
   Theorem twp_step_fupd_tgl (e : expr) (σ : state) (ε : nonnegreal) φ  :
     state_interp σ ∗ err_interp (ε) ∗ WP e [{ v, ⌜φ v⌝ }] ⊢
-    |={⊤,∅}=> ⌜tgl (lim_exec (e, σ)) φ ε⌝.
+    |={0; ⊤|}=> ◇ ⌜tgl (lim_exec (e, σ)) φ ε⌝.
   Proof.
     iIntros "(Hstate & Herr & Htwp)".
     iRevert (σ ε) "Hstate Herr".
     pose proof (tgl_wp_ind_simple ⊤ () (λ e, ∀ (a : state) (a0 : nonnegreal),
-                                  state_interp a -∗ err_interp a0 ={⊤,∅}=∗ ⌜tgl (lim_exec (e, a)) φ a0⌝)%I) as H. iApply H.
+                                  state_interp a -∗ err_interp a0 -∗
+                                  |={0; ⊤|}=> ◇ ⌜tgl (lim_exec (e, a)) φ a0⌝)%I) as H.
+    iApply H.
     2: { destruct twp_default. done. }
     clear H e.
     iModIntro.
@@ -280,9 +286,11 @@ Section adequacy.
     iIntros (σ ε) "Hs Hec".
     rewrite /tgl_wp_pre.
     case_match.
-    - iMod "H" as "%".
-      iApply fupd_mask_intro; first done. iIntros "_".
-      iPureIntro.
+    - iApply (elim_fupd_hfupd_plain 0 0 ⊤ ⊤ ⌜φ v⌝
+        ⌜tgl (lim_exec (e, σ)) φ ε⌝); [lia|].
+      iSplitL "H"; [iApply "H"|].
+      iIntros (l Hl) "%Hφ". assert (l = 0%nat) as -> by lia.
+      iApply hfupd_intro. rewrite /bi_except_0. iRight. iPureIntro.
       rewrite /tgl/prob.
       etrans.
       2:{ eapply SeriesC_ge_elem; last apply ex_seriesC_filter_bool_pos; try done.
@@ -292,75 +300,114 @@ Section adequacy.
         case_bool_decide; try lra. done. }
       simpl. rewrite H. by rewrite dret_mass.
     - iSpecialize ("H" $! σ ε with "[$]").
-      iMod "H".
+      iApply (elim_fupd_hfupd_plain 0 0 ⊤ ∅ _
+        ⌜tgl (lim_exec (e, σ)) φ ε⌝ with "[$H]"); first lia.
+      iIntros (l Hl) "Hglm". assert (l = 0%nat) as -> by lia.
       iRevert (H).
-      iApply (glm_strong_ind (λ e σ ε, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜tgl (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
+      iApply (glm_strong_ind
+        (λ e σ ε, ⌜language.to_val e = None⌝ -∗
+                  |={0; ∅|}=> ◇ ⌜tgl (lim_exec (e, σ)) φ ε⌝)%I
+        with "[][$Hglm]").
       iModIntro. clear e σ ε. iIntros (e σ ε) "H %Hval".
       iDestruct "H" as "[H|[H | H]]".
-      + iAssert (|={∅}=>  ⌜∀ ε' : nonnegreal,
-                             (ε < ε') -> tgl (lim_exec (e, σ)) φ ε'⌝)%I with "[H]" as "H".
-        {
-          iIntros (ε') "%Hε'".
-          iMod ("H" $! ε' (Hε')) as "H".
-          iDestruct "H" as "(%R' & %ε1' & %ε2' & %Hineq' & %Hub' & H)".
-          iApply fupd_mono.
-          { iApply pure_mono. intros. eapply tgl_mon_grading; [eapply Hineq'|eauto]. }
-          rewrite -{2}(dret_id_left' (fun _ : () => (lim_exec (e, σ))) tt).
-          iApply tgl_dbind'.
-          - iPureIntro; apply cond_nonneg.
-          - iPureIntro; apply cond_nonneg.
-          - iPureIntro; eapply Hub'.
-          - iIntros. destruct a.
-            iSpecialize ("H" with "[//]").
-            iDestruct "H" as "[H _]".
-            iApply ("H" with "[//]").
-        }
-        iApply fupd_mono; [|done].
-        apply pure_mono.
-        intro H.
-        apply tgl_epsilon_limit; [apply Rle_ge, cond_nonneg|].
-        intros ε' Hε'.
-        eapply (H (mknonnegreal ε' _)); eauto.
-        Unshelve.
-        apply Rgt_lt in Hε'.
-        etrans; [|left;eauto].
-        apply cond_nonneg.
+      + iApply (hfupd_mono _ _ (◇ ⌜∀ ε' : nonnegreal,
+            (ε < ε') → tgl (lim_exec (e, σ)) φ ε'⌝)%I).
+        { iIntros "Hgoal". iStopProof.
+          apply except_0_pure_mono_iprop.
+          intros Hall.
+          apply tgl_epsilon_limit; [apply Rle_ge, cond_nonneg|].
+          intros ε' Hε'.
+          assert (0 <= ε')%R as Hε'nn.
+          { apply Rgt_lt in Hε'. etrans; [|left; eauto]. apply cond_nonneg. }
+          eapply (Hall (mknonnegreal ε' Hε'nn)). simpl. lra. }
+        rewrite bi.pure_forall except_0_forall.
+        iApply hfupd_forall_2. iIntros (ε').
+        destruct (decide (ε < ε')%R) as [Hε'|Hε']; last first.
+        { iApply hfupd_intro. rewrite /bi_except_0. iRight.
+          iPureIntro. intros. done. }
+        iSpecialize ("H" $! ε' with "[//]").
+        iApply (elim_fupd_hfupd_plain 0 0 ∅ ∅
+          (exec_stutter
+             (λ ε'' : nonnegreal,
+                ((⌜language.to_val e = None⌝ ={0; ∅|}=∗
+                  ◇ ⌜tgl (lim_exec (e, σ)) φ ε''⌝) ∧
+                 glm e σ ε''
+                   (λ '(e2, σ2) (ε2 : nonnegreal),
+                      |={∅,⊤}=> state_interp σ2 ∗ err_interp ε2 ∗
+                        ∀ (a : state) (a0 : nonnegreal),
+                          state_interp a -∗ err_interp a0 ={0; ⊤|}=∗
+                          ◇ ⌜tgl (lim_exec (e2, a)) φ a0⌝))%I)
+             ε')
+          ⌜ε < ε' → tgl (lim_exec (e, σ)) φ ε'⌝); [lia|].
+        iSplitL "H"; [iApply "H"|].
+        iIntros (l' Hl') "Hst". assert (l' = 0%nat) as -> by lia.
+        iDestruct (exec_stutter_compat_1 _ _ with "[] Hst") as "[%H'|H2]".
+        { iIntros (εa εb Hle) "H". iSplit.
+          - iDestruct "H" as "[H _]". iIntros "%Hto". iSpecialize ("H" with "[//]").
+            iApply (hfupd_mono _ _ _ with "H").
+            apply except_0_pure_mono_iprop.
+            intros Hge. eapply tgl_mon_grading; eauto.
+          - iDestruct "H" as "[_ H]".
+            iApply (glm_mono_grading with "[%] H"). exact Hle. }
+        2: { iDestruct "H2" as "[H2 _]". iSpecialize ("H2" with "[//]").
+          iApply (hfupd_mono _ _ _ with "H2").
+          apply except_0_pure_mono_iprop. intros; auto. }
+        iApply hfupd_intro. iApply laterN_intro.
+        rewrite /bi_except_0. iRight. iPureIntro.
+        intros _. rewrite /tgl. intros.
+        eapply Rle_trans; [|apply prob_ge_0]. lra.
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
         2: { by apply reducible_not_final. }
         iAssert (∀ ρ2 : language.expr prob_lang * language.state prob_lang,
-          ⌜R ρ2⌝ ={∅}=∗
-          let
-          '(e2, σ2) := ρ2 in
-          |={∅}=>  ⌜tgl (lim_exec (e2, σ2)) φ (ε2 ρ2)⌝)%I with "[H]" as "H".
-        { iIntros (ρ2) "%Hρ2". destruct (ρ2) as (e2&σ2). iMod ("H" $! e2 σ2 Hρ2) as "H".
-          rewrite /exec_stutter.
-          iDestruct "H" as (R2 ε1' ε2' Hineq' Htotal_ub) "H".
-          iModIntro.
-          iApply (fupd_mono _ _ (⌜tgl (lim_exec (e2, σ2)) φ (ε1' + ε2')⌝)%I).
-          { iPureIntro. apply tgl_mon_grading, Hineq'. }
-          rewrite -(dret_id_left' (fun _ : () => (lim_exec (e2, σ2))) tt).
-          iApply tgl_dbind'.
-          (* Fix the weakening for the first two goals *)
-          * iPureIntro. apply cond_nonneg.
-          * iPureIntro. apply cond_nonneg.
-          * iPureIntro. eapply Htotal_ub.
-          * iIntros ([] ?).
-            iMod ("H" with "[]") as "(Hσ&Herr&Hwand)". { iPureIntro; auto. }
-            iMod ("Hwand" with "[$] [$]"); eauto.
-        }
+          ⌜R ρ2⌝ -∗
+          |={0; ∅|}=> ◇ ⌜tgl (lim_exec ρ2) φ (ε2 ρ2)⌝)%I with "[H]" as "H".
+        { iIntros (ρ2) "%Hρ2". destruct (ρ2) as (e2&σ2).
+          iApply (elim_fupd_hfupd_plain 0 0 ∅ ∅
+            (exec_stutter
+               (λ ε' : nonnegreal,
+                  (|={∅,⊤}=> state_interp σ2 ∗ err_interp ε' ∗
+                    ∀ (a : state) (a0 : nonnegreal),
+                      state_interp a -∗ err_interp a0 ={0; ⊤|}=∗
+                      ◇ ⌜tgl (lim_exec (e2, a)) φ a0⌝)%I)
+               (ε2 (e2, σ2)))
+            ⌜tgl (lim_exec (e2, σ2)) φ (ε2 (e2, σ2))⌝); [lia|].
+          iSplitL "H"; [iApply ("H" $! e2 σ2 Hρ2)|].
+          iIntros (l1 Hl1) "Hst". assert (l1 = 0%nat) as -> by lia.
+          iDestruct "Hst" as "(%R' & %ε1' & %ε2' & %Hineq' & %Hlift' & H)".
+          rewrite -(dret_id_left' (λ _ : (), lim_exec (e2, σ2)) tt).
+          iApply (hfupd_mono _ _ (◇ ⌜tgl (dret tt ≫= λ _ : (), lim_exec (e2, σ2)) φ (ε1' + ε2')⌝)%I).
+          { apply except_0_pure_mono_iprop.
+            intros Htgl. eapply tgl_mon_grading; eauto. }
+          iApply (tgl_dbind' (λ _ : (), lim_exec (e2, σ2)) (dret tt) R' (λ x, φ x) ε1' ε2').
+          { iPureIntro. apply cond_nonneg. }
+          { iPureIntro. apply cond_nonneg. }
+          { iPureIntro. exact Hlift'. }
+          iIntros (a HRa). destruct a.
+          iSpecialize ("H" with "[//]").
+          iApply (elim_fupd_hfupd_plain 0 0 ∅ ⊤
+            (state_interp σ2 ∗ err_interp ε2' ∗
+              (∀ (a : state) (a0 : nonnegreal),
+                state_interp a -∗ err_interp a0 ={0; ⊤|}=∗
+                ◇ ⌜tgl (lim_exec (e2, a)) φ a0⌝))%I
+            ⌜tgl (lim_exec (e2, σ2)) φ ε2'⌝); [lia|].
+          iSplitL "H"; [iApply "H"|].
+          iIntros (l' Hl') "(Hσ' & Hε' & Hwp')".
+          assert (l' = 0%nat) as -> by lia.
+          iSpecialize ("Hwp'" $! σ2 ε2' with "Hσ' Hε'").
+          iApply (hfupd_mono _ _ _ with "Hwp'").
+          apply except_0_pure_mono_iprop. intros Htgl. exact Htgl. }
         rewrite {2}/tgl.
         setoid_rewrite prob_dbind.
-        iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - (ε2 e) <= prob (lim_exec e) (λ x, bool_decide(φ x))⌝)%I).
-        {
-          iIntros (HR). iPureIntro.
-          by eapply twp_step_fupd_tgl_prim_step.
-        }
-        iIntros (a HR). iMod ("H" $! a (HR)) as "H".
-        destruct a.
-        iMod "H" as "%".
-        iPureIntro.
-        by apply H.
+        iApply (hfupd_mono _ _ (◇ ⌜∀ e0, R e0 → 1 - (ε2 e0) <=
+                          prob (lim_exec e0) (λ x, bool_decide (φ x))⌝)%I).
+        { iIntros "Hgoal". iStopProof.
+          apply except_0_pure_mono_iprop. intros HR.
+          by eapply twp_step_fupd_tgl_prim_step. }
+        iIntros (a HRa).
+        iApply (hfupd_mono _ _ _ with "(H [//])").
+        apply except_0_pure_mono_iprop.
+        intros. by destruct a.
       + remember (language.get_active σ) as l.
         assert (l ⊆ language.get_active σ) as Hsubseteq by set_solver.
         clear Heql.
@@ -371,36 +418,57 @@ Section adequacy.
         2:{ iApply "IH"; try done. iPureIntro. set_solver. }
         iDestruct "H" as "(%R & %ε1 & %ε2 & %Hbound & %Hineq & %Hub & H)".
         iAssert (∀ σ2 : language.state prob_lang,
-                   ⌜R σ2⌝ ={∅}=∗ ⌜tgl (lim_exec (e, σ2)) φ (ε2 (e, σ2))⌝)%I with "[H]" as "H".
+                   ⌜R σ2⌝ -∗
+                   |={0; ∅|}=> ◇ ⌜tgl (lim_exec (e, σ2)) φ (ε2 (e, σ2))⌝)%I
+          with "[H]" as "H".
         { iClear "IH".
-          iIntros. iMod ("H" $! σ2 (H)) as "H".
-          iDestruct "H" as "(%R' & %ε1' & %ε2' & %Hineq' & %Hub' & H)".
-          iApply fupd_mono.
-          { iApply pure_mono. intros. eapply tgl_mon_grading; [eapply Hineq'|eauto]. }
-          rewrite -{2}(dret_id_left' (fun _ : () => (lim_exec (e, σ2))) tt).
-          iApply tgl_dbind'.
-          - iPureIntro; apply cond_nonneg.
-          - iPureIntro; apply cond_nonneg.
-          - iPureIntro; eapply Hub'.
-          - iIntros. destruct a.
-            iSpecialize ("H" with "[//]").
-            iDestruct "H" as "[H _]".
-            iApply ("H" with "[//]").
-        }
+          iIntros (σ2) "%HRs2".
+          iApply (elim_fupd_hfupd_plain 0 0 ∅ ∅
+            (exec_stutter
+               (λ ε2' : nonnegreal,
+                  ((⌜language.to_val e = None⌝ ={0; ∅|}=∗
+                    ◇ ⌜tgl (lim_exec (e, σ2)) φ ε2'⌝) ∧
+                   glm e σ2 ε2'
+                     (λ '(e2, σ2') (ε2'' : nonnegreal),
+                        |={∅,⊤}=> state_interp σ2' ∗ err_interp ε2'' ∗
+                          ∀ (a : state) (a0 : nonnegreal),
+                            state_interp a -∗ err_interp a0 ={0; ⊤|}=∗
+                            ◇ ⌜tgl (lim_exec (e2, a)) φ a0⌝))%I)
+               (ε2 (e, σ2)))
+            ⌜tgl (lim_exec (e, σ2)) φ (ε2 (e, σ2))⌝); [lia|].
+          iSplitL "H"; [iApply ("H" $! σ2 HRs2)|].
+          iIntros (l' Hl') "Hst". assert (l' = 0%nat) as -> by lia.
+          iDestruct (exec_stutter_compat_1 _ _ with "[] Hst") as "[%H'|H2]".
+          { iIntros (εa εb Hle) "H". iSplit.
+            - iDestruct "H" as "[H _]". iIntros "%Hto". iSpecialize ("H" with "[//]").
+              iApply (hfupd_mono _ _ _ with "H").
+              apply except_0_pure_mono_iprop.
+              intros Hge. eapply tgl_mon_grading; eauto.
+            - iDestruct "H" as "[_ H]".
+              iApply (glm_mono_grading with "[%] H"). exact Hle. }
+          2: { iDestruct "H2" as "[H2 _]". iSpecialize ("H2" with "[//]").
+            iApply (hfupd_mono _ _ _ with "H2").
+            apply except_0_pure_mono_iprop. intros; auto. }
+          iApply hfupd_intro. iApply laterN_intro.
+          rewrite /bi_except_0. iRight. iPureIntro.
+          rewrite /tgl. intros.
+          eapply Rle_trans; [|apply prob_ge_0].
+          destruct (ε2 (e, σ2)) as [? ?]. simpl in *. lra. }
         rewrite {2}/tgl.
-        iApply (fupd_mono _ _ (⌜∀ s, R s -> 1 - ε2 (e, s) <= prob (lim_exec (e, s)) (λ x, bool_decide (φ x))⌝)%I).
-        {
-          iIntros. iPureIntro.
+        iApply (hfupd_mono _ _ (◇ ⌜∀ s, R s → 1 - ε2 (e, s) <=
+              prob (lim_exec (e, s)) (λ x, bool_decide (φ x))⌝)%I).
+        { iIntros "Hgoal". iStopProof.
+          apply except_0_pure_mono_iprop. intros HR.
           rewrite (erasure.lim_exec_eq_erasure [l]); last set_solver.
           simpl.
           rewrite /tgl prob_dbind.
           erewrite SeriesC_ext; last by rewrite dret_id_right.
           eapply twp_step_fupd_tgl_state_step; try done.
-          set_solver.
-        }
-        iIntros (a HR). iMod ("H" $! a (HR)) as "%H".
-        iPureIntro. by apply H.
-    Qed.
+          set_solver. }
+        iIntros (s HRs).
+        iApply (hfupd_mono _ _ _ with "(H [//])").
+        apply except_0_pure_mono_iprop. intros; done.
+  Qed.
 End adequacy.
 
 
@@ -410,28 +478,27 @@ Theorem twp_tgl Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
   tgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros Hε Hwp.
-  eapply pure_soundness, (step_fupdN_soundness_no_lc _ 0 0) => Hinv.
-  iIntros "_".
-  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
-  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  apply (pure_soundness (PROP:=iPropI Σ)).
+  apply (laterN_soundness _ 1).
+  rewrite laterN_later -except_0_into_later.
   destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
-  { iClear "Hh Ht".
-    iApply (fupd_mask_intro); [eauto|].
-    iIntros "_".
-    simpl.
-    iPureIntro.
+  { iApply laterN_intro. iApply except_0_intro. iPureIntro.
     apply not_Rlt, Rge_le in Hcr.
-    rewrite /tgl; intros.
+    rewrite /tgl. intros.
     eapply Rle_trans; last eapply prob_ge_0.
     lra. }
+  iMod (hfupd_soundness HasLc 0 ⊤) as (Hinv) "(_ & Hhfupd)".
+  iApply "Hhfupd".
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   set ε' := mknonnegreal _ Hε.
-  iMod (ec_alloc ε') as (?) "[? ?]"; [by simpl|].
+  iMod (ec_alloc ε') as (Hec) "[Hs Hf]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  epose proof (twp_step_fupd_tgl e σ ε' φ).
-  iApply fupd_wand_r. iSplitL.
-  - iApply H1. iFrame. by iApply Hwp.
-  - iIntros "%". done.
-    Unshelve. apply _.
+  change ε with (nonneg ε').
+  iPoseProof (twp_step_fupd_tgl e σ ε' φ) as "H".
+  iApply "H".
+  iFrame "Hs". rewrite /state_interp /=. iFrame "Hh Ht".
+  iApply Hwp. iApply "Hf".
 Qed.
 
 Theorem twp_mass_lim_exec Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :

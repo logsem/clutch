@@ -9,7 +9,7 @@ Section hash_view_impl.
   Context `{Hcon:conerisGS Σ,
               HinG: ghost_mapG Σ nat nat}.
   
-  Definition hash_view_auth m γ := (ghost_map_auth γ 1 m ∗
+  Definition hash_view_auth m γ := (ghost_map_auth γ (DfracOwn 1) m ∗
                                    [∗ map] k↦v ∈m, (k ↪[γ]□ v))%I
   .
   Definition hash_view_frag k v γ := (k ↪[γ]□ v)%I.

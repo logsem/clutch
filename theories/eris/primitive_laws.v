@@ -10,7 +10,7 @@ From clutch.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
 Class erisGS Σ := HeapG {
-  erisGS_invG : invGS_gen HasNoLc Σ;
+  erisGS_invG : invGS_gen HasLc Σ;
   (* CMRA for the state *)
   erisGS_heap : ghost_mapG Σ loc val;
   erisGS_tapes : ghost_mapG Σ loc tape;
@@ -34,7 +34,7 @@ Definition tapes_auth `{erisGS Σ} :=
 
 Global Instance erisGS_erisWpGS `{!erisGS Σ} : erisWpGS prob_lang Σ := {
   erisWpGS_invGS := erisGS_invG;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+  state_interp σ := (heap_auth (DfracOwn 1) σ.(heap) ∗ tapes_auth (DfracOwn 1) σ.(tapes))%I;
   err_interp ε := (ec_supply ε);
 }.
 
