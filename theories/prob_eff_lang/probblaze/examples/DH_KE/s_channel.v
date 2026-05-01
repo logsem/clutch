@@ -48,47 +48,6 @@ Section sec_channel.
   (*placeholder for now *)
   Definition xor (e1 e2 : expr) : val := #()%V.  
 
-  (*ONE message unidirectional secure channel functionality.
-    Assume a fixed direction of sending the message, from Alice to Bob *)
-  (*Definition CHAN (getKey schannel channel : label) f : expr :=
-    let: "message" := ref NONEV in
-    handle: f with
-    | effect schannel "payload", rec "k" as multi =>
-        match: "payload" with
-          (*SendSecure*)
-        | InjL "payload" =>
-            let, ("m", "dst") := "payload" in
-            match: !"message" with
-            | NONE => "message" <- SOME "m";;
-                     let: "key" := do: getKey ("dst") in
-                                     match: "key" with
-                                     | NONE => "k" #()%V
-                                     | SOME "x" =>
-                                         let: "enc_m" := xor "x" "m" in
-                                         (do: channel (Send ("enc_m", bob)));;
-                                         "k" #()%V
-                                     end
-                                       
-            | SOME "message" => "k" #()%V
-            end
-          (*RecvSecure*)
-        | InjR "from" =>
-            let: "key" := do: getKey ("from") in
-                            match: "key" with
-                            | NONE => "k" NONEV
-                            | SOME "key" =>
-                                let: "r" := (do: channel (Recv "from")) in
-                                match: "r" with
-                                | NONE => "k" NONEV
-                                | SOME "x" =>
-                                    let: "enc_m" := xor "key" "x" in
-                                    "k" (SOME "enc_m")
-                                end       
-                            end                              
-        end
-    | return "y" => #()%V
-  end.*)
-
   Definition CHAN (getKey schannel channel : label) f : expr:=
     let: "message" := ref NONEV in
     handle: f with
@@ -172,16 +131,6 @@ Section sec_channel.
                           | NONE =>
                               "k" NONEV
                           | SOME "x" =>
-                              (*let: "m" :=
-                                (match: !"message" with
-                                     | NONE =>
-                                         let:
-                                           "m'":= (samplelbl "α" #()%V) in "message" <- SOME "m'";; "m'"
-                                     | SOME "m'" => "m'"
-                                     end) in
-                              let: "mA" := g^"m" in
-                              (do: leakauth (Send ("mA", alice)));;
-                              "k" #()%V*)
                               match: !"message" with
                               | NONE =>
                                   let: "m'" := (samplelbl "α" #()%V) in
@@ -191,10 +140,6 @@ Section sec_channel.
                                   "k" #()%V
                               | SOME "m" => "k" #()%V
                               end    
-                              (*let: "m" := (samplelbl "α" #()%V) in
-                              let: "mA" := g^"m" in
-                              (do: leakauth (Send ("mA", bob)));;
-                               "k" #()%V*)
                           end                           
                         | InjR "from" =>
                             (do: keyleak (Send "from"));;
@@ -216,20 +161,6 @@ Section sec_channel.
      | return "y" => #()%V end.
 
                            
-    (*Definition CHAN_SIM (channel leak : label) (f : expr) : expr :=
-      let: "α" := alloc #n in
-      let: "message" := ref NONEV in
-      handle: f with
-      | effect channel "payload", rec "k" as multi =>
-          match: "payload" with
-          | InjL "payload" =>
-              let, ("m", "dst") := "payload" in
-              
-          | InjR "from" =>
-          end
-      | return "y" => #()%V end.*)
-
-
     Definition F_KE_L (getKey keyleak : label) f : expr :=
     (* Magically share a presampled key *)
     let: "c" := (sample #()%V) in

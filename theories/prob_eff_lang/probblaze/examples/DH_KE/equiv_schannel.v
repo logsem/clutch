@@ -101,13 +101,6 @@ Section s_channel_verification.
                                       □ (Q NONEV NONEV ∗ Q (SOMEV #0) (SOMEV #0)))%I.
   Next Obligation. solve_proper. Qed.
 
-  (*Program Definition KLeakRecvBob : iThy Σ :=
-     λ e1 e2, (λne Q,
-                ⌜ e1 = do: keyleak1 (RecvV bob) ⌝%E ∗
-                           ⌜ e2 = do: keyleak2 (RecvV bob) ⌝%E ∗
-                                      □ Q (Val #()%V) (Val #()%V))%I.
-  Next Obligation. solve_proper. Qed.*)
-
   Program Definition KLeakRecvBob : iThy Σ :=
     λ e1 e2, (λne Q,
                 ⌜ e1 = do: keyleak1 (RecvV bob) ⌝%E ∗
@@ -154,8 +147,6 @@ Section s_channel_verification.
                             ([keyleak1], [keyleak2],iThySum (iThySum KLeakSendAlice KLeakRecvAlice) (iThySum KLeakSendBob KLeakRecvAlice));
                             ([leakauth1], [leakauth2], iThySum (iThySum LASendAlice LASendBob) (iThySum LARecvAlice LARecvBob))].
 
-  
-  (*Definition LblEnvSec := [([leak'1], [leak'2],iThySum (iThySum SendSecBob RecvSecAlice) (iThySum RecvSecBob RecvSecAlice)); ([leak1], [leak2], iThySum LeakAlice LeakBob)].*)
 
   (*Theories relating the secure channel effects for the client*)
   (*---------------------------------------------------------*)
@@ -267,10 +258,16 @@ Section s_channel_verification.
 
     
   Definition LblClients : iLblThy Σ :=
-    [([channel; getKey1; schannel1],[leaksec; schannel2; getKey2], (SecChannelThy))].
+    [(([channel; getKey1; schannel1],[leaksec; schannel2; getKey2], (SecChannelThy)));
+     ([keyleak1], [keyleak2],
+         iThySum (iThySum KLeakSendAlice KLeakRecvAlice) (iThySum KLeakSendBob KLeakRecvBob));
+         ([leakauth1], [leakauth2], iThySum (iThySum LASendAlice LASendBob) (iThySum LARecvAlice LARecvBob))].
   
   Definition LblClients' : iLblThy Σ :=
-     [([schannel1; getKey1; leaksec],[schannel2; getKey2; channel], (SecChannelThy))].
+    [([schannel1; getKey1; leaksec],[schannel2; getKey2; channel], (SecChannelThy));   
+     ([keyleak1], [keyleak2],
+         iThySum (iThySum KLeakSendAlice KLeakRecvAlice) (iThySum KLeakSendBob KLeakRecvBob));
+         ([leakauth1], [leakauth2], iThySum (iThySum LASendAlice LASendBob) (iThySum LARecvAlice LARecvBob))].
     (*[([schannel1; getKey1],[schannel2], (iThySum (GetKey1bot) (SecChannelThy)))].*)
   
 (*Verification of F_OAUTH[F_KE_L[CHAN[]]] ≤ CHAN_SIM[F_CHAN[]]*)
@@ -428,14 +425,14 @@ Proof with (repeat foldkont) using G.
            end
          end
        end)%E).
-  iAssert ( brel ⊤ f1 f2
+  (*iAssert ( brel ⊤ f1 f2
     (([channel; getKey1; schannel1], [leaksec; schannel2; getKey2], SecChannelThy)
      :: ([keyleak1], [keyleak2],
          iThySum (iThySum KLeakSendAlice KLeakRecvAlice) (iThySum KLeakSendBob KLeakRecvBob))
         :: ([leakauth1], [leakauth2], iThySum (iThySum LASendAlice LASendBob) (iThySum LARecvAlice LARecvBob))
            :: L)
     (λ v1 v2 : val, ⌜v1 = v2⌝%I)) as "Hrelf1f2mono".
-  { admit. }
+  { admit. }*)
    iApply (brel_na_alloc
               (((α ↪ₛN (S n''; [n])) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV)
                ∨ (α ↪ₛ□ (S n''; []) ∗ l_sim ↦ₛ□ SOMEV #n ∗  l_auth ↦□ SOMEV (xor (vgval $ g ^+n)%g #0)))%I
@@ -448,9 +445,8 @@ Proof with (repeat foldkont) using G.
               betaN).
    iSplitL  "Hlrchan Hlfchan"; [iNext; iFrame; iLeft; iFrame|].
    iIntros "#Hinvβ" .
-   iApply ((brel_exhaustion f1 f2 _ _ _ _ _ _ _ _ _) with "[Hrelf1f2mono]"); try simpl; try auto; try (apply sublist_subseteq); try (apply singleton_sublist_l);
-     try (apply list_elem_of_In); try simpl; try auto.
-   {admit. }
+   iApply ((brel_exhaustion f1 f2 _ _ _ _ _ _ _ _ _) with "[Hrelf1f2]"); try simpl; try auto; try (apply sublist_subseteq); try (apply singleton_sublist_l);
+     try (apply list_elem_of_In); try simpl; try auto; try (repeat (eapply sublist_skip)) ; try eapply sublist_nil_l.
    iLöb as "IH".
    iSplit; [iIntros (v1 v2) "%Hv1v2"; iModIntro; brel_pures; iModIntro; done |]. 
    iIntros (?????) "!# %Hk1 %Hk2 HXQ #Hrel".
@@ -458,8 +454,11 @@ Proof with (repeat foldkont) using G.
    (* Send to Bob*) 
       + iDestruct "HSendAlice" as (?m ?m') "[[%He1 %He2] #HmQ]".         
          rewrite -> He1. rewrite -> He2. brel_pures.
-         { admit. }
-         { admit. } 
+         {  apply -> NeutralEctx_ectx_labels_singleton.
+           do 2 (eapply NeutralEctx_label_cons_inv_2 in Hk1). eapply Hk1.}
+         {  apply -> NeutralEctx_ectx_labels_singleton.
+            eapply NeutralEctx_label_cons_inv_2 in Hk2.
+            eapply NeutralEctx_label_cons_inv_1 in Hk2. eapply Hk2. } 
          iApply (brel_na_inv _ _ betaN); first set_solver.
          iFrame "Hinvβ".
          iIntros "([(>Hl_fchan  & >Hl_rchan) | (#>Hl_fchan & #>Hl_rchan)] & Hclose)".
@@ -515,9 +514,10 @@ Proof with (repeat foldkont) using G.
        end
      end)%E).
            iApply (brel_bind'' [HandleCtx Deep _ _ _ _; AppRCtx _] [AppRCtx _] keytheory M N  (λ v1 v2 : val, ⌜v1 = v2⌝%I) (Do keyleak1 (InjLV bob)) (Do keyleak2 (InjLV bob))).
-             { simpl. admit. }
+             { simpl. unfold M. repeat (rewrite -> labels_l_cons). set_solver. }
              { simpl. apply list_subseteq_nil. }
-             { simpl. admit. } 
+             { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. eapply Permutation_submseteq.
+               eapply perm_swap. } 
              { iApply (brel_introduction' [keyleak1] [keyleak2]).
                 1: { unfold keytheory.
                      eapply list_elem_of_here. }
@@ -529,10 +529,14 @@ Proof with (repeat foldkont) using G.
                 iModIntro.
                 iApply brel_value.
                 iIntros "$ !>". brel_pures.
+                About brel_learn.
+                iAssert (distinct' (LblClients ++ L)) as "%Hdistinct".
+                { unfold LblClients. admit. }
                 iApply (brel_bind'' _ _ keytheory M N  (λ v1 v2 : val, ⌜v1 = v2⌝%I) (Do keyleak1 (InjRV bob)) (Do keyleak2 (InjRV bob))).
-                { simpl. admit. }
+                { simpl. unfold M.  repeat (rewrite -> labels_l_cons). set_solver. }
                 { simpl. apply list_subseteq_nil. }
-                { simpl. admit. }
+                { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. eapply Permutation_submseteq.
+               eapply perm_swap. }
                 { iApply (brel_introduction' [keyleak1] [keyleak2]).
                 1: { unfold keytheory.
                      eapply list_elem_of_here. }
@@ -547,12 +551,18 @@ Proof with (repeat foldkont) using G.
                       simpl. brel_pures.
                       iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)). 
                       { simpl. auto. }
-                      { simpl. admit. }
+                      { simpl. repeat (eapply list_subseteq_skip). eapply list_subseteq_nil. }
                       { iApply "Hrel". iApply "HmQ". }
                       { iApply "IH". }
                   +++ iApply brel_value.
                       iIntros "$ !>". brel_pures.
-                      { simpl. admit. }
+                      { simpl. unfold distinct in Hdistinct. destruct Hdistinct.
+                        unfold distinct_l in H1. unfold LblClients in H1. simpl in H1.
+                        repeat (rewrite -> labels_l_cons in H1).
+                        eapply NoDup_app in H1.
+                        eapply NoDup_cons_1_1. destruct H1 as [H1' H2'].
+                        apply (NoDup_app [channel; getKey1] [schannel1]) in H1'.
+                        destruct H1' as [H1' H2'']. apply H1'.}
                       { simpl.
                         iApply (brel_na_inv _ _ alphaN); first set_solver.
                         iFrame "Hinvα".
@@ -592,7 +602,10 @@ Proof with (repeat foldkont) using G.
            iThySum (iThySum LASendAlice LASendBob)
              (iThySum LARecvAlice LARecvBob))]).
                           iApply (brel_bind _ _ _ leakatheory N _ (Do leakauth1 (InjLV (xor "x" "m", bob))) (Do leakauth2 (InjLV (vgval (g ^+ n) , bob)))).
-                          { simpl. unfold leakatheory. auto. admit. }
+                          { simpl. unfold leakatheory. auto.
+                            unfold traversable. simpl.
+                            About brel_bind.
+                            Search traversable. admit. }
                           { simpl. auto. admit. }
                           { iApply (brel_introduction' [leakauth1] [leakauth2]); try (unfold leakatheory);
                             try (apply list_elem_of_here).
@@ -727,7 +740,7 @@ Proof with (repeat foldkont) using G.
                                { simpl. admit. }
                                { iApply "Hrel". iApply "HmQ". }
                                { iApply "IH". }
-                               (*second case for the invariant, when a message isi stored in the authenticated channel*)
+                               (*second case for the invariant, when a message is stored in the authenticated channel*)
                           +++ simpl. brel_pures.
                               iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hl_sim").
                               iIntros "Hl_sim'".
