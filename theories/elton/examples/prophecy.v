@@ -31,13 +31,12 @@ Section counterexample.
   Definition prog `{prophecies} : expr :=
     let: "x" := NewProph #() in
     let: "y" := rand #1 in
-    ResolveProph "x" "y";;
-    #false.
+    ResolveProph "x" "y".
   
 End counterexample.
 
 Lemma prophecy_unsound {H:prophecies}:
-  pgl (lim_exec (prog (H:=H), {|heap :=∅; urns := ∅ |})) (λ v, v=#true) (1/2).
+  pgl (lim_exec (prog (H:=H), {|heap :=∅; urns := ∅ |})) (λ v, False) (1/2).
 Proof.
   eapply (elton_adequacy_remove_drand eltonΣ (prog)).
   { rewrite /prog. simpl.
