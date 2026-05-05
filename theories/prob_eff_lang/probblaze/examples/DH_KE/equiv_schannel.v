@@ -605,7 +605,10 @@ Proof with (repeat foldkont) using G.
                           { simpl. unfold leakatheory. auto.
                             unfold traversable. simpl.
                             About brel_bind.
-                            Search traversable. admit. }
+                            Search traversable.
+                            iModIntro.
+                            iIntros (e1 e2 Q0).
+                             admit. }
                           { simpl. auto. admit. }
                           { iApply (brel_introduction' [leakauth1] [leakauth2]); try (unfold leakatheory);
                             try (apply list_elem_of_here).

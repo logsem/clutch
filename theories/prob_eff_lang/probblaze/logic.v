@@ -577,7 +577,6 @@ Notation "'REL' e1 ≤ e2 <| X | > {{ R } }" :=
 
 Section baze_rules.
   Context `{!probblazeRGS Σ}.
-
   Implicit Types X Y Z : iThy Σ.
 
   Lemma obs_refines_value_mask E (v1 v2 : val) R : (na_ownP E ={⊤}=∗ na_ownP ⊤ ∗ R v1 v2) -∗ obs_refines E v1 v2 R.
@@ -3434,6 +3433,27 @@ Section brel_effect_rules.
     by iApply "Hbrel".
   Qed.
 
+  (*need to ensure that the branches of the two handlers dont throw effects l1 and l2 *)
+  Lemma brel_handler_comm_r (f1 f2 h1e1 h1e2 h2e1 h2e2  : expr) (l1 l2 : label) m E L R :
+    l1 ≠ l2 ->
+    is_closed_expr ∅ f2 ->
+    let h1 := HandleCtx Deep m l1 h1e1 h1e2 in
+    let h2 := HandleCtx Deep m l2 h2e1 h2e2 in
+    (* add a typing rule ensuring the types of h1e1 h1e2 h2e1 h2e2 have rows which specificlaly dont contain the labels l1 l2*)
+    BREL f1 ≤ fill_frame h1 (fill_frame h2 f2) @ E <|L|> {{R}} -∗
+    BREL f1 ≤ fill_frame h2 (fill_frame h1 f2) @ E <|L|> {{R}}.
+  Proof.
+  Admitted.
+
+  Lemma brel_handler_comm_l  (f1 f2 h1e1 h1e2 h2e1 h2e2  : expr) (l1 l2 : label) m E L R :
+    l1 ≠ l2 ->
+    is_closed_expr ∅ f1 ->
+    let h1 := HandleCtx Deep m l1 h1e1 h1e2 in
+    let h2 := HandleCtx Deep m l2 h2e1 h2e2 in
+    BREL fill_frame h1 (fill_frame h2 f1) ≤ f2 @ E <|L|> {{R}} -∗
+    BREL fill_frame h2 (fill_frame h1 f1) ≤ f2 @ E <|L|> {{R}}.
+  Proof.
+    Admitted.
 End brel_effect_rules.
 
 Section brel_probabilistic_rules.
