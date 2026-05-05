@@ -129,7 +129,7 @@ Section proofs.
         rewrite -(minus_INR (_+_)); last lia.
         replace ((_+_-_)%nat) with (size s') by lia.
         wp_bind (Val # (_ =ᵥ _))%V.
-        iApply (wp_value_promotion _ false (l ↪ urn_unif s')%I with "[Hunif]").
+        iApply (wp_value_promotion _ (LitV false) (l ↪ urn_unif s')%I with "[Hunif]").
         * rewrite rupd_unseal/rupd_def.
           iIntros  (?) "[? H]". iSplit; last iFrame.
           iDestruct (ghost_map_lookup with "H [$]") as "%Hlookup".

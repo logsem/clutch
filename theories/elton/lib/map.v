@@ -252,7 +252,7 @@ Section map.
 
   Lemma wp_find_list_none' E l vs (k: base_lit) R :
     base_lit_type_check k = Some BLTInt ->
-    {{{ assoc_list' l vs ∗ R ∗ □[∗ list] x∈vs.*1, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V }}}
+    {{{ assoc_list' l vs ∗ R ∗ □[∗ list] x∈vs.*1, R -∗ rupd (λ v, v=LitV false) R (LitV $ x=ᵥ k)%V }}}
       find_list #l #k @ E
     {{{ v, RET v;
         assoc_list' l vs ∗ R ∗ ⌜v= NONEV ⌝
@@ -272,7 +272,7 @@ Section map.
         simpl.
         iDestruct ("Hrupd1" with "[$]") as "Hrupd1".
         wp_bind (Val _).
-        iApply (wp_value_promotion _ false R with "[Hrupd1]").
+        iApply (wp_value_promotion _ (LitV false) R with "[Hrupd1]").
         { rewrite rupd_unseal/rupd_def.
           iIntros.
           iDestruct ("Hrupd1" with "[$]") as "(%Hrupd&?)".
@@ -296,7 +296,7 @@ Section map.
         simpl.
         iDestruct ("Hrupd1" with "[$]") as "Hrupd1".
         wp_bind (Val _).
-        iApply (wp_value_promotion _ false R with "[$]").
+        iApply (wp_value_promotion _ (LitV false) R with "[$]").
         iIntros "R".
         wp_pures.
         wp_pure. iApply ("IH" with "[$][$][-Hrupd2][$]"). iNext.
@@ -313,7 +313,7 @@ Section map.
         simpl.
         iDestruct ("Hrupd1" with "[$]") as "Hrupd1".
         wp_bind (Val _).
-        iApply (wp_value_promotion _ false R with "[$]").
+        iApply (wp_value_promotion _ (LitV false) R with "[$]").
         iIntros "R".
         wp_pures.
         wp_pure. iApply ("IH" with "[$][$][-Hrupd2][$]"). iNext.
@@ -326,8 +326,8 @@ Section map.
     base_lit_type_check k = Some BLTInt ->
     list_to_map vs= m->
     m!!k'=Some v' ->
-    {{{ assoc_list' l vs ∗ R ∗ □(R -∗ rupd (λ v, v=true) R (k'=ᵥ k)%V) ∗
-        □([∗ set] x∈(dom m ∖ {[k']}), R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V)
+    {{{ assoc_list' l vs ∗ R ∗ □(R -∗ rupd (λ v, v=(LitV true)) R (LitV (k'=ᵥ k))%V) ∗
+        □([∗ set] x∈(dom m ∖ {[k']}), R -∗ rupd (λ v, v=(LitV false)) R (LitV (x=ᵥ k))%V)
     }}}
       find_list #l #k @ E
     {{{ v, RET v;
@@ -352,7 +352,7 @@ Section map.
            }
            wp_bind (Val _).
            iDestruct ("HR1" with "[$]") as "HR1".
-           iApply (wp_value_promotion _ true R with "[HR1]").
+           iApply (wp_value_promotion _ (LitV true) R with "[HR1]").
            { rewrite rupd_unseal/rupd_def.
              iIntros.
              iDestruct ("HR1" with "[$]") as "(%Hrupd&?)".
@@ -367,7 +367,8 @@ Section map.
              eexists _; split; last done.
              rewrite bool_decide_eq_true_2; first done.
              rename select (urn_subst f k = _) into H'.
-             rewrite -H' in H.
+             rename select (urn_subst f k' = _) into H''.
+             rewrite -H' in H''.
              destruct k, k'; by simplify_eq.
            }
            iIntros "HR".
@@ -385,7 +386,7 @@ Section map.
            }
            wp_bind (Val _).
            iDestruct ("HR1" with "[$]") as "HR1".
-           iApply (wp_value_promotion _ true R with "[HR1]").
+           iApply (wp_value_promotion _ (LitV true) R with "[HR1]").
            { rewrite rupd_unseal/rupd_def.
              iIntros.
              iDestruct ("HR1" with "[$]") as "(%Hrupd&?)".
@@ -409,7 +410,7 @@ Section map.
            }
            wp_bind (Val _).
            iDestruct ("HR1" with "[$]") as "HR1".
-           iApply (wp_value_promotion _ true R with "[HR1]").
+           iApply (wp_value_promotion _ (LitV true) R with "[HR1]").
            { rewrite rupd_unseal/rupd_def.
              iIntros.
              iDestruct ("HR1" with "[$]") as "(%Hrupd&?)".
@@ -440,7 +441,7 @@ Section map.
            iDestruct (big_sepS_elem_of _ _ k2 with "HR2") as "HR2'"; first set_solver.
            wp_bind (Val _).
            iDestruct ("HR2'" with "[$]") as "HR2''".
-           iApply (wp_value_promotion _ false R with "[HR2'']").
+           iApply (wp_value_promotion _ (LitV false) R with "[HR2'']").
            { rewrite rupd_unseal/rupd_def.
              iIntros.
              iDestruct ("HR2''" with "[$]") as "(%Hrupd&?)".
@@ -477,7 +478,7 @@ Section map.
            iDestruct (big_sepS_elem_of _ _ k2 with "HR2") as "HR2'"; first set_solver.
            wp_bind (Val _).
            iDestruct ("HR2'" with "[$]") as "HR2''".
-           iApply (wp_value_promotion _ false R with "[HR2'']").
+           iApply (wp_value_promotion _ (LitV false) R with "[HR2'']").
            { rewrite rupd_unseal/rupd_def.
              iIntros.
              iDestruct ("HR2''" with "[$]") as "(%Hrupd&?)".
@@ -504,7 +505,7 @@ Section map.
            iDestruct (big_sepS_elem_of _ _ k2 with "HR2") as "HR2'"; first set_solver.
            wp_bind (Val _).
            iDestruct ("HR2'" with "[$]") as "HR2''".
-           iApply (wp_value_promotion _ false R with "[HR2'']").
+           iApply (wp_value_promotion _ (LitV false) R with "[HR2'']").
            { rewrite rupd_unseal/rupd_def.
              iIntros.
              iDestruct ("HR2''" with "[$]") as "(%Hrupd&?)".
@@ -545,7 +546,7 @@ Section map.
 
   Lemma wp_get_none' lm k R m E:
     base_lit_type_check k = Some BLTInt ->
-    {{{ map_list' lm m ∗ R ∗ □[∗ set] x∈dom m, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V}}}
+    {{{ map_list' lm m ∗ R ∗ □[∗ set] x∈dom m, R -∗ rupd (λ v, v=(LitV false)) R (LitV (x=ᵥ k))%V}}}
       get #lm #k @ E
       {{{ res, RET res; map_list' lm m ∗ R ∗ ⌜ res = NONEV ⌝ }}}.
   Proof.
@@ -573,8 +574,8 @@ Section map.
   Lemma wp_get_some' lm k R m E k' v':
     base_lit_type_check k = Some BLTInt ->
     m!!k' = Some v' ->
-    {{{ map_list' lm m ∗ R ∗ □(R -∗ rupd (λ v, v=true) R (k'=ᵥ k)%V) ∗
-        □[∗ set] x∈dom m ∖ {[k']}, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V}}}
+    {{{ map_list' lm m ∗ R ∗ □(R -∗ rupd (λ v, v=(LitV true)) R (LitV (k'=ᵥ k))%V) ∗
+        □[∗ set] x∈dom m ∖ {[k']}, R -∗ rupd (λ v, v=(LitV false)) R (LitV (x=ᵥ k))%V}}}
       get #lm #k @ E
       {{{ res, RET res; map_list' lm m ∗ R ∗ ⌜ res = SOMEV v' ⌝ }}}.
   Proof.

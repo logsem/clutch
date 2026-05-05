@@ -91,7 +91,7 @@ Section specs.
 
   Lemma flip_v_promote l b:
     flip_urn l {[b]} -∗
-    (rupd (λ x, x=LitBool b) (flip_urn l {[b]}) ((flip_v l))).
+    (rupd (λ x, x=(LitV $ LitBool b)) (flip_urn l {[b]}) ((LitV $ flip_v l))).
   Proof.
     iIntros "H".
     rewrite rupd_unseal/rupd_def.

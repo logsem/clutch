@@ -39,9 +39,9 @@ Section useful_lemmas.
       - lia.
       - assert (Z.abs (p * k) >= p) by (rewrite Z.abs_mul; nia).
         lia. }
-    assert (Hrel : rel_prime p a) by (apply prime_rel_prime; auto).
-    assert (Hrel' : rel_prime a p) by (apply rel_prime_sym; auto).
-    destruct (rel_prime_bezout p a Hrel) as [u v Hbez].
+    assert (Z.prime p) by (rewrite prime_alt; auto).
+    assert (Hrel : Z.coprime p a) by (apply Z.coprime_prime_l; auto).
+    destruct (Z.Bezout_coprime p a Hrel) as [u [v Hbez]].
     exists ((v * b) mod p).
     unfold unique. split.
     - split.
@@ -78,7 +78,7 @@ Section useful_lemmas.
         replace (a * (x' - (v * b) mod p)) with (a * x' - a * ((v * b) mod p)) by ring.
         lia. }
       assert (Hdiv2 : (p | x' - (v * b) mod p)).
-      { apply Gauss with a; auto. }
+      { apply Z.gauss with a; auto. }
       destruct Hdiv2 as [k Hk].
       assert (Hx_range : 0 <= (v * b) mod p < p) by (apply Z_mod_lt; lia).
       destruct (Z.eq_dec k 0) as [->|Hk0].
@@ -86,8 +86,8 @@ Section useful_lemmas.
       + exfalso.
         assert (Z.abs (x' - (v * b) mod p) >= p).
         { rewrite Hk. rewrite Z.abs_mul.
-          assert (Z.abs p = p) by lia.
-          rewrite H. nia. }
+          assert (Z.abs p = p) as H' by lia.
+          rewrite H'. nia. }
         lia.
   Qed.
 End useful_lemmas.
@@ -1292,7 +1292,7 @@ Section prog.
 
         destruct (decide (a≠a' \/ b≠b')) as [|Hcase].
         + (* false *)
-          iApply (wp_value_promotion _ false (l↪ _) with "[Hurn]").
+          iApply (wp_value_promotion _ (LitV false) (l↪ _) with "[Hurn]").
             * rewrite rupd_unseal/rupd_def.
               iIntros  (?) "[? Hu]". iSplit; last iFrame.
               iDestruct (ghost_map_lookup with "Hu [$]") as "%Hlookup".
@@ -1326,7 +1326,7 @@ Section prog.
           subst. 
           destruct (decide (b=b')); last (exfalso; naive_solver).
           subst.
-          iApply (wp_value_promotion _ true (l↪ _) with "[Hurn]").
+          iApply (wp_value_promotion _ (LitV true) (l↪ _) with "[Hurn]").
             * rewrite rupd_unseal/rupd_def.
               iIntros  (?) "[? Hu]". iSplit; last iFrame.
               iDestruct (ghost_map_lookup with "Hu [$]") as "%Hlookup".
@@ -1641,7 +1641,7 @@ Section prog.
         intros.
         case_bool_decide; simpl; lra.
       + case_bool_decide; first by iDestruct (ec_contradict with "[$]") as "[]".
-        iApply (wp_value_promotion _ false (l↪ _) with "[Hurn]").
+        iApply (wp_value_promotion _ (LitV false) (l↪ _) with "[Hurn]").
         * rewrite rupd_unseal/rupd_def.
           iIntros  (?) "[? Hu]". iSplit; last iFrame.
           iDestruct (ghost_map_lookup with "Hu [$]") as "%Hlookup".
@@ -1675,7 +1675,7 @@ Section prog.
         replace (_*_/_)%R with 0%R by lra.
         apply Rdiv_INR_ge_0.
       + naive_solver. 
-      + iApply (wp_value_promotion _ false (l↪ _) with "[Hurn]").
+      + iApply (wp_value_promotion _ (LitV false) (l↪ _) with "[Hurn]").
         * rewrite rupd_unseal/rupd_def.
           iIntros  (?) "[? Hu]". iSplit; last iFrame.
           iDestruct (ghost_map_lookup with "Hu [$]") as "%Hlookup".

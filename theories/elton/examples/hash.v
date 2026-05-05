@@ -78,8 +78,8 @@ Section simple_bit_hash.
   Lemma wp_hashfun_prev E f m k (n:nat) k' R:
     base_lit_type_check k = Some BLTInt ->
     m!!k' = Some n ->
-    {{{ hashfun f m ∗ R ∗ □(R -∗ rupd (λ v, v=true) R (k'=ᵥ k)%V) ∗
-        □[∗ set] x∈dom m ∖ {[k']}, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V }}}
+    {{{ hashfun f m ∗ R ∗ □(R -∗ rupd (λ v, v=(LitV true)) R (LitV (k'=ᵥ k))%V) ∗
+        □[∗ set] x∈dom m ∖ {[k']}, R -∗ rupd (λ v, v=LitV false) R (LitV (x=ᵥ k))%V }}}
       f #k @ E
     {{{ RET #n; hashfun f m ∗ R}}}.
   Proof.
@@ -99,7 +99,7 @@ Section simple_bit_hash.
     base_lit_type_check k = Some BLTInt ->
     (∀ n, (0<=ε2 n)%R) ->
     (SeriesC (λ n, (1 / (S val_size)) * ε2 n)%R <= ε)%R →
-    {{{ hashfun f m ∗ R ∗ (□[∗ set] x∈dom m, R -∗ rupd (λ v, v=false) R (x=ᵥ k)%V) ∗ ↯ ε
+    {{{ hashfun f m ∗ R ∗ (□[∗ set] x∈dom m, R -∗ rupd (λ v, v=(LitV false)) R (LitV (x=ᵥ k))%V) ∗ ↯ ε
     }}}
       f #k @ E
     {{{ v, RET #v; hashfun f (<[ k := fin_to_nat v ]>m) ∗ R ∗ ↯ (ε2 v)}}}.

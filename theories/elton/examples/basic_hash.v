@@ -234,7 +234,7 @@ Section prog.
         iDestruct (ghost_map_lookup with "Hu [$Hl']") as "%Hlookup_l'".
         iPureIntro.
         intros.
-        exists false. split => //.
+        exists (LitV false). split => //.
         eapply urns_f_distr_lookup in Hlookup_l ; last done.
         2:{ simpl. set_solver. }
         eapply urns_f_distr_lookup in Hlookup_l' ; last done.
@@ -746,7 +746,7 @@ Section prog.
                iDestruct (ghost_map_lookup with "Hu [$Hl']") as "%Hlookup_l'".
                iPureIntro.
                intros.
-               exists false. split => //.
+               exists (LitV false). split => //.
                eapply urns_f_distr_lookup in Hlookup_l ; last done.
                2:{ simpl. set_solver. }
                eapply urns_f_distr_lookup in Hlookup_l' ; last done.
@@ -1224,7 +1224,7 @@ Section prog.
                iDestruct (ghost_map_lookup with "Hu [$Hl']") as "%Hlookup_l'".
                iPureIntro.
                intros.
-               exists false. split => //.
+               exists (LitV false). split => //.
                eapply urns_f_distr_lookup in Hlookup_l ; last done.
                2:{ simpl. set_solver. }
                eapply urns_f_distr_lookup in Hlookup_l' ; last done.
@@ -1375,7 +1375,7 @@ Section prog.
     }
     1: exists 1 ; intros ; case_bool_decide ; simpl ; try lra.
     case_bool_decide ; first by iDestruct (ec_contradict with "[$]") as "[]".
-        iApply (wp_value_promotion _ false (b↪ _) with "[Hurn]").
+        iApply (wp_value_promotion _ (LitV false) (b↪ _) with "[Hurn]").
         * rewrite rupd_unseal/rupd_def.
           iIntros  (?) "[? Hu]". iSplit; last iFrame.
           iDestruct (ghost_map_lookup with "Hu [$]") as "%Hlookup".

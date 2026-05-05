@@ -58,7 +58,7 @@ Section proofs.
     iMod (token_alloc) as (γ) "Htoken".
     iMod (inv_alloc nroot _
             ( ∃ (x:base_lit)(f:bool -> bool), ⌜Bij f⌝ ∗ loc ↦ #x ∗ ⌜base_lit_type_check x = Some BLTBool⌝ ∗
-                              □(∀ b, flip_urn l {[b]} -∗ rupd (λ x, x=f b) (flip_urn l {[b]}) x) ∗
+                              □(∀ b, flip_urn l {[b]} -∗ rupd (λ x, x=LitV $ f b) (flip_urn l {[b]}) (LitV x)) ∗
                              ((flip_urn l {[true; false]})
                                ∨ token γ))%I
            with "[Hflip Hl]") as "#Hinv"; first iFrame.
@@ -138,6 +138,10 @@ Section proofs.
           intros ? H2. apply H1 in H2.
           destruct H2 as (v'&?&?).
           subst.
+          simpl in *.
+          rewrite bind_Some in H2.
+          destruct H2 as [?[H2 ?]].
+          destruct!/=.
           rewrite H2. simpl.
           naive_solver.
     }

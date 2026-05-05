@@ -69,7 +69,7 @@ Section proofs.
     iMod (inv_alloc (nroot) _
             ( ∃ (x:base_lit)(f:bool -> bool) , ⌜Bij f⌝ ∗ loc ↦ #x ∗ ⌜base_lit_type_check x = Some BLTBool⌝ ∗
                               
-                             ((∃ l, (∀ b, flip_urn l {[b]} -∗ rupd (λ x, x=f b) (flip_urn l {[b]}) x) ∗ (flip_urn l {[true; false]}))
+                             ((∃ l, (∀ b, flip_urn l {[b]} -∗ rupd (λ x, x=LitV (f b)) (flip_urn l {[b]}) (LitV x)) ∗ (flip_urn l {[true; false]}))
                                ∨ token γ))%I
            with "[ Hl Hflip]") as "#Hinv"; first iFrame.
     { iNext. iExists id; repeat iSplit; last iLeft; iFrame.
@@ -175,6 +175,10 @@ Section proofs.
           intros ? H2'. apply H' in H2'.
           destruct H2' as (?&H2'&?).
           subst.
+          simpl in *.
+          rewrite bind_Some in H2'; destruct H2' as [? [H2' ?]].
+          
+          destruct!/=.
           rewrite H2'. simpl.
           naive_solver.
     }
