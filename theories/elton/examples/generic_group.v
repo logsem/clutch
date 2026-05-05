@@ -39,9 +39,12 @@ Section useful_lemmas.
       - lia.
       - assert (Z.abs (p * k) >= p) by (rewrite Z.abs_mul; nia).
         lia. }
-    assert (Z.prime p) by (rewrite prime_alt; auto).
-    assert (Hrel : Z.coprime p a) by (apply Z.coprime_prime_l; auto).
-    destruct (Z.Bezout_coprime p a Hrel) as [u [v Hbez]].
+    assert (Hrel : rel_prime p a) by (apply prime_rel_prime; auto).
+    assert (Hrel' : rel_prime a p) by (apply rel_prime_sym; auto).
+    destruct (rel_prime_bezout p a Hrel) as [u v Hbez].
+    (* assert (Z.prime p) by (rewrite prime_alt; auto). *)
+    (* assert (Hrel : Z.coprime p a) by (apply Z.coprime_prime_l; auto). *)
+    (* destruct (Z.Bezout_coprime p a Hrel) as [u [v Hbez]]. *)
     exists ((v * b) mod p).
     unfold unique. split.
     - split.
@@ -78,7 +81,8 @@ Section useful_lemmas.
         replace (a * (x' - (v * b) mod p)) with (a * x' - a * ((v * b) mod p)) by ring.
         lia. }
       assert (Hdiv2 : (p | x' - (v * b) mod p)).
-      { apply Z.gauss with a; auto. }
+      { apply Gauss with a; auto. }
+      (* { apply Z.gauss with a; auto. } *)
       destruct Hdiv2 as [k Hk].
       assert (Hx_range : 0 <= (v * b) mod p < p) by (apply Z_mod_lt; lia).
       destruct (Z.eq_dec k 0) as [->|Hk0].
