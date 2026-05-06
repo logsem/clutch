@@ -269,21 +269,21 @@ Section adequacy.
     iIntros (a HRa). iApply ("H" with "[//]").
   Qed.
 
-  Theorem twp_step_fupd_tgl (e : expr) (σ : state) (ε : nonnegreal) φ  :
-    state_interp σ ∗ err_interp (ε) ∗ WP e [{ v, ⌜φ v⌝ }] ⊢
+  Theorem twp_step_fupd_tgl k (e : expr) (σ : state) (ε : nonnegreal) φ  :
+    state_interp k σ ∗ err_interp (ε) ∗ WP e [{ v, ⌜φ v⌝ }] ⊢
     |={0; ⊤|}=> ◇ ⌜tgl (lim_exec (e, σ)) φ ε⌝.
   Proof.
     iIntros "(Hstate & Herr & Htwp)".
-    iRevert (σ ε) "Hstate Herr".
-    pose proof (tgl_wp_ind_simple ⊤ () (λ e, ∀ (a : state) (a0 : nonnegreal),
-                                  state_interp a -∗ err_interp a0 -∗
+    iRevert (k σ ε) "Hstate Herr".
+    pose proof (tgl_wp_ind_simple ⊤ () (λ e, ∀ (k : nat) (a : state) (a0 : nonnegreal),
+                                  state_interp k a -∗ err_interp a0 -∗
                                   |={0; ⊤|}=> ◇ ⌜tgl (lim_exec (e, a)) φ a0⌝)%I) as H.
     iApply H.
     2: { destruct twp_default. done. }
     clear H e.
     iModIntro.
     iIntros (e) "H".
-    iIntros (σ ε) "Hs Hec".
+    iIntros (k σ ε) "Hs Hec".
     rewrite /tgl_wp_pre.
     case_match.
     - iApply (elim_fupd_hfupd_plain 0 0 ⊤ ⊤ ⌜φ v⌝
@@ -299,7 +299,7 @@ Section adequacy.
       { simpl. rewrite H. rewrite dret_1_1; last done. destruct ε. simpl.
         case_bool_decide; try lra. done. }
       simpl. rewrite H. by rewrite dret_mass.
-    - iSpecialize ("H" $! σ ε with "[$]").
+    - iSpecialize ("H" $! k σ ε with "[$]").
       iApply (elim_fupd_hfupd_plain 0 0 ⊤ ∅ _
         ⌜tgl (lim_exec (e, σ)) φ ε⌝ with "[$H]"); first lia.
       iIntros (l Hl) "Hglm". assert (l = 0%nat) as -> by lia.
@@ -333,9 +333,9 @@ Section adequacy.
                   ◇ ⌜tgl (lim_exec (e, σ)) φ ε''⌝) ∧
                  glm e σ ε''
                    (λ '(e2, σ2) (ε2 : nonnegreal),
-                      |={∅,⊤}=> state_interp σ2 ∗ err_interp ε2 ∗
-                        ∀ (a : state) (a0 : nonnegreal),
-                          state_interp a -∗ err_interp a0 ={0; ⊤|}=∗
+                      |={∅,⊤}=> state_interp (S k) σ2 ∗ err_interp ε2 ∗
+                        ∀ (k0 : nat) (a : state) (a0 : nonnegreal),
+                          state_interp k0 a -∗ err_interp a0 ={0; ⊤|}=∗
                           ◇ ⌜tgl (lim_exec (e2, a)) φ a0⌝))%I)
              ε')
           ⌜ε < ε' → tgl (lim_exec (e, σ)) φ ε'⌝); [lia|].
@@ -366,9 +366,9 @@ Section adequacy.
           iApply (elim_fupd_hfupd_plain 0 0 ∅ ∅
             (exec_stutter
                (λ ε' : nonnegreal,
-                  (|={∅,⊤}=> state_interp σ2 ∗ err_interp ε' ∗
-                    ∀ (a : state) (a0 : nonnegreal),
-                      state_interp a -∗ err_interp a0 ={0; ⊤|}=∗
+                  (|={∅,⊤}=> state_interp (S k) σ2 ∗ err_interp ε' ∗
+                    ∀ (k0 : nat) (a : state) (a0 : nonnegreal),
+                      state_interp k0 a -∗ err_interp a0 ={0; ⊤|}=∗
                       ◇ ⌜tgl (lim_exec (e2, a)) φ a0⌝)%I)
                (ε2 (e2, σ2)))
             ⌜tgl (lim_exec (e2, σ2)) φ (ε2 (e2, σ2))⌝); [lia|].
@@ -386,15 +386,15 @@ Section adequacy.
           iIntros (a HRa). destruct a.
           iSpecialize ("H" with "[//]").
           iApply (elim_fupd_hfupd_plain 0 0 ∅ ⊤
-            (state_interp σ2 ∗ err_interp ε2' ∗
-              (∀ (a : state) (a0 : nonnegreal),
-                state_interp a -∗ err_interp a0 ={0; ⊤|}=∗
+            (state_interp (S k) σ2 ∗ err_interp ε2' ∗
+              (∀ (k0 : nat) (a : state) (a0 : nonnegreal),
+                state_interp k0 a -∗ err_interp a0 ={0; ⊤|}=∗
                 ◇ ⌜tgl (lim_exec (e2, a)) φ a0⌝))%I
             ⌜tgl (lim_exec (e2, σ2)) φ ε2'⌝); [lia|].
           iSplitL "H"; [iApply "H"|].
           iIntros (l' Hl') "(Hσ' & Hε' & Hwp')".
           assert (l' = 0%nat) as -> by lia.
-          iSpecialize ("Hwp'" $! σ2 ε2' with "Hσ' Hε'").
+          iSpecialize ("Hwp'" $! (S k) σ2 ε2' with "Hσ' Hε'").
           iApply (hfupd_mono _ _ _ with "Hwp'").
           apply except_0_pure_mono_iprop. intros Htgl. exact Htgl. }
         rewrite {2}/tgl.
@@ -430,9 +430,9 @@ Section adequacy.
                     ◇ ⌜tgl (lim_exec (e, σ2)) φ ε2'⌝) ∧
                    glm e σ2 ε2'
                      (λ '(e2, σ2') (ε2'' : nonnegreal),
-                        |={∅,⊤}=> state_interp σ2' ∗ err_interp ε2'' ∗
-                          ∀ (a : state) (a0 : nonnegreal),
-                            state_interp a -∗ err_interp a0 ={0; ⊤|}=∗
+                        |={∅,⊤}=> state_interp (S k) σ2' ∗ err_interp ε2'' ∗
+                          ∀ (k0 : nat) (a : state) (a0 : nonnegreal),
+                            state_interp k0 a -∗ err_interp a0 ={0; ⊤|}=∗
                             ◇ ⌜tgl (lim_exec (e2, a)) φ a0⌝))%I)
                (ε2 (e, σ2)))
             ⌜tgl (lim_exec (e, σ2)) φ (ε2 (e, σ2))⌝); [lia|].
@@ -495,7 +495,7 @@ Proof.
   iMod (ec_alloc ε') as (Hec) "[Hs Hf]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   change ε with (nonneg ε').
-  iPoseProof (twp_step_fupd_tgl e σ ε' φ) as "H".
+  iPoseProof (twp_step_fupd_tgl O e σ ε' φ) as "H".
   iApply "H".
   iFrame "Hs". rewrite /state_interp /=. iFrame "Hh Ht".
   iApply Hwp. iApply "Hf".

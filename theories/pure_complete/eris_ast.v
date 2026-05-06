@@ -71,7 +71,7 @@ Section Complete.
       { iIntros. apply of_to_val in He as <-. by wp_pures. }
       iIntros "Herr".
       iApply twp_lift_step_fupd_glm; auto.
-      iIntros "%% [Hs Herra]". 
+      iIntros (k σ1 ε_now) "[Hs Herra]".
       iDestruct (ec_supply_ec_inv with "Herra Herr") as %(ε1' & ε3 & Hε_now & Hε1').
       iApply fupd_mask_intro.
       { set_solver. }
@@ -204,7 +204,7 @@ Section Complete.
            iPoseProof (ec_contradict with "Herr") as "H"; auto; lra. }
       iIntros "Herr".
       iApply twp_lift_step_fupd_glm; auto.
-      iIntros "%% [Hs Herra]". 
+      iIntros (k σ1 ε_now) "[Hs Herra]".
       iDestruct (ec_supply_ec_inv with "Herra Herr") as %(ε1' & ε3 & Hε_now & Hε1').
       iApply fupd_mask_intro.
       { set_solver. }
@@ -350,7 +350,7 @@ Section Complete.
       iPoseProof (ec_contradict with "Herr") as "H"; auto; lra.
     }
     iApply twp_lift_step_fupd_glm; auto.
-    iIntros "%% [Hs Herra]". 
+    iIntros (k σ1 ε_now) "[Hs Herra]". 
     iApply fupd_mask_intro.
     { set_solver. }
     iIntros "hclose".
@@ -383,7 +383,7 @@ Section Complete.
     eapply tgl_gt_lim in H0 as [n H0]; [|exact H4].
     iPoseProof (AST_complete_pure_pre' with "Herr") as "hwp"; eauto.
     rewrite tgl_wp_unfold /tgl_wp_pre //= He.
-    iPoseProof ("hwp" with "[Hs Herra]") as "hwp"; try iFrame.
+    iPoseProof ("hwp" $! k with "[Hs Herra]") as "hwp"; try iFrame.
     iMod "hwp". 
     iApply fupd_mask_intro. 
     { set_solver. }

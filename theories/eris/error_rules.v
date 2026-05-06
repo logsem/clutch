@@ -179,7 +179,7 @@ Proof.
     intros; apply Hleq.
   }
   iApply twp_lift_step_fupd_glm; [done|].
-  iIntros (σ1 ε_now) "[Hσ Hε]".
+  iIntros (k σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iApply glm_adv_comp; simpl.
@@ -430,7 +430,7 @@ Proof.
   iIntros (-> Hleq Hε1 Ψ) "Herr HΨ".
   destruct (fin_function_bounded _ ε2) as [r Hε2].
   iApply twp_lift_step_fupd_glm; [done|].
-  iIntros (σ1 ε_now) "[Hσ Hε]".
+  iIntros (k σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iApply glm_adv_comp; simpl.
@@ -739,7 +739,7 @@ Lemma twp_rand_err_fin (N : nat) (z : Z) (m : fin (S N)) E Φ s :
 Proof.
   iIntros (->) "[Herr Hwp]".
   iApply twp_lift_step_fupd_glm; [done|].
-  iIntros (σ1 ε) "[Hσ Hε]".
+  iIntros (k σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr") as %(?&?& -> & He).
@@ -815,7 +815,7 @@ Proof.
   iIntros (Heq) "[Herr Hwp]".
   rewrite Heq.
   iApply twp_lift_step_fupd_glm; [done|].
-  iIntros (σ1 ε) "[Hσ Hε]".
+  iIntros (k σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr ") as %(?&?&->&He).
@@ -886,7 +886,7 @@ Lemma twp_err_incr e ε s E Φ :
   Proof.
     iIntros (?) "[Herr Hwp]".
     iApply twp_lift_step_fupd_glm; [done|].
-    iIntros (σ1 ε2) "[Hσ1 Hε2]".
+    iIntros (k σ1 ε2) "[Hσ1 Hε2]".
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose'".
     iApply glm_err_incr_step.
@@ -915,7 +915,7 @@ Lemma twp_err_incr e ε s E Φ :
     rewrite !tgl_wp_unfold /tgl_wp_pre /=.
     rewrite H.
     iMod ("Hclose'").
-    iMod ("Hwp" with "[$]").
+    iMod ("Hwp" $! k with "[$]").
     by iApply exec_stutter_free.
   Qed.
 
@@ -928,7 +928,7 @@ Lemma twp_err_incr e ε s E Φ :
   Proof.
     iIntros (?) "[Herr Hwp]".
     iApply wp_lift_step_fupd_glm; [done|].
-    iIntros (σ1 ε2) "[Hσ1 Hε2]".
+    iIntros (k σ1 ε2) "[Hσ1 Hε2]".
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose'".
     iApply glm_err_incr_step.
@@ -957,7 +957,7 @@ Lemma twp_err_incr e ε s E Φ :
     rewrite !pgl_wp_unfold /pgl_wp_pre /=.
     rewrite H.
     iMod ("Hclose'").
-    iMod ("Hwp" with "[$]").
+    iMod ("Hwp" $! k with "[$]").
     by iApply exec_stutter_free.
 Qed.
 
@@ -996,7 +996,7 @@ Proof.
   iIntros (H) "[Herr Hwp]".
   rewrite H.
   iApply twp_lift_step_fupd_glm; [done|].
-  iIntros (σ1 ε) "[Hσ Hε]".
+  iIntros (k σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr ") as %(?&?&->&He).
@@ -1061,7 +1061,7 @@ Lemma twp_rand_err_list_int_fin (N : nat) (z : Z) (zs : list Z) E Φ :
 Proof.
   iIntros (->) "[Herr Hwp]".
   iApply twp_lift_step_fupd_glm; [done|].
-  iIntros (σ1 ε) "[Hσ Hε]".
+  iIntros (k σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr ") as %(?&?&->&He).
@@ -1116,7 +1116,7 @@ Proof.
   iIntros (Heq) "[Herr Hwp]".
   rewrite Heq.
   iApply twp_lift_step_fupd_glm; [done|].
-  iIntros (σ1 ε) "[Hσ Hε]".
+  iIntros (k σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr") as %(?&?&->&He).
@@ -1179,7 +1179,7 @@ Lemma twp_rand_err_list_nat_fin (N : nat) (z : Z) (ns : list nat) E Φ :
 Proof.
   iIntros (->) "[Herr Hwp]".
   iApply twp_lift_step_fupd_glm; [done|].
-  iIntros (σ1 ε) "[Hσ Hε]".
+  iIntros (k σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr") as %(?&?&->&He).

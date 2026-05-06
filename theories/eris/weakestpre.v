@@ -22,8 +22,10 @@ Local Open Scope NNR_scope.
  *)
 Class erisWpGS (Λ : language) (Σ : gFunctors) := ErisWpGS {
   erisWpGS_invGS :: invGS_gen HasLc Σ;
-  state_interp : state Λ → iProp Σ;
+  state_interp : nat → state Λ → iProp Σ;
   err_interp : nonnegreal → iProp Σ;
+  state_interp_mono ns σ :
+    state_interp ns σ ⊢ |={∅}=> state_interp (S ns) σ;
 }.
 Global Opaque erisWpGS_invGS.
 Global Arguments ErisWpGS {Λ Σ}.
@@ -682,16 +684,16 @@ Definition pgl_wp_pre `{!erisWpGS Λ Σ}
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   match to_val e1 with
   | Some v => |={E}=> Φ v
-  | None => ∀ σ1 ε1,
-      state_interp σ1 ∗ err_interp ε1 ={E,∅}=∗
+  | None => ∀ n σ1 ε1,
+      state_interp n σ1 ∗ err_interp ε1 ={E,∅}=∗
       glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
-        ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
+        ▷ |={∅,E}=> state_interp (S n) σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
 end%I.
 
 Local Instance wp_pre_contractive `{!erisWpGS Λ Σ} : Contractive (pgl_wp_pre).
 Proof.
   rewrite /pgl_wp_pre /= => n wp wp' Hwp E e1 Φ /=.
-  do 7 (f_equiv).
+  do 9 (f_equiv).
   apply least_fixpoint_ne_outer; [|done].
   intros Ψ [[e' σ'] ε']. rewrite /glm_pre.
   do 17 f_equiv.
@@ -729,7 +731,7 @@ Global Instance pgl_wp_ne s E e n :
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !pgl_wp_unfold /pgl_wp_pre /=.
-  do 7 f_equiv.
+  do 9 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /glm_pre.
   do 16 f_equiv.
@@ -749,7 +751,7 @@ Global Instance pgl_wp_contractive s E e n :
   Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
 Proof.
   intros He Φ Ψ HΦ. rewrite !pgl_wp_unfold /pgl_wp_pre He /=.
-  do 6 f_equiv.
+  do 8 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /glm_pre.
   do 16 f_equiv.
@@ -767,7 +769,7 @@ Proof.
   rewrite !pgl_wp_unfold /pgl_wp_pre /=.
   destruct (to_val e) as [v|] eqn:?.
   { iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). }
-  iIntros (σ1 ε) "[Hσ Hε]".
+  iIntros (n σ1 ε) "[Hσ Hε]".
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   iMod ("H" with "[$]") as "H".
   iApply (glm_mono_pred with "[Hclose HΦ] H").
@@ -782,7 +784,7 @@ Lemma fupd_pgl_wp s E e Φ : (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ �
 Proof.
   rewrite pgl_wp_unfold /pgl_wp_pre. iIntros "H". destruct (to_val e) as [v|] eqn:?.
   { by iMod "H". }
-   iIntros (σ1 ε) "Hi". iMod "H". by iApply "H".
+   iIntros (n σ1 ε) "Hi". iMod "H". by iApply "H".
 Qed.
 Lemma pgl_wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
 Proof. iIntros "H". iApply (pgl_wp_strong_mono E with "H"); auto. Qed.
@@ -793,8 +795,8 @@ Proof.
   iIntros "H".
   rewrite !pgl_wp_unfold /pgl_wp_pre.
   destruct (to_val e) as [v|] eqn:He; [by do 2 iMod "H"|].
-  iIntros (σ1 ε1) "(Hσ&Hε)".
-  iSpecialize ("H" $! σ1 ε1).
+  iIntros (n σ1 ε1) "(Hσ&Hε)".
+  iSpecialize ("H" $! n σ1 ε1).
   iMod ("H" with "[Hσ Hε]") as "H"; [iFrame|].
   iMod "H"; iModIntro.
   iApply (glm_strong_mono with "[] [] H"); [done|].
@@ -815,7 +817,7 @@ Lemma pgl_wp_step_fupd s E1 E2 e P Φ :
   (|={E1}[E2]▷=> P) -∗ WP e @ s; E2 {{ v, P ={E1}=∗ Φ v }} -∗ WP e @ s; E1 {{ Φ }}.
 Proof.
   rewrite !pgl_wp_unfold /pgl_wp_pre. iIntros (-> ?) "HR H".
-  iIntros (σ1 ε) "[Hσ Hε]". iMod "HR".
+  iIntros (n σ1 ε) "[Hσ Hε]". iMod "HR".
   iMod ("H" with "[$Hσ $Hε]") as "H".
   iModIntro.
   iApply (glm_mono_pred with "[HR] H").
@@ -835,7 +837,7 @@ Proof.
   destruct (to_val e) as [v|] eqn:He.
   { apply of_to_val in He as <-. by iApply fupd_pgl_wp. }
   rewrite pgl_wp_unfold /pgl_wp_pre fill_not_val /=; [|done].
-  iIntros (σ1 ε) "[Hσ Hε]".
+  iIntros (n σ1 ε) "[Hσ Hε]".
   iMod ("H" with "[$Hσ $Hε]") as "H".
   iModIntro.
   iApply glm_bind; [done |].

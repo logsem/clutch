@@ -191,11 +191,11 @@ Section adequacy.
       by iApply "IH".
   Qed.
 
-  Theorem wp_refRcoupl_hfupd (ε : nonnegreal) (e : expr) (σ : state) n φ :
-    state_interp σ ∗ err_interp ε ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
+  Theorem wp_refRcoupl_hfupd k (ε : nonnegreal) (e : expr) (σ : state) n φ :
+    state_interp k σ ∗ err_interp ε ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
     |={0; ⊤|}=> ▷^n ◇ ⌜pgl (exec n (e, σ)) φ ε⌝.
   Proof.
-    iInduction n as [|n] "IH" forall (e σ ε); iIntros "(Hσ & Hε & Hwp)".
+    iInduction n as [|n] "IH" forall (k e σ ε); iIntros "(Hσ & Hε & Hwp)".
     - rewrite /exec /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
@@ -223,7 +223,7 @@ Section adequacy.
         apply (pgl_mon_grading _ _ 0); [apply cond_nonneg|].
         apply pgl_dret; auto.
       + rewrite pgl_wp_unfold /pgl_wp_pre /= Heq.
-        iSpecialize ("Hwp" with "[$Hσ $Hε]").
+        iSpecialize ("Hwp" $! k with "[$Hσ $Hε]").
         iApply (elim_fupd_hfupd_plain (S n) 0 ⊤ ∅ _
           ⌜pgl (prim_step e σ ≫= exec n) φ ε⌝
           with "[$Hwp]"); first lia.
@@ -238,13 +238,13 @@ Section adequacy.
         { iIntros ([e' σ'] ε2) "H".
           iApply (laterN_hfupd 1). iNext.
           iApply (elim_fupd_hfupd_plain n 0 ∅ ⊤
-            (state_interp σ' ∗ err_interp ε2 ∗ WP e' {{ v, ⌜φ v⌝ }})%I
+            (state_interp (S k) σ' ∗ err_interp ε2 ∗ WP e' {{ v, ⌜φ v⌝ }})%I
             ⌜pgl (exec n (e', σ')) φ ε2⌝); first lia.
           iSplitL "H"; [iApply "H"|].
           iIntros (l' Hl') "(Hσ' & Hε' & Hwp')".
           assert (l' = 0%nat) as -> by lia.
           rewrite Nat.add_0_r. replace (n - 0)%nat with n by lia.
-          iApply ("IH" with "[$Hσ' $Hε' $Hwp']"). }
+          iApply ("IH" $! (S k) with "[$Hσ' $Hε' $Hwp']"). }
         replace (prim_step e σ) with (step (e, σ)) by reflexivity.
         rewrite -exec_Sn_not_final; last by rewrite /is_final /to_final /= Heq.
         by iApply (glm_erasure with "H").
@@ -472,11 +472,11 @@ Section adequacy.
       by iApply "IH".
   Qed.
 
-  Theorem wp_safety_hfupd (ε : nonnegreal) (e : expr) (σ : state) n φ :
-    state_interp σ ∗ err_interp ε ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
+  Theorem wp_safety_hfupd k (ε : nonnegreal) (e : expr) (σ : state) n φ :
+    state_interp k σ ∗ err_interp ε ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
     |={0; ⊤|}=> ▷^n ◇ ⌜SeriesC (pexec n (e, σ)) >= 1 - ε⌝.
   Proof.
-    iInduction n as [|n] "IH" forall (e σ ε); iIntros "(Hσ & Hε & Hwp)".
+    iInduction n as [|n] "IH" forall (k e σ ε); iIntros "(Hσ & Hε & Hwp)".
     - iApply hfupd_intro. simpl.
       rewrite /bi_except_0. iRight. iPureIntro.
       trans 1; last first.
@@ -496,7 +496,7 @@ Section adequacy.
         rewrite dret_mass.
         destruct ε as [ε ?]; simpl in *. apply Rle_ge. lra.
       + rewrite pgl_wp_unfold /pgl_wp_pre /= Heq.
-        iSpecialize ("Hwp" with "[$Hσ $Hε]").
+        iSpecialize ("Hwp" $! k with "[$Hσ $Hε]").
         iApply (elim_fupd_hfupd_plain (S n) 0 ⊤ ∅ _
           ⌜SeriesC (iterM (S n) prim_step_or_val (e, σ)) >= 1 - ε⌝); first lia.
         iSplitL "Hwp"; [iApply "Hwp"|].
@@ -510,13 +510,13 @@ Section adequacy.
         { iIntros ([e' σ'] ε2) "H".
           iApply (laterN_hfupd 1). iNext.
           iApply (elim_fupd_hfupd_plain n 0 ∅ ⊤
-            (state_interp σ' ∗ err_interp ε2 ∗ WP e' {{ v, ⌜φ v⌝ }})%I
+            (state_interp (S k) σ' ∗ err_interp ε2 ∗ WP e' {{ v, ⌜φ v⌝ }})%I
             ⌜SeriesC (iterM n prim_step_or_val (e', σ')) >= 1 - ε2⌝); first lia.
           iSplitL "H"; [iApply "H"|].
           iIntros (l' Hl') "(Hσ' & Hε' & Hwp')".
           assert (l' = 0%nat) as -> by lia.
           rewrite Nat.add_0_r. replace (n - 0)%nat with n by lia.
-          iApply ("IH" with "[$Hσ' $Hε' $Hwp']"). }
+          iApply ("IH" $! (S k) with "[$Hσ' $Hε' $Hwp']"). }
         by iApply (glm_erasure_safety with "H").
   Qed.
 
@@ -557,7 +557,7 @@ Proof.
   iMod (ec_alloc ε') as (Hec) "[Hs Hf]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   change ε with (nonneg ε').
-  iPoseProof (wp_refRcoupl_hfupd ε' e σ n φ) as "H".
+  iPoseProof (wp_refRcoupl_hfupd O ε' e σ n φ) as "H".
   iApply "H".
   iFrame "Hs". rewrite /state_interp /=. iFrame "Hh Ht".
   iApply Hwp. iApply "Hf".
@@ -621,7 +621,7 @@ Proof.
   iMod (ec_alloc ε') as (Hec) "[Hs Hf]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   change ε with (nonneg ε').
-  iPoseProof (wp_safety_hfupd ε' e σ n φ) as "H".
+  iPoseProof (wp_safety_hfupd O ε' e σ n φ) as "H".
   iApply "H".
   iFrame "Hs". rewrite /state_interp /=. iFrame "Hh Ht".
   iApply Hwp. iApply "Hf".
