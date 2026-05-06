@@ -1396,5 +1396,39 @@ Qed.
 (*     wp_apply (wp_rand_tape with "[$]") as "[??]". *)
 (*     iApply "HΦ". iFrame. *)
 (*   Qed.  *)
-      
+
+
+
+Lemma wp_rand_avoid (N : nat) z E (x:Z):
+  TCEq N (Z.to_nat z) →
+  {{{ ↯ (1/(N+1)%nat) }}} rand #z @ E {{{ n, RET #n; ⌜x≠n⌝ }}}.
+Proof.
+  iIntros (-> Φ) "Herr HΦ".
+  wp_apply (wp_couple_rand_adv_comp' _ _ _ _ (λ x', if bool_decide (fin_to_nat x' = Z.to_nat x) then 1 else 0)%R with "[$]").
+  - intros. case_bool_decide; simpl; lra.
+  - rewrite SeriesC_scal_l.
+    destruct (decide (Z.to_nat x<S $ Z.to_nat z)) as [H1|H1].
+    + erewrite (SeriesC_ext _ (λ x, if bool_decide (x = nat_to_fin H1) then 1 else 0)).
+      * rewrite SeriesC_singleton. rewrite S_INR.
+        rewrite plus_INR. 
+        replace (INR 1) with 1%R by done. lra.
+      * intros.
+        case_bool_decide as H; [rewrite bool_decide_eq_true_2|rewrite bool_decide_eq_false_2]; try done.
+        -- apply fin_to_nat_inj. by rewrite fin_to_nat_to_fin.
+        -- intros ->. apply H.
+           by rewrite fin_to_nat_to_fin.
+    + rewrite SeriesC_0.
+      * rewrite Rmult_0_r.
+        apply Rdiv_INR_ge_0.
+      * intros x'.
+        rewrite bool_decide_eq_false_2; first done.
+        intros Hcontra.
+        pose proof fin_to_nat_lt x'.
+        lia.
+  - iIntros (?) "Herr".
+    case_bool_decide; first (by iDestruct (ec_contradict with "[$]") as "[]").
+    iApply "HΦ".
+    iPureIntro. intros ?. subst.
+    lia.
+Qed. 
 End rules.

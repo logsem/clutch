@@ -315,6 +315,29 @@ Proof.
     iMod "Hclose". by iPureIntro.
 Qed.
 
+
+Lemma pupd_resolve_urn_avoid s l E x' :
+  s≠∅ ->
+  ↯(1/size s) -∗
+  l ↪ urn_unif s -∗
+  pupd E E (∃ x, l ↪urn_unif {[x]} ∗ ⌜ x≠ x' ⌝).
+Proof.
+  iIntros (Hneq) "Herr Hl".
+  iMod (pupd_resolve_urn _ _ (λ x, if bool_decide (x=x')%Z then nnreal_one else nnreal_zero)%R with "[$][$]") as "H"; try done.
+  - trans ((SeriesC (λ x, if bool_decide (x=x') then nnreal_one else nnreal_zero))/size s)%R.
+    + rewrite !Rdiv_def. apply Rmult_le_compat_r.
+      { rewrite -Rdiv_1_l. apply Rdiv_INR_ge_0. }
+      apply SeriesC_le.
+      * intros. do 2 case_bool_decide; simpl; lra.
+      * apply ex_seriesC_singleton.
+    + by rewrite SeriesC_singleton.
+  - exists 1. intros. case_bool_decide; simpl; lra.
+  - iDestruct ("H") as "(%&Herr&Hl&%)".
+    case_bool_decide; first (by iDestruct (ec_contradict with "[$]") as "[]").
+    by iFrame.
+Qed. 
+  
+  
 Lemma pupd_partial_resolve_urn s ε (ε2 : _ -> nonnegreal) l E lis:
   s ≠ ∅ ->
   ⋃ lis = s ->
