@@ -434,7 +434,7 @@ Lemma pupd_partial_resolve_urn_avoid s n l E m:
   (n<=size s)%nat ->
   ↯ (n/size s) -∗
   l ↪ urn_unif s -∗
-  pupd E E (∃ s', ↯ ((n-1)%nat/(size s-1)%nat) ∗ l ↪ urn_unif s' ∗ ⌜s' ⊆ s⌝ ∗ ⌜size s-1<=size s'⌝ ∗ ⌜m∉ s'⌝).
+  pupd E E (∃ s', ↯ ((n-1)%nat/(size s')%nat) ∗ l ↪ urn_unif s' ∗ ⌜s' ⊆ s⌝ ∗ ⌜size s-1<=size s'⌝ ∗ ⌜m∉ s'⌝).
 Proof.
   intros Hempty Hineq Hineq'.
   apply Nat.lt_eq_cases in Hineq' as [|]; last first.
@@ -464,9 +464,7 @@ Proof.
         { apply Rlt_gt. apply lt_0_INR; lia. }
         rewrite !minus_INR; try lia.
         replace (INR 1) with 1%R by done.
-        assert (-size s <= -n)%R; try lra.
-        apply Ropp_le_contravar.
-        apply le_INR. lia.
+        assert (-size s <= -n)%R; real_solver.
     - done.
     - iPureIntro; lia.
     - done. 
@@ -545,11 +543,14 @@ Proof.
     + rewrite bool_decide_eq_false_2; last set_solver.
       simpl.
       iFrame.
+      iModIntro.
+      rewrite size_difference; last set_solver.
+      rewrite size_singleton.
+      iFrame. 
       iPureIntro.
       repeat split.
       * set_solver.
-      * rewrite size_difference; last set_solver.
-        rewrite size_singleton. lia.
+      * lia. 
       * set_solver.
 Qed. 
   
