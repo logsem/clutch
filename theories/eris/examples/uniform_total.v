@@ -12,15 +12,15 @@ Set Default Proof Using "Type*".
     i.e., neither comparison resolves for any of the bits.
     - [cx]: accumulated integer from cached bits (the prefix)
     - [B]:  threshold base
-    - [s]:  current shift amount (initially C + n)
+    - [s]:  current shift amount (initially n - C, with n the cmp level)
     - [bs]: presampled bitstring *)
 Fixpoint in_gap (cx : Z) (B s : Z) (bs : list (fin 2)) : bool :=
   match bs with
   | [] => true
   | b :: bs' =>
     let cx' := (2 * cx + Z.of_nat (fin_to_nat b))%Z in
-    let cy := Z.shiftr B s in
-    negb (cx' + 2 <? cy)%Z && negb (cy + 2 <? cx')%Z && in_gap cx' B (s - 1) bs'
+    let cy := Z.shiftl B s in
+    negb (cx' + 2 <? cy)%Z && negb (cy + 2 <? cx')%Z && in_gap cx' B (s + 1) bs'
   end.
 
 (** Integer encoded by a bitstring with accumulator (MSB first) *)
@@ -51,7 +51,7 @@ Qed.
 Lemma in_gap_last_step cx B s b bs' :
   in_gap cx B s (b :: bs') = true →
   let cx_final := bits_to_Z_acc (2 * cx + Z.of_nat (fin_to_nat b))%Z bs' in
-  let cy_final := Z.shiftr B (s - Z.of_nat (length bs')) in
+  let cy_final := Z.shiftl B (s + Z.of_nat (length bs')) in
   (cy_final - 2 ≤ cx_final ∧ cx_final ≤ cy_final + 2)%Z.
 Proof.
   revert cx s b.
@@ -61,14 +61,14 @@ Proof.
     apply andb_true_iff in Hgap as [H1 H2].
     apply negb_true_iff in H1. apply Z.ltb_nlt in H1.
     apply negb_true_iff in H2. apply Z.ltb_nlt in H2.
-    simpl. rewrite Z.sub_0_r. lia.
+    simpl. rewrite Z.add_0_r. lia.
   + simpl in Hgap.
     apply andb_true_iff in Hgap as [_ Hrest].
     simpl length.
-    replace (s - Z.of_nat (S (length bs'')))%Z
-      with (s - 1 - Z.of_nat (length bs''))%Z by lia.
+    replace (s + Z.of_nat (S (length bs'')))%Z
+      with (s + 1 + Z.of_nat (length bs''))%Z by lia.
     simpl.
-    apply (IH (2 * cx + Z.of_nat (fin_to_nat b))%Z (s - 1)%Z b').
+    apply (IH (2 * cx + Z.of_nat (fin_to_nat b))%Z (s + 1)%Z b').
     exact Hrest.
 Qed.
 
@@ -77,7 +77,7 @@ Lemma in_gap_necessary cx B s b bs' :
   in_gap cx B s (b :: bs') = true →
   let N := Z.of_nat (length (b :: bs')) in
   let cx_final := (2 ^ N * cx + bits_to_Z (b :: bs'))%Z in
-  let cy_final := Z.shiftr B (s - Z.of_nat (length bs')) in
+  let cy_final := Z.shiftl B (s + Z.of_nat (length bs')) in
   (cy_final - 2 ≤ cx_final ∧ cx_final ≤ cy_final + 2)%Z.
 Proof.
   intros Hgap. simpl.
@@ -158,7 +158,7 @@ Proof.
   destruct N as [|N'].
   + simpl. lia.
   + set (filtered := filter _ _).
-    set (C := (Z.shiftr B (s - Z.of_nat N') - 2 ^ Z.of_nat (S N') * cx)%Z).
+    set (C := (Z.shiftl B (s + Z.of_nat N') - 2 ^ Z.of_nat (S N') * cx)%Z).
     enough (Hsub : map bits_to_Z filtered ⊆+ [C - 2; C - 1; C; C + 1; C + 2]%Z).
     { rewrite -(map_length bits_to_Z filtered).
       apply submseteq_length in Hsub. simpl in Hsub. lia. }
@@ -185,14 +185,14 @@ Proof.
       simpl in Hlo, Hhi. rewrite Helem in Hlo, Hhi.
       subst z C.
       (* bits_to_Z (b :: bs') ∈ {C-2, C-1, C, C+1, C+2} where
-         C = B ≫ (s - N') - 2^(S N') * cx
+         C = B ≪ (s + N') - 2^(S N') * cx
          Hlo: C - 2 ≤ bits_to_Z (b :: bs')
          Hhi: bits_to_Z (b :: bs') ≤ C + 2 *)
-      assert (Hv : bits_to_Z (b :: bs') = (B ≫ (s - N') - 2 ^ Z.of_nat (S N') * cx - 2)%Z ∨
-                   bits_to_Z (b :: bs') = (B ≫ (s - N') - 2 ^ Z.of_nat (S N') * cx - 1)%Z ∨
-                   bits_to_Z (b :: bs') = (B ≫ (s - N') - 2 ^ Z.of_nat (S N') * cx)%Z ∨
-                   bits_to_Z (b :: bs') = (B ≫ (s - N') - 2 ^ Z.of_nat (S N') * cx + 1)%Z ∨
-                   bits_to_Z (b :: bs') = (B ≫ (s - N') - 2 ^ Z.of_nat (S N') * cx + 2)%Z) by lia.
+      assert (Hv : bits_to_Z (b :: bs') = (B ≪ (s + N') - 2 ^ Z.of_nat (S N') * cx - 2)%Z ∨
+                   bits_to_Z (b :: bs') = (B ≪ (s + N') - 2 ^ Z.of_nat (S N') * cx - 1)%Z ∨
+                   bits_to_Z (b :: bs') = (B ≪ (s + N') - 2 ^ Z.of_nat (S N') * cx)%Z ∨
+                   bits_to_Z (b :: bs') = (B ≪ (s + N') - 2 ^ Z.of_nat (S N') * cx + 1)%Z ∨
+                   bits_to_Z (b :: bs') = (B ≪ (s + N') - 2 ^ Z.of_nat (S N') * cx + 2)%Z) by lia.
       destruct Hv as [-> | [-> | [-> | [-> | ->]]]]; set_solver.
 Qed.
 
@@ -501,19 +501,19 @@ Section uniform_total.
   (** If the presampled bitstring is NOT in the gap, the comparison terminates
       without error credits. *)
   Lemma twp_cmp_not_in_gap E (B C n : Z) (zs : list (fin 2)) (bs : list (fin 2)) a l :
-    (n < 0)%Z →
-    (-1 * n)%Z = Z.of_nat (length zs) →
-    in_gap (of_bits zs 0) B (C + n - 1) bs = false →
+    (0 < n)%Z →
+    n = Z.of_nat (length zs) →
+    in_gap (of_bits zs 0) B (n - C + 1) bs = false →
     chunk_list l zs ∗ a ↪ (1%nat; bs)
     ⊢ WP (rec: "cmp" "x" "y" "n" :=
             let: "cx" := "x" "n" in
             let: "cy" := "y" "n" in
             if: "cx" + #2 < "cy" then #(-1)
             else if: "cy" + #2 < "cx" then #1
-            else "cmp" "x" "y" ("n" - #1))%V
-        (λ: "prec", if: #0 ≤ "prec" then #0
-           else get_bits (#lbl:a, #l)%V (#(-1) * "prec") #0)%V
-        (λ: "prec", (λ: "prec", #B ≫ "prec")%V (#C + "prec"))%V
+            else "cmp" "x" "y" ("n" + #1))%V
+        (λ: "prec", if: "prec" ≤ #0 then #0
+           else get_bits (#lbl:a, #l)%V "prec" #0)%V
+        (λ: "prec", (λ: "prec", #B ≪ "prec")%V ("prec" - #C))%V
         #n @ E [{ _, True }].
   Proof.
     iIntros (Hn Hinv Hgap) "[Hcl Ha]".
@@ -526,7 +526,7 @@ Section uniform_total.
       simpl in Hgap.
       (* Step through one iteration of the cmp loop *)
       wp_pures.
-      (* Evaluate x(n): since n < 0, we go to get_bits *)
+      (* Evaluate x(n): since 0 < n, we go to get_bits *)
       case_bool_decide; [lia|].
       wp_pures.
       (* Call get_bits *)
@@ -543,14 +543,14 @@ Section uniform_total.
       case_bool_decide.
       { wp_pures. done. }
       do 2 wp_pure.
-      (* Neither comparison resolved at level n (H0, H1).
-         Now we're in the recursive call at level n-1.
+      (* Neither comparison resolved at level n.
+         Now we're in the recursive call at level n+1.
          Case split on Hgap: does in_gap's first step resolve? *)
       apply andb_false_iff in Hgap as [Hgap|Htail].
-      + (* in_gap's first comparison resolves at level n-1.
+      + (* in_gap's first comparison resolves at level n+1.
            Step through one more program iteration — it will terminate. *)
         apply andb_false_iff in Hgap as [Hgap|Hgap].
-        * (* cx' + 2 < B ≫ (C+n-1): program at level n-1 returns -1 *)
+        * (* cx' + 2 < B ≪ (n-C+1): program at level n+1 returns -1 *)
           apply negb_false_iff in Hgap. apply Z.ltb_lt in Hgap.
           destruct bs' as [|b' bs''].
           { (* bs' = []: tape empty, use twp_get_bits_empty *)
@@ -568,7 +568,7 @@ Section uniform_total.
             exfalso.
             have := of_bits_app' zs b.
             intro Heq. rewrite Heq in H3.
-            replace (C + (n - 1))%Z with (C + n - 1)%Z in H3 by lia.
+            replace (n + 1 - C)%Z with (n - C + 1)%Z in H3 by lia.
             lia.
           }
           wp_pures.
@@ -583,8 +583,8 @@ Section uniform_total.
           wp_pures.
           case_bool_decide; [wp_pures; done|].
           exfalso.
-          rewrite of_bits_app' in H3. replace (C + (n - 1))%Z with (C + n - 1)%Z in H3 by lia. lia.
-        * (* B ≫ (C+n-1) + 2 < cx': program at level n-1 returns 1 *)
+          rewrite of_bits_app' in H3. replace (n + 1 - C)%Z with (n - C + 1)%Z in H3 by lia. lia.
+        * (* B ≪ (n-C+1) + 2 < cx': program at level n+1 returns 1 *)
           apply negb_false_iff in Hgap. apply Z.ltb_lt in Hgap.
           destruct bs' as [|b' bs''].
           { (* bs' = []: tape empty *)
@@ -602,7 +602,7 @@ Section uniform_total.
             wp_pures.
             case_bool_decide; [wp_pures; done|].
             exfalso.
-            rewrite of_bits_app' in H4. replace (C + (n - 1))%Z with (C + n - 1)%Z in H4 by lia. lia.
+            rewrite of_bits_app' in H4. replace (n + 1 - C)%Z with (n - C + 1)%Z in H4 by lia. lia.
           }
           wp_pures.
           case_bool_decide; [lia|].
@@ -619,34 +619,34 @@ Section uniform_total.
           case_bool_decide; [wp_pures; done|].
           exfalso.
           have := of_bits_app' zs b.
-          intro Heq. rewrite Heq in H4. replace (C + (n - 1))%Z with (C + n - 1)%Z in H4 by lia. lia.
-      + (* Tail: in_gap cx' B (C+n-1-1) bs' = false — use IH *)
-        iApply ("IH" $! (n-1)%Z with "[] [] [] Hcl Ha").
+          intro Heq. rewrite Heq in H4. replace (n + 1 - C)%Z with (n - C + 1)%Z in H4 by lia. lia.
+      + (* Tail: in_gap cx' B (n-C+1+1) bs' = false — use IH at n+1 *)
+        iApply ("IH" $! (n+1)%Z with "[] [] [] Hcl Ha").
         { iPureIntro. lia. }
         { iPureIntro. rewrite app_length //=. lia. }
         { iPureIntro.
-          replace (C + (n - 1) - 1)%Z with (C + n - 1 - 1)%Z by lia.
+          replace (n + 1 - C + 1)%Z with (n - C + 1 + 1)%Z by lia.
           rewrite of_bits_app.
           rewrite /of_bits in Htail.
           exact Htail. }
   Qed.
 
-  (** Variant of twp_cmp_not_in_gap for entry state where (-1)*n = S (length zs).
-      Uses shift C + n (not C + n - 1) because get_bits reads one extra fresh bit. *)
+  (** Variant of twp_cmp_not_in_gap for entry state where n = S (length zs).
+      Uses shift n - C (not n - C + 1) because get_bits reads one extra fresh bit. *)
   Lemma twp_cmp_not_in_gap_S E (B C n : Z) (zs : list (fin 2)) (bs : list (fin 2)) a l :
-    (n < 0)%Z →
-    (-1 * n)%Z = Z.of_nat (S (length zs)) →
-    in_gap (of_bits zs 0) B (C + n) bs = false →
+    (0 < n)%Z →
+    n = Z.of_nat (S (length zs)) →
+    in_gap (of_bits zs 0) B (n - C) bs = false →
     chunk_list l zs ∗ a ↪ (1%nat; bs)
     ⊢ WP (rec: "cmp" "x" "y" "n" :=
             let: "cx" := "x" "n" in
             let: "cy" := "y" "n" in
             if: "cx" + #2 < "cy" then #(-1)
             else if: "cy" + #2 < "cx" then #1
-            else "cmp" "x" "y" ("n" - #1))%V
-        (λ: "prec", if: #0 ≤ "prec" then #0
-           else get_bits (#lbl:a, #l)%V (#(-1) * "prec") #0)%V
-        (λ: "prec", (λ: "prec", #B ≫ "prec")%V (#C + "prec"))%V
+            else "cmp" "x" "y" ("n" + #1))%V
+        (λ: "prec", if: "prec" ≤ #0 then #0
+           else get_bits (#lbl:a, #l)%V "prec" #0)%V
+        (λ: "prec", (λ: "prec", #B ≪ "prec")%V ("prec" - #C))%V
         #n @ E [{ _, True }].
   Proof.
     iIntros (Hn Hinv Hgap) "[Hcl Ha]".
@@ -738,7 +738,7 @@ Section uniform_total.
                   have Eq2 := of_bits_app' zs b.
                   assert (Heq : of_bits (zs ++ [b; b']) 0 = (2 * (2 * of_bits zs 0 + b) + b')%Z).
                   { rewrite /of_bits fold_left_app /=. lia. }
-                  rewrite Heq in H3. replace (C + (n - 1))%Z with (C + n - 1)%Z in H3 by lia. lia.
+                  rewrite Heq in H3. replace (n + 1 - C)%Z with (n - C + 1)%Z in H3 by lia. lia.
                 }
                 wp_pures. case_bool_decide; [lia|]. wp_pures.
                 wp_bind (get_bits _ _ _).
@@ -753,7 +753,7 @@ Section uniform_total.
                 have Eq2 := of_bits_app' zs b.
                 assert (Heq : of_bits (zs ++ [b; b']) 0 = (2 * (2 * of_bits zs 0 + b) + b')%Z).
                 { rewrite /of_bits fold_left_app /=. lia. }
-                rewrite Heq in H3. replace (C + (n - 1))%Z with (C + n - 1)%Z in H3 by lia. lia.
+                rewrite Heq in H3. replace (n + 1 - C)%Z with (n - C + 1)%Z in H3 by lia. lia.
              ++ (* B ≫ (C+n-1) + 2 < cx'': program at n-1 returns 1 *)
                 apply negb_false_iff in Htail2. apply Z.ltb_lt in Htail2.
                 destruct bs'' as [|b'' bs'''].
@@ -772,7 +772,7 @@ Section uniform_total.
                   have Eq2 := of_bits_app' zs b.
                   assert (Heq : of_bits (zs ++ [b; b']) 0 = (2 * (2 * of_bits zs 0 + b) + b')%Z).
                   { rewrite /of_bits fold_left_app /=. lia. }
-                  rewrite Heq in H4. replace (C + (n - 1))%Z with (C + n - 1)%Z in H4 by lia. lia.
+                  rewrite Heq in H4. replace (n + 1 - C)%Z with (n - C + 1)%Z in H4 by lia. lia.
                 }
                 wp_pures. case_bool_decide; [lia|]. wp_pures.
                 wp_bind (get_bits _ _ _).
@@ -789,12 +789,12 @@ Section uniform_total.
                 have Eq2 := of_bits_app' zs b.
                 assert (Heq : of_bits (zs ++ [b; b']) 0 = (2 * (2 * of_bits zs 0 + b) + b')%Z).
                 { rewrite /of_bits fold_left_app /=. lia. }
-                rewrite Heq in H4. replace (C + (n - 1))%Z with (C + n - 1)%Z in H4 by lia. lia.
+                rewrite Heq in H4. replace (n + 1 - C)%Z with (n - C + 1)%Z in H4 by lia. lia.
           -- (* Tail of tail: in_gap ... bs'' = false. Apply original directly. *)
-             iApply (twp_cmp_not_in_gap _ B C (n-1) (zs ++ cons b (cons b' nil)) bs'' with "[$Hcl $Ha]").
+             iApply (twp_cmp_not_in_gap _ B C (n+1) (zs ++ cons b (cons b' nil)) bs'' with "[$Hcl $Ha]").
              { lia. }
              { rewrite app_length /=. lia. }
-             { replace (C + (n - 1) - 1)%Z with (C + n - 1 - 1)%Z by lia.
+             { replace (n + 1 - C + 1)%Z with (n - C + 1 + 1)%Z by lia.
                  replace (of_bits (zs ++ [b; b']) 0) with (2 * (2 * of_bits zs 0 + b) + b')%Z.
                 { exact Htail2. }
                 { rewrite /of_bits fold_left_app /=. lia. }
@@ -933,7 +933,7 @@ Section uniform_total.
     (* Presample numSamples ε' bits onto the tape a *)
     set (k := numSamples ε).
     set (ε_sum := SeriesC (λ ns' : {ls : list (fin 2) | length ls = k},
-                    (1 / 2 ^ k) * ε_gap 0 B (C + (-1)) k ns')%R).
+                    (1 / 2 ^ k) * ε_gap 0 B (1 - C) k ns')%R).
     iAssert (↯ ε_sum ∗ ↯ (ε - ε_sum))%I with "[Hε]" as "[Hε Hε_left]".
     { iApply ec_split_le; [|done]. split.
       - rewrite /ε_sum. apply SeriesC_ge_0'. intros.
@@ -944,20 +944,20 @@ Section uniform_total.
       - rewrite /ε_sum. etrans; first apply ε_gap_sum_le.
         apply Rlt_le. apply numSamples_spec. done. }
     wp_apply (twp_presample_many_adv_comp 1 1 E _ a _ [] k ε_sum
-      (ε_gap 0 B (C + (-1)) k) with "[$Ha $Hε Hl]").
+      (ε_gap 0 B (1 - C) k) with "[$Ha $Hε Hl]").
     { done. }
     { intros ns'. rewrite /ε_gap. destruct (in_gap _ _ _ _); lra. }
     { reflexivity. }
     iIntros (bs) "[Hεbs Ha]".
     rewrite app_nil_l.
-    destruct (in_gap 0 B (C + -1) (`bs)) eqn:Hgap.
+    destruct (in_gap 0 B (1 - C) (`bs)) eqn:Hgap.
     - (* in_gap = true: bs is in the gap, we have ↯ 1 *)
       iAssert (↯ 1)%I with "[Hεbs]" as "Hε1".
       { rewrite /ε_gap Hgap. done. }
       iExFalso. iApply (ec_contradict with "Hε1"). lra.
     - (* in_gap = false: apply twp_cmp_not_in_gap_S *)
       iClear "Hεbs".
-      iApply (twp_cmp_not_in_gap_S _ B C (-1) [] (`bs) with "[$Hl $Ha]").
+      iApply (twp_cmp_not_in_gap_S _ B C 1 [] (`bs) with "[$Hl $Ha]").
       { lia. }
       { simpl. lia. }
       { exact Hgap. }

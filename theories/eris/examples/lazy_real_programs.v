@@ -66,15 +66,15 @@ Definition VDiv4Rounded : val :=
 
 Definition R_ofZ : val :=
   λ: "vZ",
-    λ: "prec", ("vZ" ≫ "prec").
+    λ: "prec", ("vZ" ≪ "prec").
 
 Definition R_mulPow : val :=
   λ: "f" "vZ",
-    λ: "prec", "f" ("vZ" + "prec").
+    λ: "prec", "f" ("prec" - "vZ").
 
 Definition R_plus : val :=
   λ: "f" "g",
-    λ: "prec", VDiv4Rounded ("f" ("prec" - #2) + "g" ("prec" - #2)).
+    λ: "prec", VDiv4Rounded ("f" ("prec" + #2) + "g" ("prec" + #2)).
 
 Definition R_neg : val :=
   λ: "f",
@@ -82,7 +82,7 @@ Definition R_neg : val :=
 
 Definition R_ofUnif : val :=
   λ: "v",
-    λ: "prec", if: (#0 ≤ "prec") then #0 else  get_bits "v" (#(-1) * "prec") #0.
+    λ: "prec", if: ("prec" ≤ #0) then #0 else  get_bits "v" "prec" #0.
 
 Definition R_cmp : val :=
   rec: "cmp" "x" "y" "n" :=
@@ -90,7 +90,7 @@ Definition R_cmp : val :=
     let: "cy" := "y" "n" in
     if: ("cx" + #2 < "cy") then #(-1) else
     if: ("cy" + #2 < "cx") then #(1) else
-    "cmp" "x" "y" ("n" - #1).
+    "cmp" "x" "y" ("n" + #1).
 
 Definition ToLazyReal : val :=
   λ: "e",

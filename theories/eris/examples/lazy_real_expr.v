@@ -35,9 +35,9 @@ Proof.
 Qed.
 
 
-(* More negative is more precise *)
+(* Larger is more precise *)
 Definition ApproxSeq (f : Z → Z) (r : R) : Prop :=
-  ∀ (z : Z), Rabs (IZR (f z) * powerRZ 2 z - r) <= powerRZ 2 z.
+  ∀ (z : Z), Rabs (IZR (f z) * powerRZ 2 (-z) - r) <= powerRZ 2 (-z).
 
 (* Looser than ApproxTo (symmetric) but compatible with ApproxSeq *)
 Definition ApproxTo' (A : Z) (prec : Z) (r : R) :=
@@ -80,47 +80,29 @@ Proof.
 Qed.
 
 Lemma ApproxSeq_ApproxTo' (f : Z → Z) (r : R) :
-  ApproxSeq f r <-> ∀ (prec : Z), ApproxTo' (f prec) (-prec)%Z r.
+  ApproxSeq f r <-> ∀ (prec : Z), ApproxTo' (f prec) prec r.
 Proof.
-  split.
-  { rewrite /ApproxSeq/ApproxTo'.
-    intros H prec.
-    specialize H with (prec)%Z.
-    apply (Rmult_le_compat_r (powerRZ 2 (- prec)%Z)) in H.
-    2: { apply powerRZ_le; lra. }
-    rewrite -powerRZ_add in H; [|lra].
-    rewrite -(Rabs_right (powerRZ 2 (- prec)%Z)) in H.
-    2: { apply Rle_ge. apply powerRZ_le; lra. }
-    rewrite -Rabs_mult in H.
-    rewrite Rcomplements.Rmult_minus_distr_r in H.
-    rewrite Rmult_assoc in H.
-    rewrite -powerRZ_add in H; [|lra].
-    rewrite Z.add_opp_diag_r in H.
-    rewrite powerRZ_O in H.
-    rewrite Rmult_1_r in H.
-    etrans; last eapply H.
-    right.
-    done.
-  }
-  { rewrite /ApproxSeq/ApproxTo'.
-    intros H prec.
-    specialize H with (prec)%Z.
-    apply (Rmult_le_reg_r (powerRZ 2 (- prec)%Z)).
-    { apply powerRZ_lt; lra. }
-    rewrite -powerRZ_add; [|lra].
-    rewrite -(Rabs_right (powerRZ 2 (- prec)%Z)).
-    2: { apply Rle_ge. apply powerRZ_le; lra. }
+  rewrite /ApproxSeq/ApproxTo'.
+  have Hkey : ∀ (prec : Z),
+    Rabs (IZR (f prec) * powerRZ 2 (- prec) - r) =
+    Rabs (IZR (f prec) - r * powerRZ 2 prec) * powerRZ 2 (- prec).
+  { intros prec.
+    rewrite -{2}(Rabs_right (powerRZ 2 (- prec))).
+    2: { apply Rle_ge, powerRZ_le; lra. }
     rewrite -Rabs_mult.
+    f_equal.
     rewrite Rcomplements.Rmult_minus_distr_r.
-    rewrite Rmult_assoc.
-    rewrite -powerRZ_add; [|lra].
-    rewrite Z.add_opp_diag_r.
-    rewrite powerRZ_O.
-    rewrite Rmult_1_r.
-    etrans; last eapply H.
-    right.
-    do 4 f_equal.
-  }
+    rewrite Rmult_assoc -powerRZ_add; [|lra].
+    replace (prec + - prec)%Z with 0%Z by lia.
+    rewrite powerRZ_O Rmult_1_r. lra. }
+  split; intros H prec; specialize (H prec).
+  { rewrite Hkey in H.
+    apply (Rmult_le_reg_r (powerRZ 2 (-prec))).
+    { apply powerRZ_lt; lra. }
+    etrans; [exact H|]. lra. }
+  { rewrite Hkey.
+    rewrite -{2}(Rmult_1_l (powerRZ 2 (-prec))).
+    apply Rmult_le_compat_r; [apply powerRZ_le; lra | exact H]. }
 Qed.
 
 (* Cmp will never early return in the wrong branch *)
@@ -220,15 +202,15 @@ Qed.
 
 (* The integer z *)
 Definition ApproxZ (z : Z) : Z → Z :=
-  fun prec => Z.shiftr z prec.
+  fun prec => Z.shiftl z prec.
 
-(* Divide by 2^z, for 0 ≤ z. *)
+(* Divide by 2^z *)
 Definition ApproxScal (f : Z → Z) (z : Z) : Z → Z :=
-  fun prec => f (Z.add prec z).
+  fun prec => f (Z.sub prec z).
 
 (* Add *)
 Definition ApproxAdd (f g : Z → Z) : Z → Z :=
-  fun prec => RoundedDiv4 (f (Z.sub prec 2) + g (Z.sub prec 2)).
+  fun prec => RoundedDiv4 (f (Z.add prec 2) + g (Z.add prec 2)).
 
 (* Negate *)
 Definition ApproxNeg (f : Z → Z) : Z → Z :=
@@ -238,58 +220,64 @@ Lemma ApproxZ_correct {z} : ApproxSeq (ApproxZ z) (IZR z).
 Proof.
   rewrite /ApproxSeq/ApproxZ//=.
   intros prec.
-  destruct (Z_le_gt_dec prec 0).
-  { rewrite (Z.shiftr_mul_pow2 z prec l).
-    rewrite mult_IZR Rmult_assoc.
-    rewrite -{1}(Z2Nat.id (- prec) ltac:(lia) ).
-    rewrite -pow_IZR.
-    rewrite pow_powerRZ.
+  destruct (Z_le_gt_dec prec 0) as [Hp|Hp].
+  { (* prec ≤ 0: shiftl z prec = shiftr z (-prec) = ⌊z / 2^(-prec)⌋, rounding bound *)
+    rewrite -(Z.opp_involutive prec) Z.shiftl_opp_r.
+    set (P := (- prec)%Z).
+    assert (0 <= P)%Z as HP by lia.
+    rewrite (Z.shiftr_div_pow2 z P HP).
+    set (q := (z / 2 ^ P)%Z).
+    set (r := (z mod 2 ^ P)%Z).
+    assert (z = (2 ^ P * q + r))%Z as Hdiv.
+    { subst q r. pose proof (Z_div_mod_eq_full z (2 ^ P)). lia. }
+    assert (0 <= r < 2 ^ P)%Z as Hbound.
+    { subst r. apply Z.mod_pos_bound. apply Z.pow_pos_nonneg; lia. }
+    replace (IZR z) with (IZR (2 ^ P * q + r)) by (rewrite -Hdiv; reflexivity).
+    rewrite plus_IZR mult_IZR.
+    replace (IZR (2 ^ P)) with (powerRZ 2 P).
+    2: { symmetry. replace (2 ^ P)%Z with (Zpower_nat 2 (Z.abs_nat P)) by (rewrite Zpower_nat_Zpower; [reflexivity|lia]). rewrite Zpower_nat_powerRZ_absolu; [|lia]. simpl. reflexivity. }
+    replace (- - P)%Z with P by lia.
+    replace (IZR q * powerRZ 2 P - (powerRZ 2 P * IZR q + IZR r)) with (- IZR r) by lra.
+    rewrite Rabs_Ropp Rabs_right.
+    2: { apply Rle_ge. replace 0 with (IZR 0) by reflexivity. apply IZR_le. lia. }
+    replace (powerRZ 2 P) with (IZR (2 ^ P)).
+    2: { symmetry. replace (2 ^ P)%Z with (Zpower_nat 2 (Z.abs_nat P)) by (rewrite Zpower_nat_Zpower; [reflexivity|lia]). rewrite Zpower_nat_powerRZ_absolu; [|lia]. simpl. reflexivity. }
+    apply IZR_le. lia.
+  }
+  { (* prec > 0: shiftl z prec = z · 2^prec, exact *)
+    rewrite Z.shiftl_mul_pow2; [|lia].
+    rewrite mult_IZR.
+    replace (IZR (2 ^ prec)) with (powerRZ 2 prec).
+    2: { symmetry. replace (2 ^ prec)%Z with (Zpower_nat 2 (Z.abs_nat prec)) by (rewrite Zpower_nat_Zpower; [reflexivity|lia]). rewrite Zpower_nat_powerRZ_absolu; [|lia]. simpl. reflexivity. }
+    rewrite Rmult_assoc.
     rewrite -powerRZ_add; [|lra].
-    replace (Z.to_nat (- prec) + prec)%Z with 0%Z by lia.
+    replace (prec + - prec)%Z with 0%Z by lia.
     rewrite powerRZ_O Rmult_1_r.
     rewrite Rminus_diag Rabs_R0.
     apply powerRZ_le; lra.
   }
-  { (* Rounding bound *)
-    assert (0 <= prec)%Z as Hprec by lia.
-    rewrite (Z.shiftr_div_pow2 z prec Hprec).
-    set (q := (z / 2 ^ prec)%Z).
-    set (r := (z mod 2 ^ prec)%Z).
-    assert (z = (2 ^ prec * q + r))%Z as Hdiv.
-    { subst q r. pose proof (Z_div_mod_eq_full z (2 ^ prec)). lia. }
-    assert (0 <= r < 2 ^ prec)%Z as Hbound.
-    { subst r. apply Z.mod_pos_bound. apply Z.pow_pos_nonneg; lia. }
-    rewrite Hdiv.
-    rewrite plus_IZR mult_IZR.
-    replace (IZR (2 ^ prec)) with (powerRZ 2 prec).
-    2: { symmetry. replace (2 ^ prec)%Z with (Zpower_nat 2 (Z.abs_nat prec)) by (rewrite Zpower_nat_Zpower; [reflexivity|lia]). rewrite Zpower_nat_powerRZ_absolu; [|lia]. simpl. reflexivity. }
-    replace (IZR q * powerRZ 2 prec - (powerRZ 2 prec * IZR q + IZR r)) with (- IZR r) by lra.
-    rewrite Rabs_Ropp Rabs_right.
-    2: { apply Rle_ge. replace 0 with (IZR 0) by reflexivity. apply IZR_le. lia. }
-    replace (powerRZ 2 prec) with (IZR (2 ^ prec)).
-    2: { symmetry. replace (2 ^ prec)%Z with (Zpower_nat 2 (Z.abs_nat prec)) by (rewrite Zpower_nat_Zpower; [reflexivity|lia]). rewrite Zpower_nat_powerRZ_absolu; [|lia]. simpl. reflexivity. }
-    apply IZR_le. lia.
-  }
 Qed.
 
-Lemma ApproxScal_correct {f r z} : (0 <= z)%Z → ApproxSeq f r → ApproxSeq (ApproxScal f z) (r / powerRZ 2 z).
+Lemma ApproxScal_correct {f r z} : ApproxSeq f r → ApproxSeq (ApproxScal f z) (r / powerRZ 2 z).
 Proof.
   rewrite /ApproxSeq/ApproxScal//=.
-  intros Hz H prec.
-  eapply (@Rmult_le_reg_r (powerRZ 2 z)).
+  intros H prec.
+  specialize (H (prec - z)%Z).
+  apply (Rmult_le_reg_r (powerRZ 2 z)).
   { apply powerRZ_lt; lra. }
-  rewrite -powerRZ_add; [|lra].
-  rewrite -(Rabs_right (powerRZ 2 z) _).
+  etrans; [|right; apply (powerRZ_add 2 (-prec) z); lra].
+  replace (-prec + z)%Z with (-(prec - z))%Z by lia.
+  etrans; [|exact H].
+  rewrite -(Rabs_right (powerRZ 2 z)).
   2: { apply Rle_ge, powerRZ_le; lra. }
-  rewrite -Rabs_mult Rcomplements.Rmult_minus_distr_r.
-  rewrite Rdiv_def Rmult_assoc Rmult_assoc.
-  rewrite (Rabs_right (powerRZ 2 z) _).
+  rewrite -Rabs_mult.
+  right. f_equal.
+  rewrite Rcomplements.Rmult_minus_distr_r.
+  rewrite Rmult_assoc -powerRZ_add; [|lra].
+  replace (-prec + z)%Z with (-(prec - z))%Z by lia.
+  rewrite (Rabs_right (powerRZ 2 z)).
   2: { apply Rle_ge, powerRZ_le; lra. }
-  rewrite Rinv_l.
-  2: { apply powerRZ_NOR; lra. }
-  rewrite Rmult_1_r.
-  rewrite -powerRZ_add; [|lra].
-  apply H.
+  field. apply powerRZ_NOR; lra.
 Qed.
 
 Lemma ApproxAdd_correct {f g r s} : ApproxSeq f r → ApproxSeq g s → ApproxSeq (ApproxAdd f g) (r + s).
@@ -297,17 +285,17 @@ Proof.
   rewrite /ApproxSeq/ApproxAdd//=.
   intros Hf Hg z.
   (* Step 1: bound the rounding error (triangle inequality) *)
-  replace (IZR (RoundedDiv4 (f (z - 2)%Z + g (z - 2)%Z)) * powerRZ 2 z - (r + s))
-    with  ((IZR (RoundedDiv4 (f (z - 2)%Z + g (z - 2)%Z)) * powerRZ 2 z - IZR (f (z - 2)%Z + g (z - 2)%Z) / 4 * powerRZ 2 z) + (IZR ((f (z - 2)%Z + g (z - 2)%Z)) / 4 * powerRZ 2 z - (r + s)))
+  replace (IZR (RoundedDiv4 (f (z + 2)%Z + g (z + 2)%Z)) * powerRZ 2 (-z) - (r + s))
+    with  ((IZR (RoundedDiv4 (f (z + 2)%Z + g (z + 2)%Z)) * powerRZ 2 (-z) - IZR (f (z + 2)%Z + g (z + 2)%Z) / 4 * powerRZ 2 (-z)) + (IZR ((f (z + 2)%Z + g (z + 2)%Z)) / 4 * powerRZ 2 (-z) - (r + s)))
     by lra.
   etrans; first eapply Rabs_triang.
-  rewrite -{4}(Rmult_1_l (powerRZ 2 z)).
-  replace (1 * powerRZ 2 z) with (1/2 * powerRZ 2 z + (1/4 * powerRZ 2 z + 1/4 * powerRZ 2 z)) by lra.
+  rewrite -{4}(Rmult_1_l (powerRZ 2 (-z))).
+  replace (1 * powerRZ 2 (-z)) with (1/2 * powerRZ 2 (-z) + (1/4 * powerRZ 2 (-z) + 1/4 * powerRZ 2 (-z))) by lra.
   apply Rplus_le_compat.
   { generalize ((f (z + 2)%Z + g (z + 2)%Z))%Z as A; intros ?.
     rewrite -Rcomplements.Rmult_minus_distr_r.
     rewrite Rabs_mult.
-    rewrite (Rabs_right (powerRZ 2 z) _).
+    rewrite (Rabs_right (powerRZ 2 (-z)) _).
     2: { apply Rle_ge, powerRZ_le; lra. }
     apply Rmult_le_compat_r.
     { apply powerRZ_le; lra. }
@@ -315,11 +303,11 @@ Proof.
   }
   (* Step 2: separate the bound (triangle inequality) *)
   rewrite plus_IZR Rdiv_plus_distr Rmult_plus_distr_r.
-  replace (IZR (f (z - 2)%Z) / 4 * powerRZ 2 z + IZR (g (z - 2)%Z) / 4 * powerRZ 2 z - (r + s))
-    with  ((IZR (f (z - 2)%Z) / 4 * powerRZ 2 z - r) + (IZR (g (z - 2)%Z) / 4 * powerRZ 2 z - s)) by lra.
+  replace (IZR (f (z + 2)%Z) / 4 * powerRZ 2 (-z) + IZR (g (z + 2)%Z) / 4 * powerRZ 2 (-z) - (r + s))
+    with  ((IZR (f (z + 2)%Z) / 4 * powerRZ 2 (-z) - r) + (IZR (g (z + 2)%Z) / 4 * powerRZ 2 (-z) - s)) by lra.
   etrans; first eapply Rabs_triang.
-  have Hpow : / 4 * powerRZ 2 z = powerRZ 2 (z-2)%Z.
-  { replace (z - 2)%Z with (z + Z.opp 2)%Z by lia.
+  have Hpow : / 4 * powerRZ 2 (-z) = powerRZ 2 (-(z+2))%Z.
+  { replace (-(z + 2))%Z with (-z + Z.opp 2)%Z by lia.
     rewrite powerRZ_add; [|lra].
     rewrite powerRZ_neg' //=.
     lra.
@@ -349,38 +337,35 @@ Proof.
   lra.
 Qed.
 
-Lemma ApproxZ_correct' {z} : ∀ prec, ApproxTo' ((ApproxZ z) prec) (-prec) (IZR z).
+Lemma ApproxZ_correct' {z} : ∀ prec, ApproxTo' ((ApproxZ z) prec) prec (IZR z).
 Proof.
   rewrite -ApproxSeq_ApproxTo'.
   apply ApproxZ_correct.
 Qed.
 
 Lemma ApproxScal_correct' {A r z prec} :
-  ApproxTo' A (- (z + prec)) r → ApproxTo' A (-prec) (r / powerRZ 2 z).
+  ApproxTo' A (prec - z) r → ApproxTo' A prec (r / powerRZ 2 z).
 Proof.
   rewrite /ApproxTo'.
   intros H.
   etrans; last eapply H.
-  clear H.
   right.
   f_equal.
   f_equal.
   rewrite Rdiv_def Rmult_assoc.
   f_equal.
-  rewrite -powerRZ_neg'.
-  rewrite -powerRZ_add; [|lra].
-  f_equal.
-  lia.
+  rewrite -powerRZ_neg' -powerRZ_add; [|lra].
+  f_equal. lia.
 Qed.
 
-Lemma ApproxNeg_correct' {A prec x} : ApproxTo' A (-prec) x → ApproxTo' (-A) (-prec) (-x).
+Lemma ApproxNeg_correct' {A prec x} : ApproxTo' A prec x → ApproxTo' (-A) prec (-x).
 Proof.
   rewrite /ApproxTo'.
   intros H.
   etrans; [|apply H].
   right.
-  replace (Rabs (IZR (- A) - - x * powerRZ 2 (- prec)))
-     with (Rabs ((-1) * (IZR (- A) - - x * powerRZ 2 (- prec)))).
+  replace (Rabs (IZR (- A) - - x * powerRZ 2 prec))
+     with (Rabs ((-1) * (IZR (- A) - - x * powerRZ 2 prec))).
   2: {
     rewrite Rabs_minus_sym.
     f_equal.
@@ -395,15 +380,15 @@ Qed.
 
 
 Lemma ApproxAdd_correct' {R1 R2 r s prec} :
-  ApproxTo' R1 (- (prec - 2)) r → ApproxTo' R2 (- (prec - 2)) s →
-  ApproxTo' (RoundedDiv4 (R1 + R2)) (- prec) (r + s).
+  ApproxTo' R1 (prec + 2) r → ApproxTo' R2 (prec + 2) s →
+  ApproxTo' (RoundedDiv4 (R1 + R2)) prec (r + s).
 Proof.
   rewrite /ApproxTo'/ApproxAdd//=.
   intros Hf Hg.
   (* Step 1: bound the rounding error (triangle inequality) *)
-  replace  (IZR (RoundedDiv4 (R1 + R2)) - (r + s) * powerRZ 2 (- prec))
+  replace  (IZR (RoundedDiv4 (R1 + R2)) - (r + s) * powerRZ 2 prec)
     with  ((IZR (RoundedDiv4 (R1 + R2)) - IZR (R1 + R2) / 4) +
-           (IZR (R1 + R2) / 4 - (r + s) * powerRZ 2 (- prec)))
+           (IZR (R1 + R2) / 4 - (r + s) * powerRZ 2 prec))
     by lra.
   etrans; first eapply Rabs_triang.
   replace 1 with (1/2 + (1/4 + 1/4)) by lra.
@@ -412,8 +397,8 @@ Proof.
 
   (* Step 2: separate the bound (triangle inequality) *)
   rewrite plus_IZR.
-  replace ((IZR R1 + IZR R2) / 4 - (r + s) * powerRZ 2 (- prec))
-     with ((IZR R1 / 4 - r * powerRZ 2 (- prec)) + (IZR R2 / 4 - s * powerRZ 2 (- prec))) by lra.
+  replace ((IZR R1 + IZR R2) / 4 - (r + s) * powerRZ 2 prec)
+     with ((IZR R1 / 4 - r * powerRZ 2 prec) + (IZR R2 / 4 - s * powerRZ 2 prec)) by lra.
   etrans; first eapply Rabs_triang.
   apply Rplus_le_compat.
   { apply (Rmult_le_reg_r 4); [lra|].
@@ -428,7 +413,7 @@ Proof.
     f_equal; try lra.
     rewrite Rmult_assoc.
     f_equal.
-    replace ((- (prec - 2)))%Z with (-prec + 2)%Z by lia.
+    replace (prec + 2)%Z with (prec + 2)%Z by lia.
     rewrite powerRZ_add; [|lra].
     f_equal.
     rewrite //=. lra.
@@ -445,7 +430,7 @@ Proof.
     f_equal; try lra.
     rewrite Rmult_assoc.
     f_equal.
-    replace ((- (prec - 2)))%Z with (-prec + 2)%Z by lia.
+    replace (prec + 2)%Z with (prec + 2)%Z by lia.
     rewrite powerRZ_add; [|lra].
     f_equal.
     rewrite //=. lra.
@@ -482,7 +467,7 @@ Section Lib.
 
   Definition IsApprox (v : val) (x : R) E  : iProp Σ :=
     (∃ (I : iProp Σ), I ∗
-    □ (∀ (prec : Z), I -∗ WP (v #prec) @ E {{ fun zv => ∃ (R : Z), ⌜zv = #R ⌝ ∗ I ∗ ⌜ApproxTo' R (-prec) x ⌝ }})).
+    □ (∀ (prec : Z), I -∗ WP (v #prec) @ E {{ fun zv => ∃ (R : Z), ⌜zv = #R ⌝ ∗ I ∗ ⌜ApproxTo' R prec x ⌝ }})).
 
   Lemma wp_R_ofZ {z : Z} {E} :
     ⊢ WP (R_ofZ #z) @ E {{ fun cont => IsApprox cont (IZR z) E}}.
@@ -576,8 +561,8 @@ Section Lib.
     wp_pures.
     wp_bind (vg _).
     iApply (pgl_wp_mono_frame
-            ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ If ∗ ⌜ApproxTo' R2 (- prec0) x⌝ }})
-              ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ig ∗ ⌜ApproxTo' R2 (- prec0) y⌝ }})
+            ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ If ∗ ⌜ApproxTo' R2 prec0 x⌝ }})
+              ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ig ∗ ⌜ApproxTo' R2 prec0 y⌝ }})
               ∗ If)%I
              with "[HIg] [HIf Hf Hg]").
     2: { by iApply ("Hg" with "[HIg]"). }
@@ -586,8 +571,8 @@ Section Lib.
     wp_pures.
     wp_bind (vf _).
     iApply (pgl_wp_mono_frame
-            ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ If ∗ ⌜ApproxTo' R2 (- prec0) x⌝ }})
-              ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ig ∗ ⌜ApproxTo' R2 (- prec0) y⌝ }})
+            ((□ ∀ prec0 : Z, If -∗ WP vf #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ If ∗ ⌜ApproxTo' R2 prec0 x⌝ }})
+              ∗ (□ ∀ prec0 : Z, Ig -∗ WP vg #prec0 @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ig ∗ ⌜ApproxTo' R2 prec0 y⌝ }})
               ∗ Ig)
              with "[HIf] [HIg Hg Hf]").
     2: { by iApply ("Hf" with "[HIf]"). }
@@ -649,15 +634,15 @@ Section Lib.
     wp_pures.
     wp_bind (vx _).
     iApply (pgl_wp_mono_frame
-              (   (□  ∀ prec : Z, Ix -∗ WP vx #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ix ∗ ⌜ApproxTo' R2 (- prec) x⌝ }})
-                ∗ (□  ∀ prec : Z, Iy -∗ WP vy #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Iy ∗ ⌜ApproxTo' R2 (- prec) y⌝ }})
+              (   (□  ∀ prec : Z, Ix -∗ WP vx #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ix ∗ ⌜ApproxTo' R2 prec x⌝ }})
+                ∗ (□  ∀ prec : Z, Iy -∗ WP vy #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Iy ∗ ⌜ApproxTo' R2 prec y⌝ }})
                 ∗ (□  ∀ n0 : Z,
                         Ix -∗
                         Iy -∗
                         WP (rec: "cmp" "x" "y" "n" :=
                               let: "cx" := "x" "n" in
                               let: "cy" := "y" "n" in
-                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" - #1))%V vx vy
+                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
                              #n0
                         @ E
                         {{ r, ⌜r = #(-1)⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E  }})
@@ -679,15 +664,15 @@ Section Lib.
     wp_bind (vy _).
     (* FIXME *)
     iApply (pgl_wp_mono_frame
-              (   (□  ∀ prec : Z, Ix -∗ WP vx #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ix ∗ ⌜ApproxTo' R2 (- prec) x⌝ }})
-                ∗ (□  ∀ prec : Z, Iy -∗ WP vy #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Iy ∗ ⌜ApproxTo' R2 (- prec) y⌝ }})
+              (   (□  ∀ prec : Z, Ix -∗ WP vx #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ix ∗ ⌜ApproxTo' R2 prec x⌝ }})
+                ∗ (□  ∀ prec : Z, Iy -∗ WP vy #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Iy ∗ ⌜ApproxTo' R2 prec y⌝ }})
                 ∗ (□  ∀ n0 : Z,
                         Ix -∗
                         Iy -∗
                         WP (rec: "cmp" "x" "y" "n" :=
                               let: "cx" := "x" "n" in
                               let: "cy" := "y" "n" in
-                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" - #1))%V vx vy
+                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
                              #n0
                         @ E
                         {{ r, ⌜r = #(-1)⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E }})
@@ -737,15 +722,15 @@ Section Lib.
     wp_bind (vx _).
     (* FIXME *)
     iApply (pgl_wp_mono_frame
-              (   (□  ∀ prec : Z, Ix -∗ WP vx #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ix ∗ ⌜ApproxTo' R2 (- prec) x⌝ }})
-                ∗ (□  ∀ prec : Z, Iy -∗ WP vy #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Iy ∗ ⌜ApproxTo' R2 (- prec) y⌝ }})
+              (   (□  ∀ prec : Z, Ix -∗ WP vx #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ix ∗ ⌜ApproxTo' R2 prec x⌝ }})
+                ∗ (□  ∀ prec : Z, Iy -∗ WP vy #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Iy ∗ ⌜ApproxTo' R2 prec y⌝ }})
                 ∗ (□  ∀ n0 : Z,
                         Ix -∗
                         Iy -∗
                         WP (rec: "cmp" "x" "y" "n" :=
                               let: "cx" := "x" "n" in
                               let: "cy" := "y" "n" in
-                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" - #1))%V vx vy
+                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
                              #n0
                         @ E
                         {{ r, ⌜r = #1⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E }})
@@ -766,15 +751,15 @@ Section Lib.
     wp_bind (vy _).
     (* FIXME *)
     iApply (pgl_wp_mono_frame
-              (   (□  ∀ prec : Z, Ix -∗ WP vx #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ix ∗ ⌜ApproxTo' R2 (- prec) x⌝ }})
-                ∗ (□  ∀ prec : Z, Iy -∗ WP vy #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Iy ∗ ⌜ApproxTo' R2 (- prec) y⌝ }})
+              (   (□  ∀ prec : Z, Ix -∗ WP vx #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Ix ∗ ⌜ApproxTo' R2 prec x⌝ }})
+                ∗ (□  ∀ prec : Z, Iy -∗ WP vy #prec @ E {{ zv, ∃ R2 : Z, ⌜zv = #R2⌝ ∗ Iy ∗ ⌜ApproxTo' R2 prec y⌝ }})
                 ∗ (□  ∀ n0 : Z,
                         Ix -∗
                         Iy -∗
                         WP (rec: "cmp" "x" "y" "n" :=
                               let: "cx" := "x" "n" in
                               let: "cy" := "y" "n" in
-                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" - #1))%V vx vy
+                              if: "cx" + #2 < "cy" then #(-1) else if: "cy" + #2 < "cx" then #1 else "cmp" "x" "y" ("n" + #1))%V vx vy
                              #n0
                         @ E
                         {{ r, ⌜r = #1⌝ ∗ IsApprox vx x E ∗ IsApprox vy y E }})
