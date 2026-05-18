@@ -483,13 +483,18 @@ Module valgroup_tactics.
   (* Add eq tactics *)
   Ltac rel_pures :=
     iStartProof ;
-    repeat (try rel_pures_l ; try first [rel_exp_r | rel_mult_r | rel_inv_r ]) ;
-    repeat (try rel_pures_r ; try first [rel_exp_l | rel_mult_l | rel_inv_l ]).
+    repeat (try rel_pures_r ; try first [rel_exp_r | rel_mult_r | rel_inv_r ]) ;
+    repeat (try rel_pures_l ; try first [rel_exp_l | rel_mult_l | rel_inv_l ]).
 
   Ltac brel_pures :=
     iStartProof ;
-    repeat (try brel_pures_l ; try first [brel_exp_r | brel_mult_r | brel_inv_r ]) ;
-    repeat (try brel_pures_r ; try first [brel_exp_l | brel_mult_l | brel_inv_l ]).
+    repeat (try brel_pures_l ; try first [brel_exp_r | brel_mult_r | brel_inv_r]) ;
+    repeat (try brel_pures_r ; try first [brel_exp_l | brel_mult_l | brel_inv_l]).
+
+  Ltac brel_pures' :=
+    iStartProof ;
+    repeat (first [try brel_pures_r| brel_exp_r | brel_mult_r | brel_inv_r]) ;
+    repeat (first [try brel_pures_l | brel_exp_l | brel_mult_l | brel_inv_l]).
 
 
 End valgroup_tactics.

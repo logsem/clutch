@@ -75,30 +75,32 @@ Section implementation.
         | effect Sender "mm", "k" => let, ("m0", "m1") := "mm" in (store_if_none #message0 "m0");; (store_if_none #message1 "m1");; 
                                                                   (do: Leak bob);; Protocol_Done Sender ("k" #()%V)
         | return "y" => "y" end with
-        | effect Receiver "b", "k" => (do: Leak alice);; "k" (if: "b" then !#message0 else !#message1)
+        | effect Receiver "b", "k" => (do: Leak alice);; Protocol_Done Receiver ("k" (if: "b" then !#message0 else !#message1))
         | return "y" => "y" end).
 
 
   
-  Definition OT_SIM_Sender_corrupt_logic Leak channel Sender : val :=
-    (λ: "g0" "g1" "h0" "h1" "y" "mhandler" "f",
-       
+  Definition OT_SIM_Sender_corrupt_logic (Leak channel Sender : label) : val :=
+    (λ: "y" "crs" "mhandler" "f",
+       let, ("h1","h0", "g1","g0") := "crs" in
        handle: "f" #()%V with
     | effect Leak "x", "k" => "mhandler"
                                 (λ: <>, (λ: "x" "k" , 
                                            match: "x" with
                                            | InjL <> => "k" #()%V
                                            | InjR <> => 
-                                               let: "α0" := sample #()%V in
-                                               let: "α1" := "α0" * "y" in
+                                               let: "α1" := sample #()%V in
+                                               let: "α0" := "α1" * "y" in
                                                let: "uv" := ("g0"^"α0", "h0"^"α0") in
-                                               (do: channel (Send ("uv", alice)));; 
+                                               (do: channel (Send ("uv", bob)));; 
                                                let: "r" := (do: channel (Recv bob)) in
                                                match: "r" with 
                                                | NONE => "k" NONEV
                                                | SOME "mm" => 
-                                                   let, ("c0","d0","c1","d1") := "mm" in
-                                                   let, ("m0", "m1") := ("d0" * "c0"^- "α0","d1" * "c1"^- "α1") in
+                                                   let, ("cd0","cd1") := "mm" in
+                                                   let, ("c0", "d0") := "cd0" in 
+                                                   let, ("c1", "d1") := "cd1" in
+                                                   let, ("m0", "m1") := ("d0" · ("c0"^- "α0"),"d1" · ("c1"^- "α1")) in
                                                    (do: Sender ("m0","m1"));;
                                                    "k" #()%V
                                                end 
@@ -108,21 +110,22 @@ Section implementation.
 
 
   
-  Definition OT_SIM CRS : val := 
+  Definition OT_SIM CRS Leak channel Sender : val := 
     (λ: "FOT" "f", 
     let: "g0" := g^(sample #()%V) in
-    let: "g1" := "g0"^(sample #()%V) in
-    let: "y" := sample #()%V in 
-    let, ("h0", "h1") := ("g0"^"y", "g1"^"y") in
+    let: "y" := sample #()%V in
+    let: "g1" := "g0"^"y" in
+    let: "x" := sample #()%V in 
+    let, ("h0", "h1") := ("g0"^"x", "g1"^"x") in
     let: "crs" := ("h1", "h0", "g1", "g0") in
     
-    let: "mh" := mut_handler_constructor (OT_SIM_Sender_corrupt_logic "g0" "g1" "h0" "h1" "y") "FOT" in 
+    let: "mh" := mut_handler_constructor (OT_SIM_Sender_corrupt_logic Leak channel Sender "y" "crs") "FOT" in 
     handle: "mh" "f" with
     | effect CRS "x", rec "k" => "k" "crs"
     | return "y" => "y" end). 
 
-  Definition OT_SIM_FOT CRS Sender Receiver Leak message0 message1 : val :=
-    (λ: "f", OT_SIM CRS (F_OT Sender Receiver Leak  message0 message1) "f"). 
+  Definition OT_SIM_FOT channel CRS Sender Receiver Leak message0 message1 : val :=
+    (λ: "f", OT_SIM CRS Leak channel Sender (F_OT Sender Receiver Leak  message0 message1) "f"). 
 
 End implementation.
 
@@ -146,7 +149,7 @@ Section DDH_reduction.
     let: "g" := g ^ sample #()%V in
     let: "a" := sample #()%V in
     let: "b" := sample #()%V in
-    ("g"^("a"*"b"), "g"^"b", "g"^"a", "g").
+    ("g"^("a" * "b"), "g"^"b", "g"^"a", "g").
 
   Definition DH_rand : val :=
     λ: <>,

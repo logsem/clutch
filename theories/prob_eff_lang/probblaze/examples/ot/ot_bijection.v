@@ -182,6 +182,15 @@ Section crs_bijection_Fp.
     rewrite ltn_pmod //.
   Qed. 
 
+  Lemma h_lt_ring :
+    forall x : nat, x < n -> (h_ring x) < n.
+  Proof.
+    intros x Hx.
+    unfold h_ring. rewrite Hx.
+    simpl. rewrite {3}Fp_cast //.
+    rewrite ltn_pmod //.
+  Qed. 
+
   Context {Hnz : k != 0}.
 
   Lemma f_h_cancel_ring x : f_ring (h_ring x) = x. 
