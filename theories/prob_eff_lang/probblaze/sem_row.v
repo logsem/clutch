@@ -20,7 +20,7 @@ Global Instance sem_row_bottom {Σ} : Bottom (sem_row Σ) := sem_row_nil.
 (* Cons Row *)
 Program Definition sem_row_cons {Σ} : sem_sig Σ -d> sem_row Σ -d> sem_row Σ :=
     λ σ ρ, 
-      (@SemRow Σ ((([(sem_sig_labels Σ σ).1], [(sem_sig_labels Σ σ).2]), σ) :: (sem_row_car ρ)) _ (* _ *) ) .
+      (@SemRow Σ ((([(sem_sig_labels Σ σ).1], [(sem_sig_labels Σ σ).2]), sem_sig_later σ) :: (sem_row_car ρ)) _ (* _ *) ) .
               (* (λ e1 e2, λne Φ, ∃ (op' : label) (v1 v2 : val), 
                               ⌜ e1 = (do: op' v1)%E ⌝ ∗ ⌜ e2 = (do: op' v2)%E ⌝ ∗
                                if decide (op = op') then 
@@ -46,6 +46,93 @@ Qed.
        iDestruct (sem_sig_prop with "Hσ") as (op3 op4 v1 v2) "(-> & ->)".
        iExists _,_,_,_,_,_. done.
    Qed. *)
+
+#[refine] Definition sem_row_later {Σ} (ρ : sem_row Σ) : sem_row Σ := 
+  @SemRow Σ (map (λ '((ls1, ls2), σ), (ls1, ls2, sem_sig_later σ)) (sem_row_car ρ)) _.
+Proof.
+  iIntros (????) "#HPP %%% (%&HX)".
+  iSplit; [done|]. 
+  iDestruct "HX" as "(%&%&%&%&%&->&%&->&%&HX&#Hcont)".
+  iExists _,_,_,_,_. repeat (iSplit; first done).
+  iIntros (??) "!# HS". iApply "HPP". by iApply "Hcont".
+Defined.
+
+Lemma iLblSig_to_iLblThy_nil {Σ}: 
+  @iLblSig_to_iLblThy Σ [] = []. 
+Proof.
+  done.
+Qed. 
+
+Lemma map_list_contractive {A B : ofe} (f : A → B) : Contractive f → Contractive (map f).
+Proof.
+  intros Hf ? l k Hlk. apply list_dist_Forall2.
+  apply Forall2_fmap_2. generalize dependent k. induction l; intros k Hlk.
+  - destruct k.
+    + done.
+    + destruct n.
+      * admit.
+      * assert (n < S n) as Hlt by lia.
+        apply Hlk in Hlt. inversion Hlt.
+  - destruct k. 
+    + destruct n.
+      * admit.
+      * assert (n < S n) as Hlt by lia.
+        apply Hlk in Hlt. inversion Hlt.
+    + apply Forall2_cons_2.
+      * f_contractive. by inversion Hlk.
+      * apply IHl. inversion Hlk. 
+        constructor. intros m Hm. 
+        apply dist_later_lt in Hm. by inversion Hm.
+Admitted.
+
+
+Program Definition iThy_later {Σ} (X : iThy Σ) : iThy Σ := (λ e1 e2, λne Q, ▷ X e1 e2 Q)%I.
+Next Obligation. solve_proper. Qed.
+
+Global Instance iThy_later_contractive {Σ} : Contractive (@iThy_later Σ).
+Admitted.
+
+Definition iLblThy_later {Σ} (L : iLblThy Σ) : iLblThy Σ := map (λ '((ls1,ls2), X), ((ls1, ls2), iThy_later X)) L.
+
+Lemma sem_row_later_iLblThy_later {Σ} ρ : iLblSig_to_iLblThy (sem_row_later ρ) = @iLblThy_later Σ (iLblSig_to_iLblThy ρ).
+Proof.
+  destruct ρ. 
+  induction sem_row_car.
+  - done.
+  - simpl. destruct a as ((ls1,ls2), σ).
+    unfold sem_sig_later. 
+Admitted.
+
+Global Instance iLblSig_to_iLblThy_ne {Σ} : NonExpansive (@iLblSig_to_iLblThy Σ).
+Admitted.
+
+Global Instance sem_row_later_contractive {Σ} : Contractive (@sem_row_later Σ). 
+Proof. 
+  (* intros n l k Hdist . unfold sem_rowO. simpl. unfold ofe_dist. unfold sem_row_dist. simpl.
+     destruct l, k. unfold dist. rewrite !sem_row_later_iLblThy_later.
+     apply map_list_contractive.
+     - intros ????. destruct x as ((xs1 & xs2) & X). 
+       destruct y as ((ys1&ys2) &Y). f_equiv.
+       + admit.
+       + f_contractive. by destruct H. 
+     - apply Build_dist_later. intros m Hm.
+       f_equiv. by apply Hdist. *)
+Admitted. 
+
+Definition sem_row_rec_pre {Σ} (R : sem_row Σ -n> sem_row Σ) (ρ : sem_row Σ) : sem_row Σ :=
+  sem_row_later (R ρ).
+Global Instance sem_row_rec_pre_contractive {Σ} (R : sem_row Σ -n> sem_row Σ) : Contractive (sem_row_rec_pre R).
+Proof.
+  intros ??? Hdist. apply sem_row_later_contractive. 
+  apply ne_dist_later; last done. solve_proper.
+Qed.
+
+Definition sem_row_rec' {Σ} (R : sem_row Σ -n> sem_row Σ) : sem_row Σ := fixpoint (sem_row_rec_pre R).
+
+Global Instance sem_row_rec_pre_ne {Σ} : ∀ n, Proper (@dist _ _ ofe_mor_dist n ==> @dist _ _ discrete_fun_dist n) (@sem_row_rec_pre Σ).
+Proof.
+  solve_proper.
+Qed.
 
 (* Recursive Row *)
 Definition sem_row_rec {Σ} (R : sem_row Σ → sem_row Σ) `{Contractive R} : sem_row Σ :=
@@ -100,9 +187,9 @@ Section row_properties.
   
   Global Instance sem_row_cons_contractive {Σ} (* op *) n : Proper (dist_later n ==> dist n ==> dist n) (@sem_row_cons Σ (* op *)).
   Proof. 
-  (*   intros ???????. rewrite /sem_row_cons. 
-       intros ?. simpl. do 6 f_equiv; first f_contractive; f_equiv; apply non_dep_fun_dist; by f_equiv.
-     Qed. *)
+    intros ??????. rewrite /sem_row_cons. 
+    (* intros ???????. rewrite /sem_row_cons. 
+       intros ?. simpl. do 6 f_equiv; first f_contractive; f_equiv; apply non_dep_fun_dist; by f_equiv. *)
   Admitted.
   Global Instance sem_row_flip_mbang_ne {Σ} m : NonExpansive (@sem_row_flip_mbang Σ m).
   (* Proof. intros ?????. rewrite /sem_row_flip_mbang. intros ?. simpl. 
@@ -220,12 +307,12 @@ Section row_sub_typing.
     σ ≤ₛ σ' -∗ ρ ≤ᵣ ρ' -∗ sem_row_cons (* op op' *) σ ρ ≤ᵣ sem_row_cons (* op op' *) σ' ρ'.
   Proof.
     unfold row_le; unfold sem_row_cons. simpl.
-    iIntros "%Hsub %Hsub' #(->&Hσσ') #Hρρ'".
+    iIntros "%Hsub %Hsub' #(%Hlabels&Hσσ') #Hρρ'". rewrite Hlabels.
     iSplit; last iSplit.
     { iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
       iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
       iApply iThy_le_sum_map; last (iDestruct "Hρρ'" as "($&_)"). 
-      iIntros (???) "!# (%&%&%&%&%&$&$&$&$&H&$)". by iApply "Hσσ'". }
+      iIntros (???) "!# (%&%&%&%&%&$&$&$&$&(%&%&%Heq1&%Heq2&Hσ)&$)". iExists _,_. rewrite -Hlabels. do 2 (iSplit; [done|]). by iApply "Hσσ'". }
     { iModIntro. iApply valid_submseteq'; by constructor. }
     { iIntros "!# %Hd"; iPureIntro. eapply distinct_submseteq'; last done; by constructor. }
   Qed. 
@@ -347,8 +434,10 @@ Section row_sub_typing.
     ⊢ ¡[ m ] (σ · ρ) ≤ᵣ (¡[ m ] σ)%S · (¡[ m ] ρ).
   Proof.
     unfold row_le. simpl.
-    rewrite iThyIfMono_iLblSig_to_iThyIfMono. iApply to_iThy_le_refl.
-  Qed.
+    rewrite iThyIfMono_iLblSig_to_iThyIfMono. 
+    iSplit; last first.
+    - iSplit; [|iIntros "!> %Hd"; iPureIntro].
+  Admitted. 
   
   Global Instance row_cons_once (ρ : sem_row Σ) (σ : sem_sig Σ) `{! OnceS σ, ! OnceR ρ } :
     OnceR (σ · ρ)%R.
@@ -360,11 +449,12 @@ Section row_sub_typing.
       iApply iThy_le_sum_map.
       - iIntros (???) "!# (%&%&%&%&%&$&$&$&$&H&$)".
         iDestruct sig_le_mfbang_elim as "(?&H')".
-        by iApply "H'".
+        (* Morally we want iDestruct (sig_mbang_later $ with "H") as "H". but it has to be adapted a little bit *) 
+        (* by iApply "H'". *) admit.
       - by iDestruct row_le_mfbang_elim0 as "($&_&_)". }
     { iIntros "!# H". rewrite iThyIfMono_iLblSig_to_iThyIfMono. by rewrite <-valid_to_iThyIfMono. }
     { iIntros "!# H". rewrite iThyIfMono_iLblSig_to_iThyIfMono. iDestruct "H" as "%Hdistinct". iPureIntro. by rewrite <-distinct_to_iThyIfMono. }
-  Qed.   
+  Admitted. 
 
   Lemma row_le_mfbang_idemp m (ρ : sem_row Σ) :
     ⊢ (¡[ m ] (¡[ m ] ρ)) ≤ᵣ ((¡[ m ] ρ)).
@@ -476,3 +566,4 @@ End row_env_sub.
 (* Notations *)
 Notation "ρ ᵣ⪯ₑ Γ" := (RowEnvSub ρ%R Γ%T) (at level 80).
 Notation "ρ ᵣ⪯ₜ τ" := (RowTypeSub ρ%R τ%T)%I (at level 80).
+

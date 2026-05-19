@@ -113,14 +113,14 @@ Arguments pmono_protO : clear implicits.
 (** * Semantic Effect Signatures. *)
 
 Definition sem_sig_val_prop {Σ} (labels : (label * label)) (Ψ : iThy Σ) : iProp Σ := 
-  ∀ (e1 e2 : expr) Φ, Ψ e1 e2 Φ -∗ let (op1,op2) := labels in ∃ (v1 v2 : val), ⌜ e1 = (do: op1 v1)%E ⌝ ∗ ⌜ e2 = (do: op2 v2)%E ⌝.
+  (∀ (e1 e2 : expr) Φ, Ψ e1 e2 Φ -∗ (let (op1,op2) := labels in ∃ (v1 v2 : val), ⌜ e1 = (do: op1 v1)%E ⌝ ∗ ⌜ e2 = (do: op2 v2)%E ⌝)).
 
 Record sem_sig Σ := SemSig {
                         sem_sig_car :> pmono_prot Σ;
                         sem_sig_labels : (label * label);
-                            sem_sig_prop : ⊢ sem_sig_val_prop sem_sig_labels (pmono_prot_car sem_sig_car);
+                            (* sem_sig_prop : ⊢ sem_sig_val_prop sem_sig_labels (pmono_prot_car sem_sig_car); *)
                           }.
-Arguments SemSig {_} {_} _%_I {_}.
+Arguments SemSig {_} {_} _%_I (* {_} *).
 Arguments sem_sig_car {_} _ : simpl never.
 Declare Scope sem_sig_scope.
 Delimit Scope sem_sig_scope with S.
@@ -143,20 +143,14 @@ Section sem_sig_cofe.
   Admitted.
  
   Global Program Instance sem_sig_inhabited : Inhabited (sem_sig Σ) := 
-    populate (@SemSig Σ ⊥ _ _ ).
+    populate (@SemSig Σ ⊥ _ ).
   Next Obligation. split; apply label_inhabited. Qed.
-  Next Obligation. iIntros (???) "? /=". done. Qed.
-  
+    
   Global Instance sem_sig_car_ne n : Proper (dist n ==> dist n) sem_sig_car.
   Proof. by intros Ψ1 Ψ2 ?. Qed.
   Global Instance sem_sig_car_proper : Proper ((≡) ==> (≡)) (@sem_sig_car Σ).
   Proof. by intros Ψ1 Ψ2 ?. Qed.
-  
-  Global Instance sem_sig_ne n Ψ ops : Proper ((λ _ _, True) ==> dist n) (@SemSig Σ Ψ ops).
-  Proof. intros P1 P2 _ ?. apply non_dep_fun_dist. rewrite /sem_sig_car //. Qed.
-  Global Instance sem_sig_proper Ψ ops : Proper ((λ _ _, True) ==> (≡)) (@SemSig Σ Ψ ops).
-  Proof. intros P1 P2 _ ?. apply non_dep_fun_equiv. rewrite /sem_sig_car //. Qed.
-
+ 
 End sem_sig_cofe.
 
   
@@ -172,6 +166,12 @@ Definition iLblSig Σ : Type := list (list label * list label * sem_sig Σ).
 
 Definition iLblSig_to_iLblThy {Σ} (s : iLblSig Σ) : iLblThy Σ :=
   map (fun '(l1, l2, ss) => (l1, l2, pmono_prot_car (sem_sig_car ss))) s.
+
+Global Instance iLblSig_to_iLblThy_proper {Σ} : Proper ((≡) ==> (≡)) (@iLblSig_to_iLblThy Σ).
+Proof. Admitted.
+
+Global Instance iLblSig_to_iLblThy_ne {Σ} : NonExpansive (@iLblSig_to_iLblThy Σ).
+Proof. Admitted.
 
 Lemma in_iLblSig {Σ} (s : iLblSig Σ) (X : iThy Σ) l1s l2s:
   (l1s, l2s, X) ∈ iLblSig_to_iLblThy s → ∃ ss : sem_sig Σ, X = ss.
@@ -212,14 +212,38 @@ Arguments sem_row_car {_} _ : simpl never.
 Section sem_row_cofe.
   Context {Σ : gFunctors}.
 
-  Instance sem_row_equiv : Equiv (sem_row Σ) := λ ρ1 ρ2, iLblSig_to_iLblThy (sem_row_car ρ1) ≡ iLblSig_to_iLblThy (sem_row_car ρ2).
-  Instance sem_row_dist : Dist (sem_row Σ) := λ n ρ1 ρ2, iLblSig_to_iLblThy (sem_row_car ρ1) ≡{n}≡ iLblSig_to_iLblThy (sem_row_car ρ2).
-  Instance iLblSig_equiv : Equiv (iLblSig Σ) := λ ρ1 ρ2, iLblSig_to_iLblThy ρ1 ≡ iLblSig_to_iLblThy ρ2.
-  Instance iLblSig_dist : Dist (iLblSig Σ) := λ n ρ1 ρ2, iLblSig_to_iLblThy ρ1 ≡{n}≡ iLblSig_to_iLblThy ρ2.
+  Global Instance sem_row_equiv : Equiv (sem_row Σ) := λ ρ1 ρ2, iLblSig_to_iLblThy (sem_row_car ρ1) ≡ iLblSig_to_iLblThy (sem_row_car ρ2).
+  Global Instance sem_row_dist : Dist (sem_row Σ) := λ n ρ1 ρ2, take n (iLblSig_to_iLblThy (sem_row_car ρ1)) ≡{n}≡ take n (iLblSig_to_iLblThy (sem_row_car ρ2)).
+  Global Instance iLblSig_equiv : Equiv (iLblSig Σ) := λ ρ1 ρ2, iLblSig_to_iLblThy ρ1 ≡ iLblSig_to_iLblThy ρ2.
+  Global Instance iLblSig_dist : Dist (iLblSig Σ) := λ n ρ1 ρ2, take n (iLblSig_to_iLblThy ρ1) ≡{n}≡ take n (iLblSig_to_iLblThy ρ2).
 
   Lemma iLblSig_ofe_mixin : OfeMixin (iLblSig Σ).
   Proof.
-    by apply (iso_ofe_mixin iLblSig_to_iLblThy). 
+    split.
+    - intros ??. split; intros ?.
+      + intros ?. unfold dist. unfold iLblSig_dist.
+        unfold equiv in H. unfold iLblSig_equiv in H.
+        unfold equiv in H. unfold listO in H. 
+        unfold ofe_equiv in H. rewrite H. done.
+      + unfold equiv. unfold iLblSig_equiv. apply listO.
+        intros n. 
+        set (m := n `max` (length (iLblSig_to_iLblThy x) `max` length (iLblSig_to_iLblThy y))).
+        specialize  H with m. 
+        unfold dist in H. unfold iLblSig_dist in H.
+        rewrite firstn_all2 in H. 2 : { etransitivity; [apply Nat.le_max_l|apply Nat.le_max_r]. } 
+        rewrite firstn_all2 in H. 2 : { etransitivity; [apply Nat.le_max_r|apply Nat.le_max_r]. } 
+        eapply dist_le; first done.
+        apply Nat.le_max_l.
+    - intros ?. split.
+      + intros ?. apply Forall2_take. done.
+      + intros ?? Heq. 
+        unfold dist in *. unfold iLblSig_dist in *. done.
+      + intros ??? Heq1 Heq2. unfold dist in *. unfold iLblSig_dist in *. 
+        eapply transitivity; done.
+    - intros ???? Heq Hlt.
+      apply (Forall2_take _ _ _ m) in Heq.
+      rewrite !take_take in Heq. rewrite min_l in Heq; last done. 
+      by eapply dist_le.
   Qed.
 
   Canonical Structure iLblSigO := Ofe (iLblSig Σ) iLblSig_ofe_mixin.
@@ -412,9 +436,11 @@ Global Instance row_le_ne `{probblazeRGS Σ} :
   NonExpansive2 (row_le).
 Proof.
   intros n ρ₁ ρ₂ Hequiv ρ₁' ρ₂' Hequiv'.
-  rewrite /row_le /tc_opaque. unfold to_iThy_le. do 3 f_equiv; try done; do 2 f_equiv; done.
-Qed.
+  rewrite /row_le /tc_opaque. unfold to_iThy_le. do 4 f_equiv; try done.
+Admitted.
 
 Global Instance row_le_proper `{probblazeRGS Σ} :
   Proper ((≡) ==> (≡) ==> (≡)) (row_le).
 Proof. apply ne_proper_2. apply _. Qed.
+
+  
