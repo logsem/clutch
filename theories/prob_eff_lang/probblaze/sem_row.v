@@ -47,7 +47,7 @@ Qed.
        iExists _,_,_,_,_,_. done.
    Qed. *)
 
-#[refine] Definition sem_row_later {Σ} (ρ : sem_row Σ) : sem_row Σ := 
+#[refine] Definition sem_row_later {Σ} (ρ : sem_row Σ) : sem_row Σ :=
   @SemRow Σ (map (λ '((ls1, ls2), σ), (ls1, ls2, sem_sig_later σ)) (sem_row_car ρ)) _.
 Proof.
   iIntros (????) "#HPP %%% (%&HX)".
@@ -85,6 +85,100 @@ Proof.
         apply dist_later_lt in Hm. by inversion Hm.
 Admitted.
 
+
+Program Definition iThy_later {Σ} : iThy Σ -n> iThy Σ := λne T, λ e e', λne ψ, (▷ T e e' ψ)%I.
+Next Obligation.
+  intros. intros ψ ψ' Hne. rewrite Hne. done.
+Qed.
+Next Obligation.
+  intros. intros T T' Hne. intros e e' ψ.
+  simpl. by rewrite (Hne e e' ψ).
+Qed.
+
+Instance iThy_later_contractive {Σ} : Contractive (@iThy_later Σ).
+Proof.
+  unfold iThy_later. simpl.
+  intros ? T T' ?.
+  intros e e' ?. simpl.
+  f_contractive.
+  rewrite (H e e' _).
+  done.
+Qed.
+
+(* Definition sem_sig_later {Σ} : sem_sig Σ -n> sem_sig Σ.
+   Proof.
+     unshelve econstructor.
+     - intros []. unshelve econstructor.
+       + destruct sem_sig_car.
+         exists (iThy_later pmono_prot_car).
+         rewrite /pers_mono.
+         iIntros (????) "#H H'".
+         rewrite /iThy_later. simpl. iNext.
+         iApply pmono_prot_prop => //.
+       + exact sem_sig_labels.
+       + destruct sem_sig_car.
+         iIntros "?".
+
+   Next Obligation.
+     intros. intros ψ ψ' Hne. rewrite Hne. done.
+   Qed.
+   Next Obligation.
+     intros. intros T T' Hne. intros e e' ψ.
+     simpl. by rewrite (Hne e e' ψ).
+   Qed. *)
+
+
+(* Definition sem_row_rec1 {Σ} (R : sem_row Σ → sem_row Σ) (rec : sem_row Σ) : sem_row Σ.
+     (* morally: ▷ (R rec)) *)
+     unshelve econstructor.
+     -
+       set (X := R rec).
+       set (X_sig := sem_row_car X).
+       opose proof (sem_row_car X) as X_sig'.
+       rewrite /iLblSig in X_sig'.
+       assert (sem_sig Σ → sem_sig Σ).
+       {
+         clear.
+         refine ((λ sg, _)).
+         destruct sg.
+         destruct sem_sig_car.
+         assert (iThy Σ).
+         {
+           intros e e'. unshelve refine (λne ψ, _)%I.
+           1: exact (▷ ψ e e')%I. Show Proof.
+
+           intros. intros ???.
+
+   (* Unset Printing Notations.
+      Set Printing All. *)
+   unfold dist in H.
+   unfold discrete_funO in H.
+   unfold discrete_fun in H. unfold ofe_dist in H.
+   unfold discrete_fun_dist in H.
+   unfold dist in H.
+   unfold discrete_funO in H.
+   unfold discrete_fun in H. unfold ofe_dist in H.
+   unfold discrete_fun_dist in H.
+   unfold ofe_dist in H.
+   unfold reverse_coercion in H.
+   unfold ofe_dist in H.
+   rewrite H.
+    done.
+   Show Proof.
+         }
+         set (pmono_prot_car_later' := (λ e e' φ, ▷ (φ e e'))%I :
+                expr -d> expr -d> (expr -d> expr -d> iProp Σ) -d> iProp Σ).
+         assert (Contractive pmono_prot_car_later').
+         { subst pmono_prot_car_later'. simpl. solve_contractive. }
+         set (sem_sig_car_later := {| pmono_prot_car := pmono_prot_car_later' ;
+                                     pmono_prot_prop := pmono_prot_prop |}).
+         eexists {| sem_sig_car :=  |}.
+       }
+       set (sig_later :=
+              (λ '(lbls, lbls', sig), (sem_sig_prop _ sig))%I
+              : (list label * list label * sem_sig Σ) -> _).
+       set (x := later <$> )
+     fixpoint R. *)
 
 Program Definition iThy_later {Σ} (X : iThy Σ) : iThy Σ := (λ e1 e2, λne Q, ▷ X e1 e2 Q)%I.
 Next Obligation. solve_proper. Qed.
