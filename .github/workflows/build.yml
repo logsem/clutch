@@ -41,6 +41,7 @@ jobs:
               apt-get install rsync -y
               opam pin add -y rocq-stdpp 1.13.0
               opam pin add -y rocq-iris.dev  git+https://gitlab.mpi-sws.org/iris/iris.git#93c7df745a0485cebcb97ca77e7d263e5c920d4f --ignore-constraints-on=rocq-stdpp
+              opam pin add -n -y -k path $PACKAGE $WORKDIR
               opam update -y
               opam reinstall --forget-pending --yes
               opam install --confirm-level=unsafe-yes -j 2 rocq-stdpp.1.13.0
