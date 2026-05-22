@@ -15,24 +15,42 @@ Import uPred.
 Section adequacy.
   Context `{!erisGS Σ}.
 
-  (** Pure-monotonicity through [▷^k ◇ ⌜·⌝]. Used inside [hfupd_mono]
-      to mirror the original [apply pure_mono] step under [step_fupdN_mono]. *)
+  (** Pure-monotonicity through [▷^k ◇ ⌜·⌝]. *)
   Local Lemma laterN_except_0_pure_mono k (P Q : Prop) :
     (P → Q) → ((▷^k ◇ ⌜P⌝ : iProp Σ)%I ⊢ ▷^k ◇ ⌜Q⌝).
   Proof. intros HPQ. apply bi.laterN_mono, bi.except_0_mono, bi.pure_mono, HPQ. Qed.
+
+  (** Push [∀] through [|={∅}▷=>^n] of plain pure props (via [fupd_finally]). *)
+  Lemma step_fupdN_pure_forall_intro {A} (Φ : A → Prop) n E :
+    (∀ a, |={E|}=> ▷^n ◇ ⌜Φ a⌝) ⊢ |={E|}=> ▷^n ◇ ⌜∀ a, Φ a⌝ : iProp Σ.
+  Proof.
+    iIntros "H".
+    iApply (fupd_finally_mono _ _ (▷^n ◇ ⌜∀ a, Φ a⌝)%I); last first.
+    { iApply fupd_finally_forall. iIntros (a). iApply "H". }
+    rewrite -laterN_forall. apply bi.laterN_mono.
+    rewrite -except_0_forall. apply bi.except_0_mono.
+    apply pure_forall_2.
+  Qed.
 
   Lemma pgl_dbind' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
     ⌜ 0 <= ε ⌝ -∗
     ⌜ 0 <= ε' ⌝ -∗
     ⌜pgl μ R ε⌝ -∗
-    (∀ a, ⌜R a⌝ -∗ |={0; ∅|}=> ▷^(S n) ◇ ⌜pgl (f a) T ε'⌝) -∗
-    |={0; ∅|}=> ▷^(S n) ◇ ⌜pgl (dbind f μ) T (ε + ε')⌝.
+    (∀ a, ⌜R a⌝ -∗ |={∅|}=> ▷^(S n) ◇ ⌜pgl (f a) T ε'⌝) -∗
+    |={∅|}=> ▷^(S n) ◇ ⌜pgl (dbind f μ) T (ε + ε')⌝.
   Proof.
-    iIntros (Hε Hε' HR) "H".
-    iApply (hfupd_mono _ _ (▷^(S n) ◇ ⌜∀ a, R a → pgl (f a) T ε'⌝)%I).
-    { apply (laterN_except_0_pure_mono (S n)). intros Hall. eapply pgl_dbind; eauto. }
-    iIntros (a HRa). iApply ("H" with "[//]").
+    iIntros (Hε Hε' Hpgl) "H".
+    iAssert (∀ a, |={∅|}=> ▷^(S n) ◇ ⌜R a → pgl (f a) T ε'⌝)%I with "[H]" as "H".
+    { iIntros (a). destruct (ExcludedMiddle (R a)) as [HR|HnR].
+      - iSpecialize ("H" $! a with "[//]").
+        iApply (fupd_finally_mono with "H").
+        apply (laterN_except_0_pure_mono (S n)). by intros.
+      - iApply fupd_finally_intro. iPureIntro. by intros. }
+    iPoseProof (step_fupdN_pure_forall_intro _ (S n) ∅ with "H") as "H".
+    iApply (fupd_finally_mono with "H").
+    apply (laterN_except_0_pure_mono (S n)). intros Hall.
+    eapply pgl_dbind; eauto.
   Qed.
 
   Lemma pgl_dbind_adv' `{Countable A, Countable A'}
@@ -40,36 +58,91 @@ Section adequacy.
     ⌜ 0 <= ε ⌝ -∗
     ⌜ exists r, forall a, 0 <= ε' a <= r ⌝ -∗
     ⌜pgl μ R ε⌝ -∗
-    (∀ a, ⌜R a⌝ -∗ |={0; ∅|}=> ▷^(S n) ◇ ⌜pgl (f a) T (ε' a)⌝) -∗
-    |={0; ∅|}=> ▷^(S n) ◇ ⌜pgl (dbind f μ) T (ε + SeriesC (λ a : A, (μ a * ε' a)%R))⌝.
+    (∀ a, ⌜R a⌝ -∗ |={∅|}=> ▷^(S n) ◇ ⌜pgl (f a) T (ε' a)⌝) -∗
+    |={∅|}=> ▷^(S n) ◇ ⌜pgl (dbind f μ) T (ε + SeriesC (λ a : A, (μ a * ε' a)%R))⌝.
   Proof.
-    iIntros (Hε [r Hr] HR) "H".
-    iApply (hfupd_mono _ _ (▷^(S n) ◇ ⌜∀ a, R a → pgl (f a) T (ε' a)⌝)%I).
-    { apply (laterN_except_0_pure_mono (S n)). intros Hall.
-      eapply pgl_dbind_adv; [done|exists r; done|done|done]. }
-    iIntros (a HRa). iApply ("H" with "[//]").
+    iIntros (Hε [r Hr] Hpgl) "H".
+    iAssert (∀ a, |={∅|}=> ▷^(S n) ◇ ⌜R a → pgl (f a) T (ε' a)⌝)%I with "[H]" as "H".
+    { iIntros (a). destruct (ExcludedMiddle (R a)) as [HR|HnR].
+      - iSpecialize ("H" $! a with "[//]").
+        iApply (fupd_finally_mono with "H").
+        apply (laterN_except_0_pure_mono (S n)). by intros.
+      - iApply fupd_finally_intro. iPureIntro. by intros. }
+    iPoseProof (step_fupdN_pure_forall_intro _ (S n) ∅ with "H") as "H".
+    iApply (fupd_finally_mono with "H").
+    apply (laterN_except_0_pure_mono (S n)). intros Hall.
+    eapply pgl_dbind_adv; [done|exists r; done|done|done].
   Qed.
 
   Local Definition cfgO := (prodO exprO stateO).
 
-  (** [glm_erasure] in hfupd form. *)
+  (** ** Compatibility shims for the old [|={l; E|}=> ▷^k ◇ P] (hfupd)
+       interface, expressed in terms of the new [fupd_finally] modality
+       [|={E|}=> ▷^k ◇ P].  These keep the call sites below close to their
+       pre-MR-1217 form. *)
+
+  Notation hfupd_mono := fupd_finally_mono (only parsing).
+
+  Lemma hfupd_intro {E} (P : iProp Σ) `{!Plain P} :
+    P -∗ |={E|}=> P.
+  Proof.
+    iIntros "HP".
+    iAssert (■ P)%I with "[HP]" as "#HP'"; [by iApply plain_plainly|].
+    by iApply fupd_finally_intro.
+  Qed.
+
+  Lemma hfupd_intro_pure {E n} (φ : Prop) :
+    φ → ⊢ |={E|}=> ▷^n ◇ ⌜φ⌝ : iProp Σ.
+  Proof.
+    intros Hφ. iApply fupd_finally_intro. by iPureIntro.
+  Qed.
+
+  Lemma laterN_hfupd l {E} k (P : iProp Σ) :
+    ▷^l (|={E|}=> ▷^k ◇ P) ⊢ |={E|}=> ▷^(l + k) ◇ P.
+  Proof.
+    induction l as [|l IH]; simpl.
+    - iIntros "H". by iApply (fupd_finally_mono with "H").
+    - iIntros "H". rewrite IH. rewrite fupd_finally_later.
+      iApply (fupd_finally_mono with "H"). iIntros "H".
+      by rewrite except_0_laterN except_0_idemp.
+  Qed.
+
+  Lemma elim_fupd_hfupd_plain (k l : nat) (E1 E2 : coPset) (P Q : iProp Σ) :
+    l ≤ k →
+    (|={E1, E2}=> P) ∗ (∀ l', ⌜l' = l⌝ -∗ P -∗ |={E2|}=> ▷^(k - l') ◇ Q)
+    ⊢ |={E1|}=> ▷^k ◇ Q.
+  Proof.
+    iIntros (Hlk) "[H1 H2]". iMod "H1" as "HP".
+    iSpecialize ("H2" $! l with "[//] HP").
+    iApply (fupd_finally_mono with "H2").
+    replace k with (l + (k - l))%nat at 2 by lia.
+    rewrite laterN_add. iIntros "H". by iApply laterN_intro.
+  Qed.
+
+  Lemma fupd_plain_hfupd' (l : nat) (E1 E2 : coPset) {P : iProp Σ} `{!Plain P} :
+    (|={E1, E2}=> P) ⊢ |={E1|}=> ▷^l ◇ P.
+  Proof.
+    iIntros "H". iMod "H" as "HP". by iApply hfupd_intro.
+  Qed.
+
+  (** [glm_erasure] in fupd_finally form. *)
   Lemma glm_erasure (e : expr) (σ : state) (n : nat) φ (ε : nonnegreal) :
     to_val e = None →
     glm e σ ε (λ '(e2, σ2) ε',
-        |={0; ∅|}=> ▷^(S n) ◇ ⌜pgl (exec n (e2, σ2)) φ ε'⌝)
-      ⊢ |={0; ∅|}=> ▷^(S n) ◇ ⌜pgl (exec (S n) (e, σ)) φ ε⌝.
+        |={∅|}=> ▷^(S n) ◇ ⌜pgl (exec n (e2, σ2)) φ ε'⌝)
+      ⊢ |={∅|}=> ▷^(S n) ◇ ⌜pgl (exec (S n) (e, σ)) φ ε⌝.
   Proof.
     iIntros (Hv) "Hexec".
     iAssert (⌜to_val e = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
     rewrite /glm /glm'.
     set (Φ := (λ '((e1, σ1), ε''),
                 (⌜to_val e1 = None⌝ -∗
-                  |={0; ∅|}=> ▷^(S n) ◇ ⌜pgl (exec (S n) (e1, σ1)) φ ε''⌝)%I) :
+                  |={∅|}=> ▷^(S n) ◇ ⌜pgl (exec (S n) (e1, σ1)) φ ε''⌝)%I) :
            prodO cfgO NNRO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros m ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
     set (F := (glm_pre (λ '(e2, σ2) ε',
-                   |={0; ∅|}=> ▷^(S n) ◇ ⌜pgl (exec n (e2, σ2)) φ ε'⌝)%I)).
+                   |={∅|}=> ▷^(S n) ◇ ⌜pgl (exec n (e2, σ2)) φ ε'⌝)%I)).
     iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
     { iIntros "Hfix %".
       by iApply ("H" $! ((_, _)) with "Hfix"). }
@@ -80,7 +153,7 @@ Section adequacy.
     (* Case 1: thin air ε-inflation. Mirrors the original step_fupdN proof,
        with [hfupd_mono] doing the role of [step_fupdN_mono] and
        [elim_fupd_hfupd_plain] doing the role of [step_fupd_fupdN_S; iMod ...]. *)
-    - iApply (hfupd_mono _ _ (▷^(S n) ◇ ⌜∀ ε' : nonnegreal,
+    - iApply (hfupd_mono _ (▷^(S n) ◇ ⌜∀ ε' : nonnegreal,
           (ε'' < ε')%R → pgl (exec (S n) (e1, σ1)) φ ε'⌝)%I).
       { apply (laterN_except_0_pure_mono (S n)). intros Hall.
         eapply pgl_epsilon_limit; auto.
@@ -95,10 +168,10 @@ Section adequacy.
         ⌜pgl (exec (S n) (e1, σ1)) φ ε'⌝); [lia|].
       iSplitL "H"; [iApply ("H" $! ε' with "[//]")|].
       iIntros (l Hl) "Hst". assert (l = 0%nat) as -> by lia.
-      rewrite Nat.add_0_r. replace (S n - 0)%nat with (S n) by lia.
+      try rewrite Nat.add_0_r; replace (S n - 0)%nat with (S n) by lia.
       iDestruct "Hst" as "(%R' & %ε1' & %ε2' & %Hsum' & %Hlift' & Hwand')".
       rewrite -(dret_id_left' (λ _ : (), exec (S n) (e1, σ1)) tt).
-      iApply (hfupd_mono _ _
+      iApply (hfupd_mono _
         (▷^(S n) ◇ ⌜pgl (dret tt ≫= λ _ : (), exec (S n) (e1, σ1)) φ (ε1' + ε2')⌝)%I).
       { apply (laterN_except_0_pure_mono (S n)).
         intros Hpgl. eapply pgl_mon_grading; [|exact Hpgl]. exact Hsum'. }
@@ -114,7 +187,7 @@ Section adequacy.
 
     (* Case 2: prim_step with adv composition. *)
     - rewrite exec_Sn_not_final; [|by rewrite /is_final /= Hv].
-      iApply (hfupd_mono _ _ (▷^(S n) ◇ ⌜pgl (prim_step e1 σ1 ≫= exec n) φ
+      iApply (hfupd_mono _ (▷^(S n) ◇ ⌜pgl (prim_step e1 σ1 ≫= exec n) φ
         (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2 ρ))%R⌝)%I).
       { apply (laterN_except_0_pure_mono (S n)). intros Hpgl.
         eapply pgl_mon_grading; [|exact Hpgl]. done. }
@@ -127,10 +200,10 @@ Section adequacy.
         ⌜pgl (exec n (e', σ')) φ (ε2 (e', σ'))⌝); [lia|].
       iSplitL "H"; [iApply ("H" with "[//]")|].
       iIntros (l Hl) "Hst". assert (l = 0%nat) as -> by lia.
-      rewrite Nat.add_0_r. replace (S n - 0)%nat with (S n) by lia.
+      try rewrite Nat.add_0_r; replace (S n - 0)%nat with (S n) by lia.
       iDestruct "Hst" as "(%R' & %ε1' & %ε2' & %Hsum' & %Hlift' & Hwand')".
       rewrite -(dret_id_left' (λ _ : (), exec n (e', σ')) tt).
-      iApply (hfupd_mono _ _ (▷^(S n) ◇
+      iApply (hfupd_mono _ (▷^(S n) ◇
         ⌜pgl (dret tt ≫= λ _ : (), exec n (e', σ')) φ (ε1' + ε2')⌝)%I).
       { apply (laterN_except_0_pure_mono (S n)).
         intros Hpgl. eapply pgl_mon_grading; [|exact Hpgl]. exact Hsum'. }
@@ -147,11 +220,11 @@ Section adequacy.
        can be non-empty. We pick a tape α and erase the [state_step] step into the
        outer execution via [prim_coupl_step_prim]. *)
     - iDestruct (big_orL_mono _ (λ _ _,
-                     |={0; ∅|}=> ▷^(S n)
+                     |={∅|}=> ▷^(S n)
                        ◇ ⌜pgl (exec (S n) (e1, σ1)) φ ε''⌝)%I
                   with "H") as "H".
       { iIntros (i α Hα%list_elem_of_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
-        iApply (hfupd_mono _ _ (▷^(S n) ◇
+        iApply (hfupd_mono _ (▷^(S n) ◇
           ⌜∀ σ2, R2 σ2 → pgl (exec (S n) (e1, σ2)) φ (ε2 (e1, σ2))⌝)%I).
         { apply (laterN_except_0_pure_mono (S n)). intros Hall.
           rewrite /= /get_active in Hα.
@@ -169,10 +242,10 @@ Section adequacy.
         iSplitL "H".
         { iApply ("H" $! σ2 with "[//]"). }
         iIntros (l Hl) "Hst". assert (l = 0%nat) as -> by lia.
-        rewrite Nat.add_0_r. replace (S n - 0)%nat with (S n) by lia.
+        try rewrite Nat.add_0_r; replace (S n - 0)%nat with (S n) by lia.
         iDestruct "Hst" as "(%R' & %ε1' & %ε2' & %Hsum' & %Hlift' & Hwand')".
         rewrite -(dret_id_left' (λ _ : (), exec (S n) (e1, σ2)) tt).
-        iApply (hfupd_mono _ _ (▷^(S n) ◇
+        iApply (hfupd_mono _ (▷^(S n) ◇
           ⌜pgl (dret tt ≫= λ _ : (), exec (S n) (e1, σ2)) φ (ε1' + ε2')⌝)%I).
         { apply (laterN_except_0_pure_mono (S n)).
           intros Hpgl. eapply pgl_mon_grading; [|exact Hpgl]. exact Hsum'. }
@@ -189,13 +262,17 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
+      Unshelve.
+       
   Qed.
 
   Theorem wp_refRcoupl_hfupd k (ε : nonnegreal) (e : expr) (σ : state) n φ :
-    state_interp k σ ∗ err_interp ε ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
-    |={0; ⊤|}=> ▷^n ◇ ⌜pgl (exec n (e, σ)) φ ε⌝.
+    (∀ m, num_laters_per_step m = 0%nat) →
+    £ n ∗ state_interp k σ ∗ err_interp ε ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
+    |={⊤|}=> ▷^n ◇ ⌜pgl (exec n (e, σ)) φ ε⌝.
   Proof.
-    iInduction n as [|n] "IH" forall (k e σ ε); iIntros "(Hσ & Hε & Hwp)".
+    iIntros (Hnls).
+    iInduction n as [|n] "IH" forall (k e σ ε); iIntros "(Hlc & Hσ & Hε & Hwp)".
     - rewrite /exec /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
@@ -224,27 +301,40 @@ Section adequacy.
         apply pgl_dret; auto.
       + rewrite pgl_wp_unfold /pgl_wp_pre /= Heq.
         iSpecialize ("Hwp" $! k with "[$Hσ $Hε]").
+        iDestruct (lc_succ with "Hlc") as "[Hcred Hlc]".
         iApply (elim_fupd_hfupd_plain (S n) 0 ⊤ ∅ _
           ⌜pgl (prim_step e σ ≫= exec n) φ ε⌝
-          with "[$Hwp]"); first lia.
+          with "[$Hwp Hcred Hlc]"); first lia.
         iIntros (l Hl) "Hlift". assert (l = 0%nat) as -> by lia.
-        rewrite Nat.add_0_r. replace (S n - 0)%nat with (S n) by lia.
-        (* Convert the glm payload into the hfupd-form expected by glm_erasure *)
+        try rewrite Nat.add_0_r; replace (S n - 0)%nat with (S n) by lia.
         iPoseProof
-          (glm_mono _ (λ '(e2, σ2) ε2, |={0; ∅|}=> ▷^(S n)
+          (glm_mono _ (λ '(e2, σ2) ε2, |={∅|}=> ▷^(S n)
              ◇ ⌜pgl (exec n (e2, σ2)) φ ε2⌝)%I
-            with "[%] [] Hlift") as "H".
+            with "[%] [Hcred Hlc] Hlift") as "H".
         { apply Rle_refl. }
-        { iIntros ([e' σ'] ε2) "H".
+        { iIntros ([e' σ'] ε') "H".
+          (* The instance gives [num_laters_per_step _ := 0]; Coq has
+             already reduced [S (num_laters_per_step k)] to [1], so [H]
+             is [£1 -∗ |={∅,∅}=> ▷ |={∅,∅}=> |={∅,⊤}=> ...]. *)
+          iSpecialize ("H" with "Hcred").
+          iApply (elim_fupd_hfupd_plain (S n) 0 ∅ ∅
+            (▷ |={∅,∅}=> |={∅,⊤}=>
+                (state_interp (S k) σ' ∗ err_interp ε' ∗
+                   WP e' {{ v, ⌜φ v⌝ }}))%I
+            ⌜pgl (exec n (e', σ')) φ ε'⌝); first lia.
+          iSplitL "H"; [iApply "H"|].
+          iIntros (l' Hl') "H". assert (l' = 0%nat) as -> by lia.
+          try rewrite Nat.add_0_r; replace (S n - 0)%nat with (S n) by lia.
           iApply (laterN_hfupd 1). iNext.
           iApply (elim_fupd_hfupd_plain n 0 ∅ ⊤
-            (state_interp (S k) σ' ∗ err_interp ε2 ∗ WP e' {{ v, ⌜φ v⌝ }})%I
-            ⌜pgl (exec n (e', σ')) φ ε2⌝); first lia.
-          iSplitL "H"; [iApply "H"|].
-          iIntros (l' Hl') "(Hσ' & Hε' & Hwp')".
-          assert (l' = 0%nat) as -> by lia.
-          rewrite Nat.add_0_r. replace (n - 0)%nat with n by lia.
-          iApply ("IH" $! (S k) with "[$Hσ' $Hε' $Hwp']"). }
+            (state_interp (S k) σ' ∗ err_interp ε' ∗ WP e' {{ v, ⌜φ v⌝ }})%I
+            ⌜pgl (exec n (e', σ')) φ ε'⌝); first lia.
+          iSplitL "H".
+          { iMod "H". iMod "H". iModIntro. iExact "H". }
+          iIntros (l'' Hl'') "(Hσ' & Hε' & Hwp')".
+          assert (l'' = 0%nat) as -> by lia.
+          try rewrite Nat.add_0_r; replace (n - 0)%nat with n by lia.
+          iApply ("IH" $! (S k) with "[$Hlc $Hσ' $Hε' $Hwp']"). }
         replace (prim_step e σ) with (step (e, σ)) by reflexivity.
         rewrite -exec_Sn_not_final; last by rewrite /is_final /to_final /= Heq.
         by iApply (glm_erasure with "H").
@@ -255,8 +345,8 @@ Section adequacy.
   Lemma glm_erasure_safety (e : expr) (σ : state) (n : nat) (ε : nonnegreal) :
     to_val e = None →
     glm e σ ε (λ '(e2, σ2) ε',
-        |={0; ∅|}=> ▷^(S n) ◇ ⌜SeriesC (iterM n prim_step_or_val (e2, σ2)) >= 1 - ε'⌝)
-      ⊢ |={0; ∅|}=> ▷^(S n) ◇
+        |={∅|}=> ▷^(S n) ◇ ⌜SeriesC (iterM n prim_step_or_val (e2, σ2)) >= 1 - ε'⌝)
+      ⊢ |={∅|}=> ▷^(S n) ◇
           ⌜SeriesC (iterM (S n) prim_step_or_val (e, σ)) >= 1 - ε⌝.
   Proof.
     iIntros (Hv) "Hexec".
@@ -264,13 +354,13 @@ Section adequacy.
     rewrite /glm /glm'.
     set (Φ := (λ '((e1, σ1), ε''),
                 (⌜to_val e1 = None⌝ -∗
-                 |={0; ∅|}=> ▷^(S n) ◇
+                 |={∅|}=> ▷^(S n) ◇
                    ⌜SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε''⌝)%I) :
            prodO cfgO NNRO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros m ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
     set (F := (glm_pre (λ '(e2, σ2) ε',
-                   |={0; ∅|}=> ▷^(S n) ◇
+                   |={∅|}=> ▷^(S n) ◇
                      ⌜SeriesC (iterM n prim_step_or_val (e2, σ2)) >= 1 - ε'⌝)%I)).
     iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
     { iIntros "Hfix %".
@@ -278,7 +368,7 @@ Section adequacy.
     clear Hv.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
     iIntros " [ H | [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & %Hsum & %Hlift & H)|H]] %Hv".
-    - iApply (hfupd_mono _ _ (▷^(S n) ◇
+    - iApply (hfupd_mono _ (▷^(S n) ◇
           ⌜∀ ε' : nonnegreal, (ε'' < ε')%R →
             SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε'⌝)%I).
       { apply (laterN_except_0_pure_mono (S n)). intros Hall.
@@ -291,17 +381,17 @@ Section adequacy.
       iIntros (ε' Hε').
       iApply (elim_fupd_hfupd_plain (S n) 0 ∅ ∅
         (exec_stutter (λ ε0 : nonnegreal, (⌜to_val e1 = None⌝ -∗
-          |={0; ∅|}=> ▷^(S n) ◇
+          |={∅|}=> ▷^(S n) ◇
             ⌜SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε0⌝)%I) ε')
         ⌜SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε'⌝); [lia|].
       iSplitL "H"; [iApply ("H" $! ε' with "[//]")|].
       iIntros (l Hl) "Hexecs".
       assert (l = 0%nat) as -> by lia.
-      rewrite Nat.add_0_r. replace (S n - 0)%nat with (S n) by lia.
+      try rewrite Nat.add_0_r; replace (S n - 0)%nat with (S n) by lia.
       iDestruct (exec_stutter_compat_1 _ _ with "[] Hexecs") as "[%H'|H2]".
       { iIntros (εa εb Hle) "H %Hto".
         iSpecialize ("H" with "[//]").
-        iApply (hfupd_mono _ _ _ with "H").
+        iApply (hfupd_mono _ _ with "H").
         apply (laterN_except_0_pure_mono (S n)). intros Hge.
         apply Rle_ge. eapply Rle_trans; [|by apply Rge_le].
         apply Rplus_le_compat_l, Ropp_le_contravar. exact Hle. }
@@ -313,7 +403,7 @@ Section adequacy.
       + iApply ("H2" with "[//]").
 
     (* Case 2: prim_step *)
-    - iApply (hfupd_mono _ _ (▷^(S n) ◇
+    - iApply (hfupd_mono _ (▷^(S n) ◇
         ⌜∀ ρ, R ρ → SeriesC (iterM n prim_step_or_val ρ) >= 1 - (ε2 ρ)⌝)%I).
       { apply (laterN_except_0_pure_mono (S n)). intros Hall.
         apply Rle_ge.
@@ -357,16 +447,16 @@ Section adequacy.
       iSpecialize ("H" $! e' σ' with "[//]").
       iApply (elim_fupd_hfupd_plain (S n) 0 ∅ ∅
         (exec_stutter (λ ε0 : nonnegreal,
-          (|={0; ∅|}=> ▷^(S n) ◇
+          (|={∅|}=> ▷^(S n) ◇
             ⌜SeriesC (iterM n prim_step_or_val (e', σ')) >= 1 - ε0⌝)%I)
           (ε2 (e', σ')))
         ⌜SeriesC (iterM n prim_step_or_val (e', σ')) >= 1 - (ε2 (e', σ'))⌝); [lia|].
       iSplitL "H"; [iApply "H"|].
       iIntros (l Hl) "Hst". assert (l = 0%nat) as -> by lia.
-      rewrite Nat.add_0_r. replace (S n - 0)%nat with (S n) by lia.
+      try rewrite Nat.add_0_r; replace (S n - 0)%nat with (S n) by lia.
       iDestruct (exec_stutter_compat_1 _ _ with "[] Hst") as "[%H'|H2]".
       { iIntros (εa εb Hle) "H".
-        iApply (hfupd_mono _ _ _ with "H").
+        iApply (hfupd_mono _ _ with "H").
         apply (laterN_except_0_pure_mono (S n)). intros Hge.
         apply Rle_ge. eapply Rle_trans; [|by apply Rge_le].
         apply Rplus_le_compat_l, Ropp_le_contravar. exact Hle. }
@@ -379,11 +469,11 @@ Section adequacy.
 
     (* Case 3: state_step *)
     - iDestruct (big_orL_mono _ (λ _ _,
-                     |={0; ∅|}=> ▷^(S n) ◇
+                     |={∅|}=> ▷^(S n) ◇
                        ⌜SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε''⌝)%I
                   with "H") as "H".
       { iIntros (i α Hα%list_elem_of_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
-        iApply (hfupd_mono _ _ (▷^(S n) ◇
+        iApply (hfupd_mono _ (▷^(S n) ◇
           ⌜∀ σ2, R2 σ2 →
             SeriesC (iterM (S n) prim_step_or_val (e1, σ2)) >= 1 - (ε2 (e1, σ2))⌝)%I).
         { apply (laterN_except_0_pure_mono (S n)). intros Hall.
@@ -446,17 +536,17 @@ Section adequacy.
         iApply (elim_fupd_hfupd_plain (S n) 0 ∅ ∅
           (exec_stutter (λ ε0 : nonnegreal,
             (⌜to_val e1 = None⌝ -∗
-             |={0; ∅|}=> ▷^(S n) ◇
+             |={∅|}=> ▷^(S n) ◇
                ⌜SeriesC (iterM (S n) prim_step_or_val (e1, σ2)) >= 1 - ε0⌝)%I)
             (ε2 (e1, σ2)))
           ⌜SeriesC (iterM (S n) prim_step_or_val (e1, σ2)) >= 1 - (ε2 (e1, σ2))⌝); [lia|].
         iSplitL "H"; [iApply "H"|].
         iIntros (l Hl) "Hst". assert (l = 0%nat) as -> by lia.
-        rewrite Nat.add_0_r. replace (S n - 0)%nat with (S n) by lia.
+        try rewrite Nat.add_0_r; replace (S n - 0)%nat with (S n) by lia.
         iDestruct (exec_stutter_compat_1 _ _ with "[] Hst") as "[%H'|H2]".
         { iIntros (εa εb Hle) "H %Hto".
           iSpecialize ("H" with "[//]").
-          iApply (hfupd_mono _ _ _ with "H").
+          iApply (hfupd_mono _ _ with "H").
           apply (laterN_except_0_pure_mono (S n)). intros Hge.
           apply Rle_ge. eapply Rle_trans; [|by apply Rge_le].
           apply Rplus_le_compat_l, Ropp_le_contravar. exact Hle. }
@@ -473,10 +563,12 @@ Section adequacy.
   Qed.
 
   Theorem wp_safety_hfupd k (ε : nonnegreal) (e : expr) (σ : state) n φ :
-    state_interp k σ ∗ err_interp ε ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
-    |={0; ⊤|}=> ▷^n ◇ ⌜SeriesC (pexec n (e, σ)) >= 1 - ε⌝.
+    (∀ m, num_laters_per_step m = 0%nat) →
+    £ n ∗ state_interp k σ ∗ err_interp ε ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
+    |={⊤|}=> ▷^n ◇ ⌜SeriesC (pexec n (e, σ)) >= 1 - ε⌝.
   Proof.
-    iInduction n as [|n] "IH" forall (k e σ ε); iIntros "(Hσ & Hε & Hwp)".
+    iIntros (Hnls).
+    iInduction n as [|n] "IH" forall (k e σ ε); iIntros "(Hlc & Hσ & Hε & Hwp)".
     - iApply hfupd_intro. simpl.
       rewrite /bi_except_0. iRight. iPureIntro.
       trans 1; last first.
@@ -497,26 +589,37 @@ Section adequacy.
         destruct ε as [ε ?]; simpl in *. apply Rle_ge. lra.
       + rewrite pgl_wp_unfold /pgl_wp_pre /= Heq.
         iSpecialize ("Hwp" $! k with "[$Hσ $Hε]").
+        iDestruct (lc_succ with "Hlc") as "[Hcred Hlc]".
         iApply (elim_fupd_hfupd_plain (S n) 0 ⊤ ∅ _
-          ⌜SeriesC (iterM (S n) prim_step_or_val (e, σ)) >= 1 - ε⌝); first lia.
-        iSplitL "Hwp"; [iApply "Hwp"|].
+          ⌜SeriesC (iterM (S n) prim_step_or_val (e, σ)) >= 1 - ε⌝
+          with "[$Hwp Hcred Hlc]"); first lia.
         iIntros (l Hl) "Hlift". assert (l = 0%nat) as -> by lia.
-        rewrite Nat.add_0_r. replace (S n - 0)%nat with (S n) by lia.
+        try rewrite Nat.add_0_r; replace (S n - 0)%nat with (S n) by lia.
         iPoseProof
-          (glm_mono _ (λ '(e2, σ2) ε2, |={0; ∅|}=> ▷^(S n) ◇
+          (glm_mono _ (λ '(e2, σ2) ε2, |={∅|}=> ▷^(S n) ◇
              ⌜SeriesC (iterM n prim_step_or_val (e2, σ2)) >= 1 - ε2⌝)%I
-            with "[%] [] Hlift") as "H".
+            with "[%] [Hcred Hlc] Hlift") as "H".
         { apply Rle_refl. }
-        { iIntros ([e' σ'] ε2) "H".
+        { iIntros ([e' σ'] ε') "H".
+          iSpecialize ("H" with "Hcred").
+          iApply (elim_fupd_hfupd_plain (S n) 0 ∅ ∅
+            (▷ |={∅,∅}=> |={∅,⊤}=>
+                (state_interp (S k) σ' ∗ err_interp ε' ∗
+                   WP e' {{ v, ⌜φ v⌝ }}))%I
+            ⌜SeriesC (iterM n prim_step_or_val (e', σ')) >= 1 - ε'⌝); first lia.
+          iSplitL "H"; [iApply "H"|].
+          iIntros (l' Hl') "H". assert (l' = 0%nat) as -> by lia.
+          try rewrite Nat.add_0_r; replace (S n - 0)%nat with (S n) by lia.
           iApply (laterN_hfupd 1). iNext.
           iApply (elim_fupd_hfupd_plain n 0 ∅ ⊤
-            (state_interp (S k) σ' ∗ err_interp ε2 ∗ WP e' {{ v, ⌜φ v⌝ }})%I
-            ⌜SeriesC (iterM n prim_step_or_val (e', σ')) >= 1 - ε2⌝); first lia.
-          iSplitL "H"; [iApply "H"|].
-          iIntros (l' Hl') "(Hσ' & Hε' & Hwp')".
-          assert (l' = 0%nat) as -> by lia.
-          rewrite Nat.add_0_r. replace (n - 0)%nat with n by lia.
-          iApply ("IH" $! (S k) with "[$Hσ' $Hε' $Hwp']"). }
+            (state_interp (S k) σ' ∗ err_interp ε' ∗ WP e' {{ v, ⌜φ v⌝ }})%I
+            ⌜SeriesC (iterM n prim_step_or_val (e', σ')) >= 1 - ε'⌝); first lia.
+          iSplitL "H".
+          { iMod "H". iMod "H". iModIntro. iExact "H". }
+          iIntros (l'' Hl'') "(Hσ' & Hε' & Hwp')".
+          assert (l'' = 0%nat) as -> by lia.
+          try rewrite Nat.add_0_r; replace (n - 0)%nat with n by lia.
+          iApply ("IH" $! (S k) with "[$Hlc $Hσ' $Hε' $Hwp']"). }
         by iApply (glm_erasure_safety with "H").
   Qed.
 
@@ -549,18 +652,19 @@ Proof.
   { iApply laterN_intro. iApply except_0_intro. iPureIntro.
     apply not_Rlt, Rge_le in Hcr.
     rewrite /pgl. intros. eapply Rle_trans; [apply prob_le_1|done]. }
-  iMod (hfupd_soundness HasLc 0 ⊤) as (Hinv) "(_ & Hhfupd)".
-  iApply "Hhfupd".
+  apply (fupd_finally_soundness HasLc n ⊤).
+  iIntros (Hinv) "Hlc".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (Hec) "[Hs Hf]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   change ε with (nonneg ε').
-  iPoseProof (wp_refRcoupl_hfupd O ε' e σ n φ) as "H".
+  iPoseProof (wp_refRcoupl_hfupd O ε' e σ n φ (λ _, eq_refl)
+                with "[Hlc Hs Hh Ht Hf]") as "H".
+  { iFrame "Hlc Hs". rewrite /state_interp /=. iFrame "Hh Ht".
+    iApply Hwp. iApply "Hf". }
   iApply "H".
-  iFrame "Hs". rewrite /state_interp /=. iFrame "Hh Ht".
-  iApply Hwp. iApply "Hf".
 Qed.
 
 Lemma pgl_closed_lim (e : expr) (σ : state) (ε : R) φ :
@@ -613,18 +717,19 @@ Proof.
     trans 0%R; last first.
     { lra. }
     apply Rle_ge, SeriesC_ge_0'. intros. auto. }
-  iMod (hfupd_soundness HasLc 0 ⊤) as (Hinv) "(_ & Hhfupd)".
-  iApply "Hhfupd".
+  apply (fupd_finally_soundness HasLc n ⊤).
+  iIntros (Hinv) "Hlc".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   set ε' := mknonnegreal _ Hε.
   iMod (ec_alloc ε') as (Hec) "[Hs Hf]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   change ε with (nonneg ε').
-  iPoseProof (wp_safety_hfupd O ε' e σ n φ) as "H".
+  iPoseProof (wp_safety_hfupd O ε' e σ n φ (λ _, eq_refl)
+                with "[Hlc Hs Hh Ht Hf]") as "H".
+  { iFrame "Hlc Hs". rewrite /state_interp /=. iFrame "Hh Ht".
+    iApply Hwp. iApply "Hf". }
   iApply "H".
-  iFrame "Hs". rewrite /state_interp /=. iFrame "Hh Ht".
-  iApply Hwp. iApply "Hf".
 Qed.
 
 Lemma pexec_safety_relate (e:expr) σ n:

@@ -36,6 +36,7 @@ Program Global Instance erisGS_erisWpGS `{!erisGS Σ} : erisWpGS prob_lang Σ :=
   erisWpGS_invGS := erisGS_invG;
   state_interp _ σ := (heap_auth (DfracOwn 1) σ.(heap) ∗ tapes_auth (DfracOwn 1) σ.(tapes))%I;
   err_interp ε := (ec_supply ε);
+  num_laters_per_step _ := 0;
 }.
 Next Obligation. auto. Qed.
 

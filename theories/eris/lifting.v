@@ -22,7 +22,9 @@ Lemma wp_lift_step_fupd_glm E Φ e1 s :
     state_interp n σ1 ∗ err_interp ε1
     ={E,∅}=∗
     glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
-      ▷ |={∅,E}=> state_interp (S n) σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
+      £ (S (num_laters_per_step n))
+      ={∅}▷=∗^(S (num_laters_per_step n)) |={∅,E}=>
+      state_interp (S n) σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   by rewrite pgl_wp_unfold /pgl_wp_pre =>->.
@@ -45,22 +47,20 @@ Proof.
   iIntros (n σ1 ε) "[Hσ Hε]".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
   iApply (glm_prim_step e1 σ1).
-  iExists _.
-  iExists nnreal_zero.
-  iExists ε.
+  iExists _, nnreal_zero, ε.
+  iSplit; [done|].
+  iSplit; [iPureIntro; simpl; lra|].
   iSplit.
-  { iPureIntro. simpl. done. }
-  iSplit.
-  { iPureIntro. simpl. lra. }
-  iSplit.
-  { iPureIntro.
-    eapply pgl_pos_R, pgl_trivial.
-    simpl; lra.
-  }
+  { iPureIntro. eapply pgl_pos_R, pgl_trivial. simpl; lra. }
   iIntros (e2 σ2 (?&?)).
-  iMod ("H" with "[//]")as "H".
-  iIntros "!> !>".
-  by iMod "H" as "[$ $]".
+  iMod ("H" with "[//]") as "H".
+  iModIntro. iIntros "_".
+  (* H : ▷ |={∅,E}=> state_interp (S n) σ2 ∗ wp E e2 Φ *)
+  (* Goal: |={∅}▷=>^(S (num_laters_per_step n))
+            (|={∅,E}=> state_interp (S n) σ2 ∗ err_interp ε ∗ wp E e2 Φ) *)
+  iApply (step_fupdN_le 1 (S (num_laters_per_step n))); [lia|done|].
+  iApply step_fupdN_intro; [done|]. simpl.
+  iNext. iMod "H" as "[Hσ' Hwp]". iModIntro. iFrame.
 Qed.
 
 (** Derived lifting lemmas. *)

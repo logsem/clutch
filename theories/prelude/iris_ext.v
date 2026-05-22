@@ -29,19 +29,12 @@ Section fupd.
 
   Lemma step_fupdN_soundness_no_lc `{!invGpreS Σ} (P : iProp Σ) `{!Plain P} n m :
     (∀ `{Hinv : !invGS_gen HasNoLc Σ}, £ m ={⊤,∅}=∗ |={∅}▷=>^n P) → ⊢ P.
-  Proof.
-    intros Hiter.
-    apply (laterN_soundness _ (S (m + n))).
-    rewrite laterN_later -except_0_into_later.
-    iMod (hfupd_soundness HasNoLc m ⊤) as (Hinv) "(Hlc & Hhfupd)".
-    iPoseProof (Hiter Hinv with "Hlc") as "Hupd".
-    iApply "Hhfupd".
-    iHFupdElimFupd "Hupd" as "Hupd"; first lia.
-    iApply (elim_step_fupdN_hfupd_plain (m - _) (m + n - _) n ∅ P P); [lia|].
-    iSplitL "Hupd"; [iApply "Hupd"|].
-    iIntros (l Hl) "HP". iApply hfupd_intro. iApply laterN_intro.
-    by iApply except_0_intro.
-  Qed.
+  Proof. intros HP. by apply (step_fupdN_soundness HasNoLc n m P). Qed.
+
+  Lemma step_fupdN_soundness_lc `{!invGpreS Σ} (P : iProp Σ) `{!Plain P} n m :
+    (∀ `{Hinv : !invGS_gen HasLc Σ}, £ m ={⊤,∅}=∗ |={∅}▷=>^n P) → ⊢ P.
+  Proof. intros HP. by apply (step_fupdN_soundness HasLc n m P). Qed.
+
 End fupd.
 
 (* TODO: upstream? *)

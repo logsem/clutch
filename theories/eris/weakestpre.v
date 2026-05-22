@@ -1,6 +1,6 @@
 From Stdlib Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode.
-From iris.base_logic.lib Require Export fancy_updates.
+From iris.base_logic.lib Require Export fancy_updates later_credits.
 From iris.bi Require Export lib.fixpoint_mono big_op.
 From iris.prelude Require Import options.
 
@@ -24,6 +24,7 @@ Class erisWpGS (Λ : language) (Σ : gFunctors) := ErisWpGS {
   erisWpGS_invGS :: invGS_gen HasLc Σ;
   state_interp : nat → state Λ → iProp Σ;
   err_interp : nonnegreal → iProp Σ;
+  num_laters_per_step : nat → nat;
   state_interp_mono ns σ :
     state_interp ns σ ⊢ |={∅}=> state_interp (S ns) σ;
 }.
@@ -687,7 +688,9 @@ Definition pgl_wp_pre `{!erisWpGS Λ Σ}
   | None => ∀ n σ1 ε1,
       state_interp n σ1 ∗ err_interp ε1 ={E,∅}=∗
       glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
-        ▷ |={∅,E}=> state_interp (S n) σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
+        £ (S (num_laters_per_step n))
+        ={∅}▷=∗^(S (num_laters_per_step n)) |={∅,E}=>
+        state_interp (S n) σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
 end%I.
 
 Local Instance wp_pre_contractive `{!erisWpGS Λ Σ} : Contractive (pgl_wp_pre).
@@ -697,7 +700,10 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros Ψ [[e' σ'] ε']. rewrite /glm_pre.
   do 17 f_equiv.
-  { rewrite /exec_stutter. do 10 f_equiv. f_contractive. do 3 f_equiv. apply Hwp. }
+  rewrite /exec_stutter. do 14 (f_contractive || f_equiv).
+  (* Strip [£ _ -∗] and step through the [step_fupdN] iteration. *)
+  induction num_laters_per_step as [|k IHk]; simpl; last by rewrite -IHk.
+  repeat (f_contractive || f_equiv); apply Hwp.
 Qed.
 
 
@@ -736,9 +742,11 @@ Proof.
   intros ? [[]?]. rewrite /glm_pre.
   do 16 f_equiv.
   rewrite /exec_stutter.
-  do 11 f_equiv. f_contractive_fin.
+  do 11 f_equiv. do 1 f_equiv.
+  induction num_laters_per_step as [|k IHk]; simpl; last by rewrite IHk.
+  f_equiv. f_contractive_fin. do 4 f_equiv.
   rewrite IH; [done|lia|].
-  intros ?. eapply dist_S, HΦ. 
+  intros ?. eapply dist_S, HΦ.
 Qed.
 
 Global Instance pgl_wp_proper s E e :
@@ -755,7 +763,9 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /glm_pre.
   do 16 f_equiv.
-  rewrite /exec_stutter. do 11 f_equiv. f_contractive. do 6 f_equiv.
+  rewrite /exec_stutter. do 14 (f_contractive || f_equiv).
+  induction num_laters_per_step as [|k IHk]; simpl; last by rewrite IHk.
+  by do 6 (f_contractive || f_equiv).
 Qed.
 
 Lemma pgl_wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
@@ -773,8 +783,10 @@ Proof.
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   iMod ("H" with "[$]") as "H".
   iApply (glm_mono_pred with "[Hclose HΦ] H").
-  iIntros ([e2 σ2]?) "H".
-  iModIntro.
+  iIntros ([e2 σ2]?) "H Hcred".
+  iSpecialize ("H" with "Hcred").
+  iApply (step_fupdN_wand with "H").
+  iIntros "!> H".
   iMod "H" as "(?&?& Hwp)". iFrame.
   iMod "Hclose" as "_". iModIntro.
   iApply ("IH" with "[] Hwp"); auto.
@@ -800,16 +812,29 @@ Proof.
   iMod ("H" with "[Hσ Hε]") as "H"; [iFrame|].
   iMod "H"; iModIntro.
   iApply (glm_strong_mono with "[] [] H"); [done|].
-  iIntros (e2 σ2 ε2) "([%σ' %Hstep]&H)".
-  iNext.
+  iIntros (e2 σ2 ε2) "([%σ' %Hstep]&H) Hcred".
+  iSpecialize ("H" with "Hcred").
+  iApply (step_fupdN_wand with "H").
+  iIntros "H".
   iMod "H" as "(Hσ&Hε&Hwp)".
   rewrite !pgl_wp_unfold /pgl_wp_pre.
   destruct (to_val e2) as [?|] eqn:He2.
   + iFrame. do 2 (iMod "Hwp"). by do 2 iModIntro.
-  + iMod ("Hwp" $! _ _ with "[Hσ Hε]") as "Hwp"; [iFrame|].
+  + iMod ("Hwp" $! _ _ _ with "[Hσ Hε]") as "Hwp"; [iFrame|].
     specialize (atomic _ _ _ Hstep) as Hatomic. (* key step *)
     destruct Hatomic.
     congruence. (* how do we do this "by hand"? Not obvious to me *)
+Qed.
+
+(** Helper: a ▷ on R can be absorbed by an [S n]-step [step_fupdN], with
+    R appearing un-laterised inside. *)
+Lemma step_fupdN_later_frame_l `{!erisWpGS Λ Σ} Eo Ei n (R Q : iProp Σ) :
+  ▷ R ∗ (|={Eo}[Ei]▷=>^(S n) Q) ⊢ |={Eo}[Ei]▷=>^(S n) (R ∗ Q).
+Proof.
+  iIntros "[HR HQ]".
+  simpl. iMod "HQ". iModIntro. iNext.
+  iMod "HQ". iModIntro.
+  iApply step_fupdN_frame_l. iFrame.
 Qed.
 
 Lemma pgl_wp_step_fupd s E1 E2 e P Φ :
@@ -821,12 +846,16 @@ Proof.
   iMod ("H" with "[$Hσ $Hε]") as "H".
   iModIntro.
   iApply (glm_mono_pred with "[HR] H").
-  iIntros ([e2 σ2] ?) "H".
-  iModIntro.
-  iMod "H" as "(Hσ & Hρ & H)".
+  iIntros ([e2 σ2] ?) "H Hcred".
+  iSpecialize ("H" with "Hcred").
+  iCombine "HR H" as "H".
+  rewrite step_fupdN_later_frame_l.
+  iApply (step_fupdN_wand with "H").
+  iIntros "[HR H]".
+  iMod "H" as "(Hσ & Hρ & Hwp)".
   iMod "HR".
   iFrame "Hσ Hρ".
-  iApply (pgl_wp_strong_mono E2 with "H"); [done..|].
+  iApply (pgl_wp_strong_mono E2 with "Hwp"); [done..|].
   iIntros "!>" (v) "H". by iApply "H".
 Qed.
 
@@ -843,9 +872,10 @@ Proof.
   iApply glm_bind; [done |].
   iApply (glm_mono with "[] [] H").
   - iPureIntro; lra.
-  - iIntros ([e2 σ2] ?) "H".
-    iModIntro.
-    iMod "H" as "(Hσ & Hρ & H)".
+  - iIntros ([e2 σ2] ?) "H Hcred".
+    iSpecialize ("H" with "Hcred").
+    iApply (step_fupdN_wand with "H").
+    iIntros "!> H". iMod "H" as "(Hσ & Hρ & H)".
     iModIntro.
     iFrame "Hσ Hρ". by iApply "IH".
 Qed.

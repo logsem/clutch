@@ -22,7 +22,9 @@ Lemma wp_lift_head_step_fupd_couple {E Φ} e1 s :
     ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
     glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
-      ▷ |={∅,E}=> state_interp (S n) σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
+      £ (S (num_laters_per_step n))
+      ={∅}▷=∗^(S (num_laters_per_step n)) |={∅,E}=>
+      state_interp (S n) σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H". iApply wp_lift_step_fupd_glm; [done|].

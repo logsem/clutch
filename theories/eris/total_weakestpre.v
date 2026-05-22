@@ -226,13 +226,20 @@ Section tgl_wp.
   Lemma tgl_wp_pgl_wp s E e Φ : WP e @ s; E [{ Φ }] -∗ WP e @ s; E {{ Φ }}.
   Proof.
     iIntros "H". iLöb as "IH" forall (E e Φ).
-    rewrite pgl_wp_unfold tgl_wp_unfold /pgl_wp_pre /tgl_wp_pre. destruct (to_val e) as [v|]=>//=.
+    rewrite pgl_wp_unfold tgl_wp_unfold /pgl_wp_pre /tgl_wp_pre.
+    destruct (to_val e) as [v|]=>//=.
     iIntros (n σ1 ε) "[Hσ Hε]". iMod ("H" with "[$Hσ $Hε]") as "H".
     iIntros "!>".
     iApply glm_mono_pred; last iFrame.
-    iIntros ([e' s'] ε').
-    iIntros "H". iNext. iMod "H" as "[?[?H]]".
-    iModIntro. iFrame. iApply "IH". done.
+    iIntros ([e' s'] ε') "H _".
+    (* Goal: step_fupdN (S _) (|={∅,E}=> state_interp ∗ err_interp ∗ pgl_wp).
+       H : |={∅,E}=> state_interp ∗ err_interp ∗ tgl_wp.
+       Use [step_fupdN_le 0 _] (since 0 ≤ S _) to weaken the trivial
+       [step_fupdN 0 P = P] to [step_fupdN (S _) P]. *)
+    iApply (step_fupdN_le 1 (S (num_laters_per_step n))); [lia|done|].
+    iApply step_fupdN_intro; [done|]. simpl.
+    iNext.
+    iMod "H" as "(? & ? & H)". iModIntro. iFrame. by iApply "IH".
   Qed.
 
   Lemma tgl_wp_pgl_wp' E e Φ : WP e @ E [{ Φ }] -∗ WP e @ E {{ Φ }}.
