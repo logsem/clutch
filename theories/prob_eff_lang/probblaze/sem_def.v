@@ -167,12 +167,6 @@ Definition iLblSig Σ : Type := list (list label * list label * sem_sig Σ).
 Definition iLblSig_to_iLblThy {Σ} (s : iLblSig Σ) : iLblThy Σ :=
   map (fun '(l1, l2, ss) => (l1, l2, pmono_prot_car (sem_sig_car ss))) s.
 
-Global Instance iLblSig_to_iLblThy_proper {Σ} : Proper ((≡) ==> (≡)) (@iLblSig_to_iLblThy Σ).
-Proof. Admitted.
-
-Global Instance iLblSig_to_iLblThy_ne {Σ} : NonExpansive (@iLblSig_to_iLblThy Σ).
-Proof. Admitted.
-
 Lemma in_iLblSig {Σ} (s : iLblSig Σ) (X : iThy Σ) l1s l2s:
   (l1s, l2s, X) ∈ iLblSig_to_iLblThy s → ∃ ss : sem_sig Σ, X = ss.
 Proof. 
@@ -213,57 +207,445 @@ Section sem_row_cofe.
   Context {Σ : gFunctors}.
 
   Global Instance sem_row_equiv : Equiv (sem_row Σ) := λ ρ1 ρ2, iLblSig_to_iLblThy (sem_row_car ρ1) ≡ iLblSig_to_iLblThy (sem_row_car ρ2).
-  Global Instance sem_row_dist : Dist (sem_row Σ) := λ n ρ1 ρ2, take n (iLblSig_to_iLblThy (sem_row_car ρ1)) ≡{n}≡ take n (iLblSig_to_iLblThy (sem_row_car ρ2)).
+  Global Instance sem_row_dist : Dist (sem_row Σ) := 
+    λ n ρ1 ρ2, 
+      match n with
+      | 0 => True
+      | S m => iLblSig_to_iLblThy (sem_row_car ρ1) ≡{n}≡ iLblSig_to_iLblThy (sem_row_car ρ2)
+      end.
   Global Instance iLblSig_equiv : Equiv (iLblSig Σ) := λ ρ1 ρ2, iLblSig_to_iLblThy ρ1 ≡ iLblSig_to_iLblThy ρ2.
-  Global Instance iLblSig_dist : Dist (iLblSig Σ) := λ n ρ1 ρ2, take n (iLblSig_to_iLblThy ρ1) ≡{n}≡ take n (iLblSig_to_iLblThy ρ2).
+  Global Instance iLblSig_dist : Dist (iLblSig Σ) := 
+    λ n ρ1 ρ2, 
+      match n with
+      | 0 => True
+      | S m => (iLblSig_to_iLblThy ρ1) ≡{n}≡ (iLblSig_to_iLblThy ρ2)
+      end. 
+
+  Global Instance iLblSig_to_iLblThy_proper : Proper ((≡) ==> (≡)) iLblSig_to_iLblThy.
+  Proof. solve_proper. Qed.
+
+  Lemma iLblSig_to_iLblThy_ne_1 : ∀ n, 1 ≤ n → Proper (dist n ==> dist n) iLblSig_to_iLblThy.
+  Proof.
+    intros ? Hlt X Y Heq.
+    destruct n; first inversion Hlt.
+    done.
+  Qed. 
 
   Lemma iLblSig_ofe_mixin : OfeMixin (iLblSig Σ).
   Proof.
     split.
-    - intros ??. split; intros ?.
-      + intros ?. unfold dist. unfold iLblSig_dist.
-        unfold equiv in H. unfold iLblSig_equiv in H.
-        unfold equiv in H. unfold listO in H. 
-        unfold ofe_equiv in H. rewrite H. done.
-      + unfold equiv. unfold iLblSig_equiv. apply listO.
+    - intros ??. split; intros Heq.
+      + intros ?. unfold dist, iLblSig_dist.
+        destruct n; first done.
+        by apply listO.
+      + apply listO.
         intros n. 
-        set (m := n `max` (length (iLblSig_to_iLblThy x) `max` length (iLblSig_to_iLblThy y))).
-        specialize  H with m. 
-        unfold dist in H. unfold iLblSig_dist in H.
-        rewrite firstn_all2 in H. 2 : { etransitivity; [apply Nat.le_max_l|apply Nat.le_max_r]. } 
-        rewrite firstn_all2 in H. 2 : { etransitivity; [apply Nat.le_max_r|apply Nat.le_max_r]. } 
+        set (m := n `max` 1).
+        specialize Heq with m. 
+        unfold dist,iLblSig_dist in Heq. 
+        assert (∃ m', m = S m') as (m'&Hm). 
+        { destruct n; eexists; unfold m; [by rewrite Nat.max_0_l|by rewrite Nat.max_l; last lia]. }
+        rewrite Hm in Heq.
         eapply dist_le; first done.
-        apply Nat.le_max_l.
-    - intros ?. split.
-      + intros ?. apply Forall2_take. done.
+        rewrite -Hm. apply Nat.le_max_l.
+    - intros n. split.
+      + intros ?. destruct n; first done. by apply listO. 
       + intros ?? Heq. 
-        unfold dist in *. unfold iLblSig_dist in *. done.
-      + intros ??? Heq1 Heq2. unfold dist in *. unfold iLblSig_dist in *. 
+        unfold dist, iLblSig_dist in *. destruct n; done. 
+      + intros ??? Heq1 Heq2. unfold dist, iLblSig_dist in *. 
+        destruct n; first done.
         eapply transitivity; done.
-    - intros ???? Heq Hlt.
-      apply (Forall2_take _ _ _ m) in Heq.
-      rewrite !take_take in Heq. rewrite min_l in Heq; last done. 
-      by eapply dist_le.
+    - intros n m ?? Heq Hlt.
+      destruct n.
+      + apply SIdx.le_0_r in Hlt. by subst. 
+      + destruct m; first done.
+        by eapply dist_le.
   Qed.
-
-  Canonical Structure iLblSigO := Ofe (iLblSig Σ) iLblSig_ofe_mixin.
   
+  Canonical Structure iLblSigO := Ofe (iLblSig Σ) iLblSig_ofe_mixin.
+ 
   Lemma sem_row_ofe_mixin : OfeMixin (sem_row Σ).
   Proof. by apply (iso_ofe_mixin sem_row_car). Qed.
   Canonical Structure sem_rowO := Ofe (sem_row Σ) sem_row_ofe_mixin.
-  Global Instance sem_row_cofe : Cofe sem_rowO.
+  
+   Lemma iLblSig_to_iLblThy_proj c Hpersc :
+       iLblSig_to_iLblThy {| sem_row_car := c; sem_row_mono := Hpersc |} = @iLblSig_to_iLblThy Σ c. 
+  Proof. 
+    done.
+  Qed. 
+   
+  Lemma iLblSig_to_iLblThy_tail_comm (ρ : iLblSig Σ) : 
+    iLblSig_to_iLblThy (tail ρ) = tail (@iLblSig_to_iLblThy Σ ρ).
+  Proof. 
+    by destruct ρ.
+  Qed. 
+
+  Lemma sem_row_car_proj c Hpersc : 
+    @sem_row_car Σ {| sem_row_car := c; sem_row_mono := Hpersc |} = c. 
+  Proof. done. Qed.
+
+  Lemma sem_row_car_ne_1 : 
+    ∀ n, 1 ≤ n → Proper (dist n ==> list_dist n) sem_row_car.
   Proof.
-    (* apply (iso_cofe_subtype' (λ Ψ, ⊢ sem_row_val_prop (to_iThy Ψ)) (@SemRow _ _) sem_row_car)=> //.
-       - by intros [].
-       - apply bi.limit_preserving_emp_valid.
-         intros ????. rewrite /sem_row_val_prop. 
-         do 6 f_equiv. apply non_dep_fun_dist.  *)
-  Admitted. 
+    intros ? Hlt X Y Heq.
+    destruct n; first inversion Hlt. 
+    unfold dist,sem_row_dist,list_dist in *.
+    generalize dependent (sem_row_car Y). clear Y.
+    induction (sem_row_car X) as [| ((xs1,xs2),x) xs] => Y Heq;
+    destruct Y as [| ((ys1,ys2),y) ys]; first done; inversion Heq; subst.
+    constructor.
+    - done.
+    - by apply IHxs.
+  Qed. 
+
+  Lemma iLblSig_to_iLblThy_nil (ρ : sem_row Σ): 
+    iLblSig_to_iLblThy ρ = [] → sem_row_car ρ = [].
+  Proof.
+    intros. destruct ρ.
+    rewrite sem_row_car_proj. rewrite iLblSig_to_iLblThy_proj in H. destruct sem_row_car0; done.
+  Qed.   
+  Lemma iLblSig_to_iLblThy_nil_sig (ρ : iLblSig Σ): 
+    iLblSig_to_iLblThy ρ = [] → ρ = [].
+  Proof.
+    by destruct ρ.    
+  Qed.    
+
+  Program Definition sem_row_tail_chain (c : chain sem_rowO) : chain (listO (prodO (prodO (listO labelO) (listO labelO)) (sem_sig Σ))) := 
+    {| chain_car := λ i, sem_row_car (c (i + 1%nat)%nat) |}.
+  Next Obligation.
+    intros c n m Hlt. simpl.
+    assert (chain_car c (m + 1)%nat ≡{(n + 1)%nat}≡ chain_car c (n + 1)%nat) as Heq.
+    { apply chain_cauchy. simpl in *. lia. }
+    unfold dist, sem_row_dist in Heq. assert ((n + 1)%nat = S n) as HSn by lia.
+    rewrite HSn in Heq.
+    eapply dist_le in Heq; [|apply Nat.le_succ_diag_r]. 
+    rewrite HSn.
+    generalize dependent (sem_row_car (chain_car c (S n))).
+    induction (sem_row_car (chain_car c (m + 1)%nat)) as [|((ls1,ls2), x) xs IH] => Y Heq;
+        destruct Y as [|((ls1',ls2'),y) ys]; first done; inversion Heq.
+    subst. 
+    by constructor; last by apply IH.
+  Qed. 
+
+  Program Definition sem_row_list_bchain {n} (c : bchain sem_rowO n) : bchain (listO (prodO (prodO (listO labelO) (listO labelO)) (sem_sig Σ))) n := 
+    {| bchain_car := 
+        λ i Hlt, match n with
+                 | 0 => sem_row_car (c i Hlt)
+                 | 1%nat => sem_row_car (c i Hlt)
+                 | S (S n') =>  
+                     match i with
+                     | 0 => sem_row_car (c 1%nat _)
+                     | S i' => sem_row_car (c i Hlt)
+                     end 
+                 end |}.
+  Next Obligation.
+    intros n c m Hlt n' <- _. simpl; lia.
+  Qed.
+  Next Obligation.
+    simpl. intros n c m p Hm Hp Hlt.
+    destruct n; first inversion Hm.
+    destruct n.
+    { assert (p = m) as -> by lia. f_equiv. by assert (Hp = Hm) as -> by apply make_proof_irrel. }
+    destruct p.
+    { assert (m = 0%nat) as -> by lia. f_equiv. by assert (Hp = Hm) as -> by apply make_proof_irrel. }
+    destruct m.
+    { assert (bchain_car _ c (S p) Hp ≡{ 1%nat }≡ bchain_car _ c 1%nat (sem_row_list_bchain_obligation_1 (S (S n)) c 0%nat Hm n eq_refl eq_refl)) as Heq.
+      - apply bchain_cauchy; simpl; lia.
+      - apply sem_row_car_ne_1 in Heq; last done.
+        eapply dist_le; first done; simpl; lia. }
+    apply sem_row_car_ne_1; first lia.
+    apply bchain_cauchy; simpl; lia.
+  Qed.   
+  
+  (* Lemma compl_tail_chain c : compl (sem_row_tail_chain c) = sem_row_car (compl c). *)
+  
+  Global Instance default_head_ne (x : list label * list label * iThy Σ) : NonExpansive (default x ∘ head).
+  Proof. solve_contractive. Qed.
+
+  (* Global Instance default_head_lbl_ne (x : list label * list label * sem_sig Σ) : NonExpansive (default x ∘ head ∘ sem_row_car).
+     Proof. Admitted.
+     (*   intros ? X Y Heq. simpl. 
+          destruct X, Y. rewrite !sem_row_car_proj.
+          destruct sem_row_car0, sem_row_car1.
+          - done.
+          - simpl. unfold dist,prodO, ofe_dist. admit.
+          - admit.
+          - simpl. unfold dist, sem_row_dist in Heq. 
+        Admitted.  *) *)
+    
+  Program Definition tail_sem_row:= λne ρ, @SemRow Σ (tail (sem_row_car ρ)) _.
+  Next Obligation.
+    intros ρ. 
+    iIntros (????) "#H1 % % % (%Hin & H2)". iSplit; first done.
+    iDestruct "H2" as "(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)".
+    iExists _,_,_,_,_. repeat (iSplit; first done).
+    iIntros (??) "!# HS". iApply "H1". by iApply "Hcont".
+  Qed. 
+  Next Obligation.
+    intros ? X Y Heq.
+    unfold dist, sem_rowO in *. destruct n; first done.
+    unfold ofe_dist, sem_row_dist. 
+    rewrite !iLblSig_to_iLblThy_proj. 
+    rewrite !iLblSig_to_iLblThy_tail_comm. by f_equiv.
+  Qed. 
+
+  #[refine] Fixpoint sem_row_compl_go (c1 : iLblSig Σ) (c : chain sem_rowO) : sem_rowO :=
+    match c1 with
+    | [] => @SemRow Σ [] _
+    | x :: cs => @SemRow Σ (compl (chain_map (default x ∘ head) (sem_row_tail_chain c)) ::
+                              sem_row_car (sem_row_compl_go cs (chain_map tail_sem_row c))) _
+    end.
+  Proof.
+    - iIntros (????) "_ %%% (%Hcontra&_)". inversion Hcontra.
+    - iIntros (????) "#H1 % % % (%Hin & H2)". iSplit; first done.
+      iDestruct "H2" as "(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)".
+      iExists _,_,_,_,_. repeat (iSplit; first done).
+      iIntros (??) "!# HS". iApply "H1". by iApply "Hcont".
+  Defined. 
+  
+  #[refine] Fixpoint sem_row_lbcompl_go  (c1 : iLblSig Σ) {n} Hn (c : bchain sem_rowO n) : sem_rowO :=
+    match c1 with
+    | [] => @SemRow Σ [] _
+    | x :: cs => @SemRow Σ (lbcompl Hn (bchain_map (default x ∘ head) (sem_row_list_bchain c)) ::
+                              sem_row_car (sem_row_lbcompl_go cs Hn (bchain_map tail_sem_row c))) _
+    end.
+  Proof.
+    - iIntros (????) "_ %%% (%Hcontra&_)". inversion Hcontra.
+    - iIntros (????) "#H1 % % % (%Hin & H2)". iSplit; first done.
+      iDestruct "H2" as "(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)".
+      iExists _,_,_,_,_. repeat (iSplit; first done).
+      iIntros (??) "!# HS". iApply "H1". by iApply "Hcont".
+  Defined. 
+
+  Lemma n_Sm_SSn m n : (S m < n)%nat → ∃ n', n = S (S n').
+  Proof.
+    intros H. 
+    destruct n as [|n]; [lia|].
+    destruct n as [|n']; [lia|].
+    by exists n'.
+  Qed.
+
+  Global Program Instance sem_row_cofe : Cofe sem_rowO := {
+  compl c := sem_row_compl_go (sem_row_car (c 1%nat)) c;
+  lbcompl n Hn c := sem_row_lbcompl_go (sem_row_car (c 1%nat _)) Hn c
+}.
+  Next Obligation. 
+    intros n Hlm Hbc. 
+    apply SIdx.limit_gt_S; first done.
+    by apply SIdx.limit_lt_0.
+  Qed. 
+  Next Obligation.
+    intros n c; simpl. destruct n; first done.
+    assert (c 1%nat ≡{1%nat}≡ c (S n)) as Hc1. 
+    { symmetry. apply chain_cauchy. rewrite -SIdx.succ_le_mono. apply SIdx.le_0_l. }
+    unfold dist,sem_rowO,ofe_dist,sem_row_dist in Hc1.
+    revert Hc1. generalize (c 1%nat)=> c1. revert c.
+    destruct c1 as (c1&Hpersc1). 
+    rewrite iLblSig_to_iLblThy_proj sem_row_car_proj. clear Hpersc1.
+    induction c1 as [|x c1 IH]=> c Hc1 /=.
+    (* c 1 is [] *)
+    { inversion Hc1; simplify_eq. unfold dist, sem_rowO, ofe_dist, sem_row_dist. by rewrite -H. } 
+    unfold dist, sem_rowO, ofe_dist, sem_row_dist in *.
+    simpl in *. 
+
+    apply symmetry, cons_dist_eq in Hc1 as (x' & xs' & Hx & Hc1 & Hcn). 
+    rewrite Hcn. f_equiv.
+    - transitivity ((default x (head (sem_row_car (chain_car c (S (n)))))).1.1,
+                      (default x (head (sem_row_car (chain_car c (S (n)))))).1.2,
+                        pmono_prot_car (sem_sig_car (default x (head (sem_row_car (chain_car c (S (n)))))).2)).
+      { etransitivity.  
+        - by rewrite !conv_compl.
+        - simpl. f_equiv; do 5 f_equiv; (eapply sem_row_car_ne_1; first lia); by (rewrite chain_cauchy; last (simpl; lia)). }
+      rewrite /chain_map //=. destruct x' as ((ls1, ls2), X). 
+      destruct (sem_row_car (c (S n))) as [|((ls1', ls2'), X') cs]; first inversion Hcn. simpl in Hcn.
+      inversion Hcn. simplify_eq. done.
+    - rewrite IH /chain_map /= ?Hcn //;  rewrite iLblSig_to_iLblThy_proj iLblSig_to_iLblThy_tail_comm Hcn //=.
+  Qed. 
+  Next Obligation.
+    intros n Hn c m Hm; simpl. destruct m; first done.
+    assert (1%nat < n)%sidx as Hlt. { eapply Nat.le_lt_trans; last done. lia. }
+    assert (c 1%nat (sem_row_cofe_obligation_1 n Hn) ≡{1%nat}≡ c (S m) Hm) as Hc1. 
+    { symmetry. apply bchain_cauchy. rewrite -SIdx.succ_le_mono. apply SIdx.le_0_l. }
+    unfold dist,sem_rowO,ofe_dist,sem_row_dist in Hc1.
+    revert Hc1. generalize (c 1%nat (sem_row_cofe_obligation_1 n Hn))=> c1. revert c.
+    destruct c1 as (c1&Hpersc1). 
+    rewrite iLblSig_to_iLblThy_proj. rewrite sem_row_car_proj. clear Hpersc1.
+    induction c1 as [|x c1 IH]=> c Hc1 /=.
+    (* c 1 is [] *)
+    { inversion Hc1; simplify_eq. unfold dist, sem_rowO, ofe_dist, sem_row_dist. by rewrite -H. } 
+    unfold dist, sem_rowO, ofe_dist, sem_row_dist in *.
+    simpl in *.
+    
+    apply symmetry, cons_dist_eq in Hc1 as (x' & xs' & Hx & Hc1 & Hcn). 
+    rewrite Hcn. f_equiv.
+    - unshelve rewrite !conv_lbcompl; try done.
+      rewrite /bchain_map //=. destruct x' as ((ls1, ls2), X).
+      destruct (sem_row_car (c (S m) Hm)) as [|((ls1', ls2'), X') cs]; first inversion Hcn. 
+      inversion Hcn. simplify_eq.
+      assert (∃ n', n = S (S n')) as (n'&->) by (eapply n_Sm_SSn; done). 
+      simpl. done.
+    - rewrite IH /chain_map /= ?Hcn //;  rewrite iLblSig_to_iLblThy_proj iLblSig_to_iLblThy_tail_comm Hcn //=.
+  Qed.
+  (* Sorry about the proof *)
+  Next Obligation.
+    intros n Hn c1 c2 m Hc; simpl.    
+    specialize (Hc _ (sem_row_cofe_obligation_1 n Hn)) as Heq.
+    move: Heq. generalize (c1 1%nat (sem_row_cofe_obligation_1 n Hn)) as c0 => c0.
+    generalize (c2 1%nat (sem_row_cofe_obligation_1 n Hn)) as d0 => d0 Heq.
+    destruct m; first done. 
+    unfold dist, sem_rowO, ofe_dist,sem_row_dist in Heq.
+    unfold dist,listO,ofe_dist,list_dist in Heq. 
+    destruct d0. rewrite sem_row_car_proj.
+    rewrite iLblSig_to_iLblThy_proj in Heq. clear sem_row_mono0.
+    generalize dependent sem_row_car0. 
+    generalize dependent c1. generalize dependent c2.
+    induction (sem_row_car c0) => c2 c1 Hc d0 Heq.
+    - apply Forall2_nil_inv_l in Heq as Hnil.
+      apply iLblSig_to_iLblThy_nil_sig in Hnil as ->.
+      done.
+    - apply Forall2_cons_inv_l in Heq as (a'&i'&Heq&Hforall&Hd0).
+      unfold dist,sem_rowO,ofe_dist,sem_row_dist. simpl in *.
+      destruct d0; first inversion Hd0.
+      simpl. f_equiv. 
+      + f_equiv.
+        * f_equiv.
+          -- apply lbcompl_ne => γ Hγ //=.
+             do 3 f_equiv.
+             ++ inversion Hd0.  destruct a,p. destruct p,p0. rewrite -H0 in Heq. done.
+             ++ f_equiv.
+                destruct n.
+                ** apply sem_row_car_ne_1; first lia.
+                   specialize Hc with (p := γ) (Hp := Hγ).
+                   destruct (c1 γ Hγ), (c2 γ Hγ). 
+                   unfold dist, sem_rowO, ofe_dist, sem_row_dist in *.
+                   rewrite !iLblSig_to_iLblThy_proj.
+                   rewrite !iLblSig_to_iLblThy_proj in Hc.
+                   clear sem_row_mono0 sem_row_mono1.
+                   generalize dependent sem_row_car1.
+                   induction sem_row_car0;intros sem_row_car1 Hc; destruct sem_row_car1; first done.
+                   --- inversion Hc.
+                   --- inversion Hc.
+                   --- simpl in Hc. constructor.
+                       +++ inversion Hc. destruct a0, p0. destruct p1, p0. done.
+                       +++ apply IHsem_row_car0. inversion Hc. done.
+                **  destruct n.
+                    --- apply sem_row_car_ne_1; first lia.
+                        specialize Hc with (p := γ) (Hp := Hγ).
+                        destruct (c1 γ Hγ), (c2 γ Hγ). 
+                        unfold dist, sem_rowO, ofe_dist, sem_row_dist in *.
+                        rewrite !iLblSig_to_iLblThy_proj.
+                        rewrite !iLblSig_to_iLblThy_proj in Hc.
+                        clear sem_row_mono0 sem_row_mono1.
+                        generalize dependent sem_row_car1.
+                        induction sem_row_car0;intros sem_row_car1 Hc; destruct sem_row_car1; first done; inversion Hc.
+                        subst. constructor.
+                        *** destruct a0, p0. destruct p1, p0. done.
+                        *** apply IHsem_row_car0. done.
+                    --- destruct γ.
+                        +++ apply sem_row_car_ne_1; first lia.
+                            set (Hp1 := (sem_row_list_bchain_obligation_1 (S (S n)) c1 O Hγ n (@eq_refl nat (S (S n))) (@eq_refl nat O))).
+                            set (Hp2 := (sem_row_list_bchain_obligation_1 (S (S n)) c2 O Hγ n (@eq_refl nat (S (S n))) (@eq_refl nat O))).
+                            assert (Hp1 = Hp2) as -> by (apply make_proof_irrel).
+                            apply Hc.
+                        +++ apply sem_row_car_ne_1; first lia.
+                            apply Hc.
+          -- apply lbcompl_ne => γ Hγ //=.
+             do 3 f_equiv.
+             ++ inversion Hd0.  destruct a,p. destruct p,p0. rewrite -H0 in Heq. done.
+             ++ f_equiv.
+                destruct n.
+                ** apply sem_row_car_ne_1; first lia.
+                   specialize Hc with (p := γ) (Hp := Hγ).
+                   destruct (c1 γ Hγ), (c2 γ Hγ). 
+                   unfold dist, sem_rowO, ofe_dist, sem_row_dist in *.
+                   rewrite !iLblSig_to_iLblThy_proj.
+                   rewrite !iLblSig_to_iLblThy_proj in Hc.
+                   clear sem_row_mono0 sem_row_mono1.
+                   generalize dependent sem_row_car1.
+                   induction sem_row_car0;intros sem_row_car1 Hc; destruct sem_row_car1; first done.
+                   --- inversion Hc.
+                   --- inversion Hc.
+                   --- simpl in Hc. constructor.
+                       +++ inversion Hc. destruct a0, p0. destruct p1, p0. done.
+                       +++ apply IHsem_row_car0. inversion Hc. done.
+                **  destruct n.
+                    --- apply sem_row_car_ne_1; first lia.
+                        specialize Hc with (p := γ) (Hp := Hγ).
+                        destruct (c1 γ Hγ), (c2 γ Hγ). 
+                        unfold dist, sem_rowO, ofe_dist, sem_row_dist in *.
+                        rewrite !iLblSig_to_iLblThy_proj.
+                        rewrite !iLblSig_to_iLblThy_proj in Hc.
+                        clear sem_row_mono0 sem_row_mono1.
+                        generalize dependent sem_row_car1.
+                        induction sem_row_car0;intros sem_row_car1 Hc; destruct sem_row_car1; first done; inversion Hc.
+                        subst. constructor.
+                        *** destruct a0, p0. destruct p1, p0. done.
+                        *** apply IHsem_row_car0. done.
+                    --- destruct γ.
+                        +++ apply sem_row_car_ne_1; first lia.
+                            set (Hp1 := (sem_row_list_bchain_obligation_1 (S (S n)) c1 O Hγ n (@eq_refl nat (S (S n))) (@eq_refl nat O))).
+                            set (Hp2 := (sem_row_list_bchain_obligation_1 (S (S n)) c2 O Hγ n (@eq_refl nat (S (S n))) (@eq_refl nat O))).
+                            assert (Hp1 = Hp2) as -> by apply make_proof_irrel.
+                            apply Hc.
+                        +++ apply sem_row_car_ne_1; first lia.
+                            apply Hc.
+
+        * do 2 f_equiv. apply lbcompl_ne => γ Hγ.
+          simpl.
+          do 2 f_equiv.
+          -- inversion Hd0. destruct a,p. destruct p,p0. rewrite -H0 in Heq.
+             done.
+          -- f_equiv.
+             destruct n.
+             ++ apply sem_row_car_ne_1; first lia.
+                specialize Hc with (p := γ) (Hp := Hγ).
+                destruct (c1 γ Hγ), (c2 γ Hγ). 
+                unfold dist, sem_rowO, ofe_dist, sem_row_dist in *.
+                rewrite !iLblSig_to_iLblThy_proj.
+                rewrite !iLblSig_to_iLblThy_proj in Hc.
+                clear sem_row_mono0 sem_row_mono1.
+                generalize dependent sem_row_car1.
+                induction sem_row_car0;intros sem_row_car1 Hc; destruct sem_row_car1; first done.
+                ** inversion Hc.
+                ** inversion Hc.
+                ** simpl in Hc. constructor.
+                   --- inversion Hc. destruct a0, p0. destruct p1, p0. done.
+                   --- apply IHsem_row_car0. inversion Hc. done.
+             ++ destruct n.
+                ** apply sem_row_car_ne_1; first lia.
+                   specialize Hc with (p := γ) (Hp := Hγ).
+                   destruct (c1 γ Hγ), (c2 γ Hγ). 
+                   unfold dist, sem_rowO, ofe_dist, sem_row_dist in *.
+                   rewrite !iLblSig_to_iLblThy_proj.
+                   rewrite !iLblSig_to_iLblThy_proj in Hc.
+                   clear sem_row_mono0 sem_row_mono1.
+                   generalize dependent sem_row_car1.
+                   induction sem_row_car0;intros sem_row_car1 Hc; destruct sem_row_car1; first done; inversion Hc.
+                   subst. constructor.
+                   +++ destruct a0, p0. destruct p1, p0. done.
+                   +++ apply IHsem_row_car0. done.
+                ** destruct γ.
+                   --- apply sem_row_car_ne_1; first lia.
+                       set (Hp1 := (sem_row_list_bchain_obligation_1 (S (S n)) c1 O Hγ n (@eq_refl nat (S (S n))) (@eq_refl nat O))).
+                       set (Hp2 := (sem_row_list_bchain_obligation_1 (S (S n)) c2 O Hγ n (@eq_refl nat (S (S n))) (@eq_refl nat O))).
+                       assert (Hp1 = Hp2) as -> by apply make_proof_irrel.
+                       apply Hc.
+                   --- apply sem_row_car_ne_1; first lia.
+                       apply Hc.
+      + apply IHi.
+        * intros γ Hγ. rewrite /bchain_map //=. 
+          unfold dist,sem_rowO,ofe_dist,sem_row_dist. 
+          rewrite !iLblSig_to_iLblThy_proj.
+          rewrite !iLblSig_to_iLblThy_tail_comm.
+          f_equiv. 
+          apply iLblSig_to_iLblThy_ne_1; first lia.
+          apply Hc.
+        * simpl in Hd0. inversion Hd0. rewrite H1. apply Hforall.
+  Qed.
 
   Global Program Instance sem_row_inhabited : Inhabited (sem_row Σ) := 
     populate (@SemRow Σ ⊥ _ (* _ *)).
   Next Obligation. iIntros (????) "?". iIntros (???) "(%Hcontra & _)". by apply elem_of_nil in Hcontra. Qed.
-  (* Next Obligation. iIntros (???) "(%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed. *)
 
   Global Instance sem_row_car_ne n : Proper (dist n ==> dist n) sem_row_car.
   Proof. by intros Ψ1 Ψ2 ?. Qed.

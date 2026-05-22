@@ -63,27 +63,21 @@ Proof.
   done.
 Qed. 
 
-Lemma map_list_contractive {A B : ofe} (f : A → B) : Contractive f → Contractive (map f).
+Lemma map_list_contractive {A B : ofe} (f : A → B) : ∀ n, 1 ≤ n → Proper (dist_later n ==> dist n) f → Proper (dist_later n ==> dist n) (map f).
 Proof.
-  intros Hf ? l k Hlk. apply list_dist_Forall2.
-  apply Forall2_fmap_2. generalize dependent k. induction l; intros k Hlk.
+  intros n Hlt Hf l k Hlk. apply list_dist_Forall2.
+  apply Forall2_fmap_2. destruct n; first inversion Hlt. 
+  generalize dependent k. induction l; intros k Hlk.
+  - destruct k; first done.
+    apply Hlk in Hlt. inversion Hlt.
   - destruct k.
-    + done.
-    + destruct n.
-      * admit.
-      * assert (n < S n) as Hlt by lia.
-        apply Hlk in Hlt. inversion Hlt.
-  - destruct k. 
-    + destruct n.
-      * admit.
-      * assert (n < S n) as Hlt by lia.
-        apply Hlk in Hlt. inversion Hlt.
+    + apply Hlk in Hlt. inversion Hlt.
     + apply Forall2_cons_2.
       * f_contractive. by inversion Hlk.
       * apply IHl. inversion Hlk. 
         constructor. intros m Hm. 
         apply dist_later_lt in Hm. by inversion Hm.
-Admitted.
+Qed.
 
 
 Program Definition iThy_later {Σ} : iThy Σ -n> iThy Σ := λne T, λ e e', λne ψ, (▷ T e e' ψ)%I.
@@ -202,16 +196,18 @@ Admitted.
 
 Global Instance sem_row_later_contractive {Σ} : Contractive (@sem_row_later Σ). 
 Proof. 
-  (* intros n l k Hdist . unfold sem_rowO. simpl. unfold ofe_dist. unfold sem_row_dist. simpl.
-     destruct l, k. unfold dist. rewrite !sem_row_later_iLblThy_later.
-     apply map_list_contractive.
-     - intros ????. destruct x as ((xs1 & xs2) & X). 
-       destruct y as ((ys1&ys2) &Y). f_equiv.
-       + admit.
-       + f_contractive. by destruct H. 
-     - apply Build_dist_later. intros m Hm.
-       f_equiv. by apply Hdist. *)
-Admitted. 
+  intros n l k Hdist . unfold sem_rowO. simpl. unfold ofe_dist. unfold sem_row_dist. simpl.
+  destruct l, k. unfold dist. rewrite !sem_row_later_iLblThy_later.
+  destruct n; first done.
+  apply map_list_contractive; first lia.
+  - intros ???. destruct x as ((xs1 & xs2) & X). 
+    destruct y as ((ys1&ys2) &Y). f_equiv.
+    + assert (n < S n) as Hlt by lia.  apply H in Hlt. 
+      by inversion Hlt.
+    + f_contractive. by destruct H. 
+  - apply Build_dist_later. intros m Hm.
+    f_equiv. by apply Hdist.
+Qed.
 
 Definition sem_row_rec_pre {Σ} (R : sem_row Σ -n> sem_row Σ) (ρ : sem_row Σ) : sem_row Σ :=
   sem_row_later (R ρ).

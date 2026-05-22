@@ -86,17 +86,12 @@ Section syntax.
   | SSig : eff_name → {bind 1 of type} → {bind 1 of type} → eff_sig
 
   | SFlip : vmode → eff_sig → eff_sig
-
   with row :=
-
   | RNil : row
   | RCons : eff_sig → row → row
   | RVar : var → row
   | RFlip : vmode → row → row
   | RRec : {bind 1 of row} → row.
-                        
-  (* (* Row variable. *)
-     | RVar : nat → eff_sig. *)
 
   (* We introduce a shorthand for a signature
      declaring the _absence_ of an effect. *)
@@ -501,6 +496,84 @@ Section syntax.
 
 End syntax.
 
+
+Section wellformedness.
+
+  Fixpoint wf_row (m : nat) (ρ : row) : Prop :=
+    match ρ with 
+    | RCons e ρ => wf_eff_sig e ∧ wf_row m ρ
+    | RFlip _ ρ => wf_row m ρ
+    | RVar i => (m ≤ i)
+    | RNil => True
+    | RRec ρ => wf_row (m + 1) ρ
+    end 
+
+  with wf_type (τ : type) : Prop :=
+    match τ with
+    | TBot
+    | TTop
+    | TUnit
+    | TBool
+    | TInt
+    | TNat
+    | TVar _
+    | TTape => True
+    | TRef τ
+    | TRec τ 
+    | TBang _ τ 
+    | TForallT τ
+    | TForallM τ
+    | TExists τ
+    | TForallR τ => wf_type τ
+    | TSum τ κ
+    | TProd τ κ => wf_type τ ∧ wf_type κ
+    | TArrow τ ρ κ => wf_type τ ∧ wf_row 0 ρ ∧ wf_type κ
+    end
+
+  with wf_eff_sig (σ : eff_sig) : Prop :=
+    match σ with
+    | SSig _ τ κ => wf_type τ ∧ wf_type κ
+    | SFlip _ σ => wf_eff_sig σ
+    end. 
+
+  Lemma wf_eff_sig_SSig_1 s τ κ :
+    wf_eff_sig (SSig s τ κ) → wf_type τ.
+  Proof. intros (?&?). done. Qed.
+
+  Lemma wf_eff_sig_SSig_2 s τ κ :
+    wf_eff_sig (SSig s τ κ) → wf_type κ.
+  Proof. intros (?&?). done. Qed.
+
+  Lemma wf_eff_sig_SFlip m σ :
+    wf_eff_sig (SFlip m σ) → wf_eff_sig σ.
+  Proof. done. Qed.
+
+  Lemma wf_row_RCons m σ ρ :
+    wf_row m (RCons σ ρ) → wf_row m ρ.
+  Proof. intros (?&?). done. Qed.
+
+  Lemma wf_row_RFlip n m ρ :
+    wf_row n (RFlip m ρ) → wf_row n ρ.
+  Proof. done. Qed.
+
+  Lemma wf_row_RRec n ρ :
+    wf_row n (RRec ρ) → wf_row (n+1) ρ. 
+  Proof. 
+    induction ρ; try done.
+  Qed. 
+
+  Lemma wf_type_row τ ρ κ :
+    wf_type (TArrow τ ρ κ) → wf_row 0 ρ.
+  Proof. 
+    intros (?&?&?); done.
+  Qed. 
+
+  Lemma wf_row_eff_sig m ρ e :
+    wf_row m (RCons e ρ) → wf_eff_sig e. 
+  Proof. by intros (?&?). Qed.
+
+
+End wellformedness. 
 
 
 Declare Scope FType_scope.
@@ -1180,7 +1253,6 @@ with pure_typed  : ctx → expr → type → Prop :=
   m m⪯C Γ1 → 
   ∅ .| <[ x :=c τ ]> <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> Γ1 ⊢ₜ e : ρ : κ ⊣ [] → Γ1 ⊢ₚ Rec f x e : (τ -{ ρ }-[m]-> κ)%ty
 
-
 | Pair_pure_typed Γ e1 e2 τ1 τ2 : 
   Γ ⊢ₚ e1 : τ1 → Γ ⊢ₚ e2 : τ2 → Γ ⊢ₚ Pair e1 e2 : (τ1 * τ2)%ty
 
@@ -1272,7 +1344,7 @@ Section derived_rules.
       (* Decompose Γ'' around (x, t') *)
       apply in_split in H_in. destruct H_in as [pre' [post' Heq'']].
       exists t', pre', post'.
-      split. { assumption. }
+      split. { eassumption. }
       split. { assumption. }
       (* The key: the remainders are also permutations *)
       apply IH with (Γ' := pre ++ post).

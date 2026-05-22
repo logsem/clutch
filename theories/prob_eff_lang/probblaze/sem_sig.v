@@ -13,7 +13,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic sem_def syntax semantic
 Program Definition sem_sig_eff {Σ} : label -d> label -d> (sem_ty Σ -d> sem_ty Σ) -d> (sem_ty Σ -d> sem_ty Σ) -d> sem_sig Σ :=
   λ op1 op2 A B,
   (@SemSig Σ (@PMonoProt Σ (λ e1 e2, λne Φ, ∃ αs v1 v2, ⌜ e1 = (do: (EffLabel op1) (Val v1))%E ⌝ ∗ ⌜ e2 = (do: (EffLabel op2) (Val v2))%E ⌝ ∗  A αs v1 v2 
-                                               ∗ □ (∀ w1 w2, ∀ v1 v2, ⌜ w1 = Val v1 ⌝ ∗ ⌜ w2 = Val v2 ⌝ ∗ B αs v1 v2 -∗ Φ w1 w2))%I _) (op1, op2) _).
+                                               ∗ □ (∀ w1 w2, ∀ v1 v2, ⌜ w1 = Val v1 ⌝ ∗ ⌜ w2 = Val v2 ⌝ ∗ B αs v1 v2 -∗ Φ w1 w2))%I _) (op1, op2)).
 Next Obligation.
   iIntros (???????????). repeat f_equiv.
 Qed.
@@ -24,14 +24,11 @@ Next Obligation.
   iModIntro. iIntros (????). iDestruct ("Hσ" $! w1 w2 v1 v2) as "HB". 
   iIntros "H". iApply "HΦ". by iApply "HB".
 Qed.
-Next Obligation.
-  iIntros (????????) "(%&%&%&->&->&_)". iExists _,_. iSplit; iPureIntro; reflexivity.
-Qed.
 
 Global Instance sem_sig_bottom {Σ} op1 op2 : Bottom (sem_sig Σ) := @sem_sig_eff Σ op1 op2 (λ _, (λ v1 v2, False)%I) (λ _, (λ v1 v2, True)%I).
 
 (* Flip-Bang Signature *)
-Program Definition sem_sig_flip_mbang {Σ} (m : mode) (σ : sem_sig Σ) : sem_sig Σ := @SemSig Σ (@PMonoProt Σ (iThyIfMono m σ) _) (sem_sig_labels Σ σ) _.
+Program Definition sem_sig_flip_mbang {Σ} (m : mode) (σ : sem_sig Σ) : sem_sig Σ := @SemSig Σ (@PMonoProt Σ (iThyIfMono m σ) _) (sem_sig_labels Σ σ) .
 Next Obligation.
   iIntros (???????) "#HΦ Hσ". 
   destruct m.
@@ -40,11 +37,17 @@ Next Obligation.
     iIntros (??) "Q". iApply "HΦ". by iApply "HQ".
   - simpl. by iApply (pmono_prot_prop with "[][$Hσ]").
 Qed.
+
+Program Definition sem_sig_later {Σ} (σ : sem_sig Σ) : sem_sig Σ := @SemSig Σ (@PMonoProt Σ (λ e1 e2, λne Φ, ∃ v1 v2 : val, ⌜ e1 = do: (sem_sig_labels Σ σ).1 v1 ⌝%E ∗ ⌜ e2 = do: (sem_sig_labels Σ σ).2 v2 ⌝%E ∗  ▷ ((pmono_prot_car (sem_sig_car σ)) e1 e2 Φ))%I _) (sem_sig_labels Σ σ).
+Next Obligation.                                                      
+  iIntros (????????). by do 8 f_equiv.
+Qed.
 Next Obligation.
-  iIntros (???). destruct m; simpl.
-  - iIntros (???) "(% & H & _)". destruct σ. iDestruct sem_sig_prop as "H1". by iApply "H1".
-  - iIntros (???) "H". destruct σ. iDestruct sem_sig_prop as "H1". by iApply "H1".
-Qed.                                                           
+  iIntros (??????) "#HΦ (%v1'&%v2'&->&->&Hσ) /=".  
+  iExists _,_. do 2 (iSplit; [done| ]). iModIntro.
+  iApply pmono_prot_prop; done. 
+Qed.
+
 (* TODO: Import the rest from sem_sig *)
 
 (* (* Notations. *)
@@ -94,9 +97,9 @@ Global Instance sem_sig_eff_ne2 {Σ}:
 Proof.
 Admitted. 
 
-Global Instance sem_sig_eff_ne {Σ} A :
-  NonExpansive (@sem_sig_eff Σ A).
-Proof. iIntros (??????). by f_equiv. Qed.
+Global Instance sem_sig_eff_ne {Σ} op1 op2 :
+  NonExpansive2 (@sem_sig_eff Σ op1 op2).
+Proof. iIntros (???????). Admitted.
 
 Global Instance sem_sig_eff_alt_ne {Σ}:
   NonExpansive (@sem_sig_eff Σ).
@@ -161,6 +164,16 @@ End once_sig.
 
 Section sig_sub_typing.
 
+  Lemma sig_mbang_later {Σ} (σ : sem_sig Σ)  m :
+    ⊢ ¡[ m ] (sem_sig_later σ) ≤ₛ sem_sig_later (¡[ m ] σ).
+  Proof. 
+    rewrite /sig_le /tc_opaque. iSplit; first done.
+    destruct m; last iApply iThy_le_refl. 
+    
+  (*   iIntros (???) "!# (%&(Hl&Himp)) !>". 
+       iExists Q'. iFrame.
+     Qed.  *)
+  Admitted. 
   (* Subtyping on Signatures *)
   (* TODO: finish lemmas in here *)
   
