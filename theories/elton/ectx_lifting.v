@@ -1,6 +1,6 @@
 (** Some derived lemmas for ectx-based languages *)
 From iris.proofmode Require Import proofmode.
-From clutch.common Require Import con_ectx_language.
+From clutch.common Require Import ectx_language.
 From clutch.delay_prob_lang Require Import lang.
 From clutch.elton Require Import weakestpre lifting.
 From iris.prelude Require Import options.
