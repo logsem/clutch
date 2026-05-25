@@ -1,7 +1,7 @@
 (include_subdirs qualified)
 (rocq.theory
  (name clutch)
- (package rocq-clutch)
+ (package rocq-elton)
  ; (generate_project_file true)
  (theories
    ; local

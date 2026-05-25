@@ -1,7 +1,7 @@
 (include_subdirs qualified)
 (rocq.theory
  (name discprob)
- (package rocq-clutch)
+ (package rocq-elton)
 
  (theories
    Stdlib
