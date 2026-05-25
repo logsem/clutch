@@ -428,10 +428,132 @@ Proof.
     iMod "Hclose". by iPureIntro.
 Qed. 
 
-(** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
-(* induction directly, but this demonstrates that we can state the expected *)
-(* reasoning principle for recursive functions, without any visible ▷. *)
+Lemma pupd_partial_resolve_urn_avoid s n l E m:
+  s≠ ∅ ->
+  (1<=n)%nat ->
+  (n<=size s)%nat ->
+  ↯ (n/size s) -∗
+  l ↪ urn_unif s -∗
+  pupd E E (∃ s', ↯ ((n-1)%nat/(size s')%nat) ∗ l ↪ urn_unif s' ∗ ⌜s' ⊆ s⌝ ∗ ⌜size s-1<=size s'⌝ ∗ ⌜m∉ s'⌝).
+Proof.
+  intros Hempty Hineq Hineq'.
+  apply Nat.lt_eq_cases in Hineq' as [|]; last first.
+  { subst.
+    iIntros "H".
+    iDestruct (ec_contradict with "[$]") as "[]".
+    rewrite Rdiv_diag; first done.
+    replace 0%R with (INR 0) by done.
+    apply not_INR.
+    rewrite size_non_empty_iff.
+    set_solver. }
+  iIntros "Herr Hl".
+  destruct (decide (m∈s)); last first.
+  { iModIntro.
+    iFrame.
+    repeat iSplit.
+    - iApply (ec_weaken with "[$]").
+      split.
+      + apply Rcomplements.Rdiv_le_0_compat.
+        * apply pos_INR.
+        * apply lt_0_INR.
+          lia.
+      + rewrite Rcomplements.Rle_div_l; last first.
+        { apply Rlt_gt. apply lt_0_INR; lia. }
+        rewrite -Rmult_div_swap.
+        rewrite -Rcomplements.Rle_div_r; last first.
+        { apply Rlt_gt. apply lt_0_INR; lia. }
+        rewrite !minus_INR; try lia.
+        replace (INR 1) with 1%R by done.
+        assert (-size s <= -n)%R; real_solver.
+    - done.
+    - iPureIntro; lia.
+    - done. 
+  }
+  assert (0<= (n-1)%nat/(size s -1)%nat)%R as err_ineq.
+  { apply Rcomplements.Rdiv_le_0_compat.
+    * apply pos_INR.
+    * apply lt_0_INR.
+      lia.
+  }
+  iMod (pupd_partial_resolve_urn _ _ (λ x, if bool_decide (x=({[m]} : gset _)) then nnreal_one else mknonnegreal _ err_ineq) _ _ (({[m]} ::(s∖{[m]}) ::[]): list (gset _)) with "[$Herr] [$]")%Z as "H'".
+  - done.
+  - simpl.
+    rewrite union_empty_r_L.
+    rewrite -union_difference_L; first done.
+    set_solver.
+  - repeat setoid_rewrite NoDup_cons.
+    repeat split; last by apply NoDup_nil.
+    + set_unfold.
+       intros ?. destruct!/=. set_solver.
+    + set_solver.
+  - set_unfold.
+    intros ?.
+    destruct!/=.
+    rename select (_=_∖_) into Hcontra.
+    apply (f_equal size) in Hcontra.
+    rewrite size_empty size_difference in Hcontra; last set_solver.
+    rewrite size_singleton in Hcontra. lia.
+  - intros.
+    set_unfold.
+    destruct!/=; set_solver.
+  - rewrite SeriesC_list; last first.
+    { repeat setoid_rewrite NoDup_cons.
+      repeat split; last by apply NoDup_nil.
+      - set_unfold.
+        intros ?. destruct!/=. set_solver.
+      - set_solver. }
+    Local Opaque size.
+    simpl.
+    rewrite bool_decide_eq_true_2; last done.
+    rewrite Rmult_1_l size_singleton.
+    rewrite bool_decide_eq_false_2; last set_solver.
+    rewrite Rplus_0_r.
+    simpl.
+    rewrite size_difference; last set_solver.
 
+    (* replace (_-_+_) with tries' by lia. *)
+    rewrite !Rdiv_def.
+    apply Rmult_le_compat_r.
+    + rewrite -Rdiv_1_l.
+      apply Rdiv_INR_ge_0.
+    + rewrite size_singleton.
+      (* rewrite plus_INR. *)
+      simpl.
+      rewrite Rmult_assoc.
+      rewrite (Rmult_comm (/ _)%R).
+      rewrite minus_INR. 2: lia.
+      assert ((size s - 1)%nat */(size s -1)%nat=1)%R as -> ; simpl ; last lra.
+      rewrite -Rdiv_def.
+      rewrite Rdiv_diag; first done.
+      rewrite minus_INR; last lia.
+      simpl.
+      assert (INR (size s) ≠ 1)%R; last lra.
+      replace 1%R with (INR 1) by done.
+      apply not_INR. lia.
+  - eexists (Rmax _ _).
+    intros.
+    case_bool_decide.
+    + apply Rmax_l.
+    + apply Rmax_r.
+  - iDestruct "H'" as "(%&Herr&Hurn &%h3)".
+    set_unfold in h3.
+    destruct!/=.
+    + rewrite bool_decide_eq_true_2; last done.
+      by iDestruct (ec_contradict with "[$]") as "[]".
+    + rewrite bool_decide_eq_false_2; last set_solver.
+      simpl.
+      iFrame.
+      iModIntro.
+      rewrite size_difference; last set_solver.
+      rewrite size_singleton.
+      iFrame. 
+      iPureIntro.
+      repeat split.
+      * set_solver.
+      * lia. 
+      * set_solver.
+Qed. 
+  
 Lemma wp_value_promotion (v v': val) P Φ s E:
   (rupd (λ x, x=v') P v)-∗
     (P -∗ WP (Val (v')) @ s; E {{ Φ }}) -∗
@@ -462,6 +584,11 @@ Proof.
   iMod "Hclose".
   by iApply "H2".
 Qed. 
+
+
+(** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
+(* induction directly, but this demonstrates that we can state the expected *)
+(* reasoning principle for recursive functions, without any visible ▷. *)
 
 Lemma wp_rec_löb E f x e Φ Ψ :
   □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}) -∗
