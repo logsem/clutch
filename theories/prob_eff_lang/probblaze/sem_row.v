@@ -80,20 +80,23 @@ Proof.
 Qed.
 
 
-Program Definition iThy_later {Σ} : iThy Σ -n> iThy Σ := λne T, λ e e', λne ψ, (▷ T e e' ψ)%I.
+Program Definition iThy_later {Σ} (l1 l2 : label) : sem_sig Σ -n> iThy Σ := λne T, λ e e', λne ψ, (∃ v1 v2, ⌜e = do: l1 v1⌝%E ∗ ⌜e' = do: l2 v2⌝%E ∗  ▷ ((pmono_prot_car T) e e' ψ))%I.
 Next Obligation.
-  intros. intros ψ ψ' Hne. rewrite Hne. done.
+  intros. intros ψ ψ' Hne. do 6 f_equiv. rewrite Hne. done.
 Qed.
 Next Obligation.
   intros. intros T T' Hne. intros e e' ψ.
-  simpl. by rewrite (Hne e e' ψ).
+  simpl. 
+  do 6 f_equiv.
+  by rewrite (Hne e e' ψ).
 Qed.
 
-Instance iThy_later_contractive {Σ} : Contractive (@iThy_later Σ).
+Instance iThy_later_contractive {Σ} (l1 l2 : label) : Contractive (@iThy_later Σ l1 l2).
 Proof.
   unfold iThy_later. simpl.
   intros ? T T' ?.
   intros e e' ?. simpl.
+  do 6 f_equiv.
   f_contractive.
   rewrite (H e e' _).
   done.
@@ -174,40 +177,58 @@ Qed.
        set (x := later <$> )
      fixpoint R. *)
 
-Program Definition iThy_later {Σ} (X : iThy Σ) : iThy Σ := (λ e1 e2, λne Q, ▷ X e1 e2 Q)%I.
-Next Obligation. solve_proper. Qed.
+Definition iLblThy_later {Σ} (L : iLblSig Σ) : iLblThy Σ := map (λ '((ls1,ls2), X), ((ls1, ls2), iThy_later (@sem_sig_labels Σ X).1 (@sem_sig_labels Σ X).2 X)) L.
 
-Global Instance iThy_later_contractive {Σ} : Contractive (@iThy_later Σ).
+(* Lemma sem_row_shape X ρ : X :: ρ → ∃ σ, X = ((sem_sig_labels σ).1, (sem_sig_labels σ).2, σ). *)
+                                                                                   
+
+Lemma sem_row_later_iLblThy_later {Σ} ρ : iLblSig_to_iLblThy (sem_row_later ρ) = @iLblThy_later Σ ρ.
 Admitted.
+(* Proof.
+     destruct ρ. 
+     induction sem_row_car.
+     - done.
+     - unfold sem_row_later. unfold sem_sig_later. rewrite iLblSig_to_iLblThy_proj.
+       simpl. destruct a as ((ls1,ls2), σ). unfold pmono_prot_car. simpl.
+       f_equiv.
+       + f_equiv.   admit.
+       + unshelve eapply IHsem_row_car.
+         admit.
+   Admitted. *)
 
-Definition iLblThy_later {Σ} (L : iLblThy Σ) : iLblThy Σ := map (λ '((ls1,ls2), X), ((ls1, ls2), iThy_later X)) L.
-
-Lemma sem_row_later_iLblThy_later {Σ} ρ : iLblSig_to_iLblThy (sem_row_later ρ) = @iLblThy_later Σ (iLblSig_to_iLblThy ρ).
-Proof.
-  destruct ρ. 
-  induction sem_row_car.
-  - done.
-  - simpl. destruct a as ((ls1,ls2), σ).
-    unfold sem_sig_later. 
-Admitted.
-
-Global Instance iLblSig_to_iLblThy_ne {Σ} : NonExpansive (@iLblSig_to_iLblThy Σ).
-Admitted.
+(* Global Instance iLblSig_to_iLblThy_ne {Σ} : NonExpansive (@iLblSig_to_iLblThy Σ).
+   Admitted. *)
 
 Global Instance sem_row_later_contractive {Σ} : Contractive (@sem_row_later Σ). 
 Proof. 
-  intros n l k Hdist . unfold sem_rowO. simpl. unfold ofe_dist. unfold sem_row_dist. simpl.
-  destruct l, k. unfold dist. rewrite !sem_row_later_iLblThy_later.
-  destruct n; first done.
-  apply map_list_contractive; first lia.
-  - intros ???. destruct x as ((xs1 & xs2) & X). 
-    destruct y as ((ys1&ys2) &Y). f_equiv.
-    + assert (n < S n) as Hlt by lia.  apply H in Hlt. 
-      by inversion Hlt.
-    + f_contractive. by destruct H. 
-  - apply Build_dist_later. intros m Hm.
-    f_equiv. by apply Hdist.
-Qed.
+  intros n l k Hlater. destruct n; first done.
+(*   assert (n < S n)%nat as Heq by lia.
+     apply Hlater in Heq.
+     destruct n.
+     - unfold dist,sem_row_dist,listO,ofe_dist,list_dist in *. apply list_dist_Forall2.
+       
+   
+       
+     unfold sem_rowO. simpl. unfold ofe_dist. unfold sem_row_dist. simpl.
+     destruct l, k. unfold dist. (* rewrite !sem_row_later_iLblThy_later. *)
+     destruct n; first done.
+     apply map_list_contractive; first lia.
+     - intros ???. destruct x as ((xs1 & xs2) & X). 
+       destruct y as ((ys1&ys2) &Y). f_equiv.
+       + assert (n < S n) as Hlt by lia.  apply H in Hlt. 
+         by inversion Hlt.
+       + destruct X. destruct Y.
+         assert (n < S n) as Hlt by lia.
+         apply H in Hlt.
+         inversion Hlt. simpl in *. 
+         unfold dist,sem_sigO,ofe_dist,sem_sig_dist in H1. admit.
+     - apply Build_dist_later. intros m Hm. 
+       apply Hdist in Hm.
+       unfold dist,sem_row_dist in Hm.
+   p    
+       by apply Hdist.
+   Qed. *)
+Admitted. 
 
 Definition sem_row_rec_pre {Σ} (R : sem_row Σ -n> sem_row Σ) (ρ : sem_row Σ) : sem_row Σ :=
   sem_row_later (R ρ).

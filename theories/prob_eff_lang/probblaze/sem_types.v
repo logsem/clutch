@@ -51,7 +51,7 @@ Definition sem_ty_sum {Σ} (τ κ : sem_ty Σ) : sem_ty Σ :=
 
 (* Arrow type. *)
 Definition sem_ty_arr `{probblazeRGS Σ} 
-  (ρ : sem_row Σ)
+  (ρ : sem_row Σ)               (* consider changing this to iLblThy, and do the conversion earlier *)
   (τ : sem_ty Σ)
   (κ : sem_ty Σ) : sem_ty Σ :=
   (λ (v1 v2 : val),
@@ -83,7 +83,6 @@ Proof. solve_contractive. Qed.
 Definition sem_ty_rec {Σ} (C : sem_ty Σ -d> sem_ty Σ) : sem_ty Σ :=
   fixpoint (sem_ty_rec_pre C).
 
-(* TODO: figure out the last part of the proof *)
 Lemma sem_ty_rec_unfold {Σ} (C : sem_ty Σ → sem_ty Σ) `{!NonExpansive C} v1 v2 :
   (sem_ty_rec C)%T v1 v2 ⊣⊢ ▷ C (sem_ty_rec C)%T v1 v2. 
 Proof.
@@ -95,10 +94,14 @@ Proof.
       rewrite /sem_ty_rec.
       iAssert (C rec' ≡ C (fixpoint (sem_ty_rec_pre C)))%I as "#H".
       { by iRewrite "Hrec". }
-      rewrite !discrete_fun_equivI. (* iRewrite - ("H" $! v1). *) admit.
+      rewrite !discrete_fun_equivI.
+      iSpecialize ("H" $! v1).
+      rewrite !discrete_fun_equivI.
+      iSpecialize ("H" $! v2).
+      by iRewrite "H" in "HC".
   - iIntros "HC //=". iNext. iExists (sem_ty_rec C).
     by iFrame. 
-Admitted.
+Qed.
 
 Notation "'𝟙'" := sem_ty_unit : sem_ty_scope.
 Notation "'𝔹'" := (sem_ty_bool) : sem_ty_scope.
@@ -188,8 +191,16 @@ Section types_properties.
   Proof. solve_non_expansive. Qed.
 
   Global Instance sem_ty_arr_ne : NonExpansive3 sem_ty_arr.
-  Proof. solve_non_expansive. Qed.
-
+  Proof. 
+    intros ??????????. 
+    intros ??. unfold sem_ty_arr.
+    f_equiv. f_equiv. f_equiv. f_equiv.
+    f_equiv; first solve_non_expansive.
+    f_equiv.
+    { admit. }                  (*  *)
+    solve_non_expansive.
+  Admitted.    
+  
   Global Instance sem_ty_ref_ne : NonExpansive (@sem_ty_ref Σ _).
   Proof. solve_non_expansive. Qed.
 
@@ -880,3 +891,4 @@ Section mode_type_sub.
   Qed.
   
 End mode_type_sub.
+
