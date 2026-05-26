@@ -20,7 +20,7 @@ The recommended way to install the dependencies locally is through [opam](https:
 1. Install [opam](https://opam.ocaml.org/doc/Install.html) if not already installed (a version greater than 2.0 is required).
 2. Install a new switch and link it to the project.
 ```
-opam switch create elton 4.14.2
+opam switch create elton --empty
 opam switch link elton .
 ```
 3. Add the Rocq `opam` repository.
