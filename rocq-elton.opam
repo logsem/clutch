@@ -3,6 +3,8 @@ opam-version: "2.0"
 synopsis: "Elton"
 maintainer: ["anon"]
 authors: ["anon"]
+homepage: "NA"
+bug-reports: "NA"
 license: "MIT"
 depends: [
   "dune" {>= "3.21"}
