@@ -678,3 +678,25 @@ End row_env_sub.
 Notation "ρ ᵣ⪯ₑ Γ" := (RowEnvSub ρ%R Γ%T) (at level 80).
 Notation "ρ ᵣ⪯ₜ τ" := (RowTypeSub ρ%R τ%T)%I (at level 80).
 
+Section sem_row_union. 
+  Context `{probblazeRGS Σ}.
+
+  Lemma iLblSig_to_iLblThy_app ρ ρ' : iLblSig_to_iLblThy (ρ ++ ρ') = iLblSig_to_iLblThy ρ ++ (@iLblSig_to_iLblThy Σ ρ'). 
+  Proof. 
+    induction ρ; first done.
+    simpl. by rewrite IHρ.
+  Qed.                      
+
+  Program Definition sem_row_union (ρ ρ' : sem_row Σ) : sem_row Σ :=
+    SemRow ((sem_row_car ρ) ++ (sem_row_car ρ')) _.  
+  Next Obligation.                            
+    iIntros (ρ ρ' ????) "#Hww % % % (%Hin & Hx)".
+    iSplit; first done.
+    rewrite iLblSig_to_iLblThy_app in Hin. 
+    apply elem_of_app in Hin as [Hin | Hin];
+    iPoseProof (sem_row_mono Σ _) as "H";
+      iDestruct ("H" with "[][Hx]") as "(_&$)"; try done;
+      iSplit; done.
+  Qed. 
+
+End sem_row_union.

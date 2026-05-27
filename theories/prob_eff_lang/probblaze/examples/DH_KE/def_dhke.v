@@ -72,14 +72,16 @@ Section def_implementation.
         end
     | return "y" => #()%V end.
 
-  Definition DH_KE (getKey channel : label) : val :=
+  Definition DH_KE (channel : label) : val :=
     λ: "f" <>,
     let: "α" := alloc #n in
     let: "β" := alloc #n in
     let: "l1" := ref NONEV in
     let: "l2" := ref NONEV in
-    handle: "f" #()%V with
-    | effect getKey "p", rec "k" as multi =>
+    effect "getKey"  
+    let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+    handle: "f" "doGK" with
+    | effect (EffName "getKey") "p", rec "k" as multi =>
         match: "p" with
           (* Alice *)
           InjL <> =>
@@ -161,12 +163,13 @@ Section def_implementation.
     | return "y" => "y" end.
 
 
-  Definition C (getKey channel : label) : val :=
+  Definition C (channel : label) : val :=
    λ: "f" "DH" <>,                         
-    let, ("ga", "gb", "gc") := "DH" in
-
-    handle: "f" #()%V with
-    | effect getKey "p", rec "k" as multi =>
+    let, ("ga", "gb", "gc") := "DH" #()%V in
+    effect "getKey" 
+    let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+    handle: "f" "doGK" with
+    | effect (EffName "getKey") "p", rec "k" as multi =>
         match: "p" with
           InjL <> =>
             (do: channel (Send ("ga", bob)));;
@@ -186,12 +189,14 @@ Section def_implementation.
         end
     | return "y" => "y" end.
 
-  Definition DH_real : expr :=
+  Definition DH_real : val :=
+    λ: <>,
     let: "a" := sample #()%V in
     let: "b" := sample #()%V in
     (g^"a", g^"b", g^("a"*"b")).
 
-  Definition DH_rand : expr :=
+  Definition DH_rand : val :=
+    λ: <>,
     let: "a" := sample #()%V in
     let: "b" := sample #()%V in
     let: "c" := sample #()%V in
