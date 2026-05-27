@@ -1207,16 +1207,13 @@ Section handlee_verification.
   (*------------------------------------------------------------*)
 
 
-  Lemma F_AUTH_DH_KE_FAUTH_C_DH_real (f1 f2 : val) L :
-    sem_val_typed f1 f2 (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-> 𝟙)%T -∗
-    sem_typed [] (F_AUTH leakauth1 (DH_KE f1)) (F_AUTH leakauth2 (C f2 DH_real)) ⊥ 
-                         (𝟙 -{ sem_row_union leakchan_row L }-∘ 𝟙)%T [].
+  Lemma F_AUTH_DH_KE_FAUTH_C_DH_real :
+    ⊢ sem_val_typed (λ: "f", F_AUTH leakauth1 (DH_KE "f"))%V (λ: "f", F_AUTH leakauth2 (C "f" DH_real))%V  
+                         (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ (𝟙 -{ sem_row_union leakchan_row θ__L }-∘ 𝟙))%T.
   Proof using G channel1 channel2 inG0 inG1 inG2. (* TODO: remove channel1 channel2 from context *)
-    iIntros "#Hff".
-    
-    iIntros (vs) "!# Hvs". simpl.
-    
-
+    iModIntro. iIntros (L).
+    iIntros (f1 f2) "#Hff".
+    brel_pures'.
     iApply fupd_brel.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
@@ -1227,7 +1224,8 @@ Section handlee_verification.
     iModIntro.
     iApply (brel_wand with "[Htoka Htokb Hautha Hauthb Hfraca Hfracb][]").
     - iApply (F_AUTH_F_AUTH with "[$][$]").
-      by iApply (DH_KE_C_DH_real with "[$][$][$][$]").
+      iApply (DH_KE_C_DH_real with "[$][$][$][$]").
+      by iModIntro. 
     - iIntros (??) "!# $".
   Qed. 
     
