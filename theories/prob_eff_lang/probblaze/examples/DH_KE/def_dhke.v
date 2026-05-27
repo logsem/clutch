@@ -28,13 +28,15 @@ Section def_implementation.
   Definition pow : expr := rec: "pow" "b" "e" := if: "e" = #0 then #1 else "b" * ("pow" "b" ("e" - #1)).
   Definition modn : expr := rec: "mod" "a" := if: "a" < #n then "a" else "mod" ("a" - #n).
 
-  Definition F_AUTH (channel leakauth : label): val :=
+  Definition F_AUTH (leakauth : label): val :=
   λ: "f" <>,  
     let: "m1" := ref NONEV in
     let: "m2" := ref NONEV in
-
-    handle: "f" #()%V with
-    | effect channel "message", rec "k" as multi =>
+    effect "channel" 
+    let: "doSend" := (λ: "m", do: (EffName "channel") (Send "m")) in  
+    let: "doRecv" := (λ: "m", do: (EffName "channel") (Recv "m")) in
+    handle: "f" "doSend" "doRecv" with
+    | effect (EffName "channel") "message", rec "k" as multi =>
         match: "message" with
         (* SEND *)
         | InjL "payload" =>
@@ -72,8 +74,8 @@ Section def_implementation.
         end
     | return "y" => #()%V end.
 
-  Definition DH_KE (channel : label) : val :=
-    λ: "f" <>,
+  Definition DH_KE  : val :=
+    λ: "f" "doSend" "doRecv",
     let: "α" := alloc #n in
     let: "β" := alloc #n in
     let: "l1" := ref NONEV in
@@ -94,9 +96,9 @@ Section def_implementation.
             (* Compute gA *)
             let: "gA" := g^"a" in
             (* Send gA *)
-            (do: channel (Send ("gA", bob)));;
+            ("doSend" ("gA", bob));;
             (* Receive gB *)
-            let: "r" := do: channel (Recv bob) in
+            let: "r" := ("doRecv" bob) in
             match: "r" with
               NONE => "k" NONEV
             | SOME "gB" =>
@@ -106,7 +108,7 @@ Section def_implementation.
             end
         (* Bob *)
         | InjR <> =>
-            let: "r" := (do: channel (Recv alice)) in
+            let: "r" := ("doRecv" alice) in
             match: "r" with
               NONE => "k" NONE
             | SOME "gA" =>
@@ -116,7 +118,7 @@ Section def_implementation.
                   | SOME "b" => "b"
                   end in
                 let: "gB" := g^"b" in
-                (do: channel (Send ("gB", alice)));;
+                ("doSend" ("gB", alice));;
 
                 let: "key" := "gA"^"b" in
                 "k" (SOME "key")
@@ -163,8 +165,8 @@ Section def_implementation.
     | return "y" => "y" end.
 
 
-  Definition C (channel : label) : val :=
-   λ: "f" "DH" <>,                         
+  Definition C : val :=
+   λ: "f" "DH" "doSend" "doRecv",                         
     let, ("ga", "gb", "gc") := "DH" #()%V in
     effect "getKey" 
     let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
@@ -172,18 +174,18 @@ Section def_implementation.
     | effect (EffName "getKey") "p", rec "k" as multi =>
         match: "p" with
           InjL <> =>
-            (do: channel (Send ("ga", bob)));;
-            let: "r" := (do: channel (Recv bob)) in
+            ("doSend" ("ga", bob));;
+            let: "r" := ("doRecv" bob) in
             match: "r" with
               NONE => "k" NONE
             | SOME "w" => "k" (SOME "gc")
             end
         | InjR <> =>
-            let: "r" := (do: channel (Recv alice)) in
+            let: "r" := ("doRecv" alice) in
             match: "r" with
               NONE => "k" NONE
             | SOME "w" =>
-                (do: channel (Send ("gb", alice)));;
+                ("doSend" ("gb", alice));;
                 "k" (SOME "gc")
             end
         end
