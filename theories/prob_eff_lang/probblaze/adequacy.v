@@ -50,3 +50,27 @@ Proof.
   iIntros.
   iApply Hlog.
 Qed.
+
+
+Theorem brel_approximates_coupling Σ `{probblazeRGpreS Σ}
+  (R : ∀ `{probblazeRGS Σ}, (val -d> val -d> iProp Σ)) (φ : val → val → Prop) e e' σ σ' ε :
+  (0 <= ε)%R →
+  (∀ `{probblazeRGS Σ}, ∀ v v', R v v' -∗ ⌜φ v v'⌝) →
+  (∀ `{probblazeRGS Σ}, ↯ ε ⊢ BREL e ≤ e' <|⊥|> {{R}}) →
+  ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
+Proof.
+  intros Hε HA Hbrel. eapply (approximates_coupling Σ); [done|done|].
+  iIntros (HΣ) "Herr". rewrite -to_iThy_nil. iApply (Hbrel with "[$Herr]").
+  - iApply valid_nil.
+  - iPureIntro. apply distinct_nil.
+Qed.
+
+Corollary brel_refines_coupling Σ `{probblazeRGpreS Σ}
+  (R : ∀ `{probblazeRGS Σ}, (val -d> val -d> iProp Σ)) (φ : val → val → Prop) e e' σ σ' :
+  (∀ `{probblazeRGS Σ}, ∀ v v', R v v' -∗ ⌜φ v v'⌝) →
+  (∀ `{probblazeRGS Σ}, ⊢ BREL e ≤ e' <|⊥|> {{R}}) →
+  ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ 0.
+Proof.
+  intros HA Hbrel. eapply (brel_approximates_coupling Σ); [done|done|].
+  iIntros (HΣ) "_". iApply Hbrel.
+Qed.  
