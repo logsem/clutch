@@ -2,7 +2,7 @@ From Stdlib Require Import Reals Psatz.
 From clutch.prelude Require Import NNRbar.
 From clutch.common Require Import language.
 From clutch.prob Require Import distribution markov.
-From clutch.prob_eff_lang.probblaze Require Import notation semantics. (* semantics proves that blaze_prob_lang is a lang_markov *)
+From clutch.prob_eff_lang.probblaze Require Import notation semantics logic sem_judgement sem_types sem_def. (* semantics proves that blaze_prob_lang is a lang_markov *)
 Set Default Proof Using "Type*".
 #[local] Open Scope R_scope.
 
@@ -142,3 +142,11 @@ Proof.
   pose proof (lub y ub').
   pose proof (lub' x ub). lra.
 Qed.
+
+
+Theorem brel_advantage `{probblazeRGS Σ} A e e' (τ : sem_ty Σ):
+  ∀ (b : bool), (⊢ sem_val_typed A A (τ → 𝔹)%T) ->
+                (⊢ sem_val_typed e e' τ)  /\ (⊢ sem_val_typed e' e τ) ->
+                nonneg (advantage A e e' #b) = 0%R.
+Proof.
+Admitted. 

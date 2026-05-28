@@ -28,8 +28,8 @@ Section def_implementation.
   Definition pow : expr := rec: "pow" "b" "e" := if: "e" = #0 then #1 else "b" * ("pow" "b" ("e" - #1)).
   Definition modn : expr := rec: "mod" "a" := if: "a" < #n then "a" else "mod" ("a" - #n).
 
-  Definition F_AUTH (leakauth : label): val :=
-  λ: "f" <>,  
+  Definition F_AUTH : val :=
+  λ: "f" "doLeakSend" "doLeakRecv",  
     let: "m1" := ref NONEV in
     let: "m2" := ref NONEV in
     effect "channel" 
@@ -44,18 +44,18 @@ Section def_implementation.
             match: "dst" with
               (* Alice *)
               InjL <> => match: !"m1" with (* Send only the first value. Discard all others.  *)
-                         NONE => "m1" <- SOME "m";; (do: leakauth (Send ("m", "dst")));; "k" #()%V
+                         NONE => "m1" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
                        | SOME "x" => "k" #()%V 
                          end
             (* Bob *)
             | InjR <> => match: !"m2" with
-                          NONE => "m2" <- SOME "m";; (do: leakauth (Send ("m", "dst")));; "k" #()%V
+                          NONE => "m2" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
                         | SOME "x" => "k" #()%V 
                         end
             end
         (* Recv *)
         | InjR "from" =>
-            let: "r" := (do: leakauth (Recv "from")) in
+            let: "r" := ("doLeakRecv" "from") in
              match: "r" with
                NONE => "k" NONEV
              | SOME "x" => match: "from" with

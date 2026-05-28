@@ -972,8 +972,9 @@ Section handlee_verification.
                                             BREL v1 (λ: "m", do: c1 (Send "m"))%V (λ: "m", do: c1 (Recv "m"))%V ≤
                                                  v2 (λ: "m", do: c2 (Send "m"))%V (λ: "m", do: c2 (Recv "m"))%V 
                                                  <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
-    BREL F_AUTH leakauth1 f1 ≤ F_AUTH leakauth2 f2 <| ⊥ |> {{ λ v1 v2, (𝟙 -{ sem_row_union leakchan_row L }-∘ 𝟙)%T v1 v2 }}.
-  Proof using G. 
+    BREL F_AUTH f1 ≤ F_AUTH f2 <| ⊥ |> {{ λ v1 v2, 
+                                                                (∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
+  Proof with (repeat foldkont) using G. 
     iIntros "Hfraca Hfracb Hff". 
     
     iApply (brel_bind _ _ _ [] _ _ f1 f2); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
@@ -983,7 +984,9 @@ Section handlee_verification.
     iIntros (f1 f2) "Hff". 
     unfold F_AUTH.
     brel_pures'. iModIntro.
-    iIntros (??) "(->&->)".
+    iIntros (lc dsend1 dsend2) "#Hsend". 
+    brel_pures'. iModIntro.
+    iIntros (drecv1 drecv2) "#Hrecv". 
     brel_pures'.
 
     iApply brel_alloc_l. iIntros (l1) "!> Hl1".
@@ -1048,7 +1051,8 @@ Section handlee_verification.
     iApply (brel_add_label_r with "Hchan2").
     
     iApply (brel_exhaustion _ _ [_] [_] with "[Hff]"); [done|done| |].
-    { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'. apply submseteq_skip. by apply submseteq_cons. }
+    { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'. apply submseteq_skip. rewrite iLblSig_to_iLblThy_app. 
+      by apply submseteq_inserts_l. }
     iLöb as "IH".
     iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
     iIntros (?????) "!# %Hk1 %Hk2 [[(%&%&Hupd&(->&->)&#HQ) | (->&->&#(HNone & HSome))]| [(%&%&Hupd&(->&->)&#HQ) | (->&->&#(HNone & HSome))]] #Hkont".
@@ -1068,7 +1072,9 @@ Section handlee_verification.
         iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1".
         iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl1s"). iIntros "Hl1s".
         brel_pures.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| iApply to_iThy_le_refl|].
+        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
+          by apply submseteq_inserts_r. }
                 
         iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
@@ -1076,16 +1082,26 @@ Section handlee_verification.
         iModIntro.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
+
+        iAssert (sem_val_typed (m, bob)%V (m,bob)%V (⊤ × (𝟙 + 𝟙))%T) as "Hmm".
+        { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
+          iExists _,_. iLeft. done. }
+        unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
+        unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
+        iDestruct ("Hsend" with "Hmm") as "Hsend1". 
+        iApply (brel_wand with "[$Hsend1]").
+        iIntros (??) "!# (->&->)".
+        brel_pures'.
   
-        iApply brel_introduction'. { apply list_elem_of_further. apply list_elem_of_here. }
-        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iLeft. iRight.
-        iExists _.
-        do 2 (iSplit; try (iPureIntro; done)).
-        iModIntro.
-        iApply brel_value. iIntros "$ !>".
-        brel_pures.
+        (* iApply brel_introduction'. { apply list_elem_of_further. apply list_elem_of_here. }
+           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+           iLeft. iRight.
+           iExists _.
+           do 2 (iSplit; try (iPureIntro; done)).
+           iModIntro.
+           iApply brel_value. iIntros "$ !>".
+           brel_pures. *)
         iDestruct ("Hkont" with "HQ") as "Hbrel".
         iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IH".
   
@@ -1101,22 +1117,32 @@ Section handlee_verification.
         
         iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done| done|]. iApply "IH". }
   
-    1 : { brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
-          iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
-          iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here|].
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. iRight. do 2 (iSplit; try (iPureIntro; done)).
-          iModIntro.
-          iSplit; last first.
+    1 : { brel_pures; [apply Hk1|apply Hk2|]; try set_solver...
+          iApply (brel_bind [_] [_]); [iApply traversable_to_iThy| |].
+          { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
+            by apply submseteq_inserts_r. }
+          
+          iAssert (sem_val_typed (bob)%V (bob)%V ((𝟙 + 𝟙))%T) as "Hbob".
+          { iModIntro. iExists _,_. iLeft. done. }
+          unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hrecv" as "#Hrecv".
+          unfold sem_val_typed. simpl. iDestruct "Hbob" as "#Hbob".
+          iDestruct ("Hrecv" with "Hbob") as "Hrecv1". 
+          iApply (brel_wand with "[$Hrecv1]").
+          iIntros (??) "!# (%&%&[(->&->&->&->)|(->&->&_)])"; brel_pures'.
+          (* iIntros (??) "!# (->&->)".
+             brel_pures'.
+             
+             iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here|].
+             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+             iRight. iRight. do 2 (iSplit; try (iPureIntro; done)).
+             iModIntro.
+             iSplit; last first. *)
   
-          + iApply brel_value. iIntros "$ !>".
-            iDestruct ("Hkont" with "HNone") as "Hbrel".
+          + iDestruct ("Hkont" with "HNone") as "Hbrel".
             iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IH".
   
-          + iIntros (b1 b2). iApply brel_value. iIntros "$ !>".
-            brel_pures.
-            iApply (brel_na_inv _ _ betaN); [set_solver|].
+          + iApply (brel_na_inv _ _ betaN); [set_solver|].
             iFrame "Hinvb". 
             iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%gB & #Hl2 & #Hl2s & Htokb & #Hfracb & #Hauthb)] & Hclose)".
             * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> Hl2".
@@ -1154,24 +1180,36 @@ Section handlee_verification.
         iApply (brel_store_l _ _ _ [AppRCtx _] with "[$]"). iIntros "!> Hl2".
         iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl2s"). iIntros "Hl2s".
         brel_pures.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
-  
+        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
+          by apply submseteq_inserts_r. }
+
         iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hl2s") as "#Hl2s".
         iMod (ghost_map_elem_persist with "Hl2") as "#Hl2".
         iModIntro.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
+
+        iAssert (sem_val_typed (m, alice)%V (m,alice)%V (⊤ × (𝟙 + 𝟙))%T) as "Hmm".
+        { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
+          iExists _,_. iRight. done. }
+        unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
+        unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
+        iDestruct ("Hsend" with "Hmm") as "Hsend1". 
+        iApply (brel_wand with "[$Hsend1]").
+        iIntros (??) "!# (->&->)".
+        brel_pures'.
   
-        iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here| ].
-        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iLeft. iLeft.
-        iExists _.
-        do 2 (iSplit; try (iPureIntro; done)).
-        iModIntro.
-        iApply brel_value. iIntros "$ !>".
-        brel_pures.
+        (* iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here| ].
+           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+           iLeft. iLeft.
+           iExists _.
+           do 2 (iSplit; try (iPureIntro; done)).
+           iModIntro.
+           iApply brel_value. iIntros "$ !>".
+           brel_pures. *)
   
         iDestruct ("Hkont" with "HQ") as "Hbrel".
         iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
@@ -1188,21 +1226,30 @@ Section handlee_verification.
         iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH". }
   
     1 : { brel_pures; [apply Hk1| apply Hk2|]; try set_solver.
-          iApply (brel_bind' [_] [_]); [by iApply traversable_to_iThy|].
-          iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here|].
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. iLeft. do 2 (iSplit; try (iPureIntro; done)).
-          iModIntro.
-          iSplit; last first.
+          iApply (brel_bind [_] [_]); [by iApply traversable_to_iThy| |].
+          { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
+            by apply submseteq_inserts_r. }
+          
+          iAssert (sem_val_typed (alice)%V (alice)%V ((𝟙 + 𝟙))%T) as "Halice".
+          { iModIntro. iExists _,_. iRight. done. }
+          unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hrecv" as "#Hrecv".
+          unfold sem_val_typed. simpl. iDestruct "Halice" as "#Halice".
+          iDestruct ("Hrecv" with "Halice") as "Hrecv1". 
+          iApply (brel_wand with "[$Hrecv1]").
+          iIntros (??) "!# (%&%&[(->&->&->&->)|(->&->&_)])"; brel_pures'.
+
+
+          (* iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here|].
+             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+             iRight. iLeft. do 2 (iSplit; try (iPureIntro; done)).
+             iModIntro.
+             iSplit; last first. *)
   
-          + iApply brel_value. iIntros "$ !>".
-            iDestruct ("Hkont" with "HNone") as "Hbrel".
+          + iDestruct ("Hkont" with "HNone") as "Hbrel".
             iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
   
-          + iIntros (b1 b2). iApply brel_value. iIntros "$ !>".
-            brel_pures.
-            iApply (brel_na_inv _ _ alphaN); [set_solver|].
+          + iApply (brel_na_inv _ _ alphaN); [set_solver|].
             iFrame "#". 
             iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%gA & #Hl1 & #Hl1s & Htoka & #Hfraca & #Hautha)] & Hclose)".
             * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> Hl1".
@@ -1230,8 +1277,8 @@ Section handlee_verification.
 
 
   Lemma F_AUTH_DH_KE_FAUTH_C_DH_real :
-    ⊢ sem_val_typed (λ: "f", F_AUTH leakauth1 (DH_KE "f"))%V (λ: "f", F_AUTH leakauth2 (C "f" DH_real))%V  
-                         (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ (𝟙 -{ sem_row_union leakchan_row θ__L }-∘ 𝟙))%T.
+    ⊢ sem_val_typed (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (C "f" DH_real))%V  
+                         (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
   Proof using G channel1 channel2 inG0 inG1 inG2. (* TODO: remove channel1 channel2 from context *)
     iModIntro. iIntros (L).
     iIntros (f1 f2) "#Hff".
@@ -1254,8 +1301,8 @@ Section handlee_verification.
   (* Verification of F_AUTH[C[DH_real]] ≤ F_AUTH[DH_KE] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_C_DH_real_FAUTH_DH_KE :
-     ⊢ sem_val_typed (λ: "f", F_AUTH leakauth1 (C "f" DH_real))%V (λ: "f", F_AUTH leakauth2 (DH_KE "f"))%V  
-                         (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ (𝟙 -{ sem_row_union leakchan_row θ__L }-∘ 𝟙))%T.
+     ⊢ sem_val_typed (λ: "f", F_AUTH (C "f" DH_real))%V (λ: "f", F_AUTH (DH_KE "f"))%V  
+                         (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
   Proof using G channel1 channel2 inG0 inG1 inG2.
     iModIntro. iIntros (L).
     iIntros (f1 f2) "#Hff".
@@ -1922,8 +1969,8 @@ Section handlee_verification.
   (* Verification of F_AUTH[DH_SIM[F_KE]] ≤ F_AUTH[C[DH_rand]] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand :
-     ⊢ sem_val_typed (λ: "f", F_AUTH leakauth1 (DH_SIM (F_KE "f")))%V (λ: "f", F_AUTH leakauth2 (C "f" DH_rand))%V  
-                         (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ (𝟙 -{ sem_row_union leakchan_row θ__L }-∘ 𝟙))%T.
+     ⊢ sem_val_typed (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V (λ: "f", F_AUTH (C "f" DH_rand))%V  
+                         (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
   Proof using G channel1 channel2 inG0 inG1 inG2.
     iModIntro. iIntros (L).
     iIntros (f1 f2) "#Hff".
@@ -1946,8 +1993,8 @@ Section handlee_verification.
   (* Verification of F_AUTH[C[DH_rand]] ≤ F_AUTH[DH_SIM[F_KE]] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE :
-    ⊢ sem_val_typed (λ: "f", F_AUTH leakauth1 (C "f" DH_rand))%V (λ: "f", F_AUTH leakauth2 (DH_SIM (F_KE "f")))%V  
-        (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ (𝟙 -{ sem_row_union leakchan_row θ__L }-∘ 𝟙))%T.
+    ⊢ sem_val_typed (λ: "f", F_AUTH (C "f" DH_rand))%V (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V  
+        (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
   Proof using channel1 channel2 G inG0 inG1 inG2.
     iModIntro. iIntros (L).
     iIntros (f1 f2) "#Hff".
