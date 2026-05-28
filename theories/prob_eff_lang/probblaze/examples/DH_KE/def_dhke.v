@@ -126,17 +126,18 @@ Section def_implementation.
        end
    | return "y" => "y" end.
 
- Definition DH_SIM (channel leakauth : label) : val :=
- λ: "f" <>,                           
+ Definition DH_SIM : val :=
+ λ: "f" "doSend" "doRecv",                        
    let: "α" := alloc #n in
     let: "β" := alloc #n in
     let: "l1" := ref NONEV in
     let: "l2" := ref NONEV in
-      handle: "f" #()%V with
-    | effect channel "payload", rec "k" as multi =>
+    effect "leak"  
+    let: "doLeak" := (λ: "m", do: (EffName "leak") "m") in
+      handle: "f" "doLeak" with
+    | effect (EffName "leak") "payload", rec "k" as multi =>
         match: "payload" with
-        | InjL "payload" =>
-            let, ("m", "dst") := "payload" in
+        | InjL "dst" =>
             match: "dst" with
               InjL <> => let: "c" :=
                            (match: !"l1" with
@@ -144,7 +145,7 @@ Section def_implementation.
                             | SOME "c" => "c"
                             end) in
                          let: "gC" := g^"c" in
-                         (do: leakauth (Send ("gC", bob)));;
+                         "doSend" ("gC",bob);;
                          "k" #()%V
             | InjR <> => let: "c" :=
                            (match: !"l2" with
@@ -152,11 +153,11 @@ Section def_implementation.
                             | SOME "c" => "c"
                             end) in
                          let: "gC" := g^"c" in
-                         (do: leakauth (Send ("gC", alice)));;
+                         "doSend" ("gC", alice);;
                          "k" #()%V
             end
         | InjR "from" =>
-            let: "r" := do: leakauth (Recv "from") in
+            let: "r" := "doRecv" "from" in
              match: "r" with
                NONE => "k" NONE
              | SOME "x" => "k" (SOME #0)
@@ -164,6 +165,38 @@ Section def_implementation.
         end
     | return "y" => "y" end.
 
+  
+   Definition F_KE : val :=
+     λ: "f" "doLeak",
+    (* Magically share a presampled key *)
+    let: "c" := (sample #()%V) in
+    let: "key" := g^"c" in
+    effect "getKey"  
+    let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+    handle: "f" "doGK" with
+    | effect (EffName "getKey") "p", rec "k" as multi =>
+        match: "p" with
+          (* Alice *)
+          InjL <> =>
+            (* Leak a send *)
+            "doLeak" (Send bob);;
+            (* Receive a dummy value *)
+            let: "r" := "doLeak" (Recv bob) in
+            match: "r" with
+              NONE => "k" NONEV
+            | SOME "w" => "k" (SOME "key")
+            end
+        (* Bob  *)
+        | InjR <> =>
+            let: "r" := "doLeak" (Recv alice) in
+            match: "r" with
+              NONE => "k" NONEV
+            | SOME "w" => 
+                "doLeak" (Send alice);;
+                "k" (SOME "key")
+            end
+       end
+    | return "y" => "y" end.
 
   Definition C : val :=
    λ: "f" "DH" "doSend" "doRecv",                         
