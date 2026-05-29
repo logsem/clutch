@@ -699,4 +699,13 @@ Section sem_row_union.
       iSplit; done.
   Qed. 
 
+  Global Instance sem_row_union_ne n : Proper (dist n ==> dist n ==> dist n) sem_row_union.
+  Proof. 
+    intros ρ1 ρ1' Heq1 ρ2 ρ2' Heq2.
+    destruct n; first done.     (* because of the definition of distance on rows *)
+    unfold sem_row_union. 
+    unfold dist, sem_row_dist. rewrite !iLblSig_to_iLblThy_app.
+    f_equiv; done.
+  Qed. 
+
 End sem_row_union.
