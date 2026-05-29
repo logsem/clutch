@@ -2,7 +2,7 @@ From Stdlib Require Import Reals Psatz.
 From clutch.prelude Require Import NNRbar.
 From clutch.common Require Import language.
 From clutch.prob Require Import distribution markov.
-From clutch.prob_eff_lang.probblaze Require Import notation semantics logic sem_judgement sem_types sem_def. (* semantics proves that blaze_prob_lang is a lang_markov *)
+From clutch.prob_eff_lang.probblaze Require Import notation semantics logic sem_judgement sem_types sem_def adequacy. (* semantics proves that blaze_prob_lang is a lang_markov *)
 Set Default Proof Using "Type*".
 #[local] Open Scope R_scope.
 
@@ -144,9 +144,38 @@ Proof.
 Qed.
 
 
-Theorem brel_advantage `{probblazeRGS Σ} A e e' (τ : sem_ty Σ):
-  ∀ (b : bool), (⊢ sem_val_typed A A (τ → 𝔹)%T) ->
-                (⊢ sem_val_typed e e' τ)  /\ (⊢ sem_val_typed e' e τ) ->
+Theorem brel_advantage `{!probblazeRGpreS Σ} A e e' (τ : ∀ `{probblazeRGS Σ}, sem_ty Σ):
+  ∀ (b : bool), (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (τ → 𝔹)%T) ->
+                (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed e e' τ)  /\ (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed e' e τ) ->
                 nonneg (advantage A e e' #b) = 0%R.
 Proof.
-Admitted. 
+  intros b HA (He1&He2).
+  cut (advantage A e e' #b <= 0).
+  { intros Hlt. apply nnreal_le_0 in Hlt. by rewrite Hlt. }
+  apply advantage_uniform => σ.
+  apply Rabs_le.
+  cut (lim_exec (A e, σ) #b = lim_exec (A e', σ) #b).
+  { intros Heq. rewrite Heq. lra. }
+  f_equiv.
+  apply ARcoupl_antisym.
+  - eapply brel_refines_coupling; first done; last first.
+    + iIntros (H). 
+      iPoseProof (He1 H) as "He1".
+      iPoseProof (HA H) as "HA".
+      unfold sem_val_typed. simpl.
+      iDestruct "HA" as "#HA".
+      iDestruct "He1" as "#He1".
+      unfold sem_ty_arr, sem_ty_mbang. simpl.
+      iDestruct ("HA" with "He1") as "$".
+    + by iIntros (???) "(%&->&->)".
+  - eapply brel_refines_coupling; first done; last first.
+    + iIntros (H). 
+      iPoseProof (He2 H) as "He2".
+      iPoseProof (HA H) as "HA".
+      unfold sem_val_typed. simpl.
+      iDestruct "HA" as "#HA".
+      iDestruct "He2" as "#He2".
+      unfold sem_ty_arr, sem_ty_mbang. simpl.
+      iDestruct ("HA" with "He2") as "$".
+    + by iIntros (???) "(%&->&->)".
+Qed. 
