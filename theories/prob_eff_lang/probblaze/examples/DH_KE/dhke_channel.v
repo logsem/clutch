@@ -2014,6 +2014,50 @@ Section handlee_verification.
     - iIntros (??) "!# $".
   Qed.
 
+  (* Rewriting to match top-level statements *)
+  (*------------------------------------------------------------*)
+  Lemma DHSIM_RED : 
+    ⊢ sem_typed [] (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_rand) ⊥ (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
+  Proof using G channel1 channel2 inG0 inG1 inG2.
+    iIntros (vs) "!# _". simpl.
+    brel_pures'.
+    iModIntro. iSplit; last done.
+    iPoseProof F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand as "H".
+    rewrite /sem_val_typed //=. 
+  Qed. 
+
+  Lemma RED_DHSIM :
+    ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_rand) (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V ⊥ (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
+  Proof using G channel1 channel2 inG0 inG1 inG2.
+    iIntros (vs) "!# _". simpl.
+    brel_pures'.
+    iModIntro. iSplit; last done.
+    iPoseProof F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE as "H".
+    rewrite /sem_val_typed //=. 
+  Qed.  
+
+  Lemma DHKE_RED :
+    ⊢ sem_typed [] (λ: "f", F_AUTH (DH_KE "f"))%V ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_real) ⊥
+                         (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
+  Proof using G channel1 channel2 inG0 inG1 inG2.
+    iIntros (vs) "!# _". simpl.
+    brel_pures'.
+    iModIntro. iSplit; last done.
+    iPoseProof F_AUTH_DH_KE_FAUTH_C_DH_real as "H".
+    rewrite /sem_val_typed //=. 
+  Qed.  
+
+  Lemma RED_DHKE :
+    ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_real) (λ: "f", F_AUTH (DH_KE "f"))%V ⊥
+        (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
+  Proof using G channel1 channel2 inG0 inG1 inG2.
+    iIntros (vs) "!# _". simpl.
+    brel_pures'.
+    iModIntro. iSplit; last done.
+    iPoseProof F_AUTH_C_DH_real_FAUTH_DH_KE as "H".
+    rewrite /sem_val_typed //=. 
+  Qed.  
+
 End handlee_verification.
 
                 

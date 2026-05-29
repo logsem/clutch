@@ -144,7 +144,7 @@ Proof.
 Qed.
 
 
-Theorem brel_advantage `{!probblazeRGpreS Σ} A e e' (τ : ∀ `{probblazeRGS Σ}, sem_ty Σ):
+Theorem sem_val_typed_advantage `{!probblazeRGpreS Σ} A e e' (τ : ∀ `{probblazeRGS Σ}, sem_ty Σ):
   ∀ (b : bool), (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (τ → 𝔹)%T) ->
                 (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed e e' τ)  /\ (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed e' e τ) ->
                 nonneg (advantage A e e' #b) = 0%R.
@@ -179,3 +179,65 @@ Proof.
       iDestruct ("HA" with "He2") as "$".
     + by iIntros (???) "(%&->&->)".
 Qed. 
+
+Theorem sem_typed_advantage `{!probblazeRGpreS Σ} A e e' (τ : ∀ `{probblazeRGS Σ}, sem_ty Σ):
+  ∀ (b : bool), (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (τ → 𝔹)%T) ->
+                (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] e e' ⊥ τ [])  /\ (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] e' e ⊥ τ []) ->
+                nonneg (advantage A e e' #b) = 0%R.
+Proof.
+  intros b HA (He1&He2).
+  cut (advantage A e e' #b <= 0).
+  { intros Hlt. apply nnreal_le_0 in Hlt. by rewrite Hlt. }
+  apply advantage_uniform => σ.
+  apply Rabs_le.
+  cut (lim_exec (A e, σ) #b = lim_exec (A e', σ) #b).
+  { intros Heq. rewrite Heq. lra. }
+  f_equiv.
+  apply ARcoupl_antisym; eapply brel_refines_coupling; first done.
+  3 : done.
+  2 : {
+    iIntros (H). 
+    iPoseProof (He1 H) as "He1".
+    iPoseProof (HA H) as "HA".
+    unfold sem_val_typed. simpl.
+    iDestruct "HA" as "#HA".
+    iDestruct "He1" as "#He1".
+    iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
+    unfold sem_typed. simpl. iDestruct "He1" as "#He1".
+    iAssert ([] ⊨ₑ ∅) as "Hvs". { done. }
+    iDestruct ("He1" with "Hvs") as "He". rewrite !subst_map_empty.
+    iApply (brel_wand with "He").
+    iIntros (??) "!# (Hτ&_)".
+    unfold sem_ty_arr, sem_ty_mbang. simpl.
+    iDestruct ("HA" with "Hτ") as "$". }
+  3 : {
+    iIntros (H). 
+    iPoseProof (He2 H) as "He2".
+    iPoseProof (HA H) as "HA".
+    unfold sem_val_typed. simpl.
+    iDestruct "HA" as "#HA".
+    iDestruct "He2" as "#He2".
+    iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
+    unfold sem_typed. simpl. iDestruct "He2" as "#He2".
+    iAssert ([] ⊨ₑ ∅) as "Hvs". { done. }
+    iDestruct ("He2" with "Hvs") as "He". rewrite !subst_map_empty.
+    iApply (brel_wand with "He").
+    iIntros (??) "!# (Hτ&_)".
+    unfold sem_ty_arr, sem_ty_mbang. simpl.
+    iDestruct ("HA" with "Hτ") as "$". }
+  all : by iIntros (???) "(%&->&->)".
+Qed.  
+
+Lemma advantage_reduction {Σ} (adv red : val) (e e' : val) (b : bool) :
+  (∀ `{probblazeRGS Σ}, ∃ α β, 
+      (⊢ sem_val_typed adv adv (β → 𝔹)%T) /\
+      (⊢ sem_val_typed red red (α → β)%T) /\
+      (⊢ sem_val_typed e e α) /\ (⊢ sem_val_typed e' e' α)) →
+  advantage adv (red e) (red e') #b <= 
+    advantage (λ: "v", adv (red "v"))%V e e' #b.
+Proof.
+  intros.
+  apply advantage_uniform => σ.
+  etrans; last by apply (advantage_ub _ _ _ _ σ).
+  right.
+Admitted.
