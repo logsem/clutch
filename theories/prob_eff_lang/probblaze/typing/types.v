@@ -91,7 +91,8 @@ Section syntax.
   | RCons : eff_sig → row → row
   | RVar : var → row
   | RFlip : vmode → row → row
-  | RRec : {bind 1 of row} → row.
+  | RRec : {bind 1 of row} → row
+  | RUnion : row → row → row.
 
   (* We introduce a shorthand for a signature
      declaring the _absence_ of an effect. *)
@@ -137,6 +138,7 @@ Section syntax.
          | RVar _ => ρ
          | RRec ρ => RRec ρ.|[σ]
          | RCons s ρ => RCons s.|[σ] ρ.|[σ]
+         | RUnion ρ1 ρ2 => RUnion ρ1.|[σ] ρ2.|[σ]
          end
   with hsubst_vmode_eff_sig (σ : var → vmode) (s : eff_sig) : eff_sig :=
          let _ := hsubst_vmode_eff_sig : HSubst vmode eff_sig in
@@ -215,6 +217,7 @@ Section syntax.
          | RFlip m ρ => RFlip m (rename_type_row ξ ρ)
          | RRec ρ => RRec (rename_type_row ξ ρ)
          | RCons s ρ => RCons (rename_type_eff_sig ξ s) (rename_type_row ξ ρ)
+         | RUnion ρ1 ρ2 => RUnion (rename_type_row ξ ρ1) (rename_type_row ξ ρ2)
          end
   with rename_type_eff_sig (ξ : var → var) (s : eff_sig) : eff_sig :=
          let _ := rename_type : Rename type in
@@ -233,6 +236,7 @@ Section syntax.
     | RVar i => RVar (ξ i)
     | RRec ρ => RRec (rename ξ ρ)
     | RCons s ρ => RCons (rename_row_eff_sig ξ s) (rename ξ ρ)
+    | RUnion ρ1 ρ2 => RUnion (rename ξ ρ1) (rename ξ ρ2)
     end
   with rename_row_type (ξ : var → var) (τ : type) : type :=
          let _ := rename_row : Rename row in
@@ -296,6 +300,7 @@ Section syntax.
          | RVar _ => ρ
          | RRec ρ => RRec ρ.|[σ]
          | RCons s ρ => RCons s.|[σ] ρ.|[σ]
+         | RUnion ρ1 ρ2 => RUnion ρ1.|[σ] ρ2.|[σ]
          end
   with hsubst_type_eff_sig (σ : var → type) (s : eff_sig) : eff_sig :=
          let _ := hsubst_type_eff_sig : HSubst type eff_sig in
@@ -314,6 +319,7 @@ Section syntax.
     | RFlip m ρ => RFlip m ρ.[σ]
     | RRec ρ => RRec ρ.[σ]
     | RCons s ρ => RCons s.|[σ] ρ.[σ]
+    | RUnion ρ1 ρ2 => RUnion ρ1.[σ] ρ2.[σ]
     end
   with hsubst_row_type (σ : var → row) (τ : type) : type :=
          let _ := subst_row : Subst row in
@@ -506,6 +512,7 @@ Section wellformedness.
     | RVar i => (m ≤ i)
     | RNil => True
     | RRec ρ => wf_row (m + 1) ρ
+    | RUnion ρ1 ρ2 => wf_row m ρ1 ∧ wf_row m ρ2
     end 
 
   with wf_type (τ : type) : Prop :=
@@ -572,6 +579,13 @@ Section wellformedness.
     wf_row m (RCons e ρ) → wf_eff_sig e. 
   Proof. by intros (?&?). Qed.
 
+  Lemma wf_row_union_1 m ρ1 ρ2 : 
+    wf_row m (RUnion ρ1 ρ2) → wf_row m ρ1.
+  Proof. by intros (?&?). Qed.
+
+  Lemma wf_row_union_2 m ρ1 ρ2 :
+    wf_row m (RUnion ρ1 ρ2) → wf_row m ρ2.
+  Proof. by intros (?&?). Qed.
 
 End wellformedness. 
 
@@ -760,10 +774,12 @@ Module le.
       | RCons σ ρ => {[+ eff_name_from_sig σ +]} ⊎ conc_sigs ρ
       | RFlip _ ρ
       | RRec ρ => conc_sigs ρ
+      | RUnion ρ1 ρ2 => conc_sigs ρ1 ⊎ conc_sigs ρ2
       end.
 
   (* [abst_sigs ρ] computes the set of row variables appearing in [ρ]. *)
   (* In Affect only one row variable appear in a row at the end *)
+  (* In Tes it might be more because of RUnion *)
   Fixpoint abst_sigs : row → gset nat :=
     λ ρ, match ρ with
          | RNil => ∅
@@ -771,6 +787,7 @@ Module le.
          | RCons _ ρ
          | RFlip _ ρ
          | RRec ρ => abst_sigs ρ
+         | RUnion ρ1 ρ2 => abst_sigs ρ1 ∪ abst_sigs ρ2
          end. 
 
   (* The function [row_to_disj_ctx ρ'] builds a disjointness context by
@@ -1029,6 +1046,7 @@ Module vars.
     | RFlip _ ρ
     | RRec ρ => _row_pre f ρ
     | RCons σ ρ => _eff_sig f σ ∪ _row_pre f ρ
+    | RUnion ρ1 ρ2 => _row_pre f ρ1 ∪ _row_pre f ρ2 
     end.
 
   Fixpoint _ty (α : type) : gset eff_name :=
@@ -1398,6 +1416,7 @@ Section derived_rules.
     induction e; by repeat constructor.
   Qed. 
 
+  (* Needs to add subsumption rules for RUnion *)
   Lemma RRefl_le D ρ b : D ⊢ ρ ≤R ρ @ b.
   Proof.
     generalize dependent b. revert ρ. induction ρ; intros b; repeat constructor.
@@ -1407,6 +1426,6 @@ Section derived_rules.
     - eapply le.RTrans_le.
       + apply le.RUnfold_le.
       + apply le.RFold_le.
-  Qed. 
-
+  Admitted. 
+        
 End derived_rules.

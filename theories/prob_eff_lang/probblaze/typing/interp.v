@@ -38,6 +38,7 @@ Module interp.
          | RFlip m ρ => fun H => λne ξ, sem_row_flip_mbang (_mode μ m) (_row n μ δ ρ (wf_row_RFlip v m ρ H) ξ)
          | RCons e ρ => fun H => λne ξ, sem_row_cons (_eff_sig n μ δ e (wf_row_eff_sig v ρ e H) ξ) (_row n μ δ ρ (wf_row_RCons v e ρ H) ξ)
          | RRec ρ' => fun H => λne ξ, sem_row_rec' (λne ρ'', _row n μ δ ρ' _ (ρ'' :: ξ))
+         | RUnion ρ1 ρ2 => fun H => λne ξ, sem_row_union (_row n μ δ ρ1 (wf_row_union_1 v ρ1 ρ2 H) ξ) (_row n μ δ ρ2 (wf_row_union_2 v ρ1 ρ2 H) ξ)
          end Hwf
   with _ty `{!probblazeRGS Σ}
     (n : list (sem_ty Σ))
@@ -85,6 +86,9 @@ Module interp.
     - done. 
     - intros ????. by do 2 f_equiv.
     - intros ????. apply fixpoint_ne. solve_proper. 
+    - done.
+    - done.
+    - intros ????; f_equiv; by f_equiv.
     - apply probblazeRGS_probblazeGS. 
     - done.
     - done.
