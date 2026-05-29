@@ -199,7 +199,7 @@ Section def_implementation.
     | return "y" => "y" end.
 
   Definition C : val :=
-   λ: "f" "DH" "doSend" "doRecv",                         
+   λ: "DH" "f" "doSend" "doRecv",                         
     let, ("ga", "gb", "gc") := "DH" #()%V in
     effect "getKey" 
     let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in

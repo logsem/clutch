@@ -317,7 +317,7 @@ Section handlee_verification.
     own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) -∗
     sem_val_typed f1 f2 (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-> 𝟙)%T -∗
 
-    BREL DH_KE f1 ≤ C f2 DH_real <|⊥|> {{ λ v1 v2, 
+    BREL DH_KE f1 ≤ C DH_real f2 <|⊥|> {{ λ v1 v2, 
                            ∀ c1 c2 : label, let ac := authchan_row c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
                                             BREL v1 (λ: "m", do: c1 (Send "m"))%V (λ: "m", do: c1 (Recv "m"))%V ≤
                                                  v2 (λ: "m", do: c2 (Send "m"))%V (λ: "m", do: c2 (Recv "m"))%V 
@@ -642,7 +642,7 @@ Section handlee_verification.
     own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) -∗
     sem_val_typed f1 f2 (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-> 𝟙)%T -∗
 
-    BREL C f1 DH_real ≤ DH_KE f2 <|⊥|> {{ λ v1 v2, 
+    BREL C DH_real f1 ≤ DH_KE f2 <|⊥|> {{ λ v1 v2, 
                            ∀ c1 c2 : label, let ac := authchan_row c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
                                             BREL v1 (λ: "m", do: c1 (Send "m"))%V (λ: "m", do: c1 (Recv "m"))%V ≤
                                                  v2 (λ: "m", do: c2 (Send "m"))%V (λ: "m", do: c2 (Recv "m"))%V 
@@ -1277,7 +1277,7 @@ Section handlee_verification.
 
 
   Lemma F_AUTH_DH_KE_FAUTH_C_DH_real :
-    ⊢ sem_val_typed (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (C "f" DH_real))%V  
+    ⊢ sem_val_typed (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (C DH_real "f"))%V  
                          (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
   Proof using G channel1 channel2 inG0 inG1 inG2. (* TODO: remove channel1 channel2 from context *)
     iModIntro. iIntros (L).
@@ -1301,7 +1301,7 @@ Section handlee_verification.
   (* Verification of F_AUTH[C[DH_real]] ≤ F_AUTH[DH_KE] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_C_DH_real_FAUTH_DH_KE :
-     ⊢ sem_val_typed (λ: "f", F_AUTH (C "f" DH_real))%V (λ: "f", F_AUTH (DH_KE "f"))%V  
+     ⊢ sem_val_typed (λ: "f", F_AUTH (C DH_real "f"))%V (λ: "f", F_AUTH (DH_KE "f"))%V  
                          (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
   Proof using G channel1 channel2 inG0 inG1 inG2.
     iModIntro. iIntros (L).
@@ -1332,7 +1332,7 @@ Section handlee_verification.
     own γautha (to_dfrac_agree (DfracOwn 1) #()%V) -∗
     own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) -∗
     sem_val_typed f1 f2 (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-> 𝟙)%T -∗
-    BREL DH_SIM (F_KE f1) ≤ C f2 DH_rand <|⊥|> 
+    BREL DH_SIM (F_KE f1) ≤ C DH_rand f2 <|⊥|> 
       {{ λ v1 v2, ∀ c1 c2 : label, let ac := authchan_row c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
                                             BREL v1 (λ: "m", do: c1 (Send "m"))%V (λ: "m", do: c1 (Recv "m"))%V ≤
                                                  v2 (λ: "m", do: c2 (Send "m"))%V (λ: "m", do: c2 (Recv "m"))%V 
@@ -1656,7 +1656,7 @@ Section handlee_verification.
     own γautha (to_dfrac_agree (DfracOwn 1) #()%V) -∗
     own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) -∗
      sem_val_typed f1 f2 (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-> 𝟙)%T -∗
-     BREL C f1 DH_rand ≤ DH_SIM (F_KE f2) <|⊥|> 
+     BREL C DH_rand f1 ≤ DH_SIM (F_KE f2) <|⊥|> 
        {{ λ v1 v2, ∀ c1 c2 : label, let ac := authchan_row c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
                                     BREL v1 (λ: "m", do: c1 (Send "m"))%V (λ: "m", do: c1 (Recv "m"))%V ≤
                                       v2 (λ: "m", do: c2 (Send "m"))%V (λ: "m", do: c2 (Recv "m"))%V 
@@ -1969,7 +1969,7 @@ Section handlee_verification.
   (* Verification of F_AUTH[DH_SIM[F_KE]] ≤ F_AUTH[C[DH_rand]] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand :
-     ⊢ sem_val_typed (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V (λ: "f", F_AUTH (C "f" DH_rand))%V  
+     ⊢ sem_val_typed (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V (λ: "f", F_AUTH (C DH_rand "f"))%V  
                          (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
   Proof using G channel1 channel2 inG0 inG1 inG2.
     iModIntro. iIntros (L).
@@ -1993,7 +1993,7 @@ Section handlee_verification.
   (* Verification of F_AUTH[C[DH_rand]] ≤ F_AUTH[DH_SIM[F_KE]] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE :
-    ⊢ sem_val_typed (λ: "f", F_AUTH (C "f" DH_rand))%V (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V  
+    ⊢ sem_val_typed (λ: "f", F_AUTH (C DH_rand "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V  
         (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
   Proof using channel1 channel2 G inG0 inG1 inG2.
     iModIntro. iIntros (L).
