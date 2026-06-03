@@ -56,7 +56,7 @@ Section nsvt.
 
   Definition nAT_spec (c : R) (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
     □ ∀ `(dDB : Distance DB) (db db' : DB) (_ : dDB db db' <= c) (q : val) (K0 : list ectx_item),
-      wp_sensitive q 1 dDB dZ -∗
+      □ wp_sensitive q 1 dDB dZ -∗
       AUTH -∗
       ⤇ fill K0 (f' (inject db') q) -∗
       WP f (inject db) q
@@ -88,8 +88,10 @@ Section nsvt.
     iModIntro. iExists _. iFrame "rhs".
     iExists (↯m (ε / 2) ∗ ↯m (ε / 4))%I. repeat rewrite Rmult_1_l. iFrame "ε2 ε3". clear K.
     rewrite /nAT_spec.
-    iModIntro. iIntros (?????? K) "q_sens ε rhs"...
-    tp_bind (q _) ; wp_bind (q _). rewrite /wp_sensitive.
+    iModIntro. iIntros (?????? K) "#q_sens ε rhs"...
+    tp_bind (q _) ; wp_bind (q _).
+    iCombine "q_sens" as "q_sens'".
+    rewrite /wp_sensitive.
     iSpecialize ("q_sens" $! _ _ db db' with "rhs").
     Unshelve. 2: lra.
     Search "wp_strong_mono".
@@ -115,16 +117,30 @@ Section nsvt.
       simpl... case_bool_decide as Hf1; case_bool_decide as Hf2.
       2, 3, 4: lia.
       wp_if_true; tp_if_true...
+      tp_bind (q _); wp_bind (q _).
+      iSpecialize ("q_sens'" $! _ _ db db' with "rhs").
+      Unshelve. 2: lra.
+      iApply (wp_strong_mono'' with "q_sens' [ε1]") => //.
+      iIntros (?) "(%vq_l' & %vq_r' & -> & rhs & %adj'')" => /=...
       tp_bind (Laplace _ _ _ _); wp_bind (Laplace _ _ _ _).
-      (*
-      Search "hoare_couple_".
-      SOMETHING LIKE:
-        iApply (hoare_couple_laplace _ _ 0%Z 1%Z with "[$rhs ε1]").
+      iApply (hoare_couple_laplace _ _ 0 1 with "[$rhs ε1]") => //.
+      + rewrite Z.add_comm. rewrite -Zplus_0_r_reverse.
+        Search "Z" "R". apply le_IZR. rewrite abs_IZR.
+        lra.
+      + rewrite mult_IZR; apply Rdiv_pos_pos. 1, 2: real_solver.
+      + iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
+        2: qify_r; zify_q; lia.
+        field. eapply Rdiv_pos_den_0 => //.
+      + iIntros (v) "!> rhs" => /=...
+        iModIntro.
         iExists (InjRV #v).
+        replace #(v + 0) with #v.
+        2: by rewrite -Zplus_0_r_reverse.
         iFrame.
-        iIntros (Hf); inversion Hf.
-       *)
-      admit.
+        iSplitL.
+        1: by iPureIntro.
+        iIntros "%Hfalse".
+        inversion Hfalse.
     - (* under the threshold *)
       simpl... destruct h_below. case_bool_decide as Hf1; case_bool_decide as Hf2.
       1, 2, 3: lia.
@@ -134,7 +150,6 @@ Section nsvt.
       iFrame.
       iSplitR; first by iPureIntro; reflexivity.
       by iIntros (Hfin) => //.
-  Admitted.
+  Qed.
 
-End nsvt.
-
+ End nsvt.
