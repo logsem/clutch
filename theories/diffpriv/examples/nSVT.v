@@ -45,6 +45,9 @@ Section nsvt.
               ∀ V , { AUTH } f db qi ~ f db' qi { b b' : option R . ⌜b = V -> b' = V⌝ ∗ (⌜V = None⌝ -∗ AUTH) }
      }  *)
 
+
+  (** Numeric Above Threshold **)
+
   Definition num_above_threshold : val :=
     λ:"num" "den" "T",
       let: "T'" := Laplace "num" (#4*"den") "T" #() in
@@ -64,7 +67,7 @@ Section nsvt.
                             (⌜v = NONEV⌝ -∗ AUTH) }}.
 
   (* We prove the (non-pw) spec for onAT from hoare_couple_laplace_choice. *)
-  Lemma num_above_threshold_online_AT_spec (num den T : Z) (εpos : 0 < IZR num / IZR den) K :
+  Lemma num_above_threshold_online_nAT_spec (num den T : Z) (εpos : 0 < IZR num / IZR den) K :
     ↯m (1 * (IZR num / IZR den)) -∗
     ⤇ fill K ((Val num_above_threshold) #num #den #T)
     -∗ WP (Val num_above_threshold) #num #den #T
@@ -152,4 +155,128 @@ Section nsvt.
       by iIntros (Hfin) => //.
   Qed.
 
- End nsvt.
+
+  (** Numeric Sparse Vector **)
+
+  Definition onSVT : val :=
+    λ:"num" "den" "T" "N",
+      let: "count" := ref ("N" - #1) in
+      let: "nAT" := ref (num_above_threshold "num" "den" "T") in
+      λ:"db" "qi",
+        let: "bq" := !"nAT" "db" "qi" in
+        (if: !"count" <= #0 `or` "bq" = NONEV then
+           #()
+         else ("nAT" <- (num_above_threshold "num" "den" "T") ;;
+            "count" <- !"count" - #1)) ;;
+        "bq".
+
+  Definition nSVT_spec (f f' : val) (inSVT : nat → iProp Σ) : iProp Σ :=
+    (∀ `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) (q : val) K,
+          □ wp_sensitive (Val q) 1 dDB dZ -∗
+          ⤇ fill K (Val f' (inject db') q) -∗
+          ∀ n, inSVT (S n) -∗
+               WP Val f (inject db) q
+                 {{v, ⤇ fill K (Val v) ∗ (* why b ? *)
+                        ∃ (b : val), ⌜v = b⌝ ∗ inSVT (if bool_decide(b = NONEV) then S n
+                                                               else n) }}
+      ).
+
+  Lemma nSVT_online_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) K :
+    let ε := IZR num / IZR den in
+    ∀ (εpos : 0 < ε),
+      ↯m (N * ε) -∗
+      ⤇ fill K (onSVT #num #den #T #N) -∗
+      WP onSVT #num #den #T #N
+        {{ f,
+             ∃ (f' : val) (inSVT : nat → iProp Σ),
+              ⤇ fill K f' ∗
+              inSVT N ∗
+             □ nSVT_spec f f' inSVT }}.
+
+  Proof with (tp_pures ; wp_pures).
+    (* make sure we have at least enough credit to initialise AT once *)
+    destruct N as [|N'] ; [lia|] ; clear Npos.
+    iIntros (??) "SNε rhs". rewrite /onSVT...
+    tp_alloc as count_r "count_r". wp_alloc count_l as "count_l"...
+    tp_bind (num_above_threshold _ _ _) ; wp_bind (num_above_threshold _ _ _).
+    assert (INR (N'+1)%nat ≠ 0). { replace 0 with (INR 0) => //. intros ?%INR_eq. lia. }
+    replace (S N' * ε) with (ε + N' * ε).
+    2:{ replace (S N') with (N'+1)%nat by lia. replace (INR (N'+1)) with (N' + 1) by real_solver. lra. }
+    iDestruct (ecm_split with "SNε") as "[ε Nε]". 1,2: real_solver.
+    opose proof (num_above_threshold_online_nAT_spec num den T _) as nAT.
+    1: done.
+
+    iPoseProof (nAT with "[ε] [rhs]") as "nAT" => // ; clear nAT. 1: by rewrite Rmult_1_l.
+    iApply (wp_strong_mono'' with "nAT").
+    replace (S N') with (N'+1)%nat by lia.
+    iIntros "%f (%f' & %AUTH & rhs & auth & AT) /=".
+    tp_alloc as ref_f' "ref_f'". wp_alloc ref_f as "ref_f"...
+    iModIntro. iExists _. iFrame "rhs".
+    set (inSVT := (λ n : nat,
+                    if Nat.ltb 0%nat n then
+                      let n' := (n-1)%nat in
+                      count_l ↦ #n' ∗ count_r ↦ₛ #n' ∗
+                      ↯m (n' * ε) ∗ ∃ token f f',
+                          token ∗ ref_f ↦ f ∗ ref_f' ↦ₛ f' ∗ nAT_spec 1 token f f'
+                    else emp
+                 )%I). iExists inSVT.
+    iSplitL.
+    { rewrite /inSVT /=. destruct (0 <? N'+1)%nat => //.
+      replace ((N'+1)%nat-1)%Z with (Z.of_nat N') by lia.
+      replace (N'+1-1)%nat with N' by lia. iFrame. }
+    clear f f'.
+    iIntros "!>" (???????) "#q_sens rhs %n (count_l & count_r & nε & (%TOKEN & %f & %f' & auth & ref_f & ref_f' & #nAT))"...
+    tp_load ; wp_load. tp_bind (f' _ _) ; wp_bind (f _ _).
+    iCombine "nAT" as "nAT_cpy".
+    iSpecialize ("nAT" $! _ _ _ _ adj) as #.
+    iSpecialize ("nAT" with "q_sens auth rhs").
+    iApply (wp_strong_mono'' with "nAT").
+    iIntros "%vq (%b & -> & rhs & maybe_auth)".
+    iSimpl in "rhs"...
+    case_bool_decide as H1.
+    - (* Case where the returned value is None *)
+      simpl... rewrite /= !Nat.sub_0_r. simplify_eq.
+      iSpecialize ("maybe_auth" $! eq_refl).
+      tp_load ; wp_load...
+      destruct n as [|n']...
+      { rewrite /inSVT. iFrame.
+        iExists (InjLV #()). iSplitR => //. simpl. iFrame.
+        iExists TOKEN. iFrame. done.
+      }
+      iFrame. iExists _ ; iSplitR => //. iSimpl. iFrame. iExists TOKEN. iFrame. done.
+
+    - (* Case where the returned value is Some(v) *)
+      tp_load ; wp_load...
+      rewrite /= !Nat.sub_0_r.
+      destruct n as [|n']...
+      { (* Case where n <= 0 *)
+        rewrite /inSVT. iFrame. iExists _. iSplitR. 1: done. simpl.
+        case_bool_decide as H2.
+        + done.
+        + simpl. done.
+      }
+      (* Case where n>0 *)
+      replace (S n' * ε) with (ε + n' * ε).
+      2:{ replace (S n') with (n'+1)%nat by lia. replace (INR (n'+1)) with (n' + 1) by real_solver. lra. }
+      iDestruct (ecm_split with "nε") as "[ε n'ε]". 1,2: real_solver.
+      simpl. simplify_eq...
+      tp_bind (num_above_threshold _ _ _) ; wp_bind (num_above_threshold _ _ _).
+      opose proof (num_above_threshold_online_nAT_spec num den T _) as nAT_pw.
+      1: done.
+      iPoseProof (nAT_pw with "[ε] [rhs]") as "nAT_pw" => // ; clear nAT_pw. 1: by rewrite Rmult_1_l.
+      iApply (wp_strong_mono'' with "nAT_pw [-]").
+      iIntros "%g (%g' & %AUTH' & rhs & auth & nAT') /=".
+      tp_store ; wp_store... tp_load... tp_store ; wp_load... wp_store.
+      iFrame. iExists _. iSplitR. 1: done.
+      rewrite /inSVT.
+      case_bool_decide as H1'; first done.
+      simpl.
+      replace ((n' - 0)%nat) with n' by lia.
+      iFrame.
+      replace (Z.of_nat (S n') - 1)%Z with (Z.of_nat n') by lia. iFrame. done.
+    Qed.
+
+
+
+End nsvt.
+
