@@ -50,10 +50,10 @@ Section nsvt.
 
   Definition num_above_threshold : val :=
     λ:"num" "den" "T",
-      let: "T'" := Laplace "num" (#4*"den") "T" #() in
+      let: "T'" := Laplace (#4*"num") (#9*"den") "T" #() in
       λ:"db" "qi",
-        let: "vi" := Laplace "num" (#8*"den") ("qi" "db") #() in
-        if: "T'" ≤ "vi" then SOME (Laplace "num" (#2*"den") ("qi" "db") #()) else NONEV.
+        let: "vi" := Laplace (#2*"num") (#9*"den") ("qi" "db") #() in
+        if: "T'" ≤ "vi" then SOME (Laplace (#1*"num") (#9*"den") ("qi" "db") #()) else NONEV.
 
   (* The spec that AT satisfies after initialising T'. *)
 
@@ -76,20 +76,30 @@ Section nsvt.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /num_above_threshold...
     tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
-    set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 4 + ε / 4) by real_solver.
+    set (ε := (IZR num / IZR den)). replace ε with ((1*ε) / 9 + (4*ε) / 9 + (4*ε) / 9) by real_solver.
     fold ε in εpos. repeat rewrite Rmult_plus_distr_l.
     (*iDestruct (ecm_split with "ε") as "[ε ε4]". 1,2: real_solver.*)
     iDestruct (ecm_split with "ε") as "[ε ε3]". 1,2: real_solver.
     iDestruct (ecm_split with "ε") as "[ε2 ε1]". 1,2: real_solver.
     iApply (hoare_couple_laplace _ _ 1%Z 1%Z with "[$rhs ε1]") => //.
     1: lia.
-    1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
-    { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (4 * den)) with (4 * IZR den).
+    1: repeat rewrite mult_IZR ; repeat apply Rdiv_pos_pos. 2: real_solver.
+    1: {rewrite -Rmult_div_assoc. apply Rmult_lt_0_compat. 1: lra. subst ε. apply εpos.}
+    { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (4 * num)) with (4 * IZR num).
       2: qify_r ; zify_q ; lia.
-      field. eapply Rdiv_pos_den_0 => //. }
+      replace (4 * (IZR num / IZR den) / 9) with (4 * IZR num / IZR (9 * den)).
+      1: reflexivity.
+      rewrite Rmult_div_assoc.
+      rewrite -Rdiv_mult_distr.
+      Search "IZR".
+      rewrite mult_IZR.
+      Search "R" "comm".
+      replace (9 * IZR den) with (IZR den * 9).
+      1: reflexivity.
+      by rewrite Rmult_comm.}
     iIntros (T') "!> rhs" => /=...
     iModIntro. iExists _. iFrame "rhs".
-    iExists (↯m (ε / 2) ∗ ↯m (ε / 4))%I. repeat rewrite Rmult_1_l. iFrame "ε2 ε3". clear K.
+    iExists (↯m (ε / 9) ∗ ↯m (4 * ε / 9))%I. repeat rewrite Rmult_1_l. iFrame "ε2 ε3". clear K.
     rewrite /nAT_spec.
     iModIntro. iIntros (?????? K) "#q_sens ε rhs"...
     tp_bind (q _) ; wp_bind (q _).
@@ -108,12 +118,14 @@ Section nsvt.
       apply Zabs_ind ; intros ? h; split.
       all: pose proof (le_IZR _ _ h) ; lia.
     }
-    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
+    tp_bind (Laplace _ _ _ _); wp_bind (Laplace _ _ _ _).
     iDestruct "ε" as "(ε1 & ε2)".
     iApply (hoare_couple_laplace_choice vq_l (vq_r) T' with "[$]") => //.
     1: apply Zabs_ind ; lia.
-    1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
-    { subst ε. rewrite mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
+    1: { repeat rewrite mult_IZR ; apply Rdiv_pos_pos. 2: real_solver. subst ε. lra. }
+    { subst ε. rewrite -Rmult_div_assoc. rewrite -Rdiv_mult_distr.
+      repeat rewrite Rmult_div_assoc. repeat rewrite mult_IZR. repeat rewrite Rdiv_mult_distr.
+      Search "Rmul". rewrite -Rmult_assoc. replace (2 * 2) with 4. 1, 2: lra.}
     iIntros "%z !> (%z' & rhs & hh)".
     iDestruct "hh" as "[%h_above | [%h_below ε]]".
     - (* above the threshold *)
@@ -128,12 +140,10 @@ Section nsvt.
       tp_bind (Laplace _ _ _ _); wp_bind (Laplace _ _ _ _).
       iApply (hoare_couple_laplace _ _ 0 1 with "[$rhs ε1]") => //.
       + rewrite Z.add_comm. rewrite -Zplus_0_r_reverse.
-        Search "Z" "R". apply le_IZR. rewrite abs_IZR.
+        apply le_IZR. rewrite abs_IZR.
         lra.
-      + rewrite mult_IZR; apply Rdiv_pos_pos. 1, 2: real_solver.
-      + iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
-        2: qify_r; zify_q; lia.
-        field. eapply Rdiv_pos_den_0 => //.
+      + subst ε. Search "IZR". repeat rewrite mult_IZR. rewrite Rdiv_mult_distr. lra.
+      + iApply ecm_eq. 2: iFrame. subst ε. repeat rewrite mult_IZR. rewrite Rdiv_mult_distr. lra.
       + iIntros (v) "!> rhs" => /=...
         iModIntro.
         iExists (InjRV #v).
@@ -274,8 +284,25 @@ Section nsvt.
       replace ((n' - 0)%nat) with n' by lia.
       iFrame.
       replace (Z.of_nat (S n') - 1)%Z with (Z.of_nat n') by lia. iFrame. done.
-    Qed.
+  Qed.
 
+
+  Definition MW : val :=
+    λ: "x" "f" "v",
+      let: "r" := ref 0 in
+      (if: "v" < "f" "x" then ("r" <- "f") else )
+
+  Definition onSVT : val :=
+    λ:"num" "den" "T" "N",
+      let: "count" := ref ("N" - #1) in
+      let: "nAT" := ref (num_above_threshold "num" "den" "T") in
+      λ:"db" "qi",
+        let: "bq" := !"nAT" "db" "qi" in
+        (if: !"count" <= #0 `or` "bq" = NONEV then
+           #()
+         else ("nAT" <- (num_above_threshold "num" "den" "T") ;;
+            "count" <- !"count" - #1)) ;;
+        "bq".
 
 
 End nsvt.
