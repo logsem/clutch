@@ -1,4 +1,4 @@
-From clutch.prob_eff_lang.probblaze Require Export notation valgroup.
+From clutch.prob_eff_lang.probblaze Require Export notation valgroup p_composition.
 From clutch.prob_eff_lang.probblaze Require Export def_dhke.
 
 Import fingroup.

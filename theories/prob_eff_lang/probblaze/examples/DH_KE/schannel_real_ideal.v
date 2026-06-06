@@ -11,6 +11,7 @@ From clutch.prob_eff_lang.probblaze Require Import def_dhke.
 From clutch.prob_eff_lang.probblaze Require Import dhke_channel.
 From clutch.prob_eff_lang.probblaze Require Import def_schannel.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
+From clutch.prob_eff_lang.probblaze Require Import p_composition.
 
 
 Import fingroup.
@@ -314,30 +315,61 @@ Section s_channel_verification.
   Definition leakauth_row := SemRow [([leakauth1],[leakauth2] , leakauth)] leakauth_pers_mono_row.
   Program Definition envsec_row :=
     sem_row_union keyleak_row leakauth_row.
+
+  Definition REAL_CHAN : val :=
+    λ: "f" "doLeakSend" "doLeakRecv" "doKeyLeak" "unit",
+      left_composition F_OAUTH F_KE_L "f" "doLeakSend" "doLeakRecv" "doKeyLeak" "unit".
   
 (*Verification of F_OAUTH[F_KE_L[CHAN[]]] ≤ CHAN_SIM[F_CHAN[]]*)
 (*----------------------------------------------------------*)
-  Lemma F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
+ (*Lemma F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
     sem_val_typed f1 f2 ((∀ᵣ θₕ, (sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  𝔾) -{ sem_row_union  θₕ L }-> 𝟙))%T -∗ 
-    BREL F_OAUTH (F_KE_L (CHAN f1))
+    BREL F_KE_L (F_OAUTH (CHAN f1))
       ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
-                                       ∀ (channel leaksec getKey : label),
-                                       BREL v1 (λ: "m", do: channel (Send "m"))%V (λ: "m", do: channel (Recv "m"))%V (λ: "dst", do: getKey "dst")%V ≤ v2 (λ: "m", do: leaksec (Send "m"))%V (λ: "m", do: leaksec (Recv "m"))%V <| (iLblSig_to_iLblThy envsec_row) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
+                                       ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
+                                       BREL v1 (λ: "m", do: leakauth1 (Send "m"))%V (λ: "m", do: leakauth1 (Recv "m"))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 (λ: "m", do: keyleak2 "m")%V (λ: "m", do: leakauth2 (Send "m"))%V (λ: "m", do: leakauth2 (Recv "m"))%V <| (iLblSig_to_iLblThy envsec_row) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}. *)
+Lemma F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
+    sem_val_typed f1 f2 ((∀ᵣ θₕ, (sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  𝔾) -{ sem_row_union  θₕ L }-> 𝟙))%T -∗ 
+    BREL REAL_CHAN (CHAN f1)
+      ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
+                                       ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
+                                       BREL v1 (λ: "m", do: leakauth1 (Send "m"))%V (λ: "m", do: leakauth1 (Recv "m"))%V (λ: "m", do: keyleak1 "m")%V (λ: <>, #())%V ≤ v2 (λ: "m", do: keyleak2 "m")%V (λ: "m", do: leakauth2 (Send "m"))%V (λ: "m", do: leakauth2 (Recv "m"))%V <| (iLblSig_to_iLblThy envsec_row) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
 Proof with (repeat foldkont) using G.
-(*  iIntros (Hf1 Hf2)  "#Hrelf1f2".
-  repeat simpl. 
+  iIntros "Hrelf1f2".
+  repeat simpl.
+  (*unfold CHAN_SIM, F_OAUTH.*)
+  unfold REAL_CHAN, CHAN, F_CHAN, CHAN_SIM, F_KE_L, F_OAUTH.
+  
+  repeat simpl. brel_pures. iModIntro. iIntros (????).
+  brel_pures.
   iApply brel_alloctape_r. iIntros (α) "Hα". brel_pures_r. 
   iApply brel_alloc_r. iIntros (l_sim) "Hl_sim". brel_pures_r.
-  iApply brel_alloc_l. iIntros (l_auth) "!>Hl_auth". brel_pures_l.
-  repeat (rewrite subst_is_closed_empty; try done).
   iApply brel_couple_UT. 1: auto.
   simpl. iFrame "Hα". iSplit => //.
   iIntros (n ?) "!> Hα". brel_pures.
-  rewrite subst_is_closed_empty; try done.
+  (*rewrite subst_is_closed_empty; try done.*)
   brel_exp_l. brel_pures.
+  iApply brel_effect_l. iIntros (getKey') "!> HgK !>". brel_pures_l.
+  iApply brel_effect_r. iIntros (leaksec') "Hleaksec !>". brel_pures'.
+  iApply brel_alloc_l. iIntros (l_auth) "!>Hl_auth". brel_pures_l.
+  brel_pures'.
+  iApply brel_effect_l. iIntros (channel') "!> Hchannel !>". brel_pures_l.
   iApply brel_alloc_l. iIntros (l_rchan) "!>Hlrchan". brel_pures_l.
-  simpl. repeat (rewrite subst_is_closed_empty; try done).
   iApply brel_alloc_r. iIntros (l_fchan) "Hlfchan". brel_pures_r.
+  iApply brel_effect_r. iIntros (schannel_r) "Hschannel_r !>". brel_pures_r.
+  iApply brel_effect_l. iIntros (schannel_l) "!> Hschannel_l !>". brel_pures_l.
+  brel_pures'.
+  iApply brel_effect_r. iIntros (leaksec') "Hleaksec !>". brel_pures'.
+  (*repeat (rewrite subst_is_closed_empty; try done).*)
+  iApply brel_couple_UT. 1: auto.
+  simpl. iFrame "Hα". iSplit => //.
+  iIntros (n ?) "!> Hα". brel_pures.
+  (*rewrite subst_is_closed_empty; try done.*)
+  brel_exp_l. brel_pures.
+  iApply brel_effect_l. iIntros (getKey') "!> HgetKey !>". brel_pures'.
+  iApply brel_alloc_l. iIntros (l_rchan) "!>Hlrchan". brel_pures_l.
+  (*simpl. repeat (rewrite subst_is_closed_empty; try done).*)
+ 
   rewrite subst_is_closed_empty; try done.
   set (kl1 :=  (match: "payload" with
          InjL "payload" =>
@@ -795,7 +827,7 @@ Proof with (repeat foldkont) using G.
                           { simpl. auto. }
                           { simpl. admit. }
                           { iApply "Hrel". iApply "HmQ". }
-                          {iApply "IH". }*)
+                          {iApply "IH". }
 
 Admitted.
 
