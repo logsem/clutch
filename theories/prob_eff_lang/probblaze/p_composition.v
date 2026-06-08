@@ -23,11 +23,13 @@ Section parallel_composition.
     end.*)
   
   
-Definition left_composition (f_x f_y : val) : val := λ: "f" "op_x1" "op_x2" "op_y1" "op_y2",
-                                                                                                       f_x (f_y "f" "op_y1" "op_y2") "op_x1" "op_x2".
+(*Definition left_composition (f_x f_y : val) : val := λ: "f" "op_x1" "op_x2" "op_y1" "op_y2",
+                                                                                                       f_x (f_y "f" "op_y1" "op_y2") "op_x1" "op_x2".*)
 
-Definition right_composition (f_x : val) (f_y : val) (op_x1 op_x2 : val) : val :=
-  λ: "f" "op_x1" "op_x2" "op_y1" "op_y2",
-  (left_composition f_y f_x) "f" "op_y1" "op_y2" "op_x1" "op_x2".
+  Definition left_composition (f_x f_y : val) : val := λ: "f", f_x (λ: "op_x1" "op_x2", (f_y (λ: "op_y1" "op_y2", ("f" "op_x1" "op_x2" "op_y1" "op_y2")))).
+                                                        
+
+Definition right_composition (f_x : val) (f_y : val) : val :=
+  (left_composition f_y f_x).
 
 End parallel_composition.

@@ -317,8 +317,11 @@ Section s_channel_verification.
     sem_row_union keyleak_row leakauth_row.
 
   Definition REAL_CHAN : val :=
-    λ: "f" "doLeakSend" "doLeakRecv" "doKeyLeak" "unit",
-      left_composition F_OAUTH F_KE_L "f" "doLeakSend" "doLeakRecv" "doKeyLeak" "unit".
+    (*λ: "f" "doLeakSend" "doLeakRecv" "doKeyLeak" "unit",
+      left_composition F_OAUTH F_KE_L "f" "doLeakSend" "doLeakRecv" "doKeyLeak" "unit".*)
+    λ: "f",
+      left_composition F_OAUTH F_KE_L "f"
+                       
   
 (*Verification of F_OAUTH[F_KE_L[CHAN[]]] ≤ CHAN_SIM[F_CHAN[]]*)
 (*----------------------------------------------------------*)
@@ -329,7 +332,7 @@ Section s_channel_verification.
                                        ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
                                        BREL v1 (λ: "m", do: leakauth1 (Send "m"))%V (λ: "m", do: leakauth1 (Recv "m"))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 (λ: "m", do: keyleak2 "m")%V (λ: "m", do: leakauth2 (Send "m"))%V (λ: "m", do: leakauth2 (Recv "m"))%V <| (iLblSig_to_iLblThy envsec_row) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}. *)
 Lemma F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
-    sem_val_typed f1 f2 ((∀ᵣ θₕ, (sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  𝔾) -{ sem_row_union  θₕ L }-> 𝟙))%T -∗ 
+    sem_val_typed f1 f2 ((∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  𝔾)) -> ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  𝔾)) -{ sem_row_union  θₕ L }-> 𝟙))%T -∗ 
     BREL REAL_CHAN (CHAN f1)
       ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
@@ -338,10 +341,10 @@ Proof with (repeat foldkont) using G.
   iIntros "Hrelf1f2".
   repeat simpl.
   (*unfold CHAN_SIM, F_OAUTH.*)
-  unfold REAL_CHAN, CHAN, F_CHAN, CHAN_SIM, F_KE_L, F_OAUTH.
+  unfold REAL_CHAN, CHAN, F_CHAN, CHAN_SIM, F_KE_L, F_OAUTH. 
   
   repeat simpl. brel_pures. iModIntro. iIntros (????).
-  brel_pures.
+  brel_pures. unfold left_composition. repeat simpl. brel_pures.
   iApply brel_alloctape_r. iIntros (α) "Hα". brel_pures_r. 
   iApply brel_alloc_r. iIntros (l_sim) "Hl_sim". brel_pures_r.
   iApply brel_couple_UT. 1: auto.
