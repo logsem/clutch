@@ -5,7 +5,6 @@ From clutch.prob Require Import differential_privacy.
 From clutch.diffpriv Require Import adequacy diffpriv proofmode.
 From clutch.diffpriv.examples Require Import list.
 
-
 Section nsvt.
   Context `{!diffprivGS Σ}.
 
@@ -78,22 +77,19 @@ Section nsvt.
     tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
     set (ε := (IZR num / IZR den)). replace ε with ((1*ε) / 9 + (4*ε) / 9 + (4*ε) / 9) by real_solver.
     fold ε in εpos. repeat rewrite Rmult_plus_distr_l.
-    (*iDestruct (ecm_split with "ε") as "[ε ε4]". 1,2: real_solver.*)
     iDestruct (ecm_split with "ε") as "[ε ε3]". 1,2: real_solver.
     iDestruct (ecm_split with "ε") as "[ε2 ε1]". 1,2: real_solver.
     iApply (hoare_couple_laplace _ _ 1%Z 1%Z with "[$rhs ε1]") => //.
     1: lia.
     1: repeat rewrite mult_IZR ; repeat apply Rdiv_pos_pos. 2: real_solver.
-    1: {rewrite -Rmult_div_assoc. apply Rmult_lt_0_compat. 1: lra. subst ε. apply εpos.}
+    { rewrite -Rmult_div_assoc. apply Rmult_lt_0_compat. 1: lra. subst ε. apply εpos.}
     { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (4 * num)) with (4 * IZR num).
       2: qify_r ; zify_q ; lia.
       replace (4 * (IZR num / IZR den) / 9) with (4 * IZR num / IZR (9 * den)).
       1: reflexivity.
       rewrite Rmult_div_assoc.
       rewrite -Rdiv_mult_distr.
-      Search "IZR".
       rewrite mult_IZR.
-      Search "R" "comm".
       replace (9 * IZR den) with (IZR den * 9).
       1: reflexivity.
       by rewrite Rmult_comm.}
@@ -107,7 +103,6 @@ Section nsvt.
     rewrite /wp_sensitive.
     iSpecialize ("q_sens" $! _ _ db db' with "rhs").
     Unshelve. 2: lra.
-    Search "wp_strong_mono".
     iApply (wp_strong_mono'' with "q_sens [ε]") => //.
     iIntros (?) "(%vq_l & %vq_r & -> & rhs & %adj')" => /=...
     assert (-1 <= vq_l - vq_r <= 1)%Z as [].
@@ -125,7 +120,7 @@ Section nsvt.
     1: { repeat rewrite mult_IZR ; apply Rdiv_pos_pos. 2: real_solver. subst ε. lra. }
     { subst ε. rewrite -Rmult_div_assoc. rewrite -Rdiv_mult_distr.
       repeat rewrite Rmult_div_assoc. repeat rewrite mult_IZR. repeat rewrite Rdiv_mult_distr.
-      Search "Rmul". rewrite -Rmult_assoc. replace (2 * 2) with 4. 1, 2: lra.}
+      rewrite -Rmult_assoc. replace (2 * 2) with 4. 1, 2: lra.}
     iIntros "%z !> (%z' & rhs & hh)".
     iDestruct "hh" as "[%h_above | [%h_below ε]]".
     - (* above the threshold *)
@@ -142,7 +137,7 @@ Section nsvt.
       + rewrite Z.add_comm. rewrite -Zplus_0_r_reverse.
         apply le_IZR. rewrite abs_IZR.
         lra.
-      + subst ε. Search "IZR". repeat rewrite mult_IZR. rewrite Rdiv_mult_distr. lra.
+      + subst ε. repeat rewrite mult_IZR. rewrite Rdiv_mult_distr. lra.
       + iApply ecm_eq. 2: iFrame. subst ε. repeat rewrite mult_IZR. rewrite Rdiv_mult_distr. lra.
       + iIntros (v) "!> rhs" => /=...
         iModIntro.
@@ -286,35 +281,4 @@ Section nsvt.
       replace (Z.of_nat (S n') - 1)%Z with (Z.of_nat n') by lia. iFrame. done.
   Qed.
 
-
-  (* In this part, we consider that x is a distribution and is stored in an couple of arrays.
-     Each element is of the form: (Edb, Pdb) (we will call it DB)
-     where Edp is the array of the databases and Pdb is the array of the probability of each db.
-     We assume that queries are of the type DB -> R, and works as the following:
-        - Samples an index following the Pdb distribution
-        - Executes the query on this db
-  *)
-  Definition MW : val :=
-    λ:"x" "f" "v",
-      let: "r" := (if: ("v" >= "f" "x") then (λ:"q", #1 - "f" "q") else "f") in
-      (* Need the update *)
-      "x".
-
-
-
-
-  Definition onSVT : val :=
-    λ:"num" "den" "T" "N",
-      let: "count" := ref ("N" - #1) in
-      let: "nAT" := ref (num_above_threshold "num" "den" "T") in
-      λ:"db" "qi",
-        let: "bq" := !"nAT" "db" "qi" in
-        (if: !"count" <= #0 `or` "bq" = NONEV then
-           #()
-         else ("nAT" <- (num_above_threshold "num" "den" "T") ;;
-            "count" <- !"count" - #1)) ;;
-        "bq".
-
-
 End nsvt.
-
