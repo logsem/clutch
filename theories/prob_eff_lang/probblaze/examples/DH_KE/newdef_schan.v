@@ -181,7 +181,7 @@ Section schannel.
     | return "y" => "y" end.
 
    Definition F_KE_L : val :=
-  λ: "doKeyLeak" "f" "doSend" "doRecv" ,                           
+  λ: "doKeyLeak" "f",                           
     (* Magically share a presampled key *)
     let: "c" := (sample #()%V) in
     let: "key" := g ^ "c" in

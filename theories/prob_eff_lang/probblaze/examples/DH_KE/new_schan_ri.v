@@ -1,5 +1,5 @@
 From iris.proofmode Require Import base proofmode classes.                  
-From iris.base_logic.lib Require Import  na_invariants.  
+From iris.base_logic.lib Require Import  na_invariants.   
 From iris.algebra Require Import agree excl auth frac excl_auth.
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
@@ -269,7 +269,7 @@ Section schan_security.
 (*----------------------------------------------------------*)
 Lemma F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
     sem_val_typed f1 f2 ((∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  𝔾)) -{ θₕ }-> ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  𝔾)) -{ sem_row_union  θₕ L }-> 𝟙))%T -∗ 
-    BREL REAL_CHAN (CHAN f1)
+    BREL REAL_CHAN f1
       ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        ∀ (channel leaksec getKey1 getKey2 schannel1 schannel2 leakauth1 leakauth2 keyleak1 keyleak2 : label),
                                        BREL v1 (λ: "m", do: leakauth1 (Send "m"))%V (λ: "m", do: leakauth1 (Recv "m"))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 (λ: "m", do: keyleak2 "m")%V (λ: "m", do: leakauth2 (Send "m"))%V (λ: "m", do: leakauth2 (Recv "m"))%V <| (iLblSig_to_iLblThy (envsec_row channel leaksec getKey1 getKey2 schannel1 schannel2 leakauth1 leakauth2 keyleak1 keyleak2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
@@ -286,6 +286,16 @@ Proof with (repeat foldkont) using G.
   iApply brel_alloc_r. iIntros (l_sim) "Hl_sim". brel_pures_r.
   iApply brel_alloc_l. iIntros (l_auth) "!>Hl_auth". brel_pures_l.
   iApply brel_effect_l. iIntros (channel') "!> Hchannel !>". brel_pures_l.
+  iApply brel_couple_UT. 1: auto.
+  simpl. iFrame "Hα". iSplit => //.
+  iIntros (n ?) "!> Hα". brel_pures.
+  brel_exp_l. brel_pures.
+  iApply brel_effect_l. iIntros (getKey') "!> HgK !>". brel_pures_l.
+  iApply brel_effect_r. iIntros (leaksec') "Hleaksec !>". brel_pures'.
+  iApply brel_alloc_r. iIntros (l_fchan) "Hlfchan". brel_pures_r.
+  (*
+  iApply brel_alloc_l. iIntros (l_auth) "!>Hl_auth". brel_pures_l.
+  brel_pures'.
   iApply brel_effect_l. iIntros (getKey') "!> HgK !>". brel_pures_l.
   iApply brel_effect_r. iIntros (leaksec') "Hleaksec !>". brel_pures'.
   iApply brel_alloc_l. iIntros (l_rchan) "!>Hlrchan". brel_pures_l.
@@ -773,7 +783,7 @@ Proof with (repeat foldkont) using G.
                           { simpl. auto. }
                           { simpl. admit. }
                           { iApply "Hrel". iApply "HmQ". }
-                          {iApply "IH". }
+                          {iApply "IH". }*)
 
 Admitted.
 
