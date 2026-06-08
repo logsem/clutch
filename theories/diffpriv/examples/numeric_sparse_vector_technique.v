@@ -55,7 +55,7 @@ Section nsvt.
         let: "vi" := Laplace (#2*"num") (#9*"den") ("qi" "db") #() in
         if: "T'" ≤ "vi" then SOME (Laplace (#1*"num") (#9*"den") ("qi" "db") #()) else NONEV.
 
-  (* The spec that AT satisfies after initialising T'. *)
+  (* The spec that nAT satisfies after initialising T'. *)
 
   Definition nAT_spec (c : R) (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
     □ ∀ `(dDB : Distance DB) (db db' : DB) (_ : dDB db db' <= c) (q : val) (K0 : list ectx_item),
@@ -287,10 +287,21 @@ Section nsvt.
   Qed.
 
 
+  (* In this part, we consider that x is a distribution and is stored in an couple of arrays.
+     Each element is of the form: (Edb, Pdb) (we will call it DB)
+     where Edp is the array of the databases and Pdb is the array of the probability of each db.
+     We assume that queries are of the type DB -> R, and works as the following:
+        - Samples an index following the Pdb distribution
+        - Executes the query on this db
+  *)
   Definition MW : val :=
-    λ: "x" "f" "v",
-      let: "r" := ref 0 in
-      (if: "v" < "f" "x" then ("r" <- "f") else )
+    λ:"x" "f" "v",
+      let: "r" := (if: ("v" >= "f" "x") then (λ:"q", #1 - "f" "q") else "f") in
+      (* Need the update *)
+      "x".
+
+
+
 
   Definition onSVT : val :=
     λ:"num" "den" "T" "N",
