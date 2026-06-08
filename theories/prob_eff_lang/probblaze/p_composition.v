@@ -26,10 +26,33 @@ Section parallel_composition.
 (*Definition left_composition (f_x f_y : val) : val := λ: "f" "op_x1" "op_x2" "op_y1" "op_y2",
                                                                                                        f_x (f_y "f" "op_y1" "op_y2") "op_x1" "op_x2".*)
 
-  Definition left_composition (f_x f_y : val) : val := λ: "f", f_x (λ: "op_x1" "op_x2", (f_y (λ: "op_y1" "op_y2", ("f" "op_x1" "op_x2" "op_y1" "op_y2")))).
+  (*Definition left_composition (f_x f_y : val) : val := λ: "f", f_x (λ: "op_x1" "op_x2", (f_y (λ: "op_y1" "op_y2", ("f" "op_x1" "op_x2" "op_y1" "op_y2")))).*)
+
+  (*Definition left_composition (f_x f_y : val) "e1" "e2" "e3" :=
+    λ: "f" "op_x1" "op_x2" "op_y1" "op_y2",
+    effect*)
+
+  (*Definition s_chan_composition (f_x f_y : val) :=
+    λ: "f" "op_x1" "op_x2" "op_y1" "op_y2",
+      effect "channel"
+      let: "doSend" := (λ: "m", do: (EffName "channel") (Send "m")) in
+      let: "doRecv" := (λ: "m", do: (EffName "channel") (Recv "m")) in
+      (*effect "schannel"
+      let: "doSecSend" := (λ: "m", do: (EffName "schannel") (Send "m")) in
+      let: "doSecRecv" := (λ: "m", do: (EffName "schannel") (Recv "m")) in *)
+      effect "getKey"
+      let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+      f_x "channel" "doSend" "doRecv" (f_y "getKey" "doGK" "f" "op_y1" "op_y2") "op_x1" "op_x2".*)
+
+  (* r_x are effect operations raised by the funcitonality f_x, and c_x are effect operations
+     handled by f_x.*) 
+  Definition left_composition (f_x f_y : val) : val :=
+    λ: "f" "r_x1" "r_x2" "r_y",
+      f_x (λ: "c_x1" "c_x2",
+             f_y (λ: "c_y", "f" "c_x1" "c_x2" "c_y") "r_y") "r_x1" "r_x2".
                                                         
 
-Definition right_composition (f_x : val) (f_y : val) : val :=
-  (left_composition f_y f_x).
+(*Definition right_composition (f_x : val) (f_y : val) : val :=
+  (left_composition f_y f_x).*)
 
 End parallel_composition.

@@ -27,11 +27,11 @@ Section schannel.
 
 
    Definition F_OAUTH : val :=
-    λ: "channel" "doSend" "doRecv" "f" "doLeakSend" "doLeakRecv",
+    λ: "f" "doLeakSend" "doLeakRecv",
       let: "message" := ref NONEV in
-      (*effect "channel"
+      effect "channel"
       let: "doSend" := (λ: "m", do: (EffName "channel") (Send "m")) in
-      let: "doRecv" := (λ: "m", do: (EffName "channel") (Recv "m")) in*)
+      let: "doRecv" := (λ: "m", do: (EffName "channel") (Recv "m")) in
       handle: "f" "doSend" "doRecv" with
       | effect (EffName "channel") "payload", rec "k" as multi =>
       match: "payload" with
@@ -181,13 +181,13 @@ Section schannel.
     | return "y" => "y" end.
 
    Definition F_KE_L : val :=
-  λ: "getKey" "doGK" "f" "doKeyLeak",                           
+  λ: "doKeyLeak" "f" "doSend" "doRecv" ,                           
     (* Magically share a presampled key *)
     let: "c" := (sample #()%V) in
     let: "key" := g ^ "c" in
-   (* effect "getKey"
-    let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in*)
-    handle: "f" "doGK" with
+    effect "getKey"
+    let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+    handle: "f" "doSend" "doRecv" "doGK" with
     | effect (EffName "getKey") "p", rec "k" as multi =>
         match: "p" with
           (* Alice *)

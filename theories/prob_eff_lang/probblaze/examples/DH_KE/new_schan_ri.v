@@ -31,7 +31,7 @@ Section schan_security.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
 
 
-  Definition REAL_CHAN : val :=
+  (*Definition REAL_CHAN : val :=
     λ: "f" "doLeakSend" "doLeakRecv" "doKeyLeak",  
       effect "channel"
       let: "doSend" := (λ: "m", do: (EffName "channel") (Send "m")) in
@@ -41,7 +41,11 @@ Section schan_security.
       let: "doSecRecv" := (λ: "m", do: (EffName "schannel") (Recv "m")) in *)
       effect "getKey"
       let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
-      F_OAUTH "channel" "doSend" "doRecv" (F_KE_L "getKey" "doGK" ("f" "doSend" "doRecv") "doKeyLeak") "doLeakSend" "doLeakRecv".  
+      F_OAUTH "channel" "doSend" "doRecv" (F_KE_L "getKey" "doGK" ("f" "doSend" "doRecv") "doKeyLeak") "doLeakSend" "doLeakRecv". *)
+
+  Definition REAL_CHAN : val :=
+    λ: "f",
+    left_composition F_OAUTH F_KE_L (CHAN "f").
 
   Definition atokN' : namespace := nroot .@ "atokN1".
   Definition btokN' : namespace := nroot .@ "btokN1".
@@ -268,17 +272,19 @@ Lemma F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
     BREL REAL_CHAN (CHAN f1)
       ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        ∀ (channel leaksec getKey1 getKey2 schannel1 schannel2 leakauth1 leakauth2 keyleak1 keyleak2 : label),
-                                       BREL v1 (λ: "m", do: leakauth1 (Send "m"))%V (λ: "m", do: leakauth1 (Recv "m"))%V (λ: "m", do: keyleak1 "m")%V (λ: <>, #())%V ≤ v2 (λ: "m", do: keyleak2 "m")%V (λ: "m", do: leakauth2 (Send "m"))%V (λ: "m", do: leakauth2 (Recv "m"))%V <| (iLblSig_to_iLblThy (envsec_row channel leaksec getKey1 getKey2 schannel1 schannel2 leakauth1 leakauth2 keyleak1 keyleak2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
+                                       BREL v1 (λ: "m", do: leakauth1 (Send "m"))%V (λ: "m", do: leakauth1 (Recv "m"))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 (λ: "m", do: keyleak2 "m")%V (λ: "m", do: leakauth2 (Send "m"))%V (λ: "m", do: leakauth2 (Recv "m"))%V <| (iLblSig_to_iLblThy (envsec_row channel leaksec getKey1 getKey2 schannel1 schannel2 leakauth1 leakauth2 keyleak1 keyleak2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
 Proof with (repeat foldkont) using G.
   iIntros "Hrelf1f2".
   repeat simpl.
   (*unfold CHAN_SIM, F_OAUTH.*)
-  unfold REAL_CHAN, CHAN, F_CHAN, CHAN_SIM, F_KE_L, F_OAUTH. 
+  unfold REAL_CHAN, CHAN, F_CHAN, CHAN_SIM, F_KE_L, F_OAUTH.
+  unfold left_composition.
   
   repeat simpl. brel_pures. iModIntro. iIntros (??????????).
   brel_pures.
   iApply brel_alloctape_r. iIntros (α) "Hα". brel_pures_r. 
   iApply brel_alloc_r. iIntros (l_sim) "Hl_sim". brel_pures_r.
+  iApply brel_alloc_l. iIntros (l_auth) "!>Hl_auth". brel_pures_l.
   iApply brel_effect_l. iIntros (channel') "!> Hchannel !>". brel_pures_l.
   iApply brel_effect_l. iIntros (getKey') "!> HgK !>". brel_pures_l.
   iApply brel_effect_r. iIntros (leaksec') "Hleaksec !>". brel_pures'.
