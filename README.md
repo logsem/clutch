@@ -8,6 +8,13 @@ All of the logics are built using the [Iris](https://iris-project.org) program l
 If you want to work through our tutorial material, follow the instructions in the [link](https://github.com/logsem/clutch/blob/main/theories/eris/tutorial/readme.md).
 
 ## Publications
+[**Modular Verification of Differential Privacy in Probabilistic Higher-Order Separation Logic**](https://dl.acm.org/doi/10.1145/3808311)<br>
+*Philipp G. Haselwarter, Alejandro Aguirre, Simon Oddershede Gregersen, Kwing Hei Li, Joseph Tassarotti, Lars Birkedal*<br>
+In PLDI 2026: ACM SIGPLAN Conference on Programming Language Design and Implementation
+
+[**Contextual Refinement of Higher-Order Concurrent Probabilistic Programs**](https://dl.acm.org/doi/10.1145/3808265)<br>
+*Kwing Hei Li, Alejandro Aguirre, Joseph Tassarotti, Lars Birkedal*<br>
+In PLDI 2026: ACM SIGPLAN Conference on Programming Language Design and Implementation
 
 [**Modular Specifications and Implementations of Random Samplers in Higher-Order Separation Logic**](https://doi.org/10.1145/3779031.3779109)<br>
 *Virgil Marionneau, Félix Sassus-Bourda, Alejandro Aguirre, Lars Birkedal*<br>
