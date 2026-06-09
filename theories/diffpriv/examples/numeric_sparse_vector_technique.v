@@ -80,9 +80,10 @@ Section nsvt.
     iDestruct (ecm_split with "ε") as "[ε ε3]". 1,2: real_solver.
     iDestruct (ecm_split with "ε") as "[ε2 ε1]". 1,2: real_solver.
     iApply (hoare_couple_laplace _ _ 1%Z 1%Z with "[$rhs ε1]") => //.
-    1: lia.
-    1: repeat rewrite mult_IZR ; repeat apply Rdiv_pos_pos. 2: real_solver.
-    { rewrite -Rmult_div_assoc. apply Rmult_lt_0_compat. 1: lra. subst ε. apply εpos.}
+    { lia. }
+    { 1: repeat rewrite mult_IZR ; repeat apply Rdiv_pos_pos.
+      2: real_solver.
+     rewrite -Rmult_div_assoc. apply Rmult_lt_0_compat; first lra. subst ε. apply εpos. }
     { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (4 * num)) with (4 * IZR num).
       2: qify_r ; zify_q ; lia.
       replace (4 * (IZR num / IZR den) / 9) with (4 * IZR num / IZR (9 * den)).
@@ -92,7 +93,7 @@ Section nsvt.
       rewrite mult_IZR.
       replace (9 * IZR den) with (IZR den * 9).
       1: reflexivity.
-      by rewrite Rmult_comm.}
+      by rewrite Rmult_comm. }
     iIntros (T') "!> rhs" => /=...
     iModIntro. iExists _. iFrame "rhs".
     iExists (↯m (ε / 9) ∗ ↯m (4 * ε / 9))%I. repeat rewrite Rmult_1_l. iFrame "ε2 ε3". clear K.
@@ -120,7 +121,7 @@ Section nsvt.
     1: { repeat rewrite mult_IZR ; apply Rdiv_pos_pos. 2: real_solver. subst ε. lra. }
     { subst ε. rewrite -Rmult_div_assoc. rewrite -Rdiv_mult_distr.
       repeat rewrite Rmult_div_assoc. repeat rewrite mult_IZR. repeat rewrite Rdiv_mult_distr.
-      rewrite -Rmult_assoc. replace (2 * 2) with 4. 1, 2: lra.}
+      rewrite -Rmult_assoc. replace (2 * 2) with 4. 1, 2: lra. }
     iIntros "%z !> (%z' & rhs & hh)".
     iDestruct "hh" as "[%h_above | [%h_below ε]]".
     - (* above the threshold *)
@@ -204,7 +205,8 @@ Section nsvt.
     iIntros (??) "SNε rhs". rewrite /onSVT...
     tp_alloc as count_r "count_r". wp_alloc count_l as "count_l"...
     tp_bind (num_above_threshold _ _ _) ; wp_bind (num_above_threshold _ _ _).
-    assert (INR (N'+1)%nat ≠ 0). { replace 0 with (INR 0) => //. intros ?%INR_eq. lia. }
+    assert (INR (N'+1)%nat ≠ 0).
+    { replace 0 with (INR 0) => //. intros ?%INR_eq. lia. }
     replace (S N' * ε) with (ε + N' * ε).
     2:{ replace (S N') with (N'+1)%nat by lia. replace (INR (N'+1)) with (N' + 1) by real_solver. lra. }
     iDestruct (ecm_split with "SNε") as "[ε Nε]". 1,2: real_solver.
@@ -246,7 +248,7 @@ Section nsvt.
       destruct n as [|n']...
       { rewrite /inSVT. iFrame.
         iExists (InjLV #()). iSplitR => //. simpl. iFrame.
-        iExists TOKEN. iFrame. done.
+        iExists TOKEN. iFrame. done. 
       }
       iFrame. iExists _ ; iSplitR => //. iSimpl. iFrame. iExists TOKEN. iFrame. done.
 
