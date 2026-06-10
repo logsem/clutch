@@ -1,4 +1,19 @@
 (** Sampling Noise from the ClutchProcjet https://github.com/logsem/clutch *)
+module Q = struct
+  type t = int * int
+  let num_den_of_q (x : t) : int * int = x
+  let inverse (num, den) = (den, num)
+  let float_of_q (num, den) = (float_of_int num) /. (float_of_int den)
+  let mk num den = (num, den)
+  let rec gcd a b = if b = 0 then a else gcd b (a mod b)
+  let normalize (num, den) = let k = gcd num den in (num / k, den / k)
+  let sub (x_num, x_den) (y_num, y_den) =
+    let k = gcd x_den y_den in
+    let y' = y_den / k in
+    (x_num * y' - y_num * (x_den / k), x_den * y')
+  let lt (x_num, x_den) (y_num, y_den) = x_num * y_den < y_num * x_den
+  let mult (x_num, x_den) (y_num, y_den) = normalize ((x_num * y_num), (x_den * y_den))
+end
 
 let sample_distr d n = let rec f n xs = if n = 0 then xs else f (n-1) (d () :: xs) in f n []
 
@@ -69,6 +84,10 @@ let discreteLaplaceSampleOptimized num den : int =
   let r = probUntil (fun () -> discreteLaplaceSampleLoop' num den) (fun x -> not (fst x && snd x = 0)) in
   if fst r then - (snd r) else snd r
 
-
+(* differential privacy style inverted scale *)
+let laplace_discrete (scale : Q.t) (mean : int) =
+  let (num, den) = Q.num_den_of_q scale in
+  let x = discreteLaplaceSample den num in
+  x + mean
 
 (** End of noize sampling from clutch *)

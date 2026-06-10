@@ -54,5 +54,17 @@ let () =
         then None
         else (a := !a -1; Some (count_above !a)) )
   in
-  let res = nSVT_stream 1 100 500 20 stream_query db in
+  Printf.printf "Small epsilon -->\n";
+  let res = nSVT_stream 1 100 200 20 stream_query db in
+  aff_l_op res;
+        
+  let stream_query =
+    let a = ref 1000 in
+    fun bs -> (
+      if !a <= 0
+        then None
+        else (a := !a -1; Some (count_above !a)) )
+  in
+  Printf.printf "Large epsilon -->\n";
+  let res = nSVT_stream 100 1 200 20 stream_query db in
   aff_l_op res

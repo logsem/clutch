@@ -2,10 +2,10 @@
 #use "noiseSampling.ml"
 
 let num_above_threshold num den t =
-  let t' = t + discreteLaplaceSample (4*num)  (9*den) in
+  let t' = laplace_discrete (Q.mk (4*num)  (9*den)) t in
   fun db q ->
-    let vi = q db + discreteLaplaceSample (2*num) (9*den) in
-    if t' <= vi then Some (q db + discreteLaplaceSample num (9*den)) else None
+    let vi = laplace_discrete (Q.mk (2*num) (9*den)) (q db) in
+    if t' <= vi then Some (laplace_discrete (Q.mk num (9*den)) (q db)) else None
 
 let num_sparse_vector num den t n =
   let count = ref (n -1) in
