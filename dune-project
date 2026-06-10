@@ -2,7 +2,7 @@
 
 (using rocq 0.11)
 
-; (name clutch)
+(name rocq-clutch)
 
 (generate_opam_files true)
 
