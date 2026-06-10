@@ -55,6 +55,8 @@ Section nsvt.
         if: "T'" ≤ "vi" then SOME (Laplace (#1*"num") (#9*"den") ("qi" "db") #()) else NONEV.
 
   (* The spec that nAT satisfies after initialising T'. *)
+  Print inject.
+  Print Inject.
 
   Definition nAT_spec (c : R) (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
     □ ∀ `(dDB : Distance DB) (db db' : DB) (_ : dDB db db' <= c) (q : val) (K0 : list ectx_item),
@@ -62,7 +64,7 @@ Section nsvt.
       AUTH -∗
       ⤇ fill K0 (f' (inject db') q) -∗
       WP f (inject db) q
-        {{ v, ∃ (b : val), ⌜v = b⌝ ∗ ⤇ fill K0 b ∗
+        {{ v, ∃ (b : option Z), ⌜v = inject b⌝ ∗ ⤇ fill K0 (inject b) ∗
                             (⌜v = NONEV⌝ -∗ AUTH) }}.
 
   (* We prove the (non-pw) spec for onAT from hoare_couple_laplace_choice. *)
@@ -142,7 +144,7 @@ Section nsvt.
       + iApply ecm_eq. 2: iFrame. subst ε. repeat rewrite mult_IZR. rewrite Rdiv_mult_distr. lra.
       + iIntros (v) "!> rhs" => /=...
         iModIntro.
-        iExists (InjRV #v).
+        iExists (Some v).
         replace #(v + 0) with #v.
         2: by rewrite -Zplus_0_r_reverse.
         iFrame.
@@ -155,7 +157,7 @@ Section nsvt.
       1, 2, 3: lia.
       tp_if_false; wp_if_false.
       iModIntro.
-      iExists (InjLV #()).
+      iExists None.
       iFrame.
       iSplitR; first by iPureIntro; reflexivity.
       by iIntros (Hfin) => //.
@@ -182,8 +184,8 @@ Section nsvt.
           ⤇ fill K (Val f' (inject db') q) -∗
           ∀ n, inSVT (S n) -∗
                WP Val f (inject db) q
-                 {{v, ⤇ fill K (Val v) ∗ (* why b ? *)
-                        ∃ (b : val), ⌜v = b⌝ ∗ inSVT (if bool_decide(b = NONEV) then S n
+               {{v, ⤇ fill K (Val v) ∗ ∃ (b : option Z), ⌜v = inject b⌝ ∗
+                              inSVT (if bool_decide(v = NONEV) then S n
                                                                else n) }}
       ).
 
@@ -200,24 +202,22 @@ Section nsvt.
              □ nSVT_spec f f' inSVT }}.
 
   Proof with (tp_pures ; wp_pures).
-    (* make sure we have at least enough credit to initialise AT once *)
+    (* make sure we have at least enough credit to initialise nAT once *)
     destruct N as [|N'] ; [lia|] ; clear Npos.
     iIntros (??) "SNε rhs". rewrite /onSVT...
-    tp_alloc as count_r "count_r". wp_alloc count_l as "count_l"...
+    tp_alloc as count_r "count_r"; wp_alloc count_l as "count_l"...
     tp_bind (num_above_threshold _ _ _) ; wp_bind (num_above_threshold _ _ _).
     assert (INR (N'+1)%nat ≠ 0).
     { replace 0 with (INR 0) => //. intros ?%INR_eq. lia. }
     replace (S N' * ε) with (ε + N' * ε).
     2:{ replace (S N') with (N'+1)%nat by lia. replace (INR (N'+1)) with (N' + 1) by real_solver. lra. }
     iDestruct (ecm_split with "SNε") as "[ε Nε]". 1,2: real_solver.
-    opose proof (num_above_threshold_online_nAT_spec num den T _) as nAT.
-    1: done.
-
+    opose proof (num_above_threshold_online_nAT_spec num den T _) as nAT; first done.
     iPoseProof (nAT with "[ε] [rhs]") as "nAT" => // ; clear nAT. 1: by rewrite Rmult_1_l.
     iApply (wp_strong_mono'' with "nAT").
     replace (S N') with (N'+1)%nat by lia.
-    iIntros "%f (%f' & %AUTH & rhs & auth & AT) /=".
-    tp_alloc as ref_f' "ref_f'". wp_alloc ref_f as "ref_f"...
+    iIntros "%f (%f' & %AUTH & rhs & auth & nAT) /=".
+    tp_alloc as ref_f' "ref_f'"; wp_alloc ref_f as "ref_f"...
     iModIntro. iExists _. iFrame "rhs".
     set (inSVT := (λ n : nat,
                     if Nat.ltb 0%nat n then
@@ -232,8 +232,9 @@ Section nsvt.
       replace ((N'+1)%nat-1)%Z with (Z.of_nat N') by lia.
       replace (N'+1-1)%nat with N' by lia. iFrame. }
     clear f f'.
+    rewrite /nSVT_spec.
     iIntros "!>" (???????) "#q_sens rhs %n (count_l & count_r & nε & (%TOKEN & %f & %f' & auth & ref_f & ref_f' & #nAT))"...
-    tp_load ; wp_load. tp_bind (f' _ _) ; wp_bind (f _ _).
+    tp_load ; wp_load. tp_bind (f' _ _); wp_bind (f _ _).
     iCombine "nAT" as "nAT_cpy".
     iSpecialize ("nAT" $! _ _ _ _ adj) as #.
     iSpecialize ("nAT" with "q_sens auth rhs").
@@ -242,25 +243,26 @@ Section nsvt.
     iSimpl in "rhs"...
     case_bool_decide as H1.
     - (* Case where the returned value is None *)
+      destruct b as [|Hb]; first inversion H1.
       simpl... rewrite /= !Nat.sub_0_r. simplify_eq.
-      iSpecialize ("maybe_auth" $! eq_refl).
       tp_load ; wp_load...
+      iSpecialize ("maybe_auth" $! eq_refl).
       destruct n as [|n']...
       { rewrite /inSVT. iFrame.
-        iExists (InjLV #()). iSplitR => //. simpl. iFrame.
+        iExists None. iSplitR => //. simpl. iFrame.
         iExists TOKEN. iFrame. done. 
       }
-      iFrame. iExists _ ; iSplitR => //. iSimpl. iFrame. iExists TOKEN. iFrame. done.
+      iModIntro.
+      iFrame. iExists None ; iSplitR => //.
+      iSimpl. iFrame. iExists TOKEN. iFrame. done.
 
     - (* Case where the returned value is Some(v) *)
       tp_load ; wp_load...
       rewrite /= !Nat.sub_0_r.
+      destruct b as [|Hb]; last done.
       destruct n as [|n']...
       { (* Case where n <= 0 *)
-        rewrite /inSVT. iFrame. iExists _. iSplitR. 1: done. simpl.
-        case_bool_decide as H2.
-        + done.
-        + simpl. done.
+        rewrite /inSVT. iFrame. iExists (Some z). iModIntro. iPureIntro. done.
       }
       (* Case where n>0 *)
       replace (S n' * ε) with (ε + n' * ε).
@@ -274,13 +276,78 @@ Section nsvt.
       iApply (wp_strong_mono'' with "nAT_pw [-]").
       iIntros "%g (%g' & %AUTH' & rhs & auth & nAT') /=".
       tp_store ; wp_store... tp_load... tp_store ; wp_load... wp_store.
-      iFrame. iExists _. iSplitR. 1: done.
+      iFrame. iExists (Some z). iSplitR. 1: done.
       rewrite /inSVT.
       case_bool_decide as H1'; first done.
       simpl.
       replace ((n' - 0)%nat) with n' by lia.
       iFrame.
       replace (Z.of_nat (S n') - 1)%Z with (Z.of_nat n') by lia. iFrame. done.
+  Qed.
+
+  Definition nSVT_stream : val :=
+    λ:"num" "den" "T" "N" "stream_qs" "db",
+      let: "f" := onSVT "num" "den" "T" "N" in
+      (rec: "nSVT" "i" "bs" :=
+         if: "i" = "N" then "bs" else
+           match: "stream_qs" "bs" with
+           | NONE => "bs"
+           | SOME "q" =>
+               let: "b" := "f" "db" "q" in
+               "nSVT" (if: "b" = NONEV then "i" else ("i" + #1)) (list_cons "b" "bs")
+           end) #0 list_nil.
+
+  #[local] Definition nSVT_stream_body (N : nat) (stream_qs : val) {DB} {_ : Inject DB val} (db : DB) (f : val) := (rec: "nSVT" "i" "bs" :=
+        if: "i" = #N then "bs"
+        else match: stream_qs "bs" with
+               InjL <> => "bs"
+             | InjR "q" =>
+               let: "b" := f (Val (inject db)) "q" in
+               "nSVT" (if: "b" = NONEV then "i" else ("i" + #1)) (list_cons "b" "bs")
+             end)%V.
+
+
+  Lemma nSVT_stream_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) (stream_qs : val) `(dDB : Distance DB) :
+    let ε := IZR num / IZR den in
+    ∀ (εpos : 0 < ε),
+      □ (∀ K (bs : val),
+            ⤇ fill K (stream_qs bs) -∗
+            WP stream_qs bs
+              {{ qopt, ⤇ fill K (Val qopt) ∗
+                       (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ □ wp_sensitive q 1 dDB dZ) }}) -∗
+      ∀ (db db' : DB) (adj : dDB db db' <= 1) K,
+      ↯m (N * ε) -∗
+      ⤇ fill K (nSVT_stream #num #den #T #N stream_qs (Val (inject db'))) -∗
+      WP nSVT_stream #num #den #T #N stream_qs (Val (inject db))
+        {{ v, ⤇ fill K (Val v) }}.
+  Proof with (tp_pures ; wp_pures).
+    iIntros (ε εpos) "#sens % % % % Nε rhs". rewrite /nSVT_stream...
+    tp_bind (onSVT _ _ _ _) ; wp_bind (onSVT _ _ _ _).
+    iPoseProof (nSVT_online_diffpriv with "Nε rhs") as "spec" => //.
+    iApply (wp_strong_mono'' with "spec"). iIntros "%f (%f' & % & rhs & inSVT & spec) /=".
+    do 4 tp_pure. do 4 wp_pure. rewrite -!/(nSVT_stream_body _ _ _ _).
+    set (i := 0%Z). set (N' := N). rewrite {1 3}/N'.
+    assert (0 <= i)%Z as ipos by lia. assert (N' + i = N)%Z as hi by lia.
+    set (bs := InjLV #()). rewrite {1}/bs. generalize i N' bs hi ipos. clear i N' hi ipos bs.
+    intros. iRevert (i N' bs hi ipos) "rhs inSVT spec". iLöb as "IH". iIntros (i N' bs hi ipos) "rhs inSVT #spec".
+    rewrite {3 4}/nSVT_stream_body...
+    case_bool_decide... 1: done.
+    tp_bind (stream_qs _) ; wp_bind (stream_qs _).
+    iPoseProof ("sens" $! _ bs with "rhs") as "sens_bs".
+    iApply (wp_strong_mono'' with "sens_bs").
+    iIntros "%qopt (rhs & [->|(%q & -> & #sens_q)]) /="... 1: done.
+    tp_bind (f' _ _) ; wp_bind (f _ _).
+    iCombine "spec" as "spec_i".
+    assert (not (i = N)). 1: intros h ; subst ; auto.
+    assert (∃ N'', N' = S N'') as [? ->]. { destruct N'. 1: lia. eauto. }
+    iEval (rewrite /nSVT_spec) in "spec_i".
+    iSpecialize ("spec_i" $! _ _ db db' adj with "sens_q rhs inSVT") => //.
+    iApply (wp_strong_mono'' with "spec_i").
+    rewrite -!/(nSVT_stream_body _ _ _ _).
+    iIntros "% (rhs & %b & -> & inSVT) /="...
+    destruct b; rewrite /list_cons...
+    - iApply ("IH" with "[] [] rhs inSVT"). 3: done. 1,2: iPureIntro. 2: lia. lia.
+    - iApply ("IH" with "[] [] rhs [inSVT]"). 3,4: done. 1,2: iPureIntro. 2: lia. lia.
   Qed.
 
 End nsvt.
