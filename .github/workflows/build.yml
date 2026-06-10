@@ -38,6 +38,7 @@ jobs:
           install : |
             startGroup "Install dependencies"
               opam install odoc -y
+              apt-get update
               apt-get install rsync -y
               opam pin add -n -y -k path $PACKAGE $WORKDIR
               opam update -y
