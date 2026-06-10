@@ -27,12 +27,13 @@ Section schannel.
 
 
    Definition F_OAUTH : val :=
-    λ: "f" "doLeakSend" "doLeakRecv",
+     λ: "f" "LeakOp",
+      let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
       let: "message" := ref NONEV in
       effect "channel"
       let: "doSend" := (λ: "m", do: (EffName "channel") (Send "m")) in
       let: "doRecv" := (λ: "m", do: (EffName "channel") (Recv "m")) in
-      handle: "f" "doSend" "doRecv" with
+      handle: "f" ("doSend", "doRecv") with
       | effect (EffName "channel") "payload", rec "k" as multi =>
       match: "payload" with
       (*Send Auth*)
@@ -58,12 +59,13 @@ Section schannel.
   Definition xor (e1 e2 : expr) : val := #()%V.
 
    Definition CHAN : val :=
-    λ: "f" "doSend" "doRecv" "doGK",
+     λ: "f" "ChanOp" "doGK",
+      let, ("doSend", "doRecv") := "ChanOp" in
       let: "message" := ref NONEV in
       effect "schannel"
       let: "doSecSend" := (λ: "m", do: (EffName "schannel") (Send "m")) in
       let: "doSecRecv" := (λ: "m", do: (EffName "schannel") (Recv "m")) in
-      handle: "f" "doSecSend" "doSecRecv" with
+      handle: "f" ("doSecSend", "doSecRecv") with
       | effect (EffName "schannel") "payload", rec "k" as multi =>
         match: "payload" with
           (*SendSecure*)
@@ -101,12 +103,13 @@ Section schannel.
   
    (* Ideal functionality of the ONE-SHOT secure channel *)
    Definition F_CHAN : val :=
-    λ: "f" "doLeakSend" "doLeakRecv",                           
+     λ: "f" "LeakOp",
+      let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
       let: "message" := ref NONEV in
       effect "schannel"
       let: "doSecSend" := (λ: "m", do: (EffName "schannel") (Send "m"))  in
       let: "doSecRecv" := (λ: "m", do: (EffName "schannel") (Recv "m")) in
-      handle: "f" "doSecSend" "doSecRecv" with
+      handle: "f" ("doSecSend" ,"doSecRecv") with
        | effect (EffName "schannel") "payload", rec "k" as multi =>
         match: "payload" with
           (*SendSecure*)
@@ -132,13 +135,14 @@ Section schannel.
     (*Simulator for the one message secure channel *)
  (* Assumes a fixed direction from Alice to Bob *)       
   Definition CHAN_SIM : val :=
-   λ: "f" "doKeyLeak" "doLeakASend" "doLeakARecv",                            
+    λ: "f" "LeakAOp" "doKeyLeak",
+    let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
     let: "α" := alloc #n in
     let: "message" := ref NONEV in
     effect "leaksec"
     let: "doLeakSecSend" := (λ: "m", do: (EffName "leaksec") (Send "m")) in
     let: "doLeakSecRecv" := (λ: "m", do: (EffName "leaksec") (Recv "m")) in
-    handle: "f" "doLeakSecSend" "doLeakSecRecv" with
+    handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
     | effect (EffName "leaksec") "payload", rec "k" as multi =>
         match: "payload" with
           (*Broadcast a message*)
@@ -181,13 +185,13 @@ Section schannel.
     | return "y" => "y" end.
 
    Definition F_KE_L : val :=
-  λ: "doKeyLeak" "f",                           
+  λ: "f" "doKeyLeak",                           
     (* Magically share a presampled key *)
     let: "c" := (sample #()%V) in
     let: "key" := g ^ "c" in
     effect "getKey"
     let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
-    handle: "f" "doSend" "doRecv" "doGK" with
+    handle: "f" "doGK" with
     | effect (EffName "getKey") "p", rec "k" as multi =>
         match: "p" with
           (* Alice *)

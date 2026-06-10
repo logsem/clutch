@@ -44,15 +44,21 @@ Section parallel_composition.
       let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
       f_x "channel" "doSend" "doRecv" (f_y "getKey" "doGK" "f" "op_y1" "op_y2") "op_x1" "op_x2".*)
 
-  (* r_x are effect operations raised by the funcitonality f_x, and c_x are effect operations
+  (* r_x are effect operations raised by the functionality f_x, and c_x are effect operations
      handled by f_x.*) 
-  Definition left_composition (f_x f_y : val) : val :=
-    λ: "f" "r_x1" "r_x2" "r_y",
-      f_x (λ: "c_x1" "c_x2",
-             f_y (λ: "c_y", "f" "c_x1" "c_x2" "c_y") "r_y") "r_x1" "r_x2".
-                                                        
+  Definition left_composition : val :=
+    λ: "F₁" "F₂" "f" "r₁" "r₂",
+      "F₁" (λ: "h₁",
+             "F₂" (λ: "h₂", "f" "h₁" "h₂") "r₂") "r₁".
+  
+ 
+  Definition right_composition : val :=
+    λ: "F₁" "F₂" "f" "r₁" "r₂",
+  (left_composition "F₂" "F₁" "f" "r₂" "r₁").
 
-(*Definition right_composition (f_x : val) (f_y : val) : val :=
-  (left_composition f_y f_x).*)
-
+ 
 End parallel_composition.
+
+Notation " F₁ ||ₗ F₂" := (left_composition F₁ F₂) (at level 10).
+
+Notation "F₁ ||ᵣ F₂" := (right_composition F₁ F₂) (at level 10).
