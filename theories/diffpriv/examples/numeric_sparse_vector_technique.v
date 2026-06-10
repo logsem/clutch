@@ -243,7 +243,7 @@ Section nsvt.
     iSimpl in "rhs"...
     case_bool_decide as H1.
     - (* Case where the returned value is None *)
-      destruct b as [|Hb]; first inversion H1.
+      destruct b; first inversion H1.
       simpl... rewrite /= !Nat.sub_0_r. simplify_eq.
       tp_load ; wp_load...
       iSpecialize ("maybe_auth" $! eq_refl).
@@ -259,7 +259,7 @@ Section nsvt.
     - (* Case where the returned value is Some(v) *)
       tp_load ; wp_load...
       rewrite /= !Nat.sub_0_r.
-      destruct b as [|Hb]; last done.
+      destruct b; last done.
       destruct n as [|n']...
       { (* Case where n <= 0 *)
         rewrite /inSVT. iFrame. iExists (Some z). iModIntro. iPureIntro. done.
