@@ -2,7 +2,7 @@ From Stdlib Require Import Reals Psatz.
 From clutch.prelude Require Import NNRbar.
 From clutch.common Require Import language.
 From clutch.prob Require Import distribution markov.
-From clutch.prob_eff_lang.probblaze Require Import notation semantics logic sem_judgement sem_types sem_def adequacy. (* semantics proves that blaze_prob_lang is a lang_markov *)
+From clutch.prob_eff_lang.probblaze Require Import notation semantics logic sem_judgement sem_types sem_def adequacy proofmode. (* semantics proves that blaze_prob_lang is a lang_markov *)
 Set Default Proof Using "Type*".
 #[local] Open Scope R_scope.
 
@@ -228,7 +228,7 @@ Proof.
   all : by iIntros (???) "(%&->&->)".
 Qed.  
 
-Lemma advantage_reduction {Σ} (adv red : val) (e e' : val) (b : bool) :
+Lemma advantage_reduction `{!probblazeRGpreS Σ} (adv red : val) (e e' : val) (b : bool) :
   (∀ `{probblazeRGS Σ}, ∃ α β, 
       (⊢ sem_val_typed adv adv (β → 𝔹)%T) /\
       (⊢ sem_val_typed red red (α → β)%T) /\
@@ -239,5 +239,77 @@ Proof.
   intros.
   apply advantage_uniform => σ.
   etrans; last by apply (advantage_ub _ _ _ _ σ).
-  right.
-Admitted.
+  right. 
+  unfold pr_dist.
+  assert (lim_exec (adv (red e), σ) #b = lim_exec ((λ: "v", adv (red "v"))%V e, σ) #b) as ->.
+  { f_equiv. apply ARcoupl_antisym; eapply brel_refines_coupling; try done; first last. 
+    - iIntros (HRGS). iStartProof. 
+      iApply brel_pure_step_later; [done|iIntros "!> /="].
+      iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
+      destruct (H HRGS) as (α & β & Hadv & Hred & He & He').
+      iPoseProof He as "#He".  
+      iPoseProof Hred as "Hred".
+      iPoseProof Hadv as "Hadv".
+      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang //=.
+      iDestruct "He" as "#He".
+      iDestruct "Hred" as "#Hred". 
+      iDestruct ("Hred" with "He") as "Hrede".
+      iApply (brel_wand with "Hrede").
+      iIntros (??) "!# Hβ".
+      iDestruct "Hadv" as "#Hadv".
+      iDestruct ("Hadv" with "Hβ") as "$Hadvv".
+    - by iIntros (???) "(%&->&->)".
+    - iIntros (HRGS). iStartProof.
+      iApply brel_pure_step_r; [done|simpl].
+      iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
+      destruct (H HRGS) as (α & β & Hadv & Hred & He & He').
+      iPoseProof He as "#He".  
+      iPoseProof Hred as "Hred".
+      iPoseProof Hadv as "Hadv".
+      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang //=.
+      iDestruct "He" as "#He".
+      iDestruct "Hred" as "#Hred". 
+      iDestruct ("Hred" with "He") as "Hrede".
+      iApply (brel_wand with "Hrede").
+      iIntros (??) "!# Hβ".
+      iDestruct "Hadv" as "#Hadv".
+      iDestruct ("Hadv" with "Hβ") as "$Hadvv".
+    - by iIntros (???) "(%&->&->)".
+  }
+  assert (lim_exec (adv (red e'), σ) #b = lim_exec ((λ: "v", adv (red "v"))%V e', σ) #b) as ->.
+  { f_equiv. apply ARcoupl_antisym; eapply brel_refines_coupling; try done; first last. 
+    - iIntros (HRGS). iStartProof. 
+      iApply brel_pure_step_later; [done|iIntros "!> /="].
+      iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
+      destruct (H HRGS) as (α & β & Hadv & Hred & He & He').
+      iPoseProof He' as "#He'".  
+      iPoseProof Hred as "Hred".
+      iPoseProof Hadv as "Hadv".
+      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang //=.
+      iDestruct "He'" as "#He'".
+      iDestruct "Hred" as "#Hred". 
+      iDestruct ("Hred" with "He'") as "Hrede".
+      iApply (brel_wand with "Hrede").
+      iIntros (??) "!# Hβ".
+      iDestruct "Hadv" as "#Hadv".
+      iDestruct ("Hadv" with "Hβ") as "$Hadvv".
+    - by iIntros (???) "(%&->&->)".
+    - iIntros (HRGS). iStartProof.
+      iApply brel_pure_step_r; [done|simpl].
+      iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
+      destruct (H HRGS) as (α & β & Hadv & Hred & He & He').
+      iPoseProof He' as "#He'".  
+      iPoseProof Hred as "Hred".
+      iPoseProof Hadv as "Hadv".
+      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang //=.
+      iDestruct "He'" as "#He'".
+      iDestruct "Hred" as "#Hred". 
+      iDestruct ("Hred" with "He'") as "Hrede".
+      iApply (brel_wand with "Hrede").
+      iIntros (??) "!# Hβ".
+      iDestruct "Hadv" as "#Hadv".
+      iDestruct ("Hadv" with "Hβ") as "$Hadvv".
+    - by iIntros (???) "(%&->&->)".
+  }
+  done.
+Qed.
