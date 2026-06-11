@@ -5,7 +5,7 @@ From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
   spec_rules spec_ra 
-  class_instances definition sem_types.
+  class_instances sem_types.
 From clutch.clutch Require ElGamal_bijection.
 From clutch.prob_eff_lang.probblaze.examples.ot Require Import definition_mut_sender_corrupt ot_bijection.
 From mathcomp Require Import ssrbool.
@@ -173,35 +173,68 @@ Section handlee_verification.
   Definition LblAuthChannel γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := [([channel],[channel], (iThySum (iThySum (SendAliceImpl γtoka γfraca γautha atokN) (RecvBobImpl γauthb))
                                                                         (iThySum (SendBobImpl γtokb γfracb γauthb btokN) (RecvAliceImpl γautha))))].
 
+  Lemma Fp_of_fin_ne_zero (t : fin n) :
+      t ≠ nat_to_fin (Nat.lt_0_succ (S n'')) → ~ (Fp_of_fin t = (@nmodule.Algebra.zero (zmodp.fintype_ordinal__canonical__Algebra_BaseAddUMagma (S (zmodp.Zp_trunc (prime.pdiv (S (S (@n'' vg vgg))))))))).
+  Proof using n_prime.
+    intros Ht Heq. apply Ht.
+    unfold Fp_of_fin in Heq.
+    have Hnat := f_equal (@fintype.nat_of_ord _) Heq.
+    rewrite /= zmodp.Zp_nat /= in Hnat.
+    have Hfp : S (S (zmodp.Zp_trunc (prime.pdiv n))) = n. { rewrite zmodp.Fp_cast; done. }
+    rewrite Hfp in Hnat.
+    have Hlt := fin_to_nat_lt t.
+    rewrite div.modn_small in Hnat. 2: apply Rcomplements.SSR_leq; exact Hlt.
+    apply fin_to_nat_inj. rewrite Hnat fin_to_nat_to_fin //.
+  Qed.
+
+  Lemma Fp_of_fin_ne_zero_2 (t : fin n) :
+      t ≠ nat_to_fin (Nat.lt_0_succ (S n'')) → ~~ (@eqtype.eq_op (fintype.fintype_ordinal__canonical__eqtype_Equality (S (S (zmodp.Zp_trunc (prime.pdiv (S (S (@n'' vg vgg)))))))) (Fp_of_fin t) (@nmodule.Algebra.zero (zmodp.fintype_ordinal__canonical__Algebra_BaseAddUMagma (S (zmodp.Zp_trunc (prime.pdiv (S (S (@n'' vg vgg))))))))) = true.
+  Proof using n_prime.
+    intros Ht. 
+    eapply eqtype.contraNneq.
+    2 : { apply negb_true_iff. done. }
+    intros. unfold Fp_of_fin in H.  
+    have Hnat := f_equal (@fintype.nat_of_ord _) H.
+    rewrite /= zmodp.Zp_nat /= in Hnat.
+    have Hfp : S (S (zmodp.Zp_trunc (prime.pdiv n))) = n. { rewrite zmodp.Fp_cast; done. }
+    rewrite Hfp in Hnat.
+    have Hlt := fin_to_nat_lt t.
+    rewrite div.modn_small in Hnat. 2: apply Rcomplements.SSR_leq; exact Hlt.
+    exfalso. apply Ht.
+    apply fin_to_nat_inj. rewrite Hnat fin_to_nat_to_fin //.
+  Qed. 
+
   Lemma fcrs_dh_ideal (f1 f2 : val) γcrs L:
     ↯ (1 / n) -∗
     own γcrs (to_dfrac_agree (DfracOwn 1) #()%V) -∗
     BREL f1 #()%V ≤ f2 #()%V <| ([CRS],[CRS], @CRSThy γcrs) :: L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }} -∗
     BREL F_CRS CRS f1 ≤ (reduction CRS DH_rand) f2 <| ([CRS],[CRS],iThyBot) :: L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
-  Proof. 
+  Proof using n_prime G. 
     iIntros "Herr Hcrs Hff".
     unfold F_CRS, reduction, DH_rand. brel_pures.
     set H0fin :=  Fin.of_nat_lt (Nat.lt_0_succ (S n'')).
     iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
-    iFrame. iIntros (t Ht) "!>". brel_exp_l. brel_exp_r.
+    iFrame. iIntros (t Ht) "!>".
+    apply not_elem_of_cons in Ht as [Ht _].
+    brel_exp_l. brel_exp_r.
     brel_pures. 
     epose proof brel_couple_rand_rand as h'.
     iApply (h' _ _ (f_ring (Fp_of_fin t))).
-    1 : { unshelve eapply f_bij_ring; first done. admit. (* TODO: prove t != 0 *) }
+    1 : { unshelve eapply f_bij_ring; first done. by apply Fp_of_fin_ne_zero_2. }
     1 : { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
           by apply Rcomplements.SSR_leq. }
     clear h'.
     iIntros (a Ha). brel_pures.
     epose proof brel_couple_rand_rand as h'.
     iApply (h' _ _ (f_ring (Fp_of_fin t))).
-    1 : { unshelve eapply f_bij_ring; first done. admit. (* TODO: prove t != 0 *) }
+    1 : { unshelve eapply f_bij_ring; first done. by apply Fp_of_fin_ne_zero_2. }
     1 : { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
           by apply Rcomplements.SSR_leq. }
     clear h'.
     iIntros (b Hb). brel_pures.
     epose proof brel_couple_rand_rand as h'.
     iApply (h' _ _ (f_ring (Fp_of_fin t))).
-    1 : { unshelve eapply f_bij_ring; first done. admit. (* TODO: prove t != 0 *) }
+    1 : { unshelve eapply f_bij_ring; first done. by apply Fp_of_fin_ne_zero_2. }
     1 : { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
           by apply Rcomplements.SSR_leq. }
     clear h'.
@@ -235,12 +268,12 @@ Section handlee_verification.
     rewrite g_nontriv.
     rewrite !crs_fin_cancel //.
     3,5,7: rewrite Rcomplements.SSR_leq; lia.
-    2,3,4 : admit.
+    2,3,4 : by apply Fp_of_fin_ne_zero_2.
     rewrite !expg_mod; try (rewrite -g_nontriv; apply expg_order).
     
     iApply (brel_exhaustion _ _ [_] [_] with "Hkont"); [done|done|].
     iApply "IH".
-Admitted.     
+Qed.    
 
 
   
@@ -281,15 +314,20 @@ Admitted.
     own γautha (to_dfrac_agree (DfracOwn 1) #()%V) -∗
     m0 ↦ₛ NONEV -∗
     m1 ↦ₛ NONEV -∗
+    ↯ (1 / n) -∗
     BREL f1 #()%V ≤ f2 #()%V <| (Adv ++ L)|> {{ (λ v1 v2, ⌜v1 = #()%V ∧ v2 = #()%V⌝) }} -∗
     BREL (reduction CRS DH_real) (OT_Real_Sender_corrupt CRS Receiver channel f1) 
       ≤ (OT_SIM_FOT channel CRS Sender Receiver Leak m0 m1) f2 <| to_iThyIfMono OS (([CRS],[CRS], iThyBot) :: ([Receiver],[Sender; Receiver; Leak],iThyBot) :: AuthChannel ++ L) |>  {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.
   Proof.  
-    iIntros (??) "Htok Hcrs Hauth Hlm0 Hlm1 Hff".
+    iIntros (??) "Htok Hcrs Hauth Hlm0 Hlm1 Herr Hff".
     rewrite /reduction /OT_Real_Sender_corrupt /OT_SIM_FOT /DH_real /OT_SIM /F_OT //=.
     brel_pures.
     iApply brel_couple_rand_rand; first done. iIntros (t Ht). brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (y Hy). brel_pures'. (* should be non-zero *)
+    set H0fin :=  Fin.of_nat_lt (Nat.lt_0_succ (S n'')).
+    iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
+    iFrame. iIntros (y Hy) "!>".
+    apply not_elem_of_cons in Hy as [Hy _]. brel_pures'.
+    (* iApply brel_couple_rand_rand; first done. iIntros (y Hy). brel_pures'. (* should be non-zero *) *)
     iApply brel_couple_rand_rand; first done. iIntros (x Hx). brel_pures'. 
     rewrite -Nat2Z.inj_mul. 
     rewrite /OT_SIM_Sender_corrupt_logic /mutual_handlers_composition.mut_handler_constructor.
@@ -387,8 +425,8 @@ Admitted.
     (* Should be refactored into one branch *)
     destruct b.
     - epose proof brel_couple_rand_rand as h'.
-      unshelve iApply (h' _ _ (@f_ring n'' (zmodp.inZp y)) (f_bij_ring (zmodp.inZp y))); try done.
-      { admit. }
+      unshelve iApply (h' _ _ (f_ring (Fp_of_fin y)) (f_bij_ring (Fp_of_fin y))); try done.
+      { by apply Fp_of_fin_ne_zero_2. }
       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
         by apply Rcomplements.SSR_leq. }
       iIntros (α Hα).
@@ -396,7 +434,15 @@ Admitted.
       rewrite -expgM. rewrite ssrnat.multE. rewrite (ssrnat.mulnC _ y).
       (* rewrite -(@expg_mod _ n (ssrnat.muln y (f_ring (zmodp.inZp y) α))).
          2 : admit. *)
-      assert (ssrnat.muln y (f_ring (zmodp.inZp y) α) = α) as -> by admit.
+      rewrite -!(@expg_mod _ n (ssrnat.muln y (f_ring (Fp_of_fin y) α))).
+      2,3 : (try rewrite (expgnAC _ x n)); rewrite (expgnAC _ t n);
+            by rewrite -g_nontriv expg_order !expg1n.
+      rewrite !crs_fin_cancel; try done.
+      2 : { by apply Fp_of_fin_ne_zero_2. }
+      2 : { apply Rcomplements.SSR_leq. lia. }
+      rewrite !expg_mod. 
+      2,3 : (try rewrite (expgnAC _ x n)); rewrite (expgnAC _ t n);
+            by rewrite -g_nontriv expg_order !expg1n.
 
       iApply (brel_introduction' [channel]); [repeat constructor|].
       iExists _,_,[AppRCtx _],[HandleCtx _ _ _ _ _ ;HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _],_.
@@ -422,13 +468,16 @@ Admitted.
       iSplit; [iSplit;done|].
       iModIntro. simpl.
       brel_pures'.
-      
+      iApply brel_learn. iIntros ((HdistinctL&HdistinctR)) "_ /=".
       iApply (brel_introduction' [channel]); [repeat constructor|].
       iExists _,_,[AppRCtx _],[HandleCtx _ _ _ _ _ ;HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _],_.
       iSplit; [by iPureIntro|]. 
       iSplit; [iPureIntro; apply NeutralEctx_ectx_labels_singleton; set_solver| ].
       iSplit; [by iPureIntro|].
-      iSplit; [iPureIntro; apply NeutralEctx_ectx_labels_singleton; admit| ]. (* from brel_learn *)
+      iSplit; [iPureIntro; apply NeutralEctx_ectx_labels_singleton;simpl; apply NoDup_cons_1_1 | ]. (* from brel_learn *)
+      { unfold distinct_r in *. unfold labels_r in *. simpl in *. 
+        eapply (NoDup_app [Sender; Receiver; Leak;CRS;channel]) in HdistinctR as [HdistinctR _]. 
+        unshelve eapply (submseteq_NoDup _ _ _ HdistinctR). admit. }
       iSplitL; [|iIntros (??) "!# H"; iApply "H"].
       iExists _. iSplitL; last (iIntros (??) "!> H"; iApply "H").
       iLeft. iRight.
