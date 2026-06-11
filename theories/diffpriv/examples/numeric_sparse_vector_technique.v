@@ -33,18 +33,6 @@ Section nsvt.
     intro d0. rewrite d0 in div_pos. rewrite Rdiv_0_r in div_pos. lra.
   Qed.
 
-
-  (* We can give the following specs: *)
-  (* { ↯ ε } nA_T T ~ nAT T
-     { f f' . AUTH
-            ∗ ∀ db db' : adjacent, ∀ q : 1-sensitive,
-[equality post:]
-              { AUTH } f db q ~ f' db' q { b : option R . b = None -∗ AUTH }
-[or pointwise eq:]
-              ∀ V , { AUTH } f db qi ~ f db' qi { b b' : option R . ⌜b = V -> b' = V⌝ ∗ (⌜V = None⌝ -∗ AUTH) }
-     }  *)
-
-
   (** Numeric Above Threshold **)
 
   Definition num_above_threshold : val :=
@@ -55,8 +43,6 @@ Section nsvt.
         if: "T'" ≤ "vi" then SOME (Laplace (#1*"num") (#9*"den") ("qi" "db") #()) else NONEV.
 
   (* The spec that nAT satisfies after initialising T'. *)
-  Print inject.
-  Print Inject.
 
   Definition nAT_spec (c : R) (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
     □ ∀ `(dDB : Distance DB) (db db' : DB) (_ : dDB db db' <= c) (q : val) (K0 : list ectx_item),
@@ -81,8 +67,7 @@ Section nsvt.
     fold ε in εpos. repeat rewrite Rmult_plus_distr_l.
     iDestruct (ecm_split with "ε") as "[ε ε3]". 1,2: real_solver.
     iDestruct (ecm_split with "ε") as "[ε2 ε1]". 1,2: real_solver.
-    iApply (hoare_couple_laplace _ _ 1%Z 1%Z with "[$rhs ε1]") => //.
-    { lia. }
+    iApply (hoare_couple_laplace _ _ 1%Z 1%Z with "[$rhs ε1]") => //; first by lia.
     { 1: repeat rewrite mult_IZR ; repeat apply Rdiv_pos_pos.
       2: real_solver.
      rewrite -Rmult_div_assoc. apply Rmult_lt_0_compat; first lra. subst ε. apply εpos. }
@@ -133,6 +118,7 @@ Section nsvt.
       tp_bind (q _); wp_bind (q _).
       iSpecialize ("q_sens'" $! _ _ db db' with "rhs").
       Unshelve. 2: lra.
+      (* We apply q_sens a second time that is why it is now persistent in the spec *)
       iApply (wp_strong_mono'' with "q_sens' [ε1]") => //.
       iIntros (?) "(%vq_l' & %vq_r' & -> & rhs & %adj'')" => /=...
       tp_bind (Laplace _ _ _ _); wp_bind (Laplace _ _ _ _).
@@ -145,8 +131,7 @@ Section nsvt.
       + iIntros (v) "!> rhs" => /=...
         iModIntro.
         iExists (Some v).
-        replace #(v + 0) with #v.
-        2: by rewrite -Zplus_0_r_reverse.
+        rewrite -Zplus_0_r_reverse.
         iFrame.
         iSplitL.
         1: by iPureIntro.
@@ -159,7 +144,7 @@ Section nsvt.
       iModIntro.
       iExists None.
       iFrame.
-      iSplitR; first by iPureIntro; reflexivity.
+      iSplitR; first by iPureIntro.
       by iIntros (Hfin) => //.
   Qed.
 
@@ -234,7 +219,8 @@ Section nsvt.
     clear f f'.
     rewrite /nSVT_spec.
     iIntros "!>" (???????) "#q_sens rhs %n (count_l & count_r & nε & (%TOKEN & %f & %f' & auth & ref_f & ref_f' & #nAT))"...
-    tp_load ; wp_load. tp_bind (f' _ _); wp_bind (f _ _).
+    tp_load ; wp_load.
+    tp_bind (f' _ _); wp_bind (f _ _).
     iCombine "nAT" as "nAT_cpy".
     iSpecialize ("nAT" $! _ _ _ _ adj) as #.
     iSpecialize ("nAT" with "q_sens auth rhs").
@@ -270,13 +256,12 @@ Section nsvt.
       iDestruct (ecm_split with "nε") as "[ε n'ε]". 1,2: real_solver.
       simpl. simplify_eq...
       tp_bind (num_above_threshold _ _ _) ; wp_bind (num_above_threshold _ _ _).
-      opose proof (num_above_threshold_online_nAT_spec num den T _) as nAT_pw.
-      1: done.
-      iPoseProof (nAT_pw with "[ε] [rhs]") as "nAT_pw" => // ; clear nAT_pw. 1: by rewrite Rmult_1_l.
+      opose proof (num_above_threshold_online_nAT_spec num den T _) as nAT_pw; first done.
+      iPoseProof (nAT_pw with "[ε] [rhs]") as "nAT_pw" => // ; clear nAT_pw; first by rewrite Rmult_1_l.
       iApply (wp_strong_mono'' with "nAT_pw [-]").
       iIntros "%g (%g' & %AUTH' & rhs & auth & nAT') /=".
       tp_store ; wp_store... tp_load... tp_store ; wp_load... wp_store.
-      iFrame. iExists (Some z). iSplitR. 1: done.
+      iFrame. iExists (Some z). iSplitR; first done.
       rewrite /inSVT.
       case_bool_decide as H1'; first done.
       simpl.
