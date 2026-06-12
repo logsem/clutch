@@ -922,23 +922,23 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
 Proof.
   split.
-  - intros ?. destruct e1; inv_head_step ; try by eauto with head_step.
-    + econstructor ; inv_distr ; intuition simplify_eq ; eauto.
-    + econstructor ; inv_distr ; intuition simplify_eq ; eauto.
-    + intuition simplify_eq. econstructor. done.
-  - inversion 1; simplify_map_eq/= ; try case_bool_decide ; try case_decide ; simplify_eq; solve_distr; try done.
-    all: intuition auto.
+  - intros Hpos. destruct e1; inv_head_step; try by eauto with head_step.
+    all: destruct H; subst; eauto with head_step.
+  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq;
+      try (rewrite H); try (rewrite H0); solve_distr; try done.
+    by destruct (H1 (conj eq_refl eq_refl)).
 Qed.
 
 Lemma state_step_support_equiv_rel σ1 α σ2 :
   state_step σ1 α σ2 > 0 ↔ state_step_rel σ1 α σ2.
 Proof.
   rewrite /state_step. split.
-  - case_bool_decide; [|intros; inv_distr].
-    case_match. intros ?. inv_distr.
-    econstructor; eauto with lia.
+  - case_bool_decide as Hdom; [|intros; inv_distr].
+    destruct (stapes σ1 !!! α) as [[i pv] xs] eqn:Hα.
+    case_match eqn:Hss; intros Hpos; inv_distr.
+    all: econstructor; eauto.
   - inversion_clear 1.
-    rewrite bool_decide_eq_true_2 // H1. solve_distr.
+    all: rewrite bool_decide_eq_true_2; [|done]; rewrite H1; simpl; rewrite H2; solve_distr.
 Qed.
 
 Ltac solve_distr :=
@@ -958,71 +958,54 @@ Lemma state_step_head_step_not_stuck e σ σ' α :
   state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
 Proof.
   rewrite state_step_support_equiv_rel.
-  inversion_clear 1.
-  split; intros [[e2 σ2] Hs].
-  (* TODO: the sub goals used to be solved by [simplify_map_eq]  *)
-  - destruct e; inv_head_step; ( (eexists; solve_distr)) ; try done.
-    all: try rewrite dzero_0.
-    4-9: eapply laplace_rat_pos ; eauto.
-    + exfalso.
-      destruct (decide (α = l1)) ; simplify_eq.
-      * eapply (Some_ne_None ((_; _) : tape)).
-        rewrite -H11. by simplify_map_eq.
-      * eapply (Some_ne_None ((_; _) : tape)).
-        rewrite -H11.
-        rewrite lookup_insert_ne => //.
-    + exfalso.
-      destruct (decide (α = l1)) ; simplify_eq.
-      * eapply (Some_ne_None ((_; _) : tape)).
-        rewrite -H11. simplify_map_eq.
-      * eapply (Some_ne_None ((_; _) : tape)).
-        rewrite -H11.
-        rewrite lookup_insert_ne => //.
-    + exfalso.
-      destruct (decide (α = l1)) ; simplify_eq.
-      * eapply (Some_ne_None ((_; _) : tape)).
-        rewrite -H10. simplify_map_eq.
-      * eapply (Some_ne_None ((_; _) : tape)).
-        rewrite -H10.
-        rewrite lookup_insert_ne => //.
-  - destruct e; inv_head_step; try ((eexists; solve_distr)) ; try done.
-    all: try rewrite dzero_0.
-    4-9: eapply laplace_rat_pos ; eauto.
-
-    + destruct (decide (α = l1)); simplify_eq.
-      * apply not_elem_of_dom_2 in H11. done.
-      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert_eq // in H7.
-        apply not_elem_of_dom_2 in H11. done.
-      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done.
-    + destruct (decide (α = l1)); simplify_eq.
-      * rewrite lookup_insert_eq // in H7.
-        apply not_elem_of_dom_2 in H10. done.
-      * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done.
-        Unshelve.
-        all: try apply (0%fin).
-        all: try apply ((of_val $ LitV LitUnit), σ).
-        all: try apply (0%nat).
-        all: apply [].
+  inversion_clear 1 as [α' i pv xs μ v Hdom Hα Hss Hμ|]; [|tauto].
+  apply elem_of_dom in Hα as [t Ht].
+  rewrite (lookup_total_correct _ _ _ Ht) in Hss. subst t.
+  split; intros [[e2 σ2] Hs]; destruct e; inv_head_step; try (eexists; solve_distr; done).
+  all: destruct (decide (l0 = α)) as [->|Hne]; simplify_map_eq;
+    try (by destruct xs; simplify_eq);
+    try (eexists; solve_distr; done);
+    try (match goal with
+         | Hd : sig_sample _ _ _ = Some ?d |- context [dmap _ ?d] =>
+             destruct (SeriesC_gtz_ex d (pmf_pos d)) as [? Ha];
+             [ rewrite (sig_sample_mass _ _ _ _ Hd); lra
+             | eexists; apply dmap_pos; eexists; split; [reflexivity|exact Ha] ]
+         end).
+  all: try (destruct H as [-> ->]);
+    match goal with
+    | A : ?x = Some _, B : ?x = None |- _ => by rewrite A in B
+    end.
+  Unshelve.
+  all: destruct (H H1).
 Qed.
 
 Lemma state_step_mass σ α :
-  α ∈ dom σ.(tapes) → SeriesC (state_step σ α) = 1.
+  α ∈ dom σ.(stapes) → SeriesC (state_step σ α) = 1.
 Proof.
   intros Hdom.
-  rewrite /state_step bool_decide_eq_true_2 //=.
-  case_match.
-  rewrite dmap_mass dunif_mass //.
+  rewrite /state_step bool_decide_eq_true_2 //.
+  destruct (stapes σ !!! α) as [[i pv] xs].
+  case_match eqn:Hss.
+  - rewrite dmap_mass. by eapply sig_sample_mass.
+  - apply dret_mass.
 Qed.
 
 Lemma head_step_mass e σ :
   (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1.
 Proof.
   intros [[] Hs%head_step_support_equiv_rel].
-  inversion Hs;
-    repeat (simplify_map_eq/=; solve_distr_mass || (case_match ; try done) ;
-            try (case_bool_decide; done)).
+  inversion Hs; simplify_eq/=; try (solve_distr_mass).
+  all: repeat (match goal with
+    | H : un_op_eval _ _ = _ |- _ => rewrite H
+    | H : bin_op_eval _ _ _ = _ |- _ => rewrite H
+    | H : heap _ !! _ = _ |- _ => rewrite H
+    | H : stapes _ !! _ = _ |- _ => rewrite H
+    | H : sig_sample _ _ _ = _ |- _ => rewrite H
+    | |- context [bool_decide (?i = ?i ∧ ?p = ?p)] => rewrite bool_decide_eq_true_2; [|done]
+    | Hn : ¬ (_ ∧ _) |- context [bool_decide (_ ∧ _)] => rewrite (bool_decide_eq_false_2 _ Hn)
+    | |- context [bool_decide (0 < _)%nat] => rewrite bool_decide_eq_true_2; [|done]
+    end); simpl.
+  all: first [ apply dret_mass | (rewrite dmap_mass; by eapply sig_sample_mass) ].
 Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
@@ -1048,10 +1031,8 @@ Fixpoint height (e : expr) : nat :=
   | AllocN e1 e2 => 1 + height e1 + height e2
   | Deref e => 1 + height e
   | Store e1 e2 => 1 + height e1 + height e2
-  | AllocTape e => 1 + height e
-  | AllocTapeLaplace e1 e2 e3 => 1 + height e1 + height e2 + height e3
-  | Rand e1 e2 => 1 + height e1 + height e2
-  | Laplace e1 e2 e3 e4 => 1 + height e1 + height e2 + height e3 + height e4
+  | Sample _ e1 e2 => 1 + height e1 + height e2
+  | AllocSampleTape _ e1 => 1 + height e1
   | Tick e => 1 + height e
   end.
 
@@ -1088,7 +1069,7 @@ Proof.
     destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
 Qed.
 
-Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).
+Definition get_active (σ : state) : list loc := elements (dom σ.(stapes)).
 
 Lemma state_step_get_active_mass σ α :
   α ∈ get_active σ → SeriesC (state_step σ α) = 1.
@@ -1105,7 +1086,7 @@ Proof.
   - apply state_step_get_active_mass. set_solver.
   - intros σ' Hσ'. apply IH.
     apply state_step_support_equiv_rel in Hσ'.
-    inversion Hσ'; simplify_eq.
+    inversion Hσ'; simplify_eq; last (intros α' ?; eapply Hact; set_solver).
     intros α' ?. rewrite /get_active /=.
     apply elem_of_elements, elem_of_dom.
     destruct (decide (α = α')); subst.
@@ -1114,7 +1095,7 @@ Proof.
       apply elem_of_dom. eapply elem_of_elements, Hact. by right.
 Qed.
 
-Lemma prob_lang_mixin :
+Lemma gen_lang_mixin :
   EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
 Proof.
   split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck,
@@ -1123,14 +1104,16 @@ Proof.
     decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
 Qed.
 
+End semantics.
+
 End gen_prob_lang.
+(* Prefer gen_prob_lang names over ectx_language names. *)
+Export gen_prob_lang.
 
-(** Language *)
-Canonical Structure prob_ectxi_lang := EctxiLanguage prob_lang.get_active prob_lang.prob_lang_mixin (def_val := prob_lang.def_val).
-Canonical Structure prob_ectx_lang := EctxLanguageOfEctxi prob_ectxi_lang.
-Canonical Structure prob_lang := LanguageOfEctx prob_ectx_lang.
-
-(* Prefer prob_lang names over ectx_language names. *)
-Export prob_lang.
+(** Language (parametric in the distribution signature [S]) *)
+Definition gen_ectxi_lang (S : Sig) : ectxiLanguage :=
+  EctxiLanguage get_active (gen_lang_mixin S) (def_val := def_val).
+Definition gen_ectx_lang (S : Sig) : ectxLanguage := EctxLanguageOfEctxi (gen_ectxi_lang S).
+Definition gen_lang (S : Sig) : language := LanguageOfEctx (gen_ectx_lang S).
 
 Definition cfg : Type := expr * state.
