@@ -188,7 +188,14 @@ Section handlee_verification.
     rewrite div.modn_small in Hnat. 2: apply Rcomplements.SSR_leq; exact Hlt.
     exfalso. apply Ht.
     apply fin_to_nat_inj. rewrite Hnat fin_to_nat_to_fin //.
-  Qed. 
+  Qed.
+
+  Lemma vgG_expg_n (x : vgG) : (x ^+ n)%g = 1%g.
+  Proof.
+    rewrite -g_nontriv.
+    assert (∃ ck : fin n, x = (g ^+ ck)%g) as (ck & ->) by apply log_g.
+    by rewrite expgAC expg_order expg1n.
+  Qed.
 
   Lemma fcrs_dh_ideal (f1 f2 : val) γcrs L:
     ↯ (1 / n) -∗
@@ -545,18 +552,12 @@ Qed.
       iApply (brel_cont_l with "[$]"). iModIntro.
       iDestruct ("Hkont" with "HQSome") as "Hkont".
       rewrite -!(@expg_mod _ n (ssrnat.muln y (f_ring (Fp_of_fin y) α))).
-      2 : { rewrite -g_nontriv.
-            assert (∃ ck : fin n, c0 = (g ^+ ck)%g) as (ck&->) by apply log_g.
-            rewrite expgAC. rewrite expg_order. apply expg1n.
-      }
+      2 : { apply vgG_expg_n. }
       rewrite !crs_fin_cancel; try done.
       2 : { by apply Fp_of_fin_ne_zero_2. }
       2 : { apply Rcomplements.SSR_leq. lia. }
       rewrite expg_mod.
-      2 : { rewrite -g_nontriv.
-            assert (∃ ck : fin n, c0 = (g ^+ ck)%g) as (ck&->) by apply log_g.
-            rewrite expgAC. rewrite expg_order. apply expg1n.
-      }
+      2 : { apply vgG_expg_n. }
       
       iApply (brel_exhaustion' OS (fill k1' _) (fill k2' _) with "Hkont"); [done|set_solver|].
       iClear "HQNone Hlm1 Hlm0".
