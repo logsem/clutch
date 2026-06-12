@@ -660,11 +660,11 @@ Proof.
   rewrite right_id insert_union_singleton_l. done.
 Qed.
 
-Lemma state_upd_tapes_heap σ l1 l2 n xs m v :
-  state_upd_tapes <[l2:=(n; xs)]> (state_upd_heap_N l1 m v σ) =
-  state_upd_heap_N l1 m v (state_upd_tapes <[l2:=(n; xs)]> σ).
+Lemma state_upd_stapes_heap σ l1 l2 t m v :
+  state_upd_stapes <[l2:=t]> (state_upd_heap_N l1 m v σ) =
+  state_upd_heap_N l1 m v (state_upd_stapes <[l2:=t]> σ).
 Proof.
-  by rewrite /state_upd_tapes /state_upd_heap_N /=.
+  by rewrite /state_upd_stapes /state_upd_heap_N /=.
 Qed.
 
 Lemma heap_array_replicate_S_end l v n :
@@ -682,6 +682,10 @@ Proof.
 Qed.
 
 #[local] Open Scope R.
+
+(* The operational semantics is parametric in a distribution signature [S]. *)
+Section semantics.
+Context (S : Sig).
 
 Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
   match e1 with
@@ -732,49 +736,34 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
         | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1)
         | None => dzero
       end
-  (* Since our language only has integers, we use Z.to_nat, which maps positive
-     integers to the corresponding nat, and the rest to 0. We sample from
-     [dunifP N = dunif (1 + N)] to avoid the case [dunif 0 = dzero]. *)
-  (* Uniform sampling from [0, 1 , ..., N] *)
-  | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
-      dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
-  | AllocTape (Val (LitV (LitInt z))) =>
-      let ι := fresh_loc σ1.(tapes) in
-      dret (Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (Z.to_nat z; []) ]> σ1)
-  | AllocTapeLaplace (Val (LitV (LitInt num))) (Val (LitV (LitInt den))) (Val (LitV (LitInt loc))) =>
-      let ι := fresh_loc σ1.(tapes_laplace) in
-      dret (Val $ LitV $ LitLbl ι, state_upd_tapes_laplace <[ι := Tape_Laplace num den loc [] ]> σ1)
-  (* Labelled sampling, conditional on tape contents *)
-  | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
-      match σ1.(tapes) !! l with
-      | Some (M; ns) =>
-          if bool_decide (M = Z.to_nat N) then
-            match ns  with
-            | n :: ns =>
-                (* the tape is non-empty so we consume the first number *)
-                dret (Val $ LitV $ LitInt $ fin_to_nat n, state_upd_tapes <[l:=(M; ns)]> σ1)
-            | [] =>
-                (* the tape is allocated but empty, so we sample from [0, 1, ..., M] uniformly *)
-                dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP M)
-            end
-          else
-            (* bound did not match the bound of the tape *)
-            dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
+  (* Generic sampling. Direct (tape argument = unit): sample from family [i] with
+     parameter value [pv].  [None] (unsupported family/parameter) is stuck. *)
+  | Sample i (Val pv) (Val (LitV LitUnit)) =>
+      match sig_sample S i pv with
+      | Some μ => dmap (λ v, (Val v, σ1)) μ
       | None => dzero
       end
-  | Laplace (Val (LitV (LitInt num))) (Val (LitV (LitInt den))) (Val (LitV (LitInt loc))) (Val (LitV LitUnit)) =>
-      dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1)) (laplace_rat num den loc)
-  | Laplace (Val (LitV (LitInt num))) (Val (LitV (LitInt den))) (Val (LitV (LitInt loc))) (Val (LitV (LitLbl l))) =>
-      match σ1.(tapes_laplace) !! l with
-      | Some (Tape_Laplace num' den' loc' xs) =>
-          if (bool_decide ((num = num') ∧ (den = den') ∧ (loc = loc')))%Z then
+  | AllocSampleTape i (Val pv) =>
+      let ι := fresh_loc σ1.(stapes) in
+      dret (Val $ LitV $ LitLbl ι, state_upd_stapes <[ι := (i, pv, []) ]> σ1)
+  (* Labelled sampling, conditional on tape contents. *)
+  | Sample i (Val pv) (Val (LitV (LitLbl l))) =>
+      match σ1.(stapes) !! l with
+      | Some (i', pv', xs) =>
+          if bool_decide (i = i' ∧ pv = pv') then
             match xs with
-            | x :: xs => dret (Val $ LitV $ LitInt $ x, state_upd_tapes_laplace <[l:=(Tape_Laplace num' den' loc' xs)]> σ1)
-            | [] => dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1)) (laplace_rat num den loc)
+            | x :: xs =>
+                (* consume the head presampled value *)
+                dret (Val x, state_upd_stapes <[l := (i', pv', xs)]> σ1)
+            | [] =>
+                (* tape allocated but empty: sample fresh *)
+                match sig_sample S i pv with
+                | Some μ => dmap (λ v, (Val v, σ1)) μ | None => dzero end
             end
           else
-            (* tape and laplace parameters mismatch; follow laplace args *)
-            dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1)) (laplace_rat num den loc)
+            (* descriptor mismatch: follow the sampling arguments *)
+            match sig_sample S i pv with
+            | Some μ => dmap (λ v, (Val v, σ1)) μ | None => dzero end
       | None => dzero
       end
 
@@ -782,38 +771,30 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
   | _ => dzero
   end.
 
+(* Presampling: extend tape [α] by one fresh draw from its family.  A tape whose
+   descriptor is unsupported ([sig_sample = None]) presamples as a no-op
+   ([dret]), keeping [state_step] mass-1. *)
 Definition state_step (σ1 : state) (α : loc) : distr state :=
-  if bool_decide (α ∈ dom σ1.(tapes)) then
-    let: (N; ns) := (σ1.(tapes) !!! α) in
-    dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ1) (dunifP N)
+  if bool_decide (α ∈ dom σ1.(stapes)) then
+    let '(i, pv, xs) := (σ1.(stapes) !!! α) in
+    match sig_sample S i pv with
+    | Some μ => dmap (λ v, state_upd_stapes (<[α := (i, pv, xs ++ [v])]>) σ1) μ
+    | None => dret σ1
+    end
   else dzero.
 
-Lemma state_step_unfold σ α N ns:
-  tapes σ !! α = Some (N; ns) ->
-  state_step σ α = dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ) (dunifP N).
+Lemma state_step_unfold σ α i pv xs :
+  stapes σ !! α = Some (i, pv, xs) ->
+  state_step σ α =
+    match sig_sample S i pv with
+    | Some μ => dmap (λ v, state_upd_stapes (<[α := (i, pv, xs ++ [v])]>) σ) μ
+    | None => dret σ
+    end.
 Proof.
   intros H.
   rewrite /state_step.
-  rewrite bool_decide_eq_true_2; last first.
-  { by apply elem_of_dom. }
-  by rewrite (lookup_total_correct (tapes σ) α (N; ns)); last done.
-Qed.
-
-Definition state_step_laplace (σ1 : state) (α : loc) : distr state :=
-  if bool_decide (α ∈ dom σ1.(tapes_laplace)) then
-    let '(Tape_Laplace num den mean zs) := (σ1.(tapes_laplace) !!! α) in
-    dmap (λ z, state_upd_tapes_laplace (<[α := (Tape_Laplace num den mean (zs ++ [z]))]>) σ1) (laplace_rat num den mean)
-  else dzero.
-
-Lemma state_step_laplace_unfold σ α num den mean zs:
-  tapes_laplace σ !! α = Some (Tape_Laplace num den mean zs) ->
-  state_step_laplace σ α = dmap (λ z, state_upd_tapes_laplace (<[α := (Tape_Laplace num den mean (zs ++ [z]))]>) σ) (laplace_rat num den mean).
-Proof.
-  intros H.
-  rewrite /state_step_laplace.
-  rewrite bool_decide_eq_true_2; last first.
-  { by apply elem_of_dom. }
-  by rewrite (lookup_total_correct (tapes_laplace σ) α (Tape_Laplace num den mean zs)); last done.
+  rewrite bool_decide_eq_true_2; last by apply elem_of_dom.
+  by rewrite (lookup_total_correct (stapes σ) α (i, pv, xs)).
 Qed.
 
 (** Basic properties about the language *)
@@ -880,101 +861,50 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(heap) !! l = Some v →
   head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
-| RandNoTapeS z N (n : fin (S N)) σ :
-  N = Z.to_nat z →
-  head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n) σ
-| AllocTapeS z N σ l :
-  l = fresh_loc σ.(tapes) →
-  N = Z.to_nat z →
-  head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ
-    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N; []) : tape]> σ)
-| AllocTapeLaplaceS num den mean σ l :
-  l = fresh_loc σ.(tapes_laplace) →
-  head_step_rel (AllocTapeLaplace (Val (LitV (LitInt num))) (Val (LitV (LitInt den))) (Val (LitV (LitInt mean)))) σ
-    (Val $ LitV $ LitLbl l) (state_upd_tapes_laplace <[l := Tape_Laplace num den mean []]> σ)
-
-| RandTapeS l z N n ns σ :
-  N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((N; n :: ns) : tape)  →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val (LitV (LitLbl l)))) σ
-    (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := (N; ns) : tape]> σ)
-| RandTapeEmptyS l z N (n : fin (S N)) σ :
-  N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((N; []) : tape) →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
-| RandTapeOtherS l z M N ms (n : fin (S N)) σ :
-  N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((M; ms) : tape) →
-  N ≠ M →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
-
-| LaplaceNoTapeS num den mean σ z :
-  ((0 < IZR num / IZR den) ∨ mean = z) →
-  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val $ LitV $ LitUnit)) σ (Val $ LitV $ LitInt z) σ
-
-(* | LaplaceNoTapeS0 num den mean σ :
-     (not (0 < IZR num / IZR den)) →
-     head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val $ LitV $ LitUnit)) σ (Val $ LitV $ LitInt mean) σ *)
-
-| LaplaceTapeConsS num den mean lbl x xs σ :
-  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num den mean (x :: xs)) →
-  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
-    (Val $ LitV $ LitInt $ x) (state_upd_tapes_laplace <[lbl := (Tape_Laplace num den mean xs)]> σ)
-
-| LaplaceTapeEmptyS num den mean lbl σ z :
-  ((0 < IZR num / IZR den) ∨ mean = z)
-  (* (0 < IZR num / IZR den) *) →
-  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num den mean []) →
-  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
-    (Val $ LitV $ LitInt $ z) σ
-
-(* | LaplaceTapeEmptyS0 num den mean lbl σ :
-     (not (0 < IZR num / IZR den)) →
-     σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num den mean []) →
-     head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
-       (Val $ LitV $ LitInt $ mean) σ *)
-
-| LaplaceTapeOtherS num den mean lbl num' den' mean' xs σ z :
-  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num' den' mean' xs) →
-  (not ((num = num') ∧ (den = den') ∧ (mean = mean'))) →
-  ((0 < IZR num / IZR den) ∨ mean = z) (* (0 < IZR num / IZR den) *) →
-  head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
-    (Val $ LitV $ LitInt $ z) σ
-
-(* | LaplaceTapeOtherS0 num den mean lbl num' den' mean' xs σ :
-     σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num' den' mean' xs) →
-     (not ((num = num') ∧ (den = den') ∧ (mean = mean'))) →
-     (not (0 < IZR num / IZR den)) →
-     head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
-       (Val $ LitV $ LitInt $ mean) σ *)
-
+| SampleNoTapeS i pv μ v σ :
+  sig_sample S i pv = Some μ →
+  μ v > 0 →
+  head_step_rel (Sample i (Val pv) (Val $ LitV LitUnit)) σ (Val v) σ
+| AllocSampleTapeS i pv σ l :
+  l = fresh_loc σ.(stapes) →
+  head_step_rel (AllocSampleTape i (Val pv)) σ
+    (Val $ LitV $ LitLbl l) (state_upd_stapes <[l := (i, pv, [])]> σ)
+| SampleTapeConsS i pv l x xs σ :
+  σ.(stapes) !! l = Some (i, pv, x :: xs) →
+  head_step_rel (Sample i (Val pv) (Val $ LitV $ LitLbl l)) σ
+    (Val x) (state_upd_stapes <[l := (i, pv, xs)]> σ)
+| SampleTapeEmptyS i pv l μ v σ :
+  σ.(stapes) !! l = Some (i, pv, []) →
+  sig_sample S i pv = Some μ →
+  μ v > 0 →
+  head_step_rel (Sample i (Val pv) (Val $ LitV $ LitLbl l)) σ (Val v) σ
+| SampleTapeOtherS i pv l i' pv' xs μ v σ :
+  σ.(stapes) !! l = Some (i', pv', xs) →
+  ¬ (i = i' ∧ pv = pv') →
+  sig_sample S i pv = Some μ →
+  μ v > 0 →
+  head_step_rel (Sample i (Val pv) (Val $ LitV $ LitLbl l)) σ (Val v) σ
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
 
 Create HintDb head_step.
-Global Hint Constructors head_step_rel : head_step.
-(* 0%fin always has non-zero mass, so propose this choice if the reduct is
-   unconstrained. *)
-Global Hint Extern 1
-  (head_step_rel (Rand (Val (LitV _)) (Val (LitV LitUnit))) _ _ _) =>
-         eapply (RandNoTapeS _ _ 0%fin) : head_step.
-Global Hint Extern 1
-  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
-         eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step.
-Global Hint Extern 1
-  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
-         eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
-
-(* Global Hint Extern 1
-     (head_step_rel (Laplace (Val (LitV _)) (Val (LitV _)) (Val (LitV (LitInt ?mean))) (Val (LitV LitUnit))) _ _ _) =>
-            eapply (LaplaceNoTapeS _ _ _ _ _ mean) : head_step. *)
+#[local] Hint Constructors head_step_rel : head_step.
+(* (uniform/laplace-specific reduct-proposal hints removed; the generic
+   support-equivalence proof supplies sample witnesses explicitly) *)
 
 
 Inductive state_step_rel : state → loc → state → Prop :=
-| AddTapeS α N (n : fin (S N)) ns σ :
-  α ∈ dom σ.(tapes) →
-  σ.(tapes) !!! α = ((N; ns) : tape) →
-  state_step_rel σ α (state_upd_tapes <[α := (N; ns ++ [n]) : tape]> σ).
+| AddSampleTapeS α i pv xs μ v σ :
+  α ∈ dom σ.(stapes) →
+  σ.(stapes) !!! α = (i, pv, xs) →
+  sig_sample S i pv = Some μ →
+  μ v > 0 →
+  state_step_rel σ α (state_upd_stapes <[α := (i, pv, xs ++ [v]) ]> σ)
+| AddSampleTapeNoneS α i pv xs σ :
+  α ∈ dom σ.(stapes) →
+  σ.(stapes) !!! α = (i, pv, xs) →
+  sig_sample S i pv = None →
+  state_step_rel σ α σ.
 
 Ltac inv_head_step :=
   repeat
