@@ -78,7 +78,7 @@ Section schannel.
                                      | NONE => "k" #()%V
                                      | SOME "x" =>
                                          let: "enc_m" := xor "x" "m" in
-                                         ("doSend" (Send ("enc_m", bob)));;
+                                         ("doSend" ("enc_m", bob));;
                                          "k" #()%V
                                      end
               | SOME "m" => "k" #()%V
@@ -89,7 +89,7 @@ Section schannel.
                             match: "key" with
                             | NONE => "k" NONEV
                             | SOME "key" =>
-                                let: "r" := ("doRecv" (Recv "from")) in
+                                let: "r" := ("doRecv" "from") in
                                 match: "r" with
                                 | NONE => "k" NONEV
                                 | SOME "x" =>
@@ -117,13 +117,13 @@ Section schannel.
             let, ("m", "dst") := "payload" in
             match: !"message" with
             | NONE => "message" <- SOME "m";;
-                     ("doLeakSend" (Send ("dst")));;
+                     ("doLeakSend" "dst");;
                      "k" #()%V 
             | SOME "x" => "k" #()%V
             end
           (*ReceiveSecure*)
          | InjR "from" =>
-            let: "r" := ("doLeakRecv" (Recv "from")) in
+            let: "r" := ("doLeakRecv" "from") in
             match: "r" with
             | NONE => "k" NONEV
             | SOME "x" => "k" (SOME "x")
@@ -149,7 +149,8 @@ Section schannel.
         | InjL "payload" =>
             (* assuming "dst" is alice for now *)
             (*let, ("m", "dst") := "payload" in*)
-            ("doKeyLeak" (Send("payload")));;
+            (*("doKeyLeak" (Send("payload")));;*)
+            ("doKeyLeak" (Send bob));;
             let: "r" := "doKeyLeak" (Recv bob) in
                           match: "r" with
                           | NONE =>
@@ -160,7 +161,7 @@ Section schannel.
                                   let: "m'" := (samplelbl "α" #()%V) in
                                   let: "mA" := g^"m'" in
                                   "message" <- SOME "m'";;
-                                  ("doLeakASend" (Send ("mA", bob)));;
+                                  ("doLeakASend" ("mA", bob));;
                                   "k" #()%V
                               | SOME "m" => "k" #()%V
                               end    
@@ -174,7 +175,7 @@ Section schannel.
                                "k" NONEV
                            | SOME "x" =>
                                (*(do: keyleak (Send (bob)));;*)
-                               let: "rla" := ("doLeakARecv" (Recv "from")) in
+                               let: "rla" := ("doLeakARecv" "from") in
                                match: "rla" with
                                | NONE => "k" NONEV
                                | SOME "x" => "k" !"message"
