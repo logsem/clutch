@@ -164,4 +164,61 @@ Section exponential.
     rewrite !Hd. f_equal. lia.
   Qed.
 
+  (** The shift coupling WITH cost — the per-coordinate DP coupling for
+      report-noisy-max with one-sided exponential noise.  Coupling the impl draw
+      [z] (from [exp_dist ε loc]) to the spec draw [z' = z + k] (from
+      [exp_dist ε loc']) costs [k' · ε], provided the shift is *upward* enough to
+      stay in the (one-sided) target support — [0 ≤ k + loc - loc'] — and the
+      offset is bounded — [k + loc - loc' ≤ k'].  (Contrast Laplace, two-sided:
+      it needs only [|k+loc-loc'| ≤ k'] and no directionality.)  The one-sided
+      directionality is exactly what makes this the exponential mechanism. *)
+  Lemma Mcoupl_exp ε (loc loc' k k' : Z)
+    (Hdir : (0 <= k + loc - loc')%Z) (Hdist : (k + loc - loc' <= k')%Z) :
+    Mcoupl (exp_dist ε loc) (exp_dist ε loc') (λ z z', z + k = z')%Z (IZR k' * ε).
+  Proof.
+    intros ?? Hf Hg Hfg.
+    rewrite -SeriesC_scal_l.
+    assert (∀ z : Z, 0 <= exp_dist ε loc z * f z).
+    { intros. apply Rmult_le_pos => //. apply Hf. }
+    rewrite -(SeriesC_translate _ (-k)) => //.
+    2:{ eapply ex_seriesC_le. 2: apply (pmf_ex_seriesC (exp_dist ε loc)).
+        intros z. simpl. split => //.
+        destruct (Hf z). etrans. 2: right ; apply Rmult_1_r. apply Rmult_le_compat => //. }
+    apply SeriesC_le.
+    2:{ apply ex_seriesC_scal_l.
+        eapply ex_seriesC_le. 2: apply (pmf_ex_seriesC (exp_dist ε loc')).
+        intros z. simpl. split.
+        - apply Rmult_le_pos => //. apply Hg.
+        - destruct (Hg z). etrans. 2: right ; apply Rmult_1_r. apply Rmult_le_compat => //. }
+    intros z. split. { apply Rmult_le_pos => //. apply Hf. }
+    rewrite -Rmult_assoc.
+    opose proof (Hfg ((z - k))%Z z _). 1: lia.
+    apply Rmult_le_compat => //. 1: apply Hf.
+    (* [exp_dist ε loc (z-k) ≤ exp(k'·ε) * exp_dist ε loc' z]; cancel the shared
+       normaliser, then case on the one-sided supports. *)
+    assert (Hd : ∀ l w, exp_dist ε l w = exp' ε (w - l)%Z) by reflexivity.
+    rewrite !Hd.
+    assert (He : ∀ A, exp' ε A = exp_f ε A / SeriesC (λ z, exp_f ε z)) by reflexivity.
+    rewrite !He !Rdiv_def -Rmult_assoc.
+    apply Rmult_le_compat_r.
+    { left. apply Rinv_0_lt_compat, SeriesC_exp_f_pos. }
+    rewrite /exp_f.
+    case_bool_decide as HA1; last first.
+    { apply Rmult_le_pos; [left; apply exp_pos|].
+      case_bool_decide; [rewrite /laplace_f; apply laplace_f_nat_pos | lra]. }
+    case_bool_decide as HA2; last first.
+    { exfalso. lia. }
+    (* both offsets non-negative: pure exp ratio *)
+    rewrite /laplace_f /laplace_f_nat.
+    rewrite -exp_plus. apply exp_mono.
+    rewrite !Z.abs_eq; try lia.
+    rewrite !INR_IZR_INZ !Z2Nat.id; try lia.
+    pose proof (cond_pos ε).
+    (* The goal's offset is normalised to [z + - k - loc]; match it in [Hb] so
+       [nra]'s atoms line up (a [z - k - loc] form would be a distinct atom). *)
+    assert (Hb : (IZR (z - loc') - IZR (z + - k - loc) <= IZR k')%R).
+    { rewrite -minus_IZR. apply IZR_le. lia. }
+    nra.
+  Qed.
+
 End exponential.
