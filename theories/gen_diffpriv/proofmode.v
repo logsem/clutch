@@ -36,6 +36,17 @@ Section gen_proofmode.
   Next Obligation. intros. by apply wp_deref. Qed.
   Next Obligation. intros. by apply wp_store. Qed.
 
+  (** Sample-tape tactic instance: enables [wp_alloc_sample_tape]/[wp_sample_tape]
+      on the *raw* generic tape predicate [l ↪ (i, pv, xs)].  As in [prob_lang]'s
+      [GwpTacticsTapes] instance, the fractional argument is ignored (reading the
+      head consumes it, so the deterministic-read rules require full ownership);
+      the obligations are discharged directly from [wp_alloc_sample_tape] and
+      [wp_sample_tape]. *)
+  #[global] Program Instance diffpriv_wptactics_sample_tape : GwpTacticsSampleTape Σ unit true wp :=
+    Build_GwpTacticsSampleTape _ _ _ _ (λ l _q i pv xs, (l ↪ (i, pv, xs))%I) _ _.
+  Next Obligation. intros. by apply wp_alloc_sample_tape. Qed.
+  Next Obligation. intros. by apply wp_sample_tape. Qed.
+
 End gen_proofmode.
 
 (** ** Signature-resolution overrides for usability parity.
