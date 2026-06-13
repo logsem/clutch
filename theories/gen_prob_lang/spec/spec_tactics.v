@@ -301,18 +301,32 @@ Tactic Notation "tp_normalise" :=
     |reflexivity
     |(* new goal *)].
 
+(* NB (gen): rather than [tac_tp_bind] (whose [fill K']'s context [K'] is a fresh
+   evar that the spec — folded [ectx(i)_language.fill K e] — cannot determine,
+   because the unifier sees the [foldl] form), we use [tac_tp_bind_gen] and build
+   the target spec [fill (K'++K) efoc] EXPLICITLY from [reshape_expr]; the
+   [e = e'] obligation then holds by convertibility ([fill_app]). *)
 Tactic Notation "tp_bind" open_constr(efoc) :=
   iStartProof;
-  (* NB (gen): [tac_tp_bind]'s [fill] is at [gen_ectx_lang S]; [S] is a leading
-     explicit argument that does not appear in the conclusion, so supply it via
-     [tp_get_sig] (read off the goal / in-context diffprivGS) — otherwise [S] is
-     left an evar and the spec context fails to unify. *)
-  tp_get_sig ltac:(fun S =>
-  eapply (tac_tp_bind S efoc));
-    [iAssumptionCore (* prove the lookup *)
-    |tp_bind_helper (* do actual work *)
-    |reflexivity
-    |(* new goal *)].
+  lazymatch goal with
+  | |- context[environments.Esnoc _ ?i (⤇ (@ectxi_language.fill _ ?K ?e))] =>
+      reshape_expr e ltac:(fun K' e' =>
+        unify e' efoc;
+        let Kc := eval cbn[app] in (K' ++ K) in
+        eapply (tac_tp_bind_gen _ _ i _ _ (@ectxi_language.fill _ Kc e'));
+        [ iAssumptionCore | by reflexivity | reflexivity | ])
+  | |- context[environments.Esnoc _ ?i (⤇ (@ectx_language.fill _ ?K ?e))] =>
+      reshape_expr e ltac:(fun K' e' =>
+        unify e' efoc;
+        let Kc := eval cbn[app] in (K' ++ K) in
+        eapply (tac_tp_bind_gen _ _ i _ _ (@ectx_language.fill _ Kc e'));
+        [ iAssumptionCore | by reflexivity | reflexivity | ])
+  | |- context[environments.Esnoc _ ?i (⤇ ?e)] =>
+      reshape_expr e ltac:(fun K' e' =>
+        unify e' efoc;
+        eapply (tac_tp_bind_gen _ _ i _ _ (@ectxi_language.fill _ K' e'));
+        [ iAssumptionCore | by reflexivity | reflexivity | ])
+  end.
 
 (* NB (gen_prob_lang specific): [tac_tp_pure] takes [S] as a leading explicit
    argument.  We supply it via [tp_get_sig] (read off the goal) so the
