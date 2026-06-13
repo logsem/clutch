@@ -10,12 +10,15 @@ From clutch.gen_diffpriv Require Import primitive_laws proofmode model rel_tacti
 From clutch.gen_prob_lang Require Import notation lang.
 
 Section compatibility.
-  Context (Sg : Sig).
+  (* [Sg] is introduced (implicitly) by the [diffprivRGS Sg Σ] generalization,
+     mirroring [model]; this keeps [Sg] an *implicit* leading argument of the
+     compatibility lemmas, so the positional applications in [fundamental]
+     ([refines_seq (interp …)], [bin_log_related_app Δ Γ …]) line up. *)
+  Context `{!diffprivRGS Sg Σ}.
   Canonical Structure gen_ectxi_lang_cmp := gen_ectxi_lang Sg.
   Canonical Structure gen_ectx_lang_cmp := gen_ectx_lang Sg.
   Canonical Structure gen_lang_cmp := gen_lang Sg.
   Canonical Structure gen_markov_cmp := lang_markov (gen_lang Sg).
-  Context `{!diffprivRGS Sg Σ}.
   #[local] Existing Instance spec_rules_spec_updateGS.
   #[local] Instance spec_updateGS_cmp : spec_updateGS gen_markov_cmp Σ :=
     spec_rules_spec_updateGS Sg.

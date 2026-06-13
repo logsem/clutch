@@ -252,3 +252,21 @@ Corollary wp_adequacy_mass (Sg : Sig) Σ `{!diffprivGpreS Σ} (e e' : expr) (σ 
 Proof.
   intros ? ? Hwp. eapply DPcoupl_mass_leq. by eapply wp_adequacy.
 Qed.
+
+(** Internal (WP-level) DP for a [Z]-valued mechanism implies external
+    approximate differential privacy at the meta level (adjacency = [|x - y|]).
+    The headline soundness corollary used by the Laplace mechanism examples. *)
+Corollary wp_diffpriv_Z (Sg : Sig) Σ `{diffprivGpreS Σ} (e : expr) (σ σ' : state) (ε δ : R) :
+  0 <= ε → 0 <= δ ->
+  (∀ x y, (IZR (Z.abs (x - y)) <= 1) →
+          ∀ `{diffprivGS Sg Σ}, ⊢ ⤇ e #y -∗ ↯m ε -∗ ↯ δ -∗
+              WP e #x {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = v'⌝ }})
+  →
+    diffpriv_approx (λ x y, IZR (Z.abs (x - y)))
+      (λ x, (lim_exec (δ := lang_markov (gen_lang Sg)) (e #x, σ))) ε δ.
+Proof.
+  intros Hε Hδ Hwp. apply DPcoupl_diffpriv.
+  intros. eapply (wp_adequacy Sg).
+  1: eauto. 1: apply Hε. 1: apply Hδ.
+  intros. apply Hwp. done.
+Qed.
