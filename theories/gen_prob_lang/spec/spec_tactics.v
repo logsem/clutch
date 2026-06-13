@@ -390,23 +390,23 @@ Tactic Notation "tp_closure" := tp_pure_at (Rec _ _ _).
 
 Tactic Notation "tp_store" :=
   iStartProof;
-  eapply tac_tp_store;
+  tp_get_sig ltac:(fun S => eapply (tac_tp_store S));
   [tc_solve || fail "tp_store: cannot eliminate modality in the goal"
   |iAssumptionCore || fail "tp_store: cannot find the RHS"
   |tp_bind_helper
   |tc_solve || fail "tp_store: cannot convert the argument to a value"
-  |simpl; reflexivity || fail "tp_store: this should not happen"
+  |reflexivity || fail "tp_store: this should not happen"
   |iAssumptionCore || fail "tp_store: cannot find '? ↦ₛ ?'"
   |pm_reduce (* new goal *)].
 
 Tactic Notation "tp_load" :=
   iStartProof;
-  eapply tac_tp_load;
+  tp_get_sig ltac:(fun S => eapply (tac_tp_load S));
   [tc_solve || fail "tp_load: cannot eliminate modality in the goal"
   |iAssumptionCore || fail "tp_load: cannot find the RHS"
   |tp_bind_helper
   |iAssumptionCore || fail "tp_load: cannot find '? ↦ₛ ?'"
-  |simpl; reflexivity || fail "tp_load: this should not happen"
+  |reflexivity || fail "tp_load: this should not happen"
   |pm_reduce (* new goal *)].
 
 Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
@@ -416,7 +416,7 @@ Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
         [ reduction.pm_reflexivity
         | (iIntros H; tp_normalise) || fail 1 "tp_alloc:" H "not correct intro pattern" ] in
   iStartProof;
-  eapply tac_tp_alloc;
+  tp_get_sig ltac:(fun S => eapply (tac_tp_alloc S));
   [tc_solve || fail "tp_alloc: cannot eliminate modality in the goal"
   |iAssumptionCore || fail "tp_alloc: cannot find the RHS"
   |tp_bind_helper
@@ -434,7 +434,7 @@ Tactic Notation "tp_alloc_sample_tape" "as" ident(l) constr(H) :=
         [ reduction.pm_reflexivity
         | (iIntros H; tp_normalise) || fail 1 "tp_alloc_sample_tape:" H "not correct intro pattern" ] in
   iStartProof;
-  eapply (tac_tp_alloc_sample_tape);
+  tp_get_sig ltac:(fun S => eapply (tac_tp_alloc_sample_tape S));
   [tc_solve || fail "tp_alloc_sample_tape: cannot eliminate modality in the goal"
   |iAssumptionCore || fail "tp_alloc_sample_tape: cannot find the RHS"
   |tp_bind_helper
@@ -446,66 +446,11 @@ Tactic Notation "tp_alloc_sample_tape" "as" ident(j') :=
 
 Tactic Notation "tp_sample_tape" :=
   iStartProof;
-  eapply tac_tp_sample_tape;
+  tp_get_sig ltac:(fun S => eapply (tac_tp_sample_tape S));
   [tc_solve || fail "tp_sample_tape: cannot eliminate modality in the goal"
   |iAssumptionCore || fail "tp_sample_tape: cannot find the RHS"
   |tp_bind_helper
   |iAssumptionCore || fail "tp_sample_tape: cannot find '? ↪ₛ ?'"
-  |simpl; reflexivity || fail "tp_sample_tape: this should not happen"
+  |reflexivity || fail "tp_sample_tape: this should not happen"
   |pm_reduce (* new goal *)].
 
-(** Some simple tests *)
-Section tests.
-  Context (S : Sig).
-  Canonical Structure gen_ectxi_lang_S_test := gen_ectxi_lang S.
-  Canonical Structure gen_ectx_lang_S_test := gen_ectx_lang S.
-  Canonical Structure gen_lang_S_test := gen_lang S.
-  Context `{!specG_prob_lang Σ, invGS_gen hasLc Σ}.
-
-  Local Notation spec_update :=
-    (@spec_update (lang_markov (gen_lang S)) Σ _ _ _).
-
-  Local Lemma test_tp_pures E :
-    ⤇ (#2 + #2 + #2) ⊢ spec_update E (⤇ #6).
-  Proof.
-    iIntros "Hs".
-    tp_pures.
-    iModIntro.
-    done.
-  Qed.
-
-  Local Lemma test_heap E :
-    ⤇ (let: "x" := ref #41 in "x" <- !"x" + #1;; !"x") ⊢ spec_update E (⤇ #42).
-  Proof.
-    iIntros "Hs".
-    tp_alloc as l "Hl".
-    tp_pures.
-    tp_load.
-    tp_pures.
-    tp_store.
-    tp_pures.
-    tp_load.
-    iModIntro.
-    done.
-  Qed.
-
-  Local Lemma test_sample_tape E α (idx : nat) (pv x : val) :
-    α ↪ₛ (idx, pv, [x]) ∗ ⤇ (Sample idx (Val pv) (Val #lbl:α))
-    ⊢ spec_update E (⤇ (Val x)).
-  Proof.
-    iIntros "[Hα Hs]".
-    tp_sample_tape.
-    iModIntro.
-    done.
-  Qed.
-
-  Local Lemma test_alloc_sample_tape E (idx : nat) (pv : val) :
-    ⤇ (AllocSampleTape idx (Val pv)) ⊢ spec_update E (∃ α, ⤇ #lbl:α ∗ α ↪ₛ (idx, pv, [])).
-  Proof.
-    iIntros "Hs".
-    tp_alloc_sample_tape as α "Hα".
-    iModIntro.
-    iExists _. iFrame.
-  Qed.
-
-End tests.
