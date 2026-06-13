@@ -10,6 +10,39 @@ From iris.prelude Require Import options.
 
 #[local] Open Scope R.
 
+(** The tactic [reshape_expr e tac] decomposes the expression [e] into an
+evaluation context [K] and a subexpression [e']. It calls the tactic [tac K e']
+for each possible decomposition until [tac] succeeds.  Ported from
+[prob_lang/tactics.v] with the heap-deref context renamed to [Deref] and the generic
+[Sample]/[AllocSampleTape] contexts replacing the rand/laplace ones. *)
+Ltac reshape_expr e tac :=
+  let rec go K e :=
+  match e with
+  | _ => tac K e
+  | App ?e (Val ?v) => go (AppLCtx v :: K) e
+  | App ?e1 ?e2 => go (AppRCtx e1 :: K) e2
+  | UnOp ?op ?e => go (UnOpCtx op :: K) e
+  | BinOp ?op ?e (Val ?v) => go (BinOpLCtx op v :: K) e
+  | BinOp ?op ?e1 ?e2 => go (BinOpRCtx op e1 :: K) e2
+  | If ?e0 ?e1 ?e2 => go (IfCtx e1 e2 :: K) e0
+  | Pair ?e (Val ?v) => go (PairLCtx v :: K) e
+  | Pair ?e1 ?e2 => go (PairRCtx e1 :: K) e2
+  | Fst ?e => go (FstCtx :: K) e
+  | Snd ?e => go (SndCtx :: K) e
+  | InjL ?e => go (InjLCtx :: K) e
+  | InjR ?e => go (InjRCtx :: K) e
+  | Case ?e0 ?e1 ?e2 => go (CaseCtx e1 e2 :: K) e0
+  | AllocN ?e (Val ?v) => go (AllocNLCtx v :: K) e
+  | AllocN ?e1 ?e2 => go (AllocNRCtx e1 :: K) e2
+  | Deref ?e => go (DerefCtx :: K) e
+  | Store ?e (Val ?v) => go (StoreLCtx v :: K) e
+  | Store ?e1 ?e2 => go (StoreRCtx e1 :: K) e2
+  | Sample ?i ?e1 (Val ?v2) => go (SampleParamsCtx i v2 :: K) e1
+  | Sample ?i ?e1 ?e2 => go (SampleTapeCtx i e1 :: K) e2
+  | AllocSampleTape ?i ?e1 => go (AllocSampleTapeCtx i :: K) e1
+  | Tick ?e => go (TickCtx :: K) e
+  end in go (@nil ectx_item) e.
+
 (* Re-export the head_step_rel constructors into the [head_step] db (the in-file
    hint was section-local), and the generic reducibility bridges. *)
 Global Hint Constructors head_step_rel : head_step.
