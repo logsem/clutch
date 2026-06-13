@@ -262,6 +262,34 @@ Section diffpriv.
     - etrans; [exact sens|]. apply Rmult_le_compat_l; lra.
   Qed.
 
+  (* Sequential composition for the metric form, AT ADJACENCY.  Because           *)
+  (* [grp eps 1 = 1], instantiating both metric specs at the unit distance         *)
+  (* ([c := 1], [dA x x' <= 1]) makes their additive credits collapse to plain     *)
+  (* [δf]/[δg], so composing on ADJACENT inputs yields the EXPECTED standard bound  *)
+  (* [(εf+εg, δf+δg)] — stated as the fixed-adjacency [hoare_diffpriv_classic].     *)
+  (* (A statement over ALL distances is FALSE for [c<1, δ>0]; for integer/group-    *)
+  (*  privacy radii [c>=1] it holds with slack.  Adjacency is the standard regime.) *)
+  Theorem diffpriv_metric_seq_comp (f g : val) εf δf εg δg
+    `(dA : Distance A) `{Inject B val} {C : Type} `{Inject C val}
+    (εf_pos : 0 < εf) (εg_pos : 0 < εg) (δf_pos : 0 <= δf) (δg_pos : 0 <= δg) :
+    hoare_diffpriv_metric f εf δf dA A -∗
+    (∀ b, hoare_diffpriv_metric (g b) εg δg dA C) -∗
+    hoare_diffpriv_classic (λ:"a", g (f "a") "a") (εf + εg) (δf + δg) dA C.
+  Proof.
+    rewrite /hoare_diffpriv_metric/hoare_diffpriv_classic.
+    iIntros "#f_dipr #g_dipr" (K a a' adj Φ) "!> [gfa' [ε δ]] HΦ".
+    iDestruct (ecm_split with "ε") as "[εf εg]"; [real_solver|real_solver|].
+    iDestruct (ec_split with "δ") as "[δf δg]"; [real_solver|real_solver|].
+    tp_pures ; wp_pures.
+    tp_bind (f _). wp_bind (f _).
+    iApply ("f_dipr" $! _ 1 a a' with "[//] [$gfa' εf δf]").
+    - rewrite Rmult_1_l (grp_1 _ εf_pos) Rmult_1_r. iFrame.
+    - iIntros "!>" (b) "gb" => /=.
+      iApply ("g_dipr" $! _ _ 1 a a' with "[//] [$gb εg δg]").
+      + rewrite Rmult_1_l (grp_1 _ εg_pos) Rmult_1_r. iFrame.
+      + iIntros "!>" (y) "gy". iApply "HΦ". iFrame.
+  Qed.
+
   Fact diffpriv_sensitive_strict_comp (f g : val) ε δ c
     `(dA : Distance A) `(dB : Distance B) {C : Type} `{Inject C val}
     (c_pos : 0 <= c) :
