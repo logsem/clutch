@@ -367,12 +367,13 @@ Tactic Notation "tp_pure_at" open_constr(ef) :=
      [simpl] ONLY the inner concrete-context fill (reassembling the redex), via
      [change], leaving the outer [fill K_spec] folded. *)
   |first
-     [ rewrite fill_app;
-       lazymatch goal with
-       | |- _ = @ectx_language.fill _ _ ?inner =>
-           let r := eval simpl in inner in change inner with r
-       | |- _ = @ectxi_language.fill _ _ ?inner =>
-           let r := eval simpl in inner in change inner with r
+     [ lazymatch goal with
+       | |- _ = @ectx_language.fill ?Λ (?Ki ++ ?Ks) ?e2 =>
+           let r := eval simpl in (@ectx_language.fill Λ Ki e2) in
+           change (@ectx_language.fill Λ (Ki ++ Ks) e2) with (@ectx_language.fill Λ Ks r)
+       | |- _ = @ectxi_language.fill ?Λ (?Ki ++ ?Ks) ?e2 =>
+           let r := eval simpl in (@ectxi_language.fill Λ Ki e2) in
+           change (@ectxi_language.fill Λ (Ki ++ Ks) e2) with (@ectxi_language.fill Λ Ks r)
        end; reflexivity
      | simpl; reflexivity ]
      ||  fail "tp_pure: this should not happen" (* e' = fill K' e2 *)
