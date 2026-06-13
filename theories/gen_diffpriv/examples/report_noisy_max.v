@@ -22,6 +22,20 @@ From iris.prelude Require Import options.
 Definition Srnm : Sig := [laplace_family].
 #[global] Instance SampleIn_rnm : SampleIn laplace_family Srnm := ltac:(solve_SampleIn).
 #[global] Opaque sample_idx.
+(** MEMORY FIX (gen-only): in the concrete signature [Srnm := [laplace_family]]
+    the resolved instance [SampleIn_rnm] is the *unfolded* record
+    [{| sample_idx := 0; sample_idx_S := eq_refl … |}] whose proof field is a
+    huge term (its type-checking forces the whole [laplace_family] record).  Every
+    tape predicate [ι ↪L …] mentions [@sample_idx laplace_family Srnm SampleIn_rnm];
+    when the [big_sepL2_const_sepL_l/r] / [ghost_map_elem_valid_2] reshapes in
+    [wp_alloc_tapes_laplace] copy these N times, conversion repeatedly unfolds the
+    giant instance and the term/peak memory explodes (>16GB).  Sealing the
+    instance (and [sample_idx], above) makes [@sample_idx laplace_family Srnm
+    SampleIn_rnm] a frozen atom — exactly as it is over the abstract [SampleIn] in
+    [report_noisy_max_lemmas] (which compiles cheaply) — so the reshapes stay
+    small.  ([Opaque] only blocks delta-unfolding during conversion; instance
+    resolution still finds it by name.) *)
+#[global] Opaque SampleIn_rnm.
 
 (** [inject x : expr] resolves to the *unreduced* [@inject A expr _ x] rather
     than the [Val]-headed form; the spec reshape tactics need a [Val] head.  See
@@ -192,7 +206,57 @@ Lemma rwp_list_map {A} `{!Inject A val} `{!Inject B val}
           ([∗ list] i ↦ a;a' ∈ xs;xs', ψ a a')
           ∗ P xs ∗ P' xs'
     }}}.
-Proof. (* TODO(port): proof OK in isolation, but in [gen] this lemmas .vo blows up memory (>16GB, OOM): with [Opaque sample_idx] (required so [LapT]/[ghost_map_elem_valid_2] unify) the big_sepL2 tape reshapes carry huge unreduced [sample_idx]-headed terms. Needs proof-engineering to shrink terms (or splitting). *) Admitted.
+Proof.
+  iRevert (l' lv lv' fv fv' K).
+  iInduction l as [|l_hd l_tl] "IH".
+  - iIntros (l' lv lv' fv fv' K Φ).
+    iIntros "[#H (%H1&%H2&%&H3)] HΦ".
+    destruct l'; last (simpl in *; lia).
+    simpl.
+    rewrite /list_map.
+    wp_pures.
+    inversion H1. inversion H2.
+    iDestruct "H3" as "(_&?&?&H3)".
+    tp_pures.
+    wp_pures.
+    iApply "HΦ".
+    iFrame. by simpl.
+  - iIntros (l' lv lv' fv fv' K Φ).
+    iIntros "[#H (%H1&%H2&%&H3)] HΦ".
+    simpl in *.
+    destruct l' as [|]; first (simpl in *; lia).
+    simpl in H2. destruct!/=.
+    rewrite /list_map.
+    iDestruct "H3" as "([Hγ ?]&?&?&?)".
+    wp_pure.
+    tp_pure.
+    rewrite -/list_map.
+    tp_pures.
+    wp_pures.
+    tp_bind (list_map _ _).
+    wp_bind (list_map _ _).
+    iApply ("IH" with "[-HΦ Hγ]"); first (iFrame; by repeat iSplit).
+    iNext.
+    iIntros (?) "(%&%&%&%&%&%&%&?&HΨ&?&?)".
+    simpl.
+    tp_pures.
+    wp_pures.
+    wp_bind (fv _).
+    tp_bind (fv' _).
+    iApply ("H" with "[-HΦ HΨ]"); first iFrame.
+    iNext.
+    iIntros (?) "(%&%&%&->&->&Hspec&?&?&?)".
+    simpl.
+    iDestruct (gwp_list_cons (g:=gwp_spec) with "[][][$]") as ">(%&?&K)"; first done.
+    { iNext. iIntros (?) "K". iApply "K". }
+    iDestruct "K" as "%".
+    iApply gwp_list_cons; [done |].
+    iNext.
+    iIntros (?) "%".
+    iApply "HΦ".
+    iFrame.
+    iPureIntro; repeat split; try done; simpl; lia.
+Qed.
 
 Lemma wp_alloc_tapes_laplace :
   (forall (num den : Z) K xs xs' vxs vxs',
@@ -209,7 +273,100 @@ Lemma wp_alloc_tapes_laplace :
               ι ↪L (num, 2*den, x; []) ∗ ι' ↪Lₛ (num, 2*den, x'; []) ∗
               ⌜dZ x x' <= 1⌝
   }}}).
-Proof. (* TODO(port): same [gen] memory blowup as [rwp_list_map] — this lemma ALONE peaks ~8GB in [gen] (vs cheap in prob_lang): the [big_sepL2_const_sepL_l/r]/[ghost_map_elem_valid_2 (LapT ...)] reshapes over opaque-[sample_idx] tape values explode. *) Admitted.
+Proof.
+  iIntros (??????? hxs hxs' hlen adj post) "rhs post".
+  iApply (rwp_list_map xs xs' vxs vxs'
+            (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x"))%V
+            (λ: "x", ("x", AllocTapeLaplace #num #(2 * den) "x"))%V
+            (λ x x', ⌜dZ x x' <= 1⌝)%I
+            (λ '(x, ι) '(x', ι'), ⌜dZ x x' <= 1⌝ )%I
+            (λ xιs, ([∗ list] xι ∈ xιs, let '(x, ι) := xι in ι ↪L (num, 2*den, x; [])) ∗ ⌜NoDup xιs.*2⌝)%I
+            (λ xιs', ([∗ list] xι' ∈ xιs', let '(x', ι') := xι' in ι' ↪Lₛ (num, 2*den, x'; [])) ∗ ⌜NoDup xιs'.*2⌝)%I
+           with "[-post]").
+  2: iNext ; iIntros (?) "h". 2: iApply "post".
+  2: {
+    iDestruct "h" as "(%&%&%&%&%&%&%&rhs&h&[hh %]&[hh' %])".
+
+    iExists _,_,_. iFrame.
+    repeat iSplit => //.
+    iAssert (
+        ([∗ list] xι ; xι' ∈ xs0 ; xs'0,
+           let '(x, ι) := xι in
+           let '(x', ι') := xι' in
+           (ι ↪L (num,2 * den,x; []) ∗ ι' ↪Lₛ (num,2 * den,x'; [])))
+)%I
+ with "[hh hh']" as "hh".
+    {
+      iApply big_sepL2_mono ; last first.
+      - iApply (big_sepL2_sep_2 with "[hh]") ; iFrame.
+        + iApply big_sepL2_const_sepL_l.
+          iSplit => //. iPureIntro. lia.
+        + iApply big_sepL2_const_sepL_r.
+          iSplit => //. iPureIntro. lia.
+      - iIntros. destruct y1, y2. done.
+    }
+    iDestruct (big_sepL2_sep_2 _ _ xs0 xs'0 with "[h] [hh]") as "hhh".
+    1,2: done.
+
+
+    rewrite !big_sepL2_alt. iSplit ; [iPureIntro ; lia|].
+    iApply big_sepL_mono ; last first.
+    - iDestruct "hhh" as "[% h]".
+      done.
+    - iIntros "* % h". simpl. destruct y. destruct p, p0. simpl.
+      iDestruct "h" as "(%&h&h')". iFrame. done.
+  }
+  iFrame. repeat iSplit => //.
+  2:{ iInduction adj as [|] forall (vxs vxs' hxs hxs' hlen) => //.
+      iSplit => //. simpl.
+      inversion hlen. destruct hxs, hxs'.
+      iApply "IHadj" => // ; intuition eauto.
+  }
+  2,3: iPureIntro ; constructor.
+  iModIntro. iIntros. iIntros "%post' !> (% & rhs & (hh & %) & (hh' & %)) post'".
+  tp_pures. wp_pures.
+  (* allocate the spec-side tape, then the impl-side tape (generic gen API).
+     After [wp_pures] the [AllocTapeLaplace] [Pair] argument is already reduced to
+     a value, so we fire the generic [wp_alloc_sample_tape]/[tp_alloc_sample_tape]
+     on the reduced [AllocSampleTape idx (Val pv)] form directly; the resulting
+     [α ↪ (sample_idx, PairV …, [])] is definitionally the [↪L]/[↪Lₛ] view. *)
+  tp_alloc_sample_tape as ι' "ι'".
+  wp_apply (wp_alloc_sample_tape lidx
+              (PairV (LitV (LitInt num)) (PairV (LitV (LitInt (2 * den))) (LitV (LitInt x))))
+              with "[//]"); iIntros (ι) "ι".
+  tp_pures. wp_pures. iApply "post'".
+  iModIntro. iExists _,(x, ι),(x', ι'). simpl. iFrame "rhs".
+  repeat iSplit => //=. iSplitL "ι hh".
+  - simpl.
+    iAssert (⌜ι ∈ list_fmap (Z * loc)%type loc snd prev⌝ -∗ False)%I as "%".
+    {
+      iIntros "%not_fresh".
+      destruct (list_elem_of_fmap_1 snd prev ι not_fresh) as [? []].
+      destruct x0. simpl in H2. symmetry in H2.
+      simplify_eq.
+      iDestruct (big_sepL_elem_of with "hh") as "ι2".
+      1: done.
+      (* two full-fraction tape points-to on the same [ι]: contradiction *)
+      iCombine "ι ι2" gives %[Hbad _].
+      by cbv in Hbad.
+    }
+    iFrame. iPureIntro.
+    econstructor. 1,2: assumption.
+  - simpl.
+    iAssert (⌜ι' ∈ list_fmap (Z * loc)%type loc snd prev'⌝ -∗ False)%I as "%".
+    {
+      iIntros "%not_fresh'".
+      destruct (list_elem_of_fmap_1 snd prev' ι' not_fresh') as [? []].
+      destruct x0. simpl in H2. symmetry in H2.
+      simplify_eq.
+      iDestruct (big_sepL_elem_of with "hh'") as "ι2'".
+      1: done.
+      iCombine "ι' ι2'" gives %[Hbad _].
+      by cbv in Hbad.
+    }
+    iFrame. iPureIntro.
+    econstructor. 1,2: assumption.
+Qed.
 
   Lemma rnm_pres_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (0 < IZR num / IZR (2 * den)) →
