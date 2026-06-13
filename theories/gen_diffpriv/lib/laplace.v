@@ -18,8 +18,11 @@
 From iris.proofmode Require Import proofmode.
 From clutch.prob Require Import differential_privacy distribution couplings couplings_app couplings_dp.
 (* re-export the client-facing layer so [Require Import laplace] alone provides
-   the WP rules, coupling seams, proof-mode tactics, notation and families *)
-From clutch.gen_diffpriv Require Export primitive_laws coupling_rules proofmode.
+   the WP rules, coupling seams, proof-mode tactics, notation and families.
+   [diffpriv_rules] brings the distribution-agnostic DP combinators
+   ([hoare_diffpriv], [hoare_sensitive], the composition lemmas) that the Laplace
+   MECHANISM ([hoare_laplace_diffpriv]) instantiates. *)
+From clutch.gen_diffpriv Require Export primitive_laws coupling_rules proofmode diffpriv_rules.
 From clutch.gen_prob_lang Require Export families.
 From iris.prelude Require Import options.
 
@@ -159,6 +162,35 @@ Section laplace.
       [ intros; reflexivity | intros; reflexivity
       | intros a a' ->; by exists a' | lra | lra
       | apply ARcoupl_to_DPcoupl, ARcoupl_eq ].
+  Qed.
+
+  (** The Laplace MECHANISM as a (rescaled) internally-DP program: at
+      multiplicative cost [c · (num/den)] for inputs at distance [dZ x x' ≤ c].
+      This is the composition-ready [hoare_diffpriv] form — group privacy and
+      k-adjacency come from the rescaling parameter [c], NOT from any chaining /
+      interpolation of refinements (the refinement here couples one impl run to
+      one spec run and is not transitive).  The proof is a SINGLE distance-[c]
+      coupling: [hoare_couple_laplace … 0] shifts by 0 with [k'] bounding
+      [|x − x'|], so the cost [IZR k' · ε] is weakened up to [c · ε] via [adj].
+      Ported from [clutch.diffpriv.diffpriv_rules.hoare_laplace_diffpriv]. *)
+  Fact hoare_laplace_diffpriv (num den : Z) :
+    ⌜0 < IZR num / IZR den⌝ -∗
+    hoare_diffpriv S (λ: "loc", Laplace #num #den "loc" #())%V (IZR num / IZR den) 0 dZ Z.
+  Proof.
+    iIntros "%Hpos". rewrite /hoare_diffpriv /dZ /=. iIntros (K c x x' adj).
+    iIntros (φ) "!> [f' [ε δ]] hφ".
+    tp_pures. wp_pures.
+    tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
+    (* value-form rule: the [Pair] params have reduced to [PairV] (gen gotcha) *)
+    iApply (wp_couple_laplace x x' 0%Z (Z.abs (x - x'))
+              ltac:(apply Zabs_ind; lia) num den (IZR num / IZR den)
+              (IZR (Z.abs (x - x')) * (IZR num / IZR den)) K ⊤
+              eq_refl Hpos eq_refl with "[$f' ε]").
+    2:{ setoid_rewrite Z.add_0_r. iIntros "!> %z f'". iApply ("hφ" $! z). iFrame. }
+    (* the single distance-c credit: weaken c·ε down to |x−x'|·ε via [adj] *)
+    iApply ecm_weaken. 2: iFrame. split.
+    - apply Rmult_le_pos; [apply IZR_le, Z.abs_nonneg | lra].
+    - apply Rmult_le_compat_r; [lra|]. rewrite abs_IZR. exact adj.
   Qed.
 
 End laplace.
