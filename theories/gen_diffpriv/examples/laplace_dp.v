@@ -4,11 +4,12 @@
     [DPcoupl] obligation, discharged by the reusable [Mcoupl_laplace]) is all
     that is needed to run a real DP proof — no per-distribution re-clone of
     the program logic. *)
+From iris.proofmode Require Import proofmode environments coq_tactics ltac_tactics reduction.
 From clutch.prob Require Import differential_privacy distribution couplings_dp.
 From clutch.gen_diffpriv Require Import primitive_laws coupling_rules proofmode adequacy.
 From clutch.gen_prob_lang Require Import families.
 From clutch.gen_prob_lang.spec Require Import spec_tactics.
-From clutch.gen_prob_lang Require Import notation lang.
+From clutch.gen_prob_lang Require Import tactics wp_tactics notation lang.
 From iris.prelude Require Import options.
 
 Local Open Scope R.
@@ -23,12 +24,32 @@ Proof. refine {| sample_idx := 0 |}. reflexivity. Defined.
 Notation Laplace num den loc :=
   (Sample 0 (Pair num (Pair den loc)) (Val (LitV LitUnit))) (only parsing).
 
+(** A signature-pinning [wp_pures]: the generic [wp_pures] cannot infer the
+    distribution signature [S] for the ∀S [PureExec] instances (S lives in the
+    [Wp] instance, not the syntax).  This variant reads [S] off the in-context
+    [diffprivGS S _] hypothesis and passes it positionally to
+    [tac_wp_pure_later]. *)
+Ltac wp_pure_gen :=
+  iStartProof;
+  lazymatch goal with
+  | _ : diffprivGS ?S _ |- envs_entails _ (wp ?a ?E ?e ?Q) =>
+      let e' := eval simpl in e in
+      reshape_expr e' ltac:(fun K eredex =>
+        eapply (tac_wp_pure_later S _ _ _ E K eredex);
+        [ tc_solve | try (split_and?; reflexivity) ; try done | tc_solve | simpl ])
+  end.
+Ltac wp_pures_gen := iStartProof; repeat (wp_pure_gen; []).
+
 Section laplace.
   Context `{!diffprivGS Slap Σ}.
   Canonical Structure gen_ectxi_lang_lap := gen_ectxi_lang Slap.
   Canonical Structure gen_ectx_lang_lap := gen_ectx_lang Slap.
   Canonical Structure gen_lang_lap := gen_lang Slap.
+  Canonical Structure gen_markov_lap := lang_markov (gen_lang Slap).
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang Slap)).
+  #[local] Existing Instance spec_rules_spec_updateGS.
+  #[local] Instance spec_updateGS_lap : spec_updateGS gen_markov_lap Σ :=
+    spec_rules_spec_updateGS Slap.
 
   (** The core Laplace draw coupling, on the family's outcome type [Z]:
       shifting the location by [k] costs [|k'| · ε] error when the two locations
@@ -89,5 +110,11 @@ Section laplace.
       | lra | lra
       | subst ε'; rewrite -Hε; by apply DPcoupl_laplace_draw ].
   Qed.
+
+  (* diagnostic: does wp_pures reduce a lambda application here? *)
+  (** Sanity check that the signature-pinned [wp_pures_gen] reduces pure redexes
+      (a λ-application) — the impl-side reduction needed by full DP programs. *)
+  Lemma wp_pure_test (z : Z) E (Φ : val → iProp Σ) : Φ #z -∗ WP ((λ: "x", "x")%V #z) @ E {{ Φ }}.
+  Proof. iIntros "H". wp_pures_gen. iApply (wp_value' (Λ := gen_lang Slap)). iApply "H". Qed.
 
 End laplace.
