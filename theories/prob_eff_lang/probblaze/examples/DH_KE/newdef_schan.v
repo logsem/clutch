@@ -56,7 +56,8 @@ Section schannel.
     end.
 
    (*placeholder for now*)
-  Definition xor (e1 e2 : expr) : val := #()%V.
+  Definition xor (e1 e2 : expr) : val := (# O)%V.
+ 
 
    Definition CHAN : val :=
      λ: "f" "ChanOp" "doGK",
