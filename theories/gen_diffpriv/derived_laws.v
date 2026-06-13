@@ -7,6 +7,7 @@ From stdpp Require Import fin_maps.
 From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
 From clutch.gen_prob_lang Require Import tactics lang notation.
+From clutch.gen_prob_lang.gwp Require Import gen_weakestpre.
 From clutch.gen_diffpriv Require Export primitive_laws.
 From iris.prelude Require Import options.
 
@@ -160,6 +161,26 @@ Section lifting.
     eexists. by apply vlookup_lookup.
   Qed.
 
+  (** [GenWp] instance: the generic weakest-precondition framework (gwp)
+      instantiated at the diffpriv WP, so the [gwp]-based data-structure
+      libraries ([gen_prob_lang.gwp.list] etc.) and their [G{{{…}}}] specs apply
+      in any [diffprivGS Sg]-development.  Mirrors [diffpriv.derived_laws]. *)
+  Definition gwp_mixin :
+    GenWpMixin (S := Sg) true (wp wp_default) (λ l dq v, (l ↦{dq} v)%I).
+  Proof.
+    constructor; intros.
+    - apply _.
+    - by iApply wp_value.
+    - by iApply wp_fupd.
+    - by iApply wp_bind.
+    - by iApply lifting.wp_pure_step_later.
+    - by iApply wp_alloc.
+    - by iApply wp_deref.
+    - by iApply wp_store.
+  Qed.
+
 End lifting.
+
+Canonical Structure gwp_wpre `{!diffprivGS Sg Σ} := Build_GenWp gwp_mixin.
 
 Global Typeclasses Opaque array.
