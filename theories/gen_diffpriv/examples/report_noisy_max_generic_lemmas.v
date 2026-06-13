@@ -114,13 +114,14 @@ Qed.
     a future non-per-coordinate noise (e.g. Gumbel / exponential mechanism) can
     discharge it WITHOUT the per-draw [noise_map_correct_of_draw] path. *)
 Definition noise_map_correct_statement : Prop :=
-  ∀ num den (Hproof : (0 < IZR num / IZR (2 * den))%R) (l l' : list Z),
+  ∀ (Δ : Z) num den (Hproof : (0 < IZR num / IZR (2 * den))%R) (l l' : list Z),
+    (1 <= Δ)%Z →
     length l = length l' → (length l > 0)%nat →
-    (∀ p, p ∈ zip_with (λ x y, (x, y)) l l' → (dZ p.1 p.2 <= 1)%R) →
+    (∀ p, p ∈ zip_with (λ x y, (x, y)) l l' → (dZ p.1 p.2 <= IZR Δ)%R) →
     DPcoupl (noise_map num (2 * den) Hproof l) (noise_map num (2 * den) Hproof l')
       (λ zs zs', length zs = length zs' ∧ (length zs = length l)%nat ∧
                  list_Z_max zs = list_Z_max zs')
-      (IZR num / IZR den) 0.
+      (IZR Δ * (IZR num / IZR den)) 0.
 
 (** ** The per-coordinate constructor of the pivot.  Parametric over the single
     directional draw coupling [Hdraw] — this is the only place the per-draw
@@ -138,16 +139,18 @@ Section draw.
              DPcoupl (sample num den loc) (sample num den loc')
                      (λ z z', z + k = z')%Z (IZR k' * (IZR num / IZR den)) 0).
 
-Lemma noise_map_pw_after num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
+Lemma noise_map_pw_after (Δ : Z) num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
+  (1 <= Δ)%Z ->
   length l = length l' ->
-  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= IZR Δ)%R) ->
   DPcoupl (noise_map num (2*den) (Hproof) l)
     (noise_map num (2*den) (Hproof) l')
     (λ zs zs',
        length zs = length zs' /\
-       (∀ p, p ∈ zip_with (λ x y, (x,y)) zs zs' -> (dZ p.1 p.2 <= 1)%R) 
+       (∀ p, p ∈ zip_with (λ x y, (x,y)) zs zs' -> (dZ p.1 p.2 <= IZR Δ)%R)
     ) 0 0.
 Proof.
+  intros HΔ.
   revert l'.
   induction l as [|hd tl IHl].
   - intros []; last done.
@@ -161,7 +164,7 @@ Proof.
     unshelve epose proof H2 (hd, hd') _ as H3.
     { rewrite elem_of_cons; naive_solver. }
     apply dZ_bounded_cases in H3 as H4.
-    eapply (DPcoupl_dbind _ _ _ _ (λ z z', (dZ z z' <= 1)%R)); try done; last first.
+    eapply (DPcoupl_dbind _ _ _ _ (λ z z', (dZ z z' <= IZR Δ)%R)); try done; last first.
     (* SPOT 1: 0-cost location isometry — [Hdraw] at [k := hd'-hd], [k' := 0],
        so the draw relation [z + (hd'-hd) = z'] is [z - z' = hd - hd']. *)
     { epose proof (Hdraw num (2*den) hd hd' (hd'-hd) 0 ltac:(done) ltac:(lia) ltac:(lia)) as Hd0.
@@ -186,43 +189,42 @@ Proof.
 Qed.
 
 
-Lemma noise_map_pw num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R) j:
+Lemma noise_map_pw (Δ : Z) num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R) j:
+  (1 <= Δ)%Z ->
   length l = length l' ->
   (length l > 0)%nat ->
   (j<length l)%nat->
-  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= IZR Δ)%R) ->
   DPcoupl (noise_map num (2*den) (Hproof) l)
     (noise_map num (2*den) (Hproof) l')
     (λ zs zs',
        length zs > 0 /\
        length zs = length zs' /\
-       (∀ p, p ∈ zip_with (λ x y, (x,y)) zs zs' -> (dZ p.1 p.2 <= 1)%R) /\
+       (∀ p, p ∈ zip_with (λ x y, (x,y)) zs zs' -> (dZ p.1 p.2 <= IZR Δ)%R) /\
        ∃ (z: Z),
-         zs!!j=Some z /\ zs' !!j = Some (z+1)%Z
-    ) (IZR num / IZR den) 0.
+         zs!!j=Some z /\ zs' !!j = Some (z+Δ)%Z
+    ) (IZR Δ * (IZR num / IZR den)) 0.
 Proof.
+  intros HΔ.
   revert l l'.
   induction j as [|? Hj].
   - replace 0%R with (0+0)%R by lra.
-    replace (_/_)%R with (IZR num / IZR den + 0)%R by lra.
+    replace (IZR Δ * (IZR num / IZR den))%R with (IZR Δ * (IZR num / IZR den) + 0)%R by lra.
     intros [|hd tl] [|hd' tl']; simpl; try lia.
     intros H1 H2 H3 H4.
     simplify_eq.
-    eapply (DPcoupl_dbind _ _ _ _ (λ z z', z+1=z')%Z); try done; last first.
-    (* SPOT 2: the +1 shift at the argmax coordinate — [Hdraw] at the doubled
-       rate [num/(2·den)] with [k := 1], [k' := 2], cost [IZR 2 · num/(2·den)],
-       brought down to [num/den] by [DPcoupl_mono] (it is an equality). *)
+    eapply (DPcoupl_dbind _ _ _ _ (λ z z', z+Δ=z')%Z); try done; last first.
+    (* SPOT 2: the +Δ shift at the argmax coordinate — [Hdraw] at the doubled
+       rate [num/(2·den)] with [k := Δ], [k' := 2·Δ], cost [IZR (2·Δ) · num/(2·den)],
+       brought down to [IZR Δ · num/den] by [DPcoupl_mono] (it is an equality). *)
     { unshelve epose proof H4 (hd, hd') _ as H5.
       { rewrite elem_of_cons; naive_solver. }
       apply dZ_bounded_cases in H5. simpl in H5.
-      epose proof (Hdraw num (2*den) hd hd' 1 2 ltac:(exact Hproof) ltac:(lia) ltac:(lia)) as Hd1.
+      epose proof (Hdraw num (2*den) hd hd' Δ (2*Δ) ltac:(exact Hproof) ltac:(lia) ltac:(lia)) as Hd1.
       eapply DPcoupl_mono; last apply Hd1; try done.
-      simpl. rewrite mult_IZR.
-      replace (_/(_*_))%R with (/2 * (IZR num / IZR den))%R;
-        last (rewrite Rdiv_mult_distr; lra).
-      rewrite -Rmult_assoc.
-      rewrite -{2}(Rmult_1_l (IZR num / IZR den)%R).
-      apply Rmult_le_compat_r; [left; by apply ineq_convert | simpl; lra].
+      simpl. rewrite !mult_IZR.
+      rewrite Rdiv_mult_distr.
+      lra.
     }
     intros ?? <-.
     replace 0%R with (0+0)%R by lra.
@@ -240,8 +242,8 @@ Proof.
     intros H1 H2 H3 H4.
     simplify_eq.
     replace 0%R with (0+0)%R by lra.
-    replace (_/_)%R with (0+IZR num / IZR den)%R by lra.
-    eapply (DPcoupl_dbind _ _ _ _ (λ z z', (dZ z z' <= 1)%R)); try done; last first.
+    replace (IZR Δ * (IZR num / IZR den))%R with (0+IZR Δ * (IZR num / IZR den))%R by lra.
+    eapply (DPcoupl_dbind _ _ _ _ (λ z z', (dZ z z' <= IZR Δ)%R)); try done; last first.
     (* SPOT 3: 0-cost isometry (before coordinate j) — same shape as SPOT 1:
        [Hdraw] at [k := hd'-hd], [k' := 0]. *)
     { unshelve epose proof H4 (hd, hd') _ as H5.
@@ -255,8 +257,8 @@ Proof.
     }
     intros ???.
     replace 0%R with (0+0)%R by lra.
-    replace (_/_)%R with (IZR num / IZR den+0)%R by lra.
-    eapply DPcoupl_dbind; last apply Hj; try done; try lia; last first. 
+    replace (IZR Δ * (IZR num / IZR den))%R with (IZR Δ * (IZR num / IZR den)+0)%R by lra.
+    eapply DPcoupl_dbind; last apply Hj; try done; try lia; last first.
     + intros. apply H4. rewrite elem_of_cons; naive_solver.
     + simpl.
       intros. destruct!/=.
@@ -266,19 +268,22 @@ Proof.
       * naive_solver.
 Qed.
 
-Lemma noise_map_correct' num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
+Lemma noise_map_correct' (Δ : Z) num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
+  (1 <= Δ)%Z ->
   length l = length l' ->
   (length l > 0)%nat ->
-  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= IZR Δ)%R) ->
   DPcoupl (noise_map num (2*den) (Hproof) l)
     (noise_map num (2*den) (Hproof) l')
     (λ zs zs', list_Z_max zs = list_Z_max zs'
-    ) (IZR num / IZR den) 0.
+    ) (IZR Δ * (IZR num / IZR den)) 0.
 Proof.
-  intros Ha Hb Hc.
+  intros HΔ Ha Hb Hc.
+  assert (0 < IZR Δ)%R as HΔpos by (apply IZR_lt; lia).
   replace 0%R with (SeriesC (λ (x:nat), 0)); last by apply SeriesC_0.
   apply DPcoupl_pweq'.
-  - pose proof (ineq_convert _ _ Hproof) as K. lra.
+  - pose proof (ineq_convert _ _ Hproof) as K.
+    apply Rmult_le_pos; lra.
   - done.
   - apply ex_seriesC_0.
   - intros j.
@@ -288,7 +293,8 @@ Proof.
       - simpl. intros ? ? [? [?%noise_map_pos ?]].
         intros. subst.
         unshelve epose proof list_Z_max_bound x _; lia.
-      - left. by apply ineq_convert.
+      - left. pose proof (ineq_convert _ _ Hproof) as K.
+        apply Rmult_lt_0_compat; lra.
       - apply noise_map_mass.
       - apply noise_map_mass.
     }
@@ -296,17 +302,18 @@ Proof.
     simpl.
     intros ?? [H [Hlen%noise_map_pos Hlen'%noise_map_pos]]?.
     destruct!/=. eapply pw_list_Z_max_correct; naive_solver.
-Qed. 
+Qed.
 
-Lemma noise_map_correct num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
+Lemma noise_map_correct (Δ : Z) num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
+  (1 <= Δ)%Z ->
   length l = length l' ->
   (length l > 0)%nat ->
-  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= IZR Δ)%R) ->
   DPcoupl (noise_map num (2*den) (Hproof) l)
     (noise_map num (2*den) (Hproof) l')
     (λ zs zs', length zs = length zs' /\ (length zs = length l)%nat /\
                list_Z_max zs = list_Z_max zs'
-    ) (IZR num / IZR den) 0.
+    ) (IZR Δ * (IZR num / IZR den)) 0.
 Proof.
   intros.
   eapply DPcoupl_mono; last (eapply DPcoupl_pos_R; eapply noise_map_correct'); try done.
@@ -317,7 +324,7 @@ Qed.
     On section-close this becomes
     [noise_map_correct_of_draw : ∀ sample mass Hdraw, noise_map_correct_statement sample]. *)
 Lemma noise_map_correct_of_draw : noise_map_correct_statement.
-Proof. intros num den Hproof l l'. apply noise_map_correct. Qed.
+Proof. intros Δ num den Hproof l l'. apply noise_map_correct. Qed.
 
 End draw.
 
@@ -516,11 +523,12 @@ Proof.
     + naive_solver.
 Qed. 
 
-Lemma noise_state_list_coupl num den ls ls' σ σ':
-  (0 < IZR num / IZR (2 * den))%R -> 
+Lemma noise_state_list_coupl (Δ : Z) num den ls ls' σ σ':
+  (1 <= Δ)%Z ->
+  (0 < IZR num / IZR (2 * den))%R ->
   length ls = length ls' ->
   (length ls > 0)%nat ->
-  (∀ p, p ∈ zip_with (λ x y, (x.1.2,y.1.2)) ls ls' -> (dZ p.1 p.2 <= 1)%R) ->
+  (∀ p, p ∈ zip_with (λ x y, (x.1.2,y.1.2)) ls ls' -> (dZ p.1 p.2 <= IZR Δ)%R) ->
   (NoDup ls.*1.*1) ->
   (NoDup ls'.*1.*1) ->
   Forall (λ '(ι, loc, lis), stapes σ!!ι = Some (NoiseT num (2*den) loc lis)) ls ->
@@ -530,26 +538,27 @@ Lemma noise_state_list_coupl num den ls ls' σ σ':
     (λ σf σf',
        ∃ zs zs', length zs = length zs' /\ (length zs = length ls)%nat /\
                  list_Z_max zs = list_Z_max zs' /\
-                 σf = (replace_noise_tape num (2 * den) σ (zip ls zs)) /\ 
+                 σf = (replace_noise_tape num (2 * den) σ (zip ls zs)) /\
                  σf' = (replace_noise_tape num (2 * den) σ' (zip ls' zs'))
-    ) (IZR num / IZR den) 0.
+    ) (IZR Δ * (IZR num / IZR den)) 0.
 Proof.
-  intros H1 H2 H3 H4 H5 H6 H7 H8.
+  intros HΔ H1 H2 H3 H4 H5 H6 H7 H8.
   unshelve (repeat erewrite noise_presample_list_rewrite); last first; try done.
   replace (0)%R with (0+0)%R by lra.
-  replace (_/_)%R with (IZR num / IZR den + 0)%R by lra.
+  replace (IZR Δ * (IZR num / IZR den))%R with (IZR Δ * (IZR num / IZR den) + 0)%R by lra.
   eapply DPcoupl_dbind; [done|done| |apply Hmc]; last first.
   - repeat setoid_rewrite zip_with_fmap_l.
     repeat setoid_rewrite zip_with_fmap_r. naive_solver.
   - rewrite !length_fmap. lia.
   - rewrite !length_fmap. lia.
+  - done.
   - simpl.
     rewrite !length_fmap.
     intros zs zs' (?&?&?).
     apply DPcoupl_dret; try done.
     exists zs, zs'.
-    repeat split; lia. 
-Qed. 
+    repeat split; lia.
+Qed.
 
 Lemma noise_presample_list_erasable num den σ ls (Hineq:(0 < IZR num / IZR (2 * den))%R):
   NoDup ls.*1.*1->
@@ -603,8 +612,8 @@ Qed.
 
 Section coupling_rule.
 
-  Lemma hoare_couple_noise_list_update xιs xιs' zs zs' ls ls' σ σ' num den:
-    length xιs = length xιs' -> 
+  Lemma hoare_couple_noise_list_update (Δ : Z) xιs xιs' zs zs' ls ls' σ σ' num den:
+    length xιs = length xιs' ->
     NoDup xιs.*2 -> NoDup xιs'.*2 ->
     length zs = length xιs ->
     length zs' = length xιs ->
@@ -613,12 +622,12 @@ Section coupling_rule.
     stapes_auth 1 (stapes σ) -∗
     spec_tapes_auth (stapes σ') -∗
     ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪N (num,2 * den,x; []) ∗
-            ι' ↪Nₛ (num,2 * den,x'; []) ∗ ⌜(Rabs (IZR (x - x')) <= 1)%R⌝)
+            ι' ↪Nₛ (num,2 * den,x'; []) ∗ ⌜(Rabs (IZR (x - x')) <= IZR Δ)%R⌝)
     ==∗
     (stapes_auth 1 (stapes (replace_noise_tape num (2 * den) σ (zip ls zs)))) ∗
      spec_tapes_auth (stapes (replace_noise_tape num (2 * den) σ' (zip ls' zs'))) ∗
     ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪N (num,2 * den,x; [
-                                                    zs !!! k]) ∗ ι' ↪Nₛ (num,2 * den,x'; [zs' !!! k]) ∗ ⌜(Rabs (IZR (x - x')) <= 1)%R⌝).
+                                                    zs !!! k]) ∗ ι' ↪Nₛ (num,2 * den,x'; [zs' !!! k]) ∗ ⌜(Rabs (IZR (x - x')) <= IZR Δ)%R⌝).
   Proof.
     revert xιs' zs zs' ls ls' σ σ'.
     induction xιs as [|hd xιs IH].
@@ -661,18 +670,19 @@ Section coupling_rule.
       iFrame.
   Qed. 
   
-  Lemma hoare_couple_noise_list num den xιs xιs' N e Φ:
+  Lemma hoare_couple_noise_list (Δ : Z) num den xιs xιs' N e Φ:
+    (1 <= Δ)%Z ->
     (0 < IZR num / IZR (2 * den))%R ->
     length xιs = N ->
     length xιs = length xιs' ->
     (length xιs > 0)%nat ->
     NoDup xιs.*2 -> NoDup xιs'.*2 ->
-           ↯m (IZR num / IZR den) -∗
-           ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪N (num, 2 * den,x; []) ∗ ι' ↪Nₛ (num,2 * den,x'; []) ∗ ⌜(dZ x x' <= 1)%R⌝) -∗
+           ↯m (IZR Δ * (IZR num / IZR den)) -∗
+           ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪N (num, 2 * den,x; []) ∗ ι' ↪Nₛ (num,2 * den,x'; []) ∗ ⌜(dZ x x' <= IZR Δ)%R⌝) -∗
              ((∃ zs zs', ([∗ list] k ↦ '(x, ι);'(x', ι') ∈ xιs;xιs',
                             ι ↪N (num, 2 * den,x; [zs !!! k]) ∗
                             ι' ↪Nₛ (num,2 * den,x'; [zs' !!! k]) ∗
-                            ⌜(dZ x x' <= 1)%R⌝) ∗
+                            ⌜(dZ x x' <= IZR Δ)%R⌝) ∗
                          ⌜length zs = N⌝ ∗
                          ⌜length zs' = N⌝ ∗
                          ⌜list_Z_max zs = list_Z_max zs'⌝)
@@ -681,7 +691,7 @@ Section coupling_rule.
              -∗
                WP e {{ v, Φ v }}.
   Proof.
-    iIntros (Hineq Hlen1 Hlen2 Hlen3 Hnodup1 Hnodup2) "Herr Hlist HΦ".
+    iIntros (HΔ Hineq Hlen1 Hlen2 Hlen3 Hnodup1 Hnodup2) "Herr Hlist HΦ".
     iApply wp_lift_step_spec_couple.
     iIntros (σ e' σ' ε δ) "((Hh1 & Htl1) & Hauth2 & Hε2 & Hδ2)".
     iDestruct "Hauth2" as "(HK&Hh2&Htl2)/=".
@@ -765,7 +775,7 @@ Section coupling_rule.
       iDestruct "H" as "[? [H ?]]".
       by iDestruct (ghost_map_lookup with "Htl2 H") as "%".
     }
-    iAssert (⌜(∀ p, p ∈ zip_with (λ x y, (x.1.2,y.1.2)) ls ls' -> (dZ p.1 p.2 <= 1)%R)⌝)%I as "%".
+    iAssert (⌜(∀ p, p ∈ zip_with (λ x y, (x.1.2,y.1.2)) ls ls' -> (dZ p.1 p.2 <= IZR Δ)%R)⌝)%I as "%".
     {
       iIntros ([z z'] H').
       rewrite elem_of_lookup_zip_with in H'.
@@ -789,7 +799,7 @@ Section coupling_rule.
     iApply (spec_coupl_erasables_weak _ _ _ ε'' ε_now_rest _ 0%NNR δ) => //.
     - apply nnreal_ext. simpl. lra.
     - rewrite Hε''.
-      apply noise_state_list_coupl; [| | |done|..]; try done.
+      apply noise_state_list_coupl; [done| | | |done|..]; try done.
       + unfold ls. unfold ls'.
         rewrite !length_zip!length_replicate!length_fmap. lia.
       + unfold ls.
@@ -827,7 +837,7 @@ Section coupling_rule.
       destruct σ, σ'.
       rewrite !replace_noise_tape_heap.
       iFrame. 
-      iMod (hoare_couple_noise_list_update _ _ zs zs' with "[$][$][$]") as "Hrest"; try done; try lia.
+      iMod (hoare_couple_noise_list_update _ _ _ zs zs' with "[$][$][$]") as "Hrest"; try done; try lia.
       iDestruct "Hrest" as "(?&?&?)".
       iFrame.
       iMod "Hclose'".

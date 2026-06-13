@@ -123,21 +123,22 @@ Section generic.
       from the thin per-noise lemmas files.  Its type is copied verbatim from
       [report_noisy_max_generic_lemmas]'s [hoare_couple_noise_list], with the
       generic [↪N]/[↪Nₛ] notations above. *)
-  Context (Hcouple : ∀ (num den : Z) (xιs xιs' : list (Z * loc)) (N : nat) (e : expr)
+  Context (Hcouple : ∀ (Δ : Z) (num den : Z) (xιs xιs' : list (Z * loc)) (N : nat) (e : expr)
                        (Φ : val → iProp Σ),
+              (1 <= Δ)%Z →
               (0 < IZR num / IZR (2 * den))%R →
               length xιs = N →
               length xιs = length xιs' →
               (length xιs > 0)%nat →
               NoDup xιs.*2 → NoDup xιs'.*2 →
-              ↯m (IZR num / IZR den) -∗
+              ↯m (IZR Δ * (IZR num / IZR den)) -∗
               ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs',
                  ι ↪N (num, 2 * den, x; []) ∗ ι' ↪Nₛ (num, 2 * den, x'; []) ∗
-                 ⌜(dZ x x' <= 1)%R⌝) -∗
+                 ⌜(dZ x x' <= IZR Δ)%R⌝) -∗
               ((∃ zs zs', ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs',
                               ι ↪N (num, 2 * den, x; [zs !!! k]) ∗
                               ι' ↪Nₛ (num, 2 * den, x'; [zs' !!! k]) ∗
-                              ⌜(dZ x x' <= 1)%R⌝) ∗
+                              ⌜(dZ x x' <= IZR Δ)%R⌝) ∗
                            ⌜length zs = N⌝ ∗
                            ⌜length zs' = N⌝ ∗
                            ⌜list_Z_max zs = list_Z_max zs'⌝)
@@ -157,18 +158,19 @@ Section generic.
       let: "noisy_xs" := list_map' (λ: "x_ι", Sample (sample_idx (D := D)) (Pair #num (Pair #(2*den) (Fst "x_ι"))) (Snd "x_ι")) "xs_tapes" in
       list_max_index "noisy_xs".
 
-  Lemma rnm_init (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
-    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) →
+  Lemma rnm_init (Δ : Z) (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+    (1 <= Δ)%Z →
+    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
     ∀ db db', dDB db db' <= 1 →
               {{{ ⤇ fill K ((of_val list_init) #N (λ:"i", (of_val evalQ) "i" (of_val (inject db'))))%V }}}
                 (list_init #N (λ:"i", evalQ "i" (of_val (inject db))))%V
                 {{{ vxs, RET vxs ; ∃ (vxs' : val) (xs xs' : list Z),
                         ⤇ fill K vxs' ∗
                         ⌜ is_list xs vxs ∧ is_list xs' vxs' ∧ length xs = N ∧ length xs' = N ∧
-                        Forall2 (λ x x', dZ x x' <= 1) xs xs'⌝
+                        Forall2 (λ x x', dZ x x' <= IZR Δ) xs xs'⌝
                 }}}.
   Proof with (tp_pures ; wp_pures).
-    iIntros (ev_sens ?? adj post) "rhs Hpost".
+    iIntros (HΔ ev_sens ?? adj post) "rhs Hpost".
     wp_lam. wp_pure. wp_lam.
     tp_lam. tp_pure. tp_lam.
     tp_pure. wp_pure.
@@ -183,7 +185,7 @@ Section generic.
                   ∧ is_list xs' vxs'
                     ∧ (length xs + k = N)%nat
                       ∧ (length xs' + k = N)%nat
-                        ∧ Forall2 (λ x x' : Z, dZ x x' <= 1) xs xs') as hpre.
+                        ∧ Forall2 (λ x x' : Z, dZ x x' <= IZR Δ) xs xs') as hpre.
     1: exists [], [] ; cbn ; intuition eauto.
     revert hpre.
     unfold k at 4 5.
@@ -198,7 +200,9 @@ Section generic.
 
     - idtac...
       tp_bind (evalQ _ _) ; wp_bind (evalQ _ _).
-      wp_apply (ev_sens with "[] [rhs]"). 1: iPureIntro ; lra. 1: iFrame.
+      wp_apply (ev_sens with "[] [rhs]").
+      1: iPureIntro; apply Rle_trans with (r2 := 1%R); [lra| apply IZR_le; lia].
+      1: iFrame.
       iIntros "% (%&%&->&rhs&%h)".
       idtac... wp_rec. wp_pure. wp_pure. wp_pure. wp_pure.
       simpl. tp_rec. tp_pure. tp_pure. tp_pure. tp_pure.
@@ -212,7 +216,9 @@ Section generic.
         * simpl. lia.
         * simpl. lia.
         * constructor. 2: done.
-          simpl in h. etrans. 2: exact adj. rewrite Rmult_1_l in h. done.
+          simpl in h. etrans; first exact h.
+          rewrite -{2}(Rmult_1_r (IZR Δ)).
+          apply Rmult_le_compat_l; [apply IZR_le; lia| exact adj].
       + iSpecialize ("IHk'" with "Hpost").
         iApply "IHk'".
   Qed.
@@ -306,9 +312,9 @@ Proof.
 Qed.
 
 Lemma wp_alloc_tapes_noise :
-  (forall (num den : Z) K xs xs' vxs vxs',
+  (forall (Δ num den : Z) K xs xs' vxs vxs',
       is_list xs vxs → is_list xs' vxs' → length xs = length xs' →
-      Forall2 (λ x x' : Z, dZ x x' <= 1) xs xs' →
+      Forall2 (λ x x' : Z, dZ x x' <= IZR Δ) xs xs' →
       {{{ ⤇ fill K ((list_map (λ: "x", ("x", AllocSampleTape (sample_idx (D := D)) (Pair #num (Pair #(2 * den) "x")))))%V vxs') }}}
         (list_map (λ: "x", ("x", AllocSampleTape (sample_idx (D := D)) (Pair #num (Pair #(2 * den) "x")))))%V vxs
         {{{ vxιs, RET vxιs ; ∃ vxιs' xιs xιs',
@@ -318,15 +324,15 @@ Lemma wp_alloc_tapes_noise :
                 ⤇ fill K vxιs' ∗
                 [∗ list] '(x, ι) ; '(x', ι') ∈ xιs ; xιs',
               ι ↪N (num, 2*den, x; []) ∗ ι' ↪Nₛ (num, 2*den, x'; []) ∗
-              ⌜dZ x x' <= 1⌝
+              ⌜dZ x x' <= IZR Δ⌝
   }}}).
 Proof.
-  iIntros (??????? hxs hxs' hlen adj post) "rhs post".
+  iIntros (???????? hxs hxs' hlen adj post) "rhs post".
   iApply (rwp_list_map xs xs' vxs vxs'
             (λ: "x", ("x", AllocSampleTape (sample_idx (D := D)) (Pair #num (Pair #(2 * den) "x"))))%V
             (λ: "x", ("x", AllocSampleTape (sample_idx (D := D)) (Pair #num (Pair #(2 * den) "x"))))%V
-            (λ x x', ⌜dZ x x' <= 1⌝)%I
-            (λ '(x, ι) '(x', ι'), ⌜dZ x x' <= 1⌝ )%I
+            (λ x x', ⌜dZ x x' <= IZR Δ⌝)%I
+            (λ '(x, ι) '(x', ι'), ⌜dZ x x' <= IZR Δ⌝ )%I
             (λ xιs, ([∗ list] xι ∈ xιs, let '(x, ι) := xι in ι ↪N (num, 2*den, x; [])) ∗ ⌜NoDup xιs.*2⌝)%I
             (λ xιs', ([∗ list] xι' ∈ xιs', let '(x', ι') := xι' in ι' ↪Nₛ (num, 2*den, x'; [])) ∗ ⌜NoDup xιs'.*2⌝)%I
            with "[-post]").
@@ -415,16 +421,17 @@ Proof.
     econstructor. 1,2: assumption.
 Qed.
 
-  Lemma rnm_pres_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+  Lemma rnm_pres_diffpriv (Δ : Z) num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+    (1 <= Δ)%Z →
     (0 < IZR num / IZR (2 * den)) →
-    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) →
+    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
     ∀ db db', dDB db db' <= 1 →
-                {{{ ↯m (IZR num / IZR den) ∗
+                {{{ ↯m (IZR Δ * (IZR num / IZR den)) ∗
                     ⤇ fill K (report_noisy_max_presampling num den evalQ #N (of_val (inject db'))) }}}
                   report_noisy_max_presampling num den evalQ #N (of_val (inject db))
                   {{{ v, RET v ; ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = v' ⌝  }}}.
   Proof with (tp_pures ; wp_pures).
-    intros εpos qi_sens db db' db_adj post. iIntros "[ε rhs] Hpost".
+    intros HΔ εpos qi_sens db db' db_adj post. iIntros "[ε rhs] Hpost".
     wp_lam. tp_lam...
     destruct N as [|N'].
     {
@@ -447,7 +454,7 @@ Qed.
                ι ↪N (num, 2 * den,x; [zs !!! k]))
              ∗
                ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs',
-                  ι' ↪Nₛ (num, 2 * den,x'; [zs' !!! k]) ∗ ⌜dZ x x' <= 1⌝)
+                  ι' ↪Nₛ (num, 2 * den,x'; [zs' !!! k]) ∗ ⌜dZ x x' <= IZR Δ⌝)
             )%I with "[Htapes]" as "[Htapes Htapes']".
     {
       opose proof big_sepL2_sep as h.
@@ -459,7 +466,7 @@ Qed.
     iAssert (([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs',
                   ι' ↪Nₛ (num, 2 * den,x'; [zs' !!! k]))
              ∗
-               ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs', ⌜dZ x x' <= 1⌝)
+               ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs', ⌜dZ x x' <= IZR Δ⌝)
             )%I with "[Htapes']" as "[Htapes' htapes]".
     {
       opose proof big_sepL2_sep as h.
@@ -479,7 +486,7 @@ Qed.
                      let '(x', ι') := xι' in
                      ⌜xs' !!! k = x'⌝ ∗ ⌜ιs' !!! k = ι'⌝ ∗
                      ι' ↪Nₛ (num, 2 * den,x'; [zs' !!! k]))
-                ∗ ⌜Forall2 (λ x x', dZ x x' <= 1) xs xs'⌝
+                ∗ ⌜Forall2 (λ x x', dZ x x' <= IZR Δ) xs xs'⌝
              )%I
               ) with "[Htapes Htapes' htapes]" as
       "(%&%&%&%& Htapes & Htapes' & %htapes)".

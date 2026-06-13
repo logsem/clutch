@@ -35,11 +35,12 @@ Section rnme.
 
   (** The exp privacy proof: [report_noisy_max_generic.rnm_pres_diffpriv] with the
       exp list coupling [hoare_couple_exp_list] for [Hcouple]. *)
-  Lemma rnm_exp_pres_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+  Lemma rnm_exp_pres_diffpriv (Δ : Z) num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+    (1 <= Δ)%Z →
     (0 < IZR num / IZR (2 * den))%R →
-    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) →
+    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
     ∀ db db', (dDB db db' <= 1)%R →
-                {{{ ↯m (IZR num / IZR den) ∗
+                {{{ ↯m (IZR Δ * (IZR num / IZR den)) ∗
                     ⤇ fill K (report_noisy_max_exp_presampling num den evalQ #N (of_val (inject db'))) }}}
                   report_noisy_max_exp_presampling num den evalQ #N (of_val (inject db))
                   {{{ v, RET v ; ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = v' ⌝  }}}.
@@ -51,14 +52,15 @@ Section rnme.
 
 End rnme.
 
-Lemma rnm_exp_diffpriv_presampling (Sg : Sig) `{!SampleIn exp_family Sg} num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
+Lemma rnm_exp_diffpriv_presampling (Sg : Sig) `{!SampleIn exp_family Sg} (Δ : Z) num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
+  (1 <= Δ)%Z →
   (0 < IZR num / IZR (2 * den))%R →
-  (0 <= IZR num / IZR den)%R →
-  (∀ `{!diffprivGS Sg Σ}, ∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) → ∀ σ,
+  (0 <= IZR Δ * (IZR num / IZR den))%R →
+  (∀ `{!diffprivGS Sg Σ}, ∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) → ∀ σ,
       diffpriv_pure
         dDB
         (λ db, lim_exec (δ := lang_markov (gen_lang Sg)) ((report_noisy_max_exp_presampling num den evalQ #N (inject db)), σ))
-        (IZR num / IZR den).
+        (IZR Δ * (IZR num / IZR den)).
 Proof.
   intros. apply diffpriv_approx_pure. apply DPcoupl_diffpriv.
   intros.

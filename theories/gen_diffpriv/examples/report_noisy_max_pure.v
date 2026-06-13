@@ -102,13 +102,13 @@ Proof.
   eapply Nat.lt_le_trans; first apply pw_list_Z_max_bound'; lia.
 Qed.   
 
-Lemma pw_list_Z_max_after l l' x j a a' i i':
+Lemma pw_list_Z_max_after (Δ : Z) l l' x j a a' i i':
   i<= x->
   i'<=x ->
   length l = length l' ->
-  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
-  (i=j -> a+1=a' /\ i = i')%Z ->
-  (dZ a a' <=1)%R ->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= IZR Δ)%R) ->
+  (i=j -> a+Δ=a' /\ i = i')%Z ->
+  (dZ a a' <= IZR Δ)%R ->
   x>j ->
   list_Z_max' l x a i = j ->
   list_Z_max' l' x a' i' = j.
@@ -135,27 +135,25 @@ Proof.
     rewrite elem_of_cons. naive_solver.
 Qed.
 
-Lemma pw_list_Z_max_current l l' j a a' i i' z z':
+Lemma pw_list_Z_max_current (Δ : Z) l l' j a a' i i' z z':
   i<= j->
   i'<=j ->
   length l = length l' ->
-  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
-  (z+1=z')%Z ->
-  (i=j -> a+1=a' /\ i=i')%Z ->
-  (dZ a a' <=1)%R ->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= IZR Δ)%R) ->
+  (z+Δ=z')%Z ->
+  (i=j -> a+Δ=a' /\ i=i')%Z ->
+  (dZ a a' <= IZR Δ)%R ->
   list_Z_max' (z::l) j a i = j ->
   list_Z_max' (z'::l') j a' i' = j.
 Proof.
   intros H1 H1' H2 H3 H4 H5 H6. subst.
   apply dZ_bounded_cases in H6 as H7.
-  simpl. 
+  simpl.
   intros H.
   case_bool_decide.
   - rewrite bool_decide_eq_true_2; last lia.
     eapply pw_list_Z_max_after; last first; try done; try lia.
-    rewrite /dZ/=.
-    replace (_-_)%Z with (-1)%Z by lia.
-    by rewrite Rabs_Ropp Rabs_R1.
+    apply dZ_bounded_cases'. lia.
   - case_bool_decide.
     + rewrite Nat.le_lteq in H1. destruct H1 as []; last first.
       * unshelve epose proof H5 _; lia.
@@ -166,16 +164,16 @@ Proof.
     + eapply pw_list_Z_max_after; last first; try done; lia.
 Qed. 
 
-Lemma pw_list_Z_max_before l l' i i' x z a a' j:
+Lemma pw_list_Z_max_before (Δ : Z) l l' i i' x z a a' j:
   i<= x->
   (i'<=j)%nat ->
   (x<=j) ->
   length l = length l' ->
   (l!!(j-x)=Some z) ->
-  (l'!!(j-x)=Some (z+1)%Z)->
-  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
-  (i=j -> a+1=a'/\i'=j)%Z ->
-  (dZ a a' <=1)%R ->
+  (l'!!(j-x)=Some (z+Δ)%Z)->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= IZR Δ)%R) ->
+  (i=j -> a+Δ=a'/\i'=j)%Z ->
+  (dZ a a' <= IZR Δ)%R ->
   list_Z_max' (l) x a i = j ->
   list_Z_max' (l') x a' i' = j.
 Proof.
@@ -216,11 +214,7 @@ Proof.
       + unshelve epose proof H6 (hd, hd') _ as H11; first (rewrite elem_of_cons; naive_solver).
         simpl in *.
         apply dZ_bounded_cases in H8, H11.
-        rewrite Rcomplements.Rabs_le_between.
-        split.
-        * replace (-(1))%R with (IZR (-1))%Z by done.
-          apply IZR_le. lia.
-        * apply IZR_le. lia.
+        apply dZ_bounded_cases'. lia.
       + intros.
         apply H6. rewrite elem_of_cons; naive_solver.
       + rewrite lookup_cons_Some in H5.
@@ -247,11 +241,7 @@ Proof.
     + unshelve epose proof H6 (hd, hd') _ as H11; first (rewrite elem_of_cons; naive_solver).
         simpl in *.
         apply dZ_bounded_cases in H8, H11.
-        rewrite Rcomplements.Rabs_le_between.
-        split.
-        * replace (-(1))%R with (IZR (-1))%Z by done.
-          apply IZR_le. lia.
-        * apply IZR_le. lia.
+        apply dZ_bounded_cases'. lia.
   - eapply IHl; last done; try lia.
     + rewrite lookup_cons_Some in H4.
       rewrite Nat.sub_add_distr.
@@ -266,20 +256,16 @@ Proof.
     + unshelve epose proof H6 (hd, hd') _ as H11; first (rewrite elem_of_cons; naive_solver).
         simpl in *.
         apply dZ_bounded_cases in H8, H11.
-        rewrite Rcomplements.Rabs_le_between.
-        split.
-        * replace (-(1))%R with (IZR (-1))%Z by done.
-          apply IZR_le. lia.
-        * apply IZR_le. lia.
+        apply dZ_bounded_cases'. lia.
 Qed. 
   
   
-Lemma pw_list_Z_max_correct l l' z (j:nat):
+Lemma pw_list_Z_max_correct (Δ : Z) l l' z (j:nat):
   length l > 0 ->
-  length l = length l' -> 
-  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
+  length l = length l' ->
+  (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= IZR Δ)%R) ->
   (l!!(j)=Some z) ->
-  (l'!!(j)=Some (z+1)%Z)->
+  (l'!!(j)=Some (z+Δ)%Z)->
   list_Z_max l = j ->
   list_Z_max l' = j.
 Proof.
