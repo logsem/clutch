@@ -158,10 +158,10 @@ Tactic Notation "wp_expr_eval" tactic3(t) :=
   iStartProof;
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
-      notypeclasses refine (tac_wp_expr_eval _ _ _ _ _ e _ _ _ );
+      notypeclasses refine (tac_wp_expr_eval _ _ _ _ e _ _ _ );
       [apply _|let x := fresh in intros x; simpl; unfold x; notypeclasses refine eq_refl|]
   | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
-      notypeclasses refine (tac_wp_expr_eval _ _ _ _ _ e _ _ _ );
+      notypeclasses refine (tac_wp_expr_eval _ _ _ _ e _ _ _ );
       [apply _|let x := fresh in intros x; simpl; unfold x; notypeclasses refine eq_refl|]
   | _ => fail "wp_expr_eval: not a 'wp'"
   end.
@@ -205,6 +205,16 @@ Ltac solve_vals_compare_safe :=
      [True] or we have it in the context. *)
   fast_done || (left; fast_done) || (right; fast_done).
 
+(** [gwp_get_sig k] supplies the distribution signature [S] (the leading
+    explicit argument of [tac_wp_pure_later]) to the continuation [k].  The
+    signature lives in the [Wp] instance, not the (signature-independent)
+    syntax, so [eapply] alone leaves it an evar that blocks the [S]-parametric
+    [PureExec] instance.  The default supplies a hole (recovering the
+    prob_lang-style behaviour where [S] is inferable); a concrete logic that
+    knows where [S] lives (e.g. [gen_diffpriv.proofmode], off a [diffprivGS S]
+    hypothesis) overrides this with [Ltac gwp_get_sig k ::= ...]. *)
+Ltac gwp_get_sig k := k open_constr:(_).
+
 (** The argument [efoc] can be used to specify the construct that should be
 reduced. For example, you can write [wp_pure (EIf _ _ _)], which will search
 for an [EIf _ _ _] in the expression, and reduce it.
@@ -219,7 +229,8 @@ Tactic Notation "wp_pure" open_constr(efoc) :=
       let e := eval simpl in e in
       reshape_expr e ltac:(fun K e' =>
         unify e' efoc;
-        eapply (tac_wp_pure_later _ _ _ _ _ _ K e');
+        gwp_get_sig ltac:(fun S =>
+        eapply (tac_wp_pure_later S _ _ _ _ K e'));
         [tc_solve                       (* PureExec *)
         |try solve_vals_compare_safe    (* The pure condition for PureExec -- handles trivial goals, including [vals_compare_safe] *)
         |tc_solve                       (* IntoLaters *)
@@ -230,7 +241,8 @@ Tactic Notation "wp_pure" open_constr(efoc) :=
     let e := eval simpl in e in
     reshape_expr e ltac:(fun K e' =>
       unify e' efoc;
-      eapply (tac_wp_pure_later _ _ _ _ _ _ K e');
+      gwp_get_sig ltac:(fun S =>
+      eapply (tac_wp_pure_later S _ _ _ _ K e'));
       [tc_solve                       (* PureExec *)
       |try solve_vals_compare_safe    (* The pure condition for PureExec -- handles trivial goals, including [vals_compare_safe] *)
       |tc_solve                       (* IntoLaters *)

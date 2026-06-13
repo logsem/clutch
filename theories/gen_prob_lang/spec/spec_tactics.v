@@ -304,6 +304,15 @@ Tactic Notation "tp_pure_at" open_constr(ef) :=
       unify e' ef;
       eapply (tac_tp_pure S (@ectx_language.fill _ K' e) (K++K') e');
       [by rewrite ?fill_app | tc_solve | ..])
+  (* After the first [tp_pure] step the spec context is rebuilt with the
+     [ectxi_language.fill] head (the [EctxLanguageOfEctxi] derivation displays
+     [ectx_language.fill] as [ectxi_language.fill]); match it too so multi-step
+     reductions (e.g. nested [Pair]s inside a [Sample] argument) complete. *)
+  | |- context[environments.Esnoc _ ?H (⤇ (@ectxi_language.fill _ ?K' ?e))] =>
+    reshape_expr e ltac:(fun K e' =>
+      unify e' ef;
+      eapply (tac_tp_pure S (@ectxi_language.fill _ K' e) (K++K') e');
+      [by rewrite ?fill_app | tc_solve | ..])
   | |- context[environments.Esnoc _ ?H (⤇ ?e)] =>
     reshape_expr e ltac:(fun K e' =>
       unify e' ef;

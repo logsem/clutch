@@ -8,8 +8,6 @@ From iris.proofmode Require Import proofmode environments coq_tactics ltac_tacti
 From clutch.prob Require Import differential_privacy distribution couplings_dp.
 From clutch.gen_diffpriv Require Import primitive_laws coupling_rules proofmode adequacy.
 From clutch.gen_prob_lang Require Import families.
-From clutch.gen_prob_lang.spec Require Import spec_tactics.
-From clutch.gen_prob_lang Require Import tactics wp_tactics notation lang.
 From iris.prelude Require Import options.
 
 Local Open Scope R.
@@ -23,22 +21,6 @@ Proof. refine {| sample_idx := 0 |}. reflexivity. Defined.
     parameter [(num, den, loc)] (encoded as the pair value). *)
 Notation Laplace num den loc :=
   (Sample 0 (Pair num (Pair den loc)) (Val (LitV LitUnit))) (only parsing).
-
-(** A signature-pinning [wp_pures]: the generic [wp_pures] cannot infer the
-    distribution signature [S] for the ∀S [PureExec] instances (S lives in the
-    [Wp] instance, not the syntax).  This variant reads [S] off the in-context
-    [diffprivGS S _] hypothesis and passes it positionally to
-    [tac_wp_pure_later]. *)
-Ltac wp_pure_gen :=
-  iStartProof;
-  lazymatch goal with
-  | _ : diffprivGS ?S _ |- envs_entails _ (wp ?a ?E ?e ?Q) =>
-      let e' := eval simpl in e in
-      reshape_expr e' ltac:(fun K eredex =>
-        eapply (tac_wp_pure_later S _ _ _ E K eredex);
-        [ tc_solve | try (split_and?; reflexivity) ; try done | tc_solve | simpl ])
-  end.
-Ltac wp_pures_gen := iStartProof; repeat (wp_pure_gen; []).
 
 Section laplace.
   Context `{!diffprivGS Slap Σ}.
@@ -111,10 +93,44 @@ Section laplace.
       | subst ε'; rewrite -Hε; by apply DPcoupl_laplace_draw ].
   Qed.
 
-  (* diagnostic: does wp_pures reduce a lambda application here? *)
-  (** Sanity check that the signature-pinned [wp_pures_gen] reduces pure redexes
-      (a λ-application) — the impl-side reduction needed by full DP programs. *)
+  (** Parity check: the STANDARD [wp_pures] now reduces pure redexes — the
+      [gen_diffpriv.proofmode] [gwp_get_sig] override reads [Slap] off the
+      [diffprivGS] hypothesis, so no [_gen] variant is needed. *)
   Lemma wp_pure_test (z : Z) E (Φ : val → iProp Σ) : Φ #z -∗ WP ((λ: "x", "x")%V #z) @ E {{ Φ }}.
-  Proof. iIntros "H". wp_pures_gen. iApply (wp_value' (Λ := gen_lang Slap)). iApply "H". Qed.
+  Proof. iIntros "H". wp_pures. iApply "H". Qed.
+
+  (** The full λ-program differential-privacy statement: the one-line Laplace
+      mechanism [λ loc, Laplace(num/den, loc)] is ε-DP for 1-sensitive inputs
+      (|loc − loc'| ≤ 1).  This is the end-to-end usability target — it is proved
+      with the STANDARD proof-mode tactics ([wp_pures] on the implementation,
+      [tp_pures] on the specification, [iApply] of the per-family coupling rule),
+      exactly as one writes a [prob_lang] proof.  No [_gen] tactic variants, no
+      manual signature threading: the [gen_diffpriv.proofmode] [gwp_get_sig] /
+      [tp_get_sig] overrides recover the signature [Slap] automatically.  This is
+      the parity demonstration: porting a real DP case study costs the same as
+      it did before generalisation. *)
+  Lemma wp_laplace_diffpriv (loc loc' num den : Z) (ε : R) K E :
+    IZR num / IZR den = ε →
+    0 < IZR num / IZR den →
+    (Z.abs (loc - loc') <= 1)%Z →
+    {{{ ⤇ fill K ((λ: "l", Laplace #num #den "l")%V #loc') ∗ ↯m ε }}}
+      (λ: "l", Laplace #num #den "l")%V #loc @ E
+    {{{ (z : Z), RET #z; ⤇ fill K #z }}}.
+  Proof.
+    iIntros (Hε εpos Hsens Φ) "(Hr & Hε) HΦ".
+    wp_pures.
+    tp_pures.
+    (* reduce to the single Laplace draw; couple with shift [k = 0] at
+       sensitivity [k' = 1], so the cost is [|1|·ε = ε] *)
+    iApply (wp_couple_laplace loc loc' 0%Z 1%Z _ num den ε ε K E Hε εpos _ with "[$Hr $Hε]").
+    iModIntro. iIntros (z) "Hr".
+    replace (z + 0)%Z with z by lia.
+    iApply ("HΦ" with "Hr").
+    Unshelve.
+    - (* the [k=0] shift respects 1-sensitivity *)
+      replace (0 + loc - loc')%Z with (loc - loc')%Z by lia. exact Hsens.
+    - (* the multiplicative error: [ε = |1|·ε] *)
+      simpl; lra.
+  Qed.
 
 End laplace.
