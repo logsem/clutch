@@ -67,6 +67,14 @@ Global Instance diffprivGS_irisGS `{!diffprivGS Sg Σ} :
   err_interp ε δ := ((mult_ec_supply ε) ∗ (add_ec_supply δ))%I;
 }.
 
+(* Pin the spec-update instance via the in-context [diffprivGS Sg]: the generic
+   [spec_rules_spec_updateGS] is ∀S, so [spec_interp]/[spec_coupl]/[spec_update]
+   on a (signature-independent) [cfg] otherwise leave [S] an evar.  Keying off
+   the [diffprivGS Sg] hypothesis recovers [S] = [Sg] automatically, so no
+   per-development [spec_updateGS] instance is needed. *)
+Global Instance diffprivGS_spec_updateGS `{!diffprivGS Sg Σ} :
+  spec_updateGS (lang_markov (gen_lang Sg)) Σ := spec_rules_spec_updateGS Sg.
+
 (** Heap *)
 Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ diffprivGS_heap diffprivGS_heap_name l dq v)
   (at level 20, format "l  ↦{ dq }  v") : bi_scope.

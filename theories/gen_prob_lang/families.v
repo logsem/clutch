@@ -170,3 +170,30 @@ Proof.
   - intros [num den]. apply biased_coin_mass.
   - by intros [num den] b _.
 Defined.
+
+(* ------------------------------------------------------------------ *)
+(* Resolving [SampleIn D S] instances.                                 *)
+(* ------------------------------------------------------------------ *)
+
+(** Resolution mode: [SampleIn D S] is resolved by the NAMED family [D] (which
+    must be known), recovering the signature [S] as output.  This lets surface
+    notations like [Laplace] — whose [Sample] index is [sample_idx (D := D)] in a
+    signature-independent [expr] — recover [S] (hence the concrete index) from
+    the unique [SampleIn D _] instance of the ambient development, with no [S]
+    annotation at the use site. *)
+#[global] Hint Mode SampleIn ! - : typeclass_instances.
+
+(** [solve_SampleIn] discharges a goal [SampleIn D S] for a concrete signature
+    [S] by searching for the index at which the named family [D] occurs (up to a
+    small bound).  Use as [#[global] Instance : SampleIn D S := ltac:(solve_SampleIn).] *)
+Ltac solve_SampleIn :=
+  first
+    [ refine {| sample_idx := 0 |}; reflexivity
+    | refine {| sample_idx := 1 |}; reflexivity
+    | refine {| sample_idx := 2 |}; reflexivity
+    | refine {| sample_idx := 3 |}; reflexivity
+    | refine {| sample_idx := 4 |}; reflexivity
+    | refine {| sample_idx := 5 |}; reflexivity
+    | refine {| sample_idx := 6 |}; reflexivity
+    | refine {| sample_idx := 7 |}; reflexivity
+    | fail "solve_SampleIn: family not found in signature within index bound 7" ].
