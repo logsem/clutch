@@ -9,6 +9,7 @@
 From Stdlib Require Import Reals Psatz.
 From clutch.prelude Require Import base.
 From clutch.prob Require Export distribution.
+From clutch.prob Require Import couplings_exp couplings_dp.
 
 Local Open Scope R.
 
@@ -127,6 +128,40 @@ Section exponential.
   Lemma exp_rat_mass num den loc : SeriesC (exp_rat num den loc) = 1.
   Proof.
     rewrite /exp_rat. case_decide; [apply exp_dist_mass | apply dret_mass].
+  Qed.
+
+  (** The exact center-shift (isometry) coupling, at ZERO cost: shifting the
+      location by [loc - loc'] maps [exp_dist ε loc] onto [exp_dist ε loc']
+      exactly (both are pure translates of [exp']).  This is the one-sided
+      exponential analogue of [Mcoupl_laplace_isometry], and the building block
+      for the non-argmax coordinates of report-noisy-max with exponential noise. *)
+  Lemma Mcoupl_exp_isometry (ε : posreal) (loc loc' : Z) :
+    Mcoupl (exp_dist ε loc) (exp_dist ε loc') (λ z z', z - z' = loc - loc')%Z 0.
+  Proof.
+    intros ?? Hf Hg Hfg.
+    rewrite exp_0. ring_simplify.
+    rewrite -(SeriesC_translate _ (loc - loc')).
+    2:{ intros. apply Rmult_le_pos. 1: auto. apply Hf. }
+    2:{ eapply ex_seriesC_le. 2: apply (pmf_ex_seriesC (exp_dist ε loc)).
+        intros z. simpl. split.
+        - apply Rmult_le_pos => //. apply Hf.
+        - destruct (Hf z). etrans. 2: right ; apply Rmult_1_r.
+          apply Rmult_le_compat => //. }
+    apply SeriesC_le.
+    2:{ eapply ex_seriesC_le. 2: apply (pmf_ex_seriesC (exp_dist ε loc')).
+        intros z. simpl. split.
+        - apply Rmult_le_pos => //. apply Hg.
+        - destruct (Hg z). etrans. 2: right ; apply Rmult_1_r.
+          apply Rmult_le_compat => //. }
+    intros z. split.
+    { apply Rmult_le_pos => //. apply Hf. }
+    opose proof (Hfg ((z + (loc - loc'))) z _)%Z. 1: lia.
+    apply Rmult_le_compat => //. 1: apply Hf.
+    (* [exp_dist ε loc (z + (loc-loc')) = exp_dist ε loc' z]: both are [exp']
+       at the same offset, since [(z+(loc-loc')) - loc = z - loc']. *)
+    right.
+    assert (Hd : ∀ l w, exp_dist ε l w = exp' ε (w - l)%Z) by reflexivity.
+    rewrite !Hd. f_equal. lia.
   Qed.
 
 End exponential.
