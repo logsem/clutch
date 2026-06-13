@@ -359,7 +359,23 @@ Tactic Notation "tp_pure_at" open_constr(ef) :=
   |iAssumptionCore || fail "tp_pure: cannot find the RHS" (* TODO fix error message *)
   |try (exact I || reflexivity) (* ψ *)
   |try (exact I || reflexivity || solve_vals_compare_safe) (* ϕ *)
-  |simpl; reflexivity ||  fail "tp_pure: this should not happen" (* e' = fill K' e2 *)
+  (* Reconstruct the stepped spec [e' = fill (K_in ++ K_spec) e2] while keeping
+     the (possibly abstract) SPEC context [K_spec] folded.  [simpl] on the whole
+     thing would compute [fill K_spec _] into a [foldl] (the [gen_ectx_lang]
+     [fill] is a structure projection), which subsequent [tp_*] then cannot
+     match.  Instead: [fill_app] splits off the abstract outer context, and we
+     [simpl] ONLY the inner concrete-context fill (reassembling the redex), via
+     [change], leaving the outer [fill K_spec] folded. *)
+  |first
+     [ rewrite fill_app;
+       lazymatch goal with
+       | |- _ = @ectx_language.fill _ _ ?inner =>
+           let r := eval simpl in inner in change inner with r
+       | |- _ = @ectxi_language.fill _ _ ?inner =>
+           let r := eval simpl in inner in change inner with r
+       end; reflexivity
+     | simpl; reflexivity ]
+     ||  fail "tp_pure: this should not happen" (* e' = fill K' e2 *)
   |pm_reduce (* new goal *)].
 
 Tactic Notation "tp_pure" := tp_pure_at _.
