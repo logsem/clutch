@@ -101,6 +101,31 @@ Section laplace_tapes.
     iIntros "!> Hα". iApply "HΦ". iFrame.
   Qed.
 
+  (** The *reduced-form* (value-parameter) Laplace tape read.  This is the same
+      deterministic read as [wp_laplace_tape], but stated on the [Sample] redex
+      with its parameter ALREADY reduced to a value [PairV …] and the tape label
+      as a value [Val #lbl:α] — i.e. exactly the goal left behind after
+      [wp_pures] has reduced the surface [Laplace #num #den #mean (#lbl:α)]
+      notation.  The surface rule no longer [wp_apply]-matches that reduced goal
+      (the parameter is a [PairV], not a [Pair]); this rule does.  No [wp_pures]
+      is needed in the proof: the generic [wp_sample_tape] fires directly.  This
+      mirrors the surface-vs-reduced split between [hoare_couple_laplace] (surface)
+      and [wp_couple_laplace] (reduced) in [lib.laplace]. *)
+  Lemma wp_laplace_tape_val (num den mean z : Z) (zs : list Z) (α : loc) E s :
+    {{{ ▷ α ↪L (num, den, mean; z :: zs) }}}
+      Sample lidx (Val (PairV (LitV (LitInt num))
+                          (PairV (LitV (LitInt den)) (LitV (LitInt mean)))))
+             (Val (LitV (LitLbl α))) @ s; E
+    {{{ RET #z; α ↪L (num, den, mean; zs) }}}.
+  Proof.
+    iIntros (Φ) ">Hα HΦ".
+    iApply (wp_sample_tape lidx
+              (PairV (LitV (LitInt num)) (PairV (LitV (LitInt den)) (LitV (LitInt mean))))
+              (LitV (LitInt z)) ((λ z0 : Z, LitV (LitInt z0)) <$> zs) α with "[Hα]").
+    { iFrame. }
+    iIntros "!> Hα". iApply "HΦ". iFrame.
+  Qed.
+
   (** The presampling (tape) Laplace coupling: advancing two Laplace tapes with
       a shared draw shifts the spec draw by [k] at multiplicative error [|k'|·ε],
       provided the two means differ by at most [k'] after the shift.  This is the
