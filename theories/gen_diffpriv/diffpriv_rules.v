@@ -12,6 +12,74 @@ From clutch.gen_diffpriv Require Export distance primitive_laws coupling_rules p
 
 #[local] Open Scope R.
 
+(* ------------------------------------------------------------------ *)
+(* The group-bound additive credit [grp].                              *)
+(*                                                                     *)
+(* For a base rate [eps] and a group/distance [c], the exact           *)
+(* "group privacy" amplification of the additive [δ] is the geometric  *)
+(* factor                                                              *)
+(*                                                                     *)
+(*     grp eps c = (exp (c·eps) − 1) / (exp eps − 1).                  *)
+(*                                                                     *)
+(* This is the EXACT group-bound for the additive term: it matches the *)
+(* boundary mass [δ_A_s = δ₁ · grp eps s] of the truncated Laplace     *)
+(* coupling (see [prob/trunc_laplace.v], [tlap_delta]), where          *)
+(* [δ₁ = exp(−eps·A)/Z_A].  It satisfies:                              *)
+(*   - [grp eps 1 = 1]            (no amplification at distance 1);    *)
+(*   - [grp eps c · grp (c·eps) c' = grp eps (c·c')]  (the group-      *)
+(*     composition law that powers the SENSITIVITY composition below). *)
+(*                                                                     *)
+(* NOTE.  Because [grp] is super-linear in [c] for [c > 1] and         *)
+(* sub-linear for [c < 1], the metric DP definition built on it does   *)
+(* NOT enjoy monotonicity / sequential / parallel composition for      *)
+(* general distances with [δ > 0] (those laws are FALSE here — they    *)
+(* hold for the legacy LINEAR [hoare_diffpriv]).  The single law that  *)
+(* survives is sensitivity-pre-composition, which threads [c] through  *)
+(* the multiplicative AND additive credits via [grp_comp].             *)
+(* ------------------------------------------------------------------ *)
+
+Definition grp (eps c : R) : R := (exp (c * eps) - 1) / (exp eps - 1).
+
+Lemma grp_nonneg eps c : 0 <= eps -> 0 <= c -> 0 <= grp eps c.
+Proof.
+  intros Heps Hc. rewrite /grp.
+  destruct (Rle_lt_or_eq_dec 0 eps Heps) as [Hpos | Heq].
+  - (* eps > 0: numerator >= 0, denominator > 0 *)
+    apply Rcomplements.Rdiv_le_0_compat.
+    + (* exp (c*eps) - 1 >= 0, since c*eps >= 0 *)
+      assert (Hce : 0 <= c * eps) by (apply Rmult_le_pos; lra).
+      cut (1 <= exp (c * eps)); [lra|].
+      rewrite -exp_0. destruct (Rle_lt_or_eq_dec 0 _ Hce) as [Hlt | <-].
+      * left. by apply exp_increasing.
+      * lra.
+    + (* exp eps - 1 > 0, since eps > 0 *)
+      cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
+  - (* eps = 0: denominator = exp 0 - 1 = 0, so grp = _/0 = 0 in Coq *)
+    rewrite -Heq Rmult_0_r exp_0. rewrite Rminus_diag Rdiv_0_r. lra.
+Qed.
+
+Lemma grp_1 eps : 0 < eps -> grp eps 1 = 1.
+Proof.
+  intros Hpos. rewrite /grp Rmult_1_l.
+  apply Rdiv_diag.
+  cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
+Qed.
+
+Lemma grp_comp eps c c' : 0 < eps -> 0 < c ->
+  grp eps c * grp (c * eps) c' = grp eps (c * c').
+Proof.
+  intros Heps Hc. rewrite /grp.
+  (* align the exponents: c' * (c * eps) = (c * c') * eps *)
+  replace (c' * (c * eps)) with ((c * c') * eps) by ring.
+  (* the [exp (c*eps) - 1] factor cancels *)
+  field. split.
+  - (* exp eps - 1 <> 0 *)
+    cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
+  - (* exp (c*eps) - 1 <> 0 *)
+    assert (0 < c * eps) by (apply Rmult_lt_0_compat; lra).
+    cut (1 < exp (c * eps)); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
+Qed.
+
 Section diffpriv.
   Context (Sg : Sig).
   Canonical Structure gen_ectxi_lang_dpr := gen_ectxi_lang Sg.
@@ -62,6 +130,36 @@ Section diffpriv.
         f (Val (inject x))
       {{{ (y : B), RET (inject y); ⤇ fill K (Val (inject y)) }}}.
   #[global] Arguments hoare_diffpriv _%_E (_ _)%_R  _ _  _ _ %_stdpp.
+
+  (* ---------------------------------------------------------------- *)
+  (* GROUP-BOUND METRIC approximate DP.                                *)
+  (*                                                                   *)
+  (* The metric forms mirror [wp_diffpriv]/[hoare_diffpriv] but the    *)
+  (* additive credit is amplified by the EXACT group-bound factor      *)
+  (* [grp eps c] (rather than the legacy linear [c·δ]).  At distance   *)
+  (* [c], the program demands [↯m (c·eps)] multiplicative credit AND   *)
+  (* [↯ (del · grp eps c)] additive credit.  Because [grp eps 1 = 1],  *)
+  (* at distance 1 this coincides with the [(eps, del)] profile; for   *)
+  (* [c > 1] it is the textbook group-privacy amplification, and for   *)
+  (* [c < 1] it is STRICTLY SMALLER than the linear [c·del] — which is *)
+  (* exactly why the legacy monotonicity/sequential/parallel laws are  *)
+  (* unsound here (they would over-spend or under-spend [δ]).  These   *)
+  (* definitions are purely ADDITIVE to the file; the legacy linear    *)
+  (* definitions above are unchanged and keep their composition laws.  *)
+  (* ---------------------------------------------------------------- *)
+
+  Definition wp_diffpriv_metric (f : expr) eps del `(dA : Distance A) B `{Inject B val} : iProp Σ :=
+    ∀ K c (x x' : A), ⌜dA x x' <= c⌝ →
+    ⤇ fill K (f (Val (inject x'))) ∗ ↯m (c * eps) ∗ ↯ (del * grp eps c) -∗
+      WP f (Val (inject x)) {{ v, ∃ (y : B), ⌜v = inject y⌝ ∗ ⤇ fill K (Val (inject y)) }}.
+  #[global] Arguments wp_diffpriv_metric (_)%_E (_ _)%_R  _ _ _ _ %_stdpp.
+
+  Definition hoare_diffpriv_metric (f : expr) eps del `(dA : Distance A) B `{Inject B val} : iProp Σ :=
+    ∀ K c (x x' : A), ⌜dA x x' <= c⌝ -∗
+      {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯m (c * eps) ∗ ↯ (del * grp eps c) }}}
+        f (Val (inject x))
+      {{{ (y : B), RET (inject y); ⤇ fill K (Val (inject y)) }}}.
+  #[global] Arguments hoare_diffpriv_metric _%_E (_ _)%_R  _ _  _ _ %_stdpp.
 
   Lemma wp_diffpriv_mono (f : expr) ε δ ε' δ' `(dA : Distance A) `{Inject B val}
     (ε_pos : 0 <= ε) (hε' : ε <= ε')
@@ -123,6 +221,45 @@ Section diffpriv.
     Unshelve.
     1-2 : done.
     etrans => //. apply Rmult_le_compat_l => //.
+  Qed.
+
+  (* The ONE composition law that survives for the group-bound metric form:    *)
+  (* pre-composition with a [c]-SENSITIVE map.  At input distance [c'], [f]      *)
+  (* maps to output distance [c·c']; the metric privacy of [g] at distance      *)
+  (* [c·c'] demands [↯m ((c·c')·eps)] and [↯ (del · grp eps (c·c'))].  The       *)
+  (* supplied credits [↯m (c'·((c·eps)))] and [↯ ((del·grp eps c) · grp (c·eps) c')] *)
+  (* rearrange into exactly that: the multiplicative one by associativity        *)
+  (* ([Rmult_comm]/[Rmult_assoc], as in the linear proof), and the additive one  *)
+  (* by the group-composition identity [grp_comp]:                               *)
+  (*    (del · grp eps c) · grp (c·eps) c' = del · grp eps (c·c').               *)
+  (* (Monotonicity / sequential / parallel composition are NOT provided — they   *)
+  (*  are FALSE for [c < 1] with [δ > 0]; use the legacy linear [hoare_diffpriv].) *)
+  Fact diffpriv_metric_sensitive_comp (f g : val) eps del c
+    `(dA : Distance A) `(dB : Distance B) {C : Type} `{Inject C val}
+    (Heps : 0 < eps) (c_pos : 0 < c) :
+    hoare_sensitive f c dA dB -∗
+    hoare_diffpriv_metric g eps del dB B -∗
+    hoare_diffpriv_metric (λ:"x", g (f "x")) (c*eps) (del * grp eps c) dA B.
+  Proof.
+    rewrite /hoare_sensitive/hoare_diffpriv_metric.
+    iIntros "#f_sens #g_dipr". iIntros (K c' adj x' Hadj).
+    iIntros (Φ) "!> [f' [ε δ]] hΦ".
+    wp_pures. wp_bind (f _). tp_pures. tp_bind (f _).
+    iApply ("f_sens" $! _ _ _ _ _ with "[$f']") => //.
+    iIntros "!>" (_v) "(%v & %v' & -> & gv' & %sens)".
+    iApply ("g_dipr" $! K (c * c') _ _ _ with "[$gv' ε δ]").
+    { (* rearrange multiplicative [c'·(c·eps) = (c·c')·eps] and additive          *)
+      (* [(del·grp eps c)·grp (c·eps) c' = del·grp eps (c·c')] credits.           *)
+      iSplitL "ε".
+      - rewrite (Rmult_comm c c') Rmult_assoc. iFrame.
+      - rewrite -(grp_comp eps c c') // -Rmult_assoc. iFrame. }
+    Unshelve.
+    (* three remaining goals: the postcondition continuation (discharged by      *)
+    (* [hΦ]), the [0 <= c] premise of [f_sens], and the distance side-condition  *)
+    (* [dB (f x) (f x') <= c·c'] from [c]-sensitivity composed with [adj].        *)
+    - iApply "hΦ".
+    - lra.
+    - etrans; [exact sens|]. apply Rmult_le_compat_l; lra.
   Qed.
 
   Fact diffpriv_sensitive_strict_comp (f g : val) ε δ c

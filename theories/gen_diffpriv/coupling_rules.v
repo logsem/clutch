@@ -187,4 +187,65 @@ Section rules.
       rewrite /mult_ec_supply. iFrame "H".
   Qed.
 
+  (** δ-CARRYING generic PROGRAM-step coupling.  Exactly [wp_couple_sample_gen]
+      but the abstract draw coupling may carry a nonzero ADDITIVE error [δ']
+      (paid by an extra [↯ δ'] credit), in addition to the multiplicative [ε'].
+      This is what an APPROXIMATE-DP mechanism (e.g. the truncated Laplace, whose
+      per-distance coupling [DPcoupl_trunc_lap] has [δ = tlap_delta > 0]) needs:
+      the existing [wp_couple_sample_gen] hard-wires [δ = 0].  Purely ADDITIVE —
+      it sits alongside [wp_couple_sample_gen] and changes nothing existing. *)
+  Lemma wp_couple_sample_gen_dp (i : nat) (pv pv' : val) (μ μ' : distr val)
+    (R' : val → val → Prop) K E (ε' δ' : R) :
+    (0 <= δ')%R →
+    sig_sample Sg i pv = Some μ →
+    sig_sample Sg i pv' = Some μ' →
+    DPcoupl μ μ' R' ε' δ' →
+    {{{ ⤇ fill K (Sample i (Val pv') (Val (LitV LitUnit))) ∗ ↯m ε' ∗ ↯ δ' }}}
+      Sample i (Val pv) (Val (LitV LitUnit)) @ E
+    {{{ (v v' : val), RET v; ⤇ fill K (Val v') ∗ ⌜R' v v'⌝ }}}.
+  Proof.
+    iIntros (Hδ'pos Hμ Hμ' Hcpl Φ) "(Hr & Hε & Hδc) HΦ".
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ))".
+    iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(ε'' & ε_now_rest & foo & Hε'').
+    iDestruct (ec_supply_ec_inv with "Hδ Hδc") as %(δ'' & δ_now_rest & foo_δ & Hδ'').
+    assert (Hps1 : language.prim_step (Sample i (Val pv) (Val (LitV LitUnit))) σ1 = dmap (λ v, (Val v, σ1)) μ).
+    { simpl. erewrite head_prim_step_eq; last first.
+      { destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
+        eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS. }
+      simpl. rewrite Hμ. done. }
+    assert (Hps1' : language.prim_step (Sample i (Val pv') (Val (LitV LitUnit))) σ1' = dmap (λ v, (Val v, σ1')) μ').
+    { simpl. erewrite head_prim_step_eq; last first.
+      { destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
+        eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS. }
+      simpl. rewrite Hμ'. done. }
+    iApply (prog_coupl_steps_simple ε_now_rest ε'' ε_now δ_now_rest δ'' δ_now);
+      [done | exact foo_δ | | | | ].
+    - apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
+      eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS.
+    - apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
+      eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS.
+    - apply (DPcoupl_steps_ctx_bind_r _ _ _
+              (λ ρ ρ' : cfg, ∃ v v', R' v v' ∧ ρ = (Val v, σ1) ∧ ρ' = (Val v', σ1'))); [done|].
+      rewrite Hps1 Hps1' /dmap.
+      eapply (DPcoupl_dbind' ε'' 0 ε'' δ'' 0 δ''); [lra|lra|done|lra| |rewrite Hε'' Hδ''; exact Hcpl].
+      intros w w' Hww'. apply DPcoupl_dret; [done|done|]. exists w, w'. done.
+    - iIntros (e2 σ2 e2' σ2' (e2'' & [=->] & (w & w' & Hww' & [=-> ->] & [=-> ->]))).
+      iMod (spec_update_prog (fill K (Val w')) with "Hauth2 Hr") as "[$ Hspec]".
+      iMod (ecm_supply_decrease with "Hε2 Hε") as (a b Herr Heq) "H".
+      iMod (ec_supply_decrease with "Hδ Hδc") as (aδ bδ Herrδ Heqδ) "Hd".
+      do 2 iModIntro. iMod "Hclose'" as "_". iModIntro. iFrame "Hh1 Ht1".
+      rewrite -wp_value.
+      iSplitR "Hspec HΦ".
+      2: { iApply ("HΦ" $! w w'). iFrame "Hspec". done. }
+      rewrite /err_interp /=.
+      assert (b = ε_now_rest) as ->.
+      { apply nnreal_ext. apply (f_equal nonneg) in Herr, foo. simpl in *. lra. }
+      assert (bδ = δ_now_rest) as ->.
+      { apply nnreal_ext. apply (f_equal nonneg) in Herrδ, foo_δ. simpl in *. lra. }
+      rewrite /mult_ec_supply /add_ec_supply. iFrame "H Hd".
+  Qed.
+
 End rules.

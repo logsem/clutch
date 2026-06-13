@@ -8,7 +8,7 @@
                             with bias exp(ε)/(exp(ε)+1) for ε = num/den. *)
 From Stdlib Require Import Reals Psatz ZArith.
 From stdpp Require Import gmap fin countable.
-From clutch.prob Require Import distribution exponential expmech.
+From clutch.prob Require Import distribution exponential expmech trunc_laplace.
 From clutch.gen_prob_lang Require Import lang znoise inject.
 From iris.prelude Require Import options.
 
@@ -48,6 +48,25 @@ Definition laplace_family : SampleFamily := mkZNoise laplace_rat laplace_rat_mas
     the exponential-mechanism report-noisy-max; adding it costs exactly this one
     [SampleFamily] (the payoff of the generalization). *)
 Definition exp_family : SampleFamily := mkZNoise exp_rat exp_rat_mass.
+
+(** TRUNCATED discrete Laplace family — sampling the bounded-support truncated
+    discrete Laplace [trunc_lap_rat A] (see [prob/trunc_laplace.v]).  Unlike a
+    [mkZNoise] family, the truncation half-width [A] is a genuine RUNTIME sample
+    parameter (the FOURTH [Z] alongside [num]/[den]/[loc]), chosen at sample time
+    rather than being a Coq-level family index — hence the family is built with
+    [mkZNoise4] over the parameter [(A, num, den, loc) : Z*Z*Z*Z].
+
+    The mass obligation of [mkZNoise4] is TOTAL: [SeriesC = 1] must hold for ALL
+    parameters, but [trunc_lap_rat_mass] needs [0 <= A].  We clamp the half-width
+    to [Z.max 0 A], which is always [>= 0] (so [trunc_lap_rat_mass] applies via
+    [Z.le_max_l]); at any runtime [A >= 0] the clamp is the identity
+    ([Z.max 0 A = A]), so the family's sample IS [trunc_lap_rat A …].  This is the
+    noise distribution whose per-distance coupling is the EXACT group-bound
+    [(s·ε, δ₁·grp ε s)] profile, validating the metric approximate-DP definition. *)
+Definition trunc_laplace_family : SampleFamily :=
+  mkZNoise4 (fun A num den loc => trunc_lap_rat (Z.max 0 A) num den loc)
+            (fun A num den loc =>
+               trunc_lap_rat_mass (Z.max 0 A) num den loc (Z.le_max_l 0 A)).
 
 (* ------------------------------------------------------------------ *)
 (* 2b. Discrete exponential-mechanism family: parameter                *)
