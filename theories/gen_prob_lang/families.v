@@ -1,14 +1,11 @@
 (** Concrete [SampleFamily] instances for the generic probabilistic language
-    [gen_prob_lang] (interface in [lang.v]).  Three families:
+    [gen_prob_lang] (interface in [lang.v]).  Four families:
 
       - [uniform_family]  : sample a uniform integer in [0, N];
       - [laplace_family]  : a (num, den, mean)-parameterised discrete Laplace;
-      - [coin_family]     : a (num, den)-parameterised coin.
-
-    NOTE on [coin_family]: to keep the mass-1 obligation trivial and unblock the
-    rest of the development, the bias parameter is currently *ignored* and the
-    family samples a fair coin via [dmap] over [dunifP 1].  This should be
-    refined to an actual biased coin (e.g. [biased_coin]) later. *)
+      - [coin_family]     : a (w1, w2)-bin-weight coin (P(true) = w2/(w1+w2));
+      - [RR_coin]         : a (num, den)-parameterised randomised-response coin
+                            with bias exp(ε)/(exp(ε)+1) for ε = num/den. *)
 From Stdlib Require Import Reals Psatz ZArith.
 From stdpp Require Import gmap fin countable.
 From clutch.prob Require Import distribution.
@@ -71,10 +68,82 @@ Proof.
 Defined.
 
 (* ------------------------------------------------------------------ *)
-(* 3. Coin family: parameter [(num, den) : Z*Z], output [bool].       *)
-(*    (bias currently ignored — samples a fair coin; see header note) *)
+(* Helper lemmas for the coin families.                                *)
+(* ------------------------------------------------------------------ *)
+
+(** Bin-weight bias [w2 / (w1 + w2)] is always a valid probability.
+    When [w1 = w2 = 0] this is [0 / 0 = 0], still in [0, 1]. *)
+Lemma weight_coin_valid (w1 w2 : nat) : (0 <= INR w2 / INR (w1 + w2) <= 1)%R.
+Proof.
+  destruct (Nat.eq_dec (w1 + w2) 0)%nat as [Hz | Hnz].
+  - assert (w1 = 0 /\ w2 = 0)%nat as [-> ->] by lia. simpl.
+    unfold Rdiv. rewrite Rmult_0_l. lra.
+  - assert (0 < INR (w1 + w2))%R as Hpos by (apply lt_0_INR; lia).
+    split.
+    + apply Rcomplements.Rdiv_le_0_compat; [apply pos_INR | lra].
+    + apply (Rcomplements.Rdiv_le_1 (INR w2) (INR (w1 + w2)) Hpos).
+      rewrite plus_INR. pose proof (pos_INR w1). lra.
+Qed.
+
+(** Randomised-response bias [exp(ε) / (exp(ε) + 1)] is always a valid
+    probability, for any rational [ε = num / den]. *)
+Lemma rr_bias_valid (num den : Z) :
+  (0 <= exp (IZR num / IZR den) / (exp (IZR num / IZR den) + 1) <= 1)%R.
+Proof.
+  set (e := exp (IZR num / IZR den)).
+  pose proof (exp_pos (IZR num / IZR den)) as He. fold e in He.
+  split.
+  - apply Rcomplements.Rdiv_le_0_compat; lra.
+  - apply (Rcomplements.Rdiv_le_1 e (e + 1)); lra.
+Qed.
+
+(** [biased_coin] is a probability distribution (total mass 1). *)
+Lemma biased_coin_mass r (P : (0 <= r <= 1)%R) :
+  SeriesC (biased_coin r P) = 1.
+Proof.
+  rewrite SeriesC_bool /pmf /= /biased_coin_pmf. lra.
+Qed.
+
+(* ------------------------------------------------------------------ *)
+(* 3. Bin-weight coin family: parameter [(w1, w2) : nat*nat],          *)
+(*    output [bool], with P(true) = w2 / (w1 + w2).                    *)
 (* ------------------------------------------------------------------ *)
 Definition coin_family : SampleFamily.
+Proof.
+  refine {| sf_param := (nat * nat)%type; sf_param_eqdec := _; sf_param_count := _;
+            sf_out := bool; sf_out_eqdec := _; sf_out_count := _;
+            sf_inj := (λ b, LitV (LitBool b)); sf_inj_inj := _;
+            sf_param_of_val :=
+              (λ v, match v with
+                    | PairV (LitV (LitInt w1)) (LitV (LitInt w2)) =>
+                        Some (Z.to_nat w1, Z.to_nat w2)
+                    | _ => None
+                    end);
+            sf_param_to_val :=
+              (λ '(w1, w2),
+                 PairV (LitV (LitInt (Z.of_nat w1))) (LitV (LitInt (Z.of_nat w2))));
+            sf_roundtrip := _;
+            sf_sample :=
+              (λ '(w1, w2),
+                 biased_coin (INR w2 / INR (w1 + w2)) (weight_coin_valid w1 w2));
+            sf_mass := _;
+            sf_supp := (λ _ _, True);
+            sf_supp_spec := _ |}; try exact _.
+  - by intros ?? [= ->].
+  - intros [w1 w2]. by rewrite !Nat2Z.id.
+  - intros [w1 w2]. apply biased_coin_mass.
+  - by intros [w1 w2] b _.
+Defined.
+
+(* ------------------------------------------------------------------ *)
+(* 4. Randomised-response coin family: parameter [(num, den) : Z*Z],   *)
+(*    output [bool], with P(true) = exp(ε)/(exp(ε)+1), ε = num/den.    *)
+(*                                                                     *)
+(*    [RR_coin] is the noisy-bit *source*; the (num/den)-DP guarantee  *)
+(*    is proved later at the example level over [coin ⊕ b] (i.e. a     *)
+(*    plain-coin sample combined with an in-program XOR design).       *)
+(* ------------------------------------------------------------------ *)
+Definition RR_coin : SampleFamily.
 Proof.
   refine {| sf_param := (Z * Z)%type; sf_param_eqdec := _; sf_param_count := _;
             sf_out := bool; sf_out_eqdec := _; sf_out_count := _;
@@ -89,12 +158,15 @@ Proof.
               (λ '(num, den), PairV (LitV (LitInt num)) (LitV (LitInt den)));
             sf_roundtrip := _;
             sf_sample :=
-              (λ _, dmap (λ n : fin 2, bool_decide (fin_to_nat n = 0)%nat) (dunifP 1));
+              (λ '(num, den),
+                 biased_coin
+                   (exp (IZR num / IZR den) / (exp (IZR num / IZR den) + 1))
+                   (rr_bias_valid num den));
             sf_mass := _;
             sf_supp := (λ _ _, True);
             sf_supp_spec := _ |}; try exact _.
   - by intros ?? [= ->].
   - by intros [num den].
-  - intros [num den]. rewrite dmap_mass. apply dunifP_mass.
+  - intros [num den]. apply biased_coin_mass.
   - by intros [num den] b _.
 Defined.
