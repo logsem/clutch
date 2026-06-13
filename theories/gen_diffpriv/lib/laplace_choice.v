@@ -35,17 +35,22 @@ Section laplace_choice.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang S)).
   Local Notation lidx := (@sample_idx laplace_family S _).
 
-  (** The threshold "choice" coupling.  [loc]/[loc'] are the adjacent locations
-      (within distance 1); the impl draw [z] and spec draw [z'] are coupled so
-      that on the above-threshold region ([T ≤ z]) we get [T+1 ≤ z'], and on the
-      below-threshold region ([z < T]) we get [z' < T+1] with the [ε'] budget
-      refunded. *)
-  Lemma wp_couple_laplace_choice (loc loc' T : Z)
-    (dist_loc : (Z.abs (loc - loc') <= 1)%Z)
+  (** The threshold "choice" coupling, generalised to query sensitivity [Δ ≥ 1].
+      [loc]/[loc'] are the adjacent locations (within distance [Δ]); the impl
+      draw [z] and spec draw [z'] are coupled so that on the above-threshold
+      region ([T ≤ z]) we get [T+Δ ≤ z'], and on the below-threshold region
+      ([z < T]) we get [z' < T+Δ] with the [ε'] budget refunded.  The
+      above-region shift [+Δ] over locations at distance [Δ] lands the spec draw
+      in a window of width [≤ 2Δ], so the boost cost is [ε' = 2·Δ·ε].
+
+      With [Δ = 1] this is EXACTLY the sensitivity-1 statement (distance [1],
+      shift [+1], cost [2·ε]). *)
+  Lemma wp_couple_laplace_choice (Δ : Z) (HΔ : (1 <= Δ)%Z) (loc loc' T : Z)
+    (dist_loc : (Z.abs (loc - loc') <= Δ)%Z)
     (num den : Z) (ε ε' : R) K E :
     IZR num / IZR den = ε →
     0 < IZR num / IZR den →
-    ε' = (2 * ε) →
+    ε' = (2 * IZR Δ * ε) →
     {{{ ⤇ fill K (Sample lidx
                     (Val (PairV (LitV (LitInt num))
                             (PairV (LitV (LitInt den)) (LitV (LitInt loc')))))
@@ -56,8 +61,8 @@ Section laplace_choice.
         (Val (LitV LitUnit)) @ E
       {{{ (z : Z), RET #z;
           ∃ z' : Z, ⤇ fill K #z'
-                 ∗ ( ⌜(T <= z ∧ T + 1 <= z')⌝
-                     ∨ (⌜z < T ∧ z' < T + 1⌝ ∗ ↯m ε'))%Z }}}.
+                 ∗ ( ⌜(T <= z ∧ T + Δ <= z')⌝
+                     ∨ (⌜z < T ∧ z' < T + Δ⌝ ∗ ↯m ε'))%Z }}}.
   Proof.
     iIntros (Hε εpos Hε' Φ) "(Hr & Hε) Hcnt".
     set (pv := sf_param_to_val laplace_family (num, den, loc)).
@@ -121,13 +126,13 @@ Section laplace_choice.
                   ρ.2 = σ1 ∧ ρ'.2 = σ1' ∧
                   (P ρ → let (ez, ez') := (ρ.1, ρ'.1) in
                   ∃ z z' : Z, ez = Val (LitV (LitInt z)) ∧ ez' = Val (LitV (LitInt z')) ∧
-                                T <= z ∧ T + 1 <= z')%Z)).
+                                T <= z ∧ T + Δ <= z')%Z)).
     set (RR := (λ a '(e2', σ2'), ∃ e2'', (e2', σ2') = (fill K e2'', σ2') ∧ R a (e2'', σ2'))).
     set (R' := (λ ρ ρ' : gen_prob_lang.expr * gen_prob_lang.state,
                    ρ.2 = σ1 ∧ ρ'.2 = σ1' ∧
                    (¬ P ρ → let (ez, ez') := (ρ.1, ρ'.1) in
                    ∃ z z' : Z, ez = Val (LitV (LitInt z)) ∧ ez' = Val (LitV (LitInt z')) ∧
-                                 z < T ∧ z' < T + 1)%Z)).
+                                 z < T ∧ z' < T + Δ)%Z)).
     set (RR' := (λ a '(e2', σ2'), ∃ e2'', (e2', σ2') = (fill K e2'', σ2') ∧ R' a (e2'', σ2'))).
     opose proof (prog_coupl_steps ε_now_rest x ε_now 0 ε_now
                    δ_now 0 0 δ_now
@@ -153,18 +158,18 @@ Section laplace_choice.
       destruct P_ρ as [?[?[?[?[]]]]]. destruct nP_ρ' as [?[?[?[?[]]]]].
       subst. simplify_eq. lia.
 
-    (* above threshold: shift the spec by 1, distance |1 + loc - loc'| *)
+    (* above threshold: shift the spec by [Δ], distance |Δ + loc - loc'| ≤ 2Δ *)
     - intros. replace 0%R with (nonneg 0%NNR) => //.
       apply DPcoupl_steps_ctx_bind_r => //.
       eapply DPcoupl_mono; last first.
-      1: eapply (Hprimcpl 1%Z (Z.abs (1 + loc - loc')) ltac:(lia)).
+      1: eapply (Hprimcpl Δ (Z.abs (Δ + loc - loc')) ltac:(lia)).
       all: try by intuition eauto.
       { rewrite Hε'' Hε' -Hε. apply Rmult_le_compat_r; [lra|].
-        replace 2%R with (IZR 2) by (simpl; lra). apply IZR_le.
-        revert dist_loc. apply Zabs_ind; lia. }
+        replace (2 * IZR Δ)%R with (IZR (2 * Δ)) by (rewrite mult_IZR; simpl; lra).
+        apply IZR_le. revert dist_loc. apply Zabs_ind; lia. }
       + simpl. intros [e σ] [e' σ'] (z & eq_ez & eq_ez'). repeat split. 1,2: simpl; by simplify_eq.
         intros Pe. destruct Pe as (ey & eq_ey & above). simpl.
-        exists z, (z + 1)%Z. repeat split; simplify_eq => //. lia.
+        exists z, (z + Δ)%Z. repeat split; simplify_eq => //. lia.
 
     (* below threshold: exact coupling (shift by [loc'-loc]), zero error *)
     - intros. replace 0%R with (nonneg 0%NNR) => //. apply DPcoupl_steps_ctx_bind_r => //.
@@ -229,21 +234,21 @@ Section laplace_choice.
       that prefer to apply the rule before reducing the parameter [Pair] to a
       value.  The primary rule is the value-form [wp_couple_laplace_choice];
       this just [wp_pures]/[tp_pures] the surface notation down to it. *)
-  Lemma hoare_couple_laplace_choice (loc loc' T : Z)
-    (dist_loc : (Z.abs (loc - loc') <= 1)%Z)
+  Lemma hoare_couple_laplace_choice (Δ : Z) (HΔ : (1 <= Δ)%Z) (loc loc' T : Z)
+    (dist_loc : (Z.abs (loc - loc') <= Δ)%Z)
     (num den : Z) (ε ε' : R) K E :
     IZR num / IZR den = ε →
     0 < IZR num / IZR den →
-    ε' = (2 * ε) →
+    ε' = (2 * IZR Δ * ε) →
     {{{ ⤇ fill K (Laplace #num #den #loc' #()) ∗ ↯m ε' }}}
       Laplace #num #den #loc #() @ E
       {{{ (z : Z), RET #z;
           ∃ z' : Z, ⤇ fill K #z'
-                 ∗ ( ⌜(T <= z ∧ T + 1 <= z')⌝
-                     ∨ (⌜z < T ∧ z' < T + 1⌝ ∗ ↯m ε'))%Z }}}.
+                 ∗ ( ⌜(T <= z ∧ T + Δ <= z')⌝
+                     ∨ (⌜z < T ∧ z' < T + Δ⌝ ∗ ↯m ε'))%Z }}}.
   Proof.
     iIntros (Hε εpos Hε' Φ) "[Hspec Hε] Hcnt". tp_pures. wp_pures.
-    iApply (wp_couple_laplace_choice loc loc' T dist_loc num den ε ε' K E Hε εpos Hε'
+    iApply (wp_couple_laplace_choice Δ HΔ loc loc' T dist_loc num den ε ε' K E Hε εpos Hε'
               with "[$Hspec $Hε] Hcnt").
   Qed.
 

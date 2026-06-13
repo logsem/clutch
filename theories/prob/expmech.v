@@ -131,13 +131,15 @@ Section exponential_mechanism.
 
   (** ** The two-factor ratio bound (textbook exponential mechanism). *)
 
-  (** Per-term weight bound under per-coordinate sensitivity 1. *)
-  Lemma expmech_w_ratio (num den : Z) (scores scores' : list Z)
+  (** Per-term weight bound under per-coordinate sensitivity [Δ ≥ 1].  With
+      [Δ = 1] this is exactly the sensitivity-1 bound [exp(ε')·w(s')]. *)
+  Lemma expmech_w_ratio (Δ : Z) (num den : Z) (scores scores' : list Z)
+    (HΔ : (1 <= Δ)%Z)
     (Hlen : length scores = length scores')
     (Hpos : (0 <= IZR num / IZR den)%R)
-    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= 1)%Z) (i : Z) :
+    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= Δ)%Z) (i : Z) :
     expmech_w num den scores i
-      <= exp (IZR num / IZR den) * expmech_w num den scores' i.
+      <= exp (IZR Δ * (IZR num / IZR den)) * expmech_w num den scores' i.
   Proof.
     rewrite /expmech_w Hlen.
     case_bool_decide as Hi1; simpl; last first.
@@ -147,25 +149,26 @@ Section exponential_mechanism.
     rewrite -exp_plus. apply exp_mono.
     set (k := Z.to_nat i).
     pose proof (Hadj k) as Hk. rewrite Z.abs_le in Hk.
-    apply Rle_trans with (IZR num / IZR den * IZR (scores' !!! k + 1)).
+    apply Rle_trans with (IZR num / IZR den * IZR (scores' !!! k + Δ)).
     - apply Rmult_le_compat_l; [exact Hpos|]. apply IZR_le. lia.
     - rewrite plus_IZR. lra.
   Qed.
 
-  (** Normaliser ratio bound: [Z(s') ≤ exp(ε')·Z(s)]. *)
-  Lemma expmech_Z_ratio (num den : Z) (scores scores' : list Z)
+  (** Normaliser ratio bound: [Z(s') ≤ exp(Δ·ε')·Z(s)]. *)
+  Lemma expmech_Z_ratio (Δ : Z) (num den : Z) (scores scores' : list Z)
+    (HΔ : (1 <= Δ)%Z)
     (Hlen : length scores = length scores')
     (Hpos : (0 <= IZR num / IZR den)%R)
-    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= 1)%Z) :
+    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= Δ)%Z) :
     expmech_Z num den scores'
-      <= exp (IZR num / IZR den) * expmech_Z num den scores.
+      <= exp (IZR Δ * (IZR num / IZR den)) * expmech_Z num den scores.
   Proof.
     rewrite /expmech_Z -SeriesC_scal_l.
     apply SeriesC_le; last first.
     { apply ex_seriesC_scal_l, ex_seriesC_expmech_w. }
     intros i. split; [apply expmech_w_pos|].
-    (* termwise: w(s') i <= exp(ε') * w(s) i, by symmetry of adjacency *)
-    apply (expmech_w_ratio num den scores' scores).
+    (* termwise: w(s') i <= exp(Δ·ε') * w(s) i, by symmetry of adjacency *)
+    apply (expmech_w_ratio Δ num den scores' scores HΔ).
     - lia.
     - exact Hpos.
     - intros k. rewrite Z.abs_le. pose proof (Hadj k) as Hk.
@@ -178,16 +181,19 @@ Section exponential_mechanism.
       = expmech_w num den (s :: l) i / expmech_Z num den (s :: l).
   Proof. reflexivity. Qed.
 
-  (** The pointwise pmf ratio bound: [expmech s i ≤ exp(2ε')·expmech s' i]. *)
-  Lemma expmech_pmf_ratio (num den : Z) (scores scores' : list Z)
+  (** The pointwise pmf ratio bound: [expmech s i ≤ exp(2·Δ·ε')·expmech s' i].
+      With [Δ = 1] this recovers the sensitivity-1 bound [exp(2ε')·expmech s' i]. *)
+  Lemma expmech_pmf_ratio (Δ : Z) (num den : Z) (scores scores' : list Z)
+    (HΔ : (1 <= Δ)%Z)
     (Hlen : length scores = length scores')
     (Hpos : (0 <= IZR num / IZR den)%R)
-    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= 1)%Z) (i : Z) :
+    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= Δ)%Z) (i : Z) :
     expmech num den scores i
-      <= exp (2 * (IZR num / IZR den)) * expmech num den scores' i.
+      <= exp (2 * IZR Δ * (IZR num / IZR den)) * expmech num den scores' i.
   Proof.
+    assert (HΔpos : (0 <= IZR Δ)%R) by (apply IZR_le; lia).
     destruct scores as [|s l] eqn:Hs.
-    { (* both empty: both are [dret 0]; cost [2ε' ≥ 0] *)
+    { (* both empty: both are [dret 0]; cost [2·Δ·ε' ≥ 0] *)
       destruct scores' as [|s' l']; [|simpl in Hlen; lia].
       rewrite /expmech.
       transitivity (1 * dret 0%Z i); [rewrite Rmult_1_l; lra|].
@@ -199,17 +205,17 @@ Section exponential_mechanism.
     set (Zs' := expmech_Z num den (s' :: l')).
     assert (HZs : 0 < Zs) by (apply expmech_Z_pos; done).
     assert (HZs' : 0 < Zs') by (apply expmech_Z_pos; done).
-    set (eps := IZR num / IZR den).
-    pose proof (expmech_w_ratio num den (s::l) (s'::l') Hlen Hpos Hadj i) as Hw.
+    set (eps := IZR Δ * (IZR num / IZR den)).
+    pose proof (expmech_w_ratio Δ num den (s::l) (s'::l') HΔ Hlen Hpos Hadj i) as Hw.
     fold eps in Hw.
-    pose proof (expmech_Z_ratio num den (s::l) (s'::l') Hlen Hpos Hadj) as HZr.
+    pose proof (expmech_Z_ratio Δ num den (s::l) (s'::l') HΔ Hlen Hpos Hadj) as HZr.
     fold eps Zs Zs' in HZr.
     pose proof (expmech_w_pos num den (s'::l') i) as Hwp'.
     pose proof (exp_pos eps) as Hep.
-    assert (Hexp2 : exp (2 * eps) = exp eps * exp eps).
-    { rewrite -exp_plus. f_equal. lra. }
+    assert (Hexp2 : exp (2 * IZR Δ * (IZR num / IZR den)) = exp eps * exp eps).
+    { rewrite -exp_plus. f_equal. subst eps. lra. }
     rewrite Hexp2.
-    (* factor 1: bound [w(s)i ≤ exp(ε')·w(s')i] *)
+    (* factor 1: bound [w(s)i ≤ exp(Δ·ε')·w(s')i] *)
     apply Rle_trans with (exp eps * expmech_w num den (s' :: l') i / Zs).
     { apply Rmult_le_compat_r; [left; apply Rinv_0_lt_compat; exact HZs|].
       exact Hw. }
@@ -219,7 +225,7 @@ Section exponential_mechanism.
     rewrite Rdiv_def.
     rewrite (Rmult_comm (exp eps)) Rmult_assoc.
     apply Rmult_le_compat_l; [exact Hwp'|].
-    (* factor 2: [/ Zs ≤ exp(ε')·/ Zs'], i.e. [Zs' ≤ exp(ε')·Zs] *)
+    (* factor 2: [/ Zs ≤ exp(Δ·ε')·/ Zs'], i.e. [Zs' ≤ exp(Δ·ε')·Zs] *)
     apply (Rmult_le_reg_r Zs); [exact HZs|].
     rewrite Rinv_l; [|lra].
     apply (Rmult_le_reg_r Zs'); [exact HZs'|].
@@ -230,14 +236,16 @@ Section exponential_mechanism.
     field. lra.
   Qed.
 
-  (** ** The ε-DP coupling of the exponential mechanism. *)
+  (** ** The (Δ·ε)-DP coupling of the exponential mechanism (cost [2·Δ·ε']).
+      With [Δ = 1] this recovers the sensitivity-1 cost [2·ε']. *)
 
-  Lemma DPcoupl_expmech (num den : Z) (scores scores' : list Z)
+  Lemma DPcoupl_expmech (Δ : Z) (num den : Z) (scores scores' : list Z)
+    (HΔ : (1 <= Δ)%Z)
     (Hlen : length scores = length scores')
     (Hpos : (0 <= IZR num / IZR den)%R)
-    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= 1)%Z) :
+    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= Δ)%Z) :
     DPcoupl (expmech num den scores) (expmech num den scores')
-            eq (2 * (IZR num / IZR den)) 0.
+            eq (2 * IZR Δ * (IZR num / IZR den)) 0.
   Proof.
     apply DPcoupl_complete_eq. intros P.
     rewrite /prob Rplus_0_r -SeriesC_scal_l.
@@ -249,7 +257,7 @@ Section exponential_mechanism.
     intros a. split.
     - case_bool_decide; [apply pmf_pos|lra].
     - case_bool_decide.
-      + apply expmech_pmf_ratio; assumption.
+      + apply (expmech_pmf_ratio Δ); assumption.
       + rewrite Rmult_0_r. lra.
   Qed.
 

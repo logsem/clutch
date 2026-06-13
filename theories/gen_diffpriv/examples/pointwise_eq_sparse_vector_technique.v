@@ -43,11 +43,13 @@ Section svt_pw.
   Ltac tpload  := tp_load;  tp_normalise.
   Ltac tpstore := tp_store; tp_normalise.
 
-  (* The spec that AT satisfies after initialising T'. *)
-  Definition AT_spec_pw (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
+  (* The spec that AT satisfies after initialising T'.  Parametric over query
+     sensitivity [Δ ≥ 1]; with [Δ = 1] this is exactly the original sensitivity-1
+     spec ([wp_sensitive Sg q 1 dDB dZ]). *)
+  Definition AT_spec_pw (Δ : Z) (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
     □ ∀ (DB : Type) (dDB : Distance DB) (db db' : DB)
       (_ : dDB db db' <= 1) (q : val) (K0 : list ectx_item),
-      wp_sensitive Sg q 1 dDB dZ -∗
+      wp_sensitive Sg q (IZR Δ) dDB dZ -∗
       AUTH -∗
       ⤇ fill K0 (f' (inject db') q) -∗
       ∀ R : bool,
@@ -57,9 +59,11 @@ Section svt_pw.
                            ∃ (b b' : bool), ⌜v = #b⌝ ∗ ⌜v' = #b'⌝ ∗
                            (⌜R = false⌝ -∗ AUTH) }}.
 
-  (* For the version of AT with the flag, we can prove the following point-wise spec. *)
-  Lemma above_threshold_online_spec_pw (num den T : Z) (εpos : 0 < IZR num / IZR den) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K :
-    ↯m (IZR num / IZR den) -∗
+  (* For the version of AT with the flag, we can prove the following point-wise
+     spec.  Generalised to query sensitivity [Δ ≥ 1]; the noise budget scales to
+     [Δ·(num/den)], with [Δ = 1] recovering the original [num/den] bound. *)
+  Lemma above_threshold_online_spec_pw (Δ : Z) (HΔ : (1 <= Δ)%Z) (num den T : Z) (εpos : 0 < IZR num / IZR den) `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) K :
+    ↯m (IZR Δ * (IZR num / IZR den)) -∗
     ⤇ fill K ((Val above_threshold_reset) #num #den #T (Val (inject db')))
     -∗
     WP (Val above_threshold_reset) #num #den #T (Val (inject db))
@@ -67,7 +71,7 @@ Section svt_pw.
              ⤇ fill K (Val f') ∗
              ∃ AUTH : iProp Σ,
                AUTH ∗
-               ( ∀ q, wp_sensitive Sg (Val q) 1 dDB dZ -∗
+               ( ∀ q, wp_sensitive Sg (Val q) (IZR Δ) dDB dZ -∗
                       AUTH -∗
                       ⤇ fill K (f' q) -∗
                       ∀ R : bool,
@@ -81,10 +85,12 @@ Section svt_pw.
     iIntros "ε rhs". rewrite /above_threshold_reset.
     tp_pures. tp_normalise. wp_pures.
     tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
-    set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
+    assert (HΔpos : (0 <= IZR Δ)%R) by (apply IZR_le; lia).
+    set (ε := (IZR num / IZR den)).
+    replace (IZR Δ * ε)%R with (IZR Δ * ε / 2 + IZR Δ * ε / 2)%R by real_solver.
     fold ε in εpos.
     iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver.
-    iApply (wp_couple_laplace (S:=Sg) T T 1%Z 1%Z ltac:(lia) num (2*den)%Z
+    iApply (wp_couple_laplace (S:=Sg) T T Δ Δ ltac:(lia) num (2*den)%Z
             with "[$rhs ε']") => //.
     1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
     { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
@@ -94,20 +100,22 @@ Section svt_pw.
     iIntros (T') "!> rhs". tp_normalise...
     tp_alloc as reset_r "reset_r". tp_normalise. wp_alloc reset_l as "reset_l"...
     iModIntro. iExists _. iFrame.
-    iExists (↯m (ε / 2) ∗ reset_r ↦ₛ #false ∗ reset_l ↦ #false)%I. iFrame.
+    iExists (↯m (IZR Δ * ε / 2) ∗ reset_r ↦ₛ #false ∗ reset_l ↦ #false)%I. iFrame.
     iIntros "%q q_sens (ε & reset_r & reset_l) rhs %R"... tpload. wp_load...
 
     tp_bind (q _). wp_bind (q _). rewrite /wp_sensitive.
-    iSpecialize ("q_sens" $! (ltac:(lra) : (0 <= 1)%R) _ db db' with "rhs").
+    iSpecialize ("q_sens" $! HΔpos _ db db' with "rhs").
     iPoseProof (wp_frame_l with "[reset_r $q_sens]") as "q_sens". 1: iAssumption.
     iPoseProof (wp_frame_l with "[reset_l $q_sens]") as "q_sens". 1: iAssumption.
     iPoseProof (wp_frame_l with "[ε $q_sens]") as "q_sens". 1: iAssumption.
     iApply (wp_mono with "q_sens").
     iIntros (?) "(ε & reset_l & reset_r & %vq_l & %vq_r & -> & rhs & %adj')".
-    assert (-1 <= vq_l - vq_r <= 1)%Z as [].
+    assert (- Δ <= vq_l - vq_r <= Δ)%Z as [].
     {
-      rewrite Rmult_1_l in adj'.
-      assert (dZ vq_l vq_r <= 1) as h by (etrans ; eauto).
+      assert (dZ vq_l vq_r <= IZR Δ) as h.
+      { etrans; first apply adj'.
+        rewrite -{2}(Rmult_1_r (IZR Δ)). apply Rmult_le_compat_l; [exact HΔpos|].
+        etrans; first apply adj. lra. }
       revert h.
       rewrite /dZ/distance Rabs_Zabs.
       apply Zabs_ind ; intros ? h; split.
@@ -116,13 +124,13 @@ Section svt_pw.
     (* case on whether the result is the one that will get released (pweq) *)
     destruct R eqn:HR.
     - lap_focus.
-      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r 1%Z 2%Z
+      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r Δ (2*Δ)%Z
               ltac:(apply Zabs_ind ; lia) num (4*den)%Z
               with "[$rhs ε]") => //.
       1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
-      { subst ε. iApply ecm_eq. 2: iFrame. rewrite mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
+      { subst ε. iApply ecm_eq. 2: iFrame. rewrite !mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
       iIntros "%vi !> rhs". tp_normalise...
-      case_bool_decide (_ (T' + 1)%Z _) ; tp_pures ; try tpstore ; tp_pures. all: case_bool_decide...
+      case_bool_decide (_ (T' + Δ)%Z _) ; tp_pures ; try tpstore ; tp_pures. all: case_bool_decide...
       all: try tpstore ; try wp_store ; try tp_pures ; try wp_pures.
       + iFrame. iModIntro. iSplitR. 1: done.
         iIntros ((h_R & h_vv' & h_vR)). exfalso. inversion h_R.
@@ -138,7 +146,7 @@ Section svt_pw.
       1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
       1: rewrite Rmult_0_l ; iFrame.
       iIntros "%vi !> rhs". tp_normalise...
-      case_bool_decide (_ (T' + 1)%Z _) ; tp_pures ; try tpstore ; tp_pures. all: case_bool_decide...
+      case_bool_decide (_ (T' + Δ)%Z _) ; tp_pures ; try tpstore ; tp_pures. all: case_bool_decide...
       all: try tpstore ; try wp_store ; try tp_pures ; try wp_pures.
       + iFrame. iModIntro. iSplitR. 1: done.
         iIntros ((_h_R & h_vv' & h_vR)). exfalso. inversion h_vR.
@@ -149,9 +157,11 @@ Section svt_pw.
     Unshelve. all: try exact Sg.
   Qed.
 
-  (* Removing ownership of the references from AUTH actually makes the postcondition simpler. *)
-  Lemma above_threshold_online_no_flag_spec_pw (num den T : Z) (εpos : 0 < IZR num / IZR den) K :
-    ↯m (IZR num / IZR den) -∗
+  (* Removing ownership of the references from AUTH actually makes the
+     postcondition simpler.  Generalised to query sensitivity [Δ ≥ 1]; budget
+     [Δ·(num/den)], with [Δ = 1] recovering the original [num/den]. *)
+  Lemma above_threshold_online_no_flag_spec_pw (Δ : Z) (HΔ : (1 <= Δ)%Z) (num den T : Z) (εpos : 0 < IZR num / IZR den) K :
+    ↯m (IZR Δ * (IZR num / IZR den)) -∗
     ⤇ fill K ((Val above_threshold) #num #den #T)
     -∗
     WP (Val above_threshold) #num #den #T
@@ -159,16 +169,18 @@ Section svt_pw.
              ⤇ fill K (Val f') ∗
              ∃ AUTH : iProp Σ,
                AUTH ∗
-               AT_spec_pw AUTH f f'
+               AT_spec_pw Δ AUTH f f'
        }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold.
     tp_pures. tp_normalise. wp_pures.
     tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
-    set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
+    assert (HΔpos : (0 <= IZR Δ)%R) by (apply IZR_le; lia).
+    set (ε := (IZR num / IZR den)).
+    replace (IZR Δ * ε)%R with (IZR Δ * ε / 2 + IZR Δ * ε / 2)%R by real_solver.
     fold ε in εpos.
     iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver.
-    iApply (wp_couple_laplace (S:=Sg) T T 1%Z 1%Z ltac:(lia) num (2*den)%Z
+    iApply (wp_couple_laplace (S:=Sg) T T Δ Δ ltac:(lia) num (2*den)%Z
             with "[$rhs ε']") => //.
     1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
     { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
@@ -176,19 +188,21 @@ Section svt_pw.
       field. eapply Rdiv_pos_den_0 => //. }
     iIntros (T') "!> rhs". tp_normalise...
     iModIntro. iExists _. iFrame "rhs".
-    iExists (↯m (ε / 2))%I. iFrame "ε". clear K.
+    iExists (↯m (IZR Δ * ε / 2))%I. iFrame "ε". clear K.
     iModIntro.
-    iIntros (?????) "%q %K q_sens ε rhs %R"...
+    iIntros (DB dDB db db' adj) "%q %K q_sens ε rhs %R"...
 
     tp_bind (q _) ; wp_bind (q _). rewrite /wp_sensitive.
-    iSpecialize ("q_sens" $! (ltac:(lra) : (0 <= 1)%R) _ db db' with "rhs").
+    iSpecialize ("q_sens" $! HΔpos _ db db' with "rhs").
 
     iApply (wp_strong_mono'' with "q_sens [ε]") => //.
     iIntros (?) "(%vq_l & %vq_r & -> & rhs & %adj')".
-    assert (-1 <= vq_l - vq_r <= 1)%Z as [].
+    assert (- Δ <= vq_l - vq_r <= Δ)%Z as [].
     {
-      rewrite Rmult_1_l in adj'.
-      assert (dZ vq_l vq_r <= 1) as h by (etrans ; eauto).
+      assert (dZ vq_l vq_r <= IZR Δ) as h.
+      { etrans; first apply adj'.
+        rewrite -{2}(Rmult_1_r (IZR Δ)). apply Rmult_le_compat_l; [exact HΔpos|].
+        etrans; first apply adj. lra. }
       revert h. rewrite /dZ/distance Rabs_Zabs.
       apply Zabs_ind ; intros ? h; split.
       all: pose proof (le_IZR _ _ h) ; lia.
@@ -196,13 +210,13 @@ Section svt_pw.
     (* case on whether the result is the one that will get released (pweq) *)
     destruct R eqn:HR.
     - lap_focus.
-      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r 1%Z 2%Z
+      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r Δ (2*Δ)%Z
               ltac:(apply Zabs_ind ; lia) num (4*den)%Z
               with "[$rhs ε]") => //.
       1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
-      { subst ε. iApply ecm_eq. 2: iFrame. rewrite mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
+      { subst ε. iApply ecm_eq. 2: iFrame. rewrite !mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
       iIntros "%z_l !> rhs". tp_normalise. tp_pures.
-      case_bool_decide (_ (T' + 1)%Z _)...
+      case_bool_decide (_ (T' + Δ)%Z _)...
       all: destruct_decide (bool_decide_reflect (T' ≤ z_l)%Z) as res_l.
       all: iFrame "rhs" ; iModIntro.
       + iSplitR => //. iExists true,true. do 2 iSplitR => //. iIntros (h_R). exfalso. inversion h_R.
@@ -217,7 +231,7 @@ Section svt_pw.
       1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
       1: rewrite Rmult_0_l ; iFrame.
       iIntros "%z_l !> rhs". tp_normalise...
-      case_bool_decide (_ (T' + 1)%Z _).
+      case_bool_decide (_ (T' + Δ)%Z _).
       all: destruct_decide (bool_decide_reflect (T' ≤ z_l)%Z) as res_l ; iModIntro ; iFrame "rhs".
       all: iSplitR ; [|by (iExists _,_ ; iFrame "ε")].
       + iIntros (Rf). inversion Rf.
@@ -229,18 +243,18 @@ Section svt_pw.
 
   (* If we get R before having to pick the coupling for the noisy T', then we can just couple the
      first Laplacian so that the comparisons are synchronised and use the error for the second. *)
-  Lemma above_threshold_online_no_flag_spec_pw_no_AUTH' (num den T : Z)
+  Lemma above_threshold_online_no_flag_spec_pw_no_AUTH' (Δ : Z) (HΔ : (1 <= Δ)%Z) (num den T : Z)
     (εpos : 0 < IZR num / IZR den) K (R : bool) :
-    ↯m (IZR num / (2 * IZR den)) -∗
+    ↯m (IZR Δ * (IZR num / (2 * IZR den))) -∗
     ⤇ fill K ((Val above_threshold) #num #den #T)
     -∗
     WP (Val above_threshold) #num #den #T
        {{ f, ∃ f' : val,
              ⤇ fill K (Val f') ∗
                ( ∀ `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) q K,
-                   wp_sensitive Sg (Val q) 1 dDB dZ -∗
+                   wp_sensitive Sg (Val q) (IZR Δ) dDB dZ -∗
                       ⤇ fill K (f' (Val (inject db')) q) -∗
-                      (if R then ↯m (IZR num / (2 * IZR den)) else emp) -∗
+                      (if R then ↯m (IZR Δ * (IZR num / (2 * IZR den))) else emp) -∗
                         WP (Val f) (Val (inject db)) (Val q)
                           {{ v, ∃ v', ⤇ fill K (Val v') ∗
                                       ⌜ v = #R → v' = #R ⌝
@@ -250,12 +264,13 @@ Section svt_pw.
     iIntros "ε rhs". rewrite /above_threshold.
     tp_pures. tp_normalise. wp_pures.
     tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
+    assert (HΔpos : (0 <= IZR Δ)%R) by (apply IZR_le; lia).
     set (ε := (IZR num / 2 * IZR den)).
     fold ε in εpos.
     (* case on whether the result is the one that will get released (pweq) *)
     destruct R eqn:HR.
     {
-      iApply (wp_couple_laplace (S:=Sg) T T 1%Z 1%Z ltac:(lia) num (2*den)%Z
+      iApply (wp_couple_laplace (S:=Sg) T T Δ Δ ltac:(lia) num (2*den)%Z
               with "[$rhs ε]") => //.
       1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
       { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
@@ -263,29 +278,31 @@ Section svt_pw.
         field. eapply Rdiv_pos_den_0 => //. }
       iIntros (T') "!> rhs". tp_normalise...
       iModIntro. iExists _. iFrame "rhs". clear K.
-      iIntros (?????) "%q %K q_sens rhs ε"...
+      iIntros (DB dDB db db' adj) "%q %K q_sens rhs ε"...
 
       tp_bind (q _) ; wp_bind (q _). rewrite /wp_sensitive.
-      iSpecialize ("q_sens" $! (ltac:(lra) : (0 <= 1)%R) _ db db' with "rhs").
+      iSpecialize ("q_sens" $! HΔpos _ db db' with "rhs").
 
       iApply (wp_strong_mono'' with "q_sens [ε]") => //.
       iIntros (?) "(%vq_l & %vq_r & -> & rhs & %adj')".
-      assert (-1 <= vq_l - vq_r <= 1)%Z as [adj_lb adj_ub].
+      assert (- Δ <= vq_l - vq_r <= Δ)%Z as [adj_lb adj_ub].
       {
-        rewrite Rmult_1_l in adj'.
-        assert (dZ vq_l vq_r <= 1) as h by (etrans ; eauto).
+        assert (dZ vq_l vq_r <= IZR Δ) as h.
+        { etrans; first apply adj'.
+          rewrite -{2}(Rmult_1_r (IZR Δ)). apply Rmult_le_compat_l; [exact HΔpos|].
+          etrans; first apply adj. lra. }
         revert h. rewrite /dZ/distance Rabs_Zabs.
         apply Zabs_ind ; intros ? h; split.
         all: pose proof (le_IZR _ _ h) ; lia.
       }
       lap_focus.
-      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r 1%Z 2%Z
+      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r Δ (2*Δ)%Z
               ltac:(apply Zabs_ind ; lia) num (4*den)%Z
               with "[$rhs ε]") => //.
       1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
-      { subst ε. iApply ecm_eq. 2: iFrame. rewrite mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
+      { subst ε. iApply ecm_eq. 2: iFrame. rewrite !mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
       iIntros "%z_l !> rhs". tp_normalise. tp_pures.
-      case_bool_decide (_ (T' + 1)%Z _) as res_r...
+      case_bool_decide (_ (T' + Δ)%Z _) as res_r...
       all: destruct_decide (bool_decide_reflect (T' ≤ z_l)%Z) as res_l.
       all: iFrame "rhs" ; iModIntro.
       + done.
@@ -302,31 +319,33 @@ Section svt_pw.
       1: rewrite Rmult_0_l ; iFrame.
       iIntros (T') "!> rhs". tp_normalise...
       iModIntro. iExists _. iFrame "rhs". clear K.
-      iIntros (?????) "%q %K q_sens rhs ε'"...
+      iIntros (DB dDB db db' adj) "%q %K q_sens rhs ε'"...
 
       tp_bind (q _) ; wp_bind (q _). rewrite /wp_sensitive.
-      iSpecialize ("q_sens" $! (ltac:(lra) : (0 <= 1)%R) _ db db' with "rhs").
+      iSpecialize ("q_sens" $! HΔpos _ db db' with "rhs").
 
       iApply (wp_strong_mono'' with "q_sens [ε]") => //.
       iIntros (?) "(%vq_l & %vq_r & -> & rhs & %adj')".
-      assert (-1 <= vq_l - vq_r <= 1)%Z as [adj_lb adj_ub].
+      assert (- Δ <= vq_l - vq_r <= Δ)%Z as [adj_lb adj_ub].
       {
-        rewrite Rmult_1_l in adj'.
-        assert (dZ vq_l vq_r <= 1) as h by (etrans ; eauto).
+        assert (dZ vq_l vq_r <= IZR Δ) as h.
+        { etrans; first apply adj'.
+          rewrite -{2}(Rmult_1_r (IZR Δ)). apply Rmult_le_compat_l; [exact HΔpos|].
+          etrans; first apply adj. lra. }
         revert h. rewrite /dZ/distance Rabs_Zabs.
         apply Zabs_ind ; intros ? h; split.
         all: pose proof (le_IZR _ _ h) ; lia.
       }
       lap_focus.
-      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r 0%Z 1%Z
+      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r 0%Z Δ
               ltac:(apply Zabs_ind ; lia) num (4*den)%Z
               with "[$rhs ε]") => //.
       1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
-      1: rewrite Rmult_1_l mult_IZR.
       (* Actually, only half the error we have is needed. *)
-      { subst ε. iApply ecm_weaken. 2: iFrame. split.
-        - apply Rdiv_nneg_nneg ; lra.
-        - rewrite (Rmult_comm 4). rewrite (Rmult_comm 2).
+      { subst ε. iApply ecm_weaken. 2: iFrame. rewrite mult_IZR. split.
+        - apply Rmult_le_pos; [exact HΔpos|]. apply Rdiv_nneg_nneg ; lra.
+        - apply Rmult_le_compat_l; [exact HΔpos|].
+          rewrite (Rmult_comm 4). rewrite (Rmult_comm 2).
           rewrite Rdiv_mult_distr. rewrite Rdiv_mult_distr.
           rewrite /Rdiv. apply Rmult_le_compat_l.
           1: lra. lra.

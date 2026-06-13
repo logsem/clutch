@@ -53,14 +53,15 @@ Section expmech.
       [2·(num/den)] whenever the score vectors have equal length and
       per-coordinate sensitivity [1].  Family-level fact (independent of [S]),
       discharged by the reusable [DPcoupl_expmech]. *)
-  Lemma DPcoupl_expmech_draw (num den : Z) (scores scores' : list Z)
+  Lemma DPcoupl_expmech_draw (Δ : Z) (num den : Z) (scores scores' : list Z)
+    (HΔ : (1 <= Δ)%Z)
     (Hlen : length scores = length scores')
     (Hpos : (0 <= IZR num / IZR den)%R)
-    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= 1)%Z) :
+    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= Δ)%Z) :
     DPcoupl (sf_sample expmech_family (num, den, scores))
             (sf_sample expmech_family (num, den, scores'))
-            eq (2 * (IZR num / IZR den)) 0.
-  Proof. simpl. by apply DPcoupl_expmech. Qed.
+            eq (2 * IZR Δ * (IZR num / IZR den)) 0.
+  Proof. simpl. by apply (DPcoupl_expmech Δ). Qed.
 
   (** The exponential mechanism is ε-DP at the WP level (for [ε = 2·(num/den)],
       [δ = 0]): sampling at scores [scores] (impl) vs [scores'] (spec) couples
@@ -73,12 +74,13 @@ Section expmech.
       The parameters are written with explicit [pair] (rather than [(.,.)])
       to keep the tuple in Coq's term scope: inside the [Sample]/[Val]
       notation the surface [(a, b)] would parse as a program-level [Pair]. *)
-  Lemma wp_couple_expmech (num den : Z) (scores scores' : list Z)
+  Lemma wp_couple_expmech (Δ : Z) (num den : Z) (scores scores' : list Z)
+    (HΔ : (1 <= Δ)%Z)
     (Hlen : length scores = length scores')
     (Hpos : (0 <= IZR num / IZR den)%R)
-    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= 1)%Z)
+    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= Δ)%Z)
     (ε' : R) K E :
-    ε' = (2 * (IZR num / IZR den)) →
+    ε' = (2 * IZR Δ * (IZR num / IZR den)) →
     {{{ ⤇ fill K (Sample lidx
                     (Val (sf_param_to_val expmech_family (pair (pair num den) scores')))
                     (Val (LitV LitUnit))) ∗ ↯m ε' }}}
@@ -88,6 +90,7 @@ Section expmech.
       {{{ (i : Z), RET #i; ⤇ fill K #i }}}.
   Proof.
     iIntros (Hε' Φ) "(Hr & Hε) HΦ".
+    assert (HΔpos : (0 <= IZR Δ)%R) by (apply IZR_le; lia).
     iApply (wp_couple_sample_gen S lidx
               (sf_param_to_val expmech_family (num, den, scores))
               (sf_param_to_val expmech_family (num, den, scores'))
@@ -99,16 +102,16 @@ Section expmech.
     { iIntros "!>" (v v') "(Hspec & %HR)". destruct HR as (i & -> & ->).
       iApply ("HΦ" $! i with "Hspec"). }
     (* the single DP obligation: lift the exponential-mechanism draw coupling
-       (along [eq]) through [sf_inj]; cost [2·(num/den)] *)
+       (along [eq]) through [sf_inj]; cost [2·Δ·(num/den)] *)
     Unshelve.
     apply DPcoupl_map;
-      [subst ε'; apply Rmult_le_pos; [lra | exact Hpos] | lra | ].
+      [subst ε'; apply Rmult_le_pos; [nra | exact Hpos] | lra | ].
     eapply (DPcoupl_mono _ _ _ _ eq _ ε' ε' 0 0);
       [ intros; reflexivity
       | intros; reflexivity
       | intros a a' ->; by exists a'
       | lra | lra
-      | subst ε'; by apply DPcoupl_expmech_draw ].
+      | subst ε'; by apply (DPcoupl_expmech_draw Δ) ].
   Qed.
 
   (** The surface-form exponential-mechanism coupling rule, stated on the
@@ -116,19 +119,20 @@ Section expmech.
       un-reduced [Pair] and the scores list as an injected value [$scores]).
       The proof reduces the [Pair] params on both sides ([wp_pures]/[tp_pures])
       and then applies the reduced-form [wp_couple_expmech]. *)
-  Lemma hoare_couple_expmech (num den : Z) (scores scores' : list Z)
+  Lemma hoare_couple_expmech (Δ : Z) (num den : Z) (scores scores' : list Z)
+    (HΔ : (1 <= Δ)%Z)
     (Hlen : length scores = length scores')
     (Hpos : (0 <= IZR num / IZR den)%R)
-    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= 1)%Z)
+    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= Δ)%Z)
     (ε' : R) K E :
-    ε' = (2 * (IZR num / IZR den)) →
+    ε' = (2 * IZR Δ * (IZR num / IZR den)) →
     {{{ ⤇ fill K (ExpMech #num #den (Val (inject scores')) #()) ∗ ↯m ε' }}}
       ExpMech #num #den (Val (inject scores)) #() @ E
       {{{ (i : Z), RET #i; ⤇ fill K #i }}}.
   Proof.
     iIntros (Hε' Φ) "(Hr & Hε) HΦ".
     wp_pures. tp_pures.
-    iApply (wp_couple_expmech num den scores scores' Hlen Hpos Hadj ε' K E Hε'
+    iApply (wp_couple_expmech Δ num den scores scores' HΔ Hlen Hpos Hadj ε' K E Hε'
               with "[$Hr $Hε]").
     iApply "HΦ".
   Qed.
