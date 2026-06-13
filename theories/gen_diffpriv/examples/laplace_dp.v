@@ -18,17 +18,13 @@ From iris.prelude Require Import options.
 
 Local Open Scope R.
 
-(** (1) the signature, and (2) "enable" Laplace for it — the entire setup. *)
-Definition Slap : Sig := [laplace_family].
-#[global] Instance SampleIn_laplace : SampleIn laplace_family Slap := ltac:(solve_SampleIn).
-
 Section laplace_example.
-  Context `{!diffprivGS Slap Σ}.
+  Context {Sg : Sig} `{!SampleIn laplace_family Sg} `{!diffprivGS Sg Σ}.
   (* The only residual per-file line: pin the spec-context [fill] to this
      development's signature.  (Needed only when a statement mentions an explicit
      evaluation context [K]; logical-relation case studies use [REL] and need
      not write [fill] at all.) *)
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Slap)).
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
   (** The full λ-program ε-DP statement: the one-line Laplace mechanism
       [λ loc, Laplace(num/den, loc)] is ε-DP for 1-sensitive inputs

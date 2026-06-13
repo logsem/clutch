@@ -18,7 +18,7 @@ From clutch.gen_prob_lang Require Import inject.
 From clutch.gen_diffpriv.examples Require Import list map exact_cache.
 
 Section xcache_pw.
-  Context `{!diffprivGS Sx Σ}.
+  Context {Sg : Sig} `{!diffprivGS Sg Σ}.
 
   (* SIMON: left commented out since there were admits and TODOs anyway *)
 

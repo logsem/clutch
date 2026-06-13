@@ -9,7 +9,7 @@
     lemma STATEMENTS — and leave the (scratch, non-replaying) proof scripts
     [Abort]ed exactly as upstream, rather than porting tactic-by-tactic dead code.
 
-    Signature setup and the [diffprivGS Ssvt Σ] context are inherited from
+    Signature setup and the [diffprivGS Sg Σ] context are inherited from
     [sparse_vector_technique] (imported below). *)
 From iris.base_logic Require Export na_invariants.
 From clutch.prelude Require Import tactics.
@@ -23,8 +23,8 @@ From iris.prelude Require Import options.
 #[global] Opaque sample_idx.
 
 Section svt_experiments.
-  Context `{!diffprivGS Ssvt Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Ssvt)).
+  Context {Sg : Sig} `{!SampleIn laplace_family Sg} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
   #[local] Open Scope R.
 
@@ -39,7 +39,7 @@ Section svt_experiments.
              ⤇ fill K (Val f') ∗
              ∃ AUTH : iProp Σ,
                AUTH ∗
-               (∀ q, wp_sensitive Ssvt (Val q) 1 dDB dZ -∗
+               (∀ q, wp_sensitive Sg (Val q) 1 dDB dZ -∗
                      AUTH -∗
                      ⤇ fill K (f' q) -∗
                      WP (Val f) (Val q)
@@ -102,7 +102,7 @@ Section svt_experiments.
        {{ f, ∃ f' : val,
              ⤇ fill K (Val f') ∗
                ( ∀ `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1)
-                   q, wp_sensitive Ssvt (Val q) 1 dDB dZ -∗
+                   q, wp_sensitive Sg (Val q) 1 dDB dZ -∗
                       ⤇ fill K (f' (Val (inject db')) q) -∗
                       ∀ R : bool, (if R then ↯m (IZR num / (2 * IZR den)) else emp) -∗
                         WP (Val f) (Val (inject db)) (Val q)

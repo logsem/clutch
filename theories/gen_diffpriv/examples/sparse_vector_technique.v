@@ -15,9 +15,12 @@ From clutch.gen_prob_lang Require Import inject families.
 From clutch.gen_diffpriv.examples Require Import list.
 From iris.prelude Require Import options.
 
-(** Enable the Laplace distribution for this development. *)
-Definition Ssvt : Sig := [laplace_family].
-#[global] Instance SampleIn_svt : SampleIn laplace_family Ssvt := ltac:(solve_SampleIn).
+(** This development is PARAMETRIC over any signature [Sg] that contains
+    [laplace_family] (recovered via the ambient [SampleIn laplace_family Sg]
+    instance) — so SVT composes with any other mechanism (e.g. exponential RNM)
+    whose program samples from a richer signature.  A client picks the concrete
+    [Sg] only when closing the development at adequacy.  ([Sg], not [S], to avoid
+    shadowing the nat successor [S] used in the proofs.) *)
 
 (** [inject x] at type [expr] is not [Val]-headed in [gen_prob_lang]; expose the
     [Val] head without [simpl]ing the abstract spec context [fill K]. *)
@@ -33,8 +36,8 @@ Proof. reflexivity. Qed.
 #[global] Opaque sample_idx.
 
 Section svt.
-  Context `{!diffprivGS Ssvt Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Ssvt)).
+  Context {Sg : Sig} `{!SampleIn laplace_family Sg} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
   #[local] Open Scope R.
 
@@ -109,7 +112,7 @@ Section svt.
   (* The spec that AT satisfies after initialising T'. *)
   Definition AT_spec (c : R) (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
     □ ∀ `(dDB : Distance DB) (db db' : DB) (_ : dDB db db' <= c) (q : val) (K0 : list ectx_item),
-      wp_sensitive Ssvt q 1 dDB dZ -∗
+      wp_sensitive Sg q 1 dDB dZ -∗
       AUTH -∗
       ⤇ fill K0 (f' (inject db') q) -∗
       WP f (inject db) q
@@ -118,7 +121,7 @@ Section svt.
 
   Definition SVT_spec (f f' : val) (iSVT : nat → iProp Σ) : iProp Σ :=
     (∀ `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) (q : val) K,
-          wp_sensitive Ssvt (Val q) 1 dDB dZ -∗
+          wp_sensitive Sg (Val q) 1 dDB dZ -∗
           ⤇ fill K (Val f' (inject db') q) -∗
           ∀ n, iSVT (S n) -∗
                WP Val f (inject db) q
@@ -174,7 +177,7 @@ Section svt.
     set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
     fold ε in εpos. rewrite Rmult_plus_distr_l.
     iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver.
-    iApply (wp_couple_laplace (S:=Ssvt) _ _ 1%Z 1%Z with "[$rhs ε']") => //.
+    iApply (wp_couple_laplace (S:=Sg) _ _ 1%Z 1%Z with "[$rhs ε']") => //.
     1: lia.
     1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
     { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
@@ -197,7 +200,7 @@ Section svt.
       all: pose proof (le_IZR _ _ h) ; lia.
     }
     lap_focus.
-    iApply (wp_couple_laplace_choice (S:=Ssvt) vq_l (vq_r) T' with "[$]") => //.
+    iApply (wp_couple_laplace_choice (S:=Sg) vq_l (vq_r) T' with "[$]") => //.
     1: apply Zabs_ind ; lia.
     1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
     { subst ε. rewrite mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
@@ -209,7 +212,7 @@ Section svt.
     - tp_normalise... destruct h_below. case_bool_decide.
       + lia.
       + iModIntro. iFrame. case_bool_decide ; try lia. repeat iSplitR => //.
-    Unshelve. all: try exact Ssvt.
+    Unshelve. all: try exact Sg.
   Qed.
 
 
@@ -372,7 +375,7 @@ Section svt.
             ⤇ fill K (stream_qs bs) -∗
             WP stream_qs bs
               {{ qopt, ⤇ fill K (Val qopt) ∗
-                       (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ wp_sensitive Ssvt q 1 dDB dZ) }}) -∗
+                       (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ wp_sensitive Sg q 1 dDB dZ) }}) -∗
       ∀ (db db' : DB) (adj : dDB db db' <= 1) K,
       ↯m (N * ε) -∗
       ⤇ fill K (SVT_stream #num #den #T #N stream_qs (Val (inject db'))) -∗
@@ -411,14 +414,14 @@ Section svt.
 
   Fact list_stream_sens
     (qs : list val) (QS : val) (is_qs : is_list qs QS) `(dDB : Distance DB)
-    (sens : Forall (λ q : val, ⊢ wp_sensitive Ssvt q 1 dDB dZ) qs) :
+    (sens : Forall (λ q : val, ⊢ wp_sensitive Sg q 1 dDB dZ) qs) :
     let list_stream_qs := (λ:"_bs", stream_list QS "_bs")%V in
     ⊢
       □ (∀ K (bs : val),
             ⤇ fill K (list_stream_qs bs) -∗
             WP list_stream_qs bs
               {{ qopt, ⤇ fill K (Val qopt) ∗
-                       (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ wp_sensitive Ssvt q 1 dDB dZ) }})
+                       (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ wp_sensitive Sg q 1 dDB dZ) }})
   .
   Proof with (tp_pures ; wp_pures).
     iIntros.
@@ -436,7 +439,7 @@ Section svt.
 
   Corollary SVT_list_diffpriv (num den T : Z) (N : nat) (Npos : (0 < N)%nat) `(dDB : Distance DB)
     (qs : list val) (QS : val) (is_qs : is_list qs QS)
-    (sens : Forall (λ q : val, ⊢ wp_sensitive Ssvt q 1 dDB dZ) qs)
+    (sens : Forall (λ q : val, ⊢ wp_sensitive Sg q 1 dDB dZ) qs)
     :
     let ε := IZR num / IZR den in
     let list_stream_qs := (λ:"_bs", stream_list QS "_bs")%V in

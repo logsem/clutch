@@ -11,14 +11,10 @@ From clutch.gen_diffpriv.lib Require Import laplace.
 From clutch.gen_prob_lang Require Import families.
 From iris.prelude Require Import options.
 
-(** Enable the Laplace distribution for this development. *)
-Definition Sbasic : Sig := [laplace_family].
-#[global] Instance SampleIn_basic : SampleIn laplace_family Sbasic := ltac:(solve_SampleIn).
-
 Section wp_example.
-  Context `{!diffprivGS Sbasic Σ}.
+  Context {Sg : Sig} `{!SampleIn laplace_family Sg} `{!diffprivGS Sg Σ}.
   #[local] Open Scope R.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sbasic)).
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
   (** [(λ loc, Laplace(num/den, loc))] couples on adjacent inputs at cost
       [|loc - loc'|·ε].  In gen, [wp_pures]/[tp_pures] reduce the (now [Pair]-
@@ -44,18 +40,18 @@ Section wp_example.
 End wp_example.
 
 (* The program (λ z . L(ε, z)) is ε-differentially private for ε = num/den. *)
-Fact Laplace_diffpriv σ (num den : Z) :
+Fact Laplace_diffpriv (Sg : Sig) `{!SampleIn laplace_family Sg} σ (num den : Z) :
   let ε := (IZR num / IZR den)%R in
   (0 < ε)%R →
   diffpriv_pure
     (λ x y, IZR (Z.abs (x - y)))
-    (λ x, lim_exec (δ := lang_markov (gen_lang Sbasic))
+    (λ x, lim_exec (δ := lang_markov (gen_lang Sg))
             ((λ:"loc", Laplace #num #den "loc" #())%E #x, σ))
     ε.
 Proof.
   intros ε εpos.
   eapply diffpriv_approx_pure.
-  eapply (wp_diffpriv_Z Sbasic diffprivΣ) ; eauto ; try lra.
+  eapply (wp_diffpriv_Z Sg diffprivΣ) ; eauto ; try lra.
   iIntros (????) "f' ε ?".
   iApply (wp_laplace_diffpriv _ _ _ _ [] with "[f' ε]") => //.
   2: eauto.

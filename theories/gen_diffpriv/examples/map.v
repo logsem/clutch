@@ -15,10 +15,6 @@ From clutch.gen_diffpriv.examples Require Import list.
 
 Set Default Proof Using "Type*".
 
-(** This development performs no sampling; an empty distribution signature
-    suffices. *)
-Definition Sx : Sig := [].
-
 Section map.
 
 (* Simple map as an associative linked list, based on the examples
@@ -40,8 +36,8 @@ Section map.
   Definition init_list : val :=
     λ:<>, ref NONE.
 
-  Context `{!diffprivGS Sx Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sx)).
+  Context {Sg : Sig} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
 
   (* Impl *)
@@ -380,8 +376,8 @@ End map.
 
 Section map_rel.
 
-       Context `{!diffprivRGS Sx Σ}.
-       Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sx)).
+       Context {Sg : Sig} `{!diffprivRGS Sg Σ}.
+       Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
        Lemma refines_init_map_l E K e A :
          (∀ l : loc, map_list l ∅ -∗ REL (fill K (of_val #l)) << e @ E : A)

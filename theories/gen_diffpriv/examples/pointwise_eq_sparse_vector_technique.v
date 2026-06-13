@@ -17,7 +17,7 @@ From clutch.gen_prob_lang Require Import inject families.
 From clutch.gen_diffpriv.examples Require Import list sparse_vector_technique.
 From iris.prelude Require Import options.
 
-(** [Ssvt] and its [SampleIn] instance are inherited from
+(** [Sg] and its [SampleIn] instance are inherited from
     [sparse_vector_technique] (imported above) so the imported [above_threshold]
     / [oSVT] specs share the same signature. *)
 
@@ -31,20 +31,15 @@ Proof. reflexivity. Qed.
 #[global] Opaque sample_idx.
 
 Section svt_pw.
-  Context `{!diffprivGS Ssvt Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Ssvt)).
+  Context {Sg : Sig} `{!SampleIn laplace_family Sg} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
   #[local] Open Scope R.
 
-  (** As in [sparse_vector_technique]: reduce the [#k * #den] BinOp inside a
-      Laplace parameter [Pair] WITHOUT collapsing the [Pair] to a [Val]. *)
-  Ltac lap_reduce_den :=
-    try (tp_bind (BinOp _ _ _); tp_pure; tp_normalise);
-    try (wp_bind (BinOp _ _ _); wp_pure).
   Ltac lap_focus :=
     tp_normalise; rewrite ?inject_Z_val;
-    lap_reduce_den;
-    tp_bind (Laplace _ _ _ _); wp_bind (Laplace _ _ _ _).
+    tp_pures; wp_pures;
+    tp_bind (Sample _ _ _); wp_bind (Sample _ _ _).
   Ltac tpload  := tp_load;  tp_normalise.
   Ltac tpstore := tp_store; tp_normalise.
 
@@ -52,7 +47,7 @@ Section svt_pw.
   Definition AT_spec_pw (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
     □ ∀ (DB : Type) (dDB : Distance DB) (db db' : DB)
       (_ : dDB db db' <= 1) (q : val) (K0 : list ectx_item),
-      wp_sensitive Ssvt q 1 dDB dZ -∗
+      wp_sensitive Sg q 1 dDB dZ -∗
       AUTH -∗
       ⤇ fill K0 (f' (inject db') q) -∗
       ∀ R : bool,
@@ -72,7 +67,7 @@ Section svt_pw.
              ⤇ fill K (Val f') ∗
              ∃ AUTH : iProp Σ,
                AUTH ∗
-               ( ∀ q, wp_sensitive Ssvt (Val q) 1 dDB dZ -∗
+               ( ∀ q, wp_sensitive Sg (Val q) 1 dDB dZ -∗
                       AUTH -∗
                       ⤇ fill K (f' q) -∗
                       ∀ R : bool,
@@ -84,14 +79,13 @@ Section svt_pw.
        }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold_reset.
-    do 5 tp_pure. tp_normalise. do 5 wp_pure.
-    tp_bind (BinOp _ _ _). tp_pure. tp_normalise. wp_bind (BinOp _ _ _). wp_pure.
-    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
+    tp_pures. tp_normalise. wp_pures.
+    tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
     set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
     fold ε in εpos.
     iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver.
-    iApply (hoare_couple_laplace (S:=Ssvt) _ _ 1%Z 1%Z with "[$rhs ε']") => //.
-    1: apply Zabs_ind ; lia.
+    iApply (wp_couple_laplace (S:=Sg) T T 1%Z 1%Z ltac:(lia) num (2*den)%Z
+            with "[$rhs ε']") => //.
     1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
     { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
       2: qify_r ; zify_q ; lia.
@@ -122,9 +116,10 @@ Section svt_pw.
     (* case on whether the result is the one that will get released (pweq) *)
     destruct R eqn:HR.
     - lap_focus.
-      iApply (hoare_couple_laplace (S:=Ssvt) vq_l vq_r 1%Z 2%Z with "[$rhs ε]") => //.
-      1: apply Zabs_ind ; lia.
-      1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
+      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r 1%Z 2%Z
+              ltac:(apply Zabs_ind ; lia) num (4*den)%Z
+              with "[$rhs ε]") => //.
+      1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
       { subst ε. iApply ecm_eq. 2: iFrame. rewrite mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
       iIntros "%vi !> rhs". tp_normalise...
       case_bool_decide (_ (T' + 1)%Z _) ; tp_pures ; try tpstore ; tp_pures. all: case_bool_decide...
@@ -137,9 +132,10 @@ Section svt_pw.
         iIntros ((h_R & h_vv' & h_vR)). exfalso. inversion h_R.
     - lap_focus.
       iMod ecm_zero as "ε0".
-      iApply (hoare_couple_laplace (S:=Ssvt) vq_l vq_r (vq_r - vq_l)%Z 0%Z with "[$rhs ε0]") => //.
-      1: apply Zabs_ind ; lia.
-      1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
+      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r (vq_r - vq_l)%Z 0%Z
+              ltac:(apply Zabs_ind ; lia) num (4*den)%Z
+              with "[$rhs ε0]") => //.
+      1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
       1: rewrite Rmult_0_l ; iFrame.
       iIntros "%vi !> rhs". tp_normalise...
       case_bool_decide (_ (T' + 1)%Z _) ; tp_pures ; try tpstore ; tp_pures. all: case_bool_decide...
@@ -150,7 +146,7 @@ Section svt_pw.
       + iFrame. iModIntro. iSplitR. 1: done.
         iIntros ((_h_R & h_vv' & h_vR)). exfalso. inversion h_vR.
       + iFrame. done.
-    Unshelve. all: try exact Ssvt.
+    Unshelve. all: try exact Sg.
   Qed.
 
   (* Removing ownership of the references from AUTH actually makes the postcondition simpler. *)
@@ -167,14 +163,13 @@ Section svt_pw.
        }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold.
-    do 5 tp_pure. tp_normalise. do 5 wp_pure.
-    tp_bind (BinOp _ _ _). tp_pure. tp_normalise. wp_bind (BinOp _ _ _). wp_pure.
-    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
+    tp_pures. tp_normalise. wp_pures.
+    tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
     set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
     fold ε in εpos.
     iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver.
-    iApply (hoare_couple_laplace (S:=Ssvt) _ _ 1%Z 1%Z with "[$rhs ε']") => //.
-    1: apply Zabs_ind ; lia.
+    iApply (wp_couple_laplace (S:=Sg) T T 1%Z 1%Z ltac:(lia) num (2*den)%Z
+            with "[$rhs ε']") => //.
     1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
     { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
       2: qify_r ; zify_q ; lia.
@@ -201,9 +196,10 @@ Section svt_pw.
     (* case on whether the result is the one that will get released (pweq) *)
     destruct R eqn:HR.
     - lap_focus.
-      iApply (hoare_couple_laplace (S:=Ssvt) vq_l vq_r 1%Z 2%Z with "[$rhs ε]") => //.
-      1: apply Zabs_ind ; lia.
-      1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
+      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r 1%Z 2%Z
+              ltac:(apply Zabs_ind ; lia) num (4*den)%Z
+              with "[$rhs ε]") => //.
+      1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
       { subst ε. iApply ecm_eq. 2: iFrame. rewrite mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
       iIntros "%z_l !> rhs". tp_normalise. tp_pures.
       case_bool_decide (_ (T' + 1)%Z _)...
@@ -215,9 +211,10 @@ Section svt_pw.
       + iSplitR => //. iExists false, false. do 2 iSplitR => //. iIntros (h_R). exfalso. inversion h_R.
     - lap_focus.
       iMod ecm_zero as "ε0".
-      iApply (hoare_couple_laplace (S:=Ssvt) vq_l vq_r (vq_r - vq_l)%Z 0%Z with "[$rhs ε0]") => //.
-      1: apply Zabs_ind ; lia.
-      1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
+      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r (vq_r - vq_l)%Z 0%Z
+              ltac:(apply Zabs_ind ; lia) num (4*den)%Z
+              with "[$rhs ε0]") => //.
+      1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
       1: rewrite Rmult_0_l ; iFrame.
       iIntros "%z_l !> rhs". tp_normalise...
       case_bool_decide (_ (T' + 1)%Z _).
@@ -227,7 +224,7 @@ Section svt_pw.
       + exfalso. lia.
       + iIntros (Rf). inversion Rf.
       + done.
-    Unshelve. all: try exact Ssvt.
+    Unshelve. all: try exact Sg.
   Qed.
 
   (* If we get R before having to pick the coupling for the noisy T', then we can just couple the
@@ -241,7 +238,7 @@ Section svt_pw.
        {{ f, ∃ f' : val,
              ⤇ fill K (Val f') ∗
                ( ∀ `(dDB : Distance DB) (db db' : DB) (adj : dDB db db' <= 1) q K,
-                   wp_sensitive Ssvt (Val q) 1 dDB dZ -∗
+                   wp_sensitive Sg (Val q) 1 dDB dZ -∗
                       ⤇ fill K (f' (Val (inject db')) q) -∗
                       (if R then ↯m (IZR num / (2 * IZR den)) else emp) -∗
                         WP (Val f) (Val (inject db)) (Val q)
@@ -251,17 +248,16 @@ Section svt_pw.
        }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold.
-    do 5 tp_pure. tp_normalise. do 5 wp_pure.
-    tp_bind (BinOp _ _ _). tp_pure. tp_normalise. wp_bind (BinOp _ _ _). wp_pure.
-    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
+    tp_pures. tp_normalise. wp_pures.
+    tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
     set (ε := (IZR num / 2 * IZR den)).
     fold ε in εpos.
     (* case on whether the result is the one that will get released (pweq) *)
     destruct R eqn:HR.
     {
-      iApply (hoare_couple_laplace (S:=Ssvt) _ _ 1%Z 1%Z with "[$rhs ε]") => //.
-      1: apply Zabs_ind ; lia.
-      1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
+      iApply (wp_couple_laplace (S:=Sg) T T 1%Z 1%Z ltac:(lia) num (2*den)%Z
+              with "[$rhs ε]") => //.
+      1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
       { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
         2: qify_r ; zify_q ; lia.
         field. eapply Rdiv_pos_den_0 => //. }
@@ -283,9 +279,10 @@ Section svt_pw.
         all: pose proof (le_IZR _ _ h) ; lia.
       }
       lap_focus.
-      iApply (hoare_couple_laplace (S:=Ssvt) vq_l vq_r 1%Z 2%Z with "[$rhs ε]") => //.
-      1: apply Zabs_ind ; lia.
-      1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
+      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r 1%Z 2%Z
+              ltac:(apply Zabs_ind ; lia) num (4*den)%Z
+              with "[$rhs ε]") => //.
+      1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
       { subst ε. iApply ecm_eq. 2: iFrame. rewrite mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
       iIntros "%z_l !> rhs". tp_normalise. tp_pures.
       case_bool_decide (_ (T' + 1)%Z _) as res_r...
@@ -299,10 +296,10 @@ Section svt_pw.
 
     {
       iMod ecm_zero as "ε0".
-      iApply (hoare_couple_laplace (S:=Ssvt) _ _ 0%Z 0%Z with "[$rhs ε0]") => //.
-      1: apply Zabs_ind ; lia.
-      1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
-      { iApply ecm_eq. 2: iFrame. lra. }
+      iApply (wp_couple_laplace (S:=Sg) T T 0%Z 0%Z ltac:(simpl ; lia) num (2*den)%Z
+              with "[$rhs ε0]") => //.
+      1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
+      1: rewrite Rmult_0_l ; iFrame.
       iIntros (T') "!> rhs". tp_normalise...
       iModIntro. iExists _. iFrame "rhs". clear K.
       iIntros (?????) "%q %K q_sens rhs ε'"...
@@ -321,9 +318,10 @@ Section svt_pw.
         all: pose proof (le_IZR _ _ h) ; lia.
       }
       lap_focus.
-      iApply (hoare_couple_laplace (S:=Ssvt) vq_l vq_r 0%Z 1%Z with "[$rhs ε]") => //.
-      1: apply Zabs_ind ; lia.
-      1: rewrite mult_IZR ; apply Rdiv_pos_pos ; real_solver.
+      iApply (wp_couple_laplace (S:=Sg) vq_l vq_r 0%Z 1%Z
+              ltac:(apply Zabs_ind ; lia) num (4*den)%Z
+              with "[$rhs ε]") => //.
+      1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
       1: rewrite Rmult_1_l mult_IZR.
       (* Actually, only half the error we have is needed. *)
       { subst ε. iApply ecm_weaken. 2: iFrame. split.
@@ -342,7 +340,7 @@ Section svt_pw.
       + exfalso. clear -res_l res_r. done.
       + done.
     }
-    Unshelve. all: try exact Ssvt.
+    Unshelve. all: try exact Sg.
   Qed.
 
   (* TODO move *)

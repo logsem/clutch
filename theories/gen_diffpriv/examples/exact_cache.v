@@ -38,8 +38,8 @@ Proof.
 Qed.
 
 Section xcache.
-  Context `{!diffprivGS Sx Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sx)).
+  Context {Sg : Sig} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
   #[local] Open Scope R.
 
@@ -103,7 +103,7 @@ Section xcache.
     (f f' : val) (F : gmap nat A → iProp Σ) : iProp Σ :=
     (∀ (q : nat) m ε δ K,
         ⌜q ∉ dom m⌝ -∗
-        wp_diffpriv Sx (M #q) ε δ dDB A -∗
+        wp_diffpriv Sg (M #q) ε δ dDB A -∗
         ↯m (c * ε) -∗
         ↯ (c * δ) -∗
         F m -∗
@@ -153,7 +153,7 @@ Section xcache.
   (* F can store error credits ; could also ask for N*ε error credits upfront and hand out F(∅, N) instead of F(∅, 0). *)
   Lemma oxc_spec1 (M : val) `(dDB : Distance DB) A `{Inject A val} (db db' : DB)
     (adj : dDB db db' <= 1) K ε δ (εpos : 0 <= ε) (δpos : 0 <= δ) :
-    (∀ q : nat, hoare_diffpriv Sx (M #q) ε δ dDB A) ∗
+    (∀ q : nat, hoare_diffpriv Sg (M #q) ε δ dDB A) ∗
     ⤇ fill K (online_xcache M (Val (inject db')))
     ⊢ WP online_xcache M (Val (inject db))
         {{ f, ∃ f', ⤇ fill K (Val f') ∗
@@ -204,10 +204,10 @@ Section xcache.
   Lemma exact_cache_dipr_offline (M : val) DB (dDB : Distance DB) A `{Inject A val}
     (qs : list nat) (QS : val) (is_qs : is_list qs QS)
     ε δ (εpos : 0 <= ε) (δpos : 0 <= δ)
-    (M_dipr : Forall (λ q : nat, ⊢ wp_diffpriv Sx (M #q) ε δ dDB A) qs)
+    (M_dipr : Forall (λ q : nat, ⊢ wp_diffpriv Sg (M #q) ε δ dDB A) qs)
     :
     let k := size ((list_to_set qs) : gset _) in
-    ⊢ wp_diffpriv Sx (exact_cache_offline M QS) (k*ε) (k*δ) dDB (list A).
+    ⊢ wp_diffpriv Sg (exact_cache_offline M QS) (k*ε) (k*δ) dDB (list A).
   Proof with (tp_pures ; wp_pures).
     iIntros (k K c db db' adj) "[rhs [ε δ]]".
     rewrite {2}/exact_cache_offline...
@@ -228,7 +228,7 @@ Section xcache.
           dom cache_map = list_to_set qs_pre →
           dom cache_map ∪ list_to_set qs' = list_to_set qs →
           is_list qs' QS' →
-          Forall (λ q : nat, ⊢ wp_diffpriv Sx (M #q) ε δ dDB A) qs →
+          Forall (λ q : nat, ⊢ wp_diffpriv Sg (M #q) ε δ dDB A) qs →
           let k := size (list_to_set qs : gset nat) in
           let k' := size cache_map in
           {{{
@@ -323,10 +323,10 @@ Section xcache.
   Lemma exact_cache_dipr_offline_map (M : val) DB (dDB : Distance DB) A `{Inject A val}
     (qs : list nat) (QS : val) (is_qs : is_list qs QS)
     ε δ (εpos : 0 <= ε) (δpos : 0 <= δ)
-    (M_dipr : Forall (λ q : nat, ⊢ wp_diffpriv Sx (M #q) ε δ dDB A) qs)
+    (M_dipr : Forall (λ q : nat, ⊢ wp_diffpriv Sg (M #q) ε δ dDB A) qs)
     :
     let k := size ((list_to_set qs) : gset _) in
-    ⊢ wp_diffpriv Sx (exact_cache_offline_map M QS) (k*ε) (k*δ) dDB (list A).
+    ⊢ wp_diffpriv Sg (exact_cache_offline_map M QS) (k*ε) (k*δ) dDB (list A).
   Proof with (tp_pures ; wp_pures).
     iIntros (k K c db db' adj) "[rhs [ε δ]]".
     rewrite /exact_cache_offline_map...
@@ -390,10 +390,10 @@ Section xcache.
   (* Direct proof via Löb induction for the definition with fold. *)
   Lemma exact_cache_dipr (M : val) `(dDB : Distance DB) A `(Inject A val)
     (qs : list nat) (QS : val) (is_qs : is_list qs QS) ε δ (εpos : 0 <= ε) (δpos : 0 <= δ)
-    (M_dipr : Forall (λ q : nat, ⊢ hoare_diffpriv Sx (M #q) ε δ dDB A) qs)
+    (M_dipr : Forall (λ q : nat, ⊢ hoare_diffpriv Sg (M #q) ε δ dDB A) qs)
     :
     let k := size ((list_to_set qs) : gset _) in
-    ⊢ hoare_diffpriv Sx (exact_cache M QS) (k*ε) (k*δ) dDB (list A).
+    ⊢ hoare_diffpriv Sg (exact_cache M QS) (k*ε) (k*δ) dDB (list A).
   Proof with (tp_pures ; wp_pures).
     iIntros (k K c db db' adj φ) "!> [rhs ε] hφ". rewrite {2}/exact_cache...
     wp_apply wp_init_map => // ; iIntros (cache) "cache"...
@@ -410,7 +410,7 @@ Section xcache.
           dom cache_map = list_to_set qs_pre →
           dom cache_map ∪ list_to_set qs' = list_to_set qs →
           is_list qs' QS' →
-          Forall (λ q : nat, ⊢ hoare_diffpriv Sx (M #q) ε δ dDB A) qs →
+          Forall (λ q : nat, ⊢ hoare_diffpriv Sg (M #q) ε δ dDB A) qs →
           let k := size (list_to_set qs : gset nat) in
           let k' := size cache_map in
           {{{

@@ -14,14 +14,10 @@ From clutch.gen_diffpriv Require Import all.
 From clutch.gen_prob_lang Require Import inject families.
 From clutch.gen_diffpriv.examples Require Import list.
 
-(** This development performs no sampling; an empty distribution signature
-    suffices. *)
-Definition Spw : Sig := [].
-
 Section pweq_list.
 
-  Context `{!diffprivGS Spw Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Spw)).
+  Context {Sg : Sig} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
   #[local] Open Scope R.
 

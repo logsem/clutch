@@ -17,14 +17,12 @@ From clutch.prob Require Import differential_privacy.
 From clutch.gen_diffpriv Require Import all.
 From clutch.gen_diffpriv.lib Require Import laplace laplace_tapes.
 
-Definition Slap : Sig := [laplace_family].
-#[global] Instance Slap_lap : SampleIn laplace_family Slap := ltac:(solve_SampleIn).
 #[global] Opaque sample_idx.
 
 Section wp_example.
-  Context `{!diffprivGS Slap Σ}.
+  Context {Sg : Sig} `{!SampleIn laplace_family Sg} `{!diffprivGS Sg Σ}.
   #[local] Open Scope R.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Slap)).
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
   (** The differentially-private use of tapes: presample-couple the two tapes so
       the spec draw equals the impl draw (shift [k = 0]) at error
