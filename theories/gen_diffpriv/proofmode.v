@@ -4,7 +4,7 @@
     instance needs the [↦∗] array layer from [derived_laws]; the sampling tape
     tactic class is deferred — relational sampling goes through coupling rules.) *)
 From clutch.diffpriv Require Import weakestpre lifting.
-From clutch.gen_diffpriv Require Import primitive_laws.
+From clutch.gen_diffpriv Require Import primitive_laws model.
 From clutch.gen_diffpriv Require Export derived_laws.
 From clutch.gen_prob_lang Require Export wp_tactics.
 From clutch.gen_prob_lang.spec Require Export spec_tactics.
@@ -54,6 +54,7 @@ End gen_proofmode.
 Ltac gwp_get_sig k ::=
   lazymatch goal with
   | _ : diffprivGS ?S _ |- _ => k S
+  | _ : diffprivRGS ?S _ |- _ => k S
   | _ => k open_constr:(_)
   end.
 
@@ -62,4 +63,5 @@ Ltac tp_get_sig k ::=
   | |- environments.envs_entails _
          (@spec_update.spec_update (lang_markov (gen_lang ?S)) _ _ _ _ _ _) => k S
   | _ : diffprivGS ?S _ |- _ => k S
+  | _ : diffprivRGS ?S _ |- _ => k S
   end.
