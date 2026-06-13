@@ -84,4 +84,37 @@ Section rules.
     iModIntro. rewrite /mult_ec_supply. iFrame "H".
   Qed.
 
+  (** Per-family specialization: for ANY family [D] in the signature, a coupling
+      of its two draws [sf_sample D p] / [sf_sample D p'] (on the outcome type
+      [sf_out D]) yields the tape-coupling rule.  Adding a new distribution's
+      coupling thus costs exactly one [DPcoupl] obligation — the reuse seam. *)
+  Lemma wp_couple_tapes_family (D : SampleFamily) `{!SampleIn D Sg}
+    (p p' : sf_param D) α α' xs xs' (Rout : sf_out D → sf_out D → Prop)
+    e Φ (ε' : R) E :
+    (0 <= ε')%R →
+    DPcoupl (sf_sample D p) (sf_sample D p') Rout ε' 0 →
+    ▷ α ↪ (sample_idx, sf_param_to_val D p, xs) ∗
+    ▷ α' ↪ₛ (sample_idx, sf_param_to_val D p', xs') ∗ ↯m ε' -∗
+    (∀ a a', ⌜Rout a a'⌝ -∗
+        α ↪ (sample_idx, sf_param_to_val D p, xs ++ [sf_inj D a]) ∗
+        α' ↪ₛ (sample_idx, sf_param_to_val D p', xs' ++ [sf_inj D a']) -∗
+        WP e @ E {{ Φ }}) -∗
+    WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Hε Hcpl) "(Hα & Hα' & Hcred) HΦ".
+    assert (DPcoupl (dmap (sf_inj D) (sf_sample D p)) (dmap (sf_inj D) (sf_sample D p'))
+              (λ v v', ∃ a a', Rout a a' ∧ v = sf_inj D a ∧ v' = sf_inj D a') ε' 0) as Hcpl'.
+    { apply DPcoupl_map; [done | lra | ].
+      eapply (DPcoupl_mono (sf_sample D p) (sf_sample D p) (sf_sample D p') (sf_sample D p')
+                Rout _ ε' ε' 0 0);
+        [intros; reflexivity | intros; reflexivity | | lra | lra | exact Hcpl].
+      intros x y Hxy. exists x, y. done. }
+    iApply (wp_couple_tapes_gen sample_idx (sf_param_to_val D p) (sf_param_to_val D p')
+              (dmap (sf_inj D) (sf_sample D p)) (dmap (sf_inj D) (sf_sample D p'))
+              α α' xs xs' _ e Φ ε' E
+              (sig_sample_at D Sg p) (sig_sample_at D Sg p') Hcpl' with "[$Hα $Hα' $Hcred]").
+    iIntros (v v' (a & a' & Ha & -> & ->)) "Htapes".
+    iApply ("HΦ" $! a a' Ha with "Htapes").
+  Qed.
+
 End rules.
