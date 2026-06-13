@@ -158,19 +158,20 @@ Section generic.
       let: "noisy_xs" := list_map' (λ: "x_ι", Sample (sample_idx (D := D)) (Pair #num (Pair #(2*den) (Fst "x_ι"))) (Snd "x_ι")) "xs_tapes" in
       list_max_index "noisy_xs".
 
-  Lemma rnm_init (Δ : Z) (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+  Lemma rnm_init (Δ : Z) (C : Z) (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (1 <= Δ)%Z →
+    (0 <= C)%Z →
     (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
-    ∀ db db', dDB db db' <= 1 →
+    ∀ db db', dDB db db' <= IZR C →
               {{{ ⤇ fill K ((of_val list_init) #N (λ:"i", (of_val evalQ) "i" (of_val (inject db'))))%V }}}
                 (list_init #N (λ:"i", evalQ "i" (of_val (inject db))))%V
                 {{{ vxs, RET vxs ; ∃ (vxs' : val) (xs xs' : list Z),
                         ⤇ fill K vxs' ∗
                         ⌜ is_list xs vxs ∧ is_list xs' vxs' ∧ length xs = N ∧ length xs' = N ∧
-                        Forall2 (λ x x', dZ x x' <= IZR Δ) xs xs'⌝
+                        Forall2 (λ x x', dZ x x' <= IZR Δ * IZR C) xs xs'⌝
                 }}}.
   Proof with (tp_pures ; wp_pures).
-    iIntros (HΔ ev_sens ?? adj post) "rhs Hpost".
+    iIntros (HΔ HC ev_sens ?? adj post) "rhs Hpost".
     wp_lam. wp_pure. wp_lam.
     tp_lam. tp_pure. tp_lam.
     tp_pure. wp_pure.
@@ -185,7 +186,7 @@ Section generic.
                   ∧ is_list xs' vxs'
                     ∧ (length xs + k = N)%nat
                       ∧ (length xs' + k = N)%nat
-                        ∧ Forall2 (λ x x' : Z, dZ x x' <= IZR Δ) xs xs') as hpre.
+                        ∧ Forall2 (λ x x' : Z, dZ x x' <= IZR Δ * IZR C) xs xs') as hpre.
     1: exists [], [] ; cbn ; intuition eauto.
     revert hpre.
     unfold k at 4 5.
@@ -217,7 +218,6 @@ Section generic.
         * simpl. lia.
         * constructor. 2: done.
           simpl in h. etrans; first exact h.
-          rewrite -{2}(Rmult_1_r (IZR Δ)).
           apply Rmult_le_compat_l; [apply IZR_le; lia| exact adj].
       + iSpecialize ("IHk'" with "Hpost").
         iApply "IHk'".
@@ -421,17 +421,18 @@ Proof.
     econstructor. 1,2: assumption.
 Qed.
 
-  Lemma rnm_pres_diffpriv (Δ : Z) num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+  Lemma rnm_pres_diffpriv (Δ : Z) (C : Z) num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (1 <= Δ)%Z →
+    (1 <= C)%Z →
     (0 < IZR num / IZR (2 * den)) →
     (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
-    ∀ db db', dDB db db' <= 1 →
-                {{{ ↯m (IZR Δ * (IZR num / IZR den)) ∗
+    ∀ db db', dDB db db' <= IZR C →
+                {{{ ↯m (IZR C * (IZR Δ * (IZR num / IZR den))) ∗
                     ⤇ fill K (report_noisy_max_presampling num den evalQ #N (of_val (inject db'))) }}}
                   report_noisy_max_presampling num den evalQ #N (of_val (inject db))
                   {{{ v, RET v ; ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = v' ⌝  }}}.
   Proof with (tp_pures ; wp_pures).
-    intros HΔ εpos qi_sens db db' db_adj post. iIntros "[ε rhs] Hpost".
+    intros HΔ HC εpos qi_sens db db' db_adj post. iIntros "[ε rhs] Hpost".
     wp_lam. tp_lam...
     destruct N as [|N'].
     {
@@ -440,21 +441,31 @@ Qed.
     }
     set (N := S N'). assert (0 < N)%nat by (unfold N ; lia).
     tp_bind (list_init _ _). wp_bind (list_init _ _).
-    iApply (rnm_init with "rhs") => //.
-    iIntros "!> % (% & % & % & rhs & % & % & % & % & %)". simpl...
+    iApply (rnm_init Δ C with "rhs") => //.
+    1: lia.
+    iIntros "!> % (% & % & % & rhs & % & % & % & % & %HF)". simpl...
+    (* fold [IZR Δ * IZR C] into [IZR (Δ * C)] so the effective-[Δ*C] tape /
+       coupling lemmas match the [rnm_init] gap bound syntactically. *)
+    rewrite -mult_IZR in HF.
     tp_bind (list_map _ _). wp_bind (list_map _ _).
-    wp_apply (wp_alloc_tapes_noise with "rhs") => //.
+    wp_apply (wp_alloc_tapes_noise (Δ * C) with "rhs") => //.
     1: lia.
     iIntros "% (% & % & % & % & % & % & % & % & % & rhs & Htapes) /="...
-    wp_apply (Hcouple with "[$ε] [$Htapes] [rhs Hpost]") => //.
-    1,2: lia.
+    (* [IZR C * (IZR Δ * (num/den)) = IZR (Δ*C) * (num/den)], the effective-[Δ*C]
+       per-query cost — group privacy scales the unit-radius cost linearly by C. *)
+    assert (IZR C * (IZR Δ * (IZR num / IZR den)) =
+              IZR (Δ * C) * (IZR num / IZR den))%R as Hcost
+        by (rewrite mult_IZR; lra).
+    rewrite Hcost.
+    wp_apply (Hcouple (Δ * C) with "[$ε] [$Htapes] [rhs Hpost]") => //.
+    1,2,3: lia.
     iIntros "(% & % & Htapes & %Hmax)".
     (* split the tapes assumption into three list-foralls (two unary ones and one that's pure about the dZ). *)
     iAssert (([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs',
                ι ↪N (num, 2 * den,x; [zs !!! k]))
              ∗
                ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs',
-                  ι' ↪Nₛ (num, 2 * den,x'; [zs' !!! k]) ∗ ⌜dZ x x' <= IZR Δ⌝)
+                  ι' ↪Nₛ (num, 2 * den,x'; [zs' !!! k]) ∗ ⌜dZ x x' <= IZR (Δ * C)⌝)
             )%I with "[Htapes]" as "[Htapes Htapes']".
     {
       opose proof big_sepL2_sep as h.
@@ -466,7 +477,7 @@ Qed.
     iAssert (([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs',
                   ι' ↪Nₛ (num, 2 * den,x'; [zs' !!! k]))
              ∗
-               ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs', ⌜dZ x x' <= IZR Δ⌝)
+               ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs', ⌜dZ x x' <= IZR (Δ * C)⌝)
             )%I with "[Htapes']" as "[Htapes' htapes]".
     {
       opose proof big_sepL2_sep as h.
@@ -486,7 +497,7 @@ Qed.
                      let '(x', ι') := xι' in
                      ⌜xs' !!! k = x'⌝ ∗ ⌜ιs' !!! k = ι'⌝ ∗
                      ι' ↪Nₛ (num, 2 * den,x'; [zs' !!! k]))
-                ∗ ⌜Forall2 (λ x x', dZ x x' <= IZR Δ) xs xs'⌝
+                ∗ ⌜Forall2 (λ x x', dZ x x' <= IZR (Δ * C)) xs xs'⌝
              )%I
               ) with "[Htapes Htapes' htapes]" as
       "(%&%&%&%& Htapes & Htapes' & %htapes)".
