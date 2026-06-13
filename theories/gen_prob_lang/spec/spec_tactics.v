@@ -251,10 +251,27 @@ Ltac tp_bind_helper :=
        unify e' efoc;
        let K'' := eval cbn[app] in (K' ++ K) in
        replace (@ectx_language.fill Λ K e) with (@ectx_language.fill Λ K'' e') by (by rewrite ?fill_app))
+  (* After a prior [tp_*] step the spec evaluation context is rebuilt with the
+     [ectxi_language.fill] head (the [EctxLanguageOfEctxi] derivation), so peel
+     that too; the result is convertible to the [ectx_language.fill] RHS. *)
+  | |- @ectxi_language.fill ?Λ ?K ?e = @ectx_language.fill ?Λ2 _ ?efoc =>
+     reshape_expr e ltac:(fun K' e' =>
+       unify e' efoc;
+       let K'' := eval cbn[app] in (K' ++ K) in
+       replace (@ectxi_language.fill Λ K e) with (@ectxi_language.fill Λ K'' e') by (by rewrite ?fill_app))
+  | |- @ectxi_language.fill ?Λ ?K ?e = @ectxi_language.fill _ _ ?efoc =>
+     reshape_expr e ltac:(fun K' e' =>
+       unify e' efoc;
+       let K'' := eval cbn[app] in (K' ++ K) in
+       replace (@ectxi_language.fill Λ K e) with (@ectxi_language.fill Λ K'' e') by (by rewrite ?fill_app))
   | |- ?e = @ectx_language.fill ?Λ _ ?efoc =>
      reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
        replace e with (@ectx_language.fill Λ K' e') by (by rewrite ?fill_app))
+  | |- ?e = @ectxi_language.fill ?Λ _ ?efoc =>
+     reshape_expr e ltac:(fun K' e' =>
+       unify e' efoc;
+       replace e with (@ectxi_language.fill Λ K' e') by (by rewrite ?fill_app))
   end; reflexivity.
 
 (** [tp_get_sig k] reads the distribution signature [S] off the current spec
