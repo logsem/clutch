@@ -4,10 +4,19 @@
     ([report_noisy_max_exp_lemmas]) report-noisy-max developments into ONE
     library parametric over the noise distribution [sample : Z → Z → Z → distr Z].
 
-    The two reference files are identical modulo renaming EXCEPT three per-draw
-    couplings.  Those three spots become the section hypotheses [Hiso] (0-cost
-    location isometry) and [Hshift] (the costly +1 shift at the argmax
-    coordinate); everything else is a verbatim copy.
+    The development PIVOTS on a single named [Prop],
+    [noise_map_correct_statement sample] (the per-distribution argmax-coupling
+    fact: the [noise_map]ped lists couple, preserving [list_Z_max], at cost
+    [num/den]).  The whole tape layer ([Section tape]) consumes it as a HYPOTHESIS
+    [Hmc], so a future NON-per-coordinate noise (e.g. exponential mechanism /
+    Gumbel) can discharge [Hmc] its own way.
+
+    The per-coordinate path ([Section draw]) builds [Hmc] from ONE directional
+    general-shift draw coupling [Hdraw] (the shape of [DPcoupl_laplace_draw] /
+    [DPcoupl_exp_draw]); the constructor is [noise_map_correct_of_draw].  This
+    [Hdraw] is the SOLE noise-specific input on that path: the 0-cost location
+    isometry and the costly +1 argmax shift are BOTH recovered from it (at
+    [k:=loc'-loc, k':=0] and at the doubled rate with [k:=1, k':=2]).
 
     The noise distribution is presented to the language as [mkZNoise sample mass],
     whose projections reduce DEFINITIONALLY ([sf_out = Z], [sf_inj = LitV ∘ LitInt],
@@ -29,7 +38,7 @@ From clutch.gen_diffpriv.examples Require Import report_noisy_max_pure.
 
 (** Unlike [report_noisy_max_lemmas] (whose imported [Set Default Proof Using
     "Type"] leaks in as a global flag), this development genuinely depends on the
-    section variables [sample]/[mass]/[Hiso]/[Hshift], so we let every proof
+    section variables [sample]/[mass]/[Hdraw]/[Hmc], so we let every proof
     generalise over all in-scope section variables. *)
 Set Default Proof Using "All".
 
@@ -61,14 +70,6 @@ Section generic.
   Context (sample : Z → Z → Z → distr Z)
           (mass : ∀ num den mean, (SeriesC (sample num den mean) = 1)%R).
   Local Notation D := (mkZNoise sample mass).
-  (** The ONLY noise-specific inputs: the 0-cost location isometry and the
-      costly +1 shift at the argmax coordinate. *)
-  Context (Hiso : ∀ num den loc loc',
-             Mcoupl (sample num den loc) (sample num den loc')
-                    (λ z z', z - z' = loc - loc')%Z 0)
-          (Hshift : ∀ num den loc loc', (0 < IZR num / IZR (2*den))%R → (dZ loc loc' <= 1)%R →
-             DPcoupl (sample num (2*den) loc) (sample num (2*den) loc')
-                     (λ z z', z + 1 = z')%Z (IZR num / IZR den) 0).
 
 (** noise_map *)
 Fixpoint noise_map num den (Hproof:(0<IZR num / IZR den)%R) (l:list Z) :=
@@ -105,6 +106,38 @@ Proof.
   rewrite mass //.
 Qed.
 
+(** The PIVOT, as a named [Prop].  This is the per-distribution argmax-coupling
+    fact that the whole tape layer below consumes as a HYPOTHESIS.  Stated over
+    the section [sample], so on section-close it becomes a predicate on
+    [sample : Z → Z → Z → distr Z] (see [noise_map_correct_statement] in the
+    flat namespace).  Mirrors the conclusion of [noise_map_correct] verbatim —
+    a future non-per-coordinate noise (e.g. Gumbel / exponential mechanism) can
+    discharge it WITHOUT the per-draw [noise_map_correct_of_draw] path. *)
+Definition noise_map_correct_statement : Prop :=
+  ∀ num den (Hproof : (0 < IZR num / IZR (2 * den))%R) (l l' : list Z),
+    length l = length l' → (length l > 0)%nat →
+    (∀ p, p ∈ zip_with (λ x y, (x, y)) l l' → (dZ p.1 p.2 <= 1)%R) →
+    DPcoupl (noise_map num (2 * den) Hproof l) (noise_map num (2 * den) Hproof l')
+      (λ zs zs', length zs = length zs' ∧ (length zs = length l)%nat ∧
+                 list_Z_max zs = list_Z_max zs')
+      (IZR num / IZR den) 0.
+
+(** ** The per-coordinate constructor of the pivot.  Parametric over the single
+    directional draw coupling [Hdraw] — this is the only place the per-draw
+    structure of the noise is used; the tape layer never sees it. *)
+Section draw.
+  (** ONE directional general-shift coupling.  This is exactly the shape of
+      [DPcoupl_laplace_draw]/[DPcoupl_exp_draw]: shifting the location by [k]
+      costs [|k'|·ε] error when the (directional) shift [k+loc-loc'] lands in
+      [0..k'].  We recover BOTH the 0-cost location isometry (at [k := loc'-loc],
+      [k' := 0]) and the costly +1 shift at the argmax coordinate (at the
+      doubled rate [num/(2·den)], [k := 1], [k' := 2], cost
+      [IZR 2 · num/(2·den) = num/den]) from this single hypothesis. *)
+  Context (Hdraw : ∀ num den loc loc' (k k' : Z),
+             (0 < IZR num / IZR den)%R → (0 ≤ k + loc - loc')%Z → (k + loc - loc' ≤ k')%Z →
+             DPcoupl (sample num den loc) (sample num den loc')
+                     (λ z z', z + k = z')%Z (IZR k' * (IZR num / IZR den)) 0).
+
 Lemma noise_map_pw_after num den l l' (Hproof: (0 < IZR num / IZR (2 * den))%R):
   length l = length l' ->
   (∀ p, p ∈ zip_with (λ x y, (x,y)) l l' -> (dZ p.1 p.2 <= 1)%R) ->
@@ -129,10 +162,13 @@ Proof.
     { rewrite elem_of_cons; naive_solver. }
     apply dZ_bounded_cases in H3 as H4.
     eapply (DPcoupl_dbind _ _ _ _ (λ z z', (dZ z z' <= 1)%R)); try done; last first.
-    (* SPOT 1: 0-cost location isometry — use [Hiso] directly. *)
-    { eapply DPcoupl_mono; [done|done|..]; last apply Mcoupl_to_DPcoupl; last apply Hiso; try done.
-      intros.
-      apply dZ_bounded_cases'. simpl in *. lia.
+    (* SPOT 1: 0-cost location isometry — [Hdraw] at [k := hd'-hd], [k' := 0],
+       so the draw relation [z + (hd'-hd) = z'] is [z - z' = hd - hd']. *)
+    { epose proof (Hdraw num (2*den) hd hd' (hd'-hd) 0 ltac:(done) ltac:(lia) ltac:(lia)) as Hd0.
+      eapply DPcoupl_mono; last apply Hd0; try done.
+      - intros z z' Hzz'.
+        apply dZ_bounded_cases'. simpl in *. lia.
+      - rewrite Rmult_0_l; lra.
     }
     intros z z' Hz.
     replace 0%R with (0+0)%R by lra.
@@ -173,12 +209,20 @@ Proof.
     intros H1 H2 H3 H4.
     simplify_eq.
     eapply (DPcoupl_dbind _ _ _ _ (λ z z', z+1=z')%Z); try done; last first.
-    (* SPOT 2: the +1 shift at the argmax coordinate — [Hshift] delivers it
-       directly at cost num/den, given [dZ hd hd' ≤ 1]. *)
-    { apply Hshift; first exact Hproof.
-      unshelve epose proof H4 (hd, hd') _ as H5.
+    (* SPOT 2: the +1 shift at the argmax coordinate — [Hdraw] at the doubled
+       rate [num/(2·den)] with [k := 1], [k' := 2], cost [IZR 2 · num/(2·den)],
+       brought down to [num/den] by [DPcoupl_mono] (it is an equality). *)
+    { unshelve epose proof H4 (hd, hd') _ as H5.
       { rewrite elem_of_cons; naive_solver. }
-      done.
+      apply dZ_bounded_cases in H5. simpl in H5.
+      epose proof (Hdraw num (2*den) hd hd' 1 2 ltac:(exact Hproof) ltac:(lia) ltac:(lia)) as Hd1.
+      eapply DPcoupl_mono; last apply Hd1; try done.
+      simpl. rewrite mult_IZR.
+      replace (_/(_*_))%R with (/2 * (IZR num / IZR den))%R;
+        last (rewrite Rdiv_mult_distr; lra).
+      rewrite -Rmult_assoc.
+      rewrite -{2}(Rmult_1_l (IZR num / IZR den)%R).
+      apply Rmult_le_compat_r; [left; by apply ineq_convert | simpl; lra].
     }
     intros ?? <-.
     replace 0%R with (0+0)%R by lra.
@@ -198,12 +242,16 @@ Proof.
     replace 0%R with (0+0)%R by lra.
     replace (_/_)%R with (0+IZR num / IZR den)%R by lra.
     eapply (DPcoupl_dbind _ _ _ _ (λ z z', (dZ z z' <= 1)%R)); try done; last first.
-    (* SPOT 3: 0-cost isometry (before coordinate j) — same shape as SPOT 1. *)
-    { eapply DPcoupl_mono; [done|done|..]; last apply Mcoupl_to_DPcoupl; last apply Hiso; try done.
-      simpl.
-      intros ?? ->.
-      unshelve epose proof H4 (_,_) _ as H5; last apply H5.
-      rewrite elem_of_cons. naive_solver.
+    (* SPOT 3: 0-cost isometry (before coordinate j) — same shape as SPOT 1:
+       [Hdraw] at [k := hd'-hd], [k' := 0]. *)
+    { unshelve epose proof H4 (hd, hd') _ as H5.
+      { rewrite elem_of_cons; naive_solver. }
+      apply dZ_bounded_cases in H5. simpl in H5.
+      epose proof (Hdraw num (2*den) hd hd' (hd'-hd) 0 ltac:(done) ltac:(lia) ltac:(lia)) as Hd0.
+      eapply DPcoupl_mono; last apply Hd0; try done.
+      - intros z z' Hzz'.
+        apply dZ_bounded_cases'. simpl in *. lia.
+      - rewrite Rmult_0_l; lra.
     }
     intros ???.
     replace 0%R with (0+0)%R by lra.
@@ -265,7 +313,20 @@ Proof.
   intros ??[?[?%noise_map_pos ?%noise_map_pos]]. lia.
 Qed.
 
-Section rnm_lemmas.
+(** The per-coordinate construction of the pivot from the single draw coupling.
+    On section-close this becomes
+    [noise_map_correct_of_draw : ∀ sample mass Hdraw, noise_map_correct_statement sample]. *)
+Lemma noise_map_correct_of_draw : noise_map_correct_statement.
+Proof. intros num den Hproof l l'. apply noise_map_correct. Qed.
+
+End draw.
+
+(** ** The tape layer, pivoting on the per-distribution coupling fact as a
+    HYPOTHESIS [Hmc].  Independent of how [Hmc] is obtained — the per-coordinate
+    [noise_map_correct_of_draw] is ONE way; a future non-per-coordinate noise is
+    another. *)
+Section tape.
+  Context (Hmc : noise_map_correct_statement).
   Context {S : Sig} `{!SampleIn D S} `{!diffprivGS S Σ}.
   Canonical Structure gen_ectxi_lang_rnm := gen_ectxi_lang S.
   Canonical Structure gen_ectx_lang_rnm := gen_ectx_lang S.
@@ -477,7 +538,7 @@ Proof.
   unshelve (repeat erewrite noise_presample_list_rewrite); last first; try done.
   replace (0)%R with (0+0)%R by lra.
   replace (_/_)%R with (IZR num / IZR den + 0)%R by lra.
-  eapply DPcoupl_dbind; [done|done| |apply noise_map_correct]; last first.
+  eapply DPcoupl_dbind; [done|done| |apply Hmc]; last first.
   - repeat setoid_rewrite zip_with_fmap_l.
     repeat setoid_rewrite zip_with_fmap_r. naive_solver.
   - rewrite !length_fmap. lia.
@@ -780,10 +841,13 @@ Section coupling_rule.
   
 End coupling_rule.
 
-End rnm_lemmas.
+End tape.
 
 End generic.
 
-(** The per-noise instantiations (discharging [Hiso]/[Hshift]) live in the thin
+(** The per-noise instantiations (discharging the single [Hdraw] coupling, then
+    feeding [noise_map_correct_of_draw] as the pivot [Hmc]) live in the thin
     [report_noisy_max_lemmas] (Laplace) and [report_noisy_max_exp_lemmas]
-    (exponential), each ~40 lines — the payoff of this factoring. *)
+    (exponential), each ~40 lines — the payoff of this factoring.  A future
+    non-per-coordinate noise can instead supply its own
+    [noise_map_correct_statement] proof directly to the [tape] layer. *)
