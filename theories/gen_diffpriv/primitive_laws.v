@@ -152,4 +152,106 @@ Section rules.
     iModIntro. iFrame. iApply ("HΦ" $! x). by iPureIntro.
   Qed.
 
+  (** Heap rules (ported from [diffpriv/primitive_laws]; [Load]→[Deref]). *)
+  Lemma wp_alloc E v s :
+    {{{ True }}} AllocN (Val (LitV (LitInt 1))) (Val v) @ s; E
+    {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    iApply wp_lift_atomic_head_step; [done|].
+    iIntros (σ1) "[Hh Ht] !#".
+    iSplit.
+    { iPureIntro. rewrite /head_reducible. eexists.
+      apply head_step_support_equiv_rel. econstructor; eauto. }
+    iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+    iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
+    { apply not_elem_of_dom, fresh_loc_is_fresh. }
+    iFrame.
+    rewrite map_union_empty -insert_union_singleton_l.
+    iFrame.
+    iIntros "!>". by iApply "HΦ".
+  Qed.
+
+  Lemma wp_allocN_seq (N : nat) (z : Z) E v s :
+    TCEq N (Z.to_nat z) →
+    (0 < N)%Z →
+    {{{ True }}}
+      AllocN (Val $ LitV $ LitInt $ z) (Val v) @ s; E
+    {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
+  Proof.
+    iIntros (-> Hn Φ) "_ HΦ".
+    iApply wp_lift_atomic_head_step; [done|].
+    iIntros (σ1) "[Hh Ht] !#".
+    iSplit.
+    { iPureIntro.
+      rewrite /head_reducible.
+      eexists.
+      apply head_step_support_equiv_rel.
+      econstructor; eauto.
+      lia.
+    }
+    iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+    iMod ((ghost_map_insert_big _ _ with "Hh")) as "[$ Hl]".
+    iIntros "!>". iFrame.
+    iApply "HΦ".
+    iInduction (H) as [ | ?] "IH" forall (σ1).
+    - simpl.
+      iSplit; auto.
+      rewrite map_union_empty.
+      rewrite loc_add_0.
+      by rewrite big_sepM_singleton.
+    - rewrite seq_S.
+      rewrite heap_array_replicate_S_end.
+      iPoseProof (big_sepM_union _ _ _ _ with "Hl") as "[H1 H2]".
+      iApply big_sepL_app.
+      iSplitL "H1".
+      + iApply "IH".
+        { iPureIntro. lia. }
+        iApply "H1".
+      + simpl. iSplit; auto.
+        by rewrite big_sepM_singleton.
+        Unshelve.
+        {
+          apply heap_array_map_disjoint.
+          intros.
+          apply not_elem_of_dom_1.
+          by apply fresh_loc_offset_is_fresh.
+        }
+        apply heap_array_map_disjoint.
+        intros.
+        apply not_elem_of_dom_1.
+        rewrite dom_singleton.
+        apply not_elem_of_singleton_2.
+        intros H2.
+        apply loc_add_inj in H2.
+        rewrite length_replicate in H1.
+        lia.
+  Qed.
+
+  Lemma wp_deref E l dq v s :
+    {{{ ▷ l ↦{dq} v }}} Deref (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
+  Proof.
+    iIntros (Φ) ">Hl HΦ".
+    iApply wp_lift_atomic_head_step; [done|].
+    iIntros (σ1) "[Hh Ht] !#".
+    iDestruct (ghost_map_lookup with "Hh Hl") as %?.
+    solve_red.
+    iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+    iFrame. iModIntro. by iApply "HΦ".
+  Qed.
+
+  Lemma wp_store E l v' v s :
+    {{{ ▷ l ↦ v' }}} Store (Val $ LitV (LitLoc l)) (Val v) @ s; E
+    {{{ RET LitV LitUnit; l ↦ v }}}.
+  Proof.
+    iIntros (Φ) ">Hl HΦ".
+    iApply wp_lift_atomic_head_step; [done|].
+    iIntros (σ1) "[Hh Ht] !#".
+    iDestruct (ghost_map_lookup with "Hh Hl") as %?.
+    solve_red.
+    iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+    iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
+    iFrame. iModIntro. by iApply "HΦ".
+  Qed.
+
 End rules.
