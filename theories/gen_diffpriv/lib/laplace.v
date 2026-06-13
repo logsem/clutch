@@ -25,12 +25,15 @@ From iris.prelude Require Import options.
 
 Local Open Scope R.
 
-(** [Laplace num den mean] samples the Laplace family at parameter
-    [(num, den, mean)].  The family's position in the ambient signature is
-    recovered from the [SampleIn laplace_family _] instance — NOT hardcoded. *)
-Notation Laplace num den mean :=
-  (Sample (sample_idx (D := laplace_family)) (Pair num (Pair den mean))
-          (Val (LitV LitUnit))) (only parsing).
+(** [Laplace num den mean tape] samples the Laplace family at parameter
+    [(num, den, mean)] using sample tape [tape] ([#()] for a direct,
+    tape-less sample).  This 4-argument surface form matches the [prob_lang]
+    [Laplace] constructor so case studies port verbatim; the family's index in
+    the ambient signature is recovered from the [SampleIn laplace_family _]
+    instance — NOT hardcoded. *)
+Notation Laplace num den mean tape :=
+  (Sample (sample_idx (D := laplace_family)) (Pair num (Pair den mean)) tape)
+  (only parsing).
 
 Section laplace.
   Context {S : Sig} `{!SampleIn laplace_family S} `{!diffprivGS S Σ}.
@@ -97,6 +100,28 @@ Section laplace.
       | intros z z' Hzz'; exists z; split; [done | by rewrite Hzz']
       | lra | lra
       | subst ε'; rewrite -Hε; by apply DPcoupl_laplace_draw ].
+  Qed.
+
+  (** The surface-form Laplace coupling rule, stated on the [Laplace] notation
+      (with the [(num,den,loc)] parameter as an un-reduced [Pair]) so it matches
+      the [prob_lang] [hoare_couple_laplace] API.  The proof reduces the [Pair]
+      params on both sides ([wp_pures]/[tp_pures]) and then applies the
+      reduced-form [wp_couple_laplace]. *)
+  Lemma hoare_couple_laplace (loc loc' k k' : Z)
+    (Hdist : (Z.abs (k + loc - loc') <= k')%Z)
+    (num den : Z) (ε ε' : R) K E :
+    IZR num / IZR den = ε →
+    0 < IZR num / IZR den →
+    ε' = (IZR k' * ε) →
+    {{{ ⤇ fill K (Laplace #num #den #loc' #()) ∗ ↯m ε' }}}
+      Laplace #num #den #loc #() @ E
+      {{{ (z : Z), RET #z; ⤇ fill K #(z + k) }}}.
+  Proof.
+    iIntros (Hε εpos Hε' Φ) "(Hr & Hε) HΦ".
+    wp_pures. tp_pures.
+    iApply (wp_couple_laplace loc loc' k k' Hdist num den ε ε' K E Hε εpos Hε'
+              with "[$Hr $Hε]").
+    iApply "HΦ".
   Qed.
 
 End laplace.

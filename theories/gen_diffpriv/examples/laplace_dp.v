@@ -38,8 +38,8 @@ Section laplace_example.
     IZR num / IZR den = ε →
     0 < IZR num / IZR den →
     (Z.abs (loc - loc') <= 1)%Z →
-    {{{ ⤇ fill K ((λ: "l", Laplace #num #den "l")%V #loc') ∗ ↯m ε }}}
-      (λ: "l", Laplace #num #den "l")%V #loc @ E
+    {{{ ⤇ fill K ((λ: "l", Laplace #num #den "l" #())%V #loc') ∗ ↯m ε }}}
+      (λ: "l", Laplace #num #den "l" #())%V #loc @ E
     {{{ (z : Z), RET #z; ⤇ fill K #z }}}.
   Proof.
     iIntros (Hε εpos Hsens Φ) "(Hr & Hε) HΦ".
