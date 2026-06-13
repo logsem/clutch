@@ -35,6 +35,24 @@ Section rules.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
 
+  (* Pin [fill] to the gen evaluation contexts (no global canonical language). *)
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
+
+  (** helper: push a spec evaluation context through a prim-step coupling *)
+  Lemma DPcoupl_steps_ctx_bind_r `{Countable A} (μ : distr A)
+    e1' σ1' R (ε δ : nonnegreal) K :
+    to_val e1' = None →
+    DPcoupl μ (prim_step e1' σ1') R ε δ →
+    DPcoupl μ (prim_step (fill K e1') σ1')
+      (λ a '(e2', σ2'), ∃ e2'', (e2', σ2') = (fill K e2'', σ2') ∧ R a (e2'', σ2')) ε δ.
+  Proof.
+    intros Hv Hcpl.
+    rewrite fill_dmap //= -(dret_id_right μ) /=.
+    eapply (DPcoupl_dbind' ε 0 _ δ 0); [lra|done|done|lra| |done].
+    intros ? [] ?.
+    apply DPcoupl_dret=>/=; [done|done|]. eauto.
+  Qed.
+
   (** Generic state-step tape coupling: from an abstract DP coupling of the two
       family draws [μ = sig_sample Sg i pv] and [μ' = sig_sample Sg i pv'], get
       the WP rule that advances two tapes [α]/[α'] by coupled draws. *)
@@ -115,6 +133,58 @@ Section rules.
               (sig_sample_at D Sg p) (sig_sample_at D Sg p') Hcpl' with "[$Hα $Hα' $Hcred]").
     iIntros (v v' (a & a' & Ha & -> & ->)) "Htapes".
     iApply ("HΦ" $! a a' Ha with "Htapes").
+  Qed.
+
+  (** Generic PROGRAM-step coupling (no tapes): directly couple two
+      [Sample i _ #()] head-steps (impl + spec) via an abstract draw coupling.
+      The analogue of the Laplace [hoare_couple_laplace], factored. *)
+  Lemma wp_couple_sample_gen (i : nat) (pv pv' : val) (μ μ' : distr val)
+    (R' : val → val → Prop) K E (ε' : R) :
+    sig_sample Sg i pv = Some μ →
+    sig_sample Sg i pv' = Some μ' →
+    DPcoupl μ μ' R' ε' 0 →
+    {{{ ⤇ fill K (Sample i (Val pv') (Val (LitV LitUnit))) ∗ ↯m ε' }}}
+      Sample i (Val pv) (Val (LitV LitUnit)) @ E
+    {{{ (v v' : val), RET v; ⤇ fill K (Val v') ∗ ⌜R' v v'⌝ }}}.
+  Proof.
+    iIntros (Hμ Hμ' Hcpl Φ) "(Hr & Hε) HΦ".
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ))".
+    iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(ε'' & ε_now_rest & foo & Hε'').
+    assert (Hps1 : language.prim_step (Sample i (Val pv) (Val (LitV LitUnit))) σ1 = dmap (λ v, (Val v, σ1)) μ).
+    { simpl. erewrite head_prim_step_eq; last first.
+      { destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
+        eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS. }
+      simpl. rewrite Hμ. done. }
+    assert (Hps1' : language.prim_step (Sample i (Val pv') (Val (LitV LitUnit))) σ1' = dmap (λ v, (Val v, σ1')) μ').
+    { simpl. erewrite head_prim_step_eq; last first.
+      { destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
+        eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS. }
+      simpl. rewrite Hμ'. done. }
+    iApply (prog_coupl_steps_simple ε_now_rest ε'' ε_now δ_now 0%NNR);
+      [done | apply nnreal_ext; simpl; lra | | | | ].
+    - apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
+      eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS.
+    - apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
+      eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS.
+    - apply (DPcoupl_steps_ctx_bind_r _ _ _
+              (λ ρ ρ' : cfg, ∃ v v', R' v v' ∧ ρ = (Val v, σ1) ∧ ρ' = (Val v', σ1'))); [done|].
+      rewrite Hps1 Hps1' /dmap.
+      eapply (DPcoupl_dbind' ε'' 0 ε'' 0 0 0); [lra|done|done|lra| |rewrite Hε''; exact Hcpl].
+      intros w w' Hww'. apply DPcoupl_dret; [done|done|]. exists w, w'. done.
+    - iIntros (e2 σ2 e2' σ2' (e2'' & [=->] & (w & w' & Hww' & [=-> ->] & [=-> ->]))).
+      iMod (spec_update_prog (fill K (Val w')) with "Hauth2 Hr") as "[$ Hspec]".
+      iMod (ecm_supply_decrease with "Hε2 Hε") as (a b Herr Heq) "H".
+      do 2 iModIntro. iMod "Hclose'" as "_". iModIntro. iFrame "Hh1 Ht1".
+      rewrite -wp_value.
+      iSplitR "Hspec HΦ".
+      2: { iApply ("HΦ" $! w w'). iFrame "Hspec". done. }
+      rewrite /err_interp /=. iFrame "Hδ".
+      assert (b = ε_now_rest) as ->.
+      { apply nnreal_ext. apply (f_equal nonneg) in Herr, foo. simpl in *. lra. }
+      rewrite /mult_ec_supply. iFrame "H".
   Qed.
 
 End rules.
