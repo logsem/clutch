@@ -7,7 +7,8 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Export ghost_map.
 From clutch.base_logic Require Export error_credits_mult error_credits.
 From clutch.diffpriv Require Export weakestpre ectx_lifting.
-From clutch.gen_prob_lang Require Import lang tactics.
+From clutch.gen_prob_lang Require Export class_instances.
+From clutch.gen_prob_lang Require Import tactics lang notation metatheory.
 From clutch.gen_prob_lang.spec Require Export spec_ra.
 From iris.prelude Require Import options.
 
@@ -153,16 +154,24 @@ Section rules.
   Qed.
 
   (** Heap rules (ported from [diffpriv/primitive_laws]; [Load]→[Deref]). *)
+  Lemma wp_rec_löb E f x e Φ (Ψ : val → iProp Σ) :
+    □ ( □ (∀ (v : val), Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}) -∗
+       ∀ (v : val), Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ E {{ Φ }}) -∗
+    ∀ (v : val), Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}.
+  Proof.
+    iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ".
+    iApply lifting.wp_pure_step_later; first done.
+    iNext. iApply ("Hrec" with "[] HΨ"). iIntros "!>" (w) "HΨ".
+    iApply ("IH" with "HΨ").
+  Qed.
+
   Lemma wp_alloc E v s :
-    {{{ True }}} AllocN (Val (LitV (LitInt 1))) (Val v) @ s; E
-    {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
+    {{{ True }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
   Proof.
     iIntros (Φ) "_ HΦ".
     iApply wp_lift_atomic_head_step; [done|].
     iIntros (σ1) "[Hh Ht] !#".
-    iSplit.
-    { iPureIntro. rewrite /head_reducible. eexists.
-      apply head_step_support_equiv_rel. econstructor; eauto. }
+    solve_red.
     iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
     iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
