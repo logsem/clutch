@@ -5,6 +5,7 @@
     tactic class is deferred — relational sampling goes through coupling rules.) *)
 From clutch.diffpriv Require Import weakestpre lifting.
 From clutch.gen_diffpriv Require Import primitive_laws.
+From clutch.gen_diffpriv Require Export derived_laws.
 From clutch.gen_prob_lang Require Export wp_tactics.
 From clutch.gen_prob_lang.spec Require Export spec_tactics.
 From clutch.gen_prob_lang Require Export tactics notation lang.
@@ -27,6 +28,13 @@ Section gen_proofmode.
 
   #[global] Program Instance diffpriv_wptactics_pure : GwpTacticsPure Sg Σ unit true wp.
   Next Obligation. intros. by eapply wp_pure_step_later. Qed.
+
+  #[global] Program Instance diffpriv_wptactics_heap : GwpTacticsHeap Σ unit true wp :=
+    Build_GwpTacticsHeap _ _ _ _ (λ l q v, (l ↦{q} v)%I) (λ l q vs, (l ↦∗{q} vs)%I) _ _ _ _.
+  Next Obligation. intros. by apply wp_alloc. Qed.
+  Next Obligation. intros. by apply wp_allocN. Qed.
+  Next Obligation. intros. by apply wp_deref. Qed.
+  Next Obligation. intros. by apply wp_store. Qed.
 
 End gen_proofmode.
 
