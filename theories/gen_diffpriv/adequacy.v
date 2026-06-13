@@ -1,0 +1,254 @@
+(** Adequacy for the generic DP weakest precondition.  Ported from
+    [diffpriv/adequacy.v]: the [Section adequacy] proofs are Λ-generic (they use
+    the reused [spec_coupl]/[prog_coupl] from [clutch.diffpriv.weakestpre] and
+    the [DPcoupl_erasure_*] lemmas from [gen_prob_lang.erasure]); the only
+    language-specific change is the ghost-state initialisation, which now
+    allocates ONE generic tape map instead of [tapes]+[tapes_laplace].  The
+    distribution signature [S] is threaded throughout. *)
+From iris.proofmode Require Import base proofmode.
+From iris.bi Require Import lib.fixpoint_mono big_op.
+From iris.base_logic.lib Require Import ghost_map invariants fancy_updates.
+From iris.algebra Require Import excl.
+From iris.prelude Require Import options.
+
+From clutch.prelude Require Import stdpp_ext iris_ext.
+From clutch.common Require Import language.
+From clutch.base_logic Require Import error_credits.
+From clutch.diffpriv Require Import weakestpre.
+From clutch.gen_diffpriv Require Import primitive_laws.
+From clutch.prob Require Import differential_privacy distribution couplings_dp.
+(* import gen_prob_lang LAST so the concrete [expr]/[val]/[state] shadow the
+   [language] record projections re-exported by weakestpre/primitive_laws *)
+From clutch.gen_prob_lang Require Import erasure notation lang.
+Import uPred.
+
+Local Open Scope R.
+
+Section gen_adequacy.
+  Context (Sg : Sig).
+  (* unique names (primitive_laws already exports [gen_lang_Sg] etc.) so these
+     register fresh and, being most-recent, win canonical resolution. *)
+  Canonical Structure gen_ectxi_lang_adq := gen_ectxi_lang Sg.
+  Canonical Structure gen_ectx_lang_adq := gen_ectx_lang Sg.
+  Canonical Structure gen_lang_adq := gen_lang Sg.
+  (* also pin the [markov] so [exec]/[lim_exec] on a [cfg] pair resolve the
+     signature (the cfg type [expr*state] is signature-independent). *)
+  Canonical Structure gen_markov_adq := lang_markov (gen_lang Sg).
+  Context `{!diffprivGS Sg Σ}.
+  (* Pin the spec-update instance at [Sg] (the generic [spec_rules_spec_updateGS]
+     is ∀S, so [spec_interp]/[spec_coupl] otherwise can't recover the signature
+     from the signature-independent [cfg]). *)
+  #[local] Existing Instance spec_rules_spec_updateGS.
+  #[local] Instance spec_updateGS_adq : spec_updateGS gen_markov_adq Σ :=
+    spec_rules_spec_updateGS Sg.
+
+  Lemma wp_adequacy_spec_coupl n m e1 σ1 e1' σ1' Z φ ε δ :
+    spec_coupl ∅ σ1 e1' σ1' ε δ Z -∗
+    (∀ σ2 e2' σ2' ε' δ', Z σ2 e2' σ2' ε' δ' ={∅}=∗ |={∅}▷=>^n ⌜DPcoupl (exec m (e1, σ2)) (lim_exec (e2', σ2')) φ ε' δ'⌝) -∗
+    |={∅}=> |={∅}▷=>^n ⌜DPcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) φ ε δ⌝.
+  Proof.
+    iRevert (σ1 e1' σ1' ε δ).
+    iApply spec_coupl_ind.
+    iIntros "!>" (σ1 e1' σ1' ε δ)
+      "[% | [boo | [(%T & %μ1 & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & % & % & %Hμ1 & %Hμ1' & H)
+              |(%T & %k & %μ1 & %μ1' & %δ' & %X2 & %r & % & % & % & %Hμ1 & %Hμ1' & H) ]]] HZ";
+      [ | by iMod ("HZ" with "[$]") | |].
+    - iApply step_fupdN_intro; [done|].
+      do 2 iModIntro. iPureIntro. by apply DPcoupl_1.
+    - iApply (step_fupdN_mono _ _ _ ⌜_⌝).
+      { iPureIntro. intros h. eapply DPcoupl_erasure_rewritable_rhs. 8: apply h. all: eauto. }
+      iIntros (σ2 (e2', σ2') HT).
+      iMod ("H" with "[//]") as "[H _]".
+      by iApply "H".
+    - iApply (step_fupdN_mono _ _ _ ⌜_⌝).
+      { iPureIntro. intros h.
+        opose proof (ARcoupl_to_DPcoupl _ _ _ _ _) .
+        1: exact H.
+        eapply (DPcoupl_erasure_erasable_exp_rhs_specialized).
+        7: apply h. all: eauto.
+      }
+      iIntros (σ2 e2' σ2' HT).
+      iMod ("H" with "[//]") as "[H _]".
+      by iApply "H".
+  Qed.
+
+  Lemma wp_adequacy_prog_coupl n m e1 σ1 e1' σ1' Z φ ε δ :
+    to_val e1 = None ->
+    prog_coupl e1 σ1 e1' σ1' ε δ Z -∗
+    (∀ e2 σ2 e2' σ2' ε' δ', Z e2 σ2 e2' σ2' ε' δ' ={∅}=∗ |={∅}▷=>^n ⌜DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε' δ'⌝) -∗
+    |={∅}=> |={∅}▷=>^n ⌜DPcoupl (exec (S m) (e1, σ1)) (lim_exec (e1', σ1')) φ ε δ⌝.
+  Proof.
+    iIntros (Hnone).
+    rewrite exec_Sn.
+    rewrite /step_or_final /= Hnone.
+    iIntros "(%P & %R & %R' & %k & %μ1' & %ε1 & % & % & % & % & % & % & % & % & % & % & % & % & % & % & Hcnt) Hcoupl /=".
+    iApply (step_fupdN_mono _ _ _
+              (∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
+                  ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝ ∗
+                    ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2) ⌝)
+           ).
+    { iPureIntro. simpl. intros.
+      eapply (DPcoupl_erasure_erasable_lhs_choice _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ P).
+      9: apply H1.
+      9: apply H2.
+      all: eauto.
+      - intros.
+        destruct (H7 e2 σ2 e2' σ2').
+        by apply H9.
+      - intros.
+        destruct (H7 e2 σ2 e2' σ2').
+        by apply H10.
+    }
+    iIntros (e2 σ2 e2' σ2').
+    iDestruct ("Hcnt" $! e2 σ2 e2' σ2') as "[Hcnt1  Hcnt2]".
+    destruct (decide (P (e2, σ2))).
+    - iApply (step_fupdN_mono _ _ _
+                  ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝).
+      {
+        iIntros (?).
+        iSplit; auto.
+        iIntros ((?&?)).
+        done.
+      }
+      iIntros ((?&?)).
+      iMod ("Hcnt1" with "[//]") as "Hcnt1".
+      by iApply "Hcoupl".
+    - iApply (step_fupdN_mono _ _ _
+                  ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2)⌝).
+      {
+        iIntros (?).
+        iSplit; auto.
+        iIntros ((?&?)).
+        done.
+      }
+      iIntros ((?&?)).
+      iMod ("Hcnt2" with "[//]") as "Hcnt2".
+      by iApply "Hcoupl".
+  Qed.
+
+  Lemma wp_adequacy_val_fupd (e e' : expr) (σ σ' : state) n φ v ε δ:
+    to_val e = Some v →
+    state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε δ ∗
+    WP e {{ v, ∃ v' : val, ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
+    |={⊤, ∅}=> ⌜DPcoupl (exec (δ := gen_markov_adq) n (e, σ)) (lim_exec (δ := gen_markov_adq) (e', σ')) φ ε δ⌝.
+  Proof.
+    iIntros (He) "(Hσ & Hs & Hε & Hwp)".
+    rewrite wp_unfold /wp_pre /= He.
+    iMod ("Hwp" with "[$]") as "Hwp".
+    iApply (wp_adequacy_spec_coupl 0 with "Hwp").
+    iIntros (σ1 e1' σ1' ε' δ') "> (? & Hs & (Hε & Hδ) & (% & Hv & %)) /=".
+    iDestruct (spec_auth_prog_agree with "Hs Hv") as %->.
+    erewrite exec_is_final; [|done].
+    erewrite lim_exec_final; [|done].
+    iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+    iPureIntro. by eapply DPcoupl_dret.
+  Qed.
+
+  Lemma wp_adequacy_step_fupdN ε δ (e e' : expr) (σ σ' : state) n φ :
+    state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε δ ∗
+    WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
+    |={⊤,∅}=> |={∅}▷=>^n ⌜DPcoupl (exec (δ := gen_markov_adq) n (e, σ)) (lim_exec (δ := gen_markov_adq) (e', σ')) φ ε δ⌝.
+  Proof.
+    iIntros "(Hσ & HspecI_auth & Hε & Hwp)".
+    iInduction n as [|n] "IH" forall (e σ e' σ' ε δ).
+    { destruct (to_val e) eqn:He.
+      - iMod (wp_adequacy_val_fupd with "[$]") as %?; [done|].
+        by iApply step_fupdN_intro.
+      - iApply fupd_mask_intro; [done|]; iIntros "_ /=".
+        iPureIntro. rewrite He.
+        by apply DPcoupl_dzero.
+    }
+    destruct (to_val e) eqn:He.
+    { iMod (wp_adequacy_val_fupd with "[$]") as %?; [done|].
+      iApply step_fupdN_intro; [done|].
+      do 3 iModIntro. done. }
+    iEval (rewrite wp_unfold /wp_pre /= He) in "Hwp".
+    iMod ("Hwp" with "[$]") as "Hwp".
+    iApply (wp_adequacy_spec_coupl with "Hwp").
+    iIntros (σ2 e2' σ2' ε' δ') "Hprog". simpl in φ.
+    iApply (wp_adequacy_prog_coupl with "Hprog"); [done|].
+    iIntros (e3 σ3 e3' σ3' ε3 δ3) "Hspec".
+    iIntros "!> !> !>".
+    iApply (wp_adequacy_spec_coupl with "Hspec").
+    iIntros (σ4 e4' σ4' ε4 δ4) ">(Hσ & Hs & Hε & Hcnt)".
+    iApply ("IH" with "Hσ Hs Hε Hcnt").
+  Qed.
+
+End gen_adequacy.
+
+Lemma wp_adequacy_exec_n (Sg : Sig) Σ `{!diffprivGpreS Σ} (e e' : expr) (σ σ' : state) n φ (ε δ : R) :
+  0 <= ε → 0 <= δ ->
+  (∀ `{diffprivGS Sg Σ}, ⊢ ⤇ e' -∗ ↯m ε -∗ ↯ δ -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }}) →
+  DPcoupl (exec (δ := lang_markov (gen_lang Sg)) n (e, σ)) (lim_exec (δ := lang_markov (gen_lang Sg)) (e', σ')) φ ε δ.
+Proof.
+  intros Heps Hdel Hwp.
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
+  iIntros (Hinv) "_".
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(stapes)) as "[%γT [Ht _]]".
+  iMod spec_ra_init as (HspecGS) "(Hs & Hj & ?)".
+  set ε' := mknonnegreal _ Heps.
+  iMod (ecm_alloc ε') as (?) "[HE He]".
+  destruct (decide (δ < 1)) as [? | Hnlt%Rnot_lt_le].
+  - set δ' := mknonnegreal _ Hdel.
+    iMod (ec_alloc δ') as (?) "[HD Hd]"; [done|].
+    set (HdiffprivGS := HeapG Sg Σ Hinv _ _ γH γT HspecGS _ _).
+    pose proof (wp_adequacy_step_fupdN Sg ε' δ') as h. iApply h.
+    iFrame "Hh Ht Hs HE HD".
+    by iApply (Hwp with "[Hj] [He] [Hd]").
+  - iApply fupd_mask_intro; [done|]; iIntros "_".
+    iApply step_fupdN_intro; [done|]; iModIntro.
+    iPureIntro. by apply DPcoupl_1.
+    Unshelve. apply _.
+Qed.
+
+Theorem wp_adequacy (Sg : Sig) Σ `{diffprivGpreS Σ} (e e' : expr) (σ σ' : state) (ε δ : R) φ :
+  0 <= ε → 0 <= δ ->
+  (∀ `{diffprivGS Sg Σ}, ⊢  ⤇ e' -∗ ↯m ε -∗ ↯ δ -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  DPcoupl (lim_exec (δ := lang_markov (gen_lang Sg)) (e, σ)) (lim_exec (δ := lang_markov (gen_lang Sg)) (e', σ')) φ ε δ.
+Proof.
+  intros ? ? Hwp.
+  apply lim_exec_DPcoupl; [done|done|].
+  intros n.
+  by eapply wp_adequacy_exec_n.
+Qed.
+
+Lemma DPcoupl_limit `{Countable A, Countable B} μ1 μ2 ε δ (ψ : A -> B -> Prop):
+  (forall δ', δ' > δ -> DPcoupl μ1 μ2 ψ ε δ') -> DPcoupl μ1 μ2 ψ ε δ.
+Proof.
+  rewrite /DPcoupl.
+  intros Hlimit. intros.
+  apply real_le_limit.
+  intros δ0 ?. rewrite Rcomplements.Rle_minus_l.
+  rewrite Rplus_assoc.
+  apply Hlimit; try done.
+  lra.
+Qed.
+
+Corollary wp_adequacy_error_lim (Sg : Sig) Σ `{diffprivGpreS Σ} (e e' : expr) (σ σ' : state) (ε δ : R) φ :
+  0 <= ε →
+  0 <= δ →
+  (∀ `{diffprivGS Sg Σ} (δ' : R),
+      δ < δ' → ⊢ ⤇ e' -∗ ↯m ε -∗ ↯ δ' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  DPcoupl (lim_exec (δ := lang_markov (gen_lang Sg)) (e, σ)) (lim_exec (δ := lang_markov (gen_lang Sg)) (e', σ')) φ ε δ.
+Proof.
+  intros ?? Hwp.
+  apply DPcoupl_limit.
+  intros δ' Hineq.
+  assert (0 <= δ') as Hδ'.
+  { trans δ; [done|lra]. }
+  pose (mknonnegreal δ' Hδ') as NNRδ'.
+  assert (δ' = (NNRbar_to_real (NNRbar.Finite NNRδ'))) as Heq; [done|].
+  rewrite Heq.
+  eapply wp_adequacy; [done|done|done|..].
+  iIntros (?).
+  by iApply Hwp.
+Qed.
+
+Corollary wp_adequacy_mass (Sg : Sig) Σ `{!diffprivGpreS Σ} (e e' : expr) (σ σ' : state) φ (ε δ : R) :
+  0 <= ε → 0 <= δ ->
+  (∀ `{diffprivGS Sg Σ}, ⊢  ⤇ e' -∗ ↯m ε -∗ ↯ δ -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  SeriesC (lim_exec (δ := lang_markov (gen_lang Sg)) (e, σ)) <= exp ε * SeriesC (lim_exec (δ := lang_markov (gen_lang Sg)) (e', σ')) + δ.
+Proof.
+  intros ? ? Hwp. eapply DPcoupl_mass_leq. by eapply wp_adequacy.
+Qed.
