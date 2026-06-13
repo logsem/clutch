@@ -8,8 +8,8 @@
                             with bias exp(ε)/(exp(ε)+1) for ε = num/den. *)
 From Stdlib Require Import Reals Psatz ZArith.
 From stdpp Require Import gmap fin countable.
-From clutch.prob Require Import distribution exponential.
-From clutch.gen_prob_lang Require Import lang znoise.
+From clutch.prob Require Import distribution exponential expmech.
+From clutch.gen_prob_lang Require Import lang znoise inject.
 From iris.prelude Require Import options.
 
 #[local] Open Scope R.
@@ -48,6 +48,64 @@ Definition laplace_family : SampleFamily := mkZNoise laplace_rat laplace_rat_mas
     the exponential-mechanism report-noisy-max; adding it costs exactly this one
     [SampleFamily] (the payoff of the generalization). *)
 Definition exp_family : SampleFamily := mkZNoise exp_rat exp_rat_mass.
+
+(* ------------------------------------------------------------------ *)
+(* 2b. Discrete exponential-mechanism family: parameter                *)
+(*     [(num, den, scores) : Z*Z*list Z], output [Z] (the chosen       *)
+(*     index).  Samples index [i ∝ exp((num/den)·scoreᵢ)] via [expmech].*)
+(*                                                                     *)
+(*     Unlike the noise families, the parameter carries a *list* of    *)
+(*     scores, so the [val] (de)serialisation goes through the         *)
+(*     [Inject_list] instance: [sf_param_to_val] uses [inject] to       *)
+(*     encode [scores], and [val_to_listZ] is the matching inverse      *)
+(*     parser for the cons-cell representation                          *)
+(*     ([InjLV #()] for [], [InjRV (#x, rest)] for [x :: rest]).        *)
+(* ------------------------------------------------------------------ *)
+
+(** Inverse of [inject : list Z → val] (the [Inject_list] instance),
+    matching its cons-cell representation: [[] ↦ InjLV #()] and
+    [x :: xs ↦ InjRV (#x, ⟨xs⟩)].  Total ([None] off the image). *)
+Fixpoint val_to_listZ (v : val) : option (list Z) :=
+  match v with
+  | InjLV (LitV LitUnit) => Some []
+  | InjRV (PairV (LitV (LitInt x)) rest) =>
+      (λ xs, x :: xs) <$> val_to_listZ rest
+  | _ => None
+  end.
+
+(** [val_to_listZ] inverts [inject] on every score vector. *)
+Lemma val_to_listZ_inject (scores : list Z) :
+  val_to_listZ (inject scores) = Some scores.
+Proof.
+  induction scores as [|x xs IH]; simpl; [reflexivity|]. rewrite IH. reflexivity.
+Qed.
+
+Definition expmech_family : SampleFamily.
+Proof.
+  refine {| sf_param := (Z * Z * list Z)%type;
+            sf_param_eqdec := _; sf_param_count := _;
+            sf_out := Z; sf_out_eqdec := _; sf_out_count := _;
+            sf_inj := (λ z, LitV (LitInt z)); sf_inj_inj := _;
+            sf_param_of_val :=
+              (λ v, match v with
+                    | PairV (LitV (LitInt num)) (PairV (LitV (LitInt den)) lv) =>
+                        (λ scores, (num, den, scores)) <$> val_to_listZ lv
+                    | _ => None
+                    end);
+            sf_param_to_val :=
+              (λ '(num, den, scores),
+                 PairV (LitV (LitInt num))
+                       (PairV (LitV (LitInt den)) (inject scores)));
+            sf_roundtrip := _;
+            sf_sample := (λ '(num, den, scores), expmech num den scores);
+            sf_mass := _;
+            sf_supp := (λ _ _, True);
+            sf_supp_spec := _ |}; try exact _.
+  - by intros ?? [= ->].
+  - intros [[num den] scores]. rewrite val_to_listZ_inject. reflexivity.
+  - intros [[num den] scores]. apply expmech_mass.
+  - by intros [[num den] scores] z _.
+Defined.
 
 (* ------------------------------------------------------------------ *)
 (* Helper lemmas for the coin families.                                *)
