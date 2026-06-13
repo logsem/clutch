@@ -51,4 +51,21 @@ Next Obligation. by intros ?? [=]. Qed.
   {| inject := Val ∘ inject |}.
 
 #[global] Program Instance : Inject val val := {| inject := λ v, v |}.
+
+Fixpoint inject_list `{!Inject A val} (xs : list A) :=
+  match xs with
+  | [] => NONEV
+  | x :: xs' => SOMEV ((inject x), inject_list xs')
+  end.
+
+#[global] Program Instance Inject_list `{!Inject A val} : Inject (list A) val :=
+  {| inject := inject_list |}.
+Next Obligation.
+  intros ? [] xs. induction xs as [|x xs IH]; simpl.
+  - intros []; by inversion 1.
+  - intros []; [by inversion 1|].
+    inversion 1 as [H'].
+    f_equal; [by apply (inj _)|].
+    by apply IH.
+Qed.
 End inject.
