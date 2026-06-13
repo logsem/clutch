@@ -376,7 +376,198 @@ Qed.
                     ⤇ fill K (report_noisy_max_presampling num den evalQ #N (of_val (inject db'))) }}}
                   report_noisy_max_presampling num den evalQ #N (of_val (inject db))
                   {{{ v, RET v ; ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = v' ⌝  }}}.
-  Proof. (* TODO(port): reaches the [wp_apply (wp_laplace_tape ...)] / [tp_sample_tape] gwp workers; in [gen] the [Laplace] surface ([Sample sample_idx (Pair ..)]) does not match [wp_laplace_tape] after [wp_pures] reduces the [Pair] (line ~347: "No applicable tactic"). Needs gen-specific reshaping (cf. [report_noisy_max_pointwise] uses [tp_normalise]). Also depends on the two admitted heavy lemmas above. *) Admitted.
+  Proof with (tp_pures ; wp_pures).
+    intros εpos qi_sens db db' db_adj post. iIntros "[ε rhs] Hpost".
+    wp_lam. tp_lam...
+    destruct N as [|N'].
+    {
+      rewrite /list_init/list_map/list_map'/list_mapi/list_mapi_loop/list_max_index...
+      iApply "Hpost". iFrame. done.
+    }
+    set (N := S N'). assert (0 < N)%nat by (unfold N ; lia).
+    tp_bind (list_init _ _). wp_bind (list_init _ _).
+    iApply (rnm_init with "rhs") => //.
+    iIntros "!> % (% & % & % & rhs & % & % & % & % & %)". simpl...
+    tp_bind (list_map _ _). wp_bind (list_map _ _).
+    wp_apply (wp_alloc_tapes_laplace with "rhs") => //.
+    1: lia.
+    iIntros "% (% & % & % & % & % & % & % & % & % & rhs & Htapes) /="...
+    wp_apply (hoare_couple_laplace_list with "[$ε] [$Htapes] [rhs Hpost]") => //.
+    1,2: lia.
+    iIntros "(% & % & Htapes & %Hmax)".
+    (* split the tapes assumption into three list-foralls (two unary ones and one that's pure about the dZ). *)
+    iAssert (([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs',
+               ι ↪L (num, 2 * den,x; [zs !!! k]))
+             ∗
+               ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs',
+                  ι' ↪Lₛ (num, 2 * den,x'; [zs' !!! k]) ∗ ⌜dZ x x' <= 1⌝)
+            )%I with "[Htapes]" as "[Htapes Htapes']".
+    {
+      opose proof big_sepL2_sep as h.
+      symmetry in h.
+      iApply (h with "[Htapes]").
+      iApply (big_sepL2_mono with "Htapes").
+      iIntros (?[][]) "%% [?[??]]". iFrame.
+    }
+    iAssert (([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs',
+                  ι' ↪Lₛ (num, 2 * den,x'; [zs' !!! k]))
+             ∗
+               ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs', ⌜dZ x x' <= 1⌝)
+            )%I with "[Htapes']" as "[Htapes' htapes]".
+    {
+      opose proof big_sepL2_sep as h.
+      symmetry in h.
+      iApply (h with "[Htapes']").
+      iApply (big_sepL2_mono with "Htapes'").
+      iIntros (?[][]) "%% [??]". iFrame.
+    }
+    iAssert ((
+                ∃ (xs xs' : list Z) (ιs ιs' : list loc),
+                  ([∗ list] k↦'xι ∈ xιs,
+                     let '(x, ι) := xι in
+                     ⌜xs !!! k = x⌝ ∗ ⌜ιs !!! k = ι⌝ ∗
+                     ι ↪L (num, 2 * den,x; [zs !!! k]))
+                ∗
+                  ([∗ list] k↦xι' ∈ xιs',
+                     let '(x', ι') := xι' in
+                     ⌜xs' !!! k = x'⌝ ∗ ⌜ιs' !!! k = ι'⌝ ∗
+                     ι' ↪Lₛ (num, 2 * den,x'; [zs' !!! k]))
+                ∗ ⌜Forall2 (λ x x', dZ x x' <= 1) xs xs'⌝
+             )%I
+              ) with "[Htapes Htapes' htapes]" as
+      "(%&%&%&%& Htapes & Htapes' & %htapes)".
+    {
+      assert (forall (xys : list (Z * loc)) k x y, xys !! k = Some (x,y) → (xys .*1) !! k = Some x) as lookup_fmap_fst.
+      {
+        clear. intro xys. induction xys. 1: done.
+        intros. destruct k.
+        - simpl. simpl in H. inversion H. subst. simpl. done.
+        - destruct a.
+          rewrite fmap_cons.
+          simpl. simpl in H. eapply IHxys. done.
+      }
+      assert (forall (xys : list (Z * loc)) k x y, xys !! k = Some (x,y) → (xys .*2) !! k = Some y) as lookup_fmap_snd.
+      {
+        clear. intro xys. induction xys. 1: done.
+        intros. destruct k.
+        - simpl. simpl in H. inversion H. subst. simpl. done.
+        - destruct a.
+          rewrite fmap_cons.
+          simpl. simpl in H. eapply IHxys. done.
+      }
+      iExists (xιs.*1). iExists (xιs'.*1).
+      iExists (xιs.*2). iExists (xιs'.*2).
+      iSplitL "Htapes" ; [|iSplitL "Htapes'"].
+      - opose proof (big_sepL2_const_sepL_l (λ k '(x, ι), ι ↪L (num, 2 * den,x; [zs !!! k]))%I xιs xιs') as h.
+        symmetry in h.
+        iDestruct (h with "[Htapes]") as "[% Htapes]" ; clear h.
+        { iApply (big_sepL2_mono with "Htapes").
+          iIntros (? [] []). iIntros. done. }
+        iApply (big_sepL_mono with "Htapes").
+        iIntros (? []). iIntros. iFrame.
+        iPureIntro. split.
+        + apply list_lookup_total_correct. eapply lookup_fmap_fst. done.
+        + apply list_lookup_total_correct. eapply lookup_fmap_snd. done.
+      - opose proof (big_sepL2_const_sepL_r (λ k '(x, ι), ι ↪Lₛ (num, 2 * den,x; [zs' !!! k]))%I xιs xιs') as h.
+        symmetry in h.
+        iDestruct (h with "[Htapes']") as "[% Htapes']" ; clear h.
+        { iApply (big_sepL2_mono with "Htapes'").
+          iIntros (? [] []). iIntros. done. }
+        iApply (big_sepL_mono with "Htapes'").
+        iIntros (? []). iIntros. iFrame.
+        iPureIntro. split.
+        + apply list_lookup_total_correct. eapply lookup_fmap_fst. done.
+        + apply list_lookup_total_correct. eapply lookup_fmap_snd. done.
+      -
+        iApply big_sepL2_Forall2.
+        iApply big_sepL2_fmap_l.
+        iApply big_sepL2_fmap_r.
+        iApply (big_sepL2_mono with "htapes").
+        { iIntros (? [] []). iIntros. simpl. done. }
+    }
+
+    wp_bind (list_mapi _ _).
+
+    iApply (gwp_list_mapi (A:=Z*loc) (B:=Z)
+              (Inject0 := (@Inject_prod Z _ loc _))
+              (λ k '(x, ι), zs !!! k)
+              xιs
+              _
+              _
+              (λ k xι, let '(x, ι) := xι in ι ↪L (num, 2*den, x; [zs !!! k]))%I
+              (λ k z', ⌜zs !!! k = z'⌝)%I
+             with "[Htapes]").
+    { repeat iSplit.
+      - iModIntro.
+        iIntros (k [x ι] Φ) "!> ι HΦ". simpl.
+        wp_pures.
+        (* The coupling left a concrete singleton tape [zs !!! k]; pin [z]/[zs] of
+           [wp_laplace_tape_val] explicitly so its [↪L] precondition (an fmap over
+           [z :: zs]) matches the goal's [↪L (…; [zs !!! k])] syntactically — the
+           generic tape stores [list val], so unification can't invert the fmap. *)
+        wp_apply (wp_laplace_tape_val num (2 * den)%Z x (zs !!! k) [] ι with "[$ι]") ; iIntros "ι".
+        iApply "HΦ". done.
+      - done.
+      - iApply (big_sepL_mono with "Htapes").
+        iIntros (?[]) "% [?[??]]". iFrame.
+    }
+    iIntros "!> % h_list_mapi". idtac...
+
+    tp_pures.
+    tp_bind (list_mapi _ _).
+
+    iMod (gwp_list_mapi (g:=gwp_spec)
+                  (λ k '(x, ι), zs' !!! k) xιs'
+                  _
+                  vxιs'
+                  (λ k '(x, ι), ι ↪Lₛ (num, 2*den, x; [zs' !!! k]))%I
+                  (λ k z', ⌜zs' !!! k = z'⌝)%I
+               with "[Htapes'] [] [$rhs]") as (?) "[rhs h_list_mapi']".
+    {
+      repeat iSplit.
+      - iModIntro.
+        iIntros (k [x ι] Φ) "!> ι HΦ %K' rhs". simpl.
+        tp_pures.
+        tp_sample_tape.
+        iModIntro. iFrame. iApply "HΦ". done.
+      - done.
+      - iApply (big_sepL_mono with "Htapes'").
+        iIntros (?[]) "% [?[??]]". iFrame.
+    }
+    1: { iIntros "% hh". iExact "hh". }
+    iSimpl in "rhs". tp_pures.
+    iDestruct "h_list_mapi" as "(%mapi1&%mapi2)".
+    iDestruct "h_list_mapi'" as "(%mapi1'&%mapi2')".
+
+    iMod (gwp_list_max_index (g:=gwp_spec) _ _ _
+            (fun (i : val) => ⌜i = LitV (LitInt (List_max_index (mapi (λ (k : nat) '(_, _), zs' !!! k) xιs')))⌝)%I
+          with "[] [] rhs")
+      as (?) "[rhs %max_rhs]".
+    1: done.
+    { iIntros (?) "%hh". rewrite hh. done. }
+    iApply gwp_list_max_index.
+    1: done.
+    iIntros "!> **".
+    iApply "Hpost".
+    iFrame.
+    simplify_eq.
+    iPureIntro. f_equal. f_equal. f_equal.
+    destruct Hmax as (?&?&?).
+    rewrite !list_max_index_eq.
+    assert (zs' = (mapi (λ (k : nat) '(_, _), zs' !!! k) xιs')) as <- ; first last.
+    1: assert (zs = (mapi (λ (k : nat) '(_, _), zs !!! k) xιs)) as <- ; first last.
+    1: assumption.
+    - eapply lookup_eq_pointwise.
+      { rewrite mapi_length. lia. }
+      intros. apply mapi2.
+      apply list_lookup_lookup_total_lt.
+      done.
+    - eapply lookup_eq_pointwise.
+      { rewrite mapi_length. lia. }
+      intros. apply mapi2'.
+      apply list_lookup_lookup_total_lt.
+      done.
+  Qed.
 
 End rnm.
 
@@ -388,4 +579,15 @@ Lemma rnm_diffpriv_presampling num den (evalQ : val) DB (dDB : Distance DB) (N :
         dDB
         (λ db, lim_exec (δ := lang_markov (gen_lang Srnm)) ((report_noisy_max_presampling num den evalQ #N (inject db)), σ))
         (IZR num / IZR den).
-Proof. (* TODO(port): depends on [rnm_pres_diffpriv]. *) Admitted.
+Proof.
+  intros. apply diffpriv_approx_pure. apply DPcoupl_diffpriv.
+  intros.
+  eapply (wp_adequacy Srnm diffprivΣ) => //.
+  iIntros (?)"H1 H2".
+  iDestruct (rnm_pres_diffpriv with "[$H2 H1]") as "K"; try done.
+  - by erewrite fill_empty.
+  - iIntros.
+    iApply "K".
+    iNext. iIntros (?) "(%&?&%)".
+    by iFrame.
+Qed.
