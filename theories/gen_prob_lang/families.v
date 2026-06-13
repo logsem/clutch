@@ -9,7 +9,7 @@
 From Stdlib Require Import Reals Psatz ZArith.
 From stdpp Require Import gmap fin countable.
 From clutch.prob Require Import distribution exponential.
-From clutch.gen_prob_lang Require Import lang.
+From clutch.gen_prob_lang Require Import lang znoise.
 From iris.prelude Require Import options.
 
 #[local] Open Scope R.
@@ -40,64 +40,14 @@ Defined.
 (* ------------------------------------------------------------------ *)
 (* 2. Discrete Laplace family: parameter [(num, den, mean) : Z*Z*Z].  *)
 (* ------------------------------------------------------------------ *)
-Definition laplace_family : SampleFamily.
-Proof.
-  refine {| sf_param := (Z * Z * Z)%type; sf_param_eqdec := _; sf_param_count := _;
-            sf_out := Z; sf_out_eqdec := _; sf_out_count := _;
-            sf_inj := (λ z, LitV (LitInt z)); sf_inj_inj := _;
-            sf_param_of_val :=
-              (λ v, match v with
-                    | PairV (LitV (LitInt num))
-                            (PairV (LitV (LitInt den)) (LitV (LitInt mean))) =>
-                        Some (num, den, mean)
-                    | _ => None
-                    end);
-            sf_param_to_val :=
-              (λ '(num, den, mean),
-                 PairV (LitV (LitInt num))
-                       (PairV (LitV (LitInt den)) (LitV (LitInt mean))));
-            sf_roundtrip := _;
-            sf_sample := (λ '(num, den, mean), laplace_rat num den mean);
-            sf_mass := _;
-            sf_supp := (λ _ _, True);
-            sf_supp_spec := _ |}; try exact _.
-  - by intros ?? [= ->].
-  - by intros [[num den] mean].
-  - intros [[num den] mean]. apply laplace_rat_mass.
-  - by intros [[num den] mean] z _.
-Defined.
+Definition laplace_family : SampleFamily := mkZNoise laplace_rat laplace_rat_mass.
 
 (** One-sided exponential noise family — same [(num,den,mean)] interface and
     [Z] outcomes as [laplace_family], but sampling the one-sided exponential
     ([exp_rat]) instead of the Laplace.  This is the new noise distribution for
     the exponential-mechanism report-noisy-max; adding it costs exactly this one
     [SampleFamily] (the payoff of the generalization). *)
-Definition exp_family : SampleFamily.
-Proof.
-  refine {| sf_param := (Z * Z * Z)%type; sf_param_eqdec := _; sf_param_count := _;
-            sf_out := Z; sf_out_eqdec := _; sf_out_count := _;
-            sf_inj := (λ z, LitV (LitInt z)); sf_inj_inj := _;
-            sf_param_of_val :=
-              (λ v, match v with
-                    | PairV (LitV (LitInt num))
-                            (PairV (LitV (LitInt den)) (LitV (LitInt mean))) =>
-                        Some (num, den, mean)
-                    | _ => None
-                    end);
-            sf_param_to_val :=
-              (λ '(num, den, mean),
-                 PairV (LitV (LitInt num))
-                       (PairV (LitV (LitInt den)) (LitV (LitInt mean))));
-            sf_roundtrip := _;
-            sf_sample := (λ '(num, den, mean), exp_rat num den mean);
-            sf_mass := _;
-            sf_supp := (λ _ _, True);
-            sf_supp_spec := _ |}; try exact _.
-  - by intros ?? [= ->].
-  - by intros [[num den] mean].
-  - intros [[num den] mean]. apply exp_rat_mass.
-  - by intros [[num den] mean] z _.
-Defined.
+Definition exp_family : SampleFamily := mkZNoise exp_rat exp_rat_mass.
 
 (* ------------------------------------------------------------------ *)
 (* Helper lemmas for the coin families.                                *)
