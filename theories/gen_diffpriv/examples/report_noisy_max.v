@@ -18,24 +18,14 @@ From clutch.gen_prob_lang.spec Require Import spec_ra spec_rules.
 From clutch.gen_diffpriv.examples Require Import report_noisy_max_lemmas.
 From iris.prelude Require Import options.
 
-(** Enable the Laplace distribution for this development. *)
-Definition Srnm : Sig := [laplace_family].
-#[global] Instance SampleIn_rnm : SampleIn laplace_family Srnm := ltac:(solve_SampleIn).
+(** PARAMETRIC over any signature [Sg] containing [laplace_family] (recovered via
+    the ambient [SampleIn laplace_family Sg]) — so RNM composes with any other
+    mechanism whose program samples from a richer signature; the concrete [Sg] is
+    supplied only at the closing adequacy corollary.  ([Sg], not [S], avoids
+    shadowing the nat successor.)  With an abstract [SampleIn], [sample_idx] is
+    already a frozen atom, so the concrete-instance [Opaque SampleIn_rnm] OOM
+    workaround is no longer needed. *)
 #[global] Opaque sample_idx.
-(** MEMORY FIX (gen-only): in the concrete signature [Srnm := [laplace_family]]
-    the resolved instance [SampleIn_rnm] is the *unfolded* record
-    [{| sample_idx := 0; sample_idx_S := eq_refl … |}] whose proof field is a
-    huge term (its type-checking forces the whole [laplace_family] record).  Every
-    tape predicate [ι ↪L …] mentions [@sample_idx laplace_family Srnm SampleIn_rnm];
-    when the [big_sepL2_const_sepL_l/r] / [ghost_map_elem_valid_2] reshapes in
-    [wp_alloc_tapes_laplace] copy these N times, conversion repeatedly unfolds the
-    giant instance and the term/peak memory explodes (>16GB).  Sealing the
-    instance (and [sample_idx], above) makes [@sample_idx laplace_family Srnm
-    SampleIn_rnm] a frozen atom — exactly as it is over the abstract [SampleIn] in
-    [report_noisy_max_lemmas] (which compiles cheaply) — so the reshapes stay
-    small.  ([Opaque] only blocks delta-unfolding during conversion; instance
-    resolution still finds it by name.) *)
-#[global] Opaque SampleIn_rnm.
 
 (** [inject x : expr] resolves to the *unreduced* [@inject A expr _ x] rather
     than the [Val]-headed form; the spec reshape tactics need a [Val] head.  See
@@ -52,17 +42,17 @@ Proof. reflexivity. Qed.
     [step_store]) — the exact analogue of [prob_lang.spec.spec_rules.gwp_spec].
     INFRA GAP: ideally this would live in [gen_prob_lang.spec.spec_rules]. *)
 Section spec_gwp.
-  Context `{!specG_prob_lang Σ, invGS_gen hl Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Srnm)).
+  Context {Sg : Sig} `{!specG_prob_lang Σ, invGS_gen hl Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
   Local Notation spec_update :=
-    (@spec_update (lang_markov (gen_lang Srnm)) Σ _ _ _).
+    (@spec_update (lang_markov (gen_lang Sg)) Σ _ _ _).
 
   Notation spec_wp :=
     (λ E e Ψ, ∀ K,
         ⤇ fill K e -∗ spec_update E (∃ (v : val), ⤇ fill K v ∗ Ψ v))%I.
 
   Lemma gwp_mixin_spec :
-    GenWpMixin (S := Srnm) false spec_wp (λ l dq v, l ↦ₛ{dq} v)%I.
+    GenWpMixin (S := Sg) false spec_wp (λ l dq v, l ↦ₛ{dq} v)%I.
   Proof.
     constructor; intros.
     - apply _.
@@ -89,9 +79,9 @@ Section spec_gwp.
 End spec_gwp.
 
 Section rnm.
-  Context `{!diffprivGS Srnm Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Srnm)).
-  Local Notation lidx := (@sample_idx laplace_family Srnm _).
+  Context {Sg : Sig} `{!SampleIn laplace_family Sg} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
+  Local Notation lidx := (@sample_idx laplace_family Sg _).
   (* the generic tape value standing in for [prob_lang]'s [Tape_Laplace] record *)
   Local Notation LapT num den mean zs :=
     (sample_idx (D := laplace_family), sf_param_to_val laplace_family (num, den, mean)%Z,
@@ -111,7 +101,7 @@ Section rnm.
       list_max_index "noisy_xs".
 
   Lemma rnm_init (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
-    (∀ i : Z, ⊢ hoare_sensitive Srnm (evalQ #i) 1 dDB dZ) →
+    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) →
     ∀ db db', dDB db db' <= 1 →
               {{{ ⤇ fill K ((of_val list_init) #N (λ:"i", (of_val evalQ) "i" (of_val (inject db'))))%V }}}
                 (list_init #N (λ:"i", evalQ "i" (of_val (inject db))))%V
@@ -370,7 +360,7 @@ Qed.
 
   Lemma rnm_pres_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (0 < IZR num / IZR (2 * den)) →
-    (∀ i : Z, ⊢ hoare_sensitive Srnm (evalQ #i) 1 dDB dZ) →
+    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) →
     ∀ db db', dDB db db' <= 1 →
                 {{{ ↯m (IZR num / IZR den) ∗
                     ⤇ fill K (report_noisy_max_presampling num den evalQ #N (of_val (inject db'))) }}}
@@ -571,18 +561,18 @@ Qed.
 
 End rnm.
 
-Lemma rnm_diffpriv_presampling num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
+Lemma rnm_diffpriv_presampling (Sg : Sig) `{!SampleIn laplace_family Sg} num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
   (0 < IZR num / IZR (2 * den))%R →
   (0 <= IZR num / IZR den)%R →
-  (∀ `{!diffprivGS Srnm Σ}, ∀ i : Z, ⊢ hoare_sensitive Srnm (evalQ #i) 1 dDB dZ) → ∀ σ,
+  (∀ `{!diffprivGS Sg Σ}, ∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) → ∀ σ,
       diffpriv_pure
         dDB
-        (λ db, lim_exec (δ := lang_markov (gen_lang Srnm)) ((report_noisy_max_presampling num den evalQ #N (inject db)), σ))
+        (λ db, lim_exec (δ := lang_markov (gen_lang Sg)) ((report_noisy_max_presampling num den evalQ #N (inject db)), σ))
         (IZR num / IZR den).
 Proof.
   intros. apply diffpriv_approx_pure. apply DPcoupl_diffpriv.
   intros.
-  eapply (wp_adequacy Srnm diffprivΣ) => //.
+  eapply (wp_adequacy Sg diffprivΣ) => //.
   iIntros (?)"H1 H2".
   iDestruct (rnm_pres_diffpriv with "[$H2 H1]") as "K"; try done.
   - by erewrite fill_empty.

@@ -13,8 +13,8 @@ From clutch.gen_prob_lang Require Import inject families.
 From iris.prelude Require Import options.
 
 (** Enable the Laplace distribution for this development. *)
-Definition Srnm : Sig := [laplace_family].
-#[global] Instance SampleIn_rnm : SampleIn laplace_family Srnm := ltac:(solve_SampleIn).
+(** PARAMETRIC over any signature [Sg] containing [laplace_family] (composes with
+    other mechanisms; concrete [Sg] supplied at the closing adequacy corollaries). *)
 
 (** In [gen_prob_lang], [inject x] at type [expr] resolves through the
     [Inject_expr] instance to the *unreduced* application [@inject A expr _ x]
@@ -45,8 +45,8 @@ Proof. reflexivity. Qed.
 #[global] Opaque sample_idx.
 
 Section rnm.
-  Context `{!diffprivGS Srnm Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Srnm)).
+  Context {Sg : Sig} `{!SampleIn laplace_family Sg} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
   #[local] Open Scope R.
 
@@ -97,7 +97,7 @@ Section rnm.
 
   Lemma rnm_pw_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (0 < IZR num / IZR (2 * den)) →
-    (∀ i : Z, ⊢ hoare_sensitive Srnm (evalQ #i) 1 dDB dZ) →
+    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) →
     ∀ db db', dDB db db' <= 1 →
               ∀ j : val,
                 {{{ ↯m (IZR num / IZR den) ∗
@@ -159,7 +159,7 @@ Section rnm.
       rewrite -!/(rnm_body _ _ _ _ _ _ _ _).
       (* sensitivity of evalQ *)
       tp_bind (evalQ _ _). wp_bind (evalQ _ _).
-      iApply ((hoare_sensitive_Z_bounded Srnm _ _ _) $! (qi_sens i) with "[] [] rnm'") => //.
+      iApply ((hoare_sensitive_Z_bounded Sg _ _ _) $! (qi_sens i) with "[] [] rnm'") => //.
       1: real_solver. rewrite Zmult_1_l.
       iIntros "!> % (%e1 & %e2 & -> & rnm' & %e1e2_adj & %e1e2_adj')".
       iMod ecm_zero as "ε0".
@@ -265,7 +265,7 @@ Section rnm.
       (* this is the case where the predicted result j is not actually an integer *)
       Unshelve. destruct N... { tpload ; wp_load. iApply "HΦ". iFrame. done. }
       tp_bind (evalQ _ _) ; wp_bind (evalQ _ _).
-      iApply ((hoare_sensitive_Z_bounded Srnm _ _ _) $! (qi_sens _) with "[] [] rnm") => //.
+      iApply ((hoare_sensitive_Z_bounded Sg _ _ _) $! (qi_sens _) with "[] [] rnm") => //.
       1: real_solver. rewrite Zmult_1_l.
       iIntros "!> % (%e1 & %e2 & -> & rnm & %e1e2_adj & %e1e2_adj')".
       iMod ecm_zero as "ε0".
@@ -303,7 +303,7 @@ Section rnm.
         rewrite -!/(rnm_body _ _ _ _ _ _ _ _).
         clear e1 e2 e1e2_adj e1e2_adj'.
         tp_bind (evalQ _ _) ; wp_bind (evalQ _ _).
-        iApply ((hoare_sensitive_Z_bounded Srnm _ _ _) $! (qi_sens _) with "[] [] rnm'") => //.
+        iApply ((hoare_sensitive_Z_bounded Sg _ _ _) $! (qi_sens _) with "[] [] rnm'") => //.
         1: real_solver. rewrite Zmult_1_l.
         iIntros "!> % (%e1 & %e2 & -> & rnm' & %e1e2_adj & %e1e2_adj')".
         iMod ecm_zero as "ε0".
@@ -322,20 +322,20 @@ Section rnm.
 
 End rnm.
 
-Lemma rnm_diffpriv_cpl num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
+Lemma rnm_diffpriv_cpl (Sg : Sig) `{!SampleIn laplace_family Sg} num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
   (0 < IZR num / IZR (2 * den))%R →
   (0 <= IZR num / IZR den)%R →
-  (∀ `{!diffprivGS Srnm Σ}, ∀ i : Z, ⊢ hoare_sensitive Srnm (evalQ #i) 1 dDB dZ) →
+  (∀ `{!diffprivGS Sg Σ}, ∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) →
   ∀ db db', (dDB db db' <= 1)%R → ∀ σ,
       DPcoupl
-        (lim_exec (δ := lang_markov (gen_lang Srnm)) ((report_noisy_max num den evalQ #N (inject db)), σ))
-        (lim_exec (δ := lang_markov (gen_lang Srnm)) ((report_noisy_max num den evalQ #N (inject db')), σ))
+        (lim_exec (δ := lang_markov (gen_lang Sg)) ((report_noisy_max num den evalQ #N (inject db)), σ))
+        (lim_exec (δ := lang_markov (gen_lang Sg)) ((report_noisy_max num den evalQ #N (inject db')), σ))
         (λ v v', v = v')
         (IZR num / IZR den) 0.
 Proof.
   intros. replace 0%R with (SeriesC (λ _ : val, 0)). 2: by by apply SeriesC_0.
   apply DPcoupl_pweq => //=. 1: apply ex_seriesC_0. intros x'.
-  eapply (wp_adequacy Srnm diffprivΣ) => //.
+  eapply (wp_adequacy Sg diffprivΣ) => //.
   iIntros (?) "rnm' ε _".
   unshelve iPoseProof (rnm_pw_diffpriv num den evalQ DB dDB N [] H (H1 _ _) db db' H2 x'
     (λ v, ∃ v' : val, ⤇ v' ∗ ⌜v = x' → v' = x'⌝)%I) as "h" => //=.
@@ -343,13 +343,13 @@ Proof.
   iNext. iIntros (?) "[% [? %h]]". iExists v' ; iFrame. iPureIntro. exact h.
 Qed.
 
-Lemma rnm_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
+Lemma rnm_diffpriv (Sg : Sig) `{!SampleIn laplace_family Sg} num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
   (0 < IZR num / IZR (2 * den))%R →
   (0 <= IZR num / IZR den)%R →
-  (∀ `{!diffprivGS Srnm Σ}, ∀ i : Z, ⊢ hoare_sensitive Srnm (evalQ #i) 1 dDB dZ) → ∀ σ,
+  (∀ `{!diffprivGS Sg Σ}, ∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) → ∀ σ,
       diffpriv_pure
         dDB
-        (λ db, lim_exec (δ := lang_markov (gen_lang Srnm)) ((report_noisy_max num den evalQ #N (inject db)), σ))
+        (λ db, lim_exec (δ := lang_markov (gen_lang Sg)) ((report_noisy_max num den evalQ #N (inject db)), σ))
         (IZR num / IZR den).
 Proof.
   intros. apply diffpriv_approx_pure. apply DPcoupl_diffpriv.

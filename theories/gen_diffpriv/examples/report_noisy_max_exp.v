@@ -23,23 +23,11 @@ From clutch.gen_diffpriv.examples Require Import report_noisy_max_lemmas report_
 From iris.prelude Require Import options.
 
 (** Enable the Exp distribution for this development. *)
-Definition Srnme : Sig := [exp_family].
-#[global] Instance SampleIn_rnme : SampleIn exp_family Srnme := ltac:(solve_SampleIn).
+(** PARAMETRIC over any signature [Sg] containing [exp_family] (composes with
+    other mechanisms; concrete [Sg] supplied at the closing adequacy corollary).
+    Abstract [SampleIn] ⇒ [sample_idx] is a frozen atom, so the concrete-instance
+    [Opaque SampleIn_rnme] OOM workaround is unnecessary. *)
 #[global] Opaque sample_idx.
-(** MEMORY FIX (gen-only): in the concrete signature [Srnme := [exp_family]]
-    the resolved instance [SampleIn_rnme] is the *unfolded* record
-    [{| sample_idx := 0; sample_idx_S := eq_refl … |}] whose proof field is a
-    huge term (its type-checking forces the whole [exp_family] record).  Every
-    tape predicate [ι ↪E …] mentions [@sample_idx exp_family Srnme SampleIn_rnme];
-    when the [big_sepL2_const_sepL_l/r] / [ghost_map_elem_valid_2] reshapes in
-    [wp_alloc_tapes_exp] copy these N times, conversion repeatedly unfolds the
-    giant instance and the term/peak memory explodes (>16GB).  Sealing the
-    instance (and [sample_idx], above) makes [@sample_idx exp_family Srnme
-    SampleIn_rnme] a frozen atom — exactly as it is over the abstract [SampleIn] in
-    [report_noisy_max_lemmas] (which compiles cheaply) — so the reshapes stay
-    small.  ([Opaque] only blocks delta-unfolding during conversion; instance
-    resolution still finds it by name.) *)
-#[global] Opaque SampleIn_rnme.
 
 (** [inject x : expr] resolves to the *unreduced* [@inject A expr _ x] rather
     than the [Val]-headed form; the spec reshape tactics need a [Val] head.  See
@@ -56,17 +44,17 @@ Proof. reflexivity. Qed.
     [step_store]) — the exact analogue of [prob_lang.spec.spec_rules.gwp_spec_e].
     INFRA GAP: ideally this would live in [gen_prob_lang.spec.spec_rules]. *)
 Section spec_gwp_e.
-  Context `{!specG_prob_lang Σ, invGS_gen hl Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Srnme)).
+  Context {Sg : Sig} `{!specG_prob_lang Σ, invGS_gen hl Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
   Local Notation spec_update :=
-    (@spec_update (lang_markov (gen_lang Srnme)) Σ _ _ _).
+    (@spec_update (lang_markov (gen_lang Sg)) Σ _ _ _).
 
   Notation spec_wp :=
     (λ E e Ψ, ∀ K,
         ⤇ fill K e -∗ spec_update E (∃ (v : val), ⤇ fill K v ∗ Ψ v))%I.
 
   Lemma gwp_mixin_spec_e :
-    GenWpMixin (S := Srnme) false spec_wp (λ l dq v, l ↦ₛ{dq} v)%I.
+    GenWpMixin (S := Sg) false spec_wp (λ l dq v, l ↦ₛ{dq} v)%I.
   Proof.
     constructor; intros.
     - apply _.
@@ -93,9 +81,9 @@ Section spec_gwp_e.
 End spec_gwp_e.
 
 Section rnme.
-  Context `{!diffprivGS Srnme Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Srnme)).
-  Local Notation lidx := (@sample_idx exp_family Srnme _).
+  Context {Sg : Sig} `{!SampleIn exp_family Sg} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
+  Local Notation lidx := (@sample_idx exp_family Sg _).
   (* the generic tape value standing in for [prob_lang]'s [Tape_Exp] record *)
   Local Notation ExpT num den mean zs :=
     (sample_idx (D := exp_family), sf_param_to_val exp_family (num, den, mean)%Z,
@@ -115,7 +103,7 @@ Section rnme.
       list_max_index "noisy_xs".
 
   Lemma rnme_init (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
-    (∀ i : Z, ⊢ hoare_sensitive Srnme (evalQ #i) 1 dDB dZ) →
+    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) →
     ∀ db db', dDB db db' <= 1 →
               {{{ ⤇ fill K ((of_val list_init) #N (λ:"i", (of_val evalQ) "i" (of_val (inject db'))))%V }}}
                 (list_init #N (λ:"i", evalQ "i" (of_val (inject db))))%V
@@ -374,7 +362,7 @@ Qed.
 
   Lemma rnm_exp_pres_diffpriv num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
     (0 < IZR num / IZR (2 * den)) →
-    (∀ i : Z, ⊢ hoare_sensitive Srnme (evalQ #i) 1 dDB dZ) →
+    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) →
     ∀ db db', dDB db db' <= 1 →
                 {{{ ↯m (IZR num / IZR den) ∗
                     ⤇ fill K (report_noisy_max_exp_presampling num den evalQ #N (of_val (inject db'))) }}}
@@ -575,18 +563,18 @@ Qed.
 
 End rnme.
 
-Lemma rnm_exp_diffpriv_presampling num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
+Lemma rnm_exp_diffpriv_presampling (Sg : Sig) `{!SampleIn exp_family Sg} num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
   (0 < IZR num / IZR (2 * den))%R →
   (0 <= IZR num / IZR den)%R →
-  (∀ `{!diffprivGS Srnme Σ}, ∀ i : Z, ⊢ hoare_sensitive Srnme (evalQ #i) 1 dDB dZ) → ∀ σ,
+  (∀ `{!diffprivGS Sg Σ}, ∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) 1 dDB dZ) → ∀ σ,
       diffpriv_pure
         dDB
-        (λ db, lim_exec (δ := lang_markov (gen_lang Srnme)) ((report_noisy_max_exp_presampling num den evalQ #N (inject db)), σ))
+        (λ db, lim_exec (δ := lang_markov (gen_lang Sg)) ((report_noisy_max_exp_presampling num den evalQ #N (inject db)), σ))
         (IZR num / IZR den).
 Proof.
   intros. apply diffpriv_approx_pure. apply DPcoupl_diffpriv.
   intros.
-  eapply (wp_adequacy Srnme diffprivΣ) => //.
+  eapply (wp_adequacy Sg diffprivΣ) => //.
   iIntros (?)"H1 H2".
   iDestruct (rnm_exp_pres_diffpriv with "[$H2 H1]") as "K"; try done.
   - by erewrite fill_empty.
