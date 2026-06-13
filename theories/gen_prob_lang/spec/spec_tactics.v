@@ -250,7 +250,7 @@ Ltac tp_bind_helper :=
      reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
        let K'' := eval cbn[app] in (K' ++ K) in
-       replace (@ectx_language.fill Λ K e) with (@ectx_language.fill Λ K'' e') by (by rewrite ?fill_app))
+       replace (@ectx_language.fill Λ K e) with (@ectx_language.fill Λ K'' e') by reflexivity)
   (* After a prior [tp_*] step the spec evaluation context is rebuilt with the
      [ectxi_language.fill] head (the [EctxLanguageOfEctxi] derivation), so peel
      that too; the result is convertible to the [ectx_language.fill] RHS. *)
@@ -258,20 +258,20 @@ Ltac tp_bind_helper :=
      reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
        let K'' := eval cbn[app] in (K' ++ K) in
-       replace (@ectxi_language.fill Λ K e) with (@ectxi_language.fill Λ K'' e') by (by rewrite ?fill_app))
+       replace (@ectxi_language.fill Λ K e) with (@ectxi_language.fill Λ K'' e') by reflexivity)
   | |- @ectxi_language.fill ?Λ ?K ?e = @ectxi_language.fill _ _ ?efoc =>
      reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
        let K'' := eval cbn[app] in (K' ++ K) in
-       replace (@ectxi_language.fill Λ K e) with (@ectxi_language.fill Λ K'' e') by (by rewrite ?fill_app))
+       replace (@ectxi_language.fill Λ K e) with (@ectxi_language.fill Λ K'' e') by reflexivity)
   | |- ?e = @ectx_language.fill ?Λ _ ?efoc =>
      reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
-       replace e with (@ectx_language.fill Λ K' e') by (by rewrite ?fill_app))
+       replace e with (@ectx_language.fill Λ K' e') by reflexivity)
   | |- ?e = @ectxi_language.fill ?Λ _ ?efoc =>
      reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
-       replace e with (@ectxi_language.fill Λ K' e') by (by rewrite ?fill_app))
+       replace e with (@ectxi_language.fill Λ K' e') by reflexivity)
   end; reflexivity.
 
 (** [tp_get_sig k] reads the distribution signature [S] off the current spec
@@ -303,7 +303,12 @@ Tactic Notation "tp_normalise" :=
 
 Tactic Notation "tp_bind" open_constr(efoc) :=
   iStartProof;
-  eapply (tac_tp_bind _ efoc);
+  (* NB (gen): [tac_tp_bind]'s [fill] is at [gen_ectx_lang S]; [S] is a leading
+     explicit argument that does not appear in the conclusion, so supply it via
+     [tp_get_sig] (read off the goal / in-context diffprivGS) — otherwise [S] is
+     left an evar and the spec context fails to unify. *)
+  tp_get_sig ltac:(fun S =>
+  eapply (tac_tp_bind S efoc));
     [iAssumptionCore (* prove the lookup *)
     |tp_bind_helper (* do actual work *)
     |reflexivity
