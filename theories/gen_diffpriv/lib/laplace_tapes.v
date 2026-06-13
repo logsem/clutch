@@ -34,19 +34,35 @@ Notation AllocTapeLaplace num den mean :=
 
 (** Typed tape views: a Laplace tape holding presampled outcomes [zs : list Z],
     on the impl ([↪L]) and spec ([↪Lₛ]) tape maps respectively.  Both are sugar
-    over the generic tape predicate at index [sample_idx]; the parameter is
-    packed via [sf_param_to_val] and the outcomes injected via [sf_inj]. *)
+    over the generic tape predicate at index [sample_idx].  The parameter is
+    written in the *explicit* value form [PairV #num (PairV #den #mean)] — i.e.
+    exactly the shape the proof-mode tactics read off a reduced [Sample] redex —
+    so [wp_alloc_sample_tape]/[wp_sample_tape]/[tp_*] match it syntactically.
+    (This form is definitionally [sf_param_to_val laplace_family (num,den,mean)];
+    the bridge is [laplace_param_to_val] below, used inside the coupling rule.) *)
 Notation "α ↪L ( num , den , mean ; zs )" :=
   ((α ↪ (sample_idx (D := laplace_family),
-           sf_param_to_val laplace_family (num, den, mean)%Z,
-           (sf_inj laplace_family <$> zs)))%I)
+           PairV (LitV (LitInt num)) (PairV (LitV (LitInt den)) (LitV (LitInt mean))),
+           ((λ z : Z, LitV (LitInt z)) <$> zs)))%I)
   (at level 20, format "α  ↪L  ( num ,  den ,  mean ;  zs )") : bi_scope.
 
 Notation "α ↪Lₛ ( num , den , mean ; zs )" :=
   ((α ↪ₛ (sample_idx (D := laplace_family),
-            sf_param_to_val laplace_family (num, den, mean)%Z,
-            (sf_inj laplace_family <$> zs)))%I)
+            PairV (LitV (LitInt num)) (PairV (LitV (LitInt den)) (LitV (LitInt mean))),
+            ((λ z : Z, LitV (LitInt z)) <$> zs)))%I)
   (at level 20, format "α  ↪Lₛ  ( num ,  den ,  mean ;  zs )") : bi_scope.
+
+(** The two representations of a Laplace parameter / outcome coincide
+    definitionally; these reflexivity lemmas let us [rewrite] between the
+    family-level form (produced by [wp_couple_tapes_family]) and the explicit
+    value form (used by the tape views and proof-mode tactics). *)
+Lemma laplace_param_to_val (num den mean : Z) :
+  sf_param_to_val laplace_family (num, den, mean)
+  = PairV (LitV (LitInt num)) (PairV (LitV (LitInt den)) (LitV (LitInt mean))).
+Proof. reflexivity. Qed.
+
+Lemma laplace_sf_inj (z : Z) : sf_inj laplace_family z = LitV (LitInt z).
+Proof. reflexivity. Qed.
 
 Section laplace_tapes.
   Context {S : Sig} `{!SampleIn laplace_family S} `{!diffprivGS S Σ}.
@@ -62,7 +78,9 @@ Section laplace_tapes.
   Proof.
     iIntros (Φ) "_ HΦ".
     wp_pures.
-    iApply (wp_alloc_sample_tape lidx (sf_param_to_val laplace_family (num, den, mean)) with "[//]").
+    iApply (wp_alloc_sample_tape lidx
+              (PairV (LitV (LitInt num)) (PairV (LitV (LitInt den)) (LitV (LitInt mean))))
+              with "[//]").
     iIntros "!>" (α) "Hα". iApply "HΦ". iFrame.
   Qed.
 
@@ -76,8 +94,9 @@ Section laplace_tapes.
   Proof.
     iIntros (Φ) ">Hα HΦ".
     wp_pures.
-    iApply (wp_sample_tape lidx (sf_param_to_val laplace_family (num, den, mean))
-              (sf_inj laplace_family z) (sf_inj laplace_family <$> zs) α with "[Hα]").
+    iApply (wp_sample_tape lidx
+              (PairV (LitV (LitInt num)) (PairV (LitV (LitInt den)) (LitV (LitInt mean))))
+              (LitV (LitInt z)) ((λ z0 : Z, LitV (LitInt z0)) <$> zs) α with "[Hα]").
     { iFrame. }
     iIntros "!> Hα". iApply "HΦ". iFrame.
   Qed.
@@ -107,10 +126,13 @@ Section laplace_tapes.
                     (λ z z' : Z, (z + k = z')%Z) ε' 0) as Hcpl.
     { rewrite Hε' -Hε. by apply (DPcoupl_laplace_draw num den mean mean' k k' Hdist εpos). }
     iApply (wp_couple_tapes_family S laplace_family (num, den, mean) (num, den, mean')
-              α α' (sf_inj laplace_family <$> zs) (sf_inj laplace_family <$> zs')
-              (λ z z', (z + k = z')%Z) e Φ ε' E Hε'pos Hcpl with "[$Hα $Hα' $Hcred]").
+              α α' ((λ z : Z, LitV (LitInt z)) <$> zs) ((λ z : Z, LitV (LitInt z)) <$> zs')
+              (λ z z', (z + k = z')%Z) e Φ ε' E Hε'pos Hcpl with "[Hα Hα' Hcred]").
+    { rewrite !laplace_param_to_val. iFrame. }
     iIntros (a a' Ha) "(Hα & Hα')".
-    iApply ("HΦ" $! a). rewrite !fmap_app !fmap_cons !fmap_nil Ha. iFrame.
+    iEval (rewrite laplace_param_to_val) in "Hα".
+    iEval (rewrite laplace_param_to_val) in "Hα'".
+    iApply ("HΦ" $! a). rewrite Ha !fmap_app. iFrame.
   Qed.
 
 End laplace_tapes.
