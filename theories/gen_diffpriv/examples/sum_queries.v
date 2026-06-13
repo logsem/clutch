@@ -504,8 +504,8 @@ Section queries.
     tp_bind (above_threshold _ _ _).
     wp_bind (above_threshold _ _ _).
     wp_apply (wp_wand with "[Hε Hs]").
-    { wp_apply (above_threshold_online_AT_spec 1 (ltac:(lia)) with "[Hε] Hs"); [done|].
-      replace (IZR 1) with 1%R by (simpl; lra). rewrite Rmult_1_l //. }
+    { wp_apply (above_threshold_online_AT_spec 1 (ltac:(lia)) 1 (ltac:(lia)) with "[Hε] Hs"); [done|].
+      replace (IZR 1) with 1%R by (simpl; lra). rewrite !Rmult_1_l //. }
     iIntros (q) "(%f' & %AUTH & Hs & HAUTH & #AT_spec) /=".
     rewrite /list_find_default.
     tp_pures. wp_pures.
