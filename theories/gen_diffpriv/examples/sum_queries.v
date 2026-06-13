@@ -490,12 +490,12 @@ Section queries.
     iApply create_query_sensitivity_partial.
   Qed.
 
-  Lemma wp_above_threshold_list (num den T : Z) (default : nat) `{dA : Distance A} a a' qv qs K :
+  Lemma wp_above_threshold_list (C : Z) (HC : (1 <= C)%Z) (num den T : Z) (default : nat) `{dA : Distance A} a a' qv qs K :
     (0 < IZR num / IZR den)%R →
     is_list qs qv →
-    (dA a a' <= 1)%R →
+    (dA a a' <= IZR C)%R →
     ([∗ list] b_q ∈ qs, ∃ (b : nat) (q : val), ⌜b_q = (#b, q)%V⌝ ∗ wp_sensitive Sg (of_val q) 1 dA dZ) -∗
-    ↯m (IZR num / IZR den) -∗
+    ↯m (IZR C * (IZR num / IZR den)) -∗
     ⤇ fill K (above_threshold_list #num #den #T (inject a' : val) qv #default) -∗
     WP above_threshold_list #num #den #T (inject a : val) qv #default {{ v, ∃ (bound : nat) (q : val), ⌜v = (#bound, q)%V⌝ ∗ ⤇ fill K (of_val v) }}.
   Proof.
@@ -504,8 +504,8 @@ Section queries.
     tp_bind (above_threshold _ _ _).
     wp_bind (above_threshold _ _ _).
     wp_apply (wp_wand with "[Hε Hs]").
-    { wp_apply (above_threshold_online_AT_spec 1 (ltac:(lia)) 1 (ltac:(lia)) with "[Hε] Hs"); [done|].
-      replace (IZR 1) with 1%R by (simpl; lra). rewrite !Rmult_1_l //. }
+    { wp_apply (above_threshold_online_AT_spec 1 (ltac:(lia)) C HC with "[Hε] Hs"); [done|].
+      replace (IZR 1) with 1%R by (simpl; lra). rewrite Rmult_1_l //. }
     iIntros (q) "(%f' & %AUTH & Hs & HAUTH & #AT_spec) /=".
     rewrite /list_find_default.
     tp_pures. wp_pures.
@@ -558,17 +558,17 @@ Section queries.
       auto.
   Qed.
 
-  Lemma wp_compute_summation_clip_bound (ds1 ds2 : list Z) (bs : list nat) dsv1 dsv2 bsv (num den : Z) K :
+  Lemma wp_compute_summation_clip_bound (C : Z) (HC : (1 <= C)%Z) (ds1 ds2 : list Z) (bs : list nat) dsv1 dsv2 bsv (num den : Z) K :
     (0 < IZR num / IZR den)%R →
     is_list bs bsv →
-    neighbour ds1 ds2 →
+    (list_dist ds1 ds2 <= C)%Z →
     is_list ds1 dsv1 →
     is_list ds2 dsv2 →
-    ↯m (IZR num / IZR den) -∗
+    ↯m (IZR C * (IZR num / IZR den)) -∗
     ⤇ fill K (compute_summation_clip_bound bsv #num #den dsv2) -∗
     WP compute_summation_clip_bound bsv #num #den dsv1 {{ v, ∃ bound : nat, ⌜v = #bound⌝ ∗ ⤇ fill K (of_val v) }}.
   Proof.
-    iIntros (Hε Hbs Hneigh Hds1 Hds2) "Hε Hs".
+    iIntros (Hε Hbs Hadj Hds1 Hds2) "Hε Hs".
     tp_rec; tp_pures. wp_rec; wp_pures.
     tp_bind (list_map _ _).
     wp_bind (list_map _ _).
@@ -580,8 +580,8 @@ Section queries.
     wp_bind (above_threshold_list _ _ _ _ _ _).
     wp_apply (wp_wand with "[-]").
     { apply is_list_inject in Hds1 as ->, Hds2 as ->. replace 0%Z with (Z.of_nat 0%nat) by lia.
-      wp_apply (wp_above_threshold_list num den 0 with "Hqs Hε Hs"); auto.
-      rewrite /= neighbour_dist //. }
+      wp_apply (wp_above_threshold_list C HC num den 0 with "Hqs Hε Hs"); auto.
+      rewrite /dlist/distance. apply IZR_le, Hadj. }
     iIntros (?) "(%&%&->&Hs) /=".
     tp_pures; wp_pures.
     iFrame.
@@ -589,24 +589,113 @@ Section queries.
   Qed.
 
 
-  Lemma wp_auto_avg (ds1 ds2 : list Z) (bs : list nat) dsv1 dsv2 bsv (num den : Z) K :
+  (** [list_length] is 1-Lipschitz from the dataset metric to [dZ]: removing /
+      adding one element changes the count by at most the list distance.  This is
+      the [f] of the [noisy_count] sub-mechanism. *)
+  Lemma list_length_sensitivity :
+    ⊢ hoare_sensitive Sg list_length 1 (dlist Z) dZ.
+  Proof.
+    iIntros (?? zs1 zs2 Φ) "!# Hspec HΦ".
+    iMod (gwp_list_length (g:=gwp_spec (Sg:=Sg)) (A:=Z) _ _ _
+            (λ v : val, ⌜v = #(length zs2)⌝)%I with "[] [] Hspec") as "(%&Hspec&%)".
+    1: iPureIntro ; by rewrite is_list_inject.
+    1: simpl ; iIntros ; simplify_eq ; done.
+    simplify_eq.
+    wp_apply gwp_list_length; [iPureIntro; by rewrite is_list_inject|].
+    iIntros (? ->).
+    iApply "HΦ". iFrame "Hspec". iPureIntro.
+    eexists. split; [done|]. simpl.
+    rewrite Rmult_1_l Rabs_Zabs. apply IZR_le. apply list_length_bound.
+  Qed.
+
+  (** [noisy_count] is the Laplace mechanism post-composed with the 1-Lipschitz
+      [list_length].  By [diffpriv_sensitive_comp] (sensitivity · DP), the
+      composite [(λ ds, Laplace num den (list_length ds) #())] is
+      [1 · (num/den) = (num/den)]-DP.  This is one of the two places the
+      sensitivity-composition law replaces a hand-rolled [wp_couple_laplace]. *)
+  Lemma noisy_count_diffpriv (num den : Z) :
+    (0 < IZR num / IZR den)%R →
+    ⊢ hoare_diffpriv Sg
+        (λ: "x", (λ: "loc", Laplace #num #den "loc" #())%V (list_length "x"))
+        (IZR num / IZR den) 0 (dlist Z) Z.
+  Proof.
+    iIntros (Hpos).
+    rewrite -{1}(Rmult_1_l (IZR num / IZR den)) -{1}(Rmult_0_r 1).
+    iApply (diffpriv_sensitive_comp Sg list_length (λ: "loc", Laplace #num #den "loc" #())%V
+              (IZR num / IZR den) 0 1 (dlist Z) dZ (C := Z)); [lra| |].
+    - iApply list_length_sensitivity.
+    - by iApply hoare_laplace_diffpriv.
+  Qed.
+
+  (** [age_sum_query #b] wrapped as a closed [val] (so it can serve as the [f]
+      argument of [diffpriv_sensitive_comp], which requires a value); the
+      sensitivity transfers from [age_sum_query_sensitivity] by an extra beta. *)
+  Definition clipped_sum (b : nat) : val := (λ: "ds", age_sum_query #b "ds")%V.
+
+  Lemma clipped_sum_sensitivity (b : nat) :
+    ⊢ hoare_sensitive Sg (clipped_sum b) b (dlist Z) dZ.
+  Proof.
+    iIntros (?? zs1 zs2 Φ) "!# Hspec HΦ".
+    rewrite /clipped_sum. wp_pures. tp_pures.
+    iApply (age_sum_query_sensitivity b with "[] Hspec"); [done|].
+    iApply "HΦ".
+  Qed.
+
+  (** [noisy_sum] is the Laplace-at-scaled-noise mechanism post-composed with the
+      clip-bound-Lipschitz [age_sum_query #b].  The clipped sum is [b]-Lipschitz
+      ([age_sum_query_sensitivity]); the Laplace mechanism with noise scaled by
+      [b] is [(num/(b*den))]-DP ([hoare_laplace_diffpriv num (b*den)]).
+      [diffpriv_sensitive_comp] multiplies the budgets to
+      [INR b · (num/(b*den))], and the [b] CANCELS (needs [b ≠ 0]) leaving
+      [(num/den)].  This is the second composition-law site. *)
+  Lemma noisy_sum_diffpriv (num den : Z) (b : nat) :
+    b ≠ 0%nat →
+    (0 < IZR num / IZR den)%R →
+    ⊢ hoare_diffpriv Sg
+        (λ: "x", (λ: "loc", Laplace #num #(Z.of_nat b * den) "loc" #())%V (clipped_sum b "x"))
+        (IZR num / IZR den) 0 (dlist Z) Z.
+  Proof.
+    iIntros (Hb Hpos).
+    (* the Laplace mechanism at scaled noise [b*den] is [(num/(b*den))]-DP *)
+    assert (Hpos' : (0 < IZR num / IZR (Z.of_nat b * den))%R).
+    { rewrite mult_IZR. eapply Rdiv_pos_pos; auto.
+      apply IZR_lt; lia. }
+    (* rewrite the budget [(num/den)] as the composed [INR b · (num/(b*den))]
+       (the [b] cancels — needs [b ≠ 0] and [den ≠ 0]) *)
+    assert (Hbcancel : (IZR num / IZR den)%R = (INR b * (IZR num / IZR (Z.of_nat b * den)))%R).
+    { rewrite mult_IZR INR_IZR_INZ.
+      assert (IZR (Z.of_nat b) ≠ 0)%R by (apply not_0_IZR; lia).
+      assert (IZR den ≠ 0)%R by (by apply Rdiv_pos_den_0 in Hpos).
+      field. done. }
+    rewrite Hbcancel.
+    rewrite -{1}(Rmult_0_r (INR b)).
+    iApply (diffpriv_sensitive_comp Sg (clipped_sum b)
+              (λ: "loc", Laplace #num #(Z.of_nat b * den) "loc" #())%V
+              (IZR num / IZR (Z.of_nat b * den)) 0 (INR b) (dlist Z) dZ (C := Z)
+              (pos_INR b)).
+    { iApply clipped_sum_sensitivity. }
+    { by iApply hoare_laplace_diffpriv. }
+  Qed.
+
+  Lemma wp_auto_avg (C : Z) (HC : (1 <= C)%Z) (ds1 ds2 : list Z) (bs : list nat) dsv1 dsv2 bsv (num den : Z) K :
     (0 < IZR num / IZR den)%R →
     is_list bs bsv →
-    neighbour ds1 ds2 →
+    (list_dist ds1 ds2 <= C)%Z →
     is_list ds1 dsv1 →
     is_list ds2 dsv2 →
-    ↯m (IZR num / IZR den) -∗
-    ↯m (IZR num / IZR den) -∗
-    ↯m (IZR num / IZR den) -∗
+    ↯m (IZR C * (IZR num / IZR den)) -∗
+    ↯m (IZR C * (IZR num / IZR den)) -∗
+    ↯m (IZR C * (IZR num / IZR den)) -∗
     ⤇ fill K (auto_avg bsv #num #den dsv2) -∗
     WP auto_avg bsv #num #den dsv1 {{ v, ⤇ fill K (of_val v) }}.
   Proof.
-    iIntros (Hε Hbs Hneigh Hds1 Hds2) "ε1 ε2 ε3 Hs".
+    iIntros (Hε Hbs Hadj Hds1 Hds2) "ε1 ε2 ε3 Hs".
+    assert (HCpos : (0 < IZR C)%R) by (apply IZR_lt; lia).
     rewrite /auto_avg. tp_pures ; wp_pures.
 
-    (* private clip bound for ε *)
+    (* private clip bound for C·ε *)
     tp_bind (compute_summation_clip_bound _ _ _ _) ; wp_bind (compute_summation_clip_bound _ _ _ _).
-    iPoseProof (wp_compute_summation_clip_bound with "ε1 Hs") as "H" => //.
+    iPoseProof (wp_compute_summation_clip_bound C HC with "ε1 Hs") as "H" => //.
     iApply (wp_wand with "H"). iIntros "* (%bound&->&rhs)" => //=. tp_pures. wp_pures.
 
     (* the sum is bound-sensitive *)
@@ -638,45 +727,37 @@ Section queries.
       1: simpl ; iIntros ; simplify_eq ; done.
       simplify_eq. tp_normalise. tp_pures. wp_pures.
       tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
-      assert ((Z.abs (length ds1 - length ds2)) <= 1).
-      { destruct Hneigh; simplify_eq.
-        - apply Z.eq_le_incl.
-          rewrite !length_app. simpl. apply Zabs_ind ; intros ; lia.
-        - apply Z.eq_le_incl.
-          rewrite !length_app. simpl. apply Zabs_ind ; intros ; lia. }
-      iApply (wp_couple_laplace (S:=Sg) _ _ 0%Z 1%Z with "[$rhs ε3]").
+      assert ((Z.abs (length ds1 - length ds2)) <= C).
+      { etrans; [apply list_length_bound|]. exact Hadj. }
+      iApply (wp_couple_laplace (S:=Sg) _ _ 0%Z C with "[$rhs ε3]").
       1: apply Zabs_ind ; lia.
       1: reflexivity.
       1: done.
-      1: rewrite Rmult_1_l //.
+      1: reflexivity.
       1: iFrame "ε3".
       iIntros "!> %z2 rhs". simpl ; tp_pures ; wp_pures.
       rewrite Z.add_0_r /=. done.
 
     -
-      (* Laplace num (bound*den) sum ~ Laplace num (bound*den) sum'   for  ↯ num/den   because   |sum-sum'| ≤ bound   *)
-      tp_bind (Sample _ _ _). wp_apply (wp_couple_laplace _ _ 0 with "[$rhs ε2] [-]") ; try done.
+      (* Laplace num (bound*den) sum ~ Laplace num (bound*den) sum'   for  ↯ C·num/den   because   |sum-sum'| ≤ bound·C   *)
+      tp_bind (Sample _ _ _). wp_apply (wp_couple_laplace _ _ 0 (Z.of_nat (S bound') * C)%Z with "[$rhs ε2] [-]") ; try done.
+      { rewrite Z.add_0_l.
+        rewrite /dZ/dlist/distance in res_close.
+        rewrite -abs_IZR INR_IZR_INZ -mult_IZR in res_close.
+        apply le_IZR in res_close.
+        etrans; [apply res_close|].
+        apply Z.mul_le_mono_nonneg_l; [lia | exact Hadj]. }
       { rewrite mult_IZR. eapply Rdiv_pos_pos ; auto. real_solver. }
       {
-        rewrite Z.add_0_l.
-        rewrite /dZ/dlist/distance in res_close.
-        rewrite neighbour_dist in res_close ; auto.
-        rewrite Rmult_1_r in res_close.
-        rewrite -abs_IZR in res_close.
-        iApply ecm_weaken. 2: iFrame. split.
-        - apply Rmult_le_pos. 2: rewrite mult_IZR ; eapply Rdiv_nneg_nneg ; try left ; try real_solver.
-          apply IZR_le. lia.
-        -
-          etrans.
-          1: eapply Rmult_le_compat_r. 2: apply res_close.
-          1: rewrite mult_IZR ; eapply Rdiv_nneg_nneg ; try left ; try real_solver.
-          right. rewrite mult_IZR. rewrite INR_IZR_INZ.
-          pose proof (Rdiv_pos_cases _ _ Hε).
-          field. split ; real_solver.
+        iApply ecm_eq. 2: iFrame "ε2".
+        rewrite !mult_IZR.
+        assert (IZR (Z.of_nat (S bound')) ≠ 0)%R by (apply not_0_IZR; lia).
+        pose proof (Rdiv_pos_cases _ _ Hε).
+        field. split ; [|done]. real_solver.
       }
       iIntros "!> * rhs" => /=. tp_pures. wp_pures.
 
-      (* length is 1-sensitive *)
+      (* length is C-sensitive *)
       tp_bind (list_length _). wp_bind (list_length _).
       wp_apply gwp_list_length ; [iPureIntro ; by rewrite is_list_inject|]. iIntros.
       iMod (gwp_list_length (g:=gwp_spec (Sg:=Sg)) (A:=Z) _ _ _ (λ v : val, ⌜v = #(length ds2)⌝)%I with "[] [] rhs") as "(%&rhs&%)".
@@ -684,16 +765,16 @@ Section queries.
       1: simpl ; iIntros ; simplify_eq ; done.
       ring_simplify (z + 0).
       simplify_eq.
-      assert ((Z.abs (length ds1 - length ds2)) <= 1).
-      1: destruct Hneigh ; simplify_eq ; rewrite !length_app /= ; lia.
-      (* private length for ε *)
+      assert ((Z.abs (length ds1 - length ds2)) <= C).
+      { etrans; [apply list_length_bound|]. exact Hadj. }
+      (* private length for C·ε *)
       tp_normalise. tp_pures. wp_pures.
       tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
-      iApply (wp_couple_laplace (S:=Sg) _ _ 0%Z 1%Z with "[$rhs ε3]").
+      iApply (wp_couple_laplace (S:=Sg) _ _ 0%Z C with "[$rhs ε3]").
       1: apply Zabs_ind ; lia.
       1: reflexivity.
       1: done.
-      1: rewrite Rmult_1_l //.
+      1: reflexivity.
       1: iFrame "ε3".
       iIntros "!> %z3 rhs". simpl ; do 2 tp_pure ; do 2 wp_pure.
       rewrite Zplus_0_r.
