@@ -40,22 +40,26 @@ Section laplace_choice.
       that on the above-threshold region ([T ≤ z]) we get [T+1 ≤ z'], and on the
       below-threshold region ([z < T]) we get [z' < T+1] with the [ε'] budget
       refunded. *)
-  Lemma hoare_couple_laplace_choice (loc loc' T : Z)
+  Lemma wp_couple_laplace_choice (loc loc' T : Z)
     (dist_loc : (Z.abs (loc - loc') <= 1)%Z)
     (num den : Z) (ε ε' : R) K E :
     IZR num / IZR den = ε →
     0 < IZR num / IZR den →
     ε' = (2 * ε) →
-    {{{ ⤇ fill K (Laplace #num #den #loc' #()) ∗ ↯m ε' }}}
-      Laplace #num #den #loc #() @ E
+    {{{ ⤇ fill K (Sample lidx
+                    (Val (PairV (LitV (LitInt num))
+                            (PairV (LitV (LitInt den)) (LitV (LitInt loc')))))
+                    (Val (LitV LitUnit))) ∗ ↯m ε' }}}
+      Sample lidx
+        (Val (PairV (LitV (LitInt num))
+                (PairV (LitV (LitInt den)) (LitV (LitInt loc)))))
+        (Val (LitV LitUnit)) @ E
       {{{ (z : Z), RET #z;
           ∃ z' : Z, ⤇ fill K #z'
                  ∗ ( ⌜(T <= z ∧ T + 1 <= z')⌝
                      ∨ (⌜z < T ∧ z' < T + 1⌝ ∗ ↯m ε'))%Z }}}.
   Proof.
     iIntros (Hε εpos Hε' Φ) "(Hr & Hε) Hcnt".
-    (* reduce the [Pair] parameters on both sides to values *)
-    wp_pures. tp_pures.
     set (pv := sf_param_to_val laplace_family (num, den, loc)).
     set (pv' := sf_param_to_val laplace_family (num, den, loc')).
     set (μ := dmap (sf_inj laplace_family) (sf_sample laplace_family (num, den, loc))).
@@ -219,6 +223,28 @@ Section laplace_choice.
         iDestruct ("Hcnt" with "[$Hspec0 Hε]") as "$".
         { iRight. iFrame. done. }
         Unshelve. all: exact 0%Z.
+  Qed.
+
+  (** Surface-notation wrapper (Pair-headed [Laplace] parameter), for clients
+      that prefer to apply the rule before reducing the parameter [Pair] to a
+      value.  The primary rule is the value-form [wp_couple_laplace_choice];
+      this just [wp_pures]/[tp_pures] the surface notation down to it. *)
+  Lemma hoare_couple_laplace_choice (loc loc' T : Z)
+    (dist_loc : (Z.abs (loc - loc') <= 1)%Z)
+    (num den : Z) (ε ε' : R) K E :
+    IZR num / IZR den = ε →
+    0 < IZR num / IZR den →
+    ε' = (2 * ε) →
+    {{{ ⤇ fill K (Laplace #num #den #loc' #()) ∗ ↯m ε' }}}
+      Laplace #num #den #loc #() @ E
+      {{{ (z : Z), RET #z;
+          ∃ z' : Z, ⤇ fill K #z'
+                 ∗ ( ⌜(T <= z ∧ T + 1 <= z')⌝
+                     ∨ (⌜z < T ∧ z' < T + 1⌝ ∗ ↯m ε'))%Z }}}.
+  Proof.
+    iIntros (Hε εpos Hε' Φ) "[Hspec Hε] Hcnt". tp_pures. wp_pures.
+    iApply (wp_couple_laplace_choice loc loc' T dist_loc num den ε ε' K E Hε εpos Hε'
+              with "[$Hspec $Hε] Hcnt").
   Qed.
 
 End laplace_choice.

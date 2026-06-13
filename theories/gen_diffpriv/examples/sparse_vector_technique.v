@@ -2,8 +2,8 @@
     [clutch.diffpriv.examples.sparse_vector_technique] to the GENERIC language.
     "Enable" the Laplace distribution (one signature + one [SampleIn] instance),
     pin the spec-context [fill], and the proofs go through with the standard
-    proof-mode tactics and the library Laplace coupling rules
-    [hoare_couple_laplace] / [hoare_couple_laplace_choice].  See
+    proof-mode tactics and the library Laplace coupling rules (VALUE-FORM variants)
+    [wp_couple_laplace] / [wp_couple_laplace_choice].  See
     [report_noisy_max_pointwise] for the gen-specific spec-tactic fixes that we
     replicate here. *)
 From iris.base_logic Require Export na_invariants.
@@ -41,21 +41,15 @@ Section svt.
   (** Spec heap tactics leave the spec hyp FOCUSED in [gen]; re-fold with
       [tp_normalise] so following [tp_pures] sees the surrounding redex.  Cf.
       [report_noisy_max_pointwise]. *)
-  (** Reduce the noise-scaling BinOp [#k * #den] inside a Laplace's parameter
-      [Pair] WITHOUT collapsing the [Pair] to a value: bind exactly that BinOp,
-      take one pure step, and re-fold.  This keeps the parameter as a syntactic
-      [Pair] with a LITERAL denominator so the surface coupling rules
-      ([hoare_couple_laplace]/[hoare_couple_laplace_choice], stated on the
-      [Pair]-headed [Laplace] notation) match the goal.  (A bare [tp_pures] would
-      instead pure-step the whole [Pair] to a [Val], which no longer unifies with
-      the surface rules.) *)
-  Ltac lap_reduce_den :=
-    try (tp_bind (BinOp _ _ _); tp_pure; tp_normalise);
-    try (wp_bind (BinOp _ _ _); wp_pure).
+  (** Fully reduce both sides (including any BinOp [#k * #den] and the [Pair]
+      parameter) to value form, then bind the [Sample] on both sides.  The
+      value-form coupling rules [wp_couple_laplace] / [wp_couple_laplace_choice]
+      expect [Sample lidx (Val (PairV ...)) (Val #())] which is exactly what
+      [tp_pures; wp_pures] produce. *)
   Ltac lap_focus :=
     tp_normalise; rewrite ?inject_Z_val;
-    lap_reduce_den;
-    tp_bind (Laplace _ _ _ _); wp_bind (Laplace _ _ _ _).
+    tp_pures; wp_pures;
+    tp_bind (Sample _ _ _); wp_bind (Sample _ _ _).
   Ltac tpload  := tp_load;  tp_normalise.
   Ltac tpstore := tp_store; tp_normalise.
 
@@ -175,13 +169,12 @@ Section svt.
                ⤇ fill K (Val f') ∗ AUTH ∗ AT_spec 1 AUTH f f' }}.
   Proof with (tp_pures ; wp_pures).
     iIntros "ε rhs". rewrite /above_threshold.
-    do 5 tp_pure. tp_normalise. do 5 wp_pure.
-    tp_bind (BinOp _ _ _). tp_pure. tp_normalise. wp_bind (BinOp _ _ _). wp_pure.
-    tp_bind (Laplace _ _ _ _). wp_bind (Laplace _ _ _ _).
+    tp_pures. tp_normalise. wp_pures.
+    tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
     set (ε := (IZR num / IZR den)). replace ε with (ε / 2 + ε / 2) by real_solver.
     fold ε in εpos. rewrite Rmult_plus_distr_l.
     iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver.
-    iApply (hoare_couple_laplace (S:=Ssvt) _ _ 1%Z 1%Z with "[$rhs ε']") => //.
+    iApply (wp_couple_laplace (S:=Ssvt) _ _ 1%Z 1%Z with "[$rhs ε']") => //.
     1: lia.
     1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
     { iApply ecm_eq. 2: iFrame. subst ε. replace (IZR (2 * den)) with (2 * IZR den).
@@ -204,7 +197,7 @@ Section svt.
       all: pose proof (le_IZR _ _ h) ; lia.
     }
     lap_focus.
-    iApply (hoare_couple_laplace_choice (S:=Ssvt) vq_l (vq_r) T' with "[$]") => //.
+    iApply (wp_couple_laplace_choice (S:=Ssvt) vq_l (vq_r) T' with "[$]") => //.
     1: apply Zabs_ind ; lia.
     1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
     { subst ε. rewrite mult_IZR. field. eapply Rdiv_pos_den_0 => //. }
