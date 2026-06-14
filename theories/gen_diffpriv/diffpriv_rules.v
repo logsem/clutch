@@ -99,7 +99,11 @@ Section diffpriv.
   (*     optimal [δ] is a tail mass that SATURATES toward [1]; the        *)
   (*     group form [del·grp eps c] is sound but strictly LOOSE past the  *)
   (*     support half-width, so only the classic form expresses the tight *)
-  (*     adjacency [δ].                                                   *)
+  (*     adjacency [δ].  [hoare_diffpriv_classic] is now the [r = 1]      *)
+  (*     instance of [hoare_diffpriv_classic_at], which generalizes the   *)
+  (*     fixed textbook adjacency to an arbitrary adjacency RADIUS [r] —  *)
+  (*     the home for fixed-[(ε,δ)] statements at adjacency [≤ r] (e.g. a *)
+  (*     composed pipeline over databases within distance [C]).           *)
   (*                                                                     *)
   (* BRIDGE.  These are complementary, not redundant: [metric ⇒ classic] *)
   (* ALWAYS ([hoare_diffpriv_metric_classic] below — instantiate [c = 1], *)
@@ -128,17 +132,32 @@ Section diffpriv.
       {{{ (y : B), RET (inject y); ⤇ fill K (Val (inject y)) }}}.
   #[global] Arguments hoare_diffpriv_metric _%_E (_ _)%_R  _ _  _ _ %_stdpp.
 
+  (* TEXTBOOK (eps,del)-DP at an arbitrary adjacency RADIUS [dA x x' ≤ r],
+     with [del] a FIXED/TIGHT value (NOT scaled by [grp]).  Generalizes the
+     fixed textbook adjacency to a parametric radius [r] — the home for
+     fixed-[(eps,del)] statements at adjacency [≤ r].  See the CENTRAL
+     RATIONALE above. *)
+  Definition hoare_diffpriv_classic_at (f : expr) eps del (r : R) `(dA : Distance A) B `{Inject B val} : iProp Σ :=
+    ∀ K (x x' : A), ⌜dA x x' <= r⌝ -∗
+      {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯m eps ∗ ↯ del }}}
+        f (Val (inject x))
+      {{{ (y : B), RET (inject y); ⤇ fill K (Val (inject y)) }}}.
+  #[global] Arguments hoare_diffpriv_classic_at _%_E (_ _ _)%_R  _ _  _ _ %_stdpp.
+
   (* TEXTBOOK (eps,del)-DP at fixed adjacency [dA x x' ≤ 1], with [del] a
      FIXED/TIGHT value (NOT scaled by [grp] — that is the whole point).
      Re-introduced into gen (this name was deleted in the #25
      consolidation): the tight reporting notion + the bounded-support
-     mechanism form.  See the CENTRAL RATIONALE above. *)
+     mechanism form.  Now literally the [r = 1] instance of
+     [hoare_diffpriv_classic_at].  See the CENTRAL RATIONALE above. *)
   Definition hoare_diffpriv_classic (f : expr) eps del `(dA : Distance A) B `{Inject B val} : iProp Σ :=
-    ∀ K (x x' : A), ⌜dA x x' <= 1⌝ -∗
-      {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯m eps ∗ ↯ del }}}
-        f (Val (inject x))
-      {{{ (y : B), RET (inject y); ⤇ fill K (Val (inject y)) }}}.
+    hoare_diffpriv_classic_at f eps del 1 dA B.
   #[global] Arguments hoare_diffpriv_classic _%_E (_ _)%_R  _ _  _ _ %_stdpp.
+
+  (* [hoare_diffpriv_classic] is definitionally the [r = 1] instance. *)
+  Lemma hoare_diffpriv_classic_at_1 (f : expr) eps del `(dA : Distance A) B `{Inject B val} :
+    hoare_diffpriv_classic_at f eps del 1 dA B ⊣⊢ hoare_diffpriv_classic f eps del dA B.
+  Proof. reflexivity. Qed.
 
   (* FORWARD BRIDGE: group-bound metric ⇒ textbook classic, ALWAYS.       *)
   (* Apply the metric hypothesis at distance [c = 1], where [grp eps 1 =  *)
