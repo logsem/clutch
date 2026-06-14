@@ -580,14 +580,14 @@ Section queries.
       sensitivity-composition law replaces a hand-rolled [wp_couple_laplace]. *)
   Lemma noisy_count_diffpriv (num den : Z) :
     (0 < IZR num / IZR den)%R →
-    ⊢ hoare_diffpriv Sg
+    ⊢ hoare_diffpriv_metric Sg
         (λ: "x", (λ: "loc", Laplace #num #den "loc" #())%V (list_length "x"))
         (IZR num / IZR den) 0 (dlist Z) Z.
   Proof.
     iIntros (Hpos).
-    rewrite -{1}(Rmult_1_l (IZR num / IZR den)) -{1}(Rmult_0_r 1).
-    iApply (diffpriv_sensitive_comp Sg list_length (λ: "loc", Laplace #num #den "loc" #())%V
-              (IZR num / IZR den) 0 1 (dlist Z) dZ (C := Z)); [lra| |].
+    rewrite -{1}(Rmult_1_l (IZR num / IZR den)) -{1}(Rmult_0_l (grp (IZR num / IZR den) 1)).
+    iApply (diffpriv_metric_sensitive_comp Sg list_length (λ: "loc", Laplace #num #den "loc" #())%V
+              (IZR num / IZR den) 0 1 (dlist Z) dZ (C := Z)); [done|lra| |].
     - iApply list_length_sensitivity.
     - by iApply hoare_laplace_diffpriv.
   Qed.
@@ -616,7 +616,7 @@ Section queries.
   Lemma noisy_sum_diffpriv (num den : Z) (b : nat) :
     b ≠ 0%nat →
     (0 < IZR num / IZR den)%R →
-    ⊢ hoare_diffpriv Sg
+    ⊢ hoare_diffpriv_metric Sg
         (λ: "x", (λ: "loc", Laplace #num #(Z.of_nat b * den) "loc" #())%V (clipped_sum b "x"))
         (IZR num / IZR den) 0 (dlist Z) Z.
   Proof.
@@ -633,11 +633,12 @@ Section queries.
       assert (IZR den ≠ 0)%R by (by apply Rdiv_pos_den_0 in Hpos).
       field. done. }
     rewrite Hbcancel.
-    rewrite -{1}(Rmult_0_r (INR b)).
-    iApply (diffpriv_sensitive_comp Sg (clipped_sum b)
+    rewrite -{1}(Rmult_0_l (grp (IZR num / IZR (Z.of_nat b * den)) (INR b))).
+    assert (Hbpos : (0 < INR b)%R) by (apply lt_0_INR; lia).
+    iApply (diffpriv_metric_sensitive_comp Sg (clipped_sum b)
               (λ: "loc", Laplace #num #(Z.of_nat b * den) "loc" #())%V
               (IZR num / IZR (Z.of_nat b * den)) 0 (INR b) (dlist Z) dZ (C := Z)
-              (pos_INR b)).
+              Hpos' Hbpos).
     { iApply clipped_sum_sensitivity. }
     { by iApply hoare_laplace_diffpriv. }
   Qed.

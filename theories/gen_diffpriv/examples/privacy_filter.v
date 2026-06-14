@@ -14,9 +14,10 @@
         1-sensitive pieces [filter_sens] / [length_sens] (instead of inlining the
         two WP couplings by hand).  It is genuinely USED in the main proof.
 
-      - [count_query_diffpriv]: a single query [Laplace ∘ count] is [(num/den)]-DP,
-        obtained by [diffpriv_sensitive_comp count_sens (hoare_laplace_diffpriv …)]
-        — the sensitivity·DP composition law.  This is the standalone
+      - [count_query_diffpriv]: a single query [Laplace ∘ count] is [(num/den)]-DP
+        (metric form [hoare_diffpriv_metric]), obtained by
+        [diffpriv_metric_sensitive_comp count_sens (hoare_laplace_diffpriv …)] — the
+        sensitivity·metric-DP composition law.  This is the standalone
         composition-law statement (mirroring [sum_queries.noisy_count_diffpriv]).
 
     WHAT STAYS BY HAND, AND WHY.  The example's CORE is a dynamic-budget odometer
@@ -362,11 +363,13 @@ Section adaptive.
     Unshelve. all: try exact Sg; try (lra).
   Qed.
 
-  (** COMPOSITION LAW (sensitivity · DP).  A single query [Laplace ∘ count] is
-      [(num/den)]-DP: the 1-sensitive [count_sens] composed with the
-      [(num/den)]-DP Laplace mechanism [hoare_laplace_diffpriv] via
-      [diffpriv_sensitive_comp] gives budget [1·(num/den) = (num/den)].  This is
-      the standalone composition-law statement for a per-query mechanism (mirrors
+  (** COMPOSITION LAW (sensitivity · metric DP).  A single query [Laplace ∘ count]
+      is [(num/den)]-DP in the metric [hoare_diffpriv_metric] form: the 1-sensitive
+      [count_sens] composed with the [(num/den)]-DP Laplace mechanism
+      [hoare_laplace_diffpriv] via the metric composition law
+      [diffpriv_metric_sensitive_comp] gives budget [1·(num/den) = (num/den)] and
+      additive term [0 · grp (num/den) 1 = 0].  This is the standalone
+      composition-law statement for a per-query mechanism (mirrors
       [sum_queries.noisy_count_diffpriv]).  The program here precomputes/SHARES the
       count between the coarse and precise draws, so this exact lemma is not the
       direct fit at the [run_dp] closure sites (see file header); we expose it as a
@@ -383,16 +386,16 @@ Section adaptive.
           f (inject x) @ gwp_spec (Sg:=Sg) ; ⊤
           {{{ w, RET w; ⌜w = inject (P x)⌝ }}})
     -∗
-    hoare_diffpriv Sg
+    hoare_diffpriv_metric Sg
       (λ:"x", (λ:"loc", Laplace #num #den "loc" #())%V ((λ:"x", list_count f "x")%V "x"))
       (IZR num / IZR den) 0 (dlist Z) Z.
   Proof.
     iIntros (Hpos) "#Hf #Hf'".
-    rewrite -{1}(Rmult_1_l (IZR num / IZR den)) -{1}(Rmult_0_r 1).
-    iApply (diffpriv_sensitive_comp Sg
+    rewrite -{1}(Rmult_1_l (IZR num / IZR den)) -{1}(Rmult_0_l (grp (IZR num / IZR den) 1)).
+    iApply (diffpriv_metric_sensitive_comp Sg
               (λ:"x", list_count f "x")%V
               (λ: "loc", Laplace #num #den "loc" #())%V
-              (IZR num / IZR den) 0 1 (dlist Z) dZ (C := Z)); [lra| |].
+              (IZR num / IZR den) 0 1 (dlist Z) dZ (C := Z)); [done|lra| |].
     - (* the closed-val count [(λ x, list_count f x)] is 1-sensitive: one beta
          reduces it to [list_count f], whose sensitivity is [count_sens] *)
       iIntros (c_pos) "* !> * rhs HΦ". wp_pures. tp_pures.

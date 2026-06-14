@@ -186,9 +186,9 @@ Section laplace.
       Ported from [clutch.diffpriv.diffpriv_rules.hoare_laplace_diffpriv]. *)
   Fact hoare_laplace_diffpriv (num den : Z) :
     ⌜0 < IZR num / IZR den⌝ -∗
-    hoare_diffpriv S (λ: "loc", Laplace #num #den "loc" #())%V (IZR num / IZR den) 0 dZ Z.
+    hoare_diffpriv_metric S (λ: "loc", Laplace #num #den "loc" #())%V (IZR num / IZR den) 0 dZ Z.
   Proof.
-    iIntros "%Hpos". rewrite /hoare_diffpriv /dZ /=. iIntros (K c x x' adj).
+    iIntros "%Hpos". rewrite /hoare_diffpriv_metric /dZ /=. iIntros (K c x x' adj).
     iIntros (φ) "!> [f' [ε δ]] hφ".
     tp_pures. wp_pures.
     tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
