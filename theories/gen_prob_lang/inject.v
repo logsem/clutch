@@ -38,6 +38,13 @@ Next Obligation. by intros ?? [=]. Qed.
 
 #[global] Program Instance : Inject nat val := {| inject := inject ∘ Z.of_nat |}.
 
+(** A [fin M] injects via its underlying [nat] index; the codomain [val] carries
+    the range bound [M] (and stays inhabited when [M ≥ 1]).  Injectivity is just
+    [Z.of_nat] + [fin_to_nat] injectivity — no proof-irrelevance axiom. *)
+#[global] Program Instance Inject_fin (M : nat) : Inject (fin M) val :=
+  {| inject := λ k, #(Z.of_nat (fin_to_nat k)) |}.
+Next Obligation. intros M k1 k2 [= H%Nat2Z.inj%fin_to_nat_inj]. exact H. Qed.
+
 #[global] Program Instance : Inject bool val := {| inject := LitV ∘ LitBool |}.
 Next Obligation. by intros ?? [=]. Qed.
 

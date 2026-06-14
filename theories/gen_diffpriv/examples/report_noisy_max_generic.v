@@ -381,23 +381,36 @@ Proof.
     econstructor. 1,2: assumption.
 Qed.
 
-  Lemma rnm_pres_diffpriv (Δ : Z) (C : Z) num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+  (** Headline RNM privacy, now stated as the internal-DP notion
+      [hoare_diffpriv_classic_at] with the index-range-carrying codomain
+      [fin (Nat.max 1 N)] (always inhabited, so no [0 < N] side-condition).
+      The radius is fixed at [IZR C] and the [del] component is the tight [0].
+
+      [1 ≤ C] is genuinely needed by the body (the tape-allocation/coupling
+      machinery runs at the a-priori INTEGER gap [Δ*C] and requires [1 ≤ Δ*C]),
+      so it stays as a hypothesis; the [classic_at] radius is then exactly that
+      group size [C]. *)
+  Lemma rnm_pres_diffpriv (Δ : Z) (C : Z) num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
     (1 <= Δ)%Z →
     (1 <= C)%Z →
     (0 < IZR num / IZR (2 * den)) →
     (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
-    ∀ db db', dDB db db' <= IZR C →
-                {{{ ↯m (IZR C * (IZR Δ * (IZR num / IZR den))) ∗
-                    ⤇ fill K (report_noisy_max_presampling num den evalQ #N (of_val (inject db'))) }}}
-                  report_noisy_max_presampling num den evalQ #N (of_val (inject db))
-                  {{{ v, RET v ; ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = v' ⌝  }}}.
+    ⊢ hoare_diffpriv_classic_at Sg (report_noisy_max_presampling num den evalQ #N)
+        (IZR C * (IZR Δ * (IZR num / IZR den))) 0 (IZR C) dDB (fin (Nat.max 1 N)).
   Proof with (tp_pures ; wp_pures).
-    intros HΔ HC εpos qi_sens db db' db_adj post. iIntros "[ε rhs] Hpost".
+    intros HΔ HC εpos qi_sens.
+    rewrite /hoare_diffpriv_classic_at.
+    iIntros (K db db') "%db_adj".
+    (* the [↯ 0] component is discarded. *)
+    iIntros (post) "!> (rhs & ε & _) Hpost".
     wp_lam. tp_lam...
     destruct N as [|N'].
     {
       rewrite /list_init/list_map/list_map'/list_mapi/list_mapi_loop/list_max_index...
-      iApply "Hpost". iFrame. done.
+      (* [Nat.max 1 0 = 1]; return the sole inhabitant [0%fin : fin 1], whose
+         injection [#(Z.of_nat (fin_to_nat 0%fin)) = #0] matches the empty-list
+         default returned by [list_max_index NONE]. *)
+      iModIntro. iApply ("Hpost" $! (0%fin : fin 1)). iExact "rhs".
     }
     set (N := S N'). assert (0 < N)%nat by (unfold N ; lia).
     tp_bind (list_init _ _). wp_bind (list_init _ _).
@@ -576,26 +589,41 @@ Qed.
     { iIntros (?) "%hh". rewrite hh. done. }
     iApply gwp_list_max_index.
     1: done.
-    iIntros "!> **".
-    iApply "Hpost".
-    iFrame.
-    simplify_eq.
-    iPureIntro. f_equal. f_equal. f_equal.
-    destruct Hmax as (?&?&?).
-    rewrite !list_max_index_eq.
-    assert (zs' = (mapi (λ (k : nat) '(_, _), zs' !!! k) xιs')) as <- ; first last.
-    1: assert (zs = (mapi (λ (k : nat) '(_, _), zs !!! k) xιs)) as <- ; first last.
-    1: assumption.
-    - eapply lookup_eq_pointwise.
+    iIntros "!> %i %Hi".
+    (* [i = List_max_index (mapi … xιs)] is the impl-side argmax; it equals
+       [List_max_index zs] (the [zs = mapi …] step from the original proof), and
+       [zs] has length [N = S N' > 0], so [i < S N'].  Build the result index
+       [nat_to_fin Hlt : fin (S N')]; then [inject (nat_to_fin Hlt) =
+       #(Z.of_nat i)] matches both the program value [#i] and the spec [⤇]. *)
+    destruct Hmax as (Hzs & Hzs' & Hmaxeq).
+    (* impl [mapi]-list = [zs] *)
+    assert (Hzseq : zs = mapi (λ (k : nat) '(_, _), zs !!! k) xιs).
+    { eapply lookup_eq_pointwise.
       { rewrite mapi_length. lia. }
       intros. apply mapi2.
-      apply list_lookup_lookup_total_lt.
-      done.
-    - eapply lookup_eq_pointwise.
+      apply list_lookup_lookup_total_lt. done. }
+    (* [i < S N']: [i = List_max_index zs], and [zs] is nonempty of length [N]. *)
+    assert (Hlt : (i < S N')%nat).
+    { rewrite Hi -Hzseq list_max_index_eq.
+      eapply Nat.lt_le_trans; first apply list_Z_max_bound; lia. }
+    (* return the range-carrying index; [fin_to_nat (nat_to_fin Hlt) = i]. *)
+    replace i with (fin_to_nat (nat_to_fin Hlt)) by apply fin_to_nat_to_fin.
+    iApply ("Hpost" $! (nat_to_fin Hlt)).
+    (* reconcile the spec side: [#(List_max_index (mapi … xιs'))] = [#i] via
+       [list_Z_max zs = list_Z_max zs']. *)
+    rewrite max_rhs.
+    replace (List_max_index (mapi (λ (k : nat) '(_, _), zs' !!! k) xιs'))
+      with (fin_to_nat (nat_to_fin Hlt)).
+    { iExact "rhs". }
+    rewrite fin_to_nat_to_fin Hi -Hzseq list_max_index_eq Hmaxeq.
+    symmetry.
+    (* spec [mapi]-list = [zs'] *)
+    assert (Hzs'eq : zs' = mapi (λ (k : nat) '(_, _), zs' !!! k) xιs').
+    { eapply lookup_eq_pointwise.
       { rewrite mapi_length. lia. }
       intros. apply mapi2'.
-      apply list_lookup_lookup_total_lt.
-      done.
+      apply list_lookup_lookup_total_lt. done. }
+    rewrite -Hzs'eq list_max_index_eq. reflexivity.
   Qed.
 
 End generic.

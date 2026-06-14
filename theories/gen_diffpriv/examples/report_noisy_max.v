@@ -32,18 +32,17 @@ Section rnm.
   Definition report_noisy_max_presampling (num den : Z) : val :=
     report_noisy_max_presampling laplace_rat laplace_rat_mass (Sg := Sg) num den.
 
-  (** The Laplace privacy proof: [report_noisy_max_generic.rnm_pres_diffpriv]
-      with the Laplace list coupling [hoare_couple_laplace_list] for [Hcouple]. *)
-  Lemma rnm_pres_diffpriv (Δ : Z) (C : Z) num den (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
+  (** The Laplace privacy proof, now stated as the internal-DP notion
+      [hoare_diffpriv_classic_at] with the range-carrying codomain
+      [fin (Nat.max 1 N)]: [report_noisy_max_generic.rnm_pres_diffpriv] with the
+      Laplace list coupling [hoare_couple_laplace_list] for [Hcouple]. *)
+  Lemma rnm_pres_diffpriv (Δ : Z) (C : Z) num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
     (1 <= Δ)%Z →
     (1 <= C)%Z →
     (0 < IZR num / IZR (2 * den))%R →
     (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
-    ∀ db db', (dDB db db' <= IZR C)%R →
-                {{{ ↯m (IZR C * (IZR Δ * (IZR num / IZR den))) ∗
-                    ⤇ fill K (report_noisy_max_presampling num den evalQ #N (of_val (inject db'))) }}}
-                  report_noisy_max_presampling num den evalQ #N (of_val (inject db))
-                  {{{ v, RET v ; ∃ (v' : val), ⤇ fill K v' ∗ ⌜ v = v' ⌝  }}}.
+    ⊢ hoare_diffpriv_classic_at Sg (report_noisy_max_presampling num den evalQ #N)
+        (IZR C * (IZR Δ * (IZR num / IZR den))) 0 (IZR C) dDB (fin (Nat.max 1 N)).
   Proof.
     apply (report_noisy_max_generic.rnm_pres_diffpriv
              laplace_rat laplace_rat_mass (Sg := Sg)
@@ -72,15 +71,17 @@ Proof.
   intros HΔ HC ?? Hsens σ. apply diffpriv_approx_pure. apply DPcoupl_diffpriv.
   intros db db' Hadj.
   assert (0 < IZR C)%R by (apply IZR_lt; lia).
-  assert (dDB db db' <= IZR C)%R.
+  assert (Hr : (dDB db db' <= IZR C)%R).
   { apply (Rmult_le_reg_r (/ IZR C)); first by apply Rinv_0_lt_compat.
     rewrite Rinv_r; last lra. exact Hadj. }
   eapply (wp_adequacy Sg diffprivΣ) => //.
-  iIntros (?)"H1 H2".
-  iDestruct (rnm_pres_diffpriv with "[$H2 H1]") as "K"; try done.
-  - by erewrite fill_empty.
-  - iIntros.
-    iApply "K".
-    iNext. iIntros (?) "(%&?&%)".
-    by iFrame.
+  iIntros (?) "H1 H2 H3".
+  (* [rnm_pres_diffpriv] is now [hoare_diffpriv_classic_at]; specialise it at the
+     empty evaluation context and the concrete adjacency [db,db'], then drive its
+     Texan triple ([↯ 0] supplied by [H3]; the [↯m] credit is [H2]). *)
+  iPoseProof (rnm_pres_diffpriv Δ C num den evalQ DB dDB N HΔ HC ltac:(done) (Hsens _ _)) as "K".
+  rewrite /hoare_diffpriv_classic_at.
+  iApply ("K" $! [] db db' Hr with "[$H1 $H2 $H3]").
+  iIntros "!>" (y) "rhs".
+  rewrite fill_empty. iExists (inject y). by iFrame.
 Qed.
