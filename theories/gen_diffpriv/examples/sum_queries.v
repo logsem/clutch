@@ -640,12 +640,11 @@ Section queries.
   Proof.
     iIntros (Hpos K c x x' adj Φ) "!> [f' [ε δ]] hΦ".
     rewrite /dZ /= in adj.
-    tp_pures. wp_pures.
-    tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
-    iApply (wp_couple_laplace x x' 0%Z (Z.abs (x - x'))
-              ltac:(apply Zabs_ind; lia) n d (IZR n / IZR d)
-              (IZR (Z.abs (x - x')) * (IZR n / IZR d)) K ⊤
-              eq_refl Hpos eq_refl with "[$f' ε]").
+    (* NO-EAGER-FRAME coupling: the cost is the inexact bound
+       [|x−x'|·ε ≤ c·ε], reconciled below by [ecm_weaken].  We must NOT [$]-frame
+       the credit (that would pin [ε'] to the in-context [c·ε]); instead route it
+       (unframed [ε]) into the residual [↯m (|x−x'|·ε)] goal and weaken there. *)
+    couple_laplace_cost 0%Z (Z.abs (x - x')) with "[$f' ε]".
     2:{ setoid_rewrite Z.add_0_r. iIntros "!> %z f'". iApply ("hΦ" $! z). iFrame. }
     iApply ecm_weaken. 2: iFrame. split.
     - apply Rmult_le_pos; [apply IZR_le, Z.abs_nonneg | lra].

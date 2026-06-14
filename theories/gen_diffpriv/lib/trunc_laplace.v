@@ -301,6 +301,36 @@ Tactic Notation "couple_trunc_laplace" uconstr(A) uconstr(s) "with" constr(pat) 
     | (split; lia)
     | (simpl; lra) ].
 
+(** [couple_trunc_laplace_cost A s with "[$Hr Hε Hδ]"] — the NO-EAGER-FRAME
+    variant of [couple_trunc_laplace], for COST-RECONCILIATION sites where the
+    cost steps are not exact (reconciled by the caller's [ecm_eq]/[ecm_weaken]).
+    Mirrors [couple_trunc_laplace] but does NOT [$]-frame the credits: the
+    caller's spec pattern (e.g. [\"[$Hr Hε Hδ]\"]) frames only the spec resource
+    [⤇] with [$], and ROUTES the multiplicative credit [Hε] AND the additive
+    δ-credit [Hδ] — both WITHOUT [$] — into the residual credit goals' contexts.
+    Eagerly [$]-framing either would unify its evar to the in-context amount and
+    turn the equational [Hε' : ε' = s·ε] / [Hδ' : δ' = tlap_delta …] into
+    non-trivial equations — the failure mode at non-exact cost sites.  Still
+    auto-discharges the regime side-conditions [HA]/[Hs] by [lia]/[split; lia]
+    and pins [ε']/[δ'] to their rule-natural values by [reflexivity]; the two
+    residual credit goals [↯m (s·ε)] / [↯ δ'] (with the in-context credits
+    available) and the postcondition are left for the caller.  The [|- R => fail]
+    guard stops [assumption] from grabbing a stray [c : R] for the bare
+    value-evar goals. *)
+Tactic Notation "couple_trunc_laplace_cost" uconstr(A) uconstr(s) "with" constr(pat) :=
+  wp_pures; tp_pures;
+  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
+  unshelve (iApply (wp_couple_trunc_laplace A _ s _ _ _ _ _ _ _ _ _ with pat));
+  (* discharge [HA]/[Hs]/[Hε]/[εpos]/[Hε']/[Hδ'] (the equational ones pin
+     [ε']/[δ'] by [reflexivity]); both credit goals [↯m ε']/[↯ δ'] are left for
+     the caller's [ecm_*].  The [|- R => fail] guard prevents [assumption] from
+     instantiating a bare value-evar goal of type [R] with an in-context [c]. *)
+  try first
+    [ lia
+    | (split; lia)
+    | reflexivity
+    | (match goal with |- R => fail 1 | _ => assumption end) ].
+
 Section trunc_laplace_canary.
   Context {Sg : Sig} `{!SampleIn trunc_laplace_family Sg} `{!diffprivGS Sg Σ}.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
@@ -329,6 +359,32 @@ Section trunc_laplace_canary.
     iIntros (Φ) "(Hr & Hε & Hδ) HΦ".
     couple_trunc_laplace A s with "[$Hr $Hε $Hδ]".
     iApply "HΦ".
+  Qed.
+
+  (** CANARY for the NO-EAGER-FRAME [couple_trunc_laplace_cost]: identical
+      statement, but BOTH credits are ROUTED (unframed [Hε]/[Hδ], pattern
+      [\"[$Hr Hε Hδ]\"]) into their residual [↯m (s·ε)] / [↯ δ'] goals rather than
+      [$]-framed.  Here the costs are exact so the residual goals are closed by
+      simply re-framing [Hε]/[Hδ]; a real cost-reconciliation site would instead
+      run [iApply ecm_eq; …] / [iApply ecm_weaken; …] there.  Exercises that
+      [couple_trunc_laplace_cost] elaborates, auto-discharges the regime/equational
+      side-conditions, and leaves the two credit goals clean. *)
+  Lemma wp_trunc_laplace_shift_canary_cost (A loc s num den : Z)
+    (HA : (0 <= A)%Z)
+    (Hs : (0 <= s <= A)%Z)
+    (Hpos : 0 < IZR num / IZR den) K E :
+    {{{ ⤇ fill K (TruncLaplace #A #num #den #(loc + s) #())
+        ∗ ↯m (IZR s * (IZR num / IZR den))
+        ∗ ↯ (tlap_delta A num den loc s) }}}
+      TruncLaplace #A #num #den #loc #() @ E
+      {{{ (z : Z), RET #z; ⤇ fill K #z }}}.
+  Proof.
+    iIntros (Φ) "(Hr & Hε & Hδ) HΦ".
+    couple_trunc_laplace_cost A s with "[$Hr Hε Hδ]".
+    (* residual combined credit goal [↯m (s·ε) ∗ ↯ δ'] — closed here by re-framing
+       the routed [Hε]/[Hδ] (exact cost); a non-exact site would [iApply ecm_*]. *)
+    2: iApply "HΦ".
+    iFrame "Hε Hδ".
   Qed.
 
 End trunc_laplace_canary.

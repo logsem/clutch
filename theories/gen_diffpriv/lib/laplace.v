@@ -230,3 +230,39 @@ Tactic Notation "couple_laplace" uconstr(k) uconstr(k') "with" constr(pat) :=
     | (rewrite ?Z.add_0_l ?Z.add_0_r; assumption)
     | (apply Zabs_ind; lia)
     | (simpl; lra) ].
+
+(** [couple_laplace_cost k k' with "[$Hr Hε]"] — the NO-EAGER-FRAME variant of
+    [couple_laplace], for COST-RECONCILIATION sites where the cost step is not
+    exact (a non-trivial [ε'] scaling, reconciled by [ecm_eq], or an inequality
+    bound, reconciled by [ecm_weaken]).  It does the same [bind]+[apply] dance
+    and auto-discharges the side-conditions [Hdist]/[Hε]/[εpos]/[Hε'], BUT — and
+    this is the whole point — it does NOT [$]-frame the multiplicative credit.
+
+    Contrast with [couple_laplace], whose [\"[$Hr $Hε]\"] eagerly [$]-frames the
+    in-context [↯m (c·ε)] into the rule's [↯m ε'] precondition; that framing
+    unifies [ε']'s evar to the IN-CONTEXT amount [c·ε], turning the equational
+    side-condition [Hε' : ε' = k'·ε] into the (generally false / non-trivial)
+    [c·ε = k'·ε] — which is exactly what breaks every non-exact cost site.
+
+    Here the spec pattern (supplied by the caller, e.g. [\"[$Hr Hε]\"]) frames only
+    the spec resource [⤇] with [$], and ROUTES the credit hypothesis [Hε] —
+    WITHOUT [$] — into the residual [↯m ε'] goal's context (so it is available to
+    the caller's downstream [iFrame]).  [Hε'] is then closed by [reflexivity],
+    pinning [ε'] to the RULE-natural [k'·ε] (not the in-context amount), and the
+    remaining goal is the clean [↯m (k'·ε)] — with [↯m (c·ε)] in context — for the
+    caller's [iApply ecm_eq; …] / [iApply ecm_weaken; …] reconciliation.  The
+    [match … |- R => fail] guard stops the [assumption] fallback from grabbing a
+    stray real [c] for the bare [ε]/[ε'] value-evar goals. *)
+Tactic Notation "couple_laplace_cost" uconstr(k) uconstr(k') "with" constr(pat) :=
+  wp_pures; tp_pures;
+  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
+  unshelve (iApply (wp_couple_laplace _ _ k k' _ _ _ _ _ _ _ with pat));
+  (* discharge [Hdist]/[Hε]/[εpos]/[Hε'] (the last pins [ε'] to [k'·ε] by
+     [reflexivity]); the [↯m ε'] credit goal is left for the caller's [ecm_*].
+     The [|- R => fail] guard prevents [assumption] from instantiating a bare
+     value-evar goal of type [R] with the in-context distance bound [c]. *)
+  try first
+    [ (apply Zabs_ind; lia)
+    | reflexivity
+    | (match goal with |- R => fail 1 | _ => assumption end)
+    | lia ].

@@ -202,6 +202,34 @@ Tactic Notation "couple_exp" uconstr(k) uconstr(k') "with" constr(pat) :=
     | (apply Zabs_ind; lia)
     | (simpl; lra) ].
 
+(** [couple_exp_cost k k' with "[$Hr Hε]"] — the NO-EAGER-FRAME variant of
+    [couple_exp], for COST-RECONCILIATION sites where the cost step is not exact
+    (reconciled by the caller's [ecm_eq]/[ecm_weaken]).  Mirrors [couple_exp] but
+    does NOT [$]-frame the multiplicative credit: the caller's spec pattern (e.g.
+    [\"[$Hr Hε]\"]) frames only the spec resource [⤇] with [$] and ROUTES the credit
+    [Hε] (no [$]) into the residual [↯m ε'] goal's context.  Eagerly framing the
+    credit would unify [ε']'s evar to the in-context amount and turn [Hε' : ε' =
+    k'·ε] into a non-trivial equation — the failure mode at non-exact cost sites.
+    Still auto-discharges the DIRECTIONALITY side-conditions [Hdir]/[Hdist] by
+    [lia] and pins [ε'] to [k'·ε] via [reflexivity] on [Hε']; the residual
+    [↯m (k'·ε)] credit goal (with [↯m (c·ε)] in context) and the postcondition
+    are left for the caller.  The [|- R => fail] guard stops [assumption] from
+    grabbing a stray [c : R] for the bare [ε]/[ε'] value-evar goals. *)
+Tactic Notation "couple_exp_cost" uconstr(k) uconstr(k') "with" constr(pat) :=
+  wp_pures; tp_pures;
+  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
+  unshelve (iApply (wp_couple_exp _ _ k k' _ _ _ _ _ _ _ _ with pat));
+  (* discharge [Hdir]/[Hdist]/[Hε]/[εpos]/[Hε'] (the last pins [ε'] to [k'·ε] by
+     [reflexivity]); the [↯m ε'] credit goal is left for the caller's [ecm_*].
+     The [|- R => fail] guard prevents [assumption] from instantiating a bare
+     value-evar goal of type [R] with the in-context distance bound [c]. *)
+  try first
+    [ lia
+    | reflexivity
+    | (match goal with |- R => fail 1 | _ => assumption end)
+    | (rewrite ?Z.add_0_l ?Z.add_0_r; lia)
+    | (apply Zabs_ind; lia) ].
+
 Section exponential_canary.
   Context {Sg : Sig} `{!SampleIn exp_family Sg} `{!diffprivGS Sg Σ}.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
@@ -228,6 +256,29 @@ Section exponential_canary.
     iIntros (Φ) "(Hr & Hε) HΦ".
     couple_exp k k' with "[$Hr $Hε]".
     iApply "HΦ".
+  Qed.
+
+  (** CANARY for the NO-EAGER-FRAME [couple_exp_cost]: identical statement, but
+      the credit is ROUTED (unframed [Hε], pattern [\"[$Hr Hε]\"]) into the residual
+      [↯m (k'·ε)] goal rather than [$]-framed.  Here the cost is exact so the
+      residual goal is closed by simply re-framing [Hε]; a real cost-reconciliation
+      site would instead run [iApply ecm_eq; …] / [iApply ecm_weaken; …] there.
+      Exercises that [couple_exp_cost] elaborates, auto-discharges the
+      directionality/equational side-conditions, and leaves a clean credit goal. *)
+  Lemma wp_exp_shift_canary_cost (loc loc' k k' num den : Z)
+    (Hdir : (0 <= k + loc - loc')%Z)
+    (Hdist : (k + loc - loc' <= k')%Z)
+    (Hpos : 0 < IZR num / IZR den) K E :
+    {{{ ⤇ fill K (Exp #num #den #loc' #()) ∗ ↯m (IZR k' * (IZR num / IZR den)) }}}
+      Exp #num #den #loc #() @ E
+      {{{ (z : Z), RET #z; ⤇ fill K #(z + k) }}}.
+  Proof.
+    iIntros (Φ) "(Hr & Hε) HΦ".
+    couple_exp_cost k k' with "[$Hr Hε]".
+    (* residual credit goal [↯m (k'·ε)] — closed here by re-framing the routed
+       [Hε] (exact cost); a non-exact site would [iApply ecm_*] instead *)
+    2: iApply "HΦ".
+    iFrame "Hε".
   Qed.
 
 End exponential_canary.
