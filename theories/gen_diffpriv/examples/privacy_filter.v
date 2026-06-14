@@ -521,13 +521,8 @@ Section adaptive.
          with the [|count_l−count_r| ≤ 1] distance from [count_sens]. *)
       + iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...
         rewrite /laplace...
-        tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
-        iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
-        1: apply Zabs_ind ; lia.
-        1: reflexivity.
-        1: done.
-        1: rewrite Rmult_1_l ; reflexivity.
-        1: iFrame "eps".
+        couple_laplace 0 1 with "[$rhs eps]".
+        1: rewrite Rmult_1_l ; iFrame "eps".
         iNext. iIntros (count_precise_1) "rhs" ; simpl... rewrite Z.add_0_r.
         rewrite /list_cons.
         case_bool_decide as hthresh...
@@ -536,13 +531,8 @@ Section adaptive.
         iApply ("run_dp" $! _ _ _ _ _ ⌜True⌝%I with "[] [] [-Hpost] [Hpost]") ; iFrame.
         1-2: iPureIntro ; lia.
         * iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...
-          tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
-          iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
-          1: apply Zabs_ind ; lia.
-          1: reflexivity.
-          1: done.
-          1: rewrite Rmult_1_l ; reflexivity.
-          1: iFrame "eps".
+          couple_laplace 0 1 with "[$rhs eps]".
+          1: rewrite Rmult_1_l ; iFrame "eps".
           iNext. iIntros (count_precise_2) "rhs" ; simpl. rewrite Z.add_0_r.
           iApply "Hpost" ; by iFrame.
         * simpl. iIntros "!> * [rhs [I TRY_RUN]]"... iApply "Hpost". iFrame. done.
