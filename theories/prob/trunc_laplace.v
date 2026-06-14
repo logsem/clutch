@@ -165,61 +165,57 @@ Section trunc_laplace_dp.
 
   Local Notation ε := (IZR num / IZR den).
 
-  (** The bottom boundary slice [{loc-A, …, loc-A+s-1}] that the shifted
-      distribution [trunc_lap(loc+s)] cannot cover. *)
+  (** The boundary slice that the shifted distribution [trunc_lap(loc+s)] cannot
+      cover — i.e. the part of [supp(loc)] missing from [supp(loc+s)].  For a
+      forward shift [s ≥ 0] this is the BOTTOM slice [{loc-A, …, loc-A+s-1}];
+      for a backward shift [s < 0] it is the TOP slice [{loc+A+s+1, …, loc+A}].
+      We characterise it sign-agnostically as the set difference; the concrete
+      [seqZ] slice (per sign) is recovered in [tlap_bndry_slice] below. *)
   Definition tlap_bndry (loc s z : Z) : R :=
-    if bool_decide (z ∈ seqZ (loc - A) s)
+    if bool_decide (z ∈ tlap_supp A loc ∧ z ∉ tlap_supp A (loc + s))
     then trunc_lap_rat A num den loc z else 0%R.
 
   (** ** Weight-level bound on the overlap.
 
       If [z] lies in the support of [trunc_lap(loc+s)] (the shifted
-      distribution), then [w(loc,z) ≤ exp(s·ε)·w(loc+s,z)]. *)
+      distribution), then [w(loc,z) ≤ exp(|s|·ε)·w(loc+s,z)].  Holds for a shift
+      [s] of EITHER sign: the controlling inequality is the (two-sided)
+      triangle bound [|z-(loc+s)| ≤ |z-loc| + |s|]. *)
   Lemma tlap_w_overlap_ratio (loc s z : Z) :
-    (0 <= s)%Z →
     z ∈ tlap_supp A (loc + s) →
     tlap_w A num den loc z
-      <= exp (IZR s * ε) * tlap_w A num den (loc + s) z.
+      <= exp (IZR (Z.abs s) * ε) * tlap_w A num den (loc + s) z.
   Proof using A num den Heps.
-    intros Hs Hz'.
+    intros Hz'.
     rewrite {2}/tlap_w bool_decide_eq_true_2; [|done].
     rewrite /tlap_w.
     case_bool_decide as Hz; last first.
     { (* z ∉ supp(loc): w(loc,z) = 0 *)
       apply Rmult_le_pos; [left; apply exp_pos|left; apply exp_pos]. }
     rewrite -exp_plus. apply exp_mono.
-    (* Goal: -ε·|z-loc| <= s·ε + (-ε·|z-(loc+s)|).
-       Suffices |z-(loc+s)| <= |z-loc| + s, by the triangle inequality. *)
+    (* Goal: -ε·|z-loc| <= |s|·ε + (-ε·|z-(loc+s)|).
+       Suffices |z-(loc+s)| <= |z-loc| + |s|, by the triangle inequality. *)
     apply elem_of_tlap_supp in Hz, Hz'.
-    assert (Htri : (Z.abs (z - (loc + s)) <= Z.abs (z - loc) + s)%Z).
+    assert (Htri : (Z.abs (z - (loc + s)) <= Z.abs (z - loc) + Z.abs s)%Z).
     { pose proof (Z.abs_triangle (z - loc) (loc - (loc + s))) as Ht.
       replace (z - loc + (loc - (loc + s)))%Z with (z - (loc + s))%Z in Ht by lia.
-      replace (Z.abs (loc - (loc + s))) with s in Ht by (rewrite Z.abs_neq; lia).
+      replace (Z.abs (loc - (loc + s))) with (Z.abs s) in Ht
+        by (rewrite -Z.abs_opp; f_equal; lia).
       lia. }
-    assert (IZR (Z.abs (z - (loc + s))) <= IZR (Z.abs (z - loc)) + IZR s)%R
+    assert (IZR (Z.abs (z - (loc + s))) <= IZR (Z.abs (z - loc)) + IZR (Z.abs s))%R
       as Htri'.
     { rewrite -plus_IZR. apply IZR_le. lia. }
     nra.
   Qed.
 
-  (** Membership in the boundary slice [seqZ (loc-A) s] is exactly
-      "in [supp(loc)] but not in [supp(loc+s)]" (for [0 ≤ s ≤ A]). *)
-  Lemma tlap_bndry_iff (loc s z : Z) :
-    (0 <= s <= A)%Z →
-    z ∈ seqZ (loc - A) s
-    ↔ (z ∈ tlap_supp A loc ∧ z ∉ tlap_supp A (loc + s)).
-  Proof.
-    intros Hs. rewrite elem_of_seqZ !elem_of_tlap_supp.
-    split; [lia|]. intros [? ?]. lia.
-  Qed.
-
   (** ** Pmf-level decomposition (the key pointwise bound).
 
-      [μ(loc) z ≤ exp(s·ε)·μ(loc+s) z + bndry(loc,s) z] for every [z]. *)
+      [μ(loc) z ≤ exp(|s|·ε)·μ(loc+s) z + bndry(loc,s) z] for every [z].  Holds
+      for a shift [s] of EITHER sign with [|s| ≤ A]. *)
   Lemma tlap_pmf_decomp (loc s z : Z) :
-    (0 <= s <= A)%Z →
+    (Z.abs s <= A)%Z →
     trunc_lap_rat A num den loc z
-      <= exp (IZR s * ε) * trunc_lap_rat A num den (loc + s) z
+      <= exp (IZR (Z.abs s) * ε) * trunc_lap_rat A num den (loc + s) z
          + tlap_bndry loc s z.
   Proof using A num den HA Heps.
     intros Hs.
@@ -233,23 +229,23 @@ Section trunc_laplace_dp.
     set (w := tlap_w A num den loc z).
     set (w' := tlap_w A num den (loc + s) z).
     (* goal (modulo definitions):
-         w / ZA <= exp(sε) * (w' / ZA) + (if z∈slice then w / ZA else 0) *)
+         w / ZA <= exp(|s|ε) * (w' / ZA) + (if z∈slice then w / ZA else 0) *)
     destruct (decide (z ∈ tlap_supp A (loc + s))) as [Hin'|Hin'].
     - (* overlap: bndry term is 0; use the weight ratio bound *)
       rewrite bool_decide_eq_false_2; last first.
-      { rewrite tlap_bndry_iff; [|lia]. tauto. }
+      { tauto. }
       rewrite Rplus_0_r. unfold Rdiv. rewrite -Rmult_assoc.
       apply Rmult_le_compat_r.
       { left. apply Rinv_pos. exact HZpos. }
-      apply tlap_w_overlap_ratio; [lia|done].
-    - (* z ∉ supp(loc+s): then exp(sε)·μ' z = 0 *)
+      apply tlap_w_overlap_ratio; done.
+    - (* z ∉ supp(loc+s): then exp(|s|ε)·μ' z = 0 *)
       assert (w' = 0) as Hw'0.
       { rewrite /w' /tlap_w bool_decide_eq_false_2; [done|exact Hin']. }
       rewrite Hw'0 Rdiv_0_l Rmult_0_r Rplus_0_l.
       destruct (decide (z ∈ tlap_supp A loc)) as [Hin|Hin].
       + (* z is in the boundary slice: equality *)
         rewrite bool_decide_eq_true_2; last first.
-        { rewrite tlap_bndry_iff; [|lia]. done. }
+        { split; done. }
         lra.
       + (* z outside both supports: w = 0 *)
         assert (w = 0) as Hw0.
@@ -262,10 +258,11 @@ Section trunc_laplace_dp.
       The total mass of the bottom boundary slice [{loc-A, …, loc-A+s-1}]. *)
 
   (** The exact group-bound boundary mass
-        [δ_A_s = (exp(-ε·A)/Z_A) · (exp(s·ε) - 1)/(exp ε - 1)]. *)
+        [δ_A_s = (exp(-ε·A)/Z_A) · (exp(|s|·ε) - 1)/(exp ε - 1)].
+      Symmetric in the shift sign — it depends only on [|s|]. *)
   Definition tlap_delta (loc s : Z) : R :=
     (exp (- ε * IZR A) / tlap_Z A num den loc)
-      * (exp (IZR s * ε) - 1) / (exp ε - 1).
+      * (exp (IZR (Z.abs s) * ε) - 1) / (exp ε - 1).
 
   (** Geometric-sum helper: the unnormalised boundary weight, summed over the
       slice [seqZ (loc-A) (Z.of_nat n)], in closed form. *)
@@ -319,15 +316,36 @@ Section trunc_laplace_dp.
     rewrite -IH. unfold compose. lra.
   Qed.
 
-  (** ** The exact boundary mass: [SeriesC (bndry) = δ_A_s]. *)
-  Lemma tlap_bndry_mass (loc s : Z) :
+  Lemma tlap_bndry_nonneg (loc s z : Z) : 0 <= tlap_bndry loc s z.
+  Proof.
+    rewrite /tlap_bndry. case_bool_decide; [apply pmf_pos|lra].
+  Qed.
+
+  Lemma ex_seriesC_tlap_bndry (loc s : Z) : ex_seriesC (tlap_bndry loc s).
+  Proof.
+    eapply ex_seriesC_le; last apply (pmf_ex_seriesC (trunc_lap_rat A num den loc)).
+    intros z. rewrite /tlap_bndry. case_bool_decide; split;
+      try apply pmf_pos; try lra; try apply Rle_refl.
+  Qed.
+
+  (** ** The exact boundary mass (FORWARD slice): [SeriesC (bndry) = δ_A_s] for
+      [0 ≤ s ≤ A].  The uncovered set [supp(loc) \ supp(loc+s)] is exactly the
+      bottom slice [seqZ (loc-A) s]. *)
+  Lemma tlap_bndry_mass_fwd (loc s : Z) :
     (0 <= s <= A)%Z →
     SeriesC (tlap_bndry loc s) = tlap_delta loc s.
   Proof using A num den HA Heps.
     intros Hs.
     pose proof (tlap_Z_pos A num den loc HA) as HZpos.
+    (* 0. the set-difference indicator agrees with the bottom slice [seqZ (loc-A) s] *)
+    rewrite (SeriesC_ext (tlap_bndry loc s)
+               (λ z, if bool_decide (z ∈ seqZ (loc - A) s)
+                     then trunc_lap_rat A num den loc z else 0%R)).
+    2:{ intros z. rewrite /tlap_bndry.
+        rewrite (bool_decide_ext (z ∈ tlap_supp A loc ∧ z ∉ tlap_supp A (loc + s))
+                                 (z ∈ seqZ (loc - A) s)); [done|].
+        rewrite elem_of_seqZ !elem_of_tlap_supp. lia. }
     (* 1. reduce the SeriesC over the finite slice to a foldr *)
-    rewrite /tlap_bndry.
     rewrite (SeriesC_list (seqZ (loc - A) s) (trunc_lap_rat A num den loc));
       [|apply NoDup_seqZ].
     (* 2. on the slice, [trunc_lap_rat loc z = exp(ε·(z-loc)) / Z_A] *)
@@ -352,36 +370,98 @@ Section trunc_laplace_dp.
     assert (Hids : s = Z.of_nat (Z.to_nat s)) by (rewrite Z2Nat.id; lia).
     rewrite {1}Hids.
     rewrite tlap_bndry_geom; [|rewrite Z2Nat.id; lia].
-    (* 5. relate [(exp ε)^(Z.to_nat s)] to [exp (IZR s * ε)] *)
+    (* 5. relate [(exp ε)^(Z.to_nat s)] to [exp (IZR (|s|) * ε)] *)
     rewrite exp_pow.
-    replace (ε * INR (Z.to_nat s)) with (IZR s * ε).
-    2:{ rewrite INR_IZR_INZ Z2Nat.id; [lra|lia]. }
+    replace (ε * INR (Z.to_nat s)) with (IZR (Z.abs s) * ε).
+    2:{ rewrite INR_IZR_INZ Z2Nat.id; [|lia]. rewrite Z.abs_eq; [lra|lia]. }
     rewrite /tlap_delta. field. split.
     - lra.
     - assert (1 < exp ε); [|lra]. rewrite -exp_0. apply exp_increasing. lra.
   Qed.
 
-  Lemma tlap_bndry_nonneg (loc s z : Z) : 0 <= tlap_bndry loc s z.
-  Proof.
-    rewrite /tlap_bndry. case_bool_decide; [apply pmf_pos|lra].
+  (** ** Reflection through the center [loc].  The truncated Laplacian is
+      symmetric about [loc]: reflecting the index [z ↦ 2·loc - z] maps the
+      uncovered slice for a shift [s] onto the uncovered slice for the OPPOSITE
+      shift [-s], preserving the (symmetric) weight.  Hence the boundary mass at
+      [s] equals the boundary mass at [-s] — the formal core of the mirror
+      argument. *)
+  Lemma tlap_bndry_reflect (loc s z : Z) :
+    tlap_bndry loc s (2 * loc - z)%Z = tlap_bndry loc (- s) z.
+  Proof using A num den.
+    rewrite /tlap_bndry.
+    (* the indicators agree: [2loc-z ∈ supp loc ⟺ z ∈ supp loc], and
+       [2loc-z ∈ supp(loc+s) ⟺ z ∈ supp(loc-s)] *)
+    rewrite (bool_decide_ext _ (z ∈ tlap_supp A loc ∧ z ∉ tlap_supp A (loc + - s))).
+    2:{ rewrite !elem_of_tlap_supp. lia. }
+    case_bool_decide as Hc; [|done].
+    (* the weight is symmetric: [|2loc-z-loc| = |loc-z| = |z-loc|] *)
+    rewrite !trunc_lap_rat_unfold /tlap_w.
+    rewrite (bool_decide_ext ((2 * loc - z)%Z ∈ tlap_supp A loc) (z ∈ tlap_supp A loc)).
+    2:{ rewrite !elem_of_tlap_supp. lia. }
+    rewrite (bool_decide_eq_true_2 (z ∈ tlap_supp A loc)); [|tauto].
+    do 3 f_equal. f_equal. lia.
   Qed.
 
-  Lemma ex_seriesC_tlap_bndry (loc s : Z) : ex_seriesC (tlap_bndry loc s).
-  Proof.
-    eapply ex_seriesC_le; last apply (pmf_ex_seriesC (trunc_lap_rat A num den loc)).
-    intros z. rewrite /tlap_bndry. case_bool_decide; split;
-      try apply pmf_pos; try lra; try apply Rle_refl.
+  (** Boundary mass is symmetric in the shift sign: [mass(s) = mass(-s)].  Proved
+      by the reflection [z ↦ 2·loc - z], an involutive injection, via
+      [SeriesC_le_inj] in both directions. *)
+  Lemma tlap_bndry_mass_reflect (loc s : Z) :
+    SeriesC (tlap_bndry loc s) = SeriesC (tlap_bndry loc (- s)).
+  Proof using A num den.
+    (* the reflection [g z = 2loc - z] is an involution; reindexing [tlap_bndry
+       loc s] by it gives [λ z, tlap_bndry loc s (2loc-z) = tlap_bndry loc (-s)]
+       pointwise ([tlap_bndry_reflect]).  We first show the masses of [bndry] and
+       its reflection are equal (involution-invariance via [SeriesC_le_inj] both
+       ways), then rewrite the reflection pointwise. *)
+    transitivity (SeriesC (λ z, tlap_bndry loc s (2 * loc - z)%Z)).
+    2:{ apply SeriesC_ext. intros z. apply tlap_bndry_reflect. }
+    apply Rle_antisym.
+    - (* [SeriesC bndry <= SeriesC (bndry ∘ g)]: reindex [bndry∘g] by [g] *)
+      opose proof (SeriesC_le_inj (λ z, tlap_bndry loc s (2 * loc - z)%Z)
+                     (λ z, Some (2 * loc - z)%Z) _ _ _) as lb.
+      { intros; apply tlap_bndry_nonneg. }
+      { intros n1 n2 m h h'. inversion h; inversion h'; lia. }
+      { apply (ex_seriesC_inj (λ z : Z, (2 * loc - z)%Z) (tlap_bndry loc s));
+          [intros a b Hab; lia | intros; apply tlap_bndry_nonneg
+          | apply ex_seriesC_tlap_bndry]. }
+      simpl in lb. etrans; [|exact lb]. right.
+      apply SeriesC_ext. intros z. f_equal. lia.
+    - (* [SeriesC (bndry ∘ g) <= SeriesC bndry]: reindex [bndry] by [g] *)
+      opose proof (SeriesC_le_inj (tlap_bndry loc s)
+                     (λ z, Some (2 * loc - z)%Z) _ _ _) as ub.
+      { intros; apply tlap_bndry_nonneg. }
+      { intros n1 n2 m h h'. inversion h; inversion h'; lia. }
+      { apply ex_seriesC_tlap_bndry. }
+      simpl in ub. exact ub.
+  Qed.
+
+  (** ** The exact boundary mass, BOTH directions: [SeriesC (bndry) = δ_A_s] for
+      [|s| ≤ A].  Forward ([s ≥ 0]) is [tlap_bndry_mass_fwd]; backward ([s < 0])
+      reduces to the forward case at [-s] by the reflection symmetry. *)
+  Lemma tlap_bndry_mass (loc s : Z) :
+    (Z.abs s <= A)%Z →
+    SeriesC (tlap_bndry loc s) = tlap_delta loc s.
+  Proof using A num den HA Heps.
+    intros Hs.
+    destruct (Z_le_gt_dec 0 s) as [Hpos | Hneg].
+    - apply tlap_bndry_mass_fwd. lia.
+    - rewrite tlap_bndry_mass_reflect.
+      rewrite tlap_bndry_mass_fwd; [|lia].
+      rewrite /tlap_delta. rewrite Z.abs_opp. reflexivity.
   Qed.
 
   (** ** The per-distance metric-DP coupling — the crux.
 
-      For a forward shift [s := loc' - loc] with [0 ≤ s ≤ A], the truncated
+      For a TWO-SIDED shift [s := loc' - loc] with [|s| ≤ A], the truncated
       discrete Laplace satisfies a DP coupling with the EXACT group-bound
-      privacy profile [(s·ε, δ_A_s)]. *)
+      privacy profile [(|s|·ε, δ_A_s)].  The truncated Laplacian is symmetric
+      about its center, so this holds for a shift of either sign — proved by a
+      case split on [sign s] reducing the backward case to the forward one
+      through the reflection [z ↦ 2·loc - z] (see [tlap_bndry_mass]). *)
   Theorem DPcoupl_trunc_lap (loc s : Z) :
-    (0 <= s <= A)%Z →
+    (Z.abs s <= A)%Z →
     DPcoupl (trunc_lap_rat A num den loc) (trunc_lap_rat A num den (loc + s))
-            eq (IZR s * ε) (tlap_delta loc s).
+            eq (IZR (Z.abs s) * ε) (tlap_delta loc s).
   Proof using A num den HA Heps.
     intros Hs.
     apply DPcoupl_complete_eq. intros P.
@@ -392,9 +472,9 @@ Section trunc_laplace_dp.
       - intros z. split.
         + case_bool_decide; [apply pmf_pos|lra].
         + (* if P z then μ1 z else 0 <=
-               exp(sε)·(if P z then μ2 z else 0) + (if P z then bndry z else 0) *)
+               exp(|s|ε)·(if P z then μ2 z else 0) + (if P z then bndry z else 0) *)
           instantiate
-            (1 := λ z, exp (IZR s * ε) * (if bool_decide (P z)
+            (1 := λ z, exp (IZR (Z.abs s) * ε) * (if bool_decide (P z)
                                           then trunc_lap_rat A num den (loc + s) z
                                           else 0)
                        + (if bool_decide (P z) then tlap_bndry loc s z else 0)).
@@ -444,15 +524,16 @@ Section trunc_laplace_dp.
     pose proof (DPcoupl_trunc_lap loc 0 ltac:(lia)) as H.
     rewrite Z.add_0_r in H.
     rewrite (tlap_delta_0 loc) in H.
-    replace (IZR 0 * ε) with 0 in H by (simpl; lra).
+    replace (IZR (Z.abs 0) * ε) with 0 in H by (rewrite Z.abs_0; simpl; lra).
     exact H.
   Qed.
 
-  (** The coupling phrased directly in terms of the second center [loc']. *)
+  (** The coupling phrased directly in terms of the second center [loc'], now
+      for EITHER direction: [|loc'-loc| ≤ A]. *)
   Corollary DPcoupl_trunc_lap_loc (loc loc' : Z) :
-    (0 <= loc' - loc <= A)%Z →
+    (Z.abs (loc' - loc) <= A)%Z →
     DPcoupl (trunc_lap_rat A num den loc) (trunc_lap_rat A num den loc')
-            eq (IZR (loc' - loc) * ε) (tlap_delta loc (loc' - loc)).
+            eq (IZR (Z.abs (loc' - loc)) * ε) (tlap_delta loc (loc' - loc)).
   Proof using A num den HA Heps.
     intros Hs.
     pose proof (DPcoupl_trunc_lap loc (loc' - loc) Hs) as H.
@@ -460,18 +541,10 @@ Section trunc_laplace_dp.
     exact H.
   Qed.
 
-  (** NOTE on the symmetric direction.  For a backward shift [loc' < loc] the
-      argument is fully analogous: the uncovered boundary slice is the TOP
-      slice [{loc+A-|s|+1, …, loc+A}] of [trunc_lap(loc)] (where
-      [trunc_lap(loc')] has no support), and the same geometric computation
-      yields the same [δ] with [|s|] in place of [s].  We formalise the forward
-      direction [0 ≤ s] here; the backward case is symmetric (swap the roles of
-      [loc]/[loc'] and reflect the support).
-
-      NOTE on truncation removal.  As [A → ∞] the boundary mass
-      [δ_A_s = (exp(-ε·A)/Z_A)·(exp(s·ε)-1)/(exp ε-1) → 0] (the prefactor
+  (** NOTE on truncation removal.  As [A → ∞] the boundary mass
+      [δ_A_s = (exp(-ε·A)/Z_A)·(exp(|s|·ε)-1)/(exp ε-1) → 0] (the prefactor
       [exp(-ε·A) → 0] while [Z_A → 1/(tanh(ε/2))] stays bounded), recovering the
-      pure [(s·ε, 0)]-DP profile of the untruncated discrete Laplace.  We do not
-      formalise the limit. *)
+      pure [(|s|·ε, 0)]-DP profile of the untruncated discrete Laplace.  We do
+      not formalise the limit. *)
 
 End trunc_laplace_dp.
