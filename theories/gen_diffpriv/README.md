@@ -20,13 +20,18 @@ bespoke coupling rules — not a re-clone. The sole client is the DP logic; othe
 ## The two trees
 
 - **`theories/gen_prob_lang/`** — the `S`-parametric *language* (no DP content). Operational
-  semantics, metatheory, spec-side ghost state, the distribution-family signature, injections,
-  notation, tactics, and a generic weakest-pre (`gwp/`) for the spec layer.
+  semantics (`lang`/`metatheory`/`erasure`), spec-side ghost state (`spec/`), the distribution-family
+  signature, injections (`inject`, incl. `Inject (fin M)`), notation, tactics, the `mkZNoise`/`mkZNoise4`
+  noise builders (`znoise.v`) and the N-weight bin sampler (`categorical.v`), a generic weakest-pre
+  with a full **generic list ADT** (`gwp/list.v`, the largest file here — underpins every list-valued
+  case study), and a logical-relation **type system** (`typing/{types,contextual_refinement}.v`).
 - **`theories/gen_diffpriv/`** — the *DP logic*. The `Λ`-generic WP core
   (`clutch.diffpriv.{weakestpre,lifting,ectx_lifting}`) is **reused unchanged**, instantiated at
   `gen_lang S`; only the genuinely language-specific files are re-done here
-  (`primitive_laws`, `coupling_rules`, `adequacy`), plus the relational layer, the iDP
-  definitions, the distribution/mechanism libraries (`lib/`), and the case studies (`examples/`).
+  (`primitive_laws`, `coupling_rules`, `adequacy`), plus the **binary logical relation** stack
+  (see below), the iDP definitions (`diffpriv_rules.v`), the distribution/mechanism libraries
+  (`lib/`), and the case studies (`examples/`). Foundational *math* lives in `theories/prob/`
+  (`differential_privacy.v`, `exponential.v`, `expmech{,_dp}.v`, `trunc_laplace.v`).
 
 ## Core abstraction (`gen_prob_lang/lang.v`)
 
@@ -42,6 +47,20 @@ Class SampleIn (D : SampleFamily) (S : Sig) := { sample_idx : nat; sample_idx_S 
   support-carrying view `l ↪[D] (p; xs)` lives only in the logic, faithful via `sf_inj` injectivity.
 - Generic dispatch `sig_sample S i pv`; every per-family rule rests on the agreement lemma `sig_sample_at`.
 
+## Binary logical relation & soundness
+
+The full binary logical-relation / contextual-refinement stack is ported and `gen_lang S`-generic:
+`model.v`, `interp.v` (value/expr interpretation), `fundamental.v` (the fundamental theorem),
+`compatibility.v`, `app_rel_rules.v`, `rel_tactics.v`, `soundness.v`, `adequacy_rel.v` — delivering
+the headline soundness theorem (`refines_sound` / contextual refinement `ctx_refines`).
+
+The generalization payoff is **`sample.v` (`refines_sample`)**: *sufficient syntactic conditions*
+under which sampling from **any** family is a sound extension of the logical relation — the param
+type is an `EqType`, `sf_param_of_val` is total, and `sf_inj` lands in the output type's
+interpretation `⟦τo⟧`. Proved once, instantiated at uniform / Laplace / coin. (This is the relational
+analogue of "add a distribution = one `SampleFamily`": adding a *typed* primitive is one
+side-condition discharge, not a new fundamental-theorem case.)
+
 ## Internal-DP notions (`gen_diffpriv/diffpriv_rules.v`)
 
 A central rationale block in that file is the source of truth; in brief:
@@ -56,8 +75,15 @@ A central rationale block in that file is the source of truth; in brief:
   for **bounded-support / discrete mechanisms** whose optimal `δ` is a tail mass that saturates,
   and for fixed-budget statements over databases within a distance `r`.
 - **Bridge**: `metric ⇒ classic` always (instantiate `c = 1`, `grp ε 1 = 1`); the converse is
-  group privacy, via the meta-level `diffpriv_metric_*` equivalence in
-  `clutch.prob.differential_privacy` (both directions proved). Complementary, not redundant.
+  group privacy. The justifying **meta-level theory** is in `clutch.prob.differential_privacy`:
+  the textbook DP predicates are stated over an adjacency **relation** (`diffpriv_pure_rel` /
+  `diffpriv_approx_rel`, not a unit ball), the group-privacy induction `diffpriv_approx_rel_group`
+  along an `adj_path`, the `grp` algebra (`grp_comp`/`grp_rec`/`grp_succ`/`grp_mono_eps`/`grp_mono_c`),
+  the metric definition `diffpriv_metric`, the equivalence `diffpriv_metric_of_approx_rel` (**both
+  directions proved**), and the all-distances sequential composition `diffpriv_metric_seq_comp_full`.
+- This replaces a **deleted legacy notion**: a *linear* `(ε,δ)` definition (`hoare_diffpriv`/`wp_diffpriv`
+  + a ~13-lemma composition cluster) was removed in the #25 consolidation — its `c·δ` profile is
+  unsound for `δ > 0`, whereas `grp_mono_eps` shows the group-bound metric definition genuinely composes.
 - **Composition laws** (the `_at`, `wp_bind`-friendly forms): `diffpriv_metric_sensitive_comp_at`
   (sens∘dp) genuinely `iApply`s; sequential / postprocessing compose as documented inline patterns
   (the reified forms β-reduce away under `wp_pures`, so they cannot be `iApply`ed — see the file's
@@ -96,11 +122,14 @@ over plain `dZ` and a `classic` instance with the tight `δ`. Clean closed forms
   `hoare_diffpriv_classic_at … (fin (Nat.max 1 N) * Z)`; a single `hoare_sensitive` hypothesis
   drives both stages (the selected index, exposed as `fin`, is fed into it for the measurement).
 - `report_noisy_max{,_exp}.v`, `expmech` client, `randomized_response.v`, `adaptive_count.v`,
-  `sum_queries.v`, `composition_demo.v` (capstone multi-release).
+  `sum_queries.v`, `list.v` / `map.v`, and `exact_cache.v` — a live `δ > 0` study whose bound was
+  **sharpened** from the (deleted) unsound linear form to the correct group bound during the #25
+  cleanup; `composition_demo.v` (capstone multi-release).
 - **Faithful ports** that match the original development exactly: `SVT_experiments.v`,
-  `rnm_inspired_problems.v`, `pointwise_eq_*.v` — these were `Abort`ed / `Admitted` upstream
-  (speculative or open research) and are preserved as such; they contribute **no new admits/axioms**
-  (an `Abort`ed lemma adds nothing to the context). `pointwise_*` is stale, left as-is.
+  `rnm_inspired_problems.v`, and the `pointwise_eq_*.v` family — these were `Abort`ed / `Admitted`
+  upstream (speculative or open research) and are preserved as such; they contribute **no new
+  admits/axioms** (an `Abort`ed lemma adds nothing to the context). The `pointwise_*` files are
+  stale, left as-is.
 
 ## Tooling & build
 
