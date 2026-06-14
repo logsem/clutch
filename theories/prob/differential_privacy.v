@@ -128,6 +128,96 @@ Proof.
   rewrite Rmult_1_l (grp_1 _ Hε) Rmult_1_r in h. exact h.
 Qed.
 
+(** ** Converse: metric DP from classic ADP via group-privacy chaining *)
+
+(** Prepend recurrence: the load-bearing identity for the group-privacy
+    induction.  [grp ε (c+1) = e^ε · grp ε c + 1]. *)
+Lemma grp_rec eps c : 0 < eps -> grp eps (c + 1) = exp eps * grp eps c + 1.
+Proof.
+  intros Heps.
+  assert (He : exp eps - 1 <> 0).
+  { cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra. }
+  rewrite /grp.
+  replace ((c + 1) * eps) with (eps + c * eps) by ring.
+  rewrite exp_plus. field. exact He.
+Qed.
+
+(** [grp ε ·] is monotone in the distance. *)
+Lemma grp_mono_c eps c c' : 0 < eps -> c <= c' -> grp eps c <= grp eps c'.
+Proof.
+  intros Heps Hcc'. rewrite /grp. unfold Rdiv. apply Rmult_le_compat_r.
+  - left. apply Rinv_0_lt_compat.
+    cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
+  - cut (exp (c * eps) <= exp (c' * eps)); [lra|].
+    assert (Hle : c * eps <= c' * eps) by (apply Rmult_le_compat_r; lra).
+    destruct (Rle_lt_or_eq_dec _ _ Hle) as [Hlt | Heq].
+    + apply Rlt_le. by apply exp_increasing.
+    + rewrite Heq. lra.
+Qed.
+
+(** Unit-step interpolation path of length [n] from [a] to [b]: a sequence of
+    [n] adjacent (distance-[≤1]) steps. *)
+Inductive adj_path {A} (d : A → A → R) : nat → A → A → Prop :=
+| adj_path_O a : adj_path d 0 a a
+| adj_path_S n a b c : d a b <= 1 → adj_path d n b c → adj_path d (S n) a c.
+
+(** Group privacy: chaining [n] adjacent steps multiplies the privacy budget to
+    [(n·ε, δ·grp ε n)]. *)
+Lemma diffpriv_approx_group {A B : Type} `{Countable B}
+  (d : A → A → R) (f : A → distr B) (ε δ : R) :
+  0 < ε → 0 <= δ → diffpriv_approx d f ε δ →
+  ∀ n a b, adj_path d n a b →
+    ∀ P, prob (f a) (λ x, bool_decide (P x))
+         <= exp (INR n * ε) * prob (f b) (λ x, bool_decide (P x)) + δ * grp ε (INR n).
+Proof.
+  intros Hε Hδ Happ n a b Hpath. induction Hpath as [a | n a b c Hab Hpath IH]; intros P.
+  - (* BASE: n = 0, a = a *)
+    rewrite INR_0 Rmult_0_l exp_0.
+    assert (Hg0 : grp ε 0 = 0).
+    { rewrite /grp Rmult_0_l exp_0. replace (1 - 1) with 0 by lra. apply Rdiv_0_l. }
+    rewrite Hg0. lra.
+  - (* STEP *)
+    specialize (Happ a b Hab P).
+    specialize (IH P).
+    rewrite S_INR.
+    replace ((INR n + 1) * ε) with (ε + INR n * ε) by ring.
+    rewrite exp_plus.
+    rewrite (grp_rec ε (INR n) Hε).
+    (* Happ : prob(f a) <= exp ε * prob(f b) + δ
+       IH   : prob(f b) <= exp(INR n·ε) * prob(f c) + δ*grp ε (INR n)
+       Goal : prob(f a) <= exp ε * exp(INR n·ε) * prob(f c) + δ*(exp ε * grp ε (INR n) + 1) *)
+    assert (Hexp : 0 <= exp ε) by (left; apply exp_pos).
+    assert (Hmul : exp ε * prob (f b) (λ x, bool_decide (P x))
+                   <= exp ε * (exp (INR n * ε) * prob (f c) (λ x, bool_decide (P x))
+                               + δ * grp ε (INR n))).
+    { apply Rmult_le_compat_l; [exact Hexp | exact IH]. }
+    nra.
+Qed.
+
+(** Converse of [diffpriv_metric_approx]: under a path-metric hypothesis (any
+    pair at distance [≤c] is joined by a unit-step path of integer length [≤c]),
+    classic ADP implies metric ADP. *)
+Lemma diffpriv_metric_of_approx {A B : Type} `{Countable B}
+  (d : A → A → R) (f : A → distr B) (ε δ : R)
+  (Hpath : ∀ a b c, d a b <= c → ∃ n, INR n <= c ∧ adj_path d n a b) :
+  0 < ε → 0 <= δ → diffpriv_approx d f ε δ → diffpriv_metric d f ε δ.
+Proof.
+  intros Hε Hδ Happ a1 a2 c d12 P.
+  destruct (Hpath a1 a2 c d12) as (n & Hn & Hp).
+  pose proof (diffpriv_approx_group d f ε δ Hε Hδ Happ n a1 a2 Hp P) as Hg.
+  (* Hg : prob(f a1) <= exp(INR n·ε) * prob(f a2) + δ * grp ε (INR n)
+     Goal : prob(f a1) <= exp(c·ε) * prob(f a2) + δ * grp ε c *)
+  assert (Hexple : exp (INR n * ε) <= exp (c * ε)).
+  { apply exp_mono. apply Rmult_le_compat_r; lra. }
+  assert (Hp2 : 0 <= prob (f a2) (λ x, bool_decide (P x))) by apply prob_ge_0.
+  assert (Hterm1 : exp (INR n * ε) * prob (f a2) (λ x, bool_decide (P x))
+                   <= exp (c * ε) * prob (f a2) (λ x, bool_decide (P x))).
+  { apply Rmult_le_compat_r; [exact Hp2 | exact Hexple]. }
+  assert (Hterm2 : δ * grp ε (INR n) <= δ * grp ε c).
+  { apply Rmult_le_compat_l; [exact Hδ | apply grp_mono_c; lra]. }
+  lra.
+Qed.
+
 Fact Mcoupl_laplace_isometry (ε : posreal) (loc loc' : Z) :
   Mcoupl (laplace ε loc) (laplace ε loc') (λ z z', z - z' = loc - loc')%Z 0.
 Proof.
