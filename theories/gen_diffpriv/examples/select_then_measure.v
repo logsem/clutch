@@ -54,22 +54,22 @@ Section select_then_measure.
       let: "noisy_v" := TruncLaplace #A #num' #den' "v" #() in
       ("i", "noisy_v").
 
-  (** Forward-monotone Δ-sensitivity of the per-candidate query, IN the adjacency
-      direction.  For inputs at distance [dDB db db' <= IZR C], evaluating the
-      selected candidate [i] yields scores [v] (on [db]) and [v'] (on [db'])
-      whose forward gap [v' - v] is NONNEGATIVE and bounded by [Δ·C].  This is the
-      honest regime hypothesis matching the FORWARD scope of the truncated-Laplace
-      coupling ([trunc_laplace.v]'s proven [0 ≤ s ≤ A] direction): it holds for the
-      common class of monotone queries (e.g. counts that only grow when a record
-      is added). *)
-  Definition query_fwd_sensitive
+  (** Plain Δ-sensitivity of the per-candidate query.  For inputs at distance
+      [dDB db db' <= IZR C], evaluating the selected candidate [i] yields scores
+      [v] (on [db]) and [v'] (on [db']) whose gap is bounded in ABSOLUTE VALUE by
+      [Δ·C]: [|v - v'| <= Δ·C].  This is the ordinary (two-sided) sensitivity
+      condition — no monotonicity / sign restriction — now admissible because the
+      truncated-Laplace measurement coupling is TWO-SIDED ([trunc_laplace.v]'s
+      [|s| ≤ A] direction).  Compare [hoare_sensitive]: this is the same abs
+      bound, specialised to the [dZ] output metric on the released score. *)
+  Definition query_sensitive
     (evalQ : val) (Δ C : Z) DB (dDB : Distance DB) : iProp Σ :=
     ∀ (iv : val) K (db db' : DB),
       ⌜dDB db db' <= IZR C⌝ -∗
       {{{ ⤇ fill K (evalQ iv (Val (inject db'))) }}}
         evalQ iv (Val (inject db))
       {{{ (v : Z), RET (#v); ∃ v' : Z,
-            ⤇ fill K (Val #v') ∗ ⌜(0 <= v' - v)%Z⌝ ∗ ⌜(v' - v <= Δ * C)%Z⌝ }}}.
+            ⤇ fill K (Val #v') ∗ ⌜(Z.abs (v' - v) <= Δ * C)%Z⌝ }}}.
 
   (** ** Privacy of select-then-measure (WP-refinement form).
 
@@ -97,7 +97,7 @@ Section select_then_measure.
     (0 < IZR num' / IZR den')%R →
     (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
     (dDB db db' <= IZR C)%R →
-    query_fwd_sensitive evalQ Δ C DB dDB -∗
+    query_sensitive evalQ Δ C DB dDB -∗
     {{{ ↯m (IZR C * (IZR Δ * (IZR num / IZR den)))
         ∗ ↯m (IZR (Δ * C) * (IZR num' / IZR den'))
         ∗ ↯ (tlap_del A num' den' * grp (IZR num' / IZR den') (IZR (Δ * C)))
@@ -105,7 +105,7 @@ Section select_then_measure.
       select_then_measure evalQ N num den A num' den' (Val (inject db))
     {{{ (out : val), RET out; ∃ (out' : val), ⤇ fill K out' ∗ ⌜out = out'⌝ }}}.
   Proof.
-    iIntros (HΔ HC HA HΔCA Hposnum Hposnum' Hsens Hadj) "#Hqfwd".
+    iIntros (HΔ HC HA HΔCA Hposnum Hposnum' Hsens Hadj) "#Hqsens".
     iIntros (Φ) "!# (εsel & εmeas & δmeas & rhs) HΦ".
     rewrite /select_then_measure.
     wp_pures. tp_pures.
@@ -121,25 +121,25 @@ Section select_then_measure.
     subst vi'.
     wp_pures. iSimpl in "rhs"; tp_pures.
     (* ---- (2a) Evaluate the selected query on the two databases. ----
-       Forward-Δ-sensitivity: the released score [v] (impl) and [v'] (spec) have a
-       nonnegative gap [0 ≤ v'-v ≤ Δ·C]. *)
+       Plain Δ-sensitivity: the released score [v] (impl) and [v'] (spec) have an
+       absolute gap [|v'-v| ≤ Δ·C] — NO sign restriction. *)
     wp_bind (evalQ _ _). tp_bind (evalQ _ _).
-    iApply ("Hqfwd" $! vi _ db db' Hadj with "[$rhs]").
-    iIntros "!>" (v) "(%v' & rhs & %Hfwd0 & %Hgap)".
+    iApply ("Hqsens" $! vi _ db db' Hadj with "[$rhs]").
+    iIntros "!>" (v) "(%v' & rhs & %Hgap)".
     wp_pures. iSimpl in "rhs"; tp_pures.
-    (* ---- (2b) MEASUREMENT: truncated Laplace at the actual forward shift. ----
-       [s = v'-v] is the runtime shift; [0 ≤ s ≤ A] (as [s ≤ Δ·C ≤ A]). *)
+    (* ---- (2b) MEASUREMENT: truncated Laplace at the actual (signed) shift. ----
+       [s = v'-v] is the runtime shift of EITHER sign; [|s| ≤ A] (as
+       [|s| ≤ Δ·C ≤ A]).  The two-sided coupling carries the |·| cost. *)
     set (s := (v' - v)%Z).
-    assert (Hs0 : (0 <= s)%Z) by (subst s; lia).
-    assert (HsΔC : (s <= Δ * C)%Z) by (subst s; lia).
-    assert (HsA : (0 <= s <= A)%Z) by (subst s; lia).
+    assert (HsΔC : (Z.abs s <= Δ * C)%Z) by (subst s; lia).
+    assert (HsA : (Z.abs s <= A)%Z) by (subst s; lia).
     replace v' with (v + s)%Z by (subst s; lia).
     (* Weaken the supplied measurement credits DOWN from the demanded group bound
-       at distance [Δ·C] to the consumed bound at the actual shift [s]:
-       multiplicative via [ecm_weaken] ([s ≤ Δ·C]); additive via [ec_weaken] +
-       [grp_mono] ([grp ε s ≤ grp ε (Δ·C)]).  Exactly the weakening internal to
+       at distance [Δ·C] to the consumed bound at the actual |shift| [|s|]:
+       multiplicative via [ecm_weaken] ([|s| ≤ Δ·C]); additive via [ec_weaken] +
+       [grp_mono] ([grp ε |s| ≤ grp ε (Δ·C)]).  Exactly the weakening internal to
        [hoare_trunc_laplace_diffpriv], discharged here at the actual runtime shift. *)
-    assert (Hεw : (0 <= IZR s * (IZR num' / IZR den')
+    assert (Hεw : (0 <= IZR (Z.abs s) * (IZR num' / IZR den')
                    <= IZR (Δ * C) * (IZR num' / IZR den'))%R)
       by (split; [apply Rmult_le_pos; [apply IZR_le; lia | lra]
                  | apply Rmult_le_compat_r; [lra | apply IZR_le; lia]]).
@@ -157,7 +157,7 @@ Section select_then_measure.
     iDestruct (ecm_weaken _ _ Hεw with "εmeas") as "εm".
     iDestruct (ec_weaken _ _ Hδw with "δmeas") as "δm".
     (* Couple the two truncated-Laplace draws to EQUAL outputs (the ergonomic
-       [couple_trunc_laplace] tactic), at the forward shift [s]. *)
+       [couple_trunc_laplace] tactic), at the two-sided shift [s]. *)
     couple_trunc_laplace A s with "[$rhs $εm $δm]".
     iIntros "!>" (z) "rhs".
     (* reduce the SPEC let first (while the impl WP is still live), then the impl *)
