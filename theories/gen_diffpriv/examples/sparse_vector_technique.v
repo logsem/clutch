@@ -189,10 +189,21 @@ Section svt.
     replace (IZR C * (IZR Δ * ε))%R with (IZR C * (IZR Δ * ε) / 2 + IZR C * (IZR Δ * ε) / 2)%R by real_solver.
     fold ε in εpos.
     iDestruct (ecm_split with "ε") as "[ε ε']". 1,2: real_solver.
-    (* effective per-query sensitivity is [Δ*C]; init the threshold with shift [Δ*C] *)
-    iApply (wp_couple_laplace (S:=Sg) _ _ (Δ*C) (Δ*C) with "[$rhs ε']") => //.
-    1: lia.
-    1: rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver.
+    (* effective per-query sensitivity is [Δ*C]; init the threshold with shift [Δ*C].
+       INTERLEAVED site: the [wp_bind]/[tp_bind] above (line ~185), then the
+       [set ε]/[replace]/[ecm_split] setup, happen BEFORE this apply — so the
+       bundled [couple_laplace]/[couple_laplace_cost] (which fuse bind+apply
+       atomically) cannot be used here.  The APPLY-ONLY [couple_laplace_apply]
+       does ONLY the rule apply + side-condition discharge, routing the credit
+       [ε'] (unframed) for the [ecm_eq] reconciliation below.  ([Δ*C] annotated
+       [%Z] because the args are parsed as [uconstr] under the ambient [Open
+       Scope R], so a bare [*] would parse as [Rmult].) *)
+    couple_laplace_apply (Δ*C)%Z (Δ*C)%Z with "[$rhs ε']".
+    (* apply-only leaves the NON-TRIVIAL side-conditions for the caller, in order:
+       (1) the positivity [εpos] of the [2*den]-scaled rate, (2) the
+       multiplicative-credit goal (reconciled by [ecm_eq]), (3) the postcondition.
+       (The trivial [Hε]/[Hε']/[Hdist] were auto-discharged by the tactic.) *)
+    { rewrite mult_IZR ; apply Rdiv_pos_pos. 1,2: real_solver. }
     { iApply ecm_eq. 2: iFrame. subst ε. rewrite mult_IZR. replace (IZR (2 * den)) with (2 * IZR den).
       2: qify_r ; zify_q ; lia.
       field. eapply Rdiv_pos_den_0 => //. }
