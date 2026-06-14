@@ -172,95 +172,46 @@ Section exponential.
 
 End exponential.
 
+(** The one-sided-exponential coupling tactics follow the consolidated design of
+    [lib.laplace]: TWO tactics — the bundled [couple_exp] and the apply-only
+    [couple_exp_apply] — built from the family-agnostic [couple_bind] /
+    [couple_discharge] / [couple_discharge_apply] (defined in
+    [gen_diffpriv.proofmode]) plus the thin family-specific [couple_exp_iapply].
+    The old [couple_exp_cost] is subsumed by [couple_exp]: the routed (non-exact
+    cost) regime is selected by the caller's [\"[$Hr Hε]\"] pattern, not by a
+    separate tactic.  The only family-specific wrinkle is the side-conditions: the
+    one-sided exponential carries DIRECTIONALITY premises [Hdir : 0 ≤ k+loc-loc']
+    and [Hdist : k+loc-loc' ≤ k'] (no absolute value, unlike two-sided Laplace) —
+    both closed by the [lia] alternative in the shared batteries (typically with
+    the in-context adjacency hypothesis). *)
+
+(** [couple_exp_iapply k k' pat] — the family-specific apply step shared by
+    [couple_exp] and [couple_exp_apply].  [unshelve] (the tactical, not the
+    [Unshelve] command) turns ONLY the goals THIS [iApply] shelves — the
+    directionality side-conditions [Hdir]/[Hdist] — into regular front goals. *)
+Ltac couple_exp_iapply k k' pat :=
+  unshelve (iApply (wp_couple_exp _ _ k k' _ _ _ _ _ _ _ _ with pat)).
+
 (** [couple_exp k k' with "[…]"] — the ergonomic coupling step for the one-sided
-    exponential.  It reduces the [Pair] params to [PairV] ([wp_pures]/[tp_pures]),
-    focuses the [Sample] on both sides ([wp_bind]/[tp_bind]), and applies the
-    value-form [wp_couple_exp] inferring [loc/loc'/num/den/ε/ε'/K/E] from the
+    exponential.  Focuses the [Sample] on both sides ([couple_bind]) and applies
+    the value-form [wp_couple_exp] inferring [loc/loc'/num/den/ε/ε'/K/E] from the
     goal — the author supplies only the privacy choice [k] (shift) and [k'] (cost
-    bound) and the resource pattern.  Mirrors [couple_laplace], but the side-
-    conditions differ: the one-sided exponential carries DIRECTIONALITY premises
-    [Hdir : 0 ≤ k + loc - loc'] and [Hdist : k + loc - loc' ≤ k'] (no absolute
-    value, unlike the two-sided Laplace), discharged best effort by [lia]
-    (typically with the in-context adjacency hypothesis) / [apply Zabs_ind; lia]
-    (when [k'] is chosen as an absolute value).  The trivial equational side-
-    conditions ([Hε]/[Hpos]/[Hε']) are closed by [reflexivity]/[assumption]; the
-    postcondition continuation is the single remaining goal. *)
+    bound) and the resource pattern.  Subsumes the old exact-cost [couple_exp]
+    (eager-frame the credit, [\"[$Hr $Hε]\"]) and the non-exact [couple_exp_cost]
+    (route the credit unframed, [\"[$Hr Hε]\"], leaving [↯m (k'·ε)] for an
+    [ecm_eq]/[ecm_weaken]); the regime is chosen by the resource pattern. *)
 Tactic Notation "couple_exp" uconstr(k) uconstr(k') "with" constr(pat) :=
-  wp_pures; tp_pures;
-  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
-  (* [unshelve] (the tactical) turns the goals THIS [iApply] shelves — the
-     directionality side-conditions [Hdir]/[Hdist] — into regular front goals,
-     without globally un-shelving unrelated goals the way [Unshelve] would. *)
-  unshelve (iApply (wp_couple_exp _ _ k k' _ _ _ _ _ _ _ _ with pat));
-  (* best-effort discharge of [Hdir]/[Hdist] (directional, often from adjacency)
-     and [Hε]/[Hpos]/[Hε']; the postcondition continuation is the goal left *)
-  try first
-    [ reflexivity
-    | assumption
-    | lia
-    | (rewrite ?Z.add_0_l ?Z.add_0_r; lia)
-    | (apply Zabs_ind; lia)
-    | (simpl; lra) ].
+  couple_bind; couple_exp_iapply k k' pat; couple_discharge.
 
-(** [couple_exp_cost k k' with "[$Hr Hε]"] — the NO-EAGER-FRAME variant of
-    [couple_exp], for COST-RECONCILIATION sites where the cost step is not exact
-    (reconciled by the caller's [ecm_eq]/[ecm_weaken]).  Mirrors [couple_exp] but
-    does NOT [$]-frame the multiplicative credit: the caller's spec pattern (e.g.
-    [\"[$Hr Hε]\"]) frames only the spec resource [⤇] with [$] and ROUTES the credit
-    [Hε] (no [$]) into the residual [↯m ε'] goal's context.  Eagerly framing the
-    credit would unify [ε']'s evar to the in-context amount and turn [Hε' : ε' =
-    k'·ε] into a non-trivial equation — the failure mode at non-exact cost sites.
-    Still auto-discharges the DIRECTIONALITY side-conditions [Hdir]/[Hdist] by
-    [lia] and pins [ε'] to [k'·ε] via [reflexivity] on [Hε']; the residual
-    [↯m (k'·ε)] credit goal (with [↯m (c·ε)] in context) and the postcondition
-    are left for the caller.  The [|- R => fail] guard stops [assumption] from
-    grabbing a stray [c : R] for the bare [ε]/[ε'] value-evar goals. *)
-Tactic Notation "couple_exp_cost" uconstr(k) uconstr(k') "with" constr(pat) :=
-  wp_pures; tp_pures;
-  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
-  unshelve (iApply (wp_couple_exp _ _ k k' _ _ _ _ _ _ _ _ with pat));
-  (* discharge [Hdir]/[Hdist]/[Hε]/[εpos]/[Hε'] (the last pins [ε'] to [k'·ε] by
-     [reflexivity]); the [↯m ε'] credit goal is left for the caller's [ecm_*].
-     The [|- R => fail] guard prevents [assumption] from instantiating a bare
-     value-evar goal of type [R] with the in-context distance bound [c]. *)
-  try first
-    [ lia
-    | reflexivity
-    | (match goal with |- R => fail 1 | _ => assumption end)
-    | (rewrite ?Z.add_0_l ?Z.add_0_r; lia)
-    | (apply Zabs_ind; lia) ].
-
-(** [couple_exp_apply k k' with "[$Hr Hε]"] — the APPLY-ONLY variant of
-    [couple_exp_cost], for INTERLEAVED coupling sites where essential setup
-    happens BETWEEN focusing the [Sample] and applying the coupling rule (e.g.
-    an [ecm_split]/[ecm_eq]/[replace] of the credit, or a [set ε]).  The bundled
-    [couple_exp]/[couple_exp_cost] atomically run [wp_pures; tp_pures; wp_bind;
-    tp_bind] BEFORE the [iApply], so they cannot accommodate any work done
-    between the bind and the apply — that is precisely what this variant drops.
-
-    PRECONDITION: the caller has ALREADY focused the [Sample] on both sides — via
-    its OWN [wp_bind (Sample _ _ _); tp_bind (Sample _ _ _)] (and any [wp_pures]/
-    [tp_pures] needed to reduce the [Pair] params to [PairV]) — and has done any
-    interleaved setup.  This tactic does ONLY the [unshelve (iApply …)] + side-
-    condition discharge: it auto-discharges the DIRECTIONALITY [Hdir]/[Hdist] by
-    [lia] and [Hε]/[εpos]/[Hε'] (pinning [ε'] to the rule-natural [k'·ε] by
-    [reflexivity]), routes the credit [Hε] WITHOUT [$] (so it stays available for
-    the caller's [ecm_*]) and leaves the [↯m (k'·ε)] credit goal and the post-
-    condition continuation for the caller.  Like [couple_exp_cost], the
-    [|- R => fail] guard stops [assumption] from grabbing a stray [c : R] for the
-    bare [ε]/[ε'] value-evar goals. *)
+(** [couple_exp_apply k k' with "[$Hr Hε]"] — the APPLY-ONLY variant, for
+    INTERLEAVED coupling sites where essential setup happens BETWEEN focusing the
+    [Sample] and applying the coupling rule.  PRECONDITION: the caller has ALREADY
+    focused the [Sample] on both sides (its own [couple_bind]-equivalent) and done
+    any interleaved setup; this tactic runs ONLY the [unshelve (iApply …)] + the
+    slimmer [couple_discharge_apply] battery, leaving the credit goal and the
+    hand-closed residual goals (and postcondition) for the caller. *)
 Tactic Notation "couple_exp_apply" uconstr(k) uconstr(k') "with" constr(pat) :=
-  unshelve (iApply (wp_couple_exp _ _ k k' _ _ _ _ _ _ _ _ with pat));
-  (* discharge [Hdir]/[Hdist]/[Hε]/[εpos]/[Hε'] (the last pins [ε'] to [k'·ε] by
-     [reflexivity]); the [↯m ε'] credit goal is left for the caller's [ecm_*].
-     The [|- R => fail] guard prevents [assumption] from instantiating a bare
-     value-evar goal of type [R] with the in-context distance bound [c]. *)
-  try first
-    [ lia
-    | reflexivity
-    | (match goal with |- R => fail 1 | _ => assumption end)
-    | (rewrite ?Z.add_0_l ?Z.add_0_r; lia)
-    | (apply Zabs_ind; lia) ].
+  couple_exp_iapply k k' pat; couple_discharge_apply.
 
 Section exponential_canary.
   Context {Sg : Sig} `{!SampleIn exp_family Sg} `{!diffprivGS Sg Σ}.
@@ -290,13 +241,15 @@ Section exponential_canary.
     iApply "HΦ".
   Qed.
 
-  (** CANARY for the NO-EAGER-FRAME [couple_exp_cost]: identical statement, but
-      the credit is ROUTED (unframed [Hε], pattern [\"[$Hr Hε]\"]) into the residual
-      [↯m (k'·ε)] goal rather than [$]-framed.  Here the cost is exact so the
-      residual goal is closed by simply re-framing [Hε]; a real cost-reconciliation
-      site would instead run [iApply ecm_eq; …] / [iApply ecm_weaken; …] there.
-      Exercises that [couple_exp_cost] elaborates, auto-discharges the
-      directionality/equational side-conditions, and leaves a clean credit goal. *)
+  (** CANARY for the NON-EXACT cost regime of the MERGED [couple_exp]: identical
+      statement to the framed canary above, but the credit is ROUTED (unframed
+      [Hε], pattern [\"[$Hr Hε]\"]) into the residual [↯m (k'·ε)] goal rather than
+      [$]-framed.  Here the cost is exact so the residual goal is closed by simply
+      re-framing [Hε]; a real cost-reconciliation site would instead run
+      [iApply ecm_eq; …] / [iApply ecm_weaken; …] there.  Exercises that the SAME
+      [couple_exp] tactic, when handed a routed pattern, elaborates,
+      auto-discharges the directionality/equational side-conditions, and leaves a
+      clean credit goal (the old separate [couple_exp_cost] is now subsumed). *)
   Lemma wp_exp_shift_canary_cost (loc loc' k k' num den : Z)
     (Hdir : (0 <= k + loc - loc')%Z)
     (Hdist : (k + loc - loc' <= k')%Z)
@@ -306,7 +259,7 @@ Section exponential_canary.
       {{{ (z : Z), RET #z; ⤇ fill K #(z + k) }}}.
   Proof.
     iIntros (Φ) "(Hr & Hε) HΦ".
-    couple_exp_cost k k' with "[$Hr Hε]".
+    couple_exp k k' with "[$Hr Hε]".
     (* residual credit goal [↯m (k'·ε)] — closed here by re-framing the routed
        [Hε] (exact cost); a non-exact site would [iApply ecm_*] instead *)
     2: iApply "HΦ".

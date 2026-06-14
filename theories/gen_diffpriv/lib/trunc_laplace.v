@@ -486,101 +486,80 @@ Section trunc_laplace_lib.
 
 End trunc_laplace_lib.
 
-(** [couple_trunc_laplace A s with "[…]"] — the ergonomic coupling step for the
-    truncated discrete Laplace.  It reduces the nested [Pair] param to a [PairV]
-    tree ([wp_pures]/[tp_pures]), focuses the [Sample] on both sides
-    ([wp_bind]/[tp_bind]), and applies the value-form [wp_couple_trunc_laplace]
-    inferring [loc/num/den/ε/ε'/δ'/K/E] from the goal — the author supplies only
-    the runtime truncation half-width [A] and the forward shift [s] (so impl loc
-    [loc], spec loc [loc+s]), together with the resource pattern.
+(** The truncated-discrete-Laplace coupling tactics follow the consolidated
+    design of [lib.laplace]: TWO tactics — the bundled [couple_trunc_laplace] and
+    the apply-only [couple_trunc_laplace_apply] — built from the family-agnostic
+    [couple_bind] (defined in [gen_diffpriv.proofmode]) plus the thin
+    family-specific [couple_trunc_laplace_iapply] and the trunc-local discharge
+    batteries below.  The old [couple_trunc_laplace_cost] is subsumed by
+    [couple_trunc_laplace]: the routed (non-exact cost) regime is selected by the
+    caller's [\"[$Hr Hε Hδ]\"] pattern, not by a separate tactic.
 
-    Unlike [couple_laplace]/[couple_exp] (δ = 0, two resources), this coupling is
-    built over the δ-carrying seam [wp_couple_sample_gen_dp], so its precondition
-    threads THREE resources — the spec [⤇], the multiplicative credit [↯m ε'] AND
-    the additive credit [↯ δ'] — hence the pattern is the 3-way [\"[$Hr $Hε $Hδ]\"].
-    Side-conditions: the regime hypotheses [HA : 0 ≤ A] and [Hs : 0 ≤ s ≤ A]
-    (discharged best effort by [lia] / [split; lia]) and the equational
-    [Hε]/[Hpos]/[Hε']/[Hδ'] (by [reflexivity]/[assumption]); the postcondition
-    continuation is the single remaining goal. *)
-Tactic Notation "couple_trunc_laplace" uconstr(A) uconstr(s) "with" constr(pat) :=
-  wp_pures; tp_pures;
-  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
-  (* [unshelve] turns the goals THIS [iApply] shelves — the regime side-conditions
-     [HA]/[Hs] and the equational [Hε]/[εpos]/[Hε']/[Hδ'] — into regular front
-     goals, without globally un-shelving unrelated goals. *)
-  unshelve (iApply (wp_couple_trunc_laplace A _ s _ _ _ _ _ _ _ _ _ with pat));
-  (* best-effort discharge of [HA]/[Hs] (regime) and [Hε]/[εpos]/[Hε']/[Hδ']
-     (equational); the δ-credit [↯ δ'] is threaded by the 3-way resource pattern.
-     The postcondition continuation is the single goal left. *)
+    Two family wrinkles keep the discharge batteries trunc-LOCAL rather than the
+    family-agnostic [couple_discharge]/[couple_discharge_apply]: (1) this coupling
+    is built over the δ-carrying seam [wp_couple_sample_gen_dp], so its
+    precondition threads THREE resources — the spec [⤇], the multiplicative credit
+    [↯m ε'] AND the additive credit [↯ δ'] — hence the 3-way pattern
+    [\"[$Hr $Hε $Hδ]\"] (vs the 2-way pattern of laplace/exp); and (2) the regime
+    side-condition [Hs] can take the conjunctive form [0 ≤ s ≤ A], which needs the
+    [split; lia] alternative the shared batteries omit. *)
+
+(** [couple_trunc_laplace_iapply A s pat] — the family-specific apply step shared
+    by [couple_trunc_laplace] and [couple_trunc_laplace_apply].  [unshelve] (the
+    tactical, not the [Unshelve] command) turns ONLY the goals THIS [iApply]
+    shelves — the regime [HA]/[Hs] and equational [Hε]/[εpos]/[Hε']/[Hδ'] side-
+    conditions — into regular front goals. *)
+Ltac couple_trunc_laplace_iapply A s pat :=
+  unshelve (iApply (wp_couple_trunc_laplace A _ s _ _ _ _ _ _ _ _ _ with pat)).
+
+(** [couple_trunc_discharge] — the bundled-tactic battery (trunc analogue of the
+    shared [couple_discharge], with the extra [split; lia] for the conjunctive
+    regime [0 ≤ s ≤ A]).  Pins the regime [HA]/[Hs] and equational
+    [Hε]/[εpos]/[Hε']/[Hδ'] side-conditions; the [|- R => fail]-guarded
+    [assumption] stops a bare real-valued value-evar from being instantiated with
+    an in-context [c : R] at routed (cost) sites, where the two residual credit
+    goals [↯m (s·ε)] / [↯ δ'] (both [iProp]s) survive for the caller's [ecm_*]. *)
+Ltac couple_trunc_discharge :=
   try first
     [ reflexivity
-    | assumption
     | lia
     | (split; lia)
+    | (match goal with |- R => fail 1 | _ => assumption end)
     | (simpl; lra) ].
 
-(** [couple_trunc_laplace_cost A s with "[$Hr Hε Hδ]"] — the NO-EAGER-FRAME
-    variant of [couple_trunc_laplace], for COST-RECONCILIATION sites where the
-    cost steps are not exact (reconciled by the caller's [ecm_eq]/[ecm_weaken]).
-    Mirrors [couple_trunc_laplace] but does NOT [$]-frame the credits: the
-    caller's spec pattern (e.g. [\"[$Hr Hε Hδ]\"]) frames only the spec resource
-    [⤇] with [$], and ROUTES the multiplicative credit [Hε] AND the additive
-    δ-credit [Hδ] — both WITHOUT [$] — into the residual credit goals' contexts.
-    Eagerly [$]-framing either would unify its evar to the in-context amount and
-    turn the equational [Hε' : ε' = s·ε] / [Hδ' : δ' = tlap_delta …] into
-    non-trivial equations — the failure mode at non-exact cost sites.  Still
-    auto-discharges the regime side-conditions [HA]/[Hs] by [lia]/[split; lia]
-    and pins [ε']/[δ'] to their rule-natural values by [reflexivity]; the two
-    residual credit goals [↯m (s·ε)] / [↯ δ'] (with the in-context credits
-    available) and the postcondition are left for the caller.  The [|- R => fail]
-    guard stops [assumption] from grabbing a stray [c : R] for the bare
-    value-evar goals. *)
-Tactic Notation "couple_trunc_laplace_cost" uconstr(A) uconstr(s) "with" constr(pat) :=
-  wp_pures; tp_pures;
-  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
-  unshelve (iApply (wp_couple_trunc_laplace A _ s _ _ _ _ _ _ _ _ _ with pat));
-  (* discharge [HA]/[Hs]/[Hε]/[εpos]/[Hε']/[Hδ'] (the equational ones pin
-     [ε']/[δ'] by [reflexivity]); both credit goals [↯m ε']/[↯ δ'] are left for
-     the caller's [ecm_*].  The [|- R => fail] guard prevents [assumption] from
-     instantiating a bare value-evar goal of type [R] with an in-context [c]. *)
+(** [couple_trunc_discharge_apply] — the slimmer apply-only battery (trunc
+    analogue of the shared [couple_discharge_apply]): same guarded shape without
+    the [simpl; lra] framed-closer, so the interleaved apply sites' hand-written
+    residual closers are left untouched. *)
+Ltac couple_trunc_discharge_apply :=
   try first
     [ lia
     | (split; lia)
     | reflexivity
     | (match goal with |- R => fail 1 | _ => assumption end) ].
 
-(** [couple_trunc_laplace_apply A s with "[$Hr Hε Hδ]"] — the APPLY-ONLY variant
-    of [couple_trunc_laplace_cost], for INTERLEAVED coupling sites where
-    essential setup happens BETWEEN focusing the [Sample] and applying the
-    coupling rule (e.g. an [ecm_split]/[ecm_eq]/[replace] of a credit).  The
-    bundled [couple_trunc_laplace]/[couple_trunc_laplace_cost] atomically run
-    [wp_pures; tp_pures; wp_bind; tp_bind] BEFORE the [iApply], so they cannot
-    accommodate work done between the bind and the apply — that is what this
-    variant drops.
+(** [couple_trunc_laplace A s with "[…]"] — the ergonomic coupling step for the
+    truncated discrete Laplace.  Focuses the [Sample] on both sides
+    ([couple_bind]) and applies the value-form [wp_couple_trunc_laplace] inferring
+    [loc/num/den/ε/ε'/δ'/K/E] from the goal — the author supplies only the runtime
+    truncation half-width [A] and the forward shift [s] (so impl loc [loc], spec
+    loc [loc+s]), together with the 3-way resource pattern.  Subsumes the old
+    exact-cost [couple_trunc_laplace] (eager-frame the credits, [\"[$Hr $Hε $Hδ]\"])
+    and the non-exact [couple_trunc_laplace_cost] (route the credits unframed,
+    [\"[$Hr Hε Hδ]\"], leaving [↯m (s·ε)] / [↯ δ'] for [ecm_eq]/[ecm_weaken]); the
+    regime is chosen by the resource pattern. *)
+Tactic Notation "couple_trunc_laplace" uconstr(A) uconstr(s) "with" constr(pat) :=
+  couple_bind; couple_trunc_laplace_iapply A s pat; couple_trunc_discharge.
 
-    PRECONDITION: the caller has ALREADY focused the [Sample] on both sides — via
-    its OWN [wp_bind (Sample _ _ _); tp_bind (Sample _ _ _)] (and any [wp_pures]/
-    [tp_pures] needed to reduce the nested [Pair] param to a [PairV] tree) — and
-    has done any interleaved setup.  This tactic does ONLY the [unshelve (iApply
-    …)] + side-condition discharge: it auto-discharges the regime [HA]/[Hs] by
-    [lia]/[split; lia] and [Hε]/[εpos]/[Hε']/[Hδ'] (pinning [ε']/[δ'] to their
-    rule-natural values by [reflexivity]), routes BOTH credits [Hε]/[Hδ] WITHOUT
-    [$] (so they stay available for the caller's [ecm_*]) and leaves the two
-    residual credit goals [↯m (s·ε)] / [↯ δ'] and the postcondition continuation
-    for the caller.  Like [couple_trunc_laplace_cost], the [|- R => fail] guard
-    stops [assumption] from grabbing a stray [c : R] for the bare value-evar
-    goals. *)
+(** [couple_trunc_laplace_apply A s with "[$Hr Hε Hδ]"] — the APPLY-ONLY variant,
+    for INTERLEAVED coupling sites where essential setup happens BETWEEN focusing
+    the [Sample] and applying the coupling rule.  PRECONDITION: the caller has
+    ALREADY focused the [Sample] on both sides (its own [couple_bind]-equivalent)
+    and done any interleaved setup; this tactic runs ONLY the [unshelve (iApply …)]
+    + the slimmer [couple_trunc_discharge_apply] battery, leaving the two credit
+    goals and the hand-closed residual goals (and postcondition) for the caller. *)
 Tactic Notation "couple_trunc_laplace_apply" uconstr(A) uconstr(s) "with" constr(pat) :=
-  unshelve (iApply (wp_couple_trunc_laplace A _ s _ _ _ _ _ _ _ _ _ with pat));
-  (* discharge [HA]/[Hs]/[Hε]/[εpos]/[Hε']/[Hδ'] (the equational ones pin
-     [ε']/[δ'] by [reflexivity]); both credit goals [↯m ε']/[↯ δ'] are left for
-     the caller's [ecm_*].  The [|- R => fail] guard prevents [assumption] from
-     instantiating a bare value-evar goal of type [R] with an in-context [c]. *)
-  try first
-    [ lia
-    | (split; lia)
-    | reflexivity
-    | (match goal with |- R => fail 1 | _ => assumption end) ].
+  couple_trunc_laplace_iapply A s pat; couple_trunc_discharge_apply.
 
 Section trunc_laplace_canary.
   Context {Sg : Sig} `{!SampleIn trunc_laplace_family Sg} `{!diffprivGS Sg Σ}.
@@ -612,14 +591,16 @@ Section trunc_laplace_canary.
     iApply "HΦ".
   Qed.
 
-  (** CANARY for the NO-EAGER-FRAME [couple_trunc_laplace_cost]: identical
-      statement, but BOTH credits are ROUTED (unframed [Hε]/[Hδ], pattern
-      [\"[$Hr Hε Hδ]\"]) into their residual [↯m (s·ε)] / [↯ δ'] goals rather than
-      [$]-framed.  Here the costs are exact so the residual goals are closed by
-      simply re-framing [Hε]/[Hδ]; a real cost-reconciliation site would instead
-      run [iApply ecm_eq; …] / [iApply ecm_weaken; …] there.  Exercises that
-      [couple_trunc_laplace_cost] elaborates, auto-discharges the regime/equational
-      side-conditions, and leaves the two credit goals clean. *)
+  (** CANARY for the NON-EXACT cost regime of the MERGED [couple_trunc_laplace]:
+      identical statement to the framed canary above, but BOTH credits are ROUTED
+      (unframed [Hε]/[Hδ], pattern [\"[$Hr Hε Hδ]\"]) into their residual
+      [↯m (s·ε)] / [↯ δ'] goals rather than [$]-framed.  Here the costs are exact
+      so the residual goals are closed by simply re-framing [Hε]/[Hδ]; a real
+      cost-reconciliation site would instead run [iApply ecm_eq; …] /
+      [iApply ecm_weaken; …] there.  Exercises that the SAME [couple_trunc_laplace]
+      tactic, when handed a routed pattern, elaborates, auto-discharges the
+      regime/equational side-conditions, and leaves the two credit goals clean
+      (the old separate [couple_trunc_laplace_cost] is now subsumed). *)
   Lemma wp_trunc_laplace_shift_canary_cost (A loc s num den : Z)
     (HA : (0 <= A)%Z)
     (Hs : (Z.abs s <= A)%Z)
@@ -631,7 +612,7 @@ Section trunc_laplace_canary.
       {{{ (z : Z), RET #z; ⤇ fill K #z }}}.
   Proof.
     iIntros (Φ) "(Hr & Hε & Hδ) HΦ".
-    couple_trunc_laplace_cost A s with "[$Hr Hε Hδ]".
+    couple_trunc_laplace A s with "[$Hr Hε Hδ]".
     (* residual combined credit goal [↯m (s·ε) ∗ ↯ δ'] — closed here by re-framing
        the routed [Hε]/[Hδ] (exact cost); a non-exact site would [iApply ecm_*]. *)
     2: iApply "HΦ".

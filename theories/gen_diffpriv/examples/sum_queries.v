@@ -643,8 +643,10 @@ Section queries.
     (* NO-EAGER-FRAME coupling: the cost is the inexact bound
        [|x−x'|·ε ≤ c·ε], reconciled below by [ecm_weaken].  We must NOT [$]-frame
        the credit (that would pin [ε'] to the in-context [c·ε]); instead route it
-       (unframed [ε]) into the residual [↯m (|x−x'|·ε)] goal and weaken there. *)
-    couple_laplace_cost 0%Z (Z.abs (x - x')) with "[$f' ε]".
+       (unframed [ε]) into the residual [↯m (|x−x'|·ε)] goal and weaken there.
+       The cost regime is selected by the ROUTED [\"[$f' ε]\"] pattern — the merged
+       [couple_laplace] leaves the credit goal exactly when the credit is unframed. *)
+    couple_laplace 0%Z (Z.abs (x - x')) with "[$f' ε]".
     2:{ setoid_rewrite Z.add_0_r. iIntros "!> %z f'". iApply ("hΦ" $! z). iFrame. }
     iApply ecm_weaken. 2: iFrame. split.
     - apply Rmult_le_pos; [apply IZR_le, Z.abs_nonneg | lra].

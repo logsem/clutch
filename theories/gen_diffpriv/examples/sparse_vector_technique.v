@@ -192,8 +192,8 @@ Section svt.
     (* effective per-query sensitivity is [Δ*C]; init the threshold with shift [Δ*C].
        INTERLEAVED site: the [wp_bind]/[tp_bind] above (line ~185), then the
        [set ε]/[replace]/[ecm_split] setup, happen BEFORE this apply — so the
-       bundled [couple_laplace]/[couple_laplace_cost] (which fuse bind+apply
-       atomically) cannot be used here.  The APPLY-ONLY [couple_laplace_apply]
+       bundled [couple_laplace] (which fuses bind+apply atomically) cannot be
+       used here.  The APPLY-ONLY [couple_laplace_apply]
        does ONLY the rule apply + side-condition discharge, routing the credit
        [ε'] (unframed) for the [ecm_eq] reconciliation below.  ([Δ*C] annotated
        [%Z] because the args are parsed as [uconstr] under the ambient [Open

@@ -206,97 +206,81 @@ Section laplace.
 
 End laplace.
 
-(** [couple_laplace k k' with "[…]"] — the ergonomic coupling step.  It reduces
-    the [Pair] params to [PairV] ([wp_pures]/[tp_pures]), focuses the [Sample] on
-    both sides ([wp_bind]/[tp_bind]), and applies the value-form [wp_couple_laplace]
-    inferring [loc/loc'/num/den/ε/ε'/K/E] from the goal — the author supplies only
-    the privacy choice [k] (shift) and [k'] (cost bound) and the resource pattern.
-    Trivial side-conditions ([Hdist], [Hε], [Hpos], [Hε']) are auto-discharged best
-    effort; the postcondition continuation is left as the single remaining goal.
-    Replaces the ~13-argument hand-written [iApply (wp_couple_laplace …)] + manual
-    [bind]s + [Unshelve] dance. *)
+(** ** Consolidated coupling tactics
+
+    Across the noise families (laplace / exp / trunc_laplace) the convenience
+    coupling tactics shared ONE skeleton that varied on only two axes:
+
+      (1) DO-BIND — whether to focus the [Sample] on both sides first.  The
+          [couple_X]/[couple_X_cost] variants atomically run
+          [wp_pures; tp_pures; wp_bind; tp_bind] before applying the rule; the
+          [couple_X_apply] variant DROPS that prefix so the caller can do the
+          bind manually and interleave setup between bind and apply.
+
+      (2) CREDIT-CLOSER — whether the side-condition battery also closes the
+          residual [↯m ε'] credit goal.  At EXACT-cost sites the caller eagerly
+          [$]-frames the credit (pattern [\"[$Hr $Hε]\"]) so no credit goal
+          remains and [reflexivity]/[simpl; lra] pin the equational [Hε'].  At
+          COST-reconciliation sites the caller ROUTES the credit unframed
+          (pattern [\"[$Hr Hε]\"]); the credit goal [↯m (k'·ε)] then survives the
+          battery (its tactics fire only on first-order side-goals, never on the
+          [iProp] credit) and is left for the caller's [ecm_eq]/[ecm_weaken].
+
+    Axis (2) MERGES the old [couple_X] (exact-cost) and [couple_X_cost] (non-exact
+    cost) into the single [couple_X]: a GUARDED side-condition battery
+    ([couple_discharge]) — [reflexivity] / [apply Zabs_ind; lia] / [lia] /
+    [simpl; lra], plus a [match … |- R => fail] -guarded [assumption] — handles
+    both regimes.  The guard is the crux: it stops the [assumption] fallback from
+    instantiating a bare [ε]/[ε'] real-valued value-evar with an in-context
+    distance bound [c : R] at the routed (cost) sites, while still letting
+    [reflexivity]/[simpl; lra] pin the equational [Hε'] at the framed (exact)
+    sites.  So which regime you get is chosen by the caller's resource pattern,
+    not by the tactic name — one tactic absorbs both.
+
+    The APPLY variant ([couple_X_apply]) keeps its OWN slimmer battery
+    ([couple_discharge_apply]): the interleaved sites that use it hand-write the
+    residual closers ([ecm_eq]/[lra]/[iFrame] bullets), so the apply battery must
+    NOT include the [simpl; lra] closer that [couple_X] uses for the framed [Hε']
+    — that would consume a goal the caller's bullet expects.  This is the one
+    per-family difference that resists the merge; it is kept as a distinct
+    (shared-across-families) discharge tactic rather than folded into one.
+
+    The result is TWO tactics per family — [couple_X] (bind + [couple_discharge])
+    and [couple_X_apply] (no bind + [couple_discharge_apply]) — sharing the family-
+    agnostic [couple_bind] skeleton and the two discharge batteries (all three now
+    living in [gen_diffpriv.proofmode], reused verbatim by [exponential] and
+    [trunc_laplace]), plus a thin family-specific [couple_*_iapply] wrapping the
+    [unshelve (iApply …)] step. *)
+
+(** [couple_laplace_iapply k k' pat] — the family-specific apply step shared by
+    [couple_laplace] and [couple_laplace_apply].  [unshelve] (the tactical, not
+    the [Unshelve] command) turns ONLY the goals THIS [iApply] shelves (the
+    distance side-condition [Hdist]) into regular front goals. *)
+Ltac couple_laplace_iapply k k' pat :=
+  unshelve (iApply (wp_couple_laplace _ _ k k' _ _ _ _ _ _ _ with pat)).
+
+(** [couple_laplace k k' with "[…]"] — the ergonomic coupling step.  Focuses the
+    [Sample] on both sides ([couple_bind]) and applies the value-form
+    [wp_couple_laplace] inferring [loc/loc'/num/den/ε/ε'/K/E] from the goal — the
+    author supplies only the privacy choice [k] (shift) and [k'] (cost bound) and
+    the resource pattern.  Subsumes both the old exact-cost [couple_laplace]
+    (eager-frame the credit with [\"[$Hr $Hε]\"]) and the old non-exact
+    [couple_laplace_cost] (route the credit unframed with [\"[$Hr Hε]\"], leaving
+    the clean [↯m (k'·ε)] goal for an [ecm_eq]/[ecm_weaken] reconciliation): which
+    regime you get is chosen by the resource pattern, not by the tactic name. *)
 Tactic Notation "couple_laplace" uconstr(k) uconstr(k') "with" constr(pat) :=
-  wp_pures; tp_pures;
-  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
-  (* [unshelve] (the tactical) turns the goals THIS [iApply] shelves — only the
-     distance side-condition [Hdist] — into regular front goals, without globally
-     un-shelving unrelated goals the way the [Unshelve] command would. *)
-  unshelve (iApply (wp_couple_laplace _ _ k k' _ _ _ _ _ _ _ with pat));
-  (* best-effort discharge of [Hdist] (trivial for [k=0] from 1-sensitivity) and
-     [Hε]/[Hpos]/[Hε']; the postcondition continuation is the single goal left *)
-  try first
-    [ reflexivity
-    | assumption
-    | (rewrite ?Z.add_0_l ?Z.add_0_r; assumption)
-    | (apply Zabs_ind; lia)
-    | (simpl; lra) ].
+  couple_bind; couple_laplace_iapply k k' pat; couple_discharge.
 
-(** [couple_laplace_cost k k' with "[$Hr Hε]"] — the NO-EAGER-FRAME variant of
-    [couple_laplace], for COST-RECONCILIATION sites where the cost step is not
-    exact (a non-trivial [ε'] scaling, reconciled by [ecm_eq], or an inequality
-    bound, reconciled by [ecm_weaken]).  It does the same [bind]+[apply] dance
-    and auto-discharges the side-conditions [Hdist]/[Hε]/[εpos]/[Hε'], BUT — and
-    this is the whole point — it does NOT [$]-frame the multiplicative credit.
-
-    Contrast with [couple_laplace], whose [\"[$Hr $Hε]\"] eagerly [$]-frames the
-    in-context [↯m (c·ε)] into the rule's [↯m ε'] precondition; that framing
-    unifies [ε']'s evar to the IN-CONTEXT amount [c·ε], turning the equational
-    side-condition [Hε' : ε' = k'·ε] into the (generally false / non-trivial)
-    [c·ε = k'·ε] — which is exactly what breaks every non-exact cost site.
-
-    Here the spec pattern (supplied by the caller, e.g. [\"[$Hr Hε]\"]) frames only
-    the spec resource [⤇] with [$], and ROUTES the credit hypothesis [Hε] —
-    WITHOUT [$] — into the residual [↯m ε'] goal's context (so it is available to
-    the caller's downstream [iFrame]).  [Hε'] is then closed by [reflexivity],
-    pinning [ε'] to the RULE-natural [k'·ε] (not the in-context amount), and the
-    remaining goal is the clean [↯m (k'·ε)] — with [↯m (c·ε)] in context — for the
-    caller's [iApply ecm_eq; …] / [iApply ecm_weaken; …] reconciliation.  The
-    [match … |- R => fail] guard stops the [assumption] fallback from grabbing a
-    stray real [c] for the bare [ε]/[ε'] value-evar goals. *)
-Tactic Notation "couple_laplace_cost" uconstr(k) uconstr(k') "with" constr(pat) :=
-  wp_pures; tp_pures;
-  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
-  unshelve (iApply (wp_couple_laplace _ _ k k' _ _ _ _ _ _ _ with pat));
-  (* discharge [Hdist]/[Hε]/[εpos]/[Hε'] (the last pins [ε'] to [k'·ε] by
-     [reflexivity]); the [↯m ε'] credit goal is left for the caller's [ecm_*].
-     The [|- R => fail] guard prevents [assumption] from instantiating a bare
-     value-evar goal of type [R] with the in-context distance bound [c]. *)
-  try first
-    [ (apply Zabs_ind; lia)
-    | reflexivity
-    | (match goal with |- R => fail 1 | _ => assumption end)
-    | lia ].
-
-(** [couple_laplace_apply k k' with "[$Hr Hε]"] — the APPLY-ONLY variant of
-    [couple_laplace_cost], for INTERLEAVED coupling sites where essential setup
-    happens BETWEEN focusing the [Sample] and applying the coupling rule (e.g.
-    an [ecm_split]/[ecm_eq]/[replace] of the credit, or a [set ε]).  The bundled
-    [couple_laplace]/[couple_laplace_cost] atomically run [wp_pures; tp_pures;
-    wp_bind; tp_bind] BEFORE the [iApply], so they cannot accommodate any work
-    done between the bind and the apply — that is precisely what this variant
-    drops.
-
-    PRECONDITION: the caller has ALREADY focused the [Sample] on both sides — via
-    its OWN [wp_bind (Sample _ _ _); tp_bind (Sample _ _ _)] (and any [wp_pures]/
-    [tp_pures] needed to reduce the [Pair] params to [PairV]) — and has done any
-    interleaved setup.  This tactic does ONLY the [unshelve (iApply …)] + side-
-    condition discharge: it auto-discharges [Hdist]/[Hε]/[εpos]/[Hε'] (pinning
-    [ε'] to the rule-natural [k'·ε] by [reflexivity]), routes the credit [Hε]
-    WITHOUT [$] (so it stays available for the caller's [ecm_*]) and leaves the
-    [↯m (k'·ε)] credit goal and the postcondition continuation for the caller.
-    Like [couple_laplace_cost], the [|- R => fail] guard stops [assumption] from
-    grabbing a stray [c : R] for the bare [ε]/[ε'] value-evar goals. *)
+(** [couple_laplace_apply k k' with "[$Hr Hε]"] — the APPLY-ONLY variant, for
+    INTERLEAVED coupling sites where essential setup happens BETWEEN focusing the
+    [Sample] and applying the coupling rule (e.g. an [ecm_split]/[ecm_eq]/[replace]
+    of the credit).  PRECONDITION: the caller has ALREADY focused the [Sample] on
+    both sides (its own [couple_bind]-equivalent) and done any interleaved setup;
+    this tactic runs ONLY the [unshelve (iApply …)] + the slimmer
+    [couple_discharge_apply] battery, leaving the credit goal and the hand-closed
+    residual goals (and postcondition) for the caller. *)
 Tactic Notation "couple_laplace_apply" uconstr(k) uconstr(k') "with" constr(pat) :=
-  unshelve (iApply (wp_couple_laplace _ _ k k' _ _ _ _ _ _ _ with pat));
-  (* discharge [Hdist]/[Hε]/[εpos]/[Hε'] (the last pins [ε'] to [k'·ε] by
-     [reflexivity]); the [↯m ε'] credit goal is left for the caller's [ecm_*].
-     The [|- R => fail] guard prevents [assumption] from instantiating a bare
-     value-evar goal of type [R] with an in-context distance bound [c]. *)
-  try first
-    [ (apply Zabs_ind; lia)
-    | reflexivity
-    | (match goal with |- R => fail 1 | _ => assumption end)
-    | lia ].
+  couple_laplace_iapply k k' pat; couple_discharge_apply.
 
 Section laplace_apply_canary.
   Context {Sg : Sig} `{!SampleIn laplace_family Sg} `{!diffprivGS Sg Σ}.
