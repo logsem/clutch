@@ -33,6 +33,17 @@ Notation Exp num den mean tape :=
   (Sample (sample_idx (D := exp_family)) (Pair num (Pair den mean)) tape)
   (only parsing).
 
+(** Value-form of [Exp] (direct, tape-less): the [(num,den,mean)] parameters
+    already reduced to a [PairV] triple, as they appear AFTER [wp_pures]/[tp_pures]
+    (which evaluate the [Pair] into a [PairV]).  The coupling rules are stated on
+    this shape so their preconditions read cleanly and match post-reduction goals;
+    the [couple_exp] tactic relies on it.  Mirrors [LaplaceV] in [lib.laplace]. *)
+Notation ExpV num den mean :=
+  (Sample (sample_idx (D := exp_family))
+     (Val (PairV (LitV (LitInt num)) (PairV (LitV (LitInt den)) (LitV (LitInt mean)))))
+     (Val (LitV LitUnit)))
+  (only parsing).
+
 Section exponential.
   Context {S : Sig} `{!SampleIn exp_family S} `{!diffprivGS S Σ}.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang S)).
@@ -160,3 +171,63 @@ Section exponential.
   Qed.
 
 End exponential.
+
+(** [couple_exp k k' with "[…]"] — the ergonomic coupling step for the one-sided
+    exponential.  It reduces the [Pair] params to [PairV] ([wp_pures]/[tp_pures]),
+    focuses the [Sample] on both sides ([wp_bind]/[tp_bind]), and applies the
+    value-form [wp_couple_exp] inferring [loc/loc'/num/den/ε/ε'/K/E] from the
+    goal — the author supplies only the privacy choice [k] (shift) and [k'] (cost
+    bound) and the resource pattern.  Mirrors [couple_laplace], but the side-
+    conditions differ: the one-sided exponential carries DIRECTIONALITY premises
+    [Hdir : 0 ≤ k + loc - loc'] and [Hdist : k + loc - loc' ≤ k'] (no absolute
+    value, unlike the two-sided Laplace), discharged best effort by [lia]
+    (typically with the in-context adjacency hypothesis) / [apply Zabs_ind; lia]
+    (when [k'] is chosen as an absolute value).  The trivial equational side-
+    conditions ([Hε]/[Hpos]/[Hε']) are closed by [reflexivity]/[assumption]; the
+    postcondition continuation is the single remaining goal. *)
+Tactic Notation "couple_exp" uconstr(k) uconstr(k') "with" constr(pat) :=
+  wp_pures; tp_pures;
+  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
+  (* [unshelve] (the tactical) turns the goals THIS [iApply] shelves — the
+     directionality side-conditions [Hdir]/[Hdist] — into regular front goals,
+     without globally un-shelving unrelated goals the way [Unshelve] would. *)
+  unshelve (iApply (wp_couple_exp _ _ k k' _ _ _ _ _ _ _ _ with pat));
+  (* best-effort discharge of [Hdir]/[Hdist] (directional, often from adjacency)
+     and [Hε]/[Hpos]/[Hε']; the postcondition continuation is the goal left *)
+  try first
+    [ reflexivity
+    | assumption
+    | lia
+    | (rewrite ?Z.add_0_l ?Z.add_0_r; lia)
+    | (apply Zabs_ind; lia)
+    | (simpl; lra) ].
+
+Section exponential_canary.
+  Context {Sg : Sig} `{!SampleIn exp_family Sg} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
+
+  (** CANARY: two surface-form [Exp #num #den #loc #()] draws couple, at cost
+      [k'·(num/den)], with the spec output the impl output shifted by [k] —
+      driven entirely by the [couple_exp] tactic.  Stated over the [Exp] notation
+      (i.e. [expr], with un-reduced [Pair] params) so it exercises the surface
+      path a program takes.  The directionality side-conditions [0 ≤ k+loc-loc']
+      and [k+loc-loc' ≤ k'] are passed as hypotheses [Hdir]/[Hdist] and closed by
+      the tactic via [assumption]/[lia]; demonstrates the convenience layer end to
+      end including the exponential's one-sided side-conditions. *)
+  Lemma wp_exp_shift_canary (loc loc' k k' num den : Z)
+    (Hdir : (0 <= k + loc - loc')%Z)
+    (Hdist : (k + loc - loc' <= k')%Z)
+    (Hpos : 0 < IZR num / IZR den) K E :
+    {{{ ⤇ fill K (Exp #num #den #loc' #()) ∗ ↯m (IZR k' * (IZR num / IZR den)) }}}
+      Exp #num #den #loc #() @ E
+      {{{ (z : Z), RET #z; ⤇ fill K #(z + k) }}}.
+  Proof.
+    (* the spec resource [⤇] must be a standalone hypothesis before [tp_pures]/
+       [tp_bind] (inside [couple_exp]) can step the spec thread — so destructure
+       the bundled precondition first, exactly as the [hoare_*] clients do. *)
+    iIntros (Φ) "(Hr & Hε) HΦ".
+    couple_exp k k' with "[$Hr $Hε]".
+    iApply "HΦ".
+  Qed.
+
+End exponential_canary.

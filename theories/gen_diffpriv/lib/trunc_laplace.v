@@ -46,6 +46,20 @@ Notation TruncLaplace A num den mean tape :=
           (Pair A (Pair num (Pair den mean))) tape)
   (only parsing).
 
+(** Value-form of [TruncLaplace] (direct, tape-less): the nested
+    [(A, (num, (den, mean)))] parameter already reduced to a [PairV] tree, as it
+    appears AFTER [wp_pures]/[tp_pures].  The coupling rule [wp_couple_trunc_laplace]
+    is stated on this shape so its precondition matches post-reduction goals; the
+    [couple_trunc_laplace] tactic relies on it.  Mirrors [LaplaceV]/[ExpV], but
+    with the extra leading truncation half-width [A]. *)
+Notation TruncLaplaceV A num den mean :=
+  (Sample (sample_idx (D := trunc_laplace_family))
+     (Val (PairV (LitV (LitInt A))
+             (PairV (LitV (LitInt num))
+                (PairV (LitV (LitInt den)) (LitV (LitInt mean))))))
+     (Val (LitV LitUnit)))
+  (only parsing).
+
 Section trunc_laplace_lib.
   Context {S : Sig} `{!SampleIn trunc_laplace_family S} `{!diffprivGS S Σ}.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang S)).
@@ -253,3 +267,68 @@ Section trunc_laplace_lib.
   Qed.
 
 End trunc_laplace_lib.
+
+(** [couple_trunc_laplace A s with "[…]"] — the ergonomic coupling step for the
+    truncated discrete Laplace.  It reduces the nested [Pair] param to a [PairV]
+    tree ([wp_pures]/[tp_pures]), focuses the [Sample] on both sides
+    ([wp_bind]/[tp_bind]), and applies the value-form [wp_couple_trunc_laplace]
+    inferring [loc/num/den/ε/ε'/δ'/K/E] from the goal — the author supplies only
+    the runtime truncation half-width [A] and the forward shift [s] (so impl loc
+    [loc], spec loc [loc+s]), together with the resource pattern.
+
+    Unlike [couple_laplace]/[couple_exp] (δ = 0, two resources), this coupling is
+    built over the δ-carrying seam [wp_couple_sample_gen_dp], so its precondition
+    threads THREE resources — the spec [⤇], the multiplicative credit [↯m ε'] AND
+    the additive credit [↯ δ'] — hence the pattern is the 3-way [\"[$Hr $Hε $Hδ]\"].
+    Side-conditions: the regime hypotheses [HA : 0 ≤ A] and [Hs : 0 ≤ s ≤ A]
+    (discharged best effort by [lia] / [split; lia]) and the equational
+    [Hε]/[Hpos]/[Hε']/[Hδ'] (by [reflexivity]/[assumption]); the postcondition
+    continuation is the single remaining goal. *)
+Tactic Notation "couple_trunc_laplace" uconstr(A) uconstr(s) "with" constr(pat) :=
+  wp_pures; tp_pures;
+  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
+  (* [unshelve] turns the goals THIS [iApply] shelves — the regime side-conditions
+     [HA]/[Hs] and the equational [Hε]/[εpos]/[Hε']/[Hδ'] — into regular front
+     goals, without globally un-shelving unrelated goals. *)
+  unshelve (iApply (wp_couple_trunc_laplace A _ s _ _ _ _ _ _ _ _ _ with pat));
+  (* best-effort discharge of [HA]/[Hs] (regime) and [Hε]/[εpos]/[Hε']/[Hδ']
+     (equational); the δ-credit [↯ δ'] is threaded by the 3-way resource pattern.
+     The postcondition continuation is the single goal left. *)
+  try first
+    [ reflexivity
+    | assumption
+    | lia
+    | (split; lia)
+    | (simpl; lra) ].
+
+Section trunc_laplace_canary.
+  Context {Sg : Sig} `{!SampleIn trunc_laplace_family Sg} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
+
+  (** CANARY: two surface-form [TruncLaplace #A #num #den #loc #()] draws couple
+      to EQUAL outputs, at multiplicative cost [s·(num/den)] and additive cost
+      [tlap_delta A num den loc s] — driven entirely by the [couple_trunc_laplace]
+      tactic.  Stated over the [TruncLaplace] notation (i.e. [expr], with the
+      un-reduced nested [Pair] param) so it exercises the surface path a program
+      takes; the THREE resources (spec [⤇], multiplicative [↯m] and additive [↯])
+      are threaded by the 3-way pattern, demonstrating the δ-carrying convenience
+      layer end to end.  The regime side-conditions [0 ≤ A] and [0 ≤ s ≤ A] are
+      passed as hypotheses and closed by the tactic via [assumption]/[lia]. *)
+  Lemma wp_trunc_laplace_shift_canary (A loc s num den : Z)
+    (HA : (0 <= A)%Z)
+    (Hs : (0 <= s <= A)%Z)
+    (Hpos : 0 < IZR num / IZR den) K E :
+    {{{ ⤇ fill K (TruncLaplace #A #num #den #(loc + s) #())
+        ∗ ↯m (IZR s * (IZR num / IZR den))
+        ∗ ↯ (tlap_delta A num den loc s) }}}
+      TruncLaplace #A #num #den #loc #() @ E
+      {{{ (z : Z), RET #z; ⤇ fill K #z }}}.
+  Proof.
+    (* destructure the bundled 3-resource precondition first, so the spec [⤇] is a
+       standalone hypothesis for the [tp_pures]/[tp_bind] inside the tactic. *)
+    iIntros (Φ) "(Hr & Hε & Hδ) HΦ".
+    couple_trunc_laplace A s with "[$Hr $Hε $Hδ]".
+    iApply "HΦ".
+  Qed.
+
+End trunc_laplace_canary.

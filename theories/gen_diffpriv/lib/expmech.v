@@ -176,3 +176,68 @@ Section expmech.
   Qed.
 
 End expmech.
+
+(** [couple_expmech Δ with "[…]"] — the ergonomic coupling step for the discrete
+    exponential mechanism.  It reduces the [Pair] params to a [PairV]
+    ([wp_pures]/[tp_pures]), focuses the [Sample] on both sides
+    ([wp_bind]/[tp_bind]), and applies the value-form [wp_couple_expmech]
+    inferring [num/den/scores/scores'/ε'/K/E] from the goal — the author supplies
+    only the per-coordinate sensitivity bound [Δ] and the resource pattern.
+
+    Unlike the noise mechanisms ([couple_laplace]/[couple_exp]), the exponential
+    mechanism couples the two chosen indices along plain EQUALITY (no shift
+    argument), at the fixed multiplicative cost [2·Δ·(num/den)] and zero additive
+    slack — so the precondition is the SAME two-resource [⤇ ∗ ↯m] shape and the
+    pattern is the 2-way [\"[$Hr $Hε]\"].  The remaining side-conditions are
+    DATA-dependent rather than arithmetic: alongside the trivial [HΔ : 1 ≤ Δ],
+    [Hpos], [Hε'] (closed by [lia]/[assumption]/[reflexivity]), the score-vector
+    obligations [Hlen : length scores = length scores'] and
+    [Hadj : ∀ k, |scores!!!k − scores'!!!k| ≤ Δ] must come from in-context
+    hypotheses ([assumption]) — they cannot be synthesised by the tactic and are
+    left as goals when no matching hypothesis is in scope. *)
+Tactic Notation "couple_expmech" uconstr(Δ) "with" constr(pat) :=
+  wp_pures; tp_pures;
+  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
+  (* [unshelve] turns the goals THIS [iApply] shelves — [HΔ]/[Hlen]/[Hpos]/[Hadj]
+     and the equational [Hε'] — into regular front goals, without globally
+     un-shelving unrelated goals. *)
+  unshelve (iApply (wp_couple_expmech Δ _ _ _ _ _ _ _ _ _ _ _ with pat));
+  (* best-effort discharge: arithmetic [HΔ]/[Hpos]/[Hε'] by [lia]/[reflexivity],
+     and the data-dependent [Hlen]/[Hadj] by [assumption] when in scope.  The
+     postcondition continuation is the goal left. *)
+  try first
+    [ reflexivity
+    | assumption
+    | lia
+    | (simpl; lra) ].
+
+Section expmech_canary.
+  Context {Sg : Sig} `{!SampleIn expmech_family Sg} `{!diffprivGS Sg Σ}.
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
+
+  (** CANARY: two surface-form [ExpMech #num #den $scores #()] draws over adjacent
+      score vectors couple to EQUAL chosen indices, at multiplicative cost
+      [2·Δ·(num/den)] — driven entirely by the [couple_expmech] tactic.  Stated
+      over the [ExpMech] notation (i.e. [expr], with an un-reduced [Pair] param and
+      the scores list injected as a value) so it exercises the surface path a
+      program takes; demonstrates the (equality-coupling, no-shift) convenience
+      layer end to end.  The data-dependent side-conditions [Hlen]/[Hadj] are
+      passed as hypotheses and closed by the tactic via [assumption]. *)
+  Lemma wp_expmech_canary (Δ num den : Z) (scores scores' : list Z)
+    (HΔ : (1 <= Δ)%Z)
+    (Hlen : length scores = length scores')
+    (Hpos : (0 <= IZR num / IZR den)%R)
+    (Hadj : ∀ k, (Z.abs (scores !!! k - scores' !!! k) <= Δ)%Z) K E :
+    {{{ ⤇ fill K (ExpMech #num #den (Val (inject scores')) #())
+        ∗ ↯m (2 * IZR Δ * (IZR num / IZR den)) }}}
+      ExpMech #num #den (Val (inject scores)) #() @ E
+      {{{ (i : Z), RET #i; ⤇ fill K #i }}}.
+  Proof.
+    (* destructure the bundled precondition first, so the spec [⤇] is a standalone
+       hypothesis for the [tp_pures]/[tp_bind] inside the tactic. *)
+    iIntros (Φ) "(Hr & Hε) HΦ".
+    couple_expmech Δ with "[$Hr $Hε]".
+    iApply "HΦ".
+  Qed.
+
+End expmech_canary.
