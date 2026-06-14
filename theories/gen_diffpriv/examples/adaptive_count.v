@@ -489,12 +489,9 @@ Section adaptive.
       etrans. 1: eassumption. rewrite Rmult_1_l.
       done.
     }
-    iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs εₛ]").
-    1: apply Zabs_ind ; lia.
-    1: reflexivity.
-    1: lra.
-    1: rewrite Rmult_1_l ; reflexivity.
-    1: iFrame "εₛ".
+    couple_laplace_apply 0%Z 1%Z with "[$rhs εₛ]".
+    { lra. }
+    { rewrite Rmult_1_l ; iFrame "εₛ". }
     iNext. iIntros (count_coarse_1) "rhs" ; simpl... rewrite Z.add_0_r.
     tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store... tp_normalise...
     rewrite /list_cons.
@@ -504,12 +501,9 @@ Section adaptive.
     - tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
       iDestruct (ecm_split (IZR 10 / IZR 10)%R (IZR 8 / IZR 10)%R with "[ε]") as "[εₗ ε]".
       1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver.
-      iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs εₗ]").
-      1: apply Zabs_ind ; lia.
-      1: reflexivity.
-      1: lra.
-      1: rewrite Rmult_1_l ; reflexivity.
-      1: iFrame "εₗ".
+      couple_laplace_apply 0%Z 1%Z with "[$rhs εₗ]".
+      { lra. }
+      { rewrite Rmult_1_l ; iFrame "εₗ". }
       iNext. iIntros (count_precise_1) "rhs" ; simpl... rewrite Z.add_0_r.
       tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store... tp_normalise...
       tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store... tp_normalise...
@@ -533,12 +527,9 @@ Section adaptive.
       tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
       iDestruct (ecm_split (IZR 2 / IZR 10)%R (IZR 6 / IZR 10)%R with "[ε]") as "[εₛ ε]".
       1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver.
-      iApply (wp_couple_laplace (S:=Sg) len_f2_l len_f2_r 0 1 with "[$rhs εₛ]").
-      1: apply Zabs_ind ; lia.
-      1: reflexivity.
-      1: lra.
-      1: rewrite Rmult_1_l ; reflexivity.
-      1: iFrame "εₛ".
+      couple_laplace_apply 0%Z 1%Z with "[$rhs εₛ]".
+      { lra. }
+      { rewrite Rmult_1_l ; iFrame "εₛ". }
       iNext. iIntros (count_coarse_2) "rhs" ; simpl... rewrite Z.add_0_r.
       tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store... tp_normalise...
       tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store...
@@ -566,12 +557,9 @@ Section adaptive.
       tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
       iDestruct (ecm_split (IZR 2 / IZR 10)%R (IZR 16 / IZR 10)%R with "[ε]") as "[εₛ ε]".
       1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver.
-      iApply (wp_couple_laplace (S:=Sg) len_f2_l len_f2_r 0 1 with "[$rhs εₛ]").
-      1: apply Zabs_ind ; lia.
-      1: reflexivity.
-      1: lra.
-      1: rewrite Rmult_1_l ; reflexivity.
-      1: iFrame "εₛ".
+      couple_laplace_apply 0%Z 1%Z with "[$rhs εₛ]".
+      { lra. }
+      { rewrite Rmult_1_l ; iFrame "εₛ". }
       iNext. iIntros (count_coarse_2) "rhs" ; simpl... rewrite Z.add_0_r.
       tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store... tp_normalise...
       tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store...
@@ -583,12 +571,9 @@ Section adaptive.
       tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
       iDestruct (ecm_split (IZR 10 / IZR 10)%R (IZR 6 / IZR 10)%R with "[ε]") as "[εₗ ε]".
       1,2: real_solver. 1: iApply ecm_eq ; [|iFrame] ; real_solver.
-      iApply (wp_couple_laplace (S:=Sg) len_f2_l len_f2_r 0 1 with "[$rhs εₗ]").
-      1: apply Zabs_ind ; lia.
-      1: reflexivity.
-      1: lra.
-      1: rewrite Rmult_1_l ; reflexivity.
-      1: iFrame "εₗ".
+      couple_laplace_apply 0%Z 1%Z with "[$rhs εₗ]".
+      { lra. }
+      { rewrite Rmult_1_l ; iFrame "εₗ". }
       iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
       tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store... tp_normalise...
       tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store... tp_normalise...
