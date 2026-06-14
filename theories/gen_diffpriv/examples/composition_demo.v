@@ -70,7 +70,7 @@ From clutch.prelude Require Import tactics.
 From clutch.common Require Import inject.
 From clutch.prob Require Import differential_privacy.
 From clutch.gen_diffpriv Require Import adequacy all.
-From clutch.gen_diffpriv.lib Require Import laplace.
+From clutch.gen_diffpriv.lib Require Import laplace predicate_spec.
 From clutch.gen_prob_lang Require Import inject families.
 From clutch.gen_prob_lang.spec Require Import spec_ra spec_rules.
 From clutch.gen_diffpriv.examples Require Import privacy_filter.
@@ -137,10 +137,11 @@ Section composition_demo.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
   (** A predicate value [vP] decides [P] on both the impl and the spec side — the
-      hypotheses [count_query_diffpriv] needs to make a noisy count [(num/den)]-DP. *)
+      hypotheses [count_query_diffpriv] needs to make a noisy count [(num/den)]-DP.
+      The two conjuncts are the shared [is_predicate] / [is_spec_predicate]
+      witnesses (from [gen_diffpriv.lib.predicate_spec]). *)
   Definition decides_pred (P : Z → bool) (vP : val) : iProp Σ :=
-    (∀ x : Z, {{{ True }}} vP (inject x) {{{ w, RET w; ⌜w = inject (P x)⌝ }}}) ∗
-    (∀ x : Z, G{{{ True }}} vP (inject x) @ gwp_spec (Sg:=Sg) ; ⊤ {{{ w, RET w; ⌜w = inject (P x)⌝ }}}).
+    is_predicate P vP ∗ is_spec_predicate P vP.
 
   (** SENS∘DP, packaged.  A single noisy count [noisy_count vP num den] is
       [(num/den)]-DP releasing a [Z].  This is the standalone sens∘dp composition

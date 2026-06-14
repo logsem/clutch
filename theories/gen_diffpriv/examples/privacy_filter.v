@@ -36,7 +36,7 @@ From clutch.prelude Require Import tactics.
 From clutch.common Require Import inject.
 From clutch.prob Require Import differential_privacy.
 From clutch.gen_diffpriv Require Import adequacy all.
-From clutch.gen_diffpriv.lib Require Import laplace.
+From clutch.gen_diffpriv.lib Require Import laplace predicate_spec.
 From clutch.gen_prob_lang Require Import inject families.
 From clutch.gen_prob_lang.spec Require Import spec_ra spec_rules.
 From clutch.gen_diffpriv.examples Require Import sparse_vector_technique.
@@ -261,11 +261,8 @@ Section adaptive.
     iPureIntro. done.
   Qed.
 
-  Definition is_predicate {A} `[Inject A val] (pred : A -> bool) (vpred : val) : iProp Σ :=
-    ∀ x, {{{ True }}} vpred (inject x) {{{ w, RET w; ⌜w = (inject (pred x))⌝ }}}.
-
-  Definition is_spec_predicate {A} `[Inject A val] (pred : A -> bool) (vpred : val) : iProp Σ :=
-    ∀ x, G{{{ True }}} vpred (inject x) @ gwp_spec (Sg:=Sg) ; ⊤ {{{ w, RET w; ⌜w = (inject (pred x))⌝ }}}.
+  (** [is_predicate] / [is_spec_predicate] are now shared in
+      [gen_diffpriv.lib.predicate_spec]. *)
 
   Lemma filter_sens (P : Z → bool) (f : val) :
     (∀ (x : Z),
