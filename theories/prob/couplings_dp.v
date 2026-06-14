@@ -3064,4 +3064,76 @@ Proof.
   apply DPcoupl_pweq; [done..|].
   intros.
   by apply DPcoupl_map.
-Qed. 
+Qed.
+
+(** * Uniform-draw shift coupling (0 cost)
+
+    The load-bearing coupling for the uniform-sampling family: shifting a uniform
+    draw on [{0,…,N}] by [k] couples [dunifP N] to [dunifP N] exactly (cost
+    [(0,0)]), with the spec output equal to the impl output rotated by [k] mod
+    [S N].  Built from the cyclic-rotation bijection [fin_rot] on [fin (S N)]
+    (whose inverse is stdpp's [rotate_nat_sub]) and [ARcoupl_dunif], then promoted
+    to a [DPcoupl] and mapped through [n ↦ Z.of_nat (fin_to_nat n)] to land on the
+    [Z]-valued outcomes the uniform [SampleFamily] uses. *)
+
+(** Cyclic rotation of [fin (S N)] by [base]: [n ↦ (base + n) mod (S N)], via
+    stdpp's [rotate_nat_add]. *)
+Definition fin_rot (base N : nat) (n : fin (S N)) : fin (S N) :=
+  nat_to_fin (rotate_nat_add_lt base (fin_to_nat n) (S N) (Nat.lt_0_succ N)).
+
+Lemma fin_rot_to_nat base N (n : fin (S N)) :
+  fin_to_nat (fin_rot base N n) = rotate_nat_add base (fin_to_nat n) (S N).
+Proof. rewrite /fin_rot fin_to_nat_to_fin //. Qed.
+
+(** [fin_rot] is a bijection (its inverse is rotation by the complementary
+    offset, i.e. stdpp's [rotate_nat_sub]). *)
+Lemma fin_rot_bij base N : Bij (fin_rot base N).
+Proof.
+  pose proof (Nat.lt_0_succ N) as Hlen.
+  split.
+  - intros x y Hxy. apply fin_to_nat_inj.
+    pose proof (fin_to_nat_lt x). pose proof (fin_to_nat_lt y).
+    apply (f_equal fin_to_nat) in Hxy. rewrite !fin_rot_to_nat in Hxy.
+    rewrite -(rotate_nat_sub_add (base `mod` (S N)) (S N) (fin_to_nat x)); [|done].
+    rewrite -(rotate_nat_sub_add (base `mod` (S N)) (S N) (fin_to_nat y)); [|done].
+    rewrite -!(rotate_nat_add_add_mod base). by rewrite Hxy.
+  - intros m. pose proof (fin_to_nat_lt m).
+    exists (nat_to_fin (rotate_nat_sub_lt base (fin_to_nat m) (S N) Hlen)).
+    apply fin_to_nat_inj. rewrite fin_rot_to_nat fin_to_nat_to_fin.
+    by rewrite rotate_nat_add_sub.
+Qed.
+
+(** The 0-cost uniform SHIFT coupling, on the [Z]-valued outcomes
+    [Z.of_nat ∘ fin_to_nat] of [dunifP N]: drawing on the impl side gives [z] and
+    on the spec side gives exactly [(z + k) mod (S N)].  Pure (no [ε], no [δ]):
+    rotation is measure-preserving, so the shift is free.  The relation also
+    records the impl outcome's range [0 ≤ z ≤ N] (always true on [dunifP]'s
+    support), which clients of the bounded uniform sampler rely on. *)
+Lemma DPcoupl_dunifP_shift (N : nat) (k : Z) :
+  let base := Z.to_nat (k `mod` Z.of_nat (S N))%Z in
+  DPcoupl
+    (dmap (λ n : fin (S N), Z.of_nat (fin_to_nat n)) (dunifP N))
+    (dmap (λ n : fin (S N), Z.of_nat (fin_to_nat n)) (dunifP N))
+    (λ z z', z' = (z + k) `mod` Z.of_nat (S N) ∧ 0 <= z <= Z.of_nat N)%Z
+    0 0.
+Proof.
+  intros base.
+  apply (DPcoupl_map (λ n : fin (S N), Z.of_nat (fin_to_nat n))
+                     (λ n : fin (S N), Z.of_nat (fin_to_nat n))
+                     (dunifP N) (dunifP N)); [lra|lra|].
+  apply ARcoupl_to_DPcoupl. unfold dunifP.
+  eapply ARcoupl_mono;
+    [..|apply (ARcoupl_dunif (S N) (fin_rot base N) (H := fin_rot_bij base N))].
+  - intros; reflexivity.
+  - intros; reflexivity.
+  - intros x y Hxy. simpl in Hxy. subst y.
+    pose proof (fin_to_nat_lt x). split.
+    + rewrite fin_rot_to_nat.
+      unfold base, rotate_nat_add.
+      assert (0 < Z.of_nat (S N))%Z as HL by lia.
+      rewrite Z2Nat.id; [|apply Z.mod_pos_bound; lia].
+      rewrite Z2Nat.id; [|apply Z.mod_pos_bound; lia].
+      rewrite Zplus_mod_idemp_l. f_equal. lia.
+    + lia.
+  - lra.
+Qed.
