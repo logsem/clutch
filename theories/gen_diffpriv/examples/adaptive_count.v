@@ -189,13 +189,15 @@ Section adaptive.
           "try_run" "ε_coarse"
             (λ:<>,
                let: "count_coarse" := Laplace "ε_coarse" "den" "count_exact" #() in
-               "counts" <- (!"index", "count_coarse") :: !"counts" ;;
+               let: "idx_coarse" := !"index" in
+               "counts" <- ("idx_coarse", "count_coarse") :: !"counts" ;;
 
                if: "threshold" < "count_coarse" then
                  "try_run" "ε_precise"
                    (λ:<>,
                       let: "count_precise" := Laplace "ε_precise" "den" "count_exact" #() in
-                      "counts" <- (!"index", "count_precise") :: !"counts")
+                      let: "idx_precise" := !"index" in
+                      "counts" <- ("idx_precise", "count_precise") :: !"counts")
                else #()) ;;
           "index" <- !"index" + #1)
         "predicates" ;;
@@ -886,7 +888,10 @@ Section adaptive.
     1: iApply bar. 1: iPureIntro ; apply foo. all: eauto.
   Qed.
 
-  (* This is the spec one would want for iter_adaptive_acc, proven from the not-abstracted spec for the privacy filter. *)
+  (* This is the spec one would want for iter_adaptive_acc.  After the [iter_adaptive_acc]
+     odometer body was de-nested (the index load lifted into a [let] so the spec [tp_load]
+     can step it), the proof goes through with the same odometer argument used by the
+     abstracted [wp_iter_adaptive_acc'] below (the [create_filter_private'] filter spec). *)
   Lemma wp_iter_adaptive_acc (ε_coarse ε_precise den threshold budget : Z)
     (ds1 ds2 : list Z) dsv1 dsv2 K
     (predicates : list (Z -> bool))
@@ -911,23 +916,18 @@ Section adaptive.
     tp_alloc as counts_r "counts_r" ; wp_alloc counts_l as "counts_l"...
     tp_alloc as index_r "index_r" ; wp_alloc index_l as "index_l"...
     tp_bind (create_filter _). wp_bind (create_filter _).
-    iApply (create_filter_private _ _ den with "[$ε $rhs]") => //.
-    iIntros "!> * (%&%&%&%&%&budget&l&l'&rhs&#run_dp)"... simpl...
+    iApply (create_filter_private' _ _ den with "[$ε $rhs]") => //.
+    iIntros "!> * (%&%&rhs&TRY_RUN&#run_dp)"... simpl...
     tp_bind (list_iter _ _). wp_bind (list_iter _ _).
-    set (Inv := (∃ lcounts counts (index budget_remaining : Z),
-                    ⌜is_list lcounts counts⌝ ∗
-                index_l ↦ #index ∗ index_r ↦ₛ #index ∗
-                counts_l ↦ counts ∗ counts_r ↦ₛ counts ∗
-                ↯m (IZR budget_remaining / IZR den) ∗
-                    l ↦ #budget_remaining ∗ l' ↦ₛ #budget_remaining
-            )%I).
-    iAssert Inv with "[index_l index_r counts_l counts_r budget l l']" as "hh". 1: iFrame ; by iExists [].
-    iRevert (predicates vpredicates ho_pred hlen) "is_pred rhs".
+    set (Inv := (∃ lcounts counts (index : Z), ⌜is_list lcounts counts⌝ ∗ counts_l ↦ counts ∗ counts_r ↦ₛ counts
+                                               ∗ index_l ↦ #index ∗ index_r ↦ₛ #index)%I).
+    iAssert Inv with "[counts_l counts_r index_l index_r]" as "hh". 1: iFrame ; iExists [] ; done.
+    iRevert (predicates vpredicates ho_pred hlen) "is_pred rhs TRY_RUN".
     iInduction lvpredicates as [|vpred lvpredicates'] "IH" ;
-      iIntros (predicates vpredicates ho_pred hlen) "#is_pred rhs".
+      iIntros (predicates vpredicates ho_pred hlen) "#is_pred rhs TRY_RUN".
     - rewrite ho_pred.
       rewrite /list_iter...
-      iDestruct "hh" as "(%&%&%&%&%&?&?&?&?&?&?&?)".
+      iDestruct "hh" as "(%&%&%&%&?&?&?&?)".
       tp_normalise... tp_load... wp_load.
       iMod (gwp_list_rev (g:=gwp_spec (Sg:=Sg)) _ counts lcounts
               (λ v, ⌜is_list (reverse lcounts) v⌝%I)
@@ -950,20 +950,73 @@ Section adaptive.
       { iApply (count_sens pred vpred' with "Hp Hp' [] rhs"); [iPureIntro; lra|]. iIntros "!> % h"; iExact "h". }
       simpl.
       iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
-      (* GEN SPEC-STEPPING GAP (one admit) — the run_dp closure body stores the PAIR
-         [(!"index", count) :: !"counts"] on the spec side.  Stepping the NESTED spec
-         load [! #index_r] (the pair's first component) fails once the abstract
-         [list_iter] iteration context has collapsed to the [go]-fixpoint foldl form
-         (after the outer [! #counts_r] load): [tac_tp_load]'s reconstruction cannot
-         reshape/unify [fill ?K (! #index_r)] against the [go …] foldl ("No matching
-         clauses" / "Unable to unify … with go …").  The single-load sibling
-         [wp_iter_adaptive_acc_simple] (above, GREEN) avoids this — its
-         [count_coarse :: !counts] store has no nested load.  This NON-abstract variant
-         is NOT used by the final adequacy theorem (that goes through the abstracted
-         [wp_iter_adaptive_acc'] / [wp_iter_adaptive_acc_app]).  Fix needs a gentler
-         (change-based, [tp_pure_at]-style) spec re-fold for nested loads. *)
-      admit.
-  Admitted. (* one admit: nested-pair spec store, see GEN SPEC-STEPPING GAP above *)
+      (* COARSE [try_run] call; same structure as the abstracted [wp_iter_adaptive_acc']
+         below.  The de-nested index load (now the head of a [let]) lets [tp_load] step
+         the spec index load cleanly. *)
+      tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
+      assert (Z.abs (len_f_l - len_f_r) <= 1).
+      {
+        assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
+        2:{ rewrite -abs_IZR in h. apply le_IZR. done. }
+        etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
+        etrans. 1: eassumption. rewrite Rmult_1_l. done.
+      }
+      iApply ("run_dp" $! _ _ _ _ Inv with "[] [-]") ; iFrame.
+      1: iPureIntro ; lia.
+      + iIntros "* % !> (eps & rhs & hh & TRY_RUN) Hpost"...
+        tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
+        iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
+        1: apply Zabs_ind ; lia.
+        1: reflexivity.
+        {
+          epose proof (IZR_lt 0 ε_coarse _) => //.
+          epose proof (IZR_lt 0 den _) => //.
+          apply Rcomplements.Rdiv_lt_0_compat => //. }
+        1: rewrite Rmult_1_l ; reflexivity.
+        1: iFrame "eps".
+        iNext. iIntros (count_coarse) "rhs" ; simpl... rewrite Z.add_0_r.
+        iDestruct "hh" as "(%lcounts0 & %counts0 & %index0 & %His0 & counts_l & counts_r & index_l & index_r)".
+        (* de-nested index load: [let: "idx" := !"index" in ("idx", count) :: !"counts"] *)
+        tp_load ; wp_load... tp_normalise...
+        rewrite /list_cons.
+        tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store...
+        iAssert Inv with "[counts_l counts_r index_l index_r]" as "hh".
+        { iFrame. iPureIntro. eexists (_ :: lcounts0). eexists. split; [reflexivity|exact His0]. }
+        tp_normalise... tp_normalise...
+        case_bool_decide as Hthr.
+        * tp_normalise... tp_normalise...
+          tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
+          iApply ("run_dp" $! _ _ _ _ Inv with "[] [$rhs $hh $TRY_RUN]").
+          1: iPureIntro ; lia.
+          -- iIntros "* % !> (eps & rhs & hh & TRY_RUN) Hpost"...
+             tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
+             iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
+             1: apply Zabs_ind ; lia.
+             1: reflexivity.
+             {
+               epose proof (IZR_lt 0 ε_precise _) => //.
+               epose proof (IZR_lt 0 den _) => //.
+               apply Rcomplements.Rdiv_lt_0_compat => //. }
+             1: rewrite Rmult_1_l ; reflexivity.
+             1: iFrame "eps".
+             iNext. iIntros (count_precise) "rhs" ; simpl... rewrite Z.add_0_r.
+             iDestruct "hh" as "(%lcounts1 & %counts1 & %index1 & %His1 & counts_l & counts_r & index_l & index_r)".
+             tp_load ; wp_load... tp_normalise...
+             rewrite /list_cons.
+             tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store.
+             iApply "Hpost". iFrame. iPureIntro. eexists (_ :: lcounts1). eexists. split; [reflexivity|exact His1].
+          -- iNext. iIntros (v) "(rhs & hh & TRY_RUN)". simpl.
+             iApply "Hpost". iFrame.
+        * tp_normalise...
+          iApply "Hpost". iFrame "rhs hh TRY_RUN". all: try done. Unshelve. all: try done.
+      + iNext. iIntros "* (rhs & hh & TRY_RUN)" => /=...
+        iDestruct "hh" as "(%lcountsf & %countsf & %indexf & %Hisf & counts_l & counts_r & index_l & index_r)".
+        tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store...
+        tp_normalise ; tp_pures.
+        iApply ("IH" with "[counts_l counts_r index_l index_r] [] [] [] [$rhs] [$TRY_RUN]") => //.
+        1: { iExists lcountsf. iFrame. iPureIntro. exact Hisf. }
+        Unshelve. all: try exact Sg ; auto ; lra.
+  Qed.
 
   (* This is the spec one would want for iter_adaptive_acc, proven from the abstracted spec for the privacy filter. *)
   Lemma wp_iter_adaptive_acc' (ε_coarse ε_precise den threshold budget : Z)
@@ -996,9 +1049,9 @@ Section adaptive.
     set (Inv := (∃ lcounts counts (index : Z), ⌜is_list lcounts counts⌝ ∗ counts_l ↦ counts ∗ counts_r ↦ₛ counts
                                                ∗ index_l ↦ #index ∗ index_r ↦ₛ #index)%I).
     iAssert Inv with "[counts_l counts_r index_l index_r]" as "hh". 1: iFrame ; iExists [] ; done.
-    iRevert (predicates vpredicates ho_pred hlen) "is_pred rhs".
+    iRevert (predicates vpredicates ho_pred hlen) "is_pred rhs TRY_RUN".
     iInduction lvpredicates as [|vpred lvpredicates'] "IH" ;
-      iIntros (predicates vpredicates ho_pred hlen) "#is_pred rhs".
+      iIntros (predicates vpredicates ho_pred hlen) "#is_pred rhs TRY_RUN".
     - rewrite ho_pred.
       rewrite /list_iter...
       iDestruct "hh" as "(%&%&%&%&?&?&?&?)".
@@ -1024,15 +1077,81 @@ Section adaptive.
       { iApply (count_sens pred vpred' with "Hp Hp' [] rhs"); [iPureIntro; lra|]. iIntros "!> % h"; iExact "h". }
       simpl.
       iIntros "% (%len_f_l&%len_f_r&->&rhs&%d_out')"...
-      (* GEN SPEC-STEPPING GAP (one admit) — same nested-pair spec store as the
-         unprimed [wp_iter_adaptive_acc] above: the run_dp closure stores
-         [(!"index", count) :: !"counts"] and the nested spec load [! #index_r] cannot be
-         stepped once the abstract [list_iter] iteration context has collapsed to the [go]
-         fixpoint foldl form.  The single-load sibling [wp_iter_adaptive_acc_simple] is
-         GREEN (no nested load).  Fix needs a gentler (change-based, [tp_pure_at]-style)
-         spec re-fold for nested loads under an abstract iteration context. *)
-      admit.
-  Admitted. (* one admit: nested-pair spec store, see GEN SPEC-STEPPING GAP above *)
+      (* COARSE [try_run] call.  [I_f] carries the [Inv] resources (counts/index
+         pointers), since the f-body reads/writes them; the de-nested index load is
+         now the head of a [let] so [tp_load] steps it cleanly (cf. the GREEN sibling
+         [wp_iter_adaptive_acc_simple]). *)
+      tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
+      assert (Z.abs (len_f_l - len_f_r) <= 1).
+      {
+        assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
+        2:{ rewrite -abs_IZR in h. apply le_IZR. done. }
+        etrans. 2: replace 1%R with (IZR 1%Z) by auto ; apply IZR_le ; apply adj.
+        etrans. 1: eassumption. rewrite Rmult_1_l. done.
+      }
+      iApply ("run_dp" $! _ _ _ _ Inv with "[] [-]") ; iFrame.
+      1: iPureIntro ; lia.
+      + iIntros "* % !> (eps & rhs & hh & TRY_RUN) Hpost"...
+        tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
+        iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
+        1: apply Zabs_ind ; lia.
+        1: reflexivity.
+        {
+          epose proof (IZR_lt 0 ε_coarse _) => //.
+          epose proof (IZR_lt 0 den _) => //.
+          apply Rcomplements.Rdiv_lt_0_compat => //. }
+        1: rewrite Rmult_1_l ; reflexivity.
+        1: iFrame "eps".
+        iNext. iIntros (count_coarse) "rhs" ; simpl... rewrite Z.add_0_r.
+        iDestruct "hh" as "(%lcounts0 & %counts0 & %index0 & %His0 & counts_l & counts_r & index_l & index_r)".
+        (* de-nested index load: [let: "idx" := !"index" in ("idx", count) :: !"counts"] *)
+        tp_load ; wp_load... tp_normalise...
+        rewrite /list_cons.
+        tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store...
+        (* re-establish [Inv] for the new counts list [(index0, count_coarse) :: lcounts0] *)
+        iAssert Inv with "[counts_l counts_r index_l index_r]" as "hh".
+        { iFrame. iPureIntro. eexists (_ :: lcounts0). eexists. split; [reflexivity|exact His0]. }
+        (* the conditional precise branch.  The guard is the abstract
+           [bool_decide (threshold < count_coarse)]; re-expose the buried spec
+           comparison ([tp_normalise]) so the spec [if:] reduces alongside the impl. *)
+        tp_normalise... tp_normalise...
+        case_bool_decide as Hthr.
+        * (* threshold < count_coarse: nested precise [try_run] *)
+          tp_normalise... tp_normalise...
+          tp_bind (try_run' _ _) ; wp_bind (try_run _ _).
+          iApply ("run_dp" $! _ _ _ _ Inv with "[] [$rhs $hh $TRY_RUN]").
+          1: iPureIntro ; lia.
+          -- iIntros "* % !> (eps & rhs & hh & TRY_RUN) Hpost"...
+             tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
+             iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
+             1: apply Zabs_ind ; lia.
+             1: reflexivity.
+             {
+               epose proof (IZR_lt 0 ε_precise _) => //.
+               epose proof (IZR_lt 0 den _) => //.
+               apply Rcomplements.Rdiv_lt_0_compat => //. }
+             1: rewrite Rmult_1_l ; reflexivity.
+             1: iFrame "eps".
+             iNext. iIntros (count_precise) "rhs" ; simpl... rewrite Z.add_0_r.
+             iDestruct "hh" as "(%lcounts1 & %counts1 & %index1 & %His1 & counts_l & counts_r & index_l & index_r)".
+             tp_load ; wp_load... tp_normalise...
+             rewrite /list_cons.
+             tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store.
+             iApply "Hpost". iFrame. iPureIntro. eexists (_ :: lcounts1). eexists. split; [reflexivity|exact His1].
+          -- iNext. iIntros (v) "(rhs & hh & TRY_RUN)". simpl.
+             iApply "Hpost". iFrame.
+        * (* threshold not exceeded: no precise draw *)
+          tp_normalise...
+          iApply "Hpost". iFrame "rhs hh TRY_RUN". all: try done. Unshelve. all: try done.
+      + iNext. iIntros "* (rhs & hh & TRY_RUN)" => /=...
+        (* index increment [ "index" <- !"index" + #1 ], part of the outer iter body *)
+        iDestruct "hh" as "(%lcountsf & %countsf & %indexf & %Hisf & counts_l & counts_r & index_l & index_r)".
+        tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store...
+        tp_normalise ; tp_pures.
+        iApply ("IH" with "[counts_l counts_r index_l index_r] [] [] [] [$rhs] [$TRY_RUN]") => //.
+        1: { iExists lcountsf. iFrame. iPureIntro. exact Hisf. }
+        Unshelve. all: try exact Sg ; auto ; lra.
+  Qed.
 
   (* apply the general iter spec for some concrete predicates *)
   Lemma wp_iter_adaptive_acc_app (ε_coarse ε_precise den threshold budget : Z)
