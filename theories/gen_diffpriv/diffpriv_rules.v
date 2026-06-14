@@ -73,20 +73,45 @@ Section diffpriv.
       }}}.
 
 
-  (* ---------------------------------------------------------------- *)
-  (* GROUP-BOUND METRIC approximate DP.                                *)
-  (*                                                                   *)
-  (* These are THE differential-privacy definitions in this library.   *)
-  (* At distance [c], a program satisfies [(eps,del)]-DP iff it        *)
-  (* consumes [↯m (c·eps)] multiplicative credit AND                   *)
-  (* [↯ (del · grp eps c)] additive credit.  Because [grp eps 1 = 1], *)
-  (* at adjacency (c = 1) this is exactly the [(eps, del)] profile.   *)
-  (* For [c > 1] it is the textbook group-privacy amplification: the   *)
-  (* additive term grows by the exact geometric factor [grp eps c =    *)
-  (* (exp(c·eps)−1)/(exp(eps)−1)].  This is the correct bound for     *)
-  (* the truncated-Laplace coupling (see [grp_comp] in                 *)
-  (* [prob.differential_privacy]).                                     *)
-  (* ---------------------------------------------------------------- *)
+  (* ================================================================== *)
+  (* CENTRAL RATIONALE — the two internal-DP definitions.                *)
+  (*                                                                     *)
+  (* This library carries TWO complementary internal-DP notions, side by *)
+  (* side; future readers should consult this block before adding a      *)
+  (* mechanism or wondering which to target.                             *)
+  (*                                                                     *)
+  (* (1) [hoare_diffpriv_metric] = GROUP-BOUND (the composing default).  *)
+  (*     At distance [c], a program is [(eps,del)]-DP iff it consumes    *)
+  (*     [↯m (c·eps)] multiplicative AND [↯ (del · grp eps c)] additive  *)
+  (*     credit, where [grp eps c = (exp(c·eps)−1)/(exp eps−1)] is the   *)
+  (*     EXACT geometric group-privacy amplification.  This is the       *)
+  (*     ∀-distance, composition-friendly form: group privacy and the    *)
+  (*     k-fold telescopes go through ([grp_comp]/[grp_mono_eps] make     *)
+  (*     [diffpriv_metric_sensitive_comp]/[diffpriv_metric_seq_comp_full] *)
+  (*     work).  Because [grp eps 1 = 1], at adjacency (c = 1) it is      *)
+  (*     exactly the [(eps,del)] profile.  USE THIS to COMPOSE mechanisms.*)
+  (*                                                                     *)
+  (* (2) [hoare_diffpriv_classic] = TEXTBOOK (eps,del)-DP at adjacency.   *)
+  (*     The literal paper definition, fixed adjacency [dA x x' ≤ 1],    *)
+  (*     cost [(eps, del)] — with [del] a FIXED/TIGHT value, NOT scaled  *)
+  (*     by [grp].  USE THIS to REPORT a tight bound, and for            *)
+  (*     BOUNDED-SUPPORT mechanisms (e.g. truncated Laplace).  Their      *)
+  (*     optimal [δ] is a tail mass that SATURATES toward [1]; the        *)
+  (*     group form [del·grp eps c] is sound but strictly LOOSE past the  *)
+  (*     support half-width, so only the classic form expresses the tight *)
+  (*     adjacency [δ].                                                   *)
+  (*                                                                     *)
+  (* BRIDGE.  These are complementary, not redundant: [metric ⇒ classic] *)
+  (* ALWAYS ([hoare_diffpriv_metric_classic] below — instantiate [c = 1], *)
+  (* where [grp eps 1 = 1] collapses both credits).  The converse is      *)
+  (* group privacy — the meta-level                                       *)
+  (* [diffpriv_metric_of_approx_rel]/[diffpriv_metric_approx]             *)
+  (* equivalence in [prob.differential_privacy] (BOTH directions already  *)
+  (* proved there).  So this is NOT the unsound-linear [hoare_diffpriv]   *)
+  (* redundancy removed in the #25 consolidation: that one claimed a      *)
+  (* [c·δ] profile derivable from nothing.  Here classic is metric's      *)
+  (* [c = 1] face and the converse is honest group privacy.              *)
+  (* ================================================================== *)
 
   Definition wp_diffpriv_metric (f : expr) eps del `(dA : Distance A) B `{Inject B val} : iProp Σ :=
     ∀ K c (x x' : A), ⌜dA x x' <= c⌝ →
@@ -94,12 +119,40 @@ Section diffpriv.
       WP f (Val (inject x)) {{ v, ∃ (y : B), ⌜v = inject y⌝ ∗ ⤇ fill K (Val (inject y)) }}.
   #[global] Arguments wp_diffpriv_metric (_)%_E (_ _)%_R  _ _ _ _ %_stdpp.
 
+  (* GROUP-BOUND metric DP — the composition-friendly default (see the
+     CENTRAL RATIONALE above). *)
   Definition hoare_diffpriv_metric (f : expr) eps del `(dA : Distance A) B `{Inject B val} : iProp Σ :=
     ∀ K c (x x' : A), ⌜dA x x' <= c⌝ -∗
       {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯m (c * eps) ∗ ↯ (del * grp eps c) }}}
         f (Val (inject x))
       {{{ (y : B), RET (inject y); ⤇ fill K (Val (inject y)) }}}.
   #[global] Arguments hoare_diffpriv_metric _%_E (_ _)%_R  _ _  _ _ %_stdpp.
+
+  (* TEXTBOOK (eps,del)-DP at fixed adjacency [dA x x' ≤ 1], with [del] a
+     FIXED/TIGHT value (NOT scaled by [grp] — that is the whole point).
+     Re-introduced into gen (this name was deleted in the #25
+     consolidation): the tight reporting notion + the bounded-support
+     mechanism form.  See the CENTRAL RATIONALE above. *)
+  Definition hoare_diffpriv_classic (f : expr) eps del `(dA : Distance A) B `{Inject B val} : iProp Σ :=
+    ∀ K (x x' : A), ⌜dA x x' <= 1⌝ -∗
+      {{{ ⤇ fill K (f (Val (inject x'))) ∗ ↯m eps ∗ ↯ del }}}
+        f (Val (inject x))
+      {{{ (y : B), RET (inject y); ⤇ fill K (Val (inject y)) }}}.
+  #[global] Arguments hoare_diffpriv_classic _%_E (_ _)%_R  _ _  _ _ %_stdpp.
+
+  (* FORWARD BRIDGE: group-bound metric ⇒ textbook classic, ALWAYS.       *)
+  (* Apply the metric hypothesis at distance [c = 1], where [grp eps 1 =  *)
+  (* 1] ([grp_1]): [↯m (1·eps)] collapses to [↯m eps] ([Rmult_1_l]) and   *)
+  (* [↯ (del·grp eps 1)] collapses to [↯ del] ([grp_1] then [Rmult_1_r]). *)
+  Lemma hoare_diffpriv_metric_classic (f : expr) eps del
+    `(dA : Distance A) B `{Inject B val} (Heps : 0 < eps) :
+    hoare_diffpriv_metric f eps del dA B -∗ hoare_diffpriv_classic f eps del dA B.
+  Proof.
+    rewrite /hoare_diffpriv_metric /hoare_diffpriv_classic.
+    iIntros "#Hmet" (K x x' Hadj Φ) "!> (Hr & Hε & Hδ) HΦ".
+    iApply ("Hmet" $! K 1 x x' Hadj with "[$Hr Hε Hδ] HΦ").
+    rewrite Rmult_1_l (grp_1 eps Heps) Rmult_1_r. iFrame.
+  Qed.
 
 
   Lemma wp_sensitive_mono (f : expr) c c' `(dA : Distance A) `(dB : Distance B)
