@@ -26,7 +26,7 @@
     At the [run_dp] closure CALL sites the program feeds an ALREADY-COMPUTED count
     INTEGER (shared between the coarse and the precise noise draws) into a
     data-free closure [f #()] — there is no dataset argument in scope, so the
-    [hoare_diffpriv]/[count_query_diffpriv] shape (which needs [g (inject x)] for
+    [hoare_diffpriv_metric]/[count_query_diffpriv] shape (which needs [g (inject x)] for
     adjacent [x x']) does NOT match there.  Hence those two noise draws keep the
     by-hand value-form [wp_couple_laplace … 0] coupling (with the [|count−count'|≤1]
     distance established once, up front, by [count_sens]).  See the [HONEST
@@ -516,7 +516,7 @@ Section adaptive.
       (* BY-HAND coupling (kept): the [run_dp] closures sample [Laplace eps
          count_exact] where [count_exact] is the ALREADY-COMPUTED integer
          ([count_l] on impl, [count_r] on spec); the closure has NO dataset
-         argument, so [count_query_diffpriv]/[hoare_diffpriv] do not match here.
+         argument, so [count_query_diffpriv]/[hoare_diffpriv_metric] do not match here.
          We use the value-form reflexive-shift coupling [wp_couple_laplace … 0]
          with the [|count_l−count_r| ≤ 1] distance from [count_sens]. *)
       + iIntros "* % !> (eps & rhs & I & TRY_RUN) Hpost"...

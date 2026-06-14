@@ -20,7 +20,7 @@ From clutch.prob Require Import differential_privacy distribution couplings coup
 (* re-export the client-facing layer so [Require Import laplace] alone provides
    the WP rules, coupling seams, proof-mode tactics, notation and families.
    [diffpriv_rules] brings the distribution-agnostic DP combinators
-   ([hoare_diffpriv], [hoare_sensitive], the composition lemmas) that the Laplace
+   ([hoare_diffpriv_metric], [hoare_sensitive], the composition lemmas) that the Laplace
    MECHANISM ([hoare_laplace_diffpriv]) instantiates. *)
 From clutch.gen_diffpriv Require Export primitive_laws coupling_rules proofmode diffpriv_rules.
 From clutch.gen_prob_lang Require Export families.
@@ -177,7 +177,7 @@ Section laplace.
 
   (** The Laplace MECHANISM as a (rescaled) internally-DP program: at
       multiplicative cost [c · (num/den)] for inputs at distance [dZ x x' ≤ c].
-      This is the composition-ready [hoare_diffpriv] form — group privacy and
+      This is the composition-ready [hoare_diffpriv_metric] form — group privacy and
       k-adjacency come from the rescaling parameter [c], NOT from any chaining /
       interpolation of refinements (the refinement here couples one impl run to
       one spec run and is not transitive).  The proof is a SINGLE distance-[c]

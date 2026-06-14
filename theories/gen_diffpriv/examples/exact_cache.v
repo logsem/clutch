@@ -5,7 +5,7 @@
    and the caching only uses the heap [map] ADT), so an empty distribution
    signature suffices.  The [gen]-specific adjustments are: retargeting the
    imports, pinning the spec-context [fill], threading the signature [Sx]
-   through the DP combinators ([wp_diffpriv]/[hoare_diffpriv]), and replacing
+   through the DP combinators ([wp_diffpriv_metric]/[hoare_diffpriv_metric]), and replacing
    the spec-carrying [simpl]/[=> /=] of the original with [tp_normalise] (a bare
    [simpl] folds the abstract spec context [fill K] into a [foldl] and breaks
    the [tp_*] tactics). *)
