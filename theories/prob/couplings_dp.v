@@ -3137,3 +3137,19 @@ Proof.
     + lia.
   - lra.
 Qed.
+
+(** The 0-cost EXACT (identity) coupling for a [biased_coin]: the SAME biased
+    coin coupled with itself, along equality, with no [ε] and no [δ].  This is
+    the foundation for the coin family's [wp_couple_coin]: drawing the same
+    weighted coin on both impl and spec sides yields equal booleans for free
+    (the distributions are literally identical).  Obtained from the
+    self-coupling [ARcoupl_eq] of [biased_coin r P] lifted by
+    [ARcoupl_to_DPcoupl] (which contributes [ε = 0]).  The relation is stated
+    as [λ b b', b = b'] rather than the bare [eq] so the [DPcoupl] downstream
+    (used through [sf_inj = LitV ∘ LitBool]) matches the surface coupling
+    predicate. *)
+Lemma DPcoupl_biased_coin (r : R) (P : 0 <= r <= 1) :
+  DPcoupl (biased_coin r P) (biased_coin r P) (λ b b', b = b') 0 0.
+Proof.
+  apply ARcoupl_to_DPcoupl. apply ARcoupl_eq.
+Qed.
