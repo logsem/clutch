@@ -574,7 +574,7 @@ Section queries.
   Qed.
 
   (** [noisy_count] is the Laplace mechanism post-composed with the 1-Lipschitz
-      [list_length].  By [diffpriv_sensitive_comp] (sensitivity · DP), the
+      [list_length].  By [diffpriv_metric_sensitive_comp] (sensitivity · DP), the
       composite [(λ ds, Laplace num den (list_length ds) #())] is
       [1 · (num/den) = (num/den)]-DP.  This is one of the two places the
       sensitivity-composition law replaces a hand-rolled [wp_couple_laplace]. *)
@@ -593,7 +593,7 @@ Section queries.
   Qed.
 
   (** [age_sum_query #b] wrapped as a closed [val] (so it can serve as the [f]
-      argument of [diffpriv_sensitive_comp], which requires a value); the
+      argument of [diffpriv_metric_sensitive_comp], which requires a value); the
       sensitivity transfers from [age_sum_query_sensitivity] by an extra beta. *)
   Definition clipped_sum (b : nat) : val := (λ: "ds", age_sum_query #b "ds")%V.
 
@@ -610,7 +610,7 @@ Section queries.
       clip-bound-Lipschitz [age_sum_query #b].  The clipped sum is [b]-Lipschitz
       ([age_sum_query_sensitivity]); the Laplace mechanism with noise scaled by
       [b] is [(num/(b*den))]-DP ([hoare_laplace_diffpriv num (b*den)]).
-      [diffpriv_sensitive_comp] multiplies the budgets to
+      [diffpriv_metric_sensitive_comp] multiplies the budgets to
       [INR b · (num/(b*den))], and the [b] CANCELS (needs [b ≠ 0]) leaving
       [(num/den)].  This is the second composition-law site. *)
   Lemma noisy_sum_diffpriv (num den : Z) (b : nat) :
