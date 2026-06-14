@@ -92,7 +92,6 @@ Section select_then_measure.
     (1 <= Δ)%Z →
     (1 <= C)%Z →
     (0 <= A)%Z →
-    (Δ * C <= A)%Z →
     (0 < IZR num / IZR (2 * den))%R →
     (0 < IZR num' / IZR den')%R →
     (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
@@ -105,7 +104,7 @@ Section select_then_measure.
       select_then_measure evalQ N num den A num' den' (Val (inject db))
     {{{ (out : val), RET out; ∃ (out' : val), ⤇ fill K out' ∗ ⌜out = out'⌝ }}}.
   Proof.
-    iIntros (HΔ HC HA HΔCA Hposnum Hposnum' Hsens Hadj) "#Hqsens".
+    iIntros (HΔ HC HA Hposnum Hposnum' Hsens Hadj) "#Hqsens".
     iIntros (Φ) "!# (εsel & εmeas & δmeas & rhs) HΦ".
     rewrite /select_then_measure.
     wp_pures. tp_pures.
@@ -128,11 +127,12 @@ Section select_then_measure.
     iIntros "!>" (v) "(%v' & rhs & %Hgap)".
     wp_pures. iSimpl in "rhs"; tp_pures.
     (* ---- (2b) MEASUREMENT: truncated Laplace at the actual (signed) shift. ----
-       [s = v'-v] is the runtime shift of EITHER sign; [|s| ≤ A] (as
-       [|s| ≤ Δ·C ≤ A]).  The two-sided coupling carries the |·| cost. *)
+       [s = v'-v] is the runtime shift of EITHER sign; only [|s| ≤ Δ·C] matters.
+       A no longer bounds the shift (the truncated-Laplace redesign decoupled the
+       shift from the width A; A enters only through the additive [tlap_del] base).
+       The two-sided coupling is unconditional in the shift and carries the |·| cost. *)
     set (s := (v' - v)%Z).
     assert (HsΔC : (Z.abs s <= Δ * C)%Z) by (subst s; lia).
-    assert (HsA : (Z.abs s <= A)%Z) by (subst s; lia).
     replace v' with (v + s)%Z by (subst s; lia).
     (* Weaken the supplied measurement credits DOWN from the demanded group bound
        at distance [Δ·C] to the consumed bound at the actual |shift| [|s|]:
