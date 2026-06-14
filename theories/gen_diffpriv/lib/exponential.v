@@ -230,6 +230,38 @@ Tactic Notation "couple_exp_cost" uconstr(k) uconstr(k') "with" constr(pat) :=
     | (rewrite ?Z.add_0_l ?Z.add_0_r; lia)
     | (apply Zabs_ind; lia) ].
 
+(** [couple_exp_apply k k' with "[$Hr Hε]"] — the APPLY-ONLY variant of
+    [couple_exp_cost], for INTERLEAVED coupling sites where essential setup
+    happens BETWEEN focusing the [Sample] and applying the coupling rule (e.g.
+    an [ecm_split]/[ecm_eq]/[replace] of the credit, or a [set ε]).  The bundled
+    [couple_exp]/[couple_exp_cost] atomically run [wp_pures; tp_pures; wp_bind;
+    tp_bind] BEFORE the [iApply], so they cannot accommodate any work done
+    between the bind and the apply — that is precisely what this variant drops.
+
+    PRECONDITION: the caller has ALREADY focused the [Sample] on both sides — via
+    its OWN [wp_bind (Sample _ _ _); tp_bind (Sample _ _ _)] (and any [wp_pures]/
+    [tp_pures] needed to reduce the [Pair] params to [PairV]) — and has done any
+    interleaved setup.  This tactic does ONLY the [unshelve (iApply …)] + side-
+    condition discharge: it auto-discharges the DIRECTIONALITY [Hdir]/[Hdist] by
+    [lia] and [Hε]/[εpos]/[Hε'] (pinning [ε'] to the rule-natural [k'·ε] by
+    [reflexivity]), routes the credit [Hε] WITHOUT [$] (so it stays available for
+    the caller's [ecm_*]) and leaves the [↯m (k'·ε)] credit goal and the post-
+    condition continuation for the caller.  Like [couple_exp_cost], the
+    [|- R => fail] guard stops [assumption] from grabbing a stray [c : R] for the
+    bare [ε]/[ε'] value-evar goals. *)
+Tactic Notation "couple_exp_apply" uconstr(k) uconstr(k') "with" constr(pat) :=
+  unshelve (iApply (wp_couple_exp _ _ k k' _ _ _ _ _ _ _ _ with pat));
+  (* discharge [Hdir]/[Hdist]/[Hε]/[εpos]/[Hε'] (the last pins [ε'] to [k'·ε] by
+     [reflexivity]); the [↯m ε'] credit goal is left for the caller's [ecm_*].
+     The [|- R => fail] guard prevents [assumption] from instantiating a bare
+     value-evar goal of type [R] with the in-context distance bound [c]. *)
+  try first
+    [ lia
+    | reflexivity
+    | (match goal with |- R => fail 1 | _ => assumption end)
+    | (rewrite ?Z.add_0_l ?Z.add_0_r; lia)
+    | (apply Zabs_ind; lia) ].
+
 Section exponential_canary.
   Context {Sg : Sig} `{!SampleIn exp_family Sg} `{!diffprivGS Sg Σ}.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
@@ -275,6 +307,33 @@ Section exponential_canary.
   Proof.
     iIntros (Φ) "(Hr & Hε) HΦ".
     couple_exp_cost k k' with "[$Hr Hε]".
+    (* residual credit goal [↯m (k'·ε)] — closed here by re-framing the routed
+       [Hε] (exact cost); a non-exact site would [iApply ecm_*] instead *)
+    2: iApply "HΦ".
+    iFrame "Hε".
+  Qed.
+
+  (** CANARY for the APPLY-ONLY [couple_exp_apply]: identical statement, but the
+      caller does the [wp_bind]/[tp_bind] MANUALLY (mimicking an interleaved
+      site) before calling the apply-only tactic — exercising that
+      [couple_exp_apply] does NOT itself re-bind the [Sample] and works once the
+      caller has focused both sides.  The credit is ROUTED (unframed [Hε],
+      pattern [\"[$Hr Hε]\"]) into the residual [↯m (k'·ε)] goal; here the cost is
+      exact so the residual is closed by re-framing [Hε]. *)
+  Lemma wp_exp_shift_canary_apply (loc loc' k k' num den : Z)
+    (Hdir : (0 <= k + loc - loc')%Z)
+    (Hdist : (k + loc - loc' <= k')%Z)
+    (Hpos : 0 < IZR num / IZR den) K E :
+    {{{ ⤇ fill K (Exp #num #den #loc' #()) ∗ ↯m (IZR k' * (IZR num / IZR den)) }}}
+      Exp #num #den #loc #() @ E
+      {{{ (z : Z), RET #z; ⤇ fill K #(z + k) }}}.
+  Proof.
+    iIntros (Φ) "(Hr & Hε) HΦ".
+    (* MANUAL bind on both sides — the interleaved-site idiom the apply-only
+       tactic supports (and where setup could be interposed here) *)
+    wp_pures. tp_pures.
+    wp_bind (Sample _ _ _). tp_bind (Sample _ _ _).
+    couple_exp_apply k k' with "[$Hr Hε]".
     (* residual credit goal [↯m (k'·ε)] — closed here by re-framing the routed
        [Hε] (exact cost); a non-exact site would [iApply ecm_*] instead *)
     2: iApply "HΦ".
