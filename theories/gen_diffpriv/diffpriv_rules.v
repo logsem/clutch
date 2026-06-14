@@ -4,6 +4,7 @@
     composition corollaries) have been moved to the reusable [lib.laplace]
     library — this file is distribution-agnostic and only threads the signature
     [Sg] through the generic sensitivity/DP combinators. *)
+From clutch.prob Require Import differential_privacy.
 From clutch.gen_prob_lang Require Import inject.
 From clutch.gen_prob_lang Require Export notation tactics metatheory lang.
 From clutch.gen_prob_lang.spec Require Export spec_rules spec_tactics.
@@ -38,47 +39,9 @@ From clutch.gen_diffpriv Require Export distance primitive_laws coupling_rules p
 (* the multiplicative AND additive credits via [grp_comp].             *)
 (* ------------------------------------------------------------------ *)
 
-Definition grp (eps c : R) : R := (exp (c * eps) - 1) / (exp eps - 1).
-
-Lemma grp_nonneg eps c : 0 <= eps -> 0 <= c -> 0 <= grp eps c.
-Proof.
-  intros Heps Hc. rewrite /grp.
-  destruct (Rle_lt_or_eq_dec 0 eps Heps) as [Hpos | Heq].
-  - (* eps > 0: numerator >= 0, denominator > 0 *)
-    apply Rcomplements.Rdiv_le_0_compat.
-    + (* exp (c*eps) - 1 >= 0, since c*eps >= 0 *)
-      assert (Hce : 0 <= c * eps) by (apply Rmult_le_pos; lra).
-      cut (1 <= exp (c * eps)); [lra|].
-      rewrite -exp_0. destruct (Rle_lt_or_eq_dec 0 _ Hce) as [Hlt | <-].
-      * left. by apply exp_increasing.
-      * lra.
-    + (* exp eps - 1 > 0, since eps > 0 *)
-      cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
-  - (* eps = 0: denominator = exp 0 - 1 = 0, so grp = _/0 = 0 in Coq *)
-    rewrite -Heq Rmult_0_r exp_0. rewrite Rminus_diag Rdiv_0_r. lra.
-Qed.
-
-Lemma grp_1 eps : 0 < eps -> grp eps 1 = 1.
-Proof.
-  intros Hpos. rewrite /grp Rmult_1_l.
-  apply Rdiv_diag.
-  cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
-Qed.
-
-Lemma grp_comp eps c c' : 0 < eps -> 0 < c ->
-  grp eps c * grp (c * eps) c' = grp eps (c * c').
-Proof.
-  intros Heps Hc. rewrite /grp.
-  (* align the exponents: c' * (c * eps) = (c * c') * eps *)
-  replace (c' * (c * eps)) with ((c * c') * eps) by ring.
-  (* the [exp (c*eps) - 1] factor cancels *)
-  field. split.
-  - (* exp eps - 1 <> 0 *)
-    cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
-  - (* exp (c*eps) - 1 <> 0 *)
-    assert (0 < c * eps) by (apply Rmult_lt_0_compat; lra).
-    cut (1 < exp (c * eps)); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
-Qed.
+(* [grp] and its facts ([grp_nonneg]/[grp_1]/[grp_comp]) now live (shared) in
+   [clutch.prob.differential_privacy] alongside the meta-level [diffpriv_metric],
+   imported above. *)
 
 Section diffpriv.
   Context (Sg : Sig).

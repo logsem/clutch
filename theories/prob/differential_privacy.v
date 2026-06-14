@@ -53,6 +53,81 @@ Proof.
   by apply cpl.
 Qed.
 
+(** ** Metric (group-bound) approximate DP *)
+
+(** Group-bound δ factor: at input distance [c] an [(ε,δ)] mechanism's additive
+    term is [δ · grp ε c] (NOT linear [c·δ]).  [grp ε c = Σ_{i<c} e^{iε}] for
+    integer [c]; [grp ε 1 = 1] (so [c=1] recovers the classic additive [δ]); at
+    [δ=0] the whole term vanishes (pure metric DP).  Shared home for the factor
+    also used by [gen_diffpriv.diffpriv_rules.hoare_diffpriv_metric]. *)
+Definition grp (eps c : R) : R := (exp (c * eps) - 1) / (exp eps - 1).
+
+Lemma grp_nonneg eps c : 0 <= eps -> 0 <= c -> 0 <= grp eps c.
+Proof.
+  intros Heps Hc. rewrite /grp.
+  destruct (Rle_lt_or_eq_dec 0 eps Heps) as [Hpos | Heq].
+  - apply Rcomplements.Rdiv_le_0_compat.
+    + assert (Hce : 0 <= c * eps) by (apply Rmult_le_pos; lra).
+      cut (1 <= exp (c * eps)); [lra|].
+      rewrite -exp_0. destruct (Rle_lt_or_eq_dec 0 _ Hce) as [Hlt | <-].
+      * left. by apply exp_increasing.
+      * lra.
+    + cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
+  - rewrite -Heq Rmult_0_r exp_0. rewrite Rminus_diag Rdiv_0_r. lra.
+Qed.
+
+Lemma grp_1 eps : 0 < eps -> grp eps 1 = 1.
+Proof.
+  intros Hpos. rewrite /grp Rmult_1_l.
+  apply Rdiv_diag.
+  cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
+Qed.
+
+Lemma grp_comp eps c c' : 0 < eps -> 0 < c ->
+  grp eps c * grp (c * eps) c' = grp eps (c * c').
+Proof.
+  intros Heps Hc. rewrite /grp.
+  replace (c' * (c * eps)) with ((c * c') * eps) by ring.
+  field. split.
+  - cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
+  - assert (0 < c * eps) by (apply Rmult_lt_0_compat; lra).
+    cut (1 < exp (c * eps)); [lra|]. rewrite -exp_0. apply exp_increasing. lra.
+Qed.
+
+(** Metric ADP: at input distance [c], multiplicative factor [e^{c·ε}] and
+    additive term [δ · grp ε c].  [δ=0] is pure metric DP; [c=1] recovers
+    [diffpriv_approx] ([diffpriv_metric_approx] below).  The [c]-general adjacency
+    drops [diffpriv_pure]'s hardcoded [≤1] — so adequacy corollaries state the
+    distance directly, with no metric-scaling ([dDB/IZR C]) hack.  Meta-level
+    counterpart of [hoare_diffpriv_metric]. *)
+Definition diffpriv_metric {A B : Type} `{Countable B}
+  (d : A → A → R) (f : A → distr B) (ε δ : R) :=
+  ∀ a1 a2 c,
+    d a1 a2 <= c →
+    ∀ (P : B → Prop),
+      prob (f a1) (λ b, bool_decide (P b))
+      <=
+        exp (c * ε) * prob (f a2) (λ b, bool_decide (P b)) + δ * grp ε c.
+
+(** Constructor: a per-distance DP coupling at the metric profile yields
+    [diffpriv_metric] (no chaining — the mechanism supplies the distance-[c]
+    coupling directly). *)
+Fact DPcoupl_diffpriv_metric {A B : Type} `{Countable B}
+  (d : A → A → R) (f : A → distr B) (ε δ : R) :
+  (∀ a1 a2 c, d a1 a2 <= c → DPcoupl (f a1) (f a2) eq (c * ε) (δ * grp ε c))
+  → diffpriv_metric d f ε δ.
+Proof. intros cpl a1 a2 c d12 P. eapply DPcoupl_eq_elim_dp. by apply cpl. Qed.
+
+(** Metric ADP at adjacency ([c=1], where [grp ε 1 = 1]) is exactly classic
+    [diffpriv_approx]. *)
+Fact diffpriv_metric_approx {A B : Type} `{Countable B}
+  (d : A → A → R) (f : A → distr B) (ε δ : R) :
+  0 < ε → diffpriv_metric d f ε δ → diffpriv_approx d f ε δ.
+Proof.
+  intros Hε h a1 a2 d12 P. specialize (h a1 a2 1 d12 P).
+  rewrite Rmult_1_l (grp_1 _ Hε) Rmult_1_r in h. exact h.
+Qed.
+
 Fact Mcoupl_laplace_isometry (ε : posreal) (loc loc' : Z) :
   Mcoupl (laplace ε loc) (laplace ε loc') (λ z z', z - z' = loc - loc')%Z 0.
 Proof.
