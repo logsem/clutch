@@ -331,6 +331,39 @@ Tactic Notation "couple_trunc_laplace_cost" uconstr(A) uconstr(s) "with" constr(
     | reflexivity
     | (match goal with |- R => fail 1 | _ => assumption end) ].
 
+(** [couple_trunc_laplace_apply A s with "[$Hr Hε Hδ]"] — the APPLY-ONLY variant
+    of [couple_trunc_laplace_cost], for INTERLEAVED coupling sites where
+    essential setup happens BETWEEN focusing the [Sample] and applying the
+    coupling rule (e.g. an [ecm_split]/[ecm_eq]/[replace] of a credit).  The
+    bundled [couple_trunc_laplace]/[couple_trunc_laplace_cost] atomically run
+    [wp_pures; tp_pures; wp_bind; tp_bind] BEFORE the [iApply], so they cannot
+    accommodate work done between the bind and the apply — that is what this
+    variant drops.
+
+    PRECONDITION: the caller has ALREADY focused the [Sample] on both sides — via
+    its OWN [wp_bind (Sample _ _ _); tp_bind (Sample _ _ _)] (and any [wp_pures]/
+    [tp_pures] needed to reduce the nested [Pair] param to a [PairV] tree) — and
+    has done any interleaved setup.  This tactic does ONLY the [unshelve (iApply
+    …)] + side-condition discharge: it auto-discharges the regime [HA]/[Hs] by
+    [lia]/[split; lia] and [Hε]/[εpos]/[Hε']/[Hδ'] (pinning [ε']/[δ'] to their
+    rule-natural values by [reflexivity]), routes BOTH credits [Hε]/[Hδ] WITHOUT
+    [$] (so they stay available for the caller's [ecm_*]) and leaves the two
+    residual credit goals [↯m (s·ε)] / [↯ δ'] and the postcondition continuation
+    for the caller.  Like [couple_trunc_laplace_cost], the [|- R => fail] guard
+    stops [assumption] from grabbing a stray [c : R] for the bare value-evar
+    goals. *)
+Tactic Notation "couple_trunc_laplace_apply" uconstr(A) uconstr(s) "with" constr(pat) :=
+  unshelve (iApply (wp_couple_trunc_laplace A _ s _ _ _ _ _ _ _ _ _ with pat));
+  (* discharge [HA]/[Hs]/[Hε]/[εpos]/[Hε']/[Hδ'] (the equational ones pin
+     [ε']/[δ'] by [reflexivity]); both credit goals [↯m ε']/[↯ δ'] are left for
+     the caller's [ecm_*].  The [|- R => fail] guard prevents [assumption] from
+     instantiating a bare value-evar goal of type [R] with an in-context [c]. *)
+  try first
+    [ lia
+    | (split; lia)
+    | reflexivity
+    | (match goal with |- R => fail 1 | _ => assumption end) ].
+
 Section trunc_laplace_canary.
   Context {Sg : Sig} `{!SampleIn trunc_laplace_family Sg} `{!diffprivGS Sg Σ}.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
@@ -381,6 +414,35 @@ Section trunc_laplace_canary.
   Proof.
     iIntros (Φ) "(Hr & Hε & Hδ) HΦ".
     couple_trunc_laplace_cost A s with "[$Hr Hε Hδ]".
+    (* residual combined credit goal [↯m (s·ε) ∗ ↯ δ'] — closed here by re-framing
+       the routed [Hε]/[Hδ] (exact cost); a non-exact site would [iApply ecm_*]. *)
+    2: iApply "HΦ".
+    iFrame "Hε Hδ".
+  Qed.
+
+  (** CANARY for the APPLY-ONLY [couple_trunc_laplace_apply]: identical
+      statement, but the caller does the [wp_bind]/[tp_bind] MANUALLY (mimicking
+      an interleaved site) before calling the apply-only tactic — exercising
+      that [couple_trunc_laplace_apply] does NOT itself re-bind the [Sample] and
+      works once the caller has focused both sides.  BOTH credits are ROUTED
+      (unframed [Hε]/[Hδ], pattern [\"[$Hr Hε Hδ]\"]) into their residual goals;
+      here the costs are exact so the residuals are closed by re-framing. *)
+  Lemma wp_trunc_laplace_shift_canary_apply (A loc s num den : Z)
+    (HA : (0 <= A)%Z)
+    (Hs : (0 <= s <= A)%Z)
+    (Hpos : 0 < IZR num / IZR den) K E :
+    {{{ ⤇ fill K (TruncLaplace #A #num #den #(loc + s) #())
+        ∗ ↯m (IZR s * (IZR num / IZR den))
+        ∗ ↯ (tlap_delta A num den loc s) }}}
+      TruncLaplace #A #num #den #loc #() @ E
+      {{{ (z : Z), RET #z; ⤇ fill K #z }}}.
+  Proof.
+    iIntros (Φ) "(Hr & Hε & Hδ) HΦ".
+    (* MANUAL bind on both sides — the interleaved-site idiom the apply-only
+       tactic supports (and where setup could be interposed here) *)
+    wp_pures. tp_pures.
+    wp_bind (Sample _ _ _). tp_bind (Sample _ _ _).
+    couple_trunc_laplace_apply A s with "[$Hr Hε Hδ]".
     (* residual combined credit goal [↯m (s·ε) ∗ ↯ δ'] — closed here by re-framing
        the routed [Hε]/[Hδ] (exact cost); a non-exact site would [iApply ecm_*]. *)
     2: iApply "HΦ".
