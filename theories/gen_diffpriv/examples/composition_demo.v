@@ -41,7 +41,8 @@
         adjacency credit [c·(2·num/den)] into two [c·(num/den)] halves
         ([ecm_split]) — one per release — exactly the regime auto_avg's pre-split
         credits could not exercise.  [dlist Z] would supply the named law's
-        [dA_nat] hypothesis ([dlist_Z_nat], proved below).
+        [dA_nat] hypothesis (its distance is [IZR (list_dist xs ys)] with
+        [list_dist] a nonneg [Z], hence equals some [INR n]).
 
       - POST-PROCESSING — the trailing deterministic pairing [λ c2, (c1,c2)]: once
         [c1=c1'] and [c2=c2'] are coupled, the pair is returned identically on both
@@ -140,17 +141,6 @@ Section composition_demo.
   Definition decides_pred (P : Z → bool) (vP : val) : iProp Σ :=
     (∀ x : Z, {{{ True }}} vP (inject x) {{{ w, RET w; ⌜w = inject (P x)⌝ }}}) ∗
     (∀ x : Z, G{{{ True }}} vP (inject x) @ gwp_spec (Sg:=Sg) ; ⊤ {{{ w, RET w; ⌜w = inject (P x)⌝ }}}).
-
-  (** [dlist Z] supplies the [dA_nat] hypothesis the adaptive dp-seq law needs:
-      its distance is [IZR (list_dist xs ys)] with [list_dist] a NONNEG [Z], so it
-      equals some [INR n].  ([Z.to_nat] of a nonneg integer, then [INR = IZR∘Z.of_nat]
-      with [Z.of_nat∘Z.to_nat = id] on nonnegatives.) *)
-  Lemma dlist_Z_nat (xs ys : list Z) : ∃ n : nat, dlist Z xs ys = INR n.
-  Proof.
-    exists (Z.to_nat (list_dist xs ys)).
-    rewrite /dlist/distance INR_IZR_INZ Z2Nat.id //.
-    apply list_dist_nonneg.
-  Qed.
 
   (** SENS∘DP, packaged.  A single noisy count [noisy_count vP num den] is
       [(num/den)]-DP releasing a [Z].  This is the standalone sens∘dp composition

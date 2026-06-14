@@ -818,12 +818,12 @@ Section adaptive.
   Definition lvpredicates : list val :=
     [(λ:"x", "x" < #30) ; (λ:"x", #30 <= "x") ; (λ:"x", "x" `rem` #2 = #0)]%V.
 
-  Lemma foo : is_list_HO lvpredicates vpredicates.
+  Lemma lvpredicates_is_list_HO : is_list_HO lvpredicates vpredicates.
   Proof.
     repeat (eexists ; split ; eauto).
   Qed.
 
-  Lemma bar :
+  Lemma predicates_lvpredicates_is_predicate :
     ⊢ ([∗ list] pred;vpred ∈ predicates;lvpredicates, is_predicate pred vpred ∗ is_spec_predicate pred vpred).
   Proof.
     repeat iSplit. 7: done.
@@ -862,7 +862,7 @@ Section adaptive.
   Proof with (tp_pures ; wp_pures).
     iIntros "%hlen * % % ε rhs".
     iApply (wp_iter_adaptive_acc_simple with "[] [] ε rhs") ; last first.
-    1: iApply bar. 1: iPureIntro ; apply foo. all: eauto.
+    1: iApply predicates_lvpredicates_is_predicate. 1: iPureIntro ; apply lvpredicates_is_list_HO. all: eauto.
   Qed.
 
   (* This is the spec one would want for iter_adaptive_acc.  After the [iter_adaptive_acc]
@@ -1129,7 +1129,7 @@ Section adaptive.
   Proof with (tp_pures ; wp_pures).
     iIntros "%hlen * % % ε rhs".
     iApply (wp_iter_adaptive_acc' with "[] [] ε rhs") ; last first.
-    1: iApply bar. 1: iPureIntro ; apply foo. all: eauto.
+    1: iApply predicates_lvpredicates_is_predicate. 1: iPureIntro ; apply lvpredicates_is_list_HO. all: eauto.
   Qed.
 
 End adaptive.
