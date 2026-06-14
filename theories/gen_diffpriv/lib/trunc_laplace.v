@@ -71,9 +71,11 @@ Section trunc_laplace_lib.
   Definition tlap_del (A num den : Z) : R :=
     exp (- (IZR num / IZR den) * IZR A) / tlap_Z A num den 0.
 
-  (** [tlap_delta] factors as [tlap_del · grp ε s] — the group-bound shape. *)
+  (** [tlap_delta] factors as [tlap_del · grp ε |s|] — the group-bound shape.
+      Now over the two-sided shift: [tlap_delta] depends only on [|s|]. *)
   Lemma tlap_delta_grp (A num den loc s : Z) :
-    tlap_delta A num den loc s = tlap_del A num den * grp (IZR num / IZR den) (IZR s).
+    tlap_delta A num den loc s
+      = tlap_del A num den * grp (IZR num / IZR den) (IZR (Z.abs s)).
   Proof.
     rewrite /tlap_delta /tlap_del /grp.
     rewrite (tlap_Z_shift_inv A num den loc 0).
@@ -91,36 +93,36 @@ Section trunc_laplace_lib.
   Qed.
 
   (** The core truncated-Laplace draw coupling, on the family's outcome type [Z]:
-      for a forward shift [s] with [0 ≤ s ≤ A], sampling at [loc] (impl) couples
+      for a TWO-SIDED shift [s] with [|s| ≤ A], sampling at [loc] (impl) couples
       to sampling at [loc+s] (spec) along the DIAGONAL ([z = z']) at cost
-      [(IZR s · ε)] multiplicative AND [tlap_delta A num den loc s] additive.
-      Family-level fact, discharged by the reusable [DPcoupl_trunc_lap] after the
-      [Z.max 0 A = A] clamp rewrite ([sf_sample_trunc], needs [0 <= A]). *)
+      [(|s| · ε)] multiplicative AND [tlap_delta A num den loc s] additive.
+      Family-level fact, discharged by the reusable two-sided [DPcoupl_trunc_lap]
+      after the [Z.max 0 A = A] clamp rewrite ([sf_sample_trunc], needs [0 <= A]). *)
   Lemma DPcoupl_trunc_lap_draw (A num den loc s : Z)
     (HA : (0 <= A)%Z)
-    (Hs : (0 <= s <= A)%Z)
+    (Hs : (Z.abs s <= A)%Z)
     (Hpos : (0 < IZR num / IZR den)%R) :
     DPcoupl (sf_sample trunc_laplace_family (A, num, den, loc))
             (sf_sample trunc_laplace_family (A, num, den, (loc + s)%Z))
-            eq (IZR s * (IZR num / IZR den)) (tlap_delta A num den loc s).
+            eq (IZR (Z.abs s) * (IZR num / IZR den)) (tlap_delta A num den loc s).
   Proof.
     rewrite !sf_sample_trunc //. by apply (DPcoupl_trunc_lap A num den HA Hpos loc s Hs).
   Qed.
 
   (** The truncated-Laplace mechanism at the WP level: sampling at location [loc]
-      (impl) vs [loc+s] (spec), [0 ≤ s ≤ A], couples to EQUAL outputs at
-      multiplicative cost [IZR s·ε] and additive cost [tlap_delta A num den loc s].
+      (impl) vs [loc+s] (spec), TWO-SIDED [|s| ≤ A], couples to EQUAL outputs at
+      multiplicative cost [|s|·ε] and additive cost [tlap_delta A num den loc s].
       Obtained by instantiating the δ-carrying prog-couple seam
       [wp_couple_sample_gen_dp] with the single draw coupling
       [DPcoupl_trunc_lap_draw] — at the recovered index [sample_idx].  [A] is a
       RUNTIME [Z] argument with [0 <= A] a hypothesis. *)
   Lemma wp_couple_trunc_laplace (A loc s : Z)
     (HA : (0 <= A)%Z)
-    (Hs : (0 <= s <= A)%Z)
+    (Hs : (Z.abs s <= A)%Z)
     (num den : Z) (ε ε' δ' : R) K E :
     IZR num / IZR den = ε →
     0 < IZR num / IZR den →
-    ε' = (IZR s * ε) →
+    ε' = (IZR (Z.abs s) * ε) →
     δ' = tlap_delta A num den loc s →
     {{{ ⤇ fill K (Sample tlidx
                     (Val (PairV (LitV (LitInt A))
@@ -195,31 +197,34 @@ Section trunc_laplace_lib.
       [del := tlap_del A num den].  [A] is a RUNTIME [Z] argument with [0 <= A] a
       hypothesis.
 
-      REGIME / HYPOTHESES.  Stated for the FORWARD (nonnegative-shift) direction
-      matching [DPcoupl_trunc_lap]'s exact-δ scope [0 ≤ s ≤ A] (where
-      [s = x'-x]).  We expose this as the body of the metric-DP triple together
-      with the regime side-conditions [0 <= A], [x ≤ x'] (nonneg shift [s ≥ 0])
-      and [c ≤ IZR A] (so [s ≤ dZ x x' ≤ c ≤ A], hence [0 ≤ s ≤ A] and the
-      coupling applies).  We do NOT package it as a bare [hoare_diffpriv_metric
-      S …] instance precisely because that definition quantifies over ALL [x, x']
-      (both shift directions) with no place for a regime hypothesis, whereas
-      [prob/trunc_laplace.v] formalises only the forward direction (its
-      documented one-direction scope; the backward case [x' < x] is symmetric
-      but not proved there).  Modulo these side-conditions the conclusion is
-      verbatim the [hoare_diffpriv_metric] triple.
+      TWO-SIDED.  Thanks to the now two-sided coupling [DPcoupl_trunc_lap]
+      ([|s| ≤ A]), this holds for shifts of EITHER sign — the [Hfwd : x ≤ x']
+      hypothesis is GONE.  The lone surviving regime side-condition is the
+      genuine truncation constraint [c ≤ IZR A] (so [|s| ≤ dZ x x' ≤ c ≤ A] and
+      the coupling applies); the truncated Laplacian's privacy is honestly only a
+      group bound up to its half-width [A], so [c ≤ A] cannot be dropped (for
+      [c > A] the two supports can be disjoint and the demanded
+      [tlap_del · grp ε c < 1] does not cover them).  Modulo [c ≤ IZR A] the
+      conclusion is verbatim the [hoare_diffpriv_metric] triple for ALL [x, x'].
+      [hoare_trunc_laplace_diffpriv] below packages this into a bare
+      [hoare_diffpriv_metric] instance on the TRUNCATED metric [dZ_trunc A], which
+      is [dZ] in range ([|x-x'| ≤ A]) and jumps to a saturation threshold
+      [tlap_Cstar] beyond it — past which the demanded additive credit already
+      exceeds [1], so the disjoint-support case is closed by the trivial coupling
+      [DPcoupl_1].
 
       PROOF.  The SAME single-coupling structure as [lib.laplace]'s
       [hoare_laplace_diffpriv]: [tp_pures]/[wp_pures] then [tp_bind]/[wp_bind]
       the [Sample], apply the value-form [wp_couple_trunc_laplace] at the actual
       shift [s = x'-x] (so impl loc [x], spec loc [x + s = x']), and weaken its
-      [(s·ε, tlap_del·grp ε s)] profile DOWN from the demanded
+      [(|s|·ε, tlap_del·grp ε |s|)] profile DOWN from the demanded
       [(c·ε, tlap_del·grp ε c)] credits — multiplicative via [ecm_weaken]
-      ([s ≤ c]); additive via [ec_weaken] and [grp_mono] ([grp ε s ≤ grp ε c]). *)
-  Fact hoare_trunc_laplace_diffpriv (A num den : Z) (K : ectx (gen_ectx_lang S))
+      ([|s| ≤ c]); additive via [ec_weaken] and [grp_mono]
+      ([grp ε |s| ≤ grp ε c]). *)
+  Lemma trunc_laplace_diffpriv_body (A num den : Z) (K : ectx (gen_ectx_lang S))
     (c : R) (x x' : Z)
     (HA : (0 <= A)%Z)               (* runtime truncation half-width [A ≥ 0] *)
     (Hpos : 0 < IZR num / IZR den)
-    (Hfwd : (x <= x')%Z)            (* forward / nonnegative shift s = x'-x ≥ 0 *)
     (HcA  : c <= IZR A)             (* distance below the truncation half-width *)
     (adj  : dZ x x' <= c) :
     {{{ ⤇ fill K ((λ: "loc", TruncLaplace #A #num #den "loc" #())%V (inject x'))
@@ -231,24 +236,23 @@ Section trunc_laplace_lib.
     rewrite /dZ /=.
     iIntros (φ) "(f' & ε & δ) hφ".
     tp_pures. wp_pures.
-    (* the actual shift [s = x'-x ≥ 0], and [0 ≤ s ≤ A] since [s ≤ dZ x x' ≤ c ≤ A] *)
+    (* the actual shift [s = x'-x] (EITHER sign), and [|s| ≤ A] since
+       [|s| ≤ dZ x x' ≤ c ≤ A] *)
     set (s := (x' - x)%Z).
-    assert (Hs0 : (0 <= s)%Z) by (rewrite /s; lia).
-    assert (Habs : dZ x x' = IZR s).
-    { rewrite /dZ /= /s minus_IZR Rabs_minus_sym -minus_IZR Rabs_right; [done|].
-      apply Rle_ge, IZR_le; lia. }
-    assert (Hsc : IZR s <= c) by (rewrite -Habs; exact adj).
-    assert (HsA : (s <= A)%Z) by (apply le_IZR; etrans; [exact Hsc | exact HcA]).
+    assert (Habs : dZ x x' = IZR (Z.abs s))
+      by (rewrite /dZ /= /s -abs_IZR; f_equal; lia).
+    assert (Hsc : IZR (Z.abs s) <= c) by (rewrite -Habs; exact adj).
+    assert (HsA : (Z.abs s <= A)%Z) by (apply le_IZR; etrans; [exact Hsc | exact HcA]).
     (* align the spec location [x'] with the coupling's [x + s] form *)
     replace x' with (x + s)%Z by (rewrite /s; lia).
     tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
     (* value-form rule at loc [x], shift [s] (so spec loc [x + s = x']) *)
-    iApply (wp_couple_trunc_laplace A x s HA ltac:(lia) num den
-              (IZR num / IZR den) (IZR s * (IZR num / IZR den))
+    iApply (wp_couple_trunc_laplace A x s HA HsA num den
+              (IZR num / IZR den) (IZR (Z.abs s) * (IZR num / IZR den))
               (tlap_delta A num den x s) K ⊤
               eq_refl Hpos eq_refl eq_refl with "[$f' ε δ]").
     (* weaken the demanded [(c·ε, tlap_del·grp ε c)] DOWN to the consumed
-       [(s·ε, tlap_delta x s) = (s·ε, tlap_del·grp ε s)] *)
+       [(|s|·ε, tlap_delta x s) = (|s|·ε, tlap_del·grp ε |s|)] *)
     - rewrite tlap_delta_grp.
       iSplitL "ε".
       + iApply ecm_weaken; [|iFrame]. split.
@@ -257,11 +261,13 @@ Section trunc_laplace_lib.
       + iApply ec_weaken; [|iFrame]. split.
         * apply Rmult_le_pos.
           -- rewrite /tlap_del. apply Rcomplements.Rdiv_le_0_compat;
-               [left; apply exp_pos | apply (tlap_Z_pos A num den 0 HA)].
+               [left; apply exp_pos
+               | apply (clutch.prob.trunc_laplace.tlap_Z_pos A num den 0 HA)].
           -- apply grp_nonneg; [lra | apply IZR_le; lia].
         * apply Rmult_le_compat_l.
           -- rewrite /tlap_del. apply Rcomplements.Rdiv_le_0_compat;
-               [left; apply exp_pos | apply (tlap_Z_pos A num den 0 HA)].
+               [left; apply exp_pos
+               | apply (clutch.prob.trunc_laplace.tlap_Z_pos A num den 0 HA)].
           -- apply grp_mono; [lra | apply IZR_le; lia | exact Hsc].
     - iIntros "!> %z f'". iApply ("hφ" $! z). iFrame.
   Qed.
@@ -379,10 +385,10 @@ Section trunc_laplace_canary.
       passed as hypotheses and closed by the tactic via [assumption]/[lia]. *)
   Lemma wp_trunc_laplace_shift_canary (A loc s num den : Z)
     (HA : (0 <= A)%Z)
-    (Hs : (0 <= s <= A)%Z)
+    (Hs : (Z.abs s <= A)%Z)
     (Hpos : 0 < IZR num / IZR den) K E :
     {{{ ⤇ fill K (TruncLaplace #A #num #den #(loc + s) #())
-        ∗ ↯m (IZR s * (IZR num / IZR den))
+        ∗ ↯m (IZR (Z.abs s) * (IZR num / IZR den))
         ∗ ↯ (tlap_delta A num den loc s) }}}
       TruncLaplace #A #num #den #loc #() @ E
       {{{ (z : Z), RET #z; ⤇ fill K #z }}}.
@@ -404,10 +410,10 @@ Section trunc_laplace_canary.
       side-conditions, and leaves the two credit goals clean. *)
   Lemma wp_trunc_laplace_shift_canary_cost (A loc s num den : Z)
     (HA : (0 <= A)%Z)
-    (Hs : (0 <= s <= A)%Z)
+    (Hs : (Z.abs s <= A)%Z)
     (Hpos : 0 < IZR num / IZR den) K E :
     {{{ ⤇ fill K (TruncLaplace #A #num #den #(loc + s) #())
-        ∗ ↯m (IZR s * (IZR num / IZR den))
+        ∗ ↯m (IZR (Z.abs s) * (IZR num / IZR den))
         ∗ ↯ (tlap_delta A num den loc s) }}}
       TruncLaplace #A #num #den #loc #() @ E
       {{{ (z : Z), RET #z; ⤇ fill K #z }}}.
@@ -429,10 +435,10 @@ Section trunc_laplace_canary.
       here the costs are exact so the residuals are closed by re-framing. *)
   Lemma wp_trunc_laplace_shift_canary_apply (A loc s num den : Z)
     (HA : (0 <= A)%Z)
-    (Hs : (0 <= s <= A)%Z)
+    (Hs : (Z.abs s <= A)%Z)
     (Hpos : 0 < IZR num / IZR den) K E :
     {{{ ⤇ fill K (TruncLaplace #A #num #den #(loc + s) #())
-        ∗ ↯m (IZR s * (IZR num / IZR den))
+        ∗ ↯m (IZR (Z.abs s) * (IZR num / IZR den))
         ∗ ↯ (tlap_delta A num den loc s) }}}
       TruncLaplace #A #num #den #loc #() @ E
       {{{ (z : Z), RET #z; ⤇ fill K #z }}}.
