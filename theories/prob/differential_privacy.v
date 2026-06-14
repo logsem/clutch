@@ -194,6 +194,37 @@ Proof.
     + rewrite Heq. lra.
 Qed.
 
+(** Append recurrence: [grp ε (c+1) = grp ε c + e^{cε}] (the "add a step at the
+    end" form, dual to [grp_rec]). For integer [c=n] this unfolds [grp ε n] into
+    the geometric sum [Σ_{j<n} e^{jε}]. *)
+Lemma grp_succ eps c : 0 < eps -> grp eps (c + 1) = grp eps c + exp (c * eps).
+Proof.
+  intros Heps.
+  assert (He : exp eps - 1 <> 0).
+  { cut (1 < exp eps); [lra|]. rewrite -exp_0. apply exp_increasing. lra. }
+  rewrite /grp. replace ((c + 1) * eps) with (c * eps + eps) by ring.
+  rewrite exp_plus. field. exact He.
+Qed.
+
+(** [grp ε n] is monotone in the BUDGET [ε] at integer distance [n] — because it
+    is the geometric sum [Σ_{j<n} e^{jε}], each term non-decreasing in [ε]. This is
+    exactly what makes SEQUENTIAL/k-fold composition sound for the metric def: at an
+    integer distance, summing budgets [ε ↦ ε+ε'] only grows [grp], so the chained
+    additive credit [δ·grp ε n + δ'·grp ε' n ≤ (δ+δ')·grp (ε+ε') n] telescopes.
+    (The [c<1] non-monotonicity of [grp ε c] in [ε] is irrelevant: integer-valued
+    metrics never realise a fractional distance.) *)
+Lemma grp_mono_eps n eps eps' : 0 < eps -> eps <= eps' -> grp eps (INR n) <= grp eps' (INR n).
+Proof.
+  intros Heps Hle. assert (Heps' : 0 < eps') by lra.
+  assert (Hg0 : forall e, grp e 0 = 0).
+  { intros e. rewrite /grp Rmult_0_l exp_0. replace (1 - 1) with 0 by lra. apply Rdiv_0_l. }
+  induction n as [|n IH].
+  - rewrite INR_0 !Hg0. lra.
+  - rewrite S_INR (grp_succ eps (INR n) Heps) (grp_succ eps' (INR n) Heps').
+    apply Rplus_le_compat; [exact IH |].
+    apply exp_mono. apply Rmult_le_compat_l; [apply pos_INR | lra].
+Qed.
+
 (** Unit-step interpolation path of length [n] from [a] to [b] over an adjacency
     relation [Adj]: a chain of [n] adjacent steps. The metric enters only through
     the path-metric hypothesis below, which says how [d]-distance is realized by
