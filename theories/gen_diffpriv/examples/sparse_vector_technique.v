@@ -398,7 +398,13 @@ Section svt.
                "SVT" (if: "b" then "i" + #1 else "i") (list_cons "b" "bs")
              end)%V.
 
-  Lemma SVT_stream_diffpriv (Δ : Z) (HΔ : (1 <= Δ)%Z) (C : Z) (HC : (1 <= C)%Z) (num den T : Z) (N : nat) (Npos : (0 < N)%nat) (stream_qs : val) `(dDB : Distance DB) :
+  (* Bare-WP refinement HELPER: the involved [iLöb] induction proving SVT's
+     privacy.  This is the load-bearing proof; the public [SVT_stream_diffpriv]
+     below is a thin [hoare_diffpriv_classic_at] wrapper around it (codomain
+     [B := val], where [inject (v:val) = v] is the identity instance, so the
+     notion's postcondition [⤇ fill K (inject y)] matches [⤇ fill K (Val v)]
+     verbatim with [y := v]). *)
+  Lemma SVT_stream_refines (Δ : Z) (HΔ : (1 <= Δ)%Z) (C : Z) (HC : (1 <= C)%Z) (num den T : Z) (N : nat) (Npos : (0 < N)%nat) (stream_qs : val) `(dDB : Distance DB) :
     let ε := IZR num / IZR den in
     ∀ (εpos : 0 < ε),
       □ (∀ K (bs : val),
@@ -442,6 +448,35 @@ Section svt.
     - iApply ("IH" with "[] [] rhs [iSVT]"). 3,4: done. 1,2: iPureIntro. 2: lia. lia.
   Qed.
 
+  (* PUBLIC headline: SVT over a query STREAM is [(N·C·Δ·ε, 0)]-DP at adjacency
+     RADIUS [IZR C], packaged as [hoare_diffpriv_classic_at] (codomain
+     [B := val] — the released answer-list is an unconsumed value). *)
+  Lemma SVT_stream_diffpriv (Δ : Z) (HΔ : (1 <= Δ)%Z) (C : Z) (HC : (1 <= C)%Z) (num den T : Z) (N : nat) (Npos : (0 < N)%nat) (stream_qs : val) `(dDB : Distance DB) :
+    let ε := IZR num / IZR den in
+    ∀ (εpos : 0 < ε),
+      □ (∀ K (bs : val),
+            ⤇ fill K (stream_qs bs) -∗
+            WP stream_qs bs
+              {{ qopt, ⤇ fill K (Val qopt) ∗
+                       (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ wp_sensitive Sg q (IZR Δ) dDB dZ) }}) -∗
+      hoare_diffpriv_classic_at Sg (SVT_stream #num #den #T #N stream_qs)
+        (N * (IZR C * (IZR Δ * ε))) 0 (IZR C) dDB val.
+  Proof.
+    iIntros (ε εpos) "#sens".
+    rewrite /hoare_diffpriv_classic_at.
+    iIntros (K db db') "%adj %Φ !# (rhs & Nε & _δ0) HΦ".
+    iPoseProof (SVT_stream_refines Δ HΔ C HC num den T N Npos stream_qs dDB εpos
+                  with "sens") as "refines".
+    iApply (wp_strong_mono'' with "[Nε rhs HΦ]").
+    (* Frame the [▷]-guarded Texan postcondition into the helper's WP (the
+       [SVT_stream] application is not a value, so the WP step strips the
+       later via [wp_frame_step_l']), then discharge it at the result value. *)
+    { iApply (wp_frame_step_l' _ _ _ (∀ y : val, ⤇ fill K (inject y) -∗ Φ (inject y)) _).
+      iSplitL "HΦ"; [iExact "HΦ"|].
+      iApply ("refines" $! db db' adj K with "Nε rhs"). }
+    iIntros (v) "[HΦ rhs]". iApply ("HΦ" $! v with "rhs").
+  Qed.
+
   Fact list_stream_sens (Δ : Z)
     (qs : list val) (QS : val) (is_qs : is_list qs QS) `(dDB : Distance DB)
     (sens : Forall (λ q : val, ⊢ wp_sensitive Sg q (IZR Δ) dDB dZ) qs) :
@@ -467,7 +502,9 @@ Section svt.
       iApply sens_q'.
   Qed.
 
-  Corollary SVT_list_diffpriv (Δ : Z) (HΔ : (1 <= Δ)%Z) (C : Z) (HC : (1 <= C)%Z) (num den T : Z) (N : nat) (Npos : (0 < N)%nat) `(dDB : Distance DB)
+  (* Bare-WP refinement HELPER for the LIST instantiation (built from
+     [list_stream_sens] + [SVT_stream_refines]). *)
+  Corollary SVT_list_refines (Δ : Z) (HΔ : (1 <= Δ)%Z) (C : Z) (HC : (1 <= C)%Z) (num den T : Z) (N : nat) (Npos : (0 < N)%nat) `(dDB : Distance DB)
     (qs : list val) (QS : val) (is_qs : is_list qs QS)
     (sens : Forall (λ q : val, ⊢ wp_sensitive Sg q (IZR Δ) dDB dZ) qs)
     :
@@ -482,8 +519,32 @@ Section svt.
   Proof with (tp_pures ; wp_pures).
     intros. iIntros "ε rhs".
     iPoseProof (list_stream_sens Δ _ _ is_qs) as "qs" => //.
-    iPoseProof (SVT_stream_diffpriv Δ HΔ C HC num den T N Npos with "qs") as "h" => //.
+    iPoseProof (SVT_stream_refines Δ HΔ C HC num den T N Npos with "qs") as "h" => //.
     iSpecialize ("h" with " [] ε rhs") => //.
+  Qed.
+
+  (* PUBLIC headline: SVT over a query LIST is [(N·C·Δ·ε, 0)]-DP at adjacency
+     RADIUS [IZR C], packaged as [hoare_diffpriv_classic_at] (codomain
+     [B := val]). *)
+  Corollary SVT_list_diffpriv (Δ : Z) (HΔ : (1 <= Δ)%Z) (C : Z) (HC : (1 <= C)%Z) (num den T : Z) (N : nat) (Npos : (0 < N)%nat) `(dDB : Distance DB)
+    (qs : list val) (QS : val) (is_qs : is_list qs QS)
+    (sens : Forall (λ q : val, ⊢ wp_sensitive Sg q (IZR Δ) dDB dZ) qs)
+    :
+    let ε := IZR num / IZR den in
+    let list_stream_qs := (λ:"_bs", stream_list QS "_bs")%V in
+    ∀ (εpos : 0 < ε),
+      ⊢ hoare_diffpriv_classic_at Sg (SVT_stream #num #den #T #N list_stream_qs)
+        (N * (IZR C * (IZR Δ * ε))) 0 (IZR C) dDB val.
+  Proof.
+    intros ε list_stream_qs εpos.
+    rewrite /hoare_diffpriv_classic_at.
+    iIntros (K db db') "%adj %Φ !# (rhs & Nε & _δ0) HΦ".
+    iApply (wp_strong_mono'' with "[Nε rhs HΦ]").
+    { iApply (wp_frame_step_l' _ _ _ (∀ y : val, ⤇ fill K (inject y) -∗ Φ (inject y)) _).
+      iSplitL "HΦ"; [iExact "HΦ"|].
+      iApply (SVT_list_refines Δ HΔ C HC num den T N Npos dDB qs QS is_qs sens εpos
+                db db' adj K with "Nε rhs"). }
+    iIntros (v) "[HΦ rhs]". iApply ("HΦ" $! v with "rhs").
   Qed.
 
 End svt.
