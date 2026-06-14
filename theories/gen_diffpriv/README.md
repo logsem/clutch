@@ -121,6 +121,11 @@ over plain `dZ` and a `classic` instance with the tight `δ`. Clean closed forms
   truncated-Laplace **measurement**, over a 2-family signature. Stated as
   `hoare_diffpriv_classic_at … (fin (Nat.max 1 N) * Z)`; a single `hoare_sensitive` hypothesis
   drives both stages (the selected index, exposed as `fin`, is fed into it for the measurement).
+- **`sparse_vector_technique.v`** — the live above-threshold / sparse-vector mechanism: a stateful
+  budget odometer (`SVT_online_diffpriv` returns a query-answering closure + a budget invariant),
+  with the batch headlines `SVT_stream_diffpriv` / `SVT_list_diffpriv` stated as
+  `hoare_diffpriv_classic_at` at radius `C`. (The live SVT — distinct from the speculative,
+  `Abort`ed `SVT_experiments.v` below.)
 - `report_noisy_max{,_exp}.v`, `expmech` client, `randomized_response.v`, `adaptive_count.v`,
   `sum_queries.v`, `list.v` / `map.v`, and `exact_cache.v` — a live `δ > 0` study whose bound was
   **sharpened** from the (deleted) unsound linear form to the correct group bound during the #25
