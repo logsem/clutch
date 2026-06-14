@@ -726,15 +726,12 @@ Section queries.
       1: iPureIntro ; by rewrite is_list_inject.
       1: simpl ; iIntros ; simplify_eq ; done.
       simplify_eq. tp_normalise. tp_pures. wp_pures.
-      tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
       assert ((Z.abs (length ds1 - length ds2)) <= C).
       { etrans; [apply list_length_bound|]. exact Hadj. }
-      iApply (wp_couple_laplace (S:=Sg) _ _ 0%Z C with "[$rhs ε3]").
-      1: apply Zabs_ind ; lia.
-      1: reflexivity.
-      1: done.
-      1: reflexivity.
-      1: iFrame "ε3".
+      (* USABILITY-LAYER drop-in: replaces the manual bind + 5-arg iApply + the
+         five side-condition bullets above with one tactic call (the cost ε3
+         matches exactly, so it frames directly). *)
+      couple_laplace 0%Z C with "[$rhs $ε3]".
       iIntros "!> %z2 rhs". simpl ; tp_pures ; wp_pures.
       rewrite Z.add_0_r /=. done.
 
