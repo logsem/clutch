@@ -106,7 +106,7 @@ Section trunc_laplace_lib.
             (sf_sample trunc_laplace_family (A, num, den, (loc + s)%Z))
             eq (IZR (Z.abs s) * (IZR num / IZR den)) (tlap_delta A num den loc s).
   Proof.
-    rewrite !sf_sample_trunc //. by apply (DPcoupl_trunc_lap A num den HA Hpos loc s Hs).
+    rewrite !sf_sample_trunc //. by apply (DPcoupl_trunc_lap A num den HA Hpos loc s).
   Qed.
 
   (** The TRIVIAL draw coupling, for the out-of-range / saturated regime: when the

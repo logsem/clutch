@@ -10,20 +10,31 @@
     where [Z_A := Σ_{k=-A}^{A} exp(-ε·|k|) = 1 + 2·Σ_{j=1}^{A} exp(-εj)] is the
     (location-independent) normaliser.
 
-    The crux of this file is the per-distance approximate-DP coupling: for a
-    shift [s := loc' - loc] with [0 ≤ s ≤ A], we prove
+    The crux of this file is the per-distance approximate-DP coupling.  For ANY
+    shift [s := loc' - loc] (UNCONDITIONALLY — no [|s| ≤ A]) we prove the TIGHT
+    coupling [DPcoupl_trunc_lap_tight]
 
         DPcoupl (trunc_lap_rat A num den loc) (trunc_lap_rat A num den loc')
-                eq  (s·ε)  δ_A_s,
+                eq  (|s|·ε)  (tlap_tail A num den |s|),
 
-    with the EXACT group-bound boundary mass
+    where the additive error is the OPTIMAL value: the mass [Pr[Z > A-|s|]] of
+    the "bad set" — the slice of [supp(loc)] that the shifted distribution cannot
+    cover.  Writing [α := exp(-ε)], the closed forms are
+      • [Δ ≤ A] (workhorse): [tlap_tail Δ = α^{A-Δ+1}(1-α^Δ) / (1+α-2α^{A+1})];
+      • [Δ = 1] (dominant):   [= (1-α)·α^A / (1+α-2α^{A+1})];
+      • [Δ = A]:              [= α(1-α^A) / (1+α-2α^{A+1})];
+      • [Δ ≥ 2A+1] (disjoint): [= 1].
+    The normaliser obeys [Z_A·(1-α) = 1+α-2α^{A+1}] ([tlap_Z_closed]).
 
-        δ_A_s := (exp(-ε·A) / Z_A) · (exp(s·ε) - 1) / (exp ε - 1).
+    For [|s| ≤ A] the optimal [δ] coincides with the GROUP BOUND
+        δ_A_s := (exp(-ε·A) / Z_A) · (exp(|s|·ε) - 1) / (exp ε - 1) = tlap_delta;
+    for [|s| > A] it is STRICTLY smaller (the tail mass saturates toward [1]
+    while [tlap_delta] keeps growing), so [tlap_tail ≤ tlap_delta] always
+    ([tlap_tail_le_grp]).  The looser group-bound coupling [DPcoupl_trunc_lap]
+    (now also UNCONDITIONAL) is recovered as a corollary of the tight one by
+    weakening [δ] from [tlap_tail] up to [tlap_delta] via [DPcoupl_mono].
 
-    This is the validating example for "metric approximate DP": the privacy
-    profile is exactly the group-bound, with the [δ] coming solely from the
-    bottom boundary slice [{loc-A, …, loc-A+s-1}] that the shifted distribution
-    [trunc_lap(loc')] cannot cover.
+    This is the validating example for "metric approximate DP".
 
     This file is self-contained in [prob/]; the SampleFamily / WP / tape
     integration is a separate follow-up.  Mirrors the style of [expmech.v]. *)
@@ -152,6 +163,43 @@ Section trunc_laplace_distr.
       + done.
   Qed.
 
+  (** ** The bad-set tail mass — the OPTIMAL additive error.
+
+      [tlap_tail A num den Δ := Pr[Z > A - Δ]] for [Z ∼ trunc_lap_rat A num den 0]
+      (the centered distribution).  This is the mass of the TOP slice
+      [{z : A-Δ < z ≤ A}] of the support, i.e. exactly the "uncovered slice" that
+      a shift of distance [Δ] cannot cover.  For [Δ ≤ A] this coincides with the
+      group-bound [tlap_delta]; for [Δ > A] it is STRICTLY smaller (the tail mass
+      saturates toward [1] while the group-bound keeps growing), so it is the
+      tight optimal [δ]. *)
+  Definition tlap_tail (A num den Δ : Z) : R :=
+    SeriesC (λ z, if bool_decide (z ∈ tlap_supp A 0 ∧ (A - Δ < z)%Z)
+                  then trunc_lap_rat A num den 0 z else 0%R).
+
+  Lemma tlap_tail_nonneg (A num den Δ : Z) : 0 <= tlap_tail A num den Δ.
+  Proof.
+    rewrite /tlap_tail. apply SeriesC_ge_0'. intros z. case_bool_decide;
+      [apply pmf_pos | lra].
+  Qed.
+
+  Lemma ex_seriesC_tlap_tail_ind (A num den Δ : Z) :
+    ex_seriesC (λ z, if bool_decide (z ∈ tlap_supp A 0 ∧ (A - Δ < z)%Z)
+                     then trunc_lap_rat A num den 0 z else 0%R).
+  Proof.
+    eapply ex_seriesC_le; last apply (pmf_ex_seriesC (trunc_lap_rat A num den 0)).
+    intros z. case_bool_decide; split; try apply pmf_pos; try lra; apply Rle_refl.
+  Qed.
+
+  (** The tail mass is at most [1] (it is a sub-mass of a probability
+      distribution of total mass [1]). *)
+  Lemma tlap_tail_le_1 (A num den Δ : Z) : (0 <= A)%Z → tlap_tail A num den Δ <= 1.
+  Proof.
+    intros HA. rewrite /tlap_tail.
+    etrans; last (right; apply (trunc_lap_rat_mass A num den 0 HA)).
+    apply SeriesC_le; last apply (pmf_ex_seriesC (trunc_lap_rat A num den 0)).
+    intros z. case_bool_decide; split; try apply pmf_pos; try lra; apply Rle_refl.
+  Qed.
+
 End trunc_laplace_distr.
 
 (** * The per-distance metric-DP coupling *)
@@ -211,14 +259,14 @@ Section trunc_laplace_dp.
   (** ** Pmf-level decomposition (the key pointwise bound).
 
       [μ(loc) z ≤ exp(|s|·ε)·μ(loc+s) z + bndry(loc,s) z] for every [z].  Holds
-      for a shift [s] of EITHER sign with [|s| ≤ A]. *)
+      for a shift [s] of EITHER sign, UNCONDITIONALLY (no [|s| ≤ A] needed): the
+      overlap ratio bound [tlap_w_overlap_ratio] is just the two-sided triangle
+      inequality, and outside the overlap the [bndry] term absorbs the slack. *)
   Lemma tlap_pmf_decomp (loc s z : Z) :
-    (Z.abs s <= A)%Z →
     trunc_lap_rat A num den loc z
       <= exp (IZR (Z.abs s) * ε) * trunc_lap_rat A num den (loc + s) z
          + tlap_bndry loc s z.
   Proof using A num den HA Heps.
-    intros Hs.
     pose proof (tlap_Z_pos A num den loc HA) as HZpos.
     rewrite !trunc_lap_rat_unfold.
     rewrite /tlap_bndry trunc_lap_rat_unfold.
@@ -450,20 +498,267 @@ Section trunc_laplace_dp.
       rewrite /tlap_delta. rewrite Z.abs_opp. reflexivity.
   Qed.
 
-  (** ** The per-distance metric-DP coupling — the crux.
+  (** ** Boundary mass is location-invariant: the bad set is a translate of the
+      centered one, and the (translation-invariant) pmf agrees pointwise after
+      reindexing [z ↦ z + loc].  Holds for ALL shifts [s] (no [|s| ≤ A]). *)
+  Lemma tlap_bndry_mass_loc_inv (loc s : Z) :
+    SeriesC (tlap_bndry loc s) = SeriesC (tlap_bndry 0 s).
+  Proof using A num den.
+    rewrite -(SeriesC_translate (tlap_bndry loc s) loc).
+    2:{ intros; apply tlap_bndry_nonneg. }
+    2:{ apply ex_seriesC_tlap_bndry. }
+    apply SeriesC_ext. intros z.
+    rewrite /tlap_bndry.
+    rewrite (bool_decide_ext ((z + loc)%Z ∈ tlap_supp A loc ∧ (z + loc)%Z ∉ tlap_supp A (loc + s))
+                             (z ∈ tlap_supp A 0 ∧ z ∉ tlap_supp A (0 + s))).
+    2:{ rewrite !elem_of_tlap_supp. lia. }
+    case_bool_decide as Hc; [|done].
+    rewrite !trunc_lap_rat_unfold /tlap_w.
+    rewrite (bool_decide_ext ((z + loc)%Z ∈ tlap_supp A loc) (z ∈ tlap_supp A 0)).
+    2:{ rewrite !elem_of_tlap_supp. lia. }
+    replace (tlap_Z A num den loc) with (tlap_Z A num den 0) by apply tlap_Z_shift_inv.
+    case_bool_decide as Hin; [|lra].
+    f_equal. f_equal. f_equal. f_equal. lia.
+  Qed.
 
-      For a TWO-SIDED shift [s := loc' - loc] with [|s| ≤ A], the truncated
-      discrete Laplace satisfies a DP coupling with the EXACT group-bound
-      privacy profile [(|s|·ε, δ_A_s)].  The truncated Laplacian is symmetric
-      about its center, so this holds for a shift of either sign — proved by a
-      case split on [sign s] reducing the backward case to the forward one
-      through the reflection [z ↦ 2·loc - z] (see [tlap_bndry_mass]). *)
-  Theorem DPcoupl_trunc_lap (loc s : Z) :
-    (Z.abs s <= A)%Z →
-    DPcoupl (trunc_lap_rat A num den loc) (trunc_lap_rat A num den (loc + s))
-            eq (IZR (Z.abs s) * ε) (tlap_delta loc s).
+  (** The bad set for a backward shift [s = -Δ] (with [Δ ≥ 0]) at center [0] is
+      exactly the top tail slice [{z : A-Δ < z ≤ A}], so its mass IS [tlap_tail]. *)
+  Lemma tlap_tail_eq_bndry (Δ : Z) :
+    (0 <= Δ)%Z →
+    tlap_tail A num den Δ = SeriesC (tlap_bndry 0 (- Δ)).
+  Proof using A num den.
+    intros HΔ. rewrite /tlap_tail /tlap_bndry.
+    apply SeriesC_ext. intros z.
+    rewrite (bool_decide_ext (z ∈ tlap_supp A 0 ∧ (A - Δ < z)%Z)
+                             (z ∈ tlap_supp A 0 ∧ z ∉ tlap_supp A (0 + - Δ))); [done|].
+    rewrite !elem_of_tlap_supp. lia.
+  Qed.
+
+  (** ** Master bad-set–mass identity, ALL shifts: the total boundary mass equals
+      the tail mass [tlap_tail A num den |s|].  Combines location-invariance,
+      sign-reflection, and [tlap_tail_eq_bndry].  This is the OPTIMAL [δ] that
+      the tight coupling carries. *)
+  Lemma tlap_bndry_mass_tail (loc s : Z) :
+    SeriesC (tlap_bndry loc s) = tlap_tail A num den (Z.abs s).
+  Proof using A num den.
+    rewrite tlap_bndry_mass_loc_inv.
+    rewrite (tlap_tail_eq_bndry (Z.abs s) (Z.abs_nonneg s)).
+    destruct (Z_le_gt_dec 0 s) as [Hpos | Hneg].
+    - rewrite (Z.abs_eq s Hpos). apply tlap_bndry_mass_reflect.
+    - rewrite (Z.abs_neq s ltac:(lia)).
+      replace (- - s)%Z with s by lia. reflexivity.
+  Qed.
+
+  (** ** Closed forms for the tail mass.
+
+      Notation: write [α := exp(-ε)] (so [0 < α < 1]).  Each closed form below is
+      stated with [α] spelled out as [exp(-ε)], and with the normaliser in the
+      EXACT closed form [Z_A·(1-α) = 1+α-2α^{A+1}] (see [tlap_Z_closed]). *)
+
+  (** Geometric-sum helper for the TOP slice: a run [seqZ start n] summed with
+      the centered weight [exp(-ε·z)] is the geometric series with ratio [α]. *)
+  Lemma tlap_top_geom (start : Z) (n : nat) :
+    foldr (Rplus ∘ (λ z, exp (- ε * IZR z))) 0%R (seqZ start (Z.of_nat n))
+      = exp (- ε * IZR start) * (1 - exp (- ε * IZR (Z.of_nat n))) / (1 - exp (- ε)).
+  Proof using A num den Heps.
+    assert (Hacc : ∀ (g : Z → R) (l : list Z) (c : R),
+              foldr (Rplus ∘ g) c l = foldr (Rplus ∘ g) 0 l + c).
+    { intros g l. induction l as [|x l IH]; intros c; simpl.
+      - lra.
+      - rewrite (IH c). unfold compose. lra. }
+    assert (Halt1 : exp (- ε) <> 1).
+    { intros Hc. assert (- ε = 0) as Hε0.
+      { rewrite -exp_0 in Hc. apply exp_inv in Hc. lra. }
+      lra. }
+    assert (Halt : 1 - exp (- ε) <> 0) by lra.
+    induction n as [|n IHn].
+    - simpl. rewrite Rmult_0_r exp_0. lra.
+    - rewrite seqZ_S foldr_app. simpl foldr.
+      rewrite Hacc. rewrite IHn.
+      replace (exp (- ε * IZR (start + Z.of_nat n)))
+        with (exp (- ε * IZR start) * exp (- ε * IZR (Z.of_nat n))).
+      2:{ rewrite -exp_plus. f_equal. rewrite plus_IZR. lra. }
+      rewrite Nat2Z.inj_succ.
+      replace (IZR (Z.succ (Z.of_nat n))) with (IZR (Z.of_nat n) + 1)
+        by (rewrite -Z.add_1_r plus_IZR; lra).
+      replace (exp (- ε * (IZR (Z.of_nat n) + 1)))
+        with (exp (- ε * IZR (Z.of_nat n)) * exp (- ε)).
+      2:{ rewrite -exp_plus. f_equal. lra. }
+      field. exact Halt.
+  Qed.
+
+  (** ** Closed form of the normaliser:
+        [(1-α)·Z_A = 1 + α - 2·α^{A+1}], i.e. [Z_A = (1+α-2α^{A+1})/(1-α)].
+      Proved by splitting the support [{-A,…,A}] into the bottom run [{-A,…,-1}],
+      the center [{0}], and the top run [{1,…,A}], and summing the two geometric
+      halves ([tlap_bndry_geom] for the bottom, [tlap_top_geom] for the top). *)
+  Lemma tlap_Z_closed :
+    (1 - exp (- ε)) * tlap_Z A num den 0
+      = 1 + exp (- ε) - 2 * exp (- ε * IZR (A + 1)).
   Proof using A num den HA Heps.
-    intros Hs.
+    rewrite /tlap_Z.
+    rewrite (SeriesC_ext (tlap_w A num den 0)
+               (λ z, if bool_decide (z ∈ tlap_supp A 0)
+                     then exp (- ε * IZR (Z.abs z)) else 0%R)).
+    2:{ intros z. rewrite /tlap_w. case_bool_decide; [|done].
+        do 2 f_equal. rewrite Z.sub_0_r //. }
+    rewrite (SeriesC_ext _
+               (λ z, if bool_decide (z ∈ seqZ (- A) (2 * A + 1))
+                     then exp (- ε * IZR (Z.abs z)) else 0%R)).
+    2:{ intros z. rewrite /tlap_supp //. }
+    rewrite (SeriesC_list (seqZ (- A) (2 * A + 1)) (λ z, exp (- ε * IZR (Z.abs z))));
+      [|apply NoDup_seqZ].
+    replace (2 * A + 1)%Z with (A + (A + 1))%Z by lia.
+    rewrite (seqZ_app (- A) A (A + 1)); [|lia|lia].
+    replace (- A + A)%Z with 0%Z by lia.
+    replace (A + 1)%Z with (1 + A)%Z by lia.
+    rewrite (seqZ_app 0 1 A); [|lia|lia].
+    replace (0 + 1)%Z with 1%Z by lia.
+    rewrite !foldr_app. simpl foldr.
+    assert (Hacc : ∀ (g : Z → R) (l : list Z) (c : R),
+              foldr (Rplus ∘ g) c l = foldr (Rplus ∘ g) 0 l + c).
+    { intros g l. induction l as [|x l IH]; intros c; simpl.
+      - lra.
+      - rewrite (IH c). unfold compose. lra. }
+    rewrite Hacc.
+    rewrite (foldr_Rplus_ext (λ z, exp (- ε * IZR (Z.abs z)))
+               (λ z, exp (ε * IZR (z - 0))) (seqZ (- A) A));
+      last (apply Forall_forall; intros z Hz; apply elem_of_seqZ in Hz;
+            f_equal; rewrite Z.sub_0_r (Z.abs_neq z); [|lia]; rewrite opp_IZR; lra).
+    rewrite (foldr_Rplus_ext (λ z, exp (- ε * IZR (Z.abs z)))
+               (λ z, exp (- ε * IZR z)) (seqZ 1 A));
+      last (apply Forall_forall; intros z Hz; apply elem_of_seqZ in Hz;
+            f_equal; f_equal; rewrite (Z.abs_eq z); [reflexivity | lia]).
+    replace (seqZ (- A) A) with (seqZ (0 - A) (Z.of_nat (Z.to_nat A)))
+      by (rewrite Z2Nat.id; [f_equal; lia | lia]).
+    rewrite (tlap_bndry_geom 0 (Z.to_nat A) ltac:(rewrite Z2Nat.id; lia)).
+    replace (seqZ 1 A) with (seqZ 1 (Z.of_nat (Z.to_nat A)))
+      by (rewrite Z2Nat.id; [reflexivity | lia]).
+    rewrite (tlap_top_geom 1 (Z.to_nat A)).
+    rewrite !Z2Nat.id; [|lia..].
+    rewrite exp_pow.
+    replace (ε * INR (Z.to_nat A)) with (ε * IZR A)
+      by (rewrite INR_IZR_INZ Z2Nat.id; [reflexivity | lia]).
+    replace (Z.abs (Z.of_nat 0 + 0)) with 0%Z by lia.
+    simpl (IZR 0). rewrite Rmult_0_r exp_0.
+    assert (HexpA : exp (ε * IZR A) = / exp (- ε * IZR A)).
+    { rewrite -exp_Ropp. f_equal. lra. }
+    rewrite HexpA.
+    assert (Ha : exp (- ε) <> 0) by (apply Rgt_not_eq, exp_pos).
+    assert (HaA : exp (- ε * IZR A) <> 0) by (apply Rgt_not_eq, exp_pos).
+    assert (Hexpε : exp ε - 1 <> 0).
+    { assert (1 < exp ε); [|lra]. rewrite -exp_0. apply exp_increasing. lra. }
+    assert (Halt : 1 - exp (- ε) <> 0).
+    { assert (exp (- ε) < 1); [|lra]. rewrite -exp_0. apply exp_increasing. lra. }
+    replace (exp (- ε * 1)) with (exp (- ε)) by (f_equal; lra).
+    replace (exp (- ε * IZR (1 + A))) with (exp (- ε) * exp (- ε * IZR A)).
+    2:{ rewrite -exp_plus. f_equal. rewrite plus_IZR. lra. }
+    assert (Hexpε' : exp ε = / exp (- ε)) by (rewrite -exp_Ropp; f_equal; lra).
+    rewrite Hexpε'.
+    set (a := exp (- ε)) in *. set (b := exp (- ε * IZR A)) in *.
+    field; repeat split; try assumption; intros HC; apply Halt; nra.
+  Qed.
+
+  (** ** The workhorse closed form ([Δ ≤ A]):
+        [tlap_tail Δ = α^{A-Δ+1}·(1-α^Δ) / (1+α-2α^{A+1})].
+      The top slice [{A-Δ+1,…,A}] lies entirely in the positive half (since
+      [A-Δ+1 ≥ 1]), so its mass is a single geometric run. *)
+  Lemma tlap_tail_le_A (Δ : Z) :
+    (0 <= Δ <= A)%Z →
+    tlap_tail A num den Δ
+      = exp (- ε * IZR (A - Δ + 1)) * (1 - exp (- ε * IZR Δ))
+        / (1 + exp (- ε) - 2 * exp (- ε * IZR (A + 1))).
+  Proof using A num den HA Heps.
+    intros HΔ.
+    rewrite -tlap_Z_closed.
+    pose proof (tlap_Z_pos A num den 0 HA) as HZpos.
+    rewrite /tlap_tail.
+    rewrite (SeriesC_ext _
+               (λ z, if bool_decide (z ∈ seqZ (A - Δ + 1) Δ)
+                     then trunc_lap_rat A num den 0 z else 0%R)).
+    2:{ intros z. rewrite (bool_decide_ext (z ∈ tlap_supp A 0 ∧ (A - Δ < z)%Z)
+                                            (z ∈ seqZ (A - Δ + 1) Δ)); [done|].
+        rewrite elem_of_seqZ elem_of_tlap_supp. lia. }
+    rewrite (SeriesC_list (seqZ (A - Δ + 1) Δ) (trunc_lap_rat A num den 0));
+      [|apply NoDup_seqZ].
+    rewrite (foldr_Rplus_ext (trunc_lap_rat A num den 0)
+               (λ z, / tlap_Z A num den 0 * exp (- ε * IZR z)));
+      last (apply Forall_forall; intros z Hz; apply elem_of_seqZ in Hz;
+            rewrite trunc_lap_rat_unfold /tlap_w;
+            rewrite bool_decide_eq_true_2; [|apply elem_of_tlap_supp; lia];
+            rewrite Rdiv_def Rmult_comm; do 2 f_equal;
+            rewrite Z.sub_0_r Z.abs_eq; [reflexivity | lia]).
+    rewrite -(foldr_Rplus_scal_l (/ tlap_Z A num den 0) (λ z, exp (- ε * IZR z))).
+    replace (seqZ (A - Δ + 1) Δ) with (seqZ (A - Δ + 1) (Z.of_nat (Z.to_nat Δ)))
+      by (rewrite Z2Nat.id; [reflexivity | lia]).
+    rewrite tlap_top_geom Z2Nat.id; [|lia].
+    assert (Halt : 1 - exp (- ε) <> 0).
+    { assert (exp (- ε) < 1); [|lra]. rewrite -exp_0. apply exp_increasing. lra. }
+    field. split; [lra | exact Halt].
+  Qed.
+
+  (** The DOMINANT case [Δ=1]: [tlap_tail 1 = (1-α)·α^A / (1+α-2α^{A+1})]. *)
+  Lemma tlap_tail_one :
+    (1 <= A)%Z →
+    tlap_tail A num den 1
+      = (1 - exp (- ε)) * exp (- ε * IZR A)
+        / (1 + exp (- ε) - 2 * exp (- ε * IZR (A + 1))).
+  Proof using A num den HA Heps.
+    intros HA1. rewrite (tlap_tail_le_A 1 ltac:(lia)).
+    replace (A - 1 + 1)%Z with A by lia.
+    replace (IZR 1) with 1 by (simpl; lra).
+    replace (exp (- ε * 1)) with (exp (- ε)) by (f_equal; lra).
+    rewrite (Rmult_comm (exp (- ε * IZR A)) (1 - exp (- ε))). reflexivity.
+  Qed.
+
+  (** The case [Δ=A]: [tlap_tail A = α·(1-α^A) / (1+α-2α^{A+1})]. *)
+  Lemma tlap_tail_eq_A :
+    (0 <= A)%Z →
+    tlap_tail A num den A
+      = exp (- ε) * (1 - exp (- ε * IZR A))
+        / (1 + exp (- ε) - 2 * exp (- ε * IZR (A + 1))).
+  Proof using A num den HA Heps.
+    intros HA0. rewrite (tlap_tail_le_A A ltac:(lia)).
+    replace (A - A + 1)%Z with 1%Z by lia.
+    replace (IZR 1) with 1 by (simpl; lra).
+    replace (exp (- ε * 1)) with (exp (- ε)) by (f_equal; lra). reflexivity.
+  Qed.
+
+  (** The DISJOINT case [Δ ≥ 2A+1]: the shift moves the support entirely off the
+      old one, so the bad set is the WHOLE support and [tlap_tail = 1]. *)
+  Lemma tlap_tail_disjoint (Δ : Z) :
+    (2 * A + 1 <= Δ)%Z →
+    tlap_tail A num den Δ = 1.
+  Proof using A num den HA Heps.
+    intros HΔ. rewrite /tlap_tail.
+    rewrite -(trunc_lap_rat_mass A num den 0 HA).
+    apply SeriesC_ext. intros z.
+    destruct (decide (z ∈ tlap_supp A 0)) as [Hin|Hin].
+    - (* on the support: [A-Δ < z] is automatic, the indicator keeps the pmf *)
+      rewrite bool_decide_eq_true_2; [reflexivity|].
+      split; [done|]. apply elem_of_tlap_supp in Hin. lia.
+    - (* off the support: indicator is 0, but so is the pmf *)
+      rewrite bool_decide_eq_false_2; last (intros [Hc _]; done).
+      rewrite trunc_lap_rat_unfold /tlap_w bool_decide_eq_false_2; [|done].
+      rewrite Rdiv_0_l. reflexivity.
+  Qed.
+
+  (** ** The TIGHT per-distance metric-DP coupling — the crux, ALL shifts.
+
+      For a TWO-SIDED shift [s := loc' - loc] (UNCONDITIONALLY — no [|s| ≤ A]),
+      the truncated discrete Laplace satisfies a DP coupling with the OPTIMAL
+      additive error: the bad-set tail mass [tlap_tail A num den |s|].  The
+      overlap multiplicative ratio [≤ exp(|s|·ε)] holds for ALL [s] (two-sided
+      triangle inequality, [tlap_w_overlap_ratio]); the additive term is exactly
+      the mass of the uncovered "bad set" [supp(loc) \ supp(loc+s)], which equals
+      [tlap_tail |s|] for ALL [s] by the master identity [tlap_bndry_mass_tail].
+      For [|s| ≤ A] this is the group bound; for [|s| > A] it is STRICTLY tighter
+      (the tail mass saturates toward [1] while the group bound keeps growing);
+      for [|s| ≥ 2A+1] the supports are disjoint and the mass is exactly [1]. *)
+  Theorem DPcoupl_trunc_lap_tight (loc s : Z) :
+    DPcoupl (trunc_lap_rat A num den loc) (trunc_lap_rat A num den (loc + s))
+            eq (IZR (Z.abs s) * ε) (tlap_tail A num den (Z.abs s)).
+  Proof using A num den HA Heps.
     apply DPcoupl_complete_eq. intros P.
     rewrite /prob.
     (* dominate the LHS pointwise by the decomposed RHS *)
@@ -471,25 +766,22 @@ Section trunc_laplace_dp.
     1:{ apply SeriesC_le.
       - intros z. split.
         + case_bool_decide; [apply pmf_pos|lra].
-        + (* if P z then μ1 z else 0 <=
-               exp(|s|ε)·(if P z then μ2 z else 0) + (if P z then bndry z else 0) *)
-          instantiate
+        + instantiate
             (1 := λ z, exp (IZR (Z.abs s) * ε) * (if bool_decide (P z)
                                           then trunc_lap_rat A num den (loc + s) z
                                           else 0)
                        + (if bool_decide (P z) then tlap_bndry loc s z else 0)).
           simpl. case_bool_decide as HP.
-          * apply tlap_pmf_decomp; lia.
+          * apply tlap_pmf_decomp.
           * rewrite Rmult_0_r Rplus_0_r. apply Rle_refl.
-      - (* summability of the dominating function *)
-        apply ex_seriesC_plus.
+      - apply ex_seriesC_plus.
         + apply ex_seriesC_scal_l.
           eapply ex_seriesC_le; last apply (pmf_ex_seriesC (trunc_lap_rat A num den (loc + s))).
           intros z. case_bool_decide; split; try apply pmf_pos; try lra; apply Rle_refl.
         + eapply ex_seriesC_le; last apply ex_seriesC_tlap_bndry.
           intros z. case_bool_decide; split; try apply tlap_bndry_nonneg; try lra;
             apply Rle_refl. }
-    (* split the sum: exp(sε)·prob μ2 P + Σ (if P then bndry) *)
+    (* split the sum: exp(|s|ε)·prob μ2 P + Σ (if P then bndry) *)
     rewrite SeriesC_plus.
     2:{ apply ex_seriesC_scal_l.
         eapply ex_seriesC_le; last apply (pmf_ex_seriesC (trunc_lap_rat A num den (loc + s))).
@@ -499,12 +791,123 @@ Section trunc_laplace_dp.
           apply Rle_refl. }
     rewrite SeriesC_scal_l.
     apply Rplus_le_compat_l.
-    (* the boundary contribution is bounded by the total boundary mass = δ *)
-    rewrite -(tlap_bndry_mass loc s Hs).
+    (* the boundary contribution is bounded by the TOTAL boundary mass = tail mass *)
+    rewrite -(tlap_bndry_mass_tail loc s).
     apply SeriesC_le.
     - intros z. case_bool_decide; split; try apply tlap_bndry_nonneg; try lra;
         apply Rle_refl.
     - apply ex_seriesC_tlap_bndry.
+  Qed.
+
+  (** ** [tlap_tail] vs the group bound.
+
+      For [|s| ≤ A] the tail mass coincides EXACTLY with the group-bound
+      [tlap_delta] (both equal the bottom/top boundary slice mass; via the two
+      mass identities). *)
+  Lemma tlap_tail_eq_delta (loc s : Z) :
+    (Z.abs s <= A)%Z →
+    tlap_tail A num den (Z.abs s) = tlap_delta loc s.
+  Proof using A num den HA Heps.
+    intros Hs. rewrite -(tlap_bndry_mass_tail loc s). by apply tlap_bndry_mass.
+  Qed.
+
+  (** [tlap_delta] as a (un-normalised, un-clamped) geometric run: its mass is the
+      sum, over the [|s|]-term run [{A-|s|+1,…,A}], of the CENTERED weight
+      [exp(-ε·z)/Z_A].  Compared with [tlap_tail] (which sums [exp(-ε·|z|)/Z_A]
+      over the CLAMPED slice), this is the same run but (i) using [z] instead of
+      [|z|] in the exponent and (ii) WITHOUT clamping at the lower support edge —
+      both of which only INCREASE the mass.  Hence [tlap_tail ≤ tlap_delta]. *)
+  Lemma tlap_delta_run (loc s : Z) :
+    tlap_delta loc s
+      = SeriesC (λ z, if bool_decide ((A - Z.abs s < z)%Z ∧ (z <= A)%Z)
+                      then exp (- ε * IZR z) / tlap_Z A num den 0 else 0%R).
+  Proof using A num den HA Heps.
+    pose proof (tlap_Z_pos A num den 0 HA) as HZpos.
+    set (Δ := Z.abs s).
+    assert (HΔ : (0 <= Δ)%Z) by apply Z.abs_nonneg.
+    rewrite (SeriesC_ext _
+               (λ z, if bool_decide (z ∈ seqZ (A - Δ + 1) Δ)
+                     then exp (- ε * IZR z) / tlap_Z A num den 0 else 0%R)).
+    2:{ intros z. rewrite (bool_decide_ext ((A - Δ < z)%Z ∧ (z <= A)%Z)
+                                            (z ∈ seqZ (A - Δ + 1) Δ)); [done|].
+        rewrite elem_of_seqZ. lia. }
+    rewrite (SeriesC_list (seqZ (A - Δ + 1) Δ)
+               (λ z, exp (- ε * IZR z) / tlap_Z A num den 0)); [|apply NoDup_seqZ].
+    rewrite (foldr_Rplus_ext (λ z, exp (- ε * IZR z) / tlap_Z A num den 0)
+               (λ z, / tlap_Z A num den 0 * exp (- ε * IZR z)));
+      last (apply Forall_forall; intros z _; rewrite Rdiv_def Rmult_comm; reflexivity).
+    rewrite -(foldr_Rplus_scal_l (/ tlap_Z A num den 0) (λ z, exp (- ε * IZR z))).
+    replace (seqZ (A - Δ + 1) Δ) with (seqZ (A - Δ + 1) (Z.of_nat (Z.to_nat Δ)))
+      by (rewrite Z2Nat.id; [reflexivity | lia]).
+    rewrite tlap_top_geom Z2Nat.id; [|lia].
+    rewrite /tlap_delta.
+    assert (Halt : 1 - exp (- ε) <> 0).
+    { assert (exp (- ε) < 1); [|lra]. rewrite -exp_0. apply exp_increasing. lra. }
+    assert (Hexpε : exp ε - 1 <> 0).
+    { assert (1 < exp ε); [|lra]. rewrite -exp_0. apply exp_increasing. lra. }
+    replace (exp (- ε * IZR (A - Δ + 1))) with (exp (- ε * IZR A) * exp (ε * IZR Δ) * exp (- ε)).
+    2:{ rewrite -!exp_plus. f_equal.
+        replace (IZR (A - Δ + 1)) with (IZR A - IZR Δ + 1)
+          by (rewrite plus_IZR minus_IZR; simpl; lra).
+        lra. }
+    replace (exp (- ε * IZR Δ)) with (/ exp (ε * IZR Δ)).
+    2:{ rewrite -exp_Ropp. f_equal. lra. }
+    replace (exp ε) with (/ exp (- ε)).
+    2:{ rewrite -exp_Ropp. f_equal. lra. }
+    set (a := exp (- ε)) in *. set (d := exp (ε * IZR Δ)) in *. set (b := exp (- ε * IZR A)) in *.
+    assert (Ha : a <> 0) by (apply Rgt_not_eq, exp_pos).
+    assert (Hd : d <> 0) by (apply Rgt_not_eq, exp_pos).
+    replace (tlap_Z A num den loc) with (tlap_Z A num den 0) by apply tlap_Z_shift_inv.
+    replace (exp (IZR (Z.abs s) * ε)) with d by (unfold d; rewrite Rmult_comm; reflexivity).
+    field. repeat split; try assumption. intros HC. apply Halt. nra.
+  Qed.
+
+  (** ** The KEY inequality: the tail mass is at most the group bound, with
+      EQUALITY for [|s| ≤ A] and (strict) SLACK beyond.  Proved by a pointwise
+      [SeriesC_le] comparison of the [tlap_tail] indicator against the
+      [tlap_delta_run] indicator: on the common range the only difference is
+      [exp(-ε·|z|) ≤ exp(-ε·z)] (since [z ≤ |z|]), and the run carries extra
+      (nonnegative) "virtual" terms past the lower support edge. *)
+  Lemma tlap_tail_le_grp (loc s : Z) :
+    tlap_tail A num den (Z.abs s) <= tlap_delta loc s.
+  Proof using A num den HA Heps.
+    pose proof (tlap_Z_pos A num den 0 HA) as HZpos.
+    rewrite tlap_delta_run /tlap_tail.
+    apply SeriesC_le.
+    2:{ eapply ex_seriesC_ext.
+        2:{ apply (ex_seriesC_list (seqZ (A - Z.abs s + 1) (Z.abs s))
+                     (λ z, exp (- ε * IZR z) / tlap_Z A num den 0)). }
+        intros z. rewrite (bool_decide_ext ((A - Z.abs s < z)%Z ∧ (z <= A)%Z)
+                                            (z ∈ seqZ (A - Z.abs s + 1) (Z.abs s))); [done|].
+        rewrite elem_of_seqZ. lia. }
+    intros z. split.
+    - case_bool_decide; [apply pmf_pos | lra].
+    - case_bool_decide as Hb.
+      + destruct Hb as [Hsupp Hlt].
+        apply elem_of_tlap_supp in Hsupp.
+        rewrite bool_decide_eq_true_2; last lia.
+        rewrite trunc_lap_rat_unfold /tlap_w.
+        rewrite bool_decide_eq_true_2; last (apply elem_of_tlap_supp; lia).
+        apply Rmult_le_compat_r; [left; apply Rinv_pos; exact HZpos|].
+        apply exp_mono. rewrite Z.sub_0_r. apply Rmult_le_compat_neg_l; [lra|].
+        apply IZR_le. lia.
+      + case_bool_decide; [|apply Rle_refl].
+        apply Rmult_le_pos; [left; apply exp_pos | left; apply Rinv_pos; exact HZpos].
+  Qed.
+
+  (** ** The group-bound coupling, ALL shifts (the legacy profile), now derived
+      as a COROLLARY of the tight coupling by weakening the additive error from
+      the optimal [tlap_tail] up to the group bound [tlap_delta] via
+      [DPcoupl_mono] (using [tlap_tail_le_grp]).  This is now UNCONDITIONAL: the
+      old [|s| ≤ A] hypothesis is dropped. *)
+  Theorem DPcoupl_trunc_lap (loc s : Z) :
+    DPcoupl (trunc_lap_rat A num den loc) (trunc_lap_rat A num den (loc + s))
+            eq (IZR (Z.abs s) * ε) (tlap_delta loc s).
+  Proof using A num den HA Heps.
+    eapply (DPcoupl_mono _ _ _ _ eq _ (IZR (Z.abs s) * ε) (IZR (Z.abs s) * ε)
+              (tlap_tail A num den (Z.abs s)) (tlap_delta loc s));
+      [ reflexivity | reflexivity | tauto | lra
+      | apply tlap_tail_le_grp | apply DPcoupl_trunc_lap_tight ].
   Qed.
 
   (** ** Sanity checks. *)
@@ -521,7 +924,7 @@ Section trunc_laplace_dp.
     DPcoupl (trunc_lap_rat A num den loc) (trunc_lap_rat A num den loc)
             eq 0 0.
   Proof using A num den HA Heps.
-    pose proof (DPcoupl_trunc_lap loc 0 ltac:(lia)) as H.
+    pose proof (DPcoupl_trunc_lap loc 0) as H.
     rewrite Z.add_0_r in H.
     rewrite (tlap_delta_0 loc) in H.
     replace (IZR (Z.abs 0) * ε) with 0 in H by (rewrite Z.abs_0; simpl; lra).
@@ -529,14 +932,23 @@ Section trunc_laplace_dp.
   Qed.
 
   (** The coupling phrased directly in terms of the second center [loc'], now
-      for EITHER direction: [|loc'-loc| ≤ A]. *)
+      UNCONDITIONAL (the old [|loc'-loc| ≤ A] hypothesis is dropped). *)
   Corollary DPcoupl_trunc_lap_loc (loc loc' : Z) :
-    (Z.abs (loc' - loc) <= A)%Z →
     DPcoupl (trunc_lap_rat A num den loc) (trunc_lap_rat A num den loc')
             eq (IZR (Z.abs (loc' - loc)) * ε) (tlap_delta loc (loc' - loc)).
   Proof using A num den HA Heps.
-    intros Hs.
-    pose proof (DPcoupl_trunc_lap loc (loc' - loc) Hs) as H.
+    pose proof (DPcoupl_trunc_lap loc (loc' - loc)) as H.
+    replace (loc + (loc' - loc))%Z with loc' in H by lia.
+    exact H.
+  Qed.
+
+  (** The TIGHT coupling phrased in terms of the second center [loc']: optimal
+      additive error [tlap_tail |loc'-loc|], for ANY two centers. *)
+  Corollary DPcoupl_trunc_lap_loc_tight (loc loc' : Z) :
+    DPcoupl (trunc_lap_rat A num den loc) (trunc_lap_rat A num den loc')
+            eq (IZR (Z.abs (loc' - loc)) * ε) (tlap_tail A num den (Z.abs (loc' - loc))).
+  Proof using A num den HA Heps.
+    pose proof (DPcoupl_trunc_lap_tight loc (loc' - loc)) as H.
     replace (loc + (loc' - loc))%Z with loc' in H by lia.
     exact H.
   Qed.
