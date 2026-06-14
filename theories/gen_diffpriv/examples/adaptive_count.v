@@ -680,7 +680,6 @@ Section adaptive.
        set (I := (∃ counts, counts_r ↦ₛ counts ∗ counts_l ↦ counts)%I).
        iApply ("run_dp" $! _ _ _ _ _ I with "[] [-]") => // ; iFrame. 1: iPureIntro ; lia.
        - iIntros "* % !> (eps & rhs & I & l & l') Hpost"...
-         tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
          assert (Z.abs (len_f_l - len_f_r) <= 1).
          {
            assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
@@ -689,14 +688,11 @@ Section adaptive.
            etrans. 1: eassumption. rewrite Rmult_1_l.
            done.
          }
-         iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
-         1: apply Zabs_ind ; lia.
-         1: reflexivity.
+         couple_laplace 0 1 with "[$rhs eps]".
          { epose proof (IZR_lt 0 ε_coarse _) => //.
            epose proof (IZR_lt 0 den _) => //.
            apply Rcomplements.Rdiv_lt_0_compat => //. }
-         1: rewrite Rmult_1_l ; reflexivity.
-         1: iFrame "eps".
+         1: rewrite Rmult_1_l ; iFrame "eps".
          iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
          iDestruct "I" as "(% & ? & ?)". rewrite /list_cons.
          tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store. iApply "Hpost". iFrame. done.
@@ -811,7 +807,6 @@ Section adaptive.
       iDestruct "hh" as "(%&%&?&?&?&?&?)".
       iApply ("run_dp" $! _ _ _ _ _ I with "[] [-]") => // ; iFrame. 1: iPureIntro ; lia.
       + iIntros "* % !> (eps & rhs & I & l & l') Hpost"...
-        tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
         assert (Z.abs (len_f_l - len_f_r) <= 1).
         {
           assert (Rabs (IZR (len_f_l - len_f_r)) <= 1)%R as h.
@@ -820,15 +815,12 @@ Section adaptive.
           etrans. 1: eassumption. rewrite Rmult_1_l.
           done.
         }
-        iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
-        1: apply Zabs_ind ; lia.
-        1: reflexivity.
+        couple_laplace 0 1 with "[$rhs eps]".
         {
           epose proof (IZR_lt 0 ε_coarse _) => //.
           epose proof (IZR_lt 0 den _) => //.
           apply Rcomplements.Rdiv_lt_0_compat => //. }
-        1: rewrite Rmult_1_l ; reflexivity.
-        1: iFrame "eps".
+        1: rewrite Rmult_1_l ; iFrame "eps".
         iNext. iIntros (count_precise_2) "rhs" ; simpl... rewrite Z.add_0_r.
         iDestruct "I" as "(% & ? & ?)". rewrite /list_cons.
         tp_load ; wp_load ; tp_pures ; tp_normalise ; tp_pures ; tp_store ; wp_store. iApply "Hpost". iFrame. done.
@@ -964,16 +956,12 @@ Section adaptive.
       iApply ("run_dp" $! _ _ _ _ Inv with "[] [-]") ; iFrame.
       1: iPureIntro ; lia.
       + iIntros "* % !> (eps & rhs & hh & TRY_RUN) Hpost"...
-        tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
-        iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
-        1: apply Zabs_ind ; lia.
-        1: reflexivity.
+        couple_laplace 0 1 with "[$rhs eps]".
         {
           epose proof (IZR_lt 0 ε_coarse _) => //.
           epose proof (IZR_lt 0 den _) => //.
           apply Rcomplements.Rdiv_lt_0_compat => //. }
-        1: rewrite Rmult_1_l ; reflexivity.
-        1: iFrame "eps".
+        1: rewrite Rmult_1_l ; iFrame "eps".
         iNext. iIntros (count_coarse) "rhs" ; simpl... rewrite Z.add_0_r.
         iDestruct "hh" as "(%lcounts0 & %counts0 & %index0 & %His0 & counts_l & counts_r & index_l & index_r)".
         (* de-nested index load: [let: "idx" := !"index" in ("idx", count) :: !"counts"] *)
@@ -989,16 +977,12 @@ Section adaptive.
           iApply ("run_dp" $! _ _ _ _ Inv with "[] [$rhs $hh $TRY_RUN]").
           1: iPureIntro ; lia.
           -- iIntros "* % !> (eps & rhs & hh & TRY_RUN) Hpost"...
-             tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
-             iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
-             1: apply Zabs_ind ; lia.
-             1: reflexivity.
+             couple_laplace 0 1 with "[$rhs eps]".
              {
                epose proof (IZR_lt 0 ε_precise _) => //.
                epose proof (IZR_lt 0 den _) => //.
                apply Rcomplements.Rdiv_lt_0_compat => //. }
-             1: rewrite Rmult_1_l ; reflexivity.
-             1: iFrame "eps".
+             1: rewrite Rmult_1_l ; iFrame "eps".
              iNext. iIntros (count_precise) "rhs" ; simpl... rewrite Z.add_0_r.
              iDestruct "hh" as "(%lcounts1 & %counts1 & %index1 & %His1 & counts_l & counts_r & index_l & index_r)".
              tp_load ; wp_load... tp_normalise...
@@ -1092,16 +1076,12 @@ Section adaptive.
       iApply ("run_dp" $! _ _ _ _ Inv with "[] [-]") ; iFrame.
       1: iPureIntro ; lia.
       + iIntros "* % !> (eps & rhs & hh & TRY_RUN) Hpost"...
-        tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
-        iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
-        1: apply Zabs_ind ; lia.
-        1: reflexivity.
+        couple_laplace 0 1 with "[$rhs eps]".
         {
           epose proof (IZR_lt 0 ε_coarse _) => //.
           epose proof (IZR_lt 0 den _) => //.
           apply Rcomplements.Rdiv_lt_0_compat => //. }
-        1: rewrite Rmult_1_l ; reflexivity.
-        1: iFrame "eps".
+        1: rewrite Rmult_1_l ; iFrame "eps".
         iNext. iIntros (count_coarse) "rhs" ; simpl... rewrite Z.add_0_r.
         iDestruct "hh" as "(%lcounts0 & %counts0 & %index0 & %His0 & counts_l & counts_r & index_l & index_r)".
         (* de-nested index load: [let: "idx" := !"index" in ("idx", count) :: !"counts"] *)
@@ -1122,16 +1102,12 @@ Section adaptive.
           iApply ("run_dp" $! _ _ _ _ Inv with "[] [$rhs $hh $TRY_RUN]").
           1: iPureIntro ; lia.
           -- iIntros "* % !> (eps & rhs & hh & TRY_RUN) Hpost"...
-             tp_bind (Sample _ _ _) ; wp_bind (Sample _ _ _).
-             iApply (wp_couple_laplace (S:=Sg) len_f_l len_f_r 0 1 with "[$rhs eps]").
-             1: apply Zabs_ind ; lia.
-             1: reflexivity.
+             couple_laplace 0 1 with "[$rhs eps]".
              {
                epose proof (IZR_lt 0 ε_precise _) => //.
                epose proof (IZR_lt 0 den _) => //.
                apply Rcomplements.Rdiv_lt_0_compat => //. }
-             1: rewrite Rmult_1_l ; reflexivity.
-             1: iFrame "eps".
+             1: rewrite Rmult_1_l ; iFrame "eps".
              iNext. iIntros (count_precise) "rhs" ; simpl... rewrite Z.add_0_r.
              iDestruct "hh" as "(%lcounts1 & %counts1 & %index1 & %His1 & counts_l & counts_r & index_l & index_r)".
              tp_load ; wp_load... tp_normalise...
