@@ -100,42 +100,7 @@ Definition list_map : val :=
     on the SPEC program.  [gen_prob_lang]'s spec layer ships no spec-side [GenWp]
     (only the impl-side [gwp_wpre] in [derived_laws]); the exact analogue of
     [prob_lang.spec.spec_rules.gwp_spec], identical to [sum_queries.gwp_spec]. *)
-Section spec_gwp.
-  Context {Sg : Sig} `{!specG_prob_lang Σ, invGS_gen hl Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
-  Local Notation spec_update :=
-    (@spec_update (lang_markov (gen_lang Sg)) Σ _ _ _).
-
-  Notation spec_wp :=
-    (λ E e Ψ, ∀ K,
-        ⤇ fill K e -∗ spec_update E (∃ (v : val), ⤇ fill K v ∗ Ψ v))%I.
-
-  Lemma gwp_mixin_spec :
-    GenWpMixin (S := Sg) false spec_wp (λ l dq v, l ↦ₛ{dq} v)%I.
-  Proof.
-    constructor; intros.
-    - apply _.
-    - by iIntros "H" (?) "$".
-    - iIntros "H" (?) "Hs". by iMod ("H" with "[$Hs //]") as (?) "[$ >$]".
-    - iIntros "H" (?) "Hs". rewrite fill_comp.
-      iMod ("H" with "[$Hs //]") as (?) "[Hs Hcnt]". rewrite -fill_comp.
-      by iMod ("Hcnt" with "[$Hs //]").
-    - iIntros "H" (?) "Hs".
-      iMod (step_pure with "Hs") as "Hs"; [done|].
-      by iMod ("H" with "[$Hs //]").
-    - iIntros "H" (?) "Hs".
-      iMod (step_alloc with "Hs") as (l) "($ & Hl)".
-      by iApply "H".
-    - iIntros "Hl H" (?) "Hs".
-      iMod (step_load with "[$Hl $Hs]") as "($ & Hl)".
-      by iApply "H".
-    - iIntros "Hl H" (?) "Hs".
-      iMod (step_store with "[$Hl $Hs]") as "($ & Hl)".
-      by iApply "H".
-  Qed.
-
-  Canonical Structure gwp_spec := Build_GenWp gwp_mixin_spec.
-End spec_gwp.
+(* [gwp_spec] is now shared in [gen_prob_lang.spec.spec_rules] (via [Require … all]). *)
 
 #[local] Open Scope Z.
 

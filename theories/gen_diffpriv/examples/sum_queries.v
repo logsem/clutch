@@ -58,42 +58,7 @@ Definition list_sum : val :=
     build it here from the generic spec step rules ([step_pure]/[step_alloc]/
     [step_load]/[step_store]) — the exact analogue of
     [prob_lang.spec.spec_rules.gwp_spec].  Cf. [report_noisy_max_generic]. *)
-Section spec_gwp.
-  Context {Sg : Sig} `{!specG_prob_lang Σ, invGS_gen hl Σ}.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
-  Local Notation spec_update :=
-    (@spec_update (lang_markov (gen_lang Sg)) Σ _ _ _).
-
-  Notation spec_wp :=
-    (λ E e Ψ, ∀ K,
-        ⤇ fill K e -∗ spec_update E (∃ (v : val), ⤇ fill K v ∗ Ψ v))%I.
-
-  Lemma gwp_mixin_spec :
-    GenWpMixin (S := Sg) false spec_wp (λ l dq v, l ↦ₛ{dq} v)%I.
-  Proof.
-    constructor; intros.
-    - apply _.
-    - by iIntros "H" (?) "$".
-    - iIntros "H" (?) "Hs". by iMod ("H" with "[$Hs //]") as (?) "[$ >$]".
-    - iIntros "H" (?) "Hs". rewrite fill_comp.
-      iMod ("H" with "[$Hs //]") as (?) "[Hs Hcnt]". rewrite -fill_comp.
-      by iMod ("Hcnt" with "[$Hs //]").
-    - iIntros "H" (?) "Hs".
-      iMod (step_pure with "Hs") as "Hs"; [done|].
-      by iMod ("H" with "[$Hs //]").
-    - iIntros "H" (?) "Hs".
-      iMod (step_alloc with "Hs") as (l) "($ & Hl)".
-      by iApply "H".
-    - iIntros "Hl H" (?) "Hs".
-      iMod (step_load with "[$Hl $Hs]") as "($ & Hl)".
-      by iApply "H".
-    - iIntros "Hl H" (?) "Hs".
-      iMod (step_store with "[$Hl $Hs]") as "($ & Hl)".
-      by iApply "H".
-  Qed.
-
-  Canonical Structure gwp_spec := Build_GenWp gwp_mixin_spec.
-End spec_gwp.
+(* [gwp_spec] is now shared in [gen_prob_lang.spec.spec_rules] (via [Require … all]). *)
 
 Section dataset_operators.
   Context {Sg : Sig} `{invGS_gen hlc Σ} (g : GenWp Sg Σ).
