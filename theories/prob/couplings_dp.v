@@ -3153,3 +3153,66 @@ Lemma DPcoupl_biased_coin (r : R) (P : 0 <= r <= 1) :
 Proof.
   apply ARcoupl_to_DPcoupl. apply ARcoupl_eq.
 Qed.
+
+(** The FLIP coupling for a [biased_coin], at multiplicative cost [ε].  The same
+    biased coin [biased_coin r] coupled with ITSELF along the NEGATION relation
+    [c' = negb c]: the impl draw [c] is matched with the spec draw [negb c].
+    This is the heart of randomised response — when the private input bit flips
+    ([x ≠ x']), the spec coin must flip too for the two XOR-released bits to
+    agree, and that flip costs the full ε.
+
+    The bound holds whenever the two cross-ratios are dominated by [exp ε]:
+    [r ≤ exp ε · (1 − r)] and [(1 − r) ≤ exp ε · r].  For the RR rate
+    [r = exp ε / (exp ε + 1)] (with [ε ≥ 0]) the first is an EQUALITY and the
+    second is [exp(−ε) ≤ exp ε]; see [DPcoupl_biased_coin_flip_rr]. *)
+Lemma DPcoupl_biased_coin_flip (r ε : R) (P : 0 <= r <= 1)
+  (Hlo : r <= exp ε * (1 - r)) (Hhi : 1 - r <= exp ε * r) :
+  DPcoupl (biased_coin r P) (biased_coin r P) (λ c c', c' = negb c) ε 0.
+Proof.
+  intros f g Hf Hg Hfg.
+  rewrite Rplus_0_r.
+  rewrite !SeriesC_bool /pmf /= /biased_coin_pmf.
+  (* [f true ≤ g false] (from [c=true ↦ c'=false]) and [f false ≤ g true]. *)
+  pose proof (Hfg true false eq_refl) as Htf.  (* f true  <= g false *)
+  pose proof (Hfg false true eq_refl) as Hff.  (* f false <= g true  *)
+  pose proof (Hf true) as [Hft0 _]. pose proof (Hf false) as [Hff0 _].
+  pose proof (Hg true) as [Hgt0 _]. pose proof (Hg false) as [Hgf0 _].
+  (* LHS ≤ r·g false + (1−r)·g true, monotone in f ≤ g (cross). *)
+  apply (Rle_trans _ (r * g false + (1 - r) * g true)).
+  { apply Rplus_le_compat; apply Rmult_le_compat_l; lra. }
+  (* exp ε·(r·g true + (1−r)·g false) = exp ε·(r·g true) + exp ε·((1−r)·g false). *)
+  rewrite Rmult_plus_distr_l.
+  (* Reorder the LHS so the [g false] and [g true] terms line up with the RHS. *)
+  rewrite Rplus_comm.
+  apply Rplus_le_compat.
+  - (* (1−r)·g true ≤ exp ε·(r·g true): coefficient bound [1−r ≤ exp ε·r]. *)
+    rewrite -Rmult_assoc. apply Rmult_le_compat_r; [lra|exact Hhi].
+  - (* r·g false ≤ exp ε·((1−r)·g false): coefficient bound [r ≤ exp ε·(1−r)]. *)
+    rewrite -Rmult_assoc. apply Rmult_le_compat_r; [lra|exact Hlo].
+Qed.
+
+(** The FLIP coupling at the randomised-response rate.  For
+    [r = exp(num/den) / (exp(num/den) + 1)] — the bias of [RR_coin] — drawing the
+    same RR coin on impl and spec, coupled along negation, costs exactly the RR
+    privacy parameter [ε = num/den] (provided [ε ≥ 0]).  Specialises
+    [DPcoupl_biased_coin_flip] by discharging the two cross-ratio bounds. *)
+Lemma DPcoupl_biased_coin_flip_rr (ε : R) (Hε : 0 <= ε)
+  (P : 0 <= exp ε / (exp ε + 1) <= 1) :
+  DPcoupl (biased_coin (exp ε / (exp ε + 1)) P)
+          (biased_coin (exp ε / (exp ε + 1)) P)
+          (λ c c', c' = negb c) ε 0.
+Proof.
+  set (E := exp ε).
+  pose proof (exp_pos ε) as HEpos. fold E in HEpos.
+  assert (HE1 : 1 <= E) by (apply exp_pos_ge_1; exact Hε).
+  assert (Hden : 0 < E + 1) by lra.
+  (* [1 − r = 1/(E+1)] and [r = E/(E+1)]; rewrite both bounds via these. *)
+  assert (Hcompl : 1 - E / (E + 1) = / (E + 1)) by (field; lra).
+  apply DPcoupl_biased_coin_flip; fold E; rewrite Hcompl.
+  - (* r ≤ exp ε · (1 − r):  E/(E+1) ≤ E·/(E+1); definitional equality. *)
+    unfold Rdiv. right. reflexivity.
+  - (* 1 − r ≤ exp ε · r:  /(E+1) ≤ E·(E/(E+1)), i.e. 1 ≤ E². *)
+    unfold Rdiv. rewrite -Rmult_assoc. rewrite -{1}(Rmult_1_l (/ (E + 1))).
+    apply Rmult_le_compat_r; [left; apply Rinv_0_lt_compat; lra|].
+    rewrite -{1}(Rmult_1_l 1). apply Rmult_le_compat; lra.
+Qed.

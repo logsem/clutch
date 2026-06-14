@@ -32,6 +32,15 @@ Proof.
   apply Zabs_ind ; intros ; lia.
 Qed.
 
+(** The discrete (bit) metric on [bool]: distinct bits are at distance [1],
+    equal bits at distance [0].  This is the adjacency metric of LOCAL DP for a
+    single released bit — used by the randomised-response mechanism
+    ([examples.randomized_response]). *)
+Program Definition dbool : Distance bool :=
+  {| distance b b' := if bool_decide (b = b') then 0 else 1 |}.
+Next Obligation. intros b b' => /=. case_bool_decide; lra. Qed.
+Next Obligation. intros b b' -> => /=. rewrite bool_decide_eq_true_2 //. Qed.
+
 Program Definition dnat : Distance nat := {| distance n n' := Rabs (IZR (n - n')) |}.
 Next Obligation. intros => /= ; eauto using Rabs_pos. Qed.
 Next Obligation. intros ?? -> => /=; replace (a2 - a2)%Z with 0%Z by lia. exact Rabs_R0. Qed.
