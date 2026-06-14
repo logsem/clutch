@@ -39,15 +39,13 @@ Section laplace_example.
     {{{ (z : Z), RET #z; ⤇ fill K #z }}}.
   Proof.
     iIntros (Hε εpos Hsens Φ) "(Hr & Hε) HΦ".
-    wp_pures.
-    tp_pures.
-    iApply (wp_couple_laplace loc loc' 0%Z 1%Z _ num den ε ε K E Hε εpos _ with "[$Hr $Hε]").
+    (* The whole proof is now one ergonomic coupling step + the postcondition.
+       Compare the previous 13-argument [iApply (wp_couple_laplace …)] + manual
+       [wp_pures]/[tp_pures] + double [Unshelve]. *)
+    couple_laplace 0%Z 1%Z with "[$Hr $Hε]".
     iModIntro. iIntros (z) "Hr".
     replace (z + 0)%Z with z by lia.
     iApply ("HΦ" with "Hr").
-    Unshelve.
-    - replace (0 + loc - loc')%Z with (loc - loc')%Z by lia. exact Hsens.
-    - simpl; lra.
   Qed.
 
 End laplace_example.

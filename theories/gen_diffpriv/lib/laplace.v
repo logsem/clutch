@@ -38,6 +38,17 @@ Notation Laplace num den mean tape :=
   (Sample (sample_idx (D := laplace_family)) (Pair num (Pair den mean)) tape)
   (only parsing).
 
+(** Value-form of [Laplace] (direct, tape-less): the [(num,den,mean)] parameters
+    already reduced to a [PairV] triple, as they appear AFTER [wp_pures]/[tp_pures]
+    (which evaluate the [Pair] into a [PairV]).  The coupling rules below are
+    stated on [LaplaceV] so their preconditions read cleanly and match
+    post-reduction goals; the [couple_laplace] tactic relies on this shape. *)
+Notation LaplaceV num den mean :=
+  (Sample (sample_idx (D := laplace_family))
+     (Val (PairV (LitV (LitInt num)) (PairV (LitV (LitInt den)) (LitV (LitInt mean)))))
+     (Val (LitV LitUnit)))
+  (only parsing).
+
 Section laplace.
   Context {S : Sig} `{!SampleIn laplace_family S} `{!diffprivGS S Σ}.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang S)).
@@ -194,3 +205,28 @@ Section laplace.
   Qed.
 
 End laplace.
+
+(** [couple_laplace k k' with "[…]"] — the ergonomic coupling step.  It reduces
+    the [Pair] params to [PairV] ([wp_pures]/[tp_pures]), focuses the [Sample] on
+    both sides ([wp_bind]/[tp_bind]), and applies the value-form [wp_couple_laplace]
+    inferring [loc/loc'/num/den/ε/ε'/K/E] from the goal — the author supplies only
+    the privacy choice [k] (shift) and [k'] (cost bound) and the resource pattern.
+    Trivial side-conditions ([Hdist], [Hε], [Hpos], [Hε']) are auto-discharged best
+    effort; the postcondition continuation is left as the single remaining goal.
+    Replaces the ~13-argument hand-written [iApply (wp_couple_laplace …)] + manual
+    [bind]s + [Unshelve] dance. *)
+Tactic Notation "couple_laplace" uconstr(k) uconstr(k') "with" constr(pat) :=
+  wp_pures; tp_pures;
+  wp_bind (Sample _ _ _); tp_bind (Sample _ _ _);
+  (* [unshelve] (the tactical) turns the goals THIS [iApply] shelves — only the
+     distance side-condition [Hdist] — into regular front goals, without globally
+     un-shelving unrelated goals the way the [Unshelve] command would. *)
+  unshelve (iApply (wp_couple_laplace _ _ k k' _ _ _ _ _ _ _ with pat));
+  (* best-effort discharge of [Hdist] (trivial for [k=0] from 1-sensitivity) and
+     [Hε]/[Hpos]/[Hε']; the postcondition continuation is the single goal left *)
+  try first
+    [ reflexivity
+    | assumption
+    | (rewrite ?Z.add_0_l ?Z.add_0_r; assumption)
+    | (apply Zabs_ind; lia)
+    | (simpl; lra) ].
