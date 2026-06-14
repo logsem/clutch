@@ -253,6 +253,74 @@ Section diffpriv.
       + iIntros "!>" (y) "gy". iApply "HΦ". iFrame.
   Qed.
 
+  Theorem diffpriv_metric_seq_comp_full (f g : val) εf δf εg δg
+    `(dA : Distance A) `{Inject B val} {C : Type} `{Inject C val}
+    (dA_nat : ∀ x y, ∃ n : nat, dA x y = INR n)
+    (εf_pos : 0 < εf) (εg_pos : 0 < εg) (δf_pos : 0 <= δf) (δg_pos : 0 <= δg) :
+    hoare_diffpriv_metric f εf δf dA A -∗
+    (∀ b, hoare_diffpriv_metric (g b) εg δg dA C) -∗
+    hoare_diffpriv_metric (λ:"a", g (f "a") "a") (εf + εg) (δf + δg) dA C.
+  Proof.
+    rewrite /hoare_diffpriv_metric.
+    iIntros "#f_dipr #g_dipr" (K c a a' adj Φ) "!> [gfa' [ε δ]] HΦ".
+    destruct (dA_nat a a') as [n Hn].
+    assert (Hnc : INR n <= c) by (rewrite -Hn; exact adj).
+    assert (Hn0 : 0 <= INR n) by apply pos_INR.
+    assert (Hsum_pos : 0 < εf + εg) by lra.
+    (* Split the multiplicative credit *)
+    replace (c * (εf + εg)) with
+      ((INR n * εf) + ((INR n * εg) +
+        (c * (εf + εg) - INR n * εf - INR n * εg))) by lra.
+    iDestruct (ecm_split with "ε") as "[εf_n εg_slack]".
+    { apply Rmult_le_pos; lra. }
+    { nra. }
+    iDestruct (ecm_split with "εg_slack") as "[εg_n _εslack]".
+    { apply Rmult_le_pos; lra. }
+    { nra. }
+    (* Prove the δ slack is nonneg *)
+    assert (Hδ_le : δf * grp εf (INR n) + δg * grp εg (INR n) <=
+                    (δf + δg) * grp (εf + εg) c).
+    {
+      have Hf_eps : grp εf (INR n) <= grp (εf + εg) (INR n).
+      { apply grp_mono_eps; lra. }
+      have Hg_eps : grp εg (INR n) <= grp (εf + εg) (INR n).
+      { apply grp_mono_eps; lra. }
+      have Hfg_c : grp (εf + εg) (INR n) <= grp (εf + εg) c.
+      { apply grp_mono_c; lra. }
+      have Hf_nn : 0 <= grp εf (INR n).
+      { apply grp_nonneg; lra. }
+      have Hg_nn : 0 <= grp εg (INR n).
+      { apply grp_nonneg; lra. }
+      nra.
+    }
+    (* Split the additive credit *)
+    replace ((δf + δg) * grp (εf + εg) c) with
+      ((δf * grp εf (INR n)) + ((δg * grp εg (INR n)) +
+        ((δf + δg) * grp (εf + εg) c -
+          δf * grp εf (INR n) - δg * grp εg (INR n)))) by lra.
+    iDestruct (ec_split with "δ") as "[δf_n δg_slack]".
+    { apply Rmult_le_pos; [lra | apply grp_nonneg; lra]. }
+    { have Hg_nn2 : 0 <= δg * grp εg (INR n).
+      { apply Rmult_le_pos; [lra | apply grp_nonneg; lra]. }
+      lra. }
+    iDestruct (ec_split with "δg_slack") as "[δg_n _δslack]".
+    { apply Rmult_le_pos; [lra | apply grp_nonneg; lra]. }
+    { have Hg_nn3 : 0 <= δg * grp εg (INR n).
+      { apply Rmult_le_pos; [lra | apply grp_nonneg; lra]. }
+      lra. }
+
+    tp_pures ; wp_pures.
+    tp_bind (f _). wp_bind (f _).
+    iApply ("f_dipr" $! _ (INR n) a a' with "[%] [$gfa' εf_n δf_n]").
+    { rewrite Hn. lra. }
+    - iFrame.
+    - iIntros "!>" (b) "gb" => /=.
+      iApply ("g_dipr" $! _ _ (INR n) a a' with "[%] [$gb εg_n δg_n]").
+      + rewrite Hn. lra.
+      + iFrame.
+      + iIntros "!>" (y) "gy". iApply "HΦ". iFrame.
+  Qed.
+
   Fact diffpriv_sensitive_strict_comp (f g : val) ε δ c
     `(dA : Distance A) `(dB : Distance B) {C : Type} `{Inject C val}
     (c_pos : 0 <= c) :
