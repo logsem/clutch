@@ -109,6 +109,18 @@ Section trunc_laplace_lib.
     rewrite !sf_sample_trunc //. by apply (DPcoupl_trunc_lap A num den HA Hpos loc s Hs).
   Qed.
 
+  (** The TRIVIAL draw coupling, for the out-of-range / saturated regime: when the
+      additive budget [δ' ≥ 1] the diagonal relation holds vacuously ([DPcoupl_1]
+      dominates everything), so two truncated-Laplace draws at ANY two locations
+      couple at any multiplicative cost [ε' ≥ 0].  Closes the disjoint-support
+      case beyond the half-width. *)
+  Lemma DPcoupl_trunc_lap_draw_sat (A num den loc loc' : Z) (ε' δ' : R)
+    (Hδ : 1 <= δ') :
+    DPcoupl (sf_sample trunc_laplace_family (A, num, den, loc))
+            (sf_sample trunc_laplace_family (A, num, den, loc'))
+            eq ε' δ'.
+  Proof. by apply DPcoupl_1. Qed.
+
   (** The truncated-Laplace mechanism at the WP level: sampling at location [loc]
       (impl) vs [loc+s] (spec), TWO-SIDED [|s| ≤ A], couples to EQUAL outputs at
       multiplicative cost [|s|·ε] and additive cost [tlap_delta A num den loc s].
@@ -170,6 +182,50 @@ Section trunc_laplace_lib.
         | intros z z' Hzz'; exists z; split; [done | by rewrite Hzz']
         | lra | lra
         | subst ε' δ'; rewrite -Hε; by apply DPcoupl_trunc_lap_draw ].
+  Qed.
+
+  (** The SATURATED WP rule: when [δ' ≥ 1] and [ε' ≥ 0], two truncated-Laplace
+      draws at ANY two locations [loc]/[loc'] couple to EQUAL outputs.  Same
+      [wp_couple_sample_gen_dp] seam as [wp_couple_trunc_laplace], but the draw
+      coupling is the trivial [DPcoupl_trunc_lap_draw_sat] ([DPcoupl_1]).  Used
+      out of range, where the real coupling is unavailable. *)
+  Lemma wp_couple_trunc_laplace_sat (A loc loc' : Z)
+    (num den : Z) (ε' δ' : R) K E :
+    0 <= ε' →
+    1 <= δ' →
+    {{{ ⤇ fill K (Sample tlidx
+                    (Val (PairV (LitV (LitInt A))
+                            (PairV (LitV (LitInt num))
+                               (PairV (LitV (LitInt den)) (LitV (LitInt loc'))))))
+                    (Val (LitV LitUnit))) ∗ ↯m ε' ∗ ↯ δ' }}}
+      Sample tlidx
+        (Val (PairV (LitV (LitInt A))
+                (PairV (LitV (LitInt num))
+                   (PairV (LitV (LitInt den)) (LitV (LitInt loc))))))
+        (Val (LitV LitUnit)) @ E
+      {{{ (z : Z), RET #z; ⤇ fill K #z }}}.
+  Proof.
+    iIntros (Hεpos Hδ Φ) "(Hr & Hε & Hδ) HΦ".
+    iApply (wp_couple_sample_gen_dp S tlidx
+              (sf_param_to_val trunc_laplace_family (A, num, den, loc))
+              (sf_param_to_val trunc_laplace_family (A, num, den, loc'))
+              (dmap (sf_inj trunc_laplace_family) (sf_sample trunc_laplace_family (A, num, den, loc)))
+              (dmap (sf_inj trunc_laplace_family) (sf_sample trunc_laplace_family (A, num, den, loc')))
+              (λ v v', ∃ z : Z, v = #z ∧ v' = #z) K E ε' δ'
+              _
+              (sig_sample_at trunc_laplace_family S (A, num, den, loc))
+              (sig_sample_at trunc_laplace_family S (A, num, den, loc')) _ with "[$Hr $Hε $Hδ]").
+    { iIntros "!>" (v v') "(Hspec & %HR)". destruct HR as (z & -> & ->).
+      iApply ("HΦ" $! z with "Hspec"). }
+    Unshelve.
+    - lra.
+    - apply DPcoupl_map; [exact Hεpos | lra | ].
+      eapply (DPcoupl_mono _ _ _ _ eq _ ε' ε' δ' δ');
+        [ intros; reflexivity
+        | intros; reflexivity
+        | intros z z' Hzz'; exists z; split; [done | by rewrite Hzz']
+        | lra | lra
+        | by apply DPcoupl_trunc_lap_draw_sat ].
   Qed.
 
   (** [grp ε ·] is monotone in the distance (for [ε > 0]): the numerator
@@ -270,6 +326,162 @@ Section trunc_laplace_lib.
                | apply (clutch.prob.trunc_laplace.tlap_Z_pos A num den 0 HA)].
           -- apply grp_mono; [lra | apply IZR_le; lia | exact Hsc].
     - iIntros "!> %z f'". iApply ("hφ" $! z). iFrame.
+  Qed.
+
+  (** ** The bare [hoare_diffpriv_metric] instance via a TRUNCATED metric.
+
+      The body above is honest only in range [|x-x'| ≤ A] (and at distance
+      [c ≤ A]); a bare metric instance over plain [dZ] is FALSE, because beyond
+      the half-width the two truncated distributions can have disjoint support
+      while the demanded additive credit [tlap_del · grp ε c] stays below [1].
+
+      We bridge this with a SATURATION THRESHOLD [tlap_Cstar]: the smallest [c]
+      at which [tlap_del · grp ε c ≥ 1].  Past it the disjoint-support case is
+      closed by the trivial coupling [DPcoupl_1] ([δ ≥ 1] dominates anything).
+      The truncated metric [dZ_trunc A] is [dZ] in range and JUMPS to
+      [tlap_Cstar] out of range, so on every premise [dZ_trunc A x x' ≤ c] either
+      [c ≤ A] (in range → the body) or [c ≥ tlap_Cstar] (out of range → trivial),
+      yielding a genuine [hoare_diffpriv_metric] instance. *)
+
+  (** The saturation threshold: [c ≥ tlap_Cstar] ⟹ [tlap_del · grp ε c ≥ 1]. *)
+  Definition tlap_Cstar (A num den : Z) : R :=
+    ln (1 + tlap_Z A num den 0 * (exp (IZR num / IZR den) - 1)
+            * exp (IZR num / IZR den * IZR A))
+      / (IZR num / IZR den).
+
+  Lemma tlap_del_grp_sat (A num den : Z) (c : R)
+    (HA : (0 <= A)%Z) (Hpos : 0 < IZR num / IZR den)
+    (Hc : tlap_Cstar A num den <= c) :
+    1 <= tlap_del A num den * grp (IZR num / IZR den) c.
+  Proof.
+    set (ε := IZR num / IZR den).
+    set (Z := tlap_Z A num den 0).
+    assert (HZ : 0 < Z) by apply (clutch.prob.trunc_laplace.tlap_Z_pos A num den 0 HA).
+    assert (Hεne : not (ε = 0)) by (apply Rgt_not_eq; exact Hpos).
+    assert (He1 : 0 < exp ε - 1).
+    { cut (1 < exp ε); [lra|]. rewrite -exp_0. apply exp_increasing. exact Hpos. }
+    set (M := 1 + Z * (exp ε - 1) * exp (ε * IZR A)).
+    assert (HM : 1 < M).
+    { rewrite /M. cut (0 < Z * (exp ε - 1) * exp (ε * IZR A)); [lra|].
+      repeat apply Rmult_lt_0_compat; [exact HZ | exact He1 | apply exp_pos]. }
+    assert (HCstar : tlap_Cstar A num den = ln M / ε) by reflexivity.
+    assert (HlnM : ln M / ε * ε = ln M) by (field; exact Hεne).
+    assert (Hexpc : M <= exp (c * ε)).
+    { rewrite -(exp_ln M ltac:(lra)). apply exp_mono.
+      rewrite -HlnM. apply Rmult_le_compat_r;
+        [apply Rlt_le; exact Hpos | rewrite -HCstar; exact Hc]. }
+    assert (Hea : exp (ε * IZR A) * exp (- ε * IZR A) = 1).
+    { rewrite -exp_plus. replace (ε * IZR A + - ε * IZR A) with 0 by lra. apply exp_0. }
+    (* now [1 <= (exp(-εA)/Z)·(exp(cε)-1)/(exp ε-1)]; clear denominators *)
+    rewrite /tlap_del /grp. fold ε. fold Z.
+    apply (Rmult_le_reg_r (Z * (exp ε - 1))); [apply Rmult_lt_0_compat; lra|].
+    rewrite Rmult_1_l.
+    replace (exp (- ε * IZR A) / Z * ((exp (c * ε) - 1) / (exp ε - 1))
+             * (Z * (exp ε - 1)))
+      with (exp (- ε * IZR A) * (exp (c * ε) - 1))
+      by (field; split; lra).
+    (* reduce to [Z·(exp ε-1) ≤ exp(-εA)·(exp(cε)-1)]: scale [Hexpc] by exp(-εA) *)
+    assert (Hu : 0 < exp (- ε * IZR A)) by apply exp_pos.
+    assert (Hqt : Z * (exp ε - 1) * exp (ε * IZR A) <= exp (c * ε) - 1)
+      by (rewrite /M in Hexpc; lra).
+    apply (Rmult_le_compat_r (exp (- ε * IZR A))) in Hqt; [|apply Rlt_le; exact Hu].
+    rewrite Rmult_assoc Hea Rmult_1_r in Hqt.
+    rewrite (Rmult_comm (exp (- ε * IZR A))).
+    rewrite Rmult_minus_distr_l Rmult_1_r. lra.
+  Qed.
+
+  (** The TRUNCATED metric on [Z]: [dZ] in range ([|x-x'| ≤ A]), and [≥ tlap_Cstar]
+      (the saturation threshold) out of range.  Equal points are at distance [0]
+      (the [x = x'] guard), so it is a genuine [Distance]; out of range it
+      dominates the saturation threshold, so any [c ≥ dZ_trunc A x x'] already has
+      [tlap_del · grp ε c ≥ 1].  This is the metric on which the truncated-Laplace
+      mechanism is a bare [hoare_diffpriv_metric] instance. *)
+  Program Definition dZ_trunc (A num den : Z) : Distance Z :=
+    {| distance x x' :=
+         if bool_decide (x = x') then 0
+         else if bool_decide (Z.abs (x - x') <= A)%Z
+              then Rabs (IZR (x - x'))
+              else Rmax (tlap_Cstar A num den) (Rabs (IZR (x - x'))) |}.
+  Next Obligation.
+    intros A num den x x' => /=. repeat case_bool_decide; try apply Rabs_pos; [lra|].
+    eapply Rle_trans; [apply Rabs_pos | apply Rmax_r].
+  Qed.
+  Next Obligation. intros A num den x x' ->. rewrite bool_decide_eq_true_2 //. Qed.
+
+  (** The TRUNCATED-LAPLACE MECHANISM as a bare group-bound metric approximate-DP
+      instance on [dZ_trunc A].  This IS [hoare_diffpriv_metric] over ALL inputs:
+      in range the genuine two-sided coupling applies (shift [s = x'-x] with
+      [|s| ≤ A]); out of range [c ≥ dZ_trunc ≥ tlap_Cstar], so the additive credit
+      [↯ (tlap_del · grp ε c) ≥ ↯ 1] saturates and the trivial coupling
+      [wp_couple_trunc_laplace_sat] closes the (possibly disjoint-support) case.
+
+      [A] is a RUNTIME [Z] argument with [0 ≤ A] a hypothesis; [ε = num/den],
+      [del = tlap_del A num den].  This is the validating CLIENT for the
+      group-bound metric approximate-DP definition with a genuinely-truncated
+      mechanism. *)
+  Fact hoare_trunc_laplace_diffpriv (A num den : Z)
+    (HA : (0 <= A)%Z)
+    (Hpos : 0 < IZR num / IZR den) :
+    ⊢ hoare_diffpriv_metric S
+        (λ: "loc", TruncLaplace #A #num #den "loc" #())%V
+        (IZR num / IZR den) (tlap_del A num den) (dZ_trunc A num den) Z.
+  Proof.
+    rewrite /hoare_diffpriv_metric. iIntros (K c x x' adj).
+    iIntros (φ) "!> (f' & ε & δ) hφ".
+    tp_pures. wp_pures.
+    set (s := (x' - x)%Z).
+    destruct (bool_decide (Z.abs s <= A)%Z) eqn:Hrange.
+    - (* IN RANGE: genuine two-sided coupling at the actual shift [s] *)
+      apply bool_decide_eq_true in Hrange.
+      (* [dZ_trunc] in range = [Rabs (IZR (x-x'))] = [IZR (Z.abs s)]; so [|s| ≤ c] *)
+      assert (Hsc : IZR (Z.abs s) <= c).
+      { etrans; [|exact adj]. rewrite /dZ_trunc /distance /s.
+        destruct (bool_decide (x = x')) eqn:Hxx'.
+        - apply bool_decide_eq_true in Hxx' as ->.
+          replace (x' - x')%Z with 0%Z by lia. rewrite Z.abs_0. simpl. lra.
+        - rewrite bool_decide_eq_true_2; [|rewrite /s in Hrange; lia].
+          rewrite -abs_IZR. right. f_equal. lia. }
+      replace x' with (x + s)%Z by (rewrite /s; lia).
+      tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
+      iApply (wp_couple_trunc_laplace A x s HA Hrange num den
+                (IZR num / IZR den) (IZR (Z.abs s) * (IZR num / IZR den))
+                (tlap_delta A num den x s) K ⊤
+                eq_refl Hpos eq_refl eq_refl with "[$f' ε δ]").
+      + rewrite tlap_delta_grp.
+        iSplitL "ε".
+        * iApply ecm_weaken; [|iFrame]. split.
+          -- apply Rmult_le_pos; [apply IZR_le; lia | lra].
+          -- apply Rmult_le_compat_r; [lra | exact Hsc].
+        * iApply ec_weaken; [|iFrame]. split.
+          -- apply Rmult_le_pos.
+             ++ rewrite /tlap_del. apply Rcomplements.Rdiv_le_0_compat;
+                  [left; apply exp_pos
+                  | apply (clutch.prob.trunc_laplace.tlap_Z_pos A num den 0 HA)].
+             ++ apply grp_nonneg; [lra | apply IZR_le; lia].
+          -- apply Rmult_le_compat_l.
+             ++ rewrite /tlap_del. apply Rcomplements.Rdiv_le_0_compat;
+                  [left; apply exp_pos
+                  | apply (clutch.prob.trunc_laplace.tlap_Z_pos A num den 0 HA)].
+             ++ apply grp_mono; [lra | apply IZR_le; lia | exact Hsc].
+      + iIntros "!> %z f'". iApply ("hφ" $! z). iFrame.
+    - (* OUT OF RANGE: [c ≥ dZ_trunc ≥ tlap_Cstar], so the additive credit
+         saturates ([≥ 1]) and the trivial coupling closes the case *)
+      apply bool_decide_eq_false in Hrange.
+      assert (HCstarc : tlap_Cstar A num den <= c).
+      { etrans; [|exact adj]. rewrite /dZ_trunc /distance.
+        rewrite bool_decide_eq_false_2; [|intros ->; apply Hrange; rewrite /s; lia].
+        rewrite bool_decide_eq_false_2; [|rewrite /s in Hrange; lia].
+        apply Rmax_l. }
+      assert (Hδ1 : 1 <= tlap_del A num den * grp (IZR num / IZR den) c)
+        by (apply tlap_del_grp_sat; [exact HA | exact Hpos | exact HCstarc]).
+      tp_bind (Sample _ _ _). wp_bind (Sample _ _ _).
+      iApply (wp_couple_trunc_laplace_sat A x x' num den
+                (c * (IZR num / IZR den)) (tlap_del A num den * grp (IZR num / IZR den) c)
+                K ⊤ with "[$f' $ε $δ]").
+      { apply Rmult_le_pos; [|lra].
+        eapply Rle_trans; [apply (@distance_pos Z (dZ_trunc A num den) x x') | exact adj]. }
+      { exact Hδ1. }
+      iIntros "!> %z f'". iApply ("hφ" $! z). iFrame.
   Qed.
 
 End trunc_laplace_lib.
