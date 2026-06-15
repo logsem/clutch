@@ -12,12 +12,13 @@
     transport is needed and the public statements are preserved verbatim.
 
     See [report_noisy_max_pointwise] for the pointwise (coupling) variant. *)
+From Stdlib Require Import FunctionalExtensionality.
 From clutch.common Require Import inject.
 From clutch.prob Require Import differential_privacy.
 From clutch.gen_diffpriv Require Import adequacy all.
 From clutch.gen_diffpriv.lib Require Import laplace laplace_tapes.
-From clutch.gen_prob_lang Require Import gwp.list inject families.
-From clutch.gen_diffpriv.examples Require Import report_noisy_max_lemmas report_noisy_max_generic.
+From clutch.gen_prob_lang Require Import gwp.list inject families znoise.
+From clutch.gen_diffpriv.examples Require Import report_noisy_max_lemmas report_noisy_max_generic report_noisy_max_idiomatic.
 From iris.prelude Require Import options.
 
 Section rnm.
@@ -30,7 +31,15 @@ Section rnm.
       [sample_idx (D := mkZNoise laplace_rat laplace_rat_mass)] is the Laplace
       index [sample_idx (D := laplace_family)] definitionally. *)
   Definition report_noisy_max_presampling (num den : Z) : val :=
-    report_noisy_max_presampling laplace_rat laplace_rat_mass (Sg := Sg) num den.
+    report_noisy_max_generic.report_noisy_max_presampling laplace_rat laplace_rat_mass (Sg := Sg) num den.
+
+  (** The IDIOMATIC Laplace report-noisy-max program: the generic one-pass
+      direct-sampling [rnm_direct1] pinned at the Laplace family.  Because
+      [laplace_family = mkZNoise laplace_rat laplace_rat_mass], this is
+      [rnm_direct1 (mkZNoise laplace_rat laplace_rat_mass) num den] definitionally
+      — the [D := mkZNoise sample mass] expected by [rnm_idiomatic_lim_exec_eq]. *)
+  Definition report_noisy_max_idiomatic (num den : Z) : val :=
+    report_noisy_max_idiomatic.rnm_direct1 laplace_family num den.
 
   (** The Laplace privacy proof, now stated as the internal-DP notion
       [hoare_diffpriv_classic_at] with the range-carrying codomain
@@ -84,4 +93,41 @@ Proof.
   iApply ("K" $! [] db db' Hr with "[$H1 $H2 $H3]").
   iIntros "!>" (y) "rhs".
   rewrite fill_empty. iExists (inject y). by iFrame.
+Qed.
+
+(** ** Headline: the IDIOMATIC (one-pass, no presampling tapes) Laplace
+    report-noisy-max is differentially private — EXACTLY [rnm_diffpriv_presampling]
+    but for the idiomatic program [report_noisy_max_idiomatic] (i.e.
+    [rnm_direct1]).  The proof is a pure transport: [diffpriv_pure] depends on the
+    program only through the output-distribution family [λ db, lim_exec (prog … db)],
+    and [rnm_idiomatic_lim_exec_eq] gives, pointwise in [db], the equality of the
+    idiomatic and presampling families (at [sample := laplace_rat],
+    [mass := laplace_rat_mass]).  Lifting that pointwise equality to a FUNCTION
+    equality ([functional_extensionality]) rewrites the goal to exactly
+    [rnm_diffpriv_presampling], which we [apply]. *)
+Lemma rnm_diffpriv_idiomatic (Sg : Sig) `{!SampleIn laplace_family Sg} (Δ : Z) (C : Z) num den (evalQ : val) DB (dDB : Distance DB) (N : nat) :
+  (1 <= Δ)%Z →
+  (1 <= C)%Z →
+  (0 < IZR num / IZR (2 * den))%R →
+  (0 <= IZR C * (IZR Δ * (IZR num / IZR den)))%R →
+  (∀ `{!diffprivGS Sg Σ}, ∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) → ∀ σ,
+      diffpriv_pure
+        (λ db db', (dDB db db' / IZR C)%R)
+        (λ db, lim_exec (δ := lang_markov (gen_lang Sg)) ((report_noisy_max_idiomatic num den evalQ #N (inject db)), σ))
+        (IZR C * (IZR Δ * (IZR num / IZR den))).
+Proof.
+  intros HΔ HC Hpos Hcost Hsens σ.
+  (* The idiomatic and presampling output-distribution families AGREE pointwise
+     (by [rnm_idiomatic_lim_exec_eq] at [sample := laplace_rat]); lift to a
+     function equality and rewrite to the presampling DP statement. *)
+  assert (Hfam :
+    (λ db : DB, lim_exec (δ := lang_markov (gen_lang Sg)) ((report_noisy_max_idiomatic num den evalQ #N (inject db)), σ))
+    = (λ db : DB, lim_exec (δ := lang_markov (gen_lang Sg)) ((report_noisy_max_presampling num den evalQ #N (inject db)), σ))).
+  { apply functional_extensionality => db.
+    rewrite /report_noisy_max_idiomatic /report_noisy_max_presampling /laplace_family.
+    apply (rnm_idiomatic_lim_exec_eq Sg laplace_rat laplace_rat_mass
+             Δ num den evalQ DB dDB N σ ltac:(lia)).
+    intros ? i. apply Hsens. }
+  rewrite Hfam.
+  by apply (rnm_diffpriv_presampling Sg Δ C num den evalQ DB dDB N).
 Qed.
