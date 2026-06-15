@@ -204,39 +204,39 @@ Section idiomatic.
       [report_noisy_max_presampling], with [i = sample_idx (D:=D)]). *)
   Definition report_noisy_max_presampling : val :=
     λ:"evalQ" "N" "d",
-      let: "xs" := list_init "N" (λ:"i", "evalQ" "i" "d") in
-      let: "xs_tapes" := list_map (λ:"x", ("x", AllocSampleTape i (Pair #num (Pair #(2*den) "x")))) "xs" in
-      let: "noisy_xs" := list_map (λ: "x_ι", Sample i (Pair #num (Pair #(2*den) (Fst "x_ι"))) (Snd "x_ι")) "xs_tapes" in
+      let: "xs" := list_init_poly #() "N" (λ:"i", "evalQ" "i" "d") in
+      let: "xs_tapes" := list_map_poly #() #() (λ:"x", ("x", AllocSampleTape i (Pair #num (Pair #(2*den) "x")))) "xs" in
+      let: "noisy_xs" := list_map_poly #() #() (λ: "x_ι", Sample i (Pair #num (Pair #(2*den) (Fst "x_ι"))) (Snd "x_ι")) "xs_tapes" in
       list_max_index "noisy_xs".
 
   Definition rnm_direct2 : val :=
     λ:"evalQ" "N" "d",
-      let: "xs" := list_init "N" (λ:"i", "evalQ" "i" "d") in
-      let: "xs_p" := list_map (λ:"x", ("x", #())) "xs" in
-      let: "noisy_xs" := list_map (λ: "x_ι", Sample i (Pair #num (Pair #(2*den) (Fst "x_ι"))) (Snd "x_ι")) "xs_p" in
+      let: "xs" := list_init_poly #() "N" (λ:"i", "evalQ" "i" "d") in
+      let: "xs_p" := list_map_poly #() #() (λ:"x", ("x", #())) "xs" in
+      let: "noisy_xs" := list_map_poly #() #() (λ: "x_ι", Sample i (Pair #num (Pair #(2*den) (Fst "x_ι"))) (Snd "x_ι")) "xs_p" in
       list_max_index "noisy_xs".
 
   Lemma rnm_link1 (evalQ : val) (N : nat) (d : val) Δ :
     (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
-        : (lrel_nat → interp TInt [])%lrel) →
+        : (lrel_int → interp TInt [])%lrel) →
     ⊢ REL report_noisy_max_presampling evalQ #N d
        << rnm_direct2 evalQ #N d : interp TNat Δ.
   Proof.
     iIntros (Hq). rewrite /report_noisy_max_presampling /rnm_direct2.
     rel_pures_l. rel_pures_r.
-    rel_bind_l (list_init _ _). rel_bind_r (list_init _ _).
+    rel_bind_l (list_init_poly _ _ _). rel_bind_r (list_init_poly _ _ _).
     iApply (refines_bind with "[]").
     { iApply (refines_list_init (interp TInt []) #N #N).
       - rel_values.
       - iApply Hq. }
     iIntros (xs xs') "Hxs /=". rel_pures_l. rel_pures_r.
-    rel_bind_l (list_map _ _). rel_bind_r (list_map _ _).
+    rel_bind_l (list_map_poly _ _ _ _). rel_bind_r (list_map_poly _ _ _ _).
     iApply (refines_bind with "[Hxs]").
     { iApply (refines_list_map (interp TInt []) tape_pair_rel).
       - iApply refines_alloc_pair.
       - iApply (refines_ret with "[Hxs]"); [done..|]. by iModIntro. }
     iIntros (xt xp) "Hxt /=". rel_pures_l. rel_pures_r.
-    rel_bind_l (list_map _ _). rel_bind_r (list_map _ _).
+    rel_bind_l (list_map_poly _ _ _ _). rel_bind_r (list_map_poly _ _ _ _).
     iApply (refines_bind with "[Hxt]").
     { iApply (refines_list_map tape_pair_rel (interp TInt [])).
       - iApply refines_read.
@@ -248,25 +248,25 @@ Section idiomatic.
 
   Lemma rnm_link1' (evalQ : val) (N : nat) (d : val) Δ :
     (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
-        : (lrel_nat → interp TInt [])%lrel) →
+        : (lrel_int → interp TInt [])%lrel) →
     ⊢ REL rnm_direct2 evalQ #N d
        << report_noisy_max_presampling evalQ #N d : interp TNat Δ.
   Proof.
     iIntros (Hq). rewrite /report_noisy_max_presampling /rnm_direct2.
     rel_pures_l. rel_pures_r.
-    rel_bind_l (list_init _ _). rel_bind_r (list_init _ _).
+    rel_bind_l (list_init_poly _ _ _). rel_bind_r (list_init_poly _ _ _).
     iApply (refines_bind with "[]").
     { iApply (refines_list_init (interp TInt []) #N #N).
       - rel_values.
       - iApply Hq. }
     iIntros (xs xs') "Hxs /=". rel_pures_l. rel_pures_r.
-    rel_bind_l (list_map _ _). rel_bind_r (list_map _ _).
+    rel_bind_l (list_map_poly _ _ _ _). rel_bind_r (list_map_poly _ _ _ _).
     iApply (refines_bind with "[Hxs]").
     { iApply (refines_list_map (interp TInt []) tape_pair_rel').
       - iApply refines_alloc_pair'.
       - iApply (refines_ret with "[Hxs]"); [done..|]. by iModIntro. }
     iIntros (xp xt) "Hxt /=". rel_pures_l. rel_pures_r.
-    rel_bind_l (list_map _ _). rel_bind_r (list_map _ _).
+    rel_bind_l (list_map_poly _ _ _ _). rel_bind_r (list_map_poly _ _ _ _).
     iApply (refines_bind with "[Hxt]").
     { iApply (refines_list_map tape_pair_rel' (interp TInt [])).
       - iApply refines_read'.
@@ -282,8 +282,8 @@ Section idiomatic.
 
   Definition rnm_direct1 : val :=
     λ:"evalQ" "N" "d",
-      let: "xs" := list_init "N" (λ:"i", "evalQ" "i" "d") in
-      list_max_index (list_map directsample "xs").
+      let: "xs" := list_init_poly #() "N" (λ:"i", "evalQ" "i" "d") in
+      list_max_index (list_map_poly #() #() directsample "xs").
 
   Lemma refines_directsample :
     ⊢ REL directsample << directsample : (interp TInt [] → interp TInt [])%lrel.
@@ -327,19 +327,26 @@ Section idiomatic.
   (** Stage A: the pure score↦[(score,())] pairing map. *)
   Lemma wp_pair_pass (lv lv' : val) :
     lrel_list (interp TInt []) lv lv' -∗
-    WP list_map (λ:"x", ("x", #()))%V lv {{ w, lrel_list unit_pair_rel w lv' }}.
+    WP list_map_poly #() #() (λ:"x", ("x", #()))%V lv {{ w, lrel_list unit_pair_rel w lv' }}.
   Proof.
-    iIntros "Hll". iLöb as "IH" forall (lv lv').
+    iIntros "Hll".
+    (* strip the two type-app thunks of [list_map_poly #() #()] to expose the
+       inner loop [list_map_go]; the iLöb recursion is then over [list_map_go]. *)
+    rewrite /list_map_poly. do 3 wp_pure.
+    iLöb as "IH" forall (lv lv').
     rewrite lrel_list_unfold.
     iDestruct "Hll" as "[Hnil|Hcons]".
     - iDestruct "Hnil" as "[>-> >->]".
-      rewrite /list_map. wp_pures.
+      rewrite /list_map_go. wp_pures.
       rewrite (lrel_list_unfold unit_pair_rel (InjLV _) (InjLV _)).
       iModIntro. iNext. iLeft. by auto.
     - iDestruct "Hcons" as (a1 a2 r1 r2) "(>-> & >-> & #HA & Hrest)".
-      rewrite {2}/list_map. do 5 (wp_pure _). rewrite -/list_map.
-      wp_pure _.
-      wp_bind (list_map (λ: "x", ("x", #()))%V (Snd (a1, r1)%V)).
+      (* one extra identity-unfold beta [(λx,x) "l"] per recursion: the [do 5]
+         walks past it (plus the [match]/projections) to the body cons; then fold
+         the recursive occurrence back to [list_map_go]. *)
+      rewrite {2}/list_map_go. do 5 (wp_pure _). rewrite -/list_map_go.
+      wp_pure _. wp_pure _.
+      wp_bind (list_map_go (λ: "x", ("x", #()))%V (Snd (a1, r1)%V)).
       wp_pure _.
       iApply (wp_wand with "[Hrest]").
       { iApply ("IH" $! r1 r2 with "Hrest"). }
@@ -353,7 +360,7 @@ Section idiomatic.
 
   Lemma refines_pair_pass (l l' : expr) :
     (REL l << l' : lrel_list (interp TInt [])) -∗
-    REL list_map (λ:"x", ("x", #()))%V l << l' : lrel_list unit_pair_rel.
+    REL list_map_poly #() #() (λ:"x", ("x", #()))%V l << l' : lrel_list unit_pair_rel.
   Proof.
     iIntros "Hl".
     rel_bind_l l. rel_bind_r l'.
@@ -405,9 +412,9 @@ Section idiomatic.
 
   Lemma refines_map_map_fusion (l l' : expr) :
     (REL l << l' : lrel_list (interp TInt [])) -∗
-    REL list_map (λ:"x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V
-                 (list_map (λ:"x", ("x", #()))%V l)
-     << list_map directsample l' : lrel_list (interp TInt []).
+    REL list_map_poly #() #() (λ:"x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V
+                 (list_map_poly #() #() (λ:"x", ("x", #()))%V l)
+     << list_map_poly #() #() directsample l' : lrel_list (interp TInt []).
   Proof.
     iIntros "Hl".
     iApply (refines_list_map unit_pair_rel (interp TInt [])).
@@ -417,25 +424,25 @@ Section idiomatic.
 
   Lemma rnm_link2 (evalQ : val) (N : nat) (d : val) Δ :
     (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
-        : (lrel_nat → interp TInt [])%lrel) →
+        : (lrel_int → interp TInt [])%lrel) →
     ⊢ REL rnm_direct2 evalQ #N d
        << rnm_direct1 evalQ #N d : interp TNat Δ.
   Proof.
     iIntros (Hq). rewrite /rnm_direct2 /rnm_direct1.
     rel_pures_l. rel_pures_r.
-    rel_bind_l (list_init _ _). rel_bind_r (list_init _ _).
+    rel_bind_l (list_init_poly _ _ _). rel_bind_r (list_init_poly _ _ _).
     iApply (refines_bind with "[]").
     { iApply (refines_list_init (interp TInt []) #N #N).
       - rel_values.
       - iApply Hq. }
     iIntros (xs xs') "Hxs /=". rel_pures_l. rel_pures_r.
-    rel_bind_l (list_map (λ:"x",("x",#()))%V xs).
+    rel_bind_l (list_map_poly _ _ (λ:"x",("x",#()))%V xs).
     rel_apply_l refines_wp_l.
     iApply (wp_wand with "[Hxs]").
     { iApply (wp_pair_pass with "Hxs"). }
     iIntros (pv) "#Hpv /=". rel_pures_l.
-    rel_bind_l (list_map (λ:"x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V pv).
-    rel_bind_r (list_map directsample xs').
+    rel_bind_l (list_map_poly _ _ (λ:"x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V pv).
+    rel_bind_r (list_map_poly _ _ directsample xs').
     iApply (refines_bind with "[Hpv]").
     { iApply (refines_list_map unit_pair_rel (interp TInt [])).
       - iApply refines_read_directsample.
@@ -450,7 +457,7 @@ Section idiomatic.
     (0 <= Δ)%Z →
     (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
     ⊢ REL (λ:"i", evalQ "i" (inject db))%V << (λ:"i", evalQ "i" (inject db))%V
-        : (lrel_nat → interp TInt [])%lrel.
+        : (lrel_int → interp TInt [])%lrel.
   Proof.
     iIntros (HΔ Hsens).
     iApply refines_arrow_val. iModIntro. iIntros (n n') "#Hn".
@@ -459,7 +466,7 @@ Section idiomatic.
     rewrite refines_eq /refines_def.
     iIntros (K ε) "Hspec Hna Herr %Hε".
     assert (Hcpos : (0 <= IZR Δ)%R) by (apply IZR_le; lia).
-    iPoseProof (Hsens (Z.of_nat k)) as "Ht".
+    iPoseProof (Hsens k) as "Ht".
     iApply ("Ht" $! Hcpos K db db with "[$Hspec]").
     iModIntro. iIntros (v) "Hpost".
     iDestruct "Hpost" as (b b' Hv) "[Hspec' %Hd]".
@@ -491,48 +498,76 @@ Section idiomatic.
   Definition rel_concrete_int : lrel Σ := LRel (λ v v',
     ∃ zs : list Z, ⌜is_list (A := Z) zs v ∧ is_list (A := Z) zs v'⌝)%I.
 
-  (** [list_init] producing a CONCRETE equal integer list on both sides.  Mirrors
-      [refines_list_init] (from [gwp_list_rel]) but, because the per-index query
-      returns EQUAL integers (the [Hq] self-relation), the result lists are the
-      SAME concrete [list Z], tracked through the down-count loop accumulator.
-      [gwp.list]'s [list_init] prepends [f i] for [i] counting down from [k] to
-      [1], so no final [list_rev] is needed. *)
+  (** [list_init_poly #()] producing a CONCRETE equal integer list on both sides.
+      Mirrors [refines_list_init] (from [gwp_list_rel]) but, because the per-index
+      query returns EQUAL integers (the [Hq] self-relation), the result lists are
+      the SAME concrete [list Z].  [gwp.list]'s [list_init] now counts UP from [#0]
+      to [len] (forward, 0-indexed); we induct on the number [m] of remaining
+      indices, with the current index [#i] satisfying [i + m = M], so the result
+      list is [f i :: f (i+1) :: … :: f (M-1)].  The [#i = #M] test on a VARIABLE
+      integer does NOT auto-reduce; resolve it via [case_bool_decide]/
+      [bool_decide_eq_*].  No [list_rev]. *)
   Lemma refines_list_init_concrete (f f' : val) (M : nat) :
-    □ (REL f << f' : (lrel_nat → interp TInt [])%lrel) -∗
-    REL list_init #M f << list_init #M f' : rel_concrete_int.
+    □ (REL f << f' : (lrel_int → interp TInt [])%lrel) -∗
+    REL list_init_poly #() #M f << list_init_poly #() #M f' : rel_concrete_int.
   Proof.
-    iIntros "#Hf". rewrite /list_init.
+    iIntros "#Hf". rewrite /list_init_poly.
+    (* strip the type-app thunk + the [len f] wrapper lambdas (one extra beta vs
+       the mono [list_init]), reaching the loop head [(rec aux i) #0] on each. *)
     do 3 (rel_pure_l _). do 3 (rel_pure_r _).
-    rewrite /list_cons.
-    iAssert (□ ∀ (j : nat) (av av' : val) (acc : list Z),
-                ⌜is_list (A := Z) acc av ∧ is_list (A := Z) acc av'⌝ -∗
-                REL (rec: "aux" "acc" "i" :=
-                       if: "i" = #0 then "acc"
-                       else "aux"
-                              ((λ: "elem" "list", SOME ("elem", "list"))%V
-                                 (Val f "i") "acc") ("i" - #1))%V av #j
-                 << (rec: "aux" "acc" "i" :=
-                       if: "i" = #0 then "acc"
-                       else "aux"
-                              ((λ: "elem" "list", SOME ("elem", "list"))%V
-                                 (Val f' "i") "acc") ("i" - #1))%V av' #j
+    (* Forward loop: at index [#i] with [m] remaining ([i + m = M]), both runs
+       build the SAME concrete integer list of length [m]. *)
+    iAssert (□ ∀ (m i : nat),
+                ⌜(i + m = M)%nat⌝ -∗
+                REL (rec: "aux" "i" :=
+                       if: "i" = #M then InjL #()
+                       else let: "h" := (Val f) "i" in
+                            let: "t" := "aux" ("i" + #1) in
+                            "h" :: "t")%V #i
+                 << (rec: "aux" "i" :=
+                       if: "i" = #M then InjL #()
+                       else let: "h" := (Val f') "i" in
+                            let: "t" := "aux" ("i" + #1) in
+                            "h" :: "t")%V #i
                  : rel_concrete_int)%I as "#Hloop".
-    { iModIntro. iIntros (j). iInduction j as [|j] "IH"; iIntros (av av' acc [Hav Hav']).
-      - (* counter 0: both runs return the (equal-concrete) accumulator. *)
-        rel_rec_l. rel_rec_r. rel_pures_l. rel_pures_r. rel_values.
-      - (* counter [S j]: cons [f #(S j)] onto both accumulators, recurse at [j]. *)
-        rel_rec_l. rel_rec_r. rel_pures_l. rel_pures_r.
-        rel_bind_l (f _)%E. rel_bind_r (f' _)%E.
+    { iModIntro. iIntros (m). iInduction m as [|m] "IH"; iIntros (i Hi).
+      - (* m = 0: [i = M], both runs take the [if #M = #M then []] branch. *)
+        assert (i = M) as -> by lia.
+        rel_rec_l. rel_pures_l. rewrite bool_decide_eq_true_2 //. rel_pures_l.
+        rel_rec_r. rel_pures_r. rewrite bool_decide_eq_true_2 //. rel_pures_r.
+        rel_values. iExists []. by iPureIntro.
+      - (* m = S _: [i < M], so [#i = #M] is FALSE; cons [f #i], recurse at [i+1]. *)
+        rel_rec_l. rel_pures_l. rel_rec_r. rel_pures_r.
+        rewrite bool_decide_eq_false_2; [|injection 1 as ?%Nat2Z.inj; lia].
+        rel_pures_l. rel_pures_r.
+        rel_bind_l ((Val f) _)%E. rel_bind_r ((Val f') _)%E.
         iApply (refines_bind with "[]").
         { iApply (refines_app with "Hf"). rel_values. }
         iIntros (hv hv') "#Hhead /=".
         iDestruct "Hhead" as (z) "[-> ->]".
-        do 5 (rel_pure_l _). do 5 (rel_pure_r _).
-        replace (Z.of_nat (S j) - 1)%Z with (Z.of_nat j) by lia.
-        iApply ("IH" $! (InjRV (#z, av)) (InjRV (#z, av')) (z :: acc)).
-        iPureIntro; split; simpl; eauto. }
+        (* beta the [let: "h" := #z] on both sides. *)
+        do 2 (rel_pure_l _). do 2 (rel_pure_r _).
+        (* bind the recursive call, reduce its index [#i + #1 ⇝ #(Z.of_nat i + 1)],
+           then coerce that to [#(Z.of_nat (i+1))] so it matches the IH head. *)
+        rel_bind_l ((rec: "aux" "i" := _)%V (#i + #1)%E).
+        rel_bind_r ((rec: "aux" "i" := _)%V (#i + #1)%E).
+        rel_pure_l (_ + _)%E. rel_pure_r (_ + _)%E.
+        replace (Z.of_nat i + 1)%Z with (Z.of_nat (i + 1)%nat) by lia.
+        rel_bind_l ((rec: "aux" "i" := _)%V _). rel_bind_r ((rec: "aux" "i" := _)%V _).
+        iApply (refines_bind with "[]").
+        { iApply ("IH" $! (i + 1)%nat). iPureIntro; lia. }
+        iIntros (tv tv') "Htv /=".
+        iDestruct "Htv" as (zs) "[%Htv %Htv']".
+        rewrite /list_cons. rel_pures_l. rel_pures_r.
+        rel_values. iExists (z :: zs). iPureIntro; split; simpl; eauto. }
+    (* beta the [let: "f" := f] wrapper (do NOT over-reduce: that would rec-unfold
+       the loop head and break the [Hloop] match); the program literal index [#0]
+       is [#(Z.of_nat 0)].  One more [rel_pure] folds the loop head [Rec → RecV] to
+       match the [%V]-headed [Hloop]; run the loop at [(m,i) = (M,0)]. *)
     do 2 (rel_pure_l _). do 2 (rel_pure_r _).
-    iApply ("Hloop" $! M _ _ []). by iPureIntro.
+    change (LitInt 0) with (LitInt (Z.of_nat 0%nat)).
+    rel_pure_l _. rel_pure_r _.
+    iApply ("Hloop" $! M 0%nat). iPureIntro; lia.
   Qed.
 
   (** Reverse per-element pairing relation: the impl bare score [v] is related to
@@ -603,26 +638,26 @@ Section idiomatic.
   (** Reverse direction: direct-1map (idiomatic) refines direct-2pass. *)
   Lemma rnm_link2' (evalQ : val) (N : nat) (d : val) Δ :
     (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
-        : (lrel_nat → interp TInt [])%lrel) →
+        : (lrel_int → interp TInt [])%lrel) →
     ⊢ REL rnm_direct1 evalQ #N d
        << rnm_direct2 evalQ #N d : interp TNat Δ.
   Proof.
     iIntros (Hq). rewrite /rnm_direct1 /rnm_direct2.
     rel_pures_l. rel_pures_r.
-    rel_bind_l (list_init _ _). rel_bind_r (list_init _ _).
+    rel_bind_l (list_init_poly _ _ _). rel_bind_r (list_init_poly _ _ _).
     iApply (refines_bind with "[]").
     { iApply refines_list_init_concrete. iModIntro. iApply Hq. }
     iIntros (xs xs') "Hxs /=".
     iDestruct "Hxs" as (zs) "%Hc". destruct Hc as [Hxs_l Hxs_r].
     rel_pures_l. rel_pures_r.
-    (* run the spec pairing map fully to a value via [gwp_list_map (g:=gwp_spec)],
+    (* run the spec pairing map fully to a value via [gwp_list_map_poly (g:=gwp_spec)],
        the [gwp.list] spec-side analogue of [examples.list]'s [spec_list_map]. *)
-    rel_bind_r (list_map (λ:"x",("x",#()))%V xs').
-    iApply (refines_steps_r _ ⊤ (list_max_index (list_map directsample xs))
-              (list_map (λ:"x",("x",#()))%V xs')
+    rel_bind_r (list_map_poly _ _ (λ:"x",("x",#()))%V xs').
+    iApply (refines_steps_r _ ⊤ (list_max_index (list_map_poly #() #() directsample xs))
+              (list_map_poly #() #() (λ:"x",("x",#()))%V xs')
               (Val (inject (List.map (λ z : Z, (#z, #())%V) zs)))).
     { iIntros (K) "Hspec".
-      iMod (gwp_list_map (g := gwp_spec) (A := Z) (B := val) zs
+      iMod (gwp_list_map_poly (g := gwp_spec) (A := Z) (B := val) zs
               (λ z : Z, (#z, #())%V) (λ:"x",("x",#()))%V xs' ⊤
               with "[] [] [$Hspec]") as (rv) "Hpost".
       { iSplit; [|iPureIntro; apply Hxs_r].
@@ -635,8 +670,8 @@ Section idiomatic.
     rel_pures_r. simpl. rel_pures_r.
     (* pass-2: direct-sampling map (impl) vs read map (spec), reflexive coupling;
        then argmax of the (pointwise-equal) noisy lists. *)
-    rel_bind_l (list_map directsample xs).
-    rel_bind_r (list_map _ (inject_list _)).
+    rel_bind_l (list_map_poly _ _ directsample xs).
+    rel_bind_r (list_map_poly _ _ _ (inject_list _)).
     iApply (refines_bind with "[]").
     { iApply (refines_list_map unit_pair_rel' (interp TInt [])).
       - iApply refines_directsample_read.
@@ -719,7 +754,7 @@ Section idiomatic_lim_exec.
     rewrite Hprog.
     assert (Hq : ∀ (Hr : diffprivRGS Sg diffprivRΣ),
               ⊢ REL (λ:"i", evalQ "i" (inject db))%V << (λ:"i", evalQ "i" (inject db))%V
-                  : (lrel_nat → interp TInt [])%lrel).
+                  : (lrel_int → interp TInt [])%lrel).
     { intros Hr.
       iApply (rnm_query_self_rel D num den Δ evalQ DB dDB db HΔ).
       intros. iApply Hsens. }

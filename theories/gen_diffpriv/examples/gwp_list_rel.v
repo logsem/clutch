@@ -17,7 +17,9 @@
     relations. *)
 From clutch.gen_prob_lang Require Import lang notation.
 From clutch.gen_prob_lang Require Import gwp.list.
-From clutch.gen_diffpriv Require Import model interp app_rel_rules rel_tactics.
+From clutch.gen_prob_lang.typing Require Import types list_typed.
+From clutch.gen_diffpriv Require Import model interp app_rel_rules rel_tactics fundamental.
+From clutch.prelude Require Import properness.
 From iris.prelude Require Import options.
 
 Section gwp_list_rel.
@@ -64,53 +66,62 @@ Section gwp_list_rel.
         iExists a1, a2, r1, r2. by iFrame.
   Qed.
 
-  (** The relational congruence for [list_map] at the value level. *)
-  Lemma refines_list_map_vals (A B : lrel Σ) (fv fv' : val) :
-    (A → B)%lrel fv fv' -∗
-    □ (∀ lv lv', lrel_list A lv lv' -∗
-         REL list_map fv lv << list_map fv' lv' : lrel_list B).
+  (** Bridge between the syntactic list type [TList] and the semantic list
+      relation [lrel_list]: the relational interpretation of [TList τ] is
+      exactly [lrel_list] over the interpretation of [τ].  This is what lets
+      the fundamental theorem's free theorems (stated over [interp (TList _)])
+      be read as congruences over [lrel_list] at *arbitrary* element relations.
+      The [τ.[ren (+1)]] shift in [TList] cancels the [μ]-bound variable via
+      [interp_ren_up]. *)
+  Lemma interp_TList (τ : type) (Δ : list (lrel Σ)) :
+    interp (TList τ) Δ ≡ lrel_list (interp τ Δ).
   Proof.
-    iIntros "#Hff !>".
-    iLöb as "IH". iIntros (lv lv') "Hll".
-    rewrite lrel_list_unfold.
-    rel_rec_l. rel_rec_r.
-    iDestruct "Hll" as "[(-> & ->)|Hcons]".
-    - rel_pures_l. rel_pures_r. rel_values.
-      rewrite (lrel_list_unfold B (InjLV _) (InjLV _)).
-      iModIntro. iNext. iLeft. by auto.
-    - iDestruct "Hcons" as (a1 a2 r1 r2) "(-> & -> & #HA & Hrest)".
-      rel_pures_l. rel_pures_r.
-      rel_bind_l (list_map _ _). rel_bind_r (list_map _ _).
-      iApply (refines_bind with "[Hrest]").
-      { iApply ("IH" with "Hrest"). }
-      iIntros (tv tv') "#Htail /=".
-      rel_bind_l (fv _). rel_bind_r (fv' _).
-      iApply (refines_bind with "[]").
-      { rel_pures_l. rel_pures_r. iApply ("Hff" with "HA"). }
-      iIntros (hv hv') "#Hhead /=".
-      rel_pures_l. rel_pures_r. rewrite /list_cons. rel_pures_l. rel_pures_r.
-      rel_values.
-      rewrite (lrel_list_unfold B (InjRV _) (InjRV _)).
-      iModIntro. iNext. iRight.
-      iExists hv, hv', tv, tv'. by iFrame "Hhead Htail".
+    rewrite /lrel_list /TList /=.
+    apply fixpoint_proper => X w1 w2 /=.
+    rewrite /lrel_list_gen /lrel_rec1 /lrel_car /=.
+    unfold lrel_car; simpl.
+    properness; auto.
+    symmetry. apply (interp_ren_up [] Δ τ X).
   Qed.
 
   (** The relational congruence for [list_map] over arbitrary related
-      expressions. *)
+      expressions, derived "for free" from the fundamental theorem applied to
+      the syntactically typed polymorphic combinator [list_map_poly]. *)
   Lemma refines_list_map (A B : lrel Σ) (f f' l l' : expr) :
     (REL f << f' : (A → B)%lrel) -∗
     (REL l << l' : lrel_list A) -∗
-    REL list_map f l << list_map f' l' : lrel_list B.
+    REL list_map_poly #() #() f l << list_map_poly #() #() f' l' : lrel_list B.
   Proof.
     iIntros "Hf Hl".
+    iPoseProof (fundamental_val [] list_map_poly _ (list_map_poly_typed _)) as "#Hpoly".
+    iSpecialize ("Hpoly" $! A).
+    (* The arguments [l] and [f] are the deepest redexes; bind them to values
+       first, then the two head type-applications. *)
     rel_bind_l l. rel_bind_r l'.
     iApply (refines_bind with "Hl").
-    iIntros (lv lv') "Hll /=".
+    iIntros (lv lv') "#Hlv /=".
     rel_bind_l f. rel_bind_r f'.
     iApply (refines_bind with "Hf").
-    iIntros (fv fv') "Hff /=".
-    iDestruct (refines_list_map_vals with "Hff") as "#Hmap".
-    by iApply "Hmap".
+    iIntros (fv fv') "#Hfv /=".
+    (* First type-application [list_map_poly #()]. *)
+    rel_bind_l (App list_map_poly #())%E. rel_bind_r (App list_map_poly #())%E.
+    iApply (refines_bind with "[Hpoly]").
+    { iApply ("Hpoly" $! #() #()); by []. }
+    iIntros (g1 g1') "#Hg1 /=".
+    iSpecialize ("Hg1" $! B).
+    rel_bind_l (App g1 #())%E. rel_bind_r (App g1' #())%E.
+    iApply (refines_bind with "[Hg1]").
+    { iApply ("Hg1" $! #() #()); by []. }
+    iIntros (g g') "#Hg /=".
+    (* [Hg : (A → B) → lrel_list A → lrel_list B], since [TVar1 ↦ A], [TVar0 ↦ B]. *)
+    iSpecialize ("Hg" with "Hfv").
+    rel_bind_l (g fv)%E. rel_bind_r (g' fv')%E.
+    iApply (refines_bind with "Hg").
+    iIntros (h h') "#Hh".
+    rewrite -(interp_TList (TVar 0) (B :: A :: [])).
+    iApply "Hh".
+    rewrite (interp_TList (TVar 1) (B :: A :: []) lv lv').
+    iApply "Hlv".
   Qed.
 
   (** Relational congruence for [list_init].  Here [list_init len f] runs the
@@ -118,68 +129,39 @@ Section gwp_list_rel.
       prepending [f i] each step; the accumulator stays related at
       [lrel_list A]. *)
   Lemma refines_list_init (A : lrel Σ) (n n' f f' : expr) :
-    (REL n << n' : lrel_nat) -∗
-    (REL f << f' : (lrel_nat → A)%lrel) -∗
-    REL list_init n f << list_init n' f' : lrel_list A.
+    (REL n << n' : lrel_int) -∗
+    (REL f << f' : (lrel_int → A)%lrel) -∗
+    REL list_init_poly #() n f << list_init_poly #() n' f' : lrel_list A.
   Proof.
     iIntros "Hn Hf".
-    (* Evaluation is right-to-left: the inner argument [f] reduces first. *)
+    iPoseProof (fundamental_val [] list_init_poly _ (list_init_poly_typed _)) as "#Hpoly".
+    iSpecialize ("Hpoly" $! A).
+    (* The arguments [n] and [f] are the deepest redexes (rightmost-innermost),
+       so bind them to values first; then bind the head type-application. *)
     rel_bind_l f. rel_bind_r f'.
     iApply (refines_bind with "Hf").
-    iIntros (fv fv') "#Hff /=".
+    iIntros (fv fv') "#Hfv /=".
     rel_bind_l n. rel_bind_r n'.
     iApply (refines_bind with "Hn").
-    iIntros (nv nv') "Hn /=".
-    iDestruct "Hn" as (k) "[-> ->]".
-    rewrite /list_init.
-    (* Reduce the three outer betas, exposing the loop body [aux [] #k].  We
-       unfold [list_cons] so the loop body matches the (unfolded-cons) [Hloop]
-       statement below; the loop's recursive occurrence reproduces this same
-       unfolded shape, so the lockstep [rel_pure] counts stay stable. *)
-    do 3 (rel_pure_l _). do 3 (rel_pure_r _).
-    rewrite /list_cons.
-    (* Generalise over the (Coq nat) counter and the related accumulators, and
-       run the down-count loop in lockstep. *)
-    iAssert (□ ∀ (j : nat) (av av' : val),
-                lrel_list A av av' -∗
-                REL (rec: "aux" "acc" "i" :=
-                       if: "i" = #0 then "acc"
-                       else "aux"
-                              ((λ: "elem" "list", SOME ("elem", "list"))%V
-                                 (Val fv "i") "acc") ("i" - #1))%V av #j
-                 << (rec: "aux" "acc" "i" :=
-                       if: "i" = #0 then "acc"
-                       else "aux"
-                              ((λ: "elem" "list", SOME ("elem", "list"))%V
-                                 (Val fv' "i") "acc") ("i" - #1))%V av' #j
-                 : lrel_list A)%I as "#Hloop".
-    { iModIntro. iIntros (j). iInduction j as [|j] "IH"; iIntros (av av') "Hacc".
-      - (* counter 0: both runs return the accumulator. *)
-        rel_rec_l. rel_rec_r.
-        rel_pures_l. rel_pures_r. rel_values.
-      - (* counter [S j]: cons [f #(S j)] onto the accumulator, recurse at [j]. *)
-        rel_rec_l. rel_rec_r.
-        rel_pures_l. rel_pures_r.
-        rel_bind_l (fv _)%E. rel_bind_r (fv' _)%E.
-        iApply (refines_bind with "[]").
-        { iApply ("Hff" $! #(S j) #(S j)). iExists (S j). by auto. }
-        iIntros (hv hv') "#Hhead /=".
-        (* Reduce the head cons and the [- #1], stopping before the recursive
-           [aux] fires, so the goal matches the induction hypothesis. *)
-        do 5 (rel_pure_l _). do 5 (rel_pure_r _).
-        replace (Z.of_nat (S j) - 1)%Z with (Z.of_nat j) by lia.
-        iApply ("IH" $! (InjRV (hv, av)) (InjRV (hv', av'))
-                 with "[Hhead Hacc]").
-        rewrite (lrel_list_unfold A (InjRV _) (InjRV _)).
-        iNext. iRight.
-        iExists hv, hv', av, av'. by iFrame "Hhead Hacc". }
-    (* Run the loop from the empty accumulator [[]] and counter [#k].  First
-       reduce the [InjL #()] accumulator to a value and fold the (bare) loop
-       [Rec] to its value form [(rec …)%V], so the goal matches [Hloop]. *)
-    do 2 (rel_pure_l _). do 2 (rel_pure_r _).
-    iApply ("Hloop" $! k).
-    rewrite (lrel_list_unfold A (InjLV _) (InjLV _)).
-    iNext. iLeft. by auto.
+    iIntros (nv nv') "#Hnv /=".
+    (* Now bind the type-application [list_init_poly #()] on both sides. *)
+    rel_bind_l (App list_init_poly #())%E. rel_bind_r (App list_init_poly #())%E.
+    iApply (refines_bind with "[Hpoly]").
+    { iApply ("Hpoly" $! #() #()); by []. }
+    iIntros (g g') "#Hg /=".
+    (* [Hg : interp (TInt → (TInt → 0) → TList 0) (A::[]) g g'], i.e. the curried
+       arrow [lrel_int → (lrel_int → A) → interp (TList 0) (A::[])].  Apply it to
+       [nv] then [fv]. *)
+    iSpecialize ("Hg" with "Hnv").
+    rel_bind_l (g nv)%E. rel_bind_r (g' nv')%E.
+    iApply (refines_bind with "Hg").
+    iIntros (h h') "#Hh /=".
+    iSpecialize ("Hh" with "Hfv").
+    (* Goal: [REL h fv << h' fv' : lrel_list A]; [Hh] proves it at
+       [interp (TList 0) (A::[])].  Convert the goal's result relation via
+       [interp_TList]. *)
+    rewrite -(interp_TList (TVar 0) (A :: [])).
+    iApply "Hh".
   Qed.
 
   (** Relational congruence for [list_max_index]: two lists related at

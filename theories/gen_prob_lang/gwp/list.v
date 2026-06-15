@@ -34,12 +34,35 @@ Definition list_hd : val :=
 Definition list_tl : val :=
   λ:"xs", match: "xs" with NONE => "xs" | SOME "x_xs" => Snd "x_xs" end.
 
+(** [list_init len f] = [f 0 :: f 1 :: … :: f (len-1) :: []], with [f]
+    evaluated left-to-right (ascending index), matching OCaml's
+    [List.init].  NB: pair/cons evaluation in this language is
+    right-to-left (a non-value second component reduces first), so we
+    force the order with explicit [let]s: [f "i"] is bound before the
+    recursive call, so [f 0] runs first and [f (len-1)] last. *)
 Definition list_init : val :=
   λ: "len" "f",
-  (rec: "aux" "acc" "i" :=
-    (if: "i" = #0
-     then  "acc"
-     else  "aux" (("f" "i") :: "acc") ("i" - #1))) [] "len".
+  (rec: "aux" "i" :=
+     if: "i" = "len" then []
+     else let: "h" := "f" "i" in
+          let: "t" := "aux" ("i" + #1) in
+          "h" :: "t") #0.
+
+(** Polymorphic, type-abstracted version of [list_init], typeable at
+    [∀α. TNat → (TNat → α) → list α] (see [typing.list_typed]), so the
+    fundamental theorem yields its relational free theorem.  The single
+    [λ: <>] is the type abstraction (type application = [#()]); the body is
+    [list_init]'s, so [list_init_poly #()] is [list_init] up to one beta.
+    No [rec_unfold] is needed: the loop only *builds* a list (the [::]/[NONE]
+    constructors fold implicitly), it never destructs one. *)
+Definition list_init_poly : val :=
+  (λ: <>,
+     λ: "len" "f",
+     (rec: "aux" "i" :=
+        if: "i" = "len" then []
+        else let: "h" := "f" "i" in
+             let: "t" := "aux" ("i" + #1) in
+             "h" :: "t") #0)%V.
 
 Definition list_fold : val :=
   rec: "list_fold" "handler" "acc" "l" :=
@@ -1333,6 +1356,97 @@ Section list_specs_extra.
     - destruct Hil as [lv' [-> Hil']].
       do 4 gwp_pure _.
       fold list_map.
+      iDestruct (big_sepL_cons with "Hown") as "[Hhead Hown]".
+      gwp_smart_apply ("IH" $! (λ i x, f (S i) x) (λ i x, γ (S i) x) (λ i x, ψ (S i) x) lv'
+                with "[Hown]").
+      + iSplitL ""; last first.
+        * iSplit; [done |].
+          iApply (big_sepL_impl with "Hown").
+          iModIntro.
+          iIntros (k' x) "_ Hpre"; done.
+        * iModIntro.
+          iIntros (i x).
+          iApply ("Hf" $! (S i) x).
+      + iIntros (rv) "[%Hil_rv Hown]".
+        gwp_pures.
+        gwp_apply ("Hf" $! 0%nat h with "Hhead").
+        iIntros (fr) "[-> HΨ]".
+        gwp_apply gwp_list_cons; [done | ].
+        iIntros (v) "%Hil_v".
+        iApply "HΦ".
+        rewrite mapi_cons.
+        iSplit; [done |].
+        simpl.
+        iFrame "HΨ".
+        iApply (big_sepL_impl with "Hown").
+        iModIntro.
+        iIntros (k' x) "_ HΨ'"; done.
+  Qed.
+
+  (* Polymorphic counterpart of [gwp_list_map] for [list_map_poly #() #()].
+     [list_map_poly #() #() fv lv] beta-reduces (2 type-app thunks) to
+     [list_map_go fv lv], which is [list_map] with one extra identity-unfold
+     [(λx,x) "l"] beta-step per recursion before the [match]. *)
+  Lemma gwp_list_map_poly `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val) E :
+    G{{{ (∀ (x : A),
+          G{{{ True }}}
+            fv (inject x) @ g; E
+          {{{ fr, RET fr; ⌜fr = inject (f x)⌝ }}}) ∗
+          ⌜is_list l lv⌝ }}}
+      list_map_poly #() #() fv lv @ g; E
+    {{{ rv, RET rv; ⌜is_list (List.map f l) rv⌝ }}}.
+  Proof.
+    iIntros (Φ) "[#Hf %Hil] HΦ".
+    rewrite /list_map_poly. do 3 gwp_pure _.
+    iInduction l as [ | h t] "IH" forall (lv Hil Φ); simpl in Hil; try subst;
+      rewrite /list_map_go.
+    - gwp_pures.
+      iApply "HΦ"; iPureIntro.
+      rewrite /is_list; done.
+    - gwp_pures.
+      destruct Hil as (lv' & -> & Hil').
+      do 4 gwp_pure _.
+      gwp_apply "IH"; [done |].
+      iIntros (rv) "%Hil_rv"; gwp_pures.
+      gwp_apply "Hf"; [done |].
+      iIntros (fr) "->".
+      gwp_apply gwp_list_cons; [done |].
+      iIntros (v) "%Hilf".
+      iApply "HΦ"; auto.
+  Qed.
+
+  (* Polymorphic counterpart of [gwp_list_map_idx] for [list_map_poly #() #()]. *)
+  Lemma gwp_list_map_poly_idx `{!Inject B val}
+        (f : nat -> A -> B) (l : list A) (fv lv : val)
+        (γ : nat -> A -> iProp _) (ψ : nat -> B -> iProp _) E :
+    G{{{ □ (∀ (i : nat) (x : A),
+              G{{{ γ i x }}}
+                fv (inject x) @ g; E
+                {{{ fr, RET fr;
+                    let r := f i x in
+                    ⌜fr = (inject r)⌝ ∗ ψ i r }}}) ∗
+        ⌜is_list l lv⌝ ∗
+        ([∗ list] i ↦ a ∈ l, γ i a)
+    }}}
+      list_map_poly #() #() fv lv @ g; E
+    {{{ rv, RET rv;
+        let l' := mapi f l in
+        ⌜is_list l' rv⌝ ∗
+        ([∗ list] i ↦ a ∈ l', ψ i a)}}}.
+  Proof.
+    iIntros (Φ) "Hpre HΦ".
+    rewrite /list_map_poly. do 3 gwp_pure _.
+    iRevert "Hpre HΦ".
+    iInduction l as [ | h l'] "IH" forall (f γ ψ lv Φ);
+      iIntros "[#Hf [%Hil Hown]] HΦ"; simpl in Hil;
+      rewrite /list_map_go.
+    - subst.
+      gwp_pures.
+      iApply "HΦ".
+      iModIntro.
+      iSplit; done.
+    - destruct Hil as [lv' [-> Hil']].
+      do 8 gwp_pure _.
       iDestruct (big_sepL_cons with "Hown") as "[Hhead Hown]".
       gwp_smart_apply ("IH" $! (λ i x, f (S i) x) (λ i x, γ (S i) x) (λ i x, ψ (S i) x) lv'
                 with "[Hown]").
