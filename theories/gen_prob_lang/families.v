@@ -10,6 +10,7 @@ From Stdlib Require Import Reals Psatz ZArith.
 From stdpp Require Import gmap fin countable.
 From clutch.prob Require Import distribution exponential expmech trunc_laplace.
 From clutch.gen_prob_lang Require Import lang znoise inject.
+From clutch.gen_prob_lang.typing Require Import types.
 From iris.prelude Require Import options.
 
 #[local] Open Scope R.
@@ -256,3 +257,69 @@ Ltac solve_SampleIn :=
     | refine {| sample_idx := 6 |}; reflexivity
     | refine {| sample_idx := 7 |}; reflexivity
     | fail "solve_SampleIn: family not found in signature within index bound 7" ].
+
+(* ------------------------------------------------------------------ *)
+(* Typing rules: each family brings its own [SampleTyping] instance.    *)
+(* Providing the instance (and having the family in the signature) is   *)
+(* exactly what enables the [Sample]/[AllocSampleTape] typing rules for *)
+(* it — see [typed]/[fundamental] in the logical relation.              *)
+(* ------------------------------------------------------------------ *)
+
+(** Uniform: [TNat → TInt]. *)
+#[global] Instance SampleTyping_uniform : SampleTyping uniform_family TNat TInt.
+Proof.
+  split.
+  - constructor.
+  - intros v [n ->]. eexists. reflexivity.
+  - intros o. exists o. reflexivity.
+Qed.
+
+(** Every [mkZNoise] noise family reads a [(num, den, mean)] triple of type
+    [TInt * (TInt * TInt)] and outputs an integer. *)
+Lemma SampleTyping_mkZNoise sample mass :
+  SampleTyping (mkZNoise sample mass) (TInt * (TInt * TInt)) TInt.
+Proof.
+  split.
+  - repeat constructor.
+  - intros v (v1 & v2 & -> & [num ->] & (v3 & v4 & -> & [den ->] & [mean ->])).
+    eexists. reflexivity.
+  - intros o. exists o. reflexivity.
+Qed.
+
+#[global] Instance SampleTyping_laplace :
+  SampleTyping laplace_family (TInt * (TInt * TInt)) TInt := SampleTyping_mkZNoise _ _.
+#[global] Instance SampleTyping_exp :
+  SampleTyping exp_family (TInt * (TInt * TInt)) TInt := SampleTyping_mkZNoise _ _.
+
+(** The truncated Laplace reads a fourth [Z] (the half-width), of type
+    [TInt * (TInt * (TInt * TInt))]. *)
+Lemma SampleTyping_mkZNoise4 sample mass :
+  SampleTyping (mkZNoise4 sample mass) (TInt * (TInt * (TInt * TInt))) TInt.
+Proof.
+  split.
+  - repeat constructor.
+  - intros v (v1 & v2 & -> & [a ->] & (v3 & v4 & -> & [b ->] & (v5 & v6 & -> & [c ->] & [d ->]))).
+    eexists. reflexivity.
+  - intros o. exists o. reflexivity.
+Qed.
+
+#[global] Instance SampleTyping_trunc_laplace :
+  SampleTyping trunc_laplace_family (TInt * (TInt * (TInt * TInt))) TInt
+  := SampleTyping_mkZNoise4 _ _.
+
+(** Coins output a boolean from a pair of integer weights: [TInt*TInt → TBool]. *)
+#[global] Instance SampleTyping_coin : SampleTyping coin_family (TInt * TInt) TBool.
+Proof.
+  split.
+  - repeat constructor.
+  - intros v (v1 & v2 & -> & [a ->] & [b ->]). eexists. reflexivity.
+  - intros o. exists o. reflexivity.
+Qed.
+
+#[global] Instance SampleTyping_RR_coin : SampleTyping RR_coin (TInt * TInt) TBool.
+Proof.
+  split.
+  - repeat constructor.
+  - intros v (v1 & v2 & -> & [a ->] & [b ->]). eexists. reflexivity.
+  - intros o. exists o. reflexivity.
+Qed.

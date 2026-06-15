@@ -135,7 +135,62 @@ Notation "'unpack:' x := e1 'in' e2" := (unpack e1%E (LamV x%binder e2%E))
 Global Instance insert_binder (A : Type): Insert binder A (stringmap A) :=
   binder_insert.
 
-(** Typing Clutch *)
+(** * Sampler typing interface *)
+
+(** Canonical "ground" values of a (discrete) type: the value shapes that a
+    sampler reads its parameters from / produces its outcomes at.  Defined
+    *before* [typed] so that it may appear in the [Sample] typing rule's side
+    conditions without entangling the [typed]/[val_typed] mutual recursion.
+
+    [ground_val] is the syntactic counterpart of the (logical-relation) value
+    interpretation at the discrete types: the bridge lemmas [ground_of_eqtype]
+    / [interp_of_ground] (in the logical relation) connect the two. *)
+Fixpoint ground_val (τ : type) (v : val) : Prop :=
+  match τ with
+  | TUnit => v = LitV LitUnit
+  | TInt => ∃ n : Z, v = LitV (LitInt n)
+  | TNat => ∃ n : nat, v = LitV (LitInt (Z.of_nat n))
+  | TBool => ∃ b : bool, v = LitV (LitBool b)
+  | TProd τ1 τ2 => ∃ v1 v2, v = PairV v1 v2 ∧ ground_val τ1 v1 ∧ ground_val τ2 v2
+  | TSum τ1 τ2 =>
+      ∃ w, (v = InjLV w ∧ ground_val τ1 w) ∨ (v = InjRV w ∧ ground_val τ2 w)
+  | _ => False
+  end.
+
+(** A sampler's typing rule: family [D] reads parameters of type [τp] and
+    produces outcomes of type [τo].  The three fields are exactly the syntactic
+    side conditions that make [Sample] a sound extension of the logical relation
+    (cf. the compatibility lemma [refines_sample]):
+
+      (1) [st_eqparam] : [τp] is discrete, so logically-related parameters are
+          equal — the two sides sample the *same* distribution, coupled
+          reflexively at zero cost;
+      (2) [st_decode]  : parameter decoding succeeds on every ground value of
+          type [τp] — the sample never gets stuck;
+      (3) [st_out]     : every outcome embeds to a ground value of type [τo] —
+          outcomes are related to themselves at [τo].
+
+    A new sampler "brings its own typing rule" simply by providing a
+    [SampleTyping] instance; the [Sample]/[AllocSampleTape] typing rules then
+    fire whenever the family is part of the signature ([Sg !! i = Some D]). *)
+Class SampleTyping (D : SampleFamily) (τp τo : type) := {
+  st_eqparam : EqType τp;
+  st_decode  : ∀ v, ground_val τp v → ∃ p, sf_param_of_val D v = Some p;
+  st_out     : ∀ o, ground_val τo (sf_inj D o);
+}.
+
+(** Typing Clutch.
+
+    The judgement is parameterised by the distribution signature [Sg : Sig]: the
+    [Sample]/[AllocSampleTape] rules look the family up at the syntactic index
+    ([Sg !! i = Some D]) and require a [SampleTyping] instance for it.  As with
+    [ctx_refines] (see [contextual_refinement.v]), [Sg] is a section variable, so
+    [typed]/[val_typed] take it as an explicit leading argument outside this
+    section, and the [⊢ₜ]/[⊢ᵥ] notations are section-local (consumers re-bind
+    them over their ambient [Sg]). *)
+Section typing.
+Context (Sg : Sig).
+
 Inductive typed : stringmap type → expr → type → Prop :=
   | Var_typed Γ x τ :
      Γ !! x = Some τ →
@@ -225,6 +280,22 @@ typing for AllocN could work. *)
   | TLoad Γ e τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ Deref e : τ
   | TStore Γ e e' τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ e' : τ → Γ ⊢ₜ Store e e' : ()
   | Subsume_int_nat Γ e : Γ ⊢ₜ e : TNat → Γ ⊢ₜ e : TInt
+  (* Direct sampling: [Sample i e1 ()] draws from family [Sg !! i] with
+     parameter [e1 : τp], producing an outcome of type [τo]. *)
+  | Sample_typed Γ i e1 e2 D τp τo :
+     Sg !! i = Some D → SampleTyping D τp τo →
+     Γ ⊢ₜ e1 : τp → Γ ⊢ₜ e2 : TUnit →
+     Γ ⊢ₜ Sample i e1 e2 : τo
+  (* Tape-based sampling: same, but the outcome is read off the tape [e2]. *)
+  | Sample_tape_typed Γ i e1 e2 D τp τo :
+     Sg !! i = Some D → SampleTyping D τp τo →
+     Γ ⊢ₜ e1 : τp → Γ ⊢ₜ e2 : TTape →
+     Γ ⊢ₜ Sample i e1 e2 : τo
+  (* Allocate a fresh tape for family [Sg !! i] at parameter [e1 : τp]. *)
+  | AllocSampleTape_typed Γ i e1 D τp τo :
+     Sg !! i = Some D → SampleTyping D τp τo →
+     Γ ⊢ₜ e1 : τp →
+     Γ ⊢ₜ AllocSampleTape i e1 : TTape
 with val_typed : val → type → Prop :=
   | Unit_val_typed : ⊢ᵥ LitV LitUnit : TUnit
   | Int_val_typed (n : Z) : ⊢ᵥ LitV (LitInt n) : TInt
@@ -248,6 +319,8 @@ with val_typed : val → type → Prop :=
      ⊢ᵥ (Λ: e) : (∀: τ)
 where "Γ ⊢ₜ e : τ" := (typed Γ e τ)
 and "⊢ᵥ e : τ" := (val_typed e τ).
+
+End typing.
 
 Lemma binop_int_typed_safe (op : bin_op) (n1 n2 : Z) τ :
   binop_int_res_type op = Some τ → is_Some (bin_op_eval op (LitV (LitInt n1)) (LitV (LitInt n2))).

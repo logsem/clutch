@@ -76,6 +76,50 @@ Section semtypes.
         rewrite IHHτ2. by iDestruct "H1" as "%"; subst.
   Qed.
 
+  (** Bridge to the syntactic [ground_val] predicate (in [typing/types]): at a
+      discrete type, logically-related values are ground; conversely a ground
+      value is related to itself.  These let the [Sample] compatibility lemma
+      discharge [refines_sample]'s side conditions from the purely syntactic
+      [SampleTyping] interface. *)
+  Lemma ground_of_eqtype τ Δ v v' :
+    EqType τ → interp τ Δ v v' ⊢ ⌜ground_val τ v⌝.
+  Proof.
+    intros Hτ; revert v v'; induction Hτ; iIntros (v v') "#H /=".
+    - by iDestruct "H" as %[-> ->].
+    - iDestruct "H" as (n) "[-> ->]". by iExists n.
+    - iDestruct "H" as (n) "[-> ->]". by iExists n.
+    - iDestruct "H" as (b) "[-> ->]". by iExists b.
+    - iDestruct "H" as (v1 v2 w1 w2) "(-> & -> & H1 & H2)".
+      rewrite IHHτ1 IHHτ2. iDestruct "H1" as %?. iDestruct "H2" as %?.
+      iPureIntro. eauto.
+    - iDestruct "H" as (w1 w2) "[(-> & -> & H)|(-> & -> & H)]".
+      + rewrite IHHτ1. iDestruct "H" as %?. iPureIntro. eauto.
+      + rewrite IHHτ2. iDestruct "H" as %?. iPureIntro. eauto.
+  Qed.
+
+  Lemma interp_of_ground τ Δ v :
+    ground_val τ v → ⊢ interp τ Δ v v.
+  Proof.
+    revert v. induction τ; intros w Hg.
+    - simpl in Hg; subst w. rewrite /interp /=. iPureIntro; done.
+    - simpl in Hg. destruct Hg as [n ->]. rewrite /interp /=. iExists n. iPureIntro; done.
+    - simpl in Hg. destruct Hg as [n ->]. rewrite /interp /=. iExists n. iPureIntro; done.
+    - simpl in Hg. destruct Hg as [b ->]. rewrite /interp /=. iExists b. iPureIntro; done.
+    - simpl in Hg. destruct Hg as (v1 & v2 & -> & Hg1 & Hg2). rewrite /interp /=.
+      iExists v1, v1, v2, v2. iSplit; [iPureIntro; done|]. iSplit; [iPureIntro; done|].
+      iSplitL; [iApply (IHτ1 _ Hg1) | iApply (IHτ2 _ Hg2)].
+    - simpl in Hg. destruct Hg as (w0 & [[-> Hg]|[-> Hg]]); rewrite /interp /=.
+      + iExists w0, w0. iLeft. iSplit; [iPureIntro; done|]. iSplit; [iPureIntro; done|]. iApply (IHτ1 _ Hg).
+      + iExists w0, w0. iRight. iSplit; [iPureIntro; done|]. iSplit; [iPureIntro; done|]. iApply (IHτ2 _ Hg).
+    - destruct Hg.
+    - destruct Hg.
+    - destruct Hg.
+    - destruct Hg.
+    - destruct Hg.
+    - destruct Hg.
+    - destruct Hg.
+  Qed.
+
   Lemma unboxed_type_eq τ Δ v1 v2 w1 w2 :
     UnboxedType τ →
     interp τ Δ v1 v2 ⊢

@@ -10,9 +10,11 @@ From iris.base_logic Require Export invariants.
 From iris.algebra Require Import list.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
+From clutch.prob Require Import distribution couplings couplings_app couplings_dp.
 From clutch.gen_diffpriv Require Import primitive_laws model compatibility app_rel_rules rel_tactics.
 From clutch.gen_prob_lang.typing Require Import types.
-From clutch.gen_diffpriv Require Import interp.
+From clutch.gen_diffpriv Require Import interp coupling_rules proofmode.
+From clutch.gen_prob_lang.spec Require Import spec_rules.
 From clutch.gen_prob_lang Require Import metatheory notation lang.
 
 Section fundamental.
@@ -26,6 +28,20 @@ Section fundamental.
   Canonical Structure gen_markov_fund := lang_markov (gen_lang Sg).
   Implicit Types Δ : listO (lrelC Σ).
   Hint Resolve to_of_val : core.
+
+  (* [typed]/[val_typed] take the signature [Sg] explicitly (it is a section
+     variable in [typing/types]); re-bind the [⊢ₜ]/[⊢ᵥ] notations over the
+     ambient [Sg] here. *)
+  Local Notation "Γ ⊢ₜ e : τ" := (typed Sg Γ e τ)
+    (at level 74, e, τ at next level).
+  Local Notation "⊢ᵥ v : τ" := (val_typed Sg v τ)
+    (at level 20, v, τ at next level).
+  (* Pinned [fill] + spec-step instance, for the sampling compatibility lemmas
+     ([refines_alloc_sample_tape_*] step the spec tape via [step_alloc_sample_tape]). *)
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
+  #[local] Existing Instance spec_rules_spec_updateGS.
+  #[local] Instance spec_updateGS_fund : spec_updateGS gen_markov_fund Σ :=
+    spec_rules_spec_updateGS Sg.
 
   Local Ltac intro_clause := progress (iIntros (vs) "#Hvs /=").
   Local Ltac intro_clause' := progress (iIntros (?) "? /=").
@@ -460,6 +476,148 @@ Section fundamental.
     asimpl. eauto.
   Qed.
 
+  (** ** Sampling compatibility lemmas.
+
+      These wire the per-family syntactic [SampleTyping] interface into the
+      logical relation, via the bridge lemmas [eq_type_sound] / [ground_of_eqtype]
+      / [interp_of_ground] (turning the syntactic side conditions into the
+      semantic ones) and the coupling rules [wp_couple_sample_gen] (direct form)
+      / [wp_couple_sample_tape_gen] (tape form). *)
+
+  (** Reflexive coupling: any distribution couples with itself along equality at
+      zero multiplicative and additive cost. *)
+  Lemma DPcoupl_refl `{Countable A} (μ : distr A) : DPcoupl μ μ (=) 0 0.
+  Proof. apply ARcoupl_to_DPcoupl, ARcoupl_eq. Qed.
+
+  (** [sig_sample] at index [i] (with [Sg !! i = Some D]) decodes [v] to [p] and
+      samples [D p], lifted through [sf_inj]. *)
+  Lemma sig_sample_decode_at (D : SampleFamily) i (v : val) (p : sf_param D) :
+    Sg !! i = Some D → sf_param_of_val D v = Some p →
+    sig_sample Sg i v = Some (dmap (sf_inj D) (sf_sample D p)).
+  Proof. intros Hi Hp. unfold sig_sample. rewrite Hi /= Hp /=. reflexivity. Qed.
+
+  (** Spec-side / impl-side tape allocation, relationally (analogues of the heap
+      [refines_alloc_r] / [refines_alloc_l]). *)
+  Lemma refines_alloc_sample_tape_r E K (i : nat) (pv : val) t A :
+    (∀ l : loc, l ↪ₛ (i, pv, []) -∗ REL t << fill K (of_val (LitV (LitLbl l))) @ E : A)
+      ⊢ REL t << fill K (AllocSampleTape i (Val pv)) @ E : A.
+  Proof.
+    iIntros "Hlog". iApply refines_step_r. iIntros (k) "Hk".
+    iMod (step_alloc_sample_tape with "Hk") as (l) "[Hk Hl]".
+    iModIntro. iExists _. iFrame "Hk". by iApply "Hlog".
+  Qed.
+
+  Lemma refines_alloc_sample_tape_l K E (i : nat) (pv : val) t A :
+    (▷ (∀ l : loc, l ↪ (i, pv, []) -∗ REL fill K (of_val (LitV (LitLbl l))) << t @ E : A))
+      ⊢ REL fill K (AllocSampleTape i (Val pv)) << t @ E : A.
+  Proof.
+    iIntros "Hlog". iApply refines_wp_l.
+    wp_apply (wp_alloc_sample_tape i pv with "[//]").
+    iIntros (l) "Hl". by iApply "Hlog".
+  Qed.
+
+  (** Direct sampling [Sample i e1 e2] with [e2 : TUnit]. *)
+  Lemma bin_log_related_sample Δ Γ i e1 e1' e2 e2' D τp τo :
+    Sg !! i = Some D → SampleTyping D τp τo →
+    bin_log_related ⊤ Δ Γ e1 e1' τp -∗
+    bin_log_related ⊤ Δ Γ e2 e2' TUnit -∗
+    bin_log_related ⊤ Δ Γ (Sample i e1 e2) (Sample i e1' e2') τo.
+  Proof.
+    iIntros (Hi Hst) "He1 He2". destruct Hst as [Heqp Hdec Hout].
+    iIntros (vs) "#Hvs /=".
+    iSpecialize ("He1" with "Hvs"). iSpecialize ("He2" with "Hvs").
+    rel_bind_l (subst_map _ e2); rel_bind_r (subst_map _ e2').
+    iApply (refines_bind with "He2"). iIntros (w2 w2') "Hw2 /=".
+    iDestruct "Hw2" as %[-> ->].
+    rel_bind_l (subst_map _ e1); rel_bind_r (subst_map _ e1').
+    iApply (refines_bind with "He1"). iIntros (v1 v1') "#Hv1 /=".
+    iDestruct (eq_type_sound _ _ _ _ Heqp with "Hv1") as %<-.
+    iDestruct (ground_of_eqtype _ _ _ _ Heqp with "Hv1") as %Hgv.
+    destruct (Hdec _ Hgv) as [p Hp].
+    rewrite refines_eq /refines_def.
+    iIntros (K ε) "Hspec Hna Herr %Hε".
+    iMod ecm_zero as "Hm".
+    iApply (wp_couple_sample_gen Sg i v1 v1
+              (dmap (sf_inj D) (sf_sample D p)) (dmap (sf_inj D) (sf_sample D p))
+              (λ w w', ∃ o : sf_out D, w = sf_inj D o ∧ w' = sf_inj D o) K ⊤ 0
+              (sig_sample_decode_at D i v1 p Hi Hp) (sig_sample_decode_at D i v1 p Hi Hp) _
+              with "[$Hspec $Hm]").
+    { iIntros "!>" (w w') "(Hspec & %HR)". destruct HR as (o & -> & ->).
+      iExists (sf_inj D o), ε. iFrame "Hspec Hna Herr".
+      iSplitR; [done|]. iApply (interp_of_ground τo Δ (sf_inj D o)). apply Hout. }
+    Unshelve.
+    apply (DPcoupl_map (sf_inj D) (sf_inj D) (sf_sample D p) (sf_sample D p)
+             (λ w w', ∃ o : sf_out D, w = sf_inj D o ∧ w' = sf_inj D o) 0 0); [lra|lra|].
+    eapply (DPcoupl_mono (sf_sample D p) (sf_sample D p) (sf_sample D p) (sf_sample D p)
+              (=) (λ a a', ∃ o : sf_out D, sf_inj D a = sf_inj D o ∧ sf_inj D a' = sf_inj D o)
+              0 0 0 0);
+      [ intros; reflexivity | intros; reflexivity
+      | intros a a' ->; by exists a' | lra | lra | apply DPcoupl_refl ].
+  Qed.
+
+  (** Tape-based sampling [Sample i e1 e2] with [e2 : TTape].  The tape is kept
+      empty by [lrel_tape], so the read collapses to a fresh draw (handled by
+      [wp_couple_sample_tape_gen]); the tape is returned unchanged. *)
+  Lemma bin_log_related_sample_tape Δ Γ i e1 e1' e2 e2' D τp τo :
+    Sg !! i = Some D → SampleTyping D τp τo →
+    bin_log_related ⊤ Δ Γ e1 e1' τp -∗
+    bin_log_related ⊤ Δ Γ e2 e2' TTape -∗
+    bin_log_related ⊤ Δ Γ (Sample i e1 e2) (Sample i e1' e2') τo.
+  Proof.
+    iIntros (Hi Hst) "He1 He2". destruct Hst as [Heqp Hdec Hout].
+    iIntros (vs) "#Hvs /=".
+    iSpecialize ("He1" with "Hvs"). iSpecialize ("He2" with "Hvs").
+    rel_bind_l (subst_map _ e2); rel_bind_r (subst_map _ e2').
+    iApply (refines_bind with "He2"). iIntros (w2 w2') "Hw2 /=".
+    iDestruct "Hw2" as (α α' j pv0 -> ->) "#Hinv".
+    rel_bind_l (subst_map _ e1); rel_bind_r (subst_map _ e1').
+    iApply (refines_bind with "He1"). iIntros (v1 v1') "#Hv1 /=".
+    iDestruct (eq_type_sound _ _ _ _ Heqp with "Hv1") as %<-.
+    iDestruct (ground_of_eqtype _ _ _ _ Heqp with "Hv1") as %Hgv.
+    destruct (Hdec _ Hgv) as [p Hp].
+    iApply (refines_atomic_l _ _ _ []); simpl.
+    iIntros (K') "Hr".
+    iInv (logN.@ (α, α')) as ">[Hα Hα']" "Hclose".
+    iModIntro. iMod ecm_zero as "Hm".
+    iApply (wp_couple_sample_tape_gen Sg i v1 v1
+              (dmap (sf_inj D) (sf_sample D p)) (dmap (sf_inj D) (sf_sample D p))
+              (λ w w', ∃ o : sf_out D, w = sf_inj D o ∧ w' = sf_inj D o)
+              α α' j pv0 j pv0 K' _ 0
+              (sig_sample_decode_at D i v1 p Hi Hp) (sig_sample_decode_at D i v1 p Hi Hp) _
+              with "[$Hr $Hα $Hα' $Hm]").
+    iIntros "!>" (w w') "(Hr & Hα & Hα' & %HR)". destruct HR as (o & -> & ->).
+    iMod ("Hclose" with "[$Hα $Hα']") as "_". iModIntro.
+    iExists (Val (sf_inj D o)). iFrame "Hr".
+    rel_values. iApply (interp_of_ground τo Δ (sf_inj D o)). apply Hout.
+    Unshelve.
+    apply (DPcoupl_map (sf_inj D) (sf_inj D) (sf_sample D p) (sf_sample D p)
+             (λ w w', ∃ o : sf_out D, w = sf_inj D o ∧ w' = sf_inj D o) 0 0); [lra|lra|].
+    eapply (DPcoupl_mono (sf_sample D p) (sf_sample D p) (sf_sample D p) (sf_sample D p)
+              (=) (λ a a', ∃ o : sf_out D, sf_inj D a = sf_inj D o ∧ sf_inj D a' = sf_inj D o)
+              0 0 0 0);
+      [ intros; reflexivity | intros; reflexivity
+      | intros a a' ->; by exists a' | lra | lra | apply DPcoupl_refl ].
+  Qed.
+
+  (** Allocating a sample tape. *)
+  Lemma bin_log_related_alloc_sample_tape Δ Γ i e1 e1' D τp τo :
+    Sg !! i = Some D → SampleTyping D τp τo →
+    bin_log_related ⊤ Δ Γ e1 e1' τp -∗
+    bin_log_related ⊤ Δ Γ (AllocSampleTape i e1) (AllocSampleTape i e1') TTape.
+  Proof.
+    iIntros (Hi Hst) "He1". destruct Hst as [Heqp Hdec Hout].
+    iIntros (vs) "#Hvs /=".
+    iSpecialize ("He1" with "Hvs").
+    rel_bind_l (subst_map _ e1); rel_bind_r (subst_map _ e1').
+    iApply (refines_bind with "He1"). iIntros (v1 v1') "#Hv1 /=".
+    iDestruct (eq_type_sound _ _ _ _ Heqp with "Hv1") as %<-.
+    iApply (refines_alloc_sample_tape_r ⊤ [] i v1). iIntros (l') "Hl'".
+    iApply (refines_alloc_sample_tape_l [] ⊤ i v1). iModIntro. iIntros (l) "Hl".
+    iMod (inv_alloc (logN .@ (l,l')) _ (l ↪ (i, v1, []) ∗ l' ↪ₛ (i, v1, []))%I
+            with "[$Hl $Hl']") as "#Hinv".
+    rel_values. iExists l, l', i, v1. eauto.
+  Qed.
+
   Theorem fundamental Δ Γ e τ :
     Γ ⊢ₜ e : τ → ⊢ 〈Δ;Γ〉 ⊨ e ≤log≤ e : τ
   with fundamental_val Δ v τ :
@@ -509,6 +667,12 @@ Section fundamental.
       + iApply bin_log_related_load; by iApply fundamental.
       + iApply bin_log_related_store; by iApply fundamental.
       + iApply bin_log_related_subsume_int_nat ; by iApply fundamental.
+      + iApply bin_log_related_sample;
+          first [ eassumption | by iApply fundamental ].
+      + iApply bin_log_related_sample_tape;
+          first [ eassumption | by iApply fundamental ].
+      + iApply bin_log_related_alloc_sample_tape;
+          first [ eassumption | by iApply fundamental ].
     - intros Hv. destruct Hv; simpl.
       + iSplit; eauto.
       + iExists _; iSplit; eauto.
@@ -562,7 +726,7 @@ Section bin_log_related_under_typed_ctx.
 
   (* Precongruence *)
   Lemma bin_log_related_under_typed_ctx Γ e e' τ Γ' τ' K :
-    (typed_ctx K Γ τ Γ' τ') →
+    (typed_ctx Sg K Γ τ Γ' τ') →
     (□ ∀ Δ, (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ)) -∗
       (∀ Δ, 〈Δ;Γ'〉 ⊨ fill_ctx K e ≤log≤ fill_ctx K e' : τ')%I.
   Proof.
@@ -662,5 +826,18 @@ Section bin_log_related_under_typed_ctx.
       + iApply bin_log_related_unpack.
         * by iApply fundamental.
         * iIntros (A). iApply (IHK with "[Hrel]"); auto.
+      (* Sampling: hole at parameter / tape / alloc-parameter position.  In each
+         the sibling subterm is discharged by [fundamental], the hole by [IHK],
+         the [Sg !! i]/[SampleTyping] side conditions by [eassumption]. *)
+      + iApply bin_log_related_sample;
+          first [ eassumption | by iApply fundamental | iApply (IHK with "[Hrel]"); auto ].
+      + iApply bin_log_related_sample_tape;
+          first [ eassumption | by iApply fundamental | iApply (IHK with "[Hrel]"); auto ].
+      + iApply bin_log_related_sample;
+          first [ eassumption | by iApply fundamental | iApply (IHK with "[Hrel]"); auto ].
+      + iApply bin_log_related_sample_tape;
+          first [ eassumption | by iApply fundamental | iApply (IHK with "[Hrel]"); auto ].
+      + iApply bin_log_related_alloc_sample_tape;
+          first [ eassumption | by iApply fundamental | iApply (IHK with "[Hrel]"); auto ].
   Qed.
 End bin_log_related_under_typed_ctx.

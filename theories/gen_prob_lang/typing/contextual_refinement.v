@@ -45,6 +45,10 @@ Inductive ctx_item :=
     (* Nb: we do not have an explicit PACK operation *)
   | CTX_UnpackL (x : binder) (e2 : expr)
   | CTX_UnpackR (x : binder) (e1 : expr)
+  (* Sampling *)
+  | CTX_SampleL (i : nat) (e2 : expr)   (* Sample i [·] e2 *)
+  | CTX_SampleR (i : nat) (e1 : expr)   (* Sample i e1 [·] *)
+  | CTX_AllocSampleTape (i : nat)       (* AllocSampleTape i [·] *)
 .
 
 Definition fill_ctx_item (ctx : ctx_item) (e : expr) : expr :=
@@ -84,12 +88,26 @@ Definition fill_ctx_item (ctx : ctx_item) (e : expr) : expr :=
   | CTX_TApp => TApp e
   | CTX_UnpackL x e1 => unpack: x:=e in e1
   | CTX_UnpackR x e0 => unpack: x:=e0 in e
+  | CTX_SampleL i e2 => Sample i e e2
+  | CTX_SampleR i e1 => Sample i e1 e
+  | CTX_AllocSampleTape i => AllocSampleTape i e
   end.
 
 Definition ctx := list ctx_item.
 
 (* TODO: consider using foldl here *)
 Definition fill_ctx (K : ctx) (e : expr) : expr := foldr fill_ctx_item e K.
+
+(** The typing of contexts (and contextual refinement) is parameterised by the
+    distribution signature [Sg : Sig]: the typing of a hole under a [Sample] /
+    [AllocSampleTape] frame, and the [typed] subderivations of sibling
+    subterms, both refer to [typed Sg].  [Sg] is a section variable, so
+    [typed_ctx_item]/[typed_ctx]/[ctx_refines] take it explicitly outside this
+    section. *)
+Section typed_ctx.
+Context (Sg : Sig).
+Local Notation "Γ ⊢ₜ e : τ" := (typed Sg Γ e τ)
+  (at level 74, e, τ at next level).
 
 (** typed ctx *)
 Inductive typed_ctx_item :
@@ -98,10 +116,10 @@ Inductive typed_ctx_item :
   | TP_CTX_Rec Γ τ τ' f x :
      typed_ctx_item (CTX_Rec f x) (<[f:=TArrow τ τ']>(<[x:=τ]>Γ)) τ' Γ (TArrow τ τ')
   | TP_CTX_AppL Γ e2 τ τ' :
-     typed Γ e2 τ →
+     typed Sg Γ e2 τ →
      typed_ctx_item (CTX_AppL e2) Γ (TArrow τ τ') Γ τ'
   | TP_CTX_AppR Γ e1 τ τ' :
-     typed Γ e1 (TArrow τ τ') →
+     typed Sg Γ e1 (TArrow τ τ') →
      typed_ctx_item (CTX_AppR e1) Γ τ Γ τ'
   (* Base types and operations *)
   | TP_CTX_UnOp_Nat op Γ τ :
@@ -111,44 +129,44 @@ Inductive typed_ctx_item :
      unop_bool_res_type op = Some τ →
      typed_ctx_item (CTX_UnOp op) Γ TBool Γ τ
   | TP_CTX_BinOpL_Nat op Γ e2 τ :
-     typed Γ e2 TInt →
+     typed Sg Γ e2 TInt →
      binop_int_res_type op = Some τ →
      typed_ctx_item (CTX_BinOpL op e2) Γ TInt Γ τ
   | TP_CTX_BinOpR_Nat op e1 Γ τ :
-     typed Γ e1 TInt →
+     typed Sg Γ e1 TInt →
      binop_int_res_type op = Some τ →
      typed_ctx_item (CTX_BinOpR op e1) Γ TInt Γ τ
   | TP_CTX_BinOpL_Bool op Γ e2 τ :
-     typed Γ e2 TBool →
+     typed Sg Γ e2 TBool →
      binop_bool_res_type op = Some τ →
      typed_ctx_item (CTX_BinOpL op e2) Γ TBool Γ τ
   | TP_CTX_BinOpR_Bool op e1 Γ τ :
-     typed Γ e1 TBool →
+     typed Sg Γ e1 TBool →
      binop_bool_res_type op = Some τ →
      typed_ctx_item (CTX_BinOpR op e1) Γ TBool Γ τ
   | TP_CTX_BinOpL_UnboxedEq e2 Γ τ :
      UnboxedType τ →
-     typed Γ e2 τ →
+     typed Sg Γ e2 τ →
      typed_ctx_item (CTX_BinOpL EqOp e2) Γ τ Γ TBool
   | TP_CTX_BinOpR_UnboxedEq e1 Γ τ :
      UnboxedType τ →
-     typed Γ e1 τ →
+     typed Sg Γ e1 τ →
      typed_ctx_item (CTX_BinOpR EqOp e1) Γ τ Γ TBool
   | TP_CTX_IfL Γ e1 e2 τ :
-     typed Γ e1 τ → typed Γ e2 τ →
+     typed Sg Γ e1 τ → typed Sg Γ e2 τ →
      typed_ctx_item (CTX_IfL e1 e2) Γ (TBool) Γ τ
   | TP_CTX_IfM Γ e0 e2 τ :
-     typed Γ e0 (TBool) → typed Γ e2 τ →
+     typed Sg Γ e0 (TBool) → typed Sg Γ e2 τ →
      typed_ctx_item (CTX_IfM e0 e2) Γ τ Γ τ
   | TP_CTX_IfR Γ e0 e1 τ :
-     typed Γ e0 (TBool) → typed Γ e1 τ →
+     typed Sg Γ e0 (TBool) → typed Sg Γ e1 τ →
      typed_ctx_item (CTX_IfR e0 e1) Γ τ Γ τ
   (* Products *)
   | TP_CTX_PairL Γ e2 τ τ' :
-     typed Γ e2 τ' →
+     typed Sg Γ e2 τ' →
      typed_ctx_item (CTX_PairL e2) Γ τ Γ (TProd τ τ')
   | TP_CTX_PairR Γ e1 τ τ' :
-     typed Γ e1 τ →
+     typed Sg Γ e1 τ →
      typed_ctx_item (CTX_PairR e1) Γ τ' Γ (TProd τ τ')
   | TP_CTX_Fst Γ τ τ' :
      typed_ctx_item CTX_Fst Γ (TProd τ τ') Γ τ
@@ -160,13 +178,13 @@ Inductive typed_ctx_item :
   | TP_CTX_InjR Γ τ τ' :
      typed_ctx_item CTX_InjR Γ τ' Γ (TSum τ τ')
   | TP_CTX_CaseL Γ e1 e2 τ1 τ2 τ' :
-     typed Γ e1 (TArrow τ1 τ') → typed Γ e2 (TArrow τ2 τ') →
+     typed Sg Γ e1 (TArrow τ1 τ') → typed Sg Γ e2 (TArrow τ2 τ') →
      typed_ctx_item (CTX_CaseL e1 e2) Γ (TSum τ1 τ2) Γ τ'
   | TP_CTX_CaseM Γ e0 e2 τ1 τ2 τ' :
-     typed Γ e0 (TSum τ1 τ2) → typed Γ e2 (TArrow τ2 τ') →
+     typed Sg Γ e0 (TSum τ1 τ2) → typed Sg Γ e2 (TArrow τ2 τ') →
      typed_ctx_item (CTX_CaseM e0 e2) Γ (TArrow τ1 τ') Γ τ'
   | TP_CTX_CaseR Γ e0 e1 τ1 τ2 τ' :
-     typed Γ e0 (TSum τ1 τ2) → typed Γ e1 (TArrow τ1 τ') →
+     typed Sg Γ e0 (TSum τ1 τ2) → typed Sg Γ e1 (TArrow τ1 τ') →
      typed_ctx_item (CTX_CaseR e0 e1) Γ (TArrow τ2 τ') Γ τ'
   (* Heap *)
   | TPCTX_Alloc Γ τ :
@@ -174,9 +192,9 @@ Inductive typed_ctx_item :
   | TP_CTX_Deref Γ τ :
      typed_ctx_item CTX_Deref Γ (TRef τ) Γ τ
   | TP_CTX_StoreL Γ e2 τ :
-     typed Γ e2 τ → typed_ctx_item (CTX_StoreL e2) Γ (TRef τ) Γ ()
+     typed Sg Γ e2 τ → typed_ctx_item (CTX_StoreL e2) Γ (TRef τ) Γ ()
   | TP_CTX_StoreR Γ e1 τ :
-     typed Γ e1 (TRef τ) →
+     typed Sg Γ e1 (TRef τ) →
      typed_ctx_item (CTX_StoreR e1) Γ τ Γ ()
   (* Polymorphic & recursive types *)
   | TP_CTX_Fold Γ τ :
@@ -197,6 +215,26 @@ Inductive typed_ctx_item :
      typed_ctx_item (CTX_UnpackR x e1)
                     (<[x:=τ]>(⤉ Γ)) (Autosubst_Classes.subst (ren (+1)) τ2)
                     Γ τ2
+  (* Sampling: the hole sits in the parameter, tape, or alloc-parameter position. *)
+  | TP_CTX_SampleL_unit Γ i e2 D τp τo :
+     Sg !! i = Some D → SampleTyping D τp τo →
+     Γ ⊢ₜ e2 : TUnit →
+     typed_ctx_item (CTX_SampleL i e2) Γ τp Γ τo
+  | TP_CTX_SampleL_tape Γ i e2 D τp τo :
+     Sg !! i = Some D → SampleTyping D τp τo →
+     Γ ⊢ₜ e2 : TTape →
+     typed_ctx_item (CTX_SampleL i e2) Γ τp Γ τo
+  | TP_CTX_SampleR_unit Γ i e1 D τp τo :
+     Sg !! i = Some D → SampleTyping D τp τo →
+     Γ ⊢ₜ e1 : τp →
+     typed_ctx_item (CTX_SampleR i e1) Γ TUnit Γ τo
+  | TP_CTX_SampleR_tape Γ i e1 D τp τo :
+     Sg !! i = Some D → SampleTyping D τp τo →
+     Γ ⊢ₜ e1 : τp →
+     typed_ctx_item (CTX_SampleR i e1) Γ TTape Γ τo
+  | TP_CTX_AllocSampleTape Γ i D τp τo :
+     Sg !! i = Some D → SampleTyping D τp τo →
+     typed_ctx_item (CTX_AllocSampleTape i) Γ τp Γ TTape
 .
 
 Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type → Prop :=
@@ -207,31 +245,27 @@ Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type
      typed_ctx K Γ1 τ1 Γ2 τ2 →
      typed_ctx (k :: K) Γ1 τ1 Γ3 τ3.
 
-(** The generic language is parametric in a distribution signature [S : Sig],
-    so we fix one here in order to talk about [lim_exec] (which needs the
-    Markov structure [lang_markov (gen_lang S)]). *)
-Section ctx_refines.
-Context (S : Sig).
-
 (** The main definition of contextual refinement that we use. An
     alternative (equivalent) formulation which observes only
-    termination can be found in [contextual_refinement_alt.v] *)
+    termination can be found in [contextual_refinement_alt.v].  [lim_exec]
+    needs the Markov structure [lang_markov (gen_lang Sg)], so it uses the
+    ambient signature [Sg]. *)
 Definition ctx_refines (Γ : stringmap type)
     (e e' : expr) (τ : type) : Prop := ∀ K (σ₀ : state) (b : bool),
   typed_ctx K Γ τ ∅ TBool →
-  (lim_exec (δ := lang_markov (gen_lang S)) (fill_ctx K e, σ₀) #b
-   <= lim_exec (δ := lang_markov (gen_lang S)) (fill_ctx K e', σ₀) #b)%R.
+  (lim_exec (δ := lang_markov (gen_lang Sg)) (fill_ctx K e, σ₀) #b
+   <= lim_exec (δ := lang_markov (gen_lang Sg)) (fill_ctx K e', σ₀) #b)%R.
 
 Notation "Γ ⊨ e '≤ctx≤' e' : τ" :=
   (ctx_refines Γ e e' τ) (at level 100, e, e' at next level, τ at level 200).
 
 Lemma typed_ctx_item_typed k Γ τ Γ' τ' e :
-  typed Γ e τ → typed_ctx_item k Γ τ Γ' τ' →
-  typed Γ' (fill_ctx_item k e) τ'.
+  typed Sg Γ e τ → typed_ctx_item k Γ τ Γ' τ' →
+  typed Sg Γ' (fill_ctx_item k e) τ'.
 Proof. induction 2; simpl; eauto using typed. Qed.
 
 Lemma typed_ctx_typed K Γ τ Γ' τ' e :
-  typed Γ e τ → typed_ctx K Γ τ Γ' τ' → typed Γ' (fill_ctx K e) τ'.
+  typed Sg Γ e τ → typed_ctx K Γ τ Γ' τ' → typed Sg Γ' (fill_ctx K e) τ'.
 Proof. induction 2; simpl; eauto using typed_ctx_item_typed. Qed.
 
 Global Instance ctx_refines_reflexive Γ τ :
@@ -289,4 +323,4 @@ Proof.
   split ; eapply ctx_refines_transitive ;eauto.
 Qed.
 
-End ctx_refines.
+End typed_ctx.
