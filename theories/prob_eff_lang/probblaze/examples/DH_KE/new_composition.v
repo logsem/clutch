@@ -83,10 +83,31 @@ Section new_comp_verification.
   Proof.
   Admitted.
 
+  Definition F_AUTH_DH_KE : val :=
+    λ: "f",
+      (F_AUTH ||ₗ DH_KE) (CHAN "f").
+
+  
    (*F_OAUTH [F_AUTH [DH_KE [CHAN[]]]] ≤ F_AUTH [ DH_SIM [CHAN_SIM [F_CHAN[]]]]  *)
   (*---------------------------------------------------------------------------*)
-
+ Lemma SEC_CHAN_DH_KE (f1 f2 : val) (L : sem_row Σ) :
+    sem_val_typed f1 f2 (∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-> 𝟙)%T -∗    
+    BREL (F_OAUTH (F_AUTH_DH_KE f1)) ≤ (F_AUTH (DH_SIM (CHAN_SIM (F_CHAN f2))))
+     <|⊥|> {{λ v1 v2,
+                                       ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
+               BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V (λ: "m", do: keyleak2 "m")%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
+  Proof.
+  Admitted.
 
   (*F_AUTH[ DH_SIM [CHAN_SIM [F_CHAN[]]]] ≤ F_OAUTH [F_AUTH [DH_KE [CHAN[]]]] *)
-(*--------------------------------------------------------------------------*)
+  (*--------------------------------------------------------------------------*)
+ Lemma DH_KE_SEC_CHAN  (f1 f2 : val) (L : sem_row Σ) :
+    sem_val_typed f1 f2 (∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-> 𝟙)%T -∗    
+    BREL (F_AUTH (DH_SIM (CHAN_SIM (F_CHAN f1)))) ≤  (F_OAUTH (F_AUTH_DH_KE f1))
+     <|⊥|> {{λ v1 v2,
+                                       ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
+               BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V (λ: "m", do: keyleak2 "m")%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
+  Proof.
+  Admitted.
+  
 End new_comp_verification.
