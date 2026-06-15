@@ -92,6 +92,29 @@ Definition list_map : val :=
   | NONE => NONE
   end.
 
+(** [list_map_poly] is a *separate*, syntactically TYPEABLE counterpart of the
+    (monomorphic) [list_map] above.  It is type-abstracted via the [Λ:] thunk
+    encoding and inserts the [rec_unfold] coercion (here the literal value
+    [(λ: "x", "x")%V], definitionally equal to [typing.types.rec_unfold]) before
+    the [match], so it type-checks at the [μ]-encoded list type — see
+    [list_map_poly_typed] in [typing/list_typed].  Its body uses the same
+    [match:]/[::]/[NONE] constructors as [list_map], so [list_map_poly #() #()]
+    is observationally [list_map] up to a few head beta-steps; we keep them as
+    distinct definitions so that [list_map]'s reduction behaviour (and hence
+    every existing [gwp_list_map*] proof and caller) is entirely unchanged.
+
+    [list_map_go] is the inner recursive loop, named so the recursive occurrence
+    (the [rec]-bound ["go"]) is [list_map_go]-headed. *)
+Definition list_map_go : val :=
+  (rec: "go" "f" "l" :=
+     match: (λ: "x", "x")%V "l" with
+       SOME "a" => "f" (Fst "a") :: "go" "f" (Snd "a")
+     | NONE => NONE
+     end)%V.
+
+Definition list_map_poly : val :=
+  (λ: <>, λ: <>, list_map_go)%V.
+
 Definition list_filter : val :=
   rec: "list_filter" "f" "l" :=
   match: "l" with

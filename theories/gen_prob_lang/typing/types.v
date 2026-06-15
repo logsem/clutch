@@ -106,6 +106,12 @@ Notation "∃: τ" :=
   (at level 100, τ at level 200) : FType_scope.
 Notation "'ref' τ" := (TRef τ%ty) (at level 10, τ at next level, right associativity): FType_scope.
 
+(** The (immutable) list type: [μα. () + (τ × α)].  The [τ.[ren (+1)]] shift
+    is required so that unfolding is clean, i.e.
+    [(() + (τ.[ren (+1)] × #0)).[(TList τ)/]] computes to [() + (τ × TList τ)]. *)
+Definition TList (τ : type) : type :=
+  TRec (TSum TUnit (TProd τ.[ren (+1)] (TVar 0))).
+
 (** * Typing judgements *)
 Reserved Notation "Γ ⊢ₜ e : τ" (at level 74, e, τ at next level).
 Reserved Notation "⊢ᵥ v : τ" (at level 20, v, τ at next level).

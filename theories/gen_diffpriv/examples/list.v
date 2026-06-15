@@ -1541,3 +1541,125 @@ Section list_rel.
        Qed.
 
    End list_rel.
+
+(** * Relational parametricity for the list combinators
+
+    The list combinators ([list_map] etc.) are bare recursive lambdas, not
+    type-abstracted, so they cannot be given a [∀:] type and we cannot get
+    their congruence "for free" from the fundamental theorem.  Instead we
+    define a semantic list relation [lrel_list] directly (via [lrel_rec]) and
+    prove the relational congruence ([refines_list_map]) semantically,
+    meta-quantified over the element relations. *)
+Section list_rel_parametric.
+
+  Context `{!diffprivRGS Sg Σ}.
+  Canonical Structure gen_ectxi_lang_lr := gen_ectxi_lang Sg.
+  Canonical Structure gen_ectx_lang_lr := gen_ectx_lang Sg.
+  Canonical Structure gen_lang_lr := gen_lang Sg.
+  Canonical Structure gen_markov_lr := lang_markov (gen_lang Sg).
+  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
+
+  (** The least relation [R] such that:
+       - [R nilv nilv'] when both are [InjLV #()]  (the [NONEV] nil encoding);
+       - [R consv consv'] when both are [InjRV (a, rest)] / [InjRV (a', rest')]
+         with [A a a'] and [R rest rest'] (the [SOMEV (a, rest)] cons encoding).
+     This is exactly the interpretation of the syntactic list type
+     [TRec (TSum TUnit (TProd A.[ren(+1)] (TVar 0)))]. *)
+  Program Definition lrel_list_gen (A : lrel Σ) : lrelC Σ -n> lrelC Σ :=
+    λne X, lrel_sum lrel_unit (lrel_prod A X).
+  Next Obligation. solve_proper. Qed.
+
+  Definition lrel_list (A : lrel Σ) : lrel Σ := lrel_rec (lrel_list_gen A).
+
+  Lemma lrel_list_unfold (A : lrel Σ) (v1 v2 : val) :
+    lrel_list A v1 v2 ⊣⊢
+      ▷ ((⌜v1 = InjLV #()⌝ ∧ ⌜v2 = InjLV #()⌝)
+         ∨ (∃ a1 a2 r1 r2,
+              ⌜v1 = InjRV (a1, r1)%V⌝ ∧ ⌜v2 = InjRV (a2, r2)%V⌝
+              ∗ A a1 a2 ∗ lrel_list A r1 r2)).
+  Proof.
+    rewrite {1}/lrel_list.
+    etrans; [iApply (lrel_rec_unfold (lrel_list_gen A) v1 v2)|].
+    rewrite /lrel_list_gen /lrel_rec1 /lrel_sum /lrel_prod /lrel_unit /lrel_car /=.
+    iSplit.
+    - iIntros "H !>".
+      iDestruct "H" as (w1 w2) "[(-> & -> & [-> ->])|(-> & -> & H)]".
+      + iLeft. done.
+      + iRight. iDestruct "H" as (b1 b2 b1' b2') "(-> & -> & HA & HX)".
+        iExists b1, b2, b1', b2'. by iFrame.
+    - iIntros "H".
+      iApply (bi.later_mono with "H").
+      iIntros "[(-> & ->)|H]".
+      + iExists #(), #(). iLeft. by auto.
+      + iDestruct "H" as (a1 a2 r1 r2) "(-> & -> & HA & HX)".
+        iExists (a1, r1)%V, (a2, r2)%V. iRight.
+        iSplit; [done|]. iSplit; [done|].
+        iExists a1, a2, r1, r2. by iFrame.
+  Qed.
+
+  (** The relational congruence for [list_map] at the value level: applied to
+      related functions and related lists, [list_map] yields related lists. *)
+  Lemma refines_list_map_vals (A B : lrel Σ) (fv fv' : val) :
+    (A → B)%lrel fv fv' -∗
+    □ (∀ lv lv', lrel_list A lv lv' -∗
+         REL list_map fv lv << list_map fv' lv' : lrel_list B).
+  Proof.
+    iIntros "#Hff !>".
+    iLöb as "IH". iIntros (lv lv') "Hll".
+    rewrite lrel_list_unfold.
+    (* Unfolding the recursive list relation produces a [▷]; the [list_map]
+       beta-reductions ([rel_rec_*]) take a step that strips it. *)
+    rel_rec_l. rel_rec_r.
+    iDestruct "Hll" as "[(-> & ->)|Hcons]".
+    - (* NONE / NONE : both lists empty, return NONE related at [lrel_list B].
+         After the two [rel_rec_*] steps the head is a [let:]-binding of the
+         scrutinee, so reduce the [let:] + [match] with [rel_pures_*] before
+         relating the resulting [InjLV]s. *)
+      rel_pures_l. rel_pures_r. rel_values.
+      rewrite (lrel_list_unfold B (InjLV _) (InjLV _)).
+      iModIntro. iNext. iLeft. by auto.
+    - (* SOME / SOME : destruct heads and tails. *)
+      iDestruct "Hcons" as (a1 a2 r1 r2) "(-> & -> & #HA & Hrest)".
+      rel_pures_l. rel_pures_r.
+      (* Evaluation of the cons [hd :: tl] is right-to-left: recurse on the tail
+         first (via the Löb hypothesis). *)
+      rel_bind_l (list_map _ _). rel_bind_r (list_map _ _).
+      iApply (refines_bind with "[Hrest]").
+      { iApply ("IH" with "Hrest"). }
+      iIntros (tv tv') "#Htail /=".
+      (* Then apply the function relation to the head. *)
+      rel_bind_l (fv _). rel_bind_r (fv' _).
+      iApply (refines_bind with "[]").
+      { rel_pures_l. rel_pures_r. iApply ("Hff" with "HA"). }
+      iIntros (hv hv') "#Hhead /=".
+      (* Cons: [hv :: tv] related at [lrel_list B]; unfold [list_cons] and reduce
+         it to the [InjRV] value before relating. *)
+      rel_pures_l. rel_pures_r. rewrite /list_cons. rel_pures_l. rel_pures_r.
+      rel_values.
+      rewrite (lrel_list_unfold B (InjRV _) (InjRV _)).
+      iModIntro. iNext. iRight.
+      iExists hv, hv', tv, tv'. by iFrame "Hhead Htail".
+  Qed.
+
+  (** The relational congruence for [list_map] over arbitrary related
+      expressions: it maps related functions over related lists to related
+      lists. *)
+  Lemma refines_list_map (A B : lrel Σ) (f f' l l' : expr) :
+    (REL f << f' : (A → B)%lrel) -∗
+    (REL l << l' : lrel_list A) -∗
+    REL list_map f l << list_map f' l' : lrel_list B.
+  Proof.
+    iIntros "Hf Hl".
+    (* Evaluation is right-to-left, so the argument [l] is the first redex. *)
+    rel_bind_l l. rel_bind_r l'.
+    iApply (refines_bind with "Hl").
+    iIntros (lv lv') "Hll /=".
+    (* Now [lv] is a value, so the function argument [f] becomes the next redex. *)
+    rel_bind_l f. rel_bind_r f'.
+    iApply (refines_bind with "Hf").
+    iIntros (fv fv') "Hff /=".
+    iDestruct (refines_list_map_vals with "Hff") as "#Hmap".
+    by iApply "Hmap".
+  Qed.
+
+End list_rel_parametric.
