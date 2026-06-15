@@ -293,6 +293,26 @@ Definition list_split : val :=
         let: "ps" := "list_split" ("i" - #1) "tl" in
         ("x" :: Fst "ps", Snd "ps")
     end).
+
+Definition list_max_index_aux : val :=
+  λ:"y" "xs",
+    list_fold
+      (λ: "(y, iy, ix)" "x",
+         let, ("y", "iy", "ix") := "(y, iy, ix)" in
+         if: "y" < "x" then ("x", "ix", "ix"+#1) else ("y", "iy", "ix"+#1))
+      ("y", #0, #1) "xs".
+
+Definition list_max_index : val :=
+  λ:"xs",
+    match: "xs" with
+    | NONE => #0
+    | SOME "y_xs" =>
+        let, ("y", "xs") := "y_xs" in
+        let, ("_y", "iy", "_ix") :=
+          list_max_index_aux "y" "xs"
+        in "iy"
+    end.
+
 End list_code.
 
 Fixpoint inject_list `{!Inject A val} (xs : list A) :=
@@ -1660,6 +1680,202 @@ Section list_rel_parametric.
     iIntros (fv fv') "Hff /=".
     iDestruct (refines_list_map_vals with "Hff") as "#Hmap".
     by iApply "Hmap".
+  Qed.
+
+  (** [list_rev_aux] preserves the list relation: an accumulator related at
+      [lrel_list A] and a list related at [lrel_list A] give a result related at
+      [lrel_list A] (the reversed-and-appended list). *)
+  Lemma refines_list_rev_aux (A : lrel Σ) (lv lv' av av' : val) :
+    lrel_list A lv lv' -∗
+    lrel_list A av av' -∗
+    REL list_rev_aux lv av << list_rev_aux lv' av' : lrel_list A.
+  Proof.
+    iIntros "Hl". iRevert (av av'). iLöb as "IH" forall (lv lv').
+    iIntros (av av') "Hacc".
+    rewrite (lrel_list_unfold A lv lv').
+    rel_rec_l. rel_rec_r.
+    iDestruct "Hl" as "[(-> & ->)|Hcons]".
+    - rel_pures_l. rel_pures_r. rel_values.
+    - iDestruct "Hcons" as (a1 a2 r1 r2) "(-> & -> & #HA & Hrest)".
+      rel_pures_l. rel_pures_r.
+      rewrite /list_cons. rel_pures_l. rel_pures_r.
+      iApply ("IH" with "Hrest").
+      rewrite (lrel_list_unfold A (InjRV _) (InjRV _)).
+      iNext. iRight.
+      iExists a1, a2, av, av'. by iFrame "HA Hacc".
+  Qed.
+
+  Lemma refines_list_rev (A : lrel Σ) (lv lv' : val) :
+    lrel_list A lv lv' -∗
+    REL list_rev lv << list_rev lv' : lrel_list A.
+  Proof.
+    iIntros "Hl". rewrite /list_rev. rel_pures_l. rel_pures_r.
+    iApply (refines_list_rev_aux with "Hl").
+    rewrite (lrel_list_unfold A (InjLV _) (InjLV _)).
+    iNext. iLeft. by auto.
+  Qed.
+
+  (** Relational congruence for [list_init]: applied to a related length and a
+      related index function, [list_init] yields related lists.  The inner loop
+      ([aux acc i]) runs [i] from [0] up to [len] in lockstep on both sides, so
+      the two runs take the same branch at every iteration; the accumulator stays
+      related at [lrel_list A]. *)
+  Lemma refines_list_init (A : lrel Σ) (n n' f f' : expr) :
+    (REL n << n' : lrel_nat) -∗
+    (REL f << f' : (lrel_nat → A)%lrel) -∗
+    REL list_init n f << list_init n' f' : lrel_list A.
+  Proof.
+    iIntros "Hn Hf".
+    (* Evaluation is right-to-left: the inner argument [f] reduces first. *)
+    rel_bind_l f. rel_bind_r f'.
+    iApply (refines_bind with "Hf").
+    iIntros (fv fv') "#Hff /=".
+    rel_bind_l n. rel_bind_r n'.
+    iApply (refines_bind with "Hn").
+    iIntros (nv nv') "Hn /=".
+    iDestruct "Hn" as (k) "[-> ->]".
+    rewrite /list_init.
+    (* Reduce the two outer betas and the [letrec] (binding the loop [aux]),
+       stopping at [aux [] #0] before the loop's first iteration fires. *)
+    do 6 (rel_pure_l _). do 6 (rel_pure_r _).
+    (* The [letrec] binds the loop [aux]; the loop is then run as [aux [] #0].
+       We generalise over the accumulator and the counter [i] and run the loop
+       in lockstep, keeping the accumulator related at [lrel_list A]. *)
+    iAssert (□ ∀ (i : nat) (av av' : val),
+                lrel_list A av av' -∗
+                REL (rec: "aux" "acc" "i" :=
+                       if: "i" = #k then list_rev "acc"
+                       else "aux"
+                              ((λ: "elem" "list", SOME ("elem", "list"))%V
+                                 (Val fv "i") "acc") ("i" + #1))%V av #i
+                 << (rec: "aux" "acc" "i" :=
+                       if: "i" = #k then list_rev "acc"
+                       else "aux"
+                              ((λ: "elem" "list", SOME ("elem", "list"))%V
+                                 (Val fv' "i") "acc") ("i" + #1))%V av' #i
+                 : lrel_list A)%I as "#Hloop".
+    { iModIntro. iLöb as "IH". iIntros (i av av') "Hacc".
+      rel_rec_l. rel_rec_r. rel_pures_l. rel_pures_r.
+      case_bool_decide as Hik; rel_pures_l; rel_pures_r.
+      - (* loop done: reverse the accumulator *)
+        iApply (refines_list_rev with "Hacc").
+      - (* one more iteration: cons [fv #i] onto the accumulator *)
+        rel_bind_l (fv _)%E. rel_bind_r (fv' _)%E.
+        iApply (refines_bind with "[]").
+        { iApply ("Hff" $! #i #i). iExists i. by auto. }
+        iIntros (hv hv') "#Hhead /=".
+        (* Reduce the head cons [(λ ..) hv av] to the value [InjRV (hv, av)]
+           with a fixed number of pure steps, stopping before the recursive
+           [aux] fires, so the goal matches the Löb hypothesis. *)
+        do 5 (rel_pure_l _). do 5 (rel_pure_r _).
+        replace (Z.of_nat i + 1)%Z with (Z.of_nat (i + 1)) by lia.
+        iApply ("IH" $! (i + 1)%nat (InjRV (hv, av)) (InjRV (hv', av'))
+                 with "[Hhead Hacc]").
+        rewrite (lrel_list_unfold A (InjRV _) (InjRV _)).
+        iNext. iRight.
+        iExists hv, hv', av, av'. by iFrame "Hhead Hacc". }
+    (* Run the loop from the empty accumulator [[]] and counter [#0]. *)
+    rewrite /list_cons. rel_pure_l _. rel_pure_r _.
+    assert (#0 = #(0%nat)) as -> by done.
+    iApply ("Hloop" $! 0%nat).
+    rewrite (lrel_list_unfold A (InjLV _) (InjLV _)).
+    iNext. iLeft. by auto.
+  Qed.
+
+  (** Relational congruence for [list_max_index]: two lists related at
+      [lrel_list lrel_int] are pointwise equal integers, hence the argmax indices
+      agree.  The result is a [nat] index ([list_max_index] returns [#i] with
+      [i : nat]), so the conclusion is at [lrel_nat]. *)
+  Lemma refines_list_max_index (l l' : expr) :
+    (REL l << l' : lrel_list lrel_int) -∗
+    REL list_max_index l << list_max_index l' : lrel_nat.
+  Proof.
+    iIntros "Hl".
+    rel_bind_l l. rel_bind_r l'.
+    iApply (refines_bind with "Hl").
+    iIntros (lv lv') "Hll /=".
+    rewrite /list_max_index.
+    rewrite lrel_list_unfold.
+    rel_pures_l. rel_pures_r.
+    iDestruct "Hll" as "[(-> & ->)|Hcons]".
+    - (* both lists empty: the index is [0]. *)
+      rel_pures_l. rel_pures_r. rel_values. iExists 0%nat. by auto.
+    - (* both lists [y :: r]: run [list_max_index_aux] on the (equal) head [y]
+         and the (related) tail. *)
+      iDestruct "Hcons" as (a1 a2 r1 r2) "(-> & -> & #Hhd & Hrest)".
+      iDestruct "Hhd" as (y) "[-> ->]".
+      rel_pures_l. rel_pures_r.
+      rewrite /list_max_index_aux.
+      rel_pures_l. rel_pures_r.
+      (* The fold body and the running accumulator triple
+         [(running-max : Z, running-argmax-index : nat, current-index : nat)]
+         stay in lockstep on both sides because the lists are pointwise-equal
+         integers. *)
+      set (handler := (λ: "(y, iy, ix)" "x",
+                         let: "y" := "(y, iy, ix)" in
+                         let: "iy" := Snd (Fst "y") in
+                         let: "ix" := Snd "y" in
+                         let: "y" := Fst (Fst "y") in
+                         if: "y" < "x" then ("x", "ix", "ix" + #1)
+                         else ("y", "iy", "ix" + #1))%V).
+      set (R := (lrel_prod (lrel_prod lrel_int lrel_nat) lrel_nat) : lrel Σ).
+      iAssert (□ ∀ (av av' : val) (rs rs' : val),
+                  R av av' -∗ lrel_list lrel_int rs rs' -∗
+                  REL list_fold handler av rs << list_fold handler av' rs' : R)%I
+        as "#Hfold".
+      { iModIntro. iLöb as "IH". iIntros (av av' rs rs') "#Hacc Hrs".
+        rewrite (lrel_list_unfold lrel_int rs rs').
+        rel_rec_l. rel_rec_r. rel_pures_l. rel_pures_r.
+        iDestruct "Hrs" as "[(-> & ->)|Hcons]".
+        - (* end of list: return the accumulator (related at [R]). *)
+          rel_pures_l. rel_pures_r. rel_values.
+        - iDestruct "Hcons" as (b1 b2 t1 t2) "(-> & -> & #Hb & Htail)".
+          rel_pures_l. rel_pures_r.
+          iDestruct "Hb" as (xb) "[-> ->]".
+          iDestruct "Hacc" as (p1 p2 q1 q2) "(-> & -> & #Hp & #Hq)".
+          iDestruct "Hp" as (pp1 pp2 pq1 pq2) "(-> & -> & #Hpp & #Hpq)".
+          iDestruct "Hpp" as (yv) "[-> ->]".
+          iDestruct "Hpq" as (iv) "[-> ->]".
+          iDestruct "Hq" as (xv) "[-> ->]".
+          rel_bind_l (handler _ _). rel_bind_r (handler _ _).
+          rewrite /handler.
+          rel_pures_l. rel_pures_r.
+          (* The comparison [yv < xb] is the same on both sides, so both runs
+             update the accumulator identically and remain related at [R]. *)
+          case_bool_decide as Hlt; rel_pures_l; rel_pures_r.
+          + replace (Z.of_nat xv + 1)%Z with (Z.of_nat (xv + 1)) by lia.
+            iApply ("IH" with "[] Htail").
+            iExists (#xb, #xv)%V, (#xb, #xv)%V, #(xv + 1)%nat, #(xv + 1)%nat.
+            iSplit; [done|]. iSplit; [done|]. iSplit.
+            * iExists #xb, #xb, #xv, #xv.
+              iSplit; [done|]. iSplit; [done|].
+              iSplit; [iExists xb; by auto|iExists xv; by auto].
+            * iExists (xv + 1)%nat; by auto.
+          + replace (Z.of_nat xv + 1)%Z with (Z.of_nat (xv + 1)) by lia.
+            iApply ("IH" with "[] Htail").
+            iExists (#yv, #iv)%V, (#yv, #iv)%V, #(xv + 1)%nat, #(xv + 1)%nat.
+            iSplit; [done|]. iSplit; [done|]. iSplit.
+            * iExists #yv, #yv, #iv, #iv.
+              iSplit; [done|]. iSplit; [done|].
+              iSplit; [iExists yv; by auto|iExists iv; by auto].
+            * iExists (xv + 1)%nat; by auto. }
+      (* Run the fold from the initial accumulator [(y, 0, 1)] and project the
+         running-argmax-index [iy], which is a [nat]. *)
+      rel_bind_l (list_fold handler _ r1). rel_bind_r (list_fold handler _ r2).
+      iApply (refines_bind with "[Hrest]").
+      { iApply ("Hfold" with "[] Hrest").
+        iExists (#y, #0)%V, (#y, #0)%V, #1, #1.
+        iSplit; [done|]. iSplit; [done|]. iSplit.
+        - iExists #y, #y, #0, #0.
+          iSplit; [done|]. iSplit; [done|].
+          iSplit; [iExists y; by auto|iExists 0%nat; by auto].
+        - iExists 1%nat; by auto. }
+      iIntros (fr fr') "#Hfr /=".
+      iDestruct "Hfr" as (p1 p2 q1 q2) "(-> & -> & #Hp & #Hq)".
+      iDestruct "Hp" as (pp1 pp2 pq1 pq2) "(-> & -> & #Hyy & #Hii)".
+      iDestruct "Hii" as (iyv) "[-> ->]".
+      rel_pures_l. rel_pures_r.
+      rel_values.
   Qed.
 
 End list_rel_parametric.
