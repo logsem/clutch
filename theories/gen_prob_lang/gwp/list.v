@@ -1259,6 +1259,84 @@ Section list_specs_extra.
       iFrame.
   Qed.
 
+  (* [mapi] re-indexed: shifting the loop counter by one is the same as
+     pre-composing the index argument with [S]. *)
+  Lemma mapi_loop_S {B : Type} (f : nat -> A -> B) (k : nat) (l : list A) :
+    mapi_loop f (S k) l = mapi_loop (λ i x, f (S i) x) k l.
+  Proof.
+    generalize dependent k.
+    induction l as [ | h t IH]; intros k; simpl; [done |].
+    by rewrite IH.
+  Qed.
+
+  Lemma mapi_cons {B : Type} (f : nat -> A -> B) (h : A) (l : list A) :
+    mapi f (h :: l) = f 0%nat h :: mapi (λ i x, f (S i) x) l.
+  Proof.
+    rewrite /mapi /=.
+    by rewrite mapi_loop_S.
+  Qed.
+
+  (* Index-aware spec for plain [list_map]: as strong as [gwp_list_mapi]
+     (per-element pre/postconditions and the meta result may name the logical
+     index) even though [list_map]'s function does not receive the index at
+     runtime — the index-dependence is carried by the positioned resource
+     [γ i x], so the i-th call (under [γ i x_i]) yields [f i x_i]. *)
+  Lemma gwp_list_map_idx `{!Inject B val}
+        (f : nat -> A -> B) (l : list A) (fv lv : val)
+        (γ : nat -> A -> iProp _) (ψ : nat -> B -> iProp _) E :
+    G{{{ □ (∀ (i : nat) (x : A),
+              G{{{ γ i x }}}
+                fv (inject x) @ g; E
+                {{{ fr, RET fr;
+                    let r := f i x in
+                    ⌜fr = (inject r)⌝ ∗ ψ i r }}}) ∗
+        ⌜is_list l lv⌝ ∗
+        ([∗ list] i ↦ a ∈ l, γ i a)
+    }}}
+      list_map fv lv @ g; E
+    {{{ rv, RET rv;
+        let l' := mapi f l in
+        ⌜is_list l' rv⌝ ∗
+        ([∗ list] i ↦ a ∈ l', ψ i a)}}}.
+  Proof.
+    iInduction l as [ | h l'] "IH" forall (f γ ψ lv);
+      iIntros (Φ) "[#Hf [%Hil Hown]] HΦ"; simpl in Hil;
+      rewrite /list_map.
+    - subst.
+      gwp_pures.
+      iApply "HΦ".
+      iModIntro.
+      iSplit; done.
+    - destruct Hil as [lv' [-> Hil']].
+      do 4 gwp_pure _.
+      fold list_map.
+      iDestruct (big_sepL_cons with "Hown") as "[Hhead Hown]".
+      gwp_smart_apply ("IH" $! (λ i x, f (S i) x) (λ i x, γ (S i) x) (λ i x, ψ (S i) x) lv'
+                with "[Hown]").
+      + iSplitL ""; last first.
+        * iSplit; [done |].
+          iApply (big_sepL_impl with "Hown").
+          iModIntro.
+          iIntros (k' x) "_ Hpre"; done.
+        * iModIntro.
+          iIntros (i x).
+          iApply ("Hf" $! (S i) x).
+      + iIntros (rv) "[%Hil_rv Hown]".
+        gwp_pures.
+        gwp_apply ("Hf" $! 0%nat h with "Hhead").
+        iIntros (fr) "[-> HΨ]".
+        gwp_apply gwp_list_cons; [done | ].
+        iIntros (v) "%Hil_v".
+        iApply "HΦ".
+        rewrite mapi_cons.
+        iSplit; [done |].
+        simpl.
+        iFrame "HΨ".
+        iApply (big_sepL_impl with "Hown").
+        iModIntro.
+        iIntros (k' x) "_ HΨ'"; done.
+  Qed.
+
   (* TODO: is there a standard library lemma for this? *)
   Lemma list_lookup_succ (h : A) (l : list A) (i : nat) :
     (h :: l) !! (S i) = l !! i.

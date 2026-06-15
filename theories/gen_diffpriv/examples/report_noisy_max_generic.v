@@ -107,15 +107,12 @@ Section generic.
 
   #[local] Open Scope R.
 
-  Definition list_map' (v:val) :=
-    (list_mapi (λ: <>, v))%E.
-
   Definition report_noisy_max_presampling (num den : Z) : val :=
     (* ↯ (num/den) ∗ evalQ is 1-sensitive ∗ N ∈ ℕ \ {0} ∗ 0 < num/2den ∗ dDB db db' <= 1 *)
     λ:"evalQ" "N" "d",
       let: "xs" := list_init "N" (λ:"i", "evalQ" "i" "d") in
       let: "xs_tapes" := list_map (λ:"x", ("x", AllocSampleTape (sample_idx (D := D)) (Pair #num (Pair #(2*den) "x")))) "xs" in
-      let: "noisy_xs" := list_map' (λ: "x_ι", Sample (sample_idx (D := D)) (Pair #num (Pair #(2*den) (Fst "x_ι"))) (Snd "x_ι")) "xs_tapes" in
+      let: "noisy_xs" := list_map (λ: "x_ι", Sample (sample_idx (D := D)) (Pair #num (Pair #(2*den) (Fst "x_ι"))) (Snd "x_ι")) "xs_tapes" in
       list_max_index "noisy_xs".
 
   Lemma rnm_init (Δ : Z) (C : Z) (evalQ : val) DB (dDB : Distance DB) (N : nat) K :
@@ -406,7 +403,7 @@ Qed.
     wp_lam. tp_lam...
     destruct N as [|N'].
     {
-      rewrite /list_init/list_map/list_map'/list_mapi/list_mapi_loop/list_max_index...
+      rewrite /list_init/list_map/list_max_index...
       (* [Nat.max 1 0 = 1]; return the sole inhabitant [0%fin : fin 1], whose
          injection [#(Z.of_nat (fin_to_nat 0%fin)) = #0] matches the empty-list
          default returned by [list_max_index NONE]. *)
@@ -524,9 +521,9 @@ Qed.
         { iIntros (? [] []). iIntros. simpl. done. }
     }
 
-    wp_bind (list_mapi _ _).
+    wp_bind (list_map _ _).
 
-    iApply (gwp_list_mapi (A:=Z*loc) (B:=Z)
+    iApply (gwp_list_map_idx (A:=Z*loc) (B:=Z)
               (Inject0 := (@Inject_prod Z _ loc _))
               (λ k '(x, ι), zs !!! k)
               xιs
@@ -556,9 +553,9 @@ Qed.
     iIntros "!> % h_list_mapi". idtac...
 
     tp_pures.
-    tp_bind (list_mapi _ _).
+    tp_bind (list_map _ _).
 
-    iMod (gwp_list_mapi (g:=gwp_spec)
+    iMod (gwp_list_map_idx (g:=gwp_spec)
                   (λ k '(x, ι), zs' !!! k) xιs'
                   _
                   vxιs'
