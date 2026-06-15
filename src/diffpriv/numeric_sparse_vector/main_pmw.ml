@@ -26,7 +26,6 @@ let count_above t l =
 let () =
   let k = 5 in
   let i = 5 in
-  let db = get_db i k in
   let stream_query =
     let a = ref 1000 in
     fun bs -> (

@@ -19,11 +19,11 @@ let mw x f v eta get_db_i =
 
 
 
-let oPMW db get_db_i normeDB card_Sdb gen_unif stream_q card_Sq num den alpha beta =
+let oPMW db get_db_i normeDB card_Sdb unif stream_q card_Sq num den alpha beta =
   let c = 1. +. 4. *. (log (float_of_int card_Sdb)) /.  (alpha *. alpha) in
   let t = ((float_of_int den) *. 18. *. c *. (log (2. *. float_of_int card_Sq) +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. normeDB) in
   let f = num_sparse_vector num den (int_of_float t) (int_of_float c) in
-  let distrib = ref gen_unif in
+  let distrib = ref unif in
   let rec nSVT i bs =
     match stream_q bs with
     | None -> bs   (* No more queries *)
