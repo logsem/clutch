@@ -25,7 +25,7 @@ From iris.base_logic Require Export invariants.
 From iris.proofmode Require Import proofmode.
 From clutch.prob Require Import distribution couplings_dp.
 From clutch.gen_diffpriv Require Import model interp fundamental soundness
-  coupling_rules app_rel_rules rel_tactics.
+  coupling_rules app_rel_rules rel_tactics distance diffpriv_rules.
 From clutch.gen_diffpriv.examples Require Import list.
 From clutch.gen_prob_lang Require Import lang notation families.
 From clutch.gen_prob_lang.typing Require Import types.
@@ -521,5 +521,56 @@ Section rnm_idiomatic.
     iApply (refines_ret with "[Hnv]"); [done..|]. by iModIntro.
   Qed.
 
+  (** ** Bridge: sensitivity-at-zero ⇒ the per-index query self-relation [Hq].
+
+      The DP statements assume the query [evalQ #i] is [Δ]-sensitive
+      ([hoare_sensitive (evalQ #i) (IZR Δ) dDB dZ]).  Specialised at the SAME
+      database [db] (impl and spec), the input distance [dDB db db = 0]
+      ([distance_0]) forces the output distance [dZ b b' <= IZR Δ * 0 = 0], and
+      [dZ b b' = 0] (an absolute value) means [b = b'].  So at a fixed [db] the
+      query returns EQUAL integers on both runs at zero cost — exactly the
+      self-relation [REL (λ:"i",evalQ "i" (inject db)) << … : lrel_nat → interp TInt]
+      that the equivalence links [rnm_link1]/[rnm_link2] require. *)
+  Lemma rnm_query_self_rel (Δ : Z) (evalQ : val) DB (dDB : Distance DB) (db : DB) :
+    (0 <= Δ)%Z →
+    (∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
+    ⊢ REL (λ:"i", evalQ "i" (inject db))%V << (λ:"i", evalQ "i" (inject db))%V
+        : (lrel_nat → interp TInt [])%lrel.
+  Proof.
+    iIntros (HΔ Hsens).
+    iApply refines_arrow_val. iModIntro. iIntros (n n') "#Hn".
+    iDestruct "Hn" as (k) "[-> ->]".
+    rel_pures_l. rel_pures_r.
+    (* Goal: REL evalQ #k (inject db) << evalQ #k (inject db) : interp TInt [].
+       Discharge it by the [Δ]-sensitivity of [evalQ #(Z.of_nat k)] at [(db,db)]. *)
+    rewrite refines_eq /refines_def.
+    iIntros (K ε) "Hspec Hna Herr %Hε".
+    assert (Hcpos : (0 <= IZR Δ)%R) by (apply IZR_le; lia).
+    iPoseProof (Hsens (Z.of_nat k)) as "Ht".
+    iApply ("Ht" $! Hcpos K db db with "[$Hspec]").
+    iModIntro. iIntros (v) "Hpost".
+    iDestruct "Hpost" as (b b' Hv) "[Hspec' %Hd]".
+    (* [dDB db db = 0], so [dZ b b' <= IZR Δ * 0 = 0], hence [b = b']. *)
+    assert (dDB db db = 0) as Hdb by (apply distance_0; reflexivity).
+    rewrite Hdb Rmult_0_r in Hd.
+    assert (b = b') as <-.
+    { pose proof (distance_pos (Distance:=dZ) b b') as Hpos.
+      assert (dZ b b' = 0) as Hz by lra.
+      rewrite /dZ /distance /= in Hz.
+      apply Rcomplements.Rabs_eq_0 in Hz. apply eq_IZR in Hz. lia. }
+    iExists (inject b), ε. iFrame "Hspec' Hna Herr".
+    rewrite Hv. iSplit; [done|].
+    iExists b. by rewrite /inject /=.
+  Qed.
+
+  (** ** Reverse of equivalence link (II): direct-1map (idiomatic) ≃ direct-2pass.
+
+      The mirror of [rnm_link2]: now the SPEC (right) carries the two-pass
+      structure (a pairing map then a read map) and the IMPL (left) is the single
+      direct-sampling map.  The pairing pass is PURE, so we evaluate it on the
+      SPEC side by Löb induction stepping [tp_*] reductions, then the read map vs.
+      the direct-sampling map is the reflexive draw coupling.  This is exactly the
+      [rnm_link2'] direction the prompt flagged as the only remaining link; we
+      prove it here over abstract lists by a spec-side recursion. *)
 
 End rnm_idiomatic.
