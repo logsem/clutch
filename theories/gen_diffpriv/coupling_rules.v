@@ -248,4 +248,76 @@ Section rules.
       rewrite /mult_ec_supply /add_ec_supply. iFrame "H Hd".
   Qed.
 
+  (** Empty-tape PROGRAM-step coupling.  The tape-based analogue of
+      [wp_couple_sample_gen]: couple two labelled samples [Sample i _ #lbl:α]
+      whose tapes [α]/[α'] are EMPTY.  An empty tape's read collapses to a fresh
+      draw from [sig_sample Sg i pv] regardless of the tape's stored descriptor
+      [(i1,pv1)] (head_step's empty-match and descriptor-mismatch branches
+      coincide; cf. [SampleTapeEmptyS]/[SampleTapeOtherS]), so the [DPcoupl]
+      obligation is identical to [wp_couple_sample_gen] and the tapes are
+      returned unchanged.  This is what makes typing the tape form of [Sample]
+      sound (see [refines_sample_tape]). *)
+  Lemma wp_couple_sample_tape_gen (i : nat) (pv pv' : val) (μ μ' : distr val)
+    (R' : val → val → Prop) (α α' : loc) i1 pv1 i1' pv1' K E (ε' : R) :
+    sig_sample Sg i pv = Some μ →
+    sig_sample Sg i pv' = Some μ' →
+    DPcoupl μ μ' R' ε' 0 →
+    {{{ ⤇ fill K (Sample i (Val pv') (Val (LitV (LitLbl α')))) ∗
+        α ↪ (i1, pv1, []) ∗ α' ↪ₛ (i1', pv1', []) ∗ ↯m ε' }}}
+      Sample i (Val pv) (Val (LitV (LitLbl α))) @ E
+    {{{ (v v' : val), RET v;
+        ⤇ fill K (Val v') ∗ α ↪ (i1, pv1, []) ∗ α' ↪ₛ (i1', pv1', []) ∗ ⌜R' v v'⌝ }}}.
+  Proof.
+    iIntros (Hμ Hμ' Hcpl Φ) "(Hr & Hα & Hα' & Hε) HΦ".
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ))".
+    iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(ε'' & ε_now_rest & foo & Hε'').
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %Hβ.
+    iDestruct (spec_auth_lookup_tape with "Hauth2 Hα'") as %Hβ'.
+    assert (Hps1 : language.prim_step (Sample i (Val pv) (Val (LitV (LitLbl α)))) σ1 = dmap (λ v, (Val v, σ1)) μ).
+    { simpl. erewrite head_prim_step_eq; last first.
+      { destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
+        eexists (_,_). apply head_step_support_equiv_rel.
+        destruct (decide (i = i1 ∧ pv = pv1)) as [Hd|Hd].
+        - destruct Hd as [-> ->]. eapply SampleTapeEmptyS; [exact Hβ | exact Hμ | exact Hw].
+        - eapply SampleTapeOtherS; [exact Hβ | exact Hd | exact Hμ | exact Hw]. }
+      simpl. rewrite Hβ. case_bool_decide as Hd; rewrite Hμ //. }
+    assert (Hps1' : language.prim_step (Sample i (Val pv') (Val (LitV (LitLbl α')))) σ1' = dmap (λ v, (Val v, σ1')) μ').
+    { simpl. erewrite head_prim_step_eq; last first.
+      { destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
+        eexists (_,_). apply head_step_support_equiv_rel.
+        destruct (decide (i = i1' ∧ pv' = pv1')) as [Hd|Hd].
+        - destruct Hd as [-> ->]. eapply SampleTapeEmptyS; [exact Hβ' | exact Hμ' | exact Hw].
+        - eapply SampleTapeOtherS; [exact Hβ' | exact Hd | exact Hμ' | exact Hw]. }
+      simpl. rewrite Hβ'. case_bool_decide as Hd; rewrite Hμ' //. }
+    iApply (prog_coupl_steps_simple ε_now_rest ε'' ε_now δ_now 0%NNR);
+      [done | apply nnreal_ext; simpl; lra | | | | ].
+    - apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
+      eexists (_,_). apply head_step_support_equiv_rel.
+      destruct (decide (i = i1 ∧ pv = pv1)) as [Hd|Hd];
+        [destruct Hd as [-> ->]; eapply SampleTapeEmptyS | eapply SampleTapeOtherS]; eauto.
+    - apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
+      eexists (_,_). apply head_step_support_equiv_rel.
+      destruct (decide (i = i1' ∧ pv' = pv1')) as [Hd|Hd];
+        [destruct Hd as [-> ->]; eapply SampleTapeEmptyS | eapply SampleTapeOtherS]; eauto.
+    - apply (DPcoupl_steps_ctx_bind_r _ _ _
+              (λ ρ ρ' : cfg, ∃ v v', R' v v' ∧ ρ = (Val v, σ1) ∧ ρ' = (Val v', σ1'))); [done|].
+      rewrite Hps1 Hps1' /dmap.
+      eapply (DPcoupl_dbind' ε'' 0 ε'' 0 0 0); [lra|done|done|lra| |rewrite Hε''; exact Hcpl].
+      intros w w' Hww'. apply DPcoupl_dret; [done|done|]. exists w, w'. done.
+    - iIntros (e2 σ2 e2' σ2' (e2'' & [=->] & (w & w' & Hww' & [=-> ->] & [=-> ->]))).
+      iMod (spec_update_prog (fill K (Val w')) with "Hauth2 Hr") as "[$ Hspec]".
+      iMod (ecm_supply_decrease with "Hε2 Hε") as (a b Herr Heq) "H".
+      do 2 iModIntro. iMod "Hclose'" as "_". iModIntro. iFrame "Hh1 Ht1".
+      rewrite -wp_value.
+      iSplitR "Hspec HΦ Hα Hα'".
+      2: { iApply ("HΦ" $! w w'). iFrame "Hspec Hα Hα'". done. }
+      rewrite /err_interp /=. iFrame "Hδ".
+      assert (b = ε_now_rest) as ->.
+      { apply nnreal_ext. apply (f_equal nonneg) in Herr, foo. simpl in *. lra. }
+      rewrite /mult_ec_supply. iFrame "H".
+  Qed.
+
 End rules.
