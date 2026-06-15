@@ -536,7 +536,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
       + iDestruct "HSendAlice" as (?m ?m') "[[%He1 %He2] #HmQ]".         
          rewrite -> He1. rewrite -> He2. brel_pures.
          {  apply -> NeutralEctx_ectx_labels_singleton.
-           do 2 (eapply NeutralEctx_label_cons_inv_2 in Hk1). eapply Hk1.}
+           do 2 (eapply NeutralEctx_label_cons_inv_2 in Hk1). eapply Hk1. }
          {  apply -> NeutralEctx_ectx_labels_singleton.
             eapply NeutralEctx_label_cons_inv_2 in Hk2.
             eapply NeutralEctx_label_cons_inv_1 in Hk2. eapply Hk2. } 
@@ -658,7 +658,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                         eapply NoDup_app in H1.
                         eapply NoDup_cons_1_1. destruct H1 as [H1' H2'].
                         apply (NoDup_app [channel'; getKey'] [schannel_l]) in H1'.
-                        destruct H1' as [H1' H2'']. apply H1'.}
+                        destruct H1' as [H1' H2'']. apply H1'. }
                       { simpl.
                         iApply (brel_na_inv _ _ alphaN); first set_solver.
                         iFrame "Hinvα".
