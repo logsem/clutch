@@ -21,9 +21,10 @@ From iris.base_logic Require Export invariants.
 From iris.proofmode Require Import proofmode.
 From clutch.prob Require Import distribution couplings couplings_dp.
 From clutch.gen_diffpriv Require Import model interp fundamental soundness
-  coupling_rules app_rel_rules rel_tactics primitive_laws distance diffpriv_rules.
+  coupling_rules app_rel_rules rel_tactics primitive_laws distance diffpriv_rules
+  compatibility.
 From clutch.gen_diffpriv.examples Require Import gwp_list_rel report_noisy_max_generic.
-From clutch.gen_prob_lang Require Import lang notation families inject.
+From clutch.gen_prob_lang Require Import lang notation families inject tactics metatheory.
 From clutch.gen_prob_lang Require Import gwp.list.
 From clutch.gen_prob_lang.typing Require Import types.
 From iris.prelude Require Import options.
@@ -472,6 +473,181 @@ Section idiomatic.
     iExists (inject b), ε. iFrame "Hspec' Hna Herr".
     rewrite Hv. iSplit; [done|].
     iExists b. by rewrite /inject /=.
+  Qed.
+
+  (** ** Reverse of equivalence link (II): direct-1map (idiomatic) ≃ direct-2pass.
+
+      Mirror of [rnm_link2].  The SPEC (right) carries the two passes (a pairing
+      map then a read map); the IMPL (left) is the single direct-sampling map.
+      To break the call-by-value deadlock we concretise the (equal) score lists
+      with [refines_list_init_concrete], then run the spec pairing map to a value
+      via [gwp_list_map (g := gwp_spec)] — the [gwp.list] spec-side analogue of
+      [examples.list]'s bespoke [spec_list_map].  Unlike [examples.list],
+      [gwp.list]'s [list_init] needs NO trailing [list_rev], so there is no
+      spec-side reversal to run. *)
+
+  (** Concrete-list relation: two value-lists carry the SAME concrete list of
+      integers [zs] on both sides (no guarded-recursion [▷]). *)
+  Definition rel_concrete_int : lrel Σ := LRel (λ v v',
+    ∃ zs : list Z, ⌜is_list (A := Z) zs v ∧ is_list (A := Z) zs v'⌝)%I.
+
+  (** [list_init] producing a CONCRETE equal integer list on both sides.  Mirrors
+      [refines_list_init] (from [gwp_list_rel]) but, because the per-index query
+      returns EQUAL integers (the [Hq] self-relation), the result lists are the
+      SAME concrete [list Z], tracked through the down-count loop accumulator.
+      [gwp.list]'s [list_init] prepends [f i] for [i] counting down from [k] to
+      [1], so no final [list_rev] is needed. *)
+  Lemma refines_list_init_concrete (f f' : val) (M : nat) :
+    □ (REL f << f' : (lrel_nat → interp TInt [])%lrel) -∗
+    REL list_init #M f << list_init #M f' : rel_concrete_int.
+  Proof.
+    iIntros "#Hf". rewrite /list_init.
+    do 3 (rel_pure_l _). do 3 (rel_pure_r _).
+    rewrite /list_cons.
+    iAssert (□ ∀ (j : nat) (av av' : val) (acc : list Z),
+                ⌜is_list (A := Z) acc av ∧ is_list (A := Z) acc av'⌝ -∗
+                REL (rec: "aux" "acc" "i" :=
+                       if: "i" = #0 then "acc"
+                       else "aux"
+                              ((λ: "elem" "list", SOME ("elem", "list"))%V
+                                 (Val f "i") "acc") ("i" - #1))%V av #j
+                 << (rec: "aux" "acc" "i" :=
+                       if: "i" = #0 then "acc"
+                       else "aux"
+                              ((λ: "elem" "list", SOME ("elem", "list"))%V
+                                 (Val f' "i") "acc") ("i" - #1))%V av' #j
+                 : rel_concrete_int)%I as "#Hloop".
+    { iModIntro. iIntros (j). iInduction j as [|j] "IH"; iIntros (av av' acc [Hav Hav']).
+      - (* counter 0: both runs return the (equal-concrete) accumulator. *)
+        rel_rec_l. rel_rec_r. rel_pures_l. rel_pures_r. rel_values.
+      - (* counter [S j]: cons [f #(S j)] onto both accumulators, recurse at [j]. *)
+        rel_rec_l. rel_rec_r. rel_pures_l. rel_pures_r.
+        rel_bind_l (f _)%E. rel_bind_r (f' _)%E.
+        iApply (refines_bind with "[]").
+        { iApply (refines_app with "Hf"). rel_values. }
+        iIntros (hv hv') "#Hhead /=".
+        iDestruct "Hhead" as (z) "[-> ->]".
+        do 5 (rel_pure_l _). do 5 (rel_pure_r _).
+        replace (Z.of_nat (S j) - 1)%Z with (Z.of_nat j) by lia.
+        iApply ("IH" $! (InjRV (#z, av)) (InjRV (#z, av')) (z :: acc)).
+        iPureIntro; split; simpl; eauto. }
+    do 2 (rel_pure_l _). do 2 (rel_pure_r _).
+    iApply ("Hloop" $! M _ _ []). by iPureIntro.
+  Qed.
+
+  (** Reverse per-element pairing relation: the impl bare score [v] is related to
+      the spec pair [(x', ())] at [interp TInt] (between [v] and [x']). *)
+  Definition unit_pair_rel' : lrel Σ := LRel (λ v p,
+    ∃ x' : val, ⌜p = (x', #())%V⌝ ∗ interp TInt [] v x')%I.
+
+  (** Pass-2 element coupling (reverse): the idiomatic [directsample] (impl) is
+      related REFLEXIVELY at zero cost to the direct-2pass [read] [(x',())]. *)
+  Lemma refines_directsample_read :
+    ⊢ REL directsample << (λ: "x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V
+        : (unit_pair_rel' → interp TInt [])%lrel.
+  Proof.
+    iApply refines_arrow_val. iModIntro. iIntros (v p) "#Hp".
+    iDestruct "Hp" as (x' ->) "#Hx".
+    rewrite /directsample. rel_pures_l. rel_pures_r.
+    iDestruct (eq_type_sound TInt [] v x' EqTInt with "Hx") as %<-.
+    iDestruct (ground_of_eqtype TInt [] v v EqTInt with "Hx") as %Hgx.
+    assert (Hgp : ground_val (TInt * (TInt * TInt))%ty (mkp v)).
+    { destruct Hgx as [z ->]. rewrite /mkp /=.
+      eexists _, _. split; [reflexivity|]. split.
+      - by eexists.
+      - eexists _, _. split; [reflexivity|]. split; by eexists. }
+    destruct (st_decode (D := D) (mkp v) Hgp) as [pp Hpp].
+    rewrite refines_eq /refines_def.
+    iIntros (KK ε) "Hspec Hna Herr %Hε".
+    iMod ecm_zero as "Hm".
+    iApply (wp_couple_sample_gen Sg i (mkp v) (mkp v)
+              (dmap (sf_inj D) (sf_sample D pp)) (dmap (sf_inj D) (sf_sample D pp))
+              (λ w w', ∃ o : sf_out D, w = sf_inj D o ∧ w' = sf_inj D o) KK ⊤ 0
+              (sig_sample_decode_at D i (mkp v) pp (sample_idx_S (D := D)) Hpp)
+              (sig_sample_decode_at D i (mkp v) pp (sample_idx_S (D := D)) Hpp) _
+              with "[$Hspec $Hm]").
+    { iIntros "!>" (w w') "(Hspec & %HR)". destruct HR as (o & -> & ->).
+      iExists (sf_inj D o), ε. iFrame "Hspec Hna Herr".
+      iSplitR; [done|]. iApply (interp_of_ground TInt [] (sf_inj D o)).
+      apply (st_out (D := D) (τp := (TInt * (TInt * TInt))%ty) (τo := TInt)). }
+    Unshelve.
+    apply (DPcoupl_map (sf_inj D) (sf_inj D) (sf_sample D pp) (sf_sample D pp)
+             (λ w w', ∃ o : sf_out D, w = sf_inj D o ∧ w' = sf_inj D o) 0 0); [lra|lra|].
+    eapply (DPcoupl_mono (sf_sample D pp) (sf_sample D pp) (sf_sample D pp) (sf_sample D pp)
+              (=) (λ a a', ∃ o : sf_out D, sf_inj D a = sf_inj D o ∧ sf_inj D a' = sf_inj D o)
+              0 0 0 0);
+      [ intros; reflexivity | intros; reflexivity
+      | intros a a' ->; by exists a' | lra | lra | apply DPcoupl_refl_rnm ].
+  Qed.
+
+  (** Bridge: from the concrete equal integer list build the reverse pairing
+      relation between the impl score list [lv] and the spec [(score,())]-paired
+      list [pv'] (the result of running the spec pairing map). *)
+  Lemma is_list_pair_unit_rel (zs : list Z) (lv pv' : val) :
+    is_list (A := Z) zs lv → is_list (A := val) (List.map (λ z : Z, (#z, #())%V) zs) pv' →
+    ⊢ lrel_list unit_pair_rel' lv pv'.
+  Proof.
+    iInduction zs as [|z zs] "IH" forall (lv pv'); iIntros (Hlv Hpv').
+    - simpl in *. subst. rewrite (lrel_list_unfold unit_pair_rel' (InjLV _) (InjLV _)).
+      iNext. iLeft. by auto.
+    - simpl in Hlv. destruct Hlv as (lr & -> & Hlr).
+      simpl in Hpv'. destruct Hpv' as (pr & -> & Hpr).
+      rewrite (lrel_list_unfold unit_pair_rel' (InjRV _) (InjRV _)).
+      iNext. iRight. iExists (#z), (#z, #())%V, lr, pr.
+      iSplit; [done|]. iSplit; [done|].
+      iSplitR.
+      { iExists (#z). iSplit; [done|]. iExists z. by rewrite /inject /=. }
+      iApply ("IH" $! lr pr); by iPureIntro.
+  Qed.
+
+  (** Reverse direction: direct-1map (idiomatic) refines direct-2pass. *)
+  Lemma rnm_link2' (evalQ : val) (N : nat) (d : val) Δ :
+    (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
+        : (lrel_nat → interp TInt [])%lrel) →
+    ⊢ REL rnm_direct1 evalQ #N d
+       << rnm_direct2 evalQ #N d : interp TNat Δ.
+  Proof.
+    iIntros (Hq). rewrite /rnm_direct1 /rnm_direct2.
+    rel_pures_l. rel_pures_r.
+    rel_bind_l (list_init _ _). rel_bind_r (list_init _ _).
+    iApply (refines_bind with "[]").
+    { iApply refines_list_init_concrete. iModIntro. iApply Hq. }
+    iIntros (xs xs') "Hxs /=".
+    iDestruct "Hxs" as (zs) "%Hc". destruct Hc as [Hxs_l Hxs_r].
+    rel_pures_l. rel_pures_r.
+    (* run the spec pairing map fully to a value via [gwp_list_map (g:=gwp_spec)],
+       the [gwp.list] spec-side analogue of [examples.list]'s [spec_list_map]. *)
+    rel_bind_r (list_map (λ:"x",("x",#()))%V xs').
+    iApply (refines_steps_r _ ⊤ (list_max_index (list_map directsample xs))
+              (list_map (λ:"x",("x",#()))%V xs')
+              (Val (inject (List.map (λ z : Z, (#z, #())%V) zs)))).
+    { iIntros (K) "Hspec".
+      iMod (gwp_list_map (g := gwp_spec) (A := Z) (B := val) zs
+              (λ z : Z, (#z, #())%V) (λ:"x",("x",#()))%V xs' ⊤
+              with "[] [] [$Hspec]") as (rv) "Hpost".
+      { iSplit; [|iPureIntro; apply Hxs_r].
+        iIntros (z) "!> %Φ0 _ HΦ %K0 Hs". tp_pures. iModIntro.
+        iExists (#z, #())%V. iFrame "Hs". iApply "HΦ". done. }
+      { iIntros (w) "H". iExact "H". }
+      iModIntro. iDestruct "Hpost" as "[Hspec %Hrv]".
+      apply is_list_inject in Hrv. rewrite Hrv. iFrame. }
+    iModIntro.
+    rel_pures_r. simpl. rel_pures_r.
+    (* pass-2: direct-sampling map (impl) vs read map (spec), reflexive coupling;
+       then argmax of the (pointwise-equal) noisy lists. *)
+    rel_bind_l (list_map directsample xs).
+    rel_bind_r (list_map _ (inject_list _)).
+    iApply (refines_bind with "[]").
+    { iApply (refines_list_map unit_pair_rel' (interp TInt [])).
+      - iApply refines_directsample_read.
+      - iApply (refines_ret with "[]"); [done..|]. iModIntro.
+        iApply (is_list_pair_unit_rel zs xs
+                  (inject (List.map (λ z : Z, (#z, #())%V) zs))); [done|].
+        by apply is_list_inject. }
+    iIntros (nv nv') "Hnv /=".
+    rel_pures_r.
+    iApply (refines_list_max_index (Val nv) (Val nv')).
+    iApply (refines_ret with "[Hnv]"); [done..|]. by iModIntro.
   Qed.
 
 End idiomatic.
