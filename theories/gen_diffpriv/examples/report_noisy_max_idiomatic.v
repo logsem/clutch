@@ -24,7 +24,7 @@ From clutch.gen_diffpriv Require Import model interp fundamental soundness
   coupling_rules app_rel_rules rel_tactics primitive_laws distance diffpriv_rules
   compatibility.
 From clutch.gen_diffpriv.examples Require Import gwp_list_rel report_noisy_max_generic.
-From clutch.gen_prob_lang Require Import lang notation families inject tactics metatheory.
+From clutch.gen_prob_lang Require Import lang notation families inject tactics metatheory znoise.
 From clutch.gen_prob_lang Require Import gwp.list.
 From clutch.gen_prob_lang.typing Require Import types.
 From iris.prelude Require Import options.
@@ -651,3 +651,95 @@ Section idiomatic.
   Qed.
 
 End idiomatic.
+
+(** ** Capstone: idiomatic ≡ the REAL presampling at the [lim_exec] level.
+
+    The four relational links ([rnm_link1]/[rnm_link2] forward,
+    [rnm_link1']/[rnm_link2'] reverse), over the [gwp.list] combinators, cash out
+    by adequacy into a POINTWISE [lim_exec] equality between the one-pass
+    idiomatic program [rnm_direct1] and the two-pass presampling program — and the
+    presampling program here is DEFINITIONALLY the REAL
+    [report_noisy_max_generic.report_noisy_max_presampling sample mass num den]
+    (taking [D := mkZNoise sample mass]), so the equality transports to the RNM
+    DP theorem [rnm_pres_diffpriv].
+
+    No termination / mass-1 argument: each [REL e << e' : interp TNat] yields
+    ([refines_coupling] + [DPcoupl_eq_elim] at [ε=δ=0], where [exp 0 = 1]) a
+    one-directional pointwise [≤], and the FOUR links give both directions of the
+    chain presampling ≃ direct2 ≃ direct1, so pointwise antisymmetry closes the
+    equality. *)
+Section idiomatic_lim_exec.
+  Context (Sg : Sig).
+  Context (sample : Z → Z → Z → distr Z)
+          (mass : ∀ num den mean, (SeriesC (sample num den mean) = 1)%R).
+  Local Notation D := (mkZNoise sample mass).
+  Context {HDin0 : SampleIn D Sg}.
+  (** [SampleTyping_mkZNoise] is only a [Lemma] (not a global instance) for an
+      abstract [sample]/[mass]; register it locally so the links' [SampleTyping]
+      side-condition resolves for [D = mkZNoise sample mass]. *)
+  Local Instance HDty0 : SampleTyping D (TInt * (TInt * TInt))%ty TInt :=
+    SampleTyping_mkZNoise sample mass.
+
+  (** A single refinement [∀ diffprivRGS, REL e << e' : interp TNat []] cashes out
+      to a pointwise [lim_exec] inequality (the [eq]-coupling at zero cost). *)
+  Lemma rnm_lim_exec_le (e e' : expr) (σ : state) :
+    (∀ `{!diffprivRGS Sg diffprivRΣ}, ⊢ REL e << e' : interp TNat []) →
+    ∀ a, (lim_exec (δ := lang_markov (gen_lang Sg)) (e, σ) a
+          <= lim_exec (δ := lang_markov (gen_lang Sg)) (e', σ) a)%R.
+  Proof.
+    intros Hrel a.
+    pose proof (refines_coupling Sg diffprivRΣ (λ _, interp TNat []) eq e e' σ σ
+                  ltac:(by iIntros (???) "[%n [-> ->]]") Hrel) as Hcpl.
+    pose proof (DPcoupl_eq_elim _ _ _ _ Hcpl a) as Hle.
+    rewrite exp_0 Rmult_1_l Rplus_0_r in Hle. exact Hle.
+  Qed.
+
+  (** Idiomatic [rnm_direct1] and the REAL two-pass
+      [report_noisy_max_generic.report_noisy_max_presampling] induce the SAME
+      output distribution at every database, given the per-index query
+      [Δ]-sensitivity (which provides the [Hq] self-relation the links need). *)
+  Lemma rnm_idiomatic_lim_exec_eq (Δ : Z) num den (evalQ : val)
+        DB (dDB : Distance DB) (N : nat) (σ : state) :
+    (0 <= Δ)%Z →
+    (∀ `{!diffprivGS Sg diffprivRΣ}, ∀ i : Z, ⊢ hoare_sensitive Sg (evalQ #i) (IZR Δ) dDB dZ) →
+    ∀ (db : DB),
+      lim_exec (δ := lang_markov (gen_lang Sg))
+        ((rnm_direct1 D num den evalQ #N (inject db)), σ)
+      = lim_exec (δ := lang_markov (gen_lang Sg))
+        ((report_noisy_max_generic.report_noisy_max_presampling
+            sample mass (Sg := Sg) num den evalQ #N (inject db)), σ).
+  Proof.
+    intros HΔ Hsens db.
+    (* the REAL presampling program is definitionally the section-local one at
+       [D := mkZNoise sample mass]. *)
+    assert (Hprog :
+      report_noisy_max_generic.report_noisy_max_presampling
+        sample mass (Sg := Sg) num den
+      = report_noisy_max_presampling D num den) by reflexivity.
+    rewrite Hprog.
+    assert (Hq : ∀ (Hr : diffprivRGS Sg diffprivRΣ),
+              ⊢ REL (λ:"i", evalQ "i" (inject db))%V << (λ:"i", evalQ "i" (inject db))%V
+                  : (lrel_nat → interp TInt [])%lrel).
+    { intros Hr.
+      iApply (rnm_query_self_rel D num den Δ evalQ DB dDB db HΔ).
+      intros. iApply Hsens. }
+    apply distr_ext => a. apply Rle_antisym.
+    - (* idiomatic ≤ presampling : direct1 << direct2 << presampling *)
+      eapply Rle_trans.
+      + apply (rnm_lim_exec_le (rnm_direct1 D num den evalQ #N (inject db))
+                 (rnm_direct2 D num den evalQ #N (inject db)) σ).
+        intros. iApply (rnm_link2' D). iApply (Hq _).
+      + apply (rnm_lim_exec_le (rnm_direct2 D num den evalQ #N (inject db))
+                 (report_noisy_max_presampling D num den evalQ #N (inject db)) σ).
+        intros. iApply (rnm_link1' D). iApply (Hq _).
+    - (* presampling ≤ idiomatic : presampling << direct2 << direct1 *)
+      eapply Rle_trans.
+      + apply (rnm_lim_exec_le (report_noisy_max_presampling D num den evalQ #N (inject db))
+                 (rnm_direct2 D num den evalQ #N (inject db)) σ).
+        intros. iApply (rnm_link1 D). iApply (Hq _).
+      + apply (rnm_lim_exec_le (rnm_direct2 D num den evalQ #N (inject db))
+                 (rnm_direct1 D num den evalQ #N (inject db)) σ).
+        intros. iApply (rnm_link2 D). iApply (Hq _).
+  Qed.
+
+End idiomatic_lim_exec.
