@@ -24,7 +24,9 @@ bespoke coupling rules — not a re-clone. The sole client is the DP logic; othe
   signature, injections (`inject`, incl. `Inject (fin M)`), notation, tactics, the `mkZNoise`/`mkZNoise4`
   noise builders (`znoise.v`) and the N-weight bin sampler (`categorical.v`), a generic weakest-pre
   with a full **generic list ADT** (`gwp/list.v`, the largest file here — underpins every list-valued
-  case study), and a logical-relation **type system** (`typing/{types,contextual_refinement}.v`).
+  case study; `list_init` is OCaml-faithful — forward, 0-indexed — and the combinators have
+  polymorphic, syntactically-typeable variants), and a logical-relation **type system**
+  (`typing/{types,contextual_refinement,list_typed}.v`).
 - **`theories/gen_diffpriv/`** — the *DP logic*. The `Λ`-generic WP core
   (`clutch.diffpriv.{weakestpre,lifting,ectx_lifting}`) is **reused unchanged**, instantiated at
   `gen_lang S`; only the genuinely language-specific files are re-done here
@@ -60,6 +62,18 @@ type is an `EqType`, `sf_param_of_val` is total, and `sf_inj` lands in the outpu
 interpretation `⟦τo⟧`. Proved once, instantiated at uniform / Laplace / coin. (This is the relational
 analogue of "add a distribution = one `SampleFamily`": adding a *typed* primitive is one
 side-condition discharge, not a new fundamental-theorem case.)
+
+The **syntactic** type system extends in lock-step: each family carries a `SampleTyping D τp τo`
+instance (param decodes from `τp`, output injects into `τo`), and `typing/types.v`'s
+`Sample_typed` / `Sample_tape_typed` / `AllocSampleTape_typed` rules + the correspondingly extended
+fundamental theorem make any use of `Sample`/`AllocSampleTape` well-typed — and self-related — from
+that one instance (the syntactic twin of `refines_sample`; family instances in `families.v`, the
+contextual-typing side in `contextual_refinement.v`, a canary in `sample_typing_canary.v`, a worked
+case study in `sample_typing_case_study.v`). The same move types the list ADT — polymorphic
+`list_map_poly` / `list_init_poly` (`typing/list_typed.v`) — so their **relational congruences come
+*for free* from the fundamental theorem**: `examples/gwp_list_rel.v` derives `refines_list_map` /
+`refines_list_init` from `fundamental_val` through the bridge `interp (TList τ) ≡ lrel_list`,
+retiring the hand inductions.
 
 ## Internal-DP notions (`gen_diffpriv/diffpriv_rules.v`)
 
@@ -108,6 +122,17 @@ range-carrying codomain **`fin (Nat.max 1 N)`** — so the selected index is exp
 not `metric`: the noise coupling presamples at an a-priori integer gap, which a real-valued
 `metric` distance cannot scale to. `Nat.max 1 N` keeps the codomain inhabited at `N = 0`, so no
 `0 < N` side-condition.)
+
+Both noise instances also ship an **idiomatic, one-pass direct-sampling** variant
+(`report_noisy_max_idiomatic.v`'s `rnm_direct1`: a deterministic `list_init` of scores fed through a
+direct-`Sample` map — **no presampling tapes**) carrying the *same* DP guarantee
+(`rnm_diffpriv_idiomatic` for Laplace, `rnm_exp_diffpriv_idiomatic` for exp). It is proved
+`lim_exec`-equal to the presampling RNM through the binary logical relation — *both* refinement
+directions, equality by antisymmetry (no unary-termination side condition) — so the existing
+headline transports verbatim. The engine is a per-element **tape-erasure** law (`tape_erasure.v`,
+with the supporting couplings in `coupling_rules.v`: a freshly-allocated tape, read exactly once, is
+indistinguishable from a direct draw) composed through the free list congruences above; the
+OCaml-faithful forward `list_init` is what makes the score-building and sampling orders line up.
 
 **Truncated Laplace** decouples sensitivity `Δ` from truncation half-width `A`. The fundamental
 result is a **tight all-shifts coupling** with optimal bad-set tail-mass `δ = Pr[Z > A−Δ]`
