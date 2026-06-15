@@ -26,6 +26,7 @@ From iris.proofmode Require Import proofmode.
 From clutch.prob Require Import distribution couplings_dp.
 From clutch.gen_diffpriv Require Import model interp fundamental soundness
   coupling_rules app_rel_rules rel_tactics.
+From clutch.gen_diffpriv.examples Require Import list.
 From clutch.gen_prob_lang Require Import lang notation families.
 From clutch.gen_prob_lang.typing Require Import types.
 From iris.prelude Require Import options.
@@ -92,8 +93,8 @@ Section rnm_idiomatic.
       spec.  The empty-tape read collapses to a fresh draw, coupled reflexively
       at zero cost against the direct sample, so the outputs are EQUAL. *)
   Lemma refines_read :
-    ⊢ REL (λ: "p", Sample i (mkpe (Fst "p")) (Snd "p"))%V
-       << (λ: "p", Sample i (mkpe (Fst "p")) (Snd "p"))%V
+    ⊢ REL (λ: "x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V
+       << (λ: "x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V
         : (tape_pair_rel → interp TInt [])%lrel.
   Proof.
     iApply refines_arrow_val. iModIntro. iIntros (p1 p2) "#Hp".
@@ -171,8 +172,8 @@ Section rnm_idiomatic.
 
   (** Pass-2, reverse: impl samples directly, spec reads the tape. *)
   Lemma refines_read' :
-    ⊢ REL (λ: "p", Sample i (mkpe (Fst "p")) (Snd "p"))%V
-       << (λ: "p", Sample i (mkpe (Fst "p")) (Snd "p"))%V
+    ⊢ REL (λ: "x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V
+       << (λ: "x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V
         : (tape_pair_rel' → interp TInt [])%lrel.
   Proof.
     iApply refines_arrow_val. iModIntro. iIntros (p1 p2) "#Hp".
@@ -211,6 +212,105 @@ Section rnm_idiomatic.
               0 0 0 0);
       [ intros; reflexivity | intros; reflexivity
       | intros a a' ->; by exists a' | lra | lra | apply DPcoupl_refl_rnm ].
+  Qed.
+
+  (** ** Equivalence link (I): presampling RNM ≃ direct-2pass RNM.
+
+      The two-pass *presampling* report-noisy-max (pass-1 allocates a noise tape
+      per coordinate, pass-2 reads each tape) is related, by pure CONGRUENCE
+      composition, to a *direct-2pass* variant that is identical except pass-1
+      pairs each score with [()] instead of a tape, so pass-2's [Sample … ()]
+      draws the noise directly.  No tape fusion, no transitivity: each direction
+      is a single in-logic refinement that chains the relational [list_init] /
+      [list_map] / [list_max_index] congruences (from [examples.list]) with the
+      per-element bridges [refines_alloc_pair]/[refines_read] above. *)
+
+  (** Presampling program (verbatim from [report_noisy_max_generic]'s
+      [report_noisy_max_presampling], with [i = sample_idx (D:=D)]). *)
+  Definition report_noisy_max_presampling : val :=
+    λ:"evalQ" "N" "d",
+      let: "xs" := list_init "N" (λ:"i", "evalQ" "i" "d") in
+      let: "xs_tapes" := list_map (λ:"x", ("x", AllocSampleTape i (Pair #num (Pair #(2*den) "x")))) "xs" in
+      let: "noisy_xs" := list_map (λ: "x_ι", Sample i (Pair #num (Pair #(2*den) (Fst "x_ι"))) (Snd "x_ι")) "xs_tapes" in
+      list_max_index "noisy_xs".
+
+  (** Direct-2pass program: identical EXCEPT pass-1 pairs the score with [()]
+      (so pass-2's [Sample … (Snd "x_ι")] reads [()] = a direct draw). *)
+  Definition rnm_direct2 : val :=
+    λ:"evalQ" "N" "d",
+      let: "xs" := list_init "N" (λ:"i", "evalQ" "i" "d") in
+      let: "xs_p" := list_map (λ:"x", ("x", #())) "xs" in
+      let: "noisy_xs" := list_map (λ: "x_ι", Sample i (Pair #num (Pair #(2*den) (Fst "x_ι"))) (Snd "x_ι")) "xs_p" in
+      list_max_index "noisy_xs".
+
+  (** Forward direction: presampling refines direct-2pass.  The per-index query
+      [λ:"i", evalQ "i" d] is assumed to self-relate at [lrel_nat → interp TInt],
+      i.e. it returns equal integer scores on both runs (the only fact the two
+      passes need; the noise read collapses to the same draw at zero cost). *)
+  Lemma rnm_link1 (evalQ : val) (N : nat) (d : val) Δ :
+    (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
+        : (lrel_nat → interp TInt [])%lrel) →
+    ⊢ REL report_noisy_max_presampling evalQ #N d
+       << rnm_direct2 evalQ #N d : interp TNat Δ.
+  Proof.
+    iIntros (Hq). rewrite /report_noisy_max_presampling /rnm_direct2.
+    rel_pures_l. rel_pures_r.
+    (* pass-0: build the (equal) score list via [list_init]. *)
+    rel_bind_l (list_init _ _). rel_bind_r (list_init _ _).
+    iApply (refines_bind with "[]").
+    { iApply (refines_list_init (interp TInt []) #N #N).
+      - rel_values.
+      - iApply Hq. }
+    iIntros (xs xs') "Hxs /=". rel_pures_l. rel_pures_r.
+    (* pass-1: impl allocates a tape per coordinate, spec pairs with [()]. *)
+    rel_bind_l (list_map _ _). rel_bind_r (list_map _ _).
+    iApply (refines_bind with "[Hxs]").
+    { iApply (refines_list_map (interp TInt []) tape_pair_rel).
+      - iApply refines_alloc_pair.
+      - iApply (refines_ret with "[Hxs]"); [done..|]. by iModIntro. }
+    iIntros (xt xp) "Hxt /=". rel_pures_l. rel_pures_r.
+    (* pass-2: read each tape (impl) / sample directly (spec), equal outputs. *)
+    rel_bind_l (list_map _ _). rel_bind_r (list_map _ _).
+    iApply (refines_bind with "[Hxt]").
+    { iApply (refines_list_map tape_pair_rel (interp TInt [])).
+      - iApply refines_read.
+      - iApply (refines_ret with "[Hxt]"); [done..|]. by iModIntro. }
+    iIntros (ns ns') "Hns /=". rel_pures_l. rel_pures_r.
+    (* argmax of two pointwise-equal integer lists: equal index at [lrel_nat]. *)
+    iApply (refines_list_max_index (Val ns) (Val ns')).
+    iApply (refines_ret with "[Hns]"); [done..|]. by iModIntro.
+  Qed.
+
+  (** Reverse direction: direct-2pass refines presampling (presampling on the
+      RIGHT), symmetric using the primed per-element bridges. *)
+  Lemma rnm_link1' (evalQ : val) (N : nat) (d : val) Δ :
+    (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
+        : (lrel_nat → interp TInt [])%lrel) →
+    ⊢ REL rnm_direct2 evalQ #N d
+       << report_noisy_max_presampling evalQ #N d : interp TNat Δ.
+  Proof.
+    iIntros (Hq). rewrite /report_noisy_max_presampling /rnm_direct2.
+    rel_pures_l. rel_pures_r.
+    rel_bind_l (list_init _ _). rel_bind_r (list_init _ _).
+    iApply (refines_bind with "[]").
+    { iApply (refines_list_init (interp TInt []) #N #N).
+      - rel_values.
+      - iApply Hq. }
+    iIntros (xs xs') "Hxs /=". rel_pures_l. rel_pures_r.
+    rel_bind_l (list_map _ _). rel_bind_r (list_map _ _).
+    iApply (refines_bind with "[Hxs]").
+    { iApply (refines_list_map (interp TInt []) tape_pair_rel').
+      - iApply refines_alloc_pair'.
+      - iApply (refines_ret with "[Hxs]"); [done..|]. by iModIntro. }
+    iIntros (xp xt) "Hxt /=". rel_pures_l. rel_pures_r.
+    rel_bind_l (list_map _ _). rel_bind_r (list_map _ _).
+    iApply (refines_bind with "[Hxt]").
+    { iApply (refines_list_map tape_pair_rel' (interp TInt [])).
+      - iApply refines_read'.
+      - iApply (refines_ret with "[Hxt]"); [done..|]. by iModIntro. }
+    iIntros (ns ns') "Hns /=". rel_pures_l. rel_pures_r.
+    iApply (refines_list_max_index (Val ns) (Val ns')).
+    iApply (refines_ret with "[Hns]"); [done..|]. by iModIntro.
   Qed.
 
 End rnm_idiomatic.
