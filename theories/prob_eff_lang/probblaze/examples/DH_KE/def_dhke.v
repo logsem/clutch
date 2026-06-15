@@ -29,13 +29,14 @@ Section def_implementation.
   Definition modn : expr := rec: "mod" "a" := if: "a" < #n then "a" else "mod" ("a" - #n).
 
   Definition F_AUTH : val :=
-  λ: "f" "doLeakSend" "doLeakRecv",  
+  λ: "f" "effs",  
+    let, ("doLeakSend", "doLeakRecv") := "effs" in
     let: "m1" := ref NONEV in
     let: "m2" := ref NONEV in
     effect "channel" 
     let: "doSend" := (λ: "m", do: (EffName "channel") (Send "m")) in  
     let: "doRecv" := (λ: "m", do: (EffName "channel") (Recv "m")) in
-    handle: "f" "doSend" "doRecv" with
+    handle: "f" ("doSend", "doRecv") with
     | effect (EffName "channel") "message", rec "k" as multi =>
         match: "message" with
         (* SEND *)
@@ -75,7 +76,8 @@ Section def_implementation.
     | return "y" => #()%V end.
 
   Definition DH_KE  : val :=
-    λ: "f" "doSend" "doRecv",
+    λ: "f" "effs",
+    let, ("doSend", "doRecv") := "effs" in
     let: "α" := alloc #n in
     let: "β" := alloc #n in
     let: "l1" := ref NONEV in
@@ -127,14 +129,16 @@ Section def_implementation.
    | return "y" => "y" end.
 
  Definition DH_SIM : val :=
- λ: "f" "doSend" "doRecv",                        
+ λ: "f" "effs",
+   let, ("doSend", "doRecv") := "effs" in
    let: "α" := alloc #n in
     let: "β" := alloc #n in
     let: "l1" := ref NONEV in
     let: "l2" := ref NONEV in
     effect "leak"  
-    let: "doLeak" := (λ: "m", do: (EffName "leak") "m") in
-      handle: "f" "doLeak" with
+    let: "doLeakSend" := (λ: "m", do: (EffName "leak") (Send "m")) in
+    let: "doLeakRecv" := (λ: "m", do: (EffName "leak") (Recv "m")) in
+      handle: "f" ("doLeakSend", "doLeakRecv") with
     | effect (EffName "leak") "payload", rec "k" as multi =>
         match: "payload" with
         | InjL "dst" =>
@@ -167,39 +171,41 @@ Section def_implementation.
 
   
    Definition F_KE : val :=
-     λ: "f" "doLeak",
-    (* Magically share a presampled key *)
-    let: "c" := (sample #()%V) in
-    let: "key" := g^"c" in
-    effect "getKey"  
-    let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
-    handle: "f" "doGK" with
-    | effect (EffName "getKey") "p", rec "k" as multi =>
-        match: "p" with
-          (* Alice *)
-          InjL <> =>
-            (* Leak a send *)
-            "doLeak" (Send bob);;
-            (* Receive a dummy value *)
-            let: "r" := "doLeak" (Recv bob) in
-            match: "r" with
-              NONE => "k" NONEV
-            | SOME "w" => "k" (SOME "key")
-            end
-        (* Bob  *)
-        | InjR <> =>
-            let: "r" := "doLeak" (Recv alice) in
-            match: "r" with
-              NONE => "k" NONEV
-            | SOME "w" => 
-                "doLeak" (Send alice);;
-                "k" (SOME "key")
-            end
-       end
-    | return "y" => "y" end.
+     λ: "f" "effs",
+       let, ("doLeakSend", "doLeakRecv") := "effs" in
+       (* Magically share a presampled key *)
+       let: "c" := (sample #()%V) in
+       let: "key" := g^"c" in
+       effect "getKey"  
+         let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+         handle: "f" "doGK" with
+     | effect (EffName "getKey") "p", rec "k" as multi =>
+         match: "p" with
+           (* Alice *)
+           InjL <> =>
+             (* Leak a send *)
+             ("doLeakSend" bob);;
+             (* Receive a dummy value *)
+             let: "r" := ("doLeakRecv" bob) in
+             match: "r" with
+               NONE => "k" NONEV
+             | SOME "w" => "k" (SOME "key")
+             end
+         (* Bob  *)
+         | InjR <> =>
+             let: "r" := ("doLeakRecv" alice) in
+             match: "r" with
+               NONE => "k" NONEV
+             | SOME "w" => 
+                 ("doLeakSend" alice);;
+                 "k" (SOME "key")
+             end
+         end
+     | return "y" => "y" end.
 
   Definition C : val :=
-   λ: "DH" "f" "doSend" "doRecv",                         
+   λ: "DH" "f" "effs",
+     let, ("doSend", "doRecv") := "effs" in
     let, ("ga", "gb", "gc") := "DH" #()%V in
     effect "getKey" 
     let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in

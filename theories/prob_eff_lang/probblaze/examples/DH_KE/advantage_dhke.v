@@ -13,7 +13,7 @@ Section adv_dhke.
 
   Definition τ_DH `{!probblazeRGS Σ}
     := (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option sem_ty_group)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T 
-                 ⊸ ((∀ᵣ θₗ, ((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) ⊸ ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤) 
+                 ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) 
                             -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
 
   Lemma adv_DHKE_DH_real  A :
