@@ -313,4 +313,213 @@ Section rnm_idiomatic.
     iApply (refines_ret with "[Hns]"); [done..|]. by iModIntro.
   Qed.
 
+  (** ** Equivalence link (II): direct-2pass RNM ≃ direct-1map (idiomatic) RNM.
+
+      The idiomatic report-noisy-max draws the noise in a SINGLE direct-sampling
+      map over the scores — no intermediate [(score, ())] pairing, no tape.  We
+      relate the direct-2pass program (which pairs each score with [()] in a
+      first map, then samples in a second map) to this one-map version by
+      MAP-MAP FUSION: the two forward-order maps on the left line up, element by
+      element, with the single forward-order map on the right.  Each element's
+      noise draw is coupled REFLEXIVELY at zero cost ([refines_directsample]). *)
+
+  (** The idiomatic per-element direct-sampling function (no pair, no tape). *)
+  Definition directsample : val := (λ: "x", Sample i (mkpe "x") #())%V.
+
+  (** Idiomatic one-pass report-noisy-max: one direct-sampling map. *)
+  Definition rnm_direct1 : val :=
+    λ:"evalQ" "N" "d",
+      let: "xs" := list_init "N" (λ:"i", "evalQ" "i" "d") in
+      list_max_index (list_map directsample "xs").
+
+  (** Reflexive direct sample: applied to equal integer scores it draws the same
+      noise on both runs (the reflexive draw coupling at zero cost), exactly as
+      in [bin_log_related_sample]. *)
+  Lemma refines_directsample :
+    ⊢ REL directsample << directsample : (interp TInt [] → interp TInt [])%lrel.
+  Proof.
+    iApply refines_arrow_val. iModIntro. iIntros (x x') "#Hx".
+    iDestruct (eq_type_sound TInt [] x x' EqTInt with "Hx") as %<-.
+    rewrite /directsample. rel_pures_l. rel_pures_r.
+    iDestruct (ground_of_eqtype TInt [] x x EqTInt with "Hx") as %Hgx.
+    assert (Hgp : ground_val (TInt * (TInt * TInt))%ty (mkp x)).
+    { destruct Hgx as [z ->]. rewrite /mkp /=.
+      eexists _, _. split; [reflexivity|]. split.
+      - by eexists.
+      - eexists _, _. split; [reflexivity|]. split; by eexists. }
+    destruct (st_decode (D := D) (mkp x) Hgp) as [p Hp].
+    rewrite refines_eq /refines_def.
+    iIntros (K ε) "Hspec Hna Herr %Hε".
+    iMod ecm_zero as "Hm".
+    iApply (wp_couple_sample_gen Sg i (mkp x) (mkp x)
+              (dmap (sf_inj D) (sf_sample D p)) (dmap (sf_inj D) (sf_sample D p))
+              (λ w w', ∃ o : sf_out D, w = sf_inj D o ∧ w' = sf_inj D o) K ⊤ 0
+              (sig_sample_decode_at D i (mkp x) p (sample_idx_S (D := D)) Hp)
+              (sig_sample_decode_at D i (mkp x) p (sample_idx_S (D := D)) Hp) _
+              with "[$Hspec $Hm]").
+    { iIntros "!>" (w w') "(Hspec & %HR)". destruct HR as (o & -> & ->).
+      iExists (sf_inj D o), ε. iFrame "Hspec Hna Herr".
+      iSplitR; [done|]. iApply (interp_of_ground TInt [] (sf_inj D o)).
+      apply (st_out (D := D) (τp := (TInt * (TInt * TInt))%ty) (τo := TInt)). }
+    Unshelve.
+    apply (DPcoupl_map (sf_inj D) (sf_inj D) (sf_sample D p) (sf_sample D p)
+             (λ w w', ∃ o : sf_out D, w = sf_inj D o ∧ w' = sf_inj D o) 0 0); [lra|lra|].
+    eapply (DPcoupl_mono (sf_sample D p) (sf_sample D p) (sf_sample D p) (sf_sample D p)
+              (=) (λ a a', ∃ o : sf_out D, sf_inj D a = sf_inj D o ∧ sf_inj D a' = sf_inj D o)
+              0 0 0 0);
+      [ intros; reflexivity | intros; reflexivity
+      | intros a a' ->; by exists a' | lra | lra | apply DPcoupl_refl_rnm ].
+  Qed.
+
+
+  (** Per-element relation bridging the direct-2pass [(score, ())] pairing to the
+      bare score in the idiomatic one-pass version: the impl pair [(x, ())] and
+      the spec score [x'] are related at [interp TInt]. *)
+  Definition unit_pair_rel : lrel Σ := LRel (λ p v',
+    ∃ x : val, ⌜p = (x, #())%V⌝ ∗ interp TInt [] x v')%I.
+
+  (** ** Stage A: the pure score↦[(score,())] pairing map.
+
+      The [(score, ())] pairing pass is PURE (no sampling, no tape), so it is a
+      plain program computation: over a value list [lv] (semantically a list of
+      integers related at [interp TInt] to [lv']) it returns the element-wise
+      [(·, ())]-wrapped list, related to [lv'] at [unit_pair_rel].  We prove it
+      as a [WP] (the impl side strips the [lrel_list] guard via its pure steps),
+      then lift it to a refinement via [refines_wp_l]. *)
+  Lemma wp_pair_pass (lv lv' : val) :
+    lrel_list (interp TInt []) lv lv' -∗
+    WP list_map (λ:"x", ("x", #()))%V lv {{ w, lrel_list unit_pair_rel w lv' }}.
+  Proof.
+    iIntros "Hll". iLöb as "IH" forall (lv lv').
+    rewrite lrel_list_unfold. rewrite /list_map.
+    iDestruct "Hll" as "[Hnil|Hcons]".
+    - iDestruct "Hnil" as "[>-> >->]".
+      wp_pures.
+      rewrite (lrel_list_unfold unit_pair_rel (InjLV _) (InjLV _)).
+      iModIntro. iNext. iLeft. by auto.
+    - iDestruct "Hcons" as (a1 a2 r1 r2) "(>-> & >-> & #HA & Hrest)".
+      do 7 (wp_pure _).
+      wp_bind ((rec: "list_map" "f" "l" := _)%V (λ: "x", ("x", #()))%V r1).
+      iApply (wp_wand with "[Hrest]").
+      { iApply ("IH" $! r1 r2 with "Hrest"). }
+      iIntros (tv) "#Htv /=".
+      rewrite /list_cons. wp_pures.
+      rewrite (lrel_list_unfold unit_pair_rel (InjRV _) (InjRV _)).
+      iModIntro. iNext. iRight.
+      iExists (a1, #())%V, a2, tv, r2. iSplit; [done|]. iSplit; [done|].
+      iFrame "Htv". iExists a1. iSplit; [done|]. done.
+  Qed.
+
+  (** Stage A lifted to a refinement (forward): the impl pairing map [<<] the
+      spec list it was built from, at [unit_pair_rel]. *)
+  Lemma refines_pair_pass (l l' : expr) :
+    (REL l << l' : lrel_list (interp TInt [])) -∗
+    REL list_map (λ:"x", ("x", #()))%V l << l' : lrel_list unit_pair_rel.
+  Proof.
+    iIntros "Hl".
+    rel_bind_l l. rel_bind_r l'.
+    iApply (refines_bind with "Hl").
+    iIntros (lv lv') "Hll /=".
+    rel_apply_l refines_wp_l.
+    iApply (wp_wand with "[Hll]").
+    { iApply (wp_pair_pass with "Hll"). }
+    iIntros (w) "Hw /=". rel_values.
+  Qed.
+
+  (** The pass-2 element coupling: the direct-2pass [read] [(x, ())] (which
+      projects the score and draws the noise at [()]) is related REFLEXIVELY, at
+      zero cost, to the idiomatic [directsample x'] (which draws directly), since
+      both reduce to the same [Sample i (mkpe x) ()] on equal scores. *)
+  Lemma refines_read_directsample :
+    ⊢ REL (λ: "x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V << directsample
+        : (unit_pair_rel → interp TInt [])%lrel.
+  Proof.
+    iApply refines_arrow_val. iModIntro. iIntros (p v') "#Hp".
+    iDestruct "Hp" as (x ->) "#Hx".
+    rewrite /directsample. rel_pures_l. rel_pures_r.
+    iDestruct (eq_type_sound TInt [] x v' EqTInt with "Hx") as %<-.
+    iDestruct (ground_of_eqtype TInt [] x x EqTInt with "Hx") as %Hgx.
+    assert (Hgp : ground_val (TInt * (TInt * TInt))%ty (mkp x)).
+    { destruct Hgx as [z ->]. rewrite /mkp /=.
+      eexists _, _. split; [reflexivity|]. split.
+      - by eexists.
+      - eexists _, _. split; [reflexivity|]. split; by eexists. }
+    destruct (st_decode (D := D) (mkp x) Hgp) as [pp Hpp].
+    rewrite refines_eq /refines_def.
+    iIntros (KK ε) "Hspec Hna Herr %Hε".
+    iMod ecm_zero as "Hm".
+    iApply (wp_couple_sample_gen Sg i (mkp x) (mkp x)
+              (dmap (sf_inj D) (sf_sample D pp)) (dmap (sf_inj D) (sf_sample D pp))
+              (λ w w', ∃ o : sf_out D, w = sf_inj D o ∧ w' = sf_inj D o) KK ⊤ 0
+              (sig_sample_decode_at D i (mkp x) pp (sample_idx_S (D := D)) Hpp)
+              (sig_sample_decode_at D i (mkp x) pp (sample_idx_S (D := D)) Hpp) _
+              with "[$Hspec $Hm]").
+    { iIntros "!>" (w w') "(Hspec & %HR)". destruct HR as (o & -> & ->).
+      iExists (sf_inj D o), ε. iFrame "Hspec Hna Herr".
+      iSplitR; [done|]. iApply (interp_of_ground TInt [] (sf_inj D o)).
+      apply (st_out (D := D) (τp := (TInt * (TInt * TInt))%ty) (τo := TInt)). }
+    Unshelve.
+    apply (DPcoupl_map (sf_inj D) (sf_inj D) (sf_sample D pp) (sf_sample D pp)
+             (λ w w', ∃ o : sf_out D, w = sf_inj D o ∧ w' = sf_inj D o) 0 0); [lra|lra|].
+    eapply (DPcoupl_mono (sf_sample D pp) (sf_sample D pp) (sf_sample D pp) (sf_sample D pp)
+              (=) (λ a a', ∃ o : sf_out D, sf_inj D a = sf_inj D o ∧ sf_inj D a' = sf_inj D o)
+              0 0 0 0);
+      [ intros; reflexivity | intros; reflexivity
+      | intros a a' ->; by exists a' | lra | lra | apply DPcoupl_refl_rnm ].
+  Qed.
+
+  (** Forward map-map fusion via the [list_map] congruence: relate the
+      direct-2pass noisy list (outer read-map ∘ inner pairing-map) to the
+      direct-1map noisy list (single direct-sampling map).  [refines_pair_pass]
+      relates the inner pairing map to the spec score list at [unit_pair_rel];
+      then the [list_map] congruence relates the outer read-map to the
+      direct-sampling map, the per-element coupling being reflexive. *)
+  Lemma refines_map_map_fusion (l l' : expr) :
+    (REL l << l' : lrel_list (interp TInt [])) -∗
+    REL list_map (λ:"x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V
+                 (list_map (λ:"x", ("x", #()))%V l)
+     << list_map directsample l' : lrel_list (interp TInt []).
+  Proof.
+    iIntros "Hl".
+    iApply (refines_list_map unit_pair_rel (interp TInt [])).
+    - iApply refines_read_directsample.
+    - iApply (refines_pair_pass with "Hl").
+  Qed.
+
+  (** Forward direction: direct-2pass refines direct-1map (idiomatic). *)
+  Lemma rnm_link2 (evalQ : val) (N : nat) (d : val) Δ :
+    (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
+        : (lrel_nat → interp TInt [])%lrel) →
+    ⊢ REL rnm_direct2 evalQ #N d
+       << rnm_direct1 evalQ #N d : interp TNat Δ.
+  Proof.
+    iIntros (Hq). rewrite /rnm_direct2 /rnm_direct1.
+    rel_pures_l. rel_pures_r.
+    rel_bind_l (list_init _ _). rel_bind_r (list_init _ _).
+    iApply (refines_bind with "[]").
+    { iApply (refines_list_init (interp TInt []) #N #N).
+      - rel_values.
+      - iApply Hq. }
+    iIntros (xs xs') "Hxs /=". rel_pures_l. rel_pures_r.
+    (* pass-1 (impl pairing) is pure: evaluate it LHS-only to a value [pv]
+       related to the spec score list at [unit_pair_rel]. *)
+    rel_bind_l (list_map (λ:"x",("x",#()))%V xs).
+    rel_apply_l refines_wp_l.
+    iApply (wp_wand with "[Hxs]").
+    { iApply (wp_pair_pass with "Hxs"). }
+    iIntros (pv) "#Hpv /=". rel_pures_l.
+    (* pass-2: outer read-map (impl) vs direct-sampling map (spec), reflexive
+       per-element coupling; then argmax of the (pointwise-equal) noisy lists. *)
+    rel_bind_l (list_map (λ:"x_ι", Sample i (mkpe (Fst "x_ι")) (Snd "x_ι"))%V pv).
+    rel_bind_r (list_map directsample xs').
+    iApply (refines_bind with "[Hpv]").
+    { iApply (refines_list_map unit_pair_rel (interp TInt [])).
+      - iApply refines_read_directsample.
+      - rel_values. }
+    iIntros (nv nv') "Hnv /=". rel_pures_l.
+    iApply (refines_list_max_index (Val nv) (Val nv')).
+    iApply (refines_ret with "[Hnv]"); [done..|]. by iModIntro.
+  Qed.
+
+
 End rnm_idiomatic.
