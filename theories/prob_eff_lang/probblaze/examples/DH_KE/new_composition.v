@@ -30,17 +30,33 @@ Section new_comp_verification.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
 
   Definition REAL_CHAN_DHKE : val :=
-    λ: "f", (F_OAUTH ||ₗ F_AUTH (DH_KE)) (CHAN "f").
+    λ: "f", (F_OAUTH ||ₗ (λ: "f", F_AUTH (DH_KE "f"))%V) (CHAN "f").
 
   Definition REAL_CHAN_DH_REAL : val :=
-    λ: "f", (F_OAUTH ||ₗ F_AUTH) (C DH_real (CHAN "f")).
+    λ: "f", (F_OAUTH ||ₗ (λ: "f", F_AUTH (C DH_real "f"))%V) (CHAN "f").
 
   Definition REAL_CHAN_DH_RAND : val :=
-    λ: "f", (F_OAUTH ||ₗ F_AUTH) (C DH_rand (CHAN "f")).
+    λ: "f", (F_OAUTH ||ₗ (λ: "f", F_AUTH (C DH_rand "f")%V) (CHAN "f")).
   
    (* F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] ≤ F_OAUTH[ F_AUTH [C[DH_real][CHAN []]]] *)
   (*---------------------------------------------------------------------------*)
-  Lemma F_OAUTH_DHKE_C_REAL (f1 f2 : val) (L : sem_row Σ) :
+  Lemma F_OAUTH_DHKE_C_REAL :
+    ⊢ sem_val_typed REAL_CHAN_DHKE REAL_CHAN_DH_REAL (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
+                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙) 
+                                                             ⊸ (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) 
+                                                                                 ⊸ ((𝟙 + 𝟙) -{ θ₂ }-> Option ⊤) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T.
+  Proof. 
+    (* iIntros (L f1 f2) "!# Hff". rewrite /REAL_CHAN_DHKE /REAL_CHAN_DH_REAL //=.
+       brel_pures'. iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
+       iApply (brel_wand _ _ _ (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₂ }-> Option ⊤) -{ sem_row_union (sem_row_union θ₁ θ₂) L }-∘ 𝟙)%T  with "[Hff]").
+       - admit.                    (* CHAN well-typed *)
+       - iIntros (c1 c2) "!# Hcc". simpl. rewrite /left_composition. brel_pures'.
+         iIntros "!> %LEAKC %LEAKK %lc1 %lc2 Hlc". brel_pures'.
+         iIntros "!> %lk1 %lk2 Hlk". brel_pures'. rewrite /F_OAUTH.
+         brel_pures'. *)
+  Admitted. 
+   
+  Lemma F_OAUTH_DHKE_C_REAL' (f1 f2 : val) (L : sem_row Σ) :
     sem_val_typed f1 f2 (∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-> 𝟙)%T -∗    
     BREL (REAL_CHAN_DHKE f1) ≤ (REAL_CHAN_DH_REAL f2)
      <|⊥|> {{λ v1 v2,
