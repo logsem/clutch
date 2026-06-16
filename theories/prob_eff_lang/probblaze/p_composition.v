@@ -6,14 +6,15 @@ From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
  spec_rules spec_ra class_instances.
 From clutch.prob_eff_lang.probblaze Require Import tactics.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def valgroup.
 
 (*Import fingroup.
 
 Import fingroup.fingroup.
 
-Import valgroup_tactics.
+
 *)
+Import valgroup_tactics.
 Section parallel_composition.
   Context `{probblazeRGS Σ}.
 
@@ -76,6 +77,32 @@ Section parallel_composition.
   Proof.
   Admitted.
   
+  Lemma func_comp_left (F1 F2 : expr) (F : val) τ τ' τ'':
+    is_closed_expr ∅ F1 →
+    is_closed_expr ∅ F2 →
+    ⊢ (∀ θ : sem_row Σ, sem_typed [] F1 F2 ⊥ (τ θ ⊸ τ' θ)%T []) -∗
+    (∀ θ : sem_row Σ, sem_val_typed F F (τ'' θ ⊸ τ θ)%T) -∗
+    sem_val_typed (λ: "f", F1 (F "f")) (λ: "f", F2 (F "f")) (∀ᵣ θ, τ'' θ ⊸ τ' θ)%T.
+  Proof.
+    iIntros (HF1closed HF2closed) "#HFF #HF". rewrite /sem_val_typed /sem_typed //=.
+    iIntros (???) "!# Hτ'' /=".
+    (* iDestruct ("HF" $! θ ∅) as "#HFθ". *)
+    iDestruct ("HF" with "Hτ''") as "HFτ".
+    brel_pures'.
+    erewrite !subst_is_closed; try done.
+    iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy_nil|].
+    iApply (brel_wand with "HFτ").
+    iIntros (??) "!# Hvv".
+    iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy_nil|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS _ _ [] [] with "[][HFF]");
+      [iApply to_iThy_le_bot| |].
+    { iDestruct ("HFF" $! θ ∅) as "#HFθ". rewrite !subst_map_empty.
+      by iApply "HFθ". }
+    simpl. iIntros (??) "(Hff&_)". by iApply "Hff".
+  Qed. 
+    
+
 End parallel_composition.
 
 Notation " F₁ ||ₗ F₂" := (left_composition F₁ F₂) (at level 10).
