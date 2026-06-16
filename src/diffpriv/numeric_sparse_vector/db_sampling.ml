@@ -15,7 +15,7 @@ let sample_i distrib =
 (* -- In this example, our databases set will be {0,1}^k *)
 (*    We wont store the whole set, instead we build a function that for some i gives back a dataset *)
 
-let get_db i k =
+let get_db k i =
   let ui = ref i in
   List.init k (fun i -> let res = float_of_int (!ui mod 2) in ui := !ui / 2; res)
 
@@ -28,15 +28,15 @@ let count lst =
 let count_between b e lst =
   let res = ref 0. in
   List.iteri (fun i x -> if b<=i && i<e then res := !res +. x) lst;
-  !res /. (float_of_int (List.length lst))
+  !res
 
 let aff_lst_inf lst =
-  List.fold_left (fun x y ->Printf.printf "%d|" (int_of_float y)) () lst;
- Printf.printf "\n"
+  List.iter (fun x -> Printf.printf "%d|" (int_of_float x)) lst;
+  Printf.printf "\n"
 
 let aff_lst_flo lst =
-  List.fold_left (fun x y ->Printf.printf "%f|" y) () lst;
- Printf.printf "\n"
+  List.iter (Printf.printf "%f|") lst;
+  Printf.printf "\n"
 
 
 let distrib_unif n = List.init n (fun _ -> 1. /. (float_of_int n))
@@ -48,5 +48,4 @@ let normailze_lst lst =
   List.map (fun x -> x/. sum) lst
 
 let distrib_rd n =
-  normailze_lst (List.init n (fun i -> Random.float 100.))
-
+  normailze_lst (List.init n (fun _ -> Random.float 100.))
