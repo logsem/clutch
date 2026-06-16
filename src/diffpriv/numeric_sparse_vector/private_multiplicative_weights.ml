@@ -5,19 +5,15 @@ let norm l =
   List.map (fun x -> x /. sum) l
 
 let upd x r eta get_db_i =
-  List.mapi (fun i pdb -> pdb *. exp (-. eta *. (float_of_int (r (get_db_i i))))) x
-
-
+  List.mapi (fun i pdb -> pdb *. exp (-.eta *. float_of_int (r (get_db_i i)))) x
 
 let mw x f v eta get_db_i =
   (*Printf.printf "######\n######\n";*)
   let r = ref f in
   if v >= f x then begin
-      r := (fun y -> 1 - f y)
+    r := fun y -> 1 - f y
   end;
-  norm (upd x (!r) eta get_db_i)
-
-
+  norm (upd x !r eta get_db_i)
 
 let oPMW db get_db_i normeDB card_Sdb unif stream_q card_Sq num den alpha beta =
   (*
@@ -34,24 +30,24 @@ let oPMW db get_db_i normeDB card_Sdb unif stream_q card_Sq num den alpha beta =
     List.iter (Printf.printf "%f | ") (!distrib);
     Printf.printf "\n\n";*)
     match stream_q bs with
-    | None -> (bs, !distrib, !nb_upd)   (* No more queries *)
-    | Some q ->
-       if i > 1 + int_of_float c
-       then     (* we retrun only from the distribution *)
-         nSVT i ((q !distrib) :: bs)
-       else (
-       let e1 = f db (fun x' -> q x' - q !distrib) in
-       let e2 = f db (fun x' -> q !distrib - q x') in
-       let a = ref None in
-       (match e1 with
-       | None -> (
-          match e2 with
-          | None -> ()
-          | Some v -> a := Some (q !distrib + v))
-       | Some v -> a := Some (q !distrib - v));
-       (match !a with
-       | None -> nSVT i ((q !distrib) :: bs)
-       | Some v -> nb_upd := !nb_upd + 1; distrib := mw (!distrib) q v (alpha /. 2.) get_db_i; nSVT (i+1) (v :: bs))
-       )
+    | None -> (bs, !distrib, !nb_upd) (* No more queries *)
+    | Some q -> (
+        if i > 1 + int_of_float c then
+          (* we retrun only from the distribution *)
+          nSVT i (q !distrib :: bs)
+        else
+          let e1 = f db (fun x' -> q x' - q !distrib) in
+          let e2 = f db (fun x' -> q !distrib - q x') in
+          let a = ref None in
+          (match e1 with
+          | None -> (
+              match e2 with None -> () | Some v -> a := Some (q !distrib + v))
+          | Some v -> a := Some (q !distrib - v));
+          match !a with
+          | None -> nSVT i (q !distrib :: bs)
+          | Some v ->
+              nb_upd := !nb_upd + 1;
+              distrib := mw !distrib q v (alpha /. 2.) get_db_i;
+              nSVT (i + 1) (v :: bs))
   in
   nSVT 0 []
