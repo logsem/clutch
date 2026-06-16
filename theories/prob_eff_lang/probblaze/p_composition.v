@@ -67,16 +67,16 @@ Section parallel_composition.
   Definition τ := ( ∀ᵣ θ, ∀ₜ α ,α ⊸ 𝟙)%T.
   
   (* Definition τ__f := (∀ᵣ θ₁, ∀ₜ τ₁, ∀ᵣ θ₂, ∀ₜ τ₂, τ₁ ⊸ τ₂ -{ sem_row_union θ₁ θ₂ }-> 𝟙)%T.*)
-  Definition τ__f := (∀ᵣ θ₁, ∀ₜ τ₁, ∀ₜ τ₂, τ₁ ⊸ τ₂ -{ θ₁ }-> 𝟙)%T.
-  Definition τ__F :=  (∀ᵣ θ₁, ∀ₜ τ₁, τ₁ ⊸ (∀ᵣ θ₂,  ∀ₜ τ₂, τ₂ -{ θ₂ }-> 𝟙))%T.
+  Definition τ__f θ τ₁ τ₂ := (∀ᵣ θ₁, τ₁ θ₁ ⊸ τ₂ θ₁ -{ sem_row_union θ₁ θ }-> 𝟙)%T.
+  Definition τ__F τ τ₁ := (∀ᵣ θ, (∀ᵣ θ₁, τ₁ θ₁ -{ sem_row_union θ₁ θ}-> 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union θ₂ θ }-∘ 𝟙))%T.
   (*Definition τₚ :=  (τ__F ⊸ τ__F ⊸ τ__f ⊸ (∀ᵣ θ₁,  ∀ₜ τ₁, τ₁ ⊸ (∀ᵣ θ₂,  ∀ₜ τ₂ , τ₂ -{sem_row_union θ₁ θ₂}-> 𝟙)))%T.*)
-  Definition τₚ :=  (τ__F ⊸ τ__F ⊸ τ__f ⊸ (∀ᵣ θ₁,  ∀ₜ τ₁,  ∀ₜ τ₂, τ₁ ⊸ τ₂ -{ θ₁ }-> 𝟙))%T.
-  Lemma brel_left_comp (F₁ F₂ F : val) :
+  (* Definition τₚ :=  (τ__F ⊸ τ__F ⊸ τ__f ⊸ (∀ᵣ θ₁,  ∀ₜ τ₁,  ∀ₜ τ₂, τ₁ ⊸ τ₂ -{ θ₁ }-> 𝟙))%T. *)
+  Lemma brel_left_comp (F₁ F₂ F : val) θ τ₁ τ₂ τ₁' τ₂' :
    (* ⊢ sem_val_typed f₁ f₂ τ__f  -∗*)
-    ⊢ sem_val_typed F₁ F₂ τ__F -∗
-    sem_val_typed F F τ__F -∗
+    ⊢ sem_val_typed F₁ F₂ (τ__F τ₁ τ₂' ) -∗
+    sem_val_typed F F (τ__F τ₂ τ₁') -∗
     (* sem_typed [] (F ||ₗ F₁) (F ||ₗ F₂) ⊥ (τ__f ⊸ (∀ᵣ θ₁,  ∀ₜ τ₁, τ₁ ⊸ (∀ᵣ θ₂,  ∀ₜ τ₂ , τ₂ -{sem_row_union θ₁ θ₂}-> 𝟙)))%T [].*)
-    sem_typed [] (F ||ₗ F₁) (F ||ₗ F₂) ⊥  (τ__f ⊸ (∀ᵣ θ₁,  ∀ₜ τ₁,  ∀ₜ τ₂, τ₁ ⊸ τ₂ -{ θ₁ }-> 𝟙))%T [].
+    sem_typed [] (F ||ₗ F₁) (F ||ₗ F₂) ⊥ ((τ__f θ τ₁' τ₂') ⊸ (∀ᵣ θ₁, τ₁ θ₁ ⊸ τ₂ θ₁ -{ sem_row_union θ₁ θ }-∘ 𝟙))%T [].
   Proof.
   Admitted.
   
