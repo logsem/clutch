@@ -15,6 +15,7 @@ Import fingroup.fingroup.
 Import valgroup_tactics.
 *)
 Section parallel_composition.
+  Context `{probblazeRGS Σ}.
 
   (*Fixpoint list_args_app (f : val) (op_l : list val) : val :=
     match: op_l with
@@ -54,9 +55,27 @@ Section parallel_composition.
  
   Definition right_composition : val :=
     λ: "F₁" "F₂" "f" "r₁" "r₂",
-  (left_composition "F₂" "F₁" "f" "r₂" "r₁").
+      (left_composition "F₂" "F₁" "f" "r₂" "r₁").
+  
+ Notation " F₁ ||ₗ F₂" := (left_composition F₁ F₂)%V (at level 10).
 
- 
+ Notation "F₁ ||ᵣ F₂" := (right_composition F₁ F₂)%V (at level 10).
+
+  About sem_ty_row_forall.
+  About sem_ty_type_forall.
+  Definition τ := ( ∀ᵣ θ, ∀ₜ α ,α ⊸ 𝟙)%T.
+  
+  Definition τ__f := (∀ᵣ θ₁, ∀ᵣ θ₂, ∀ₜ τ₁, ∀ₜ τ₂, τ₁ ⊸ τ₂ -{ sem_row_union θ₁ θ₂ }-> 𝟙)%T.
+  Definition τ__F :=  (∀ᵣ θ₁, ∀ᵣ θ₂, ∀ₜ τ₁, τ₁ ⊸ (∀ᵣ θ₃,  ∀ₜ τ₂, τ₂ -{ θ₃ }-> 𝟙))%T.
+  Definition τₚ :=  (τ__F ⊸ τ__F ⊸ τ__f ⊸ (∀ᵣ θ₁,  ∀ₜ τ₁, τ₁ ⊸ (∀ᵣ θ₂,  ∀ₜ τ₂ , τ₂ -{sem_row_union θ₁ θ₂}-> 𝟙)))%T.
+  Lemma brel_left_comp (F₁ F₂ F : val) :
+   (* ⊢ sem_val_typed f₁ f₂ τ__f  -∗*)
+    ⊢ sem_val_typed F₁ F₂ τ__F -∗
+    sem_val_typed F F τ__F -∗
+    sem_typed [] (F ||ₗ F₁) (F ||ₗ F₂) ⊥ (τ__f ⊸ (∀ᵣ θ₁,  ∀ₜ τ₁, τ₁ ⊸ (∀ᵣ θ₂,  ∀ₜ τ₂ , τ₂ -{sem_row_union θ₁ θ₂}-> 𝟙)))%T [].
+  Proof.
+  Admitted.
+  
 End parallel_composition.
 
 Notation " F₁ ||ₗ F₂" := (left_composition F₁ F₂) (at level 10).
