@@ -43,6 +43,7 @@ Section new_comp_verification.
   Lemma F_OAUTH_DHKE_C_REAL :
     ⊢ sem_val_typed REAL_CHAN_DHKE REAL_CHAN_DH_REAL 
         (* the type should match the program. Look carefully at the order of the incoming effects *)
+        (* the type of the client needs to change to a linear function *)
         (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
                                                                    -{ sem_row_union  θₕ θ__L }-> 𝟙)
                   (* the product needs to be under a bang, since the effects can be used multiple times *)
