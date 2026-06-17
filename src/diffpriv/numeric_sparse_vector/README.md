@@ -16,7 +16,7 @@ The numeric sparse vector technique is an algorithm which given:
 Outputs a function which given a database (`db`) and a query (`qi`) outputs:
 - `None`, if the value returned by the query on the db is under `t` or if it has
         already answered more than `n` numeric values.
-- `Some (v)` with `v`$in \mathbb(Z)$ otherwise.
+- `Some (v)` with `v`$\in \mathbb(Z)$ otherwise.
 
 The `nSVT_stream` is a client which given a stream of queries (represented by a 
 function which computes the next query adaptively on the answers) returns the 
@@ -42,3 +42,6 @@ finale distribution.
 
 There have been improvement since last time. Indeed, we don't get a list of $0$
 in the output, however it seems to be still incorrect and unpredictable.
+
+We us the probability sampler from `noiseSampling.ml` which is a truncated part 
+of the file `../differential_privacy.ml`.
