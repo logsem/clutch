@@ -1968,97 +1968,97 @@ Section handlee_verification.
 
  
    
-  (* Verification of F_AUTH[DH_SIM[F_KE]] ≤ F_AUTH[C[DH_rand]] *)
-  (*------------------------------------------------------------*)
-  Lemma F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand :
-     ⊢ sem_val_typed (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V (λ: "f", F_AUTH (C DH_rand "f"))%V  
-                         (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
-  Proof using G channel1 channel2 inG0 inG1 inG2.
-    iModIntro. iIntros (L).
-    iIntros (f1 f2) "#Hff".
-    brel_pures'.
-    iApply fupd_brel.
-    iMod token_alloc as (γtoka) "Htoka".
-    iMod token_alloc as (γtokb) "Htokb".
-    iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
-    iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
-    iMod dfrac_alloc as (γfraca) "Hfraca".
-    iMod dfrac_alloc as (γfracb) "Hfracb".                         
-    iModIntro.
-    iApply (brel_wand with "[Htoka Htokb Hautha Hauthb Hfraca Hfracb][]").
-    - iApply (F_AUTH_F_AUTH with "[$][$]"). 
-      iApply (DH_SIM_F_KE_C_DH_rand with "[$][$][$][$]").
-      by iModIntro. 
-    - iIntros (??) "!# $".
-  Qed.
+  (* (* Verification of F_AUTH[DH_SIM[F_KE]] ≤ F_AUTH[C[DH_rand]] *)
+     (*------------------------------------------------------------*)
+     Lemma F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand :
+        ⊢ sem_val_typed (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V (λ: "f", F_AUTH (C DH_rand "f"))%V  
+                            (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
+     Proof using G channel1 channel2 inG0 inG1 inG2.
+       iModIntro. iIntros (L).
+       iIntros (f1 f2) "#Hff".
+       brel_pures'.
+       iApply fupd_brel.
+       iMod token_alloc as (γtoka) "Htoka".
+       iMod token_alloc as (γtokb) "Htokb".
+       iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
+       iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
+       iMod dfrac_alloc as (γfraca) "Hfraca".
+       iMod dfrac_alloc as (γfracb) "Hfracb".                         
+       iModIntro.
+       iApply (brel_wand with "[Htoka Htokb Hautha Hauthb Hfraca Hfracb][]").
+       - iApply (F_AUTH_F_AUTH with "[$][$]"). 
+         iApply (DH_SIM_F_KE_C_DH_rand with "[$][$][$][$]").
+         by iModIntro. 
+       - iIntros (??) "!# $".
+     Qed. *)
     
-  (* Verification of F_AUTH[C[DH_rand]] ≤ F_AUTH[DH_SIM[F_KE]] *)
-  (*------------------------------------------------------------*)
-  Lemma F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE :
-    ⊢ sem_val_typed (λ: "f", F_AUTH (C DH_rand "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V  
-        (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
-  Proof using channel1 channel2 G inG0 inG1 inG2.
-    iModIntro. iIntros (L).
-    iIntros (f1 f2) "#Hff".
-    brel_pures'.
-    iApply fupd_brel.
-    iMod token_alloc as (γtoka) "Htoka".
-    iMod token_alloc as (γtokb) "Htokb".
-    iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
-    iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
-    iMod dfrac_alloc as (γfraca) "Hfraca".
-    iMod dfrac_alloc as (γfracb) "Hfracb".                         
-    iModIntro.
-    iApply (brel_wand with "[Htoka Htokb Hautha Hauthb Hfraca Hfracb][]").
-    - iApply (F_AUTH_F_AUTH with "[$][$]"). 
-      iApply (C_DH_rand_DH_SIM_F_KE with "[$][$][$][$]").
-      by iModIntro. 
-    - iIntros (??) "!# $".
-  Qed.
-
-  (* Rewriting to match top-level statements *)
-  (*------------------------------------------------------------*)
-  Lemma DHSIM_RED : 
-    ⊢ sem_typed [] (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_rand) ⊥ (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
-  Proof using G channel1 channel2 inG0 inG1 inG2.
-    iIntros (vs) "!# _". simpl.
-    brel_pures'.
-    iModIntro. iSplit; last done.
-    iPoseProof F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand as "H".
-    rewrite /sem_val_typed //=. 
-  Qed. 
-
-  Lemma RED_DHSIM :
-    ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_rand) (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V ⊥ (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
-  Proof using G channel1 channel2 inG0 inG1 inG2.
-    iIntros (vs) "!# _". simpl.
-    brel_pures'.
-    iModIntro. iSplit; last done.
-    iPoseProof F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE as "H".
-    rewrite /sem_val_typed //=. 
-  Qed.  
-
-  Lemma DHKE_RED :
-    ⊢ sem_typed [] (λ: "f", F_AUTH (DH_KE "f"))%V ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_real) ⊥
-                         (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
-  Proof using G channel1 channel2 inG0 inG1 inG2.
-    iIntros (vs) "!# _". simpl.
-    brel_pures'.
-    iModIntro. iSplit; last done.
-    iPoseProof F_AUTH_DH_KE_FAUTH_C_DH_real as "H".
-    rewrite /sem_val_typed //=. 
-  Qed.  
-
-  Lemma RED_DHKE :
-    ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_real) (λ: "f", F_AUTH (DH_KE "f"))%V ⊥
-        (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
-  Proof using G channel1 channel2 inG0 inG1 inG2.
-    iIntros (vs) "!# _". simpl.
-    brel_pures'.
-    iModIntro. iSplit; last done.
-    iPoseProof F_AUTH_C_DH_real_FAUTH_DH_KE as "H".
-    rewrite /sem_val_typed //=. 
-  Qed.  
+  (* (* Verification of F_AUTH[C[DH_rand]] ≤ F_AUTH[DH_SIM[F_KE]] *)
+     (*------------------------------------------------------------*)
+     Lemma F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE :
+       ⊢ sem_val_typed (λ: "f", F_AUTH (C DH_rand "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V  
+           (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
+     Proof using channel1 channel2 G inG0 inG1 inG2.
+       iModIntro. iIntros (L).
+       iIntros (f1 f2) "#Hff".
+       brel_pures'.
+       iApply fupd_brel.
+       iMod token_alloc as (γtoka) "Htoka".
+       iMod token_alloc as (γtokb) "Htokb".
+       iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
+       iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
+       iMod dfrac_alloc as (γfraca) "Hfraca".
+       iMod dfrac_alloc as (γfracb) "Hfracb".                         
+       iModIntro.
+       iApply (brel_wand with "[Htoka Htokb Hautha Hauthb Hfraca Hfracb][]").
+       - iApply (F_AUTH_F_AUTH with "[$][$]"). 
+         iApply (C_DH_rand_DH_SIM_F_KE with "[$][$][$][$]").
+         by iModIntro. 
+       - iIntros (??) "!# $".
+     Qed.
+     
+     (* Rewriting to match top-level statements *)
+     (*------------------------------------------------------------*)
+     Lemma DHSIM_RED : 
+       ⊢ sem_typed [] (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_rand) ⊥ (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
+     Proof using G channel1 channel2 inG0 inG1 inG2.
+       iIntros (vs) "!# _". simpl.
+       brel_pures'.
+       iModIntro. iSplit; last done.
+       iPoseProof F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand as "H".
+       rewrite /sem_val_typed //=. 
+     Qed. 
+     
+     Lemma RED_DHSIM :
+       ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_rand) (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V ⊥ (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
+     Proof using G channel1 channel2 inG0 inG1 inG2.
+       iIntros (vs) "!# _". simpl.
+       brel_pures'.
+       iModIntro. iSplit; last done.
+       iPoseProof F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE as "H".
+       rewrite /sem_val_typed //=. 
+     Qed.  
+     
+     Lemma DHKE_RED :
+       ⊢ sem_typed [] (λ: "f", F_AUTH (DH_KE "f"))%V ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_real) ⊥
+                            (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
+     Proof using G channel1 channel2 inG0 inG1 inG2.
+       iIntros (vs) "!# _". simpl.
+       brel_pures'.
+       iModIntro. iSplit; last done.
+       iPoseProof F_AUTH_DH_KE_FAUTH_C_DH_real as "H".
+       rewrite /sem_val_typed //=. 
+     Qed.  
+     
+     Lemma RED_DHKE :
+       ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_real) (λ: "f", F_AUTH (DH_KE "f"))%V ⊥
+           (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T [].
+     Proof using G channel1 channel2 inG0 inG1 inG2.
+       iIntros (vs) "!# _". simpl.
+       brel_pures'.
+       iModIntro. iSplit; last done.
+       iPoseProof F_AUTH_C_DH_real_FAUTH_DH_KE as "H".
+       rewrite /sem_val_typed //=. 
+     Qed.   *)
 
 End handlee_verification.
 
