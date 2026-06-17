@@ -55,7 +55,7 @@ Section new_comp_verification.
     - admit.                    (* closed expressions *)
     - admit.                    (* closed expressions *)
     - iIntros (θ). iApply brel_left_comp.
-      + unfold τ__F. (* iApply F_AUTH_DH_KE_FAUTH_C_DH_real; try done. *) admit.
+      + unfold τ__F. iApply F_AUTH_DH_KE_FAUTH_C_DH_real; try done. admit.
       + admit.                  (* F_OAUTH well-typed *)
     - admit.                    (* CHAN well-typed *)
   Admitted. 
