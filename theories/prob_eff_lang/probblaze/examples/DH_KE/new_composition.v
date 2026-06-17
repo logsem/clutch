@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base proofmode classes.
+From iris.proofmode Require Import base proofmode classes. 
 From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import agree excl auth frac excl_auth.
 From iris.algebra.lib Require Import dfrac_agree.
@@ -55,28 +55,54 @@ Section new_comp_verification.
     - admit.                    (* CHAN well-typed *)
   Admitted. 
    
-  Lemma F_OAUTH_DHKE_C_REAL' (f1 f2 : val) (L : sem_row Σ) :
+ (* Lemma F_OAUTH_DHKE_C_REAL' (f1 f2 : val) (L : sem_row Σ) :
     sem_val_typed f1 f2 (∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-> 𝟙)%T -∗    
     BREL (REAL_CHAN_DHKE f1) ≤ (REAL_CHAN_DH_REAL f2)
      <|⊥|> {{λ v1 v2,
                                        ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
                BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V (λ: "m", do: keyleak2 "m")%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
   Proof.
-  Admitted.
+  Admitted.*)
 
    (*F_OAUTH [ F_AUTH [C[DH_real][CHAN[]]]] ≤ F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] *)
   (*----------------------------------------------------------------------------*)
-  Lemma C_REAL_DHKE_F_OAUTH (f1 f2 : val) (L : sem_row Σ) :
+ (* Lemma C_REAL_DHKE_F_OAUTH (f1 f2 : val) (L : sem_row Σ) :
     sem_val_typed f1 f2 (∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-> 𝟙)%T -∗    
     BREL (REAL_CHAN_DH_REAL f1) ≤ (REAL_CHAN_DHKE f2)
      <|⊥|> {{λ v1 v2,
                                        ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
                BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V (λ: "m", do: keyleak2 "m")%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
   Proof.
-  Admitted.
+  Admitted.*)
+
+  Lemma C_REAL_DHKE_F_OAUTH :
+     ⊢ sem_val_typed REAL_CHAN_DH_REAL REAL_CHAN_DHKE (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
+                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙) 
+                                                             ⊸ (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) 
+                                                                                 ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ θ__L }-∘ 𝟙))%T.
+  Proof. 
+    iApply func_comp_left.
+    - admit.                    (* closed expressions *)
+    - admit.                    (* closed expressions *)
+    - iIntros (θ). iApply brel_left_comp.
+      + unfold τ__F. About F_AUTH_DH_KE_FAUTH_C_DH_real.
+        iApply F_AUTH_C_DH_real_FAUTH_DH_KE; try done.
+      + admit.                  (* F_OAUTH well-typed *)
+    - admit.                    (* CHAN well-typed *)
+  Admitted. 
 
   (*F_OAUTH [F_AUTH [C[DH_real][CHAN[]]]] ≤ F_OAUTH [F_AUTH [C[DH_rand][CHAN[]]]]*)
   (*-----------------------------------------------------------------------------*)
+  Lemma C_REAL_DH_RAND :
+    ⊢ sem_val_typed REAL_CHAN_DH_REAL REAL_CHAN_DH_RAND (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
+                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙) 
+                                                             ⊸ (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) 
+                                                                          ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ θ__L }-∘ 𝟙))%T.
+  Proof.
+    iApply func_comp_left.
+    - admit.
+    - admit.
+    - iIntros (θ). iApply brel_left_comp.
    Lemma C_REAL_DH_RAND (f1 f2 : val) (L : sem_row Σ) :
     sem_val_typed f1 f2 (∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-> 𝟙)%T -∗    
     BREL (REAL_CHAN_DH_REAL f1) ≤ (REAL_CHAN_DH_RAND f2)
