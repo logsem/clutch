@@ -12,7 +12,7 @@ Section adv_dhke.
   Context {la1 la2 : label}.     (* can be removed once dhke_channel.v has been cleaned up *)
 
   Definition τ_DH `{!probblazeRGS Σ}
-    := (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option sem_ty_group)) -{ sem_row_union θₕ θ__L }-> 𝟙)%T 
+    := (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option sem_ty_group)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T 
                  ⊸ ((∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) 
                             -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
 
