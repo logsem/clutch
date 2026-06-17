@@ -8,7 +8,7 @@ The programs [`main_nsvt.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src
 and [`main_pmw.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/main_pmw.ml)
 are tests calling the two methods.
 
-# nSVT
+## nSVT
 
 The numeric sparse vector technique is an algorithm which given:
 - A privacy parameter (`num`, `den`)
@@ -24,7 +24,7 @@ The `nSVT_stream` is a client which given a stream of queries (represented by a
 function which computes the next query adaptively on the answers) returns the 
 list of the answers.
 
-# PMW
+## PMW
 
 The private multiplicative weights is a process which given a database and 
 some privacy parameters returns a function which on can call with an adaptive 
@@ -41,7 +41,7 @@ We generate a uniform and a Dirac distribution on this set
 And we call the algorithm. We print results of the interesting elements of the 
 finale distribution.
 
-### NOTE
+## NOTES
 
 There have been improvement since last time. Indeed, we don't get a list of $0$
 in the output, however it seems to be still incorrect and unpredictable.
