@@ -45,25 +45,29 @@ Section implementation.
 
   Definition OT_Real_Sender_corrupt : val :=
     λ: "f" "effs",
-      let, ("doCRS", "doSend", "doRecv") := "effs" in
-      effect "receiver"
-        let: "doReceiver" := (λ: "b", do: (EffName "receiver") "b") in
-        handle: "f" ("doReceiver", "effs") with
-    | effect (EffName "receiver") "b", "k" =>
-        let, ("h1", "h0", "g1", "g0") := ("doCRS" #()%V) in
-        (* to avoid sampling the unit, as otherwise the protocol fails *)
-        let: "x" := sample #()%V in
-        let, ("gb", "hb") := if: "b" then ("g0", "h0") else ("g1", "h1") in
-        let: "uv" := ("gb"^"x", "hb"^"x") in
-        ("doSend" ("uv", bob));;
-        let: "r" := ("doRecv" bob) in
-        match: "r" with
-          NONE => Protocol_Done (EffName "receiver") ("k" NONE)
-        | SOME "cd" =>
-            let, ("cd0", "cd1") := "cd" in
-            let: "m" := if: "b" then (dec "x" "cd0") else (dec "x" "cd1") in
-            Protocol_Done (EffName "receiver") ("k" (SOME "m"))
-        end
+      let, ("doSend", "doRecv", "doCRS") := "effs" in
+      effect "ideal"
+        let: "doReceiver" := (λ: "b", do: "ideal" (InjL "b")) in
+        handle: "f" ("effs", "doReceiver") with
+    | effect "ideal" "b", "k" =>
+        match: "b" with
+        | InjR "b" => "k" NONE
+        | InjL "b" =>
+            let, ("h1", "h0", "g1", "g0") := ("doCRS" #()%V) in
+            (* to avoid sampling the unit, as otherwise the protocol fails *)
+            let: "x" := sample #()%V in
+            let, ("gb", "hb") := if: "b" then ("g0", "h0") else ("g1", "h1") in
+            let: "uv" := ("gb"^"x", "hb"^"x") in
+            ("doSend" ("uv", bob));;
+            let: "r" := ("doRecv" bob) in
+            match: "r" with
+              NONE => Protocol_Done "ideal" ("k" NONE)
+            | SOME "cd" =>
+                let, ("cd0", "cd1") := "cd" in
+                let: "m" := if: "b" then (dec "x" "cd0") else (dec "x" "cd1") in
+                Protocol_Done "ideal" ("k" (SOME "m"))
+            end
+        end 
     | return "y" => "y" end.
 
 
@@ -83,9 +87,9 @@ Section implementation.
        let: "h2" := "simhandler" "doSender" in
        rec: "mh" "f" :=
        handle: handle: "f" "doReceiver" with
-       | effect "ideal" "x", "k" => "idealhandler" "x" "k"
+       | effect "ideal" "x", "k" => "h1" "x" (λ: "v", Protocol_Done "ideal" ("k" "v"))
        | return "y" => "y" end with
-       | effect "leak" "x", "k" => "mh" (λ: <>, "simhandler" "x" "k")
+       | effect "leak" "x", "k" => "mh" (λ: <>, "h2" "x" (λ: "v", Protocol_Done "leak" ("k" "v")))
        | return "y" => "y" end.
 
   Definition idealhandler : expr :=
@@ -133,7 +137,7 @@ Section implementation.
       effect "CRS" 
       let: "doCRS" := (λ: <>, do: "CRS" #()%V) in
       let: "mh" := mut_handler idealhandler (simhandler "y" "crs" "doSend" "doRecv") in
-      handle: "mh" "f" with
+      handle: "mh" (λ: "doReceiver", "f" ("effs", "doCRS", "doReceiver")) with
       | effect "CRS" "x", rec "k" => "k" "crs"
       | return "y" => "y" end. 
       
