@@ -35,7 +35,7 @@ threshold and the number of update to the distribution that where allowed.
 However it should be computed with the parameters of the function.
 
 For the [`main_pmw.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/main_pmw.ml)
-example, we consider the set of database of ${0,1}^k$.
+example, we consider the set of database of $\{ 0,1 \}^k$.
 We generate a uniform and a Dirac distribution on this set 
 (with [`db_sampling.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/db_sampling.ml).
 And we call the algorithm. We print results of the interesting elements of the 
