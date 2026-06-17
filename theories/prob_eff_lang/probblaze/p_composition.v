@@ -66,18 +66,60 @@ Section parallel_composition.
   About sem_ty_type_forall.
   Definition τ := ( ∀ᵣ θ, ∀ₜ α ,α ⊸ 𝟙)%T.
   
-  (* Definition τ__f := (∀ᵣ θ₁, ∀ₜ τ₁, ∀ᵣ θ₂, ∀ₜ τ₂, τ₁ ⊸ τ₂ -{ sem_row_union θ₁ θ₂ }-> 𝟙)%T.*)
-  Definition τ__f θ τ₁ τ₂ := (∀ᵣ θ₁, τ₁ θ₁ ⊸ τ₂ θ₁ -{ sem_row_union θ₁ θ }-> 𝟙)%T.
-  Definition τ__F τ τ₁ := (∀ᵣ θ, (∀ᵣ θ₁, τ₁ θ₁ -{ sem_row_union θ₁ θ}-> 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union θ₂ θ }-∘ 𝟙))%T.
-  (*Definition τₚ :=  (τ__F ⊸ τ__F ⊸ τ__f ⊸ (∀ᵣ θ₁,  ∀ₜ τ₁, τ₁ ⊸ (∀ᵣ θ₂,  ∀ₜ τ₂ , τ₂ -{sem_row_union θ₁ θ₂}-> 𝟙)))%T.*)
-  (* Definition τₚ :=  (τ__F ⊸ τ__F ⊸ τ__f ⊸ (∀ᵣ θ₁,  ∀ₜ τ₁,  ∀ₜ τ₂, τ₁ ⊸ τ₂ -{ θ₁ }-> 𝟙))%T. *)
-  Lemma brel_left_comp (F₁ F₂ F : val) θ τ₁ τ₂ τ₁' τ₂' :
-   (* ⊢ sem_val_typed f₁ f₂ τ__f  -∗*)
-    ⊢ sem_val_typed F₁ F₂ (τ__F τ₁ τ₂' ) -∗
-    sem_val_typed F F (τ__F τ₂ τ₁') -∗
-    (* sem_typed [] (F ||ₗ F₁) (F ||ₗ F₂) ⊥ (τ__f ⊸ (∀ᵣ θ₁,  ∀ₜ τ₁, τ₁ ⊸ (∀ᵣ θ₂,  ∀ₜ τ₂ , τ₂ -{sem_row_union θ₁ θ₂}-> 𝟙)))%T [].*)
-    sem_typed [] (F ||ₗ F₁) (F ||ₗ F₂) ⊥ ((τ__f θ τ₁' τ₂') ⊸ (∀ᵣ θ₁, τ₁ θ₁ ⊸ τ₂ θ₁ -{ sem_row_union θ₁ θ }-∘ 𝟙))%T [].
+  (* changed the type of τ__f to be a function that can be applied multiple times *)
+  Definition τ__f θ τ1' τ2' := (∀ᵣ θ1, ∀ᵣ θ2, τ1' θ1 ⊸ τ2' θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙)%T.
+  Definition τ__F τ τ' := (∀ᵣ θ, (∀ᵣ θ₁, τ' θ₁ -{ sem_row_union θ₁ θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union θ₂ θ }-∘ 𝟙))%T.
+
+  Lemma brel_left_comp (F₁ F₂ F : val) θ τ1 τ2 τ1' τ2' :
+    ⊢ sem_val_typed F₁ F₂ (τ__F τ2 τ2' ) -∗
+
+    sem_val_typed F F (τ__F τ1 τ1') -∗
+
+    sem_typed [] (F ||ₗ F₁) (F ||ₗ F₂) ⊥ ((τ__f θ τ1' τ2') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, τ1 θ1 ⊸ τ2 θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T [].
   Proof.
+    iIntros "#HFF #HF".
+    iIntros (?) "!# Hvs //=".
+    unfold left_composition.
+    brel_pures'. iFrame. 
+    iIntros "!> %f1 %f2 Hff". brel_pures'.
+    iIntros "!> %θ1 %θ2 %r1 %r2 Heffs1".
+    brel_pures'.
+    iIntros "!> %r1'%r2' Heffs2".
+    brel_pures'. 
+    rewrite /sem_val_typed /τ__F //=.
+    iDestruct "HFF" as "#HFF".
+    iDestruct "HF" as "#HF".
+ 
+    unfold τ__f.
+    iAssert ((∀ᵣ θ1, τ1' θ1 -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙)%T
+               (λ: "h₁", F₁ (λ: "h₂", f1 "h₁" "h₂") r1')%V
+               (λ: "h₁", F₂ (λ: "h₂", f2 "h₁" "h₂") r2')%V) with "[Heffs2 Hff]" as "Hclients".
+    { iIntros (θ1' v1 v2) "Hτ1'". brel_pures'.
+      
+      iAssert ((∀ᵣ θ2, τ2' θ2 -{ sem_row_union θ1' (sem_row_union θ2 θ) }-∘ 𝟙)%T (λ: "h₂", f1 v1 "h₂")%V (λ: "h₂", f2 v2 "h₂")%V) 
+        with "[Hτ1' Hff]" as "H".
+      { iIntros (θ2' v1' v2') "Hτ2'". 
+        brel_pures'.
+        iDestruct ("Hff" $! θ1' θ2' with "Hτ1'") as "Hff".
+        iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+        iApply (brel_wand with "Hff").
+        admit. }
+      admit. 
+      (* iSpecialize ("HFF" with "H").
+         iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+         assert (to_iThyIfMono OS [] = []) as <- by done.
+         iApply (brel_mono OS with "[][$HFF]"); [iApply to_iThy_le_refl|simpl].
+         iIntros (F1 F2) "HFF".
+         by iApply "HFF". *)
+    }
+    iSpecialize ("HF" with "Hclients"). 
+    iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][$HF]"); [iApply to_iThy_le_refl|simpl].
+    iIntros (??) "Hvv".
+    iSpecialize ("Hvv" $! θ1).
+    rewrite /sem_ty_mbang //=.
+    by iApply "Hvv".
   Admitted.
   
   Lemma func_comp_left (F1 F2 : expr) (F : val) τ τ' τ'':

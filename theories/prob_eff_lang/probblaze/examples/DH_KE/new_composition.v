@@ -41,16 +41,21 @@ Section new_comp_verification.
    (* F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] ≤ F_OAUTH[ F_AUTH [C[DH_real][CHAN []]]] *)
   (*---------------------------------------------------------------------------*)
   Lemma F_OAUTH_DHKE_C_REAL :
-    ⊢ sem_val_typed REAL_CHAN_DHKE REAL_CHAN_DH_REAL (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
-                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙) 
-                                                             ⊸ (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) 
-                                                                                 ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ θ__L }-∘ 𝟙))%T.
+    ⊢ sem_val_typed REAL_CHAN_DHKE REAL_CHAN_DH_REAL 
+        (* the type should match the program. Look carefully at the order of the incoming effects *)
+        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
+                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙)
+                  (* the product needs to be under a bang, since the effects can be used multiple times *)
+                                                             ⊸ (∀ᵣ θ₁,∀ᵣ θ2, (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) 
+                                                                                 × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) 
+                                                                                 ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
+                                                                                 × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ₁ (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
   Proof. 
     iApply func_comp_left.
     - admit.                    (* closed expressions *)
     - admit.                    (* closed expressions *)
     - iIntros (θ). iApply brel_left_comp.
-      + unfold τ__F. iApply F_AUTH_DH_KE_FAUTH_C_DH_real; try done.
+      + unfold τ__F. (* iApply F_AUTH_DH_KE_FAUTH_C_DH_real; try done. *) admit.
       + admit.                  (* F_OAUTH well-typed *)
     - admit.                    (* CHAN well-typed *)
   Admitted. 
