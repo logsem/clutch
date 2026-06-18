@@ -224,6 +224,27 @@ Section parallel_composition.
     iApply "Hvv".
   Qed.
   
+  Definition τ__F' θ τ τ' := ((∀ᵣ θ₁, τ' θ₁ -{ sem_row_union θ₁ θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union θ₂ θ }-∘ 𝟙))%T.
+
+  Lemma func_comp_parallel_comp_assoc (F G J : val) τ1 τ2 τG τ1' τ2' θ:
+    ⊢ sem_val_typed F F (τ__F τ1 τG)-∗
+    sem_val_typed G G (τ__F' θ τG τ1') -∗
+    sem_val_typed J J (τ__F τ2 τ2') -∗
+    sem_typed [] ((λ: "f", F (G "f"))||ᵣ J) (λ: "f" "rF" "rH",  F (λ: "rG", (G ||ᵣ J) "f" "rH" "rG") "rF") ⊥ ((τ__f θ τ1' τ2') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, τ1 θ1 ⊸ τ2 θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T [].
+  Proof.
+  Admitted.
+      
+  Lemma func_comp_assoc x (F G J : val) τ : 
+    ⊢ sem_val_typed x (λ: "f", F (G (J "f"))) τ -∗
+    sem_val_typed x (λ: "f", (λ: "f", F (G "f"))%V (J "f")) τ.
+  Proof. 
+    iIntros "#Hrel".
+    iIntros "!#". unfold sem_val_typed. simpl. iDestruct "Hrel" as "#Hrel".
+  Admitted. 
+    
+
+    
+  
     
 
 End parallel_composition.

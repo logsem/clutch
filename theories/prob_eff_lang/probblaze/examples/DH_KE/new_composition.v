@@ -36,7 +36,7 @@ Section new_comp_verification.
     λ: "f", ( (λ: "f", F_AUTH (C DH_real "f"))%V ||ᵣ F_OAUTH) (CHAN "f").
 
   Definition REAL_CHAN_DH_RAND : val :=
-    λ: "f", ((λ: "f", F_AUTH (C DH_rand "f")%V ||ᵣ F_OAUTH) (CHAN "f")).
+    λ: "f", ((λ: "f", F_AUTH (C DH_rand "f"))%V ||ᵣ F_OAUTH) (CHAN "f").
   
    (* F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] ≤ F_OAUTH[ F_AUTH [C[DH_real][CHAN []]]] *)
   (*---------------------------------------------------------------------------*)
@@ -125,31 +125,80 @@ Section new_comp_verification.
      Proof.
      Admitted. *)
 
-  Definition F_AUTH_DH_KE : val :=
-    λ: "f",
-      (F_AUTH ||ₗ DH_KE) (CHAN "f").
-
+ (*  Definition F_AUTH_DH_KE : val :=
+       λ: "f",
+         (F_AUTH ||ₗ DH_KE) (CHAN "f").
+    
+     
+      (*F_OAUTH [F_AUTH [DH_KE [CHAN[]]]] ≤ F_AUTH [ DH_SIM [CHAN_SIM [F_CHAN[]]]]  *)
+     (*---------------------------------------------------------------------------*)
+    Lemma SEC_CHAN_DH_KE (f1 f2 : val) (L : sem_row Σ) :
+       sem_val_typed f1 f2 (∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-> 𝟙)%T -∗    
+       BREL (F_OAUTH (F_AUTH_DH_KE f1)) ≤ (F_AUTH (DH_SIM (CHAN_SIM (F_CHAN f2))))
+        <|⊥|> {{λ v1 v2,
+                                          ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
+                  BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V (λ: "m", do: keyleak2 "m")%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
+     Proof.
+     Admitted.
+    
+     (*F_AUTH[ DH_SIM [CHAN_SIM [F_CHAN[]]]] ≤ F_OAUTH [F_AUTH [DH_KE [CHAN[]]]] *)
+     (*--------------------------------------------------------------------------*)
+    Lemma DH_KE_SEC_CHAN  (f1 f2 : val) (L : sem_row Σ) :
+       sem_val_typed f1 f2 (∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-> 𝟙)%T -∗    
+       BREL (F_AUTH (DH_SIM (CHAN_SIM (F_CHAN f1)))) ≤  (F_OAUTH (F_AUTH_DH_KE f1))
+        <|⊥|> {{λ v1 v2,
+                                          ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
+                  BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V (λ: "m", do: keyleak2 "m")%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
+     Proof.
+     Admitted. *)
   
-   (*F_OAUTH [F_AUTH [DH_KE [CHAN[]]]] ≤ F_AUTH [ DH_SIM [CHAN_SIM [F_CHAN[]]]]  *)
-  (*---------------------------------------------------------------------------*)
- Lemma SEC_CHAN_DH_KE (f1 f2 : val) (L : sem_row Σ) :
-    sem_val_typed f1 f2 (∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-> 𝟙)%T -∗    
-    BREL (F_OAUTH (F_AUTH_DH_KE f1)) ≤ (F_AUTH (DH_SIM (CHAN_SIM (F_CHAN f2))))
-     <|⊥|> {{λ v1 v2,
-                                       ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
-               BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V (λ: "m", do: keyleak2 "m")%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
-  Proof.
-  Admitted.
+  Definition bla : val :=
+    (λ: "f", ((λ: "f", (λ: "f", F_AUTH (DH_SIM "f"))%V (F_KE "f"))%V ||ᵣ F_OAUTH) (CHAN "f")). 
 
-  (*F_AUTH[ DH_SIM [CHAN_SIM [F_CHAN[]]]] ≤ F_OAUTH [F_AUTH [DH_KE [CHAN[]]]] *)
-  (*--------------------------------------------------------------------------*)
- Lemma DH_KE_SEC_CHAN  (f1 f2 : val) (L : sem_row Σ) :
-    sem_val_typed f1 f2 (∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-> 𝟙)%T -∗    
-    BREL (F_AUTH (DH_SIM (CHAN_SIM (F_CHAN f1)))) ≤  (F_OAUTH (F_AUTH_DH_KE f1))
-     <|⊥|> {{λ v1 v2,
-                                       ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
-               BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V (λ: "m", do: keyleak2 "m")%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
+  Definition bla2 : val :=
+    (λ: "f", (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (F_KE ||ᵣ F_OAUTH) "f" "rH" "rG") "rF") (CHAN "f")).
+
+  Definition bla3 : val :=
+    (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f")) (λ: "rG", (λ: "f", (F_KE_L ||ᵣ F_OAUTH) (CHAN "f")) "f" "rH" "rG") "rF"). 
+
+  Lemma REAL_CHAN_DH_RAND_bla : 
+    ⊢ sem_val_typed REAL_CHAN_DH_RAND bla (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
+                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙)
+                                                             ⊸ (∀ᵣ θ1,∀ᵣ θ2, (((⊤ × (𝟙 + 𝟙)) -{ θ1 }-> 𝟙) 
+                                                                                 × ((𝟙 + 𝟙) -{ θ1 }-> Option ⊤)) 
+                                                                                 ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
+                                                                                 × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ1 (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
   Proof.
+    iApply func_comp_left.
+    - admit.
+    - admit.
+    - iIntros (θ). iApply parallel_comp_right. 
+      + iApply func_comp_assoc. iApply F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE; try done.
+      + admit.
+    - admit.
+  Admitted. 
+        
+
+  Lemma bla_bla2 :
+    ⊢ sem_val_typed bla bla2 (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
+                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙)
+                                                             ⊸ (∀ᵣ θ1,∀ᵣ θ2, (((⊤ × (𝟙 + 𝟙)) -{ θ1 }-> 𝟙) 
+                                                                                 × ((𝟙 + 𝟙) -{ θ1 }-> Option ⊤)) 
+                                                                                 ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
+                                                                                 × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ1 (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
+  Proof.
+    (* All admits are well-typedness *)
+    unfold bla, bla2.
+    iApply func_comp_left.
+    - admit.
+    - admit.
+    - iIntros (θ). iApply parallel_comp_right. func_comp_parallel_comp_assoc.
+      + admit.
+      + admit.
+      + admit.
+    - admit.
   Admitted.
   
+  Lemma bla2_bla3 : val
+
 End new_comp_verification.
