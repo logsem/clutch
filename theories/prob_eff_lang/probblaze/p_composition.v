@@ -56,7 +56,9 @@ Section parallel_composition.
  
   Definition right_composition : val :=
     λ: "F₁" "F₂" "f" "r₁" "r₂",
-      (left_composition "F₂" "F₁" "f" "r₂" "r₁").
+      "F₁" (λ: "h₁",
+             "F₂" (λ: "h₂", "f" "h₂" "h₁") "r₂") "r₁".
+     (* (left_composition "F₂" "F₁" "f" "r₂" "r₁").*)
   
  Notation " F₁ ||ₗ F₂" := (left_composition F₁ F₂)%V (at level 10).
 
