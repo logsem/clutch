@@ -1225,7 +1225,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
    Print distinct'.
    Print distinct_l.
    iApply brel_learn. iIntros "%Hdist' _". 
-   iApply ((brel_exhaustion (f1 ((λ: "m", do: schannel_l InjL "m"),(λ: "m", do: schannel_l InjR "m"))%V) (f2 ((λ: "m", do: schannel_r InjL "m"),(λ: "m", do: schannel_r InjR "m"))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]"); simpl; first (set_solver); try done.
+   iApply ((brel_exhaustion (f1 ((λ: "m", do: schannel_l InjL "m"),(λ: "m", do: schannel_l InjR "m"))%V) (f2 ((λ: "m", do: schannel_r InjL "m"),(λ: "m", do: schannel_r InjR "m"))%V) (* _ _ X' _ _ R _ _ _ *)) with "[Hrelf1f2]"); simpl; first (set_solver); try done.
  
    { About brel_introduction_mono.
      set clt := ([channel'; getKey'; schannel_l], [leaksec'; schannel_r], X').
