@@ -287,7 +287,7 @@ Section schan_security.
    Lemma SEM_TYPED_EFF : ∀ channel leaksec getKey schannel_l schannel_r : label,
     let θ := client_row channel leaksec getKey schannel_l schannel_r in
     ⊢
-    (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: "m", do: schannel_l InjR "m"))%V ((λ: "m", do: schannel_r InjL "m") , (λ: "m", do: schannel_r InjR "m"))%V (((⊤ ×(𝟙 + 𝟙))%T -{ θ }-> (Option ⊤)) × ((𝟙 + 𝟙)%T -{ θ }-> (Option ⊤)))%T)%I.
+    (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: "m", do: schannel_l InjR "m"))%V ((λ: "m", do: schannel_r InjL "m") , (λ: "m", do: schannel_r InjR "m"))%V (((⊤ ×(𝟙 + 𝟙))%T -{ θ }-> 𝟙) × ((𝟙 + 𝟙)%T -{ θ }-> (Option ⊤)))%T)%I.
   Proof.
     (* unfold sem_val_typed. simpl. iModIntro. rewrite /sem_ty_arr /sem_ty_mbang //=. rewrite /sem_ty_prod.
     iExists (λ: "m", do: schannel_l InjL "m")%V , (λ: "m", do: schannel_r InjL "m")%V , (λ: "m", do: schannel_l InjR "m")%V , (λ: "m", do: schannel_r InjR "m")%V.  repeat iSplit; try iPureIntro; try auto.
@@ -308,7 +308,7 @@ Section schan_security.
 (*----------------------------------------------------------*)
 Lemma F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
   (* sem_val_typed f1 f2 ((∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-∘ 𝟙))%T -∗*)
-   (∀ᵣ θₕ, (((⊤ × 𝟙 + 𝟙) -{ θₕ }-> Option ⊤) × 𝟙 + 𝟙 -{ θₕ }-> Option ⊤) -{ sem_row_union θₕ L }-∘ 𝟙)%T
+   (∀ᵣ θₕ, (((⊤ × 𝟙 + 𝟙) -{ θₕ }-> 𝟙) × 𝟙 + 𝟙 -{ θₕ }-> Option ⊤) -{ sem_row_union θₕ L }-∘ 𝟙)%T
                  f1 f2 -∗
     BREL REAL_CHAN f1
       ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
@@ -442,7 +442,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   (*iDestruct "Hrelf1f2" as "#Hrelf1f2".*)
   unfold sem_ty_arr, sem_ty_mbang. simpl.
   (*iDestruct "Hrelf1f2" as "#Hrelf1f2".*)
-  iAssert (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: "m", do: schannel_l InjR "m"))%V ((λ: "m", do: schannel_r InjL "m") , (λ: "m", do: schannel_r InjR "m"))%V (((⊤ ×(𝟙 + 𝟙))%T -{ θ }-> (Option ⊤)) × ((𝟙 + 𝟙)%T -{ θ }-> (Option ⊤)))%T) as "Hschn".
+  iAssert (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: "m", do: schannel_l InjR "m"))%V ((λ: "m", do: schannel_r InjL "m") , (λ: "m", do: schannel_r InjR "m"))%V (((⊤ ×(𝟙 + 𝟙))%T -{ θ }-> 𝟙) × ((𝟙 + 𝟙)%T -{ θ }-> (Option ⊤)))%T) as "Hschn".
   { iApply SEM_TYPED_EFF. }
   (*iAssert (sem_val_typed (λ: "m", do: schannel_l InjR "m") (λ: "m", do: schannel_r InjR "m") ((𝟙 + 𝟙)%T -{ θ }-> (Option 𝔾))%T) as "Hschnrcv".
   { admit. }*)
@@ -926,7 +926,7 @@ Print sem_val_typed.
 
 Lemma SEM_F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
   (* sem_val_typed f1 f2 ((∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option ⊤))) -{ sem_row_union  θₕ L }-∘ 𝟙))%T -∗*)
-   (∀ᵣ θₕ, (((⊤ × 𝟙 + 𝟙) -{ θₕ }-> Option ⊤) × 𝟙 + 𝟙 -{ θₕ }-> Option ⊤) -{ sem_row_union θₕ L }-∘ 𝟙)%T
+   (∀ᵣ θₕ, (((⊤ × 𝟙 + 𝟙) -{ θₕ }-> 𝟙) × 𝟙 + 𝟙 -{ θₕ }-> Option ⊤) -{ sem_row_union θₕ L }-∘ 𝟙)%T
                  f1 f2 -∗
     BREL REAL_CHAN f1
       ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
@@ -937,7 +937,7 @@ Admitted.
  
 Lemma REAL_CHAN_CHAN_SIM_F_CHAN :
   ⊢ sem_val_typed (REAL_CHAN)%V (λ: "f", CHAN_SIM (F_CHAN "f"))%V
-      (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙) ⊸ (*type of client*)
+      (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }->  𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙) ⊸ (*type of client*)
                (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ θ__L }-∘ 𝟙))%T.*) 
       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₂ }-> Option ⊤) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T.
 Proof using G inG0 inG1 inG2.   
@@ -968,7 +968,7 @@ Print sem_typed.*)
 (*----------------------------------------------------------------*)
 Lemma REAL_IDEAL_SCHAN :
   ⊢ sem_typed [] REAL_CHAN (λ: "f", (CHAN_SIM (F_CHAN "f")))%V ⊥
-       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)%T ⊸ (*type of client*)
+       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)%T ⊸ (*type of client*)
                  (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ θ__L }-∘ 𝟙))%T [].*)
                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₂ }-> Option ⊤) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T [].
 Proof using G inG0 inG1 inG2 klk1 klk2 lka1 lka2. 
@@ -990,13 +990,13 @@ Qed.
 
 Definition R_CHAN : val :=
    λ: "f",
-      (F_KE_L ||ᵣ F_OAUTH) (CHAN "f").
+      (F_KE_L ||ᵣ F_OAUTH) (CHAN "f"). 
 
 (*Verification of F_KE_L[F_OAUTH[CHAN[]]] ≤ CHAN_SIM[F_CHAN[]]*)
 (*----------------------------------------------------------*)
 Lemma F_OAUTH_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
   (* sem_val_typed f1 f2 ((∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option  ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ L }-∘ 𝟙))%T -∗*)
-   (∀ᵣ θₕ, (((⊤ × 𝟙 + 𝟙) -{ θₕ }-> Option ⊤) × 𝟙 + 𝟙 -{ θₕ }-> Option ⊤) -{ sem_row_union θₕ L }-∘ 𝟙)%T
+   (∀ᵣ θₕ, (((⊤ × 𝟙 + 𝟙) -{ θₕ }-> 𝟙) × 𝟙 + 𝟙 -{ θₕ }-> 𝟙) -{ sem_row_union θₕ L }-∘ 𝟙)%T
                  f1 f2 -∗
     BREL R_CHAN f1
       ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
@@ -1016,7 +1016,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   repeat simpl. brel_pures. iModIntro. iIntros (????).
   brel_pures.
   iApply brel_alloctape_r. iIntros (α) "Hα". brel_pures_r. 
-  iApply brel_alloc_r. iIntros (l_sim) "Hl_sim". brel_pures_r.
+  iApply brel_alloc_r. iIntros (l_sim) "Hl_sim". brel_pures_r. 
   iApply brel_couple_UT. 1: auto.
   simpl. iFrame "Hα". iSplit => //.
   iIntros (n ?) "!> Hα". brel_pures.
