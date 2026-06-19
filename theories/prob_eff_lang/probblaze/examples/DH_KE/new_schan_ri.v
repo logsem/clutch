@@ -30,8 +30,7 @@ Section schan_security.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg : @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
-
-  Print Grammar constr.
+  Variable xor : expr -> expr -> val.
 
   (*Definition REAL_CHAN : val :=
     λ: "f" "doLeakSend" "doLeakRecv" "doKeyLeak",  
@@ -280,9 +279,10 @@ Section schan_security.
   
   Program Definition sec_channel_row (schannel1 schannel2 : label) := SemRow [([schannel1], [schannel2], sec_channel schannel1 schannel2)] (sec_channel_pers_mono_row schannel1 schannel2).
   Program Definition client_row (channel leaksec getKey1 schannel1 schannel2 : label) := SemRow [([channel; getKey1; schannel1], [leaksec; schannel2], sec_channel schannel1 schannel2)] (client_pers_mono_row channel leaksec getKey1 schannel1 schannel2) .
+   About CHAN.
    Definition REAL_CHAN : val :=
     λ: "f",
-      (F_OAUTH ||ₗ F_KE) (CHAN "f").
+      (F_OAUTH ||ₗ F_KE) (CHAN xor "f").
 
    Lemma SEM_TYPED_EFF : ∀ channel leaksec getKey schannel_l schannel_r : label,
     let θ := client_row channel leaksec getKey schannel_l schannel_r in
@@ -328,7 +328,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   repeat simpl. brel_pures. iModIntro. iIntros (????).
   brel_pures.
   iApply brel_alloctape_r. iIntros (α) "Hα". brel_pures_r. 
-  iApply brel_alloc_r. iIntros (l_sim) "Hl_sim". brel_pures_r.
+  iApply brel_alloc_r. iIntros (l_sim) "Hl_sim". brel_pures_r. 
   iApply brel_alloc_l. iIntros (l_auth) "!>Hl_auth". brel_pures_l.
   iApply brel_effect_l. iIntros (channel') "!> Hchannel !>". brel_pures_l.
   iApply brel_couple_UT. 1: auto.

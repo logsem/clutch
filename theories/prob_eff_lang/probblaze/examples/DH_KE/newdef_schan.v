@@ -20,9 +20,9 @@ Import valgroup_tactics.
 Section schannel.
   Context {vg : val_group}.
   Context {cg : clutch_group_struct}.
-  Context {vgg : @val_group_generator vg}.
+  Context {vgg : @val_group_generator vg}. 
   (*Context (channel leaksec getKey1 getKey2 leakauth1 leakauth2 schannel1 schannel2 : label).*)
-
+  Variable xor : expr -> expr -> val. 
   #[local] Notation n := (S n'').
 
 
@@ -56,7 +56,7 @@ Section schannel.
     end.
 
    (*placeholder for now*)
-  Definition xor (e1 e2 : expr) : val := (# O)%V.
+  (*Definition xor (e1 e2 : expr) : val := (# O)%V.*)
  
 
    Definition CHAN : val :=
