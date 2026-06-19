@@ -234,15 +234,22 @@ Section parallel_composition.
   Proof.
   Admitted.
       
-  Lemma func_comp_assoc x (F G J : val) τ : 
-    ⊢ sem_val_typed x (λ: "f", F (G (J "f"))) τ -∗
-    sem_val_typed x (λ: "f", (λ: "f", F (G "f"))%V (J "f")) τ.
+  Lemma func_comp_assoc (F G J : val) θ τ1 τ2 τ3 τ4 : 
+    ⊢ sem_val_typed F F (τ3 θ ⊸ τ4 θ)%T -∗
+    sem_val_typed G G (τ2 θ ⊸ τ3 θ)%T -∗
+    sem_val_typed J J (τ1 θ ⊸ τ2 θ)%T -∗
+    sem_val_typed (λ: "f", F (G (J "f"))) (λ: "f", (λ: "f", F (G "f"))%V (J "f")) (∀ᵣ θ, τ1 θ ⊸ τ4 θ)%T.
   Proof. 
-    iIntros "#Hrel".
-    iIntros "!#". unfold sem_val_typed. simpl. iDestruct "Hrel" as "#Hrel".
+    (* iIntros "#HFF #HGG #HJJ".
+       iIntros (θ v1 v2) "!# Hτ1".
+       iSpecialize ("HJJ" with "Hτ1"). *)
   Admitted. 
     
-
+  Lemma functionality_comp_func_comp_assoc (F G J : val) τ1 τ2 τ1' :
+    ⊢ sem_val_typed (λ: "f", (λ: "f" "rF" "rH", F (λ: "rG", G "f" "rH" "rG") "rF") (J "f"))
+      (λ: "f" "rF" "rH", F (λ: "rG", (λ: "f", G (J "f")) "f" "rH" "rG") "rF") (∀ᵣ θ, τ1' θ ⊸ (∀ᵣ θ1, ∀ᵣ θ2, τ1 θ1 ⊸ τ2 θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T. 
+  Proof. 
+  Admitted. 
     
   
     
