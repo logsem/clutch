@@ -229,11 +229,21 @@ Section new_comp_verification.
                                                                × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ1 (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
   Proof. 
     unfold bla2, bla3.
-    iApply functionality_comp_func_comp_assoc.
+    iApply functionality_comp_func_comp_assoc. (* needs to add preconditions to the lemma *)
   Qed. 
 
-  Lemma 
+  Definition SIMSIMFCHAN : val :=
+    (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (λ: "f", CHAN_SIM (F_CHAN "f"))%V "f" "rH" "rG") "rF"). 
 
-                      
+  Lemma bla3_SIMFCHAN :
+    ⊢ sem_val_typed bla3 SIMSIMFCHAN (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
+                                              -{ sem_row_union  θₕ θ__L }-> 𝟙)
+                                        ⊸ (∀ᵣ θ1,∀ᵣ θ2, (((⊤ × (𝟙 + 𝟙)) -{ θ1 }-> 𝟙) 
+                                                           × ((𝟙 + 𝟙) -{ θ1 }-> Option ⊤)) 
+                                                          ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
+                                                               × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ1 (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
+  Proof.           
+    iApply functionality_comp_cong. (* needs to add preconditions to the lemma *)
+  Qed.                       
 
 End new_comp_verification.

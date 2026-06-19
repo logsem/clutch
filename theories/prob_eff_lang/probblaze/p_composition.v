@@ -234,23 +234,43 @@ Section parallel_composition.
   Proof.
   Admitted.
       
-  Lemma func_comp_assoc (F G J : val) θ τ1 τ2 τ3 τ4 : 
-    ⊢ sem_val_typed F F (τ3 θ ⊸ τ4 θ)%T -∗
-    sem_val_typed G G (τ2 θ ⊸ τ3 θ)%T -∗
-    sem_val_typed J J (τ1 θ ⊸ τ2 θ)%T -∗
+  Lemma func_comp_assoc (F G J : val) τ1 τ2 τ3 τ4 : 
+    ⊢ sem_val_typed F F (∀ᵣ θ, τ3 θ ⊸ τ4 θ)%T -∗
+    sem_val_typed G G (∀ᵣ θ, τ2 θ ⊸ τ3 θ)%T -∗
+    sem_val_typed J J (∀ᵣ θ, τ1 θ ⊸ τ2 θ)%T -∗
     sem_val_typed (λ: "f", F (G (J "f"))) (λ: "f", (λ: "f", F (G "f"))%V (J "f")) (∀ᵣ θ, τ1 θ ⊸ τ4 θ)%T.
   Proof. 
-    (* iIntros "#HFF #HGG #HJJ".
-       iIntros (θ v1 v2) "!# Hτ1".
-       iSpecialize ("HJJ" with "Hτ1"). *)
-  Admitted. 
+    iIntros "#HFF #HGG #HJJ".
+    iIntros (θ v1 v2) "!# Hτ1".
+    iSpecialize ("HJJ" with "Hτ1").
+    brel_pures'.
+    iApply (brel_bind' [_;_] [_]); [iApply traversable_to_iThy_nil|].
+    iApply (brel_wand with "HJJ").
+    iIntros (v1' v2') "!# Hτ2".
+    iSpecialize ("HGG" with "Hτ2").
+    brel_pures'.
+    iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy_nil|].
+    iApply (brel_wand with "HGG").
+    iIntros (v1'' v2'') "!# Hτ3".
+    iSpecialize ("HFF" with "Hτ3").
+    iApply (brel_wand with "HFF").
+    by iIntros (??) "!# H".
+  Qed. 
     
-  Lemma functionality_comp_func_comp_assoc (F G J : val) τ1 τ2 τ1' :
-    ⊢ sem_val_typed (λ: "f", (λ: "f" "rF" "rH", F (λ: "rG", G "f" "rH" "rG") "rF") (J "f"))
+  Lemma functionality_comp_func_comp_assoc (F G J : expr) τ1 τ2 τ1' :
+    ⊢ (* sem_typed [] F F ⊥ _ [] -∗
+       sem_typed [] G G ⊥ _ [] -∗
+       sem_typed [] J J ⊥ _ [] -∗ *)
+      sem_val_typed (λ: "f", (λ: "f" "rF" "rH", F (λ: "rG", G "f" "rH" "rG") "rF") (J "f"))
       (λ: "f" "rF" "rH", F (λ: "rG", (λ: "f", G (J "f")) "f" "rH" "rG") "rF") (∀ᵣ θ, τ1' θ ⊸ (∀ᵣ θ1, ∀ᵣ θ2, τ1 θ1 ⊸ τ2 θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T. 
   Proof. 
   Admitted. 
     
+  Lemma functionality_comp_cong (F G1 G2 : expr) τ1 τ2 τ1' : 
+    ⊢ (* sem_typed [] G1 G2 ⊥ (τ1' ⊸ τ2 ⊸ τ2' -{ effs }-∘ 𝟙)%T [] -∗
+         sem_typed [] F F ⊥ ((τ2' -{ effs }-∘ 𝟙) ⊸ τ1 -{ effs' }-∘ 𝟙)%T [] -∗ *)
+      sem_val_typed (λ: "f" "rF" "rH", F (λ: "rG", G1 "f" "rH" "rG") "rF") (λ: "f" "rF" "rH", F (λ: "rG", G2 "f" "rH" "rG") "rF") (∀ᵣ θ, τ1' θ ⊸ (∀ᵣ θ1, ∀ᵣ θ2, τ1 θ1 ⊸ τ2 θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T. 
+  Admitted. 
   
     
 
@@ -259,3 +279,4 @@ End parallel_composition.
 Notation " F₁ ||ₗ F₂" := (left_composition F₁ F₂) (at level 10).
 
 Notation "F₁ ||ᵣ F₂" := (right_composition F₁ F₂) (at level 10).
+
