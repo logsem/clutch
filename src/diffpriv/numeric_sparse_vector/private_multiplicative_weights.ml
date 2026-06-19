@@ -23,31 +23,30 @@ let oPMW db get_db_i normeDB card_Sdb unif stream_q card_Sq num den alpha beta =
   let c = 200. in
   let t = 5. in
   let f = num_sparse_vector num den (int_of_float t) (int_of_float c) in
-  let distrib = ref unif in
   let nb_upd = ref 0 in
-  let rec nSVT i bs =
+  let rec aux i bs distrib =
     (*Printf.printf "\n----\n";
     List.iter (Printf.printf "%f | ") (!distrib);
     Printf.printf "\n\n";*)
     match stream_q bs with
-    | None -> (bs, !distrib, !nb_upd) (* No more queries *)
+    | None -> (bs, distrib, !nb_upd) (* No more queries we stop *)
     | Some q -> (
         if i > 1 + int_of_float c then
           (* we retrun only from the distribution *)
-          nSVT i (q !distrib :: bs)
+          aux i (q distrib :: bs) distrib
         else
-          let e1 = f db (fun x' -> q x' - q !distrib) in
-          let e2 = f db (fun x' -> q !distrib - q x') in
+          let e1 = f db (fun x' -> q x' - q distrib) in
+          let e2 = f db (fun x' -> q distrib - q x') in
           let a = ref None in
           (match e1 with
           | None -> (
-              match e2 with None -> () | Some v -> a := Some (q !distrib + v))
-          | Some v -> a := Some (q !distrib - v));
+              match e2 with None -> () | Some v -> a := Some (q distrib + v))
+          | Some v -> a := Some (q distrib - v));
           match !a with
-          | None -> nSVT i (q !distrib :: bs)
+          | None -> aux i (q distrib :: bs) distrib
           | Some v ->
               nb_upd := !nb_upd + 1;
-              distrib := mw !distrib q v (alpha /. 2.) get_db_i;
-              nSVT (i + 1) (v :: bs))
+              (*distrib := mw distrib q v (alpha /. 2.) get_db_i;*)
+              aux (i + 1) (v :: bs) (mw distrib q v (alpha /. 2.) get_db_i))
   in
-  nSVT 0 []
+  aux 0 [] unif
