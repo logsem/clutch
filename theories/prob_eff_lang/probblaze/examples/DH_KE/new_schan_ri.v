@@ -1,6 +1,6 @@
 From iris.proofmode Require Import base proofmode classes.                           
 From iris.base_logic.lib Require Import  na_invariants.   
-From iris.algebra Require Import agree excl auth frac excl_auth.
+From iris.algebra Require Import agree excl auth frac excl_auth. 
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
@@ -282,7 +282,7 @@ Section schan_security.
   Program Definition client_row (channel leaksec getKey1 schannel1 schannel2 : label) := SemRow [([channel; getKey1; schannel1], [leaksec; schannel2], sec_channel schannel1 schannel2)] (client_pers_mono_row channel leaksec getKey1 schannel1 schannel2) .
    Definition REAL_CHAN : val :=
     λ: "f",
-      (F_OAUTH ||ₗ F_KE_L) (CHAN "f").
+      (F_OAUTH ||ₗ F_KE) (CHAN "f").
 
    Lemma SEM_TYPED_EFF : ∀ channel leaksec getKey schannel_l schannel_r : label,
     let θ := client_row channel leaksec getKey schannel_l schannel_r in
@@ -313,7 +313,7 @@ Lemma F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
     BREL REAL_CHAN f1
       ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
-                                       BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V (λ: "m", do: keyleak2 "m")%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
+                                       BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V ((λ: "m", do: keyleak1 (Send "m")), (λ: "m", do: keyleak1 (Recv "m")))%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V ((λ: "m", do: keyleak2 (Send "m")), (λ: "m", do: keyleak2 (Recv "m")))%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
 Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg vgg Σ.
   iIntros "Hrelf1f2".
   repeat simpl.
@@ -323,7 +323,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   repeat simpl. brel_pures'.
   
   (*unfold CHAN_SIM, F_OAUTH.*)
-  unfold F_CHAN, CHAN_SIM, F_KE_L, F_OAUTH. 
+  unfold F_CHAN, CHAN_SIM, F_KE, F_OAUTH. 
    
   repeat simpl. brel_pures. iModIntro. iIntros (????).
   brel_pures.
@@ -373,16 +373,19 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
        end)%E).
   set (kl2 := ( match: "p" with
          InjL <> =>
-           (λ: "m", do: keyleak1 "m")%V (InjL bob);; 
-           let: "r" := (λ: "m", do: keyleak1 "m")%V (InjR bob) in
-           match: "r" with InjL <> => "k" (InjLV #()%V) | InjR "w" => "k" (InjR (vgval (g ^+ n))) end
+           (λ: "m", do: keyleak1 Send "m")%V bob;; 
+           let: "r" := (λ: "m", do: keyleak1 Recv "m")%V bob in
+           match: "r" with
+             InjL <> => "k" (InjLV #()%V)
+           | InjR "w" => "k" (InjR (vgval (g ^+ n)))
+           end
        | InjR <> =>
-         let: "r" := (λ: "m", do: keyleak1 "m")%V (InjR alice) in
+         let: "r" := (λ: "m", do: keyleak1 Recv "m")%V alice in
          match: "r" with
            InjL <> => "k" (InjLV #()%V)
-         | InjR "w" => (λ: "m", do: keyleak1 "m")%V (InjL alice);; "k" (InjR (vgval (g ^+ n)))
+         | InjR "w" => (λ: "m", do: keyleak1 Send "m")%V alice;; "k" (InjR (vgval (g ^+ n)))
          end
-                end)%E).
+       end )%E).
   set (kl3 := ( match: "payload" with
          InjL "payload" =>
            let: "dst" := "payload" in
@@ -409,10 +412,10 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
          let: "r" := (λ: "m", do: leaksec' InjR "m")%V "from" in
          match: "r" with InjL <> => "k" (InjLV #()%V) | InjR "x" => "k" (InjR "x") end
                  end)%E).
-  set (kr2 := (  match: "payload" with
+  set (kr2 := ( match: "payload" with
          InjL "payload" =>
-           (λ: "m", do: keyleak2 "m")%V (InjL bob);; 
-           let: "r" := (λ: "m", do: keyleak2 "m")%V (InjR bob) in
+           (λ: "m", do: keyleak2 Send "m")%V bob;; 
+           let: "r" := (λ: "m", do: keyleak2 Recv "m")%V bob in
            match: "r" with
              InjL <> => "k" (InjLV #()%V)
            | InjR "x" =>
@@ -420,20 +423,21 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                InjL <> =>
                  let: "m'" := #()%V;; rand(#lbl:α) #(S n'') in
                  let: "mA" := vexp g "m'" in
-                 #l_sim <- InjR "m'";; (λ: "m", do: leakauth2 Send "m")%V ("mA", bob);; "k" #()%V
+                 #l_sim <- InjR "m'";; 
+                 (λ: "m", do: leakauth2 Send "m")%V ("mA", bob);; "k" #()%V
              | InjR "m" => "k" #()%V
              end
            end
        | InjR "from" =>
-         (λ: "m", do: keyleak2 "m")%V (InjL "from");; 
-         let: "r" := (λ: "m", do: keyleak2 "m")%V (InjR "from") in
+         (λ: "m", do: keyleak2 Send "m")%V "from";; 
+         let: "r" := (λ: "m", do: keyleak2 Recv "m")%V "from" in
          match: "r" with
            InjL <> => "k" (InjLV #()%V)
          | InjR "x" =>
            let: "rla" := (λ: "m", do: leakauth2 Recv "m")%V "from" in
            match: "rla" with InjL <> => "k" (InjLV #()%V) | InjR "x" => "k" ! #l_sim end
          end
-                 end )%E).
+       end )%E).
   
   (*unfold sem_val_typed. simpl.
   iDestruct "Hrelf1f2" as "#Hrelf1f2".*)
@@ -931,7 +935,7 @@ Lemma SEM_F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
     BREL REAL_CHAN f1
       ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ L }-∘ 𝟙)%T v1 v2 }}.*)
-                                       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₂ }-> Option ⊤) -{ sem_row_union (sem_row_union θ₁ θ₂) L }-∘ 𝟙)%T v1 v2 }}.
+                                       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option ⊤) -{ sem_row_union (sem_row_union θ₁ θ₂) L }-∘ 𝟙)%T v1 v2 }}.
 Proof with (repeat foldkont) using G.
 Admitted.
  
@@ -939,7 +943,7 @@ Lemma REAL_CHAN_CHAN_SIM_F_CHAN :
   ⊢ sem_val_typed (REAL_CHAN)%V (λ: "f", CHAN_SIM (F_CHAN "f"))%V
       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }->  𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙) ⊸ (*type of client*)
                (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ θ__L }-∘ 𝟙))%T.*) 
-      (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₂ }-> Option ⊤) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T.
+      (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option ⊤) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T.
 Proof using G inG0 inG1 inG2.   
   iModIntro. iIntros (L).
   iIntros (f1 f2) "Hrelf1f2".
@@ -970,7 +974,7 @@ Lemma REAL_IDEAL_SCHAN :
   ⊢ sem_typed [] REAL_CHAN (λ: "f", (CHAN_SIM (F_CHAN "f")))%V ⊥
        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)%T ⊸ (*type of client*)
                  (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ θ__L }-∘ 𝟙))%T [].*)
-                 (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₂ }-> Option ⊤) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T [].
+                 (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option ⊤)) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T [].
 Proof using G inG0 inG1 inG2 klk1 klk2 lka1 lka2. 
   Print sem_typed.
   iIntros (vs) "!# H". simpl.
@@ -990,7 +994,7 @@ Qed.
 
 Definition R_CHAN : val :=
    λ: "f",
-      (F_KE_L ||ᵣ F_OAUTH) (CHAN "f"). 
+      (F_KE ||ᵣ F_OAUTH) (CHAN "f"). 
 
 (*Verification of F_KE_L[F_OAUTH[CHAN[]]] ≤ CHAN_SIM[F_CHAN[]]*)
 (*----------------------------------------------------------*)
@@ -1001,7 +1005,7 @@ Lemma F_OAUTH_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
     BREL R_CHAN f1
       ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
-                                       BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V (λ: "m", do: keyleak1 "m")%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V  (λ: "m", do: keyleak2 "m")%V  <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
+                                       BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V ((λ: "m", do: keyleak1 (Send "m")), (λ: "m", do: keyleak1 (Recv "m")))%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V ((λ: "m", do: keyleak2 (Send "m")), (λ: "m", do: keyleak2 (Recv "m")))%V  <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
 Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg vgg Σ.
   iIntros "Hrelf1f2".
   repeat simpl.
@@ -1011,7 +1015,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   repeat simpl. brel_pures'.
   
   (*unfold CHAN_SIM, F_OAUTH.*)
-  unfold F_CHAN, CHAN_SIM, F_KE_L, F_OAUTH. 
+  unfold F_CHAN, CHAN_SIM, F_KE, F_OAUTH. 
    
   repeat simpl. brel_pures. iModIntro. iIntros (????).
   brel_pures.
@@ -1029,30 +1033,6 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   iApply brel_effect_r. iIntros (schannel_r) "Hschannel_r !>". brel_pures_r.
   iApply brel_alloc_l. iIntros (l_rchan) "!>Hlrchan". brel_pures_l.
   iApply brel_effect_l. iIntros (schannel_l) "!> Hschannel_l !>". brel_pures_l.
- (* iApply brel_alloc_r. iIntros (l_fchan) "Hlfchan". brel_pures_r.
-  iApply brel_effect_r. iIntros (schannel_r) "Hschannel_r !>". brel_pures_r.
-  iApply brel_couple_UT. 1: auto.
-  simpl. iFrame "Hα". iSplit => //.
-  iIntros (n ?) "!> Hα". brel_pures.
-  brel_exp_l. brel_pures.
-  iApply brel_effect_l. iIntros (getKey') "!> HgK !>". brel_pures_l.
-  iApply brel_effect_r. iIntros (leaksec') "Hleaksec !>". brel_pures.
-  iApply brel_alloc_r. iIntros (l_fchan) "Hlfchan". brel_pures_r.
-  iApply brel_effect_r. iIntros (schannel_r) "Hschannel_r !>". brel_pures_r.
-  brel_pures'. repeat simpl. brel_pures'.
-  iApply brel_alloc_l. iIntros (l_auth) "!>Hl_auth". brel_pures_l.
-  iApply brel_effect_l. iIntros (channel') "!> Hchannel !>". brel_pures_l.
-  iApply brel_couple_UT. 1: auto.
-  simpl. iFrame "Hα". iSplit => //.
-  iIntros (n ?) "!> Hα". brel_pures.
-  brel_exp_l. brel_pures.
-  iApply brel_effect_l. iIntros (getKey') "!> HgK !>". brel_pures_l.
-  iApply brel_effect_r. iIntros (leaksec') "Hleaksec !>". brel_pures.
-  iApply brel_alloc_r. iIntros (l_fchan) "Hlfchan". brel_pures_r.
-  iApply brel_effect_r. iIntros (schannel_r) "Hschannel_r !>". brel_pures_r.
-  brel_pures'. repeat simpl. brel_pures'.
-  iApply brel_alloc_l. iIntros (l_rchan) "!>Hlrchan". brel_pures_l.
-  iApply brel_effect_l. iIntros (schannel_l) "!> Hschannel_l !>". brel_pures_l. *)
   set (kl1 := ( match: "payload" with
          InjL "payload" =>
            let: "dst" := "payload" in
@@ -1635,5 +1615,64 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                           {iApply "IH". } } } }
                           
 Admitted.
+
+
+Lemma SEM_R_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
+  (* sem_val_typed f1 f2 ((∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option ⊤))) -{ sem_row_union  θₕ L }-∘ 𝟙))%T -∗*)
+   (∀ᵣ θₕ, (((⊤ × 𝟙 + 𝟙) -{ θₕ }-> 𝟙) × 𝟙 + 𝟙 -{ θₕ }-> Option ⊤) -{ sem_row_union θₕ L }-∘ 𝟙)%T
+                 f1 f2 -∗
+    BREL R_CHAN f1
+      ≤ CHAN_SIM (F_CHAN f2) <|⊥|> {{λ v1 v2,
+                                       (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ L }-∘ 𝟙)%T v1 v2 }}.*)
+                                       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option ⊤) -{ sem_row_union (sem_row_union θ₁ θ₂) L }-∘ 𝟙)%T v1 v2 }}.
+Proof with (repeat foldkont) using G.
+Admitted.
+
+Lemma R_CHAN_CHAN_SIM_F_CHAN :
+  ⊢ sem_val_typed (R_CHAN)%V (λ: "f", CHAN_SIM (F_CHAN "f"))%V
+      (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }->  𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙) ⊸ (*type of client*)
+               (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ θ__L }-∘ 𝟙))%T.*) 
+      (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option ⊤) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T.
+Proof using G inG0 inG1 inG2.   
+  iModIntro. iIntros (L).
+  iIntros (f1 f2) "Hrelf1f2".
+  brel_pures'.
+  simpl.
+  assert (to_iThyIfMono OS [] = []) as <- by done.
+  iApply (brel_mono OS with "[][Hrelf1f2]");
+  [iApply to_iThy_le_refl|simpl|simpl].
+  About brel_wand.
+  About brel_mono.
+  About brel_wand.
+(*  iApply (brel_mono with " [Hrelf1f2][]").
+  iApply (brel_wand with "Hrelf1f2").*)
+  +  iApply (SEM_R_CHAN_SIM _ _ L).
+     iApply "Hrelf1f2".
+  + iIntros (??) "$". 
+Qed.
+   
+
+(*top level statements for the secure channel *)
+(*----------------------------------------------------------------*)
+Lemma R_I_SCHAN :
+  ⊢ sem_typed [] R_CHAN (λ: "f", (CHAN_SIM (F_CHAN "f")))%V ⊥
+       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)%T ⊸ (*type of client*)
+                 (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ θ__L }-∘ 𝟙))%T [].*)
+                 (∀ᵣ θ₁, ∀ᵣ θ₂,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option ⊤)) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T [].
+Proof using G inG0 inG1 inG2 klk1 klk2 lka1 lka2. 
+  Print sem_typed.
+  iIntros (vs) "!# H". simpl.
+  Search sem_val_typed.
+  Print brel_pures.
+  About brel_inv_l.
+  iApply brel_value.
+  iIntros "$ !>".
+  iSplit; try (done).  
+  iPoseProof R_CHAN_CHAN_SIM_F_CHAN as "Hsemty".
+  rewrite /sem_val_typed /=.
+  iDestruct "Hsemty" as "#Hsemty".
+  iApply "Hsemty".
+Qed.
  
+
 End schan_security.

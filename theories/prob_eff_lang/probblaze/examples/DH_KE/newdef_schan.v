@@ -138,6 +138,7 @@ Section schannel.
   Definition CHAN_SIM : val :=
     λ: "f" "LeakAOp" "doKeyLeak",
     let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
+    let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in  
     let: "α" := alloc #n in
     let: "message" := ref NONEV in
     effect "leaksec"
@@ -151,8 +152,8 @@ Section schannel.
             (* assuming "dst" is alice for now *)
             (*let, ("m", "dst") := "payload" in*)
             (*("doKeyLeak" (Send("payload")));;*)
-            ("doKeyLeak" (Send bob));;
-            let: "r" := "doKeyLeak" (Recv bob) in
+            ("doKeyLeakSnd" bob);;
+            let: "r" := "doKeyLeakRecv" bob in
                           match: "r" with
                           | NONE =>
                               "k" NONEV
@@ -168,8 +169,8 @@ Section schannel.
                               end    
                           end                           
                         | InjR "from" =>
-                            ("doKeyLeak" (Send "from"));;
-             let: "r" := "doKeyLeak" (Recv "from") in
+                            ("doKeyLeakSnd" "from");;
+             let: "r" := "doKeyLeakRecv" "from" in
                            match: "r" with
                            | NONE =>
                                (*(do: leakauth ("from"));;*)
