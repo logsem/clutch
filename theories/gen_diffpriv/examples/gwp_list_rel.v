@@ -2,19 +2,20 @@
 
     [report_noisy_max_generic.v] (and the idiomatic report-noisy-max) builds its
     lists with the combinators of [gen_prob_lang.gwp.list] (imported there as
-    [gwp.list]), which differ from the combinators of
-    [gen_diffpriv.examples.list] — notably [list_init], which here counts DOWN
-    from [len] to [1] prepending (so [list_init len f = [f 1; …; f len]]) with no
-    final [list_rev].
+    [gwp.list]): [list_init] (OCaml-faithful — forward, 0-indexed:
+    [list_init len f = [f 0; …; f (len-1)]]), [list_map], and [list_max_index].
 
-    The list combinators are bare recursive lambdas, not type-abstracted, so we
-    cannot get their congruence "for free" from the fundamental theorem.  Instead
-    we (re)define the semantic list relation [lrel_list] directly (via
-    [lrel_rec], copied verbatim from [examples/list.v] — the value encoding
-    [NONE = InjLV #()], [SOME x = InjRV x], [a::l = SOME(a,l)] is identical) and
-    prove the relational congruences ([refines_list_map], [refines_list_init],
-    [refines_list_max_index]) semantically, meta-quantified over the element
-    relations. *)
+    These combinators have polymorphic, syntactically-typeable counterparts
+    ([list_map_poly] / [list_init_poly] / the typed [list_max_index], all typed in
+    [typing/list_typed.v]), so their relational congruences ([refines_list_map],
+    [refines_list_init], [refines_list_max_index]) come *for free* from the
+    fundamental theorem: each is [fundamental_val] on the typed value, with its
+    [lrel_forall]/[lrel_arr] structure eliminated and its list argument / result
+    bridged through [interp_TList] below ([interp (TList τ) ≡ lrel_list]).  We
+    still define the semantic list relation [lrel_list] explicitly (via
+    [lrel_rec] — value encoding [NONE = InjLV #()], [SOME x = InjRV x],
+    [a::l = SOME(a,l)]), since it is the element/output relation those free
+    theorems are read against, at *arbitrary* element relations. *)
 From clutch.gen_prob_lang Require Import lang notation.
 From clutch.gen_prob_lang Require Import gwp.list.
 From clutch.gen_prob_lang.typing Require Import types list_typed.
@@ -124,10 +125,10 @@ Section gwp_list_rel.
     iApply "Hlv".
   Qed.
 
-  (** Relational congruence for [list_init].  Here [list_init len f] runs the
-      inner loop [aux acc i] with [i] counting DOWN from [len] to [0],
-      prepending [f i] each step; the accumulator stays related at
-      [lrel_list A]. *)
+  (** Relational congruence for [list_init], derived "for free" from the
+      fundamental theorem applied to the typed [list_init_poly].  The index
+      relation is [lrel_int], matching the [TInt] index of the OCaml-faithful
+      forward [list_init]. *)
   Lemma refines_list_init (A : lrel Σ) (n n' f f' : expr) :
     (REL n << n' : lrel_int) -∗
     (REL f << f' : (lrel_int → A)%lrel) -∗
@@ -164,87 +165,35 @@ Section gwp_list_rel.
     iApply "Hh".
   Qed.
 
-  (** Relational congruence for [list_max_index]: two lists related at
-      [lrel_list lrel_int] are pointwise equal integers, hence the argmax indices
-      agree.  The result is a [nat] index, so the conclusion is at [lrel_nat]. *)
+  (** Relational congruence for [list_max_index], derived "for free" from the
+      fundamental theorem applied to the syntactically typed [list_max_index]
+      (see [list_max_index_typed]).  [list_max_index] is a *monomorphic* value
+      typed at [TList TInt → TInt], so its interpretation is directly the arrow
+      [interp (TList TInt) [] → interp TInt []]; we only bridge the domain
+      [interp (TList TInt) [] ≡ lrel_list (interp TInt [])] via [interp_TList].
+
+      The output relation is [interp TInt [] = lrel_int] (not [lrel_nat]): the
+      argmax index is built with integer [+], so the syntactic type is
+      [TList TInt → TInt].  This is sound — the index is in fact always a
+      [nat] — and nothing downstream depends on its [nat]-ness (the consumers
+      only need [∃ k, v = #k ∧ v' = #k], which [lrel_int] provides). *)
   Lemma refines_list_max_index (l l' : expr) :
-    (REL l << l' : lrel_list lrel_int) -∗
-    REL list_max_index l << list_max_index l' : lrel_nat.
+    (REL l << l' : lrel_list (interp TInt [])) -∗
+    REL list_max_index l << list_max_index l' : interp TInt [].
   Proof.
     iIntros "Hl".
+    iPoseProof (fundamental_val [] list_max_index _ (list_max_index_typed _)) as "#Hmi".
+    (* [Hmi : interp (TList TInt → TInt) [] list_max_index list_max_index], i.e.
+       [∀ v1 v2, interp (TList TInt) [] v1 v2 -∗ REL … : interp TInt []].  Bind
+       the (expression) arguments [l]/[l'] to values, then feed them to [Hmi],
+       bridging the domain [interp (TList TInt) [] ≡ lrel_list (interp TInt [])]
+       via [interp_TList]. *)
     rel_bind_l l. rel_bind_r l'.
     iApply (refines_bind with "Hl").
-    iIntros (lv lv') "Hll /=".
-    rewrite /list_max_index.
-    rewrite lrel_list_unfold.
-    rel_pures_l. rel_pures_r.
-    iDestruct "Hll" as "[(-> & ->)|Hcons]".
-    - rel_pures_l. rel_pures_r. rel_values. iExists 0%nat. by auto.
-    - iDestruct "Hcons" as (a1 a2 r1 r2) "(-> & -> & #Hhd & Hrest)".
-      iDestruct "Hhd" as (y) "[-> ->]".
-      rel_pures_l. rel_pures_r.
-      rewrite /list_max_index_aux.
-      rel_pures_l. rel_pures_r.
-      set (handler := (λ: "(y, iy, ix)" "x",
-                         let: "y" := "(y, iy, ix)" in
-                         let: "iy" := Snd (Fst "y") in
-                         let: "ix" := Snd "y" in
-                         let: "y" := Fst (Fst "y") in
-                         if: "y" < "x" then ("x", "ix", "ix" + #1)
-                         else ("y", "iy", "ix" + #1))%V).
-      set (R := (lrel_prod (lrel_prod lrel_int lrel_nat) lrel_nat) : lrel Σ).
-      iAssert (□ ∀ (av av' : val) (rs rs' : val),
-                  R av av' -∗ lrel_list lrel_int rs rs' -∗
-                  REL list_fold handler av rs << list_fold handler av' rs' : R)%I
-        as "#Hfold".
-      { iModIntro. iLöb as "IH". iIntros (av av' rs rs') "#Hacc Hrs".
-        rewrite (lrel_list_unfold lrel_int rs rs').
-        rel_rec_l. rel_rec_r. rel_pures_l. rel_pures_r.
-        iDestruct "Hrs" as "[(-> & ->)|Hcons]".
-        - rel_pures_l. rel_pures_r. rel_values.
-        - iDestruct "Hcons" as (b1 b2 t1 t2) "(-> & -> & #Hb & Htail)".
-          rel_pures_l. rel_pures_r.
-          iDestruct "Hb" as (xb) "[-> ->]".
-          iDestruct "Hacc" as (p1 p2 q1 q2) "(-> & -> & #Hp & #Hq)".
-          iDestruct "Hp" as (pp1 pp2 pq1 pq2) "(-> & -> & #Hpp & #Hpq)".
-          iDestruct "Hpp" as (yv) "[-> ->]".
-          iDestruct "Hpq" as (iv) "[-> ->]".
-          iDestruct "Hq" as (xv) "[-> ->]".
-          rel_bind_l (handler _ _). rel_bind_r (handler _ _).
-          rewrite /handler.
-          rel_pures_l. rel_pures_r.
-          case_bool_decide as Hlt; rel_pures_l; rel_pures_r.
-          + replace (Z.of_nat xv + 1)%Z with (Z.of_nat (xv + 1)) by lia.
-            iApply ("IH" with "[] Htail").
-            iExists (#xb, #xv)%V, (#xb, #xv)%V, #(xv + 1)%nat, #(xv + 1)%nat.
-            iSplit; [done|]. iSplit; [done|]. iSplit.
-            * iExists #xb, #xb, #xv, #xv.
-              iSplit; [done|]. iSplit; [done|].
-              iSplit; [iExists xb; by auto|iExists xv; by auto].
-            * iExists (xv + 1)%nat; by auto.
-          + replace (Z.of_nat xv + 1)%Z with (Z.of_nat (xv + 1)) by lia.
-            iApply ("IH" with "[] Htail").
-            iExists (#yv, #iv)%V, (#yv, #iv)%V, #(xv + 1)%nat, #(xv + 1)%nat.
-            iSplit; [done|]. iSplit; [done|]. iSplit.
-            * iExists #yv, #yv, #iv, #iv.
-              iSplit; [done|]. iSplit; [done|].
-              iSplit; [iExists yv; by auto|iExists iv; by auto].
-            * iExists (xv + 1)%nat; by auto. }
-      rel_bind_l (list_fold handler _ r1). rel_bind_r (list_fold handler _ r2).
-      iApply (refines_bind with "[Hrest]").
-      { iApply ("Hfold" with "[] Hrest").
-        iExists (#y, #0)%V, (#y, #0)%V, #1, #1.
-        iSplit; [done|]. iSplit; [done|]. iSplit.
-        - iExists #y, #y, #0, #0.
-          iSplit; [done|]. iSplit; [done|].
-          iSplit; [iExists y; by auto|iExists 0%nat; by auto].
-        - iExists 1%nat; by auto. }
-      iIntros (fr fr') "#Hfr /=".
-      iDestruct "Hfr" as (p1 p2 q1 q2) "(-> & -> & #Hp & #Hq)".
-      iDestruct "Hp" as (pp1 pp2 pq1 pq2) "(-> & -> & #Hyy & #Hii)".
-      iDestruct "Hii" as (iyv) "[-> ->]".
-      rel_pures_l. rel_pures_r.
-      rel_values.
+    iIntros (lv lv') "#Hlv /=".
+    iApply ("Hmi" with "[Hlv]").
+    rewrite (interp_TList TInt [] lv lv').
+    iApply "Hlv".
   Qed.
 
 End gwp_list_rel.

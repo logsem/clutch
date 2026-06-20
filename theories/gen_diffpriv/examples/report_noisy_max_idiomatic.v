@@ -220,7 +220,7 @@ Section idiomatic.
     (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
         : (lrel_int → interp TInt [])%lrel) →
     ⊢ REL report_noisy_max_presampling evalQ #N d
-       << rnm_direct2 evalQ #N d : interp TNat Δ.
+       << rnm_direct2 evalQ #N d : interp TInt Δ.
   Proof.
     iIntros (Hq). rewrite /report_noisy_max_presampling /rnm_direct2.
     rel_pures_l. rel_pures_r.
@@ -250,7 +250,7 @@ Section idiomatic.
     (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
         : (lrel_int → interp TInt [])%lrel) →
     ⊢ REL rnm_direct2 evalQ #N d
-       << report_noisy_max_presampling evalQ #N d : interp TNat Δ.
+       << report_noisy_max_presampling evalQ #N d : interp TInt Δ.
   Proof.
     iIntros (Hq). rewrite /report_noisy_max_presampling /rnm_direct2.
     rel_pures_l. rel_pures_r.
@@ -426,7 +426,7 @@ Section idiomatic.
     (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
         : (lrel_int → interp TInt [])%lrel) →
     ⊢ REL rnm_direct2 evalQ #N d
-       << rnm_direct1 evalQ #N d : interp TNat Δ.
+       << rnm_direct1 evalQ #N d : interp TInt Δ.
   Proof.
     iIntros (Hq). rewrite /rnm_direct2 /rnm_direct1.
     rel_pures_l. rel_pures_r.
@@ -640,7 +640,7 @@ Section idiomatic.
     (⊢ REL (λ:"i", evalQ "i" d)%V << (λ:"i", evalQ "i" d)%V
         : (lrel_int → interp TInt [])%lrel) →
     ⊢ REL rnm_direct1 evalQ #N d
-       << rnm_direct2 evalQ #N d : interp TNat Δ.
+       << rnm_direct2 evalQ #N d : interp TInt Δ.
   Proof.
     iIntros (Hq). rewrite /rnm_direct1 /rnm_direct2.
     rel_pures_l. rel_pures_r.
@@ -715,15 +715,15 @@ Section idiomatic_lim_exec.
   Local Instance HDty0 : SampleTyping D (TInt * (TInt * TInt))%ty TInt :=
     SampleTyping_mkZNoise sample mass.
 
-  (** A single refinement [∀ diffprivRGS, REL e << e' : interp TNat []] cashes out
+  (** A single refinement [∀ diffprivRGS, REL e << e' : interp TInt []] cashes out
       to a pointwise [lim_exec] inequality (the [eq]-coupling at zero cost). *)
   Lemma rnm_lim_exec_le (e e' : expr) (σ : state) :
-    (∀ `{!diffprivRGS Sg diffprivRΣ}, ⊢ REL e << e' : interp TNat []) →
+    (∀ `{!diffprivRGS Sg diffprivRΣ}, ⊢ REL e << e' : interp TInt []) →
     ∀ a, (lim_exec (δ := lang_markov (gen_lang Sg)) (e, σ) a
           <= lim_exec (δ := lang_markov (gen_lang Sg)) (e', σ) a)%R.
   Proof.
     intros Hrel a.
-    pose proof (refines_coupling Sg diffprivRΣ (λ _, interp TNat []) eq e e' σ σ
+    pose proof (refines_coupling Sg diffprivRΣ (λ _, interp TInt []) eq e e' σ σ
                   ltac:(by iIntros (???) "[%n [-> ->]]") Hrel) as Hcpl.
     pose proof (DPcoupl_eq_elim _ _ _ _ Hcpl a) as Hle.
     rewrite exp_0 Rmult_1_l Rplus_0_r in Hle. exact Hle.

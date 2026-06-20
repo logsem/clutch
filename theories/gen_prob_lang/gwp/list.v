@@ -75,6 +75,34 @@ Definition list_fold : val :=
   | NONE => "acc"
   end.
 
+(** [list_fold_poly] is a *separate*, syntactically TYPEABLE counterpart of the
+    (monomorphic) [list_fold] above (cf. [list_map_poly]).  It is type-abstracted
+    via the [Λ:] thunk encoding (poly in the element type [α] and the accumulator
+    type [β]) and inserts the [rec_unfold] coercion (the literal value
+    [(λ: "x", "x")%V], definitionally [typing.types.rec_unfold]) before the
+    [match], so it type-checks at the [μ]-encoded list type — see
+    [list_fold_poly_typed] in [typing/list_typed].  Its body uses the same
+    [match:] structure as [list_fold], so [list_fold_poly #() #() handler acc l]
+    is observationally [list_fold] up to a few head beta-steps; we keep them as
+    distinct definitions so that [list_fold]'s reduction behaviour (and hence
+    every existing [gwp_list_fold*] proof and caller) is entirely unchanged.
+
+    [list_fold_go] is the inner recursive loop, named so the recursive occurrence
+    (the [rec]-bound ["go"]) is [list_fold_go]-headed. *)
+Definition list_fold_go : val :=
+  (rec: "go" "handler" "acc" "l" :=
+     match: (λ: "x", "x")%V "l" with
+       SOME "a" =>
+       let: "f" := Fst "a" in
+       let: "s" := Snd "a" in
+       let: "acc" := "handler" "acc" "f" in
+       "go" "handler" "acc" "s"
+     | NONE => "acc"
+     end)%V.
+
+Definition list_fold_poly : val :=
+  (λ: <>, λ: <>, list_fold_go)%V.
+
 Definition list_iter : val :=
   rec: "list_iter" "handler" "l" :=
   match: "l" with
@@ -342,7 +370,7 @@ Definition list_split : val :=
 
 Definition list_max_index_aux : val :=
   λ:"y" "xs",
-    list_fold
+    list_fold_poly #() #()
       (λ: "(y, iy, ix)" "x",
          let, ("y", "iy", "ix") := "(y, iy, ix)" in
          if: "y" < "x" then ("x", "ix", "ix"+#1) else ("y", "iy", "ix"+#1))
@@ -350,7 +378,7 @@ Definition list_max_index_aux : val :=
 
 Definition list_max_index : val :=
   λ:"xs",
-    match: "xs" with
+    match: (λ: "x", "x")%V "xs" with
     | NONE => #0
     | SOME "y_xs" =>
         let, ("y", "xs") := "y_xs" in
@@ -698,6 +726,44 @@ Section list_specs.
       iApply ("IHl" with "[] [$HΦ] [$Hacc] [] [HΨ HΞ]"); [|auto|].
       { rewrite -app_assoc; auto. }
       iNext. iIntros (v) "[HP HΨs]".
+      rewrite -app_assoc.
+      iApply "HΞ"; iFrame.
+  Qed.
+
+  (* Polymorphic counterpart of [gwp_list_fold] for [list_fold_poly #() #()].
+     [list_fold_poly #() #() handler acc lv] beta-reduces (2 type-app thunks) to
+     [list_fold_go handler acc lv], which is [list_fold] with one extra
+     identity-unfold [(λx,x) "l"] beta-step per recursion before the [match]. *)
+  Lemma gwp_list_fold_poly P Φ Ψ E handler (l : list A) acc lv :
+    (∀ (a : A) acc lacc lrem,
+        G{{{ ⌜l = lacc ++ a :: lrem⌝ ∗ P lacc acc ∗ Φ a }}}
+          (Val handler) (Val acc) (inject a) @ g; E
+        {{{v, RET v; P (lacc ++ [a]) v ∗ Ψ a }}}) -∗
+    G{{{ ⌜is_list l lv⌝ ∗ P [] acc ∗ [∗ list] a∈l, Φ a }}}
+      list_fold_poly #() #() handler acc lv @ g; E
+    {{{v, RET v; P l v ∗ [∗ list] a∈l, Ψ a }}}.
+  Proof.
+    iIntros "#Hcl". iIntros (Ξ) "!# (Hl & Hacc & HΦ) HΞ".
+    rewrite /list_fold_poly. do 3 gwp_pure _.
+    change l with ([] ++ l) at 1 4.
+    generalize (@nil A) at 1 3 4 as lproc => lproc.
+    iInduction l as [|x l] "IHl" forall (Ξ lproc acc lv) "Hacc Hl HΞ";
+      rewrite /list_fold_go.
+    - iDestruct "Hl" as %?; simpl in *; simplify_eq.
+      gwp_rec. gwp_pures. iApply "HΞ".
+      rewrite app_nil_r; iFrame; done.
+    - iDestruct "Hl" as %[lw [? Hlw]]; subst.
+      iDestruct "HΦ" as "[Hx HΦ]".
+      gwp_rec. gwp_pures.
+      gwp_apply ("Hcl" with "[$Hacc $Hx] [-]"); auto.
+      (* keep the recursive [list_fold_go] call FOLDED: only [β]-reduce the
+         [let: "acc" := w] binding (two [gwp_pure]s) — a greedy [gwp_pures]
+         would unfold the recursive [(rec: "go" …)] redex and break [iApply]. *)
+      iNext. iIntros (w) "[Hacc HΨ]"; simpl. gwp_pure _. gwp_pure _.
+      iApply ("IHl" with "[] [$HΦ] [$Hacc] [] [HΨ HΞ]").
+      { iModIntro. iIntros (a acc0 lacc lrem). rewrite -app_assoc. iApply "Hcl". }
+      { iPureIntro. exact Hlw. }
+      iIntros (v) "[HP HΨs]".
       rewrite -app_assoc.
       iApply "HΞ"; iFrame.
   Qed.
@@ -1591,7 +1657,7 @@ Section list_specs_extra.
   Proof.
     iIntros "%post %hxs hpost".
     rewrite /list_max_index_aux. gwp_pures.
-    gwp_apply (gwp_list_fold
+    gwp_apply (gwp_list_fold_poly
                  (λ l v, ∃ (y' : Z) (iy' ix : nat),
                      ⌜v = (#y', #iy', #ix)%V⌝ ∗
                      ⌜(y', iy', ix) = List_max_index_aux y l⌝ )

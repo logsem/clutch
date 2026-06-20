@@ -70,9 +70,10 @@ fundamental theorem make any use of `Sample`/`AllocSampleTape` well-typed — an
 that one instance (the syntactic twin of `refines_sample`; family instances in `families.v`, the
 contextual-typing side in `contextual_refinement.v`, a canary in `sample_typing_canary.v`, a worked
 case study in `sample_typing_case_study.v`). The same move types the list ADT — polymorphic
-`list_map_poly` / `list_init_poly` (`typing/list_typed.v`) — so their **relational congruences come
-*for free* from the fundamental theorem**: `examples/gwp_list_rel.v` derives `refines_list_map` /
-`refines_list_init` from `fundamental_val` through the bridge `interp (TList τ) ≡ lrel_list`,
+`list_map_poly` / `list_init_poly` / `list_fold_poly` and the (monomorphic) `list_max_index`
+(`typing/list_typed.v`) — so **all three list congruences come *for free* from the fundamental
+theorem**: `examples/gwp_list_rel.v` derives `refines_list_map` / `refines_list_init` /
+`refines_list_max_index` from `fundamental_val` through the bridge `interp (TList τ) ≡ lrel_list`,
 retiring the hand inductions.
 
 ## Internal-DP notions (`gen_diffpriv/diffpriv_rules.v`)
