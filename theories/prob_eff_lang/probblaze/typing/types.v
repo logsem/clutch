@@ -91,7 +91,7 @@ Section syntax.
   | RCons : eff_sig → row → row
   | RVar : var → row
   | RFlip : vmode → row → row
-  | RRec : {bind 1 of row} → row
+  (* | RRec : {bind 1 of row} → row *)
   | RUnion : row → row → row.
 
   (* We introduce a shorthand for a signature
@@ -136,7 +136,7 @@ Section syntax.
          | RFlip m ρ => RFlip m.[σ] ρ.|[σ]
          | RNil
          | RVar _ => ρ
-         | RRec ρ => RRec ρ.|[σ]
+         (* | RRec ρ => RRec ρ.|[σ] *)
          | RCons s ρ => RCons s.|[σ] ρ.|[σ]
          | RUnion ρ1 ρ2 => RUnion ρ1.|[σ] ρ2.|[σ]
          end
@@ -215,7 +215,7 @@ Section syntax.
          | RNil
          | RVar _ => ρ
          | RFlip m ρ => RFlip m (rename_type_row ξ ρ)
-         | RRec ρ => RRec (rename_type_row ξ ρ)
+         (* | RRec ρ => RRec (rename_type_row ξ ρ) *)
          | RCons s ρ => RCons (rename_type_eff_sig ξ s) (rename_type_row ξ ρ)
          | RUnion ρ1 ρ2 => RUnion (rename_type_row ξ ρ1) (rename_type_row ξ ρ2)
          end
@@ -234,7 +234,7 @@ Section syntax.
     | RFlip m ρ => RFlip m (rename ξ ρ)
     | RNil => ρ
     | RVar i => RVar (ξ i)
-    | RRec ρ => RRec (rename ξ ρ)
+    (* | RRec ρ => RRec (rename ξ ρ) *)
     | RCons s ρ => RCons (rename_row_eff_sig ξ s) (rename ξ ρ)
     | RUnion ρ1 ρ2 => RUnion (rename ξ ρ1) (rename ξ ρ2)
     end
@@ -298,7 +298,7 @@ Section syntax.
          | RFlip m ρ => RFlip m ρ.|[σ]
          | RNil
          | RVar _ => ρ
-         | RRec ρ => RRec ρ.|[σ]
+         (* | RRec ρ => RRec ρ.|[σ] *)
          | RCons s ρ => RCons s.|[σ] ρ.|[σ]
          | RUnion ρ1 ρ2 => RUnion ρ1.|[σ] ρ2.|[σ]
          end
@@ -317,7 +317,7 @@ Section syntax.
     | RNil => ρ
     | RVar i => σ i
     | RFlip m ρ => RFlip m ρ.[σ]
-    | RRec ρ => RRec ρ.[σ]
+    (* | RRec ρ => RRec ρ.[σ] *)
     | RCons s ρ => RCons s.|[σ] ρ.[σ]
     | RUnion ρ1 ρ2 => RUnion ρ1.[σ] ρ2.[σ]
     end
@@ -503,91 +503,91 @@ Section syntax.
 End syntax.
 
 
-Section wellformedness.
-
-  Fixpoint wf_row (m : nat) (ρ : row) : Prop :=
-    match ρ with 
-    | RCons e ρ => wf_eff_sig e ∧ wf_row m ρ
-    | RFlip _ ρ => wf_row m ρ
-    | RVar i => (m ≤ i)
-    | RNil => True
-    | RRec ρ => wf_row (m + 1) ρ
-    | RUnion ρ1 ρ2 => wf_row m ρ1 ∧ wf_row m ρ2
-    end 
-
-  with wf_type (τ : type) : Prop :=
-    match τ with
-    | TBot
-    | TTop
-    | TUnit
-    | TBool
-    | TInt
-    | TNat
-    | TVar _
-    | TTape => True
-    | TRef τ
-    | TRec τ 
-    | TBang _ τ 
-    | TForallT τ
-    | TForallM τ
-    | TExists τ
-    | TForallR τ => wf_type τ
-    | TSum τ κ
-    | TProd τ κ => wf_type τ ∧ wf_type κ
-    | TArrow τ ρ κ => wf_type τ ∧ wf_row 0 ρ ∧ wf_type κ
-    end
-
-  with wf_eff_sig (σ : eff_sig) : Prop :=
-    match σ with
-    | SSig _ τ κ => wf_type τ ∧ wf_type κ
-    | SFlip _ σ => wf_eff_sig σ
-    end. 
-
-  Lemma wf_eff_sig_SSig_1 s τ κ :
-    wf_eff_sig (SSig s τ κ) → wf_type τ.
-  Proof. intros (?&?). done. Qed.
-
-  Lemma wf_eff_sig_SSig_2 s τ κ :
-    wf_eff_sig (SSig s τ κ) → wf_type κ.
-  Proof. intros (?&?). done. Qed.
-
-  Lemma wf_eff_sig_SFlip m σ :
-    wf_eff_sig (SFlip m σ) → wf_eff_sig σ.
-  Proof. done. Qed.
-
-  Lemma wf_row_RCons m σ ρ :
-    wf_row m (RCons σ ρ) → wf_row m ρ.
-  Proof. intros (?&?). done. Qed.
-
-  Lemma wf_row_RFlip n m ρ :
-    wf_row n (RFlip m ρ) → wf_row n ρ.
-  Proof. done. Qed.
-
-  Lemma wf_row_RRec n ρ :
-    wf_row n (RRec ρ) → wf_row (n+1) ρ. 
-  Proof. 
-    induction ρ; try done.
-  Qed. 
-
-  Lemma wf_type_row τ ρ κ :
-    wf_type (TArrow τ ρ κ) → wf_row 0 ρ.
-  Proof. 
-    intros (?&?&?); done.
-  Qed. 
-
-  Lemma wf_row_eff_sig m ρ e :
-    wf_row m (RCons e ρ) → wf_eff_sig e. 
-  Proof. by intros (?&?). Qed.
-
-  Lemma wf_row_union_1 m ρ1 ρ2 : 
-    wf_row m (RUnion ρ1 ρ2) → wf_row m ρ1.
-  Proof. by intros (?&?). Qed.
-
-  Lemma wf_row_union_2 m ρ1 ρ2 :
-    wf_row m (RUnion ρ1 ρ2) → wf_row m ρ2.
-  Proof. by intros (?&?). Qed.
-
-End wellformedness. 
+(* Section wellformedness.
+   
+     Fixpoint wf_row (m : nat) (ρ : row) : Prop :=
+       match ρ with 
+       | RCons e ρ => wf_eff_sig e ∧ wf_row m ρ
+       | RFlip _ ρ => wf_row m ρ
+       | RVar i => (m ≤ i)
+       | RNil => True
+       | RRec ρ => wf_row (m + 1) ρ
+       | RUnion ρ1 ρ2 => wf_row m ρ1 ∧ wf_row m ρ2
+       end 
+   
+     with wf_type (τ : type) : Prop :=
+       match τ with
+       | TBot
+       | TTop
+       | TUnit
+       | TBool
+       | TInt
+       | TNat
+       | TVar _
+       | TTape => True
+       | TRef τ
+       | TRec τ 
+       | TBang _ τ 
+       | TForallT τ
+       | TForallM τ
+       | TExists τ
+       | TForallR τ => wf_type τ
+       | TSum τ κ
+       | TProd τ κ => wf_type τ ∧ wf_type κ
+       | TArrow τ ρ κ => wf_type τ ∧ wf_row 0 ρ ∧ wf_type κ
+       end
+   
+     with wf_eff_sig (σ : eff_sig) : Prop :=
+       match σ with
+       | SSig _ τ κ => wf_type τ ∧ wf_type κ
+       | SFlip _ σ => wf_eff_sig σ
+       end. 
+   
+     Lemma wf_eff_sig_SSig_1 s τ κ :
+       wf_eff_sig (SSig s τ κ) → wf_type τ.
+     Proof. intros (?&?). done. Qed.
+   
+     Lemma wf_eff_sig_SSig_2 s τ κ :
+       wf_eff_sig (SSig s τ κ) → wf_type κ.
+     Proof. intros (?&?). done. Qed.
+   
+     Lemma wf_eff_sig_SFlip m σ :
+       wf_eff_sig (SFlip m σ) → wf_eff_sig σ.
+     Proof. done. Qed.
+   
+     Lemma wf_row_RCons m σ ρ :
+       wf_row m (RCons σ ρ) → wf_row m ρ.
+     Proof. intros (?&?). done. Qed.
+   
+     Lemma wf_row_RFlip n m ρ :
+       wf_row n (RFlip m ρ) → wf_row n ρ.
+     Proof. done. Qed.
+   
+     Lemma wf_row_RRec n ρ :
+       wf_row n (RRec ρ) → wf_row (n+1) ρ. 
+     Proof. 
+       induction ρ; try done.
+     Qed. 
+   
+     Lemma wf_type_row τ ρ κ :
+       wf_type (TArrow τ ρ κ) → wf_row 0 ρ.
+     Proof. 
+       intros (?&?&?); done.
+     Qed. 
+   
+     Lemma wf_row_eff_sig m ρ e :
+       wf_row m (RCons e ρ) → wf_eff_sig e. 
+     Proof. by intros (?&?). Qed.
+   
+     Lemma wf_row_union_1 m ρ1 ρ2 : 
+       wf_row m (RUnion ρ1 ρ2) → wf_row m ρ1.
+     Proof. by intros (?&?). Qed.
+   
+     Lemma wf_row_union_2 m ρ1 ρ2 :
+       wf_row m (RUnion ρ1 ρ2) → wf_row m ρ2.
+     Proof. by intros (?&?). Qed.
+   
+   End wellformedness.  *)
 
 
 Declare Scope FType_scope.
@@ -772,8 +772,8 @@ Module le.
       | RNil 
       | RVar _ => ∅
       | RCons σ ρ => {[+ eff_name_from_sig σ +]} ⊎ conc_sigs ρ
-      | RFlip _ ρ
-      | RRec ρ => conc_sigs ρ
+      | RFlip _ ρ => conc_sigs ρ
+      (* | RRec ρ => conc_sigs ρ *)
       | RUnion ρ1 ρ2 => conc_sigs ρ1 ⊎ conc_sigs ρ2
       end.
 
@@ -785,8 +785,8 @@ Module le.
          | RNil => ∅
          | RVar i => {[i]}
          | RCons _ ρ
-         | RFlip _ ρ
-         | RRec ρ => abst_sigs ρ
+         | RFlip _ ρ => abst_sigs ρ
+         (* | RRec ρ => abst_sigs ρ *)
          | RUnion ρ1 ρ2 => abst_sigs ρ1 ∪ abst_sigs ρ2
          end. 
 
@@ -829,7 +829,11 @@ Module le.
     _eff_sig D σ σ' →
     _row D false ρ ρ' →
     _row D b (RCons σ ρ) (RCons σ' ρ')
-  (* Notice js is atmost the singleton {i} *)
+  | RUnion_le D b ρ1 ρ2 ρ1' ρ2' : 
+    _row D b ρ1 ρ1' →
+    _row D b ρ2 ρ2' →
+    _row D b (RUnion ρ1 ρ2) (RUnion ρ1' ρ2')
+
   | RErase_le (D : disj_ctx) s ρ ss js :
     D !! s = Some (ss, js) →
     conc_sigs ρ ⊆ ss →
@@ -840,13 +844,14 @@ Module le.
     _row D b ρ2 ρ3 →
     _row D b ρ1 ρ3
 
-  | RUnfold_le D b ρ : _row D b (RRec ρ) (ρ.[RRec ρ/])
-  | RFold_le D b ρ : _row D b (ρ.[RRec ρ/]) (RRec ρ)
+  (* | RUnfold_le D b ρ : _row D b (RRec ρ) (ρ.[RRec ρ/])
+     | RFold_le D b ρ : _row D b (ρ.[RRec ρ/]) (RRec ρ) *)
 
   | RFlipNil_le D b m : _row D b (RFlip m RNil) RNil
   | RFlipCons_le D b m σ ρ : _row D b (RFlip m (RCons σ ρ)) (RCons (SFlip m σ) (RFlip m ρ))
-  | RFlipRec_le D b m ρ :
-    _row D b (RFlip m ρ) ρ → _row D b (RFlip m (RRec ρ)) (RRec ρ)
+  | RFlipUnion_le D b m ρ1 ρ2 : _row D b (RFlip m (RUnion ρ1 ρ2)) (RUnion (RFlip m ρ1) (RFlip m ρ2))
+  (* | RFlipRec_le D b m ρ :
+       _row D b (RFlip m ρ) ρ → _row D b (RFlip m (RRec ρ)) (RRec ρ) *)
   | RFlipElim_le D b ρ : _row D b (RFlip MS ρ) ρ
   | RFlipIntro_le D b m ρ : _row D b ρ (RFlip m ρ)
   | RFlipIdemp1_le D b m ρ : _row D b (RFlip m (RFlip m ρ)) (RFlip m ρ)
@@ -855,6 +860,7 @@ Module le.
     _mode m' m →
     _row D b ρ' ρ →
     _row D b (RFlip m' ρ') (RFlip m ρ)
+  (* add rules for flip and union *)
          
          (* RFlipComm is derivable *)
 
@@ -1043,8 +1049,8 @@ Module vars.
     match ρ with
     | RNil
     | RVar _ => ∅
-    | RFlip _ ρ
-    | RRec ρ => _row_pre f ρ
+    | RFlip _ ρ => _row_pre f ρ
+    (* | RRec ρ => _row_pre f ρ *)
     | RCons σ ρ => _eff_sig f σ ∪ _row_pre f ρ
     | RUnion ρ1 ρ2 => _row_pre f ρ1 ∪ _row_pre f ρ2 
     end.
@@ -1419,13 +1425,8 @@ Section derived_rules.
   (* Needs to add subsumption rules for RUnion *)
   Lemma RRefl_le D ρ b : D ⊢ ρ ≤R ρ @ b.
   Proof.
-    generalize dependent b. revert ρ. induction ρ; intros b; repeat constructor.
-    - apply SRefl_le.
-    - apply IHρ.
-    - apply IHρ.
-    - eapply le.RTrans_le.
-      + apply le.RUnfold_le.
-      + apply le.RFold_le.
-  Admitted. 
+    generalize dependent b. revert ρ. induction ρ; intros b; repeat constructor; try done.
+    apply SRefl_le.
+  Qed. 
         
 End derived_rules.
