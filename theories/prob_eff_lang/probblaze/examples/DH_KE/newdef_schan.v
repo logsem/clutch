@@ -52,7 +52,7 @@ Section schannel.
           | SOME "x" => "k" !"message"                         
           end
       end
-     | return "y" => #()%V
+     | return "y" => "y"
     end.
 
    (*placeholder for now*)
@@ -99,7 +99,7 @@ Section schannel.
                                 end       
                             end                              
         end
-      | return "y" => #()%V
+      | return "y" => "y"
   end.
   
    (* Ideal functionality of the ONE-SHOT secure channel *)
@@ -130,7 +130,7 @@ Section schannel.
             | SOME "x" => "k" (SOME "x")
             end              
          end
-       | return "y" => #()%V
+       | return "y" => "y"
     end.
 
     (*Simulator for the one message secure channel *)
