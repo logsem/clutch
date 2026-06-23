@@ -56,9 +56,8 @@ Section parallel_composition.
  
   Definition right_composition : val :=
     λ: "F₁" "F₂" "f" "r₂" "r₁",
-      "F₁" (λ: "h₁",
+      "F₁" (λ: "h₁",     (* consider uncurrying the effect thunks *)
              "F₂" (λ: "h₂", "f" "h₂" "h₁") "r₂") "r₁".
-     (* (left_composition "F₂" "F₁" "f" "r₂" "r₁").*)
 
   Definition functionality_composition (F G : expr) : val :=
     (λ: "f" "rH" "rF", F (λ: "rG", G "f" "rH" "rG") "rF").
@@ -303,7 +302,7 @@ Section parallel_composition.
 
 
     
-  Lemma functionality_comp_func_comp_assoc (F G J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
+  Lemma functionality_comp_func_comp_assoc (F G : val) (J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
     (BNamed f) ≠ (BNamed x) →
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
@@ -317,20 +316,21 @@ Section parallel_composition.
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1) ⊸ (τ2 θ2) -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T. 
   Proof. 
     iIntros (Hfx HFclosed HGclosed) "#HFF #HGG #HJJ".
+    rewrite /functionality_composition /func_comp //=.
     iIntros (θ f1 f2) "!# Hτ1'".
     rewrite /functionality_composition /func_comp //=.
     brel_pures'. 
-    do 2 (erewrite subst_is_closed; try done).
-    erewrite (subst_is_closed _ F); try done.
-    iModIntro.
-    iIntros (θ1 θ2 v1 v1') "Hτ1".
-    brel_pures'.
-    iModIntro.
-    iIntros (v2 v2') "Hτ2".
-    brel_pures'.
-    erewrite !(subst_is_closed _ F); try done.
-    erewrite !(subst_is_closed _ G); try done.
-    rewrite decide_True; last (split; done).
+    (* do 2 (erewrite subst_is_closed; try done).
+       erewrite (subst_is_closed _ F); try done.
+       iModIntro.
+       iIntros (θ1 θ2 v1 v1') "Hτ1".
+       brel_pures'.
+       iModIntro.
+       iIntros (v2 v2') "Hτ2".
+       brel_pures'.
+       erewrite !(subst_is_closed _ F); try done.
+       erewrite !(subst_is_closed _ G); try done.
+       rewrite decide_True; last (split; done). *)
     
   Admitted.
     

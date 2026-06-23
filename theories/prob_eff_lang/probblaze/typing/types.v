@@ -965,15 +965,15 @@ Module le.
   
 End le.
 
-Notation "D ⊢ α ≤T α'" := (le._type D α α')
+Notation "D ⊢ₗ α ≤T α'" := (le._type D α α')
   (at level 74, α, α' at next level).
-Notation "D ⊢ ρ ≤R ρ' @ b" := (le._row D b ρ ρ')
+Notation "D ⊢ₗ ρ ≤R ρ' @ b" := (le._row D b ρ ρ')
   (at level 74, ρ, ρ', b at next level).
-Notation "D ⊢ σ ≤S σ'" := (le._eff_sig D σ σ')
+Notation "D ⊢ₗ σ ≤S σ'" := (le._eff_sig D σ σ')
   (at level 74, σ, σ' at next level).
-Notation "D ⊢ Γ ≤C Γ'" := (le._ctx D Γ Γ')
+Notation "D ⊢ₗ Γ ≤C Γ'" := (le._ctx D Γ Γ')
   (at level 74, Γ, Γ' at next level).
-Notation "⊢ m ≤M m'" := (le._mode m m')
+Notation "⊢ₗ m ≤M m'" := (le._mode m m')
   (at level 74, m, m' at next level).
 Notation "m 'm⪯T' τ" := (le._mode_type m τ) (at level 74, τ at next level).  
 Notation "m 'm⪯C' Γ" := (le._mode_ctx m Γ) (at level 74, Γ at next level).
@@ -1130,11 +1130,11 @@ Inductive typed :
   Δ .| Γ ⊢ₜ Val v : RNil : τ ⊣ Γ
 
 | Pure_typed Δ Γ1 Γ2 e τ :
-  Γ1 ⊢ₚ e : τ → Δ .| Γ2 ;; Γ1 ⊢ₜ e : RNil : τ ⊣ Γ2
+  Γ1 ⊢ₚ e : τ → Δ .| Γ1 ;; Γ2 ⊢ₜ e : RNil : τ ⊣ Γ2
 
 | Pair_typed Δ Γ1 Γ2 Γ3 e1 e2 ρ τ1 τ2 :
-  Δ .| Γ1 ⊢ₜ e1 : ρ : τ1 ⊣ Γ2 →
-                    Δ .| Γ2 ⊢ₜ e2 : ρ : τ2 ⊣ Γ3 →
+  Δ .| Γ2 ⊢ₜ e1 : ρ : τ1 ⊣ Γ3 →
+                    Δ .| Γ1 ⊢ₜ e2 : ρ : τ2 ⊣ Γ2 →
                                        Δ .| Γ1 ⊢ₜ Pair e1 e2 : ρ : τ1 * τ2 ⊣ Γ3
 
 | Fst_typed Δ Γ1 e ρ τ1 τ2 Γ2 :
@@ -1150,11 +1150,13 @@ Inductive typed :
 | InjR_typed Δ Γ1 e ρ τ1 τ2 Γ2 :
   Δ .| Γ1 ⊢ₜ e : ρ : τ2 ⊣ Γ2 →
                     Δ .| Γ1 ⊢ₜ InjR e : ρ : τ1 + τ2 ⊣ Γ2
-| Case_typed Δ Γ1 Γ2 Γ3 e0 e1 e2 ρ τ1 τ2 τ3 :
+(* Two options : case typed where τ and κ are monotone in the protocol, or a match typed rule *)
+| Match_typed Δ Γ1 Γ2 Γ3 e0 e1 e2 x y ρ τ1 τ2 τ3 :
+  x ∉ ctx_dom Γ2 → x ∉ ctx_dom Γ3 → y ∉ ctx_dom Γ2 → y ∉ ctx_dom Γ3 →
   Δ .| Γ1 ⊢ₜ e0 : ρ : τ1 + τ2 ⊣ Γ2 →
-                     Δ .| Γ2 ⊢ₜ e1 : ρ : τ1 -{ ρ }-∘ τ3 ⊣ Γ3 →
-                                        Δ .| Γ2 ⊢ₜ e2 : ρ : τ2 -{ ρ }-∘ τ3 ⊣ Γ3 →
-                                                           Δ .| Γ1 ⊢ₜ Case e0 e1 e2 : ρ : τ3 ⊣ Γ3
+                     Δ .| <[ x :=c τ1 ]> Γ2 ⊢ₜ e1 : ρ : τ3 ⊣ Γ3 →
+                                        Δ .| <[ y :=c τ2]>  Γ2 ⊢ₜ e2 : ρ : τ3 ⊣ Γ3 →
+                                                           Δ .| Γ1 ⊢ₜ match: e0 with InjL x => e1 | InjR y => e2 end : ρ : τ3 ⊣ Γ3
 
 | If_typed Δ Γ1 Γ2 Γ3 e0 e1 e2 ρ τ :
   Δ .| Γ1 ⊢ₜ e0 : ρ : 𝔹 ⊣ Γ2 →
@@ -1171,7 +1173,7 @@ Inductive typed :
 (* TODO: generalize according to Fig. 5 in Affect *)
 | App_typed Δ Γ1 Γ2 Γ3 e1 e2 ρ ρ' ρ'' b τ κ :
   let D := le.row_to_disj_ctx ρ in 
-  D ⊢ ρ' ≤R ρ @ b → D ⊢ ρ'' ≤R ρ @ b →
+  D ⊢ₗ ρ' ≤R ρ @ b → D ⊢ₗ ρ'' ≤R ρ @ b →
   ρ' R⪯T τ → ρ'' R⪯C Γ3 →
   Δ .| Γ1 ⊢ₜ e2 : ρ : τ ⊣ Γ2 →
                      Δ .| Γ2 ⊢ₜ e1 : ρ' : τ -{ ρ'' }-∘ κ ⊣ Γ3 →
@@ -1251,8 +1253,8 @@ Inductive typed :
     
 | Sub_typed Δ Γ1 Γ1' Γ2 Γ2' ρ ρ' b τ τ' e : 
   let D := le.row_to_disj_ctx ρ in
-  D ⊢ Γ1 ≤C Γ1' → D ⊢ Γ2' ≤C Γ2 →
-  D ⊢ ρ' ≤R ρ @ b → D ⊢ τ' ≤T τ →
+  D ⊢ₗ Γ1 ≤C Γ1' → D ⊢ₗ Γ2' ≤C Γ2 →
+  D ⊢ₗ ρ' ≤R ρ @ b → D ⊢ₗ τ' ≤T τ →
   Δ .| Γ1' ⊢ₜ e : ρ' : τ' ⊣ Γ2' →
                        Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2
 
@@ -1335,7 +1337,7 @@ and "Γ ⊢ₚ e : τ" := (pure_typed Γ e%E τ%ty).
 Section derived_rules. 
 
   Lemma CRefl_le D Γ :
-      D ⊢  Γ ≤C Γ.
+      D ⊢ₗ Γ ≤C Γ.
   Proof.
     induction Γ as [| [x t] Γ_tail IH].
     - simpl. exact I.
@@ -1379,9 +1381,9 @@ Section derived_rules.
   Qed. 
 
   Lemma _ctx_perm_left D Γ1 Γ2 Γ3 : 
-    D ⊢ Γ1 ≤C Γ2 → 
+    D ⊢ₗ Γ1 ≤C Γ2 → 
     Permutation Γ1 Γ3 →
-    D ⊢ Γ3 ≤C Γ2. 
+    D ⊢ₗ Γ3 ≤C Γ2. 
   Proof. 
     intros Hle1 Hperm.
     generalize dependent Γ2.
@@ -1404,9 +1406,9 @@ Section derived_rules.
       split; done.
     - apply IHHperm2, IHHperm1, Hle1.
   Qed.
-    
+      
   Lemma CTrans_le D Γ1 Γ2 Γ3 :
-    D ⊢ Γ1 ≤C Γ2 → D ⊢ Γ2 ≤C Γ3 → D ⊢ Γ1 ≤C Γ3.
+    D ⊢ₗ Γ1 ≤C Γ2 → D ⊢ₗ Γ2 ≤C Γ3 → D ⊢ₗ Γ1 ≤C Γ3.
   Proof. 
     generalize Γ2 Γ3. induction Γ1 as [| [x t1] Γ1_tail IH]; [done|].
     intros Γ2' Γ3' (τ&pre&post&->&Hτ&Hle1) Hle2.
@@ -1417,13 +1419,13 @@ Section derived_rules.
     by eapply IH.
   Qed. 
 
-  Lemma SRefl_le D e : D ⊢ e ≤S e.
+  Lemma SRefl_le D e : D ⊢ₗ e ≤S e.
   Proof. 
     induction e; by repeat constructor.
   Qed. 
 
   (* Needs to add subsumption rules for RUnion *)
-  Lemma RRefl_le D ρ b : D ⊢ ρ ≤R ρ @ b.
+  Lemma RRefl_le D ρ b : D ⊢ₗ ρ ≤R ρ @ b.
   Proof.
     generalize dependent b. revert ρ. induction ρ; intros b; repeat constructor; try done.
     apply SRefl_le.
