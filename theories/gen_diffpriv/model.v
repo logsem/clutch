@@ -68,11 +68,6 @@ Definition na_closeP `{!diffprivRGS Sg Σ} P N E := (▷ P ∗ na_ownP (E ∖ �
 Section semtypes.
   Context `{!diffprivRGS Sg Σ}.
 
-  (* Fix the [gen_lang Sg] canonical-structure chain so the WP notation and
-     lemmas resolve: the [Wp] instance is keyed on [expr Λ]/[val Λ], which are
-     [Sg]-independent, so [Sg] cannot be recovered from the expression. *)
-  Canonical Structure gen_lang_model := gen_lang Sg.
-
   Implicit Types e : expr.
   Implicit Types E : coPset.
   Implicit Types A B : lrel Σ.
@@ -271,8 +266,6 @@ Notation "'REL' e1 '<<' t ':' A" :=
 Section related_facts.
   Context `{!diffprivRGS Sg Σ}.
 
-  Canonical Structure gen_lang_model_facts := gen_lang Sg.
-
   Implicit Types e : expr.
 
   Lemma fupd_refines E e t A :
@@ -347,8 +340,6 @@ End related_facts.
 
 Section monadic.
   Context `{!diffprivRGS Sg Σ}.
-
-  Canonical Structure gen_lang_model_monadic := gen_lang Sg.
 
   Implicit Types e : expr.
 

@@ -24,10 +24,6 @@ Notation "l ↦∗ v" := (l ↦∗{ DfracOwn 1 } v)%I
 
 Section lifting.
   Context `{!diffprivGS Sg Σ}.
-  (* fix the [gen_lang Sg] canonical chain so the heap WP rules elaborate *)
-  Canonical Structure gen_ectxi_lang_dl := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_dl := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_dl := gen_lang Sg.
 
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ Ψ : val → iProp Σ.

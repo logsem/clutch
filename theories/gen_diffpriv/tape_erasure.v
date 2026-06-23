@@ -35,11 +35,7 @@ Section tape_erasure_sec.
     (λ: "n", Sample unif "n" #())%V.
 
   Context `{!diffprivRGS Sg Σ}.
-  Canonical Structure gen_ectxi_lang_te := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_te := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_te := gen_lang Sg.
-  Canonical Structure gen_markov_te := lang_markov (gen_lang Sg).
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
+  Let gen_markov_te := lang_markov (gen_lang Sg).
   #[local] Existing Instance spec_rules_spec_updateGS.
   #[local] Instance spec_updateGS_te : spec_updateGS gen_markov_te Σ :=
     spec_rules_spec_updateGS Sg.

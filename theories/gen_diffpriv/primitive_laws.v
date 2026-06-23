@@ -98,12 +98,6 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
 (** Sampling WP rules (parametric in the distribution signature [S]). *)
 Section rules.
   Context `{!diffprivGS Sg Σ}.
-  (* Fix the [gen_lang Sg] canonical-structure chain so the WP lemmas
-     resolve: the [Wp] instance is keyed on [expr Λ]/[val Λ], and the
-     ectx-lifting lemmas need [LanguageOfEctx ?Λ =?= gen_lang Sg]. *)
-  Canonical Structure gen_ectxi_lang_Sg := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_Sg := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_Sg := gen_lang Sg.
 
   (* Allocate a fresh sample tape for family [i] with parameter value [pv]. *)
   Lemma wp_alloc_sample_tape (i : nat) (pv : val) E s :

@@ -45,9 +45,6 @@ From clutch.gen_diffpriv Require Export distance primitive_laws coupling_rules p
 
 Section diffpriv.
   Context (Sg : Sig).
-  Canonical Structure gen_ectxi_lang_dpr := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_dpr := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_dpr := gen_lang Sg.
   Context `{!diffprivGS Sg Σ}.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 

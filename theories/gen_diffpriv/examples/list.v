@@ -1573,11 +1573,6 @@ Section list_rel.
 Section list_rel_parametric.
 
   Context `{!diffprivRGS Sg Σ}.
-  Canonical Structure gen_ectxi_lang_lr := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_lr := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_lr := gen_lang Sg.
-  Canonical Structure gen_markov_lr := lang_markov (gen_lang Sg).
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
 
   (** The least relation [R] such that:
        - [R nilv nilv'] when both are [InjLV #()]  (the [NONEV] nil encoding);

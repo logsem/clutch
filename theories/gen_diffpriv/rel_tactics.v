@@ -34,10 +34,6 @@ Ltac rel_get_sig k :=
 
 Section tactics.
   Context (Sg : Sig).
-  Canonical Structure gen_ectxi_lang_rt := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_rt := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_rt := gen_lang Sg.
-  Canonical Structure gen_markov_rt := lang_markov (gen_lang Sg).
   Context `{!diffprivRGS Sg Σ}.
 
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).

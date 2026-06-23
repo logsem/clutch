@@ -14,9 +14,6 @@ From iris.prelude Require Import options.
 
 Section gen_proofmode.
   Context (Sg : Sig).
-  Canonical Structure gen_ectxi_lang_pm := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_pm := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_pm := gen_lang Sg.
   Context `{!diffprivGS Sg Σ}.
 
   #[global] Program Instance diffpriv_wptactics_base : GwpTacticsBase Σ unit wp.

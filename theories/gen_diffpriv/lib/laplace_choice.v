@@ -25,10 +25,7 @@ Local Open Scope R.
 
 Section laplace_choice.
   Context {S : Sig} `{!SampleIn laplace_family S} `{!diffprivGS S Σ}.
-  Canonical Structure gen_ectxi_lang_lch := gen_ectxi_lang S.
-  Canonical Structure gen_ectx_lang_lch := gen_ectx_lang S.
-  Canonical Structure gen_lang_lch := gen_lang S.
-  Canonical Structure gen_markov_lch := lang_markov (gen_lang S).
+  Let gen_markov_lch := lang_markov (gen_lang S).
   #[local] Existing Instance spec_rules_spec_updateGS.
   #[local] Instance spec_updateGS_lch : spec_updateGS gen_markov_lch Σ :=
     spec_rules_spec_updateGS S.

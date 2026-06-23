@@ -26,14 +26,7 @@ Local Open Scope R.
 
 Section gen_adequacy.
   Context (Sg : Sig).
-  (* unique names (primitive_laws already exports [gen_lang_Sg] etc.) so these
-     register fresh and, being most-recent, win canonical resolution. *)
-  Canonical Structure gen_ectxi_lang_adq := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_adq := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_adq := gen_lang Sg.
-  (* also pin the [markov] so [exec]/[lim_exec] on a [cfg] pair resolve the
-     signature (the cfg type [expr*state] is signature-independent). *)
-  Canonical Structure gen_markov_adq := lang_markov (gen_lang Sg).
+  Let gen_markov_adq := lang_markov (gen_lang Sg).
   Context `{!diffprivGS Sg Σ}.
   (* Pin the spec-update instance at [Sg] (the generic [spec_rules_spec_updateGS]
      is ∀S, so [spec_interp]/[spec_coupl] otherwise can't recover the signature

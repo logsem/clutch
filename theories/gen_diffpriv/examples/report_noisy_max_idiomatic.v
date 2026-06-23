@@ -39,11 +39,7 @@ Section idiomatic.
           {HDty : SampleTyping D (TInt * (TInt * TInt))%ty TInt}.
   Context (num den : Z).
 
-  Canonical Structure gen_ectxi_lang_rnm := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_rnm := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_rnm := gen_lang Sg.
-  Canonical Structure gen_markov_rnm := lang_markov (gen_lang Sg).
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang Sg)).
+  Let gen_markov_rnm := lang_markov (gen_lang Sg).
   #[local] Existing Instance spec_rules_spec_updateGS.
   #[local] Instance spec_updateGS_rnm : spec_updateGS gen_markov_rnm Σ :=
     spec_rules_spec_updateGS Sg.

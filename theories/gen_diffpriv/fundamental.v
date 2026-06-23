@@ -22,10 +22,7 @@ Section fundamental.
      keeps it an implicit leading argument so the positional [bin_log_related_*]
      applications below line up. *)
   Context `{!diffprivRGS Sg Σ}.
-  Canonical Structure gen_ectxi_lang_fund := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_fund := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_fund := gen_lang Sg.
-  Canonical Structure gen_markov_fund := lang_markov (gen_lang Sg).
+  Let gen_markov_fund := lang_markov (gen_lang Sg).
   Implicit Types Δ : listO (lrelC Σ).
   Hint Resolve to_of_val : core.
 
@@ -719,10 +716,6 @@ End fundamental.
 
 Section bin_log_related_under_typed_ctx.
   Context `{!diffprivRGS Sg Σ}.
-  Canonical Structure gen_ectxi_lang_fundctx := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_fundctx := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_fundctx := gen_lang Sg.
-  Canonical Structure gen_markov_fundctx := lang_markov (gen_lang Sg).
 
   (* Precongruence *)
   Lemma bin_log_related_under_typed_ctx Γ e e' τ Γ' τ' K :

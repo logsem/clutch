@@ -23,10 +23,7 @@ Local Open Scope R.
 
 Section rules.
   Context (Sg : Sig).
-  Canonical Structure gen_ectxi_lang_cpl := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_cpl := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_cpl := gen_lang Sg.
-  Canonical Structure gen_markov_cpl := lang_markov (gen_lang Sg).
+  Let gen_markov_cpl := lang_markov (gen_lang Sg).
   Context `{!diffprivGS Sg Σ}.
   #[local] Existing Instance spec_rules_spec_updateGS.
   #[local] Instance spec_updateGS_cpl : spec_updateGS gen_markov_cpl Σ :=

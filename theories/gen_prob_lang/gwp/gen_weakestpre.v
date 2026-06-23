@@ -85,9 +85,6 @@ Notation "l G↦[ g ] dq v" := (gwp_pointsto g l dq v)
 
 Section genWp.
   Context {S : Sig}.
-  Canonical Structure gen_ectxi_lang_gwps := gen_ectxi_lang S.
-  Canonical Structure gen_ectx_lang_gwps := gen_ectx_lang S.
-  Canonical Structure gen_lang_gwps := gen_lang S.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang S)).
   Context `{invGS_gen hlc Σ} `{g : !GenWp S Σ}.
 
@@ -396,9 +393,6 @@ Tactic Notation "gwp_smart_apply" open_constr(lem) "as" "(" simple_intropattern(
 
 Section gwp_heap.
   Context {S : Sig}.
-  Canonical Structure gen_ectxi_lang_gwph := gen_ectxi_lang S.
-  Canonical Structure gen_ectx_lang_gwph := gen_ectx_lang S.
-  Canonical Structure gen_lang_gwph := gen_lang S.
   Local Notation fill := (@ectx_language.fill (gen_ectx_lang S)).
   Context `{invGS_gen hlc Σ} `{g : !GenWp S Σ}.
 

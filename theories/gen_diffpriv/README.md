@@ -49,6 +49,32 @@ Class SampleIn (D : SampleFamily) (S : Sig) := { sample_idx : nat; sample_idx_S 
   support-carrying view `l ↪[D] (p; xs)` lives only in the logic, faithful via `sf_inj` injectivity.
 - Generic dispatch `sig_sample S i pv`; every per-family rule rests on the agreement lemma `sig_sample_at`.
 
+### Working over a signature — no canonical-structure boilerplate
+
+A development that reasons over a signature needs only the **typeclass context**; the
+language is recovered from it, so **no canonical-structure declarations are required**:
+
+```coq
+Context {Sg : Sig} `{!SampleIn laplace_family Sg} `{!diffprivGS Sg Σ}.   (* unary WP    *)
+Context {Sg : Sig} `{!diffprivRGS Sg Σ}.                                 (* relational  *)
+```
+
+`Λ = gen_lang Sg` resolves from the in-context `diffprivGS`/`diffprivRGS`/`GenWp Sg`
+instance — *not* from the signature-independent `expr`/`val`, which is why `gen_lang`
+cannot be a global canonical structure the way `prob_lang` is. The `PureExec`/`Atomic`
+instances are signature-generic (`∀ S, … (gen_lang S) …`) and `reshape_expr` is purely
+syntactic, so the WP/relational tactics work as-is. Add `Local Notation fill :=
+(@ectx_language.fill (gen_ectx_lang Sg))` **only if you mention `fill` by name**, and a
+plain `Let gen_markov_X := lang_markov (gen_lang Sg)` only if you name a `spec_updateGS`
+markov.
+
+The `gen_ectxi_lang`/`gen_ectx_lang`/`gen_lang`(`/lang_markov`) canonical chain is needed
+*only* in the foundational, write-once language-level files whose sections have **no** GS
+class to pin `Sg` (`gen_prob_lang/{class_instances,erasure,metatheory,wp_tactics,spec/*}`
+and the `gen_weakestpre` mixin), where generic `ectxLanguage`/`markov` lemmas
+(`ectx_language_atomic`, `pexec`/`exec`) must unify `LanguageOfEctx ?Λ`/`mstate ?δ` back
+to `gen_lang Sg`. Everywhere else the chain is omitted.
+
 ## Binary logical relation & soundness
 
 The full binary logical-relation / contextual-refinement stack is ported and `gen_lang S`-generic:

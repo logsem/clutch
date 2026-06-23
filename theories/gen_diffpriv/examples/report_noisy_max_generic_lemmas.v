@@ -335,10 +335,6 @@ End draw.
 Section tape.
   Context (Hmc : noise_map_correct_statement).
   Context {S : Sig} `{!SampleIn D S} `{!diffprivGS S Σ}.
-  Canonical Structure gen_ectxi_lang_rnm := gen_ectxi_lang S.
-  Canonical Structure gen_ectx_lang_rnm := gen_ectx_lang S.
-  Canonical Structure gen_lang_rnm := gen_lang S.
-  Local Notation fill := (@ectx_language.fill (gen_ectx_lang S)).
   Local Notation lidx := (@sample_idx D S _).
   (* the generic tape value standing in for [prob_lang]'s [Tape_Laplace] record *)
   Local Notation NoiseT num den mean zs :=

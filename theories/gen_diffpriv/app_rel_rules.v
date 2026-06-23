@@ -31,10 +31,7 @@ From clutch.gen_prob_lang Require Import notation lang.
 
 Section rules.
   Context (Sg : Sig).
-  Canonical Structure gen_ectxi_lang_arr := gen_ectxi_lang Sg.
-  Canonical Structure gen_ectx_lang_arr := gen_ectx_lang Sg.
-  Canonical Structure gen_lang_arr := gen_lang Sg.
-  Canonical Structure gen_markov_arr := lang_markov (gen_lang Sg).
+  Let gen_markov_arr := lang_markov (gen_lang Sg).
   Context `{!diffprivRGS Sg Σ}.
   (* Pin the spec-update instance at [Sg] so the spec [tp_*] tactics and the
      [spec_update]-based RHS rules resolve their [spec_updateGS] obligation. *)
