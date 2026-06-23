@@ -28,7 +28,9 @@ Proof.
     + iApply sem_typed_val; by iApply fundamental_val.
     + rewrite fmap_app. iApply sem_typed_oval.
       by iApply fundamental_pure.
-    + iApply sem_typed_pair_gen; [admit|apply fundamental in Ht1 as Ht|apply fundamental in Ht2 as Ht]; 
+    + iApply sem_typed_pair_gen ;
+        (* waiting for syntactic rule for sem_row.RowTypeSub *)
+        [admit|apply fundamental in Ht1 as Ht|apply fundamental in Ht2 as Ht];
         iPoseProof Ht as "Ht"; iSpecialize ("Ht" $! _ _ _ _ _ _); iApply "Ht".
     + iApply sem_typed_fst_expr. apply fundamental in Ht. 
         iPoseProof Ht as "Ht"; iSpecialize ("Ht" $! _ _ _ _ _ _); iApply "Ht".
@@ -51,6 +53,18 @@ Proof.
         iPoseProof Ht2 as "Ht"; iSpecialize ("Ht" $! _ _ _ _ _ _). destruct x; iApply "Ht". 
       * apply fundamental in Ht3. 
         iPoseProof Ht3 as "Ht"; iSpecialize ("Ht" $! _ _ _ _ _ _). destruct y; iApply "Ht". 
+    + iApply sem_typed_if.
+      * apply fundamental in Ht1.
+        iPoseProof Ht1 as "Ht"; iSpecialize ("Ht" $! _ _ _ _ _ _); iApply "Ht".
+      * apply fundamental in Ht2.
+        iPoseProof Ht2 as "Ht"; iSpecialize ("Ht" $! _ _ _ _ _ _). iApply "Ht".
+      * apply fundamental in Ht3.
+        iPoseProof Ht3 as "Ht"; iSpecialize ("Ht" $! _ _ _ _ _ _). iApply "Ht".
+    + rewrite fmap_app.
+(*       iApply sem_typed_oval.
+         iApply sem_oval_typed_ufun.
+   1 1 *)
+
 Admitted. 
 
 End fundamental.
