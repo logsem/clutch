@@ -1244,7 +1244,7 @@ Inductive typed :
   Δ !! s = Some () →
   le.eff_name_from_sig σ = s →
   let ρ := RCons σ ρ0 in
-  ρ R⪯C Γ →
+  ρ R⪯C Γ3 →
   let ρ' := RCons (SFlip m (SSig s ι κ)) ρ0 in
   Δ .| Γ1 ⊢ₜ e : ρ' : τ ⊣ Γ2 →
   Δ .| <[ y :=c τ ]> (Γ2 ;; Γ3) ⊢ₜ r : ρ : τ' ⊣ Γ3 →
