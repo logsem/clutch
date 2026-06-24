@@ -46,6 +46,7 @@ Definition vexp' (vunit : cval) (vmult : cval) : cval := λ:"a", rec: "vexp" "n"
 
 Definition vexp `{!clutch_group_struct} : cval := vexp' vunit vmult.
 
+
 Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
     { is_unit : vunit = vgval 1
@@ -62,6 +63,7 @@ Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct
     ; vg_of_int_sem : nat -> option vgG
     ; vg_of_int_of_vg_sem : forall (n : nat) (xg : vgG),
         vg_of_int_sem n = Some xg -> int_of_vg_sem xg = n
+    ; vg_of_int_sem' : nat -> vgG
     ; BREL_INT_OF_VG_CORRECT_L := ∀ E K g X R e,
                                     (BREL (fill K #(int_of_vg_sem g)) ≤ e @ E <|X|> {{R}}) -∗
                                     (BREL (fill K (int_of_vg (vgval g))) ≤ e @ E <|X|> {{R}})
@@ -70,6 +72,16 @@ Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct
         (BREL e ≤ (fill K (int_of_vg (vgval g))) @ E <|X|> {{R}})
     ; brel_int_of_vg_sem_correct_l : BREL_INT_OF_VG_CORRECT_L
     ; brel_int_of_vg_sem_correct_r : BREL_INT_OF_VG_CORRECT_R
+    ; BREL_VG_OF_INT_CORRECT_L :=  ∀ E K X R e x g,
+                                   vg_of_int_sem x = Some g ->
+                                   (BREL (fill K (vgval g)) ≤ e @ E <|X|> {{R}}) -∗
+                                   (BREL (fill K (vg_of_int (#x))) ≤ e @ E <|X|> {{R}})
+    ; brel_vg_of_int_correct_l : BREL_VG_OF_INT_CORRECT_L
+    ; BREL_VG_OF_INT_CORRECT_L' := ∀ E K x X R e,
+          (BREL (fill K (vgval (vg_of_int_sem' x))) ≤ e @ E <|X|> {{R}}) -∗
+          (BREL (fill K (vg_of_int (#x))) ≤ e @ E <|X|> {{R}})
+    ; brel_vg_of_int_correct_l' : BREL_VG_OF_INT_CORRECT_L'
+        
     }.
 
 Definition vg_of_cg := λ {Σ HΣ} vg cg (G : @clutch_group Σ HΣ vg cg), vg.

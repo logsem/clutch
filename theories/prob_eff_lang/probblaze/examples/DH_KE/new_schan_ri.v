@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base proofmode classes.                                    
+From iris.proofmode Require Import base proofmode classes.                                     
 From iris.base_logic.lib Require Import  na_invariants.   
 From iris.algebra Require Import agree excl auth frac excl_auth. 
 From iris.algebra.lib Require Import dfrac_agree.
@@ -31,7 +31,12 @@ Section schan_security.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
   Context {Key Support : nat}.
   Variable xor_struct : XOR (Key := Key) (Support := Support).
-  Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
+  Variable bij_group_xor_sem : vgG -> vgG -> vgG.
+ (* Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}. 
+  Variable bij_group_xor_sem : vgG -> vgG -> vgG.
+  Hypothesis bij_group_xor_sem_correct : ∀ g1 g2,
+    vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) 
+    = Some (bij_group_xor_sem g1 g2).*)
  (* Context `{XOR Key Support}.
   Context `{XOR_spec}.
   Context `{xor_inst : XOR}.
@@ -193,7 +198,7 @@ Section schan_security.
      λ e1 e2, (λne Q,
                 ⌜ e1 = do: schannel1 (RecvV bob) ⌝%E ∗
                 ⌜ e2 = do: schannel2 (RecvV bob) ⌝%E ∗
-                □ ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
+                □ ((∀ v1 v2 : val, Q (SOMEV v1) (SOMEV v2)) ∧ Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed. 
     
@@ -201,7 +206,7 @@ Section schan_security.
      λ e1 e2, (λne Q,
                  ⌜ e1 = do: schannel1 (RecvV alice) ⌝%E ∗
                  ⌜ e2 = do: schannel2 (RecvV alice) ⌝%E ∗
-                 □ ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV )
+                 □ ((∀ v1 v2 : val, Q (SOMEV v1) (SOMEV v2)) ∧ Q NONEV NONEV )
              )%I.
   Next Obligation. solve_proper. Qed.
 
@@ -292,12 +297,24 @@ Section schan_security.
   
  
   (*Lemma XOR_vg_nat E K e x y X R n1 n2 :
-          nat_of_val x = Some n1 ->
-          nat_of_val y = Some n2 ->
+          (*nat_of_val x = Some n1 ->
+          nat_of_val y = Some n2 ->*)
         (BREL (fill K (of_val #(xor_sem (n1) (n2)))) ≤ e @ E <|X|> {{R}}) -∗
         (BREL (fill K (xor x y)) ≤ e @ E <|X|> {{R}}).
   Proof.
   Admitted.*)
+
+
+  Lemma G_XOR_CORRECT_l (g1 g2 : vgG) xor E K X e R :
+    let g := (bij_group_xor_sem g1 g2) in
+    (* vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some g1 ->*)
+     vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some g ->
+        (BREL (fill K (SOMEV (vgval g))) ≤ e @ E <|X|> {{R}}) -∗ 
+     (*(BREL (fill K (SOMEV (vgval (bij_group_xor_sem g1 g2)))) ≤ e @ E <|X|> {{R}}) -∗*)
+     (BREL (fill K (G_XOR xor (vgval g1) (vgval g2))) ≤ e @ E <|X|> {{R}}).
+  Proof. Admitted.
+   
+ 
   
 (*Verification of F_OAUTH[F_KE_L[CHAN[]]] ≤ CHAN_SIM[F_CHAN[]]*)
 (*----------------------------------------------------------*)
@@ -467,11 +484,23 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   { admit. }*)
   (*About "↦".*)
   About brel_na_alloc.
-  iApply (brel_na_alloc
+(* iApply (brel_na_alloc
               (((α ↪ₛN (S n''; [n])) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV)
                ∨ (∃ m, α ↪ₛ□ (S n''; []) ∗ l_sim ↦ₛ□ SOMEV #n ∗
-                  l_auth ↦□ SOMEV #(xor_sem m (int_of_vg_sem (g ^+n)%g))%V))%I
-              alphaN). 
+                  l_auth ↦□ SOMEV (vgval
+                             (vg_of_int_sem' (xor_sem m (int_of_vg_sem (g ^+n)))))%V))%I
+              alphaN).*)
+ iApply (brel_na_alloc
+              (((α ↪ₛN (S n''; [n])) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV)
+               ∨ (∃ m, α ↪ₛ□ (S n''; []) ∗ l_sim ↦ₛ□ SOMEV #n ∗
+                  l_auth ↦□ SOMEV (vgval
+                              (bij_group_xor_sem m (g ^+ n))))%V)%I
+              alphaN).
+   (*iApply (brel_na_alloc
+              (((α ↪ₛN (S n''; [n])) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV)
+               ∨ (∃ g, α ↪ₛ□ (S n''; []) ∗ l_sim ↦ₛ□ SOMEV #n ∗
+                  l_auth ↦□ SOMEV (vgval g)))%I
+              alphaN). *)
    iSplitL "Hα Hl_sim Hl_auth"; [iNext; iLeft; iFrame|].
    iIntros "#Hinvα".
    iApply (brel_na_alloc
@@ -543,7 +572,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
    iLöb as "IH".
    unfold kl1.
    iSplit; [iIntros (v1 v2) "%Hv1v2"; iModIntro; brel_pures; iModIntro; done |]. 
-   iIntros (?????) "!# %Hk1 %Hk2 HXQ #Hrel". 
+   iIntros (?????) "!# %Hk1 %Hk2 HXQ #Hrel".  
    iDestruct "HXQ" as "[HSendAlice | HRecvBob]".
    (* Send to Bob*) 
       + iDestruct "HSendAlice" as (?m ?m') "[[%He1 %He2] #HmQ]".         
@@ -670,7 +699,12 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                                    InjL <> => kont (InjLV #()%V)
                                  | InjR "w" => kont (InjR (vgval (g ^+ n)))
                                  end)%E).*)
+                      brel_pures. 
+                      Print G_XOR_CORRECT_l.
+                      iApply (G_XOR_CORRECT_l m (g ^+ n) _ _ _ _).
+                      {admit. }
                       brel_pures.
+                      (*About brel_bind.
                       iApply brel_int_of_vg_sem_correct_l.
                       iApply brel_int_of_vg_sem_correct_l.
                       (*iApply brel_vg_of_int_correct_l.*)
@@ -680,7 +714,8 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                       iApply (xor_correct_l _ _ (int_of_vg_sem m) (int_of_vg_sem (g ^+ n))).
                       { admit.}
                       { admit.}
-                      brel_pures.
+                      iApply brel_vg_of_int_correct_l'.
+                      brel_pures.*)
                      { simpl. unfold distinct in Hdistinct. destruct Hdistinct.
                         unfold distinct_l in H1. (*unfold LblClients in H1. simpl in H1.*)
                         unfold N in H1. simpl in H1.
@@ -710,9 +745,9 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                           brel_pures.
                           repeat foldkont.
                           iApply (brel_exp_r [AppRCtx _]).
-                          brel_pures.
+                          brel_pures. 
                           iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl_sim").
-                          iIntros "Hl_sim". rel_pures.
+                          iIntros "Hl_sim". rel_pures. 
                           iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl_auth").
                           iIntros "!> Hl_auth". brel_pures.
                           (*iApply (brel_randT_r _ [AppRCtx _ ] with "Hα").
@@ -738,11 +773,35 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                          (* set (leakatheory := [([leakauth1], [leakauth2],
            iThySum (iThySum LASendAlice LASendBob)
              (iThySum LARecvAlice LARecvBob))]).*)
-                          iApply (brel_bind _ _ _ leaktheory N _ (Do leakauth1 (InjLV (#(xor_sem
+                          (*iApply (brel_bind _ _ _ leaktheory N _ (Do leakauth1 (InjLV (#(xor_sem
                            (int_of_vg_sem m)
                            (int_of_vg_sem
                             (g ^+ n))),
-                       bob))) (Do leakauth2 (InjLV (vgval (g ^+ n) , bob)))).
+                            bob))) (Do leakauth2 (InjLV (vgval (g ^+ n) , bob)))).*)
+                          About brel_bind.
+                         (* iApply (brel_bind [AppRCtx (λ: <>, kont1 #()%V)] 
+                  [AppRCtx (λ: <>, kont0 #()%V)] ⊤
+                  leaktheory N _ (Do leakauth1 (InjLV (vgval (bij_group_xor_sem m
+                       (g ^+ n))),
+                       bob)) (Do leakauth2 (InjLV (vgval (g ^+ n) , bob)))).*)
+                         (* iApply (brel_bind _ _ ⊤ leaktheory N _ (Do leakauth1 (InjLV (vgval m,
+                       bob))) (Do leakauth2 (InjLV (vgval (g ^+ n) , bob)))).*)
+                          About brel_bind.
+                          About vgval.
+                          (*set( g_sem := (vg_of_int_sem'
+                            (xor_sem (int_of_vg_sem m)
+                               (int_of_vg_sem (g ^+ n))))%g).
+                          About brel_bind.*)
+                          set (g_sem := (bij_group_xor_sem m (g ^+ n))).
+                          iPoseProof (brel_bind [AppRCtx (λ: <>, kont1 #()%V)]
+                      [AppRCtx (λ: <>, kont0 #()%V)]
+                      ⊤ leaktheory N  𝟙%T
+                      (Do leakauth1 (InjLV (vgval g_sem, bob)))
+                      (Do leakauth2 (InjLV (vgval (g ^+ n), bob)))) as "Hbind".
+                      iApply  "Hbind".
+                          
+                         (* iApply (brel_bind _ _ ⊤ leaktheory N _ (Do leakauth1 (InjLV (vgval g_sem),
+                       bob)) (Do leakauth2 (InjLV (vgval (g ^+ n) , bob)))).*)
                           { simpl. unfold leaktheory. auto.
                             Search "traversable".
                             About traversable_ectx_labels.
@@ -946,24 +1005,39 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                               brel_pures.
                               iApply brel_na_close. iFrame.
                               iSplitL; [iModIntro; iRight; iFrame "#" |].
-                              (*****************************************************************)
-                              (*NEED A INT TO GROUP CONVERSION HERE *)
-                              Admitted.
-                            (*  iApply brel_int_of_vg_sem_correct_l.
-                              
-                              Print brel_int_of_vg_sem_correct_l.
+                              (*iApply brel_int_of_vg_sem_correct_l.
+                              iApply brel_int_of_vg_sem_correct_l.*)
+                             (* Print brel_int_of_vg_sem_correct_l.
                               Print BREL_INT_OF_VG_CORRECT_L.
                               iApply brel_int_of_vg_sem_correct_l.
-                              fold (@xor Key Support xor_struct).
+                              fold (@xor Key Support xor_struct).*)
                               
-                      iApply (xor_correct_l _ _  (int_of_vg
+                     (* iApply (xor_correct_l _ _  (int_of_vg
                                        #(xor_sem m0
                                        (int_of_vg_sem
                                        (g ^+ n)))) (int_of_vg_sem (g ^+ n))).
                       { admit.}
-                      { admit.}
-                              iApply xor_correct_l.
-                              iApply (brel_exhaustion (fill k1'((InjRV (xor "key" "x"))%V)) (fill k2' ((InjRV #n)%V))).
+                      { admit.}*)
+                              (* iApply xor_correct_l.*)
+                              iApply G_XOR_CORRECT_l.
+                              { admit. }
+                             (* { admit. }
+                               iApply brel_vg_of_int_correct_l'.*)
+                              brel_pures.
+                             (* set (g_enc := ((vg_of_int_sem'
+                                     (xor_sem
+                                     (int_of_vg_sem
+                                     (vg_of_int_sem'
+                                     (xor_sem m0
+                                     (int_of_vg_sem
+                                     (g ^+ n)))))
+                                     (int_of_vg_sem
+                                        (g ^+ n)))))%g).*)
+                              set (g_enc := (bij_group_xor_sem
+                                        (bij_group_xor_sem m0 (g ^+ n))
+                                        (g ^+ n))).
+                               iApply (brel_exhaustion (fill k1'((InjRV (vgval g_enc))%V)) (fill k2' ((InjRV #n)%V))).
+                              (*iApply (brel_exhaustion (fill k1'((InjRV (xor "key" "x"))%V)) (fill k2' ((InjRV #n)%V))).*)
                                { simpl. auto. }
                                { simpl. set_solver. }
                                { iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". unfold xor. iApply "Hsome". }
@@ -977,9 +1051,8 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                           { simpl. set_solver. }
                           { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". unfold xor. iApply "Hnone". }
                           {iApply "IH". } } } }
-                          
-Qed.
-Admitted.*)
+                         
+Admitted.
 
 
 

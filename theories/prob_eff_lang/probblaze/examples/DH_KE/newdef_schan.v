@@ -58,6 +58,14 @@ Section schannel.
 
    (*placeholder for now*)
   (*Definition xor (e1 e2 : expr) : val := (# O)%V.*)
+
+  Definition G_XOR : val :=
+    λ: "a" "b",
+      match: vg_of_int (xor (int_of_vg "a") (int_of_vg "b")) with
+      | SOME "g" => "g"
+      | NONE => NONE
+      end.
+  
   
    Definition CHAN : val :=
      λ: "f" "ChanOp" "doGK",
@@ -78,9 +86,15 @@ Section schannel.
                                      match: "key" with
                                      | NONE => "k" #()%V
                                      | SOME "x" =>
-                                         let: "enc_m" := (xor (int_of_vg "m") (int_of_vg "x")) in
+                                         match: G_XOR "m" "x" with
+                                         | SOME "mg" =>
+                                             ("doSend" ("mg" , bob));;
+                                             "k" #()%V
+                                         | NONE => "k" #()%V
+                                         end
+                                        (* let: "enc_m" := vg_of_int (xor (int_of_vg "m") (int_of_vg "x")) in
                                          ("doSend" ("enc_m", bob));;
-                                         "k" #()%V
+                                         "k" #()%V*)
                                      end
               | SOME "m" => "k" #()%V
                end
@@ -94,8 +108,12 @@ Section schannel.
                                 match: "r" with
                                 | NONE => "k" NONEV
                                 | SOME "x" =>
-                                    let: "enc_m" := (xor (int_of_vg "x") (int_of_vg "key")) in
-                                    "k" (SOME "enc_m")
+                                    match: G_XOR "x" "key" with
+                                    | SOME "mg" => "k" (SOME "mg")
+                                    | NONE => "k" #()%V
+                                    end                                   
+                                    (*let: "enc_m" := vg_of_int (xor (int_of_vg "x") (int_of_vg "key")) in
+                                    "k" (SOME "enc_m")*)
                                 end       
                             end                              
         end
