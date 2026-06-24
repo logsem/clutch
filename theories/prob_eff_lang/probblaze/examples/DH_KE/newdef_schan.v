@@ -78,7 +78,7 @@ Section schannel.
                                      match: "key" with
                                      | NONE => "k" #()%V
                                      | SOME "x" =>
-                                         let: "enc_m" := xor (int_of_vg "m") (int_of_vg "x") in
+                                         let: "enc_m" := (xor (int_of_vg "m") (int_of_vg "x")) in
                                          ("doSend" ("enc_m", bob));;
                                          "k" #()%V
                                      end
@@ -94,7 +94,7 @@ Section schannel.
                                 match: "r" with
                                 | NONE => "k" NONEV
                                 | SOME "x" =>
-                                    let: "enc_m" := xor (int_of_vg "x") (int_of_vg "key") in
+                                    let: "enc_m" := (xor (int_of_vg "x") (int_of_vg "key")) in
                                     "k" (SOME "enc_m")
                                 end       
                             end                              

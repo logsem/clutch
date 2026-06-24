@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base proofmode classes.                                 
+From iris.proofmode Require Import base proofmode classes.                                    
 From iris.base_logic.lib Require Import  na_invariants.   
 From iris.algebra Require Import agree excl auth frac excl_auth. 
 From iris.algebra.lib Require Import dfrac_agree.
@@ -31,6 +31,7 @@ Section schan_security.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
   Context {Key Support : nat}.
   Variable xor_struct : XOR (Key := Key) (Support := Support).
+  Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
  (* Context `{XOR Key Support}.
   Context `{XOR_spec}.
   Context `{xor_inst : XOR}.
@@ -39,6 +40,7 @@ Section schan_security.
 
   Definition atokN' : namespace := nroot .@ "atokN1".
   Definition btokN' : namespace := nroot .@ "btokN1".
+  
 
    (*Theories for the interaction of the secure channel with the environment*)
   (*-------------------------------------------------------------*)
@@ -149,11 +151,12 @@ Section schan_security.
 
   (*Theories relating the secure channel effects for the client*)
   (*---------------------------------------------------------*)
+  
   Program Definition SendSecBob (schannel1 schannel2 : label) : iThy Σ :=
      λ e1 e2, (λne Q,
-                ∃ m m': val, 
-                            (⌜ e1 = do: schannel1 (SendV (m, alice)) ⌝%E ∗
-                             ⌜ e2 = do: schannel2 (SendV (m', alice)) ⌝%E)  ∗ 
+                ∃ m m': vgG, 
+                            (⌜ e1 = do: schannel1 (SendV (vgval m, alice)) ⌝%E ∗
+                             ⌜ e2 = do: schannel2 (SendV (vgval m', alice)) ⌝%E)  ∗ 
                             □ (Q (Val #()%V) (Val #()%V))
              )%I.
   Next Obligation. solve_proper. Qed.
@@ -170,9 +173,9 @@ Section schan_security.
   
   Program Definition SendSecAlice (schannel1 schannel2 : label) : iThy Σ :=
      λ e1 e2, (λne Q,
-                ∃ m m' : val,   
-                             (⌜ e1 = do: schannel1 (SendV (#0, bob)) ⌝%E ∗
-                              ⌜ e2 = do: schannel2 (SendV (#0, bob)) ⌝%E)  ∗ 
+                ∃ m m' : vgG,   
+                             (⌜ e1 = do: schannel1 (SendV (vgval m, bob)) ⌝%E ∗
+                              ⌜ e2 = do: schannel2 (SendV (vgval m', bob)) ⌝%E)  ∗ 
                              □ (Q (Val #()%V) (Val #()%V))
              )%I.
   Next Obligation. solve_proper. Qed.
@@ -306,7 +309,7 @@ Lemma F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
                                        ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
                                        BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V ((λ: "m", do: keyleak1 (Send "m")), (λ: "m", do: keyleak1 (Recv "m")))%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V ((λ: "m", do: keyleak2 (Send "m")), (λ: "m", do: keyleak2 (Recv "m")))%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
 Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg vgg Σ Key Support.
- (* iIntros "Hrelf1f2". 
+  iIntros "Hrelf1f2". 
   repeat simpl.
   unfold REAL_CHAN. brel_pures.
   unfold left_composition. brel_pures.
@@ -314,11 +317,12 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   repeat simpl. brel_pures'.
   
   (*unfold CHAN_SIM, F_OAUTH.*)
-  unfold F_KE, F_OAUTH. simpl.
- 
+  unfold F_KE, F_OAUTH. simpl.   
+  
   (*iApply (xor_correct_l ⊤ _ _ _ (CHAN_SIM (F_CHAN f2)) ⊥ _).*)
-  unfold F_CHAN, CHAN_SIM, F_KE, F_OAUTH. 
-   
+  unfold F_CHAN, CHAN_SIM, F_KE, F_OAUTH.
+ 
+  
   repeat simpl. brel_pures. iModIntro. iIntros (????).
   brel_pures.
   iApply brel_alloctape_r. iIntros (α) "Hα". brel_pures_r. 
@@ -337,7 +341,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   iApply brel_alloc_l. iIntros (l_rchan) "!>Hlrchan". brel_pures_l.
   iApply brel_effect_l. iIntros (schannel_l) "!> Hschannel_l !>". brel_pures_l.
   set (kl1 := ( match: "payload" with
-           InjL "payload" =>
+         InjL "payload" =>
            let: "dst" := "payload" in
            let: "m" := Fst "dst" in
            let: "dst" := Snd "dst" in
@@ -348,8 +352,8 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                match: "key" with
                  InjL <> => "k" #()%V
                | InjR "x" =>
-                 let: "enc_m" := xor (int_of_vg "m")
-                                   (int_of_vg "x") in
+                 let: "enc_m" := vg_of_int
+                                   (xor (int_of_vg "m") (int_of_vg "x")) in
                  (λ: "m", do: channel' InjL "m")%V ("enc_m", bob);; "k" #()%V
                end
            | InjR "m" => "k" #()%V
@@ -362,10 +366,13 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
            let: "r" := (λ: "m", do: channel' InjR "m")%V "from" in
            match: "r" with
              InjL <> => "k" (InjLV #()%V)
-           | InjR "x" => let: "enc_m" := xor (int_of_vg "x") (int_of_vg "key") in "k" (InjR "enc_m")
+           | InjR "x" =>
+             let: "enc_m" := vg_of_int
+                               (xor (int_of_vg "x") (int_of_vg "key")) in
+             "k" (InjR "enc_m")
            end
          end
-       end)%E).
+       end )%E).
   set (kl2 := ( match: "p" with
          InjL <> =>
            (λ: "m", do: keyleak1 Send "m")%V bob;; 
@@ -462,14 +469,14 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   About brel_na_alloc.
   iApply (brel_na_alloc
               (((α ↪ₛN (S n''; [n])) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV)
-               ∨ (α ↪ₛ□ (S n''; []) ∗ l_sim ↦ₛ□ SOMEV #n ∗
-                  l_auth ↦□ SOMEV #(xor_sem 0 (int_of_vg_sem (g ^+n)%g))%V))%I
+               ∨ (∃ m, α ↪ₛ□ (S n''; []) ∗ l_sim ↦ₛ□ SOMEV #n ∗
+                  l_auth ↦□ SOMEV #(xor_sem m (int_of_vg_sem (g ^+n)%g))%V))%I
               alphaN). 
    iSplitL "Hα Hl_sim Hl_auth"; [iNext; iLeft; iFrame|].
    iIntros "#Hinvα".
    iApply (brel_na_alloc
               ((l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV)
-               ∨ (∃ g, l_fchan ↦ₛ□ SOMEV (vgval g) ∗  l_rchan ↦□ SOMEV (vgval g)))%I
+               ∨ (∃ g g', l_fchan ↦ₛ□ SOMEV (vgval g) ∗  l_rchan ↦□ SOMEV (vgval g')))%I
               betaN).
    iSplitL  "Hlrchan Hlfchan"; [iNext; iLeft; iFrame|].
   
@@ -548,7 +555,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
             eapply NeutralEctx_label_cons_inv_1 in Hk2. eapply Hk2. } 
          iApply (brel_na_inv _ _ betaN); first set_solver.
          iFrame "Hinvβ".
-         iIntros "([(>Hl_fchan  & >Hl_rchan) | Hrfchan] & Hclose)".
+         iIntros "([(>Hl_fchan  & >Hl_rchan) | #>Hrfchan] & Hclose)".
          (* First message to be sent by the secure channel*)
         ++ About brel_load_r.
            iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
@@ -568,7 +575,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
              iModIntro.
              iApply brel_na_close. iFrame. 
              iSplitL.
-             { iModIntro. iRight. }
+             { iModIntro. iRight.  iExists _, _. iFrame "Hl_fchan Hl_rchan". }
             (* set (keytheory := [([keyleak1], [keyleak2],
          iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
            (iThySum KLeakSendBob KLeakRecvBob))]).*)
@@ -665,18 +672,29 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                                  end)%E).*)
                       brel_pures.
                       iApply brel_int_of_vg_sem_correct_l.
-                      { simpl. unfold distinct in Hdistinct. destruct Hdistinct.
+                      iApply brel_int_of_vg_sem_correct_l.
+                      (*iApply brel_vg_of_int_correct_l.*)
+                      fold (@xor Key Support xor_struct).
+                      
+                      Print XOR_CORRECT_L.
+                      iApply (xor_correct_l _ _ (int_of_vg_sem m) (int_of_vg_sem (g ^+ n))).
+                      { admit.}
+                      { admit.}
+                      brel_pures.
+                     { simpl. unfold distinct in Hdistinct. destruct Hdistinct.
                         unfold distinct_l in H1. (*unfold LblClients in H1. simpl in H1.*)
                         unfold N in H1. simpl in H1.
                         repeat (rewrite -> labels_l_cons in H1).
                         eapply NoDup_app in H1.
+                        Print val.
                         eapply NoDup_cons_1_1. destruct H1 as [H1' H2'].
                         apply (NoDup_app [channel'; getKey'] [schannel_l]) in H1'.
-                        destruct H1' as [H1' H2'']. apply H1'. }
+                        destruct H1' as [H1' H2'']. apply H1'.  } 
                       { simpl.
                         iApply (brel_na_inv _ _ alphaN); first set_solver.
-                        iFrame "Hinvα".
-                        iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | (#>Hα & #>Hl_sim & #>Hl_auth) ] & Hclose)". 
+                        iFrame "Hinvα". 
+                        (*(iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | (#>Hα & #>Hl_sim & #>Hl_auth) ] & Hclose)".*)
+                         iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | #>Hsimauth ] & Hclose)".
                         (*first message to be sent by the authenticated channel*)
                         - 
                           iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_auth").
@@ -720,7 +738,11 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                          (* set (leakatheory := [([leakauth1], [leakauth2],
            iThySum (iThySum LASendAlice LASendBob)
              (iThySum LARecvAlice LARecvBob))]).*)
-                          iApply (brel_bind _ _ _ leaktheory N _ (Do leakauth1 (InjLV (xor "x" "m", bob))) (Do leakauth2 (InjLV (vgval (g ^+ n) , bob)))).
+                          iApply (brel_bind _ _ _ leaktheory N _ (Do leakauth1 (InjLV (#(xor_sem
+                           (int_of_vg_sem m)
+                           (int_of_vg_sem
+                            (g ^+ n))),
+                       bob))) (Do leakauth2 (InjLV (vgval (g ^+ n) , bob)))).
                           { simpl. unfold leaktheory. auto.
                             Search "traversable".
                             About traversable_ectx_labels.
@@ -753,7 +775,9 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                             { iApply "IH". }          }                                                   
                       (*a message has already been sent by the authenticated channel*)
                         -  iApply brel_na_close. iFrame.
-                           iSplitL; [iModIntro; iRight; iFrame "#"|].
+                           iSplitL. (*[iModIntro; iRight; iFrame "#"| ]. *)
+                           { iModIntro. iRight. iFrame "#". }
+                           iDestruct "Hsimauth" as (m0) "[Hα [Hl_sim Hl_auth]]".
                             iApply (brel_load_l _ _ _  [CaseCtx _ _] with "Hl_auth").
                             iIntros "!> Hl_auth'".
                             brel_pures.
@@ -768,6 +792,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
          (* A message has already been sent by the secure channel*)
         ++ iApply brel_na_close. iFrame.
            iSplitL; [iModIntro; iRight; iFrame "#"|].
+           iDestruct "Hrfchan" as (g g') "[Hl_fchan Hl_rchan]".
            iApply (brel_load_l _ _ _  [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_rchan").
            iIntros "!> Hl_rchan'".
            brel_pures.
@@ -893,7 +918,8 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                           brel_pures. simpl.
                           iApply (brel_na_inv _ _ alphaN); first set_solver.
                           iFrame "Hinvα".
-                          iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | (#>Hα & #>Hl_sim & #>Hl_auth) ] & Hclose)".
+                          (* iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | (#>Hα & #>Hl_sim & #>Hl_auth) ] & Hclose)".*)
+                          iIntros "([(>Hα & >Hl_sim & >Hl_auth) | #>Hsimauth] & Hclose)".
                           (* first case, when no message is stored in the authenticated channel*)
                           +++ simpl. brel_pures.
                               iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hl_sim").
@@ -911,6 +937,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                                { iApply "IH". }
                                (*second case for the invariant, when a message is stored in the authenticated channel*)
                           +++ simpl. brel_pures.
+                              iDestruct "Hsimauth" as (m0) "[Hα [Hl_sim Hl_auth]]".
                               iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hl_sim").
                               iIntros "Hl_sim'".
                               iApply (brel_load_l _ _ _ [AppRCtx _] with "Hl_auth").
@@ -919,6 +946,23 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                               brel_pures.
                               iApply brel_na_close. iFrame.
                               iSplitL; [iModIntro; iRight; iFrame "#" |].
+                              (*****************************************************************)
+                              (*NEED A INT TO GROUP CONVERSION HERE *)
+                              Admitted.
+                            (*  iApply brel_int_of_vg_sem_correct_l.
+                              
+                              Print brel_int_of_vg_sem_correct_l.
+                              Print BREL_INT_OF_VG_CORRECT_L.
+                              iApply brel_int_of_vg_sem_correct_l.
+                              fold (@xor Key Support xor_struct).
+                              
+                      iApply (xor_correct_l _ _  (int_of_vg
+                                       #(xor_sem m0
+                                       (int_of_vg_sem
+                                       (g ^+ n)))) (int_of_vg_sem (g ^+ n))).
+                      { admit.}
+                      { admit.}
+                              iApply xor_correct_l.
                               iApply (brel_exhaustion (fill k1'((InjRV (xor "key" "x"))%V)) (fill k2' ((InjRV #n)%V))).
                                { simpl. auto. }
                                { simpl. set_solver. }
@@ -934,8 +978,10 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                           { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". unfold xor. iApply "Hnone". }
                           {iApply "IH". } } } }
                           
-Qed.*)
-Admitted.
+Qed.
+Admitted.*)
+
+
 
 (*refinement in terms of semantic types for REAL_CHAN ≤ CHAN_SIM (F_CHAN) *)
 (*-------------------------------------------------------------------*)
