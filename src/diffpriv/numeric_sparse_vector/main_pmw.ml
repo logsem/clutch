@@ -3,10 +3,42 @@
 
 #use "db_sampling.ml"
 
+let path = "data/"
+let file = "adult_with_pii_sanitized.csv"
+let () = Random.self_init ()
+
 let rec pow m n =
   if n = 0 then 1
   else if n mod 2 = 0 then pow (m * m) (n / 2)
   else m * pow (m * m) ((n - 1) / 2)
+
+let string_to_int s =
+  let l = String.length s in
+  let res = ref 0 in
+  for i = 0 to l - 1 do
+    res := !res + (Char.(code s.[l - 1 - i] - code '0') * pow 10 i)
+  done;
+  !res
+
+let mk_histo file =
+  (* turn a column file of numbers into an histogram of the form of an int Array *)
+  let reader = open_in (path ^ file) in
+  let rec aux reader acc =
+    try
+      let line = input_line reader in
+      aux reader (string_to_int line :: acc)
+    with e ->
+      close_in_noerr reader;
+      acc
+  in
+  let raw = Array.of_list (aux reader []) in
+  let max_elem = Array.fold_left (fun acc v -> if (v>acc) then v else acc) raw.(0) raw and
+      min_elem = Array.fold_left (fun acc v -> if (v<acc) then v else acc) raw.(0) raw and
+      size = Array.length raw
+  in
+  (size, max_elem, min_elem, Array.init (max_elem - min_elem) (fun i -> count raw i))
+
+
 
 let aff_lst l =
   List.iter (fun x -> Printf.printf "%d|" x) l;
@@ -23,48 +55,37 @@ let aff_l_op l =
 let count_above t l =
   Array.fold_left (fun x y -> x + if y > t then 1 else 0) 0 l
 
+let count db l =
+  db.(l)
+
 let () =
-  let k = 10 in
-  let i = 511 in
+  let nb_q = 1000 in
+
+  let (length, max, min, db) = mk_histo file in
+
   let stream_query =
-    let a = ref 1000 in
+    let a = ref nb_q in
     fun bs ->
       if !a <= 0 then None
       else (
         a := !a - 1;
-        let b = ref (Random.int k) in
-        let e = ref (!b + Random.int (k - !b)) in
+        let b = ref (Random.int max) in
         Some
-          (fun distr ->
-            let a =
-              int_of_float
-                (count_between !b !e (get_db (pow 2 k) (sample_i distr)))
-            in
-            b := Random.int k;
-            e := !b + Random.int (k - !b);
-            (*Printf.printf "a: %d\n" a;*)
-            a))
+          (fun db' -> int_of_float db'.(!b)))
   in
   let res, distrib, nb_upd =
     oPMW
-      (distrib_dirac i (pow 2 k))
-      (get_db k) (float_of_int k) (pow 2 k)
-      (distrib_unif (pow 2 k))
-      stream_query 100 1 1 10. 0.01
+      db
+      length (pow length (max - min))
+      (distrib_unif (max - min))
+      stream_query (max - min)
+      1 1 10. 0.01
   in
-  Printf.printf "- NB UPDATE : %d\n- DISTRIB DB :\n--- " nb_upd;
+  Printf.printf "- NB UPDATE : %d\n- DISTRIB DB :" nb_upd;
   List.iteri
-    (fun i x -> if x > 0.00001 then Printf.printf "%d : %f" i x)
-    (distrib_dirac i (pow 2 k));
-  Printf.printf "\n";
-  List.iter (fun x -> Printf.printf "%d" (int_of_float x)) (get_db k i);
-  Printf.printf "\n\n- DISTRIB :\n";
+    (fun i x -> Printf.printf "\n---%d : %f" i x) db;
+  Printf.printf "\n\n- SANITIZED :";
   List.iteri
-    (fun i x ->
-      if x > 0.001 then (
-        Printf.printf "--- %d : %f \n" i x;
-        List.iter (fun x -> Printf.printf "%d" (int_of_float x)) (get_db k i);
-        Printf.printf "\n"))
-    distrib;
+    (fun i x -> Printf.printf "\n---%d : %f" i x) res;
   Printf.printf "\n\n- LIST RESULT :\n";
   aff_lst res

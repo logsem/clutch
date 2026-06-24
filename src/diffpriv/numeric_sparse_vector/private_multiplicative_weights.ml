@@ -7,15 +7,14 @@ let norm l =
 let upd x r eta get_db_i =
   List.mapi (fun i pdb -> pdb *. exp (-.eta *. float_of_int (r (get_db_i i)))) x
 
-let mw x f v eta get_db_i =
-  (*Printf.printf "######\n######\n";*)
+let mw x f v eta =
   let r = ref f in
   if v >= f x then begin
     r := fun y -> 1 - f y
   end;
   norm (upd x !r eta get_db_i)
 
-let oPMW db get_db_i normeDB card_Sdb unif stream_q card_Sq num den alpha beta =
+let oPMW db normeDB card_Sdb unif stream_q card_Sq num den alpha beta =
   (*
     let c = 1. +. 4. *. (log (float_of_int card_Sdb)) /.  (alpha *. alpha) in
     let t = ((float_of_int den) *. 18. *. c *. (log (2. *. float_of_int card_Sq) +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. normeDB) in
@@ -47,6 +46,6 @@ let oPMW db get_db_i normeDB card_Sdb unif stream_q card_Sq num den alpha beta =
           | Some v ->
               nb_upd := !nb_upd + 1;
               (*distrib := mw distrib q v (alpha /. 2.) get_db_i;*)
-              aux (i + 1) (v :: bs) (mw distrib q v (alpha /. 2.) get_db_i))
+              aux (i + 1) (v :: bs) (mw distrib q v (alpha /. 2.)))
   in
   aux 0 [] unif
