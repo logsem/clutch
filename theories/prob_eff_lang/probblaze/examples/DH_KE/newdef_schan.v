@@ -22,7 +22,8 @@ Section schannel.
   Context {cg : clutch_group_struct}.
   Context {vgg : @val_group_generator vg}. 
   (*Context (channel leaksec getKey1 getKey2 leakauth1 leakauth2 schannel1 schannel2 : label).*)
-  Variable xor : expr -> expr -> val. 
+  Variable xor_sem : val -> val -> val.
+  Variable xor : val.
   #[local] Notation n := (S n'').
 
 
@@ -57,8 +58,7 @@ Section schannel.
 
    (*placeholder for now*)
   (*Definition xor (e1 e2 : expr) : val := (# O)%V.*)
- 
-
+  
    Definition CHAN : val :=
      λ: "f" "ChanOp" "doGK",
       let, ("doSend", "doRecv") := "ChanOp" in
@@ -78,7 +78,7 @@ Section schannel.
                                      match: "key" with
                                      | NONE => "k" #()%V
                                      | SOME "x" =>
-                                         let: "enc_m" := xor "x" "m" in
+                                         let: "enc_m" := xor (int_of_vg "m") (int_of_vg "x") in
                                          ("doSend" ("enc_m", bob));;
                                          "k" #()%V
                                      end
@@ -94,7 +94,7 @@ Section schannel.
                                 match: "r" with
                                 | NONE => "k" NONEV
                                 | SOME "x" =>
-                                    let: "enc_m" := xor "key" "x" in
+                                    let: "enc_m" := xor (int_of_vg "x") (int_of_vg "key") in
                                     "k" (SOME "enc_m")
                                 end       
                             end                              

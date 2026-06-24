@@ -58,6 +58,18 @@ Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct
       ⤇ fill K (vmult x y) -∗ spec_update ⊤ (⤇ fill K (vgval (x * y)%g))
     ; is_eq (x y : vgG) : ⊢ WP veq (vgval x) (vgval y) {{ λ (v : cval), ⌜v = #(bool_decide (x = y))⌝ }}
     ; is_spec_eq (x y : vgG) K : ⤇ fill K (veq (vgval x) (vgval y)) -∗ spec_update ⊤ (⤇ fill K #(bool_decide (x = y)))
+    ; int_of_vg_sem : vgG -> nat
+    ; vg_of_int_sem : nat -> option vgG
+    ; vg_of_int_of_vg_sem : forall (n : nat) (xg : vgG),
+        vg_of_int_sem n = Some xg -> int_of_vg_sem xg = n
+    ; BREL_INT_OF_VG_CORRECT_L := ∀ E K g X R e,
+                                    (BREL (fill K #(int_of_vg_sem g)) ≤ e @ E <|X|> {{R}}) -∗
+                                    (BREL (fill K (int_of_vg (vgval g))) ≤ e @ E <|X|> {{R}})
+    ; BREL_INT_OF_VG_CORRECT_R := ∀ E K g X R e,
+        (BREL e ≤ (fill K #(int_of_vg_sem g)) @ E <|X|> {{R}}) -∗
+        (BREL e ≤ (fill K (int_of_vg (vgval g))) @ E <|X|> {{R}})
+    ; brel_int_of_vg_sem_correct_l : BREL_INT_OF_VG_CORRECT_L
+    ; brel_int_of_vg_sem_correct_r : BREL_INT_OF_VG_CORRECT_R
     }.
 
 Definition vg_of_cg := λ {Σ HΣ} vg cg (G : @clutch_group Σ HΣ vg cg), vg.
