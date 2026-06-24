@@ -90,55 +90,116 @@ Section pmw.
 
 
 
-  *)
   Definition oPMW : val :=
     λ: "x" "stream_q" "num" "den" "c" "t" "unif" "upd",
       let: "f" := (onSVT "num" "den" "t" "c") in
-      let: "distrib" := ref "unif" in
-      (rec: "nSVT" "i" "bs" :=
+      (rec: "aux" "i" "bs" "distrib" :=
          match: "stream_q" "bs" with
          | NONE => "bs"  (* No more queries *)
          | SOME "q" =>
              if: "i" = "c" then (* We have to query the distribution *)
-               "nSVT" "i" (list_cons ("q" (!"distrib")) "bs")
+               "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
              else (
-               let: "e1" := "f" "x" (λ: "x'", "q" "x'" - "q" (!"distrib")) in
-               let: "e2" := "f" "x" (λ: "x'", "q" (!"distrib") - "q" "x'") in
+               let: "e1" := "f" "x" (λ: "x'", "q" "x'" - "q" "distrib") in
+               let: "e2" := "f" "x" (λ: "x'", "q" "distrib" - "q" "x'") in
                let: "a" := ref NONE in
                match: "e1" with
                | NONE =>
                    match: "e2" with
                    | NONE => #() (* The answer is under the threshold *)
-                   | SOME "v" => "a" <- SOME ("q" (!"distrib") + "v")
+                   | SOME "v" => "a" <- SOME ("q" "distrib" + "v")
                    end
-               | SOME "v" => "a" <- SOME ("q" (!"distrib") - "v")
+               | SOME "v" => "a" <- SOME ("q" "distrib" - "v")
                end;;
                match: "a" with
-               | NONE => "nSVT" "i" (list_cons ("q" (!"distrib")) "bs")
-               | SOME "v" => "distrib" <- "upd" (!"distrib") "q" "v";; "nSVT" ("i" + #1) (list_cons "v" "bs")
+               | NONE => "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
+               | SOME "v" => "aux" ("i" + #1) (list_cons "v" "bs") ("upd" "distrib" "q" "v")
                end)
-         end) #0 list_nil.
+         end) #0 list_nil "unif".
+  *)
 
-    #[local] Definition pMW_body (c : nat) (l : loc) (stream_q : val) {DB} {_ : Inject DB val} (db : DB) (f : val) (upd : val) :=
-      (rec: "nSVT" "i" "bs" :=
+  Definition oPMW : val :=
+    λ: "x" "stream_q" "num" "den" "c" "t" "unif" "upd" "f1" "f2",
+      let: "f" := (onSVT "num" "den" "t" "c") in
+      (rec: "aux" "i" "bs" "distrib" :=
+         match: "stream_q" "bs" with
+         | NONE => "bs"  (* No more queries *)
+         | SOME "q" =>
+             if: "i" = "c" then (* We have to query the distribution *)
+               "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
+             else (
+               let: "e1" := "f" "x" ("f1" "q" "distrib") in
+               let: "e2" := "f" "x" ("f2" "q" "distrib") in
+               let: "a" := ref NONE in
+               match: "e1" with
+               | NONE =>
+                   match: "e2" with
+                   | NONE => #() (* The answer is under the threshold *)
+                   | SOME "v" => "a" <- SOME ("q" "distrib" + "v")
+                   end
+               | SOME "v" => "a" <- SOME ("q" "distrib" - "v")
+               end;;
+               match: "a" with
+               | NONE => "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
+               | SOME "v" => "aux" ("i" + #1) (list_cons "v" "bs") ("upd" "distrib" "q" "v")
+               end)
+         end) #0 list_nil "unif".
+
+    (* #[local] Definition pMW_body (c : nat) (stream_q : val) {DB} {_ : Inject DB val} (db : DB) (f : val) (upd : val) := *)
+    (*         (rec: "aux" "i" "bs" "distrib" := *)
+    (*              match: stream_q "bs" with *)
+    (*                InjL <> => "bs" *)
+    (*              | InjR "q" => *)
+    (*                if: "i" = #c *)
+    (*                then "aux" "i" (list_cons ("q" "distrib") "bs") "distrib" *)
+    (*                else let: "e1" := f (inject db) *)
+    (*                                    (λ: "x'", "q" "x'" - "q" "distrib") in *)
+    (*                     let: "e2" := f (inject db) *)
+    (*                                    (λ: "x'", "q" "distrib" - "q" "x'") in *)
+    (*                     let: "a" := ref (InjL #()) in *)
+    (*                     match: "e1" with *)
+    (*                       InjL <> => *)
+    (*                         match: "e2" with *)
+    (*                           InjL <> => #() *)
+    (*                         | InjR "v" => "a" <- InjR ("q" "distrib" + "v") *)
+    (*                         end *)
+    (*                     | InjR "v" => "a" <- InjR ("q" "distrib" - "v") *)
+    (*                     end;; *)
+    (*                     match: "a" with *)
+    (*                       InjL <> => *)
+    (*                         "aux" "i" (list_cons ("q" "distrib") "bs") *)
+    (*                           "distrib" *)
+    (*                     | InjR "v" => *)
+    (*                       "aux" ("i" + #1) (list_cons "v" "bs") *)
+    (*                         (upd "distrib" "q" "v") *)
+    (*                     end *)
+    (*              end)%V. *)
+
+  #[local] Definition pMW_body (c : nat) (stream_q : val) {DB} {_ : Inject DB val} (db : DB) (f : val) (upd f1 f2: val) :=
+       (rec: "aux" "i" "bs" "distrib" :=
         match: stream_q "bs" with
           InjL <> => "bs"
         | InjR "q" =>
-          if: "i" = #c then "nSVT" "i" (list_cons ("q" (!#l)) "bs")
-          else let: "e1" := f (inject db) (λ: "x'", "q" "x'" - "q" (!#l)) in
-               let: "e2" := f (inject db) (λ: "x'", "q" (!#l) - "q" "x'") in
+          if: "i" = #c then "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
+          else let: "e1" := f (inject db) (f1 "q" "distrib") in
+               let: "e2" := f (inject db) (f2 "q" "distrib") in
                let: "a" := ref (InjL #()) in
                match: "e1" with
-                 InjL <> => match: "e2" with InjL <> => #() | InjR "v" => "a" <- InjR ("q" (!#l) + "v") end
-               | InjR "v" => "a" <- InjR ("q" (!#l) - "v")
+                 InjL <> =>
+                   match: "e2" with
+                     InjL <> => #()
+                   | InjR "v" => "a" <- InjR ("q" "distrib" + "v")
+                   end
+               | InjR "v" => "a" <- InjR ("q" "distrib" - "v")
                end;;
                match: "a" with
-                 InjL <> => "nSVT" "i" (list_cons ("q" (!#l)) "bs")
-               | InjR "v" => #l <- upd (!#l) "q" "v";; "nSVT" ("i" + #1) (list_cons "v" "bs")
+                 InjL <> => "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
+               | InjR "v" => "aux" ("i" + #1) (list_cons "v" "bs") (upd "distrib" "q" "v")
                end
         end)%V.
 
-  Lemma pMW_diffpriv (num den : Z) (c t : nat) (stream_q : val) `(dDB : Distance DB) (upd : val) (unif : DB) :
+
+  Lemma pMW_diffpriv (num den : Z) (c t : nat) (stream_q : val) `(dDB : Distance DB) (upd f1 f2: val) (unif : DB) :
     let ε := IZR num / IZR den in
     ∀ (εpos : 0 < ε) (cpos : (0 < c)%nat) (tpos : (0 < t)%nat),
       □ (∀ K (bs : val),
@@ -150,22 +211,158 @@ Section pmw.
           ⤇ fill K (upd (Val (inject distrib)) q v) -∗
           WP upd (Val (inject distrib)) q v
           {{ v, ⤇ fill K (Val v) ∗ ∃ distrib' : DB, ⌜v = (inject distrib')⌝}}) -∗
+      □ (∀ K (distrib q : val), (* we get back a 1sens query *)
+          (* (wp_sensitive q 1 dDB dZ) -∗ we need the original query to be 1 sensitive *)
+          ⤇ fill K (f1 q distrib) -∗
+          WP f1 q distrib
+          {{ v, ⤇ fill K (Val v) ∗ □ wp_sensitive v 1 dDB dZ }}) -∗
+      □ (∀ K (distrib q : val),
+          (* (wp_sensitive q 1 dDB dZ) -∗ *)
+          ⤇ fill K (f2 q distrib) -∗
+          WP f2 q distrib
+          {{ v, ⤇ fill K (Val v) ∗ □ wp_sensitive v 1 dDB dZ }}) -∗
       ∀ (db db' : DB) (adj : dDB db db' <= 1) K,
       ↯m (c * ε) -∗
-      ⤇ fill K (oPMW (Val (inject db')) stream_q #num #den #c #t (Val (inject unif)) upd) -∗
-      WP oPMW (Val (inject db)) stream_q #num #den #c #t (Val (inject unif)) upd
+      ⤇ fill K (oPMW (Val (inject db')) stream_q #num #den #c #t (Val (inject unif)) upd f1 f2) -∗
+      WP oPMW (Val (inject db)) stream_q #num #den #c #t (Val (inject unif)) upd f1 f2
       {{ v, ⤇ fill K (Val v) }}.
   Proof with (tp_pures; wp_pures).
-    iIntros (ε εpos cpos tpos) "#sens #Hup % % % % ε rhs".
+    iIntros (ε εpos cpos tpos) "#sens #Hup #Hf1 #Hf2 % % % % ε rhs".
     rewrite /oPMW...
     tp_bind (onSVT _ _ _ _); wp_bind (onSVT _ _ _ _).
     iPoseProof (nSVT_online_diffpriv with "ε rhs") as "spec" => //.
     iApply (wp_strong_mono'' with "spec").
-    iIntros "%f (%f' & % & rhs & inSVT & spec) /="...
-    wp_alloc lw as "lw"; tp_alloc as lt "lt".
+    iIntros "%f (%f' & % & rhs & inSVT & spec) /=".
+    do 4 tp_pure; do 4 wp_pure.
+    rewrite -!/(pMW_body _ _ _ _ _ _ _).
+    set (distrib := inject unif).
+    set (bs := InjLV #()). rewrite {1}/bs.
+    set (i := 0%Z). set (c' := c). rewrite {1 3}/c'.
+    assert (0 <= i)%Z as ipos by lia. assert (c' + i = c)%Z as hi by lia.
+    generalize i c' bs hi ipos distrib. clear i c' bs hi ipos distrib.
+    intros.
+    iRevert (i c' bs hi ipos distrib) "rhs inSVT spec".
+    iLöb as "IH".
+    iIntros (i c' bs hi ipos distrib) "rhs inSVT #spec".
+    rewrite {3 4}/pMW_body...
+
+    wp_bind (stream_q _); tp_bind (stream_q _).
+    iPoseProof ("sens" $! _  with "rhs") as "sens_bs".
+    iApply (wp_strong_mono'' with "sens_bs").
+    iIntros "%qopt (rhs & [->|(%q & -> & #sens_q)]) /="... 1: done.
+    case_bool_decide...
+    - (* Case where we have already proceed all the allowed updates *)
+      do 2 rewrite -/(pMW_body _ _ _ _ _ _ _).
+      (* Need to get that `q distrib` is a value. *)
+      (* Then we will be able to call IH. *)
+      wp_bind (q _); tp_bind (q _).
+      rewrite {2}/wp_sensitive.
+      admit.
+
+      (* iApply (wp_strong_mono'' with "sens_q"). *)
+
+      (* iPoseProof ("IH" $! i c' _ with "[] []") as "IH'". *)
+      (* 1, 2: iPureIntro; lia. *)
+      (* Unshelve. *)
+      (* iCombine "spec" as "spec_i". *)
+      (* iSpecialize ("spec_i" $! _ _ db db' adj with "sens_q rhs inSVT") => //. *)
+
+      (* wp_pure; tp_pure. *)
+      (* iRevert (distrib) "rhs inSVT spec". *)
+      (* iApply ("IH'" with "[] []"). *)
+    - do 2 rewrite -/(pMW_body _ _ _ _ _ _ _).
+      wp_bind (f _ _); tp_bind (f' _ _).
+      wp_bind (f1 _ _); tp_bind (f1 _ _).
+      iPoseProof ("Hf1" $! _ with "rhs") as "Hf1'".
+      iApply (wp_strong_mono'' with "Hf1'").
+      iIntros (q1) "[rhs #sens_q1]".
+      tp_bind (f' _ _).
+      iCombine "spec" as "spec_i".
+      iEval (rewrite /nSVT_spec) in "spec_i".
+      assert (not (i = c)). 1: intros h ; subst ; auto.
+      assert (∃ c'', c' = S c'') as [? ->]. { destruct c'. 1: lia. eauto. }
+      iSpecialize ("spec_i" $! _ _ db db' adj with "sens_q1 rhs inSVT") => //.
+      iApply (wp_strong_mono'' with "spec_i").
+      iIntros "% (rhs & %e1 & -> & inSVT) /="...
+      simpl.
+      destruct e1. (*; rewrite /list_cons... *)
+      + (* e1 is a value (not none) *)
+        wp_bind (f _ _); tp_bind (f' _ _).
+        wp_bind (f2 _ _); tp_bind (f2 _ _).
+        iPoseProof ("Hf2" $! _ with "rhs") as "Hf2'".
+        iApply (wp_strong_mono'' with "Hf2'").
+        iIntros (q2) "[rhs #sens_q2]".
+        tp_bind (f' _ _).
+        iCombine "spec" as "spec_i".
+        iEval (rewrite /nSVT_spec) in "spec_i".
+        iSpecialize ("spec_i" $! _ _ db db' adj with "sens_q2 rhs inSVT") => //.
+        iApply (wp_strong_mono'' with "spec_i").
+        iIntros "% (rhs & %e1 & -> & inSVT) /=".
+        destruct e1; rewrite /list_cons...
+      + (* e1 is none *)
+
+
+      wp_bind (f _ _); tp_bind (f' _ _).
+      wp_bind (f1 _ _); tp_bind (f1 _ _).
+      iPoseProof ("Hf1" $! _ with "rhs") as "Hf1'".
+      iApply (wp_strong_mono'' with "Hf1'").
+      iIntros (q1) "[rhs #sens_q1]".
+      iCombine "spec" as "spec_i".
+      tp_bind (f' _ _).
+      iEval (rewrite /nSVT_spec) in "spec_i".
+      assert (not (i = c)). 1: intros h ; subst ; auto.
+      assert (∃ c'', c' = S c'') as [? ->]. { destruct c'. 1: lia. eauto. }
+      iSpecialize ("spec_i" $! _ _ db db' adj with "sens_q1 rhs inSVT") => //.
+      iApply (wp_strong_mono'' with "spec_i").
+      iIntros (e1) "[rhs He1]".
+
+
+
+
+      rewrite -!/(pMW_body _ _ _ _ _ _ _).
+
+      rewrite {2}/nSVT_spec.
+
+
+      rewrite /list_cons.
+    iApply "sens".
+    set (i := 0%Z). set (c' := c). rewrite {2 3 4 7 8 9}/c'.
+    assert (0 <= i)%Z as ipos by lia. assert (c' + i = c)%Z as hi by lia.
+    set (bs := InjLV #()); rewrite {1}/bs.
+    generalize i c' bs hi ipos distrib. clear i c' bs hi ipos distrib.
+    intros.
+    iRevert (i c' bs hi ipos distrib) "rhs inSVT spec Hsq".
+    iLöb as "HI".
+    iIntros (i c' bs hi ipos distrib) "rhs inSVT #spec #Hsq".
+    iCombine "Hsq" as "Hsq'".
+    (* We will certainly need to call for iLöb around this time that we will use back in
+      the second case bellow *)
+    iSpecialize ("Hsq'" $! bs).
+    iDestruct "Hsq'" as "[%Hsq1 | [%qs %Hsq2]]".
+    - (* Case where there is no query left in the stream *)
+      rewrite Hsq1...
+      done.
+    - (* Case where there is at least a query left in the stream *)
+      rewrite Hsq2...
+
+
+      (*
+        We enter second case of the match
+        Case on c:
+          - We call IH -> means that we need to "generalize some parameters" before calling Löb
+          - We need additional hypothesis on f -> in a way we can do the matches as we want.
+            We have to make sure that the returned value from the nSVT is a SOME Z.
+            then we proceed to both executions (with the differents cases).
+            We update a
+            -> We call IH in the last match where we call pMW_body back (we need to rewright body before
+                calling IH for them to match).
+       *)
+
+
+      wp_match; tp_match.
+    wp_bind (stream_q _); tp_bind (stream_q _).
     do 4 wp_pure; do 4 tp_pure.
 
-    rewrite -!/(pMW_body _ _ _ _ _ _).
     set (i := 0%Z). set (c' := c). rewrite {1 3}/c'.
     assert (0 <= i)%Z as ipos by lia. assert (c' + i = c)%Z as hi by lia.
     set (bs := InjLV #()). rewrite {1}/bs. generalize i c' bs hi ipos. clear i c' hi ipos bs.
@@ -222,6 +419,6 @@ Section pmw.
     { Search "IZR". rewrite mult_IZR. rewrite Rmult_comm Rdiv_mult_distr.
       subst ε. Search "R" "div". apply Rdiv_lt_0_compat => //.
       Search "INR". admit. (*apply lt_INR.*) }
-    iApply (wp_strong_mono'' with "ε"). with "spec"*).
+    iApply (wp_strong_mono'' with "ε"). with "spec"**).
 
 End pmw.

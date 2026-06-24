@@ -50,7 +50,7 @@ let () =
       (distrib_dirac i (pow 2 k))
       (get_db k) (float_of_int k) (pow 2 k)
       (distrib_unif (pow 2 k))
-      stream_query 100 1 100 10. 0.01
+      stream_query 100 1 1 10. 0.01
   in
   Printf.printf "- NB UPDATE : %d\n- DISTRIB DB :\n--- " nb_upd;
   List.iteri
