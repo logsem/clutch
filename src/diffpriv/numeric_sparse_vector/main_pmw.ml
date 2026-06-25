@@ -21,9 +21,8 @@ let aff_l_op l =
 
 let () =
   let size, domaine, db = mk_histo (path ^ file) in
-  let nb_q = 3 * (pow 2 (List.length domaine)) in
-  Printf.printf "%d\n" nb_q;
-  Printf.printf "%d\n" size;
+  let card_q = pow 2 (List.length domaine) in
+  let nb_q = 3 * card_q in
   aff_db (get_unif domaine);
   let stream_query =
     let a = ref nb_q in
@@ -41,8 +40,8 @@ let () =
       db
       (get_unif domaine)
       stream_query
-      (float_of_int (pow 2 (List.length domaine)))
-      1 1 0.1 0.1
+      (float_of_int card_q)
+      1 1 0.1 0.01
   in
   Printf.printf "- NB UPDATE : %d\n- DISTRIB DB :" nb_upd;
   aff_db db;

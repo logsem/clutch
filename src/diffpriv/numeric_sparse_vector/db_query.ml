@@ -68,5 +68,11 @@ let get_unif domaine =
 let aff_db db =
   (* Given a db, displays the db *)
   Printf.printf "Aff_db ---\n---";
-  Hashtbl.iter (fun a b -> Printf.printf "%d: %f\n---" a b) db;
+  Hashtbl.iter (fun a b -> Printf.printf " %d: %f\n---" a b) db;
   Printf.printf "> OK\n"
+
+let aff_bq db  =
+  (* Given a boolean query, displays the query *)
+  Printf.printf "Aff_db ---\n---";
+  Hashtbl.iter (fun a b -> Printf.printf "%d:%d|" a (int_of_float b)) db;
+  Printf.printf "\n"

@@ -5,23 +5,25 @@ let norm htbl =
   let sum = Hashtbl.fold (fun _ b acc -> acc +. b) htbl 0. in
   Hashtbl.iter (fun a b -> Hashtbl.replace htbl a (b /. sum)) htbl
 
-let cpt_provi = ref 0
-
 let mw x f v eta =
   let r = Hashtbl.copy f in
   if v >= c_query f x then Hashtbl.iter (fun a b -> Hashtbl.replace r a (1. -. b)) r;
   Hashtbl.iter (fun a b -> Hashtbl.replace r a ((exp ((-.eta) *. b)) *. (Hashtbl.find x a))) r;
   norm r;
-  if !cpt_provi = 0 then aff_db r;
-  cpt_provi := (!cpt_provi + 1) mod 20;
-  (* aff_db f; *)
+  (* Printf.printf "v: %f | eat : %f\n" v eta; *)
+  (* aff_bq f; *)
+  (* Printf.printf "--Pre:\n"; *)
+  (* aff_db x; *)
+  (* Printf.printf "--Post:\n"; *)
+  (* aff_db r; *)
+  (* Printf.printf "-------\n\n-------\n"; *)
   r
 
 let oPMW size domaine db unif stream_q nb_q num den alpha beta =
+  let precision = 1_000. in
   let c = 4. *. (log (float_of_int (List.length domaine))) /.  (alpha *. alpha) in
-  let t = ((float_of_int den) *. 18. *. c *. (log (2. *. nb_q) +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. (float_of_int size)) in
-  (* Printf.printf "c: %f\nt: %f\n" c t; *)
-  let f = num_sparse_vector num den (int_of_float t) (int_of_float c) in
+  let t = 0.05 *. precision *. ((float_of_int den) *. 18. *. c *. (log (2. *. nb_q) +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. (float_of_int size)) in
+  let f = num_sparse_vector num den (int_of_float t) (int_of_float c) db in
   let nb_upd = ref 0 in
   let rec aux i bs distrib =
     match stream_q bs with
@@ -32,20 +34,20 @@ let oPMW size domaine db unif stream_q nb_q num den alpha beta =
           aux i ((c_query q distrib) :: bs) distrib
         else (
           let a = ref None in
-          let e1 = f db (fun x' -> int_of_float (10_000. *. ((c_query q x') -. (c_query q distrib)))) in
-          (match e1 with
+          (* Printf.printf "q:%f\n" (c_query q db -. c_query q distrib); *)
+          (match f (fun x' -> int_of_float (precision *. (c_query q x' -. c_query q distrib))) with
           | None -> (
-              let e2 = f db (fun x' -> int_of_float (10_000. *. (c_query q distrib) -. (c_query q x'))) in
-              match e2 with
+              match f (fun x' -> int_of_float (precision *. (c_query q distrib -. c_query q x'))) with
               | None -> ()
-              | Some v -> a := Some ((c_query q distrib) +. (float_of_int v /. 10_000.)))
-          | Some v -> a := Some ((c_query q distrib) -. (float_of_int v /. 10_000.)));
+              | Some v -> a := Some (c_query q distrib -. float_of_int v /. precision))
+          | Some v -> a := Some (c_query q distrib +. float_of_int v /. precision));
           match !a with
           | None -> aux i ((c_query q distrib) :: bs) distrib
           | Some v ->
-              Printf.printf "v: %f\n" v;
+              (* Printf.printf "v: %f\n" v; *)
               nb_upd := !nb_upd + 1;
               (*distrib := mw distrib q v (alpha /. 2.) get_db_i;*)
               aux (i + 1) (v :: bs) (mw distrib q v  (alpha /. 2.))))
   in
+  Printf.printf "c: %f\nt: %f\n" c t;
   aux 0 [] unif
