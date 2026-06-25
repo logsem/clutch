@@ -16,9 +16,8 @@ let abs_f x =
   if x<0. then -.x else x
 
 let oPMW size domaine db unif stream_q nb_q num den alpha beta =
-  let precision = 1_000. in
   let c = 4. *. (log (float_of_int (List.length domaine))) /.  (alpha *. alpha) in
-  let t = 0.05 *. precision *. ((float_of_int den) *. 18. *. c *. (log (2. *. nb_q) +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. (float_of_int size)) in
+  let t = 0.05 *. (float_of_int size) *. ((float_of_int den) *. 18. *. c *. (log (2. *. nb_q) +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. (float_of_int size)) in
   let f = num_sparse_vector num den (int_of_float t) (int_of_float c) db in
   let nb_upd = ref 0 in
   let rec aux i bs distrib =
@@ -30,12 +29,12 @@ let oPMW size domaine db unif stream_q nb_q num den alpha beta =
           aux i ((abs_f (c_query q db -. c_query q distrib)) :: bs) distrib
         else (
           let a = ref None in
-          (match f (fun x' -> int_of_float (precision *. (c_query q x' -. c_query q distrib))) with
+          (match f (fun x' -> int_of_float ((float_of_int size) *. (c_query q x' -. c_query q distrib))) with
           | None -> (
-              match f (fun x' -> int_of_float (precision *. (c_query q distrib -. c_query q x'))) with
+              match f (fun x' -> int_of_float ((float_of_int size) *. (c_query q distrib -. c_query q x'))) with
               | None -> ()
-              | Some v -> a := Some (c_query q distrib -. float_of_int v /. precision))
-          | Some v -> a := Some (c_query q distrib +. float_of_int v /. precision));
+              | Some v -> a := Some (c_query q distrib -. float_of_int v /. (float_of_int size)))
+          | Some v -> a := Some (c_query q distrib +. float_of_int v /. (float_of_int size)));
           match !a with
           | None -> aux i ((abs_f (c_query q db -. c_query q distrib)) :: bs) distrib
           | Some v ->
