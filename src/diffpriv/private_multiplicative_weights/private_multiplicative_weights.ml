@@ -38,6 +38,7 @@ let oPMW size domaine db unif stream_q nb_q num den alpha beta =
   aux 0 [] unif
 
 let oPMW_gif size domaine db unif stream_q nb_q num den alpha beta file =
+  write_db db file 0;
   let c = 4. *. (log (float_of_int (List.length domaine))) /.  (alpha *. alpha) in
   let t = 0.01 *. (float_of_int size) *. ((float_of_int den) *. 18. *. c *. (log (2. *. nb_q) +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. (float_of_int size)) in
   let f = num_sparse_vector num den (int_of_float t) (int_of_float c) db in
@@ -59,7 +60,7 @@ let oPMW_gif size domaine db unif stream_q nb_q num den alpha beta file =
           match !a with
           | None -> aux i ((abs_f (c_query q db -. c_query q distrib)) :: bs) distrib
           | Some v ->
-              write_db distrib file i;
+              write_db distrib file (i +1);
               aux (i + 1) ((abs_f (c_query q db -. v)) :: bs) (mw distrib q v  (alpha /. 2.))))
   in
   aux 0 [] unif

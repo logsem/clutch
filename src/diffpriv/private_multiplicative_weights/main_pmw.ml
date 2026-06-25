@@ -4,7 +4,7 @@ let () = Random.self_init ()
 let path = "data/"
 let file = "rd_data.csv"
 
-let path_gif = "gif/"
+let path_gif = "gif/data/"
 let file_gif = "0gif"
 
 let () =
@@ -21,7 +21,7 @@ let () =
           (get_rd_query domaine))
   in
   let res, db', nb_upd, c, t =
-    oPMW_gif
+    oPMW
       size
       domaine
       db

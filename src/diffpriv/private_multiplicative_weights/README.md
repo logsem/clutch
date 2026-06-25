@@ -49,6 +49,29 @@ The output is, the initial database and the output (sanitized) database as well
 as the list of the distances between the real answer and the returned answer 
 to the stream of queries.
 
+## DATA
+
+To get the data, you can go to [`data/`](https://github.com/Pbi0/clutch/tree/pMW_formal/src/diffpriv/private_multiplicative_weights/data).
+
+## GIF
+
+If you want to have a gif illustration of the distribution's evolution durring
+the pmw, you can modify the call from `oPMW` to `oPMW_gif` in 
+[`main_pmw.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/main_pmw.ml)
+and then go to [`gif/`](https://github.com/Pbi0/clutch/tree/pMW_formal/src/diffpriv/private_multiplicative_weights/gif)..
+Then you will have in the folder `gif/data/` all the databases that the algorithm
+whent through. The 0 database is the real distribution.
+In order to get the gif, go in the `gif/` folder and run:
+```bash
+python render_gif.py
+```
+Then it will ask you how many databases where saved, you can get back this number
+by reading the `- NB UPDATE : ...` from the output of the `main_pmw.ml`. 
+
+Then it will build the gif.
+
+
+
 ## NOTES
 
 We us the probability sampler from [`noiseSampling.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/noiseSampling.ml)

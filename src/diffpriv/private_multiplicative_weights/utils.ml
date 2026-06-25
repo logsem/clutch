@@ -17,10 +17,13 @@ let string_to_int s =
   !res
 
 let int_to_string i =
+  if i = 0 then "0"
+  else (
   let rec aux i s =
     if i = 0 then s
     else aux (i/10) (String.make 1 Char.(chr (i mod 10 + code '0')) ^ s)
   in aux i ""
+ )
 
 let aff_flst l =
   List.iter (fun x -> Printf.printf "%f|" x) l;
