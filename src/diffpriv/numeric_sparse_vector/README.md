@@ -45,8 +45,9 @@ When calling:
 ocaml main_pmw.ml
 ```
 
-The output is, the initial database and the output database as well as the list
-of the queries answers.
+The output is, the initial database and the output (sanitized) database as well 
+as the list of the distances between the real answer and the returned answer 
+to the stream of queries.
 
 ## NOTES
 

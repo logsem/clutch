@@ -10,14 +10,10 @@ let mw x f v eta =
   if v >= c_query f x then Hashtbl.iter (fun a b -> Hashtbl.replace r a (1. -. b)) r;
   Hashtbl.iter (fun a b -> Hashtbl.replace r a ((exp ((-.eta) *. b)) *. (Hashtbl.find x a))) r;
   norm r;
-  (* Printf.printf "v: %f | eat : %f\n" v eta; *)
-  (* aff_bq f; *)
-  (* Printf.printf "--Pre:\n"; *)
-  (* aff_db x; *)
-  (* Printf.printf "--Post:\n"; *)
-  (* aff_db r; *)
-  (* Printf.printf "-------\n\n-------\n"; *)
   r
+
+let abs_f x =
+  if x<0. then -.x else x
 
 let oPMW size domaine db unif stream_q nb_q num den alpha beta =
   let precision = 1_000. in
@@ -31,10 +27,9 @@ let oPMW size domaine db unif stream_q nb_q num den alpha beta =
     | Some q -> (
         if i >= int_of_float c then
           (* we retrun only from the distribution *)
-          aux i ((c_query q distrib) :: bs) distrib
+          aux i ((abs_f (c_query q db -. c_query q distrib)) :: bs) distrib
         else (
           let a = ref None in
-          (* Printf.printf "q:%f\n" (c_query q db -. c_query q distrib); *)
           (match f (fun x' -> int_of_float (precision *. (c_query q x' -. c_query q distrib))) with
           | None -> (
               match f (fun x' -> int_of_float (precision *. (c_query q distrib -. c_query q x'))) with
@@ -42,12 +37,10 @@ let oPMW size domaine db unif stream_q nb_q num den alpha beta =
               | Some v -> a := Some (c_query q distrib -. float_of_int v /. precision))
           | Some v -> a := Some (c_query q distrib +. float_of_int v /. precision));
           match !a with
-          | None -> aux i ((c_query q distrib) :: bs) distrib
+          | None -> aux i ((abs_f (c_query q db -. c_query q distrib)) :: bs) distrib
           | Some v ->
-              (* Printf.printf "v: %f\n" v; *)
               nb_upd := !nb_upd + 1;
-              (*distrib := mw distrib q v (alpha /. 2.) get_db_i;*)
-              aux (i + 1) (v :: bs) (mw distrib q v  (alpha /. 2.))))
+              aux (i + 1) ((abs_f (c_query q db -. v)) :: bs) (mw distrib q v  (alpha /. 2.))))
   in
   Printf.printf "c: %f\nt: %f\n" c t;
   aux 0 [] unif
