@@ -206,3 +206,6 @@ Deferred (out of scope for this branch):
   surface + `refines_couple_*` rules + `tychk`); foundations are ready, the relational surface is not.
 - The **sequential/postprocessing `iApply` ceiling** — a reduction-control limitation; the
   inline-pattern workaround is in place and validated.
+
+# TODO
+- The samplers have versions where their parameter tuples are values or expressions; unify to values?

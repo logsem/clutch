@@ -357,7 +357,7 @@ Record SampleFamily := {
 
 Definition Sig := list SampleFamily.
 
-(* Option A: positional identity recovered from membership. *)
+(* The index serves as the "name" the signature assigns to a SampleFamily. *)
 Class SampleIn (D : SampleFamily) (S : Sig) := {
   sample_idx : nat;
   sample_idx_S : S !! sample_idx = Some D;
