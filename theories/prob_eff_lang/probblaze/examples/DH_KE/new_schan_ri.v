@@ -1702,7 +1702,7 @@ Admitted.
  
 Lemma REAL_CHAN_CHAN_SIM_F_CHAN :
   ⊢ sem_val_typed (REAL_CHAN)%V (λ: "f", CHAN_SIM (F_CHAN "f"))%V
-      (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }->  𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙) ⊸ (*type of client*) 
+      (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }->  𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙) ⊸ (*type of client*) 
       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝔾)) ⊸ (((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝔾) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T.
 Proof using G inG0 inG1 inG2.   
   iModIntro. iIntros (L).
@@ -1760,7 +1760,7 @@ Lemma F_OAUTH_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
                                        ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
                                        BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V ((λ: "m", do: keyleak1 (Send "m")), (λ: "m", do: keyleak1 (Recv "m")))%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V ((λ: "m", do: keyleak2 (Send "m")), (λ: "m", do: keyleak2 (Recv "m")))%V  <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
 Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg vgg Σ.
- (* iIntros "Hrelf1f2".
+  iIntros "Hrelf1f2".
   repeat simpl.
   unfold R_CHAN. brel_pures.
   unfold right_composition. brel_pures.
@@ -1785,21 +1785,26 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   iApply brel_effect_l. iIntros (channel') "!> Hchannel !>". brel_pures_l.
   iApply brel_effect_r. iIntros (schannel_r) "Hschannel_r !>". brel_pures_r.
   iApply brel_alloc_l. iIntros (l_rchan) "!>Hlrchan". brel_pures_l.
-  iApply brel_effect_l. iIntros (schannel_l) "!> Hschannel_l !>". brel_pures_l.
-  set (kl1 := ( match: "payload" with
+  iApply brel_effect_l. iIntros (schannel_l) "!> Hschannel_l !>". brel_pures_l. 
+  set (kl1 := (  match: "payload" with
          InjL "payload" =>
            let: "dst" := "payload" in
            let: "m" := Fst "dst" in
            let: "dst" := Snd "dst" in
-           match: ! #l_auth with
+           match: ! #l_rchan with
              InjL <> =>
-               #l_auth <- InjR "m";; 
-               let: "key" := (λ: "party", do: getKey' "party")%V "dst" in
+               #l_rchan <- InjR "m";; 
+               let: "key" := (λ: "party", do: getKey' "party")%V
+                               "dst" in
                match: "key" with
                  InjL <> => "k" #()%V
                | InjR "x" =>
-                 let: "enc_m" := xor "x" "m" in
-                 (λ: "m", do: channel' InjL "m")%V ("enc_m", bob);; "k" #()%V
+                 match: G_XOR xor "m" "x" with
+                   InjL <> => "k" #()%V
+                 | InjR "mg" =>
+                   (λ: "m", do: channel' InjL "m")%V ("mg", bob);; 
+                   "k" #()%V
+                 end
                end
            | InjR "m" => "k" #()%V
            end
@@ -1811,41 +1816,51 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
            let: "r" := (λ: "m", do: channel' InjR "m")%V "from" in
            match: "r" with
              InjL <> => "k" (InjLV #()%V)
-           | InjR "x" => let: "enc_m" := xor "key" "x" in "k" (InjR "enc_m")
+           | InjR "x" =>
+             match: G_XOR xor "x" "key" with
+               InjL <> => "k" #()%V
+             | InjR "mg" => "k" (InjR "mg")
+             end
            end
          end
-       end)%E).
+       end
+      )%E).
   set (kl2 := ( match: "payload" with
          InjL "payload" =>
            let: "dst" := "payload" in
            let: "m" := Fst "dst" in
            let: "dst" := Snd "dst" in
-           match: ! #l_rchan with
+           match: ! #l_auth with
              InjL <> =>
-               #l_rchan <- InjR "m";; 
-               (λ: "m", do: leakauth1 Send "m")%V ("m", "dst");; "k" #()%V
+               #l_auth <- InjR "m";; 
+               (λ: "m", do: leakauth1 Send "m")%V ("m", "dst");; 
+               "k" #()%V
            | InjR "message" => "k" #()%V
            end
        | InjR "from" =>
          let: "r" := (λ: "m", do: leakauth1 Recv "m")%V "from" in
-         match: "r" with InjL <> => "k" (InjLV #()%V) | InjR "x" => "k" ! #l_rchan end
+         match: "r" with
+           InjL <> => "k" (InjLV #()%V)
+         | InjR "x" => "k" ! #l_auth
+         end
        end)%E).
-  set (kl3 := ( match: "p" with
+  set (kl3 := (match: "p" with
          InjL <> =>
-           (λ: "m", do: keyleak1 "m")%V (InjL bob);; 
-           let: "r" := (λ: "m", do: keyleak1 "m")%V (InjR bob) in
+           (λ: "m", do: keyleak1 Send "m")%V bob;; 
+           let: "r" := (λ: "m", do: keyleak1 Recv "m")%V bob in
            match: "r" with
              InjL <> => "k" (InjLV #()%V)
            | InjR "w" => "k" (InjR (vgval (g ^+ n)))
            end
        | InjR <> =>
-         let: "r" := (λ: "m", do: keyleak1 "m")%V (InjR alice) in
+         let: "r" := (λ: "m", do: keyleak1 Recv "m")%V alice in
          match: "r" with
            InjL <> => "k" (InjLV #()%V)
          | InjR "w" =>
-           (λ: "m", do: keyleak1 "m")%V (InjL alice);; "k" (InjR (vgval (g ^+ n)))
+           (λ: "m", do: keyleak1 Send "m")%V alice;; 
+           "k" (InjR (vgval (g ^+ n)))
          end
-       end)%E).
+       end )%E).
   set (kr1 := (  match: "payload" with
          InjL "payload" =>
            let: "dst" := "payload" in
@@ -1859,10 +1874,10 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
          let: "r" := (λ: "m", do: leaksec' InjR "m")%V "from" in
          match: "r" with InjL <> => "k" (InjLV #()%V) | InjR "x" => "k" (InjR "x") end
                  end)%E).
-  set (kr2 := (  match: "payload" with
+  set (kr2 := ( match: "payload" with
          InjL "payload" =>
-           (λ: "m", do: keyleak2 "m")%V (InjL bob);; 
-           let: "r" := (λ: "m", do: keyleak2 "m")%V (InjR bob) in
+           (λ: "m", do: keyleak2 Send "m")%V bob;; 
+           let: "r" := (λ: "m", do: keyleak2 Recv "m")%V bob in
            match: "r" with
              InjL <> => "k" (InjLV #()%V)
            | InjR "x" =>
@@ -1870,20 +1885,26 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                InjL <> =>
                  let: "m'" := #()%V;; rand(#lbl:α) #(S n'') in
                  let: "mA" := vexp g "m'" in
-                 #l_sim <- InjR "m'";; (λ: "m", do: leakauth2 Send "m")%V ("mA", bob);; "k" #()%V
+                 #l_sim <- InjR "m'";; 
+                 (λ: "m", do: leakauth2 Send "m")%V ("mA", bob);; 
+                 "k" #()%V
              | InjR "m" => "k" #()%V
              end
            end
        | InjR "from" =>
-         (λ: "m", do: keyleak2 "m")%V (InjL "from");; 
-         let: "r" := (λ: "m", do: keyleak2 "m")%V (InjR "from") in
+         (λ: "m", do: keyleak2 Send "m")%V "from";; 
+         let: "r" := (λ: "m", do: keyleak2 Recv "m")%V "from" in
          match: "r" with
            InjL <> => "k" (InjLV #()%V)
          | InjR "x" =>
-           let: "rla" := (λ: "m", do: leakauth2 Recv "m")%V "from" in
-           match: "rla" with InjL <> => "k" (InjLV #()%V) | InjR "x" => "k" ! #l_sim end
+           let: "rla" := (λ: "m", do: leakauth2 Recv "m")%V
+                           "from" in
+           match: "rla" with
+             InjL <> => "k" (InjLV #()%V)
+           | InjR "x" => "k" ! #l_sim
+           end
          end
-                 end )%E).
+       end )%E).
   
   (*unfold sem_val_typed. simpl.
   iDestruct "Hrelf1f2" as "#Hrelf1f2".*)
@@ -1892,7 +1913,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   (*iDestruct "Hrelf1f2" as "#Hrelf1f2".*)
   unfold sem_ty_arr, sem_ty_mbang. simpl.
   (*iDestruct "Hrelf1f2" as "#Hrelf1f2".*)
-  iAssert (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: "m", do: schannel_l InjR "m"))%V ((λ: "m", do: schannel_r InjL "m") , (λ: "m", do: schannel_r InjR "m"))%V (((⊤ ×(𝟙 + 𝟙))%T -{ θ }-> 𝟙) × ((𝟙 + 𝟙)%T -{ θ }-> (Option ⊤)))%T) as "Hschn".
+  iAssert (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: "m", do: schannel_l InjR "m"))%V ((λ: "m", do: schannel_r InjL "m") , (λ: "m", do: schannel_r InjR "m"))%V (((𝔾 ×(𝟙 + 𝟙))%T -{ θ }-> 𝟙) × ((𝟙 + 𝟙)%T -{ θ }-> (Option 𝔾)))%T) as "Hschn".
   { iApply SEM_TYPED_EFF. }
   (*iAssert (sem_val_typed (λ: "m", do: schannel_l InjR "m") (λ: "m", do: schannel_r InjR "m") ((𝟙 + 𝟙)%T -{ θ }-> (Option 𝔾))%T) as "Hschnrcv".
   { admit. }*)
@@ -1909,18 +1930,25 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
     (([channel; getKey1; schannel1], [leaksec; schannel2], sec_channel schannel1 schannel2)
       :: iLblSig_to_iLblThy L) 𝟙%T) as "Hrelf1f2mono".
   { admit. }*)
-   iApply (brel_na_alloc
+   (*iApply (brel_na_alloc
               (((α ↪ₛN (S n''; [n])) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV)
                ∨ (α ↪ₛ□ (S n''; []) ∗ l_sim ↦ₛ□ SOMEV #n ∗  l_auth ↦□ SOMEV (xor (vgval $ g ^+n)%g #0)))%I
+              alphaN).*)
+    iApply (brel_na_alloc
+              (((α ↪ₛN (S n''; [n])) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV)
+               ∨ (∃ m, α ↪ₛ□ (S n''; []) ∗ l_sim ↦ₛ□ SOMEV #n ∗
+                  l_auth ↦□ SOMEV (vgval
+                              (bij_group_xor_sem m (g ^+ n))))%V)%I
               alphaN).
    iSplitL "Hα Hl_sim Hl_auth"; [iNext; iFrame; iLeft; iFrame|].
    iIntros "#Hinvα".
    iApply (brel_na_alloc
               ((l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV)
-               ∨ (l_fchan ↦ₛ□ SOMEV #0 ∗  l_rchan ↦□ SOMEV #0))%I
+               ∨ (∃ g g', l_fchan ↦ₛ□ SOMEV (vgval g) ∗  l_rchan ↦□ SOMEV (vgval g')))%I
               betaN).
-   iSplitL  "Hlrchan Hlfchan"; [iNext; iFrame; iLeft; iFrame|].
-   iIntros "#Hinvβ" .
+   iSplitL  "Hlrchan Hlfchan"; [iNext; iLeft; iFrame|].
+  
+   iIntros "#Hinvβ".
    (*set (f'1 := ( handle: f1 (λ: "m", do: schannel_l InjL "m", λ: "m", do: schannel_l InjR "m")%V with
      | effect schannel_l "payload", rec "k" as multi => kl1
                | return "y" => #()%V end)%E).
@@ -1994,7 +2022,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
             eapply NeutralEctx_label_cons_inv_1 in Hk2. eapply Hk2. } 
          iApply (brel_na_inv _ _ betaN); first set_solver.
          iFrame "Hinvβ".
-         iIntros "([(>Hl_fchan  & >Hl_rchan) | (#>Hl_fchan & #>Hl_rchan)] & Hclose)".
+          iIntros "([(>Hl_fchan  & >Hl_rchan) | #>Hrfchan] & Hclose)".
          (* First message to be sent by the secure channel*)
         ++  iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
              iIntros "Hl_fchan".
@@ -2103,6 +2131,9 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                       { iApply "IH". }
                   +++ iApply brel_value.
                       iIntros "$ !>". brel_pures.
+                       iApply (G_XOR_CORRECT_l m (g ^+ n) _ _ _ _).
+                       {admit. }
+                       brel_pures.
                       { simpl. set_solver. (* unfold distinct in Hdistinct. destruct Hdistinct.
                            unfold distinct_l in H1. (*unfold LblClients in H1. simpl in H1.*)
                            unfold N in H1. simpl in H1.
@@ -2114,7 +2145,8 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                       { simpl.
                         iApply (brel_na_inv _ _ alphaN); first set_solver.
                         iFrame "Hinvα".
-                        iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | (#>Hα & #>Hl_sim & #>Hl_auth) ] & Hclose)". 
+                        iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | #>Hsimauth ] & Hclose)".
+                        (*iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | (#>Hα & #>Hl_sim & #>Hl_auth) ] & Hclose)".*) 
                         (*first message to be sent by the authenticated channel*)
                         - 
                           iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _; CaseCtx _ _] with "Hl_auth"). 
@@ -2150,7 +2182,15 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                          (* set (leakatheory := [([leakauth1], [leakauth2],
            iThySum (iThySum LASendAlice LASendBob)
              (iThySum LARecvAlice LARecvBob))]).*)
-                          iApply (brel_bind _ _ _ leaktheory N _ (Do leakauth1 (InjLV (xor "x" "m", bob))) (Do leakauth2 (InjLV (vgval (g ^+ n) , bob)))).
+                          set (g_sem := (bij_group_xor_sem m (g ^+ n))).
+                          repeat foldkont.
+                         (* iPoseProof (brel_bind [AppRCtx (λ: <>, kont1 #()%V)]
+                      [AppRCtx (λ: <>, kont0 #()%V)]
+                      ⊤ leaktheory N  𝟙%T
+                      (Do leakauth1 (InjLV (vgval (g ^+n), bob)))
+                      (Do leakauth2 (InjLV (vgval g_sem, bob)))) as "Hbind".
+                      iApply  "Hbind".*)
+                          iApply (brel_bind _ _ _ leaktheory N _ (Do leakauth1 (InjLV (vgval g_sem, bob))) (Do leakauth2 (InjLV (vgval (g ^+ n) , bob)))).
                           { simpl. unfold leaktheory. auto.
                             iApply traversable_to_iThy_singleton. simpl. admit.
                             (* iApply traversable_iThyTraverse.
@@ -2187,6 +2227,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                       (*a message has already been sent by the authenticated channel*)
                         -  iApply brel_na_close. iFrame.
                            iSplitL; [iModIntro; iRight; iFrame "#"|].
+                            iDestruct "Hsimauth" as (m0) "[Hα [Hl_sim Hl_auth]]".
                             iApply (brel_load_l _ _ _  [HandleCtx _ _ _ _ _; CaseCtx _ _] with "Hl_auth").
                             iIntros "!> Hl_auth'".
                             brel_pures.
@@ -2201,6 +2242,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
          (* A message has already been sent by the secure channel*)
         ++ iApply brel_na_close. iFrame.
            iSplitL; [iModIntro; iRight; iFrame "#"|].
+           iDestruct "Hrfchan" as (g g') "[Hl_fchan Hl_rchan]".
            iApply (brel_load_l _ _ _  [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_rchan").
            iIntros "!> Hl_rchan'".
            brel_pures.
@@ -2326,7 +2368,8 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                           brel_pures. simpl.
                           iApply (brel_na_inv _ _ alphaN); first set_solver.
                           iFrame "Hinvα".
-                          iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | (#>Hα & #>Hl_sim & #>Hl_auth) ] & Hclose)".
+                          iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | #>Hsimauth ] & Hclose)".
+                          (*iIntros "([ (>Hα & >Hl_sim & >Hl_auth) | (#>Hα & #>Hl_sim & #>Hl_auth) ] & Hclose)".*)
                           (* first case, when no message is stored in the authenticated channel*)
                           +++ simpl. brel_pures.
                               iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hl_sim").
@@ -2344,6 +2387,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                                { iApply "IH". }
                                (*second case for the invariant, when a message is stored in the authenticated channel*)
                           +++ simpl. brel_pures.
+                              iDestruct "Hsimauth" as (m0) "[Hα [Hl_sim Hl_auth]]".
                               iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hl_sim").
                               iIntros "Hl_sim'".
                               iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _; AppRCtx _] with "Hl_auth").
@@ -2352,7 +2396,13 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                               brel_pures.
                               iApply brel_na_close. iFrame.
                               iSplitL; [iModIntro; iRight; iFrame "#" |].
-                              iApply (brel_exhaustion (fill k1'((InjRV (xor "key" "x"))%V)) (fill k2' ((InjRV #n)%V))).
+                              iApply  G_XOR_CORRECT_l.
+                              { admit. }
+                              brel_pures.
+                              set (g_enc :=  (bij_group_xor_sem
+                                        (bij_group_xor_sem m0 (g ^+ n))
+                                        (g ^+ n))).
+                              iApply (brel_exhaustion (fill k1'((InjRV (vgval g_enc))%V)) (fill k2' ((InjRV #n)%V))).
                                { set_solver. }
                                { set_solver. }
                                { iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". unfold xor. iApply "Hsome". }
@@ -2365,7 +2415,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                           { simpl. set_solver. }
                           { simpl. set_solver. }
                           { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". unfold xor. iApply "Hnone". }
-                          {iApply "IH". } } } }*)
+                          {iApply "IH". } } } }
                           
 Admitted.
 
