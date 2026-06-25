@@ -1,23 +1,8 @@
-(*open SparseV*)
 #use "private_multiplicative_weights.ml"
-
-#use "db_sampling.ml"
+let () = Random.self_init ()
 
 let path = "data/"
 let file = "rd_data.csv"
-let () = Random.self_init ()
-
-let aff_lst l =
-  List.iter (fun x -> Printf.printf "%f|" x) l;
-  Printf.printf "\n"
-
-let aff_l_op l =
-  List.fold_left
-    (fun _ y ->
-      match y with
-      | None -> Printf.printf "⊥\n"
-      | Some n -> Printf.printf "%d\n" n)
-    () l
 
 let () =
   let size, domaine, db = mk_histo (path ^ file) in
@@ -32,7 +17,7 @@ let () =
         Some
           (get_rd_query domaine))
   in
-  let res, db', nb_upd =
+  let res, db', nb_upd, c, t =
     oPMW
       size
       domaine
@@ -42,10 +27,11 @@ let () =
       (float_of_int card_q)
       1 1 0.1 0.1
   in
+  Printf.printf "c: %f\nt: %f\n" c t;
   Printf.printf "- NB UPDATE : %d\n- DISTRIB DB :" nb_upd;
   aff_db db;
   Printf.printf "\n\n- SANITIZED :";
   aff_db db';
   Printf.printf "\n\n- LIST RESULT :\n";
-  aff_lst res;
+  (* aff_flst res; *)
   ()

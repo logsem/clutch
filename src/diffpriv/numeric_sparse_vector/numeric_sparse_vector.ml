@@ -1,5 +1,5 @@
-(*open NoiseSampling*)
 #use "noiseSampling.ml"
+#use "utils.ml"
 
 let num_above_threshold num den t =
   let t' = laplace_discrete (Q.mk (4 * num) (9 * den)) t in
@@ -25,7 +25,7 @@ let nSVT_stream num den t n stream_qs db =
     if i = n then bs
     else
       begin match stream_qs bs with
-      | None -> bs (* the stram is over *)
+      | None -> bs (* end of stream *)
       | Some q ->
           let b = f db q in
           nSVT (if b = None then i else i + 1) (b :: bs)
