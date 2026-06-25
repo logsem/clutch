@@ -446,7 +446,61 @@ Section compatibility.
          iApply (brel_wand with "[Hτ]"); [iApply "He"|iIntros (??) "!# ($ &_)"].
          solve_env.
          by do 2 (rewrite -env_sem_typed_insert; last done).
-     Qed.          
+     Qed.
+
+  (* Pure compatibility: pairs and injections at the oval level. *)
+  Lemma sem_oval_typed_pair (Γ : env Σ) e1 e1' e2 e2' τ κ
+    `{! ∀ vs, Persistent (Γ ⊨ₑ vs)} :
+    ⊢ sem_oval_typed Γ e1 e1' τ -∗
+    sem_oval_typed Γ e2 e2' κ -∗
+    sem_oval_typed Γ (Pair e1 e2) (Pair e1' e2') (sem_ty_prod τ κ).
+  Proof.
+    iIntros "#H1 #H2". rewrite /sem_oval_typed /tc_opaque.
+    iIntros (vs) "!> #HΓ /=".
+    iDestruct ("H1" with "HΓ") as "H1'".
+    iDestruct ("H2" with "HΓ") as "H2'".
+    iPoseProof (prel_pair with "H1' H2'") as "Hp".
+    iApply (prel_mono with "[] Hp").
+    iIntros (w1 w2) "(%a1 & %a2 & %b1 & %b2 & %Hw1 & %Hw2 & HΦ & HΨ)".
+    rewrite /sem_ty_prod. iExists a1, a2, b1, b2. by iFrame.
+  Qed.
+
+  Lemma sem_oval_typed_injl (Γ : env Σ) e e' τ κ :
+    ⊢ sem_oval_typed Γ e e' τ -∗
+    sem_oval_typed Γ (InjL e) (InjL e') (sem_ty_sum τ κ).
+  Proof.
+    iIntros "#H". rewrite /sem_oval_typed /tc_opaque.
+    iIntros (vs) "!> HΓ /=".
+    iDestruct ("H" with "HΓ") as "H'".
+    iPoseProof (prel_injl with "H'") as "Hp".
+    iApply (prel_mono with "[] Hp").
+    iIntros (w1 w2) "(%a1 & %a2 & %Hw1 & %Hw2 & HΦ)".
+    rewrite /sem_ty_sum. iExists a1, a2. iLeft. by iFrame.
+  Qed.
+
+  Lemma sem_oval_typed_injr (Γ : env Σ) e e' τ κ :
+    ⊢ sem_oval_typed Γ e e' κ -∗
+    sem_oval_typed Γ (InjR e) (InjR e') (sem_ty_sum τ κ).
+  Proof.
+    iIntros "#H". rewrite /sem_oval_typed /tc_opaque.
+    iIntros (vs) "!> HΓ /=".
+    iDestruct ("H" with "HΓ") as "H'".
+    iPoseProof (prel_injr with "H'") as "Hp".
+    iApply (prel_mono with "[] Hp").
+    iIntros (w1 w2) "(%a1 & %a2 & %Hw1 & %Hw2 & HΦ)".
+    rewrite /sem_ty_sum. iExists a1, a2. iRight. by iFrame.
+  Qed.
+
+  Lemma sem_oval_typed_var (Γ : env Σ) (x : string) τ :
+    ⊢ sem_oval_typed ((x, τ) :: Γ) (Var x) (Var x) τ.
+  Proof.
+    rewrite /sem_oval_typed /tc_opaque.
+    iIntros (vs) "!> HΓ /=".
+    rewrite env_sem_typed_cons.
+    iDestruct "HΓ" as "[(%v1 & %v2 & %Hrw & Hτ) _]".
+    rewrite !lookup_fmap Hrw /=.
+    rewrite /prel /=. iApply "Hτ".
+  Qed.
 
    (*  Corollary sem_typed_ufun τ ρ κ Γ₁ Γ₂ f x e `{! MultiE Γ₁ }:
        x ∉ (env_dom Γ₁) → f ∉ (env_dom Γ₁) → 

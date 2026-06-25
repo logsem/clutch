@@ -130,10 +130,22 @@ Proof.
     + (* Val_pure_typed *) apply fundamental_val in H. iPoseProof H as "H".
       iSpecialize ("H" $! η μ δ ξ). iApply sem_oval_typed_val. iApply "H".
     + (* Rec_pure_typed *) admit.
-    + (* Pair_pure_typed *) admit.
-    + (* InjL_pure_typed *) admit.
-    + (* InjR_pure_typed *) admit.
-    + (* Var_pure_typed *) admit.
+    + (* Pair_pure_typed *)
+      (* Blocked: building the product [prel] needs both component value
+         relations simultaneously, hence two copies of [env_sem_typed Γ' vs].
+         The pure Pair rule places no [MultiC Γ] (mode/persistence) side
+         condition on Γ, so [interp Γ ⊨ₑ vs] is not persistent in general
+         (e.g. for a linear-arrow binding), and the env cannot be duplicated.
+         Helper [sem_oval_typed_pair] (compatibility.v) discharges this once
+         [∀ vs, Persistent (Γ ⊨ₑ vs)] is available. *)
+      admit.
+    + (* InjL_pure_typed *) iApply sem_oval_typed_injl.
+      apply fundamental_pure in Hp. iPoseProof Hp as "H".
+      iApply ("H" $! η μ δ ξ).
+    + (* InjR_pure_typed *) iApply sem_oval_typed_injr.
+      apply fundamental_pure in Hp. iPoseProof Hp as "H".
+      iApply ("H" $! η μ δ ξ).
+    + (* Var_pure_typed *) iApply sem_oval_typed_var.
     + (* BangIntro_pure_typed *) admit.
     + (* TAbs_pure_typed *) admit.
     + (* RAbs_pure_typed *) admit.
