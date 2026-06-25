@@ -6,7 +6,7 @@ From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
  spec_rules spec_ra class_instances.
 From clutch.prob_eff_lang.probblaze Require Import tactics.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def valgroup.
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def valgroup sem_env.
 
 (*Import fingroup.
 
@@ -235,14 +235,15 @@ Section parallel_composition.
   Qed.
   
   Definition τ__F' θ τ τ' := ((∀ᵣ θ₁, τ' θ₁ -{ sem_row_union θ₁ θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union θ₂ θ }-∘ 𝟙))%T.
+  Definition τ__f' θ τ2' := (∀ᵣ θ2, τ2' θ2 -{ (sem_row_union θ2 θ) }-∘ 𝟙)%T.
 
   Lemma func_comp_parallel_comp_assoc (F J : val) (G : expr) (f x : string) τ1 τ2 τG τ1' τ2' θ :
     (BNamed f) ≠ (BNamed x) →
     ⊢ sem_val_typed F F (τ__F τ2 τG)-∗
-    sem_val_typed (λ: f x, G) (λ: f x, G) (τ__F' θ τG τ1') -∗
+    (∀ θ, ∀ θG, sem_typed [(f, τ__f' θ τ1'); (x, τG θG)] G G (sem_row_union θG θ) 𝟙%T []) -∗
     sem_val_typed J J (τ__F τ1 τ2') -∗
     sem_typed [] ((F ∘f (λ: f x, G)%V) ||ᵣ J) 
-      (F ∘F ((λ: f x, G)%V ||ᵣ J)) ⊥ ((τ__f θ τ1' τ2') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, τ1 θ1 ⊸ τ2 θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T [].
+      (F ∘F ((λ: f x, G)%V ||ᵣ J)) ⊥ ((τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, τ1 θ1 ⊸ τ2 θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T [].
   Proof.
     iIntros (Hfx) "#HFF #HGG #HJJ !# %vs _". simpl.
     unfold func_comp,right_composition,functionality_composition.
@@ -259,13 +260,40 @@ Section parallel_composition.
     brel_pures_r.
     brel_pures'. 
     rewrite decide_True; last (split; done).
-    iAssert ((∀ᵣ θ₁, τG θ₁ -{ sem_row_union θ₁ θ }-∘ 𝟙)%T 
+    iAssert ((∀ᵣ θG, τG θG -{ sem_row_union θG (sem_row_union θ1 θ) }-∘ 𝟙)%T 
                (λ: x, val_subst f (λ: "h₁", J (λ: "h₂", f1 "h₂" "h₁") v1) G)%V
                (λ: "rG", (λ: "F₁" "F₂" "f" "r₂" "r₁", "F₁" (λ: "h₁", "F₂" (λ: "h₂", "f" "h₂" "h₁") "r₂") "r₁")%V (λ: f x, G)%V J f2 v1' "rG")%V) with "[Hτ1 Hff]" as "Hgg".
     { iIntros (θG rg1 rg2) "HτG".
       brel_pures'.
-      rewrite decide_True; last (split; done).
-      admit. }
+      rewrite decide_True; last (split; done). 
+      iSpecialize ("HGG" $! (sem_row_union θ1 θ) θG). 
+      iAssert ((τ__f' (sem_row_union θ1 θ) τ1' (λ: "h₁", J (λ: "h₂", f1 "h₂" "h₁") v1)%V (λ: "h₁", J (λ: "h₂", f2 "h₂" "h₁") v1')%V)) with "[Hff Hτ1]" as "Hff".
+      { iIntros (θ1' h1 h1') "Hhh". brel_pures'.
+        iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+        assert (to_iThyIfMono OS [] = []) as <- by done.
+        iApply (brel_mono OS with "[][HJJ Hff Hhh]"); [iApply to_iThy_le_refl|simpl|].
+        { iApply "HJJ". iIntros (θJ h2 h2') "Hhh2". brel_pures'.
+          iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+          assert (to_iThyIfMono OS [] = []) as <- by done.
+          iApply (brel_mono OS with "[][Hff Hhh2]"); [iApply to_iThy_le_refl|simpl;by iApply "Hff"|simpl].
+          iIntros (Jf1 Jf2) "HJf". by iApply "HJf". }
+        simpl. iIntros (g1 g2) "Hgg". 
+        iDestruct ("Hgg" with "Hτ1") as "Hgg".
+        rewrite !iLblSig_to_iLblThy_distr.
+        iApply (brel_introduction_mono (iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ1' ++ iLblSig_to_iLblThy θ)); [|done].
+        iApply to_iThy_le_intro'; solve_submseteq. }
+      iAssert ([(f, τ__f' (sem_row_union θ1 θ) τ1'); (x, τG θG)] ⊨ₑ {[ x := (rg1, rg2); f := ((λ: "h₁", J (λ: "h₂", f1 "h₂" "h₁") v1)%V, (λ: "h₁", J (λ: "h₂", f2 "h₂" "h₁") v1')%V)]}) with "[HτG Hff]" as "HΓ". 
+      { solve_env. intros heq. apply Hfx. simpl. by destruct heq. }
+      iDestruct ("HGG" with "HΓ") as "Hrel". 
+      iApply (brel_wand with "[Hrel]"). 
+      { rewrite !fmap_insert !fmap_empty //=. 
+        rewrite !subst_map_insert !delete_insert_ne //=.
+        2,3 : intros heq; apply Hfx; by destruct heq.
+        rewrite !delete_empty.
+        rewrite !subst_map_insert !delete_empty subst_map_empty.
+        iApply "Hrel". }
+      iIntros (??) "!# ($&_)". }
+
     iSpecialize ("HFF" with "Hgg").
     iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
@@ -273,9 +301,9 @@ Section parallel_composition.
     iIntros (??) "Hτ".
     iSpecialize ("Hτ" with "Hτ2").
     rewrite !iLblSig_to_iLblThy_distr.
-    iApply (brel_introduction_mono (iLblSig_to_iLblThy θ2 ++ iLblSig_to_iLblThy θ)); last done.
+    iApply (brel_introduction_mono (iLblSig_to_iLblThy θ2 ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ)); last done.
     iApply to_iThy_le_intro'; solve_submseteq.
-  Admitted.
+  Qed. 
       
   Lemma func_comp_assoc (F G J : val) τ1 τ2 τ3 τ4 : 
     ⊢ sem_val_typed F F (∀ᵣ θ, τ3 θ ⊸ τ4 θ)%T -∗
@@ -321,16 +349,16 @@ Section parallel_composition.
     rewrite /functionality_composition /func_comp //=.
     brel_pures'. 
     (* do 2 (erewrite subst_is_closed; try done).
-       erewrite (subst_is_closed _ F); try done.
-       iModIntro.
-       iIntros (θ1 θ2 v1 v1') "Hτ1".
-       brel_pures'.
-       iModIntro.
-       iIntros (v2 v2') "Hτ2".
-       brel_pures'.
-       erewrite !(subst_is_closed _ F); try done.
-       erewrite !(subst_is_closed _ G); try done.
-       rewrite decide_True; last (split; done). *)
+       erewrite (subst_is_closed _ F); try done. *)
+    iModIntro.
+    iIntros (θ1 θ2 v1 v1') "Hτ1".
+    brel_pures'.
+    iModIntro.
+    iIntros (v2 v2') "Hτ2".
+    brel_pures'.
+    (* erewrite !(subst_is_closed _ F); try done.
+       erewrite !(subst_is_closed _ G); try done. *)
+    rewrite decide_True; last (split; done).
     
   Admitted.
     
