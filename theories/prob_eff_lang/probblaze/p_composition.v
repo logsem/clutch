@@ -330,15 +330,15 @@ Section parallel_composition.
 
 
     
-  Lemma functionality_comp_func_comp_assoc (F G : val) (J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
+  Lemma functionality_comp_func_comp_assoc (F G : expr) (J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
     (BNamed f) ≠ (BNamed x) →
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
-    ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union θF θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ1 θ1 -{ sem_row_union θ1 θ }-∘ 𝟙)%T [] -∗
+    ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union θF θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union θ1 θ }-∘ 𝟙)%T [] -∗
 
-    sem_typed [] G G ⊥ (∀ᵣ θ, τJ θ ⊸ ∀ᵣ θ1, τ2 θ1 ⊸ ∀ᵣ θ2, τF θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ)}-∘ 𝟙)%T [] -∗
+    sem_typed [] G G ⊥ (∀ᵣ θ, (∀ᵣ θJ, τJ θJ -{ sem_row_union θJ θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ1 θ1 ⊸ ∀ᵣ θ2, τF θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ)}-∘ 𝟙)%T [] -∗
 
-    sem_typed [] (λ: f x, J) (λ: f x, J) ⊥ (∀ᵣ θ, τ1' θ ⊸ τJ θ)%T [] -∗
+    (∀ θ θJ, sem_typed [(f, τ1' θ); (x, τJ θJ)] J J (sem_row_union θJ θ) (𝟙)%T []) -∗
 
     sem_val_typed ((F ∘F G) ∘f (λ: f x, J)%V) (F ∘F (G ∘f (λ: f x, J)%V))
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1) ⊸ (τ2 θ2) -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T. 
@@ -348,19 +348,69 @@ Section parallel_composition.
     iIntros (θ f1 f2) "!# Hτ1'".
     rewrite /functionality_composition /func_comp //=.
     brel_pures'. 
-    (* do 2 (erewrite subst_is_closed; try done).
-       erewrite (subst_is_closed _ F); try done. *)
+    do 2 (erewrite subst_is_closed; try done).       
+    erewrite (subst_is_closed _ F); try done.
     iModIntro.
     iIntros (θ1 θ2 v1 v1') "Hτ1".
     brel_pures'.
     iModIntro.
     iIntros (v2 v2') "Hτ2".
     brel_pures'.
-    (* erewrite !(subst_is_closed _ F); try done.
-       erewrite !(subst_is_closed _ G); try done. *)
+    erewrite !(subst_is_closed _ F); try done.
+    erewrite !(subst_is_closed _ G); try done.
     rewrite decide_True; last (split; done).
-    
-  Admitted.
+    iApply (brel_bind [_;_] [_;_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][HFF]"); [iApply to_iThy_le_refl| |].
+    { iAssert ([] ⊨ₑ ∅) as "HΓ"; first done. iSpecialize ("HFF" with "HΓ"). 
+      rewrite subst_map_empty. iApply "HFF". }
+    iClear (F HFclosed) "HFF".
+    simpl. iIntros (F1 F2) "(HFF&_)".
+    iSpecialize ("HFF" $! (sem_row_union θ1 θ)).
+    iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][HFF Hτ1' Hτ1]"); [iApply to_iThy_le_refl|iApply "HFF"|].
+    - iIntros (θF rF1 rF2) "HτF". 
+      brel_pures'.
+      rewrite decide_True; last (split; done).
+      erewrite !(subst_is_closed _ G); try done.
+      iApply (brel_bind [_;_;_] [_;_;_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+      assert (to_iThyIfMono OS [] = []) as <- by done.
+      iApply (brel_mono OS with "[][HGG]"); [iApply to_iThy_le_refl| |].
+      { iAssert ([] ⊨ₑ ∅) as "HΓ"; first done. iSpecialize ("HGG" with "HΓ"). 
+      rewrite subst_map_empty. iApply "HGG". }
+      iClear (G HGclosed) "HGG".
+      simpl. iIntros (G1 G2) "(HGG&_)".
+      iApply (brel_bind [_;_] [_;_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+      assert (to_iThyIfMono OS [] = []) as <- by done.
+      iApply (brel_mono OS with "[][HGG Hτ1']"); [iApply to_iThy_le_refl|iApply "HGG"|].
+      + iIntros (θJ x1 x2) "HτJ". brel_pures'.
+        iAssert ([(f, τ1' θ); (x, τJ θJ)] ⊨ₑ {[ x:= (x1,x2); f := (f1,f2) ]}) with "[Hτ1' HτJ]" as "HΓ".
+        { solve_env. by intros ->. }
+        iDestruct ("HJJ" with "HΓ") as "Hrel".
+        iApply (brel_wand with "[Hrel]"). 
+        { rewrite !fmap_insert !fmap_empty //=. 
+          rewrite !subst_map_insert !delete_insert_ne //=.
+          2,3 : by intros ->.
+          rewrite !delete_empty.
+          rewrite !subst_map_insert !delete_empty subst_map_empty.
+          iApply "Hrel". }
+        iIntros (??) "!# ($&_)". 
+      + simpl. iIntros (GJ1 GJ2) "HGJ".
+        iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+        assert (to_iThyIfMono OS [] = []) as <- by done.
+        iApply (brel_mono OS with "[][HGJ Hτ1]"); [iApply to_iThy_le_refl| by iApply "HGJ"|].
+        simpl. iIntros (G1' G2') "HG'".
+        iDestruct ("HG'" with "HτF") as "HG'".
+        rewrite !iLblSig_to_iLblThy_distr.
+        iApply (brel_introduction_mono (iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θF ++ iLblSig_to_iLblThy θ)); last done.
+        iApply to_iThy_le_intro'; solve_submseteq.
+    - simpl. iIntros (F1' F2') "HF'".
+      iDestruct ("HF'" with "Hτ2") as "HF".
+      rewrite !iLblSig_to_iLblThy_distr.
+      iApply (brel_introduction_mono (iLblSig_to_iLblThy θ2 ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ)); last done.
+      iApply to_iThy_le_intro'; solve_submseteq.
+  Qed. 
     
   Lemma functionality_comp_cong (F G1 G2 : expr) τ1 τ2 τ1' τF :
      is_closed_expr ∅ F →
