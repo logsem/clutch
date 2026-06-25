@@ -1163,33 +1163,75 @@ Proof with (repeat foldkont) using G.
          let: "r" := (λ: "m", do: leakauth1 Recv "m")%V "from" in
          match: "r" with InjL <> => "k" (InjLV #()%V) | InjR "x" => "k" ! #l_auth end
                 end)%E).
-  set (kr1 := (  match: "payload" with
-         InjL "payload" =>
-           let: "dst" := "payload" in
-           let: "m" := Fst "dst" in
-           let: "dst" := Snd "dst" in
-           match: ! #l_fchan with
-             InjL <> => #l_fchan <- InjR "m";; (λ: "m", do: leaksec' InjL "m")%V "dst";; "k" #()%V
-           | InjR "x" => "k" #()%V
-           end
-       | InjR "from" =>
-         let: "r" := (λ: "m", do: leaksec' InjR "m")%V "from" in
-         match: "r" with InjL <> => "k" (InjLV #()%V) | InjR "x" => "k" (InjR "x") end
-                 end)%E).
-  set (kr2 := ( match: "payload" with
-         InjL "payload" =>
-           (λ: "m", do: keyleak2 Send "m")%V bob;; 
-           let: "r" := (λ: "m", do: keyleak2 Recv "m")%V bob in
+               set (kontrightbind :=
+                   (let: "r" := (λ: "m", do: keyleak2 Recv "m")%V bob in
+                     match: "r" with
+                     InjL <> => kont0 (InjLV #()%V)
+                   | InjR "x" =>
+                     match: ! #l_sim with
+                      InjL <> =>
+                       let: "m'" := #()%V;; rand(#lbl:α) #(S n'') in
+                       let: "mA" := vexp g "m'" in
+                       #l_sim <- InjR "m'";; (λ: "m", do: leakauth2 Send "m")%V ("mA", bob);; kont0 #()%V
+                   | InjR "m" => kont0 #()%V
+                   end end)%E).
+               About brel_bind''.
+               set (keytheory := iLblSig_to_iLblThy [([keyleak1], [keyleak2], keyleak keyleak1 keyleak2)]).
+               set (leaktheory := (iLblSig_to_iLblThy [([leakauth1], [leakauth2], leakauth leakauth1 leakauth2)])).
+               About leaktheory.
+               (*set (M := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], iThyBot Σ)]).*)
+               About brel_bind''.
+               set (M := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++ leaktheory ++ (iLblSig_to_iLblThy L)).
+               set (N := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++ keytheory ++ leaktheory ++ (iLblSig_to_iLblThy L)).
+              (* iApply (brel_bind'' [HandleCtx Deep _ _ _ _; AppRCtx _] [AppRCtx _] keytheory [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], iThyBot)] (([leakauth1], [leakauth2], leakauth leakauth1 leakauth2) :: iLblSig_to_iLblThy L)  (λ v1 v2 : val, ⌜v1 = v2⌝%I) (Do keyleak1 (InjLV bob)) (Do keyleak2 (InjLV bob))).*)
+               iApply (brel_bind'' [HandleCtx Deep _ _ _ _; AppRCtx _] [AppRCtx _] keytheory M N (𝟙%T) (Do keyleak1 (InjLV bob)) (Do keyleak2 (InjLV bob))).
+                { simpl. unfold M. repeat (rewrite -> labels_l_cons). set_solver. }
+                { simpl. apply list_subseteq_nil. }
+                { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. eapply Permutation_submseteq.
+                  eapply perm_swap. } 
+                { iApply (brel_introduction' [keyleak1] [keyleak2]).
+                   1: { unfold keytheory.
+                        eapply list_elem_of_here. }
+                   iExists _, _, [], [],_.
+                   do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+                   iSplitL;  [|by iIntros "!>" (??) "H"; iApply "H"].
+                   iRight. iLeft. simpl. 
+                   repeat (iSplit; try (iPureIntro); try (unfold SendV); try reflexivity).
+                   iModIntro.
+                   iApply brel_na_close. iFrame.
+                   iSplitL; [iModIntro; iRight; iFrame "#"|].
+                  (* set (keytheory := [([keyleak1], [keyleak2],
+               iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
+                 (iThySum KLeakSendBob KLeakRecvBob))]).*)
+                   (*set (keytheory := [([keyleak1], [keyleak2], keyleak keyleak1 keyleak2)]).*)
+                  (*set (M := (([channel'; getKey'; schannel_l], [leaksec'; schannel_r], iThyBot)
+              :: ([leakauth1], [leakauth2], leakauth leakauth1 leakauth2) :: (iLblSig_to_iLblThy L))).
+                  set (N := (([channel; getKey1; schannel1], [leaksec; schannel2; getKey2], iThyBot)
+           :: ([keyleak1], [keyleak2],
+               iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
+                 (iThySum KLeakSendBob KLeakRecvBob))
+              :: ([leakauth1], [leakauth2],
+                   iThySum (iThySum LASendAlice LASendBob) (iThySum LARecvAlice LARecvBob)) :: L)).*)
+                  simpl.
+                  repeat foldkont.
+                  simpl.
+                  set (kontleftbind :=
+                   (let: "r" := (λ: "m", do: keyleak1 "m")%V (InjR bob) in
+                   match: "r" with
+                     InjL <> => kont (InjLV #()%V)
+                   | InjR "w" => kont (InjR (vgval (g ^+ n)))
+                   end)%E).
+                  set (kontrightbind := (let: "r" := (λ: "m", do: keyleak2 "m")%V (InjR bob) in
            match: "r" with
-             InjL <> => "k" (InjLV #()%V)
+             InjL <> => kont0 (InjLV #()%V)
            | InjR "x" =>
              match: ! #l_sim with
                InjL <> =>
                  let: "m'" := #()%V;; rand(#lbl:α) #(S n'') in
                  let: "mA" := vexp g "m'" in
                  #l_sim <- InjR "m'";; 
-                 (λ: "m", do: leakauth2 Send "m")%V ("mA", bob);; "k" #()%V
-             | InjR "m" => "k" #()%V
+                 (λ: "m", do: leakauth2 Send "m")%V (InjL ("mA", bob));; kont0 #()%V
+             | InjR "m" => kont0 #()%V
              end
            end
        | InjR "from" =>
@@ -2098,20 +2140,56 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                 iRight. iLeft. simpl. 
                 repeat (iSplit; try (iPureIntro); try (unfold SendV); try reflexivity).
                 iModIntro.
-                iApply brel_value.
-                iIntros "$ !>". brel_pures.
-                (*About brel_learn.*)
-                About distinct'. 
-                (*iAssert (distinct' (LblClients ++ L)) as "%Hdistinct".*)
-                iAssert (distinct' N) as "%Hdistinct".
-                { unfold N. unfold keytheory. unfold leaktheory. simpl.
-                  Print distinct.
-                  Print distinct'. unfold distinct'. iPureIntro. apply Hdist'. }
-                iApply (brel_bind'' _ _ keytheory M N 𝟙%T (Do keyleak1 (InjRV bob)) (Do keyleak2 (InjRV bob))).
-                { simpl. unfold M.  repeat (rewrite -> labels_l_cons). set_solver. }
+                iApply brel_na_close. iFrame.
+                iSplitL; [iModIntro; iRight; iFrame "#"|].
+               (* set (keytheory := [([keyleak1], [keyleak2],
+            iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
+              (iThySum KLeakSendBob KLeakRecvBob))]).*)
+                (*set (keytheory := [([keyleak1], [keyleak2], keyleak keyleak1 keyleak2)]).*)
+               (*set (M := (([channel'; getKey'; schannel_l], [leaksec'; schannel_r], iThyBot)
+           :: ([leakauth1], [leakauth2], leakauth leakauth1 leakauth2) :: (iLblSig_to_iLblThy L))).
+               set (N := (([channel; getKey1; schannel1], [leaksec; schannel2; getKey2], iThyBot)
+        :: ([keyleak1], [keyleak2],
+            iThySum (iThySum KLeakSendAlice KLeakRecvAlice)
+              (iThySum KLeakSendBob KLeakRecvBob))
+           :: ([leakauth1], [leakauth2],
+                iThySum (iThySum LASendAlice LASendBob) (iThySum LARecvAlice LARecvBob)) :: L)).*)
+               simpl.
+               repeat foldkont.
+               simpl.
+               set (kontleftbind :=
+                (let: "r" := (λ: "m", do: keyleak1 "m")%V (InjR bob) in
+                match: "r" with
+                  InjL <> => kont (InjLV #()%V)
+                | InjR "w" => kont (InjR (vgval (g ^+ n)))
+                end)%E).
+               set (kontrightbind := (let: "r" := (λ: "m", do: keyleak2 "m")%V (InjR bob) in
+        match: "r" with
+          InjL <> => kont0 (InjLV #()%V)
+        | InjR "x" =>
+          match: ! #l_sim with
+            InjL <> =>
+              let: "m'" := #()%V;; rand(#lbl:α) #(S n'') in
+              let: "mA" := vexp g "m'" in
+              #l_sim <- InjR "m'";; 
+              (λ: "m", do: leakauth2 Send "m")%V (InjL ("mA", bob));; kont0 #()%V
+          | InjR "m" => kont0 #()%V
+          end
+        end)%E).
+               About brel_bind''.
+               set (keytheory := iLblSig_to_iLblThy [([keyleak1], [keyleak2], keyleak keyleak1 keyleak2)]).
+               set (leaktheory := (iLblSig_to_iLblThy [([leakauth1], [leakauth2], leakauth leakauth1 leakauth2)])).
+               About leaktheory.
+               (*set (M := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], iThyBot Σ)]).*)
+               About brel_bind''.
+               set (M := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++ leaktheory ++ (iLblSig_to_iLblThy L)).
+               set (N := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++ keytheory ++ leaktheory ++ (iLblSig_to_iLblThy L)).
+              (* iApply (brel_bind'' [HandleCtx Deep _ _ _ _; AppRCtx _] [AppRCtx _] keytheory [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], iThyBot)] (([leakauth1], [leakauth2], leakauth leakauth1 leakauth2) :: iLblSig_to_iLblThy L)  (λ v1 v2 : val, ⌜v1 = v2⌝%I) (Do keyleak1 (InjLV bob)) (Do keyleak2 (InjLV bob))).*)
+               iApply (brel_bind'' [AppRCtx _] [AppRCtx _] keytheory M N (𝟙%T) (Do keyleak1 (InjLV bob)) (Do keyleak2 (InjLV bob))).
+                { simpl. unfold M. repeat (rewrite -> labels_l_cons). set_solver. }
                 { simpl. apply list_subseteq_nil. }
                 { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. eapply Permutation_submseteq.
-               eapply perm_swap. }
+                  eapply perm_swap. } 
                 { iApply (brel_introduction' [keyleak1] [keyleak2]).
                 1: { unfold keytheory.
                      eapply list_elem_of_here. }
@@ -2477,3 +2555,4 @@ Qed.
  
 
 End schan_security.
+
