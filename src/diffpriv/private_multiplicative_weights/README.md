@@ -27,7 +27,7 @@ list of the answers.
 ## PMW
 
 The private multiplicative weights is a process which given a database and 
-some privacy parameters returns a function which on can call with an adaptive 
+some privacy parameters returns a function which one can call with an adaptive 
 stream of queries and get each time a numeric answer.
 
 This algorithm is still in development. The only issue remaning is one with the 

@@ -46,6 +46,11 @@ let mk_histo file =
   norm ht;
   (size, domain, ht)
 
+let write_db db file i =
+  (* compute the histogram of the db contained in file *)
+  let writer = open_out (file ^ (int_to_string i) ^ ".csv") in
+  Hashtbl.iter (fun a b -> Printf.fprintf writer "%d,%f\n" a b) db;
+  close_out writer
 
 let get_rd_query domaine =
   (* given a domaine returns a random query (random map of domain -> {0, 1}) *)
