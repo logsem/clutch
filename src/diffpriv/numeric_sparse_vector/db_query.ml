@@ -40,10 +40,10 @@ let mk_histo file =
         Hashtbl.add ht h 1.;
         mk_domaine t (h::acc))
   in
-  norm ht;
   let raw = aux reader [] in
   let size = List.length raw in
   let domain = mk_domaine raw [] in
+  norm ht;
   (size, domain, ht)
 
 
