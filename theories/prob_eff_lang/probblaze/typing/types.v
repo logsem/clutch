@@ -1268,6 +1268,7 @@ Inductive typed :
   Δ .| <[ x :=c κ ]> Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2
 
 (* Pure_typed is used for value restriction, but allowing a bit more freedom. Can be extended later to cover all pure expressions *)
+(* Additionally I think we need an effect name environment for this typing relation as well *)
 with pure_typed  : ctx → expr → type → Prop :=
 | Val_pure_typed v τ : 
   ⊢ᵥ v : τ → [] ⊢ₚ v : τ
@@ -1278,7 +1279,7 @@ with pure_typed  : ctx → expr → type → Prop :=
   f ∉ ctx_dom Γ1 → x ∉ ctx_dom Γ1 →
   m m⪯C Γ1 → 
   ∅ .| <[ x :=c τ ]> <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> Γ1 ⊢ₜ e : ρ : κ ⊣ [] → Γ1 ⊢ₚ Rec f x e : (τ -{ ρ }-[m]-> κ)%ty
-
+(* consider adding beta reduction *)
 | Pair_pure_typed Γ e1 e2 τ1 τ2 : 
   Γ ⊢ₚ e1 : τ1 → Γ ⊢ₚ e2 : τ2 → Γ ⊢ₚ Pair e1 e2 : (τ1 * τ2)%ty
 
