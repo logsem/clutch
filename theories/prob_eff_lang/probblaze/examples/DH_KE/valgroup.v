@@ -74,7 +74,7 @@ Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct
     ; brel_int_of_vg_sem_correct_r : BREL_INT_OF_VG_CORRECT_R
     ; BREL_VG_OF_INT_CORRECT_L :=  ∀ E K X R e x g,
                                    vg_of_int_sem x = Some g ->
-                                   (BREL (fill K (vgval g)) ≤ e @ E <|X|> {{R}}) -∗
+                                   (BREL (fill K (SOMEV (vgval g))) ≤ e @ E <|X|> {{R}}) -∗
                                    (BREL (fill K (vg_of_int (#x))) ≤ e @ E <|X|> {{R}})
     ; brel_vg_of_int_correct_l : BREL_VG_OF_INT_CORRECT_L
     ; BREL_VG_OF_INT_CORRECT_L' := ∀ E K x X R e,
