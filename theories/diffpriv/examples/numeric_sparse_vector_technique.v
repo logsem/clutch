@@ -51,7 +51,9 @@ Section nsvt.
       ⤇ fill K0 (f' (inject db') q) -∗
       WP f (inject db) q
         {{ v, ∃ (b : option Z), ⌜v = inject b⌝ ∗ ⤇ fill K0 (inject b) ∗
-                            (⌜v = NONEV⌝ -∗ AUTH) }}.
+                                       (⌜v = NONEV⌝ -∗ AUTH) }}.
+
+
 
   (* We prove the (non-pw) spec for onAT from hoare_couple_laplace_choice. *)
   Lemma num_above_threshold_online_nAT_spec (num den T : Z) (εpos : 0 < IZR num / IZR den) K :
@@ -147,6 +149,23 @@ Section nsvt.
       iSplitR; first by iPureIntro.
       by iIntros (Hfin) => //.
   Qed.
+
+  (* ALT def to use tiple *)
+  Definition nAT_spec_triple (c : R) (AUTH : iProp Σ) (f f' : val) : iProp Σ :=
+    □ ∀ `(dDB : Distance DB) (db db' : DB) (_ : dDB db db' <= c) (q : val) (K0 : list ectx_item),
+      {{{ □ wp_sensitive q 1 dDB dZ ∗ AUTH ∗ ⤇ fill K0 (f' (inject db') q) }}}
+      f (inject db) q
+      {{{ v, RET v; ∃ (b : option Z), ⌜v = inject b⌝ ∗ ⤇ fill K0 (inject b) ∗
+                                             (⌜v = NONEV⌝ -∗ AUTH) }}}.
+  (*Lemma num_above_threshold_online_nAT_spec_triple (num den T : Z) (εpos : 0 < IZR num / IZR den) K :
+    {{{ ↯m (1 * (IZR num / IZR den)) ∗ ⤇ fill K ((Val num_above_threshold) #num #den #T) }}}
+      (Val num_above_threshold) #num #den #T
+    {{{ f, RET f; ∃ (f' : val) (AUTH : iProp Σ),
+               ⤇ fill K (Val f') ∗ AUTH ∗ nAT_spec 1 AUTH f f' }}}.
+  Proof.
+    iIntros (Φ) "[Hε Hres] HΦ".
+
+    iApply (wp_strong_mono'' with "HΦ").*)
 
 
   (** Numeric Sparse Vector **)
@@ -330,7 +349,7 @@ Section nsvt.
     iApply (wp_strong_mono'' with "spec_i").
     rewrite -!/(nSVT_stream_body _ _ _ _).
     iIntros "% (rhs & %b & -> & inSVT) /="...
-    destruct b; rewrite /list_cons...
+    destruct b. rewrite /list_cons...
     - iApply ("IH" with "[] [] rhs inSVT"). 3: done. 1,2: iPureIntro. 2: lia. lia.
     - iApply ("IH" with "[] [] rhs [inSVT]"). 3,4: done. 1,2: iPureIntro. 2: lia. lia.
   Qed.

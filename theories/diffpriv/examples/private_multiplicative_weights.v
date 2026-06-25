@@ -10,7 +10,8 @@ Section pmw.
 
   #[local] Open Scope R.
 
-(* In this part, we consider that x is a distribution and is stored in an couple of arrays.
+  (* The following comment is not updated and then should be ignored.
+     In this part, we consider that x is a distribution and is stored in an couple of arrays.
      Each element is of the form: (Edb, Pdb) (we will call it DB)
      where Edp is the array of the databases and Pdb is the array of the probability of each db.
      We assume that queries are of the type DB -> R, and works as the following:
@@ -18,6 +19,23 @@ Section pmw.
         - Executes the query on this db
   *)
 
+
+  (* For the proof we need to adapt the algo from the book. *)
+  (* Indeed, in order to get result on the call to `f`, *)
+  (* the numeric sparse vector technique, we need to call *)
+  (* it again for e2 only when we know that e1 is None. *)
+  (* Otherwise, we can not state no result on e2 since if *)
+  (* e1 returned a value then we would not have inSVT (S x). *)
+  (* Knowing that even if e1 and e2 are values, then we will *)
+  (* not use e2. Hence we call it only when necessary. *)
+
+  (* We are giving to the oPMW technique a lot of functions in *)
+  (* parameters. We also make a lot of assumptions about those *)
+  (* functions in the specification. *)
+  (* That is why this is only a partial implementation of the *)
+  (* private multiplicative weight technique. *)
+
+  
   Definition oPMW : val :=
     λ: "x" "stream_q" "num" "den" "c" "t" "unif" "upd" "f1" "f2",
       let: "f" := (onSVT "num" "den" "t" "c") in
@@ -69,7 +87,6 @@ Section pmw.
                end
         end)%V.
 
-
   Lemma pMW_diffpriv (num den : Z) (c t : nat) (stream_q : val) `(dDB : Distance DB) (upd f1 f2: val) (unif : DB) :
     let ε := IZR num / IZR den in
     ∀ (εpos : 0 < ε) (cpos : (0 < c)%nat) (tpos : (0 < t)%nat),
@@ -77,8 +94,9 @@ Section pmw.
           ⤇ fill K (stream_q bs) -∗
           WP stream_q bs
           {{ qopt, ⤇ fill K (Val qopt) ∗
-                     (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ □ wp_sensitive q 1 dDB dZ) }}) -∗
-      □ (∀ K (distrib : DB) (q v : val),
+                     (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ □ wp_sensitive q 1 dDB dZ ∗
+                        □ (∀ K db, ⤇ fill K (q db) -∗ WP q db {{v, ⤇ fill K (Val v) }}) ) }}) -∗
+       □ (∀ K (distrib : DB) (q v : val),
           ⤇ fill K (upd (Val (inject distrib)) q v) -∗
           WP upd (Val (inject distrib)) q v
           {{ v, ⤇ fill K (Val v) ∗ ∃ distrib' : DB, ⌜v = (inject distrib')⌝}}) -∗
@@ -120,16 +138,19 @@ Section pmw.
     wp_bind (stream_q _); tp_bind (stream_q _).
     iPoseProof ("sens" $! _  with "rhs") as "sens_bs".
     iApply (wp_strong_mono'' with "sens_bs").
-    iIntros "%qopt (rhs & [->|(%q & -> & #sens_q)]) /="... 1: done.
+    iIntros "%qopt (rhs & [->|(%q & -> & #sens_q & #Hdet)]) /="... 1: done.
     case_bool_decide...
     - (* Case where we have already proceed all the allowed updates *)
       do 2 rewrite -/(pMW_body _ _ _ _ _ _ _).
       (* Need to get that `q distrib` is a value. *)
       (* Then we will be able to call IH. *)
       wp_bind (q _); tp_bind (q _).
-      rewrite {2}/wp_sensitive.
-      (* We need to show that the outputs distribution of to exact same things are the same /// *)
-      admit.
+      iPoseProof ("Hdet" $! _ distrib with "rhs") as "Hdet'".
+      iApply (wp_strong_mono'' with "Hdet'").
+      iIntros (v) "rhs"...
+      simpl.
+      rewrite /list_cons...
+      iApply ("IH" with "[] [] rhs inSVT"). 3: done. 1,2: iPureIntro. 1,2: lia.
     - do 2 rewrite -/(pMW_body _ _ _ _ _ _ _).
       wp_alloc a_w as "wl_a"; tp_alloc as a_t "tl_a"...
       wp_bind (f _ _); tp_bind (f' _ _).
@@ -150,8 +171,17 @@ Section pmw.
         wp_pures; tp_pures.
         wp_bind (q _); tp_bind (q _).
         (* we need to show that (q distib) has the same ouptuts distribution in the wp and tp ...*)
-        rewrite {4}/wp_sensitive.
         (* /// *)
+        (* then we will need to use Hup $$$ *)
+        iPoseProof ("Hdet" $! _ distrib with "rhs") as "Hdet'".
+        iApply (wp_strong_mono'' with "Hdet'").
+        iIntros (v) "rhs"...
+        simpl.
+
+        wp_load.
+      rewrite /list_cons...
+      iApply ("IH" with "[] [] rhs inSVT"). 3: done. 1,2: iPureIntro. 1,2: lia.
+
         admit.
       + (* e1 is none but we have inSVT (S x) *)
         iSimpl in "inSVT"...
@@ -170,7 +200,8 @@ Section pmw.
         -- (* e2 is a value (not none) *)
           wp_pures; tp_pures.
           wp_bind (q _); tp_bind (q _).
-          (* Same problem here ///*)
+          (* Same ///*)
+          (* Same $$$ *)
           admit.
         -- (* both answers are under the threshold *)
           wp_pures; tp_pures.
@@ -181,7 +212,7 @@ Section pmw.
           admit.
 Admitted.
 
-
+  (* Is q distrib deterministic ? *)
   (* There is a lot of `admit.` in this proof. *)
   (* However each of them should have the same proof. *)
   (* We need to show that the call to `q distrib` *)
