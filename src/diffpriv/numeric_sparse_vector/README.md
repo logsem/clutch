@@ -30,21 +30,25 @@ The private multiplicative weights is a process which given a database and
 some privacy parameters returns a function which on can call with an adaptive 
 stream of queries and get each time a numeric answer.
 
-This algorithm is still in development. We have (for the moment) hardcoded the
-threshold and the number of update to the distribution that where allowed.
-However it should be computed with the parameters of the function.
+This algorithm is still in development. The only issue remaning is one with the 
+threshold (it is too high hence each ansewrs are under the threshold).
 
 For the [`main_pmw.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/main_pmw.ml)
-example, we consider the set of database of $\{ 0,1 \}^k$.
-We generate a uniform and a Dirac distribution on this set 
-(with [`db_sampling.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/db_sampling.ml).
-And we call the algorithm. We print results of the interesting elements of the 
-finale distribution.
+example, we consider the database that was randomly generated  [`rd_data.csv`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/data/rd_data.csv)
+.
+
+In order to manage the databases and histograms we uses functions defined in 
+[`db_query.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/db_query.ml).
+
+When calling:
+```bash
+ocaml main_pmw.ml
+```
+
+The output is, the initial database and the output database as well as the list
+of the queries answers.
 
 ## NOTES
-
-There have been improvement since last time. Indeed, we don't get a list of $0$
-in the output, however it seems to be still incorrect and unpredictable.
 
 We us the probability sampler from [`noiseSampling.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/noiseSampling.ml)
 which is a truncated part 

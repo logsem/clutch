@@ -8,7 +8,7 @@ python gen_data.py
 
 ## The script
 
-In the current version the script writes a random sequence of integers between 
-0 and 9 with a probability of $\frac{2}{11}$ for 0 and $\frac{1}{11}$ for the
-others.
+In the current version the script writes in the file `rd_data.csv` a random 
+sequence of integers between 0 and 9 with a probability of $\frac{2}{11}$ 
+for 0 and $\frac{1}{11}$ for the others.
 
