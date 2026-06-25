@@ -28,41 +28,126 @@ Notation "'PREL' e1 ≤ e2 '[{' v1 ; v2 , Φ '}]'" := (prel e1%E e2%E (λ v1 v2,
 
 Lemma prel_brel `{!probblazeRGS Σ} e1 e2 Φ :                         
   prel e1 e2 Φ -∗ brel ⊤ e1 e2 ⊥ Φ.
-Proof. 
-(*   iIntros "He". 
-     destruct (to_val e1) eqn:Heq1, (to_val e2) eqn:Heq2; rewrite /prel Heq1 Heq2/=.
-     - rewrite -(of_to_val _ _ Heq1). rewrite -(of_to_val _ _ Heq2). iApply brel_value. by iIntros "$ !>".
-     - rewrite -(of_to_val _ _ Heq1). iDestruct "He" as (???) "HΦ".
-       iApply brel_pure_step_r; [intros ?; done|done| ].
-       iApply brel_value. by iIntros "$ !>".
-     - rewrite -(of_to_val _ _ Heq2). iDestruct "He" as (???) "HΦ".
-       iApply brel_pure_step_later; [intros ?; done|done|]. iApply brel_value. by iIntros "!> $ !>".
-     - iDestruct "He" as (????) "((%&%)&H)". 
-       iApply brel_pure_step_r; [by intros ?|done|]. 
-       iApply brel_pure_step_later; [by intros ?|done|]. 
-       iApply brel_value.
-       by iIntros "!> $ !>".
-   Qed.  *)
-Admitted. 
+Proof.
+  iIntros "He".
+  destruct (to_val e1) eqn:Heq1, (to_val e2) eqn:Heq2;
+    rewrite /prel Heq1 Heq2/=.
+  - rewrite -(of_to_val _ _ Heq1). rewrite -(of_to_val _ _ Heq2).
+    iApply brel_value. by iIntros "$ !>".
+  - rewrite -(of_to_val _ _ Heq1).
+    iDestruct "He" as (w) "[(%n & %Hs) HΦ]".
+    iApply (brel_pure_step_r _ _ _ w True n _ _ (λ _, Hs) I).
+    iApply brel_value. by iIntros "$ !>".
+  - rewrite -(of_to_val _ _ Heq2).
+    iDestruct "He" as (w) "[(%n & %Hs) HΦ]".
+    iApply (brel_pure_step_later _ _ w _ True n _ _ (λ _, Hs) I).
+    iApply bi.laterN_intro.
+    iApply brel_value. by iIntros "$ !>".
+  - iDestruct "He" as (w1 w2 m1 m2) "[(%Hs1 & %Hs2) HΦ]".
+    iApply (brel_pure_step_r _ _ _ w2 True m2 _ _ (λ _, Hs2) I).
+    iApply (brel_pure_step_later _ _ w1 _ True m1 _ _ (λ _, Hs1) I).
+    iApply bi.laterN_intro.
+    iApply brel_value. by iIntros "$ !>".
+Qed.
 
 Lemma prel_mono `{Σ : gFunctors} e1 e2 Φ Ψ : 
   (∀ v1 v2, Φ v1 v2 -∗ Ψ v1 v2) -∗
   PREL e1 ≤ e2 [{ v1; v2, Φ v1 v2}] -∗ @prel Σ e1 e2 Ψ.
 Proof.
-(*   iIntros "Hvv Hprel". rewrite /prel.
-     destruct (to_val e1) eqn:Heq1, (to_val e2) eqn:Heq2; [by iApply "Hvv" | | |].
-     1,2: iDestruct "Hprel" as (??) "($ & H)"; by iApply "Hvv".
-     iDestruct "Hprel" as (????) "($ & H)"; by iApply "Hvv".
-   Qed. *)
-Admitted. 
+  iIntros "Hvv Hprel". rewrite /prel.
+  destruct (to_val e1) eqn:Heq1, (to_val e2) eqn:Heq2.
+  - by iApply "Hvv".
+  - iDestruct "Hprel" as (w) "(Hs & HΦ)". iExists w. iFrame "Hs".
+    by iApply "Hvv".
+  - iDestruct "Hprel" as (w) "(Hs & HΦ)". iExists w. iFrame "Hs".
+    by iApply "Hvv".
+  - iDestruct "Hprel" as (w1 w2 m1 m2) "(Hs & HΦ)". iExists w1, w2, m1, m2.
+    iFrame "Hs". by iApply "Hvv".
+Qed.
 
+
+Lemma pure_step_det_val (e a b : expr) :
+  pure_step e a → pure_step e b → a = b.
+Proof.
+  intros Ha Hb.
+  set (σ := @inhabitant state state_inhabited).
+  pose proof (pure_step_det _ _ Ha σ) as H1.
+  pose proof (pure_step_det _ _ Hb σ) as H2.
+  destruct (decide (a = b)) as [Heq | Hne]; first done.
+  exfalso.
+  assert ((a, σ) ≠ (b, σ)) as Hpair.
+  { intros Hcontra. apply Hne. by inversion Hcontra. }
+  pose proof (pmf_1_not_eq (language.prim_step e σ)
+                (a, σ) (b, σ) Hpair H1) as H0.
+  rewrite H0 in H2. lra.
+Qed.
+
+Lemma val_no_pure_step (w : val) (y : expr) : pure_step (of_val w) y → False.
+Proof.
+  intros Hstep.
+  pose proof (pure_step_det _ _ Hstep (@inhabitant state state_inhabited))
+    as Hp.
+  assert (language.prim_step (of_val w) (@inhabitant state state_inhabited)
+            (y, @inhabitant state state_inhabited) > 0) as Hgt.
+  { rewrite Hp. lra. }
+  pose proof (val_prim_stuck _ _ _ Hgt) as Hnone.
+  rewrite to_of_val in Hnone. done.
+Qed.
+
+Lemma nsteps_pure_step_det (n m : nat) (e : expr) (v v' : val) :
+  nsteps pure_step n e (of_val v) → nsteps pure_step m e (of_val v') →
+  v = v'.
+Proof.
+  revert m e v v'.
+  induction n as [|n IHn]; intros m e v v' Hn Hm.
+  - inversion Hn; subst.
+    destruct m as [|m].
+    + inversion Hm; subst. by apply (inj of_val).
+    + inversion Hm as [|m' x y z Hstep Hrest]; subst.
+      exfalso. by eapply val_no_pure_step.
+  - inversion Hn as [|n0 x0 y0 z0 Hstep1 Hrest1]; subst.
+    destruct m as [|m].
+    + inversion Hm; subst.
+      exfalso. by eapply val_no_pure_step.
+    + inversion Hm as [|m0 x1 y1 z1 Hstep2 Hrest2]; subst.
+      pose proof (pure_step_det_val _ _ _ Hstep1 Hstep2) as Heq; subst.
+      by eapply IHn.
+Qed.
 
 Lemma prel_forall `{!Inhabited A} `{Σ : gFunctors} e1 e2 (Φ : A → val → val → iProp Σ) :
   (∀ x, PREL e1 ≤ e2 [{ (Φ x) }]) -∗ PREL e1 ≤ e2 [{ v1; v2, (∀ x, Φ x v1 v2) }].
 Proof. 
   iIntros "Hprel".
-  destruct (to_val e1) eqn:Heq1, (to_val e2) eqn:Heq2; rewrite /prel Heq1 Heq2/=; first done.
-  (* - set (x := @inhabitant A _). iSpecialize ("Hprel" $! x).
-       iDestruct "Hprel" as (??) "($ & H)". 
-       iIntros (x'). *)
-Admitted. 
+  destruct (to_val e1) eqn:Heq1, (to_val e2) eqn:Heq2;
+    rewrite /prel Heq1 Heq2/=; first done.
+  - iAssert (⌜∃ (v2:val) (n2:nat), nsteps pure_step n2 e2 v2⌝)%I
+      as %(v2 & n2 & Hs2).
+    { iDestruct ("Hprel" $! inhabitant) as (v2) "[(%n2 & %Hs2) _]".
+      iPureIntro. eauto. }
+    iExists v2. iSplitR; [iExists n2; by iPureIntro|].
+    iIntros (x).
+    iDestruct ("Hprel" $! x) as (w2) "[(%m2 & %Hsx) HΦ]".
+    pose proof (nsteps_pure_step_det _ _ _ _ _ Hsx Hs2) as Heq; subst.
+    done.
+  - iAssert (⌜∃ (v1:val) (n1:nat), nsteps pure_step n1 e1 v1⌝)%I
+      as %(v1 & n1 & Hs1).
+    { iDestruct ("Hprel" $! inhabitant) as (v1) "[(%n1 & %Hs1) _]".
+      iPureIntro. eauto. }
+    iExists v1. iSplitR; [iExists n1; by iPureIntro|].
+    iIntros (x).
+    iDestruct ("Hprel" $! x) as (w1) "[(%m1 & %Hsx) HΦ]".
+    pose proof (nsteps_pure_step_det _ _ _ _ _ Hsx Hs1) as Heq; subst.
+    done.
+  - iAssert (⌜∃ (v1 v2:val) (n1 n2:nat),
+               nsteps pure_step n1 e1 v1 ∧ nsteps pure_step n2 e2 v2⌝)%I
+      as %(v1 & v2 & n1 & n2 & Hs1 & Hs2).
+    { iDestruct ("Hprel" $! inhabitant)
+        as (v1 v2 m1 m2) "[(%Hs1 & %Hs2) _]".
+      iPureIntro. eauto 10. }
+    iExists v1, v2, n1, n2. iSplitR; [by iPureIntro|].
+    iIntros (x).
+    iDestruct ("Hprel" $! x) as (w1 w2 k1 k2) "[(%Hsx1 & %Hsx2) HΦ]".
+    pose proof (nsteps_pure_step_det _ _ _ _ _ Hsx1 Hs1) as Hq1; subst.
+    pose proof (nsteps_pure_step_det _ _ _ _ _ Hsx2 Hs2) as Hq2; subst.
+    done.
+Qed.
