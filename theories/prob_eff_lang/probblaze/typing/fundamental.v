@@ -76,7 +76,27 @@ Proof.
             iApply ("Ht" $! _ _ _ _ ∅ Hδ)
         | apply fundamental in Ht3; iPoseProof Ht3 as "Ht";
             iApply ("Ht" $! _ _ _ _ ∅ Hδ) ].
-    + (* Rec_typed *) admit.
+    + (* Rec_typed *)
+      (* The conclusion context is [Γ ;; Γ'] (= [Γ ++ Γ']) and the type is
+         [![m](arr)]; route via [sem_typed_oval] to peel [Γ'] off the
+         oval-typing of [Γ], then [sem_oval_typed_ufun_rec] builds the
+         recursive closure.  The captured env [interp Γ] is [MultiE] via
+         [multi_env_sound] (using the strengthened [le.MultiC Γ] premise);
+         freshness comes from [ctx_dom_env_dom].  The body context of
+         [sem_oval_typed_ufun_rec] matches the IH context definitionally:
+         [interp (<[f]><[x]>Γ) = (f, ![m]arr) ::? (x, τ) ::? interp Γ]. *)
+      rewrite /ctx_append fmap_app /=.
+      iApply sem_typed_oval.
+      pose proof (multi_env_sound Γ H2 η μ δ ξ) as HME.
+      iApply (@sem_oval_typed_ufun_rec _ _ (interp._ty η μ δ τ ξ)
+                (interp._row η μ δ ρ ξ) (interp._ty η μ δ κ ξ)
+                (interp._mode μ m) _ f x e e HME).
+      { destruct x as [|s]; [done|]. by eapply ctx_dom_env_dom. }
+      { destruct f as [|s]; [done|]. by eapply ctx_dom_env_dom. }
+      { exact H. }
+      apply fundamental in Ht. iPoseProof Ht as "Ht".
+      iSpecialize ("Ht" $! η μ δ ξ vs Hδ).
+      destruct f as [|sf]; destruct x as [|sx]; simpl in *; iApply "Ht".
     + (* App_typed *) admit.
     + (* TAbsElim_typed *)
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
@@ -294,7 +314,60 @@ Proof.
       rewrite /sem_val_typed /=. iModIntro. iExists v, v. iRight.
       iSplit; first done. iSplit; first done.
       iApply (sem_val_related_interp _ _ _ _ _ _ Hv).
-    + (* Rec_val_typed *) admit.
+    + (* Rec_val_typed *)
+      (* The captured context is [∅] so [MultiE []] is trivial and no rule
+         strengthening is needed (cf. [Rec_typed]/[Rec_pure_typed]).  We
+         build the recursive-closure oval at the empty env with
+         [sem_oval_typed_ufun_rec] (mode [MS], since the value type uses the
+         MS arrow [-{ρ}->]) and read off the value relation by specialising
+         it at [∅]: [Rec f x e] is already a value, so [prel] of it at [∅]
+         collapses to the [sem_ty_mbang MS arr] relation on [RecV f x e].
+         The IH context [interp (<[f]><[x]>∅) = (f, ![MS]arr) ::? (x,τ1)
+         ::? []] matches the body shape of [sem_oval_typed_ufun_rec]. *)
+      rewrite /sem_val_typed /=.
+      iAssert (sem_oval_typed [] (rec: f x := e) (rec: f x := e)
+        (sem_types.sem_ty_mbang MS (sem_types.sem_ty_arr
+           (interp._row η μ δ ρ ξ) (interp._ty η μ δ τ1 ξ)
+           (interp._ty η μ δ τ2 ξ)))) as "#Hov".
+      { iApply (@sem_oval_typed_ufun_rec _ _ (interp._ty η μ δ τ1 ξ)
+                  (interp._row η μ δ ρ ξ) (interp._ty η μ δ τ2 ξ) MS [] f x
+                  e e _).
+        { destruct x as [|s];
+            [intros []|rewrite env_dom_nil; apply not_elem_of_nil]. }
+        { destruct f as [|s];
+            [intros []|rewrite env_dom_nil; apply not_elem_of_nil]. }
+        { destruct f as [|sf]; [done|]. destruct x as [|sx].
+          - done.
+          - (* [f = x] case: the [Rec_val] rule lacks an [f ≠ x] side
+               condition (unlike [Rec_typed]/[Rec_pure_typed]).  When the
+               recursive and argument binders coincide the body context
+               [(s,arr)::(s,τ1)::∅] forces the captured self-value to be
+               typed at BOTH [arr] and [τ1], which the recursion cannot
+               supply unless [arr = τ1]; hence the closure is unsound for
+               [f = x].  This is a SPEC BUG in [Rec_val_typed] (missing
+               [match f with BNamed f => BNamed f ≠ x | _ => True]).
+               Strengthening that statement is outside the authorised
+               change set, so this sub-case is left admitted. *)
+            admit. }
+        apply fundamental in H. iPoseProof H as "H".
+        iSpecialize ("H" $! η μ δ ξ ∅ (empty_subseteq (dom δ))).
+        destruct f as [|sf]; destruct x as [|sx]; simpl in *; iApply "H". }
+      rewrite /sem_oval_typed /tc_opaque. iModIntro.
+      iSpecialize ("Hov" $! ∅ with "[]"); first by rewrite env_sem_typed_empty.
+      rewrite !fmap_empty !subst_map_empty /pure_weakestpre.prel /=.
+      (* [Rec f x e] is an expr (not a [Val]); it pure-steps in one step to
+         the value [RecV f x e].  Read off the value relation by
+         destructing the [prel] reduction witnesses and pinning them to
+         [RecV f x e] via determinism of pure reduction. *)
+      iDestruct "Hov" as (v1 v2 n1 n2) "(%Hns & Hτ)".
+      destruct Hns as [Hns1 Hns2].
+      assert (Hr : nsteps pure_step 1 (Rec f x e) (Val (RecV f x e)))
+        by apply (pure_recc f x e I).
+      pose proof (pure_weakestpre.nsteps_pure_step_det _ _ _ _ _ Hns1 Hr)
+        as ->.
+      pose proof (pure_weakestpre.nsteps_pure_step_det _ _ _ _ _ Hns2 Hr)
+        as ->.
+      iApply "Hτ".
     + (* TAbs_val_typed *) apply fundamental_val in Hv.
       rewrite /sem_val_typed /=. iModIntro. iIntros (τ0).
       iApply (sem_val_related_interp v τ (τ0 :: η) μ δ ξ Hv).
@@ -307,7 +380,24 @@ Proof.
   - intros Hp. destruct Hp; iIntros (η μ δ ξ).
     + (* Val_pure_typed *) apply fundamental_val in H. iPoseProof H as "H".
       iSpecialize ("H" $! η μ δ ξ). iApply sem_oval_typed_val. iApply "H".
-    + (* Rec_pure_typed *) admit.
+    + (* Rec_pure_typed *)
+      (* Mirror of [Rec_typed] at the pure (oval) level.  The [Rec_pure]
+         rule's premise context is [<[x]><[f]>Γ1] (argument binder [x]
+         outer, recursive binder [f] inner), so the IH context matches
+         [sem_oval_typed_ufun_rec_xf]'s body shape
+         [(x,τ) ::? (f, ![m]arr) ::? interp Γ1] definitionally — no reorder
+         needed.  [MultiE (interp Γ1)] from [multi_env_sound] (strengthened
+         [le.MultiC Γ1]); freshness from [ctx_dom_env_dom]. *)
+      pose proof (multi_env_sound Γ1 H2 η μ δ ξ) as HME.
+      iApply (@sem_oval_typed_ufun_rec_xf _ _ (interp._ty η μ δ τ ξ)
+                (interp._row η μ δ ρ ξ) (interp._ty η μ δ κ ξ)
+                (interp._mode μ m) _ f x e e HME).
+      { destruct x as [|s]; [done|]. by eapply ctx_dom_env_dom. }
+      { destruct f as [|s]; [done|]. by eapply ctx_dom_env_dom. }
+      { exact H. }
+      apply fundamental in H3. iPoseProof H3 as "Ht".
+      iSpecialize ("Ht" $! η μ δ ξ ∅ (empty_subseteq (dom δ))).
+      destruct f as [|sf]; destruct x as [|sx]; simpl in *; iApply "Ht".
     + (* Pair_pure_typed *)
       (* Now sound after removing [le.TBangRef_le] and adding the
          [le.MultiC Γ] premise: it interprets to [MultiE (interp Γ)] (via

@@ -448,6 +448,88 @@ Section compatibility.
          by do 2 (rewrite -env_sem_typed_insert; last done).
      Qed.
 
+  (* Weaken a [![MS]]-wrapped oval (a duplicable closure) to [![m]] for
+     an arbitrary mode [m]: [![MS]τ = □(τ ..)] is the strongest mbang and
+     entails [![m]τ = □?m(τ ..)] pointwise. *)
+  Lemma sem_oval_typed_mbang_MS_weaken m Γ e1 e2 τ :
+    ⊢ sem_oval_typed Γ e1 e2 (![MS] τ) -∗ sem_oval_typed Γ e1 e2 (![m] τ).
+  Proof.
+    iIntros "#He !# %γ HΓ /=".
+    iDestruct ("He" with "HΓ") as "Hprel".
+    iApply (prel_mono with "[] Hprel").
+    iIntros (w1 w2). rewrite /sem_ty_mbang /=.
+    iIntros "#H". by iApply bi.intuitionistically_intuitionistically_if.
+  Qed.
+
+  (* Recursive-closure oval at an arbitrary mode [m]: build the [![MS]]
+     version with [sem_oval_typed_ufun] (needs [MultiE Γ1]) then weaken. *)
+  Lemma sem_oval_typed_ufun_mode τ ρ κ m Γ1 f x e1 e2 `{! MultiE Γ1 }:
+    x ∉ (env_dom Γ1) → f ∉ (env_dom Γ1) →
+    match f with BNamed f => BNamed f ≠ x | BAnon => True end →
+    ⊢ sem_typed ((x, τ) ::? (f, τ -{ ρ }-> κ) ::? Γ1) e1 e2 ρ κ [] -∗
+    sem_oval_typed Γ1 (rec: f x := e1) (rec: f x := e2)
+      (![m] (sem_ty_arr ρ τ κ)).
+  Proof.
+    iIntros (???) "#He".
+    iApply sem_oval_typed_mbang_MS_weaken.
+    by iApply (sem_oval_typed_ufun with "He").
+  Qed.
+
+  (* Recursive-closure oval taking the body context in the exact shape the
+     syntactic [Rec] rules produce: the recursive binder [f] comes first
+     and is typed at the rule's mode [m] (its interpretation), i.e.
+     [![m](arr)].  Internally we reduce to [sem_oval_typed_ufun_mode]
+     (whose body context is [(x,τ) ::? (f, ![MS](arr)) ::? Γ1]) by (1)
+     swapping [f] and [x] and (2) weakening the recursive binder's type
+     from [![MS](arr)] (the duplicable closure the recursion provides) down
+     to [![m](arr)] via [ty_le_mbang_elim_MS]. *)
+  Lemma sem_oval_typed_ufun_rec τ ρ κ m Γ1 f x e1 e2 `{! MultiE Γ1 }:
+    x ∉ (env_dom Γ1) → f ∉ (env_dom Γ1) →
+    match f with BNamed f => BNamed f ≠ x | BAnon => True end →
+    ⊢ sem_typed ((f, ![m] (sem_ty_arr ρ τ κ)) ::? (x, τ) ::? Γ1)
+        e1 e2 ρ κ [] -∗
+    sem_oval_typed Γ1 (rec: f x := e1) (rec: f x := e2)
+      (![m] (sem_ty_arr ρ τ κ)).
+  Proof.
+    iIntros (Hx Hf Hfx) "#He".
+    iApply (sem_oval_typed_ufun_mode τ ρ κ m Γ1 f x e1 e2 Hx Hf Hfx).
+    iApply (sem_typed_sub_env with "[] He").
+    (* Goal: [(x,τ) ::? (f, ![MS](arr)) ::? Γ1] ≤ₑ
+             [(f, ![m](arr)) ::? (x,τ) ::? Γ1].  Case-split the binders. *)
+    destruct f as [|sf]; destruct x as [|sx]; simpl.
+    - iApply env_le_refl.
+    - iApply env_le_refl.
+    - iApply env_le_cons; [iApply env_le_refl|iApply ty_le_mbang_elim_MS].
+    - (* [(sx,τ) :: (sf, ![MS]arr) :: Γ1] ≤ₑ
+         [(sf, ![m]arr) :: (sx,τ) :: Γ1].  Swap then weaken [sf]. *)
+      iApply env_le_trans; [iApply env_le_swap_second|].
+      iApply env_le_cons; [iApply env_le_refl|iApply ty_le_mbang_elim_MS].
+  Qed.
+
+  (* As [sem_oval_typed_ufun_rec] but with the body context in the order the
+     [Rec_pure] rule produces: argument binder [x] first, recursive binder
+     [f] second (typed at [![m](arr)]).  Since [sem_oval_typed_ufun_mode]
+     already expects [(x,τ) ::? (f, ![MS](arr)) ::? Γ1] no swap is needed —
+     only the [![MS] → ![m]] weakening of the [f] slot. *)
+  Lemma sem_oval_typed_ufun_rec_xf τ ρ κ m Γ1 f x e1 e2 `{! MultiE Γ1 }:
+    x ∉ (env_dom Γ1) → f ∉ (env_dom Γ1) →
+    match f with BNamed f => BNamed f ≠ x | BAnon => True end →
+    ⊢ sem_typed ((x, τ) ::? (f, ![m] (sem_ty_arr ρ τ κ)) ::? Γ1)
+        e1 e2 ρ κ [] -∗
+    sem_oval_typed Γ1 (rec: f x := e1) (rec: f x := e2)
+      (![m] (sem_ty_arr ρ τ κ)).
+  Proof.
+    iIntros (Hx Hf Hfx) "#He".
+    iApply (sem_oval_typed_ufun_mode τ ρ κ m Γ1 f x e1 e2 Hx Hf Hfx).
+    iApply (sem_typed_sub_env with "[] He").
+    destruct f as [|sf]; destruct x as [|sx]; simpl.
+    - iApply env_le_refl.
+    - iApply env_le_refl.
+    - iApply env_le_cons; [iApply env_le_refl|iApply ty_le_mbang_elim_MS].
+    - iApply env_le_cons; [|iApply ty_le_refl].
+      iApply env_le_cons; [iApply env_le_refl|iApply ty_le_mbang_elim_MS].
+  Qed.
+
   (* Pure compatibility: pairs and injections at the oval level. *)
   Lemma sem_oval_typed_pair (Γ : env Σ) e1 e1' e2 e2' τ κ
     `{! ∀ vs, Persistent (Γ ⊨ₑ vs)} :

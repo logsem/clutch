@@ -1454,7 +1454,12 @@ Inductive typed :
 | Rec_typed Δ Γ Γ' f x e m ρ τ κ :
   match f with BNamed f => BNamed f ≠ x | BAnon => True end →
   (* TODO: for now we have to have this restriction *)
-  f ∉ ctx_dom Γ → x ∉ ctx_dom Γ →  m m⪯C Γ →
+  (* [MultiC Γ] (strengthened from [m m⪯C Γ]): the recursive closure
+     captures [Γ] and the soundness proof builds it via [iLöb], which
+     requires the captured environment to be duplicable.  For [m = OS],
+     [m m⪯C Γ] gives no such guarantee, so the closure must be over a
+     fully-multi context. *)
+  f ∉ ctx_dom Γ → x ∉ ctx_dom Γ →  le.MultiC Γ →
   Δ .| <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> <[ x :=c τ ]> Γ ⊢ₜ e : ρ : κ ⊣ ∅ →
                                                                 Δ .| Γ ;; Γ' ⊢ₜ Rec f x e : RNil : τ -{ ρ }-[m]-> κ ⊣ Γ'
 
@@ -1563,11 +1568,13 @@ with pure_typed  : ctx → expr → type → Prop :=
 | Val_pure_typed v τ : 
   ⊢ᵥ v : τ → [] ⊢ₚ v : τ
 
-| Rec_pure_typed Γ1 f x e m τ ρ κ : 
+| Rec_pure_typed Γ1 f x e m τ ρ κ :
   match f with BNamed f => BNamed f ≠ x | BAnon => True end →
   (* TODO: for now we have to have this restriction *)
+  (* [MultiC Γ1] strengthened from [m m⪯C Γ1]; see [Rec_typed]: the
+     iLöb-built recursive closure needs a duplicable captured env. *)
   f ∉ ctx_dom Γ1 → x ∉ ctx_dom Γ1 →
-  m m⪯C Γ1 → 
+  le.MultiC Γ1 →
   ∅ .| <[ x :=c τ ]> <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> Γ1 ⊢ₜ e : ρ : κ ⊣ [] → Γ1 ⊢ₚ Rec f x e : (τ -{ ρ }-[m]-> κ)%ty
 
 | Pair_pure_typed Γ e1 e2 τ1 τ2 :
