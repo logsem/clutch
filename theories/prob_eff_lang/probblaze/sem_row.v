@@ -444,8 +444,19 @@ Section row_sub_typing.
       iIntros (???) "!# (%&%&%&%&%&$&$&$&$&Hσ&$)". by iApply "Hσσ'". }
     { iModIntro. iApply valid_submseteq'; by constructor. }
     { iIntros "!# %Hd"; iPureIntro. eapply distinct_submseteq'; last done; by constructor. }
-  Qed. 
- 
+  Qed.
+
+  (* Extend a row on the head: the underlying row [ρ] is below [σ · ρ].
+     The semantic counterpart of [le.RExtend_le].  Pure sub-multiset
+     argument: [iLblThy ρ ⊆+ head :: iLblThy ρ]. *)
+  Lemma row_le_cons_extend (σ : sem_sig Σ) (ρ : sem_row Σ) :
+    ⊢ ρ ≤ᵣ σ · ρ.
+  Proof.
+    unfold row_le, sem_row_cons. simpl.
+    iApply to_iThy_le_intro'. simpl.
+    apply submseteq_cons. reflexivity.
+  Qed.
+
   (* Erase a freshly-allocated bottom signature from the head of a row.
      The [is_label]/[spec_labels_frag] premises discharge the [valid]
      obligation (the head op1/op2 are extra labels on the left row); the
@@ -739,12 +750,59 @@ Section sem_row_union.
   Qed. 
 
   Global Instance sem_row_union_ne n : Proper (dist n ==> dist n ==> dist n) sem_row_union.
-  Proof. 
+  Proof.
     intros ρ1 ρ1' Heq1 ρ2 ρ2' Heq2.
     destruct n; first done.     (* because of the definition of distance on rows *)
-    unfold sem_row_union. 
+    unfold sem_row_union.
     unfold dist, sem_row_dist. rewrite !iLblSig_to_iLblThy_app.
     f_equiv; done.
-  Qed. 
+  Qed.
+
+  (* [valid]/[distinct] decompose over [iLblThy] append. *)
+  Lemma valid_app (L M : iLblThy Σ) :
+    logic.valid (L ++ M) ⊣⊢ logic.valid L ∗ logic.valid M.
+  Proof.
+    rewrite /logic.valid /valid_l /valid_r /labels_l /labels_r
+            !fmap_app !concat_app.
+    rewrite !big_sepL_app. iSplit; iIntros "[[$$][$$]]".
+  Qed.
+
+  Lemma distinct_app_iff (L M : iLblThy Σ) :
+    distinct (L ++ M) → distinct L ∧ distinct M.
+  Proof.
+    rewrite /distinct /distinct_l /distinct_r /labels_l /labels_r
+            !fmap_app !concat_app.
+    intros [Hl%NoDup_app Hr%NoDup_app].
+    split; split; tauto.
+  Qed.
+
+  (* Union is monotone: the semantic counterpart of [le.RUnion_le]. *)
+  Lemma row_le_union (ρ1 ρ2 ρ1' ρ2' : sem_row Σ) :
+    ρ1 ≤ᵣ ρ1' -∗ ρ2 ≤ᵣ ρ2' -∗
+    sem_row_union ρ1 ρ2 ≤ᵣ sem_row_union ρ1' ρ2'.
+  Proof.
+    unfold row_le, sem_row_union. simpl.
+    rewrite !iLblSig_to_iLblThy_app.
+    iIntros "#(Hthy1 & Hvl1 & Hd1) #(Hthy2 & Hvl2 & Hd2)".
+    iSplit; last iSplit.
+    - iApply iThy_le_trans; first iApply iThy_le_to_iThy_app_inv.
+      iApply iThy_le_trans; last iApply iThy_le_to_iThy_app.
+      by iApply (iThy_le_sum_map with "Hthy1 Hthy2").
+    - iIntros "!# Hv".
+      iDestruct (valid_app with "Hv") as "[Hva Hvb]".
+      iApply valid_app; iSplitL "Hva"; [by iApply "Hvl1"|by iApply "Hvl2"].
+    - iIntros "!# %Hd".
+      (* CROSS-DISJOINTNESS of the two unioned rows' labels.  From
+         [Hd : distinct (ρ1'++ρ2')] we get [labels ρ1' # labels ρ2'] and
+         (via the IH bundles [Hd1]/[Hd2]) per-component [distinct ρ1],
+         [distinct ρ2]; but reconstructing the CROSS term
+         [labels ρ1 # labels ρ2] needs label-set MONOTONICITY of [≤ᵣ]
+         ([labels ρ1 ⊆ labels ρ1']), which the abstract [row_le] bundle
+         ([iThy_le] + ownership [valid] + pure [distinct]) does NOT expose
+         as a Coq fact.  Adding a [row_le_labels_subseteq] lemma would
+         require [row_le] to carry that subset relation; out of scope here.
+         (Affects only the [RUnion_le] case of [row_le_sound].) *)
+      admit.
+  Admitted.
 
 End sem_row_union.

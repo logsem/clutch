@@ -155,6 +155,22 @@ Scheme type_mut := Induction for type Sort Prop
 with row_mut := Induction for row Sort Prop
 with eff_sig_mut := Induction for eff_sig Sort Prop.
 
+(* Mutual induction scheme on the syntactic subtyping derivations
+   [le._eff_sig] / [le._row] / [le._type].  Unlike the auto-generated
+   [le._type_ind] (which does NOT carry the induction hypotheses for the
+   mutually-recursive [_row]/[_eff_sig] occurrences, e.g. in the
+   [TArrow_le] case), this scheme threads all three predicates [P]/[P0]/[P1]
+   so subtyping soundness can be proven by simultaneous induction. *)
+Scheme le_eff_sig_mut := Induction for le._eff_sig Sort Prop
+with le_row_mut := Induction for le._row Sort Prop
+with le_type_mut := Induction for le._type Sort Prop.
+
+(* The combined scheme proves the CONJUNCTION of the three predicates with
+   one set of case-hypotheses and one uniform set of IH names, so the
+   soundness proof can be a single simultaneous induction. *)
+Combined Scheme le_subtyping_mut from
+  le_eff_sig_mut, le_row_mut, le_type_mut.
+
 Section interp_subst.
   Context `{!probblazeRGS Σ}.
 
@@ -949,5 +965,218 @@ Section interp_subst.
       + apply mode_env_sub_cons; first apply IH.
         by apply mode_type_sound.
   Qed.
+
+  (* ===================================================================== *)
+  (** ** Soundness of syntactic subtyping ([le._eff_sig]/[le._row]/        *)
+  (*      [le._type])                                                       *)
+  (*                                                                        *)
+  (*  We show that the three mutually-defined syntactic subtyping           *)
+  (*  judgements imply the corresponding semantic ones on interpretations.  *)
+  (*  Proved by simultaneous induction with the combined scheme             *)
+  (*  [le_type_mut].                                                        *)
+  (*                                                                        *)
+  (*  The ONLY rule that is not premise-free is [RErase_le], which erases a *)
+  (*  freshly-allocated bottom signature [SAbs s] from the head of a row.   *)
+  (*  Its semantic counterpart [sem_row.row_le_erase] requires both         *)
+  (*  LABEL-OWNERSHIP ([is_label]/[spec_labels_frag] for the dynamic label  *)
+  (*  [δ !!! s]) and FRESHNESS ([δ !!! s] not among the labels of the       *)
+  (*  inner row).  Neither is available from the bare [≤ᵣ]; both come from  *)
+  (*  the disjointness context [D] (which records that [s] is concrete in   *)
+  (*  the ambient row and disjoint from the inner row).  We thread this via *)
+  (*  a persistent [erase_ctx] hypothesis bundle, defined below, which is   *)
+  (*  exactly what the erase rule consumes.                                 *)
+
+  (* Soundness of the syntactic mode order [le._mode]: it interprets to the
+     semantic mode order [≤ₘ] under any mode-env [μ].  (Used by the
+     [SFlipComp_le]/[RFlipComp_le]/[TBangComp_le] cases.) *)
+  Lemma mode_le_sound (m m' : vmode) (μ : list mode) :
+    (⊢ₗ m ≤M m') → ⊢ (interp._mode μ m) ≤ₘ@{Σ} (interp._mode μ m').
+  Proof.
+    intros Hm. induction Hm; simpl.
+    - iApply mode_le_OS.
+    - iApply mode_le_MS.
+    - iApply (mode_le_trans with "[] []"); [iApply IHHm1|iApply IHHm2].
+    - iApply mode_le_refl.
+  Qed.
+
+  (* The effect-name interpretation [δ] is fixed throughout (no subtyping
+     constructor binds an effect name), but the TYPE/ROW/MODE environments
+     [η]/[ξ]/[μ] are EXTENDED by the binders ([SSig]/[TForall*]), so the
+     three soundness predicates must quantify over them. *)
+  Context (δ : gmap eff_name (label*label)).
+
+  (* The ownership + disjointness facts a derivation [_row D b ρ ρ'] may
+     need: for every concrete label [s] recorded in [D] together with an
+     inner row [ρ0] whose concrete/abstract signatures are dominated by the
+     disjointness data of [s], the dynamic label [δ !!! s] is owned and is
+     fresh for [ρ0].  This is precisely the premise bundle of
+     [sem_row.row_le_erase] applied at [(δ!!!s).1]/[(δ!!!s).2]/[ρ0],
+     uniformly over all interpretation environments [η μ ξ]. *)
+  Definition erase_ctx (D : le.disj_ctx) : iProp Σ :=
+    □ (∀ (s : eff_name) (ss : gmultiset eff_name) (js : gset nat)
+         (ρ0 : row) (η : list (sem_ty Σ)) (μ : list mode)
+         (ξ : list (sem_row Σ)),
+         ⌜ D !! s = Some (ss, js) ⌝ -∗
+         ⌜ le.conc_sigs ρ0 ⊆ ss ⌝ -∗
+         ⌜ le.abst_sigs ρ0 ⊆ js ⌝ -∗
+         is_label (δ !!! s).1 DfracDiscarded ∗
+         spec_labels_frag (δ !!! s).2 DfracDiscarded ∗
+         ⌜ (δ !!! s).1
+             ∉ labels_l (iLblSig_to_iLblThy (interp._row η μ δ ρ0 ξ)) ⌝ ∗
+         ⌜ (δ !!! s).2
+             ∉ labels_r (iLblSig_to_iLblThy (interp._row η μ δ ρ0 ξ)) ⌝)%I.
+
+  Global Instance erase_ctx_persistent D : Persistent (erase_ctx D).
+  Proof. apply _. Qed.
+
+  (* The three per-judgement predicates.  Each quantifies over the
+     interpretation environments [η μ ξ] (extended by binders), takes the
+     [erase_ctx] hypothesis bundle (only used by [RErase_le]), and yields
+     the corresponding semantic subtyping. *)
+  Notation Psig D σ σ' :=
+    (∀ η μ ξ, erase_ctx D -∗
+     interp._eff_sig η μ δ σ ξ ≤ₛ interp._eff_sig η μ δ σ' ξ).
+  Notation Prow D b ρ ρ' :=
+    (∀ η μ ξ, erase_ctx D -∗
+     interp._row η μ δ ρ ξ ≤ᵣ interp._row η μ δ ρ' ξ).
+  Notation Pty D α β :=
+    (∀ η μ ξ, erase_ctx D -∗
+     interp._ty η μ δ α ξ ≤ₜ interp._ty η μ δ β ξ).
+
+  (* Combined soundness of the three syntactic subtyping judgements, by ONE
+     simultaneous induction (combined scheme [le_subtyping_mut]).  The
+     per-case tactics and IH names are uniform.  Cases left as documented
+     [admit]s (the genuine gaps, collected here):
+     - [SFlipComp_le]/[RFlipComp_le]: mode-premise polarity mismatch — the
+       syntactic rule's [m' ≤M m] has the wrong direction for the ANTITONE
+       semantic [sig/row_le_mfbang_comp] (the dual [TBangComp_le] maps fine);
+       looks like a typo in the Inductive (premise should be [m ≤M m']).
+     - [RCons_le]: needs the two LABEL submseteq side-conditions of
+       [row_le_cons_comp]; these require label-set monotonicity of [≤ᵣ]
+       along a [@false] derivation, which the semantic IH does not record.
+     - [RUnion_le]: relies on [sem_row.row_le_union], whose [distinct]
+       cross-disjointness component is itself admitted (label-set gap).
+     - [RFlipUnion_le]: needs a flip-distributes-over-union row lemma.
+     - [TArrow_le]: premises live at [D' = update_disj_ctx ρ' D]; the IHs
+       need [erase_ctx D'] but we only have [erase_ctx D], and
+       [erase_ctx D → erase_ctx D'] is not provable (D' has larger ss/js +
+       new entries from [ρ']; their ownership/freshness needs the ambient
+       row's [valid]).  THE central remaining gap.
+     - [TRec_le]: [ty_le_rec] needs the parametric monotone form; the simple
+       IH gives only the diagonal.
+     [RErase_le] (the linchpin) IS discharged here, via [erase_ctx] +
+     [sem_row.row_le_erase].  ([RFlipCons_le] is closed via
+     [row_le_mfbang_dist_cons], itself [Admitted] upstream.) *)
+  Lemma subtyping_sound_all :
+    (∀ D σ σ', D ⊢ₗ σ ≤S σ' → Psig D σ σ') ∧
+    (∀ D b ρ ρ', D ⊢ₗ ρ ≤R ρ' @ b → Prow D b ρ ρ') ∧
+    (∀ D α β, D ⊢ₗ α ≤T β → Pty D α β).
+  Proof.
+    apply le_subtyping_mut.
+    all: intros; iIntros "#He"; simpl.
+    (* effect-signature cases *)
+    - iApply sig_le_eff; iIntros "!#" (αs);
+        [by iApply (H (αs :: η)) | by iApply (H0 (αs :: η))].
+    - iApply sig_le_mfbang_intro.
+    - iApply sig_le_mfbang_elim_ms.
+    - iApply sig_le_mfbang_idemp.
+    - iApply sig_le_mfbang_intro.
+    - admit. (* SFlipComp_le: mode-polarity mismatch (see header) *)
+    (* row cases *)
+    - iApply row_le_refl.
+    - iApply row_le_refl.
+    - iApply row_le_cons_extend.
+    - iApply row_le_swap_second.
+    - iApply row_le_cons_comp.
+      3:{ by iApply H. }
+      3:{ by iApply H0. }
+      all: admit. (* RCons_le: label submseteq side-conditions (see header) *)
+    - iApply (row_le_union with "[] []"); [by iApply H|by iApply H0].
+    - iDestruct ("He" $! s ss js ρ η μ ξ with "[//] [//] [//]")
+        as "(Hl1 & Hl2 & %Hnl & %Hnr)".
+      iApply (row_le_erase with "Hl1 Hl2"); done.
+    - iApply (row_le_trans with "[] []"); [by iApply H|by iApply H0].
+    - iApply row_le_mfbang_elim_nil.
+    - iApply row_le_mfbang_dist_cons.
+    - admit. (* RFlipUnion_le: flip-over-union row lemma missing *)
+    - iApply row_le_mfbang_elim_ms.
+    - iApply row_le_mfbang_intro.
+    - iApply row_le_mfbang_idemp.
+    - iApply row_le_mfbang_intro.
+    - admit. (* RFlipComp_le: mode-polarity mismatch (see header) *)
+    (* type cases *)
+    - iApply ty_le_refl.
+    - iApply (ty_le_trans with "[] []"); [by iApply H|by iApply H0].
+    - iApply ty_le_bot.
+    - iIntros "!#" (v1 v2) "_". done.
+    - iApply (ty_le_arr with "[] [] []").
+      all: admit. (* TArrow_le: IHs need [erase_ctx D'] (see header) *)
+    - iApply ty_le_ref; by iApply H.
+    - iApply ty_le_type_forall; iIntros (α'); by iApply (H (α' :: η)).
+    - iApply ty_le_row_forall; iIntros (θ); by iApply (H η μ (θ :: ξ)).
+    - iApply ty_le_mode_forall; iIntros (ν); by iApply (H η (ν :: μ)).
+    - iApply ty_le_rec. admit. (* TRec_le: needs parametric monotone IH *)
+    - iApply (ty_le_prod with "[] []"); [by iApply H|by iApply H0].
+    - iApply (ty_le_sum with "[] []"); [by iApply H|by iApply H0].
+    - iApply ty_le_mbang_intro_bool.
+    - iApply ty_le_mbang_intro_unit.
+    - iApply ty_le_mbang_intro_int.
+    - iIntros "!#" (v1 v2) "#Hnat". rewrite /sem_ty_mbang.
+      iApply bi.intuitionistically_intuitionistically_if. by iModIntro.
+    - iApply ty_le_mbang_intro_top.
+    - iApply ty_le_mbang_intro_os.
+    - iApply ty_le_mbang_idemp.
+    - iApply ty_le_mbang_elim.
+    - iApply ty_le_mbang_elim.
+    - iApply (ty_le_mbang_comp with "[] []");
+        [iApply mode_le_sound; exact _m | by iApply H].
+    - iApply ty_le_type_forall_mbang.
+    - iApply ty_le_mbang_type_forall.
+    - iApply ty_le_row_forall_mbang.
+    - iApply ty_le_mbang_row_forall.
+  Admitted.
+
+  (* The three named soundness lemmas, projected from [subtyping_sound_all]. *)
+  Lemma sig_le_sound_open D σ σ' :
+    D ⊢ₗ σ ≤S σ' → Psig D σ σ'.
+  Proof. apply subtyping_sound_all. Qed.
+
+  Lemma row_le_sound_open D b ρ ρ' :
+    D ⊢ₗ ρ ≤R ρ' @ b → Prow D b ρ ρ'.
+  Proof. apply subtyping_sound_all. Qed.
+
+  Lemma ty_le_sound_open D α β :
+    D ⊢ₗ α ≤T β → Pty D α β.
+  Proof. apply subtyping_sound_all. Qed.
+
+  (* ===================================================================== *)
+  (** ** User-facing soundness statements                                  *)
+  (*                                                                        *)
+  (*  These are the target lemmas of the subtyping-soundness goal.  They    *)
+  (*  thread the [erase_ctx D] hypothesis bundle (needed by [RErase_le];    *)
+  (*  see the module comment) and expose [η μ ξ] explicitly.  [sig]/[ty]    *)
+  (*  are premise-free in the syntactic judgement but carry [erase_ctx]     *)
+  (*  because [TArrow_le] reaches through [_row] into the erase machinery.  *)
+
+  Lemma sig_le_sound D σ σ' (η : list (sem_ty Σ)) (μ : list mode)
+    (ξ : list (sem_row Σ)) :
+    D ⊢ₗ σ ≤S σ' →
+    erase_ctx D -∗
+    interp._eff_sig η μ δ σ ξ ≤ₛ interp._eff_sig η μ δ σ' ξ.
+  Proof. intros H. iApply (sig_le_sound_open _ _ _ H). Qed.
+
+  Lemma row_le_sound D b ρ ρ' (η : list (sem_ty Σ)) (μ : list mode)
+    (ξ : list (sem_row Σ)) :
+    D ⊢ₗ ρ ≤R ρ' @ b →
+    erase_ctx D -∗
+    interp._row η μ δ ρ ξ ≤ᵣ interp._row η μ δ ρ' ξ.
+  Proof. intros H. iApply (row_le_sound_open _ _ _ _ H). Qed.
+
+  Lemma ty_le_sound D α β (η : list (sem_ty Σ)) (μ : list mode)
+    (ξ : list (sem_row Σ)) :
+    D ⊢ₗ α ≤T β →
+    erase_ctx D -∗
+    interp._ty η μ δ α ξ ≤ₜ interp._ty η μ δ β ξ.
+  Proof. intros H. iApply (ty_le_sound_open _ _ _ H). Qed.
 
 End interp_subst.
