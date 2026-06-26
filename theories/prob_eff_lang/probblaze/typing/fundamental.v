@@ -179,7 +179,19 @@ Proof.
     + (* DeepHandle_typed *) admit.
     + (* ShallowHandle_typed *) admit.
     + (* Sub_typed *) admit.
-    + (* Contraction_typed *) admit.
+    + (* Contraction_typed *)
+      (* Now sound after removing [le.TBangRef_le]: the contracted type
+         [κ] is [le.MultiT], so its interpretation is a semantic [MultiT]
+         (via [interp.multi_ty_sound]), which is the side condition of
+         [sem_typed_contraction]. *)
+      destruct x as [|s]; simpl;
+        [ apply fundamental in Ht; iPoseProof Ht as "Ht";
+          iApply ("Ht" $! _ _ _ _ ∅ Hδ)
+        | pose proof (multi_ty_sound κ H η μ δ ξ) as Hmt;
+          iApply (sem_typed_contraction _ _ _ _ _ _
+                    (interp._ty η μ δ κ ξ));
+          apply fundamental in Ht; iPoseProof Ht as "Ht";
+          iApply ("Ht" $! _ _ _ _ ∅ Hδ) ].
     + (* Weakening_typed *) destruct x; simpl.
       * apply fundamental in Ht. iPoseProof Ht as "Ht".
         iApply ("Ht" $! _ _ _ _ ∅ Hδ).
@@ -218,14 +230,17 @@ Proof.
       iSpecialize ("H" $! η μ δ ξ). iApply sem_oval_typed_val. iApply "H".
     + (* Rec_pure_typed *) admit.
     + (* Pair_pure_typed *)
-      (* Blocked: building the product [prel] needs both component value
-         relations simultaneously, hence two copies of [env_sem_typed Γ' vs].
-         The pure Pair rule places no [MultiC Γ] (mode/persistence) side
-         condition on Γ, so [interp Γ ⊨ₑ vs] is not persistent in general
-         (e.g. for a linear-arrow binding), and the env cannot be duplicated.
-         Helper [sem_oval_typed_pair] (compatibility.v) discharges this once
-         [∀ vs, Persistent (Γ ⊨ₑ vs)] is available. *)
-      admit.
+      (* Now sound after removing [le.TBangRef_le] and adding the
+         [le.MultiC Γ] premise: it interprets to [MultiE (interp Γ)] (via
+         [interp.multi_env_sound]), which (through [multi_env_persistent])
+         discharges the [∀ vs, Persistent (Γ ⊨ₑ vs)] side condition of
+         [sem_oval_typed_pair], needed to build the product [prel]. *)
+      simpl. pose proof (multi_env_sound Γ H η μ δ ξ) as HME.
+      iApply sem_oval_typed_pair;
+        [ apply fundamental_pure in Hp1; iPoseProof Hp1 as "H1";
+          iApply ("H1" $! η μ δ ξ)
+        | apply fundamental_pure in Hp2; iPoseProof Hp2 as "H2";
+          iApply ("H2" $! η μ δ ξ) ].
     + (* InjL_pure_typed *) iApply sem_oval_typed_injl.
       apply fundamental_pure in Hp. iPoseProof Hp as "H".
       iApply ("H" $! η μ δ ξ).
@@ -233,7 +248,15 @@ Proof.
       apply fundamental_pure in Hp. iPoseProof Hp as "H".
       iApply ("H" $! η μ δ ξ).
     + (* Var_pure_typed *) iApply sem_oval_typed_var.
-    + (* BangIntro_pure_typed *) admit.
+    + (* BangIntro_pure_typed *)
+      (* Now sound after removing [le.TBangRef_le]: the premise [m m⪯C Γ]
+         interprets to a semantic mode-env subtyping
+         [(interp._mode μ m) ₘ⪯ₑ interp Γ] (via [interp.mode_env_sound]),
+         which is the side condition of [sem_typed_mbang]. *)
+      simpl. pose proof (mode_env_sound m Γ H η μ δ ξ) as Hmode.
+      iApply (sem_typed_mbang (interp._mode μ m)).
+      apply fundamental_pure in Hp. iPoseProof Hp as "H".
+      iApply ("H" $! η μ δ ξ).
     + (* TAbs_pure_typed *)
       (* The [TAbs_pure] rule shifts its premise context by [⤉] (a fresh
          TYPE binder), so the body IH at the EXTENDED type-env [α::η]

@@ -1184,8 +1184,8 @@ Module le.
   | TBangInt_le D m : _type D TInt (TBang m TInt)
   | TBangNat_le D m : _type D TNat (TBang m TNat)
   | TBangTop_le D m : _type D TTop (TBang m TTop)
-  | TBangRef_le D m α : _type D (TRef α) (TBang m (TRef α))
-                              (* TODO: unsure if this is sound. *)
+  (* TBangRef_le removed: it was unsound (made le.MultiT (TRef α)
+     derivable, but sem_ty_ref has no duplicable invariant). *)
   (* | TBangTape_le D m : _type D TTape (TBang m (TTape α)) *)
   | TBangOS_le D α : _type D α (TBang OS α)
   | TBangIdemp1_le D m α : _type D (TBang m α) (TBang m (TBang m α))
@@ -1568,7 +1568,8 @@ with pure_typed  : ctx → expr → type → Prop :=
   m m⪯C Γ1 → 
   ∅ .| <[ x :=c τ ]> <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> Γ1 ⊢ₜ e : ρ : κ ⊣ [] → Γ1 ⊢ₚ Rec f x e : (τ -{ ρ }-[m]-> κ)%ty
 
-| Pair_pure_typed Γ e1 e2 τ1 τ2 : 
+| Pair_pure_typed Γ e1 e2 τ1 τ2 :
+  le.MultiC Γ →
   Γ ⊢ₚ e1 : τ1 → Γ ⊢ₚ e2 : τ2 → Γ ⊢ₚ Pair e1 e2 : (τ1 * τ2)%ty
 
 | InjL_pure_typed Γ e τ1 τ2 : 

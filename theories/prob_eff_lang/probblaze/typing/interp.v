@@ -1,4 +1,4 @@
-From clutch.prob_eff_lang.probblaze Require Import logic sem_sig sem_row sem_types sem_def syntax types sem_judgement sem_env.
+From clutch.prob_eff_lang.probblaze Require Import logic sem_sig sem_row sem_types sem_def syntax types sem_judgement sem_env mode.
 From iris.algebra Require Export list gmap.
 From Autosubst Require Import Autosubst.
 
@@ -794,6 +794,160 @@ Section interp_subst.
     - rewrite !env_sem_typed_cons. rewrite IH.
       do 4 f_equiv. intros v2. f_equiv.
       exact (ty_mweaken α η m μ δ ξ a v2).
+  Qed.
+
+  (* ===================================================================== *)
+  (** ** Soundness of the syntactic [le.MultiT] predicate                  *)
+  (*                                                                        *)
+  (*  [le.MultiT τ = ∅ ⊢ₗ τ ≤T ![MS] τ].  We show that whenever a syntactic *)
+  (*  type is [le.MultiT], its interpretation is a semantic [MultiT].       *)
+  (*  The proof factors through a STRUCTURAL "copyable shape" predicate     *)
+  (*  [MultiP], for which the semantic direction [MultiP τ → MultiT(interp)] *)
+  (*  is a full structural proof using the [sem_types.v] instances.         *)
+
+  (* Auxiliary semantic instances. *)
+  Lemma multi_ty_nat_sem : MultiT (@sem_ty_nat Σ).
+  Proof.
+    constructor. iIntros "!# %v1 %v2 (%n & -> & ->)".
+    iApply bi.intuitionistically_intuitionistically_if.
+    iIntros "!#". by iExists n.
+  Qed.
+
+  (* [![m] τ] is copyable as soon as [τ] is, for ANY (semantic) mode [m]. *)
+  Lemma multi_ty_mbang_gen (sm : mode) (τ : sem_ty Σ) `{! MultiT τ} :
+    MultiT (sem_ty_mbang sm τ).
+  Proof.
+    constructor. iIntros "!# %v1 %v2 H".
+    iAssert (□ (sem_ty_mbang sm τ v1 v2))%I with "[H]" as "#H'".
+    { rewrite /sem_ty_mbang. destruct sm; simpl.
+      - pose proof (multi_ty_persistent τ v1 v2) as Hpers.
+        iDestruct "H" as "#H". by iModIntro.
+      - iDestruct "H" as "#H". by iModIntro. }
+    iApply bi.intuitionistically_intuitionistically_if. iModIntro.
+    by iApply "H'".
+  Qed.
+
+  (* Structural "copyable shape": the syntactic types whose interpretation
+     is provably a semantic [MultiT].  Note [TBang MS _] is unconditionally
+     copyable, while [ref]/[tape]/[TArrow] (the LINEAR arrow [-∘]) and free
+     variables are not.  [TBang OS]/[TBang (MVar _)] propagate to the body. *)
+  Fixpoint MultiP (τ : type) : Prop :=
+    match τ with
+    | TBot | TTop | TUnit | TInt | TNat | TBool => True
+    | TBang MS _ => True
+    | TBang _ τ => MultiP τ
+    | TProd τ1 τ2 => MultiP τ1 ∧ MultiP τ2
+    | TSum τ1 τ2 => MultiP τ1 ∧ MultiP τ2
+    | TForallT τ | TForallR τ | TForallM τ | TRec τ | TExists τ => MultiP τ
+    | _ => False
+    end.
+
+  (* Semantic direction: a copyable-shaped type interprets to a [MultiT]. *)
+  Lemma MultiP_interp_multi (τ : type) :
+    MultiP τ → ∀ η μ δ ξ, MultiT (interp._ty η μ δ τ ξ).
+  Proof.
+    revert τ. fix IH 1. intros τ Hmp η μ δ ξ.
+    destruct τ; simpl in Hmp |- *; try (exfalso; exact Hmp).
+    all: try apply multi_ty_void.
+    all: try apply multi_ty_top.
+    all: try apply multi_ty_unit.
+    all: try apply multi_ty_bool.
+    all: try apply multi_ty_int.
+    all: try apply multi_ty_nat_sem.
+    all: try (destruct Hmp as [H1 H2];
+              first [ apply multi_ty_prod | apply multi_ty_sum ]; by apply IH).
+    all: try (apply multi_ty_mode_forall; intros ν; by apply IH).
+    all: try (apply multi_ty_type_forall; intros α; by apply IH).
+    all: try (apply multi_ty_row_forall; intros θ; by apply IH).
+    all: try (apply multi_ty_exists; intros α; by apply IH).
+    all: try (apply multi_ty_rec; [ apply _ |
+                iIntros (α) "_"; pose proof (IH _ Hmp (α :: η) μ δ ξ) as Hmt;
+                inv Hmt; iApply multi_ty ]).
+    all: destruct v;
+           first [ apply multi_ty_mbang
+                 | apply multi_ty_mbang_gen; by apply IH ].
+  Qed.
+
+  (* Inversion / consistency direction: a syntactically [le.MultiT] type
+     has copyable shape.
+
+     STATUS: ADMITTED.  This is a CONSISTENCY property of the syntactic
+     subtyping relation [le._type]: from [∅ ⊢ₗ τ ≤T ![MS] τ] one must rule
+     out the "junk" subtypings that would otherwise relate a non-copyable
+     type (e.g. [ref], the linear arrow [-∘], a tape, or a free variable)
+     to its [MS]-bang.  After removing the unsound [TBangRef_le]
+     constructor, no rule directly concludes [ref τ ≤T ![MS](ref τ)];
+     however the [TTrans_le] (transitivity) constructor admits an
+     unconstrained intermediate type, so a direct structural / inversion
+     argument does NOT close (verified interactively: the sole remaining
+     goal of [induction] on the derivation is the transitivity case with
+     an arbitrary middle type).
+
+     A monotone structural invariant cannot work either: [TBot_le]
+     ([⊥ ≤T α]) and [TBangElim_le] ([![m]α ≤T α]) break upward
+     propagation of any "copyable shape" predicate, while [TTop_le]
+     ([α ≤T ⊤]) breaks downward propagation — so neither direction of a
+     [MultiP]-monotonicity lemma holds.
+
+     The sound route is the SEMANTIC subtyping soundness
+     [le._type D α β → ⊢ interp α ≤ₜ interp β] (which would give this
+     immediately, since [le.MultiT τ] is exactly [τ ≤T ![MS]τ]); but its
+     [TArrow_le] case requires soundness of the [_row] subtyping relation
+     ([row_le_erase] / [sig_le_eff]), which is currently ADMITTED and
+     structurally broken in [sem_row.v]/[sem_sig.v] (the [sem_row_later]
+     / [iLblThy] machinery).  Discharging this inversion therefore needs
+     either (a) the row-subtyping soundness development, or (b) a
+     dedicated syntactic transitivity-elimination / coherence proof for
+     [le._type].  Both are out of scope of the present change. *)
+  Lemma le_multiT_MultiP (τ : type) : le.MultiT τ → MultiP τ.
+  Proof.
+  Admitted.
+
+  (* Soundness of [le.MultiT]: a syntactically multi type interprets to a
+     semantic [MultiT].  Fully proved modulo the consistency inversion
+     [le_multiT_MultiP] above. *)
+  Lemma multi_ty_sound (τ : type) :
+    le.MultiT τ → ∀ η μ δ ξ, MultiT (interp._ty η μ δ τ ξ).
+  Proof.
+    intros Hm η μ δ ξ. apply MultiP_interp_multi, le_multiT_MultiP, Hm.
+  Qed.
+
+  (* The interpretation of a context [Γ] at a given interpretation env. *)
+  Notation interp_env η μ δ ξ Γ :=
+    ((λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ).
+
+  (* Soundness of [le.MultiC]: a syntactically multi context interprets to
+     a semantic [MultiE].  Forall-lift of [multi_ty_sound]. *)
+  Lemma multi_env_sound (Γ : ctx) :
+    le.MultiC Γ → ∀ η μ δ ξ, MultiE (interp_env η μ δ ξ Γ).
+  Proof.
+    intros Hm η μ δ ξ. induction Γ as [|[x τ] Γ' IH]; simpl.
+    - apply multi_env_nil.
+    - apply Forall_cons in Hm as [Hτ HΓ'].
+      apply multi_env_cons; first by apply IH.
+      by apply multi_ty_sound.
+  Qed.
+
+  (* Soundness of [le._mode_type]: note [m m⪯T τ] forces [m ∈ {OS, MS}]. *)
+  Lemma mode_type_sound (m : vmode) (τ : type) :
+    m m⪯T τ → ∀ η μ δ ξ, (interp._mode μ m) ₘ⪯ₜ (interp._ty η μ δ τ ξ).
+  Proof.
+    intros Hm η μ δ ξ. inv Hm; simpl.
+    - apply mode_type_sub_os.
+    - apply mode_type_sub_multi_ty. by apply multi_ty_sound.
+  Qed.
+
+  (* Soundness of [le._mode_ctx]: a syntactic mode-context judgement
+     interprets to a semantic mode-env-subtyping. *)
+  Lemma mode_env_sound (m : vmode) (Γ : ctx) :
+    m m⪯C Γ → ∀ η μ δ ξ, (interp._mode μ m) ₘ⪯ₑ (interp_env η μ δ ξ Γ).
+  Proof.
+    intros Hm η μ δ ξ. induction Hm as [m'|m' x τ Γ' Hτ HΓ' IH]; simpl.
+    - apply mode_env_sub_nil.
+    - destruct x as [|s]; simpl.
+      + apply IH.
+      + apply mode_env_sub_cons; first apply IH.
+        by apply mode_type_sound.
   Qed.
 
 End interp_subst.
