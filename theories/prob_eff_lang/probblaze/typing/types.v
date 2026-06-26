@@ -1104,7 +1104,7 @@ Module le.
   | SFlipIdemp1_le D m σ : _eff_sig D (SFlip m (SFlip m σ)) (SFlip m σ)
   | SFlipIdemp2_le D m σ : _eff_sig D (SFlip m σ) (SFlip m (SFlip m σ))
   | SFlipComp_le D m' m σ' σ :
-    _mode m' m → _eff_sig D σ' σ → _eff_sig D (SFlip m' σ') (SFlip m σ)
+    _mode m m' → _eff_sig D σ' σ → _eff_sig D (SFlip m' σ') (SFlip m σ)
   (* SFlipComm is derivable *)
 
   with _row : disj_ctx → bool → row → row → Prop :=
@@ -1144,7 +1144,7 @@ Module le.
   | RFlipIdemp1_le D b m ρ : _row D b (RFlip m (RFlip m ρ)) (RFlip m ρ)
   | RFlipIdemp2_le D b m ρ : _row D b (RFlip m ρ) (RFlip m (RFlip m ρ))
   | RFlipComp_le D b m' m ρ' ρ :
-    _mode m' m →
+    _mode m m' →
     _row D b ρ' ρ →
     _row D b (RFlip m' ρ') (RFlip m ρ)
   (* add rules for flip and union *)
@@ -1226,7 +1226,7 @@ Module le.
 
   Definition MultiT (τ : type) : Prop := _type ∅ τ (![MS] τ).
 
-  Definition OnceR (ρ : row) : Prop := ∃ b, _row ∅ b (RFlip MS ρ) ρ. 
+  Definition OnceR (ρ : row) : Prop := ∃ b, _row ∅ b (RFlip OS ρ) ρ.
 
   (* Lifting Multi from types to ctx *)
   (* for multiset map *)
@@ -1619,6 +1619,7 @@ with val_typed : val → type → Prop :=
   ⊢ᵥ v : τ2 →
          ⊢ᵥ InjRV v : (τ1 + τ2)
 | Rec_val_typed f x e τ1 ρ τ2 :
+  match f with BNamed f => BNamed f ≠ x | BAnon => True end →
   ∅ .| <[f:=c τ1 -{ ρ }-> τ2]>(<[x:=c τ1]> ∅) ⊢ₜ e : ρ : τ2 ⊣ ∅ →
                                          ⊢ᵥ RecV f x e : (τ1 -{ ρ }-> τ2)
 | TAbs_val_typed v τ :

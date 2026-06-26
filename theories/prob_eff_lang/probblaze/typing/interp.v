@@ -1395,10 +1395,10 @@ Section interp_subst.
      simultaneous induction (combined scheme [le_subtyping_mut]).  The
      per-case tactics and IH names are uniform.  Cases left as documented
      [admit]s (the genuine gaps, collected here):
-     - [SFlipComp_le]/[RFlipComp_le]: mode-premise polarity mismatch — the
-       syntactic rule's [m' ≤M m] has the wrong direction for the ANTITONE
-       semantic [sig/row_le_mfbang_comp] (the dual [TBangComp_le] maps fine);
-       looks like a typo in the Inductive (premise should be [m ≤M m']).
+     - [SFlipComp_le]/[RFlipComp_le] are now DISCHARGED: the Inductive's
+       mode premise was corrected from [m' ≤M m] to [m ≤M m'] (the typo
+       noted previously), which is exactly the direction the ANTITONE
+       semantic [sig/row_le_mfbang_comp] needs ([mode_le_sound] + the IH).
      - [RCons_le]: needs the two LABEL submseteq side-conditions of
        [row_le_cons_comp]; these require label-set monotonicity of [≤ᵣ]
        along a [@false] derivation, which the semantic IH does not record.
@@ -1429,7 +1429,9 @@ Section interp_subst.
     - iApply sig_le_mfbang_elim_ms.
     - iApply sig_le_mfbang_idemp.
     - iApply sig_le_mfbang_intro.
-    - admit. (* SFlipComp_le: mode-polarity mismatch (see header) *)
+    - iApply (sig_le_mfbang_comp with "[] []").
+      + iApply mode_le_sound; exact _m.
+      + by iApply H.
     (* row cases *)
     - iApply row_le_refl.
     - iApply row_le_refl.
@@ -1451,7 +1453,9 @@ Section interp_subst.
     - iApply row_le_mfbang_intro.
     - iApply row_le_mfbang_idemp.
     - iApply row_le_mfbang_intro.
-    - admit. (* RFlipComp_le: mode-polarity mismatch (see header) *)
+    - iApply (row_le_mfbang_comp with "[] []").
+      + iApply mode_le_sound; exact _m.
+      + by iApply H.
     (* type cases *)
     - iApply ty_le_refl.
     - iApply (ty_le_trans with "[] []"); [by iApply H|by iApply H0].
@@ -1548,38 +1552,19 @@ Section interp_subst.
 
   (* Soundness of [le.OnceR].                                               *)
   (*                                                                        *)
-  (*  *** DOCUMENTED ADMIT — genuine type-system spec gap. ***              *)
-  (*                                                                        *)
-  (*  The semantic [OnceR ρ] (sem_row.v) is the NON-TRIVIAL one-shot        *)
-  (*  property [⊢ ¡[OS] ρ ≤ᵣ ρ] (with [¡[OS] = iThyMono], the one-shot      *)
-  (*  monotonicity wrapper).  But the SYNTACTIC [le.OnceR ρ] is defined     *)
-  (*  (types.v) as [∃ b, ∅ ⊢ₗ RFlip MS ρ ≤R ρ @ b] — note the mode is       *)
-  (*  [MS], not [OS].  Its interpretation under [row_le_sound] is           *)
-  (*  [¡[MS] (interp ρ) ≤ᵣ interp ρ], and since [¡[MS] = id] semantically   *)
-  (*  ([to_iThyIfMono MS = id]) this is the TRIVIALLY-TRUE [row_le_refl]    *)
-  (*  fact — indeed [le.OnceR ρ] holds for EVERY [ρ] via [RFlipElim_le].    *)
-  (*                                                                        *)
-  (*  Bridging from [¡[MS] ρ ≤ᵣ ρ] to the required [¡[OS] ρ ≤ᵣ ρ] would     *)
-  (*  need [¡[OS] ρ ≤ᵣ ¡[MS] ρ], i.e. [row_le_mfbang_comp OS MS] applied    *)
-  (*  with [MS ≤ₘ OS] — but the mode order only has [OS ≤ₘ m] and           *)
-  (*  [m ≤ₘ MS], so [MS ≤ₘ OS] is FALSE.  Hence this implication is         *)
-  (*  unprovable: the syntactic [le.OnceR] is semantically vacuous and      *)
-  (*  cannot entail the genuine semantic [OnceR].  The fix is a spec edit   *)
-  (*  ([le.OnceR] should use [RFlip OS]); that is outside the authorized    *)
-  (*  statement changes for this task, so it is surfaced here.              *)
-  (*                                                                        *)
-  (*  NB: this only affects the [Once_le] CONSTRUCTOR of [le._row_type].    *)
-  (*  The [Multi_le] constructor (and hence every use that goes through a   *)
-  (*  multi type, including the proofs of [Pair_typed]/[TStore] below when  *)
-  (*  the supplied premise is [Multi_le]) is fully sound and proved.        *)
+  (*  The semantic [OnceR ρ] (sem_row.v) is the one-shot property           *)
+  (*  [⊢ ¡ ρ ≤ᵣ ρ] with [¡ = sem_row_flip_mbang OS].  The syntactic         *)
+  (*  [le.OnceR ρ] (types.v) is [∃ b, ∅ ⊢ₗ RFlip OS ρ ≤R ρ @ b]; under      *)
+  (*  [row_le_sound] (run at [∅] via [erase_ctx_empty]) its interpretation  *)
+  (*  is [¡[interp._mode μ OS] (interp ρ) ≤ᵣ interp ρ], and                 *)
+  (*  [interp._mode μ OS = OS] definitionally, so this is exactly the       *)
+  (*  semantic [OnceR] field [⊢ ¡ (interp ρ) ≤ᵣ interp ρ].                  *)
   Lemma once_row_sound (ρ : row) :
     le.OnceR ρ → ∀ η μ ξ, OnceR (interp._row η μ δ ρ ξ).
   Proof.
     intros [b0 Hle] η0 μ0 ξ0. constructor.
-    (* Goal: [⊢ ¡[OS] (interp ρ) ≤ᵣ interp ρ].  From [row_le_sound] +
-       [erase_ctx_empty] we only get the trivial [¡[MS] (interp ρ) ≤ᵣ
-       interp ρ]; the [OS] flip is unreachable (see header). *)
-  Admitted.
+    iApply (row_le_sound _ _ _ _ _ _ _ Hle). iApply erase_ctx_empty.
+  Qed.
 
   (* Soundness of [le._row_type]: turns [ρ R⪯T τ] into the semantic         *)
   (* [RowTypeSub] typeclass.  The [Multi_le] case is fully proved (via      *)

@@ -336,20 +336,13 @@ Proof.
             [intros []|rewrite env_dom_nil; apply not_elem_of_nil]. }
         { destruct f as [|s];
             [intros []|rewrite env_dom_nil; apply not_elem_of_nil]. }
-        { destruct f as [|sf]; [done|]. destruct x as [|sx].
-          - done.
-          - (* [f = x] case: the [Rec_val] rule lacks an [f ≠ x] side
-               condition (unlike [Rec_typed]/[Rec_pure_typed]).  When the
-               recursive and argument binders coincide the body context
-               [(s,arr)::(s,τ1)::∅] forces the captured self-value to be
-               typed at BOTH [arr] and [τ1], which the recursion cannot
-               supply unless [arr = τ1]; hence the closure is unsound for
-               [f = x].  This is a SPEC BUG in [Rec_val_typed] (missing
-               [match f with BNamed f => BNamed f ≠ x | _ => True]).
-               Strengthening that statement is outside the authorised
-               change set, so this sub-case is left admitted. *)
-            admit. }
-        apply fundamental in H. iPoseProof H as "H".
+        { (* [f ≠ x] side condition: discharged directly by the new
+             [Rec_val_typed] premise [H] (which is the same proposition).
+             This closes the previously-admitted [f = x] sub-case: when
+             [f = BNamed sf] and [x = BNamed sx], [H] gives
+             [BNamed sf ≠ x], contradicting [f = x]. *)
+          exact H. }
+        apply fundamental in H0. iPoseProof H0 as "H".
         iSpecialize ("H" $! η μ δ ξ ∅ (empty_subseteq (dom δ))).
         destruct f as [|sf]; destruct x as [|sx]; simpl in *; iApply "H". }
       rewrite /sem_oval_typed /tc_opaque. iModIntro.
