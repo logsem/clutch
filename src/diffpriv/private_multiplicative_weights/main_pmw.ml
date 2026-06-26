@@ -29,7 +29,6 @@ let () =
       stream_query
       (float_of_int card_q)
       1 1 0.1 0.1
-      (path_gif ^ file_gif)
   in
   Printf.printf "c: %f\nt: %f\n" c t;
   Printf.printf "- NB UPDATE : %d\n- DISTRIB DB :" nb_upd;
