@@ -10,22 +10,13 @@ Section pmw.
 
   #[local] Open Scope R.
 
-  (* The following comment is not updated and then should be ignored.
-     In this part, we consider that x is a distribution and is stored in an couple of arrays.
-     Each element is of the form: (Edb, Pdb) (we will call it DB)
-     where Edp is the array of the databases and Pdb is the array of the probability of each db.
-     We assume that queries are of the type DB -> R, and works as the following:
-        - Samples an index following the Pdb distribution
-        - Executes the query on this db
-  *)
-
 
   (* For the proof we need to adapt the algo from the book. *)
   (* Indeed, in order to get result on the call to `f`, *)
   (* the numeric sparse vector technique, we need to call *)
   (* it again for e2 only when we know that e1 is None. *)
   (* Otherwise, we can not state no result on e2 since if *)
-  (* e1 returned a value then we would not have inSVT (S x). *)
+  (* e1 returned a value then we would not have the right inSVT hypothesis. *)
   (* Knowing that even if e1 and e2 are values, then we will *)
   (* not use e2. Hence we call it only when necessary. *)
 
@@ -34,7 +25,9 @@ Section pmw.
   (* functions in the specification. *)
   (* That is why this is only a partial implementation of the *)
   (* private multiplicative weight technique. *)
-
+  (* Moreover I'm not convinced about the specification. *)
+  (* Our functions should "here" take any val in args *)
+  (* and return a val... this seems like a very strong hypothese ? *)
   
   Definition oPMW : val :=
     λ: "x" "stream_q" "num" "den" "c" "t" "unif" "upd" "f1" "f2",
@@ -88,10 +81,11 @@ Section pmw.
           {{ qopt, ⤇ fill K (Val qopt) ∗
                      (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ □ wp_sensitive q 1 dDB dZ ∗
                         □ (∀ K db, ⤇ fill K (q db) -∗ WP q db {{v, ∃ r : Z, ⌜v = inject r⌝ ∗ ⤇ fill K (Val v) }}) ) }}) -∗
-       □ (∀ K (distrib : DB) (q v : val),
-          ⤇ fill K (upd (Val (inject distrib)) q v) -∗
-          WP upd (Val (inject distrib)) q v
-          {{ v, ⤇ fill K (Val v) ∗ ∃ distrib' : DB, ⌜v = (inject distrib')⌝}}) -∗
+       □ (∀ K (distrib q l : val),
+          (* should distrib be a val ? not precise enough ? *)
+          ⤇ fill K (upd distrib q l) -∗
+          WP upd distrib q l
+          {{ v, ⤇ fill K (Val v) }}) -∗
       □ (∀ K (distrib q : val), (* we get back a 1sens query *)
           (* (wp_sensitive q 1 dDB dZ) -∗ we need the original query to be 1 sensitive *)
           ⤇ fill K (f1 q distrib) -∗
@@ -165,10 +159,13 @@ Section pmw.
         iIntros (v) "(%r & -> & rhs)"...
         simpl.
         tp_binop.
-        wp_bind (upd _ _ _); tp_bind (upd _ _ _).
-        iPoseProof ("Hup" $! K _ q #(r - z)) as "Hup'".
-        (* Issue, we don't know that distrib = inject db  #1# *)
-        admit.
+        wp_bind (upd _ _ _ ); tp_bind (upd _ _ _ ).
+        iPoseProof ("Hup" $! _ distrib q _ with "rhs") as "Hup'".
+        iApply (wp_strong_mono'' with "Hup'").
+        iIntros (v) "rhs".
+        simpl.
+        rewrite /list_cons...
+        iApply ("IH" with "[] [] rhs inSVT"). 3: done. 1,2: iPureIntro. 1,2: lia.
       + (* e1 is none but we have inSVT (S x) *)
         iSimpl in "inSVT"...
         wp_bind (f _ _); tp_bind (f' _ _).
@@ -191,9 +188,12 @@ Section pmw.
           simpl.
           tp_binop.
           wp_bind (upd _ _ _); tp_bind (upd _ _ _).
-          iPoseProof ("Hup" $! K _ q #(r - z)) as "Hup'".
-          (* Issue, we don't know that distrib = inject db same as #1# *)
-          admit.
+          iPoseProof ("Hup" $! _ distrib q _ with "rhs") as "Hup'".
+          iApply (wp_strong_mono'' with "Hup'").
+          iIntros (v) "rhs".
+          simpl.
+          rewrite /list_cons...
+          iApply ("IH" with "[] [] rhs inSVT"). 3: done. 1,2: iPureIntro. 1,2: lia.
         -- (* both answers are under the threshold *)
           wp_bind (q _); tp_bind (q _).
           iPoseProof ("Hdet" $! _ distrib with "rhs") as "Hdet'".
@@ -202,13 +202,6 @@ Section pmw.
           simpl.
           rewrite /list_cons...
           iApply ("IH" with "[] [] rhs inSVT"). 3: done. 1,2: iPureIntro. 1,2: lia.
-Admitted.
-
-  (* There is two of `admit.` in this parial proof. *)
-  (* However each of them should have the same proof. *)
-  (* We need to show that the call to `upd _ distrib _` *)
-  (* works well. In other words we want to show that  *)
-  (* there exists a db such that distrib = inject db *)
-  (* (it is maybe one solution) *)
+Qed.
 
 End pmw.
