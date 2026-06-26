@@ -19,8 +19,8 @@ Global Instance sem_row_bottom {Σ} : Bottom (sem_row Σ) := sem_row_nil.
 
 (* Cons Row *)
 Program Definition sem_row_cons {Σ} : sem_sig Σ -d> sem_row Σ -d> sem_row Σ :=
-    λ σ ρ, 
-      (@SemRow Σ ((([(sem_sig_labels Σ σ).1], [(sem_sig_labels Σ σ).2]), sem_sig_later σ) :: (sem_row_car ρ)) _ (* _ *) ) .
+    λ σ ρ,
+      (@SemRow Σ ((([(sem_sig_labels Σ σ).1], [(sem_sig_labels Σ σ).2]), σ) :: (sem_row_car ρ)) _ (* _ *) ) .
               (* (λ e1 e2, λne Φ, ∃ (op' : label) (v1 v2 : val), 
                               ⌜ e1 = (do: op' v1)%E ⌝ ∗ ⌜ e2 = (do: op' v2)%E ⌝ ∗
                                if decide (op = op') then 
@@ -288,18 +288,36 @@ Notation "'μᵣ' θ , ρ " := (sem_row_rec (λ θ, ρ%R)) (at level 50) : sem_r
 Section row_properties.
   (* TODO: finish proofs in this section *)
   Global Instance sem_row_cons_ne {Σ} (* op op' *) : NonExpansive2 (@sem_row_cons Σ (* op op' *)).
-  Proof. 
-  (*   intros ???????. f_equiv. apply non_dep_fun_dist.
-       simpl. do 2 f_equiv; apply non_dep_fun_dist; by f_equiv.  
-     Qed. *)
-  Admitted. 
+  Proof.
+    intros n σ1 σ2 Hσ ρ1 ρ2 Hρ. destruct n; first done.
+    unfold sem_row_cons, dist, sem_row_dist. simpl.
+    f_equiv; last exact Hρ. f_equiv; last exact Hσ.
+    (* Residual goal: the head LABELS coincide,
+         ([labels σ1].1, [labels σ1].2) ≡{Sn}≡ ([labels σ2].1, [labels σ2].2).
+       Labels live in a DISCRETE ofe, so this is the EQUALITY
+       sem_sig_labels σ1 = sem_sig_labels σ2.  But the [sem_sig] ofe
+       (sem_def.v) is defined ONLY on [sem_sig_car], so [Hσ : σ1 ≡{n}≡ σ2]
+       gives no information about labels.  Hence full NonExpansive2 in σ is
+       UNPROVABLE for the current [sem_sig] ofe.  This obstacle is
+       PRE-EXISTING and ORTHOGONAL to the [sem_sig_later] head removal:
+       it held identically for the old [sem_sig_later σ] head (which also
+       reads [sem_sig_labels σ]).  Fixing it requires putting the labels
+       into the [sem_sig] ofe (a separate sem_sig redesign). *)
+  Admitted.
   Global Instance sem_row_cons_Proper {Σ} (* op op' *): Proper ((≡) ==> (≡) ==> (≡)) (@sem_row_cons Σ (* op op' *)).
   Proof. apply ne_proper_2. apply _. Qed.
-  
+
+  (* UNUSED: not referenced anywhere outside this definition (verified by
+     grep over theories/prob_eff_lang/).  It was added together with the
+     [sem_sig_later] head to make [sem_row_cons] contractive in σ for the
+     never-instantiated recursive-row fixpoint [sem_row_rec]/[RRec]
+     (commented out in interp.v).  With the plain σ head, [sem_row_cons] is
+     genuinely NOT contractive in σ (no guarding later); since the instance
+     is unused and now vacuous, it is left Admitted. *)
   Global Instance sem_row_cons_contractive {Σ} (* op *) n : Proper (dist_later n ==> dist n ==> dist n) (@sem_row_cons Σ (* op *)).
-  Proof. 
-    intros ??????. rewrite /sem_row_cons. 
-    (* intros ???????. rewrite /sem_row_cons. 
+  Proof.
+    intros ??????. rewrite /sem_row_cons.
+    (* intros ???????. rewrite /sem_row_cons.
        intros ?. simpl. do 6 f_equiv; first f_contractive; f_equiv; apply non_dep_fun_dist; by f_equiv. *)
   Admitted.
   Global Instance sem_row_flip_mbang_ne {Σ} m : NonExpansive (@sem_row_flip_mbang Σ m).
@@ -422,28 +440,49 @@ Section row_sub_typing.
     iSplit; last iSplit.
     { iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
       iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
-      iApply iThy_le_sum_map; last (iDestruct "Hρρ'" as "($&_)"). 
-      iIntros (???) "!# (%&%&%&%&%&$&$&$&$&(%&%&%Heq1&%Heq2&Hσ)&$)". iExists _,_. rewrite -Hlabels. do 2 (iSplit; [done|]). by iApply "Hσσ'". }
+      iApply iThy_le_sum_map; last (iDestruct "Hρρ'" as "($&_)").
+      iIntros (???) "!# (%&%&%&%&%&$&$&$&$&Hσ&$)". by iApply "Hσσ'". }
     { iModIntro. iApply valid_submseteq'; by constructor. }
     { iIntros "!# %Hd"; iPureIntro. eapply distinct_submseteq'; last done; by constructor. }
   Qed. 
  
-  (* Lemma row_le_erase (op1 op2 : label) (ρ : sem_row Σ) :
-       op1 ∉ labels_l (iLblSig_to_iLblThy ρ) →
-       op2 ∉ labels_r (iLblSig_to_iLblThy ρ) → 
-       ⊢ sem_row_cons op1 op2 ⊥ ρ ≤ᵣ ρ.
-     Proof.
-       iIntros (Hl Hr).
-       unfold row_le. simpl.
-       iSplit; last iSplit.
-       - iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
-         iApply iThy_le_trans; last iApply iThy_le_sum_bot_l.
-         iApply iThy_le_sum_l.
-         iIntros (???) "!# (%&%&%&%&%&%&%&%&%&(%&%&%&%&%&$&H')&H)". 
-       - iModIntro. iApply valid_submseteq'.
-         + unfold labels_l. simpl. *)
-      
-  
+  (* Erase a freshly-allocated bottom signature from the head of a row.
+     The [is_label]/[spec_labels_frag] premises discharge the [valid]
+     obligation (the head op1/op2 are extra labels on the left row); the
+     [∉] premises discharge [distinct'] (NoDup of the head labels).  With
+     the plain σ head (sem_row.v:23, no [sem_sig_later]), the head iThy_le
+     obligation is the trivial erasure of the [sem_sig_bottom] protocol
+     (whose body is [False]) -- no [▷ False] to discharge. *)
+  Lemma row_le_erase (op1 op2 : label) (ρ : sem_row Σ) :
+    op1 ∉ labels_l (iLblSig_to_iLblThy ρ) →
+    op2 ∉ labels_r (iLblSig_to_iLblThy ρ) →
+    is_label op1 DfracDiscarded -∗
+    spec_labels_frag op2 DfracDiscarded -∗
+    sem_row_cons (sem_sig_bottom op1 op2) ρ ≤ᵣ ρ.
+  Proof.
+    iIntros (Hl Hr) "#Hlbl1 #Hlbl2".
+    unfold row_le, sem_row_cons. simpl.
+    iSplit; last iSplit.
+    - iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
+      iApply iThy_le_trans; last iApply iThy_le_sum_bot_l.
+      iApply iThy_le_sum_l.
+      iIntros (e1 e2 Q) "!# Ht".
+      rewrite /iThyTraverse /=.
+      iDestruct "Ht" as (e1' e2' k1 k2 S) "(%&%&%&%&Hbot&_)".
+      simpl. iDestruct "Hbot" as (αs v1 v2) "(%&%&Hfalse&_)".
+      done.
+    - iModIntro. iIntros "Hvalid".
+      unfold logic.valid. simpl.
+      iDestruct "Hvalid" as "(Hvl & Hvr)".
+      unfold valid_l, valid_r, labels_l, labels_r. simpl.
+      iFrame "Hvl Hvr Hlbl1 Hlbl2".
+    - iModIntro. iIntros "%Hd". iPureIntro.
+      unfold distinct, distinct_l, distinct_r, labels_l, labels_r in *. simpl.
+      destruct Hd as (Hdl & Hdr).
+      split; apply NoDup_cons_2; assumption.
+  Qed.
+
+
   Lemma row_le_swap_second (σ σ' : sem_sig Σ) (ρ : sem_row Σ) : 
     ⊢ σ · σ' · ρ ≤ᵣ σ' · σ · ρ. 
   Proof.
