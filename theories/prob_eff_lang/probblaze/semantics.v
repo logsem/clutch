@@ -862,6 +862,112 @@ Fixpoint lbl_subst (s : string) (l : label) (e : expr) : expr :=
   end.
 
 (* -------------------------------------------------------------------------- *)
+(** Multi-name label resolution.
+
+    [lbl_resolve m e] resolves every free effect NAME [s] occurring in [e]
+    for which [m !! s = Some l], replacing it by the effect LABEL [l].
+    It is the canonical (capture-avoiding, homomorphic) generalisation of
+    [lbl_subst]: a single [lbl_subst s l] corresponds to [lbl_resolve {[s:=l]}],
+    and [lbl_resolve] is identity on names absent from [m].  It is
+    capture-avoiding for the [Effect] binder: when entering [Effect s' e'] the
+    name [s'] is deleted from [m] (an inner [effect s'] shadows the outer
+    resolution).  Like [lbl_subst] it does NOT descend into [Val]: the
+    resolution is applied while the body is still an expression. *)
+Fixpoint lbl_resolve (m : gmap string label) (e : expr) : expr :=
+  match e with
+  | Val _ | Var _ =>
+      e
+  | Effect s' e' =>
+      Effect s' (lbl_resolve (delete s' m) e')
+
+  | Do (EffLabel _ as n') e' =>
+      Do n' (lbl_resolve m e')
+  | Do (EffName s' as n') e' =>
+      Do (match m !! s' with Some l => EffLabel l | None => n' end)
+         (lbl_resolve m e')
+
+  | Handle hs md (EffLabel _ as n') e1 e2 e3 =>
+      Handle hs md n' (lbl_resolve m e1) (lbl_resolve m e2) (lbl_resolve m e3)
+  | Handle hs md (EffName s' as n') e1 e2 e3 =>
+      Handle hs md (match m !! s' with Some l => EffLabel l | None => n' end)
+        (lbl_resolve m e1) (lbl_resolve m e2) (lbl_resolve m e3)
+
+  | Rec f y e =>
+      Rec f y $ lbl_resolve m e
+  | App e1 e2 =>
+      App (lbl_resolve m e1) (lbl_resolve m e2)
+  | UnOp op e =>
+      UnOp op (lbl_resolve m e)
+  | BinOp op e1 e2 =>
+      BinOp op (lbl_resolve m e1) (lbl_resolve m e2)
+  | If e0 e1 e2 =>
+      If (lbl_resolve m e0) (lbl_resolve m e1) (lbl_resolve m e2)
+  | Pair e1 e2 =>
+      Pair (lbl_resolve m e1) (lbl_resolve m e2)
+  | Fst e =>
+      Fst (lbl_resolve m e)
+  | Snd e =>
+      Snd (lbl_resolve m e)
+  | InjL e =>
+      InjL (lbl_resolve m e)
+  | InjR e =>
+      InjR (lbl_resolve m e)
+  | Case e0 e1 e2 =>
+      Case (lbl_resolve m e0) (lbl_resolve m e1) (lbl_resolve m e2)
+  | AllocN e1 e2 =>
+      AllocN (lbl_resolve m e1) (lbl_resolve m e2)
+  | Load e =>
+      Load (lbl_resolve m e)
+  | Store e1 e2 =>
+      Store (lbl_resolve m e1) (lbl_resolve m e2)
+  | AllocTape e =>
+      AllocTape (lbl_resolve m e)
+  | Rand e1 e2 =>
+      Rand (lbl_resolve m e1) (lbl_resolve m e2)
+  end.
+
+(* [lbl_resolve] with the empty map is the identity. *)
+Lemma lbl_resolve_empty e : lbl_resolve ∅ e = e.
+Proof.
+  induction e; simpl; rewrite ?lookup_empty;
+    try rewrite IHe; try (rewrite IHe1; rewrite IHe2); try rewrite IHe3;
+    try (rewrite delete_empty IHe); try (destruct n); try done.
+Qed.
+
+(* The single-name [lbl_subst] is the singleton instance of [lbl_resolve],
+   threaded through the [Effect] binder via [delete]. *)
+Lemma lbl_resolve_insert_subst (mp : gmap string label) s l e :
+  lbl_subst s l (lbl_resolve (delete s mp) e) = lbl_resolve (<[s:=l]> mp) e.
+Proof.
+  revert mp. induction e => mp.
+  all: try (cbn [lbl_resolve lbl_subst];
+            try rewrite IHe; try (rewrite IHe1; rewrite IHe2);
+            try rewrite IHe3; done).
+  - (* Effect *) cbn [lbl_resolve]. destruct (decide (s = s0)) as [->|Hne].
+    + cbn [lbl_subst]. rewrite decide_True //.
+      by rewrite delete_delete_eq delete_insert_eq.
+    + cbn [lbl_subst]. rewrite decide_False //.
+      rewrite (delete_delete mp s0 s) IHe delete_insert_ne //.
+  - (* Do *) cbn [lbl_resolve]. destruct n as [s'|l'].
+    + destruct (decide (s = s')) as [->|Hne].
+      * rewrite lookup_delete_eq lookup_insert_eq.
+        cbn [lbl_subst]. rewrite decide_True //. by rewrite IHe.
+      * rewrite lookup_delete_ne // lookup_insert_ne //.
+        destruct (mp !! s') as [l''|] eqn:Hm; cbn [lbl_subst];
+          [|rewrite decide_False //]; by rewrite IHe.
+    + cbn [lbl_subst]. by rewrite IHe.
+  - (* Handle *) cbn [lbl_resolve]. destruct n as [s'|l'].
+    + destruct (decide (s = s')) as [->|Hne].
+      * rewrite lookup_delete_eq lookup_insert_eq.
+        cbn [lbl_subst]. rewrite decide_True //.
+        by rewrite IHe1 IHe2 IHe3.
+      * rewrite lookup_delete_ne // lookup_insert_ne //.
+        destruct (mp !! s') as [l''|] eqn:Hm; cbn [lbl_subst];
+          [|rewrite decide_False //]; by rewrite IHe1 IHe2 IHe3.
+    + cbn [lbl_subst]. by rewrite IHe1 IHe2 IHe3.
+Qed.
+
+(* -------------------------------------------------------------------------- *)
 (** Unboxed values. *)
 
 Definition val_is_unboxed (v : val) : Prop :=

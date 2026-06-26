@@ -36,7 +36,7 @@ Theorem fundamental Δ Γ1 e ρ τ Γ2 :
   with fundamental_pure Γ e τ :
     Γ ⊢ₚ e : τ → ⊢ bin_log_pure_related Γ e e τ.
 Proof.
-  - intros Ht. destruct Ht; iIntros (η μ δ ξ vs Hδ).
+  - intros Ht. destruct Ht; iIntros (η μ δ ξ vs Hδ); cbn [lbl_resolve].
     + (* Var_typed *) iApply sem_typed_var.
     + (* Val_typed *) iApply sem_typed_val; by iApply fundamental_val.
     + (* Pure_typed *) rewrite fmap_app. iApply sem_typed_oval.

@@ -71,6 +71,59 @@ Module interp.
   
 End interp.
 
+(* -------------------------------------------------------------------------- *)
+(** Resolution maps for the semantic judgement.
+
+    [bin_log_related Δ ... e e' ...] relates the δ-RESOLVED expressions: every
+    free effect NAME [s ∈ dom Δ] is replaced by the LEFT label [(δ!!!s).1]
+    on the left and the RIGHT label [(δ!!!s).2] on the right (the protocol of
+    [interp._eff_sig] at [SSig s] expects [do: (EffLabel (δ!!!s).1) v] on the
+    left and [do: (EffLabel (δ!!!s).2) v] on the right; [Do (EffName s)] is
+    operationally stuck).  The resolution domain is exactly [dom Δ] (guaranteed
+    [⊆ dom δ]), so it is the empty map -- hence the identity -- whenever
+    [Δ = ∅] (e.g. inside [Rec]/value bodies, typed under [∅]). *)
+Definition resolve_map (proj : label * label → label)
+    (Δ : gmap eff_name unit) (δ : gmap eff_name (label * label))
+    : gmap string label :=
+  map_imap (λ s (_ : unit), Some (proj (δ !!! s))) Δ.
+
+Notation resolve_l Δ δ := (resolve_map fst Δ δ).
+Notation resolve_r Δ δ := (resolve_map snd Δ δ).
+
+Lemma resolve_map_lookup proj Δ δ s :
+  resolve_map proj Δ δ !! s
+  = (λ _ : unit, proj (δ !!! s)) <$> (Δ !! s).
+Proof.
+  rewrite /resolve_map map_lookup_imap /=.
+  destruct (Δ !! s) as [u|] eqn:HΔ; rewrite HΔ /=; by [destruct u|].
+Qed.
+
+Lemma resolve_map_empty proj δ : resolve_map proj ∅ δ = ∅.
+Proof. apply map_eq=> s. by rewrite resolve_map_lookup lookup_empty. Qed.
+
+(* Extending [Δ] with a fresh [s] and [δ] with its labels extends the
+   resolution map with the corresponding label, leaving the rest intact. *)
+Lemma resolve_map_insert proj Δ δ s lp :
+  Δ !! s = None →
+  resolve_map proj (<[s:=tt]> Δ) (<[s:=lp]> δ)
+  = <[s := proj lp]> (resolve_map proj Δ δ).
+Proof.
+  intros HsΔ. apply map_eq=> s'. rewrite resolve_map_lookup.
+  destruct (decide (s = s')) as [->|Hne].
+  - rewrite lookup_insert_eq /= lookup_total_insert_eq lookup_insert_eq //.
+  - rewrite !lookup_insert_ne // resolve_map_lookup.
+    rewrite lookup_total_insert_ne //.
+Qed.
+
+(* Freshness ([s ∉ dom Δ]) makes [s] absent from the resolution map, so
+   deleting it is a no-op (used to discharge the [Effect] binder). *)
+Lemma resolve_map_delete_fresh proj Δ δ s :
+  s ∉ dom Δ → delete s (resolve_map proj Δ δ) = resolve_map proj Δ δ.
+Proof.
+  intros Hs. apply delete_id. rewrite resolve_map_lookup.
+  by rewrite (not_elem_of_dom_1 _ _ Hs).
+Qed.
+
 Notation "⟦ Γ ⟧*" := (env_sem_typed Γ).
 
 (** * The semantic typing judgement *)
@@ -90,7 +143,8 @@ Section bin_log_related.
        let Γ2' :=  (λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ2 in
        let ρ' := (interp._row η μ δ ρ ξ) in
        let τ' := interp._ty η μ δ τ ξ in
-       sem_typed Γ1' e e' ρ' τ' Γ2').
+       sem_typed Γ1' (lbl_resolve (resolve_l Δ δ) e)
+                     (lbl_resolve (resolve_r Δ δ) e') ρ' τ' Γ2').
 
         (* ⟦ (λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ1 ⟧* vs -∗
               BREL (subst_map (fst <$> vs) e)
