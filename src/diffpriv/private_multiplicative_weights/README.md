@@ -56,7 +56,8 @@ To get the data, you can go to [`data/`](https://github.com/Pbi0/clutch/tree/pMW
 ## GIF
 
 If you want to have a gif illustration of the distribution's evolution durring
-the pmw, you can modify the call from `oPMW` to `oPMW_gif` in 
+the pmw, you can modify the call from `oPMW` to `oPMW_gif` and add the argument
+`(path_gif ^ file_gif)` in 
 [`main_pmw.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/main_pmw.ml)
 and then go to [`gif/`](https://github.com/Pbi0/clutch/tree/pMW_formal/src/diffpriv/private_multiplicative_weights/gif)..
 Then you will have in the folder `gif/data/` all the databases that the algorithm
