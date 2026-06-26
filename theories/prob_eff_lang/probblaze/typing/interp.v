@@ -1090,6 +1090,95 @@ Section interp_subst.
   Qed.
 
   (* ------------------------------------------------------------------ *)
+  (* LABEL MONOTONICITY of [≤R] along a [@false] derivation.
+
+     A [@false] subtyping derivation never uses [RErase_le] (that
+     constructor is [@true]-only), so it cannot DROP any concrete label;
+     every other constructor either preserves, permutes, or EXTENDS the
+     concrete-label list.  Hence the [row_labels_*] lists are related by
+     [⊆+] (sub-multiset).  This supplies the two side-conditions of
+     [sem_row.row_le_cons_comp] (the [RCons_le] case) and the
+     cross-disjointness preservation needed by the union case.
+
+     First: subtyping of signatures preserves the effect NAME, so the
+     head label [(δ !!! eff_name_from_sig _).k] matches on both sides. *)
+  Lemma sig_le_eff_name (D : le.disj_ctx) (σ σ' : eff_sig) :
+    D ⊢ₗ σ ≤S σ' → le.eff_name_from_sig σ = le.eff_name_from_sig σ'.
+  Proof.
+    induction 1; simpl; congruence.
+  Qed.
+
+  (* The generalised statement (left labels), carrying [b = false] as a
+     hypothesis so the [@true]-only [RErase_le] case is vacuous.  All
+     other cases follow by [⊆+] reasoning on the concrete label lists. *)
+  Lemma row_le_false_row_labels_l (D : le.disj_ctx) b (ρ ρ' : row) ξ :
+    D ⊢ₗ ρ ≤R ρ' @ b → b = false →
+    row_labels_l ρ ξ ⊆+ row_labels_l ρ' ξ.
+  Proof.
+    induction 1 as
+      [D b|D b i|D b ρ σ|D b σ σ' ρ|D b σ σ' ρ ρ' Hσ Hρ IH
+      |D b ρ1 ρ2 ρ1' ρ2' _ IH1 _ IH2|D s ρ ss js Hlk Hc Ha
+      |D b ρ1 ρ2 ρ3 _ IH1 _ IH2|D b m|D b m σ ρ|D b m ρ1 ρ2
+      |D b ρ|D b m ρ|D b m ρ|D b m ρ|D b m' m ρ' ρ Hm _ IH] in |- *;
+      intros Hbf; simpl; try done.
+    - (* RExtend_le: [ρ ⊆+ head :: ρ] *)
+      apply submseteq_cons; reflexivity.
+    - (* RSwap_le *)
+      apply submseteq_swap.
+    - (* RCons_le: heads equal via [sig_le_eff_name]; tails by IH *)
+      rewrite (sig_le_eff_name D σ σ' Hσ).
+      apply submseteq_skip, IH; reflexivity.
+    - (* RUnion_le *)
+      apply submseteq_app; [by apply IH1|by apply IH2].
+    - (* RTrans_le *)
+      etrans; [by apply IH1|by apply IH2].
+    - (* RFlipComp_le: [RFlip] is transparent for labels; tail by IH.
+         (The [@true]-only [RErase_le] and the [RFlipUnion_le] cases
+         are closed by [try done] above: [discriminate] resp. equal
+         label lists.) *)
+      by apply IH.
+  Qed.
+
+  Lemma row_le_false_row_labels_r (D : le.disj_ctx) b (ρ ρ' : row) ξ :
+    D ⊢ₗ ρ ≤R ρ' @ b → b = false →
+    row_labels_r ρ ξ ⊆+ row_labels_r ρ' ξ.
+  Proof.
+    induction 1 as
+      [D b|D b i|D b ρ σ|D b σ σ' ρ|D b σ σ' ρ ρ' Hσ Hρ IH
+      |D b ρ1 ρ2 ρ1' ρ2' _ IH1 _ IH2|D s ρ ss js Hlk Hc Ha
+      |D b ρ1 ρ2 ρ3 _ IH1 _ IH2|D b m|D b m σ ρ|D b m ρ1 ρ2
+      |D b ρ|D b m ρ|D b m ρ|D b m ρ|D b m' m ρ' ρ Hm _ IH] in |- *;
+      intros Hbf; simpl; try done.
+    - apply submseteq_cons; reflexivity.
+    - apply submseteq_swap.
+    - rewrite (sig_le_eff_name D σ σ' Hσ).
+      apply submseteq_skip, IH; reflexivity.
+    - apply submseteq_app; [by apply IH1|by apply IH2].
+    - etrans; [by apply IH1|by apply IH2].
+    - by apply IH.
+  Qed.
+
+  (* The interp-level corollaries: the LEFT/RIGHT label LISTS of the
+     interpreted rows are sub-multisets along a [@false] derivation. *)
+  Lemma row_le_false_labels_l (D : le.disj_ctx) (ρ ρ' : row) η μ ξ :
+    D ⊢ₗ ρ ≤R ρ' @ false →
+    labels_l (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ))
+      ⊆+ labels_l (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)).
+  Proof.
+    intros Hle. rewrite !labels_l_interp_row.
+    by eapply row_le_false_row_labels_l.
+  Qed.
+
+  Lemma row_le_false_labels_r (D : le.disj_ctx) (ρ ρ' : row) η μ ξ :
+    D ⊢ₗ ρ ≤R ρ' @ false →
+    labels_r (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ))
+      ⊆+ labels_r (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)).
+  Proof.
+    intros Hle. rewrite !labels_r_interp_row.
+    by eapply row_le_false_row_labels_r.
+  Qed.
+
+  (* ------------------------------------------------------------------ *)
   (* MEMBERSHIP: a concrete name [s] of [ρ] contributes [(δ!!!s).1]. *)
 
   Lemma elem_of_row_labels_l_conc (ρ : row) ξ s :
@@ -1399,19 +1488,33 @@ Section interp_subst.
        mode premise was corrected from [m' ≤M m] to [m ≤M m'] (the typo
        noted previously), which is exactly the direction the ANTITONE
        semantic [sig/row_le_mfbang_comp] needs ([mode_le_sound] + the IH).
-     - [RCons_le]: needs the two LABEL submseteq side-conditions of
-       [row_le_cons_comp]; these require label-set monotonicity of [≤ᵣ]
-       along a [@false] derivation, which the semantic IH does not record.
-     - [RUnion_le]: relies on [sem_row.row_le_union], whose [distinct]
-       cross-disjointness component is itself admitted (label-set gap).
-     - [RFlipUnion_le]: needs a flip-distributes-over-union row lemma.
+     - [RCons_le]: now DISCHARGED.  The two LABEL submseteq side-conditions
+       of [row_le_cons_comp] follow from label-monotonicity of [≤ᵣ] along
+       the [@false] row premise, proved here as
+       [row_le_false_labels_l]/[_r] (induction on the [@false] derivation;
+       [RErase_le] is [@true]-only so no label is ever dropped).
+     - [RUnion_le]: DISCHARGED at [b = false] via [sem_row.row_le_union']
+       (a closeable variant of [row_le_union] taking the two cross-
+       disjointness label submseteq facts, supplied by
+       [row_le_false_labels_l]/[_r]).  The [b = true] sub-case still routes
+       through the upstream-admitted [row_le_union]: at [b = true]
+       [RErase_le] may drop labels, so label-monotonicity (hence the
+       cross-disjointness preservation) no longer holds structurally.
+     - [RFlipUnion_le]: DISCHARGED via [sem_row.row_le_flip_union]
+       (flip distributes over union: equal underlying theory lists,
+       [map] over [++]).
      - [TArrow_le]: premises live at [D' = update_disj_ctx ρ' D]; the IHs
        need [erase_ctx D'] but we only have [erase_ctx D], and
        [erase_ctx D → erase_ctx D'] is not provable (D' has larger ss/js +
        new entries from [ρ']; their ownership/freshness needs the ambient
        row's [valid]).  THE central remaining gap.
-     - [TRec_le]: [ty_le_rec] needs the parametric monotone form; the simple
-       IH gives only the diagonal.
+     - [TRec_le]: STILL ADMITTED.  [ty_le_rec] needs the PARAMETRIC monotone
+       premise [∀ α' β', α' ≤ₜ β' -∗ C₁ α' ≤ₜ C₂ β'] (to relate the differing
+       recursive occurrences in the Löb unfold); the combined-scheme IH
+       supplies only the DIAGONAL [∀ γ, C₁ γ ≤ₜ C₂ γ].  Bridging them needs
+       env-monotonicity of [interp._ty] in the recursion variable (fails
+       without positivity) or strengthening the whole induction to two
+       related environments (out of scope).  See the case body.
      [RErase_le] (the linchpin) IS discharged here, via [erase_ctx] +
      [sem_row.row_le_erase].  ([RFlipCons_le] is closed via
      [row_le_mfbang_dist_cons], itself [Admitted] upstream.) *)
@@ -1440,15 +1543,33 @@ Section interp_subst.
     - iApply row_le_cons_comp.
       3:{ by iApply H. }
       3:{ by iApply H0. }
-      all: admit. (* RCons_le: label submseteq side-conditions (see header) *)
-    - iApply (row_le_union with "[] []"); [by iApply H|by iApply H0].
+      (* RCons_le: the two LABEL submseteq side-conditions follow from
+         label-monotonicity of [≤R] along the [@false] row premise [_r]. *)
+      + by eapply row_le_false_labels_l.
+      + by eapply row_le_false_labels_r.
+    - (* RUnion_le.  At [b = false] the cross-disjointness side-condition
+         of [row_le_union'] is supplied by label-monotonicity of [≤R]
+         ([row_le_false_labels_l]/[_r]); the [b = true] sub-case still
+         routes through the (upstream-admitted) [row_le_union], since at
+         [b = true] [RErase_le] may drop labels and label-monotonicity no
+         longer holds. *)
+      destruct b.
+      + iApply (row_le_union with "[] []"); [by iApply H|by iApply H0].
+      + iApply (row_le_union' with "[] []");
+          [ by eapply row_le_false_labels_l
+          | by eapply row_le_false_labels_l
+          | by eapply row_le_false_labels_r
+          | by eapply row_le_false_labels_r
+          | by iApply H | by iApply H0 ].
     - iDestruct ("He" $! s ss js ρ η μ ξ with "[//] [//] [//]")
         as "(Hl1 & Hl2 & %Hnl & %Hnr)".
       iApply (row_le_erase with "Hl1 Hl2"); done.
     - iApply (row_le_trans with "[] []"); [by iApply H|by iApply H0].
     - iApply row_le_mfbang_elim_nil.
     - iApply row_le_mfbang_dist_cons.
-    - admit. (* RFlipUnion_le: flip-over-union row lemma missing *)
+    - (* RFlipUnion_le: flip distributes over union; both sides have the
+         same underlying theory list ([map] over [++]). *)
+      iApply row_le_flip_union.
     - iApply row_le_mfbang_elim_ms.
     - iApply row_le_mfbang_intro.
     - iApply row_le_mfbang_idemp.
@@ -1467,7 +1588,24 @@ Section interp_subst.
     - iApply ty_le_type_forall; iIntros (α'); by iApply (H (α' :: η)).
     - iApply ty_le_row_forall; iIntros (θ); by iApply (H η μ (θ :: ξ)).
     - iApply ty_le_mode_forall; iIntros (ν); by iApply (H η (ν :: μ)).
-    - iApply ty_le_rec. admit. (* TRec_le: needs parametric monotone IH *)
+    - iApply ty_le_rec.
+      (* TRec_le: STILL ADMITTED.  [ty_le_rec] (sem_types.v) requires the
+         PARAMETRIC monotone premise
+           [□ (∀ α' β', α' ≤ₜ β' -∗ C₁ α' ≤ₜ C₂ β')]
+         (the Löb unfold step relates the recursive occurrences
+         [μₜ C₁] / [μₜ C₂], which DIFFER, so it must thread [α' ≤ₜ β']
+         through the body).  Here [C₁ τ' = interp._ty (τ'::η) α] and
+         [C₂ τ' = interp._ty (τ'::η) β], and the combined-scheme IH [H]
+         supplies only the DIAGONAL [∀ γ, C₁ γ ≤ₜ C₂ γ] ([H (γ::η)]).
+         Deriving the parametric form from the diagonal would need
+         environment-monotonicity of [interp._ty] in the head (de Bruijn
+         0) variable, which fails without a positivity restriction on the
+         recursion variable; equivalently it requires STRENGTHENING the
+         whole [le_subtyping_mut] induction to relate TWO pointwise-[≤ₜ]
+         environments (changing [Psig]/[Prow]/[Pty] and re-proving every
+         case).  That restructuring is out of scope (add-only); cf.
+         [TArrow_le], the other remaining gap. *)
+      admit.
     - iApply (ty_le_prod with "[] []"); [by iApply H|by iApply H0].
     - iApply (ty_le_sum with "[] []"); [by iApply H|by iApply H0].
     - iApply ty_le_mbang_intro_bool.

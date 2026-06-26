@@ -805,4 +805,64 @@ Section sem_row_union.
       admit.
   Admitted.
 
+  (* Union monotonicity, with the cross-disjointness premise supplied as
+     two LABEL sub-multiset facts (one per side).  These let us derive
+     [distinct (ρ1 ++ ρ2)] (the LARGER, left rows) from
+     [distinct (ρ1' ++ ρ2')] via [distinct_submseteq'] — exactly the gap
+     left [admit]ed in [row_le_union].  Used by the [RUnion_le] case of
+     [interp.subtyping_sound_all], where the sub-multiset facts come from
+     label-monotonicity of [≤R] along the [@false] row premises
+     ([interp.row_le_false_labels_l]/[_r]). *)
+  Lemma row_le_union' (ρ1 ρ2 ρ1' ρ2' : sem_row Σ) :
+    labels_l (iLblSig_to_iLblThy ρ1) ⊆+ labels_l (iLblSig_to_iLblThy ρ1') →
+    labels_l (iLblSig_to_iLblThy ρ2) ⊆+ labels_l (iLblSig_to_iLblThy ρ2') →
+    labels_r (iLblSig_to_iLblThy ρ1) ⊆+ labels_r (iLblSig_to_iLblThy ρ1') →
+    labels_r (iLblSig_to_iLblThy ρ2) ⊆+ labels_r (iLblSig_to_iLblThy ρ2') →
+    ρ1 ≤ᵣ ρ1' -∗ ρ2 ≤ᵣ ρ2' -∗
+    sem_row_union ρ1 ρ2 ≤ᵣ sem_row_union ρ1' ρ2'.
+  Proof.
+    iIntros (Hl1 Hl2 Hr1 Hr2).
+    unfold row_le, sem_row_union. simpl.
+    rewrite !iLblSig_to_iLblThy_app.
+    iIntros "#(Hthy1 & Hvl1 & Hd1) #(Hthy2 & Hvl2 & Hd2)".
+    iSplit; last iSplit.
+    - iApply iThy_le_trans; first iApply iThy_le_to_iThy_app_inv.
+      iApply iThy_le_trans; last iApply iThy_le_to_iThy_app.
+      by iApply (iThy_le_sum_map with "Hthy1 Hthy2").
+    - iIntros "!# Hv".
+      iDestruct (valid_app with "Hv") as "[Hva Hvb]".
+      iApply valid_app; iSplitL "Hva"; [by iApply "Hvl1"|by iApply "Hvl2"].
+    - iIntros "!# %Hd".
+      iPureIntro. rewrite /distinct'.
+      eapply (distinct_submseteq'
+                _ (iLblSig_to_iLblThy ρ1' ++ iLblSig_to_iLblThy ρ2'));
+        [| |exact Hd].
+      + rewrite !labels_l_app. by apply submseteq_app.
+      + rewrite !labels_r_app. by apply submseteq_app.
+  Qed.
+
+  (* FLIP distributes over UNION at the level of underlying theory lists:
+     [iThyIfMono_iLblSig] is a [map], and [sem_row_union] is an [app], so
+     the two sides have LITERALLY equal carriers ([map_app]).  Used by the
+     [RFlipUnion_le] case of [interp.subtyping_sound_all]. *)
+  Lemma iLblSig_to_iLblThy_flip_union (m : mode) (ρ1 ρ2 : sem_row Σ) :
+    iLblSig_to_iLblThy (sem_row_flip_mbang m (sem_row_union ρ1 ρ2))
+    = iLblSig_to_iLblThy
+        (sem_row_union (sem_row_flip_mbang m ρ1) (sem_row_flip_mbang m ρ2)).
+  Proof.
+    rewrite !iThyIfMono_iLblSig_to_iThyIfMono.
+    unfold sem_row_union. rewrite !iLblSig_to_iLblThy_app.
+    rewrite !iThyIfMono_iLblSig_to_iThyIfMono.
+    unfold to_iThyIfMono. by rewrite map_app.
+  Qed.
+
+  Lemma row_le_flip_union (m : mode) (ρ1 ρ2 : sem_row Σ) :
+    ⊢ sem_row_flip_mbang m (sem_row_union ρ1 ρ2)
+        ≤ᵣ sem_row_union (sem_row_flip_mbang m ρ1) (sem_row_flip_mbang m ρ2).
+  Proof.
+    rewrite /row_le /tc_opaque.
+    rewrite iLblSig_to_iLblThy_flip_union.
+    iApply to_iThy_le_refl.
+  Qed.
+
 End sem_row_union.
