@@ -73,9 +73,35 @@ Proof.
             iApply ("Ht" $! _ _ _ _ ∅ Hδ) ].
     + (* Rec_typed *) admit.
     + (* App_typed *) admit.
-    + (* TAbsElim_typed *) admit.
-    + (* RAbsElim_typed *) admit.
-    + (* MAbsElim_typed *) admit.
+    + (* TAbsElim_typed *)
+      iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                (interp.ty_subst_single η μ δ ξ τ τ')).
+      iApply (sem_typed_TApp (λ α, interp._ty (α :: η) μ δ τ ξ)
+                (interp._ty η μ δ τ' ξ)).
+      apply fundamental in Ht. iPoseProof Ht as "Ht".
+      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+    + (* RAbsElim_typed *)
+      iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                (interp.row_subst_single η μ δ ξ τ ρ')).
+      iApply (sem_typed_RApp (λ θ, interp._ty η μ δ τ (θ :: ξ))
+                _ (interp._row η μ δ ρ' ξ)).
+      apply fundamental in Ht. iPoseProof Ht as "Ht".
+      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+    + (* MAbsElim_typed *)
+      (* BLOCKED by the syntactic rule statement.  In the inductive [typed],
+         this constructor is elaborated with [m : row] and result type
+         [τ.|[m/]] = ROW substitution (the default [.|[ ]] notation resolves
+         to row hsubst), even though it eliminates a MODE quantifier [∀M: τ]
+         ([TForallM], whose interp is [sem_ty_mode_forall]).  The IH therefore
+         yields [sem_ty_mode_forall (λ m0, interp._ty η (m0::μ) δ τ ξ)] while
+         [interp.row_subst_single] rewrites the goal type to a ROW
+         instantiation [interp._ty η μ δ τ (interp._row η μ δ m ξ :: ξ)];
+         these are different binders ([∀ₘ] vs a row-substituted body), so
+         neither [sem_typed_MApp] nor [sem_typed_RApp] connects them.  The
+         intended rule almost certainly meant [m : vmode] (mode substitution,
+         dischargeable by [mode_subst_single] + [sem_typed_MApp]); fixing it
+         is a TYPE-SYSTEM statement change, out of scope here. *)
+      admit.
     + (* TAlloc *) iApply sem_typed_alloc. apply fundamental in Ht.
       iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TLoad *) admit.
@@ -83,10 +109,43 @@ Proof.
     + (* TAllocTape *) admit.
     + (* TRand *) admit.
     + (* TRandU *) admit.
-    + (* TFold *) admit.
-    + (* TUnfold *) admit.
-    + (* TPack *) admit.
-    + (* TUnpack *) admit.
+    + (* TFold *)
+      iApply (sem_typed_fold (λ α, interp._ty (α :: η) μ δ τ ξ)).
+      iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                (symmetry (interp.ty_subst_single η μ δ ξ τ (μ: τ)%ty))).
+      apply fundamental in Ht. iPoseProof Ht as "Ht".
+      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+    + (* TUnfold *)
+      iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                (interp.ty_subst_single η μ δ ξ τ (μ: τ)%ty)).
+      iApply (sem_typed_unfold (λ α, interp._ty (α :: η) μ δ τ ξ)).
+      apply fundamental in Ht. iPoseProof Ht as "Ht".
+      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+    + (* TPack *)
+      iApply (sem_typed_pack (λ α, interp._ty (α :: η) μ δ τ ξ)
+                (interp._ty η μ δ τ' ξ)).
+      iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                (symmetry (interp.ty_subst_single η μ δ ξ τ τ'))).
+      apply fundamental in Ht. iPoseProof Ht as "Ht".
+      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+    + (* TUnpack *)
+      (* BLOCKED by the syntactic rule statement.  [sem_typed_unpack]
+         needs the body typed for ALL witnesses [τ0] at a *fixed* effect
+         and output context:
+           ∀ τ0, sem_typed ((x, C τ0) :: interp_η Γ2) e2 e2
+                   (interp_η ρ) (interp_η τ2) (interp_η Γ3).
+         The body IH must be instantiated at the extended type-env
+         [τ0 :: η] so that the rule's shifts cancel:
+           - context  [⤉Γ2] at [τ0::η]  ≡  interp_η Γ2   (ty_tweaken), ✓
+           - result   [τ2.[ren (+1)]] at [τ0::η] ≡ interp_η τ2 (ty_tweaken),✓
+         but the rule leaves the body's EFFECT [ρ] and OUTPUT [Γ3]
+         UNSHIFTED, so instantiating at [τ0::η] yields [interp_(τ0::η) ρ]
+         and [interp_(τ0::η) Γ3], which depend on [τ0] and do NOT match the
+         required fixed [interp_η ρ] / [interp_η Γ3] unless [ρ]/[Γ3] are
+         closed w.r.t. the existential var.  Closing this needs the rule to
+         shift [ρ]/[Γ3] (as it already shifts [Γ2]/[τ2]) or a freshness
+         side condition — a TYPE-SYSTEM statement change, out of scope here. *)
+      admit.
     + (* Effect_typed *) admit.
     + (* Do_typed *) admit.
     + (* DeepHandle_typed *) admit.

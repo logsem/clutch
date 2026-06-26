@@ -667,4 +667,70 @@ Section interp_subst.
     rewrite lookup_total_cons_ne_0 //.
   Qed.
 
+  (* TYPE weakening: a freshly-bound TYPE var does not affect a type-shifted
+     type.  Corollary of [ty_ren] (the [.[ren (+1)]] shift used by the
+     context-shift operator [⤉]).  Used by the [TUnpack] fundamental case. *)
+  Lemma ty_tweaken (τ : type) (τ' : sem_ty Σ) (η : list (sem_ty Σ))
+    (μ : list mode) (δ : gmap eff_name (label*label))
+    (ξ : list (sem_row Σ)) :
+    interp._ty (τ' :: η) μ δ (τ.[ren (+1)]) ξ ≡ interp._ty η μ δ τ ξ.
+  Proof.
+    rewrite -rename_subst. symmetry.
+    apply (ty_ren τ (τ' :: η) η μ δ ξ (+1)).
+    intros i. rewrite lookup_total_cons_ne_0 //.
+  Qed.
+
+  (** [interp._ty] is NONEXPANSIVE in the type-env [η] (pointwise [dist]).
+      Proved by mutual induction over type/row/sig.  Needed to obtain the
+      [NonExpansive C] side condition of [sem_typed_fold]/[sem_typed_unfold]
+      for [C := λ α, interp._ty (α :: η) μ δ τ ξ]. *)
+  Lemma ty_ne_env :
+    (∀ (τ : type) (η η' : list (sem_ty Σ)) (μ : list mode)
+        (δ : gmap eff_name (label*label)) (ξ : list (sem_row Σ)) (n : nat),
+        (∀ i, η !!! i ≡{n}≡ η' !!! i) →
+        interp._ty η μ δ τ ξ ≡{n}≡ interp._ty η' μ δ τ ξ).
+  Proof.
+    intros τ. induction τ using type_mut
+      with (P0 := λ ρ, ∀ η η' μ δ ξ n,
+              (∀ i, η !!! i ≡{n}≡ η' !!! i) →
+              interp._row η μ δ ρ ξ ≡{n}≡ interp._row η' μ δ ρ ξ)
+           (P1 := λ e, ∀ η η' μ δ ξ n,
+              (∀ i, η !!! i ≡{n}≡ η' !!! i) →
+              interp._eff_sig η μ δ e ξ ≡{n}≡ interp._eff_sig η' μ δ e ξ);
+      intros η η' μ δ ξ n Hf; simpl.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ2|apply IHτ1|apply IHτ3]; done.
+    - by f_equiv; intros m; apply IHτ.
+    - f_equiv; intros τ'; apply IHτ; (intros [|i]; [done|apply Hf]).
+    - by f_equiv; intros ρ; apply IHτ.
+    - f_equiv; intros τ'; apply IHτ; (intros [|i]; [done|apply Hf]).
+    - f_equiv; intros τ'; apply IHτ; (intros [|i]; [done|apply Hf]).
+    - apply Hf.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - done.
+    - f_equiv; by apply IHτ.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - f_equiv; intros τ';
+        [apply IHτ|apply IHτ0]; (intros [|i]; [done|apply Hf]).
+    - f_equiv; by apply IHτ.
+  Qed.
+
+  Global Instance interp_ty_head_ne (η : list (sem_ty Σ)) (μ : list mode)
+    (δ : gmap eff_name (label*label)) (τ : type) (ξ : list (sem_row Σ)) :
+    NonExpansive (λ α, interp._ty (α :: η) μ δ τ ξ).
+  Proof.
+    intros n x y Hxy. apply ty_ne_env. intros [|i]; [done|done].
+  Qed.
+
 End interp_subst.

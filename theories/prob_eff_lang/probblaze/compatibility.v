@@ -1862,7 +1862,27 @@ Section compatibility.
         iApply ("IH" with "[][][Hbrelk]"); try done.
         Unshelve. all : try apply OS; try apply Deep.
   Qed.
-    
+
+  (* [sem_typed] respects OFE-equivalence of the result type.  Needed by the
+     fundamental theorem to rewrite interp-of-substitution ([≡]) inside a
+     [sem_typed] goal.  Sound: [sem_typed] unfolds to a [brel] whose
+     postcondition mentions [τ] only positively, and [brel] is [≡]-Proper. *)
+  Global Instance sem_typed_type_proper Γ1 e1 e2 ρ Γ2 :
+    Proper ((≡) ==> (≡)) (λ τ, sem_typed Γ1 e1 e2 ρ τ Γ2).
+  Proof.
+    intros τ τ' Hτ. rewrite /sem_typed /tc_opaque.
+    f_equiv. f_equiv. intros vs. f_equiv. apply brel_proper; first done.
+    intros v1 v2. f_equiv. exact (Hτ v1 v2).
+  Qed.
+
+  (* Entailment form of [sem_typed_type_proper], convenient for [iApply]:
+     change the result type of a [sem_typed] goal along an OFE-equivalence
+     without invoking [setoid_rewrite] under [envs_entails]. *)
+  Lemma sem_typed_type_cong Γ1 e1 e2 ρ (τ τ' : sem_ty Σ) Γ2 :
+    (τ ≡ τ')%stdpp →
+    sem_typed Γ1 e1 e2 ρ τ' Γ2 ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2.
+  Proof. intros Hτ. by rewrite (sem_typed_type_proper _ _ _ _ _ _ _ Hτ). Qed.
+
 End compatibility.
 
     
