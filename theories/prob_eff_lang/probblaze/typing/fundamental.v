@@ -358,33 +358,28 @@ Proof.
          because they have genuinely different operational behaviour. *)
       admit.
     + (* Do_typed *)
-      (* BLOCKED — same root cause as Effect_typed (the [EffName] vs
-         [EffLabel] wall); NOT a missing compatibility lemma.
-         Goal: interp Γ1 ⊨ (do: s e) ≤ (do: s e) : interp ρ : interp(κ.[τ/])
-         ⫤ interp Γ2, where [do: s e = Do (EffName s) e] (coercion
-         EffName : string >-> eff_val) and ρ = RCons (SFlip m (SSig s ι κ)) ρ'.
-         The intended map to [sem_typed_do] with op := δ!!!s, m':=interp._mode
-         μ m, A:=λα,interp._ty(α::η)μ δ ι ξ, B:=λα,interp._ty(α::η)μ δ κ ξ
-         aligns the row head DEFINITIONALLY:
-           interp._eff_sig η μ δ (SFlip m (SSig s ι κ)) ξ
-             = sem_sig_flip_mbang (interp._mode μ m)
-                 (sem_sig_eff (δ!!!s).1 (δ!!!s).2 A B)   (reflexivity)
-         and the result type [interp (κ.[τ/])] reconciles with [B (interp τ)]
-         via [interp.ty_subst_single] + [sem_typed_type_cong]; the mode side
-         condition is supplied by [interp.mode_env_sound] from [m m⪯C Γ2].
-         THE WALL: [sem_typed_do]'s conclusion is over [do: op.1 e =
-         Do (EffLabel (δ!!!s).1) e] but the goal is [do: s e =
-         Do (EffName s) e].  [iApply sem_typed_do] FAILS to unify
-         [Do (EffLabel (δ!!!s).1) ?e] with [Do (EffName s) e]
-         (EffLabel ≠ EffName).
-         There is no name-based [sem_typed_do]: [Do (EffName s)] is irreducible
-         (head_step = dzero) and the SSig protocol theory expects
-         [do: (EffLabel (δ!!!s).1) v], so [brel_introduction] cannot fire and
-         [obs_refines]'s left [WP] is unprovable.  FIX needs the SAME model/
-         statement change as Effect_typed (δ-driven label resolution of the
-         related expression in [bin_log_related]/[sem_typed], or label-resolved
-         interp of [Do]); off-limits per task. *)
-      admit.
+      (* With [bin_log_related] now relating the δ-resolved expression, the
+         goal carries [Do (EffLabel (δ!!!s).1) (lbl_resolve_l e)] on the left
+         and [Do (EffLabel (δ!!!s).2) (lbl_resolve_r e)] on the right (since
+         [s ∈ dom Δ ⊆ dom δ]).  This matches [sem_typed_do]'s conclusion
+         [do: op.1 e1 / do: op.2 e2] with [op := δ!!!s].  The row head aligns
+         DEFINITIONALLY with [interp (SFlip m (SSig s ι κ))]; the result type
+         [interp (κ.[τ/])] is reconciled with [B (interp τ)] by
+         [ty_subst_single]+[sem_typed_type_cong]; the mode side condition by
+         [mode_env_sound] from [m m⪯C Γ2]. *)
+      rewrite !lbl_resolve_do_name.
+      rewrite !resolve_map_lookup H0 /=.
+      iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                (interp.ty_subst_single η μ δ ξ κ τ)).
+      pose proof (interp.mode_env_sound m Γ2 H η μ δ ξ) as Hms.
+      iApply (@sem_typed_do _ _ (interp._mode μ m) (interp._ty η μ δ τ ξ)
+                _ (δ !!! s)
+                (λ α, interp._ty (α :: η) μ δ ι ξ)
+                (λ α, interp._ty (α :: η) μ δ κ ξ) _ _ _ _ Hms).
+      apply fundamental in Ht. iPoseProof Ht as "Ht".
+      iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                (symmetry (interp.ty_subst_single η μ δ ξ ι τ))).
+      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* DeepHandle_typed *) admit.
     + (* ShallowHandle_typed *) admit.
     + (* Sub_typed *) admit.
