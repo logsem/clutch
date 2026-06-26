@@ -53,8 +53,6 @@ Section nsvt.
         {{ v, ∃ (b : option Z), ⌜v = inject b⌝ ∗ ⤇ fill K0 (inject b) ∗
                                        (⌜v = NONEV⌝ -∗ AUTH) }}.
 
-
-
   (* We prove the (non-pw) spec for onAT from hoare_couple_laplace_choice. *)
   Lemma num_above_threshold_online_nAT_spec (num den T : Z) (εpos : 0 < IZR num / IZR den) K :
     ↯m (1 * (IZR num / IZR den)) -∗
