@@ -46,20 +46,14 @@ Section pmw.
              if: "i" = "c" then (* We have to query the distribution *)
                "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
              else (
-               let: "a" := ref NONE in
-               let: "e1" := "f" "x" ("f1" "q" "distrib") in
-               match: "e1" with
+               match: "f" "x" ("f1" "q" "distrib") with
                | NONE =>
-                   let: "e2" := "f" "x" ("f2" "q" "distrib") in
-                   match: "e2" with
-                   | NONE => #() (* The answer is under the threshold *)
-                   | SOME "v" => "a" <- SOME ("q" "distrib" + "v")
+                   match: "f" "x" ("f2" "q" "distrib") with
+                   | NONE => "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
+                   (* The answer is under the threshold *)
+                   | SOME "v" => "aux" ("i" + #1) (list_cons "v" "bs") ("upd" "distrib" "q" ("q" "distrib" + "v"))
                    end
-               | SOME "v" => "a" <- SOME ("q" "distrib" - "v")
-               end;;
-               match: !"a" with
-               | NONE => "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
-               | SOME "v" => "aux" ("i" + #1) (list_cons "v" "bs") ("upd" "distrib" "q" "v")
+               | SOME "v" => "aux" ("i" + #1) (list_cons "v" "bs") ("upd" "distrib" "q" ("q" "distrib" - "v"))
                end)
          end) #0 list_nil "unif".
 
@@ -70,20 +64,18 @@ Section pmw.
           InjL <> => "bs"
         | InjR "q" =>
           if: "i" = #c then "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
-          else let: "a" := ref (InjL #()) in
-               let: "e1" := f (inject db) (f1 "q" "distrib") in
-               match: "e1" with
+          else match: f (inject db) (f1 "q" "distrib") with
                  InjL <> =>
-                   let: "e2" := f (inject db) (f2 "q" "distrib") in
-                   match: "e2" with
-                     InjL <> => #()
-                   | InjR "v" => "a" <- InjR ("q" "distrib" + "v")
+                   match: f (inject db) (f2 "q" "distrib") with
+                     InjL <> =>
+                       "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
+                   | InjR "v" =>
+                     "aux" ("i" + #1) (list_cons "v" "bs")
+                       (upd "distrib" "q" ("q" "distrib" + "v"))
                    end
-               | InjR "v" => "a" <- InjR ("q" "distrib" - "v")
-               end;;
-               match: !"a" with
-                 InjL <> => "aux" "i" (list_cons ("q" "distrib") "bs") "distrib"
-               | InjR "v" => "aux" ("i" + #1) (list_cons "v" "bs") (upd "distrib" "q" "v")
+               | InjR "v" =>
+                 "aux" ("i" + #1) (list_cons "v" "bs")
+                   (upd "distrib" "q" ("q" "distrib" - "v"))
                end
         end)%V.
 
@@ -95,7 +87,7 @@ Section pmw.
           WP stream_q bs
           {{ qopt, ⤇ fill K (Val qopt) ∗
                      (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ □ wp_sensitive q 1 dDB dZ ∗
-                        □ (∀ K db, ⤇ fill K (q db) -∗ WP q db {{v, ⤇ fill K (Val v) }}) ) }}) -∗
+                        □ (∀ K db, ⤇ fill K (q db) -∗ WP q db {{v, ∃ r : Z, ⌜v = inject r⌝ ∗ ⤇ fill K (Val v) }}) ) }}) -∗
        □ (∀ K (distrib : DB) (q v : val),
           ⤇ fill K (upd (Val (inject distrib)) q v) -∗
           WP upd (Val (inject distrib)) q v
@@ -147,12 +139,11 @@ Section pmw.
       wp_bind (q _); tp_bind (q _).
       iPoseProof ("Hdet" $! _ distrib with "rhs") as "Hdet'".
       iApply (wp_strong_mono'' with "Hdet'").
-      iIntros (v) "rhs"...
+      iIntros (v) "(%r & -> & rhs)"...
       simpl.
       rewrite /list_cons...
       iApply ("IH" with "[] [] rhs inSVT"). 3: done. 1,2: iPureIntro. 1,2: lia.
     - do 2 rewrite -/(pMW_body _ _ _ _ _ _ _).
-      wp_alloc a_w as "wl_a"; tp_alloc as a_t "tl_a"...
       wp_bind (f _ _); tp_bind (f' _ _).
       wp_bind (f1 _ _); tp_bind (f1 _ _).
       iPoseProof ("Hf1" $! _ with "rhs") as "Hf1'".
@@ -166,22 +157,17 @@ Section pmw.
       iSpecialize ("spec_i" $! _ _ db db' adj with "sens_q1 rhs inSVT") => //.
       iApply (wp_strong_mono'' with "spec_i").
       iIntros "% (rhs & %e1 & -> & inSVT) /="...
-      destruct e1. (*; rewrite /list_cons... *)
+      destruct e1...
       + (* e1 is a value (not none) *)
-        wp_pures; tp_pures.
         wp_bind (q _); tp_bind (q _).
-        (* we need to show that (q distib) has the same ouptuts distribution in the wp and tp ...*)
-        (* /// *)
-        (* then we will need to use Hup $$$ *)
         iPoseProof ("Hdet" $! _ distrib with "rhs") as "Hdet'".
         iApply (wp_strong_mono'' with "Hdet'").
-        iIntros (v) "rhs"...
+        iIntros (v) "(%r & -> & rhs)"...
         simpl.
-
-        wp_load.
-      rewrite /list_cons...
-      iApply ("IH" with "[] [] rhs inSVT"). 3: done. 1,2: iPureIntro. 1,2: lia.
-
+        tp_binop.
+        wp_bind (upd _ _ _); tp_bind (upd _ _ _).
+        iPoseProof ("Hup" $! K _ q #(r - z)) as "Hup'".
+        (* Issue, we don't know that distrib = inject db  #1# *)
         admit.
       + (* e1 is none but we have inSVT (S x) *)
         iSimpl in "inSVT"...
@@ -196,27 +182,33 @@ Section pmw.
         iSpecialize ("spec_i" $! _ _ db db' adj with "sens_q2 rhs inSVT") => //.
         iApply (wp_strong_mono'' with "spec_i").
         iIntros "% (rhs & %e2 & -> & inSVT) /=".
-        destruct e2.
+        destruct e2...
         -- (* e2 is a value (not none) *)
-          wp_pures; tp_pures.
           wp_bind (q _); tp_bind (q _).
-          (* Same ///*)
-          (* Same $$$ *)
+          iPoseProof ("Hdet" $! _ distrib with "rhs") as "Hdet'".
+          iApply (wp_strong_mono'' with "Hdet'").
+          iIntros (v) "(%r & -> & rhs)"...
+          simpl.
+          tp_binop.
+          wp_bind (upd _ _ _); tp_bind (upd _ _ _).
+          iPoseProof ("Hup" $! K _ q #(r - z)) as "Hup'".
+          (* Issue, we don't know that distrib = inject db same as #1# *)
           admit.
         -- (* both answers are under the threshold *)
-          wp_pures; tp_pures.
-          wp_load; tp_load.
-          wp_pures; tp_pures.
           wp_bind (q _); tp_bind (q _).
-          (* Same problem here ///*)
-          admit.
+          iPoseProof ("Hdet" $! _ distrib with "rhs") as "Hdet'".
+          iApply (wp_strong_mono'' with "Hdet'").
+          iIntros (v) "(%r & -> & rhs)"...
+          simpl.
+          rewrite /list_cons...
+          iApply ("IH" with "[] [] rhs inSVT"). 3: done. 1,2: iPureIntro. 1,2: lia.
 Admitted.
 
-  (* Is q distrib deterministic ? *)
-  (* There is a lot of `admit.` in this proof. *)
+  (* There is two of `admit.` in this parial proof. *)
   (* However each of them should have the same proof. *)
-  (* We need to show that the call to `q distrib` *)
-  (* for a same `q` on a same `distrib` have the *)
-  (* same output distribution.   *)
+  (* We need to show that the call to `upd _ distrib _` *)
+  (* works well. In other words we want to show that  *)
+  (* there exists a db such that distrib = inject db *)
+  (* (it is maybe one solution) *)
 
 End pmw.
