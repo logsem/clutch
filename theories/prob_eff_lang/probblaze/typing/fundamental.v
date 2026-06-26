@@ -341,9 +341,15 @@ Proof.
          sem_typed .. ρ ..]) and an ENVIRONMENT congruence (sem_typed respects
          the set-/membership-based env [≡] in both [Γ1] and [Γ2]).  All other
          pieces (sem_typed_effect_gen, lbl_resolve_insert_subst,
-         resolve_map_insert, the δ-irrelevance lemmas) are PROVEN.  Deferred:
-         add [sem_typed_row_cong] + [sem_typed_env_cong] (+ possibly an
-         [s ∉ vars._ctx Γ2] premise on [Effect_typed]). *)
+         resolve_map_insert, the δ-irrelevance lemmas) are PROVEN.  Adding the
+         two routine congruence lemmas [sem_typed_row_cong]/[sem_typed_env_cong]
+         discharges every reconciliation EXCEPT the output context [Γ2], which
+         needs [s ∉ vars._ctx Γ2].  That is the DECISIVE blocker and is NOT
+         derivable: a well-typed body may leak the freshly-bound name [s] into
+         its output context (e.g. by returning an [s]-effectful closure in
+         [Γ2]), so [vars._fresh] correctly omits it; the [Effect_typed]
+         Inductive would need an extra [s ∉ vars._ctx Γ2] premise, which the
+         task's hard rule forbids changing.  Left admitted accordingly. *)
       admit.
     + (* Do_typed *)
       (* With [bin_log_related] now relating the δ-resolved expression, the
@@ -368,8 +374,53 @@ Proof.
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
                 (symmetry (interp.ty_subst_single η μ δ ξ ι τ))).
       iApply ("Ht" $! _ _ _ _ ∅ Hδ).
-    + (* DeepHandle_typed *) admit.
-    + (* ShallowHandle_typed *) admit.
+    + (* DeepHandle_typed *)
+      (* The lbl_resolve front-matter goes through:
+         [rewrite !lbl_resolve_handle_name !resolve_map_lookup H /=]
+         resolves the effect NAME [s] to the label [δ!!!s] (since
+         [s ∈ dom Δ ⊆ dom δ]) and [rewrite !lbl_resolve_rec] pushes through
+         the [Lam x (Lam k h)]/[Lam y r] wrappers (effect names are a
+         SEPARATE namespace from value binders, so [lbl_resolve_rec] does not
+         delete [x]/[k]/[y]), leaving the clean goal
+           [interp (Γ1;;Γ3) ⊨ Handle Deep m (δ!!!s).1 (lbl_l e)
+              (λ:x k, lbl_l h) (λ:y, lbl_l r) ≤ ...
+              : sem_row_cons (interp σ) (interp ρ0) : interp τ' ⊣ interp Γ3]
+         which IS the [handle:] notation (mode [m] picks
+         [sem_typed_deep_handler_MS]/[_OS] after [destruct m]).
+
+         GENUINE OBSTACLE — row-shape mismatch between this syntactic rule and
+         the available compatibility lemma.  [sem_typed_deep_handler_{MS,OS}]
+         is a DISCHARGING handler: body at [σ_sem · ρ'_sem], OUTPUT [ρ'_sem]
+         (the handled signature is removed from the output), clauses [h]/[r]
+         typed at [ρ'_sem].  But the syntactic [DeepHandle_typed] is a
+         FORWARDING handler: body [e : ρ' = RCons (SFlip m (SSig s ι κ)) ρ0]
+         (so [interp ρ' = proto · interp ρ0], matching [σ_sem := proto],
+         [ρ'_sem := interp ρ0]), yet the conclusion is
+         [ρ = RCons σ ρ0] with [eff_name_from_sig σ = s] — i.e. an
+         [s]-signature [σ] is KEPT at the head of the output, and the clauses
+         [h]/[r] are typed at [ρ] (with [σ]), NOT at [ρ0].  Reconciling
+         [interp ρ0] (compat output / clause row) with [interp σ · interp ρ0]
+         (syntactic output / clause row) would need BOTH
+         [interp ρ0 ≤ᵣ interp σ · interp ρ0] (to lift the output via
+         [sem_typed_sub_row]) AND [interp σ · interp ρ0 ≤ᵣ interp ρ0] (to feed
+         the clauses) — contradictory for a non-vacuous [σ].  Closing this
+         needs a NEW compatibility lemma for a forwarding handler whose output
+         re-installs [σ] (out of scope of the lbl_resolve refinement; the
+         four existing handler lemmas are all discharging). *)
+      admit.
+    + (* ShallowHandle_typed *)
+      (* Same lbl_resolve front-matter and the same row-shape mismatch as
+         [DeepHandle_typed] above: the body row resolves to
+         [proto · interp ρ0] (matching [sem_typed_shallow_handler_{MS,OS}]'s
+         [σ_sem := proto], [ρ'_sem := interp ρ0]), but the syntactic
+         conclusion / clause row is [ρ = RCons σ ρ0] (an [s]-signature [σ]
+         kept at the head), whereas the discharging compatibility lemma's
+         output / clause row is the bare tail [interp ρ0].  The extra premise
+         here, [H1 : ρ R⪯C Γ3], does not close the gap (it is a
+         row-context-sub side condition, not the [interp ρ0 ↔ interp σ·ρ0]
+         reconciliation).  Needs the same NEW forwarding-handler compatibility
+         lemma. *)
+      admit.
     + (* Sub_typed *) admit.
     + (* Contraction_typed *)
       (* Now sound after removing [le.TBangRef_le]: the contracted type
