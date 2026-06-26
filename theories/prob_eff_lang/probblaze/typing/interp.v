@@ -101,18 +101,20 @@ Qed.
 Lemma resolve_map_empty proj δ : resolve_map proj ∅ δ = ∅.
 Proof. apply map_eq=> s. by rewrite resolve_map_lookup lookup_empty. Qed.
 
-(* Extending [Δ] with a fresh [s] and [δ] with its labels extends the
-   resolution map with the corresponding label, leaving the rest intact. *)
-Lemma resolve_map_insert proj Δ δ s lp :
-  Δ !! s = None →
+(* Extending [Δ] with [s] and [δ] with its labels extends the resolution map
+   with the corresponding label, leaving the rest intact. *)
+Lemma resolve_map_insert proj Δ δ (s : eff_name) lp :
   resolve_map proj (<[s:=tt]> Δ) (<[s:=lp]> δ)
   = <[s := proj lp]> (resolve_map proj Δ δ).
 Proof.
-  intros HsΔ. apply map_eq=> s'. rewrite resolve_map_lookup.
+  apply map_eq=> s'.
   destruct (decide (s = s')) as [->|Hne].
-  - rewrite lookup_insert_eq /= lookup_total_insert_eq lookup_insert_eq //.
-  - rewrite !lookup_insert_ne // resolve_map_lookup.
-    rewrite lookup_total_insert_ne //.
+  - rewrite resolve_map_lookup lookup_insert_eq /=
+            lookup_total_insert_eq lookup_insert_eq //.
+  - rewrite (lookup_insert_ne (resolve_map proj Δ δ) s s' (proj lp) Hne)
+            !resolve_map_lookup
+            (lookup_insert_ne Δ s s' tt Hne)
+            (lookup_total_insert_ne δ s s' lp Hne) //.
 Qed.
 
 (* Freshness ([s ∉ dom Δ]) makes [s] absent from the resolution map, so
@@ -327,6 +329,104 @@ Section interp_subst.
     - f_equiv; [apply IHτ|apply IHτ0]; done.
     - f_equiv; intros τ'; [apply IHτ|apply IHτ0]; by apply up_ren_env.
     - f_equiv; by apply IHτ.
+  Qed.
+
+  (** δ-IRRELEVANCE.  [interp._ty] depends on [δ] only through [δ !!! s] at
+      each [SSig s] node.  So updating [δ] at a name [s] absent from the
+      free effect names leaves the interpretation unchanged.  Used in the
+      [Effect] fundamental case to reconcile the IH (taken at the extended
+      [δ' := <[s:=(l1,l2)]>δ]) with the OUTER [δ] for the fresh [s]. *)
+  Lemma ty_delta_irrel (δ : gmap eff_name (label*label))
+    (s : eff_name) (lp : label * label) :
+    (∀ (τ : type) (η : list (sem_ty Σ)) (μ : list mode)
+        (ξ : list (sem_row Σ)),
+        s ∉ vars._ty τ →
+        interp._ty η μ (<[s:=lp]> δ) τ ξ ≡ interp._ty η μ δ τ ξ).
+  Proof.
+    intros τ. induction τ using type_mut
+      with (P0 := λ ρ, ∀ η μ ξ, s ∉ vars._row ρ →
+              interp._row η μ (<[s:=lp]> δ) ρ ξ ≡ interp._row η μ δ ρ ξ)
+           (P1 := λ e, ∀ η μ ξ, s ∉ vars._eff_sig vars._ty e →
+              interp._eff_sig η μ (<[s:=lp]> δ) e ξ ≡
+                interp._eff_sig η μ δ e ξ);
+      intros η μ ξ Hs; simpl in *.
+    (* type ctors: TBot TTop TUnit TBool TInt TNat *)
+    - done. - done. - done. - done. - done. - done.
+    - by f_equiv; apply IHτ.                              (* TRef *)
+    - done.                                               (* TTape *)
+    - f_equiv; [apply IHτ1|apply IHτ2]; set_solver.       (* TProd *)
+    - f_equiv; [apply IHτ1|apply IHτ2]; set_solver.       (* TSum *)
+    - f_equiv; [apply IHτ2|apply IHτ1|apply IHτ3]; set_solver. (* TArrow *)
+    - f_equiv; intros m; by apply IHτ.                    (* TForallM *)
+    - f_equiv; intros τ'; by apply IHτ.                   (* TForallT *)
+    - f_equiv; intros ρ; by apply IHτ.                    (* TForallR *)
+    - f_equiv; intros τ'; by apply IHτ.                   (* TExists *)
+    - f_equiv; intros τ'; by apply IHτ.                   (* TRec *)
+    - done.                                               (* TVar *)
+    - by f_equiv; apply IHτ.                              (* TBang *)
+    (* row ctors: RNil RCons RVar RFlip RUnion *)
+    - done.
+    - f_equiv; [apply IHτ|apply IHτ0]; (unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver).
+    - done.
+    - f_equiv; apply IHτ; (unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver).
+    - f_equiv; [apply IHτ|apply IHτ0]; (unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver).
+    (* eff_sig ctors: SSig SFlip *)
+    - rewrite lookup_total_insert_ne; [|(unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver)].
+      f_equiv; intros tau; [apply IHτ|apply IHτ0]; (unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver).
+    - f_equiv; apply IHτ; (unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver).
+  Qed.
+
+  (* The eff_sig / row companions, by the same [type_mut] induction but
+     concluding on the [_eff_sig] / [_row] predicate. *)
+  Lemma eff_sig_delta_irrel (δ : gmap eff_name (label*label))
+    (s : eff_name) (lp : label * label) :
+    (∀ (e : eff_sig) (η : list (sem_ty Σ)) (μ : list mode)
+        (ξ : list (sem_row Σ)),
+        s ∉ vars._eff_sig vars._ty e →
+        interp._eff_sig η μ (<[s:=lp]> δ) e ξ ≡
+          interp._eff_sig η μ δ e ξ).
+  Proof.
+    intros e. induction e; intros η μ ξ Hs; simpl in *.
+    - (* SSig: type-args via [ty_delta_irrel]; the head label is [δ !!! s0]
+         with [s ≠ s0] (freshness). *)
+      rewrite lookup_total_insert_ne; [|set_solver].
+      f_equiv; intros τ'; apply ty_delta_irrel;
+        unfold vars._eff_sig in Hs; set_solver.
+    - (* SFlip *) f_equiv. by apply IHe.
+  Qed.
+
+  Lemma row_delta_irrel (δ : gmap eff_name (label*label))
+    (s : eff_name) (lp : label * label) :
+    (∀ (ρ : row) (η : list (sem_ty Σ)) (μ : list mode)
+        (ξ : list (sem_row Σ)),
+        s ∉ vars._row ρ →
+        interp._row η μ (<[s:=lp]> δ) ρ ξ ≡ interp._row η μ δ ρ ξ).
+  Proof.
+    intros ρ. induction ρ; intros η μ ξ Hs;
+      unfold vars._row, vars._row_pre in *; simpl in *.
+    - done.
+    - f_equiv; [apply (eff_sig_delta_irrel δ)|apply IHρ];
+        unfold vars._eff_sig, vars._row, vars._row_pre in *; set_solver.
+    - done.
+    - f_equiv. apply IHρ.
+      unfold vars._row, vars._row_pre in *; set_solver.
+    - f_equiv; [apply IHρ1|apply IHρ2];
+        unfold vars._row, vars._row_pre in *; set_solver.
+  Qed.
+
+  (* Per-element context δ-irrelevance (the env equality used by [sem_typed]
+     is set-/membership-based; this gives the pointwise type-irrelevance that
+     a future [Effect] proof can lift to the whole environment). *)
+  Lemma ctx_elem_delta_irrel (δ : gmap eff_name (label*label))
+    (s : eff_name) (lp : label * label)
+    (Γ : list (string * type)) (x : string) (α : type)
+    (η : list (sem_ty Σ)) (μ : list mode) (ξ : list (sem_row Σ)) :
+    s ∉ vars._ctx Γ → (x, α) ∈ Γ →
+    interp._ty η μ (<[s:=lp]> δ) α ξ ≡ interp._ty η μ δ α ξ.
+  Proof.
+    intros Hs Hin. apply ty_delta_irrel. intros Hα. apply Hs.
+    rewrite /vars._ctx elem_of_union_list. eexists. split; [|exact Hα].
+    by apply (list_elem_of_fmap_2' (λ '(_, α), vars._ty α) Γ (x, α)).
   Qed.
 
   (* For a type parallel-subst [σ], extending [η] by [τ'] (a type binder)

@@ -1424,6 +1424,32 @@ Section compatibility.
     iApply "He".
   Qed.
 
+  (* Binder-general variant of [sem_typed_effect]: the proof is agnostic to
+     the effect-declaration binders ([s1]/[s2] arbitrary) and to the in/out
+     contexts ([Γ1]/[Γ2] may differ). *)
+  Lemma sem_typed_effect_gen s1 s2 Γ1 Γ2 e1 e2 (ρ : sem_row Σ) τ :
+    ⊢ (∀ l1 l2 : label, sem_typed Γ1 (lbl_subst s1 l1 e1) (lbl_subst s2 l2 e2) (sem_row_cons (sem_sig_bottom l1 l2) ρ) τ Γ2) -∗
+    sem_typed Γ1 (effect s1 e1) (effect s2 e2) ρ τ Γ2.
+  Proof.
+    iIntros "#H !# % Hvs /=".
+    iApply (brel_effect_l _ _ []). iIntros (l1) "!> Hl1 !>".
+    iApply (brel_effect_r _ _ _ []). iIntros (l2) "Hl2 !>". simpl.
+    iDestruct ("H" $! l1 l2 with "Hvs") as "He".
+    iApply (brel_introduction_mono (([], [], sem_sig_bottom l1 l2 : iThy Σ) :: (iLblSig_to_iLblThy ρ))).
+    { iSplit.
+      - iApply (iThy_le_trans _ (iThySum (iThyTraverse [] [] (sem_sig_bottom l1 l2)) (to_iThy (iLblSig_to_iLblThy ρ)))).
+        { simpl. iApply iThy_le_to_iThy_sum. }
+        iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H'&?)&?)|?]";[done|done].
+      - iSplit; iModIntro.
+        + iApply valid_submseteq'; [rewrite labels_l_cons | rewrite labels_r_cons]; done.
+        + iIntros (Hd). iPureIntro. apply (distinct_submseteq' _ (iLblSig_to_iLblThy ρ)); done. }
+    iApply (brel_add_label_l_sem_sig with "Hl1").
+    iApply (brel_add_label_r_sem_sig with "Hl2").
+    simpl.
+    rewrite !subst_map_lbl_subst.
+    iApply "He".
+  Qed.
+
   (* TODO: tech debt from sem_sig -- sigs are only allowed to depend on one type variable compared to a tele from affect *)
   Lemma sem_typed_do m τ ρ' op (A B : sem_ty Σ → sem_ty Σ) Γ1 Γ2 e1 e2 `{ m ₘ⪯ₑ Γ2 } :
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, (A α) =[ m ]=> (B α))%S in
