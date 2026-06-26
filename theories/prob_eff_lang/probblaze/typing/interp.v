@@ -1029,6 +1029,354 @@ Section interp_subst.
   Global Instance erase_ctx_persistent D : Persistent (erase_ctx D).
   Proof. apply _. Qed.
 
+  (* ============================================================== *)
+  (* PHASE 1: discharge of [erase_ctx (row_to_disj_ctx ρ)] from the *)
+  (* ambient label-validity + distinctness of the interpreted row.  *)
+  (* (Added: label-structure lemmas for [interp._row].)             *)
+
+  Lemma sig_labels_eff_name (e : eff_sig) η μ ξ :
+    sem_sig_labels Σ (interp._eff_sig η μ δ e ξ)
+    = δ !!! le.eff_name_from_sig e.
+  Proof.
+    induction e as [s α β| m e IH]; simpl.
+    - by destruct (δ !!! s).
+    - by rewrite /sem_sig_flip_mbang /= IH.
+  Qed.
+
+  Fixpoint row_labels_l (ρ : row) (ξ : list (sem_row Σ)) : list label :=
+    match ρ with
+    | RNil => []
+    | RVar i => labels_l (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i : nat))))
+    | RCons e ρ' => (δ !!! le.eff_name_from_sig e).1 :: row_labels_l ρ' ξ
+    | RFlip _ ρ' => row_labels_l ρ' ξ
+    | RUnion ρ1 ρ2 => row_labels_l ρ1 ξ ++ row_labels_l ρ2 ξ
+    end.
+
+  Lemma labels_l_interp_row (ρ : row) η μ ξ :
+    labels_l (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ)) = row_labels_l ρ ξ.
+  Proof.
+    induction ρ as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2] in η, μ |- *.
+    all: simpl.
+    - done.
+    - rewrite labels_l_cons (sig_labels_eff_name e η μ ξ) /=.
+      f_equal. apply IH.
+    - done.
+    - rewrite iThyIfMono_iLblSig_to_iThyIfMono labels_l_to_iThyIfMono. apply IH.
+    - rewrite /sem_row_union /= iLblSig_to_iLblThy_app labels_l_app.
+      f_equal; [apply IH1|apply IH2].
+  Qed.
+
+  Fixpoint row_labels_r (ρ : row) (ξ : list (sem_row Σ)) : list label :=
+    match ρ with
+    | RNil => []
+    | RVar i => labels_r (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i : nat))))
+    | RCons e ρ' => (δ !!! le.eff_name_from_sig e).2 :: row_labels_r ρ' ξ
+    | RFlip _ ρ' => row_labels_r ρ' ξ
+    | RUnion ρ1 ρ2 => row_labels_r ρ1 ξ ++ row_labels_r ρ2 ξ
+    end.
+
+  Lemma labels_r_interp_row (ρ : row) η μ ξ :
+    labels_r (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ)) = row_labels_r ρ ξ.
+  Proof.
+    induction ρ as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2] in η, μ |- *.
+    all: simpl.
+    - done.
+    - rewrite labels_r_cons (sig_labels_eff_name e η μ ξ) /=.
+      f_equal. apply IH.
+    - done.
+    - rewrite iThyIfMono_iLblSig_to_iThyIfMono labels_r_to_iThyIfMono. apply IH.
+    - rewrite /sem_row_union /= iLblSig_to_iLblThy_app labels_r_app.
+      f_equal; [apply IH1|apply IH2].
+  Qed.
+
+  (* ------------------------------------------------------------------ *)
+  (* MEMBERSHIP: a concrete name [s] of [ρ] contributes [(δ!!!s).1]. *)
+
+  Lemma elem_of_row_labels_l_conc (ρ : row) ξ s :
+    s ∈ le.conc_sigs ρ → (δ !!! s).1 ∈ row_labels_l ρ ξ.
+  Proof.
+    induction ρ as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl;
+      rewrite ?gmultiset_elem_of_empty ?gmultiset_elem_of_disj_union
+              ?gmultiset_elem_of_singleton.
+    - by intros [].
+    - intros [-> | Hin]; [by left | right; by apply IH].
+    - by intros [].
+    - apply IH.
+    - rewrite elem_of_app. intros [?|?]; [left; by apply IH1|right; by apply IH2].
+  Qed.
+
+  Lemma elem_of_row_labels_r_conc (ρ : row) ξ s :
+    s ∈ le.conc_sigs ρ → (δ !!! s).2 ∈ row_labels_r ρ ξ.
+  Proof.
+    induction ρ as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl;
+      rewrite ?gmultiset_elem_of_empty ?gmultiset_elem_of_disj_union
+              ?gmultiset_elem_of_singleton.
+    - by intros [].
+    - intros [-> | Hin]; [by left | right; by apply IH].
+    - by intros [].
+    - apply IH.
+    - rewrite elem_of_app. intros [?|?]; [left; by apply IH1|right; by apply IH2].
+  Qed.
+
+
+  (* ------------------------------------------------------------------ *)
+  (* PERMUTATION decomposition: separate the concrete (name) labels from
+     the abstract (row-variable) labels. *)
+
+  Definition name_labels_l (ss : gmultiset eff_name) : list label :=
+    (λ s, (δ !!! s).1) <$> elements ss.
+
+  Fixpoint var_labels_l (ρ : row) (ξ : list (sem_row Σ)) : list label :=
+    match ρ with
+    | RNil => []
+    | RVar i => labels_l (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i : nat))))
+    | RCons _ ρ' => var_labels_l ρ' ξ
+    | RFlip _ ρ' => var_labels_l ρ' ξ
+    | RUnion ρ1 ρ2 => var_labels_l ρ1 ξ ++ var_labels_l ρ2 ξ
+    end.
+
+  Lemma row_labels_l_split (ρ : row) ξ :
+    row_labels_l ρ ξ ≡ₚ name_labels_l (le.conc_sigs ρ) ++ var_labels_l ρ ξ.
+  Proof.
+    induction ρ as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl.
+    - done.
+    - rewrite /name_labels_l gmultiset_elements_disj_union fmap_app
+        gmultiset_elements_singleton /=. by rewrite IH.
+    - rewrite /name_labels_l gmultiset_elements_empty /=. done.
+    - apply IH.
+    - rewrite /name_labels_l gmultiset_elements_disj_union fmap_app.
+      rewrite IH1 IH2. solve_Permutation.
+  Qed.
+
+  Lemma elem_of_name_labels_l_mono (X Y : gmultiset eff_name) l :
+    X ⊆ Y → l ∈ name_labels_l X → l ∈ name_labels_l Y.
+  Proof.
+    intros Hsub. rewrite /name_labels_l !list_elem_of_fmap.
+    intros (s & -> & Hs). exists s. split; [done|].
+    apply gmultiset_elem_of_elements.
+    apply gmultiset_elem_of_elements in Hs.
+    by eapply gmultiset_elem_of_subseteq.
+  Qed.
+
+  Lemma elem_of_var_labels_l_mono (ρ0 ρ : row) ξ l :
+    le.abst_sigs ρ0 ⊆ le.abst_sigs ρ →
+    l ∈ var_labels_l ρ0 ξ →
+    (∃ i, i ∈ le.abst_sigs ρ
+       ∧ l ∈ labels_l (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat))))).
+  Proof.
+    intros Hsub Hin.
+    (* extract the witness var from ρ0 via the structure of var_labels_l *)
+    assert (∃ i, i ∈ le.abst_sigs ρ0
+       ∧ l ∈ labels_l (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat)))))
+      as (i & Hi & Hl).
+    { clear Hsub. induction ρ0 as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl in *.
+      - by apply elem_of_nil in Hin.
+      - destruct (IH Hin) as (j & Hj & Hl). by exists j.
+      - exists i. split; [by apply elem_of_singleton|done].
+      - destruct (IH Hin) as (j & Hj & Hl). by exists j.
+      - apply elem_of_app in Hin as [Hin|Hin].
+        + destruct (IH1 Hin) as (j & Hj & Hl). exists j.
+          split; [by apply elem_of_union; left|done].
+        + destruct (IH2 Hin) as (j & Hj & Hl). exists j.
+          split; [by apply elem_of_union; right|done]. }
+    exists i. split; [by apply Hsub|done].
+  Qed.
+
+  (* The abstract labels of [ρ] are also among [row_labels_l ρ]. *)
+  Lemma elem_of_var_in_row_labels (ρ : row) ξ i l :
+    i ∈ le.abst_sigs ρ →
+    l ∈ labels_l (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat)))) →
+    l ∈ var_labels_l ρ ξ.
+  Proof.
+    induction ρ as [|e ρ' IH|j|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl.
+    - by intros ?%elem_of_empty.
+    - apply IH.
+    - intros ->%elem_of_singleton. done.
+    - apply IH.
+    - intros [?|?]%elem_of_union ?; apply elem_of_app;
+        [left; by apply IH1|right; by apply IH2].
+  Qed.
+
+  (* ------------------------------------------------------------------ *)
+  (* FRESHNESS: the crux.  Discharged from NoDup (distinct). *)
+  Lemma fresh_left (ρ ρ0 : row) ξ s :
+    NoDup (row_labels_l ρ ξ) →
+    s ∈ le.conc_sigs ρ →
+    le.conc_sigs ρ0 ⊆ le.conc_sigs ρ ∖ {[+ s +]} →
+    le.abst_sigs ρ0 ⊆ le.abst_sigs ρ →
+    (δ !!! s).1 ∉ row_labels_l ρ0 ξ.
+  Proof.
+    intros Hnd Hs Hc Ha Hin.
+    (* permute [ρ]'s labels to expose the s-occurrence *)
+    rewrite (row_labels_l_split ρ) in Hnd.
+    pose proof (gmultiset_disj_union_difference' s (le.conc_sigs ρ) Hs)
+      as Hdecomp.
+    rewrite Hdecomp in Hnd.
+    rewrite /name_labels_l gmultiset_elements_disj_union fmap_app
+      gmultiset_elements_singleton /= in Hnd.
+    apply NoDup_cons in Hnd as [Hnotin _].
+    apply Hnotin. apply elem_of_app.
+    (* classify the ρ0-membership *)
+    rewrite (row_labels_l_split ρ0) in Hin.
+    apply elem_of_app in Hin as [Hin|Hin].
+    - (* concrete name of ρ0: lands in (conc_sigs ρ ∖ {[s]}) name labels *)
+      left. by eapply (elem_of_name_labels_l_mono _ _ _ Hc).
+    - (* abstract var of ρ0: lands in var labels of ρ *)
+      right.
+      destruct (elem_of_var_labels_l_mono ρ0 ρ ξ _ Ha Hin) as (i & Hi & Hl).
+      by eapply elem_of_var_in_row_labels.
+  Qed.
+
+  (* ------------------------- RIGHT-SIDE COPIES ----------------------- *)
+
+  Definition name_labels_r (ss : gmultiset eff_name) : list label :=
+    (λ s, (δ !!! s).2) <$> elements ss.
+
+  Fixpoint var_labels_r (ρ : row) (ξ : list (sem_row Σ)) : list label :=
+    match ρ with
+    | RNil => []
+    | RVar i => labels_r (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i : nat))))
+    | RCons _ ρ' => var_labels_r ρ' ξ
+    | RFlip _ ρ' => var_labels_r ρ' ξ
+    | RUnion ρ1 ρ2 => var_labels_r ρ1 ξ ++ var_labels_r ρ2 ξ
+    end.
+
+  Lemma row_labels_r_split (ρ : row) ξ :
+    row_labels_r ρ ξ ≡ₚ name_labels_r (le.conc_sigs ρ) ++ var_labels_r ρ ξ.
+  Proof.
+    induction ρ as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl.
+    - done.
+    - rewrite /name_labels_r gmultiset_elements_disj_union fmap_app
+        gmultiset_elements_singleton /=. by rewrite IH.
+    - rewrite /name_labels_r gmultiset_elements_empty /=. done.
+    - apply IH.
+    - rewrite /name_labels_r gmultiset_elements_disj_union fmap_app.
+      rewrite IH1 IH2. solve_Permutation.
+  Qed.
+
+  Lemma elem_of_name_labels_r_mono (X Y : gmultiset eff_name) l :
+    X ⊆ Y → l ∈ name_labels_r X → l ∈ name_labels_r Y.
+  Proof.
+    intros Hsub. rewrite /name_labels_r !list_elem_of_fmap.
+    intros (s & -> & Hs). exists s. split; [done|].
+    apply gmultiset_elem_of_elements.
+    apply gmultiset_elem_of_elements in Hs.
+    by eapply gmultiset_elem_of_subseteq.
+  Qed.
+
+  Lemma elem_of_var_labels_r_mono (ρ0 ρ : row) ξ l :
+    le.abst_sigs ρ0 ⊆ le.abst_sigs ρ →
+    l ∈ var_labels_r ρ0 ξ →
+    (∃ i, i ∈ le.abst_sigs ρ
+       ∧ l ∈ labels_r (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat))))).
+  Proof.
+    intros Hsub Hin.
+    assert (∃ i, i ∈ le.abst_sigs ρ0
+       ∧ l ∈ labels_r (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat)))))
+      as (i & Hi & Hl).
+    { clear Hsub. induction ρ0 as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl in *.
+      - by apply elem_of_nil in Hin.
+      - destruct (IH Hin) as (j & Hj & Hl). by exists j.
+      - exists i. split; [by apply elem_of_singleton|done].
+      - destruct (IH Hin) as (j & Hj & Hl). by exists j.
+      - apply elem_of_app in Hin as [Hin|Hin].
+        + destruct (IH1 Hin) as (j & Hj & Hl). exists j.
+          split; [by apply elem_of_union; left|done].
+        + destruct (IH2 Hin) as (j & Hj & Hl). exists j.
+          split; [by apply elem_of_union; right|done]. }
+    exists i. split; [by apply Hsub|done].
+  Qed.
+
+  Lemma elem_of_var_in_row_labels_r (ρ : row) ξ i l :
+    i ∈ le.abst_sigs ρ →
+    l ∈ labels_r (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat)))) →
+    l ∈ var_labels_r ρ ξ.
+  Proof.
+    induction ρ as [|e ρ' IH|j|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl.
+    - by intros ?%elem_of_empty.
+    - apply IH.
+    - intros ->%elem_of_singleton. done.
+    - apply IH.
+    - intros [?|?]%elem_of_union ?; apply elem_of_app;
+        [left; by apply IH1|right; by apply IH2].
+  Qed.
+
+  Lemma fresh_right (ρ ρ0 : row) ξ s :
+    NoDup (row_labels_r ρ ξ) →
+    s ∈ le.conc_sigs ρ →
+    le.conc_sigs ρ0 ⊆ le.conc_sigs ρ ∖ {[+ s +]} →
+    le.abst_sigs ρ0 ⊆ le.abst_sigs ρ →
+    (δ !!! s).2 ∉ row_labels_r ρ0 ξ.
+  Proof.
+    intros Hnd Hs Hc Ha Hin.
+    rewrite (row_labels_r_split ρ) in Hnd.
+    pose proof (gmultiset_disj_union_difference' s (le.conc_sigs ρ) Hs)
+      as Hdecomp.
+    rewrite Hdecomp in Hnd.
+    rewrite /name_labels_r gmultiset_elements_disj_union fmap_app
+      gmultiset_elements_singleton /= in Hnd.
+    apply NoDup_cons in Hnd as [Hnotin _].
+    apply Hnotin. apply elem_of_app.
+    rewrite (row_labels_r_split ρ0) in Hin.
+    apply elem_of_app in Hin as [Hin|Hin].
+    - left. by eapply (elem_of_name_labels_r_mono _ _ _ Hc).
+    - right.
+      destruct (elem_of_var_labels_r_mono ρ0 ρ ξ _ Ha Hin) as (i & Hi & Hl).
+      by eapply elem_of_var_in_row_labels_r.
+  Qed.
+
+  (* ------------------------------------------------------------------ *)
+  (* Characterise lookups in [row_to_disj_ctx ρ]. *)
+  Lemma lookup_row_to_disj_ctx (ρ : row) s ss js :
+    le.row_to_disj_ctx ρ !! s = Some (ss, js) ↔
+      s ∈ le.conc_sigs ρ ∧ ss = le.conc_sigs ρ ∖ {[+ s +]}
+      ∧ js = le.abst_sigs ρ.
+  Proof.
+    unfold le.row_to_disj_ctx.
+    rewrite lookup_set_to_map.
+    - split.
+      + intros (s' & Hs' & Heq). simplify_eq/=.
+        apply gmultiset_elem_of_dom in Hs'. done.
+      + intros (Hs & -> & ->). exists s.
+        split; [by apply gmultiset_elem_of_dom|done].
+    - intros y y' _ _ Heq. simpl in Heq. done.
+  Qed.
+
+  (* ------------------------------------------------------------------ *)
+  (* THE PHASE-1 LEMMA: discharge [erase_ctx (row_to_disj_ctx ρ)] from
+     label-validity + distinctness of the interpreted row, AT EVERY [ξ].
+     Ownership is [ξ]/[η]/[μ]-independent; freshness depends only on [ξ].
+     The hypothesis quantifies over [ξ] because [erase_ctx] does. *)
+  Lemma erase_ctx_row_to_disj_ctx (ρ : row) :
+    (∀ ξ : list (sem_row Σ),
+       logic.valid (iLblSig_to_iLblThy (interp._row [] [] δ ρ ξ))
+       ∗ ⌜ logic.distinct (iLblSig_to_iLblThy (interp._row [] [] δ ρ ξ)) ⌝)
+    -∗ erase_ctx (le.row_to_disj_ctx ρ).
+  Proof.
+    iIntros "#Hvd". rewrite /erase_ctx.
+    iIntros "!#" (s ss js ρ0 η μ ξ Hlk Hc Ha).
+    apply lookup_row_to_disj_ctx in Hlk as (Hs & -> & ->).
+    iDestruct ("Hvd" $! ξ) as "[[Hvl Hvr] %Hdist]".
+    destruct Hdist as [Hndl Hndr].
+    rewrite /distinct_l (labels_l_interp_row ρ [] [] ξ) in Hndl.
+    rewrite /distinct_r (labels_r_interp_row ρ [] [] ξ) in Hndr.
+    (* OWNERSHIP from valid (a big-sep over the label list) *)
+    iSplitL "Hvl"; [|iSplitL "Hvr"].
+    - rewrite /logic.valid_l (labels_l_interp_row ρ [] [] ξ).
+      iApply (big_sepL_elem_of with "Hvl").
+      by apply elem_of_row_labels_l_conc.
+    - rewrite /logic.valid_r (labels_r_interp_row ρ [] [] ξ).
+      iApply (big_sepL_elem_of with "Hvr").
+      by apply elem_of_row_labels_r_conc.
+    - (* FRESHNESS, both sides, via [fresh_left]/[fresh_right] *)
+      iPureIntro. split.
+      + rewrite (labels_l_interp_row ρ0 η μ ξ).
+        by eapply (fresh_left ρ ρ0 ξ s).
+      + rewrite (labels_r_interp_row ρ0 η μ ξ).
+        by eapply (fresh_right ρ ρ0 ξ s).
+  Qed.
+
+
   (* The three per-judgement predicates.  Each quantifies over the
      interpretation environments [η μ ξ] (extended by binders), takes the
      [erase_ctx] hypothesis bundle (only used by [RErase_le]), and yields
