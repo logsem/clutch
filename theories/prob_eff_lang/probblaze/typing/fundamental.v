@@ -104,11 +104,31 @@ Proof.
       admit.
     + (* TAlloc *) iApply sem_typed_alloc. apply fundamental in Ht.
       iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
-    + (* TLoad *) admit.
+    + (* TLoad *) iApply sem_typed_load_expr. apply fundamental in Ht.
+      iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TStore *) admit.
-    + (* TAllocTape *) admit.
-    + (* TRand *) admit.
-    + (* TRandU *) admit.
+    + (* TAllocTape *) iApply sem_typed_alloctape. apply fundamental in Ht.
+      iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+    + (* TRand *)
+      (* BLOCKED: needs a coupling lemma that reads TWO labelled (tape)
+         [Rand] operations in a single step so they yield equal values
+         (to inhabit [sem_ty_nat]).  The interp of the tape argument is
+         [sem_ty_tape], whose invariant holds two EMPTY same-[N] tapes
+         [α1 ↪ (N;[])] and [α2 ↪ₛ (N;[])].  The available probblaze
+         coupling primitives only couple a labelled tape with an
+         UNLABELLED rand ([brel_couple_TU]/[brel_couple_UT],
+         [wp_couple_tape_rand]/[wp_couple_rand_tape]) or fragment-couple
+         two tapes by presampling ([brel_couple_TT_frag]); none couples
+         two labelled empty-tape reads.  Deterministic [step_rand] on the
+         right spec tape is impossible since the tape is empty, and the
+         presampling coupling cannot be performed under the regular [inv]
+         of [sem_ty_tape] (it is not a single atomic step).  Missing:
+         a [brel_couple_tape_tape] / [wp_couple_tape_tape] coupling rule
+         (probabilistic core, out of scope per task). *)
+      admit.
+    + (* TRandU *) iApply sem_typed_randu;
+        [apply fundamental in Ht1 as Ht | apply fundamental in Ht2 as Ht];
+        iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TFold *)
       iApply (sem_typed_fold (λ α, interp._ty (α :: η) μ δ τ ξ)).
       iApply (sem_typed_type_cong _ _ _ _ _ _ _

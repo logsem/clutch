@@ -1098,6 +1098,64 @@ Section compatibility.
     iApply brel_value. iIntros. by iFrame.
   Qed.
 
+  (* Expression-level substructural Load rule (linear reference). *)
+  Lemma sem_typed_load_expr τ ρ Γ1 Γ2 e1 e2 :
+    ⊢ sem_typed Γ1 e1 e2 ρ (Ref τ) Γ2 -∗
+    sem_typed Γ1 (Load e1) (Load e2) ρ τ Γ2.
+  Proof.
+    iIntros "#He %γ !# //= HΓ1".
+    iApply (brel_bind [LoadCtx] [LoadCtx]);
+      [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % ((%l1 & %l2 & -> & -> & (%w1 & %w2 & Hl1 & Hl2 & Hτ))
+                       & HΓ2) //=".
+    iApply (brel_load_l with "Hl1"). iIntros "!> Hl1".
+    iApply (brel_load_r with "Hl2"). iIntros "Hl2".
+    iApply brel_value. iIntros. by iFrame.
+  Qed.
+
+  (* Expression-level AllocTape rule. *)
+  Lemma sem_typed_alloctape ρ Γ1 Γ2 e1 e2 :
+    ⊢ sem_typed Γ1 e1 e2 ρ sem_ty_nat Γ2 -∗
+    sem_typed Γ1 (AllocTape e1) (AllocTape e2) ρ sem_ty_tape Γ2.
+  Proof.
+    iIntros "#He %γ !# //= HΓ1".
+    iApply (brel_bind [AllocTapeCtx] [AllocTapeCtx]);
+      [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % ((%n & -> & ->) & HΓ2) //=".
+    iApply (brel_alloctape_l _ n). iIntros "!> %α1 Hα1".
+    iApply (brel_alloctape_r _ n). iIntros "%α2 Hα2".
+    iApply fupd_brel.
+    iDestruct (tapeN_to_empty with "Hα1") as "Hα1".
+    iMod (inv_alloc (logN.@(α1,α2)) _
+            (α1 ↪ (n; []) ∗ α2 ↪ₛ (n; []))%I with "[Hα1 Hα2]") as "#Hinv".
+    { iFrame. }
+    iModIntro. iApply brel_value. iIntros. iFrame.
+    iExists α1, α2, n. by iFrame "Hinv".
+  Qed.
+
+  (* Expression-level unlabelled Rand rule.  Both sides reduce to the
+     unlabelled [rand #m] and are coupled with the identity bijection. *)
+  Lemma sem_typed_randu ρ Γ1 Γ2 Γ3 e1 e2 e1' e2' :
+    ⊢ sem_typed Γ2 e1 e1' ρ sem_ty_nat Γ3 -∗
+    sem_typed Γ1 e2 e2' ρ sem_ty_unit Γ2 -∗
+    sem_typed Γ1 (Rand e1 e2) (Rand e1' e2') ρ sem_ty_nat Γ3.
+  Proof.
+    iIntros "#He1 #He2 %γ !# //= HΓ1".
+    iApply (brel_bind [RandRCtx _] [RandRCtx _]);
+      [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He2".
+    iIntros "!# % % ((-> & ->) & HΓ2) //=".
+    iApply (brel_bind [RandLCtx _] [RandLCtx _]);
+      [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ2]"); first by iApply "He1".
+    iIntros "!# % % ((%m & -> & ->) & HΓ3) //=".
+    iApply (brel_couple_rand_rand _ m (λ n : nat, n) m [] []); [done|].
+    iIntros (n) "%Hle". iApply brel_value. iIntros. iFrame.
+    iExists n. iModIntro. by iSplit.
+  Qed.
+
   (* Generic Store (cpy) rule *)
   Lemma sem_typed_store_cpy_gen τ ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' `{ ρ ᵣ⪯ₜ τ} :
     ⊢ sem_typed Γ2 e1 e1' ρ (Refᶜ τ) Γ3 -∗
