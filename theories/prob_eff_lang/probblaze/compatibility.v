@@ -978,7 +978,37 @@ Section compatibility.
     iApply (brel_wand with "[HΓ2 Hτww]").
     { iDestruct ("He2" $! τ) as "He2'". iApply "He2'". solve_env. }
     iIntros "!# % % (Hκ & HΓ3) //=". iFrame. solve_env.
-  Qed.     
+  Qed.
+
+  (* Binder-general unpack: [x] may be [BAnon] (bound var unused) or
+     [BNamed]. The body env is extended only in the [BNamed] case; for
+     [BAnon] the bound variable is dropped both from the env and from the
+     substitution.  Used by the [TUnpack] fundamental case, whose binder
+     is a [binder]. *)
+  Lemma sem_typed_unpack_gen C κ ρ Γ1 Γ2 Γ3 (x : binder) e1 e1' e2 e2' :
+    (match x with BNamed s => s ∉ env_dom Γ2 | BAnon => True end) →
+    (match x with BNamed s => s ∉ env_dom Γ3 | BAnon => True end) →
+    ⊢ sem_typed Γ1 e1 e1' ρ (∃ₜ α, C α) Γ2 -∗
+    (∀ τ, sem_typed
+            (match x with BNamed s => (s, C τ) :: Γ2 | BAnon => Γ2 end)
+            e2 e2' ρ κ Γ3) -∗
+    sem_typed Γ1 (unpack: x := e1 in e2)%E
+      (unpack: x := e1' in e2')%E ρ κ Γ3.
+  Proof.
+    destruct x as [|s].
+    - (* BAnon *)
+      iIntros (_ _) "#He1 #He2 %γ !# HΓ1 //=".
+      iApply (brel_bind [AppLCtx _; _] [AppLCtx _; _]);
+        [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+      iApply (brel_wand with "[HΓ1]"); first by iApply "He1".
+      iIntros "!# %v1 %v1' ((%τ & Hτww) & HΓ2) ".
+      unfold unpack. brel_pures_l. brel_pures_r.
+      iApply (brel_wand with "[HΓ2]").
+      { iDestruct ("He2" $! τ) as "He2'". iApply "He2'". iFrame. }
+      iIntros "!# % % (Hκ & HΓ3) //=". iFrame.
+    - (* BNamed *)
+      exact (sem_typed_unpack C κ ρ Γ1 Γ2 Γ3 s e1 e1' e2 e2').
+  Qed.
 
   (* Recursive type rules *)
   Lemma sem_typed_fold C ρ Γ1 Γ2 e1 e2 `{NonExpansive C}:

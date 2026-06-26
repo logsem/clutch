@@ -1496,6 +1496,7 @@ Inductive typed :
      Δ .| Γ1 ⊢ₜ e : ρ : τ.[τ'/] ⊣ Γ2 →
      Δ .| Γ1 ⊢ₜ e : ρ : (∃: τ) ⊣ Γ2
 | TUnpack Δ Γ1 Γ2 Γ3 e1 x e2 ρ τ τ2 :
+     x ∉ ctx_dom Γ2 → x ∉ ctx_dom Γ3 →
      Δ .| Γ1 ⊢ₜ e1 : ρ : (∃: τ) ⊣ Γ2 →
      Δ .| <[x:=c τ]> (⤉ Γ2)
        ⊢ₜ e2 : rename_type_row (+1) ρ : τ2.[ren (+1)] ⊣ (⤉ Γ3) →
@@ -1582,11 +1583,13 @@ with pure_typed  : ctx → expr → type → Prop :=
   m m⪯C Γ → Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (![m] τ)%ty
 
 | TAbs_pure_typed Γ e τ :
-  Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (∀T: τ)
+  (⤉ Γ) ⊢ₚ e : τ → Γ ⊢ₚ e : (∀T: τ)
 | RAbs_pure_typed Γ e τ :
-  Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (∀R: τ)
+  ((λ '(x, α), (x, rename_row_type (+1) α)) <$> (Γ : ctx)) ⊢ₚ e : τ →
+  Γ ⊢ₚ e : (∀R: τ)
 | MAbs_pure_typed Γ e τ :
-  Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (∀M: τ)
+  ((λ '(x, α), (x, α.|[ren (+1) : var → vmode])) <$> (Γ : ctx)) ⊢ₚ e : τ →
+  Γ ⊢ₚ e : (∀M: τ)
 
 
 

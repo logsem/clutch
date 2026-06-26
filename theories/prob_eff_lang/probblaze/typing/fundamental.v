@@ -141,60 +141,39 @@ Proof.
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TUnpack *)
-      (* The [TUnpack] statement bug fixed in [types.v] (shifting the body's
+      (* The [TUnpack] statement bug fix in [types.v] (shifting the body's
          effect [ρ] and output ctx [Γ3] by [ren (+1)], consistently with the
-         already-shifted [Γ2]/[τ2]) is SOUND and makes the shift-cancellation
-         go through: instantiating the body IH at the extended type-env
-         [τ0::η] and transporting along [sem_typed_sub] with the weakening
-         lemmas [interp.ctx_tweaken] (ctx), [interp.row_tweaken] (effect) and
+         already-shifted [Γ2]/[τ2]) makes the shift-cancellation go through:
+         instantiating the body IH at the extended type-env [τ0::η] and
+         transporting along [sem_typed_sub] with the weakening lemmas
+         [interp.ctx_tweaken] (ctx), [interp.row_tweaken] (effect) and
          [interp.ty_tweaken] (result) reconciles it with the OUTER
          [interp_η ρ]/[interp_η Γ2]/[interp_η Γ3]/[interp_η τ2] required by
-         [sem_typed_unpack] — see the fully-proved [BNamed] body below.
-
-         TWO residual obstacles remain, BOTH separate from the shift bug and
-         each needing a FURTHER [types.v] statement change (out of the scope
-         authorised here, which is only the minimal shift fix):
-
-         (1) FRESHNESS.  [sem_typed_unpack] (compatibility.v) requires
-             [s ∉ env_dom (interp_η Γ2)] and [s ∉ env_dom (interp_η Γ3)].
-             The [TUnpack] rule carries NO freshness hypothesis on its binder
-             (unlike [Match_typed], which has [x ∉ ctx_dom Γ2/Γ3]).  This is
-             essential, not conservative: without it the body env cannot
-             round-trip ([env_sem_typed ((s,_)::Γ2) (<[s:=w]>vs)] needs
-             [Γ2 ⊨ₑ <[s:=w]>vs], which differs from the available
-             [Γ2 ⊨ₑ vs] exactly when [s ∈ Γ2]).  FIX: add
-             [s ∉ ctx_dom Γ2 → s ∉ ctx_dom Γ3 →] to [TUnpack] and discharge
-             the two goals below via [ctx_dom_env_dom].
-
-         (2) BINDER.  [TUnpack]'s [x] is a [binder]; [sem_typed_unpack] only
-             covers [BNamed].  The [BAnon] case (expr [Rec BAnon BAnon e2])
-             needs a binder-general / [BAnon] unpack compatibility lemma. *)
-      destruct x as [|s].
-      * (* BAnon: needs a [BAnon] unpack compatibility lemma — obstacle (2). *)
-        admit.
-      * (* BNamed s: shift-cancellation transport is fully proved; the two
-           [admit]s are exactly the freshness side conditions — obstacle (1). *)
-        iApply (sem_typed_unpack (λ τ0, interp._ty (τ0 :: η) μ δ τ ξ)
-                  _ _ _ _ _ s);
-          [ admit (* s ∉ env_dom (interp_η Γ2) — needs freshness in rule *)
-          | admit (* s ∉ env_dom (interp_η Γ3) — needs freshness in rule *)
-          | | ].
-        { apply fundamental in Ht1. iPoseProof Ht1 as "Ht".
-          iApply ("Ht" $! _ _ _ _ ∅ Hδ). }
-        iIntros (τ0).
-        apply fundamental in Ht2. iPoseProof Ht2 as "Ht".
-        iSpecialize ("Ht" $! (τ0 :: η) μ δ ξ ∅ Hδ).
-        iEval (cbn [ctx_insert fmap list_fmap]) in "Ht".
-        iApply (sem_typed_sub with "[][][][] Ht").
-        { rewrite /env_le /tc_opaque. iModIntro. iIntros (γ) "H".
-          rewrite !env_sem_typed_cons. iDestruct "H" as "[$ H]".
-          by rewrite ctx_tweaken. }
-        { rewrite /env_le /tc_opaque. iModIntro. iIntros (γ) "H".
-          by rewrite ctx_tweaken. }
-        { iEval (rewrite (interp.row_tweaken ρ τ0 η μ δ ξ)).
-          iApply sem_row.row_le_refl. }
-        { iEval (rewrite (interp.ty_tweaken τ2 τ0 η μ δ ξ)).
-          iApply sem_types.ty_le_refl. }
+         [sem_typed_unpack_gen].  The two added freshness premises
+         [x ∉ ctx_dom Γ2/Γ3] discharge the binder-non-clash side conditions
+         of [sem_typed_unpack_gen] via [ctx_dom_env_dom]; the binder-general
+         lemma [sem_typed_unpack_gen] handles the [BAnon] case. *)
+      iApply (sem_typed_unpack_gen (λ τ0, interp._ty (τ0 :: η) μ δ τ ξ)
+                _ _ _ ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ2)).
+      { destruct x as [|s]; [done|]. by eapply ctx_dom_env_dom. }
+      { destruct x as [|s]; [done|]. by eapply ctx_dom_env_dom. }
+      { apply fundamental in Ht1. iPoseProof Ht1 as "Ht".
+        iApply ("Ht" $! _ _ _ _ ∅ Hδ). }
+      iIntros (τ0).
+      apply fundamental in Ht2. iPoseProof Ht2 as "Ht".
+      iSpecialize ("Ht" $! (τ0 :: η) μ δ ξ ∅ Hδ).
+      iEval (cbn [ctx_insert fmap list_fmap]) in "Ht".
+      iApply (sem_typed_sub with "[][][][] Ht").
+      { rewrite /env_le /tc_opaque. iModIntro. iIntros (γ) "H".
+        destruct x as [|s]; [by rewrite ctx_tweaken|].
+        rewrite !env_sem_typed_cons. iDestruct "H" as "[$ H]".
+        by rewrite ctx_tweaken. }
+      { rewrite /env_le /tc_opaque. iModIntro. iIntros (γ) "H".
+        by rewrite ctx_tweaken. }
+      { iEval (rewrite (interp.row_tweaken ρ τ0 η μ δ ξ)).
+        iApply sem_row.row_le_refl. }
+      { iEval (rewrite (interp.ty_tweaken τ2 τ0 η μ δ ξ)).
+        iApply sem_types.ty_le_refl. }
     + (* Effect_typed *) admit.
     + (* Do_typed *) admit.
     + (* DeepHandle_typed *) admit.
@@ -255,9 +234,36 @@ Proof.
       iApply ("H" $! η μ δ ξ).
     + (* Var_pure_typed *) iApply sem_oval_typed_var.
     + (* BangIntro_pure_typed *) admit.
-    + (* TAbs_pure_typed *) admit.
-    + (* RAbs_pure_typed *) admit.
-    + (* MAbs_pure_typed *) admit.
+    + (* TAbs_pure_typed *)
+      (* The [TAbs_pure] rule shifts its premise context by [⤉] (a fresh
+         TYPE binder), so the body IH at the EXTENDED type-env [α::η]
+         cancels the shift via [interp.ctx_tweaken]. *)
+      iApply (sem_typed_TLam (λ α, interp._ty (α :: η) μ δ τ ξ)).
+      iIntros (α). apply fundamental_pure in Hp. iPoseProof Hp as "H".
+      iSpecialize ("H" $! (α :: η) μ δ ξ).
+      rewrite /sem_oval_typed /tc_opaque.
+      iModIntro. iIntros (vs) "Henv".
+      iApply "H". by rewrite interp.ctx_tweaken.
+    + (* RAbs_pure_typed *)
+      (* The [RAbs_pure] rule row-shifts its premise context, so the body
+         IH at the EXTENDED row-env [θ::ξ] cancels the shift via
+         [interp.ctx_rweaken]. *)
+      iApply (sem_typed_RLam (λ θ, interp._ty η μ δ τ (θ :: ξ))).
+      iIntros (θ). apply fundamental_pure in Hp. iPoseProof Hp as "H".
+      iSpecialize ("H" $! η μ δ (θ :: ξ)).
+      rewrite /sem_oval_typed /tc_opaque.
+      iModIntro. iIntros (vs) "Henv".
+      iApply "H". by rewrite interp.ctx_rweaken.
+    + (* MAbs_pure_typed *)
+      (* The [MAbs_pure] rule mode-shifts its premise context, so the body
+         IH at the EXTENDED mode-env [ν::μ] cancels the shift via
+         [interp.ctx_mweaken]. *)
+      iApply (sem_typed_MLam (λ ν, interp._ty η (ν :: μ) δ τ ξ)).
+      iIntros (ν). apply fundamental_pure in Hp. iPoseProof Hp as "H".
+      iSpecialize ("H" $! η (ν :: μ) δ ξ).
+      rewrite /sem_oval_typed /tc_opaque.
+      iModIntro. iIntros (vs) "Henv".
+      iApply "H". by rewrite interp.ctx_mweaken.
 Admitted.
 
 End fundamental.

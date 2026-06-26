@@ -754,4 +754,46 @@ Section interp_subst.
       exact (ty_tweaken α τ' η μ δ ξ a v2).
   Qed.
 
+  (* CONTEXT weakening for a freshly-bound ROW var: a row-shifted context
+     interpreted at the extended row-env [ρ'::ξ] agrees with the original.
+     Pointwise corollary of [ty_rweaken], lifted to [env_sem_typed].  Used
+     by the [RAbs_pure] fundamental case. *)
+  Lemma ctx_rweaken (Γ : ctx) (ρ' : sem_row Σ) (η : list (sem_ty Σ))
+    (μ : list mode) (δ : gmap eff_name (label*label))
+    (ξ : list (sem_row Σ)) (γ : gmap string (val*val)) :
+    env_sem_typed
+      ((λ '(s, α), (s, interp._ty η μ δ α (ρ' :: ξ)))
+         <$> ((λ '(x, α), (x, rename_row_type (+1) α)) <$> Γ)) γ
+    ⊣⊢
+    env_sem_typed
+      ((λ '(s, α), (s, interp._ty η μ δ α ξ)) <$> Γ) γ.
+  Proof.
+    induction Γ as [|[s α] Γ' IH]; simpl.
+    - done.
+    - rewrite !env_sem_typed_cons. rewrite IH.
+      do 4 f_equiv. intros v2. f_equiv.
+      exact (ty_rweaken α η μ δ ρ' ξ a v2).
+  Qed.
+
+  (* CONTEXT weakening for a freshly-bound MODE var: a mode-shifted context
+     interpreted at the extended mode-env [m::μ] agrees with the original.
+     Pointwise corollary of [ty_mweaken], lifted to [env_sem_typed].  Used
+     by the [MAbs_pure] fundamental case. *)
+  Lemma ctx_mweaken (Γ : ctx) (m : mode) (η : list (sem_ty Σ))
+    (μ : list mode) (δ : gmap eff_name (label*label))
+    (ξ : list (sem_row Σ)) (γ : gmap string (val*val)) :
+    env_sem_typed
+      ((λ '(s, α), (s, interp._ty η (m :: μ) δ α ξ))
+         <$> ((λ '(x, α), (x, α.|[ren (+1) : var → vmode])) <$> Γ)) γ
+    ⊣⊢
+    env_sem_typed
+      ((λ '(s, α), (s, interp._ty η μ δ α ξ)) <$> Γ) γ.
+  Proof.
+    induction Γ as [|[s α] Γ' IH]; simpl.
+    - done.
+    - rewrite !env_sem_typed_cons. rewrite IH.
+      do 4 f_equiv. intros v2. f_equiv.
+      exact (ty_mweaken α η m μ δ ξ a v2).
+  Qed.
+
 End interp_subst.
