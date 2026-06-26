@@ -81,18 +81,18 @@ Section pmw.
           {{ qopt, ⤇ fill K (Val qopt) ∗
                      (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ □ wp_sensitive q 1 dDB dZ ∗
                         □ (∀ K db, ⤇ fill K (q db) -∗ WP q db {{v, ∃ r : Z, ⌜v = inject r⌝ ∗ ⤇ fill K (Val v) }}) ) }}) -∗
-       □ (∀ K (distrib q l : val),
+      □ (∀ K (distrib q l : val),
           (* should distrib be a val ? not precise enough ? *)
           ⤇ fill K (upd distrib q l) -∗
           WP upd distrib q l
           {{ v, ⤇ fill K (Val v) }}) -∗
       □ (∀ K (distrib q : val), (* we get back a 1sens query *)
-          (* (wp_sensitive q 1 dDB dZ) -∗ we need the original query to be 1 sensitive *)
+          (wp_sensitive q 1 dDB dZ) -∗ (* we need the original query to be 1 sensitive *)
           ⤇ fill K (f1 q distrib) -∗
           WP f1 q distrib
           {{ v, ⤇ fill K (Val v) ∗ □ wp_sensitive v 1 dDB dZ }}) -∗
       □ (∀ K (distrib q : val),
-          (* (wp_sensitive q 1 dDB dZ) -∗ *)
+          (wp_sensitive q 1 dDB dZ) -∗
           ⤇ fill K (f2 q distrib) -∗
           WP f2 q distrib
           {{ v, ⤇ fill K (Val v) ∗ □ wp_sensitive v 1 dDB dZ }}) -∗
@@ -140,7 +140,8 @@ Section pmw.
     - do 2 rewrite -/(pMW_body _ _ _ _ _ _ _).
       wp_bind (f _ _); tp_bind (f' _ _).
       wp_bind (f1 _ _); tp_bind (f1 _ _).
-      iPoseProof ("Hf1" $! _ with "rhs") as "Hf1'".
+      iSpecialize ("Hf1" $! _ _ _ with "sens_q").
+      iPoseProof ("Hf1" with "rhs") as "Hf1'".
       iApply (wp_strong_mono'' with "Hf1'").
       iIntros (q1) "[rhs #sens_q1]".
       tp_bind (f' _ _).
@@ -170,7 +171,8 @@ Section pmw.
         iSimpl in "inSVT"...
         wp_bind (f _ _); tp_bind (f' _ _).
         wp_bind (f2 _ _); tp_bind (f2 _ _).
-        iPoseProof ("Hf2" $! _ with "rhs") as "Hf2'".
+        iSpecialize ("Hf2" $! _ _ _ with "sens_q").
+        iPoseProof ("Hf2" with "rhs") as "Hf2'".
         iApply (wp_strong_mono'' with "Hf2'").
         iIntros (q2) "[rhs #sens_q2]".
         tp_bind (f' _ _).
