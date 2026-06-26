@@ -295,50 +295,376 @@ Section interp_subst.
     intros Hσ. destruct vm; simpl; [done|done|]. by rewrite Hσ.
   Qed.
 
-End interp_subst.
+  (** MODE parallel substitution.  Interpreting [τ.|[σm]] reindexes the
+      mode-env [μ] by [σm].  Proved by mutual induction; the cross-sort
+      binders need only [up_mode_env]/[mode_subst_pt]. *)
+  Lemma ty_msubst :
+    (∀ (τ : type) (η : list (sem_ty Σ)) (μ μ' : list mode)
+        (δ : gmap eff_name (label*label)) (ξ : list (sem_row Σ))
+        (σ : var → vmode),
+        (∀ i, μ' !!! i = interp._mode μ (σ i)) →
+        interp._ty η μ' δ τ ξ ≡ interp._ty η μ δ (τ.|[σ]) ξ).
+  Proof.
+    intros τ. induction τ using type_mut
+      with (P0 := λ ρ, ∀ η μ μ' δ ξ σ,
+              (∀ i, μ' !!! i = interp._mode μ (σ i)) →
+              interp._row η μ' δ ρ ξ ≡ interp._row η μ δ (ρ.|[σ]) ξ)
+           (P1 := λ e, ∀ η μ μ' δ ξ σ,
+              (∀ i, μ' !!! i = interp._mode μ (σ i)) →
+              interp._eff_sig η μ' δ e ξ ≡
+                interp._eff_sig η μ δ (e.|[σ]) ξ);
+      intros η μ μ' δ ξ σ Hσ; simpl.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ2|apply IHτ1|apply IHτ3]; done.
+    - f_equiv; intros m; apply IHτ; by apply up_mode_env.
+    - f_equiv; intros τ'; by apply IHτ.
+    - f_equiv; intros ρ; by apply IHτ.
+    - f_equiv; intros τ'; by apply IHτ.
+    - f_equiv; intros τ'; by apply IHτ.
+    - done.
+    - erewrite <-mode_subst_pt by done. by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - done.
+    - erewrite <-mode_subst_pt by done. by f_equiv; apply IHτ.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - f_equiv; intros τ'; [apply IHτ|apply IHτ0]; done.
+    - erewrite <-mode_subst_pt by done. by f_equiv; apply IHτ.
+  Qed.
 
-(* ======================================================================= *)
-(** ** The three single-substitution lemmas (T1/T2/T3) — STATUS            *)
-(*                                                                          *)
-(*  They are deliberately NOT stated as [Admitted] lemmas, because as       *)
-(*  literally requested (for an ARBITRARY substitutend) each is FALSE       *)
-(*  against the current [types.v] substitution operations — admitting them  *)
-(*  would inject unsound facts into the development.  Each fails in a        *)
-(*  binder case where the syntactic substitution does NOT shift the         *)
-(*  substitutend's variables of the *other* sorts, while [interp] DOES      *)
-(*  extend the corresponding environment.  Concrete counterexamples:        *)
-(*                                                                          *)
-(*  (T1) interp._ty η μ δ (τ.[τ'/]) ξ                                       *)
-(*         ≡ interp._ty (interp._ty η μ δ τ' ξ :: η) μ δ τ ξ                *)
-(*       FALSE.  Take τ := TForallM (TVar 0), τ' := TBang (MVar 0) TUnit.   *)
-(*       [subst_type] at TForallM/TForallR keeps σ unshifted               *)
-(*       ([TForallM α => TForallM α.[σ]]), so                              *)
-(*         LHS = ∀ₘ m', ![ m' ] 𝟙   (bound mode m')                         *)
-(*         RHS = ∀ₘ m', ![ μ!!!0 ] 𝟙 (fixed μ!!!0).                         *)
-(*       Closing TForallM needs τ' mode-closed; TForallR needs τ'           *)
-(*       row-closed.                                                        *)
-(*                                                                          *)
-(*  (T2) interp._ty η μ δ (τ.|[ρ'/]) ξ                                      *)
-(*         ≡ interp._ty η μ δ τ (interp._row η μ δ ρ' ξ :: ξ)               *)
-(*       FALSE for mode-open ρ': [hsubst_row_type] at TForallM keeps σ      *)
-(*       unshifted ([TForallM α => TForallM α.|[σ]]) while interp extends   *)
-(*       μ.  (The TForallR case is fine — [up σ] is used there.)            *)
-(*                                                                          *)
-(*  (T3) interp._ty η μ δ (τ.|[m/]) ξ                                       *)
-(*         ≡ interp._ty η (interp._mode μ m :: μ) δ τ ξ                     *)
-(*       FALSE.  [hsubst_vmode_type] does NOT recurse into the BODY of      *)
-(*       TBang: [TBang m τ => TBang m.[σ] τ] leaves [τ] unsubstituted.      *)
-(*       Take τ := TBang OS (TBang (MVar 0) TUnit):                         *)
-(*         LHS = ![OS] (![ μ!!!0 ] 𝟙)                                       *)
-(*         RHS = ![OS] (![ interp._mode μ m ] 𝟙),                           *)
-(*       which differ whenever interp._mode μ m ≠ μ!!!0 (e.g. m = MVar 1).  *)
-(*       (The TForallM case itself IS fine, via [up_mode_env] above.)       *)
-(*                                                                          *)
-(*  PROVED & reusable above: the type-dimension renaming lemma [ty_ren]     *)
-(*  (unconditional) and the OFE-congruence [Proper] instances / env-shift   *)
-(*  helpers.  To obtain T1/T2/T3 one must either add a closedness           *)
-(*  side-condition on the substitutend, or fix the [types.v] substitution   *)
-(*  operations (in particular the TBang-body omission in                    *)
-(*  [hsubst_vmode_type], and the missing other-sort shifts at               *)
-(*  TForallM/TForallR in [subst_type]/[hsubst_row_type]).                   *)
-(* ======================================================================= *)
+  (* Extending [ξ] on both sides by the same [ρ'] turns a row reindexing
+     [f] into [upren f]. *)
+  Local Lemma up_ren_row_env (ρ' : sem_row Σ) (ξ ξ' : list (sem_row Σ))
+    (f : var → var) :
+    (∀ i, ξ' !!! i ≡ ξ !!! (f i)) →
+    ∀ i, (ρ' :: ξ') !!! i ≡ (ρ' :: ξ) !!! (upren f i).
+  Proof.
+    intros Hf [|i]; first done.
+    rewrite !lookup_total_cons_ne_0 //.
+  Qed.
+
+  (** ROW-dimension RENAMING.  Interpreting [rename f ρ] in [ξ] is the same
+      as interpreting [ρ] in any [ξ'] that [f]-reindexes into [ξ]. *)
+  Lemma row_ren :
+    (∀ (τ : type) (η : list (sem_ty Σ)) (μ : list mode)
+        (δ : gmap eff_name (label*label)) (ξ ξ' : list (sem_row Σ))
+        (f : var → var),
+        (∀ i, ξ' !!! i ≡ ξ !!! (f i)) →
+        interp._ty η μ δ τ ξ' ≡ interp._ty η μ δ (rename_row_type f τ) ξ).
+  Proof.
+    intros τ. induction τ using type_mut
+      with (P0 := λ ρ, ∀ η μ δ ξ ξ' f,
+              (∀ i, ξ' !!! i ≡ ξ !!! (f i)) →
+              interp._row η μ δ ρ ξ' ≡ interp._row η μ δ (rename f ρ) ξ)
+           (P1 := λ e, ∀ η μ δ ξ ξ' f,
+              (∀ i, ξ' !!! i ≡ ξ !!! (f i)) →
+              interp._eff_sig η μ δ e ξ' ≡
+                interp._eff_sig η μ δ (rename_row_eff_sig f e) ξ);
+      intros η μ δ ξ ξ' f Hf; simpl.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ2|apply IHτ1|apply IHτ3]; done.
+    - f_equiv; intros m; by apply IHτ.
+    - f_equiv; intros τ'; by apply IHτ.
+    - f_equiv; intros ρ; apply IHτ; by apply up_ren_row_env.
+    - f_equiv; intros τ'; by apply IHτ.
+    - f_equiv; intros τ'; by apply IHτ.
+    - done.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - apply Hf.
+    - f_equiv; by apply IHτ.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - f_equiv; intros τ'; [apply IHτ|apply IHτ0]; done.
+    - f_equiv; by apply IHτ.
+  Qed.
+
+  Lemma row_ren_row (ρ : row) (η : list (sem_ty Σ)) (μ : list mode)
+    (δ : gmap eff_name (label*label)) (ξ ξ' : list (sem_row Σ))
+    (f : var → var) :
+    (∀ i, ξ' !!! i ≡ ξ !!! (f i)) →
+    interp._row η μ δ ρ ξ' ≡ interp._row η μ δ (rename f ρ) ξ.
+  Proof.
+    revert η μ δ ξ ξ' f.
+    induction ρ using row_mut
+      with (P := λ τ, ∀ η μ δ ξ ξ' f,
+              (∀ i, ξ' !!! i ≡ ξ !!! (f i)) →
+              interp._ty η μ δ τ ξ' ≡
+                interp._ty η μ δ (rename_row_type f τ) ξ)
+           (P1 := λ e, ∀ η μ δ ξ ξ' f,
+              (∀ i, ξ' !!! i ≡ ξ !!! (f i)) →
+              interp._eff_sig η μ δ e ξ' ≡
+                interp._eff_sig η μ δ (rename_row_eff_sig f e) ξ);
+      intros η μ δ ξ ξ' f Hf; simpl.
+    all: lazymatch goal with
+         | |- _ ≡ _ =>
+           solve [ done
+                 | apply Hf
+                 | f_equiv; eauto using up_ren_row_env
+                 | f_equiv; intros ?; eauto using up_ren_row_env ]
+         end.
+  Qed.
+
+  (* ROW projection of [ty_ren] (TYPE renaming on a row). *)
+  Lemma ty_ren_row (ρ : row) (η η' : list (sem_ty Σ)) (μ : list mode)
+    (δ : gmap eff_name (label*label)) (ξ : list (sem_row Σ))
+    (f : var → var) :
+    (∀ i, η' !!! i ≡ η !!! (f i)) →
+    interp._row η' μ δ ρ ξ ≡ interp._row η μ δ (rename_type_row f ρ) ξ.
+  Proof.
+    revert η η' μ δ ξ f.
+    induction ρ using row_mut
+      with (P := λ τ, ∀ η η' μ δ ξ f,
+              (∀ i, η' !!! i ≡ η !!! (f i)) →
+              interp._ty η' μ δ τ ξ ≡ interp._ty η μ δ (rename f τ) ξ)
+           (P1 := λ e, ∀ η η' μ δ ξ f,
+              (∀ i, η' !!! i ≡ η !!! (f i)) →
+              interp._eff_sig η' μ δ e ξ ≡
+                interp._eff_sig η μ δ (rename_type_eff_sig f e) ξ);
+      intros η η' μ δ ξ f Hf; simpl.
+    all: lazymatch goal with
+         | |- _ ≡ _ =>
+           solve [ done
+                 | apply Hf
+                 | f_equiv; eauto using up_ren_env
+                 | f_equiv; intros ?; eauto using up_ren_env ]
+         end.
+  Qed.
+
+  (* ROW weakening: a freshly-bound TYPE var does not affect a type-shifted
+     row.  Corollary of [ty_ren_row]. *)
+  Lemma row_tweaken (ρ : row) (τ' : sem_ty Σ) (η : list (sem_ty Σ))
+    (μ : list mode) (δ : gmap eff_name (label*label))
+    (ξ : list (sem_row Σ)) :
+    interp._row (τ' :: η) μ δ (rename_type_row (+1) ρ) ξ
+      ≡ interp._row η μ δ ρ ξ.
+  Proof.
+    symmetry. apply (ty_ren_row ρ (τ' :: η) η μ δ ξ (+1)).
+    intros i. rewrite lookup_total_cons_ne_0 //.
+  Qed.
+
+  (* ROW weakening on TYPES: a freshly-bound ROW var does not affect a
+     row-shifted type.  Corollary of [row_ren] (type projection). *)
+  Lemma ty_rweaken (τ : type) (η : list (sem_ty Σ)) (μ : list mode)
+    (δ : gmap eff_name (label*label)) (ρ' : sem_row Σ)
+    (ξ : list (sem_row Σ)) :
+    interp._ty η μ δ (rename_row_type (+1) τ) (ρ' :: ξ)
+      ≡ interp._ty η μ δ τ ξ.
+  Proof.
+    symmetry. apply (row_ren τ η μ δ (ρ' :: ξ) ξ (+1)).
+    intros i. rewrite lookup_total_cons_ne_0 //.
+  Qed.
+
+  (* ROW projection of [ty_msubst] (mode parallel subst on a row). *)
+  Lemma ty_msubst_row (ρ : row) (η : list (sem_ty Σ)) (μ μ' : list mode)
+    (δ : gmap eff_name (label*label)) (ξ : list (sem_row Σ))
+    (σ : var → vmode) :
+    (∀ i, μ' !!! i = interp._mode μ (σ i)) →
+    interp._row η μ' δ ρ ξ ≡ interp._row η μ δ (ρ.|[σ]) ξ.
+  Proof.
+    revert η μ μ' δ ξ σ.
+    induction ρ using row_mut
+      with (P := λ τ, ∀ η μ μ' δ ξ σ,
+              (∀ i, μ' !!! i = interp._mode μ (σ i)) →
+              interp._ty η μ' δ τ ξ ≡ interp._ty η μ δ (τ.|[σ]) ξ)
+           (P1 := λ e, ∀ η μ μ' δ ξ σ,
+              (∀ i, μ' !!! i = interp._mode μ (σ i)) →
+              interp._eff_sig η μ' δ e ξ ≡
+                interp._eff_sig η μ δ (e.|[σ]) ξ);
+      intros η μ μ' δ ξ σ Hσ; simpl.
+    all: lazymatch goal with
+         | |- _ ≡ _ =>
+           solve [ done
+                 | (erewrite <-mode_subst_pt by done); f_equiv;
+                     eauto using up_mode_env
+                 | f_equiv; intros ?; eauto using up_mode_env
+                 | f_equiv; eauto using up_mode_env ]
+         end.
+  Qed.
+
+  (* MODE weakening: a freshly-bound mode does not affect a mode-shifted
+     type/row.  Corollaries of [ty_msubst]/[ty_msubst_row]. *)
+  Lemma ty_mweaken (τ : type) (η : list (sem_ty Σ)) (m : mode)
+    (μ : list mode) (δ : gmap eff_name (label*label))
+    (ξ : list (sem_row Σ)) :
+    interp._ty η (m :: μ) δ (τ.|[ren (+1) : var → vmode]) ξ
+      ≡ interp._ty η μ δ τ ξ.
+  Proof.
+    symmetry. apply (ty_msubst τ η (m :: μ) μ δ ξ (ren (+1))).
+    intros i. destruct i; simpl; by rewrite ?lookup_total_cons_ne_0.
+  Qed.
+
+  Lemma row_mweaken (ρ : row) (η : list (sem_ty Σ)) (m : mode)
+    (μ : list mode) (δ : gmap eff_name (label*label))
+    (ξ : list (sem_row Σ)) :
+    interp._row η (m :: μ) δ (ρ.|[ren (+1) : var → vmode]) ξ
+      ≡ interp._row η μ δ ρ ξ.
+  Proof.
+    symmetry. apply (ty_msubst_row ρ η (m :: μ) μ δ ξ (ren (+1))).
+    intros i. destruct i; simpl; by rewrite ?lookup_total_cons_ne_0.
+  Qed.
+
+  (* ROW weakening: a freshly-bound row does not affect a row-shifted row.
+     Corollary of [row_ren_row]. *)
+  Lemma row_rweaken (ρ : row) (η : list (sem_ty Σ)) (μ : list mode)
+    (δ : gmap eff_name (label*label)) (ρ' : sem_row Σ)
+    (ξ : list (sem_row Σ)) :
+    interp._row η μ δ (rename (+1) ρ) (ρ' :: ξ) ≡ interp._row η μ δ ρ ξ.
+  Proof.
+    symmetry. apply (row_ren_row ρ η μ δ (ρ' :: ξ) ξ (+1)).
+    intros i. rewrite lookup_total_cons_ne_0 //.
+  Qed.
+
+  (* For a row parallel-subst [σ], extending [ξ] by [ρ'] (a row binder)
+     turns [σ] into [up σ]; shifted entries reconciled by [row_rweaken]. *)
+  Local Lemma up_row_env (ρ' : sem_row Σ) (η : list (sem_ty Σ))
+    (μ : list mode) (δ : gmap eff_name (label*label))
+    (ξ ξ' : list (sem_row Σ)) (σ : var → row) :
+    (∀ i, ξ' !!! i ≡ interp._row η μ δ (σ i) ξ) →
+    ∀ i, (ρ' :: ξ') !!! i ≡ interp._row η μ δ ((up σ) i) (ρ' :: ξ).
+  Proof.
+    intros Hσ [|i]; first done.
+    rewrite lookup_total_cons_ne_0 //=. asimpl.
+    rewrite -rename_subst row_rweaken. apply Hσ.
+  Qed.
+
+  (** ROW parallel substitution.  Interpreting [τ.|[σ]] reindexes the
+      row-env [ξ] by [σ].  Cross-sort binders: type binders leave [ξ]/[σ];
+      the mode binder ([TForallM]) extends [μ] and mode-shifts the
+      substitutends, reconciled by [row_mweaken]; the row binder
+      ([TForallR]) uses [up_row_env]. *)
+  Lemma ty_rsubst :
+    (∀ (τ : type) (η : list (sem_ty Σ)) (μ : list mode)
+        (δ : gmap eff_name (label*label)) (ξ ξ' : list (sem_row Σ))
+        (σ : var → row),
+        (∀ i, ξ' !!! i ≡ interp._row η μ δ (σ i) ξ) →
+        interp._ty η μ δ τ ξ' ≡ interp._ty η μ δ (τ.|[σ]) ξ).
+  Proof.
+    intros τ. induction τ using type_mut
+      with (P0 := λ ρ, ∀ (η : list (sem_ty Σ)) (μ : list mode)
+              (δ : gmap eff_name (label*label)) (ξ ξ' : list (sem_row Σ))
+              (σ : var → row),
+              (∀ i, ξ' !!! i ≡ interp._row η μ δ (σ i) ξ) →
+              interp._row η μ δ ρ ξ' ≡ interp._row η μ δ (ρ.[σ]) ξ)
+           (P1 := λ e, ∀ (η : list (sem_ty Σ)) (μ : list mode)
+              (δ : gmap eff_name (label*label)) (ξ ξ' : list (sem_row Σ))
+              (σ : var → row),
+              (∀ i, ξ' !!! i ≡ interp._row η μ δ (σ i) ξ) →
+              interp._eff_sig η μ δ e ξ' ≡
+                interp._eff_sig η μ δ (e.|[σ]) ξ);
+      intros η μ δ ξ ξ' σ Hσ; simpl.
+    all: lazymatch goal with
+         | |- _ ≡ _ =>
+           solve
+             [ done | apply Hσ
+             | f_equiv; intros m;
+                 match goal with IH : _ |- _ => apply IH end;
+                 intros i; rewrite row_mweaken; apply Hσ
+             | f_equiv; intros τ';
+                 match goal with IH : _ |- _ => apply IH end;
+                 intros i; rewrite row_tweaken; apply Hσ
+             | f_equiv; eauto using up_row_env
+             | f_equiv; intros ?; eauto using up_row_env ]
+         end.
+  Qed.
+
+  (** TYPE parallel substitution.  Interpreting [τ.[σ]] reindexes the
+      type-env [η] by [σ].  Cross-sort binders: the mode binder
+      ([TForallM]) mode-shifts the substitutends ([ty_mweaken]); the row
+      binder ([TForallR]) row-shifts them ([ty_rweaken]); the type binders
+      use [up_subst_env]. *)
+  Lemma ty_tsubst :
+    (∀ (τ : type) (η η' : list (sem_ty Σ)) (μ : list mode)
+        (δ : gmap eff_name (label*label)) (ξ : list (sem_row Σ))
+        (σ : var → type),
+        (∀ i, η' !!! i ≡ interp._ty η μ δ (σ i) ξ) →
+        interp._ty η' μ δ τ ξ ≡ interp._ty η μ δ (τ.[σ]) ξ).
+  Proof.
+    intros τ. induction τ using type_mut
+      with (P0 := λ ρ, ∀ (η η' : list (sem_ty Σ)) (μ : list mode)
+              (δ : gmap eff_name (label*label)) (ξ : list (sem_row Σ))
+              (σ : var → type),
+              (∀ i, η' !!! i ≡ interp._ty η μ δ (σ i) ξ) →
+              interp._row η' μ δ ρ ξ ≡ interp._row η μ δ (ρ.|[σ]) ξ)
+           (P1 := λ e, ∀ (η η' : list (sem_ty Σ)) (μ : list mode)
+              (δ : gmap eff_name (label*label)) (ξ : list (sem_row Σ))
+              (σ : var → type),
+              (∀ i, η' !!! i ≡ interp._ty η μ δ (σ i) ξ) →
+              interp._eff_sig η' μ δ e ξ ≡
+                interp._eff_sig η μ δ (e.|[σ]) ξ);
+      intros η η' μ δ ξ σ Hσ; simpl.
+    all: lazymatch goal with
+         | |- _ ≡ _ =>
+           solve
+             [ done | apply Hσ
+             | f_equiv; intros m;
+                 match goal with IH : _ |- _ => apply IH end;
+                 intros i; rewrite ty_mweaken; apply Hσ
+             | f_equiv; intros ρ';
+                 match goal with IH : _ |- _ => apply IH end;
+                 intros i; rewrite ty_rweaken; apply Hσ
+             | f_equiv; eauto using up_subst_env
+             | f_equiv; intros ?; eauto using up_subst_env ]
+         end.
+  Qed.
+
+  (** ** The three single-substitution lemmas (T1/T2/T3).
+      Each is the single-substitution ([_ .: ids]) corollary of the
+      corresponding parallel-substitution lemma proved above. *)
+
+  Lemma ty_subst_single (η : list (sem_ty Σ)) (μ : list mode)
+    (δ : gmap eff_name (label*label)) (ξ : list (sem_row Σ))
+    (τ τ' : type) :
+    interp._ty η μ δ (τ.[τ'/]) ξ
+      ≡ interp._ty (interp._ty η μ δ τ' ξ :: η) μ δ τ ξ.
+  Proof.
+    symmetry.
+    refine (ty_tsubst τ η (interp._ty η μ δ τ' ξ :: η) μ δ ξ (τ' .: ids) _).
+    intros [|i]; first done.
+    rewrite lookup_total_cons_ne_0 //.
+  Qed.
+
+  Lemma row_subst_single (η : list (sem_ty Σ)) (μ : list mode)
+    (δ : gmap eff_name (label*label)) (ξ : list (sem_row Σ))
+    (τ : type) (ρ' : row) :
+    interp._ty η μ δ (τ.|[ρ'/]) ξ
+      ≡ interp._ty η μ δ τ (interp._row η μ δ ρ' ξ :: ξ).
+  Proof.
+    symmetry.
+    refine
+      (ty_rsubst τ η μ δ ξ (interp._row η μ δ ρ' ξ :: ξ) (ρ' .: ids) _).
+    intros [|i]; first done.
+    rewrite lookup_total_cons_ne_0 //.
+  Qed.
+
+  Lemma mode_subst_single (η : list (sem_ty Σ)) (μ : list mode)
+    (δ : gmap eff_name (label*label)) (ξ : list (sem_row Σ))
+    (τ : type) (m : vmode) :
+    interp._ty η μ δ (τ.|[m/]) ξ
+      ≡ interp._ty η (interp._mode μ m :: μ) δ τ ξ.
+  Proof.
+    symmetry.
+    refine (ty_msubst τ η μ (interp._mode μ m :: μ) δ ξ (m .: ids) _).
+    intros [|i]; first done.
+    rewrite lookup_total_cons_ne_0 //.
+  Qed.
+
+End interp_subst.
