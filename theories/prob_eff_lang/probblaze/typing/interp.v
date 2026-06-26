@@ -885,39 +885,141 @@ Section interp_subst.
   Qed.
 
   (* Inversion / consistency direction: a syntactically [le.MultiT] type
-     has copyable shape.
+     has copyable shape.  We factor this through two auxiliary syntactic
+     predicates and a monotonicity lemma for [le._type ∅]. *)
 
-     STATUS: ADMITTED.  This is a CONSISTENCY property of the syntactic
-     subtyping relation [le._type]: from [∅ ⊢ₗ τ ≤T ![MS] τ] one must rule
-     out the "junk" subtypings that would otherwise relate a non-copyable
-     type (e.g. [ref], the linear arrow [-∘], a tape, or a free variable)
-     to its [MS]-bang.  After removing the unsound [TBangRef_le]
-     constructor, no rule directly concludes [ref τ ≤T ![MS](ref τ)];
-     however the [TTrans_le] (transitivity) constructor admits an
-     unconstrained intermediate type, so a direct structural / inversion
-     argument does NOT close (verified interactively: the sole remaining
-     goal of [induction] on the derivation is the transitivity case with
-     an arbitrary middle type).
+  (* [topL τ]: [τ] mentions [⊤] somewhere reachable in a component (the
+     LIBERAL "top occurs" predicate; products/sums use disjunction).  This
+     is the escape that survives the [TProd_le]/[TSum_le] congruences. *)
+  Fixpoint topL (τ : type) : Prop :=
+    match τ with
+    | TTop => True
+    | TBang _ τ => topL τ
+    | TForallT τ | TForallR τ | TForallM τ | TRec τ | TExists τ => topL τ
+    | TProd τ1 τ2 => topL τ1 ∨ topL τ2
+    | TSum τ1 τ2 => topL τ1 ∨ topL τ2
+    | _ => False
+    end.
 
-     A monotone structural invariant cannot work either: [TBot_le]
-     ([⊥ ≤T α]) and [TBangElim_le] ([![m]α ≤T α]) break upward
-     propagation of any "copyable shape" predicate, while [TTop_le]
-     ([α ≤T ⊤]) breaks downward propagation — so neither direction of a
-     [MultiP]-monotonicity lemma holds.
+  (* [toplike τ]: [τ] is "trivially full", built from [⊤] by bangs /
+     binders / BOTH components of a product or sum.  Crucially
+     [toplike τ → MultiP τ] (see [toplike_MultiP]). *)
+  Fixpoint toplike (τ : type) : Prop :=
+    match τ with
+    | TTop => True
+    | TBang _ τ => toplike τ
+    | TForallT τ | TForallR τ | TForallM τ | TRec τ | TExists τ => toplike τ
+    | TProd τ1 τ2 => toplike τ1 ∧ toplike τ2
+    | TSum τ1 τ2 => toplike τ1 ∧ toplike τ2
+    | _ => False
+    end.
 
-     The sound route is the SEMANTIC subtyping soundness
-     [le._type D α β → ⊢ interp α ≤ₜ interp β] (which would give this
-     immediately, since [le.MultiT τ] is exactly [τ ≤T ![MS]τ]); but its
-     [TArrow_le] case requires soundness of the [_row] subtyping relation
-     ([row_le_erase] / [sig_le_eff]), which is currently ADMITTED and
-     structurally broken in [sem_row.v]/[sem_sig.v] (the [sem_row_later]
-     / [iLblThy] machinery).  Discharging this inversion therefore needs
-     either (a) the row-subtyping soundness development, or (b) a
-     dedicated syntactic transitivity-elimination / coherence proof for
-     [le._type].  Both are out of scope of the present change. *)
-  Lemma le_multiT_MultiP (τ : type) : le.MultiT τ → MultiP τ.
+  (* The vmode preorder [le._mode] is a lattice with [OS] bottom and
+     [MS] top; in particular [MS ≤M OS] is NOT derivable. *)
+  Lemma le_mode_char m1 m2 :
+    le._mode m1 m2 → m1 = OS ∨ m2 = MS ∨ m1 = m2.
+  Proof.
+    intros Hm. induction Hm.
+    - by left.
+    - by right; left.
+    - destruct IHHm1 as [E1|[E1|E1]]; destruct IHHm2 as [E2|[E2|E2]];
+        subst; first [ by left | by right; left | by right; right
+                     | discriminate ].
+    - by right; right.
+  Qed.
+
+  (* [topL] is preserved forward along [le._type]. *)
+  Lemma topL_fwd D α β : le._type D α β → topL α → topL β.
+  Proof.
+    intros H. induction H; simpl; try done.
+    - auto.
+    - intros [|]; eauto.
+    - intros [|]; eauto.
+  Qed.
+
+  (* [toplike] is preserved forward along [le._type]. *)
+  Lemma toplike_fwd D α β : le._type D α β → toplike α → toplike β.
+  Proof.
+    intros H. induction H; simpl; try done; eauto.
+    all: intros [Ha Hb]; split; auto.
+  Qed.
+
+  (* A trivially-full type is copyable-shaped. *)
+  Lemma toplike_MultiP τ : toplike τ → MultiP τ.
+  Proof.
+    induction τ; simpl; try done;
+      try (intros [? ?]; split); try destruct v; eauto.
+  Qed.
+
+  (* Monotonicity of copyable-shape along [le._type] WITH the liberal-top
+     escape: if [β] is copyable-shaped then [α] is, OR [β] mentions [⊤].
+     This is the only direction that survives every rule (incl. [TBot_le],
+     [TTop_le], [TBangElim_le] and the unconstrained [TTrans_le] middle).
+     [TTop_le] is discharged by [topL ⊤]; [TProd_le]/[TSum_le] by the
+     liberal (disjunctive) [topL] on products/sums; [TTrans_le] by
+     [topL_fwd]. *)
+  Lemma le_ty_MultiP_topL D α β :
+    le._type D α β → MultiP β → MultiP α ∨ topL β.
+  Proof.
+    intros H. induction H; simpl in *; try (intros; tauto).
+    - intros HM3. destruct (IH_type2 HM3) as [HM2|Ht3].
+      + destruct (IH_type1 HM2) as [HM1|Ht2].
+        * by left.
+        * right. by eapply topL_fwd.
+      + by right.
+    - destruct m; tauto.
+    - destruct m; tauto.
+    - destruct m; tauto.
+    - destruct (le_mode_char _ _ H) as [E|[E|E]].
+      + subst m'. simpl. intros HM. apply IH_type in HM. destruct m; tauto.
+      + subst m. simpl. tauto.
+      + subst m'. destruct m; simpl; intros HM; try tauto;
+          apply IH_type in HM; tauto.
+  Qed.
+
+  (* Residual [topL] case.
+
+     STATUS: ADMITTED — the precise remaining gap.  [le_ty_MultiP_topL]
+     reduces [le.MultiT τ → MultiP τ] to: if [τ] mentions [⊤] (i.e.
+     [topL τ]) and [∅ ⊢ₗ τ ≤T ![MS]τ], then [MultiP τ].  The dangerous
+     shapes are products/sums that carry BOTH a [⊤]-component and a
+     LINEAR component (e.g. [⊤ * (TArrow …)]): there [MultiP τ] is false,
+     so one must show [∅ ⊢ₗ τ ≤T ![MS]τ] is then UNDERIVABLE.
+
+     This is a genuine bang-INTRODUCTION / coherence fact: an [MS]-bang of
+     a structurally-linear type can only be obtained via [⊤] (giving
+     [![MS]⊤], not [![MS]τ]); no rule introduces an [MS]-bang on a bare
+     product / sum / arrow / ref / tape / variable whose body is that SAME
+     type.  It is NOT provable by any monotone or escape-based invariant
+     on [le._type ∅]: copyable shape is non-monotone in both directions
+     (a product may send one component up to [⊤] while keeping a linear
+     sibling, breaking [MultiP β → MultiP α …] at [TProd_le]; dually
+     [TBot_le] inside a sum breaks the reverse), and the [TTrans_le]
+     middle is unconstrained.  Concretely, [induction] on the derivation
+     stalls on the [TTrans_le] case [α1 ≤ α2 ≤ ![MS]β] with [α2] copyable
+     and top-mentioning but not bang-headed (e.g. via [TBangTForallTComm2]
+     one has [∀T:![MS](⊤*Unit) ≤ ![MS](∀T:(⊤*Unit))]), where no induction
+     hypothesis applies.
+
+     The sound routes are (a) a syntactic transitivity-admissibility /
+     cut-elimination for [le._type] (so that [_ ≤T ![MS]_] derivations
+     expose the body's structure), or (b) the SEMANTIC subtyping
+     soundness [ty_le_sound] (which gives this immediately); the latter
+     is itself ADMITTED here, blocked on [TArrow_le] needing the
+     row-subtyping soundness [row_le_erase]/[sig_le_eff].  Both are
+     substantial separate developments, out of scope of this change. *)
+  Lemma le_multiT_MultiP_topL (τ : type) :
+    topL τ → le._type ∅ τ (TBang MS τ) → MultiP τ.
   Proof.
   Admitted.
+
+  Lemma le_multiT_MultiP (τ : type) : le.MultiT τ → MultiP τ.
+  Proof.
+    unfold le.MultiT. intros H.
+    destruct (le_ty_MultiP_topL _ _ _ H I) as [HM|Ht].
+    - exact HM.
+    - by apply le_multiT_MultiP_topL.
+  Qed.
 
   (* Soundness of [le.MultiT]: a syntactically multi type interprets to a
      semantic [MultiT].  Fully proved modulo the consistency inversion
