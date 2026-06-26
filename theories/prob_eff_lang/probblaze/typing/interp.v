@@ -1,4 +1,4 @@
-From clutch.prob_eff_lang.probblaze Require Import logic sem_sig sem_row sem_types sem_def syntax types sem_judgement.
+From clutch.prob_eff_lang.probblaze Require Import logic sem_sig sem_row sem_types sem_def syntax types sem_judgement sem_env.
 From iris.algebra Require Export list gmap.
 From Autosubst Require Import Autosubst.
 
@@ -731,6 +731,27 @@ Section interp_subst.
     NonExpansive (λ α, interp._ty (α :: η) μ δ τ ξ).
   Proof.
     intros n x y Hxy. apply ty_ne_env. intros [|i]; [done|done].
+  Qed.
+
+  (* CONTEXT weakening: a freshly-bound TYPE var does not affect the
+     interpretation of a type-shifted context [⤉Γ].  Pointwise corollary
+     of [ty_tweaken], lifted to [env_sem_typed].  Used by the [TUnpack]
+     fundamental case to cancel the [⤉Γ2]/[⤉Γ3] shifts at the extended
+     type-env [τ'::η]. *)
+  Lemma ctx_tweaken (Γ : ctx) (τ' : sem_ty Σ) (η : list (sem_ty Σ))
+    (μ : list mode) (δ : gmap eff_name (label*label))
+    (ξ : list (sem_row Σ)) (γ : gmap string (val*val)) :
+    env_sem_typed
+      ((λ '(s, α), (s, interp._ty (τ' :: η) μ δ α ξ)) <$> (⤉ Γ)) γ
+    ⊣⊢
+    env_sem_typed
+      ((λ '(s, α), (s, interp._ty η μ δ α ξ)) <$> Γ) γ.
+  Proof.
+    induction Γ as [|[s α] Γ' IH]; simpl.
+    - done.
+    - rewrite !env_sem_typed_cons. rewrite IH.
+      do 4 f_equiv. intros v2. f_equiv.
+      exact (ty_tweaken α τ' η μ δ ξ a v2).
   Qed.
 
 End interp_subst.

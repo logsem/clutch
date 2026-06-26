@@ -88,20 +88,12 @@ Proof.
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* MAbsElim_typed *)
-      (* BLOCKED by the syntactic rule statement.  In the inductive [typed],
-         this constructor is elaborated with [m : row] and result type
-         [τ.|[m/]] = ROW substitution (the default [.|[ ]] notation resolves
-         to row hsubst), even though it eliminates a MODE quantifier [∀M: τ]
-         ([TForallM], whose interp is [sem_ty_mode_forall]).  The IH therefore
-         yields [sem_ty_mode_forall (λ m0, interp._ty η (m0::μ) δ τ ξ)] while
-         [interp.row_subst_single] rewrites the goal type to a ROW
-         instantiation [interp._ty η μ δ τ (interp._row η μ δ m ξ :: ξ)];
-         these are different binders ([∀ₘ] vs a row-substituted body), so
-         neither [sem_typed_MApp] nor [sem_typed_RApp] connects them.  The
-         intended rule almost certainly meant [m : vmode] (mode substitution,
-         dischargeable by [mode_subst_single] + [sem_typed_MApp]); fixing it
-         is a TYPE-SYSTEM statement change, out of scope here. *)
-      admit.
+      iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                (interp.mode_subst_single η μ δ ξ τ m)).
+      iApply (sem_typed_MApp (λ ν, interp._ty η (ν :: μ) δ τ ξ)
+                _ (interp._mode μ m)).
+      apply fundamental in Ht. iPoseProof Ht as "Ht".
+      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TAlloc *) iApply sem_typed_alloc. apply fundamental in Ht.
       iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TLoad *) iApply sem_typed_load_expr. apply fundamental in Ht.
@@ -149,23 +141,60 @@ Proof.
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TUnpack *)
-      (* BLOCKED by the syntactic rule statement.  [sem_typed_unpack]
-         needs the body typed for ALL witnesses [τ0] at a *fixed* effect
-         and output context:
-           ∀ τ0, sem_typed ((x, C τ0) :: interp_η Γ2) e2 e2
-                   (interp_η ρ) (interp_η τ2) (interp_η Γ3).
-         The body IH must be instantiated at the extended type-env
-         [τ0 :: η] so that the rule's shifts cancel:
-           - context  [⤉Γ2] at [τ0::η]  ≡  interp_η Γ2   (ty_tweaken), ✓
-           - result   [τ2.[ren (+1)]] at [τ0::η] ≡ interp_η τ2 (ty_tweaken),✓
-         but the rule leaves the body's EFFECT [ρ] and OUTPUT [Γ3]
-         UNSHIFTED, so instantiating at [τ0::η] yields [interp_(τ0::η) ρ]
-         and [interp_(τ0::η) Γ3], which depend on [τ0] and do NOT match the
-         required fixed [interp_η ρ] / [interp_η Γ3] unless [ρ]/[Γ3] are
-         closed w.r.t. the existential var.  Closing this needs the rule to
-         shift [ρ]/[Γ3] (as it already shifts [Γ2]/[τ2]) or a freshness
-         side condition — a TYPE-SYSTEM statement change, out of scope here. *)
-      admit.
+      (* The [TUnpack] statement bug fixed in [types.v] (shifting the body's
+         effect [ρ] and output ctx [Γ3] by [ren (+1)], consistently with the
+         already-shifted [Γ2]/[τ2]) is SOUND and makes the shift-cancellation
+         go through: instantiating the body IH at the extended type-env
+         [τ0::η] and transporting along [sem_typed_sub] with the weakening
+         lemmas [interp.ctx_tweaken] (ctx), [interp.row_tweaken] (effect) and
+         [interp.ty_tweaken] (result) reconciles it with the OUTER
+         [interp_η ρ]/[interp_η Γ2]/[interp_η Γ3]/[interp_η τ2] required by
+         [sem_typed_unpack] — see the fully-proved [BNamed] body below.
+
+         TWO residual obstacles remain, BOTH separate from the shift bug and
+         each needing a FURTHER [types.v] statement change (out of the scope
+         authorised here, which is only the minimal shift fix):
+
+         (1) FRESHNESS.  [sem_typed_unpack] (compatibility.v) requires
+             [s ∉ env_dom (interp_η Γ2)] and [s ∉ env_dom (interp_η Γ3)].
+             The [TUnpack] rule carries NO freshness hypothesis on its binder
+             (unlike [Match_typed], which has [x ∉ ctx_dom Γ2/Γ3]).  This is
+             essential, not conservative: without it the body env cannot
+             round-trip ([env_sem_typed ((s,_)::Γ2) (<[s:=w]>vs)] needs
+             [Γ2 ⊨ₑ <[s:=w]>vs], which differs from the available
+             [Γ2 ⊨ₑ vs] exactly when [s ∈ Γ2]).  FIX: add
+             [s ∉ ctx_dom Γ2 → s ∉ ctx_dom Γ3 →] to [TUnpack] and discharge
+             the two goals below via [ctx_dom_env_dom].
+
+         (2) BINDER.  [TUnpack]'s [x] is a [binder]; [sem_typed_unpack] only
+             covers [BNamed].  The [BAnon] case (expr [Rec BAnon BAnon e2])
+             needs a binder-general / [BAnon] unpack compatibility lemma. *)
+      destruct x as [|s].
+      * (* BAnon: needs a [BAnon] unpack compatibility lemma — obstacle (2). *)
+        admit.
+      * (* BNamed s: shift-cancellation transport is fully proved; the two
+           [admit]s are exactly the freshness side conditions — obstacle (1). *)
+        iApply (sem_typed_unpack (λ τ0, interp._ty (τ0 :: η) μ δ τ ξ)
+                  _ _ _ _ _ s);
+          [ admit (* s ∉ env_dom (interp_η Γ2) — needs freshness in rule *)
+          | admit (* s ∉ env_dom (interp_η Γ3) — needs freshness in rule *)
+          | | ].
+        { apply fundamental in Ht1. iPoseProof Ht1 as "Ht".
+          iApply ("Ht" $! _ _ _ _ ∅ Hδ). }
+        iIntros (τ0).
+        apply fundamental in Ht2. iPoseProof Ht2 as "Ht".
+        iSpecialize ("Ht" $! (τ0 :: η) μ δ ξ ∅ Hδ).
+        iEval (cbn [ctx_insert fmap list_fmap]) in "Ht".
+        iApply (sem_typed_sub with "[][][][] Ht").
+        { rewrite /env_le /tc_opaque. iModIntro. iIntros (γ) "H".
+          rewrite !env_sem_typed_cons. iDestruct "H" as "[$ H]".
+          by rewrite ctx_tweaken. }
+        { rewrite /env_le /tc_opaque. iModIntro. iIntros (γ) "H".
+          by rewrite ctx_tweaken. }
+        { iEval (rewrite (interp.row_tweaken ρ τ0 η μ δ ξ)).
+          iApply sem_row.row_le_refl. }
+        { iEval (rewrite (interp.ty_tweaken τ2 τ0 η μ δ ξ)).
+          iApply sem_types.ty_le_refl. }
     + (* Effect_typed *) admit.
     + (* Do_typed *) admit.
     + (* DeepHandle_typed *) admit.
