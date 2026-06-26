@@ -1527,4 +1527,90 @@ Section interp_subst.
     interp._ty η μ δ α ξ ≤ₜ interp._ty η μ δ β ξ.
   Proof. intros H. iApply (ty_le_sound_open _ _ _ H). Qed.
 
+  (* ===================================================================== *)
+  (** ** Soundness of the row-substructurality judgements                  *)
+  (*      ([le._row_type] / [le._row_ctx])                                  *)
+  (*                                                                        *)
+  (*  These are the wrappers consumed by the [Pair_typed]/[TStore]/[App]    *)
+  (*  cases of [fundamental]: they turn a syntactic [ρ R⪯T τ] / [ρ R⪯C Γ]   *)
+  (*  derivation into the semantic [RowTypeSub]/[RowEnvSub] typeclasses     *)
+  (*  expected by the compatibility lemmas [sem_typed_pair_gen] etc.        *)
+
+  (* [erase_ctx] holds vacuously at the EMPTY disjointness context: the    *)
+  (* [RErase_le] premise bundle quantifies over keys [s] with              *)
+  (* [∅ !! s = Some _], which is unsatisfiable.  This is what lets us run   *)
+  (* [row_le_sound] at [∅] (the context used by [le.OnceR]/[le.MultiT]).   *)
+  Lemma erase_ctx_empty : ⊢ erase_ctx ∅.
+  Proof.
+    rewrite /erase_ctx. iIntros "!#" (s ss js ρ0 η0 μ0 ξ0 Hlk).
+    rewrite lookup_empty in Hlk. done.
+  Qed.
+
+  (* Soundness of [le.OnceR].                                               *)
+  (*                                                                        *)
+  (*  *** DOCUMENTED ADMIT — genuine type-system spec gap. ***              *)
+  (*                                                                        *)
+  (*  The semantic [OnceR ρ] (sem_row.v) is the NON-TRIVIAL one-shot        *)
+  (*  property [⊢ ¡[OS] ρ ≤ᵣ ρ] (with [¡[OS] = iThyMono], the one-shot      *)
+  (*  monotonicity wrapper).  But the SYNTACTIC [le.OnceR ρ] is defined     *)
+  (*  (types.v) as [∃ b, ∅ ⊢ₗ RFlip MS ρ ≤R ρ @ b] — note the mode is       *)
+  (*  [MS], not [OS].  Its interpretation under [row_le_sound] is           *)
+  (*  [¡[MS] (interp ρ) ≤ᵣ interp ρ], and since [¡[MS] = id] semantically   *)
+  (*  ([to_iThyIfMono MS = id]) this is the TRIVIALLY-TRUE [row_le_refl]    *)
+  (*  fact — indeed [le.OnceR ρ] holds for EVERY [ρ] via [RFlipElim_le].    *)
+  (*                                                                        *)
+  (*  Bridging from [¡[MS] ρ ≤ᵣ ρ] to the required [¡[OS] ρ ≤ᵣ ρ] would     *)
+  (*  need [¡[OS] ρ ≤ᵣ ¡[MS] ρ], i.e. [row_le_mfbang_comp OS MS] applied    *)
+  (*  with [MS ≤ₘ OS] — but the mode order only has [OS ≤ₘ m] and           *)
+  (*  [m ≤ₘ MS], so [MS ≤ₘ OS] is FALSE.  Hence this implication is         *)
+  (*  unprovable: the syntactic [le.OnceR] is semantically vacuous and      *)
+  (*  cannot entail the genuine semantic [OnceR].  The fix is a spec edit   *)
+  (*  ([le.OnceR] should use [RFlip OS]); that is outside the authorized    *)
+  (*  statement changes for this task, so it is surfaced here.              *)
+  (*                                                                        *)
+  (*  NB: this only affects the [Once_le] CONSTRUCTOR of [le._row_type].    *)
+  (*  The [Multi_le] constructor (and hence every use that goes through a   *)
+  (*  multi type, including the proofs of [Pair_typed]/[TStore] below when  *)
+  (*  the supplied premise is [Multi_le]) is fully sound and proved.        *)
+  Lemma once_row_sound (ρ : row) :
+    le.OnceR ρ → ∀ η μ ξ, OnceR (interp._row η μ δ ρ ξ).
+  Proof.
+    intros [b0 Hle] η0 μ0 ξ0. constructor.
+    (* Goal: [⊢ ¡[OS] (interp ρ) ≤ᵣ interp ρ].  From [row_le_sound] +
+       [erase_ctx_empty] we only get the trivial [¡[MS] (interp ρ) ≤ᵣ
+       interp ρ]; the [OS] flip is unreachable (see header). *)
+  Admitted.
+
+  (* Soundness of [le._row_type]: turns [ρ R⪯T τ] into the semantic         *)
+  (* [RowTypeSub] typeclass.  The [Multi_le] case is fully proved (via      *)
+  (* [multi_ty_sound] + the existing [row_type_sub_multi_ty] instance); the *)
+  (* [Once_le] case is sound modulo [once_row_sound] above. *)
+  Lemma row_type_sub_sound (ρ : row) (τ : type) :
+    ρ R⪯T τ → ∀ η μ ξ,
+      RowTypeSub (interp._row η μ δ ρ ξ) (interp._ty η μ δ τ ξ).
+  Proof.
+    intros Hsub η0 μ0 ξ0. destruct Hsub as [ρ' τ' Honce | ρ' τ' Hmulti].
+    - apply row_type_sub_once.
+      by apply (once_row_sound _ Honce).
+    - pose proof (multi_ty_sound _ Hmulti η0 μ0 δ ξ0) as Hm.
+      by apply row_type_sub_multi_ty.
+  Qed.
+
+  (* Soundness of [le._row_ctx]: turns [ρ R⪯C Γ] into the semantic          *)
+  (* [RowEnvSub] typeclass.  Mirrors [mode_env_sound]: induction on the     *)
+  (* derivation, [Nil] via [row_env_sub_nil], [Cons] via [row_env_sub_cons] *)
+  (* fed by [row_type_sub_sound].  The [BAnon] binder leaves [Γ] unchanged. *)
+  Lemma row_env_sub_sound (ρ : row) (Γ : ctx) :
+    ρ R⪯C Γ → ∀ η μ ξ,
+      RowEnvSub (interp._row η μ δ ρ ξ) (interp_env η μ δ ξ Γ).
+  Proof.
+    intros Hsub η0 μ0 ξ0.
+    induction Hsub as [ρ'|ρ' x τ Γ' Hτ HΓ' IH]; simpl.
+    - apply row_env_sub_nil.
+    - destruct x as [|s]; simpl.
+      + apply IH.
+      + apply row_env_sub_cons; first apply IH.
+        by apply (row_type_sub_sound _ _ Hτ).
+  Qed.
+
 End interp_subst.

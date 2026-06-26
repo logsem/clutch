@@ -41,9 +41,14 @@ Proof.
     + (* Val_typed *) iApply sem_typed_val; by iApply fundamental_val.
     + (* Pure_typed *) rewrite fmap_app. iApply sem_typed_oval.
       by iApply fundamental_pure.
-    + (* Pair_typed *) iApply sem_typed_pair_gen ;
-        (* waiting for syntactic rule for sem_row.RowTypeSub *)
-        [admit|apply fundamental in Ht1 as Ht|apply fundamental in Ht2 as Ht];
+    + (* Pair_typed *)
+      (* The new [ρ R⪯T τ2] premise supplies the [RowTypeSub] typeclass
+         argument of [sem_typed_pair_gen] via [row_type_sub_sound]. *)
+      match goal with Hrt : _ R⪯T _ |- _ =>
+        pose proof (interp.row_type_sub_sound δ _ _ Hrt η μ ξ) as Hrts
+      end.
+      iApply sem_typed_pair_gen;
+        [apply fundamental in Ht1 as Ht|apply fundamental in Ht2 as Ht];
         iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* Fst_typed *) iApply sem_typed_fst_expr. apply fundamental in Ht.
       iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
@@ -98,7 +103,17 @@ Proof.
       iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TLoad *) iApply sem_typed_load_expr. apply fundamental in Ht.
       iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
-    + (* TStore *) admit.
+    + (* TStore *)
+      (* Linear-reference store.  The new [ρ R⪯T τ] premise supplies the
+         [RowTypeSub] typeclass argument of [sem_typed_store_expr] (which
+         carries the stored value across the ref subexpression's effects)
+         via [row_type_sub_sound]. *)
+      match goal with Hrt : _ R⪯T _ |- _ =>
+        pose proof (interp.row_type_sub_sound δ _ _ Hrt η μ ξ) as Hrts
+      end.
+      iApply sem_typed_store_expr;
+        [apply fundamental in Ht2 as Ht|apply fundamental in Ht1 as Ht];
+        iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TAllocTape *) iApply sem_typed_alloctape. apply fundamental in Ht.
       iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TRand *)

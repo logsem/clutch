@@ -1211,6 +1211,36 @@ Section compatibility.
     iIntros. by iFrame.
   Qed.
 
+  (* Expression-level Store rule for a LINEAR reference ([sem_ty_ref], the
+     interpretation of the syntactic [ref τ]), as opposed to the copyable
+     [Refᶜ] of [sem_typed_store_cpy_gen].  The stored value is carried
+     across the reference subexpression's effects via [row_type_sub]
+     (whence the [ρ ᵣ⪯ₜ τ] side condition), and the actual write is a
+     direct [brel_store_l]/[brel_store_r] on the linear points-to (no
+     invariant, mirroring [sem_typed_load_expr]). *)
+  Lemma sem_typed_store_expr τ ρ Γ1 Γ2 Γ3 e1 e1' e2 e2'
+    `{ ρ ᵣ⪯ₜ τ} :
+    ⊢ sem_typed Γ2 e1 e1' ρ (Ref τ) Γ3 -∗
+    sem_typed Γ1 e2 e2' ρ τ Γ2 -∗
+    sem_typed Γ1 (e1 <- e2) (e1' <- e2') ρ 𝟙 Γ3.
+  Proof.
+    iIntros "#He1 #He2 %γ !# /= HΓ1 /=".
+    iApply (brel_bind [StoreRCtx _] [StoreRCtx _]);
+      [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He2".
+    iIntros "!# % % (Hτ & HΓ2) //=".
+    iApply (brel_bind [StoreLCtx _] [StoreLCtx _]);
+      [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ2 Hτ]").
+    { iApply (brel_mono_on_prop with "[][Hτ]");
+        [iApply row_type_sub|iApply "Hτ"|]. by iApply "He1". }
+    iIntros "!# % % (((%l1 & %l2 & -> & -> & (%w1 & %w2 & Hl1 & Hl2 & _))
+                       & HΓ3) & Hτ) //=".
+    iApply (brel_store_l with "Hl1"). iIntros "!> Hl1".
+    iApply (brel_store_r with "Hl2"). iIntros "Hl2".
+    iApply brel_value. iIntros. by iFrame.
+  Qed.
+
   (* TODO: add specialized store rules *)
 
   (* TODO: for now we don't have a replace construct in the language *)
