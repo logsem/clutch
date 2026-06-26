@@ -320,42 +320,30 @@ Proof.
       { iEval (rewrite (interp.ty_tweaken τ2 τ0 η μ δ ξ)).
         iApply sem_types.ty_le_refl. }
     + (* Effect_typed *)
-      (* BLOCKED — model/statement gap, NOT a missing compatibility lemma.
-         Goal: interp Γ1 ⊨ (Effect s e) ≤ (Effect s e) : interp ρ : interp τ
-         ⫤ interp Γ2.  [Effect s e] reduces (head_step, semantics.v:1297) to
-         [lbl_subst s l e] for a fresh label [l]; the generalised effect
-         compatibility lemma (sem_typed_effect, with arbitrary binder [s] and
-         Γ1≠Γ2) therefore needs the hypothesis
-           ∀ l1 l2, sem_typed (interp Γ1) (lbl_subst s l1 e)(lbl_subst s l2 e)
-                      (sem_row_cons (sem_sig_bottom l1 l2) (interp ρ))
-                      (interp τ) (interp Γ2).
-         The head signature aligns DEFINITIONALLY: with δ':=<[s:=(l1,l2)]>δ,
-           interp._eff_sig η μ δ' (SAbs s) ξ
-             = sem_sig_bottom (δ'!!!s).1 (δ'!!!s).2
-         (reflexivity: SAbs s := SSig s TBot TTop, interp TBot/TTop = ⊥/⊤ =
-         sem_sig_bottom's False/True args).  The fresh side condition
-         [vars._fresh s Γ1 ρ τ] makes interp of Γ1/ρ/τ δ-irrelevant at [s], so
-         a δ-irrelevance lemma reconciles the indices.  THE WALL: the only way
-         to obtain the [lbl_subst s l1 e] hypothesis is the recursion
-         [fundamental Ht] at δ', but it yields [sem_typed ... e e ...] with the
-         RAW body [e] (Δ-bound name [s], i.e. [Do (EffName s) …] occurrences),
-         NOT the label-substituted [lbl_subst s l1 e].  [sem_typed] (and the
-         fundamental statement [bin_log_related], interp.v:80) relate the
-         expression LITERALLY (only [subst_map] of value vars; no δ-driven
-         [lbl_subst]); [Do (EffName _)] is irreducible (head_step = dzero,
-         semantics.v:1334, listed stuck at 85/177) so [obs_refines]'s left-hand
-         [WP (Do (EffName s) v) {{…}}] is unprovable and the SSig/SAbs protocol
-         theory ([iLblSig_to_iLblThy], sem_sig_eff expects [do: (EffLabel _) v])
-         cannot fire on it either.  Hence the IH hypothesis is the wrong
-         expression and is itself unprovable for any [e] that performs the
-         effect — the same wall recurses through the Do_typed case below.
-         FIX needs a model/statement change (out of task scope, off-limits):
-         either [bin_log_related]/[sem_typed] must apply a δ-driven label
-         substitution to the related expression (resolve every [EffName s],
-         s∈dom δ, to [EffLabel (δ!!!s)]) before the BREL, or the interp of
-         [Do]/[Effect]/[Handle] must be label-resolved.  No add-only lemma
-         bridges [Do (EffName s)] and [Do (EffLabel l)] at the BREL level
-         because they have genuinely different operational behaviour. *)
+      (* PARTIALLY MECHANISED — reduces to [sem_typed] row/env congruence.
+         The δ-resolved goal is [effect s (lbl_resolve_l e)] / [effect s
+         (lbl_resolve_r e)].  Routing via the binder-general
+         [sem_typed_effect_gen] and threading the IH at [δ' := <[s:=(l1,l2)]>δ]
+         (using [lbl_resolve_insert_subst] + [resolve_map_insert] to align the
+         body, and [dom (<[s]>Δ) ⊆ dom δ'] for the precondition) leaves a goal
+         whose ONLY gap is reconciling the IH's δ'-interpretations with the
+         goal's δ-interpretations:
+           - result type [interp τ]:  [interp.ty_delta_irrel] (s∉τ), via the
+             existing [sem_typed_type_cong];
+           - effect row head [interp (SAbs s) = sem_sig_bottom l1 l2]:
+             DEFINITIONAL (SAbs s := SSig s TBot TTop, [δ'!!!s = (l1,l2)]);
+           - tail row [interp ρ]:  [interp.row_delta_irrel] (s∉ρ);
+           - contexts [interp Γ1]/[interp Γ2]:  pointwise δ-irrelevant
+             ([interp.ctx_elem_delta_irrel], s∉Γ1; Γ2 needs s∉Γ2, not in
+             [vars._fresh]).
+         The reconciliation needs two NOT-YET-AVAILABLE [sem_typed]
+         congruence lemmas: a ROW congruence ([ρ ≡ ρ' ⊢ sem_typed .. ρ' .. -∗
+         sem_typed .. ρ ..]) and an ENVIRONMENT congruence (sem_typed respects
+         the set-/membership-based env [≡] in both [Γ1] and [Γ2]).  All other
+         pieces (sem_typed_effect_gen, lbl_resolve_insert_subst,
+         resolve_map_insert, the δ-irrelevance lemmas) are PROVEN.  Deferred:
+         add [sem_typed_row_cong] + [sem_typed_env_cong] (+ possibly an
+         [s ∉ vars._ctx Γ2] premise on [Effect_typed]). *)
       admit.
     + (* Do_typed *)
       (* With [bin_log_related] now relating the δ-resolved expression, the
