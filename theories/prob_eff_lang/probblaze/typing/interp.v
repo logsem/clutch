@@ -124,6 +124,12 @@ Proof.
   by rewrite (not_elem_of_dom_1 _ _ Hs).
 Qed.
 
+(* Keep [resolve_map] from unfolding to [map_imap] during unification: the
+   semantic-typing cases only need it via the lemmas above, and unfolding it
+   eagerly under [lbl_resolve] makes [iApply] of the compatibility lemmas
+   blow up. *)
+Global Opaque resolve_map.
+
 Notation "⟦ Γ ⟧*" := (env_sem_typed Γ).
 
 (** * The semantic typing judgement *)

@@ -967,6 +967,92 @@ Proof.
     + cbn [lbl_subst]. by rewrite IHe1 IHe2 IHe3.
 Qed.
 
+(* Push-through equations for [lbl_resolve].  Used as [rewrite] rules in the
+   fundamental lemma so the compatibility lemmas can fire without forcing
+   reduction of the (large, 30-branch) [lbl_resolve] fixpoint during
+   unification -- [lbl_resolve] is made [simpl never] / [Opaque] below. *)
+Section lbl_resolve_eqns.
+  Implicit Types (m : gmap string label).
+
+  Lemma lbl_resolve_val m v : lbl_resolve m (Val v) = Val v.
+  Proof. done. Qed.
+  Lemma lbl_resolve_var m x : lbl_resolve m (Var x) = Var x.
+  Proof. done. Qed.
+  Lemma lbl_resolve_rec m f y e :
+    lbl_resolve m (Rec f y e) = Rec f y (lbl_resolve m e).
+  Proof. done. Qed.
+  Lemma lbl_resolve_app m e1 e2 :
+    lbl_resolve m (App e1 e2) = App (lbl_resolve m e1) (lbl_resolve m e2).
+  Proof. done. Qed.
+  Lemma lbl_resolve_unop m op e :
+    lbl_resolve m (UnOp op e) = UnOp op (lbl_resolve m e).
+  Proof. done. Qed.
+  Lemma lbl_resolve_binop m op e1 e2 :
+    lbl_resolve m (BinOp op e1 e2)
+    = BinOp op (lbl_resolve m e1) (lbl_resolve m e2).
+  Proof. done. Qed.
+  Lemma lbl_resolve_if m e0 e1 e2 :
+    lbl_resolve m (If e0 e1 e2)
+    = If (lbl_resolve m e0) (lbl_resolve m e1) (lbl_resolve m e2).
+  Proof. done. Qed.
+  Lemma lbl_resolve_pair m e1 e2 :
+    lbl_resolve m (Pair e1 e2) = Pair (lbl_resolve m e1) (lbl_resolve m e2).
+  Proof. done. Qed.
+  Lemma lbl_resolve_fst m e : lbl_resolve m (Fst e) = Fst (lbl_resolve m e).
+  Proof. done. Qed.
+  Lemma lbl_resolve_snd m e : lbl_resolve m (Snd e) = Snd (lbl_resolve m e).
+  Proof. done. Qed.
+  Lemma lbl_resolve_injl m e : lbl_resolve m (InjL e) = InjL (lbl_resolve m e).
+  Proof. done. Qed.
+  Lemma lbl_resolve_injr m e : lbl_resolve m (InjR e) = InjR (lbl_resolve m e).
+  Proof. done. Qed.
+  Lemma lbl_resolve_case m e0 e1 e2 :
+    lbl_resolve m (Case e0 e1 e2)
+    = Case (lbl_resolve m e0) (lbl_resolve m e1) (lbl_resolve m e2).
+  Proof. done. Qed.
+  Lemma lbl_resolve_allocn m e1 e2 :
+    lbl_resolve m (AllocN e1 e2)
+    = AllocN (lbl_resolve m e1) (lbl_resolve m e2).
+  Proof. done. Qed.
+  Lemma lbl_resolve_load m e : lbl_resolve m (Load e) = Load (lbl_resolve m e).
+  Proof. done. Qed.
+  Lemma lbl_resolve_store m e1 e2 :
+    lbl_resolve m (Store e1 e2)
+    = Store (lbl_resolve m e1) (lbl_resolve m e2).
+  Proof. done. Qed.
+  Lemma lbl_resolve_alloctape m e :
+    lbl_resolve m (AllocTape e) = AllocTape (lbl_resolve m e).
+  Proof. done. Qed.
+  Lemma lbl_resolve_rand m e1 e2 :
+    lbl_resolve m (Rand e1 e2) = Rand (lbl_resolve m e1) (lbl_resolve m e2).
+  Proof. done. Qed.
+  Lemma lbl_resolve_effect m s e :
+    lbl_resolve m (Effect s e) = Effect s (lbl_resolve (delete s m) e).
+  Proof. done. Qed.
+  Lemma lbl_resolve_do_name m s e :
+    lbl_resolve m (Do (EffName s) e)
+    = Do (match m !! s with Some l => EffLabel l | None => EffName s end)
+         (lbl_resolve m e).
+  Proof. done. Qed.
+  Lemma lbl_resolve_do_label m l e :
+    lbl_resolve m (Do (EffLabel l) e) = Do (EffLabel l) (lbl_resolve m e).
+  Proof. done. Qed.
+  Lemma lbl_resolve_handle_name m hs md s e1 e2 e3 :
+    lbl_resolve m (Handle hs md (EffName s) e1 e2 e3)
+    = Handle hs md
+        (match m !! s with Some l => EffLabel l | None => EffName s end)
+        (lbl_resolve m e1) (lbl_resolve m e2) (lbl_resolve m e3).
+  Proof. done. Qed.
+  Lemma lbl_resolve_handle_label m hs md l e1 e2 e3 :
+    lbl_resolve m (Handle hs md (EffLabel l) e1 e2 e3)
+    = Handle hs md (EffLabel l)
+        (lbl_resolve m e1) (lbl_resolve m e2) (lbl_resolve m e3).
+  Proof. done. Qed.
+End lbl_resolve_eqns.
+
+Arguments lbl_resolve : simpl never.
+Global Opaque lbl_resolve.
+
 (* -------------------------------------------------------------------------- *)
 (** Unboxed values. *)
 
