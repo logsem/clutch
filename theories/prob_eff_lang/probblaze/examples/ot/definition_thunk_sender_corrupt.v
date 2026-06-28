@@ -26,7 +26,9 @@ Section implementation.
   Definition SendV (v : val) := InjLV v.
   Definition RecvV (v : val) := InjRV v.
   Definition bob := InjLV #()%V.
+  Definition bobp := InjL.
   Definition alice := InjRV #()%V.
+  Definition alicep := InjR.
 
   Definition Protocol_Done (eff : eff_val) (e : expr) : expr :=
     handle: e with effect eff "x", rec "k" => "k" NONE | return "y" => "y" end.
@@ -48,7 +50,7 @@ Section implementation.
       let, ("doSend", "doRecv", "doCRS") := "effs" in
       effect "ideal"
         let: "doReceiver" := (λ: "b", do: "ideal" (InjL "b")) in
-        handle: "f" "doReceiver" with
+        handle: "f" ("doCRS", "doReceiver") with
     | effect "ideal" "b", "k" =>
         match: "b" with
         | InjR "b" => "k" NONE
@@ -58,8 +60,8 @@ Section implementation.
             let: "x" := sample #()%V in
             let, ("gb", "hb") := if: "b" then ("g0", "h0") else ("g1", "h1") in
             let: "uv" := ("gb"^"x", "hb"^"x") in
-            ("doSend" ("uv", bob));;
-            let: "r" := ("doRecv" bob) in
+            ("doSend" ("uv"));;
+            let: "r" := ("doRecv" #()%V) in
             match: "r" with
               NONE => Protocol_Done "ideal" ("k" NONE)
             | SOME "cd" =>
@@ -111,8 +113,8 @@ Section implementation.
           let: "α1" := sample #()%V in
           let: "α0" := "α1" * "y" in
           let: "uv" := ("g0"^"α0", "h0"^"α0") in
-          ("doSend" ("uv", bob));; 
-          let: "r" := ("doRecv" bob) in
+          ("doSend" ("uv"));; 
+          let: "r" := ("doRecv" #()%V) in
           match: "r" with 
           | NONE => "k" NONEV
           | SOME "mm" => 
@@ -137,7 +139,7 @@ Section implementation.
       effect "CRS" 
       let: "doCRS" := (λ: <>, do: "CRS" #()%V) in
       let: "mh" := mut_handler idealhandler (simhandler "y" "crs" "doSend" "doRecv") in
-      handle: "mh" (λ: "doReceiver", "f" ("effs", "doCRS", "doReceiver")) with
+      handle: "mh" (λ: "doReceiver", "f" ("doCRS", "doReceiver")) with
       | effect "CRS" "x", rec "k" => "k" "crs"
       | return "y" => "y" end. 
       
