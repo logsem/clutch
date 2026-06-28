@@ -29,7 +29,7 @@ Section implementation.
   Definition alice := InjRV #()%V.
 
   Definition Protocol_Done (eff : eff_val) (e : expr) : expr :=
-    handle: e with effect eff "x", rec "k" => "k" #()%V | return "y" => "y" end.
+    handle: e with effect eff "x", rec "k" => "k" NONE | return "y" => "y" end.
 
   (* This is wrapped around the protocol like F_AUTH and provides the ideal functionality of a crs *)
   Definition F_CRS : val :=
@@ -48,7 +48,7 @@ Section implementation.
       let, ("doSend", "doRecv", "doCRS") := "effs" in
       effect "ideal"
         let: "doReceiver" := (λ: "b", do: "ideal" (InjL "b")) in
-        handle: "f" ("effs", "doReceiver") with
+        handle: "f" "doReceiver" with
     | effect "ideal" "b", "k" =>
         match: "b" with
         | InjR "b" => "k" NONE

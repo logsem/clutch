@@ -43,26 +43,29 @@ Section implementation.
                                                                                             
   (* Assumes an authenticated channel *)
   Definition OT_Real_Receiver_Corrupted : val :=
-    (λ: "f" <>, 
-    handle: "f" #()%V  with
-    | effect Sender "mm", "k" =>
-        let, ("h1", "h0", "g1", "g0") := (do: CRS #()%V) in
-        let, ("m0", "m1") := "mm" in
-        let: "r" := (do: channel (Recv alice)) in
-        match: "r" with
-          SOME "uv" =>
-            let, ("u", "v") := "uv" in
-            if: veq "u" vunit then Protocol_Done Sender ("k" #()%V) else 
-              let: "pk0" := ("g0", "h0", "u", "v") in
-              let: "pk1" := ("g1", "h1", "u", "v") in
-              let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
-              let: "e0" := enc "pk0" "m0" "r0" "s0" in
-              let: "e1" := enc "pk1" "m1" "r1" "s1" in
-              (do: channel (Send (("e0", "e1"), alice)));;
-             Protocol_Done Sender ("k" #()%V)
-        | NONE => Protocol_Done Sender ("k" #()%V)
-        end
-    | return "y" => "y" end).
+    (λ: "f" "chan",
+       let, ("doRecv", "doSend") := "chan" in
+       effect "sender" 
+       let: "doSender" := (λ: "mm", do: "sender" "mm") in
+       handle: "f" "doSender"  with
+       | effect "sender" "mm", "k" =>
+           let, ("h1", "h0", "g1", "g0") := (do: CRS #()%V) in
+           let, ("m0", "m1") := "mm" in
+           let: "r" := "doRecv" alice in
+           match: "r" with
+             SOME "uv" =>
+               let, ("u", "v") := "uv" in
+               if: veq "u" vunit then Protocol_Done Sender ("k" #()%V) else 
+                 let: "pk0" := ("g0", "h0", "u", "v") in
+                 let: "pk1" := ("g1", "h1", "u", "v") in
+                 let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
+                 let: "e0" := enc "pk0" "m0" "r0" "s0" in
+                 let: "e1" := enc "pk1" "m1" "r1" "s1" in
+                 "doSend" (("e0","e1"), alice);;
+                 Protocol_Done Sender ("k" #()%V)
+           | NONE => Protocol_Done Sender ("k" #()%V)
+           end
+       | return "y" => "y" end).
   
 
   Definition store_if_none : val := λ: "l" "m", match: !"l" with
@@ -71,24 +74,31 @@ Section implementation.
                                                  end.
 
   (* the functionality is setup with two locations apriori *)
-  Definition F_OT (message0 message1 : locations.loc) : val :=
-    (λ: "f", 
-        handle: handle: "f" #()%V with
-        | effect Sender "mm", "k" => let, ("m0", "m1") := "mm" in (store_if_none #message0 "m0");; (store_if_none #message1 "m1");; 
-                                                                  (do: Leak bob);; Protocol_Done Sender ("k" #()%V)
-        | return "y" => "y" end with
-        | effect Receiver "b", "k" => (do: Leak alice);; "k" (if: "b" then !#message0 else !#message1)
-        | return "y" => "y" end).
+  Definition F_OT (message0 message1 : locations.loc) : expr :=
+    effect "sender"
+      effect "receiver"
+      let: "doSender" := (λ: "mm", do: "sender" "mm") in
+      let: "doReceiver" := (λ: "b", do: "receiver" "b") in
+      λ: "f" "doLeak", 
+      handle: handle: "f" ("doReceiver", "doSender") with
+      | effect "sender" "mm", "k" => let, ("m0", "m1") := "mm" in (store_if_none #message0 "m0");; (store_if_none #message1 "m1");; 
+                                                                  ("doLeak" bob);; Protocol_Done Sender ("k" #()%V)
+      | return "y" => "y" end with
+      | effect "receiver" "b", "k" => ("doLeak" alice);; "k" (if: "b" then !#message0 else !#message1)
+      | return "y" => "y" end.
 
-  Definition OT_SIM_logic : val :=
-    (λ: "g0" "g1" "t0" "t1" "h0" "h1" "mhandler" "f",
-       
-      handle: "f" #()%V with
-        | effect Leak "x", "k" => "mhandler"
-          (λ: <>, (λ: "x" "k" , 
+  Definition OT_SIM_logic : expr :=
+    effect "leak" 
+      let: "doLeak" := (λ: "p", do: "leak" "p") in
+
+      λ: "g0" "g1" "t0" "t1" "h0" "h1" "mhandler" "f" "effs",
+      let, ("doSend", "doRecv", "doReceiver") := "effs" in
+      handle: "f" "doLeak" with
+      | effect "leak" "x", "k" => "mhandler"
+           (λ: <>, (λ: "x" "k" , 
             match: "x" with
             | InjL <> => 
-                let: "r" := (do: channel (Recv alice)) in
+                let: "r" := "doRecv" alice in
                 match: "r" with
                 | NONE => "k" NONEV
                 | SOME "uv" => let, ("u","v") := "uv" in
@@ -96,7 +106,7 @@ Section implementation.
                                  (* in paper: if v = u^t0 then true else if v = u^t1 then false else false *)
                                  let: "td" :=  if: veq "v" ("u" ^ "t0") then #true else #false in
                                  (* handle the other leakage -- this is not too pretty *)
-                                 let: "mb" := (do: Receiver "td") in
+                                 let: "mb" := "doReceiver" "td" in
                                  let: "mb" := match: "mb" with
                                               | NONE => "k" #()%V
                                               | SOME "m" => "m"
@@ -108,13 +118,22 @@ Section implementation.
                                  let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
                                  let: "e0" := enc "pk0" "m0" "r0" "s0" in
                                  let: "e1" := enc "pk1" "m1" "r1" "s1" in
-                                 (do: channel (Send (("e0", "e1"), alice)));;
+                                 ("doSend" (("e0", "e1"), alice));;
                                  "k" #()%V
                 end
             | InjR <> => "k" #()%V
             end) "x" "k")
     | return "y" => "y"
-     end).
+     end.
+
+  Definition mut_handler_constructor : val :=
+    λ: "h1" "h2",
+      
+      rec: "mhandler" "f" :=
+      (* instantiate the first handler-branch with the mutually recursive handler *)
+      let: "mh1" := "h1" "mhandler" in 
+      (* handle: handle: f with ... with ... *)
+      "mh1" (λ: <>, "h2" "f").
 
   Definition OT_SIM : val := 
     (λ: "FOT" "f", 
@@ -126,8 +145,10 @@ Section implementation.
     let: "crs" := ("h1", "h0", "g1", "g0") in
     
     let: "mh" := mut_handler_constructor (OT_SIM_logic "g0" "g1" "t0" "t1" "h0" "h1") "FOT" in 
-    handle: "mh" "f" with
-    | effect CRS "x", rec "k" => "k" "crs"
+    effect "crs" 
+    let: "doCRS" := (λ: <>, do: "crs" #()%V) in
+    handle: "mh" "f" "doCRS" with
+    | effect "crs" "x", rec "k" => "k" "crs"
     | return "y" => "y" end). 
 
   Definition OT_SIM_FOT message0 message1 : val :=
