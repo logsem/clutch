@@ -85,12 +85,12 @@ Notation "'PREL' e1 ≤ e2 '[{' v1 ; v2 , Φ '}]'" := (prel e1%E e2%E (λ v1 v2,
                                                    (at level 20, v1 ident, v2 ident, e1, e2, Φ at next level) : bi_scope.
 Lemma pure_step_eq (e : expr) e1 e2 : pure_step e e1 → pure_step e e2 → e1 = e2.
 Proof.
-  intros He1 He2.
-  inversion He1. inversion He2.
-  simpl in *.
-  eapply det_step_is_unique.
-Admitted.
-
+ intros [_ Hdet1] [_ Hdet2].
+  specialize (Hdet1 inhabitant). specialize (Hdet2 inhabitant).
+  assert (prim_step e inhabitant (e2, inhabitant) > 0)%R as Hpos.
+  { rewrite Hdet2. lra. }
+  pose proof (pmf_1_supp_eq _ _ _ Hdet1 Hpos) as Heq. by simplify_eq.
+Qed.
 
 Lemma brel_step_r e1 e2 Φ :
   (∀ e2', ⌜pure_step e2 e2'⌝ -∗ brel ⊤ e1 e2' ⊥ Φ) -∗ brel ⊤ e1 e2 ⊥ Φ.

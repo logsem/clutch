@@ -27,7 +27,7 @@ Section compatibility.
      iIntros "#Hv". 
      rewrite /sem_oval_typed /sem_val_typed /=.
      iIntros (?) "!> H /=". 
-     by rewrite /prel /=.
+     by rewrite prel_unfold /=.
    Qed.
 
   Lemma sem_typed_oval τ Γ1 Γ2 e1 e2 :
@@ -384,19 +384,32 @@ Section compatibility.
     sem_oval_typed Γ1 (λ: x, e1) (λ: x, e2) (τ -{ ρ }-∘ κ).
   Proof.
     iIntros (?) "#He !# %γ HΓ1 //=".
-    rewrite /prel /=. iExists _,_,1%nat,1%nat.
-    iSplit.
-    - iPureIntro. repeat split.
-      all: by apply pure_recc.
-    - rewrite /sem_ty_arr /=. 
-      iIntros (??) "Hτ".
-      iApply brel_pure_step_r; first done. 
-      iApply brel_pure_step_later; first done; iModIntro. simpl.
-      rewrite -!subst_map_binder_insert.
-      assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (-> & ->) by done.
-      rewrite -!binder_insert_fmap /=.
-      iApply (brel_wand with "[HΓ1 Hτ]"); [iApply "He"| iIntros "!# % % [$ _] //="].
-      destruct x; solve_env.
+    rewrite prel_unfold /=.
+    iIntros (v1 Hv1).
+    assert (pure_step (λ: x, subst_map (binder_delete x (fst <$> γ)) e1) (λ: x, subst_map (binder_delete x (fst <$> γ)) e1)%V).
+    { apply nsteps_once_inv. by apply pure_exec. }
+    assert (v1 = (λ: x, subst_map (binder_delete x (fst <$> γ)) e1)%V) as -> by by eapply pure_step_eq.
+    rewrite prel_unfold /=.
+    iIntros (v2 Hv2).
+    assert (pure_step (λ: x, subst_map (binder_delete x (snd <$> γ)) e2) (λ: x, subst_map (binder_delete x (snd <$> γ)) e2)%V).
+    { apply nsteps_once_inv. by apply pure_exec. }
+    assert (v2 = (λ: x, subst_map (binder_delete x (snd <$> γ)) e2)%V) as -> by by eapply pure_step_eq.
+    rewrite prel_unfold /=.
+
+    (* rewrite /prel /=. iExists _,_,1%nat,1%nat.
+       iSplit.
+       - iPureIntro. repeat split.
+         all: by apply pure_recc.
+       - *) 
+    rewrite /sem_ty_arr /=. 
+    iIntros (??) "Hτ".
+    iApply brel_pure_step_r; first done. 
+    iApply brel_pure_step_later; first done; iModIntro. simpl.
+    rewrite -!subst_map_binder_insert.
+    assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (-> & ->) by done.
+    rewrite -!binder_insert_fmap /=.
+    iApply (brel_wand with "[HΓ1 Hτ]"); [iApply "He"| iIntros "!# % % [$ _] //="].
+    destruct x; solve_env.
   Qed. 
 
   (* Corollary sem_typed_afun τ ρ Γ₁ Γ₂ x e κ: 
@@ -414,8 +427,19 @@ Section compatibility.
        sem_oval_typed Γ1 (rec: f x := e1) (rec: f x := e2) (τ -{ ρ }-> κ).
      Proof.
        iIntros (???) "#He !# %γ #HΓ1 //=".
-       rewrite /prel /=. iExists _,_,1%nat,1%nat.
-       iSplit; first (iPureIntro; repeat split; by apply pure_recc).
+       (* iExists _,_,1%nat,1%nat.
+          iSplit; first (iPureIntro; repeat split; by apply pure_recc). *)
+       rewrite prel_unfold /=.
+       iIntros (v1 Hv1).
+       assert (pure_step (rec: f x := subst_map (binder_delete x (binder_delete f (fst <$> γ))) e1) (rec: f x := subst_map (binder_delete x (binder_delete f (fst <$> γ))) e1)%V).
+       { apply nsteps_once_inv. by apply pure_exec. }
+       assert (v1 = (rec: f x := subst_map (binder_delete x (binder_delete f (fst <$> γ))) e1)%V) as -> by by eapply pure_step_eq.
+       rewrite prel_unfold /=.
+       iIntros (v2 Hv2).
+       assert (pure_step (rec: f x := subst_map (binder_delete x (binder_delete f (snd <$> γ))) e2) (rec: f x := subst_map (binder_delete x (binder_delete f (snd <$> γ))) e2)%V).
+       { apply nsteps_once_inv. by apply pure_exec. }
+       assert (v2 = (rec: f x := subst_map (binder_delete x (binder_delete f (snd <$> γ))) e2)%V) as -> by by eapply pure_step_eq.
+       rewrite prel_unfold /=.
        iLöb as "IH". rewrite /sem_ty_mbang /sem_ty_arr /=.
        iIntros "!# % % Hτ".
        iApply brel_pure_step_r; first done.
@@ -446,7 +470,7 @@ Section compatibility.
          iApply (brel_wand with "[Hτ]"); [iApply "He"|iIntros (??) "!# ($ &_)"].
          solve_env.
          by do 2 (rewrite -env_sem_typed_insert; last done).
-     Qed.          
+     Qed.
 
    (*  Corollary sem_typed_ufun τ ρ κ Γ₁ Γ₂ f x e `{! MultiE Γ₁ }:
        x ∉ (env_dom Γ₁) → f ∉ (env_dom Γ₁) → 
