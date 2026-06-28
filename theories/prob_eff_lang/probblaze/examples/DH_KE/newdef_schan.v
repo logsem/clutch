@@ -61,10 +61,7 @@ Section schannel.
 
   Definition G_XOR : val :=
     λ: "a" "b",
-      match: vg_of_int (xor (int_of_vg "a") (int_of_vg "b")) with
-      | SOME "g" => "g"
-      | NONE => NONE
-      end.
+      vg_of_int (xor (int_of_vg "a") (int_of_vg "b")).
   
   
    Definition CHAN : val :=
