@@ -7,7 +7,8 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   spec_rules spec_ra 
   class_instances sem_types
   sem_judgement sem_row sem_def 
-  p_composition.
+  p_composition
+  fundamental .
 From clutch.clutch Require ElGamal_bijection.
 From clutch.prob_eff_lang.probblaze.examples.ot Require Import definition_thunk_sender_corrupt ot_bijection.
 From mathcomp Require Import ssrbool.
@@ -133,6 +134,13 @@ Section handlee_verification.
     repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
   Qed. 
 
+  Program Definition recvrow2 RECVl RECVr := SemRow [([RECVl],[RECVr],recv RECVl RECVr)] _.
+  Next Obligation.
+    intros ??.
+    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
+    iExists _,_,_,_,_. 
+    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
+  Qed. 
 
   (* Theories for the implementations *)
   (*------------------------------------------------------------*)
@@ -250,6 +258,14 @@ Section handlee_verification.
 
   (*------------------------------------------------------------*)
 
+  Lemma to_iThyIfMono_app m (L1 L2 : iLblThy Σ) :
+    to_iThyIfMono m L1 ++ to_iThyIfMono m L2 = to_iThyIfMono m (L1 ++ L2).
+  Proof.
+    induction L1 as [| X L1' IH]; first done.
+    simpl. by rewrite IH.
+  Qed.
+  
+
   Lemma Fp_of_fin_ne_zero_2 (t : fin n) :
       t ≠ nat_to_fin (Nat.lt_0_succ (S n'')) → ~~ (@eqtype.eq_op (fintype.fintype_ordinal__canonical__eqtype_Equality (S (S (zmodp.Zp_trunc (prime.pdiv (S (S (@n'' vg vgg)))))))) (Fp_of_fin t) (@nmodule.Algebra.zero (zmodp.fintype_ordinal__canonical__Algebra_BaseAddUMagma (S (zmodp.Zp_trunc (prime.pdiv (S (S (@n'' vg vgg))))))))) = true.
   Proof using n_prime.
@@ -279,7 +295,7 @@ Section handlee_verification.
     own γcrs (to_dfrac_agree (DfracOwn 1) #()%V) -∗
     (* BREL f1 #()%V ≤ f2 #()%V <| ([CRS],[CRS], @CRSThy γcrs) :: L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }} -∗ *)
     (* BREL F_CRS f1 ≤ (reduction DH_rand) f2 <| ([CRS],[CRS],iThyBot) :: L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}. *)
-    BREL F_CRS ≤ (reduction DH_rand) <|⊥|> {{ λ v1 v2, (∀ᵣ θ__L, (∀ᵣ θ__CRS, (𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾)) -{ sem_row_union θ__CRS θ__L}-> 𝟙) -{ θ__L }-∘ 𝟙)%T v1 v2}}.
+    BREL F_CRS ≤ (reduction DH_rand) <|⊥|> {{ λ v1 v2, (∀ᵣ θ__L, (∀ᵣ θ__CRS, ((𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾))) -{ sem_row_union (¡ θ__CRS) θ__L}-∘ 𝟙) -{ θ__L }-∘ 𝟙)%T v1 v2}}.
   Proof using n_prime G. 
     iIntros "Herr Hcrs".
     
@@ -329,12 +345,12 @@ Section handlee_verification.
     iApply (brel_add_label_l with "Hcrsl").
     iApply (brel_add_label_r with "Hcrsr").
 
-    unfold sem_val_typed. simpl. iDestruct "Hff" as "#Hff".
+    unfold sem_val_typed. simpl. (* iDestruct "Hff" as "#Hff". *)
     set (CRSrow := crsrow CRSl CRSr γcrs).
     iSpecialize ("Hff" $! CRSrow).  
-    iDestruct "Hff" as "#Hff".
+    (* iDestruct "Hff" as "#Hff". *)
     unfold sem_ty_arr, sem_ty_mbang. simpl.
-    iDestruct "Hff" as "#Hff". 
+    (* iDestruct "Hff" as "#Hff".  *)
     iAssert (sem_val_typed (λ: <>, do: CRSl #()%V)%V (λ: <>, do: CRSr #()%V)%V (𝟙 -{ CRSrow }-> (𝔾 × 𝔾 × 𝔾 × 𝔾))%T) as "Hgg".
     { iModIntro. rewrite /sem_ty_arr /sem_ty_mbang //=. 
       iIntros (??) "!# (->&->)". brel_pures'.
@@ -352,7 +368,7 @@ Section handlee_verification.
     iLöb as "IH".
     (* iSplit; [iIntros (??) "!# ->"; by brel_pures|]. *)
     iSplit; [iIntros (??) "!# (->&->)"; by brel_pures|].
-    iIntros (?????) "!# %Hk1' %Hk2 (->&->&HQ) #HQkont".
+    iIntros (?????) "!# %Hk1' %Hk2 (%&(->&->&HQ)&HQ'Q) #HQkont".
     iApply brel_handle_os_l; [apply neutral_ectx;constructor|]. iIntros (ul) "!> Hul".
     iApply brel_handle_os_r; [apply neutral_ectx;constructor|]. iIntros (ur) "Hur".
     brel_pures. 
@@ -360,6 +376,7 @@ Section handlee_verification.
     iApply (brel_cont_r with "[$]"). 
     
     iDestruct ("HQ" with "Hcrs") as "HQ".
+    iDestruct ("HQ'Q" with "HQ") as "HQ".
     iDestruct ("HQkont" with "HQ") as "Hkont".
     
     repeat brel_exp_r. rewrite -!expgM. 
@@ -376,47 +393,225 @@ Section handlee_verification.
     iApply "IH".
   Qed.    
 
-
-  
-  Lemma OT_real_DH
-    (f1 f2 : val) γcrs (* γtoka γtokb γfraca γfracb γautha γauthb *) L :
-    (* let AuthChannel := LblAuthChannel γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
-       let Adv := LblAdv γcrs γtokb γfracb γauthb btokN in *)
-    (* token γtoka -∗ *)
-    own γcrs (to_dfrac_agree (DfracOwn 1) #()%V) -∗
-    (* own γautha (to_dfrac_agree (DfracOwn 1) #()%V) -∗ *)
-    (* BREL f1 #()%V ≤ f2 #()%V <| (Adv ++ L)|> {{ (λ v1 v2, ⌜v1 = #()%V ∧ v2 = #()%V⌝) }} -∗ *)
-    
-    ↯ (1 / n) -∗
-
-    (* BREL F_CRS (OT_Real_Sender_corrupt f1) 
-         ≤ (reduction CRS DH_rand) (OT_Real_Sender_corrupt CRS Receiver channel f2)
-         <| (([CRS],[CRS], iThyBot) :: ([Receiver],[Sender; Receiver; Leak],iThyBot) :: AuthChannel ++ L) |>  {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}.  *)
-    
-    (* Type needs to change to match the order of the effects *)
-    sem_val_typed f1 f2 (∀ᵣ θ__RECV, ∀ᵣ θ__CRS, ∀ᵣ θ__CHAN, ((𝔹 -{ θ__RECV }-> (Option 𝔾)) × (𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾)) 
-                                                         × ((((𝔾 × 𝔾) + (𝔾 × 𝔾 × 𝔾 × 𝔾))) -{ θ__CHAN }-> 𝟙) × ((𝟙 + 𝟙) -{ θ__CHAN }-> Option ((𝔾 × 𝔾) + (𝔾 × 𝔾 × 𝔾 × 𝔾)))) 
-                                                      -{ sem_row_union θ__RECV (sem_row_union θ__CRS (sem_row_union θ__CHAN L)) }-> 𝟙)%T -∗
-
-    BREL (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS"))) f1
-      ≤ (λ: "f" "effs", (reduction DH_rand) (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS"))) f2
-      <|⊥|> {{ λ v1 v2,  ∀ c1 c2 : label, let ac := authchan_row c1 c2 (* γtoka atokN γtokb btokN γfraca γfracb γautha γauthb *) in
-                                          BREL v1 ((λ: "m", do: c1 (Send "m")), (λ: "m", do: c1 (Recv "m")))%V ≤
-                                            v2 ((λ: "m", do: c2 (Send "m")), (λ: "m", do: c2 (Recv "m")))%V 
-                                            <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }}. 
-  Proof. 
-    iIntros "Hcrs Herr #Hff".
-    unfold OT_Real_Sender_corrupt. brel_pures. iModIntro.
-    iIntros (c1 c2). brel_pures'. iApply (brel_bind' [AppLCtx _] [AppLCtx _]).
-    { iApply traversable_to_iThy. } 
-    iApply brel_introduction_mono; [iApply to_iThy_le_bot|].
-    iApply (brel_wand with "[Herr Hcrs]"); [iApply (fcrs_dh_ideal with "[$][$]")|].
-    iIntros (g1 g2) "!# Hgg /=". 
-    (* Prove that OT_Real_Sender_corrupt is related to it self *)
-  Admitted.
-
   Definition τC θ := (∀ᵣ θ__RECV, ∀ᵣ θ__CRS, ((𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾)) × (𝔹 -{ θ__RECV }-> (Option 𝔾))) 
-                                                      -{ sem_row_union θ__RECV (sem_row_union θ__CRS θ) }-∘ 𝟙)%T.
+                                         -{ sem_row_union θ__RECV (sem_row_union θ__CRS θ) }-∘ 𝟙)%T.
+
+  Lemma OT_real_DH_real : 
+     ⊢ ↯ (1 / n) -∗
+     (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((𝔾 × 𝔾) × (𝔾 × 𝔾))))
+            -{ ¡[OS] θ}-∘ 𝟙)%T 
+       (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V
+       (λ: "f" "effs", (reduction DH_rand) (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V. 
+    Proof using G n_prime inG2. 
+      iIntros "Herr %θ %f1 %f2 Hff".
+      unfold OT_Real_Sender_corrupt. brel_pures'. 
+      iModIntro.
+      iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
+      brel_pures'.
+      iApply (brel_bind' [AppLCtx _] [AppLCtx _]).
+      { iApply traversable_to_iThy. } 
+      iApply brel_introduction_mono; [iApply to_iThy_le_bot|].
+      iApply fupd_brel.
+      iDestruct auth_alloc as ">(%γcrs&Hcrs)".
+      iModIntro.
+      assert (to_iThyIfMono OS [] = ⊥) as <-; first done.
+      iApply (brel_mono OS with "[][Herr Hcrs]"); [iApply to_iThy_le_refl|iApply (fcrs_dh_ideal with "[$][$]")|simpl].
+      iIntros (g1 g2) "Hgg /=".
+      iApply "Hgg".
+      (* Prove that OT_Real_Sender_corrupt is related to it self *)
+      iIntros (θCRS). iUnfold sem_ty_arr, sem_ty_mbang. simpl.
+      iIntros (doCRS1 doCRS2) "#HCRS".
+      brel_pures'.
+      iApply brel_effect_l.
+      iIntros (IDEALl) "!> Hideall".
+      iApply brel_effect_r. iModIntro.
+      iIntros (IDEALr) "Hidealr".
+      iModIntro.
+      brel_pures'.
+      set recv := recvrow2 IDEALl IDEALr.
+      iAssert ((((𝟙 -{ θCRS }-> ((𝔾 × 𝔾) × 𝔾) × 𝔾)) × (𝔹 -{ recv }-> Option 𝔾))%T
+                 (doCRS1, λ: "b", do: IDEALl InjL "b")%V
+                 (doCRS2, λ: "b", do: IDEALr InjL "b")%V) as "Hgg".
+      { repeat (iExists _,_,_,_; do 2 (iSplit; [by iPureIntro|]); iSplit); rewrite /sem_ty_mbang //=; iIntros (??) "!#". iIntros "(%&->&->)". brel_pures'.
+          iApply brel_introduction'; first constructor.
+          iExists _,_,[],[],_. do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]).
+          iSplitL; last (iIntros (??) "!# H"; iApply "H").
+          iExists _.
+          do 2 (iSplit; first by iPureIntro). simpl.
+          iSplitL; [iApply brel_value; iIntros "$ !>"; iExists _,_; by iLeft|].
+          iIntros (?); brel_pures'; iApply brel_value; iIntros "$ !>"; iExists _,_; iRight; repeat iSplit; try done; iExists _; done. }
+      iDestruct ("Hff" with "Hgg") as "Hfbrel".
+      
+      iApply brel_new_theory.
+      iApply (brel_add_label_l with "Hideall").
+      iApply (brel_add_label_r with "Hidealr").
+      
+      iApply (brel_exhaustion _ _ [_] [_] with "[Hfbrel]"); try set_solver.
+      { iDestruct (brel_introduction_mono with "[][$Hfbrel]") as "Hfb"; last iApply "Hfb".
+        rewrite /recv /sem_row_union //= !iLblSig_to_iLblThy_proj !iLblSig_to_iLblThy_app.
+        iSplit.
+        - iApply iThy_le_trans;
+          first iApply (iThy_le_to_iThy_app_inv [([IDEALl], [IDEALr], handlee_verification.recv IDEALl IDEALr : iThy Σ)]).
+          iApply iThy_le_trans; last iApply (iThy_le_to_iThy_app [([IDEALl], [IDEALr], handlee_verification.recv IDEALl IDEALr : iThy Σ)]).
+          iApply iThy_le_sum_r.
+          rewrite !iThyIfMono_iLblSig_to_iThyIfMono //=.
+          rewrite to_iThyIfMono_app.
+          iApply iThy_le_trans; last iApply iThy_le_to_iThy_to_iThyIfMono.
+          iIntros (???) "!# Hthy /=".
+          iExists Q. iFrame. iIntros (??) "!> $".
+        - iSplit.
+          + iIntros "!# (Hl&Hr)".
+            rewrite /logic.valid /valid_l /valid_r. 
+            rewrite !labels_l_cons !labels_r_cons.  
+            rewrite !labels_l_app !labels_r_app.
+            rewrite !iThyIfMono_iLblSig_to_iThyIfMono //=.
+            rewrite !labels_l_to_iThyIfMono !labels_r_to_iThyIfMono.
+            iSplit; done.
+          + rewrite !iThyIfMono_iLblSig_to_iThyIfMono //=.
+            rewrite /distinct' /distinct /distinct_l /distinct_r. 
+            rewrite !labels_l_cons !labels_r_cons. 
+            rewrite !labels_l_app !labels_r_app.
+            rewrite !labels_l_to_iThyIfMono !labels_r_to_iThyIfMono.
+            by iIntros "!# (%Hl&%Hr)". 
+      }
+      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+      iIntros (?????) "!# %Hk1 %Hk2 (%b&->&->&(HQNone&HQSome)) #Hreturn".
+      iApply brel_handle_os_l; [apply neutral_ectx;set_solver|].
+      iIntros (cl) "!> Hcl". brel_pures'.
+      iApply brel_handle_os_r; [apply neutral_ectx;set_solver|].
+      iIntros (cr) "Hcr". brel_pures'.
+
+      iApply (brel_bind [_] [_] _ (iLblSig_to_iLblThy (¡ θCRS)%R)).
+      { iApply traversable_to_iThy. }
+      { iApply to_iThy_le_intro'.  
+        rewrite iLblSig_to_iLblThy_app.
+        solve_submseteq. }
+      unfold sem_row_flip_mbang. 
+      rewrite iLblSig_to_iLblThy_app.
+      rewrite !iThyIfMono_iLblSig_to_iThyIfMono //=.
+      iApply (brel_mono OS); [iApply to_iThy_le_refl|by iApply "HCRS"|simpl].
+      iIntros (??) "(%&%&%&%&->&->&(%&%&%&%&->&->&(%&%&%&%&->&->&(%&->&->)&(%&->&->))&(%&->&->))&(%&->&->))".
+      brel_pures'.
+      iApply brel_couple_rand_rand; first done.
+      iIntros (n Hlt). brel_pures'.
+      destruct b.
+      - brel_pures'.
+        iApply (brel_bind [_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
+        { iApply traversable_to_iThy. }
+        { iApply to_iThy_le_intro'; solve_submseteq. }
+        iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
+        { rewrite /sem_ty_arr /sem_ty_mbang /=. iApply "Hsend".
+          iExists _,_,_,_. do 2 (iSplit; try done).
+          iSplit; iExists _; do 2 (iSplit; done). }
+        iIntros (??) "(->&->)". brel_pures'.
+         iApply (brel_bind [_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
+        { iApply traversable_to_iThy. }
+        { iApply to_iThy_le_intro'; solve_submseteq. }
+        iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
+        { rewrite /sem_ty_arr /sem_ty_mbang /=. by iApply "Hrecv". }
+        iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])". 
+        { brel_pures'.
+          iDestruct ("Hreturn" with "HQNone") as "Hfill".
+          iApply (brel_cont_l with "[$]"). iModIntro.
+          iApply (brel_cont_r with "[$]").
+          brel_pures'.
+          iClear "HQSome".
+          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
+          iLöb as "IH". 
+          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
+          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+          iIntros (rl) "!> Hrl". 
+          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
+          iIntros (rr) "Hrr". 
+          brel_pures'.
+          iApply (brel_cont_l with "[$]"). iModIntro. 
+          iApply (brel_cont_r with "[$]").
+          iDestruct ("Hkont" with "HQNone") as "Hfill".
+          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|by iApply "IH"]. }
+
+        iDestruct "H" as "(%&%&%&%&->&->&H1&H2)".
+        iDestruct "H1" as "(%&%&%&%&(->&->&(%c0&->&->)&(%d0&->&->)))".
+        iDestruct "H2" as "(%&%&%&%&(->&->&(%c1&->&->)&(%d1&->&->)))".
+        brel_pures'.
+        iDestruct ("Hreturn" with "HQSome") as "Hfill".
+        iApply (brel_cont_l with "[$]"). iModIntro.
+        iApply (brel_cont_r with "[$]").
+        brel_pures'.
+        iClear "HQNone".
+        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "Hfill"); [set_solver|set_solver|].
+        iLöb as "IH". 
+        iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+        iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
+        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+        iIntros (rl) "!> Hrl". 
+        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
+        iIntros (rr) "Hrr". 
+        brel_pures'.
+        iApply (brel_cont_l with "[$]"). iModIntro. 
+        iApply (brel_cont_r with "[$]").
+        iDestruct ("Hkont" with "HQNone") as "Hfill".
+        iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|by iApply "IH"]. 
+      - brel_pures'.
+        iApply (brel_bind [_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
+        { iApply traversable_to_iThy. }
+        { iApply to_iThy_le_intro'; solve_submseteq. }
+        iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
+        { rewrite /sem_ty_arr /sem_ty_mbang /=. iApply "Hsend".
+          iExists _,_,_,_. do 2 (iSplit; try done).
+          iSplit; iExists _; do 2 (iSplit; done). }
+        iIntros (??) "(->&->)". brel_pures'.
+         iApply (brel_bind [_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
+        { iApply traversable_to_iThy. }
+        { iApply to_iThy_le_intro'; solve_submseteq. }
+        iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
+        { rewrite /sem_ty_arr /sem_ty_mbang /=. by iApply "Hrecv". }
+        iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])". 
+        { brel_pures'.
+          iDestruct ("Hreturn" with "HQNone") as "Hfill".
+          iApply (brel_cont_l with "[$]"). iModIntro.
+          iApply (brel_cont_r with "[$]").
+          brel_pures'.
+          iClear "HQSome".
+          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
+          iLöb as "IH". 
+          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
+          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+          iIntros (rl) "!> Hrl". 
+          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
+          iIntros (rr) "Hrr". 
+          brel_pures'.
+          iApply (brel_cont_l with "[$]"). iModIntro. 
+          iApply (brel_cont_r with "[$]").
+          iDestruct ("Hkont" with "HQNone") as "Hfill".
+          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|by iApply "IH"]. }
+
+        iDestruct "H" as "(%&%&%&%&->&->&H1&H2)".
+        iDestruct "H1" as "(%&%&%&%&(->&->&(%c0&->&->)&(%d0&->&->)))".
+        iDestruct "H2" as "(%&%&%&%&(->&->&(%c1&->&->)&(%d1&->&->)))".
+        brel_pures'.
+        iDestruct ("Hreturn" with "HQSome") as "Hfill".
+        iApply (brel_cont_l with "[$]"). iModIntro.
+        iApply (brel_cont_r with "[$]").
+        brel_pures'.
+        iClear "HQNone".
+        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "Hfill"); [set_solver|set_solver|].
+        iLöb as "IH". 
+        iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+        iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
+        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+        iIntros (rl) "!> Hrl". 
+        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
+        iIntros (rr) "Hrr". 
+        brel_pures'.
+        iApply (brel_cont_l with "[$]"). iModIntro. 
+        iApply (brel_cont_r with "[$]").
+        iDestruct ("Hkont" with "HQNone") as "Hfill".
+        iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|by iApply "IH"]. 
+    Qed.
+
+
 
   Lemma DH_OT_sim :
     ⊢ ↯ (1 / n) -∗
