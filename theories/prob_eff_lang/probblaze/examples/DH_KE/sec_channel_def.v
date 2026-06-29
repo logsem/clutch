@@ -1,12 +1,3 @@
-(*From iris.proofmode Require Import base proofmode classes.
-From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import agree excl auth frac excl_auth.
-From iris.algebra.lib Require Import dfrac_agree.
-From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
- spec_rules spec_ra class_instances.
-From clutch.prob_eff_lang.probblaze Require Import tactics.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.*)
 From clutch.prob_eff_lang.probblaze Require Export notation valgroup p_composition.
 From clutch.prob_eff_lang.probblaze Require Export def_dhke.
 
@@ -54,23 +45,21 @@ Section schannel.
           end
       end
      | return "y" => "y"
-    end.
+  end.
 
-   (*placeholder for now*)
-  (*Definition xor (e1 e2 : expr) : val := (# O)%V.*)
 
-  Definition G_XOR : val :=
+   Definition G_XOR : val :=
     λ: "a" "b",
       vg_of_int (xor (int_of_vg "a") (int_of_vg "b")).
-  
-  
-   Definition CHAN : val :=
+
+
+    Definition CHAN : val :=
      λ: "f" "ChanOp" "doGK",
       let, ("doSend", "doRecv") := "ChanOp" in
       let: "message" := ref NONEV in
       effect "schannel"
       let: "doSecSend" := (λ: "m", do: (EffName "schannel") (Send "m")) in
-      let: "doSecRecv" := (λ: "m", do: (EffName "schannel") (Recv "m")) in
+      let: "doSecRecv" := (λ: "from", do: (EffName "schannel") (Recv "from")) in
       handle: "f" ("doSecSend", "doSecRecv") with
       | effect (EffName "schannel") "payload", rec "k" as multi =>
         match: "payload" with
@@ -79,7 +68,7 @@ Section schannel.
             let, ("m", "dst") := "payload" in
             match: !"message" with
               | NONE => "message" <- SOME "m";;
-                     let: "key" := "doGK" ("dst") in
+                     let: "key" := "doGK" (bob) in
                                      match: "key" with
                                      | NONE => "k" #()%V
                                      | SOME "x" =>
@@ -89,34 +78,29 @@ Section schannel.
                                              "k" #()%V
                                          | NONE => "k" #()%V
                                          end
-                                        (* let: "enc_m" := vg_of_int (xor (int_of_vg "m") (int_of_vg "x")) in
-                                         ("doSend" ("enc_m", bob));;
-                                         "k" #()%V*)
                                      end
               | SOME "m" => "k" #()%V
                end
           (*RecvSecure*)
-        | InjR "from" =>
-            let: "key" := "doGK" ("from") in
+        | InjR <> =>
+            let: "key" := "doGK" (alice) in
                             match: "key" with
                             | NONE => "k" NONEV
                             | SOME "key" =>
-                                let: "r" := ("doRecv" "from") in
+                                let: "r" := ("doRecv" bob) in
                                 match: "r" with
                                 | NONE => "k" NONEV
                                 | SOME "x" =>
                                     match: G_XOR "x" "key" with
                                     | SOME "mg" => "k" (SOME "mg")
-                                    | NONE => "k" #()%V
-                                    end                                   
-                                    (*let: "enc_m" := vg_of_int (xor (int_of_vg "x") (int_of_vg "key")) in
-                                    "k" (SOME "enc_m")*)
+                                    | NONE => "k" NONE
+                                    end                           
                                 end       
                             end                              
         end
       | return "y" => "y"
   end.
-  
+
    (* Ideal functionality of the ONE-SHOT secure channel *)
    Definition F_CHAN : val :=
      λ: "f" "LeakOp",
@@ -124,7 +108,7 @@ Section schannel.
       let: "message" := ref NONEV in
       effect "schannel"
       let: "doSecSend" := (λ: "m", do: (EffName "schannel") (Send "m"))  in
-      let: "doSecRecv" := (λ: "m", do: (EffName "schannel") (Recv "m")) in
+      let: "doSecRecv" := (λ: "from", do: (EffName "schannel") (Recv "from")) in
       handle: "f" ("doSecSend" ,"doSecRecv") with
        | effect (EffName "schannel") "payload", rec "k" as multi =>
         match: "payload" with
@@ -133,23 +117,32 @@ Section schannel.
             let, ("m", "dst") := "payload" in
             match: !"message" with
             | NONE => "message" <- SOME "m";;
-                     ("doLeakSend" "dst");;
+                     ("doLeakSend" alice);;
                      "k" #()%V 
             | SOME "x" => "k" #()%V
             end
           (*ReceiveSecure*)
-         | InjR "from" =>
-            let: "r" := ("doLeakRecv" "from") in
+         | InjR <> =>
+            let: "r" := ("doLeakRecv" bob) in
             match: "r" with
             | NONE => "k" NONEV
-            | SOME "x" => "k" (SOME "x")
+            | SOME "x" => "k" (SOME !"message")
             end              
          end
        | return "y" => "y"
-    end.
+  end.
 
-    (*Simulator for the one message secure channel *)
- (* Assumes a fixed direction from Alice to Bob *)       
+  Print alice.
+
+  (*a function for requesting messages from the other party *)
+  Definition ASK_KEY : val :=
+    λ: "party",
+      match: "party" with
+      | InjL <> => InjR #()%V
+      | InjR <> => InjL #()%V
+      end.
+
+   (*Simulator for the one message secure channel *)      
   Definition CHAN_SIM : val :=
     λ: "f" "LeakAOp" "doKeyLeak",
     let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
@@ -163,12 +156,12 @@ Section schannel.
     | effect (EffName "leaksec") "payload", rec "k" as multi =>
         match: "payload" with
           (*Broadcast a message*)
-        | InjL "payload" =>
+        | InjL <> =>
             (* assuming "dst" is alice for now *)
             (*let, ("m", "dst") := "payload" in*)
             (*("doKeyLeak" (Send("payload")));;*)
-            ("doKeyLeakSnd" bob);;
-            let: "r" := "doKeyLeakRecv" bob in
+            ("doKeyLeakSnd" (bob));;
+            let: "r" := "doKeyLeakRecv" (bob) in
                           match: "r" with
                           | NONE =>
                               "k" NONEV
@@ -183,16 +176,16 @@ Section schannel.
                               | SOME "m" => "k" #()%V
                               end    
                           end                           
-                        | InjR "from" =>
-                            ("doKeyLeakSnd" "from");;
-             let: "r" := "doKeyLeakRecv" "from" in
-                           match: "r" with
-                           | NONE =>
+       | InjR <> =>
+                            (*("doKeyLeakRecv" (alice));;*)
+                            let: "r" := "doKeyLeakRecv" (alice) in
+                            match: "r" with
+                             | NONE =>
                                (*(do: leakauth ("from"));;*)
                                "k" NONEV
-                           | SOME "x" =>
-                               (*(do: keyleak (Send (bob)));;*)
-                               let: "rla" := ("doLeakARecv" "from") in
+                             | SOME "x" =>
+                               ("doKeyLeakSnd" alice);;
+                               let: "rla" := ("doLeakARecv" bob) in
                                match: "rla" with
                                | NONE => "k" NONEV
                                | SOME "x" => "k" !"message"
@@ -201,40 +194,5 @@ Section schannel.
                            end                             
         end
     | return "y" => "y" end.
-
-   Definition F_KE_L : val :=
-  λ: "f" "doKeyLeak",                           
-    (* Magically share a presampled key *)
-    let: "c" := (sample #()%V) in
-    let: "key" := g ^ "c" in
-    effect "getKey"
-    let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
-    handle: "f" "doGK" with
-    | effect (EffName "getKey") "p", rec "k" as multi =>
-        match: "p" with
-          (* Alice *)
-          InjL <> =>
-            (* Send a dummy value *)
-            ("doKeyLeak" (Send(bob)));;
-            (* Receive a dummy value *)
-            let: "r" := "doKeyLeak" (Recv bob) in
-            match: "r" with
-              NONE => "k" NONEV
-            | SOME "w" => "k" (SOME "key")
-            end
-        (* Bob  *)
-        | InjR <> =>
-            let: "r" := "doKeyLeak" (Recv alice) in
-            match: "r" with
-              NONE => "k" NONEV
-            | SOME "w" => 
-                ("doKeyLeak" (Send alice));;
-                "k" (SOME "key")
-            end
-       end
-    | return "y" => "y" end.
-
-
-  
 
 End schannel.
