@@ -160,9 +160,9 @@ Section pure_exec.
   Proof.
     intros Hcompare.
     cut (bin_op_eval EqOp v1 v2 = Some $ LitV $ LitBool $ bool_decide (v1 = v2)).
-    { intros. revert Hcompare. intros ?. apply nsteps_once. constructor.
-      - solve_exec_safe.
-     Admitted.
+    { intros. revert Hcompare. solve_pure_exec. }
+    rewrite /bin_op_eval /= decide_True //.
+  Qed.
 
   Global Instance pure_if_true e1 e2 :
     PureExec True 1 (If (Val $ LitV $ LitBool true) e1 e2) e1.
