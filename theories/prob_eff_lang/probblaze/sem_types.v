@@ -258,8 +258,7 @@ Section types_properties.
   Qed.
   
   Global Instance sem_ty_mbang_proper m : Proper ((≡) ==> (≡)) (@sem_ty_mbang Σ m).
-  (* Proof. solve_non_expansive.  Qed. *)
-  Admitted.
+  Proof. apply ne_proper. apply _. Qed.
 
   Global Instance sem_ty_prod_proper : Proper ((≡) ==> (≡) ==> (≡)) (@sem_ty_prod Σ).
   Proof.
