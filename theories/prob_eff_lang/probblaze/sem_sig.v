@@ -190,22 +190,25 @@ Section sig_sub_typing.
     iApply iThy_le_trans; [iApply "Hp₁₂"|iApply "Hp₂₃"].
   Qed.
   
-  (* Lemma sig_le_eff {Σ} {TT : tele} (ι₁ ι₂ κ₁ κ₂ : tele_arg TT → sem_ty Σ) :
-       □ (∀.. α, (ι₁ α) ≤ₜ (ι₂ α)) -∗
-       □ (∀.. α, (κ₂ α) ≤ₜ (κ₁ α)) -∗
-       (∀ₛ.. α , ι₁ α ⇒ κ₁ α) ≤ₛ (∀ₛ.. α , ι₂ α ⇒ κ₂ α).
-     Proof.
-       iIntros "#Hι₁₂ #Hκ₂₁". 
-       iIntros (v Φ) "!#".
-       rewrite !sem_sig_eff_eq.
-       iIntros "(%α & %w & <- & Hι₁ & HκΦ₁)".
-       iExists α, w; iSplitR; first done.
-       iSplitL "Hι₁".
-       { iApply ("Hι₁₂" with "Hι₁"). }
-       simpl. iDestruct "HκΦ₁" as "#HκΦ₁".
-       iIntros "!# %b Hκ₂". iApply "HκΦ₁".
-       iApply ("Hκ₂₁" with "Hκ₂").
-     Qed. *)
+  (* Signature refinement for the [SCons_le] rule: an effect signature
+     [⟨op1,op2⟩ : A ⇒ B] is below [⟨op1,op2⟩ : A' ⇒ B'] when the argument
+     type [A] refines [A'] (covariant) and the result type [B'] refines
+     [B] (contravariant), pointwise in the quantified [αs]. *)
+  Lemma sig_le_eff {Σ} op1 op2 (A A' B B' : sem_ty Σ → sem_ty Σ) :
+    □ (∀ αs, A αs ≤ₜ A' αs) -∗
+    □ (∀ αs, B' αs ≤ₜ B αs) -∗
+    (@sem_sig_eff Σ op1 op2 A B) ≤ₛ (@sem_sig_eff Σ op1 op2 A' B').
+  Proof.
+    iIntros "#HA #HB". rewrite /sig_le /tc_opaque. iSplit; first done.
+    iIntros "!#" (e1 e2 Φ) "Hσ /=".
+    iDestruct "Hσ" as (αs v1 v2 -> ->) "(HAv & #Hcont)".
+    iExists αs, v1, v2. do 2 (iSplit; first done).
+    iSplitL "HAv".
+    { rewrite /ty_le /tc_opaque. by iApply "HA". }
+    iIntros "!#" (w1 w2 u1 u2) "(%Hw1 & %Hw2 & HB')".
+    iApply ("Hcont" $! w1 w2 u1 u2). iFrame "%".
+    rewrite /ty_le /tc_opaque. by iApply "HB".
+  Qed.
   
   Lemma sig_le_mfbang_intro {Σ} m (σ : sem_sig Σ) :
     ⊢ σ ≤ₛ ¡[ m ] σ.

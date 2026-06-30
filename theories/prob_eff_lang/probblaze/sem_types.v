@@ -497,6 +497,13 @@ Section sub_typing.
   Lemma ty_le_mbang_intro_os τ : ⊢ τ ≤ₜ ![OS] τ.
   Proof. iIntros "!# %v1 %v2 H". rewrite /sem_ty_mbang //. Qed.
 
+  (* [![MS]] is the strongest mbang: it can be weakened to any [![m]]. *)
+  Lemma ty_le_mbang_elim_MS m τ : ⊢ ![MS] τ ≤ₜ ![m] τ.
+  Proof.
+    iIntros "!# %v1 %v2 #H". rewrite /sem_ty_mbang /=.
+    by iApply bi.intuitionistically_intuitionistically_if.
+  Qed.
+
   Corollary ty_le_mbang_intro_void m τ : ⊢ ⊥ ≤ₜ ![m] τ.
   Proof. iApply ty_le_bot. Qed.
 

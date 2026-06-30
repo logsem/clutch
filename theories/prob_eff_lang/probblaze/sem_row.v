@@ -19,8 +19,8 @@ Global Instance sem_row_bottom {Σ} : Bottom (sem_row Σ) := sem_row_nil.
 
 (* Cons Row *)
 Program Definition sem_row_cons {Σ} : sem_sig Σ -d> sem_row Σ -d> sem_row Σ :=
-    λ σ ρ, 
-      (@SemRow Σ ((([(sem_sig_labels Σ σ).1], [(sem_sig_labels Σ σ).2]), sem_sig_later σ) :: (sem_row_car ρ)) _ (* _ *) ) .
+    λ σ ρ,
+      (@SemRow Σ ((([(sem_sig_labels Σ σ).1], [(sem_sig_labels Σ σ).2]), σ) :: (sem_row_car ρ)) _ (* _ *) ) .
               (* (λ e1 e2, λne Φ, ∃ (op' : label) (v1 v2 : val), 
                               ⌜ e1 = (do: op' v1)%E ⌝ ∗ ⌜ e2 = (do: op' v2)%E ⌝ ∗
                                if decide (op = op') then 
@@ -288,18 +288,36 @@ Notation "'μᵣ' θ , ρ " := (sem_row_rec (λ θ, ρ%R)) (at level 50) : sem_r
 Section row_properties.
   (* TODO: finish proofs in this section *)
   Global Instance sem_row_cons_ne {Σ} (* op op' *) : NonExpansive2 (@sem_row_cons Σ (* op op' *)).
-  Proof. 
-  (*   intros ???????. f_equiv. apply non_dep_fun_dist.
-       simpl. do 2 f_equiv; apply non_dep_fun_dist; by f_equiv.  
-     Qed. *)
-  Admitted. 
+  Proof.
+    intros n σ1 σ2 Hσ ρ1 ρ2 Hρ. destruct n; first done.
+    unfold sem_row_cons, dist, sem_row_dist. simpl.
+    f_equiv; last exact Hρ. f_equiv; last exact Hσ.
+    (* Residual goal: the head LABELS coincide,
+         ([labels σ1].1, [labels σ1].2) ≡{Sn}≡ ([labels σ2].1, [labels σ2].2).
+       Labels live in a DISCRETE ofe, so this is the EQUALITY
+       sem_sig_labels σ1 = sem_sig_labels σ2.  But the [sem_sig] ofe
+       (sem_def.v) is defined ONLY on [sem_sig_car], so [Hσ : σ1 ≡{n}≡ σ2]
+       gives no information about labels.  Hence full NonExpansive2 in σ is
+       UNPROVABLE for the current [sem_sig] ofe.  This obstacle is
+       PRE-EXISTING and ORTHOGONAL to the [sem_sig_later] head removal:
+       it held identically for the old [sem_sig_later σ] head (which also
+       reads [sem_sig_labels σ]).  Fixing it requires putting the labels
+       into the [sem_sig] ofe (a separate sem_sig redesign). *)
+  Admitted.
   Global Instance sem_row_cons_Proper {Σ} (* op op' *): Proper ((≡) ==> (≡) ==> (≡)) (@sem_row_cons Σ (* op op' *)).
   Proof. apply ne_proper_2. apply _. Qed.
-  
+
+  (* UNUSED: not referenced anywhere outside this definition (verified by
+     grep over theories/prob_eff_lang/).  It was added together with the
+     [sem_sig_later] head to make [sem_row_cons] contractive in σ for the
+     never-instantiated recursive-row fixpoint [sem_row_rec]/[RRec]
+     (commented out in interp.v).  With the plain σ head, [sem_row_cons] is
+     genuinely NOT contractive in σ (no guarding later); since the instance
+     is unused and now vacuous, it is left Admitted. *)
   Global Instance sem_row_cons_contractive {Σ} (* op *) n : Proper (dist_later n ==> dist n ==> dist n) (@sem_row_cons Σ (* op *)).
-  Proof. 
-    intros ??????. rewrite /sem_row_cons. 
-    (* intros ???????. rewrite /sem_row_cons. 
+  Proof.
+    intros ??????. rewrite /sem_row_cons.
+    (* intros ???????. rewrite /sem_row_cons.
        intros ?. simpl. do 6 f_equiv; first f_contractive; f_equiv; apply non_dep_fun_dist; by f_equiv. *)
   Admitted.
   Global Instance sem_row_flip_mbang_ne {Σ} m : NonExpansive (@sem_row_flip_mbang Σ m).
@@ -422,28 +440,60 @@ Section row_sub_typing.
     iSplit; last iSplit.
     { iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
       iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
-      iApply iThy_le_sum_map; last (iDestruct "Hρρ'" as "($&_)"). 
-      iIntros (???) "!# (%&%&%&%&%&$&$&$&$&(%&%&%Heq1&%Heq2&Hσ)&$)". iExists _,_. rewrite -Hlabels. do 2 (iSplit; [done|]). by iApply "Hσσ'". }
+      iApply iThy_le_sum_map; last (iDestruct "Hρρ'" as "($&_)").
+      iIntros (???) "!# (%&%&%&%&%&$&$&$&$&Hσ&$)". by iApply "Hσσ'". }
     { iModIntro. iApply valid_submseteq'; by constructor. }
     { iIntros "!# %Hd"; iPureIntro. eapply distinct_submseteq'; last done; by constructor. }
-  Qed. 
- 
-  (* Lemma row_le_erase (op1 op2 : label) (ρ : sem_row Σ) :
-       op1 ∉ labels_l (iLblSig_to_iLblThy ρ) →
-       op2 ∉ labels_r (iLblSig_to_iLblThy ρ) → 
-       ⊢ sem_row_cons op1 op2 ⊥ ρ ≤ᵣ ρ.
-     Proof.
-       iIntros (Hl Hr).
-       unfold row_le. simpl.
-       iSplit; last iSplit.
-       - iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
-         iApply iThy_le_trans; last iApply iThy_le_sum_bot_l.
-         iApply iThy_le_sum_l.
-         iIntros (???) "!# (%&%&%&%&%&%&%&%&%&(%&%&%&%&%&$&H')&H)". 
-       - iModIntro. iApply valid_submseteq'.
-         + unfold labels_l. simpl. *)
-      
-  
+  Qed.
+
+  (* Extend a row on the head: the underlying row [ρ] is below [σ · ρ].
+     The semantic counterpart of [le.RExtend_le].  Pure sub-multiset
+     argument: [iLblThy ρ ⊆+ head :: iLblThy ρ]. *)
+  Lemma row_le_cons_extend (σ : sem_sig Σ) (ρ : sem_row Σ) :
+    ⊢ ρ ≤ᵣ σ · ρ.
+  Proof.
+    unfold row_le, sem_row_cons. simpl.
+    iApply to_iThy_le_intro'. simpl.
+    apply submseteq_cons. reflexivity.
+  Qed.
+
+  (* Erase a freshly-allocated bottom signature from the head of a row.
+     The [is_label]/[spec_labels_frag] premises discharge the [valid]
+     obligation (the head op1/op2 are extra labels on the left row); the
+     [∉] premises discharge [distinct'] (NoDup of the head labels).  With
+     the plain σ head (sem_row.v:23, no [sem_sig_later]), the head iThy_le
+     obligation is the trivial erasure of the [sem_sig_bottom] protocol
+     (whose body is [False]) -- no [▷ False] to discharge. *)
+  Lemma row_le_erase (op1 op2 : label) (ρ : sem_row Σ) :
+    op1 ∉ labels_l (iLblSig_to_iLblThy ρ) →
+    op2 ∉ labels_r (iLblSig_to_iLblThy ρ) →
+    is_label op1 DfracDiscarded -∗
+    spec_labels_frag op2 DfracDiscarded -∗
+    sem_row_cons (sem_sig_bottom op1 op2) ρ ≤ᵣ ρ.
+  Proof.
+    iIntros (Hl Hr) "#Hlbl1 #Hlbl2".
+    unfold row_le, sem_row_cons. simpl.
+    iSplit; last iSplit.
+    - iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
+      iApply iThy_le_trans; last iApply iThy_le_sum_bot_l.
+      iApply iThy_le_sum_l.
+      iIntros (e1 e2 Q) "!# Ht".
+      rewrite /iThyTraverse /=.
+      iDestruct "Ht" as (e1' e2' k1 k2 S) "(%&%&%&%&Hbot&_)".
+      simpl. iDestruct "Hbot" as (αs v1 v2) "(%&%&Hfalse&_)".
+      done.
+    - iModIntro. iIntros "Hvalid".
+      unfold logic.valid. simpl.
+      iDestruct "Hvalid" as "(Hvl & Hvr)".
+      unfold valid_l, valid_r, labels_l, labels_r. simpl.
+      iFrame "Hvl Hvr Hlbl1 Hlbl2".
+    - iModIntro. iIntros "%Hd". iPureIntro.
+      unfold distinct, distinct_l, distinct_r, labels_l, labels_r in *. simpl.
+      destruct Hd as (Hdl & Hdr).
+      split; apply NoDup_cons_2; assumption.
+  Qed.
+
+
   Lemma row_le_swap_second (σ σ' : sem_sig Σ) (ρ : sem_row Σ) : 
     ⊢ σ · σ' · ρ ≤ᵣ σ' · σ · ρ. 
   Proof.
@@ -700,12 +750,119 @@ Section sem_row_union.
   Qed. 
 
   Global Instance sem_row_union_ne n : Proper (dist n ==> dist n ==> dist n) sem_row_union.
-  Proof. 
+  Proof.
     intros ρ1 ρ1' Heq1 ρ2 ρ2' Heq2.
     destruct n; first done.     (* because of the definition of distance on rows *)
-    unfold sem_row_union. 
+    unfold sem_row_union.
     unfold dist, sem_row_dist. rewrite !iLblSig_to_iLblThy_app.
     f_equiv; done.
-  Qed. 
+  Qed.
+
+  (* [valid]/[distinct] decompose over [iLblThy] append. *)
+  Lemma valid_app (L M : iLblThy Σ) :
+    logic.valid (L ++ M) ⊣⊢ logic.valid L ∗ logic.valid M.
+  Proof.
+    rewrite /logic.valid /valid_l /valid_r /labels_l /labels_r
+            !fmap_app !concat_app.
+    rewrite !big_sepL_app. iSplit; iIntros "[[$$][$$]]".
+  Qed.
+
+  Lemma distinct_app_iff (L M : iLblThy Σ) :
+    distinct (L ++ M) → distinct L ∧ distinct M.
+  Proof.
+    rewrite /distinct /distinct_l /distinct_r /labels_l /labels_r
+            !fmap_app !concat_app.
+    intros [Hl%NoDup_app Hr%NoDup_app].
+    split; split; tauto.
+  Qed.
+
+  (* Union is monotone: the semantic counterpart of [le.RUnion_le]. *)
+  Lemma row_le_union (ρ1 ρ2 ρ1' ρ2' : sem_row Σ) :
+    ρ1 ≤ᵣ ρ1' -∗ ρ2 ≤ᵣ ρ2' -∗
+    sem_row_union ρ1 ρ2 ≤ᵣ sem_row_union ρ1' ρ2'.
+  Proof.
+    unfold row_le, sem_row_union. simpl.
+    rewrite !iLblSig_to_iLblThy_app.
+    iIntros "#(Hthy1 & Hvl1 & Hd1) #(Hthy2 & Hvl2 & Hd2)".
+    iSplit; last iSplit.
+    - iApply iThy_le_trans; first iApply iThy_le_to_iThy_app_inv.
+      iApply iThy_le_trans; last iApply iThy_le_to_iThy_app.
+      by iApply (iThy_le_sum_map with "Hthy1 Hthy2").
+    - iIntros "!# Hv".
+      iDestruct (valid_app with "Hv") as "[Hva Hvb]".
+      iApply valid_app; iSplitL "Hva"; [by iApply "Hvl1"|by iApply "Hvl2"].
+    - iIntros "!# %Hd".
+      (* CROSS-DISJOINTNESS of the two unioned rows' labels.  From
+         [Hd : distinct (ρ1'++ρ2')] we get [labels ρ1' # labels ρ2'] and
+         (via the IH bundles [Hd1]/[Hd2]) per-component [distinct ρ1],
+         [distinct ρ2]; but reconstructing the CROSS term
+         [labels ρ1 # labels ρ2] needs label-set MONOTONICITY of [≤ᵣ]
+         ([labels ρ1 ⊆ labels ρ1']), which the abstract [row_le] bundle
+         ([iThy_le] + ownership [valid] + pure [distinct]) does NOT expose
+         as a Coq fact.  Adding a [row_le_labels_subseteq] lemma would
+         require [row_le] to carry that subset relation; out of scope here.
+         (Affects only the [RUnion_le] case of [row_le_sound].) *)
+      admit.
+  Admitted.
+
+  (* Union monotonicity, with the cross-disjointness premise supplied as
+     two LABEL sub-multiset facts (one per side).  These let us derive
+     [distinct (ρ1 ++ ρ2)] (the LARGER, left rows) from
+     [distinct (ρ1' ++ ρ2')] via [distinct_submseteq'] — exactly the gap
+     left [admit]ed in [row_le_union].  Used by the [RUnion_le] case of
+     [interp.subtyping_sound_all], where the sub-multiset facts come from
+     label-monotonicity of [≤R] along the [@false] row premises
+     ([interp.row_le_false_labels_l]/[_r]). *)
+  Lemma row_le_union' (ρ1 ρ2 ρ1' ρ2' : sem_row Σ) :
+    labels_l (iLblSig_to_iLblThy ρ1) ⊆+ labels_l (iLblSig_to_iLblThy ρ1') →
+    labels_l (iLblSig_to_iLblThy ρ2) ⊆+ labels_l (iLblSig_to_iLblThy ρ2') →
+    labels_r (iLblSig_to_iLblThy ρ1) ⊆+ labels_r (iLblSig_to_iLblThy ρ1') →
+    labels_r (iLblSig_to_iLblThy ρ2) ⊆+ labels_r (iLblSig_to_iLblThy ρ2') →
+    ρ1 ≤ᵣ ρ1' -∗ ρ2 ≤ᵣ ρ2' -∗
+    sem_row_union ρ1 ρ2 ≤ᵣ sem_row_union ρ1' ρ2'.
+  Proof.
+    iIntros (Hl1 Hl2 Hr1 Hr2).
+    unfold row_le, sem_row_union. simpl.
+    rewrite !iLblSig_to_iLblThy_app.
+    iIntros "#(Hthy1 & Hvl1 & Hd1) #(Hthy2 & Hvl2 & Hd2)".
+    iSplit; last iSplit.
+    - iApply iThy_le_trans; first iApply iThy_le_to_iThy_app_inv.
+      iApply iThy_le_trans; last iApply iThy_le_to_iThy_app.
+      by iApply (iThy_le_sum_map with "Hthy1 Hthy2").
+    - iIntros "!# Hv".
+      iDestruct (valid_app with "Hv") as "[Hva Hvb]".
+      iApply valid_app; iSplitL "Hva"; [by iApply "Hvl1"|by iApply "Hvl2"].
+    - iIntros "!# %Hd".
+      iPureIntro. rewrite /distinct'.
+      eapply (distinct_submseteq'
+                _ (iLblSig_to_iLblThy ρ1' ++ iLblSig_to_iLblThy ρ2'));
+        [| |exact Hd].
+      + rewrite !labels_l_app. by apply submseteq_app.
+      + rewrite !labels_r_app. by apply submseteq_app.
+  Qed.
+
+  (* FLIP distributes over UNION at the level of underlying theory lists:
+     [iThyIfMono_iLblSig] is a [map], and [sem_row_union] is an [app], so
+     the two sides have LITERALLY equal carriers ([map_app]).  Used by the
+     [RFlipUnion_le] case of [interp.subtyping_sound_all]. *)
+  Lemma iLblSig_to_iLblThy_flip_union (m : mode) (ρ1 ρ2 : sem_row Σ) :
+    iLblSig_to_iLblThy (sem_row_flip_mbang m (sem_row_union ρ1 ρ2))
+    = iLblSig_to_iLblThy
+        (sem_row_union (sem_row_flip_mbang m ρ1) (sem_row_flip_mbang m ρ2)).
+  Proof.
+    rewrite !iThyIfMono_iLblSig_to_iThyIfMono.
+    unfold sem_row_union. rewrite !iLblSig_to_iLblThy_app.
+    rewrite !iThyIfMono_iLblSig_to_iThyIfMono.
+    unfold to_iThyIfMono. by rewrite map_app.
+  Qed.
+
+  Lemma row_le_flip_union (m : mode) (ρ1 ρ2 : sem_row Σ) :
+    ⊢ sem_row_flip_mbang m (sem_row_union ρ1 ρ2)
+        ≤ᵣ sem_row_union (sem_row_flip_mbang m ρ1) (sem_row_flip_mbang m ρ2).
+  Proof.
+    rewrite /row_le /tc_opaque.
+    rewrite iLblSig_to_iLblThy_flip_union.
+    iApply to_iThy_le_refl.
+  Qed.
 
 End sem_row_union.

@@ -126,7 +126,7 @@ Section syntax.
     | TForallR τ => TForallR τ.|[σ]
     | TExists τ => TExists τ.|[σ] 
     | TRec τ => TRec τ.|[σ]
-    | TBang m τ => TBang m.[σ] τ
+    | TBang m τ => TBang m.[σ] τ.|[σ]
     | TForallM τ => TForallM τ.|[up σ]
     end
   with hsubst_vmode_row (σ : var → vmode) (ρ : row) : row :=
@@ -287,9 +287,9 @@ Section syntax.
     | TExists α => TExists α.[up σ]
     | TRec α => TRec α.[up σ]
     | TBang m α => TBang m α.[σ]
-    | TForallM α => TForallM α.[σ]
+    | TForallM α => TForallM α.[σ >>> hsubst_vmode_type (ren (+1))]
     | TForallT α => TForallT α.[up σ]
-    | TForallR α => TForallR α.[σ]
+    | TForallR α => TForallR α.[σ >>> rename_row_type (+1)]
     end
   with hsubst_type_row (σ : var → type) (ρ : row) : row :=
          let _ := hsubst_type_row : HSubst type row in
@@ -337,18 +337,20 @@ Section syntax.
          | TProd α β => TProd α.|[σ] β.|[σ]
          | TSum α β =>  TSum α.|[σ] β.|[σ]
          | TArrow α ρ β => TArrow α.|[σ] ρ.[σ] β.|[σ]
-         | TExists α => TExists α.|[σ]
-         | TRec α => TRec α.|[σ]
+         | TExists α => TExists α.|[σ >>> rename_type_row (+1)]
+         | TRec α => TRec α.|[σ >>> rename_type_row (+1)]
          | TBang m α => TBang m α.|[σ]
-         | TForallM α => TForallM α.|[σ]
-         | TForallT α => TForallT α.|[σ]
+         | TForallM α => TForallM α.|[σ >>> hsubst_vmode_row (ren (+1))]
+         | TForallT α => TForallT α.|[σ >>> rename_type_row (+1)]
          | TForallR α => TForallR α.|[up σ]
          end
   with hsubst_row_eff_sig (σ : var → row) (s : eff_sig) : eff_sig :=
          let _ := hsubst_row_type : HSubst row type in
          let _ := hsubst_row_eff_sig : HSubst row eff_sig in
          match s with
-         | SSig e α β => SSig e α.|[σ] β.|[σ]
+         | SSig e α β =>
+             SSig e α.|[σ >>> rename_type_row (+1)]
+                    β.|[σ >>> rename_type_row (+1)]
          | SFlip m α => SFlip m α.|[σ]
          end.
 
@@ -384,7 +386,244 @@ Section syntax.
     - destruct τ; rewrite /= ?rename_row_type_hsubst_ren ?up_upren_internal //.
       rewrite rename_subst_row //.
     - destruct ρ; rewrite /= ?rename_subst_row ?rename_row_eff_sig_hsubst_ren //.
-  Qed. 
+  Qed.
+
+  (* --- Cross-sort commutation helpers --------------------------------- *)
+  (* These witness that substitutions/renamings acting on DISJOINT         *)
+  (* variable sorts commute.  They are needed to re-establish the          *)
+  (* [SubstLemmas] for the capture-avoiding cross-sort shifts inserted at   *)
+  (* the [TForallM]/[TForallR] binders of [subst_type]/[hsubst_row_type].   *)
+
+  (* (C1) type-renaming (TYPE vars) commutes with mode-hsubst (MODE vars). *)
+  Local Lemma rename_hsubst_vmode_type_comm (ξ : var → var)
+    (σ : var → vmode) (τ : type) :
+    rename ξ (τ.|[σ]) = (rename ξ τ).|[σ]
+  with rename_hsubst_vmode_row_comm (ξ : var → var)
+    (σ : var → vmode) (ρ : row) :
+    rename_type_row ξ (ρ.|[σ]) = (rename_type_row ξ ρ).|[σ]
+  with rename_hsubst_vmode_eff_sig_comm (ξ : var → var)
+    (σ : var → vmode) (e : eff_sig) :
+    rename_type_eff_sig ξ (e.|[σ]) = (rename_type_eff_sig ξ e).|[σ].
+  Proof.
+    - destruct τ; rewrite /= ?rename_hsubst_vmode_type_comm
+        ?rename_hsubst_vmode_row_comm //.
+    - destruct ρ; rewrite /= ?rename_hsubst_vmode_row_comm
+        ?rename_hsubst_vmode_eff_sig_comm //.
+    - destruct e; rewrite /= ?rename_hsubst_vmode_eff_sig_comm
+        ?rename_hsubst_vmode_type_comm //.
+  Qed.
+
+  (* (C2) type-renaming commutes with row-renaming (ROW vars). *)
+  Local Lemma rename_rename_row_type_comm (ξ ζ : var → var) (τ : type) :
+    rename ξ (rename_row_type ζ τ) = rename_row_type ζ (rename ξ τ)
+  with rename_rename_row_row_comm (ξ ζ : var → var) (ρ : row) :
+    rename_type_row ξ (rename ζ ρ) = rename ζ (rename_type_row ξ ρ)
+  with rename_rename_row_eff_sig_comm (ξ ζ : var → var) (e : eff_sig) :
+    rename_type_eff_sig ξ (rename_row_eff_sig ζ e)
+      = rename_row_eff_sig ζ (rename_type_eff_sig ξ e).
+  Proof.
+    - destruct τ; rewrite /= ?rename_rename_row_type_comm
+        ?rename_rename_row_row_comm //.
+    - destruct ρ; rewrite /= ?rename_rename_row_row_comm
+        ?rename_rename_row_eff_sig_comm //.
+    - destruct e; rewrite /= ?rename_rename_row_eff_sig_comm
+        ?rename_rename_row_type_comm //.
+  Qed.
+
+  (* (C3) row-renaming (ROW vars) commutes with mode-hsubst (MODE vars). *)
+  Local Lemma rename_row_hsubst_vmode_comm (ξ : var → var)
+    (σ : var → vmode) (ρ : row) :
+    rename ξ (ρ.|[σ]) = (rename ξ ρ).|[σ]
+  with rename_row_type_hsubst_vmode_comm (ξ : var → var)
+    (σ : var → vmode) (τ : type) :
+    rename_row_type ξ (τ.|[σ]) = (rename_row_type ξ τ).|[σ]
+  with rename_row_eff_sig_hsubst_vmode_comm (ξ : var → var)
+    (σ : var → vmode) (e : eff_sig) :
+    rename_row_eff_sig ξ (e.|[σ]) = (rename_row_eff_sig ξ e).|[σ].
+  Proof.
+    - destruct ρ; rewrite /= ?rename_row_hsubst_vmode_comm
+        ?rename_row_eff_sig_hsubst_vmode_comm //.
+    - destruct τ; rewrite /= ?rename_row_type_hsubst_vmode_comm
+        ?rename_row_hsubst_vmode_comm //.
+    - destruct e; rewrite /= ?rename_row_eff_sig_hsubst_vmode_comm
+        ?rename_row_type_hsubst_vmode_comm //.
+  Qed.
+
+  (* (RR) functoriality of row-renaming on types/rows/eff_sigs. *)
+  Local Lemma rename_row_type_comp (ξ ζ : var → var) (τ : type) :
+    rename_row_type ξ (rename_row_type ζ τ) = rename_row_type (ζ >>> ξ) τ
+  with rename_row_comp' (ξ ζ : var → var) (ρ : row) :
+    rename ξ (rename ζ ρ) = rename (ζ >>> ξ) ρ
+  with rename_row_eff_sig_comp (ξ ζ : var → var) (e : eff_sig) :
+    rename_row_eff_sig ξ (rename_row_eff_sig ζ e)
+      = rename_row_eff_sig (ζ >>> ξ) e.
+  Proof.
+    - destruct τ; rewrite /= ?rename_row_type_comp ?rename_row_comp' //.
+      f_equal; f_equal; apply functional_extensionality=> -[|x] //=.
+    - destruct ρ; rewrite /= ?rename_row_comp' ?rename_row_eff_sig_comp //.
+    - destruct e; rewrite /= ?rename_row_eff_sig_comp ?rename_row_type_comp //.
+  Qed.
+
+  (* (RT) functoriality of type-renaming on types/rows/eff_sigs. *)
+  Local Lemma rename_type_comp (ξ ζ : var → var) (τ : type) :
+    rename ξ (rename ζ τ) = rename (ζ >>> ξ) τ
+  with rename_type_row_comp (ξ ζ : var → var) (ρ : row) :
+    rename_type_row ξ (rename_type_row ζ ρ) = rename_type_row (ζ >>> ξ) ρ
+  with rename_type_eff_sig_comp (ξ ζ : var → var) (e : eff_sig) :
+    rename_type_eff_sig ξ (rename_type_eff_sig ζ e)
+      = rename_type_eff_sig (ζ >>> ξ) e.
+  Proof.
+    - destruct τ; rewrite /= ?rename_type_comp ?rename_type_row_comp //;
+        f_equal; f_equal; apply functional_extensionality=> -[|x] //=.
+    - destruct ρ; rewrite /= ?rename_type_row_comp
+        ?rename_type_eff_sig_comp //.
+    - destruct e; rewrite /= ?rename_type_eff_sig_comp ?rename_type_comp //;
+        f_equal; f_equal; apply functional_extensionality=> -[|x] //=.
+  Qed.
+
+  (* NB: type-renaming on rows commuting with mode-hsubst is already        *)
+  (* available as [rename_hsubst_vmode_row_comm] (part of C1).               *)
+
+  (* (D1) mode-hsubst commutes with type-subst.  The substitutends [σ i]   *)
+  (* gain a mode-hsubst, since modes do not bind type variables.           *)
+  Local Lemma hsubst_vmode_subst_type_comm (σ : var → type)
+    (τm : var → vmode) (τ : type) :
+    (τ.[σ]).|[τm] = (τ.|[τm]).[σ >>> hsubst_vmode_type τm]
+  with hsubst_vmode_hsubst_type_row_comm (σ : var → type)
+    (τm : var → vmode) (ρ : row) :
+    (ρ.|[σ]).|[τm] = (ρ.|[τm]).|[σ >>> hsubst_vmode_type τm]
+  with hsubst_vmode_hsubst_type_eff_sig_comm (σ : var → type)
+    (τm : var → vmode) (e : eff_sig) :
+    (e.|[σ]).|[τm] = (e.|[τm]).|[σ >>> hsubst_vmode_type τm].
+  Proof.
+    - destruct τ; rewrite /= ?hsubst_vmode_subst_type_comm
+        ?hsubst_vmode_hsubst_type_row_comm //.
+      + (* TForallM *) f_equal; f_equal; apply functional_extensionality=> x;
+          unfold funcomp;
+          change (hsubst_vmode_type ?a ?b) with (b.|[a]);
+          rewrite !hsubst_vmode_type_comp; f_equal; by asimpl.
+      + (* TForallT *) f_equal; f_equal;
+          apply functional_extensionality=> -[|x] //=;
+          rewrite /up/=; by rewrite rename_hsubst_vmode_type_comm.
+      + (* TForallR *) f_equal; f_equal;
+          apply functional_extensionality=> x /=;
+          by rewrite rename_row_type_hsubst_vmode_comm.
+      + (* TExists *) f_equal; f_equal;
+          apply functional_extensionality=> -[|x] //=;
+          rewrite /up/=; by rewrite rename_hsubst_vmode_type_comm.
+      + (* TRec *) f_equal; f_equal;
+          apply functional_extensionality=> -[|x] //=;
+          rewrite /up/=; by rewrite rename_hsubst_vmode_type_comm.
+    - destruct ρ; rewrite /= ?hsubst_vmode_hsubst_type_row_comm
+        ?hsubst_vmode_hsubst_type_eff_sig_comm //.
+    - destruct e; rewrite /= ?hsubst_vmode_hsubst_type_eff_sig_comm
+        ?hsubst_vmode_subst_type_comm //.
+      f_equal; f_equal; apply functional_extensionality=> -[|x] //=;
+        rewrite /up/=; by rewrite rename_hsubst_vmode_type_comm.
+  Qed.
+
+  (* (D2) row-renaming commutes with type-subst.  The substitutends gain   *)
+  (* the same row-renaming, since rows do not bind type variables.         *)
+  Local Lemma rename_row_subst_type_comm (ζ : var → var) (σ : var → type)
+    (τ : type) :
+    rename_row_type ζ (τ.[σ])
+      = (rename_row_type ζ τ).[σ >>> rename_row_type ζ]
+  with rename_row_hsubst_type_row_comm (ζ : var → var) (σ : var → type)
+    (ρ : row) :
+    rename ζ (ρ.|[σ]) = (rename ζ ρ).|[σ >>> rename_row_type ζ]
+  with rename_row_hsubst_type_eff_sig_comm (ζ : var → var)
+    (σ : var → type) (e : eff_sig) :
+    rename_row_eff_sig ζ (e.|[σ])
+      = (rename_row_eff_sig ζ e).|[σ >>> rename_row_type ζ].
+  Proof.
+    - destruct τ; rewrite /= ?rename_row_subst_type_comm
+        ?rename_row_hsubst_type_row_comm //.
+      + (* TForallM *) f_equal; f_equal;
+          apply functional_extensionality=> x; unfold funcomp;
+          by rewrite rename_row_type_hsubst_vmode_comm.
+      + (* TForallT *) f_equal; f_equal;
+          apply functional_extensionality=> -[|x] //=;
+          rewrite /up/=; by rewrite rename_rename_row_type_comm.
+      + (* TForallR *) f_equal; f_equal;
+          apply functional_extensionality=> x; unfold funcomp;
+          rewrite !rename_row_type_comp; f_equal;
+          apply functional_extensionality=> y //=.
+      + (* TExists *) f_equal; f_equal;
+          apply functional_extensionality=> -[|x] //=;
+          rewrite /up/=; by rewrite rename_rename_row_type_comm.
+      + (* TRec *) f_equal; f_equal;
+          apply functional_extensionality=> -[|x] //=;
+          rewrite /up/=; by rewrite rename_rename_row_type_comm.
+    - destruct ρ; rewrite /= ?rename_row_hsubst_type_row_comm
+        ?rename_row_hsubst_type_eff_sig_comm //.
+    - destruct e; rewrite /= ?rename_row_hsubst_type_eff_sig_comm
+        ?rename_row_subst_type_comm //.
+      f_equal; f_equal; apply functional_extensionality=> -[|x] //=;
+        rewrite /up/=; by rewrite rename_rename_row_type_comm.
+  Qed.
+
+  (* (D3) mode-hsubst commutes with row-subst. *)
+  Local Lemma hsubst_vmode_subst_row_comm (σ : var → row) (τm : var → vmode)
+    (ρ : row) :
+    (ρ.[σ]).|[τm] = (ρ.|[τm]).[σ >>> hsubst_vmode_row τm]
+  with hsubst_vmode_hsubst_row_type_comm (σ : var → row) (τm : var → vmode)
+    (τ : type) :
+    (τ.|[σ]).|[τm] = (τ.|[τm]).|[σ >>> hsubst_vmode_row τm]
+  with hsubst_vmode_hsubst_row_eff_sig_comm (σ : var → row)
+    (τm : var → vmode) (e : eff_sig) :
+    (e.|[σ]).|[τm] = (e.|[τm]).|[σ >>> hsubst_vmode_row τm].
+  Proof.
+    - destruct ρ; rewrite /= ?hsubst_vmode_subst_row_comm
+        ?hsubst_vmode_hsubst_row_eff_sig_comm //.
+    - destruct τ; rewrite /= ?hsubst_vmode_hsubst_row_type_comm
+        ?hsubst_vmode_subst_row_comm //;
+        f_equal; f_equal; apply functional_extensionality=> x;
+        first [ unfold funcomp;
+                change (hsubst_vmode_row ?a ?b) with (b.|[a]);
+                rewrite !hsubst_vmode_row_comp; f_equal; by asimpl
+              | (destruct x; [done|]; rewrite /up/=;
+                 by rewrite rename_row_hsubst_vmode_comm)
+              | (unfold funcomp;
+                 by rewrite rename_hsubst_vmode_row_comm) ].
+    - destruct e; rewrite /= ?hsubst_vmode_hsubst_row_eff_sig_comm
+        ?hsubst_vmode_hsubst_row_type_comm //;
+        f_equal; f_equal; apply functional_extensionality=> x;
+        unfold funcomp; by rewrite rename_hsubst_vmode_row_comm.
+  Qed.
+
+  (* (D2') type-renaming commutes with row-subst.  The substitutends gain  *)
+  (* the same type-renaming, since types do not bind row variables.         *)
+  Local Lemma rename_type_subst_row_comm (ζ : var → var) (σ : var → row)
+    (ρ : row) :
+    rename_type_row ζ (ρ.[σ])
+      = (rename_type_row ζ ρ).[σ >>> rename_type_row ζ]
+  with rename_type_hsubst_row_type_comm (ζ : var → var) (σ : var → row)
+    (τ : type) :
+    rename ζ (τ.|[σ]) = (rename ζ τ).|[σ >>> rename_type_row ζ]
+  with rename_type_hsubst_row_eff_sig_comm (ζ : var → var)
+    (σ : var → row) (e : eff_sig) :
+    rename_type_eff_sig ζ (e.|[σ])
+      = (rename_type_eff_sig ζ e).|[σ >>> rename_type_row ζ].
+  Proof.
+    - destruct ρ; rewrite /= ?rename_type_subst_row_comm
+        ?rename_type_hsubst_row_eff_sig_comm //.
+    - destruct τ; rewrite /= ?rename_type_hsubst_row_type_comm
+        ?rename_type_subst_row_comm //;
+        f_equal; f_equal; apply functional_extensionality=> x;
+        first [ (unfold funcomp;
+                 by rewrite rename_hsubst_vmode_row_comm)
+              | (destruct x; [done|]; rewrite /up/=;
+                 by rewrite rename_rename_row_row_comm)
+              | (unfold funcomp;
+                 rewrite !rename_type_row_comp; f_equal;
+                 apply functional_extensionality=> y //=) ].
+    - destruct e; rewrite /= ?rename_type_hsubst_row_eff_sig_comm
+        ?rename_type_hsubst_row_type_comm //;
+        f_equal; f_equal; apply functional_extensionality=> x;
+        unfold funcomp;
+        rewrite !rename_type_row_comp; f_equal;
+        apply functional_extensionality=> y //=.
+  Qed.
 
   Local Lemma subst_row_id (ρ : row) : ρ.[ids] = ρ
     with hsubst_row_eff_sig_id (e : eff_sig) : e.|[ids : var → row] = e
@@ -422,20 +661,42 @@ Section syntax.
       rename_type_row ξ ρ.|[σ] = ρ.|[σ >>> rename ξ]
       with rename_hsubst_comp_type_eff_sig_rename  (ξ : var → var) (σ : var → type) (e : eff_sig) :
     rename_type_eff_sig ξ e.|[σ] = e.|[σ >>> rename ξ].
-  Proof with auto using rename_subst_subst_comp_type, rename_subst_type. 
-    - destruct τ; rewrite /= ?rename_subst_comp_type_rename ?rename_hsubst_comp_type_row_rename //; rewrite up_comp_subst_ren_internal //...
-    - destruct ρ; rewrite /= ?rename_hsubst_comp_type_row_rename ?rename_hsubst_comp_type_eff_sig_rename //.
-    - destruct e; rewrite /= ?rename_hsubst_comp_type_eff_sig_rename ?rename_subst_comp_type_rename //; rewrite up_comp_subst_ren_internal //...
+  Proof with auto using rename_subst_subst_comp_type, rename_subst_type.
+    - destruct τ; rewrite /= ?rename_subst_comp_type_rename
+        ?rename_hsubst_comp_type_row_rename //;
+        rewrite ?up_comp_subst_ren_internal //...
+      + f_equal; f_equal; apply functional_extensionality=> x;
+          unfold funcomp; by rewrite rename_hsubst_vmode_type_comm.
+      + f_equal; f_equal; apply functional_extensionality=> x;
+          unfold funcomp; by rewrite rename_rename_row_type_comm.
+    - destruct ρ; rewrite /= ?rename_hsubst_comp_type_row_rename
+        ?rename_hsubst_comp_type_eff_sig_rename //.
+    - destruct e; rewrite /= ?rename_hsubst_comp_type_eff_sig_rename
+        ?rename_subst_comp_type_rename //;
+        rewrite ?up_comp_subst_ren_internal //...
   Qed.
   
   Local Lemma subst_type_comp (σ σ' : var → type) (τ : type) : τ.[σ].[σ'] = τ.[σ >> σ']
     with hsubst_type_eff_sig_comp (σ σ' : var → type) (e : eff_sig) : e.|[σ].|[σ'] = e.|[σ >> σ']
       with hsubst_type_row_comp (σ σ' : var → type) (ρ : row) : ρ.|[σ].|[σ'] = ρ.|[σ >> σ'].
-  Proof with auto using rename_subst_subst_comp_type, rename_subst_comp_type_rename. 
-    - destruct τ; rewrite /= ?subst_type_comp ?hsubst_type_row_comp ?up_comp_internal //...
-    - destruct e; rewrite /= ?hsubst_type_eff_sig_comp ?subst_type_comp ?up_comp_internal //...
-    - destruct ρ; rewrite /= ?hsubst_type_row_comp ?hsubst_type_eff_sig_comp  //.
-  Qed. 
+  Proof with auto using rename_subst_subst_comp_type,
+    rename_subst_comp_type_rename.
+    - destruct τ; rewrite /= ?subst_type_comp ?hsubst_type_row_comp
+        ?up_comp_internal //...
+      + (* TForallM *) f_equal; f_equal;
+          apply functional_extensionality=> x; unfold scomp, funcomp;
+          change (hsubst_vmode_type ?a ?b) with (b.|[a]);
+          change (subst_type ?a ?b) with (b.[a]);
+          by rewrite hsubst_vmode_subst_type_comm.
+      + (* TForallR *) f_equal; f_equal;
+          apply functional_extensionality=> x; unfold scomp, funcomp;
+          change (subst_type ?a ?b) with (b.[a]);
+          by rewrite rename_row_subst_type_comm.
+    - destruct e; rewrite /= ?hsubst_type_eff_sig_comp ?subst_type_comp
+        ?up_comp_internal //...
+    - destruct ρ; rewrite /= ?hsubst_type_row_comp
+        ?hsubst_type_eff_sig_comp //.
+  Qed.
 
   Global Instance SubstLemmas_type : SubstLemmas type.
   Proof.
@@ -470,20 +731,46 @@ Section syntax.
       rename_row_type ξ τ.|[σ] = τ.|[σ >>> rename ξ]
       with rename_hsubst_comp_row_eff_sig_rename (ξ : var → var) (σ : var → row) (e : eff_sig) :
         rename_row_eff_sig ξ e.|[σ] = e.|[σ >>> rename ξ].
-  Proof with auto using rename_subst_subst_comp_row, rename_subst_row. 
-    - destruct ρ; rewrite /= ?rename_subst_comp_row_rename ?rename_hsubst_comp_row_eff_sig_rename //.
-    - destruct τ; rewrite /= ?rename_hsubst_comp_row_type_rename ?rename_subst_comp_row_rename //; rewrite up_comp_subst_ren_internal //...
-    - destruct e; rewrite /= ?rename_hsubst_comp_row_eff_sig_rename ?rename_hsubst_comp_row_type_rename //.
-  Qed. 
+  Proof with auto using rename_subst_subst_comp_row, rename_subst_row.
+    - destruct ρ; rewrite /= ?rename_subst_comp_row_rename
+        ?rename_hsubst_comp_row_eff_sig_rename //.
+    - destruct τ; rewrite /= ?rename_hsubst_comp_row_type_rename
+        ?rename_subst_comp_row_rename //;
+        rewrite ?up_comp_subst_ren_internal //;
+        try (auto using rename_subst_subst_comp_row, rename_subst_row; fail);
+        f_equal; f_equal; apply functional_extensionality=> x;
+        unfold funcomp;
+        first [ by rewrite rename_row_hsubst_vmode_comm
+              | by rewrite rename_rename_row_row_comm ].
+    - destruct e; rewrite /= ?rename_hsubst_comp_row_eff_sig_rename
+        ?rename_hsubst_comp_row_type_rename //;
+        f_equal; f_equal; apply functional_extensionality=> x;
+        unfold funcomp; by rewrite rename_rename_row_row_comm.
+  Qed.
 
   Local Lemma subst_row_comp (σ σ' : var → row) (ρ : row) : ρ.[σ].[σ'] = ρ.[σ >> σ']
     with hsubst_row_eff_sig_comp (σ σ' : var → row) (e : eff_sig) : e.|[σ].|[σ'] = e.|[σ >> σ']
       with hsubst_row_type_comp (σ σ' : var → row) (τ : type) : τ.|[σ].|[σ'] = τ.|[σ >> σ'].
-  Proof with auto using rename_subst_subst_comp_row, rename_subst_comp_row_rename. 
+  Proof with auto using rename_subst_subst_comp_row,
+    rename_subst_comp_row_rename.
     - destruct ρ; rewrite /= ?subst_row_comp ?hsubst_row_eff_sig_comp //.
-    - destruct e; rewrite /= ?hsubst_row_eff_sig_comp ?hsubst_row_type_comp //.
-    - destruct τ; rewrite /= ?hsubst_row_type_comp ?subst_row_comp ?up_comp_internal //...
-  Qed.   
+    - destruct e; rewrite /= ?hsubst_row_eff_sig_comp
+        ?hsubst_row_type_comp //;
+        f_equal; f_equal; apply functional_extensionality=> x;
+        unfold scomp, funcomp;
+        change (subst_row ?a ?b) with (b.[a]);
+        by rewrite rename_type_subst_row_comm.
+    - destruct τ; rewrite /= ?hsubst_row_type_comp ?subst_row_comp
+        ?up_comp_internal //;
+        try (auto using rename_subst_subst_comp_row,
+               rename_subst_comp_row_rename; fail);
+        f_equal; f_equal; apply functional_extensionality=> x;
+        unfold scomp, funcomp;
+        change (subst_row ?a ?b) with (b.[a]);
+        first [ (change (hsubst_vmode_row ?a ?b) with (b.|[a]);
+                 by rewrite hsubst_vmode_subst_row_comm)
+              | by rewrite rename_type_subst_row_comm ].
+  Qed.
 
   Global Instance SubstLemmas_row : SubstLemmas row.
   Proof. 
@@ -817,7 +1104,7 @@ Module le.
   | SFlipIdemp1_le D m σ : _eff_sig D (SFlip m (SFlip m σ)) (SFlip m σ)
   | SFlipIdemp2_le D m σ : _eff_sig D (SFlip m σ) (SFlip m (SFlip m σ))
   | SFlipComp_le D m' m σ' σ :
-    _mode m' m → _eff_sig D σ' σ → _eff_sig D (SFlip m' σ') (SFlip m σ)
+    _mode m m' → _eff_sig D σ' σ → _eff_sig D (SFlip m' σ') (SFlip m σ)
   (* SFlipComm is derivable *)
 
   with _row : disj_ctx → bool → row → row → Prop :=
@@ -857,7 +1144,7 @@ Module le.
   | RFlipIdemp1_le D b m ρ : _row D b (RFlip m (RFlip m ρ)) (RFlip m ρ)
   | RFlipIdemp2_le D b m ρ : _row D b (RFlip m ρ) (RFlip m (RFlip m ρ))
   | RFlipComp_le D b m' m ρ' ρ :
-    _mode m' m →
+    _mode m m' →
     _row D b ρ' ρ →
     _row D b (RFlip m' ρ') (RFlip m ρ)
   (* add rules for flip and union *)
@@ -897,8 +1184,8 @@ Module le.
   | TBangInt_le D m : _type D TInt (TBang m TInt)
   | TBangNat_le D m : _type D TNat (TBang m TNat)
   | TBangTop_le D m : _type D TTop (TBang m TTop)
-  | TBangRef_le D m α : _type D (TRef α) (TBang m (TRef α))
-                              (* TODO: unsure if this is sound. *)
+  (* TBangRef_le removed: it was unsound (made le.MultiT (TRef α)
+     derivable, but sem_ty_ref has no duplicable invariant). *)
   (* | TBangTape_le D m : _type D TTape (TBang m (TTape α)) *)
   | TBangOS_le D α : _type D α (TBang OS α)
   | TBangIdemp1_le D m α : _type D (TBang m α) (TBang m (TBang m α))
@@ -939,7 +1226,7 @@ Module le.
 
   Definition MultiT (τ : type) : Prop := _type ∅ τ (![MS] τ).
 
-  Definition OnceR (ρ : row) : Prop := ∃ b, _row ∅ b (RFlip MS ρ) ρ. 
+  Definition OnceR (ρ : row) : Prop := ∃ b, _row ∅ b (RFlip OS ρ) ρ.
 
   (* Lifting Multi from types to ctx *)
   (* for multiset map *)
@@ -1133,6 +1420,7 @@ Inductive typed :
   Γ1 ⊢ₚ e : τ → Δ .| Γ1 ;; Γ2 ⊢ₜ e : RNil : τ ⊣ Γ2
 
 | Pair_typed Δ Γ1 Γ2 Γ3 e1 e2 ρ τ1 τ2 :
+  ρ R⪯T τ2 →
   Δ .| Γ2 ⊢ₜ e1 : ρ : τ1 ⊣ Γ3 →
                     Δ .| Γ1 ⊢ₜ e2 : ρ : τ2 ⊣ Γ2 →
                                        Δ .| Γ1 ⊢ₜ Pair e1 e2 : ρ : τ1 * τ2 ⊣ Γ3
@@ -1166,7 +1454,12 @@ Inductive typed :
 | Rec_typed Δ Γ Γ' f x e m ρ τ κ :
   match f with BNamed f => BNamed f ≠ x | BAnon => True end →
   (* TODO: for now we have to have this restriction *)
-  f ∉ ctx_dom Γ → x ∉ ctx_dom Γ →  m m⪯C Γ →
+  (* [MultiC Γ] (strengthened from [m m⪯C Γ]): the recursive closure
+     captures [Γ] and the soundness proof builds it via [iLöb], which
+     requires the captured environment to be duplicable.  For [m = OS],
+     [m m⪯C Γ] gives no such guarantee, so the closure must be over a
+     fully-multi context. *)
+  f ∉ ctx_dom Γ → x ∉ ctx_dom Γ →  le.MultiC Γ →
   Δ .| <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> <[ x :=c τ ]> Γ ⊢ₜ e : ρ : κ ⊣ ∅ →
                                                                 Δ .| Γ ;; Γ' ⊢ₜ Rec f x e : RNil : τ -{ ρ }-[m]-> κ ⊣ Γ'
 
@@ -1185,7 +1478,7 @@ Inductive typed :
 | RAbsElim_typed Δ Γ1 Γ2 e (ρ ρ' : row) τ :
   Δ .| Γ1 ⊢ₜ e : ρ : ∀R: τ ⊣ Γ2 →
                      Δ .| Γ1 ⊢ₜ e : ρ : τ.|[ρ'/] ⊣ Γ2
-| MAbsElim_typed Δ Γ1 Γ2 e ρ τ m :
+| MAbsElim_typed Δ Γ1 Γ2 e ρ τ (m : vmode) :
   Δ .| Γ1 ⊢ₜ e : ρ : ∀M: τ ⊣ Γ2 →
                      Δ .| Γ1 ⊢ₜ e : ρ : τ.|[m/] ⊣ Γ2
                     
@@ -1193,8 +1486,9 @@ Inductive typed :
 | TAlloc Δ Γ1 e ρ τ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2  → Δ .| Γ1 ⊢ₜ AllocN (Val $ LitV $ LitInt 1) e : ρ : ref τ ⊣ Γ2
 | TLoad Δ Γ1 e ρ τ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : ref τ ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Load e : ρ : τ ⊣ Γ2
 | TStore Δ Γ1 Γ2 Γ3 e e' ρ τ :
-  Δ .| Γ1 ⊢ₜ e' : ρ : τ ⊣ Γ2 → 
-                     Δ .| Γ2 ⊢ₜ e : ρ : ref τ ⊣ Γ3 → 
+  ρ R⪯T τ →
+  Δ .| Γ1 ⊢ₜ e' : ρ : τ ⊣ Γ2 →
+                     Δ .| Γ2 ⊢ₜ e : ρ : ref τ ⊣ Γ3 →
                                        Δ .| Γ1 ⊢ₜ Store e e' : ρ : () ⊣ Γ3
 | TAllocTape Δ Γ1 e ρ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : ℕ ⊣ Γ2 →  Δ .| Γ1 ⊢ₜ AllocTape e : ρ : TTape ⊣ Γ2
 | TRand Δ Γ1 Γ2 Γ3 e1 e2 ρ : Δ .| Γ2 ⊢ₜ e1 : ρ : ℕ ⊣ Γ3 → Δ .| Γ1 ⊢ₜ e2 : ρ : TTape ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Rand e1 e2 : ρ : ℕ ⊣ Γ3
@@ -1209,8 +1503,10 @@ Inductive typed :
      Δ .| Γ1 ⊢ₜ e : ρ : τ.[τ'/] ⊣ Γ2 →
      Δ .| Γ1 ⊢ₜ e : ρ : (∃: τ) ⊣ Γ2
 | TUnpack Δ Γ1 Γ2 Γ3 e1 x e2 ρ τ τ2 :
+     x ∉ ctx_dom Γ2 → x ∉ ctx_dom Γ3 →
      Δ .| Γ1 ⊢ₜ e1 : ρ : (∃: τ) ⊣ Γ2 →
-     Δ .| <[x:=c τ]> (⤉ Γ2) ⊢ₜ e2 : ρ : τ2.[ren (+1)] ⊣ Γ3 →
+     Δ .| <[x:=c τ]> (⤉ Γ2)
+       ⊢ₜ e2 : rename_type_row (+1) ρ : τ2.[ren (+1)] ⊣ (⤉ Γ3) →
      Δ .| Γ1 ⊢ₜ (unpack: x := e1 in e2) : ρ : τ2 ⊣ Γ3
 (* TODO: add to subsumption rules
    | Subsume_int_nat Γ e : Γ ⊢ₜ e : TNat → Γ ⊢ₜ e : TInt *)
@@ -1273,14 +1569,17 @@ with pure_typed  : ctx → expr → type → Prop :=
 | Val_pure_typed v τ : 
   ⊢ᵥ v : τ → [] ⊢ₚ v : τ
 
-| Rec_pure_typed Γ1 f x e m τ ρ κ : 
+| Rec_pure_typed Γ1 f x e m τ ρ κ :
   match f with BNamed f => BNamed f ≠ x | BAnon => True end →
   (* TODO: for now we have to have this restriction *)
+  (* [MultiC Γ1] strengthened from [m m⪯C Γ1]; see [Rec_typed]: the
+     iLöb-built recursive closure needs a duplicable captured env. *)
   f ∉ ctx_dom Γ1 → x ∉ ctx_dom Γ1 →
-  m m⪯C Γ1 → 
+  le.MultiC Γ1 →
   ∅ .| <[ x :=c τ ]> <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> Γ1 ⊢ₜ e : ρ : κ ⊣ [] → Γ1 ⊢ₚ Rec f x e : (τ -{ ρ }-[m]-> κ)%ty
-(* consider adding beta reduction *)
-| Pair_pure_typed Γ e1 e2 τ1 τ2 : 
+
+| Pair_pure_typed Γ e1 e2 τ1 τ2 :
+  le.MultiC Γ →
   Γ ⊢ₚ e1 : τ1 → Γ ⊢ₚ e2 : τ2 → Γ ⊢ₚ Pair e1 e2 : (τ1 * τ2)%ty
 
 | InjL_pure_typed Γ e τ1 τ2 : 
@@ -1295,11 +1594,13 @@ with pure_typed  : ctx → expr → type → Prop :=
   m m⪯C Γ → Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (![m] τ)%ty
 
 | TAbs_pure_typed Γ e τ :
-  Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (∀T: τ)
+  (⤉ Γ) ⊢ₚ e : τ → Γ ⊢ₚ e : (∀T: τ)
 | RAbs_pure_typed Γ e τ :
-  Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (∀R: τ)
+  ((λ '(x, α), (x, rename_row_type (+1) α)) <$> (Γ : ctx)) ⊢ₚ e : τ →
+  Γ ⊢ₚ e : (∀R: τ)
 | MAbs_pure_typed Γ e τ :
-  Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (∀M: τ)
+  ((λ '(x, α), (x, α.|[ren (+1) : var → vmode])) <$> (Γ : ctx)) ⊢ₚ e : τ →
+  Γ ⊢ₚ e : (∀M: τ)
 
 
 
@@ -1319,6 +1620,7 @@ with val_typed : val → type → Prop :=
   ⊢ᵥ v : τ2 →
          ⊢ᵥ InjRV v : (τ1 + τ2)
 | Rec_val_typed f x e τ1 ρ τ2 :
+  match f with BNamed f => BNamed f ≠ x | BAnon => True end →
   ∅ .| <[f:=c τ1 -{ ρ }-> τ2]>(<[x:=c τ1]> ∅) ⊢ₜ e : ρ : τ2 ⊣ ∅ →
                                          ⊢ᵥ RecV f x e : (τ1 -{ ρ }-> τ2)
 | TAbs_val_typed v τ :
