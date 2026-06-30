@@ -264,8 +264,7 @@ Section types_properties.
   Proof. apply ne_proper_2. apply _. Qed.
 
   Global Instance sem_ty_sum_proper : Proper ((≡) ==> (≡) ==> (≡)) (@sem_ty_sum Σ).
-  (* Proof. solve_non_expansive. Qed. *)
-  Admitted.
+  Proof. apply ne_proper_2. apply _. Qed.
 
   Global Instance sem_ty_arr_proper : Proper ((≡) ==> (≡) ==> (≡) ==> (≡)) sem_ty_arr.
   (* Proof. solve_non_expansive. Qed. *)
