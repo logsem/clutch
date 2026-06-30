@@ -2,104 +2,30 @@ From clutch.prob_eff_lang.probblaze Require Import primitive_laws.
 From iris.proofmode Require Import base proofmode.
 From clutch.prob_eff_lang.probblaze Require Import syntax semantics notation class_instances logic.
 
-(* Consider generalizing the PureExec construction *)
-(* Definition prel `{Σ : gFunctors} (e1 e2 : expr) (Φ : val → val → iProp Σ) : iProp Σ := 
-       ∃ (v1 v2 : val),
-       ⌜rtc pure_step e1 v1⌝ ∗ ⌜rtc pure_step e2 v2⌝ ∗ Φ v1 v2. *)
-  (* match (to_val e1), (to_val e2) with
-     | Some v1, Some v2 => Φ v1 v2
-     | Some v1, None => ∃ (v2 : val), (∃ n2, ⌜nsteps pure_step n2 e2 v2⌝) ∗ Φ v1 v2
-     | None, Some v2 =>  ∃ (v1 : val), (∃ n1, ⌜nsteps pure_step n1 e1 v1⌝) ∗ Φ v1 v2
-     | None, None => ∃ (v1 v2 : val) n1 n2,  ⌜nsteps pure_step n1 e1 v1 ∧ nsteps pure_step n2 e2 v2⌝ ∗ Φ v1 v2
-     end.  *)
-
-Definition prel_pre `{Σ : gFunctors} (Φ : val → val → iProp Σ)
-    (R : (expr * expr) -d> iProp Σ) : (expr * expr) -d> iProp Σ :=
-  λ ee, let (e1, e2) := ee in
-  match to_val e1, to_val e2 with
+Definition prel `{Σ : gFunctors} (e1 e2 : expr) (Φ : val → val → iProp Σ) : iProp Σ := 
+  match (to_val e1), (to_val e2) with
   | Some v1, Some v2 => Φ v1 v2
-  | Some v1, None    => (∀ e2', ⌜pure_step e2 e2'⌝ -∗ R ((Val v1), e2'))%I
-  | None,    Some v2 => (∀ e1', ⌜pure_step e1 e1'⌝ -∗ R (e1', (Val v2)))%I
-  | None,    None    => (∀ e1', ⌜pure_step e1 e1'⌝ -∗ R (e1', e2))%I
-  end.
+  | Some v1, None => ∃ (v2 : val), (∃ n2, ⌜nsteps pure_step n2 e2 v2⌝) ∗ Φ v1 v2
+  | None, Some v2 =>  ∃ (v1 : val), (∃ n1, ⌜nsteps pure_step n1 e1 v1⌝) ∗ Φ v1 v2
+  | None, None => ∃ (v1 v2 : val) n1 n2,  ⌜nsteps pure_step n1 e1 v1 ∧ nsteps pure_step n2 e2 v2⌝ ∗ Φ v1 v2
+  end. 
 
-Local Lemma prel_pre_mono `{Σ : gFunctors} (wp1 wp2 : expr * expr → iProp Σ) Φ :
-  ⊢ (□ ∀ ee, wp1 ee -∗ wp2 ee) →
-    ∀ ee, prel_pre Φ wp1 ee -∗ prel_pre Φ wp2 ee.
+Lemma prel_intuitionistically `{Σ : gFunctors} e1 e2 Φ : 
+  (□ prel e1 e2 Φ) -∗ @prel Σ e1 e2 (λ v1 v2, □ (Φ v1 v2)).
 Proof.
-  iIntros "#H"; iIntros ((e1, e2)) "Hwp". rewrite /prel_pre.
-  destruct (to_val e1), (to_val e2) as [v1 v2|]; first done; iIntros (e') "He'"; iApply "H"; by iApply "Hwp".
+  iIntros "#Hrel". unfold prel.
+  destruct (to_val e1) eqn:Heq1, (to_val e2) eqn:Heq2; first done.
+  1, 2: iDestruct "Hrel" as (??) "H"; iExists _; iSplit; first (by iPureIntro); by iModIntro. 
+  iDestruct "Hrel" as (????) "H". iExists _,_,_,_. iDestruct "H" as "($ & H2)". by iModIntro. 
 Qed.
-
-Local Instance prel_pre_mono_pred `{Σ : gFunctors } Φ :
-  BiMonoPred (@prel_pre Σ Φ).
-Proof.
-  constructor; last solve_proper.
-  iIntros (wp1 wp2 ??) "#H". by iApply prel_pre_mono.
-Qed.
-
-Local Definition prel_def `{!probblazeRGS Σ}
-    (e1 e2 : expr) (Φ : val → val → iProp Σ) : iProp Σ :=
-  bi_least_fixpoint (prel_pre Φ) (e1, e2).
-Local Definition prel_aux : seal (@prel_def). Proof. by eexists. Qed.
-Definition prel := prel_aux.(unseal).
-Global Arguments prel {Σ _}.
-Local Lemma prel_unseal `{!probblazeRGS Σ} : prel = @prel_def Σ _.
-Proof. rewrite -prel_aux.(seal_eq) //. Qed.
 
 Notation "'PREL' e1 ≤ e2 '[{' Φ '}]'" := (prel e1%E e2%E Φ)
                                            (at level 20, e1, e2, Φ at next level, only parsing) : bi_scope.
 Notation "'PREL' e1 ≤ e2 '[{' v1 ; v2 , Φ '}]'" := (prel e1%E e2%E (λ v1 v2, Φ)%I)
                                                    (at level 20, v1 ident, v2 ident, e1, e2, Φ at next level) : bi_scope.
 
-Section prel.
-  Context `{!probblazeRGS Σ}.
 
-Lemma prel_unfold e1 e2 Φ :
-  prel e1 e2 Φ ⊣⊢ prel_pre Φ (fun '(e1', e2') => prel e1' e2' Φ) (e1, e2).
-Proof. by rewrite prel_unseal /prel /prel_def least_fixpoint_unfold. Qed.
-Lemma prel_ind Φ `{NonExpansive Ψ} :
-  □ (∀ e, prel_pre Φ (λ '(e1, e2), Ψ (e1, e2) ∧ PREL e1 ≤ e2 [{ v1; v2, Φ v1 v2 }]) e -∗ Ψ e) -∗
-  (∀ e1 e2, PREL e1 ≤ e2 [{ v1; v2, Φ v1 v2 }] -∗ Ψ (e1, e2)). 
-Proof.
-  iIntros "#IH" (e1 e2) "H //=". rewrite prel_unseal.
-  iApply (least_fixpoint_ind _ Ψ with "IH H").
-Qed.
-
-Lemma prel_intuitionistically e1 e2 Φ : 
-  (□ prel e1 e2 Φ) -∗ prel e1 e2 (λ v1 v2, □ (Φ v1 v2)).
-Proof.
-  iIntros "#H". iAssert (PREL e1 ≤ e2 [{ v1; v2, Φ v1 v2 }])%I as "H'"; first done.
-  iRevert "H H'". rewrite {1}bi.intuitionistically_elim. iRevert (e1 e2).
-  iApply (@prel_ind _ (λ ee, □ PREL ee.1 ≤ ee.2 [{v1; v2, Φ v1 v2}] -∗ PREL ee.1 ≤ ee.2 [{v1; v2, (□ Φ v1 v2)}])%I).
-  1 : solve_proper.
-  iIntros ((e1, e2)) "!# IH #H //=".
-  rewrite !prel_unfold /prel_pre.
-  destruct (to_val e1) as [v1|]; destruct (to_val e2) as [v2|]; first done.
-  all : iIntros (?) "#Hs"; iApply ("IH" with "[$]"); iModIntro; by iApply "H".
-Qed. 
-
-Notation "'PREL' e1 ≤ e2 '[{' Φ '}]'" := (prel e1%E e2%E Φ)
-                                           (at level 20, e1, e2, Φ at next level, only parsing) : bi_scope.
-Notation "'PREL' e1 ≤ e2 '[{' v1 ; v2 , Φ '}]'" := (prel e1%E e2%E (λ v1 v2, Φ)%I)
-                                                   (at level 20, v1 ident, v2 ident, e1, e2, Φ at next level) : bi_scope.
-Lemma pure_step_eq (e : expr) e1 e2 : pure_step e e1 → pure_step e e2 → e1 = e2.
-Proof.
- intros [_ Hdet1] [_ Hdet2].
-  specialize (Hdet1 inhabitant). specialize (Hdet2 inhabitant).
-  assert (prim_step e inhabitant (e2, inhabitant) > 0)%R as Hpos.
-  { rewrite Hdet2. lra. }
-  pose proof (pmf_1_supp_eq _ _ _ Hdet1 Hpos) as Heq. by simplify_eq.
-Qed.
-
-Lemma brel_step_r e1 e2 Φ :
-  (∀ e2', ⌜pure_step e2 e2'⌝ -∗ brel ⊤ e1 e2' ⊥ Φ) -∗ brel ⊤ e1 e2 ⊥ Φ.
-Proof.
-  iIntros "Hstep".
-  
-Admitted.
-
-Lemma prel_brel e1 e2 Φ :                         
+Lemma prel_brel `{!probblazeRGS Σ} e1 e2 Φ :                         
   prel e1 e2 Φ -∗ brel ⊤ e1 e2 ⊥ Φ.
 Proof.
   iIntros "He".
@@ -123,9 +49,9 @@ Proof.
     iApply brel_value. by iIntros "$ !>".
 Qed.
 
-Lemma prel_mono e1 e2 Φ Ψ : 
+Lemma prel_mono `{Σ : gFunctors} e1 e2 Φ Ψ : 
   (∀ v1 v2, Φ v1 v2 -∗ Ψ v1 v2) -∗
-  PREL e1 ≤ e2 [{ v1; v2, Φ v1 v2}] -∗ prel e1 e2 Ψ.
+  PREL e1 ≤ e2 [{ v1; v2, Φ v1 v2}] -∗ @prel Σ e1 e2 Ψ.
 Proof.
   iIntros "Hvv Hprel". rewrite /prel.
   destruct (to_val e1) eqn:Heq1, (to_val e2) eqn:Heq2.
