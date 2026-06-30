@@ -98,7 +98,12 @@ Proof. solve_proper. Qed.
 
 Global Instance sem_sig_eff_ne {Σ} op1 op2 :
   NonExpansive2 (@sem_sig_eff Σ op1 op2).
-Proof. iIntros (???????). Admitted.
+Proof.
+  intros n A1 A2 HA B1 B2 HB.
+  unfold dist, ofe_dist. simpl. intros e1 e2 Φ. simpl.
+  f_equiv. intro αs. repeat f_equiv.
+  all: (eapply (HA _ _ _) || eapply (HB _ _ _)).
+Qed.
 
 Global Instance sem_sig_eff_alt_ne {Σ}:
   NonExpansive (@sem_sig_eff Σ).
