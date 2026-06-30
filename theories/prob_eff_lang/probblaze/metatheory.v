@@ -51,7 +51,7 @@ Set Default Proof Using "Type*".
     1,2: apply cond_nonneg.
     2 : {
       rewrite -Hε.
-      unshelve eapply (ARcoupl_dunif_avoid _ _ (f_inv f)).
+      unshelve eapply (ARcoupl_dunif_avoid_bij _ _ (f_inv f)).
       - apply H.
       - apply f_inv_bij.
       - done.

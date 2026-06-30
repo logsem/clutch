@@ -1639,7 +1639,7 @@ Qed.
     
 
 (* Helper lemma for ARcoupl_rand_rand_avoid_list *)
-Lemma ARcoupl_dunif_avoid N (l:list (fin N)) f `{Bij (fin N) (fin N) f}:
+Lemma ARcoupl_dunif_avoid_bij N (l:list (fin N)) f `{Bij (fin N) (fin N) f}:
   NoDup l->
   ARcoupl (dunif N) (dunif N) (λ x y, x∉l /\ x= (f y)) (length l/N).
 Proof.
