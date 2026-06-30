@@ -261,13 +261,7 @@ Section types_properties.
   Proof. apply ne_proper. apply _. Qed.
 
   Global Instance sem_ty_prod_proper : Proper ((≡) ==> (≡) ==> (≡)) (@sem_ty_prod Σ).
-  Proof.
-    (* intros ??????. unfold sem_ty_prod. simpl. apply non_dep_fun_equiv. f_equiv.
-       - iIntros "(% &%&%&%&->&->&H1&H2)". 
-         iExists _,_,_,_. repeat (iSplit; try iPureIntro; try done).
-         solve_non_expansive. 
-            - setoid_rewrite H0. Qed. *)
-  Admitted.
+  Proof. apply ne_proper_2. apply _. Qed.
 
   Global Instance sem_ty_sum_proper : Proper ((≡) ==> (≡) ==> (≡)) (@sem_ty_sum Σ).
   (* Proof. solve_non_expansive. Qed. *)
