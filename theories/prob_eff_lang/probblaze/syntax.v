@@ -1029,6 +1029,18 @@ Proof.
   end) _); by intros [].
 Qed.
 
+Global Instance mode_countable : Countable mode.
+Proof.
+ refine (inj_countable' (λ m, match m with OS => 0 | MS => 1 end)
+  (λ n, match n with 0 => OS | _ => MS end) _); by intros [].
+Qed.
+
+Global Instance handler_semantics_countable : Countable handler_semantics.
+Proof.
+ refine (inj_countable' (λ hs, match hs with Deep => 0 | Shallow => 1 end)
+  (λ n, match n with 0 => Deep | _ => Shallow end) _); by intros [].
+Qed.
+
 Global Instance un_op_countable : Countable un_op.
 Proof.
  refine (inj_countable' (λ op, match op with NegOp => 0 | MinusUnOp => 1 end)
@@ -1473,13 +1485,10 @@ Section countable.
   Notation S := (λ k, decode_ectx  (encode_ectx  k) = k) (only parsing).
   (* TODO: finish this proof *)
   Global Instance expr_countable : Countable expr.
-  Proof. Admitted.
-  (*   refine (inj_countable' encode_expr decode_expr _). 
-       apply (expr_ind' P Q R S); repeat intros ?; 
-       repeat match goal with
-       | [ H : _ = _ |- _ ] => rewrite H
-         end; done.
-     Qed. *)
+  Proof.
+    refine (inj_countable' encode_expr decode_expr _).
+    apply (expr_ind' P Q R S); intros; simpl; f_equal; auto.
+  Qed.
 
   Global Instance val_countable : Countable val.
   Proof.
