@@ -277,8 +277,7 @@ Section types_properties.
   Proof. apply ne_proper. apply _. Qed.
 
   Global Instance sem_ty_ref_cpy_proper : Proper ((≡) ==> (≡)) (@sem_ty_ref_cpy Σ _).
-  (* Proof. intros ????. unfold sem_ty_ref_cpy; by repeat f_equiv. Qed. *)
-  Admitted.
+  Proof. apply ne_proper. apply _. Qed.
 
   (* Global Instance sem_ty_type_forall_proper :
        Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_type_forall Σ).
