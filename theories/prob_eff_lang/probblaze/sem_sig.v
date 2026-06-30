@@ -134,17 +134,11 @@ Qed.
 
 Global Instance sem_sig_flip_mbang_ne {Σ} m : NonExpansive (@sem_sig_flip_mbang Σ m).
 Proof.
-(*   rewrite /sem_sig_flip_mbang. 
-     intros ???????.
-     apply non_dep_fun_dist. 
-     intros ?. 
-     apply non_dep_fun_dist.
-     destruct m; simpl.
-     - admit.
-     - apply non_dep_fun_dist.
-     by apply iEff_car_ne.
-   Qed. *)
-Admitted.
+  intros n σ1 σ2 Hσ.
+  rewrite /sem_sig_flip_mbang /sem_sig_dist /=.
+  apply pmono_prot_distI.
+  by apply iThyIfMono_ne.
+Qed.
 Global Instance sem_sig_flip_mbang_proper {Σ} m : Proper ((≡) ==> (≡)) (@sem_sig_flip_mbang Σ m).
 Proof. apply ne_proper. apply _. Qed.
 
