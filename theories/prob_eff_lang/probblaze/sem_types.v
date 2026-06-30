@@ -267,8 +267,11 @@ Section types_properties.
   Proof. apply ne_proper_2. apply _. Qed.
 
   Global Instance sem_ty_arr_proper : Proper ((≡) ==> (≡) ==> (≡) ==> (≡)) sem_ty_arr.
-  (* Proof. solve_non_expansive. Qed. *)
-  Admitted.
+  Proof.
+    intros ρ1 ρ2 Hρ τ1 τ2 Hτ κ1 κ2 Hκ.
+    apply equiv_dist => n.
+    apply (sem_ty_arr_ne n); by apply equiv_dist.
+  Qed.
 
   Global Instance sem_ty_ref_proper : Proper ((≡) ==> (≡)) (@sem_ty_ref Σ _).
   (* Proof. intros ????. unfold sem_ty_ref; by repeat f_equiv. Qed. *)
