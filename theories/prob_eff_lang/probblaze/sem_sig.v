@@ -94,8 +94,7 @@ Section sig_properties.
 
 Global Instance sem_sig_eff_ne2 {Σ}:
   NonExpansive2 (@sem_sig_eff Σ).
-Proof.
-Admitted. 
+Proof. solve_proper. Qed.
 
 Global Instance sem_sig_eff_ne {Σ} op1 op2 :
   NonExpansive2 (@sem_sig_eff Σ op1 op2).
