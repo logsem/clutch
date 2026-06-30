@@ -1484,12 +1484,12 @@ Inductive typed :
                     
 
 | TAlloc Δ Γ1 e ρ τ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2  → Δ .| Γ1 ⊢ₜ AllocN (Val $ LitV $ LitInt 1) e : ρ : ref τ ⊣ Γ2
-| TLoad Δ Γ1 e ρ τ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : ref τ ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Load e : ρ : τ ⊣ Γ2
-| TStore Δ Γ1 Γ2 Γ3 e e' ρ τ :
-  ρ R⪯T τ →
-  Δ .| Γ1 ⊢ₜ e' : ρ : τ ⊣ Γ2 →
-                     Δ .| Γ2 ⊢ₜ e : ρ : ref τ ⊣ Γ3 →
-                                       Δ .| Γ1 ⊢ₜ Store e e' : ρ : () ⊣ Γ3
+                     (* generalized load rule to allow reuse of affine references *)
+| TLoad Δ Γ (x : string) τ : Δ .| <[ x :=c ref τ ]> Γ ⊢ₜ Load (Var x) : RNil : τ ⊣ <[ x :=c ref ⊤ ]> Γ 
+                     (* generalized store rule to allow to store a different type *)
+| TStore Δ Γ1 Γ2 (x : string) e ρ τ κ ι:
+  Δ .| <[ x :=c ref τ ]> Γ1 ⊢ₜ e : ρ : ι ⊣ <[ x :=c ref κ ]> Γ2 →
+                                       Δ .| <[ x :=c ref τ]> Γ1 ⊢ₜ Store x e : ρ : () ⊣ <[ x :=c ref ι ]> Γ2
 | TAllocTape Δ Γ1 e ρ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : ℕ ⊣ Γ2 →  Δ .| Γ1 ⊢ₜ AllocTape e : ρ : TTape ⊣ Γ2
 | TRand Δ Γ1 Γ2 Γ3 e1 e2 ρ : Δ .| Γ2 ⊢ₜ e1 : ρ : ℕ ⊣ Γ3 → Δ .| Γ1 ⊢ₜ e2 : ρ : TTape ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Rand e1 e2 : ρ : ℕ ⊣ Γ3
 | TRandU Δ Γ1 Γ2 Γ3 e1 e2 ρ : Δ .| Γ2 ⊢ₜ e1 : ρ : ℕ ⊣ Γ3 → Δ .| Γ1 ⊢ₜ e2 : ρ : () ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Rand e1 e2 : ρ : ℕ ⊣ Γ3

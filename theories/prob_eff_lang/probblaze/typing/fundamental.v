@@ -135,7 +135,7 @@ Theorem fundamental Δ Γ1 e ρ τ Γ2 :
   with fundamental_pure Γ e τ :
     Γ ⊢ₚ e : τ → ⊢ bin_log_pure_related Γ e e τ.
 Proof.
-  - intros Ht. destruct Ht; iIntros (η μ δ ξ vs Hδ).
+  - intros Ht. destruct Ht; iIntros (η μ δ ξ' vs Hδ).
     + (* Var_typed *) rewrite !lbl_resolve_var. iApply sem_typed_var.
     + (* Val_typed *) rewrite !lbl_resolve_val.
       iApply sem_typed_val; by iApply fundamental_val.
@@ -150,11 +150,8 @@ Proof.
       (* The new [ρ R⪯T τ2] premise supplies the [RowTypeSub] typeclass
          argument of [sem_typed_pair_gen] via [row_type_sub_sound]. *)
       push_lr.
-      match goal with Hrt : _ R⪯T _ |- _ =>
-        pose proof (interp.row_type_sub_sound δ _ _ Hrt η μ ξ) as Hrts
-      end.
       iApply sem_typed_pair_gen;
-        [apply fundamental in Ht1 as Ht|apply fundamental in Ht2 as Ht];
+        [by eapply interp.row_type_sub_sound|apply fundamental in Ht1 as Ht|apply fundamental in Ht2 as Ht];
         iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* Fst_typed *) push_lr. iApply sem_typed_fst_expr. apply fundamental in Ht.
       iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
@@ -194,9 +191,9 @@ Proof.
       push_lr.
       rewrite /ctx_append fmap_app /=.
       iApply sem_typed_oval.
-      pose proof (multi_env_sound Γ H2 η μ δ ξ) as HME.
-      iApply (@sem_oval_typed_ufun_rec _ _ (interp._ty η μ δ τ ξ)
-                (interp._row η μ δ ρ ξ) (interp._ty η μ δ κ ξ)
+      pose proof (multi_env_sound Γ H2 η μ δ ξ') as HME.
+      iApply (@sem_oval_typed_ufun_rec _ _ (interp._ty η μ δ τ ξ')
+                (interp._row η μ δ ρ ξ') (interp._ty η μ δ κ ξ')
                 (interp._mode μ m) _ f x
                 (lbl_resolve (resolve_l Δ δ) e)
                 (lbl_resolve (resolve_r Δ δ) e) HME).
@@ -204,45 +201,39 @@ Proof.
       { destruct f as [|s]; [done|]. by eapply ctx_dom_env_dom. }
       { exact H. }
       apply fundamental in Ht. iPoseProof Ht as "Ht".
-      iSpecialize ("Ht" $! η μ δ ξ vs Hδ).
+      iSpecialize ("Ht" $! η μ δ ξ' vs Hδ).
       destruct f as [|sf]; destruct x as [|sx]; simpl in *; iApply "Ht".
     + (* App_typed *) admit.
     + (* TAbsElim_typed *)
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
-                (interp.ty_subst_single η μ δ ξ τ τ')).
-      iApply (sem_typed_TApp (λ α, interp._ty (α :: η) μ δ τ ξ)
-                (interp._ty η μ δ τ' ξ)).
+                (interp.ty_subst_single η μ δ ξ' τ τ')).
+      iApply (sem_typed_TApp (λ α, interp._ty (α :: η) μ δ τ ξ')
+                (interp._ty η μ δ τ' ξ')).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* RAbsElim_typed *)
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
-                (interp.row_subst_single η μ δ ξ τ ρ')).
-      iApply (sem_typed_RApp (λ θ, interp._ty η μ δ τ (θ :: ξ))
-                _ (interp._row η μ δ ρ' ξ)).
+                (interp.row_subst_single η μ δ ξ' τ ρ')).
+      iApply (sem_typed_RApp (λ θ, interp._ty η μ δ τ (θ :: ξ'))
+                _ (interp._row η μ δ ρ' ξ')).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* MAbsElim_typed *)
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
-                (interp.mode_subst_single η μ δ ξ τ m)).
-      iApply (sem_typed_MApp (λ ν, interp._ty η (ν :: μ) δ τ ξ)
+                (interp.mode_subst_single η μ δ ξ' τ m)).
+      iApply (sem_typed_MApp (λ ν, interp._ty η (ν :: μ) δ τ ξ')
                 _ (interp._mode μ m)).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TAlloc *) push_lr. iApply sem_typed_alloc. apply fundamental in Ht.
       iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
-    + (* TLoad *) push_lr. iApply sem_typed_load_expr. apply fundamental in Ht.
-      iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+    + (* TLoad *) push_lr. simpl. rewrite !lbl_resolve_var. iApply sem_typed_load. 
     + (* TStore *)
-      (* Linear-reference store.  The new [ρ R⪯T τ] premise supplies the
-         [RowTypeSub] typeclass argument of [sem_typed_store_expr] (which
-         carries the stored value across the ref subexpression's effects)
-         via [row_type_sub_sound]. *)
+      (* Linear-reference store. *)
       push_lr.
-      match goal with Hrt : _ R⪯T _ |- _ =>
-        pose proof (interp.row_type_sub_sound δ _ _ Hrt η μ ξ) as Hrts
-      end.
-      iApply sem_typed_store_expr;
-        [apply fundamental in Ht2 as Ht|apply fundamental in Ht1 as Ht];
+      rewrite !lbl_resolve_var. simpl.
+      iApply sem_typed_store. 
+      apply fundamental in Ht. 
         iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TAllocTape *) push_lr. iApply sem_typed_alloctape. apply fundamental in Ht.
       iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
@@ -267,22 +258,22 @@ Proof.
         [apply fundamental in Ht1 as Ht | apply fundamental in Ht2 as Ht];
         iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TFold *)
-      iApply (sem_typed_fold (λ α, interp._ty (α :: η) μ δ τ ξ)).
+      iApply (sem_typed_fold (λ α, interp._ty (α :: η) μ δ τ ξ')).
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
-                (symmetry (interp.ty_subst_single η μ δ ξ τ (μ: τ)%ty))).
+                (symmetry (interp.ty_subst_single η μ δ _ τ (μ: τ)%ty))).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TUnfold *)
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
-                (interp.ty_subst_single η μ δ ξ τ (μ: τ)%ty)).
-      iApply (sem_typed_unfold (λ α, interp._ty (α :: η) μ δ τ ξ)).
+                (interp.ty_subst_single η μ δ _ τ (μ: τ)%ty)).
+      iApply (sem_typed_unfold (λ α, interp._ty (α :: η) μ δ τ _)).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TPack *)
-      iApply (sem_typed_pack (λ α, interp._ty (α :: η) μ δ τ ξ)
-                (interp._ty η μ δ τ' ξ)).
+      iApply (sem_typed_pack (λ α, interp._ty (α :: η) μ δ τ _)
+                (interp._ty η μ δ τ' _)).
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
-                (symmetry (interp.ty_subst_single η μ δ ξ τ τ'))).
+                (symmetry (interp.ty_subst_single η μ δ _ τ τ'))).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* TUnpack *)
@@ -298,15 +289,15 @@ Proof.
          [x ∉ ctx_dom Γ2/Γ3] discharge the binder-non-clash side conditions
          of [sem_typed_unpack_gen] via [ctx_dom_env_dom]; the binder-general
          lemma [sem_typed_unpack_gen] handles the [BAnon] case. *)
-      iApply (sem_typed_unpack_gen (λ τ0, interp._ty (τ0 :: η) μ δ τ ξ)
-                _ _ _ ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ2)).
+      iApply (sem_typed_unpack_gen (λ τ0, interp._ty (τ0 :: η) μ δ τ ξ')
+                _ _ _ ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ')) <$> Γ2)).
       { destruct x as [|s]; [done|]. by eapply ctx_dom_env_dom. }
       { destruct x as [|s]; [done|]. by eapply ctx_dom_env_dom. }
       { apply fundamental in Ht1. iPoseProof Ht1 as "Ht".
         iApply ("Ht" $! _ _ _ _ ∅ Hδ). }
       iIntros (τ0).
       apply fundamental in Ht2. iPoseProof Ht2 as "Ht".
-      iSpecialize ("Ht" $! (τ0 :: η) μ δ ξ ∅ Hδ).
+      iSpecialize ("Ht" $! (τ0 :: η) μ δ ξ' ∅ Hδ).
       iEval (cbn [ctx_insert fmap list_fmap]) in "Ht".
       iApply (sem_typed_sub with "[][][][] Ht").
       { rewrite /env_le /tc_opaque. iModIntro. iIntros (γ) "H".
@@ -315,9 +306,9 @@ Proof.
         by rewrite ctx_tweaken. }
       { rewrite /env_le /tc_opaque. iModIntro. iIntros (γ) "H".
         by rewrite ctx_tweaken. }
-      { iEval (rewrite (interp.row_tweaken ρ τ0 η μ δ ξ)).
+      { iEval (rewrite (interp.row_tweaken ρ τ0 η μ δ ξ')).
         iApply sem_row.row_le_refl. }
-      { iEval (rewrite (interp.ty_tweaken τ2 τ0 η μ δ ξ)).
+      { iEval (rewrite (interp.ty_tweaken τ2 τ0 η μ δ ξ')).
         iApply sem_types.ty_le_refl. }
     + (* Effect_typed *)
       (* PARTIALLY MECHANISED — reduces to [sem_typed] row/env congruence.
@@ -350,6 +341,9 @@ Proof.
          [Γ2]), so [vars._fresh] correctly omits it; the [Effect_typed]
          Inductive would need an extra [s ∉ vars._ctx Γ2] premise, which the
          task's hard rule forbids changing.  Left admitted accordingly. *)
+      iApply sem_typed_effect_gen. simpl.
+      apply fundamental in Ht. 
+      iPoseProof Ht as "Ht". 
       admit.
     + (* Do_typed *)
       (* With [bin_log_related] now relating the δ-resolved expression, the
@@ -364,15 +358,15 @@ Proof.
       rewrite !lbl_resolve_do_name.
       rewrite !resolve_map_lookup H0 /=.
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
-                (interp.ty_subst_single η μ δ ξ κ τ)).
-      pose proof (interp.mode_env_sound m Γ2 H η μ δ ξ) as Hms.
-      iApply (@sem_typed_do _ _ (interp._mode μ m) (interp._ty η μ δ τ ξ)
+                (interp.ty_subst_single η μ δ ξ' κ τ)).
+      pose proof (interp.mode_env_sound m Γ2 H η μ δ ξ') as Hms.
+      iApply (@sem_typed_do _ _ (interp._mode μ m) (interp._ty η μ δ τ ξ')
                 _ (δ !!! s)
-                (λ α, interp._ty (α :: η) μ δ ι ξ)
-                (λ α, interp._ty (α :: η) μ δ κ ξ) _ _ _ _ Hms).
+                (λ α, interp._ty (α :: η) μ δ ι ξ')
+                (λ α, interp._ty (α :: η) μ δ κ ξ') _ _ _ _ Hms).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
-                (symmetry (interp.ty_subst_single η μ δ ξ ι τ))).
+                (symmetry (interp.ty_subst_single η μ δ ξ' ι τ))).
       iApply ("Ht" $! _ _ _ _ ∅ Hδ).
     + (* DeepHandle_typed *)
       (* The lbl_resolve front-matter goes through:
@@ -407,7 +401,9 @@ Proof.
          needs a NEW compatibility lemma for a forwarding handler whose output
          re-installs [σ] (out of scope of the lbl_resolve refinement; the
          four existing handler lemmas are all discharging). *)
-      admit.
+      destruct m.
+      * rewrite !lbl_resolve_handle_name. unfold ctx_append. rewrite fmap_app. admit. (* iApply sem_typed_deep_handler_OS. *)
+      * admit.
     + (* ShallowHandle_typed *)
       (* Same lbl_resolve front-matter and the same row-shape mismatch as
          [DeepHandle_typed] above: the body row resolves to
@@ -430,9 +426,9 @@ Proof.
       destruct x as [|s]; simpl;
         [ apply fundamental in Ht; iPoseProof Ht as "Ht";
           iApply ("Ht" $! _ _ _ _ ∅ Hδ)
-        | pose proof (multi_ty_sound κ H η μ δ ξ) as Hmt;
+        | pose proof (multi_ty_sound κ H η μ δ ξ') as Hmt;
           iApply (sem_typed_contraction _ _ _ _ _ _
-                    (interp._ty η μ δ κ ξ));
+                    (interp._ty η μ δ κ ξ'));
           apply fundamental in Ht; iPoseProof Ht as "Ht";
           iApply ("Ht" $! _ _ _ _ ∅ Hδ) ].
     + (* Weakening_typed *) destruct x; simpl.
