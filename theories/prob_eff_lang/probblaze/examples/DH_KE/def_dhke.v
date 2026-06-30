@@ -164,7 +164,7 @@ Section def_implementation.
             let: "r" := "doRecv" "from" in
              match: "r" with
                NONE => "k" NONE
-             | SOME "x" => "k" (SOME #0)
+             | SOME "x" => "k" (SOME #()%V)
              end
         end
     | return "y" => "y" end.
