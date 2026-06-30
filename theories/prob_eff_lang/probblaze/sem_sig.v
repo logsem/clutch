@@ -164,14 +164,15 @@ Section sig_sub_typing.
 
   Lemma sig_mbang_later {Σ} (σ : sem_sig Σ)  m :
     ⊢ ¡[ m ] (sem_sig_later σ) ≤ₛ sem_sig_later (¡[ m ] σ).
-  Proof. 
+  Proof.
     rewrite /sig_le /tc_opaque. iSplit; first done.
-    destruct m; last iApply iThy_le_refl. 
-    
-  (*   iIntros (???) "!# (%&(Hl&Himp)) !>". 
-       iExists Q'. iFrame.
-     Qed.  *)
-  Admitted. 
+    destruct m; last iApply iThy_le_refl.
+    rewrite /iThy_le. iIntros "!>" (e1 e2 Q) "H".
+    rewrite /sem_sig_flip_mbang /sem_sig_later /iThyIfMono /iThyMono /=.
+    iDestruct "H" as (Q') "[[%v1 [%v2 [-> [-> Hσ]]]] HQ]".
+    iExists v1, v2. iSplit; first done. iSplit; first done.
+    iModIntro. iExists Q'. iFrame.
+  Qed.
   (* Subtyping on Signatures *)
   (* TODO: finish lemmas in here *)
   
