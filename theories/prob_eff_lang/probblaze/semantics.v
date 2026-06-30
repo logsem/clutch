@@ -1376,13 +1376,13 @@ Inductive base_step : expr → state → expr → state → Prop :=
 
 Global Instance eq_dec_state : EqDecision state.
 Proof. solve_decision. Qed. 
-(* TODO: finish this proof *)
 Global Instance state_countable : Countable state.
-Proof. Admitted.
-
-(*   {| encode σ := encode (σ.(next_label), σ.(heap), σ.(tapes));
-        decode p := '(l, h, t) ← decode p; mret {|next_label := l; heap:=h; tapes:=t|} |}.
-   Next Obligation. intros [h t]. rewrite decode_encode //=. Qed. *)
+Proof.
+  refine {| encode σ := encode (σ.(next_label), σ.(heap), σ.(tapes));
+            decode p := '(l, h, t) ← decode p;
+                        mret {| next_label := l; heap := h; tapes := t |} |}.
+  intros [l h t]. rewrite decode_encode //=.
+Qed.
 
 
 Definition state_step (σ1 : state) (α : loc) : distr state :=
