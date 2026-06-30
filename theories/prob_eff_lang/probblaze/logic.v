@@ -2245,11 +2245,14 @@ Section to_iThy.
       eauto.
     Qed.
 
-    (* TODO: Proof this theorem *)
     Lemma to_iThy_le_bot (L : iLblThy Σ) :
       ⊢ to_iThy_le ⊥ L.
     Proof.
-    Admitted.
+      iSplit; [|iSplit].
+      { iApply iThy_le_to_iThy_nil. }
+      { iIntros "!> _". by iSplit; iApply big_sepL_nil. }
+      { iIntros "!> _". iPureIntro. split; apply NoDup_nil_2. }
+    Qed.
 
     
     
