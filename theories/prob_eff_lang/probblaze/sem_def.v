@@ -101,8 +101,17 @@ Proof. iIntros "H". by iRewrite "H". Qed.
 Lemma pmono_prot_iEff_equivI {Σ} (Ψ1 Ψ2 : pmono_prot Σ) :
   Ψ1 ≡ Ψ2 ⊢@{iProp Σ} ∀ v1 v2 Φ, (pmono_prot_car Ψ1) v1 v2 Φ ≡ (pmono_prot_car Ψ2) v1 v2 Φ.
 Proof.
-  iIntros "H % % %". iPoseProof (pmono_prot_equivI with "H") as "HH". 
-Admitted. 
+  iIntros "H % % %". iPoseProof (pmono_prot_equivI with "H") as "HH".
+  iPoseProof (discrete_fun_equivI (pmono_prot_car Ψ1) (pmono_prot_car Ψ2)) as "HH2".
+  iDestruct "HH2" as "[HH2f _]". iSpecialize ("HH2f" with "HH").
+  iSpecialize ("HH2f" $! v1).
+  iPoseProof (discrete_fun_equivI (pmono_prot_car Ψ1 v1) (pmono_prot_car Ψ2 v1)) as "HH3".
+  iDestruct "HH3" as "[HH3f _]". iSpecialize ("HH3f" with "HH2f").
+  iSpecialize ("HH3f" $! v2).
+  iPoseProof (ofe_morO_equivI (pmono_prot_car Ψ1 v1 v2) (pmono_prot_car Ψ2 v1 v2)) as "HH4".
+  iDestruct "HH4" as "[HH4f _]". iSpecialize ("HH4f" with "HH3f").
+  iSpecialize ("HH4f" $! Φ). iApply "HH4f".
+Qed.
 
 Lemma pmono_prot_distI {Σ} (Ψ1 Ψ2 : iThy Σ) (P1 : ⊢ pers_mono Ψ1) (P2 : ⊢ pers_mono Ψ2) n :
   Ψ1 ≡{n}≡ Ψ2 → (@PMonoProt Σ Ψ1 P1) ≡{n}≡ (@PMonoProt Σ Ψ2 P2).
