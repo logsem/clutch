@@ -525,6 +525,87 @@ Section enc_fin_cancel.
     rewrite (Zp_nat _ r).
     rewrite (Zp_nat _ s).
     done.
-  Qed.    
-    
+  Qed.
+
 End enc_fin_cancel.
+
+Section enc_nondeg.
+
+  Import prime fingroup ssralg all_boot zmodp valgroup.
+  Import GroupScope.
+  Import GRing.Theory.
+  Open Scope ring_scope.
+  Context {n'' : nat}.
+  #[local] Notation n := n''.+2.
+  Context {n_prime : prime n}.
+
+  Lemma field_nondeg (a b c d x y : 'F_n) :
+    a != 0 -> x != 0 -> a * y = c * x -> d != b * (c / a) -> b * y - d * x != 0.
+  Proof.
+    move=> Ha Hx Hay Hd.
+    have Hy : y = (c / a) * x.
+    { apply: (mulfI Ha). by rewrite Hay mulrA [a * (c / a)]mulrC divfK. }
+    rewrite Hy mulrA -mulrBl.
+    apply: mulf_neq0; last exact: Hx.
+    by rewrite subr_eq0 eq_sym.
+  Qed.
+
+  (* Slot-1 non-degeneracy, given slot-0 is decryptable (kv = ku * f_ring(g0,t0))
+     and the two trapdoors differ (t1 <> g1 * t0 * g0^-1 = h_ring(g1,f_ring(g0,t0))). *)
+  Lemma enc_nondeg_other (a0 a1 u w : Fin.t n) (s0 s1 : nat) :
+    s0 < n -> s1 < n ->
+    Fp_of_fin a0 != 0 -> Fp_of_fin u != 0 ->
+    (fin.fin_to_nat w) = (fin.fin_to_nat u) * f_ring (Fp_of_fin a0) s0 %[mod n] ->
+    s1 <> h_ring (Fp_of_fin a1) (f_ring (Fp_of_fin a0) s0) ->
+    Fp_of_fin a1 * Fp_of_fin w - inZp s1 * Fp_of_fin u != Zp0.
+  Proof.
+    move=> Hs0 Hs1 Ha0 Hu Hw Hne.
+    apply: (field_nondeg (Fp_of_fin a0) (Fp_of_fin a1) (inZp s0) (inZp s1)
+                         (Fp_of_fin u) (Fp_of_fin w) Ha0 Hu).
+    - have inZpM : forall x y : nat, (inZp x * inZp y : 'F_n) = inZp (x * y).
+      { move=> x y. apply: val_inj => /=. by rewrite modnMm. }
+      have inZpmod : forall x y : nat, x = y %[mod n] -> (inZp x : 'F_n) = inZp y.
+      { move=> x y Hxy. apply: val_inj => /=. by rewrite (Fp_cast n_prime). }
+      have FpE : forall c : Fin.t n, Fp_of_fin c = inZp (fin.fin_to_nat c).
+      { move=> c. by rewrite /Fp_of_fin Zp_nat. }
+      rewrite !FpE !inZpM. apply: inZpmod.
+      rewrite -modnMmr Hw modnMmr mulnCA -modnMmr.
+      rewrite (@crs_fin_cancel n'' n_prime a0 s0 Ha0 Hs0) modnMmr.
+      by rewrite mulnC.
+    - have inj_lt : forall x y : nat, x < n -> y < n -> (inZp x : 'F_n) = inZp y -> x = y.
+      { move=> x y Hx Hy /(f_equal val) /=. by rewrite (Fp_cast n_prime) !modn_small. }
+      have Hf : (inZp (f_ring (Fp_of_fin a0) s0) : 'F_n) = inZp s0 / Fp_of_fin a0.
+      { by rewrite /f_ring Hs0 valZpK. }
+      have Hhlt : f_ring (Fp_of_fin a0) s0 < n by apply: f_lt_ring.
+      have Hh : (inZp (h_ring (Fp_of_fin a1) (f_ring (Fp_of_fin a0) s0)) : 'F_n)
+                  = Fp_of_fin a1 * (inZp s0 / Fp_of_fin a0).
+      { by rewrite /h_ring Hhlt valZpK Hf. }
+      have Hhlt2 : h_ring (Fp_of_fin a1) (f_ring (Fp_of_fin a0) s0) < n by apply: h_lt_ring.
+      rewrite -Hh; apply/eqP => Hc; apply: Hne; exact: (inj_lt _ _ Hs1 Hhlt2 Hc).
+  Qed.
+
+  (* Slot-0 non-degeneracy, given slot-0 is NOT decryptable (kv <> ku * f_ring(g0,t0)). *)
+  Lemma enc_nondeg_self (a0 u w : Fin.t n) (s0 : nat) :
+    s0 < n -> Fp_of_fin a0 != 0 ->
+    (fin.fin_to_nat w) <> (fin.fin_to_nat u) * f_ring (Fp_of_fin a0) s0 %[mod n] ->
+    Fp_of_fin a0 * Fp_of_fin w - inZp s0 * Fp_of_fin u != Zp0.
+  Proof.
+    move=> Hs0 Ha0 Hne.
+    have inZpM : forall x y : nat, (inZp x * inZp y : 'F_n) = inZp (x * y).
+    { move=> x y. apply: val_inj => /=. by rewrite modnMm. }
+    have FpE : forall c : Fin.t n, Fp_of_fin c = inZp (fin.fin_to_nat c).
+    { move=> c. by rewrite /Fp_of_fin Zp_nat. }
+    have Hf : (inZp (f_ring (Fp_of_fin a0) s0) : 'F_n) = inZp s0 / Fp_of_fin a0.
+    { by rewrite /f_ring Hs0 valZpK. }
+    have Heq2 : Fp_of_fin a0 * inZp (fin.fin_to_nat u * f_ring (Fp_of_fin a0) s0)
+                = inZp s0 * Fp_of_fin u.
+    { rewrite -inZpM -FpE Hf mulrCA [Fp_of_fin a0 * (_ / _)]mulrC divfK //.
+      by rewrite mulrC. }
+    rewrite -Heq2 -mulrBr.
+    apply: mulf_neq0; first exact: Ha0.
+    rewrite subr_eq0 FpE.
+    apply/negP => /eqtype.eqP Hxy. apply: Hne.
+    by move/(f_equal val): Hxy => /=; rewrite (Fp_cast n_prime).
+  Qed.
+
+End enc_nondeg.
