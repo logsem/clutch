@@ -195,4 +195,61 @@ Section schannel.
         end
     | return "y" => "y" end.
 
+
+   (*Simulator for the one message secure channel *)
+  Definition CHAN_SIM_lazy : val :=
+    λ: "f" "LeakAOp" "doKeyLeak",
+    let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
+    let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in
+    let: "message" := ref NONEV in
+    effect "leaksec"
+    let: "doLeakSecSend" := (λ: "m", do: (EffName "leaksec") (Send "m")) in
+    let: "doLeakSecRecv" := (λ: "m", do: (EffName "leaksec") (Recv "m")) in
+    handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
+    | effect (EffName "leaksec") "payload", rec "k" as multi =>
+        match: "payload" with
+          (*Broadcast a message*)
+        | InjL <> =>
+            (* assuming "dst" is alice for now *)
+            (*let, ("m", "dst") := "payload" in*)
+            (*("doKeyLeak" (Send("payload")));;*)
+            ("doKeyLeakSnd" (bob));;
+            let: "r" := "doKeyLeakRecv" (bob) in
+                          match: "r" with
+                          | NONE =>
+                              "k" NONEV
+                          | SOME "x" =>
+                              match: !"message" with
+                              | NONE =>
+                                  let: "m'" := (sample #()%V) in
+                                  let: "mA" := g^"m'" in
+                                  "message" <- SOME "m'";;
+                                  ("doLeakASend" ("mA", bob));;
+                                  "k" #()%V
+                              | SOME "m" => "k" #()%V
+                              end
+                          end
+       | InjR <> =>
+                            (*("doKeyLeakRecv" (alice));;*)
+                            let: "r" := "doKeyLeakRecv" (alice) in
+                            match: "r" with
+                             | NONE =>
+                               (*(do: leakauth ("from"));;*)
+                               "k" NONEV
+                             | SOME "x" =>
+                               ("doKeyLeakSnd" alice);;
+                               match: !"message" with
+                               | NONE => "k" NONEV
+                               | SOME "_" =>
+                                   let: "rla" := ("doLeakARecv" bob) in
+                                   match: "rla" with
+                                   | NONE => "k" NONEV
+                                   | SOME "x" => "k" !"message"
+                                   end
+                               end
+
+                           end
+        end
+    | return "y" => "y" end.
+
 End schannel.
