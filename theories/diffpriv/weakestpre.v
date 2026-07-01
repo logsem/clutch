@@ -1103,6 +1103,233 @@ Section coupl_modalities.
     by iApply "H".
   Qed.
 
+  Lemma prog_coupl_step_l_erasable_adv_frame ε2 ε1 δ2 δ1 S μ1' ε δ e1 σ1 e1' σ1'
+   (E2 D2 : cfg Λ → state Λ → nonnegreal) Z :
+    ε = (ε1 + ε2)%NNR →
+    δ = (δ1 + δ2)%NNR →
+    reducible (e1, σ1) →
+    (∀ ρ1 ρ2, D2 ρ1 ρ2 <= 1) →
+    (forall h1 h2,
+        (forall a, 0 <= h1 a <= 1) ->
+        (forall b, 0 <= h2 b <= 1) ->
+        (forall a b, S a b -> h1 a <= exp (E2 a b) * h2 b + D2 a b) ->
+        (Expval (prim_step e1 σ1) h1 <=
+           (exp ε1) * Expval μ1' h2 + δ1)) →
+    erasable μ1' σ1' →
+    □(∀ e2 σ2 e2' σ2' ε'', Z e2 σ2 e2' σ2' ε'' 1%NNR) ∗
+    (∀ e2 σ2 σ2',
+       ⌜S (e2, σ2) σ2'⌝ ={∅}=∗
+       Z e2 σ2 e1' σ2' (E2 (e2,σ2) σ2' + ε2)%NNR (D2 (e2,σ2) σ2' + δ2)%NNR)
+      ⊢ prog_coupl e1 σ1 e1' σ1' ε δ Z.
+  Proof.
+    iIntros (Hε Hδ Hred HD2 Hkanto Hera) "[#Hbox Hcnt]".
+    set (S_le := λ (ρ1 : cfg Λ) (ρ2 : cfg Λ), S ρ1 ρ2.2 ∧ ρ2.1 = e1').
+    iExists 0%nat, μ1', (fun ρ1 ρ2 => (E2 ρ1 ρ2.2 + ε2)%NNR),
+            (fun ρ1 ρ2 => (D2 ρ1 ρ2.2 + δ2)%NNR), S_le.
+    iSplit; [done|].
+    iSplit.
+    { iPureIntro. exists (1 + δ2). intros ρ1 ρ2. simpl.
+      apply Rplus_le_compat_r. apply HD2. }
+    iSplit.
+    { iPureIntro.
+      unfold pexec; simpl.
+      intros h1 h2 Hh1 Hh2 Hh1h2.
+      assert (SeriesC (λ ρ : cfg Λ, (μ1' ≫= λ σ2', dret (e1', σ2')) ρ * h2 ρ) =
+              SeriesC (λ σ2', μ1' σ2' * h2 (e1', σ2'))) as Heq.
+      {
+        assert (Hfold :
+          SeriesC (λ ρ : cfg Λ, (μ1' ≫= λ σ2', dret (e1', σ2')) ρ * h2 ρ) =
+          Expval (μ1' ≫= λ σ2' : state Λ, dret (e1', σ2')) h2).
+        { rewrite /Expval. done. }
+        rewrite Hfold.
+        rewrite Expval_dbind;
+          [| intros b; apply (proj1 (Hh2 b))
+           | apply ex_expval_unit; apply Hh2].
+        rewrite /Expval.
+        apply SeriesC_ext. intros σ2'. f_equal.
+        fold (Expval (dret (e1', σ2')) h2).
+        apply Expval_dret.
+      }
+      rewrite Heq.
+      rewrite Hε Hδ /=.
+      pose proof (cond_nonneg δ2) as Hδ2pos.
+      pose proof (cond_nonneg ε2) as Hε2pos.
+      set (μ1 := prim_step e1 σ1).
+      set (h2e := λ σ2' : state Λ, h2 (e1', σ2')).
+      assert (Hh2e : ∀ b : state Λ, 0 <= h2e b <= 1) by (intros b; apply Hh2).
+      change (SeriesC (λ ρ : expr Λ * state Λ, prim_step e1 σ1 ρ * h1 ρ))
+        with (SeriesC (λ ρ : cfg Λ, μ1 ρ * h1 ρ)).
+      change (SeriesC (λ σ2' : state Λ, μ1' σ2' * h2 (e1', σ2')))
+        with (SeriesC (λ σ2' : state Λ, μ1' σ2' * h2e σ2')).
+      assert (SeriesC (λ a : cfg Λ, μ1 a * h1 a) <=
+                SeriesC (λ a : cfg Λ, μ1 a * Rmax 0 (h1 a - δ2)) +
+                SeriesC (λ a : cfg Λ, μ1 a * δ2)) as Htrans.
+      { rewrite -SeriesC_plus.
+        - apply SeriesC_le'.
+          + intros a.
+            rewrite -Rmult_plus_distr_l.
+            apply Rmult_le_compat_l; [auto|].
+            pose proof (Rmax_r 0 (h1 a - δ2)); lra.
+          + apply (ex_seriesC_le _ μ1); auto.
+            intros a; split.
+            * apply Rmult_le_pos; [auto|]. specialize (Hh1 a); lra.
+            * rewrite -{2}(Rmult_1_r (μ1 a)).
+              apply Rmult_le_compat_l; [auto|]. specialize (Hh1 a); lra.
+          + apply ex_seriesC_plus.
+            * apply (ex_seriesC_le _ μ1); auto.
+              intro a; split.
+              ** apply Rmult_le_pos; [auto|apply Rmax_l].
+              ** rewrite <- Rmult_1_r.
+                 apply Rmult_le_compat_l; [auto|].
+                 apply Rmax_lub; [lra|]. specialize (Hh1 a). lra.
+            * apply ex_seriesC_scal_r; auto.
+        - apply (ex_seriesC_le _ μ1); auto.
+          intros a; split.
+          + apply Rmult_le_pos; [auto|apply Rmax_l].
+          + rewrite -{2}(Rmult_1_r (μ1 a)).
+            apply Rmult_le_compat_l; [auto|].
+            apply Rmax_lub; [lra|]. specialize (Hh1 a). lra.
+        - apply ex_seriesC_scal_r; auto. }
+      assert (SeriesC (λ a : cfg Λ, μ1 a * δ2) <= δ2) as Hres.
+      { rewrite SeriesC_scal_r. rewrite -{2}(Rmult_1_l (nonneg δ2)).
+        apply Rmult_le_compat_r; [apply cond_nonneg | apply pmf_SeriesC]. }
+      etrans; [apply Htrans|].
+      set (h3 := λ b : state Λ, Rmin 1 (exp ε2 * h2e b)).
+      assert (∀ a (b : state Λ), S a b →
+                Rmax 0 (h1 a - δ2) <= exp (E2 a b) * h3 b + D2 a b) as Htrans3.
+      { intros a b HS. rewrite /h3.
+        assert (Hkan : h1 a <= exp (E2 a b + ε2) * h2e b + (D2 a b + δ2)).
+        { specialize (Hh1h2 a (e1', b) (conj HS eq_refl)). simpl in Hh1h2.
+          apply Hh1h2. }
+        rewrite exp_plus in Hkan.
+        pose proof (exp_pos (E2 a b)) as HE.
+        pose proof (exp_pos ε2) as HE2.
+        pose proof (Hh2e b) as Hb.
+        pose proof (cond_nonneg (E2 a b)) as HE0.
+        pose proof (exp_pos_ge_1 (E2 a b) HE0) as HE1.
+        pose proof (cond_nonneg (D2 a b)) as HD0.
+        apply Rmax_lub.
+        - apply Rplus_le_le_0_compat.
+          + apply Rmult_le_pos; [lra|].
+            apply Rmin_glb; [lra|]. apply Rmult_le_pos; lra.
+          + apply cond_nonneg.
+        - destruct (Rle_dec (exp ε2 * h2e b) 1) as [Hle|Hgt].
+          + rewrite Rmin_right; [|lra].
+            assert (exp (E2 a b) * (exp ε2 * h2e b)
+                    = exp (E2 a b) * exp ε2 * h2e b) as -> by lra.
+            lra.
+          + rewrite Rmin_left; [|lra].
+            specialize (Hh1 a). lra. }
+      assert (Hh1' : ∀ a : cfg Λ, 0 <= Rmax 0 (h1 a - δ2) <= 1).
+      { intros a. split.
+        - apply Rmax_l.
+        - apply Rmax_lub; [lra|]. specialize (Hh1 a); lra. }
+      assert (Hh3 : ∀ b : state Λ, 0 <= h3 b <= 1).
+      { intros b. rewrite /h3. split.
+        - apply Rmin_glb; [lra|].
+          apply Rmult_le_pos; [left; apply exp_pos|]. specialize (Hh2e b); lra.
+        - apply Rmin_l. }
+      pose proof (Hkanto (λ a, Rmax 0 (h1 a - δ2)) h3 Hh1' Hh3 Htrans3) as Haux.
+      rewrite /Expval in Haux.
+      change (SeriesC (λ a : expr Λ * state Λ,
+                         prim_step e1 σ1 a * Rmax 0 (h1 a - δ2)))
+        with (SeriesC (λ a : cfg Λ, μ1 a * Rmax 0 (h1 a - δ2))) in Haux.
+      assert (exp ε1 * SeriesC (λ b : state Λ, μ1' b * h3 b) <=
+                exp (ε1 + ε2) * SeriesC (λ b : state Λ, μ1' b * h2e b)) as Hmain.
+      { rewrite -!SeriesC_scal_l.
+        apply SeriesC_le.
+        - intros b; split.
+          + apply Rmult_le_pos; [left; apply exp_pos|].
+            apply Rmult_le_pos; [auto|]. apply Hh3.
+          + rewrite /h3.
+            etrans.
+            { apply Rmult_le_compat_l; [left; apply exp_pos|].
+              apply Rmult_le_compat_l; [auto|apply Rmin_r]. }
+            assert (exp ε1 * (μ1' b * (exp ε2 * h2e b))
+                    = (exp ε1 * exp ε2) * (μ1' b * h2e b)) as -> by lra.
+            apply Rmult_le_compat_r.
+            * apply Rmult_le_pos; [auto|]. specialize (Hh2e b); lra.
+            * rewrite -exp_plus. apply exp_mono. lra.
+        - apply ex_seriesC_scal_l.
+          apply (ex_seriesC_le _ μ1'); auto.
+          intros b; split.
+          + apply Rmult_le_pos; [auto|]. specialize (Hh2e b); lra.
+          + rewrite -{2}(Rmult_1_r (μ1' b)).
+            apply Rmult_le_compat_l; [auto|]. specialize (Hh2e b); lra. }
+      lra. }
+    iSplit; [iPureIntro; exact Hera|].
+    iIntros (e2 σ2 e2' σ2') "%HS".
+    destruct HS as [HR He]. simpl in HR, He. rewrite He.
+    iMod ("Hcnt" $! e2 σ2 σ2' with "[%]") as "$"; [exact HR | done].
+  Qed.
+
+
+  Lemma prog_coupl_step_l_dret_adv_frame ε2 ε1 δ2 δ1 ε δ e1 σ1 e1' σ1'
+   (E2 D2 : cfg Λ → nonnegreal) Z :
+    ε = (ε1 + ε2)%NNR →
+    δ = (δ1 + δ2)%NNR →
+    reducible (e1, σ1) →
+    (∀ ρ1, D2 ρ1 <= 1) →
+    Expval (prim_step e1 σ1) (λ a, exp (E2 a)) <= exp ε1 →
+    Expval (prim_step e1 σ1) (λ a, D2 a) <= δ1 →
+    ex_seriesC (λ a, prim_step e1 σ1 a * exp (E2 a)) →
+    □(∀ e2 σ2 e2' σ2' ε'', Z e2 σ2 e2' σ2' ε'' 1%NNR) ∗
+    (∀ e2 σ2, ⌜(prim_step e1 σ1 (e2, σ2) : R) > 0⌝ ={∅}=∗
+       Z e2 σ2 e1' σ1' (E2 (e2,σ2) + ε2)%NNR (D2 (e2,σ2) + δ2)%NNR)
+      ⊢ prog_coupl e1 σ1 e1' σ1' ε δ Z.
+  Proof.
+    iIntros (-> -> Hred HD2 HE HD Hexp) "[#Hbox Hcnt]".
+    iApply (prog_coupl_step_l_erasable_adv_frame _ _ _ _
+               (fun ρ σ => σ = σ1' /\ (prim_step e1 σ1 ρ : R) > 0) (dret σ1')
+               _ _ _ _ _ _
+               (fun ρ σ => E2 ρ)
+               (fun ρ σ => D2 ρ));
+      [done|done|done|..].
+    - intros; done.
+    - intros h1 h2 Hh1 Hh2 Hh1h2.
+      rewrite Expval_dret.
+      set (q := h2 σ1').
+      pose proof (Hh2 σ1') as Hq. fold q in Hq.
+      assert (HexD : ex_seriesC (λ a, prim_step e1 σ1 a * D2 a)).
+      { apply (ex_expval_bounded _ _ 1). intros x. split; [apply cond_nonneg|apply HD2]. }
+      assert (Hex : ex_seriesC (λ a, prim_step e1 σ1 a * (exp (E2 a) * q + D2 a))).
+      { apply ex_seriesC_ext with
+          (λ a, (prim_step e1 σ1 a * exp (E2 a)) * q + prim_step e1 σ1 a * D2 a).
+        { intros a. lra. }
+        apply ex_seriesC_plus; [apply ex_seriesC_scal_r; exact Hexp | exact HexD]. }
+      (* Step 1: pointwise bound under the series (uses [prim_step > 0]). *)
+      assert (Hstep1 : Expval (prim_step e1 σ1) h1 <=
+                Expval (prim_step e1 σ1) (λ a, exp (E2 a) * q + D2 a)).
+      { rewrite /Expval.
+        apply SeriesC_le; [|exact Hex].
+        intros a. split.
+        - apply Rmult_le_pos; [auto|]. apply Hh1.
+        - destruct (Rlt_le_dec 0 (prim_step e1 σ1 a)) as [Hpos|Hle].
+          + apply Rmult_le_compat_l; [auto|].
+            apply (Hh1h2 a σ1'). split; [reflexivity|exact Hpos].
+          + pose proof (pmf_pos (prim_step e1 σ1) a) as Hge.
+            assert (prim_step e1 σ1 a = 0) as Hz by lra.
+            rewrite Hz !Rmult_0_l. lra. }
+      (* Step 2: split the bounding expectation by linearity of [SeriesC]. *)
+      assert (Hstep2 : Expval (prim_step e1 σ1) (λ a, exp (E2 a) * q + D2 a) =
+                q * Expval (prim_step e1 σ1) (λ a, exp (E2 a)) +
+                Expval (prim_step e1 σ1) (λ a, D2 a)).
+      { rewrite /Expval.
+        rewrite -(SeriesC_scal_l (λ a, prim_step e1 σ1 a * exp (E2 a)) q).
+        rewrite -SeriesC_plus; [|apply ex_seriesC_scal_l; exact Hexp|exact HexD].
+        apply SeriesC_ext. intros a. lra. }
+      (* Step 3: combine with the two expectation bounds and [q >= 0]. *)
+      rewrite Hstep2 in Hstep1.
+      eapply Rle_trans; [exact Hstep1|].
+      apply Rplus_le_compat; [|exact HD].
+      rewrite Rmult_comm.
+      apply Rmult_le_compat_r; [apply Hq|exact HE].
+    - exact (dret_erasable σ1').
+    - iSplit; [iApply "Hbox"|].
+      iIntros (e2 σ2 σ2') "[-> %Hstep]".
+      iApply "Hcnt". done.
+  Qed.
+
   Lemma prog_coupl_reducible e e' σ σ' Z ε δ :
     prog_coupl e σ e' σ' ε δ Z -∗ ⌜reducible (e, σ)⌝.
   Proof. by iIntros "(%&%&%&%&%&?&?)". Qed.

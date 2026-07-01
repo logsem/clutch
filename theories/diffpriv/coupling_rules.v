@@ -901,6 +901,196 @@ Section rules.
         simplify_eq. simpl. lra.
   Qed.
 
+
+  Lemma hoare_couple_rand_l_adv (N : nat) (E2 D2 : nat -> R) z E (ε δ : R) :
+    TCEq N (Z.to_nat z) →
+    (forall n, 0 <= E2 n) ->
+    (forall n, 0 <= D2 n <= 1) ->
+    Expval (dunifP N) (λ a, exp (E2 a)) <= exp ε ->
+    Expval (dunifP N) (λ a, D2 a) <= δ ->
+    {{{ ↯m ε ∗ ↯ δ }}}
+      rand #z @ E
+    {{{ (n : nat), RET #n; ⌜ (n <= N) ⌝ ∗ ↯m (E2 n) ∗ ↯ (D2 n)  }}}.
+  Proof.
+    iIntros (-> HE2_nonneg HD2_bounds HexpE2 HD2δ1 Φ) "(Hε & Hδ) Hcnt".
+    iApply (wp_lift_prim_step_l_coupl_adv_frame_err_le_1); [done|].
+    iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ2))".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ecm_supply_ecm_inv with "Hε2 Hε") as %(εm2 & εm1 & -> & <-).
+    iDestruct (ec_supply_ec_inv with "Hδ2 Hδ") as %(δa2 & δa1 & -> & <-).
+    assert (forall n, 0 <= D2 n) as HD2_nonneg; [intros; apply (HD2_bounds n)|].
+    set (find_nat :=
+           (λ '(e,σ), match e with
+                       | Val #(LitInt n) =>
+                           if bool_decide (0 <= n)%Z then
+                             if bool_decide (σ = σ1) then Some (Z.to_nat n) else None
+                             else None
+                       | _ => None
+                      end): (cfg -> option nat)).
+    set (E2_cfg := (λ ρ : cfg, match find_nat ρ with
+                                | Some n => mknonnegreal (E2 n) (HE2_nonneg n)
+                                | None => 0%NNR
+                                end)).
+    set (D2_cfg := (λ ρ : cfg, match find_nat ρ with
+                                | Some n => mknonnegreal (D2 n) (HD2_nonneg n)
+                                | None => 0%NNR
+                                end)).
+    iExists E2_cfg, D2_cfg, εm2, εm1, δa2, δa1.
+    assert (forall ρ (n : nat), ρ = (Val #n, σ1) -> find_nat ρ = Some n) as Hfl_intro.
+    { intros [] n Hρ. rewrite /find_nat /=. apply pair_equal_spec in Hρ as [-> ->].
+      rewrite bool_decide_eq_true_2; [|lia]. rewrite bool_decide_eq_true_2; auto. by rewrite Nat2Z.id. }
+    assert (forall e σ (n : nat), find_nat (e,σ) = Some n -> e = Val #n) as Hfl_e.
+    { rewrite /find_nat. intros e σ ?. repeat case_match; try done. intros Hsome.
+      apply Some_inj in Hsome. do 3 f_equal. rewrite -Hsome. rewrite Z2Nat.id //. eapply bool_decide_eq_true_1; eauto. }
+    assert (forall e σ (n : nat), find_nat (e,σ) = Some n -> σ = σ1) as Hfl_s.
+    { rewrite /find_nat. intros e σ ?. repeat case_match; try done. intros Hsome.
+      apply Some_inj in Hsome. eapply bool_decide_eq_true_1; eauto. }
+    repeat iSplit.
+    - iPureIntro. apply nnreal_ext. simpl. lra.
+    - iPureIntro. apply nnreal_ext. simpl. lra.
+    - iPureIntro. solve_red.
+    - iPureIntro. intros ρ1. rewrite /D2_cfg.
+      case_match; simpl; [apply (HD2_bounds _)|lra].
+    - iPureIntro.
+      simpl language.prim_step.
+      rewrite head_prim_step_eq.
+      rewrite /head_step. simpl.
+      rewrite Expval_dmap; cycle 1.
+      { intros. apply Rlt_le. apply exp_pos. }
+      { rewrite /ex_expval. apply ex_seriesC_finite. }
+      rewrite /compose /=. etrans; [|apply HexpE2]. apply Req_le. rewrite /Expval. apply SeriesC_ext.
+      intros nn. rewrite /E2_cfg.
+      rewrite (Hfl_intro (Val #(fin_to_nat nn), σ1) (fin_to_nat nn)); [|reflexivity].
+      done.
+    - iPureIntro.
+      simpl language.prim_step.
+      rewrite head_prim_step_eq.
+      rewrite /head_step. simpl.
+      rewrite Expval_dmap; cycle 1.
+      { intros. apply cond_nonneg. }
+      { rewrite /ex_expval. apply ex_seriesC_finite. }
+      rewrite /compose /=. etrans; [|apply HD2δ1]. apply Req_le. rewrite /Expval. apply SeriesC_ext.
+      intros nn. rewrite /D2_cfg.
+      rewrite (Hfl_intro (Val #(fin_to_nat nn), σ1) (fin_to_nat nn)); [|reflexivity].
+      done.
+    - iPureIntro.
+      simpl language.prim_step.
+      rewrite head_prim_step_eq.
+      rewrite /head_step. simpl.
+      rewrite /dmap.
+      apply (ex_expval_dbind _ _ (λ a, exp (E2_cfg a))).
+      + intros. apply Rlt_le, exp_pos.
+      + apply ex_seriesC_finite.
+      + intros. apply ex_expval_dret.
+    - iIntros (e2 σ2) "%Hstep".
+      iModIntro. iModIntro.
+      destruct (Rlt_or_le (D2_cfg (e2, σ2) + δa1 : R) 1) as [HD2lt | HD2ge]; last first.
+      { iMod "Hclose'" as "_". iModIntro. iLeft. iPureIntro. simpl in HD2ge |- *. lra. }
+      iRight.
+      simpl language.prim_step in Hstep.
+      rewrite head_prim_step_eq in Hstep.
+      rewrite /head_step in Hstep. simpl in Hstep.
+      apply dmap_pos in Hstep as (nn & Heq & Hnn).
+      inversion Heq; subst e2 σ2.
+      rewrite /E2_cfg /D2_cfg.
+      assert (find_nat (Val #nn, σ1) = Some (fin_to_nat nn)) as Hfn.
+      { apply Hfl_intro. reflexivity. }
+      rewrite Hfn.
+      set (En := mknonnegreal (E2 nn) (HE2_nonneg nn)).
+      set (Dn := mknonnegreal (D2 nn) (HD2_nonneg nn)).
+      rewrite /D2_cfg Hfn in HD2lt. simpl in HD2lt.
+      iMod (ecm_supply_decrease with "Hε2 Hε") as (ε3 ε4 Hε3ε4 Hε3eq) "Hε4".
+      iMod (ecm_supply_increase _ En with "Hε4") as "[Hm Herrm]".
+      iMod (ec_supply_decrease with "Hδ2 Hδ") as (δ3 δ4 Hδ3δ4 Hδ3eq) "Hδ4".
+      iMod (ec_supply_increase _ Dn with "Hδ4") as "[Ha Herra]".
+      { assert (δ4 = δa1) as ->.
+        { apply (f_equal nonneg) in Hδ3δ4. simpl in Hδ3δ4.
+          apply nnreal_ext. simpl.
+          assert (nonneg δ3 = nonneg δa2) as Hd3 by (rewrite Hδ3eq; reflexivity). lra. }
+        simpl. lra. }
+      iMod "Hclose'" as "_".
+      iModIntro. iFrame.
+      rewrite -wp_value.
+      iDestruct ("Hcnt" with "[Herrm Herra]") as "$".
+      { iSplit.
+        - iPureIntro. apply le_INR, fin_to_nat_le.
+        - rewrite /En /Dn. iFrame. }
+      iSplitL "Hm".
+      { iApply ecm_supply_eq; [|done].
+        apply (f_equal nonneg) in Hε3ε4. simpl in Hε3ε4.
+        assert (nonneg ε3 = nonneg εm2) as He3 by (rewrite Hε3eq; reflexivity).
+        simpl. lra. }
+      iApply ec_supply_eq; [|done].
+      apply (f_equal nonneg) in Hδ3δ4. simpl in Hδ3δ4.
+      assert (nonneg δ3 = nonneg δa2) as Hd3 by (rewrite Hδ3eq; reflexivity).
+      simpl. lra.
+  Qed.
+
+
+  Lemma hoare_couple_rand_rand_subsample K E (ε δ : R) :
+    (0 <= ε) → (0 <= δ <= 1) →
+    {{{ ⤇ fill K (rand #1) ∗ ↯m (ln (1 + 0.5 * (exp ε - 1))) ∗ ↯ (0.5*δ) }}}
+      rand #1 @ E
+      {{{ (n m : nat), RET #n; ⤇ fill K #m ∗
+       ⌜ n <= 1 /\ m <=1 ⌝
+       ∗ ↯m ( if bool_decide (n = 0 /\ m = 0)%nat then 0 else ε)
+       ∗ ↯ (if bool_decide (n = 0 /\ m = 0)%nat then 0 else δ)  }}}.
+  Proof.
+    iIntros (Hε Hδ).
+    iIntros (Ψ) "(HK & Hmerr & Haerr) HΨ".
+    iApply (hoare_couple_rand_rand_kanto 1 1
+      (fun n m => n <= 1 /\ m <= 1)
+      (fun n m => if bool_decide (n = 0 /\ m = 0)%nat then 0 else ε)
+      (fun n m => if bool_decide (n = 0 /\ m = 0)%nat then 0 else δ)
+      1 1 K E (ln (1 + 0.5 * (exp ε - 1))) (0.5 * δ) with "[$HK $Hmerr $Haerr] [HΨ]" ).
+    - intros n m. case_bool_decide; lra.
+    - intros n m. case_bool_decide; split; lra.
+    - (* Kantorovich condition *)
+      intros h1 h2 Hh1 Hh2 Hh1h2.
+      set (h1' := fun b : bool => h1 (fin_to_nat (bool_to_fin b))).
+      set (h2' := fun b : bool => h2 (fin_to_nat (bool_to_fin b))).
+      have Hr : (0 <= 1/2 <= 1) by lra.
+      have Hdunif : dunifP 1 = dmap bool_to_fin fair_coin.
+      { apply distr_ext => n.
+        rewrite /pmf /= /dbind_pmf SeriesC_bool.
+        rewrite /pmf /= /fair_coin_pmf /dret_pmf.
+        inv_fin n; [simpl; lra | intros n].
+        inv_fin n; [simpl; lra | intros n].
+        inversion n. }
+      rewrite Hdunif.
+      rewrite !Expval_dmap.
+      2: { intro b. apply (Hh2 _). }
+      2: { apply ex_seriesC_finite. }
+      2: { intro b. apply (Hh1 _). }
+      2: { apply ex_seriesC_finite. }
+      rewrite !Expval_fair_coin.
+      rewrite /compose /h1' /h2'.
+      fold h1' h2'.
+      (* Prove pointwise bound from Hh1h2 for all bool pairs *)
+      have Hpointwise : ∀ b1 b2 : bool,
+          h1' b1 <= exp (match b1, b2 with false, false => 0 | _, _ => ε end) *
+                    h2' b2 + match b1, b2 with false, false => 0 | _, _ => δ end.
+      { intros [] []; rewrite /h1' /h2' /=.
+        - apply (Hh1h2 1%nat 1%nat). split; simpl; lra.
+        - apply (Hh1h2 1%nat 0%nat). split; simpl; lra.
+        - apply (Hh1h2 0%nat 1%nat). split; simpl; lra.
+        - apply (Hh1h2 0%nat 0%nat). split; simpl; lra. }
+      (* Use biased_coin_kanto_exp_bound with h1', h2' *)
+      have key := biased_coin_kanto_exp_bound (1/2) Hr ε δ ltac:(lra) Hε (proj1 Hδ) h1' h2'
+                    (fun b => Hh1 (fin_to_nat (bool_to_fin b)))
+                    (fun b => Hh2 (fin_to_nat (bool_to_fin b)))
+                    Hpointwise.
+      (* Connect biased_coin (1/2) to fair_coin *)
+      rewrite /h1' /h2' in key.
+      etrans; [| etrans; [apply key | ]].
+      { rewrite SeriesC_bool /pmf /= /biased_coin_pmf. lra. }
+      { rewrite SeriesC_bool /pmf /= /biased_coin_pmf.
+        replace (1 / 2 : R) with (0.5 : R) by lra. ring_simplify. lra. }
+    -  iModIntro.
+       iIntros (n m) "H".
+       iApply "HΨ". iFrame.
+  Qed.
+
   (*
     There should be an easier proof of this using wp_couple_rand_rand_inj,
     but that uses an injective function nat -> nat as opposed to fin (S N) -> fin (S N)

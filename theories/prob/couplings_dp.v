@@ -2206,6 +2206,127 @@ Lemma DPcoupl_dbind_adv_rhs `{Countable A, Countable B, Countable A', Countable 
 *)
 
 
+  Lemma single_biased_coin_kanto_exp_bound (r : R) (Hr : 0 <= r <= 1) (ε δ : R) :
+    (0 < r) → (0 <= ε) → (0 <= δ) →
+    ∀ (h1 : bool → R) (p : R),
+      (∀ b, 0 <= h1 b <= 1) →
+      (0 <= p <= 1) →
+      (∀ b1 : bool,
+         h1 b1 <= exp (match b1 with false => 0 | _ => ε end) *
+                  p + match b1 with false => 0 | _ => δ end) →
+      SeriesC (λ b, (biased_coin r Hr) b * h1 b) <=
+        exp (ln (1 + r * (exp ε - 1))) * p + r * δ.
+  Proof.
+    intros H Hε Hδ h1 p Hh1 Hp Hh1p.
+    rewrite exp_ln; last first.
+    {
+      apply Rplus_lt_le_0_compat; [lra|].
+      apply Rmult_le_pos; [lra|].
+      apply Rle_minus_r.
+      rewrite Rplus_0_l.
+      by apply exp_pos_ge_1.
+    }
+    rewrite !SeriesC_bool.
+    rewrite /biased_coin/pmf/=.
+    specialize (Hh1p false) as Hff.
+    specialize (Hh1p true) as Htt.
+    simpl in Hff, Htt.
+    rewrite exp_0 in Hff.
+    have Hexp : 1 <= exp ε by apply exp_pos_ge_1.
+    have Hf := Hh1 false.
+    have Ht := Hh1 true.
+    nra.
+  Qed.
+
+
+  Lemma biased_coin_kanto_exp_bound (r : R) (Hr : 0 <= r <= 1) (ε δ : R) :
+    (0 < r) → (0 <= ε) → (0 <= δ) →
+    ∀ h1 h2 : bool → R,
+      (∀ b, 0 <= h1 b <= 1) →
+      (∀ b, 0 <= h2 b <= 1) →
+      (∀ b1 b2 : bool,
+         h1 b1 <= exp (match b1, b2 with false, false => 0 | _, _ => ε end) *
+                  h2 b2 + match b1, b2 with false, false => 0 | _, _ => δ end) →
+      SeriesC (λ b, (biased_coin r Hr) b * h1 b) <=
+        exp (ln (1 + r * (exp ε - 1))) *
+        SeriesC (λ b, (biased_coin r Hr) b * h2 b) + r * δ.
+  Proof.
+    intros H Hε Hδ h1 h2 Hh1 Hh2 Hh1h2.
+    rewrite exp_ln; last first.
+    {
+      apply Rplus_lt_le_0_compat; [lra|].
+      apply Rmult_le_pos; [lra|].
+      apply Rle_minus_r.
+      rewrite Rplus_0_l.
+      by apply exp_pos_ge_1.
+    }
+    rewrite !SeriesC_bool.
+    rewrite /biased_coin/pmf/=.
+    transitivity (r * h1 true + (1-r) * h2 false).
+    {
+      apply Rplus_le_compat_l.
+      specialize (Hh1h2 false false).
+      rewrite exp_0 /= in Hh1h2.
+      real_solver.
+    }
+    set (ρ := r + (1-r) * exp (-ε)).
+    transitivity (r * (ρ * (exp (ε) * h2 true + δ) + (1-ρ) * (exp(ε) * h2 false + δ)) + (1-r) * h2 false).
+    {
+      apply Rplus_le_compat_r.
+      replace (h1 true) with (ρ * h1 true + (1-ρ) * h1 true) by lra.
+      apply Rmult_le_compat_l; [real_solver|].
+      apply Rplus_le_compat.
+      - apply Rmult_le_compat_l.
+        + rewrite /ρ.
+          apply Rplus_le_le_0_compat; [lra|].
+          apply Rmult_le_pos; [lra|].
+          left.
+          apply exp_pos.
+        + specialize (Hh1h2 true true).
+          done.
+      - apply Rmult_le_compat_l.
+        + rewrite /ρ.
+          apply Rle_minus_r.
+          rewrite Rplus_0_l.
+          replace 1 with (r + (1-r) * 1) at 2 by lra.
+          apply Rplus_le_compat_l.
+          apply Rmult_le_compat_l; [lra|].
+          rewrite exp_Ropp.
+          replace 1 with (/1) by lra.
+          apply Rinv_le_contravar; [lra|].
+          by apply exp_pos_ge_1.
+        + specialize (Hh1h2 true false).
+          done.
+    }
+    replace (r * (ρ * (exp ε * h2 true + δ) + (1 - ρ) * (exp ε * h2 false + δ)) + (1-r) * h2 false)
+      with (r * ρ * exp ε * h2 true + (r * (1 - ρ) * exp ε + (1-r)) * h2 false + r * δ) by lra.
+    apply Rplus_le_compat_r.
+    replace (1 + r * (exp ε-1)) with (r * exp ε + (1-r)) by lra.
+    rewrite Rmult_plus_distr_l.
+    apply Rplus_le_compat.
+    + replace (r * ρ * exp ε * h2 true) with (ρ * exp ε * (r * h2 true)) by lra.
+      apply Rmult_le_compat_r; [real_solver|].
+      rewrite /ρ.
+      rewrite Rmult_plus_distr_r.
+      apply Rplus_le_compat_l.
+      rewrite Rmult_assoc.
+      rewrite -exp_plus.
+      replace (-ε+ε) with 0 by lra.
+      rewrite exp_0.
+      lra.
+    + rewrite -Rmult_assoc.
+      apply Rmult_le_compat_r; [real_solver|].
+      rewrite /ρ.
+      rewrite Rmult_assoc.
+      rewrite (Rmult_minus_distr_r _ _(exp ε)).
+      rewrite Rmult_1_l.
+      rewrite (Rmult_plus_distr_r _ _(exp ε)).
+      rewrite Rmult_assoc.
+      rewrite -exp_plus.
+      replace (-ε+ε) with 0 by lra.
+      rewrite exp_0.
+      lra.
+  Qed.
 
 
   Lemma DPcoupl_dbind_subsampling `{Countable A}
@@ -2221,7 +2342,7 @@ Lemma DPcoupl_dbind_adv_rhs `{Countable A, Countable B, Countable A', Countable 
         (ln (1 + r*(exp(ε)-1))) (r*δ).
   Proof.
     intros Hε Hδ Hcoupl12 Hcoupl13 Hcoupl23 Hcoupl33.
-    assert (0 = r \/ 0 < r) as [<- | ] by lra.
+    assert (0 = r \/ 0 < r) as [<- | Hr_pos] by lra.
     {
       (* degenerate case r=0 *)
       simpl.
@@ -2244,83 +2365,36 @@ Lemma DPcoupl_dbind_adv_rhs `{Countable A, Countable B, Countable A', Countable 
     eapply (DPcoupl_dbind_adv_kanto_plain _ _ _ _ _ _ _ E2 D2).
     - intros [][]; rewrite /E2 /=; real_solver.
     - intros h1 h2 Hh1 Hh2 Hh1h2.
-      rewrite exp_ln; last first.
-      {
-        apply Rplus_lt_le_0_compat; [lra|].
-        apply Rmult_le_pos; [lra|].
-        apply Rle_minus_r.
-        rewrite Rplus_0_l.
-        by apply exp_pos_ge_1.
-      }
-      rewrite !SeriesC_bool.
-      rewrite /biased_coin/pmf/=.
-      (*  assert (h1 true + h1 false <= (exp ε + 1) * SeriesC (λ b : bool, fair_coin b * h2 b) + δ); last by lra. *)
-      transitivity (r * h1 true + (1-r) * h2 false).
-      {
-        apply Rplus_le_compat_l.
-        specialize (Hh1h2 false false).
-        rewrite /E2 /D2 exp_0 /= in Hh1h2.
-        real_solver.
-      }
-      set (ρ := r + (1-r) * exp (-ε)).
-      transitivity (r * (ρ * (exp (ε) * h2 true + δ) + (1-ρ) * (exp(ε) * h2 false + δ)) + (1-r) * h2 false).
-      {
-        apply Rplus_le_compat_r.
-        replace (h1 true) with (ρ * h1 true + (1-ρ) * h1 true) by lra.
-        apply Rmult_le_compat_l; [real_solver|].
-        apply Rplus_le_compat.
-        - apply Rmult_le_compat_l.
-          + rewrite /ρ.
-            apply Rplus_le_le_0_compat; [lra|].
-            apply Rmult_le_pos; [lra|].
-            left.
-            apply exp_pos.
-          + specialize (Hh1h2 true true).
-            done.
-       - apply Rmult_le_compat_l.
-         + rewrite /ρ.
-           apply Rle_minus_r.
-           rewrite Rplus_0_l.
-           replace 1 with (r + (1-r) * 1) at 2 by lra.
-           apply Rplus_le_compat_l.
-           apply Rmult_le_compat_l; [lra|].
-           rewrite exp_Ropp.
-           replace 1 with (/1) by lra.
-           apply Rinv_le_contravar; [lra|].
-           by apply exp_pos_ge_1.
-         + specialize (Hh1h2 true false).
-           done.
-      }
-      replace (r * (ρ * (exp ε * h2 true + δ) + (1 - ρ) * (exp ε * h2 false + δ)) + (1-r) * h2 false)
-        with (r * ρ * exp ε * h2 true + (r * (1 - ρ) * exp ε + (1-r)) * h2 false + r * δ) by lra.
-      apply Rplus_le_compat_r.
-      replace (1 + r * (exp ε-1)) with (r * exp ε + (1-r)) by lra.
-      rewrite Rmult_plus_distr_l.
-      apply Rplus_le_compat.
-      + replace (r * ρ * exp ε * h2 true) with (ρ * exp ε * (r * h2 true)) by lra.
-        apply Rmult_le_compat_r; [real_solver|].
-        rewrite /ρ.
-        rewrite Rmult_plus_distr_r.
-        apply Rplus_le_compat_l.
-        rewrite Rmult_assoc.
-        rewrite -exp_plus.
-        replace (-ε+ε) with 0 by lra.
-        rewrite exp_0.
-        lra.
-      + rewrite -Rmult_assoc.
-        apply Rmult_le_compat_r; [real_solver|].
-        rewrite /ρ.
-        rewrite Rmult_assoc.
-        rewrite (Rmult_minus_distr_r _ _(exp ε)).
-        rewrite Rmult_1_l.
-        rewrite (Rmult_plus_distr_r _ _(exp ε)).
-        rewrite Rmult_assoc.
-        rewrite -exp_plus.
-        replace (-ε+ε) with 0 by lra.
-        rewrite exp_0.
-        lra.
+      apply (biased_coin_kanto_exp_bound r Hr ε δ Hr_pos Hε Hδ h1 h2 Hh1 Hh2).
+      intros b1 b2; rewrite /E2/D2; exact (Hh1h2 b1 b2).
     - rewrite /E2/D2.
       intros [][]; simpl; auto.
+  Qed.
+
+  Lemma DPcoupl_dbind_subsampling_single `{Countable A}
+    (μ1 : distr A) (μ2 : distr A) (μ3 : distr A) (S : A -> A -> Prop) (r : R)
+    (Hr: 0 <= r <= 1) ε δ :
+    (0 <= ε) -> (0 <= δ) ->
+    (DPcoupl μ1 μ2 S ε δ) →
+    (DPcoupl μ2 μ2 S 0 0) →
+    DPcoupl (dbind (λ b, if b then μ1 else μ2) (biased_coin r Hr)) μ2 S
+      (ln (1 + r*(exp(ε)-1))) (r*δ).
+  Proof.
+    intros Hε Hδ Hcoupl12 Hcoupl22.
+    have Hmass : SeriesC (biased_coin r Hr) = 1.
+    { rewrite SeriesC_bool /biased_coin/pmf/= /biased_coin_pmf. lra. }
+    have Hsimp : dbind (fun b => if b then μ2 else μ2) (biased_coin r Hr) = μ2.
+    { apply distr_ext => a.
+      rewrite /dbind/pmf/=/dbind_pmf.
+      rewrite (SeriesC_ext _ (fun b => biased_coin r Hr b * μ2 a)).
+      2: { intros []; ring. }
+      rewrite SeriesC_scal_r Hmass. rewrite Rmult_1_l. done. }
+    have Hupgraded : DPcoupl μ2 μ2 S ε δ.
+    { eapply DPcoupl_mon_grading; [exact Hε | exact Hδ | exact Hcoupl22]. }
+    have Hkey := DPcoupl_dbind_subsampling μ1 μ2 μ2 S r Hr ε δ Hε Hδ
+                   Hcoupl12 Hcoupl12 Hupgraded Hcoupl22.
+    rewrite Hsimp in Hkey.
+    exact Hkey.
   Qed.
 
 

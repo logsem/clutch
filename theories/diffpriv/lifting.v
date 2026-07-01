@@ -448,6 +448,53 @@ Proof.
     simpl in *. have := cond_nonneg δ2. lra.
 Qed.
 
+
+Lemma wp_lift_prim_step_l_coupl_adv_frame_err_le_1 E Φ e1 s :
+  to_val e1 = None →
+  (∀ σ1 e1' σ1' ε δ,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε δ ={E, ∅}=∗
+      ∃ (E2 D2 : cfg Λ → nonnegreal) (ε1 ε2 δ1 δ2 : nonnegreal),
+        ⌜ε = (ε1 + ε2)%NNR⌝ ∗
+        ⌜δ = (δ1 + δ2)%NNR⌝ ∗
+        ⌜reducible (e1, σ1)⌝ ∗
+        ⌜∀ ρ1, D2 ρ1 <= 1⌝ ∗
+        ⌜Expval (prim_step e1 σ1) (λ a, exp (E2 a)) <= exp ε1⌝ ∗
+        ⌜Expval (prim_step e1 σ1) (λ a, D2 a) <= δ1⌝ ∗
+        ⌜ex_seriesC (λ a, (prim_step e1 σ1 a * exp (E2 a))%R)⌝ ∗
+        ∀ e2 σ2, ⌜(prim_step e1 σ1 (e2, σ2) : R) > 0⌝ ={∅}=∗ ▷|={∅,E}=>
+          ⌜1 <= (D2 (e2, σ2) + δ2 : R)⌝ ∨ (
+            state_interp σ2 ∗ spec_interp (e1', σ1') ∗
+            err_interp (E2 (e2, σ2) + ε2)%NNR
+                       (D2 (e2, σ2) + δ2)%NNR ∗
+            WP e2 @ s; E {{ Φ }}))
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof.
+  iIntros (He1) "H".
+  iApply wp_lift_step_couple.
+  iIntros (σ1 e1' σ1' ε δ) "(Hst & Hsp & Herr)".
+  iMod ("H" with "[$Hst $Hsp $Herr]") as
+    "[%E2 [%D2 [%ε1 [%ε2 [%δ1 [%δ2 (%Hε & %Hδ & %Hred & %HD2 & %HE & %HD & %Hexp & H)]]]]]]".
+  iModIntro.
+  iApply spec_coupl_ret.
+  rewrite He1.
+  iApply (prog_coupl_step_l_dret_adv_frame ε2 ε1 δ2 δ1 _ _ _ _ _ _ E2 D2);
+    [done|done|done|done|done|done|done|].
+  iSplitR.
+  { iModIntro. iIntros (?????) .
+    iModIntro. iApply spec_coupl_ret_err_ge_1. simpl. lra. }
+  iIntros (e2 σ2) "%HS".
+  iMod ("H" $! e2 σ2 with "[% //]") as "H".
+  iModIntro.
+  destruct (Rlt_or_le ((D2 (e2, σ2) + δ2 : R)) 1) as [HD2lt | HD2ge].
+  - iApply spec_coupl_ret.
+    iModIntro.
+    iMod "H" as "[%Hle | (?&?&?&?)]".
+    + lra.
+    + by iFrame.
+  - iApply spec_coupl_ret_err_ge_1.
+    simpl in *. have := cond_nonneg δ2. lra.
+Qed.
+
 (** Derived lifting lemmas. *)
 Lemma wp_lift_step E Φ e1 s :
   to_val e1 = None →
