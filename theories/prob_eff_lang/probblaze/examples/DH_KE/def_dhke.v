@@ -234,7 +234,7 @@ Section def_implementation.
              match: "r" with
                NONE => "k" NONEV
              | SOME "w" =>
-                 let: "key" := "sample_or_load" #() in
+                 let: "key" := "sample_or_load" #()%V in
                  "k" (SOME "key")
              end
          (* Bob  *)
