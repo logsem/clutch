@@ -274,6 +274,17 @@ Section crs_fin_cancel.
     rewrite Fp_Zcast //.
   Qed.
 
+  Lemma h_fin_cancel (g0 : Fin.t n) (t0 : nat) :
+    t0 < n ->
+    h_ring (Fp_of_fin g0) t0 = fin.fin_to_nat g0 * t0 %[mod n].
+  Proof.
+    intros Hlt.
+    unfold h_ring. rewrite Hlt.
+    rewrite /Fp_of_fin Zp_nat.
+    rewrite -Zp_nat -Zp_nat -natrM Zp_nat.
+    rewrite /= Fp_cast // modn_mod //.
+  Qed.
+
 End crs_fin_cancel.
   
 Section enc_bijection.
@@ -609,3 +620,171 @@ Section enc_nondeg.
   Qed.
 
 End enc_nondeg.
+
+(* Mirror of enc_fin_cancel for the ideal-vs-real refinement: here the
+   re-randomized (real) side carries the real message and the raw (ideal)
+   side carries the dummy 1, so the roles of the constants 1 / km are
+   swapped and the shift enters with the opposite sign (plus on r, minus
+   on s), while c1/c2 are UNCHANGED. *)
+Section enc_bij_cancel_mirror.
+
+  Import prime zmodp fingroup ssralg all_boot.
+  Import GroupScope.
+  Import GRing.Theory.
+  Open Scope ring_scope.
+  Context {n'' : nat}.
+  #[local] Notation n := (S (S n'')).
+  Context {n_prime : prime n}.
+  Variable (t' g' km' ku' kv' : 'F_n).
+
+  Lemma enc_bij_cancel1'_mirror r s :
+    (g' * (r + c1' t' g' km' ku' kv')) + (t' * (s - c2' t' g' km' ku' kv'))
+    = (g' * r) + (t' * s).
+  Proof.
+    have Hgc : g' * (c1' t' g' km' ku' kv') = t' * (c2' t' g' km' ku' kv').
+    { rewrite /c1' /c2'. by rewrite !mulrA (mulrC g' t'). }
+    rewrite mulrDr mulrBr Hgc.
+    rewrite -addrA (addrC (t' * c2' t' g' km' ku' kv')) subrK //.
+  Qed.
+
+  Lemma enc_bij_cancel2_mirror (r s : 'F_n) :
+    (g' * kv') - (t' * ku') != Zp0 ->
+    km' + ku' * (r + c1' t' g' km' ku' kv') + kv' * (s - c2' t' g' km' ku' kv')
+    = Zp1 + ku' * r + kv' * s.
+  Proof.
+    intros Hneq.
+    rewrite mulrDr mulrBr.
+    have Hs : kv' * c2' t' g' km' ku' kv' - ku' * c1' t' g' km' ku' kv' = km' - Zp1
+      by exact: sub_reduction.
+    rewrite -!addrA.
+    rewrite (addrCA (ku' * c1' t' g' km' ku' kv') (kv' * s)).
+    rewrite -[ku' * c1' t' g' km' ku' kv' - kv' * c2' t' g' km' ku' kv']opprB Hs opprB.
+    rewrite !addrA -[km' + ku' * r + kv' * s + Zp1 - km']addrAC.
+    rewrite -[km' + ku' * r + kv' * s - km']addrAC.
+    rewrite [km' + ku' * r - km']addrAC.
+    by rewrite subrr add0r [_ + Zp1]addrC addrA.
+  Qed.
+
+End enc_bij_cancel_mirror.
+
+Section enc_fin_cancel_mirror.
+
+  Import prime fingroup ssralg all_boot zmodp valgroup.
+  Import GroupScope.
+  Import GRing.Theory.
+  Open Scope ring_scope.
+  Context {n'' : nat}.
+  #[local] Notation n := n''.+2.
+  Context {n_prime : prime n}.
+  Variable (t : nat).
+  Variable (g km ku kv : Fin.t n).
+
+  Lemma enc_fin_cancel1_mirror (r s : nat) :
+    r < n ->
+    s < n ->
+    (fin.fin_to_nat g) * (plus_ring (c1 t g km ku kv) r)
+      + t * (minus_ring (c2 t g km ku kv) s)
+    = (fin.fin_to_nat g) * r + t * s %[mod n].
+  Proof.
+    intros Hltr Hlts.
+    unfold plus_ring, minus_ring. rewrite Hltr Hlts.
+    rewrite -modnDm.
+    rewrite -!val_Fp_nat //.
+    rewrite -finalg.FinRing.val_unit1.
+    rewrite !natrM. rewrite -finalg.FinRing.val_unit1.
+    rewrite natrD. rewrite -finalg.FinRing.val_unit1. rewrite !natr_Zp.
+    rewrite (Zp_nat _ t).
+    rewrite /c1 /c2 enc_bij_cancel1'_mirror //.
+    rewrite natrD. rewrite !natrM.
+    rewrite -finalg.FinRing.val_unit1.
+    rewrite (Zp_nat _ r).
+    rewrite (Zp_nat _ s).
+    rewrite (Zp_nat _ t).
+    done.
+  Qed.
+
+  Lemma enc_fin_cancel2_mirror (r s : nat) :
+    Fp_of_fin g * Fp_of_fin kv - inZp t * Fp_of_fin ku != Zp0 ->
+    r < n ->
+    s < n ->
+    (fin.fin_to_nat km) + (fin.fin_to_nat ku * (plus_ring (c1 t g km ku kv) r))
+      + (fin.fin_to_nat kv * (minus_ring (c2 t g km ku kv) s))
+    = 1%nat + (fin.fin_to_nat ku) * r + (fin.fin_to_nat kv) * s %[mod n].
+  Proof.
+    intros Hnz Hltr Hlts.
+    unfold plus_ring, minus_ring. rewrite Hltr Hlts.
+    rewrite -!val_Fp_nat //.
+    rewrite !natrD !natrM.
+    rewrite !natr_Zp.
+    rewrite /c1 /c2.
+    rewrite (Zp_nat _ r) (Zp_nat _ s).
+    rewrite enc_bij_cancel2_mirror //.
+  Qed.
+
+End enc_fin_cancel_mirror.
+
+Section enc_nondeg_mirror.
+
+  Import prime fingroup ssralg all_boot zmodp valgroup.
+  Import GroupScope.
+  Import GRing.Theory.
+  Open Scope ring_scope.
+  Context {n'' : nat}.
+  #[local] Notation n := n''.+2.
+  Context {n_prime : prime n}.
+
+  (* Slot-1 non-degeneracy for the ideal->real (mirror) direction: the ideal CRS
+     has h1 = g1^{t1} (log a1*s1), so the comp1 s-coefficient is a1*s1 and the
+     matrix determinant is Fp a1 * Fp w - inZp (a1*s1) * Fp u = Fp a1 (Fp w - inZp s1 Fp u).
+     Here slot 0 is decryptable (w = u^{s0}, i.e. fin w = fin u * s0 mod n) and the
+     two trapdoors differ (s0 <> s1 mod n). *)
+  Lemma enc_nondeg_other_mirror (a1 u w : Fin.t n) (s0 s1 : nat) :
+    Fp_of_fin a1 != 0 -> Fp_of_fin u != 0 ->
+    (fin.fin_to_nat w) = (fin.fin_to_nat u) * s0 %[mod n] ->
+    s0 <> s1 %[mod n] ->
+    Fp_of_fin a1 * Fp_of_fin w - inZp (fin.fin_to_nat a1 * s1) * Fp_of_fin u != Zp0.
+  Proof.
+    move=> Ha1 Hu Hw Hne.
+    have inZpM : forall x y : nat, (inZp x * inZp y : 'F_n) = inZp (x * y).
+    { move=> x y. apply: val_inj => /=. by rewrite modnMm. }
+    have FpE : forall c : Fin.t n, Fp_of_fin c = inZp (fin.fin_to_nat c).
+    { move=> c. by rewrite /Fp_of_fin Zp_nat. }
+    have HwF : Fp_of_fin w = inZp s0 * Fp_of_fin u.
+    { rewrite !FpE inZpM mulnC. apply: val_inj => /=. by rewrite (Fp_cast n_prime) Hw. }
+    have Hd : (inZp (fin.fin_to_nat a1 * s1) : 'F_n) = Fp_of_fin a1 * inZp s1.
+    { by rewrite FpE inZpM. }
+    rewrite HwF Hd.
+    rewrite mulrA -mulrBl -mulrBr.
+    apply: mulf_neq0; last exact: Hu.
+    apply: mulf_neq0; first exact: Ha1.
+    rewrite subr_eq0.
+    apply/negP => /eqtype.eqP Hc. apply: Hne.
+    by move/(f_equal val): Hc => /=; rewrite !(Fp_cast n_prime).
+  Qed.
+
+  (* Slot-0 non-degeneracy for the ideal->real (mirror) direction: the ideal CRS
+     has h0 = g0^{t0} (log a0*s0), so the comp1 s-coefficient is a0*s0 and the
+     determinant is Fp a0 * Fp w - inZp (a0*s0) * Fp u = Fp a0 (Fp w - inZp s0 Fp u).
+     Here slot 0 is NOT decryptable (w <> u^{s0}, i.e. fin w <> fin u * s0 mod n). *)
+  Lemma enc_nondeg_self_mirror (a0 u w : Fin.t n) (s0 : nat) :
+    Fp_of_fin a0 != 0 -> Fp_of_fin u != 0 ->
+    (fin.fin_to_nat w) <> (fin.fin_to_nat u) * s0 %[mod n] ->
+    Fp_of_fin a0 * Fp_of_fin w - inZp (fin.fin_to_nat a0 * s0) * Fp_of_fin u != Zp0.
+  Proof.
+    move=> Ha0 Hu Hne.
+    have inZpM : forall x y : nat, (inZp x * inZp y : 'F_n) = inZp (x * y).
+    { move=> x y. apply: val_inj => /=. by rewrite modnMm. }
+    have FpE : forall c : Fin.t n, Fp_of_fin c = inZp (fin.fin_to_nat c).
+    { move=> c. by rewrite /Fp_of_fin Zp_nat. }
+    have Hd : (inZp (fin.fin_to_nat a0 * s0) : 'F_n) = Fp_of_fin a0 * inZp s0.
+    { by rewrite FpE inZpM. }
+    rewrite Hd.
+    rewrite -mulrA -mulrBr.
+    apply: mulf_neq0; first exact: Ha0.
+    rewrite subr_eq0.
+    apply/negP => /eqtype.eqP Hc. apply: Hne.
+    move: Hc. rewrite !FpE inZpM => /(f_equal val) /=.
+    rewrite !(Fp_cast n_prime) => ->. by rewrite mulnC.
+  Qed.
+
+End enc_nondeg_mirror.

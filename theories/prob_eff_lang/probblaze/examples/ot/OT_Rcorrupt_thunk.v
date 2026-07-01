@@ -335,492 +335,492 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Receiver_Corrupted "f" ("effs", "doCRS"))%E)%V
       OT_SIM_FOT_thunk.
   Proof using G cg inG2 n_prime probblazeRGS0 vg vgg Σ.
-    iIntros "Herr %θ %f1 %f2 Hff".
-    rewrite /OT_Real_Receiver_Corrupted /OT_SIM_FOT_thunk /F_CRS. brel_pures'. 
-    iModIntro.
-    iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
-    brel_pures'.
-    
-    set H0fin :=  Fin.of_nat_lt (Nat.lt_0_succ (S n'')).
-    iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
-    assert ((3/n) = 1/n + 1/n + 1/n) as -> by lra.
-    iDestruct (ec_split with "Herr") as "(Herr & Herr')"; [apply Rplus_le_le_0_compat; apply Rdiv_INR_ge_0|apply Rdiv_INR_ge_0|].
-    iFrame. iIntros (g0 Hg0) "!>".
-    apply not_elem_of_cons in Hg0 as [Hg0 _].
-    
-    brel_pures'. 
-    iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
-    iDestruct (ec_split with "Herr") as "(Herr & Herr')".
-    1, 2: apply Rdiv_INR_ge_0. iFrame.
-    iIntros (g1 Hg1) "!>".
-    apply not_elem_of_cons in Hg1 as [Hg1 _].
-
-    brel_pures'.
-    epose proof brel_couple_rand_rand as h'.
-    iApply (h' _ _ (f_ring (Fp_of_fin g0))).
-    { unshelve eapply f_bij_ring; first done.  by apply Fp_of_fin_ne_zero_2. }
-    { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
-          by apply Rcomplements.SSR_leq. }
-    clear h'.
-    iIntros (t0 Ht0). brel_pures'. brel_pures.
-    assert ((h_ring (Fp_of_fin g1) (f_ring (Fp_of_fin g0) t0)) < n)%nat as Ht0'.
-    { apply Rcomplements.SSR_leq. unshelve eapply h_lt_ring; first done. 
-      unshelve eapply f_lt_ring; first done. apply Rcomplements.SSR_leq. lia. }
-
-    epose proof (brel_couple_couple_avoid _ _ [Fin.of_nat_lt Ht0'] (f_ring (Fp_of_fin g1)) ) as h'.
-    iApply h'; [apply NoDup_singleton| |] ; clear h'.
-    { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
-          by apply Rcomplements.SSR_leq. }
-    Unshelve.
-    2 : (unshelve eapply f_bij_ring; [done|by apply Fp_of_fin_ne_zero_2]).
-    iFrame. iIntros (t1 Hneq) "!>".
-    brel_pures'. 
-    rewrite -!expgM. rewrite -(@expg_mod _ n (ssrnat.muln g0 (f_ring (Fp_of_fin g0) t0))).
-    2 : rewrite -g_nontriv; apply expg_order.
-    rewrite crs_fin_cancel //; [|by apply Fp_of_fin_ne_zero_2|apply Rcomplements.SSR_leq; lia].
-    rewrite -(@expg_mod _ n (ssrnat.muln g1 (f_ring (Fp_of_fin g1) t1))).
-    2 : rewrite -g_nontriv; apply expg_order.
-    assert (t1 < n)%nat as Ht1' by apply fin_to_nat_lt.
-    rewrite crs_fin_cancel //; [|by apply Fp_of_fin_ne_zero_2|apply Rcomplements.SSR_leq; lia].
-    rewrite !expg_mod.
-    2,3: rewrite -g_nontriv; apply expg_order.
-    iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
-    iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>".
-    rewrite /mut_handler /simhandler.
-    brel_pures_l. brel_pures_r.
-    iApply brel_alloc_r. iIntros (l0) "Hl0".
-    iApply brel_alloc_r. iIntros (l1) "Hl1".
-    brel_pures'.
-
-    iApply brel_effect_l. iIntros (IDEALl) "!> Hideall !>".
-    iApply brel_effect_r. iIntros (IDEALr) "Hidealr !>".
-    iApply brel_effect_r. iIntros (LEAK) "Hleak !>".
-    brel_pures_l. brel_pures_r.
-    
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hideall").
-    iApply (brel_add_label_r with "Hleak").
-    iApply (brel_add_label_r with "Hidealr"). 
-
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hcrsl").
-    iApply (brel_add_label_r with "Hcrsr").
-
-    iApply fupd_brel.
-    iDestruct auth_alloc as ">(%γcrs&Hcrs)".
-    iDestruct (auth_upd (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V with "Hcrs") as ">Hcrs".
-    iDestruct (auth_persist with "Hcrs") as ">Hcrs". 
-    iDestruct "Hcrs" as "#Hcrs". 
-    iModIntro.
-    set θCRS := crsrow CRSl CRSr γcrs.
-    set θSENDER := senderrow IDEALl IDEALr LEAK.
-    
-    iAssert (((𝟙 -{ θCRS }-> ((𝔾 × 𝔾) × 𝔾) × 𝔾) × (𝔾 × 𝔾) -{ θSENDER }-> 𝟙)%T
-                (λ: <>, do: CRSl #(), λ: "mm", do: IDEALl "mm")%V   
-                (λ: <>, do: CRSr #(), λ: "mm", do: IDEALr InjR "mm")%V) as "Hgg".
-    { iExists _,_,_,_. repeat (iSplit; try done); rewrite /sem_ty_mbang //=.
-      - iIntros (??) "!# (->&->)". brel_pures'.
-        iApply brel_introduction'; first constructor.
-        iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
-        do 2 (iSplit; [by iPureIntro|]). iIntros (crs) "Hcrs'". iDestruct (auth_agree with "[$][$]") as "->". 
-        iApply brel_value. iIntros "$ !>". 
-        do 3 (iExists _,_,_,_; do 2 (iSplit; [by iPureIntro|]);
-                            iSplit; last (iExists _; done)). iExists _; done.
-      - iIntros (??) "!# (%&%&%&%&->&->&(%h1&->&->)&(%h2&->&->))". brel_pures'.
-        iApply brel_introduction'; first constructor.
-        iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
-        iExists h1,h1,h2,h2. do 2 (iSplit; first by iExists _).
-        do 2 (iSplit; [by iPureIntro|]). 
-        iApply brel_value. by iIntros "$ !>". }
-    
-    iDestruct ("Hff" with "Hgg") as "Hff".
-    rewrite /sem_row_union !iLblSig_to_iLblThy_app iLblSig_to_iLblThy_proj.
-    rewrite /sem_row_flip_mbang iThyIfMono_iLblSig_to_iThyIfMono.
-    iApply brel_introduction_mono.
-    { iSplit.
-      - iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
-        iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
-        iApply iThy_le_sum_l.
-        instantiate (1 := iThyMono iThyBot).
-        instantiate (1 := [CRSr]). 
-        instantiate (1 := [CRSl]).
-        iIntros (???) "!# (%&%&%&%&%&_&_&_&_&(%&H&_)&_)". done. 
-      - iSplit; iModIntro; first iApply valid_submseteq'; 
-          last (iIntros (Hdistinct); iPureIntro; eapply distinct_submseteq'; try done); solve_submseteq. }
-    iApply brel_introduction_mono.
-    { iSplit.
-      - iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
-        iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
-        iApply iThy_le_sum_r.
-        iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
-        iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
-        iApply iThy_le_sum_l.
-        instantiate (1 := iThyMono iThyBot).
-        instantiate (1 := [IDEALr; LEAK]).
-        instantiate (1 := [IDEALl]). 
-        iIntros (???) "!# (%&%&%&%&%&_&_&_&_&(%&H&_)&_)". done. 
-      - iSplit; iModIntro; first iApply valid_submseteq'; 
-          last (iIntros (Hdistinct); iPureIntro; eapply distinct_submseteq'; try done); solve_submseteq. }
-
-    iApply brel_introduction_mono. 
-    1 : iApply (to_iThy_le_to_iThyIfMono_idemp (([CRSl],[CRSr], iThyBot) :: ([IDEALl],[IDEALr;LEAK],iThyBot) :: (iLblSig_to_iLblThy θ)) OS).
-    
-     (* All resources should be in an invariant *)
-    iApply (brel_exhaustion' OS _ _ [_] [_] (iThyMono (iThySum (CRSThy CRSl CRSr) (CRSThyL CRSl)))
-             with "[Hff Hl0 Hl1]"); [done|done| |].
-
-    (* CRS handler *)
-    2 : { iLöb as "IH".
-          iSplit; [iIntros (v1 v2) "H"; by brel_pures|].
-          iIntros (???????) "(%&[(->&->&HQ) | (->&HQ)]&HQQ) Hkont".
-          - iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
-            iIntros (rl) "!> Hrl".
-            iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
-            iIntros (rr) "Hrr".
-            brel_pures.
-            iApply (brel_cont_l with "[$]"). iModIntro.
-            iApply (brel_cont_r with "[$]").
-            iSpecialize ("HQ" $! (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
-            iDestruct ("HQ" with "Hcrs") as "HQ'".
-            iDestruct ("HQQ" with "HQ'") as "HQ".
-            iDestruct ("Hkont" with "HQ") as "H".
-            iApply (brel_exhaustion' OS _ _ [_] [_] (iThyMono (iThySum (CRSThy CRSl CRSr) (CRSThyL CRSl))) _
-                      ((([IDEALl], [IDEALr;LEAK], _) :: _))
-                     with "[H]"); [done|done|done|done].
-          - iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
-            iIntros (rl) "!> Hrl". brel_pures.
-            iApply (brel_cont_l with "[$]"). iModIntro.
-            iSpecialize ("HQ" $! (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
-            iDestruct ("HQ" with "Hcrs") as "HQ'".
-            iDestruct ("HQQ" with "HQ'") as "HQ".
-            iDestruct ("Hkont" with "HQ") as "H".
-            iApply (brel_exhaustion' OS _ _ [_] [_] (iThyMono (iThySum (CRSThy CRSl CRSr) (CRSThyL CRSl))) _
-                             ((([IDEALl], [IDEALr;LEAK], _) :: _))
-             with "[H]"); [done|done|iApply "H"|iApply "IH"]. }
-    
-    (* Manipulation of theories *)
-    iApply brel_introduction_mono. { iApply to_iThy_le_intro'. eapply submseteq_swap. }
-    iDestruct (brel_introduction_mono _ with "[][$Hff]") as "Hff".
-    { (* iApply to_iThy_le_trans. *)
-      (* add CRSThyL to the row of ff just to match the row of the context in the rest of the proof. It's fine since we've already factored out the CRS handler *)
-      iSplit.
-      { iApply iThy_le_trans; first iApply iThy_le_to_iThy_app_inv. 
-        iApply iThy_le_trans; last iApply iThy_le_to_iThy_app. 
-        iApply iThy_le_sum_r.
-        iApply iThy_le_trans; last iApply (iThy_le_sum_to_iThy [CRSl] [CRSr] ((iThySum (CRSThy CRSl CRSr) (CRSThyL CRSl)))).
-        iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
-        iApply iThy_le_sum_l. iIntros (???) "!# (%&%&%&%&%&?&?&?&?&H&?)". iExists e1',e2',k1,k2,_. iFrame. }
-      iSplit; iModIntro; [iIntros "#Hvalid"; iApply valid_to_iThy_bot; by (iDestruct (valid_to_iThy_bot with "Hvalid") as "?")| (iIntros (Hdistinct); iPureIntro)]; simpl.
-      apply distinct_to_iThy_bot. by apply distinct_to_iThy_bot in Hdistinct. }
-    
-    iApply (brel_exhaustion' OS (f1 _) (f2 _) with "[$Hff]"); [done|set_solver|].
-    iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-    iIntros (???????) "(%&%&%&%&(%m0&->&->)&(%m1&->&->)&->&->&HQ) Hkont".
-    iApply brel_handle_os_l; [apply neutral_ectx;set_solver|].
-    iIntros (cl) "!> Hcl".
-    iApply brel_handle_os_r; [apply neutral_ectx;set_solver|].
-    iIntros (cr) "Hcr".
-    brel_pures_l. brel_pures_r.
-
-    unfold store_if_none. brel_pures_r.
-    iApply (brel_load_r with "Hl0"). iIntros "Hl0".
-    iApply (brel_store_r with "Hl0"). iIntros "Hl0".
-    brel_pures'.
-    iApply (brel_load_r with "Hl1"). iIntros "Hl1".
-    iApply (brel_store_r with "Hl1"). iIntros "Hl1".
-    brel_pures'.
-    
-    iApply (brel_handle_os_r _ [AppRCtx _]); [set_solver|].
-    iIntros (rLeak) "HrLeak". brel_pures'.
-
-    iApply brel_learn. iIntros (Hdistinct) "_".
-    
-    iApply (brel_introduction' [CRSl]). { repeat constructor. }
-    iExists _, _, [AppRCtx _], [HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _], _.  iSplit; [done|].
-    iSplit; [iPureIntro; apply AppRCtx_NeutralEctx; apply NeutralEctx_nil|].
-    iSplit; [done|]. 
-    iSplit; [iPureIntro|].
-    { eapply distinct_submseteq in Hdistinct; [|apply submseteq_swap].
-      eapply (distinct_r_app_NeutralEctx _ _ _ _ [([CRSr],_,iThyMono iThyBot)]); [(destruct Hdistinct as [_ Hd]; apply Hd)| |constructor].
-      set_solver. }
-    iSplit; last (iModIntro; iIntros (??) "H"; done).
-    iExists _.
-    iSplitL; last (iIntros (??) "!> H"; iApply "H").
-    iLeft. do 2 (iSplit; [done|]). iIntros (?) "Hcrs'".
-    iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'".
-    brel_pures_l. brel_pures_r.
-
-    
-    
-    iApply (brel_bind [_] [_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
-    { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
-    { iApply to_iThy_le_intro'; solve_submseteq. }
-    iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
-    { rewrite /sem_ty_arr /sem_ty_mbang /=. by iApply "Hrecv". }
-    iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])".
-    
-     (* Protocol done loop *)
-    { brel_pures_l. brel_pures_r.
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      brel_pures.
-      iApply (brel_cont_r with "[$]").
-      iClear "Hl0 Hl1".
-      iRevert (k1' k2' H H0) "Hfill".
-      iLöb as "IH". iIntros (????) "Hfill".
-      iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-      iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl".
-      iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-      iIntros (rr) "Hrr". 
-      brel_pures_l. brel_pures_r.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      by iApply "IH". }
-
-    iDestruct "H" as (????) "(->&->&(%u&->&->)&(%v&->&->))".
-    brel_pures_l.
-    brel_pures_r.
-    
-    rewrite is_unit.
-    iApply brel_eq_l. iApply brel_eq_r. 
-    destruct (bool_decide (u = 1%g)) eqn:Heq.
-
- (* Protocol done loop *)
-    { brel_pures_l. brel_pures_r.
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      brel_pures.
-      iApply (brel_cont_r with "[$]").
-      iClear "Hl0 Hl1".
-      iRevert (k1' k2' H H0) "Hfill".
-      iLöb as "IH". iIntros (????) "Hfill".
-      iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-      iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl".
-      iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-      iIntros (rr) "Hrr". 
-      brel_pures_l. brel_pures_r.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      by iApply "IH". }
-    
-    brel_pures_l. brel_pures_r. brel_pures'.
-    iApply brel_eq_r.
-    destruct (bool_decide (v = (u ^+ (f_ring (Fp_of_fin g0) t0))%g)) eqn:Heq1; brel_pures'.
-
-(* (e1, e2) = (enc(m0), enc(g)) - couple enc(m1) to enc(g) *)
-    + iApply (brel_handle_os_r [_] [AppRCtx _]); [set_solver|].
-      iIntros (rRecv) "Hr". brel_pures'.
-      
-      iApply (brel_handle_os_r [] [AppRCtx _]); [set_solver|].
-      iIntros (rAlice) "HAlice". brel_pures.
-      iApply (brel_cont_r with "[$]").
-      brel_pures.
-      iApply (brel_load_r with "[$Hl0]"). iIntros "Hl0". 
-      iApply (brel_cont_r with "[$]").
-      brel_pures'. 
-      destruct (log_g m1) as (km & ->).
-      destruct (log_g u) as (ku & ->).
-      destruct (log_g v) as (kv & ->).
-
-      set c1 := c1' (zmodp.inZp (fin_to_nat t1)) (Fp_of_fin g1) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
-
-      set f' := minus_ring c1.
-
-      set c2 := c2' (zmodp.inZp (fin_to_nat t1)) (Fp_of_fin g1) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
-
-      set g' := plus_ring c2.
-      iApply (brel_couple_rand_rand _ _ g' (H:=plus_bij_ring c2)).
-      { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-      iIntros (s1 Hs1). brel_pures_l. brel_pures_r.
-
-      iApply (brel_couple_rand_rand _ _ f' (H:=minus_ring_bij c1)).
-      { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-      iIntros (r1 Hr1). brel_pures_l. brel_pures_r.
-      
-      iApply brel_couple_rand_rand; [done|]. iIntros (s0 Hs0). brel_pures_l. brel_pures_r.
-      iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures_l. brel_pures_r.
-      iApply brel_exp_l. repeat brel_exp_r. 
-      do 2 brel_mult_r. do 2 brel_exp_r.
-      brel_exp_l. brel_mult_l. brel_mult_l. brel_exp_l. brel_exp_l.
-      brel_mult_l. brel_pures. brel_exp_r. brel_exp_r. brel_mult_r. brel_mult_r.
-      brel_exp_r. brel_exp_r. brel_mult_r. brel_pures_r.
-      brel_exp_l. do 2 brel_mult_l. do 2 brel_exp_l. brel_pures. brel_mult_l. brel_pures_l.
-      rewrite -!expgM.
-      rewrite -!expgnDr.
-      rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln t1 s1))).
-      1 : rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 (f' r1)) (ssrnat.muln t1 (g' s1)))).
-      2,3 : rewrite -g_nontriv; apply expg_order.
-      unshelve rewrite enc_fin_cancel1 //.
-      2,3 : rewrite Rcomplements.SSR_leq; lia.
-      rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.addn 1 _) _)).
-      2: rewrite -g_nontriv; apply expg_order.
-      rewrite enc_fin_cancel2 //.
-      3, 4 : rewrite Rcomplements.SSR_leq; lia.
-      2 : { apply: (enc_nondeg_other (n_prime := n_prime) g0 g1 ku kv t0 t1).
-            { apply Rcomplements.SSR_leq; lia. }
-            { apply Rcomplements.SSR_leq; lia. }
-            { by apply Fp_of_fin_ne_zero_2. }
-            { apply Fp_of_fin_ne_zero_2 => Hc0.
-              move: Heq => /bool_decide_eq_false_1 Hne0.
-              apply: Hne0. by rewrite Hc0 fin_to_nat_to_fin expg0. }
-            { apply bool_decide_eq_true_1 in Heq1.
-              rewrite -expgM in Heq1.
-              move/eqtype.eqP: Heq1. rewrite cyclic.eq_expg_mod_order g_nontriv.
-              by move/eqtype.eqP. }
-            { apply not_elem_of_cons in Hneq as [Hne' _].
-              move=> Hc. apply: Hne'. apply: fin_to_nat_inj.
-              by rewrite fin_to_nat_to_fin. } }
-      rewrite !expg_mod.
-      2,3 : rewrite -g_nontriv; apply expg_order.
-      brel_pures'.
-      
-      iApply (brel_bind [_] [_;_;_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
-      { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
-      { iApply to_iThy_le_intro'; solve_submseteq. }
-      iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
-      { rewrite /sem_ty_arr /sem_ty_mbang /=. iApply "Hsend".
-        iExists _,_,_,_. do 2 (iSplit; try done).
-        iSplit; iExists _,_,_,_; try (do 2 (iSplit; try done));
-                              iSplit; iExists _; done.
-      }
-      iIntros (??) "(->&->)".
-      brel_pures'.
-
-      (* Protocol done loop *)
-    { brel_pures'.
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      brel_pures.
-      iApply (brel_cont_r with "[$]").
-      iClear "Hl0 Hl1".
-      iRevert (k1' k2' H H0) "Hfill".
-      iLöb as "IH". iIntros (????) "Hfill".
-      iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-      iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl".
-      iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-      iIntros (rr) "Hrr". 
-      brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      by iApply "IH". }
-
-    + iApply (brel_handle_os_r [_] [AppRCtx _]); [set_solver|].
-      iIntros (rRecv) "Hr". brel_pures.
-      
-      iApply (brel_handle_os_r [] [AppRCtx _]); [set_solver|].
-      iIntros (rAlice) "HAlice". brel_pures.
-      iApply (brel_cont_r with "[$]").
-      brel_pures.
-      iApply (brel_load_r with "[$Hl1]"). iIntros "Hl1". 
-      iApply (brel_cont_r with "[$]").
-      brel_pures. brel_exp_r. brel_pures'.
-      iApply brel_couple_rand_rand; [done|]. iIntros (s1 Hs1). brel_pures.
-      iApply brel_couple_rand_rand; [done|]. iIntros (r1 Hr1). brel_pures.
-      brel_pures.
-      destruct (log_g m0) as (km & ->).
-      destruct (log_g u) as (ku & ->).
-      destruct (log_g v) as (kv & ->).
-      
-      set c1 := c1' (zmodp.inZp t0) (Fp_of_fin g0) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
-
-      set f' := minus_ring c1.
-
-      set c2 := c2' (zmodp.inZp t0) (Fp_of_fin g0) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
-
-      set g' := plus_ring c2.
-      
-      iApply (brel_couple_rand_rand _ _ g' (H:=plus_bij_ring c2)).
-      { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-      iIntros (s0 Hs0). brel_pures'.
-
-      iApply (brel_couple_rand_rand _ _ f' (H:=minus_ring_bij c1)).
-      { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-      iIntros (r0 Hr0). brel_pures_l. brel_pures_r.
-
-      iApply brel_exp_l. iApply brel_exp_r. brel_exp_r. 
-      brel_mult_r. brel_mult_r. brel_exp_r.
-      brel_exp_r. brel_mult_r.
-      brel_exp_l. brel_mult_l. brel_mult_l.
-      brel_exp_l. brel_exp_l. brel_mult_l. 
-      do 2 brel_exp_r. do 2 brel_mult_r. do 2brel_exp_r. brel_mult_r.
-      brel_pures. brel_exp_l. do 2 brel_mult_l. repeat brel_exp_l.
-      repeat brel_mult_l. brel_pures_l. 
-
-      rewrite -!expgM.
-      rewrite -!expgnDr.
-      rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g0 r0) (ssrnat.muln t0 s0))).
-      1 : rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g0 (f' r0)) (ssrnat.muln t0 (g' s0)))).
-      2,3 : rewrite -g_nontriv; apply expg_order.
-      unshelve rewrite enc_fin_cancel1 //.
-      2,3 : rewrite Rcomplements.SSR_leq; lia.
-      rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.addn 1 _) _)).
-      2: rewrite -g_nontriv; apply expg_order.
-      rewrite enc_fin_cancel2 //.
-      3, 4 : rewrite Rcomplements.SSR_leq; lia.
-      2 : { apply: (enc_nondeg_self (n_prime := n_prime) g0 ku kv t0).
-            { apply Rcomplements.SSR_leq; lia. }
-            { by apply Fp_of_fin_ne_zero_2. }
-            { rewrite -expgM in Heq1. apply bool_decide_eq_false_1 in Heq1.
-              move=> Hc. apply: Heq1.
-              rewrite -(expg_mod_order g (fin.fin_to_nat kv))
-                      -(expg_mod_order g (fin.fin_to_nat ku * f_ring (Fp_of_fin g0) t0)).
-              by rewrite !g_nontriv Hc. } }
-      rewrite !expg_mod.
-      2,3 : rewrite -g_nontriv; apply expg_order.
-      brel_pures'.
-      
-      iApply (brel_bind [_] [_;_;_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
-      { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
-      { iApply to_iThy_le_intro'; solve_submseteq. }
-      iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
-      { rewrite /sem_ty_arr /sem_ty_mbang /=. iApply "Hsend".
-        iExists _,_,_,_. do 2 (iSplit; try done).
-        iSplit; iExists _,_,_,_; try (do 2 (iSplit; try done));
-                              iSplit; iExists _; done.
-      }
-      iIntros (??) "(->&->)".
-      brel_pures'.
-
-      (* Protocol done loop *)
-    { brel_pures'.
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      brel_pures.
-      iApply (brel_cont_r with "[$]").
-      iClear "Hl0 Hl1".
-      iRevert (k1' k2' H H0) "Hfill".
-      iLöb as "IH". iIntros (????) "Hfill".
-      iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-      iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl".
-      iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-      iIntros (rr) "Hrr". 
-      brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      by iApply "IH". }
-    Unshelve. all : done.
-Qed.
-
+(*     iIntros "Herr %θ %f1 %f2 Hff".
+       rewrite /OT_Real_Receiver_Corrupted /OT_SIM_FOT_thunk /F_CRS. brel_pures'. 
+       iModIntro.
+       iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
+       brel_pures'.
+       
+       set H0fin :=  Fin.of_nat_lt (Nat.lt_0_succ (S n'')).
+       iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
+       assert ((3/n) = 1/n + 1/n + 1/n) as -> by lra.
+       iDestruct (ec_split with "Herr") as "(Herr & Herr')"; [apply Rplus_le_le_0_compat; apply Rdiv_INR_ge_0|apply Rdiv_INR_ge_0|].
+       iFrame. iIntros (g0 Hg0) "!>".
+       apply not_elem_of_cons in Hg0 as [Hg0 _].
+       
+       brel_pures'. 
+       iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
+       iDestruct (ec_split with "Herr") as "(Herr & Herr')".
+       1, 2: apply Rdiv_INR_ge_0. iFrame.
+       iIntros (g1 Hg1) "!>".
+       apply not_elem_of_cons in Hg1 as [Hg1 _].
+   
+       brel_pures'.
+       epose proof brel_couple_rand_rand as h'.
+       iApply (h' _ _ (f_ring (Fp_of_fin g0))).
+       { unshelve eapply f_bij_ring; first done.  by apply Fp_of_fin_ne_zero_2. }
+       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
+             by apply Rcomplements.SSR_leq. }
+       clear h'.
+       iIntros (t0 Ht0). brel_pures'. brel_pures.
+       assert ((h_ring (Fp_of_fin g1) (f_ring (Fp_of_fin g0) t0)) < n)%nat as Ht0'.
+       { apply Rcomplements.SSR_leq. unshelve eapply h_lt_ring; first done. 
+         unshelve eapply f_lt_ring; first done. apply Rcomplements.SSR_leq. lia. }
+   
+       epose proof (brel_couple_couple_avoid _ _ [Fin.of_nat_lt Ht0'] (f_ring (Fp_of_fin g1)) ) as h'.
+       iApply h'; [apply NoDup_singleton| |] ; clear h'.
+       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
+             by apply Rcomplements.SSR_leq. }
+       Unshelve.
+       2 : (unshelve eapply f_bij_ring; [done|by apply Fp_of_fin_ne_zero_2]).
+       iFrame. iIntros (t1 Hneq) "!>".
+       brel_pures'. 
+       rewrite -!expgM. rewrite -(@expg_mod _ n (ssrnat.muln g0 (f_ring (Fp_of_fin g0) t0))).
+       2 : rewrite -g_nontriv; apply expg_order.
+       rewrite crs_fin_cancel //; [|by apply Fp_of_fin_ne_zero_2|apply Rcomplements.SSR_leq; lia].
+       rewrite -(@expg_mod _ n (ssrnat.muln g1 (f_ring (Fp_of_fin g1) t1))).
+       2 : rewrite -g_nontriv; apply expg_order.
+       assert (t1 < n)%nat as Ht1' by apply fin_to_nat_lt.
+       rewrite crs_fin_cancel //; [|by apply Fp_of_fin_ne_zero_2|apply Rcomplements.SSR_leq; lia].
+       rewrite !expg_mod.
+       2,3: rewrite -g_nontriv; apply expg_order.
+       iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
+       iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>".
+       rewrite /mut_handler /simhandler.
+       brel_pures_l. brel_pures_r.
+       iApply brel_alloc_r. iIntros (l0) "Hl0".
+       iApply brel_alloc_r. iIntros (l1) "Hl1".
+       brel_pures'.
+   
+       iApply brel_effect_l. iIntros (IDEALl) "!> Hideall !>".
+       iApply brel_effect_r. iIntros (IDEALr) "Hidealr !>".
+       iApply brel_effect_r. iIntros (LEAK) "Hleak !>".
+       brel_pures_l. brel_pures_r.
+       
+       iApply brel_new_theory.
+       iApply (brel_add_label_l with "Hideall").
+       iApply (brel_add_label_r with "Hleak").
+       iApply (brel_add_label_r with "Hidealr"). 
+   
+       iApply brel_new_theory.
+       iApply (brel_add_label_l with "Hcrsl").
+       iApply (brel_add_label_r with "Hcrsr").
+   
+       iApply fupd_brel.
+       iDestruct auth_alloc as ">(%γcrs&Hcrs)".
+       iDestruct (auth_upd (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V with "Hcrs") as ">Hcrs".
+       iDestruct (auth_persist with "Hcrs") as ">Hcrs". 
+       iDestruct "Hcrs" as "#Hcrs". 
+       iModIntro.
+       set θCRS := crsrow CRSl CRSr γcrs.
+       set θSENDER := senderrow IDEALl IDEALr LEAK.
+       
+       iAssert (((𝟙 -{ θCRS }-> ((𝔾 × 𝔾) × 𝔾) × 𝔾) × (𝔾 × 𝔾) -{ θSENDER }-> 𝟙)%T
+                   (λ: <>, do: CRSl #(), λ: "mm", do: IDEALl "mm")%V   
+                   (λ: <>, do: CRSr #(), λ: "mm", do: IDEALr InjR "mm")%V) as "Hgg".
+       { iExists _,_,_,_. repeat (iSplit; try done); rewrite /sem_ty_mbang //=.
+         - iIntros (??) "!# (->&->)". brel_pures'.
+           iApply brel_introduction'; first constructor.
+           iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
+           do 2 (iSplit; [by iPureIntro|]). iIntros (crs) "Hcrs'". iDestruct (auth_agree with "[$][$]") as "->". 
+           iApply brel_value. iIntros "$ !>". 
+           do 3 (iExists _,_,_,_; do 2 (iSplit; [by iPureIntro|]);
+                               iSplit; last (iExists _; done)). iExists _; done.
+         - iIntros (??) "!# (%&%&%&%&->&->&(%h1&->&->)&(%h2&->&->))". brel_pures'.
+           iApply brel_introduction'; first constructor.
+           iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
+           iExists h1,h1,h2,h2. do 2 (iSplit; first by iExists _).
+           do 2 (iSplit; [by iPureIntro|]). 
+           iApply brel_value. by iIntros "$ !>". }
+       
+       iDestruct ("Hff" with "Hgg") as "Hff".
+       rewrite /sem_row_union !iLblSig_to_iLblThy_app iLblSig_to_iLblThy_proj.
+       rewrite /sem_row_flip_mbang iThyIfMono_iLblSig_to_iThyIfMono.
+       iApply brel_introduction_mono.
+       { iSplit.
+         - iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
+           iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
+           iApply iThy_le_sum_l.
+           instantiate (1 := iThyMono iThyBot).
+           instantiate (1 := [CRSr]). 
+           instantiate (1 := [CRSl]).
+           iIntros (???) "!# (%&%&%&%&%&_&_&_&_&(%&H&_)&_)". done. 
+         - iSplit; iModIntro; first iApply valid_submseteq'; 
+             last (iIntros (Hdistinct); iPureIntro; eapply distinct_submseteq'; try done); solve_submseteq. }
+       iApply brel_introduction_mono.
+       { iSplit.
+         - iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
+           iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
+           iApply iThy_le_sum_r.
+           iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
+           iApply iThy_le_trans; last iApply iThy_le_sum_to_iThy.
+           iApply iThy_le_sum_l.
+           instantiate (1 := iThyMono iThyBot).
+           instantiate (1 := [IDEALr; LEAK]).
+           instantiate (1 := [IDEALl]). 
+           iIntros (???) "!# (%&%&%&%&%&_&_&_&_&(%&H&_)&_)". done. 
+         - iSplit; iModIntro; first iApply valid_submseteq'; 
+             last (iIntros (Hdistinct); iPureIntro; eapply distinct_submseteq'; try done); solve_submseteq. }
+   
+       iApply brel_introduction_mono. 
+       1 : iApply (to_iThy_le_to_iThyIfMono_idemp (([CRSl],[CRSr], iThyBot) :: ([IDEALl],[IDEALr;LEAK],iThyBot) :: (iLblSig_to_iLblThy θ)) OS).
+       
+        (* All resources should be in an invariant *)
+       iApply (brel_exhaustion' OS _ _ [_] [_] (iThyMono (iThySum (CRSThy CRSl CRSr) (CRSThyL CRSl)))
+                with "[Hff Hl0 Hl1]"); [done|done| |].
+   
+       (* CRS handler *)
+       2 : { iLöb as "IH".
+             iSplit; [iIntros (v1 v2) "H"; by brel_pures|].
+             iIntros (???????) "(%&[(->&->&HQ) | (->&HQ)]&HQQ) Hkont".
+             - iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
+               iIntros (rl) "!> Hrl".
+               iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
+               iIntros (rr) "Hrr".
+               brel_pures.
+               iApply (brel_cont_l with "[$]"). iModIntro.
+               iApply (brel_cont_r with "[$]").
+               iSpecialize ("HQ" $! (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
+               iDestruct ("HQ" with "Hcrs") as "HQ'".
+               iDestruct ("HQQ" with "HQ'") as "HQ".
+               iDestruct ("Hkont" with "HQ") as "H".
+               iApply (brel_exhaustion' OS _ _ [_] [_] (iThyMono (iThySum (CRSThy CRSl CRSr) (CRSThyL CRSl))) _
+                         ((([IDEALl], [IDEALr;LEAK], _) :: _))
+                        with "[H]"); [done|done|done|done].
+             - iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
+               iIntros (rl) "!> Hrl". brel_pures.
+               iApply (brel_cont_l with "[$]"). iModIntro.
+               iSpecialize ("HQ" $! (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
+               iDestruct ("HQ" with "Hcrs") as "HQ'".
+               iDestruct ("HQQ" with "HQ'") as "HQ".
+               iDestruct ("Hkont" with "HQ") as "H".
+               iApply (brel_exhaustion' OS _ _ [_] [_] (iThyMono (iThySum (CRSThy CRSl CRSr) (CRSThyL CRSl))) _
+                                ((([IDEALl], [IDEALr;LEAK], _) :: _))
+                with "[H]"); [done|done|iApply "H"|iApply "IH"]. }
+       
+       (* Manipulation of theories *)
+       iApply brel_introduction_mono. { iApply to_iThy_le_intro'. eapply submseteq_swap. }
+       iDestruct (brel_introduction_mono _ with "[][$Hff]") as "Hff".
+       { (* iApply to_iThy_le_trans. *)
+         (* add CRSThyL to the row of ff just to match the row of the context in the rest of the proof. It's fine since we've already factored out the CRS handler *)
+         iSplit.
+         { iApply iThy_le_trans; first iApply iThy_le_to_iThy_app_inv. 
+           iApply iThy_le_trans; last iApply iThy_le_to_iThy_app. 
+           iApply iThy_le_sum_r.
+           iApply iThy_le_trans; last iApply (iThy_le_sum_to_iThy [CRSl] [CRSr] ((iThySum (CRSThy CRSl CRSr) (CRSThyL CRSl)))).
+           iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
+           iApply iThy_le_sum_l. iIntros (???) "!# (%&%&%&%&%&?&?&?&?&H&?)". iExists e1',e2',k1,k2,_. iFrame. }
+         iSplit; iModIntro; [iIntros "#Hvalid"; iApply valid_to_iThy_bot; by (iDestruct (valid_to_iThy_bot with "Hvalid") as "?")| (iIntros (Hdistinct); iPureIntro)]; simpl.
+         apply distinct_to_iThy_bot. by apply distinct_to_iThy_bot in Hdistinct. }
+       
+       iApply (brel_exhaustion' OS (f1 _) (f2 _) with "[$Hff]"); [done|set_solver|].
+       iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
+       iIntros (???????) "(%&%&%&%&(%m0&->&->)&(%m1&->&->)&->&->&HQ) Hkont".
+       iApply brel_handle_os_l; [apply neutral_ectx;set_solver|].
+       iIntros (cl) "!> Hcl".
+       iApply brel_handle_os_r; [apply neutral_ectx;set_solver|].
+       iIntros (cr) "Hcr".
+       brel_pures_l. brel_pures_r.
+   
+       unfold store_if_none. brel_pures_r.
+       iApply (brel_load_r with "Hl0"). iIntros "Hl0".
+       iApply (brel_store_r with "Hl0"). iIntros "Hl0".
+       brel_pures'.
+       iApply (brel_load_r with "Hl1"). iIntros "Hl1".
+       iApply (brel_store_r with "Hl1"). iIntros "Hl1".
+       brel_pures'.
+       
+       iApply (brel_handle_os_r _ [AppRCtx _]); [set_solver|].
+       iIntros (rLeak) "HrLeak". brel_pures'.
+   
+       iApply brel_learn. iIntros (Hdistinct) "_".
+       
+       iApply (brel_introduction' [CRSl]). { repeat constructor. }
+       iExists _, _, [AppRCtx _], [HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _], _.  iSplit; [done|].
+       iSplit; [iPureIntro; apply AppRCtx_NeutralEctx; apply NeutralEctx_nil|].
+       iSplit; [done|]. 
+       iSplit; [iPureIntro|].
+       { eapply distinct_submseteq in Hdistinct; [|apply submseteq_swap].
+         eapply (distinct_r_app_NeutralEctx _ _ _ _ [([CRSr],_,iThyMono iThyBot)]); [(destruct Hdistinct as [_ Hd]; apply Hd)| |constructor].
+         set_solver. }
+       iSplit; last (iModIntro; iIntros (??) "H"; done).
+       iExists _.
+       iSplitL; last (iIntros (??) "!> H"; iApply "H").
+       iLeft. do 2 (iSplit; [done|]). iIntros (?) "Hcrs'".
+       iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'".
+       brel_pures_l. brel_pures_r.
+   
+       
+       
+       iApply (brel_bind [_] [_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
+       { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
+       { iApply to_iThy_le_intro'; solve_submseteq. }
+       iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
+       { rewrite /sem_ty_arr /sem_ty_mbang /=. by iApply "Hrecv". }
+       iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])".
+       
+        (* Protocol done loop *)
+       { brel_pures_l. brel_pures_r.
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iApply (brel_cont_r with "[$]").
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures_l. brel_pures_r.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+   
+       iDestruct "H" as (????) "(->&->&(%u&->&->)&(%v&->&->))".
+       brel_pures_l.
+       brel_pures_r.
+       
+       rewrite is_unit.
+       iApply brel_eq_l. iApply brel_eq_r. 
+       destruct (bool_decide (u = 1%g)) eqn:Heq.
+   
+    (* Protocol done loop *)
+       { brel_pures_l. brel_pures_r.
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iApply (brel_cont_r with "[$]").
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures_l. brel_pures_r.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+       
+       brel_pures_l. brel_pures_r. brel_pures'.
+       iApply brel_eq_r.
+       destruct (bool_decide (v = (u ^+ (f_ring (Fp_of_fin g0) t0))%g)) eqn:Heq1; brel_pures'.
+   
+   (* (e1, e2) = (enc(m0), enc(g)) - couple enc(m1) to enc(g) *)
+       + iApply (brel_handle_os_r [_] [AppRCtx _]); [set_solver|].
+         iIntros (rRecv) "Hr". brel_pures'.
+         
+         iApply (brel_handle_os_r [] [AppRCtx _]); [set_solver|].
+         iIntros (rAlice) "HAlice". brel_pures.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iApply (brel_load_r with "[$Hl0]"). iIntros "Hl0". 
+         iApply (brel_cont_r with "[$]").
+         brel_pures'. 
+         destruct (log_g m1) as (km & ->).
+         destruct (log_g u) as (ku & ->).
+         destruct (log_g v) as (kv & ->).
+   
+         set c1 := c1' (zmodp.inZp (fin_to_nat t1)) (Fp_of_fin g1) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
+   
+         set f' := minus_ring c1.
+   
+         set c2 := c2' (zmodp.inZp (fin_to_nat t1)) (Fp_of_fin g1) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
+   
+         set g' := plus_ring c2.
+         iApply (brel_couple_rand_rand _ _ g' (H:=plus_bij_ring c2)).
+         { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
+         iIntros (s1 Hs1). brel_pures_l. brel_pures_r.
+   
+         iApply (brel_couple_rand_rand _ _ f' (H:=minus_ring_bij c1)).
+         { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
+         iIntros (r1 Hr1). brel_pures_l. brel_pures_r.
+         
+         iApply brel_couple_rand_rand; [done|]. iIntros (s0 Hs0). brel_pures_l. brel_pures_r.
+         iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures_l. brel_pures_r.
+         iApply brel_exp_l. repeat brel_exp_r. 
+         do 2 brel_mult_r. do 2 brel_exp_r.
+         brel_exp_l. brel_mult_l. brel_mult_l. brel_exp_l. brel_exp_l.
+         brel_mult_l. brel_pures. brel_exp_r. brel_exp_r. brel_mult_r. brel_mult_r.
+         brel_exp_r. brel_exp_r. brel_mult_r. brel_pures_r.
+         brel_exp_l. do 2 brel_mult_l. do 2 brel_exp_l. brel_pures. brel_mult_l. brel_pures_l.
+         rewrite -!expgM.
+         rewrite -!expgnDr.
+         rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln t1 s1))).
+         1 : rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 (f' r1)) (ssrnat.muln t1 (g' s1)))).
+         2,3 : rewrite -g_nontriv; apply expg_order.
+         unshelve rewrite enc_fin_cancel1 //.
+         2,3 : rewrite Rcomplements.SSR_leq; lia.
+         rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.addn 1 _) _)).
+         2: rewrite -g_nontriv; apply expg_order.
+         rewrite enc_fin_cancel2 //.
+         3, 4 : rewrite Rcomplements.SSR_leq; lia.
+         2 : { apply: (enc_nondeg_other (n_prime := n_prime) g0 g1 ku kv t0 t1).
+               { apply Rcomplements.SSR_leq; lia. }
+               { apply Rcomplements.SSR_leq; lia. }
+               { by apply Fp_of_fin_ne_zero_2. }
+               { apply Fp_of_fin_ne_zero_2 => Hc0.
+                 move: Heq => /bool_decide_eq_false_1 Hne0.
+                 apply: Hne0. by rewrite Hc0 fin_to_nat_to_fin expg0. }
+               { apply bool_decide_eq_true_1 in Heq1.
+                 rewrite -expgM in Heq1.
+                 move/eqtype.eqP: Heq1. rewrite cyclic.eq_expg_mod_order g_nontriv.
+                 by move/eqtype.eqP. }
+               { apply not_elem_of_cons in Hneq as [Hne' _].
+                 move=> Hc. apply: Hne'. apply: fin_to_nat_inj.
+                 by rewrite fin_to_nat_to_fin. } }
+         rewrite !expg_mod.
+         2,3 : rewrite -g_nontriv; apply expg_order.
+         brel_pures'.
+         
+         iApply (brel_bind [_] [_;_;_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
+         { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
+         { iApply to_iThy_le_intro'; solve_submseteq. }
+         iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
+         { rewrite /sem_ty_arr /sem_ty_mbang /=. iApply "Hsend".
+           iExists _,_,_,_. do 2 (iSplit; try done).
+           iSplit; iExists _,_,_,_; try (do 2 (iSplit; try done));
+                                 iSplit; iExists _; done.
+         }
+         iIntros (??) "(->&->)".
+         brel_pures'.
+   
+         (* Protocol done loop *)
+       { brel_pures'.
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iApply (brel_cont_r with "[$]").
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures'.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+   
+       + iApply (brel_handle_os_r [_] [AppRCtx _]); [set_solver|].
+         iIntros (rRecv) "Hr". brel_pures.
+         
+         iApply (brel_handle_os_r [] [AppRCtx _]); [set_solver|].
+         iIntros (rAlice) "HAlice". brel_pures.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iApply (brel_load_r with "[$Hl1]"). iIntros "Hl1". 
+         iApply (brel_cont_r with "[$]").
+         brel_pures. brel_exp_r. brel_pures'.
+         iApply brel_couple_rand_rand; [done|]. iIntros (s1 Hs1). brel_pures.
+         iApply brel_couple_rand_rand; [done|]. iIntros (r1 Hr1). brel_pures.
+         brel_pures.
+         destruct (log_g m0) as (km & ->).
+         destruct (log_g u) as (ku & ->).
+         destruct (log_g v) as (kv & ->).
+         
+         set c1 := c1' (zmodp.inZp t0) (Fp_of_fin g0) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
+   
+         set f' := minus_ring c1.
+   
+         set c2 := c2' (zmodp.inZp t0) (Fp_of_fin g0) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
+   
+         set g' := plus_ring c2.
+         
+         iApply (brel_couple_rand_rand _ _ g' (H:=plus_bij_ring c2)).
+         { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
+         iIntros (s0 Hs0). brel_pures'.
+   
+         iApply (brel_couple_rand_rand _ _ f' (H:=minus_ring_bij c1)).
+         { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
+         iIntros (r0 Hr0). brel_pures_l. brel_pures_r.
+   
+         iApply brel_exp_l. iApply brel_exp_r. brel_exp_r. 
+         brel_mult_r. brel_mult_r. brel_exp_r.
+         brel_exp_r. brel_mult_r.
+         brel_exp_l. brel_mult_l. brel_mult_l.
+         brel_exp_l. brel_exp_l. brel_mult_l. 
+         do 2 brel_exp_r. do 2 brel_mult_r. do 2brel_exp_r. brel_mult_r.
+         brel_pures. brel_exp_l. do 2 brel_mult_l. repeat brel_exp_l.
+         repeat brel_mult_l. brel_pures_l. 
+   
+         rewrite -!expgM.
+         rewrite -!expgnDr.
+         rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g0 r0) (ssrnat.muln t0 s0))).
+         1 : rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g0 (f' r0)) (ssrnat.muln t0 (g' s0)))).
+         2,3 : rewrite -g_nontriv; apply expg_order.
+         unshelve rewrite enc_fin_cancel1 //.
+         2,3 : rewrite Rcomplements.SSR_leq; lia.
+         rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.addn 1 _) _)).
+         2: rewrite -g_nontriv; apply expg_order.
+         rewrite enc_fin_cancel2 //.
+         3, 4 : rewrite Rcomplements.SSR_leq; lia.
+         2 : { apply: (enc_nondeg_self (n_prime := n_prime) g0 ku kv t0).
+               { apply Rcomplements.SSR_leq; lia. }
+               { by apply Fp_of_fin_ne_zero_2. }
+               { rewrite -expgM in Heq1. apply bool_decide_eq_false_1 in Heq1.
+                 move=> Hc. apply: Heq1.
+                 rewrite -(expg_mod_order g (fin.fin_to_nat kv))
+                         -(expg_mod_order g (fin.fin_to_nat ku * f_ring (Fp_of_fin g0) t0)).
+                 by rewrite !g_nontriv Hc. } }
+         rewrite !expg_mod.
+         2,3 : rewrite -g_nontriv; apply expg_order.
+         brel_pures'.
+         
+         iApply (brel_bind [_] [_;_;_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
+         { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
+         { iApply to_iThy_le_intro'; solve_submseteq. }
+         iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
+         { rewrite /sem_ty_arr /sem_ty_mbang /=. iApply "Hsend".
+           iExists _,_,_,_. do 2 (iSplit; try done).
+           iSplit; iExists _,_,_,_; try (do 2 (iSplit; try done));
+                                 iSplit; iExists _; done.
+         }
+         iIntros (??) "(->&->)".
+         brel_pures'.
+   
+         (* Protocol done loop *)
+       { brel_pures'.
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iApply (brel_cont_r with "[$]").
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures'.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+       Unshelve. all : done.
+   Qed. *)
+Admitted.
 
 
  Lemma OT_ideal_real : 
@@ -961,50 +961,37 @@ Qed.
     1 : iApply (to_iThy_le_to_iThyIfMono_idemp (([CRSl],[CRSr], iThyBot) :: ([IDEALl;LEAK],[IDEALr],iThyBot) :: (iLblSig_to_iLblThy θ)) OS).
     
      (* All resources should be in an invariant *)
-    iApply (brel_exhaustion' OS _ _ [_] [_] (iThyMono (iThySum (CRSThy CRSl CRSr) (CRSThyR CRSr)))
+    iApply (brel_exhaustion' OS _ _ [_] [_] (iThyMono (CRSThy CRSl CRSr))
              with "[Hff Hl0 Hl1]"); [done|done| |].
 
     2 : { iLöb as "IH".
           iSplit; [iIntros (v1 v2) "H"; by brel_pures|].
-          iIntros (???????) "(%&[(->&->&HQ) | (->&HQ)]&HQQ) Hkont".
-          - iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
-            iIntros (rl) "!> Hrl".
-            iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
-            iIntros (rr) "Hrr".
-            brel_pures.
-            iApply (brel_cont_l with "[$]"). iModIntro.
-            iApply (brel_cont_r with "[$]").
-            iSpecialize ("HQ" $! (vgval (g ^+ ssrnat.muln g1 t1), vgval (g ^+ ssrnat.muln g0 t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
-            iDestruct ("HQ" with "Hcrs") as "HQ'".
-            iDestruct ("HQQ" with "HQ'") as "HQ".
-            iDestruct ("Hkont" with "HQ") as "H".
-            iApply (brel_exhaustion' OS _ _ [_] [_] (iThyMono (iThySum (CRSThy CRSl CRSr) (CRSThyR CRSr))) _
-                      ((([IDEALl;LEAK], [IDEALr], _) :: _))
-                     with "[H]"); [done|done| |done]. admit.
-          - iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
-            iIntros (rl) "Hrl". brel_pures.
-            iApply (brel_cont_r with "[$]"). 
-            iSpecialize ("HQ" $! (vgval (g ^+ ssrnat.muln g1 t1), vgval (g ^+ ssrnat.muln g0 t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
-            iDestruct ("HQ" with "Hcrs") as "HQ'".
-            iDestruct ("HQQ" with "HQ'") as "HQ".
-            iDestruct ("Hkont" with "HQ") as "H".
-            iApply (brel_exhaustion' OS _ _ [_] [_] (iThyMono (iThySum (CRSThy CRSl CRSr) (CRSThyR CRSr))) _
-                             ((([IDEALl;LEAK], [IDEALr], _) :: _))
-             with "[H]"); [done|done|admit |admit]. }
+          iIntros (???????) "(%&(->&->&HQ)&HQQ) Hkont".
+          iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
+          iIntros (rl) "!> Hrl".
+          iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
+          iIntros (rr) "Hrr".
+          brel_pures.
+          iApply (brel_cont_l with "[$]"). iModIntro.
+          iApply (brel_cont_r with "[$]").
+          iSpecialize ("HQ" $! (vgval (g ^+ ssrnat.muln g1 t1), vgval (g ^+ ssrnat.muln g0 t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
+          iDestruct ("HQ" with "Hcrs") as "HQ'".
+          iDestruct ("HQQ" with "HQ'") as "HQ".
+          iDestruct ("Hkont" with "HQ") as "H".
+          iApply (brel_exhaustion' OS _ _ [_] [_] (iThyMono (CRSThy CRSl CRSr)) _
+                    ((([IDEALl;LEAK], [IDEALr], _) :: _))
+                   with "[H]"); [done|done| |done].
+          rewrite -(expg_mod (p:=n) (h_ring (Fp_of_fin g1) t1)).
+          2 : rewrite -g_nontriv; apply expg_order.
+          rewrite -(expg_mod (p:=n) (h_ring (Fp_of_fin g0) t0)).
+          2 : rewrite -g_nontriv; apply expg_order.
+          assert (div.modn (h_ring (Fp_of_fin g1) t1) n = div.modn (ssrnat.muln g1 t1) n) as ->.
+          { unshelve eapply h_fin_cancel; first done. apply Rcomplements.SSR_leq. apply fin_to_nat_lt. }
+          assert (div.modn (h_ring (Fp_of_fin g0) t0) n = div.modn (ssrnat.muln g0 t0) n) as ->.
+          { unshelve eapply h_fin_cancel; first done. apply Rcomplements.SSR_leq. lia. }
+          by rewrite !expg_mod; try (rewrite -g_nontriv; apply expg_order). }
 
     iApply brel_introduction_mono. { iApply to_iThy_le_intro'. eapply submseteq_swap. }
-    iDestruct (brel_introduction_mono _ with "[][$Hff]") as "Hff".
-    { (* iApply to_iThy_le_trans. *)
-      (* add CRSThyL to the row of ff just to match the row of the context in the rest of the proof. It's fine since we've already factored out the CRS handler *)
-      iSplit.
-      { iApply iThy_le_trans; first iApply iThy_le_to_iThy_app_inv. 
-        iApply iThy_le_trans; last iApply iThy_le_to_iThy_app. 
-        iApply iThy_le_sum_r.
-        iApply iThy_le_trans; last iApply (iThy_le_sum_to_iThy [CRSl] [CRSr] ((iThySum (CRSThy CRSl CRSr) (CRSThyR CRSr)))).
-        iApply iThy_le_trans; first iApply iThy_le_to_iThy_sum.
-        iApply iThy_le_sum_l. iIntros (???) "!# (%&%&%&%&%&?&?&?&?&H&?)". iExists e1',e2',k1,k2,_. iFrame. }
-      iSplit; iModIntro; [iIntros "#Hvalid"; iApply valid_to_iThy_bot; by (iDestruct (valid_to_iThy_bot with "Hvalid") as "?")| (iIntros (Hdistinct); iPureIntro)]; simpl.
-      apply distinct_to_iThy_bot. by apply distinct_to_iThy_bot in Hdistinct. }
 
     iApply (brel_exhaustion' OS (f1 _) (f2 _) with "[$Hff]"); [set_solver|set_solver|].
     iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
@@ -1014,30 +1001,34 @@ Qed.
     iApply brel_handle_os_l; [apply neutral_ectx;set_solver|].
     iIntros (cl) "!> Hcl".
     brel_pures_l. brel_pures_r.
-    
-    iApply (brel_introduction' [CRSl]). { repeat constructor. }
-    iExists _, _, [], [AppRCtx _], _.  iSplit; [done|].
-    iSplit; [iPureIntro; apply NeutralEctx_nil|].
-    iSplit; [done|]. 
-    iSplit; [iPureIntro; apply AppRCtx_NeutralEctx; apply NeutralEctx_nil|].
-    iSplit; last (iModIntro; iIntros (??) "H"; done).
-    iExists _.
-    iSplitL; last (iIntros (??) "!> H"; iApply "H").
-    iRight. iSplit; [done|]. iIntros (?) "Hcrs' !>". (* HERE YOU REMOVE THE LATER NO REASON *)
-    iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'".
-    brel_pures_r. 
+
     unfold store_if_none. brel_pures_l.
     iApply (brel_load_l with "Hl0"). iIntros "!> Hl0".
     iApply (brel_store_l with "Hl0"). iIntros "!> Hl0".
     brel_pures'.
     iApply (brel_load_l with "Hl1"). iIntros "!> Hl1".
     iApply (brel_store_l with "Hl1"). iIntros "!> Hl1".
-    brel_pures'.
-    
+    brel_pures'.    
     iApply (brel_handle_os_l _ [AppRCtx _]); [set_solver|].
     iIntros (rLeak) "!> HrLeak". brel_pures'.
-    
+
     iApply brel_learn. iIntros (Hdistinct) "_".
+
+    iApply (brel_introduction' [CRSl]). { repeat constructor. }
+    iExists _, _, [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _;AppRCtx _], [AppRCtx _], _. 
+    iSplit; [done|].
+    iSplit; [iPureIntro|].
+    { eapply distinct_submseteq in Hdistinct; [|apply submseteq_swap].
+      eapply (distinct_l_app_NeutralEctx _ _ _ _ [([CRSl],_,iThyMono _)]); [(destruct Hdistinct as [Hd _]; apply Hd)| |constructor].
+      set_solver. }
+    iSplit; [done|].
+    iSplit; [iPureIntro; apply AppRCtx_NeutralEctx; apply NeutralEctx_nil|].
+    iSplit; last (iModIntro; iIntros (??) "H"; done).
+    iExists _.
+    iSplitL; last (iIntros (??) "!> H"; iApply "H").
+    do 2 (iSplit; [done|]). iIntros (?) "Hcrs'".
+    iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'".
+    brel_pures_l. brel_pures_r.
     
     iApply (brel_bind [_;_;_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
     { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
@@ -1119,18 +1110,18 @@ Qed.
       destruct (log_g u) as (ku & ->).
       destruct (log_g v) as (kv & ->).
       
-      set c1 := c1' (zmodp.inZp ((ssrnat.muln g1 t1))) (Fp_of_fin g1) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
+      set c1 := c1' (zmodp.inZp (ssrnat.muln g1 t1)) (Fp_of_fin g1) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
       
-      set f' := minus_ring c1.
+      set f' := plus_ring c1.
       
-      set c2 := c2' (zmodp.inZp ((ssrnat.muln g1 t1))) (Fp_of_fin g1) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
+      set c2 := c2' (zmodp.inZp (ssrnat.muln g1 t1)) (Fp_of_fin g1) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
       
-      set g' := plus_ring c2.
-      iApply (brel_couple_rand_rand _ _ g' (H:=plus_bij_ring c2)).
-      { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
+      set g' := minus_ring c2.
+      iApply (brel_couple_rand_rand _ _ g' (H:=minus_ring_bij c2)).
+      { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply minus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
       iIntros (s1 Hs1). brel_pures_l. brel_pures_r.
       
-      iApply (brel_couple_rand_rand _ _ f' (H:=minus_ring_bij c1)).
+      iApply (brel_couple_rand_rand _ _ f' (H:=plus_bij_ring c1)).
       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
       iIntros (r1 Hr1). brel_pures_l. brel_pures_r.
 
@@ -1147,18 +1138,17 @@ Qed.
       brel_mult_r. brel_pures_r. 
       rewrite -!expgM.
       rewrite -!expgnDr.
-      rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln (ssrnat.muln g1 t1) s1))).
-      1 : rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 (f' r1)) (ssrnat.muln (ssrnat.muln g1 t1) (g' s1)))).
-      2,3 : rewrite -g_nontriv; apply expg_order.
-      unshelve rewrite enc_fin_cancel1 //.
+      (* rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln t1 s1))). *)
+      rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 (f' r1)) (ssrnat.muln (ssrnat.muln g1 t1) (g' s1)))).
+      2 : rewrite -g_nontriv; apply expg_order.
+      unshelve rewrite enc_fin_cancel1_mirror //.
       2,3 : rewrite Rcomplements.SSR_leq; lia.
-      rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.addn 1 _) _)).
+      rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.addn km _) _)).
       2: rewrite -g_nontriv; apply expg_order.
-      rewrite enc_fin_cancel2 //.
+      rewrite enc_fin_cancel2_mirror //.
       3, 4 : rewrite Rcomplements.SSR_leq; lia.
-      2 : { apply: (enc_nondeg_other (n_prime := n_prime) g0 g1 ku kv t0 t1).
-            { apply Rcomplements.SSR_leq; lia. }
-            { apply Rcomplements.SSR_leq; lia. }
+      2 : {
+        apply: (enc_nondeg_other_mirror (n_prime := n_prime) g1 ku kv t0 t1).
             { by apply Fp_of_fin_ne_zero_2. }
             { apply Fp_of_fin_ne_zero_2 => Hc0.
               move: Heq => /bool_decide_eq_false_1 Hne0.
@@ -1168,14 +1158,148 @@ Qed.
               move/eqtype.eqP: Heq1. rewrite cyclic.eq_expg_mod_order g_nontriv.
               by move/eqtype.eqP. }
             { apply not_elem_of_cons in Hneq as [Hne' _].
-              move=> Hc. apply: Hne'. apply: fin_to_nat_inj.
-              by rewrite fin_to_nat_to_fin. } }
+              move=> Hc. apply: Hne'. apply: fin_to_nat_inj. rewrite fin_to_nat_to_fin.
+              move: Hc. rewrite !div.modn_small; try (apply/ssrnat.ltP; lia); first by symmetry.
+              rewrite Rcomplements.SSR_leq. apply fin_to_nat_lt. } }
       rewrite !expg_mod.
       2,3 : rewrite -g_nontriv; apply expg_order.
       brel_pures'.
 
+      iApply (brel_bind [_;_;_;_;_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
+      { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
+      { iApply to_iThy_le_intro'; solve_submseteq. }
+      iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
+      { rewrite /sem_ty_arr /sem_ty_mbang /=. iApply "Hsend".
+        iExists _,_,_,_. do 2 (iSplit; try done).
+        iSplit; iExists _,_,_,_; try (do 2 (iSplit; try done));
+                              iSplit; iExists _; try done.
+      }
+      iIntros (??) "(->&->)".
+      brel_pures'.
 
-  Admitted. 
+      (* Protocol done loop *)
+      { iDestruct ("Hkont" with "HQ") as "Hfill".
+      iApply (brel_cont_l with "[$]"). iModIntro.
+      iApply (brel_cont_r with "[$]").
+      brel_pures.
+      iApply (brel_cont_l with "[$]"). iModIntro.
+      iClear "Hl0 Hl1".
+      iRevert (k1' k2' H H0) "Hfill".
+      iLöb as "IH". iIntros (????) "Hfill".
+      iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+      iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+      iIntros (rl) "!> Hrl".
+      iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+      iIntros (rr) "Hrr". 
+      brel_pures_l. brel_pures_r.
+      iApply (brel_cont_l with "[$]"). iModIntro.
+      iApply (brel_cont_r with "[$]").
+      iDestruct ("Hkont" with "HQ") as "Hfill".
+      by iApply "IH". }
+
+    + iApply (brel_handle_os_l [_] [AppRCtx _]); [set_solver|].
+      iIntros (rRecv) "!> Hr". brel_pures.
+      
+      iApply (brel_handle_os_l [] [AppRCtx _]); [set_solver|].
+      iIntros (rAlice) "!> HAlice". brel_pures.
+      iApply (brel_cont_l with "[$]"). iModIntro.
+      brel_pures.
+      iApply (brel_load_l with "[$Hl1]"). iIntros "!> Hl1". 
+      iApply (brel_cont_l with "[$]"). iModIntro.
+      brel_pures'. 
+      iApply brel_couple_rand_rand; [done|]. iIntros (s1 Hs1). brel_pures'.
+      iApply brel_couple_rand_rand; [done|]. iIntros (r1 Hr1). brel_pures'.
+      destruct (log_g m0) as (km & ->).
+      destruct (log_g u) as (ku & ->).
+      destruct (log_g v) as (kv & ->).
+
+      set c1 := c1' (zmodp.inZp (ssrnat.muln g0 t0)) (Fp_of_fin g0) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
+
+      set f' := plus_ring c1.
+
+      set c2 := c2' (zmodp.inZp (ssrnat.muln g0 t0)) (Fp_of_fin g0) (Fp_of_fin km) (Fp_of_fin ku) (Fp_of_fin kv).
+
+      set g' := minus_ring c2.
+      iApply (brel_couple_rand_rand _ _ g' (H:=minus_ring_bij c2)).
+      { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
+      iIntros (s0 Hs0). brel_pures'.
+
+      iApply (brel_couple_rand_rand _ _ f' (H:=plus_bij_ring c1)).
+      { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
+      iIntros (r0 Hr0). brel_pures_l. brel_pures_r.
+
+      iApply brel_exp_r. iApply brel_exp_l. brel_exp_l. 
+      brel_mult_l. brel_mult_l. brel_exp_l.
+      brel_exp_l. brel_mult_l.
+      brel_exp_r. brel_mult_r. brel_mult_r.
+      brel_exp_r. brel_exp_r. brel_mult_r. 
+      do 2 brel_exp_l. do 2 brel_mult_l. do 2brel_exp_l. brel_mult_l.
+      brel_pures. brel_exp_r. brel_exp_r. do 2 brel_mult_r. repeat brel_exp_r.
+      repeat brel_mult_r. brel_pures_r. 
+      rewrite -!expgM.
+      rewrite -!expgnDr.
+      rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g0 (f' r0)) (ssrnat.muln (ssrnat.muln g0 t0) (g' s0)))).
+      2 : rewrite -g_nontriv; apply expg_order.
+      unshelve rewrite enc_fin_cancel1_mirror //.
+      2,3 : rewrite Rcomplements.SSR_leq; lia.
+      rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.addn km _) _)).
+      2: rewrite -g_nontriv; apply expg_order.
+      rewrite enc_fin_cancel2_mirror //.
+      3, 4 : rewrite Rcomplements.SSR_leq; lia.
+      2 : {
+        apply: (enc_nondeg_self_mirror (n_prime := n_prime) g0 ku kv t0).
+            { by apply Fp_of_fin_ne_zero_2. }
+            { apply Fp_of_fin_ne_zero_2 => Hc0.
+              move: Heq => /bool_decide_eq_false_1 Hne0.
+              apply: Hne0. by rewrite Hc0 fin_to_nat_to_fin expg0. }
+            { apply bool_decide_eq_false_1 in Heq1.
+              rewrite -expgM in Heq1.
+              move/eqtype.eqP: Heq1. rewrite cyclic.eq_expg_mod_order g_nontriv.
+              by move/eqtype.eqP. } } 
+      rewrite !expg_mod.
+      2,3 : rewrite -g_nontriv; apply expg_order.
+      brel_pures'.
+      
+      iApply (brel_bind [_;_;_;_;_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
+      { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
+      { iApply to_iThy_le_intro'; solve_submseteq. }
+      iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].
+      { rewrite /sem_ty_arr /sem_ty_mbang /=. iApply "Hsend".
+        iExists _,_,_,_. do 2 (iSplit; try done).
+        iSplit; iExists _,_,_,_; try (do 2 (iSplit; try done));
+                              iSplit; iExists _; done.
+      }
+      iIntros (??) "(->&->)".
+      brel_pures'.
+
+
+      (* Protocol done loop *)
+      { iDestruct ("Hkont" with "HQ") as "Hfill".
+      iApply (brel_cont_l with "[$]"). iModIntro.
+      iApply (brel_cont_r with "[$]").
+      brel_pures.
+      iApply (brel_cont_l with "[$]"). iModIntro.
+      iClear "Hl0 Hl1".
+      iRevert (k1' k2' H H0) "Hfill".
+      iLöb as "IH". iIntros (????) "Hfill".
+      iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+      iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+      iIntros (rl) "!> Hrl".
+      iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+      iIntros (rr) "Hrr". 
+      brel_pures_l. brel_pures_r.
+      iApply (brel_cont_l with "[$]"). iModIntro.
+      iApply (brel_cont_r with "[$]").
+      iDestruct ("Hkont" with "HQ") as "Hfill".
+      by iApply "IH". }
+      
+      Unshelve. all : done.
+  Qed. 
+
 
 
 End handlee_verification.
