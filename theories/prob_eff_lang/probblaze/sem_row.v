@@ -610,12 +610,11 @@ Section row_sub_typing.
       iApply iThy_le_sum_map.
       - iIntros (???) "!# (%&%&%&%&%&$&$&$&$&H&$)".
         iDestruct sig_le_mfbang_elim as "(?&H')".
-        (* Morally we want iDestruct (sig_mbang_later $ with "H") as "H". but it has to be adapted a little bit *) 
-        (* by iApply "H'". *) admit.
+        by iApply "H'".
       - by iDestruct row_le_mfbang_elim0 as "($&_&_)". }
     { iIntros "!# H". rewrite iThyIfMono_iLblSig_to_iThyIfMono. by rewrite <-valid_to_iThyIfMono. }
     { iIntros "!# H". rewrite iThyIfMono_iLblSig_to_iThyIfMono. iDestruct "H" as "%Hdistinct". iPureIntro. by rewrite <-distinct_to_iThyIfMono. }
-  Admitted. 
+  Qed. 
 
   Lemma row_le_mfbang_idemp m (ρ : sem_row Σ) :
     ⊢ (¡[ m ] (¡[ m ] ρ)) ≤ᵣ ((¡[ m ] ρ)).
