@@ -595,10 +595,8 @@ Section row_sub_typing.
     ⊢ ¡[ m ] (σ · ρ) ≤ᵣ (¡[ m ] σ)%S · (¡[ m ] ρ).
   Proof.
     unfold row_le. simpl.
-    rewrite iThyIfMono_iLblSig_to_iThyIfMono. 
-    iSplit; last first.
-    - iSplit; [|iIntros "!> %Hd"; iPureIntro].
-  Admitted. 
+    iApply to_iThy_le_refl.
+  Qed.
   
   Global Instance row_cons_once (ρ : sem_row Σ) (σ : sem_sig Σ) `{! OnceS σ, ! OnceR ρ } :
     OnceR (σ · ρ)%R.
