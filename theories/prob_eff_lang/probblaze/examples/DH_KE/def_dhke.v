@@ -227,7 +227,7 @@ Section def_implementation.
          match: "p" with
            (* Alice *)
            InjL <> =>
-             let: "key" := "sample_or_load" #() in
+             let: "key" := "sample_or_load" #()%V in
              (* Leak a send *)
              ("doLeakSend" bob);;
              (* Receive a dummy value *)
@@ -257,7 +257,7 @@ Section def_implementation.
      λ: "f" "effs",
        let, ("doLeakSend", "doLeakRecv") := "effs" in
        (* Magically share a lazily sampled key *)
-       let: "α" := AllocTape
+       let: "α" := alloc #n in
        let: "key_opt" := ref NONEV in
        let: "sample_or_load" :=
          λ:<>, match: !"key_opt" with
@@ -284,7 +284,7 @@ Section def_implementation.
              match: "r" with
                NONE => "k" NONEV
              | SOME "w" =>
-                 let: "key" := "sample_or_load" #() in
+                 let: "key" := "sample_or_load" #()%V in
                  "k" (SOME "key")
              end
          (* Bob  *)
@@ -295,7 +295,7 @@ Section def_implementation.
              | SOME "w" =>
                  (* NB: we should be able to swap the next two lines without observable differences *)
                  ("doLeakSend" alice);;
-                 let: "key" := "sample_or_load" #() in
+                 let: "key" := "sample_or_load" #()%V in
                  "k" (SOME "key")
              end
          end
