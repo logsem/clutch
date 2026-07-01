@@ -437,7 +437,11 @@ Proof.
     apply SeriesC_correct; auto. 
     apply (ex_seriesC_le _ (state_step σ1 α)); auto. 
     intros n0. 
-    (* real_solver. *) admit.
+    split. 1: real_solver.
+    assert (exec n (e1, n0) v <= 1)%R by real_solver.
+    etrans.
+    1: apply Rmult_le_compat.
+    4: eassumption. all: real_solver.
   - rewrite lim_exec_unfold.
     rewrite rbar_finite_real_eq; [apply Sup_seq_correct |].
     rewrite mon_sup_succ.
@@ -445,7 +449,7 @@ Proof.
       * apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
       * apply upper_bound_ge_sup; intro; simpl; auto.
     + intros. eapply exec_mono.
-Admitted.
+Qed.
 
 Lemma limprim_coupl_step_limprim e1 σ1 α bs :
   σ1.(tapes) !! α = Some bs →
