@@ -1893,30 +1893,29 @@ Proof.
   rewrite state_step_support_equiv_rel.
   inversion_clear 1.
   split; intros [[e2 σ2] Hs].
-  (* (* TODO: the sub goals used to be solved by [simplify_map_eq]  *)
-     - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
-       + destruct (decide (α = l1)); simplify_eq.
-         * rewrite lookup_insert_eq in H11. done.
-         * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
-       + destruct (decide (α = l1nn)); simplify_eq.
-         * rewrite lookup_insert_eq in H11. done.
-         * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
-       + destruct (decide (α = l1)); simplify_eq.
-         * rewrite lookup_insert_eq in H10. done.
-         * rewrite lookup_insert_ne // in H10. rewrite H10 in H7. done.
-     - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
-       + destruct (decide (α = l1)); simplify_eq.
-         * apply not_elem_of_dom_2 in H11. done.
-         * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done.
-       + destruct (decide (α = l1)); simplify_eq.
-         * rewrite lookup_insert_eq // in H7.
-           apply not_elem_of_dom_2 in H11. done.
-         * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done.
-       + destruct (decide (α = l1)); simplify_eq.
-         * rewrite lookup_insert_eq // in H7.
-           apply not_elem_of_dom_2 in H10. done.
-         * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done. *)
-Admitted.
+  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert_eq in H11. done.
+      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert_eq in H11. done.
+      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert_eq in H10. done.
+      * rewrite lookup_insert_ne // in H10. rewrite H10 in H7. done.
+  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
+    + destruct (decide (α = l1)); simplify_eq.
+      * apply not_elem_of_dom_2 in H11. done.
+      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert_eq // in H7.
+        apply not_elem_of_dom_2 in H11. done.
+      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert_eq // in H7.
+        apply not_elem_of_dom_2 in H10. done.
+      * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done.
+Qed.
 
 Lemma state_step_prim_step_not_stuck e σ σ' α :
   state_step σ α σ' > 0 → (∃ ρ, prim_step e σ ρ > 0) ↔ (∃ ρ', prim_step e σ' ρ' > 0).
