@@ -748,13 +748,19 @@ Section handlee_verification.
     iApply (brel_handle_os_r [] [AppRCtx _]); [set_solver|simpl].
     iIntros (cleak) "Hleak".
     brel_pures'.
+
+    iApply brel_learn. iIntros (Hdistinct) "_".
+
     iApply (brel_introduction' [CRSl]). { repeat constructor. }
-    iExists _, _, [AppRCtx _], [], _.  iSplit; [done|].
+    iExists _, _, [AppRCtx _], [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _], _.  iSplit; [done|].
     iSplit; [iPureIntro; apply AppRCtx_NeutralEctx; apply NeutralEctx_nil|].
-    iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
+    iSplit; [done|]. iSplit; [iPureIntro|].
+    { eapply distinct_submseteq in Hdistinct; [|apply submseteq_swap].
+         eapply (distinct_r_app_NeutralEctx _ _ _ _ [([CRSr],_,iThyMono iThyBot)]); [(destruct Hdistinct as [_ Hd]; apply Hd)| |constructor].
+         set_solver. }
     iSplit; last (iModIntro; iIntros (??) "H"; done).
     iExists _. iSplitL; last (iIntros (??) "!> H"; iApply "H").
-    iRight. iSplit; [done|]. iIntros (?) "Hcrs'".
+    iLeft. do 2 (iSplit; [done|]). iIntros (?) "Hcrs'".
     iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'".
     brel_pures'.
 

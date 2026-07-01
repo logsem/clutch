@@ -105,11 +105,11 @@ Section implementation.
       end.
 
   Definition simhandler : val :=
-    λ: "y" "crs" "doSend" "doRecv" "doSender" "x" "k",
-      let, ("h1", "h0", "g1", "g0") := "crs" in
+    λ: "y" "doCRS" "doSend" "doRecv" "doSender" "x" "k",
       match: "x" with
       | InjL <> => "k" NONEV
       | InjR <> => 
+          let, ("h1", "h0", "g1", "g0") := "doCRS" #()%V in
           let: "α1" := sample #()%V in
           let: "α0" := "α1" * "y" in
           let: "uv" := ("g0"^"α0", "h0"^"α0") in
@@ -138,7 +138,7 @@ Section implementation.
       let: "crs" := ("h1", "h0", "g1", "g0") in
       effect "CRS" 
       let: "doCRS" := (λ: <>, do: "CRS" #()%V) in
-      let: "mh" := mut_handler idealhandler (simhandler "y" "crs" "doSend" "doRecv") in
+      let: "mh" := mut_handler idealhandler (simhandler "y" "doCRS" "doSend" "doRecv") in
       handle: "mh" (λ: "doReceiver", "f" ("doCRS", "doReceiver")) with
       | effect "CRS" "x", rec "k" => "k" "crs"
       | return "y" => "y" end. 
