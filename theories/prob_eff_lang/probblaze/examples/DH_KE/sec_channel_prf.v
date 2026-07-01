@@ -486,6 +486,24 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
 
   set (d3 := (∃ g, (α ↪ₛN (S n''; [n])) ∗ l_fchan ↦ₛ□ SOMEV (vgval g) ∗  l_rchan ↦□ SOMEV (vgval g) ∗  l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV)%I).
   (* set (d3 := (∃ m, (α ↪ₛN (S n''; [n])) ∗ l_fchan ↦ₛ□ SOMEV m ∗  l_rchan ↦□ SOMEV m ∗  l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV)%I).*)
+
+
+  (* TODO: actually define f parametrised by m and n. *)
+  set (f m n := 42).
+  (* Proposed new invariant: *)
+    set (new_inv :=  (
+ (l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗ l_key ↦□ None ∗ l_m' ↦ₛ□ None)
+ ∨
+ (∃ m n,
+     (* l_rchan  ↦□ Some m ∗ l_fchan ↦□ Some m ∗ l_key ↦ None l_m' ↦ None l_sim ↦ None ∗ l_auth ↦ None
+        ∨ *)
+     (* Sender provided the message, the key is sampled (and coupled to the random ciphertext) *)
+     l_rchan  ↦□ Some m ∗ l_fchan ↦ₛ□ Some m ∗ l_key ↦□ Some g^(f m n) ∗ l_m' ↦ₛ□ Some n ∗ l_sim ↦ₛ None ∗ l_auth ↦ None
+     ∨
+     l_rchan  ↦□ Some m ∗ l_fchan ↦ₛ□ Some m ∗ l_key ↦□ Some g^(f m n) ∗ l_m' ↦ₛ□ Some n ∗ l_auth ↦□ Some (xor m (g^n)) ∗ l_sim ↦ₛ□ Some n
+        ))%I).
+
+
   iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
    iSplitL "Hα Hl_sim Hl_auth Hlfchan Hlrchan"; [iNext; iLeft; iFrame|].
    iIntros "#Hinvα".

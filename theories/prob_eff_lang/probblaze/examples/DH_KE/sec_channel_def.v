@@ -202,6 +202,16 @@ Section schannel.
     let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
     let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in
     let: "message" := ref NONEV in
+    let: "m'_opt" := ref NONEV in
+    let: "sample_or_load" :=
+      λ:<>, match: !"m'_opt" with
+        | NONE =>
+            let: "m'" := (sample #()%V) in
+            "m'_opt" <- SOME "m'" ;;
+            "key"
+        | SOME "m'" => "m'"
+        end
+    in
     effect "leaksec"
     let: "doLeakSecSend" := (λ: "m", do: (EffName "leaksec") (Send "m")) in
     let: "doLeakSecRecv" := (λ: "m", do: (EffName "leaksec") (Recv "m")) in
@@ -213,6 +223,7 @@ Section schannel.
             (* assuming "dst" is alice for now *)
             (*let, ("m", "dst") := "payload" in*)
             (*("doKeyLeak" (Send("payload")));;*)
+            let: "m'" := "sample_or_load" #() in
             ("doKeyLeakSnd" (bob));;
             let: "r" := "doKeyLeakRecv" (bob) in
                           match: "r" with
@@ -221,7 +232,7 @@ Section schannel.
                           | SOME "x" =>
                               match: !"message" with
                               | NONE =>
-                                  let: "m'" := (sample #()%V) in
+                                  (* let: "m'" := (sample #()%V) in *)
                                   let: "mA" := g^"m'" in
                                   "message" <- SOME "m'";;
                                   ("doLeakASend" ("mA", bob));;

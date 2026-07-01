@@ -204,10 +204,60 @@ Section def_implementation.
      | return "y" => "y" end.
 
 
-   Definition F_KE_lazy : val :=
+   Definition F_KE_lazy_alice : val :=
      λ: "f" "effs",
        let, ("doLeakSend", "doLeakRecv") := "effs" in
        (* Magically share a lazily sampled key *)
+       let: "key_opt" := ref NONEV in
+       let: "sample_or_load" :=
+         λ:<>, match: !"key_opt" with
+           | NONE =>
+               let: "c" := (sample #()%V) in
+               let: "key" := g^"c" in
+               "key_opt" <- SOME "key" ;;
+               "key"
+           | SOME "key" => "key"
+           end
+       in
+
+       effect "getKey"
+         let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+         handle: "f" "doGK" with
+     | effect (EffName "getKey") "p", rec "k" as multi =>
+         match: "p" with
+           (* Alice *)
+           InjL <> =>
+             let: "key" := "sample_or_load" #() in
+             (* Leak a send *)
+             ("doLeakSend" bob);;
+             (* Receive a dummy value *)
+             let: "r" := ("doLeakRecv" bob) in
+             match: "r" with
+               NONE => "k" NONEV
+             | SOME "w" =>
+                 "k" (SOME "key")
+             end
+         (* Bob  *)
+         | InjR <> =>
+             let: "r" := ("doLeakRecv" alice) in
+             match: "r" with
+               NONE => "k" NONEV
+             | SOME "w" =>
+                 ("doLeakSend" alice);;
+                 match: !"key_opt" with
+                 | NONE => "k" NONEV
+                 | SOME "key" =>
+                     "k" (SOME "key")
+                 end
+             end
+         end
+     | return "y" => "y" end.
+
+   Definition F_KE_just_lazy : val :=
+     λ: "f" "effs",
+       let, ("doLeakSend", "doLeakRecv") := "effs" in
+       (* Magically share a lazily sampled key *)
+       let: "α" := AllocTape
        let: "key_opt" := ref NONEV in
        let: "sample_or_load" :=
          λ:<>, match: !"key_opt" with
@@ -243,12 +293,10 @@ Section def_implementation.
              match: "r" with
                NONE => "k" NONEV
              | SOME "w" =>
+                 (* NB: we should be able to swap the next two lines without observable differences *)
                  ("doLeakSend" alice);;
-                 match: !"key_opt" with
-                 | NONE => "k" NONEV
-                 | SOME "key" =>
-                     "k" (SOME "key")
-                 end
+                 let: "key" := "sample_or_load" #() in
+                 "k" (SOME "key")
              end
          end
      | return "y" => "y" end.
