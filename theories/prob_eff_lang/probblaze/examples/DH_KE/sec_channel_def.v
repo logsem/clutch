@@ -147,7 +147,7 @@ Section schannel.
     λ: "f" "LeakAOp" "doKeyLeak",
     let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
     let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in  
-    let: "α" := alloc #n in
+    (*let: "α" := alloc #n in*)
     let: "message" := ref NONEV in
     effect "leaksec"
     let: "doLeakSecSend" := (λ: "m", do: (EffName "leaksec") (Send "m")) in
@@ -168,7 +168,7 @@ Section schannel.
                           | SOME "x" =>
                               match: !"message" with
                               | NONE =>
-                                  let: "m'" := (samplelbl "α" #()%V) in
+                                  let: "m'" := (sample #()%V) in
                                   let: "mA" := g^"m'" in
                                   "message" <- SOME "m'";;
                                   ("doLeakASend" ("mA", bob));;
