@@ -105,10 +105,10 @@ Section implementation.
       end.
 
   Definition simhandler : val :=
-    λ: "t0" "crs" "doSend" "doRecv" "doReceiver" "x" "k",
-      let, ("h1", "h0", "g1", "g0") := "crs" in
+    λ: "t0" "doCRS" "doSend" "doRecv" "doReceiver" "x" "k",
       match: "x" with
       | InjL <> => 
+          let, ("h1", "h0", "g1", "g0") := "doCRS" #()%V in
           let: "r" := "doRecv" #()%V in
           match: "r" with
           | NONE => "k" #()%V
@@ -146,7 +146,7 @@ Section implementation.
       let: "crs" := ("h1", "h0", "g1", "g0") in
       effect "CRS" 
       let: "doCRS" := (λ: <>, do: "CRS" #()%V) in
-      let: "mh" := mut_handler idealhandler (simhandler "t0" "crs" "doSend" "doRecv") in
+      let: "mh" := mut_handler idealhandler (simhandler "t0" "doCRS" "doSend" "doRecv") in
       handle: "mh" (λ: "doSender", "f" ("doCRS", "doSender")) with
       | effect "CRS" "x", rec "k" => "k" "crs"
       | return "y" => "y" end. 
