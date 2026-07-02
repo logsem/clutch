@@ -1396,33 +1396,34 @@ Section compatibility.
       by iIntros (???) "!> (%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H&_)&_)". }
     { by iApply iThy_le_to_iThy_2. }
   Qed.
-  
-  Lemma sem_typed_effect Γ e1 e2 (ρ : sem_row Σ) τ :
-    ⊢ (∀ l1 l2 : label, sem_typed Γ (lbl_subst "s" l1 e1) (lbl_subst "s'" l2 e2) (sem_row_cons (sem_sig_bottom l1 l2) ρ) τ Γ) -∗
-    sem_typed Γ (effect "s" e1) (effect "s'" e2) ρ τ Γ.
-  Proof.
-    iIntros "#H !# % Hvs /=".
-    iApply (brel_effect_l _ _ []). iIntros (l1) "!> Hl1 !>". 
-    iApply (brel_effect_r _ _ _ []). iIntros (l2) "Hl2 !>". simpl.
-    iDestruct ("H" $! l1 l2 with "Hvs") as "He".
-    iApply (brel_introduction_mono (([], [], sem_sig_bottom l1 l2 : iThy Σ) :: (iLblSig_to_iLblThy ρ))).
-    { iSplit.
-      - iApply (iThy_le_trans _ (iThySum (iThyTraverse [] [] (sem_sig_bottom l1 l2)) (to_iThy (iLblSig_to_iLblThy ρ)))).
-        { simpl. iApply iThy_le_to_iThy_sum. }
-        iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H'&?)&?)|?]";[done|done].
-      - iSplit; iModIntro.
-        + iApply valid_submseteq'; [rewrite labels_l_cons | rewrite labels_r_cons]; done.
-        + iIntros (Hd). iPureIntro. apply (distinct_submseteq' _ (iLblSig_to_iLblThy ρ)); done. }
-    iApply (brel_add_label_l_sem_sig with "Hl1").
-    iApply (brel_add_label_r_sem_sig with "Hl2").
-    simpl.
-    rewrite !subst_map_lbl_subst.
-    (* With the plain σ head (sem_row.v:23, [sem_sig_later] dropped) the head
-       signature of [sem_row_cons (sem_sig_bottom l1 l2) ρ] is exactly
-       [sem_sig_bottom l1 l2], matching the goal produced by
-       [brel_add_label_{l,r}_sem_sig] -- no [▷ False] obligation. *)
-    iApply "He".
-  Qed.
+
+  (* Use the generic rule instead *)
+  (* Lemma sem_typed_effect Γ e1 e2 (ρ : sem_row Σ) τ :
+       ⊢ (∀ l1 l2 : label, sem_typed Γ (lbl_subst "s" l1 e1) (lbl_subst "s'" l2 e2) (sem_row_cons (sem_sig_bottom l1 l2) ρ) τ Γ) -∗
+       sem_typed Γ (effect "s" e1) (effect "s'" e2) ρ τ Γ.
+     Proof.
+       iIntros "#H !# % Hvs /=".
+       iApply (brel_effect_l _ _ []). iIntros (l1) "!> Hl1 !>". 
+       iApply (brel_effect_r _ _ _ []). iIntros (l2) "Hl2 !>". simpl.
+       iDestruct ("H" $! l1 l2 with "Hvs") as "He".
+       iApply (brel_introduction_mono (([], [], sem_sig_bottom l1 l2 : iThy Σ) :: (iLblSig_to_iLblThy ρ))).
+       { iSplit.
+         - iApply (iThy_le_trans _ (iThySum (iThyTraverse [] [] (sem_sig_bottom l1 l2)) (to_iThy (iLblSig_to_iLblThy ρ)))).
+           { simpl. iApply iThy_le_to_iThy_sum. }
+           iIntros "!> %%% [(%&%&%&%&%&%&%&%&%&(%&%&%&%&%&H'&?)&?)|?]";[done|done].
+         - iSplit; iModIntro.
+           + iApply valid_submseteq'; [rewrite labels_l_cons | rewrite labels_r_cons]; done.
+           + iIntros (Hd). iPureIntro. apply (distinct_submseteq' _ (iLblSig_to_iLblThy ρ)); done. }
+       iApply (brel_add_label_l_sem_sig with "Hl1").
+       iApply (brel_add_label_r_sem_sig with "Hl2").
+       simpl.
+       rewrite !subst_map_lbl_subst.
+       (* With the plain σ head (sem_row.v:23, [sem_sig_later] dropped) the head
+          signature of [sem_row_cons (sem_sig_bottom l1 l2) ρ] is exactly
+          [sem_sig_bottom l1 l2], matching the goal produced by
+          [brel_add_label_{l,r}_sem_sig] -- no [▷ False] obligation. *)
+       iApply "He".
+     Qed. *)
 
   (* Binder-general variant of [sem_typed_effect]: the proof is agnostic to
      the effect-declaration binders ([s1]/[s2] arbitrary) and to the in/out
