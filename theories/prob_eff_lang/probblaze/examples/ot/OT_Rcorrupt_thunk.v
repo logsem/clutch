@@ -335,7 +335,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Receiver_Corrupted "f" ("effs", "doCRS"))%E)%V
       OT_SIM_FOT_thunk.
   Proof using G cg inG2 n_prime probblazeRGS0 vg vgg Σ.
-(*     iIntros "Herr %θ %f1 %f2 Hff".
+     iIntros "Herr %θ %f1 %f2 Hff".
        rewrite /OT_Real_Receiver_Corrupted /OT_SIM_FOT_thunk /F_CRS. brel_pures'. 
        iModIntro.
        iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
@@ -819,8 +819,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          iDestruct ("Hkont" with "HQ") as "Hfill".
          by iApply "IH". }
        Unshelve. all : done.
-   Qed. *)
-Admitted.
+   Qed.
 
 
  Lemma OT_ideal_real : 
