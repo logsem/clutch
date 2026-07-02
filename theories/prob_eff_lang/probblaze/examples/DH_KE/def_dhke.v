@@ -302,10 +302,11 @@ Section def_implementation.
          end
      | return "y" => "y" end.
 
-  Definition C : val :=
+ Definition C : val :=
    λ: "DH" "f" "effs",
      let, ("doSend", "doRecv") := "effs" in
     let, ("ga", "gb", "gc") := "DH" #()%V in
+
     effect "getKey" 
     let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
     handle: "f" "doGK" with
@@ -325,6 +326,46 @@ Section def_implementation.
             | SOME "w" =>
                 ("doSend" ("gb", alice));;
                 "k" (SOME "gc")
+                     end
+        end
+    | return "y" => "y" end.
+
+
+  Definition C_lazy : val :=
+   λ: "DH" "f" "effs",
+     let, ("doSend", "doRecv") := "effs" in
+    let, ("ga", "gb", "gc") := "DH" #()%V in
+    let: "lc" := ref NONE in
+    let: "store_if_none" :=
+         λ:<>, match: !"lc" with
+           | NONE =>
+               "lc" <- SOME "gc"
+           | SOME "key" => #()%V
+           end 
+    in 
+    effect "getKey" 
+    let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+    handle: "f" "doGK" with
+    | effect (EffName "getKey") "p", rec "k" as multi =>
+        match: "p" with
+          InjL <> =>
+            "store_if_none" #()%V;;
+            ("doSend" ("ga", bob));;
+            let: "r" := ("doRecv" bob) in
+            match: "r" with
+              NONE => "k" NONE
+            | SOME "w" => "k" (SOME "gc")
+            end
+        | InjR <> =>
+            let: "r" := ("doRecv" alice) in
+            match: "r" with
+              NONE => "k" NONE
+            | SOME "w" =>
+                ("doSend" ("gb", alice));;
+                match: !"lc" with
+                | NONE => "k" NONE
+                | SOME "x" => "k" (SOME "gc")
+                end 
             end
         end
     | return "y" => "y" end.
