@@ -1004,76 +1004,8 @@ Section interp_subst.
     by iApply "H'".
   Qed.
 
-  (* Structural "copyable shape": the syntactic types whose interpretation
-     is provably a semantic [MultiT].  Note [TBang MS _] is unconditionally
-     copyable, while [ref]/[tape]/[TArrow] (the LINEAR arrow [-∘]) and free
-     variables are not.  [TBang OS]/[TBang (MVar _)] propagate to the body. *)
-  Fixpoint MultiP (τ : type) : Prop :=
-    match τ with
-    | TBot | TTop | TUnit | TInt | TNat | TBool => True
-    | TBang MS _ => True
-    | TBang _ τ => MultiP τ
-    | TProd τ1 τ2 => MultiP τ1 ∧ MultiP τ2
-    | TSum τ1 τ2 => MultiP τ1 ∧ MultiP τ2
-    | TForallT τ | TForallR τ | TForallM τ | TRec τ | TExists τ => MultiP τ
-    | _ => False
-    end.
 
-  (* Semantic direction: a copyable-shaped type interprets to a [MultiT]. *)
-  Lemma MultiP_interp_multi (τ : type) :
-    MultiP τ → ∀ η μ δ ξ, MultiT (interp._ty η μ δ τ ξ).
-  Proof.
-    revert τ. fix IH 1. intros τ Hmp η μ δ ξ.
-    destruct τ; simpl in Hmp |- *; try (exfalso; exact Hmp).
-    all: try apply multi_ty_void.
-    all: try apply multi_ty_top.
-    all: try apply multi_ty_unit.
-    all: try apply multi_ty_bool.
-    all: try apply multi_ty_int.
-    all: try apply multi_ty_nat_sem.
-    all: try (destruct Hmp as [H1 H2];
-              first [ apply multi_ty_prod | apply multi_ty_sum ]; by apply IH).
-    all: try (apply multi_ty_mode_forall; intros ν; by apply IH).
-    all: try (apply multi_ty_type_forall; intros α; by apply IH).
-    all: try (apply multi_ty_row_forall; intros θ; by apply IH).
-    all: try (apply multi_ty_exists; intros α; by apply IH).
-    all: try (apply multi_ty_rec; [ apply _ |
-                iIntros (α) "_"; pose proof (IH _ Hmp (α :: η) μ δ ξ) as Hmt;
-                inv Hmt; iApply multi_ty ]).
-    all: destruct v;
-           first [ apply multi_ty_mbang
-                 | apply multi_ty_mbang_gen; by apply IH ].
-  Qed.
 
-  (* Inversion / consistency direction: a syntactically [le.MultiT] type
-     has copyable shape.  We factor this through two auxiliary syntactic
-     predicates and a monotonicity lemma for [le._type ∅]. *)
-
-  (* [topL τ]: [τ] mentions [⊤] somewhere reachable in a component (the
-     LIBERAL "top occurs" predicate; products/sums use disjunction).  This
-     is the escape that survives the [TProd_le]/[TSum_le] congruences. *)
-  Fixpoint topL (τ : type) : Prop :=
-    match τ with
-    | TTop => True
-    | TBang _ τ => topL τ
-    | TForallT τ | TForallR τ | TForallM τ | TRec τ | TExists τ => topL τ
-    | TProd τ1 τ2 => topL τ1 ∨ topL τ2
-    | TSum τ1 τ2 => topL τ1 ∨ topL τ2
-    | _ => False
-    end.
-
-  (* [toplike τ]: [τ] is "trivially full", built from [⊤] by bangs /
-     binders / BOTH components of a product or sum.  Crucially
-     [toplike τ → MultiP τ] (see [toplike_MultiP]). *)
-  Fixpoint toplike (τ : type) : Prop :=
-    match τ with
-    | TTop => True
-    | TBang _ τ => toplike τ
-    | TForallT τ | TForallR τ | TForallM τ | TRec τ | TExists τ => toplike τ
-    | TProd τ1 τ2 => toplike τ1 ∧ toplike τ2
-    | TSum τ1 τ2 => toplike τ1 ∧ toplike τ2
-    | _ => False
-    end.
 
   (* The vmode preorder [le._mode] is a lattice with [OS] bottom and
      [MS] top; in particular [MS ≤M OS] is NOT derivable. *)
@@ -1089,145 +1021,10 @@ Section interp_subst.
     - by right; right.
   Qed.
 
-  (* [topL] is preserved forward along [le._type]. *)
-  Lemma topL_fwd D α β : le._type D α β → topL α → topL β.
-  Proof.
-    intros H. induction H; simpl; try done.
-    - auto.
-    - intros [|]; eauto.
-    - intros [|]; eauto.
-  Qed.
+ 
 
-  (* [toplike] is preserved forward along [le._type]. *)
-  Lemma toplike_fwd D α β : le._type D α β → toplike α → toplike β.
-  Proof.
-    intros H. induction H; simpl; try done; eauto.
-    all: intros [Ha Hb]; split; auto.
-  Qed.
-
-  (* A trivially-full type is copyable-shaped. *)
-  Lemma toplike_MultiP τ : toplike τ → MultiP τ.
-  Proof.
-    induction τ; simpl; try done;
-      try (intros [? ?]; split); try destruct v; eauto.
-  Qed.
-
-  (* Monotonicity of copyable-shape along [le._type] WITH the liberal-top
-     escape: if [β] is copyable-shaped then [α] is, OR [β] mentions [⊤].
-     This is the only direction that survives every rule (incl. [TBot_le],
-     [TTop_le], [TBangElim_le] and the unconstrained [TTrans_le] middle).
-     [TTop_le] is discharged by [topL ⊤]; [TProd_le]/[TSum_le] by the
-     liberal (disjunctive) [topL] on products/sums; [TTrans_le] by
-     [topL_fwd]. *)
-  Lemma le_ty_MultiP_topL D α β :
-    le._type D α β → MultiP β → MultiP α ∨ topL β.
-  Proof.
-    intros H. induction H; simpl in *; try (intros; tauto).
-    - intros HM3. destruct (IH_type2 HM3) as [HM2|Ht3].
-      + destruct (IH_type1 HM2) as [HM1|Ht2].
-        * by left.
-        * right. by eapply topL_fwd.
-      + by right.
-    - destruct m; tauto.
-    - destruct m; tauto.
-    - destruct m; tauto.
-    - destruct (le_mode_char _ _ H) as [E|[E|E]].
-      + subst m'. simpl. intros HM. apply IH_type in HM. destruct m; tauto.
-      + subst m. simpl. tauto.
-      + subst m'. destruct m; simpl; intros HM; try tauto;
-          apply IH_type in HM; tauto.
-  Qed.
-
-  (* Residual [topL] case.
-
-     STATUS: ADMITTED — the precise remaining gap.  [le_ty_MultiP_topL]
-     reduces [le.MultiT τ → MultiP τ] to: if [τ] mentions [⊤] (i.e.
-     [topL τ]) and [∅ ⊢ₗ τ ≤T ![MS]τ], then [MultiP τ].  The dangerous
-     shapes are products/sums that carry BOTH a [⊤]-component and a
-     LINEAR component (e.g. [⊤ * (TArrow …)]): there [MultiP τ] is false,
-     so one must show [∅ ⊢ₗ τ ≤T ![MS]τ] is then UNDERIVABLE.
-
-     This is a genuine bang-INTRODUCTION / coherence fact: an [MS]-bang of
-     a structurally-linear type can only be obtained via [⊤] (giving
-     [![MS]⊤], not [![MS]τ]); no rule introduces an [MS]-bang on a bare
-     product / sum / arrow / ref / tape / variable whose body is that SAME
-     type.  It is NOT provable by any monotone or escape-based invariant
-     on [le._type ∅]: copyable shape is non-monotone in both directions
-     (a product may send one component up to [⊤] while keeping a linear
-     sibling, breaking [MultiP β → MultiP α …] at [TProd_le]; dually
-     [TBot_le] inside a sum breaks the reverse), and the [TTrans_le]
-     middle is unconstrained.  Concretely, [induction] on the derivation
-     stalls on the [TTrans_le] case [α1 ≤ α2 ≤ ![MS]β] with [α2] copyable
-     and top-mentioning but not bang-headed (e.g. via [TBangTForallTComm2]
-     one has [∀T:![MS](⊤*Unit) ≤ ![MS](∀T:(⊤*Unit))]), where no induction
-     hypothesis applies.
-
-     The sound routes are (a) a syntactic transitivity-admissibility /
-     cut-elimination for [le._type] (so that [_ ≤T ![MS]_] derivations
-     expose the body's structure), or (b) the SEMANTIC subtyping
-     soundness [ty_le_sound] (which gives this immediately); the latter
-     is itself ADMITTED here, blocked on [TArrow_le] needing the
-     row-subtyping soundness [row_le_erase]/[sig_le_eff].  Both are
-     substantial separate developments, out of scope of this change. *)
-  Lemma le_multiT_MultiP_topL (τ : type) :
-    topL τ → le._type ∅ τ (TBang MS τ) → MultiP τ.
-  Proof.
-  Admitted.
-
-  Lemma le_multiT_MultiP (τ : type) : le.MultiT τ → MultiP τ.
-  Proof.
-    unfold le.MultiT. intros H.
-    destruct (le_ty_MultiP_topL _ _ _ H I) as [HM|Ht].
-    - exact HM.
-    - by apply le_multiT_MultiP_topL.
-  Qed.
-
-  (* Soundness of [le.MultiT]: a syntactically multi type interprets to a
-     semantic [MultiT].  Fully proved modulo the consistency inversion
-     [le_multiT_MultiP] above. *)
-  Lemma multi_ty_sound (τ : type) :
-    le.MultiT τ → ∀ η μ δ ξ, MultiT (interp._ty η μ δ τ ξ).
-  Proof.
-    intros Hm η μ δ ξ. apply MultiP_interp_multi, le_multiT_MultiP, Hm.
-  Qed.
-
-  (* The interpretation of a context [Γ] at a given interpretation env. *)
-  Notation interp_env η μ δ ξ Γ :=
-    ((λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ).
-
-  (* Soundness of [le.MultiC]: a syntactically multi context interprets to
-     a semantic [MultiE].  Forall-lift of [multi_ty_sound]. *)
-  Lemma multi_env_sound (Γ : ctx) :
-    le.MultiC Γ → ∀ η μ δ ξ, MultiE (interp_env η μ δ ξ Γ).
-  Proof.
-    intros Hm η μ δ ξ. induction Γ as [|[x τ] Γ' IH]; simpl.
-    - apply multi_env_nil.
-    - apply Forall_cons in Hm as [Hτ HΓ'].
-      apply multi_env_cons; first by apply IH.
-      by apply multi_ty_sound.
-  Qed.
-
-  (* Soundness of [le._mode_type]: note [m m⪯T τ] forces [m ∈ {OS, MS}]. *)
-  Lemma mode_type_sound (m : vmode) (τ : type) :
-    m m⪯T τ → ∀ η μ δ ξ, (interp._mode μ m) ₘ⪯ₜ (interp._ty η μ δ τ ξ).
-  Proof.
-    intros Hm η μ δ ξ. inv Hm; simpl.
-    - apply mode_type_sub_os.
-    - apply mode_type_sub_multi_ty. by apply multi_ty_sound.
-  Qed.
-
-  (* Soundness of [le._mode_ctx]: a syntactic mode-context judgement
-     interprets to a semantic mode-env-subtyping. *)
-  Lemma mode_env_sound (m : vmode) (Γ : ctx) :
-    m m⪯C Γ → ∀ η μ δ ξ, (interp._mode μ m) ₘ⪯ₑ (interp_env η μ δ ξ Γ).
-  Proof.
-    intros Hm η μ δ ξ. induction Hm as [m'|m' x τ Γ' Hτ HΓ' IH]; simpl.
-    - apply mode_env_sub_nil.
-    - destruct x as [|s]; simpl.
-      + apply IH.
-      + apply mode_env_sub_cons; first apply IH.
-        by apply mode_type_sound.
-  Qed.
+  
+  
 
   (* ===================================================================== *)
   (** ** Soundness of syntactic subtyping ([le._eff_sig]/[le._row]/        *)
@@ -1949,6 +1746,62 @@ Section interp_subst.
     interp._ty η μ δ α ξ ≤ₜ interp._ty η μ δ β ξ.
   Proof. intros H. iApply (ty_le_sound_open _ _ _ H). Qed.
 
+ (* [erase_ctx] holds vacuously at the EMPTY disjointness context: the    *)
+  (* [RErase_le] premise bundle quantifies over keys [s] with              *)
+  (* [∅ !! s = Some _], which is unsatisfiable.  This is what lets us run   *)
+  (* [row_le_sound] at [∅] (the context used by [le.OnceR]/[le.MultiT]).   *)
+  Lemma erase_ctx_empty η μ δ ξ : ⊢ erase_ctx η μ δ ξ ∅.
+  Proof.
+    rewrite /erase_ctx. iIntros "!#" (s ss js ρ0 Hlk).
+    rewrite lookup_empty in Hlk. done.
+  Qed.
+
+  Lemma multi_ty_sound' (τ : type) :
+    le.MultiT τ → ∀ η μ δ ξ, MultiT (interp._ty η μ δ τ ξ).
+  Proof.
+    intros H ????. unfold le.MultiT in H. eapply ty_le_sound in H.
+    constructor.
+    iApply H. iApply erase_ctx_empty.
+  Qed.
+  
+  (* The interpretation of a context [Γ] at a given interpretation env. *)
+  Notation interp_env η μ δ ξ Γ :=
+    ((λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ).
+
+  (* Soundness of [le.MultiC]: a syntactically multi context interprets to
+     a semantic [MultiE].  Forall-lift of [multi_ty_sound]. *)
+  Lemma multi_env_sound (Γ : ctx) :
+    le.MultiC Γ → ∀ η μ δ ξ, MultiE (interp_env η μ δ ξ Γ).
+  Proof.
+    intros Hm η μ δ ξ. induction Γ as [|[x τ] Γ' IH]; simpl.
+    - apply multi_env_nil.
+    - apply Forall_cons in Hm as [Hτ HΓ'].
+      apply multi_env_cons; first by apply IH.
+      by apply multi_ty_sound'.
+  Qed.
+
+  (* Soundness of [le._mode_type]: note [m m⪯T τ] forces [m ∈ {OS, MS}]. *)
+  Lemma mode_type_sound (m : vmode) (τ : type) :
+    m m⪯T τ → ∀ η μ δ ξ, (interp._mode μ m) ₘ⪯ₜ (interp._ty η μ δ τ ξ).
+  Proof.
+    intros Hm η μ δ ξ. inv Hm; simpl.
+    - apply mode_type_sub_os.
+    - apply mode_type_sub_multi_ty. by apply multi_ty_sound'.
+  Qed.
+
+  (* Soundness of [le._mode_ctx]: a syntactic mode-context judgement
+     interprets to a semantic mode-env-subtyping. *)
+  Lemma mode_env_sound (m : vmode) (Γ : ctx) :
+    m m⪯C Γ → ∀ η μ δ ξ, (interp._mode μ m) ₘ⪯ₑ (interp_env η μ δ ξ Γ).
+  Proof.
+    intros Hm η μ δ ξ. induction Hm as [m'|m' x τ Γ' Hτ HΓ' IH]; simpl.
+    - apply mode_env_sub_nil.
+    - destruct x as [|s]; simpl.
+      + apply IH.
+      + apply mode_env_sub_cons; first apply IH.
+        by apply mode_type_sound.
+  Qed.
+
   (* ===================================================================== *)
   (** ** Soundness of the row-substructurality judgements                  *)
   (*      ([le._row_type] / [le._row_ctx])                                  *)
@@ -1958,15 +1811,7 @@ Section interp_subst.
   (*  derivation into the semantic [RowTypeSub]/[RowEnvSub] typeclasses     *)
   (*  expected by the compatibility lemmas [sem_typed_pair_gen] etc.        *)
 
-  (* [erase_ctx] holds vacuously at the EMPTY disjointness context: the    *)
-  (* [RErase_le] premise bundle quantifies over keys [s] with              *)
-  (* [∅ !! s = Some _], which is unsatisfiable.  This is what lets us run   *)
-  (* [row_le_sound] at [∅] (the context used by [le.OnceR]/[le.MultiT]).   *)
-  Lemma erase_ctx_empty η μ δ ξ : ⊢ erase_ctx η μ δ ξ ∅.
-  Proof.
-    rewrite /erase_ctx. iIntros "!#" (s ss js ρ0 Hlk).
-    rewrite lookup_empty in Hlk. done.
-  Qed.
+ 
 
   (* Soundness of [le.OnceR].                                               *)
   (*                                                                        *)
@@ -1995,7 +1840,7 @@ Section interp_subst.
     intros Hsub η0 μ0 δ0 ξ0. destruct Hsub as [ρ' τ' Honce | ρ' τ' Hmulti].
     - apply row_type_sub_once.
       by apply (once_row_sound _ Honce).
-    - pose proof (multi_ty_sound _ Hmulti η0 μ0 δ0 ξ0) as Hm.
+    - pose proof (multi_ty_sound' _ Hmulti η0 μ0 δ0 ξ0) as Hm.
       by apply row_type_sub_multi_ty.
   Qed.
 
@@ -2016,12 +1861,6 @@ Section interp_subst.
         by apply (row_type_sub_sound _ _ Hτ).
   Qed.
 
-  Lemma multi_ty_sound' (τ : type) :
-    le.MultiT τ → ∀ η μ δ ξ, MultiT (interp._ty η μ δ τ ξ).
-  Proof.
-    intros H ????. unfold le.MultiT in H. eapply ty_le_sound in H.
-    constructor.
-    iApply H. iApply erase_ctx_empty.
-  Qed.
+  
 
 End interp_subst.
