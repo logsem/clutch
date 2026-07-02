@@ -208,11 +208,12 @@ Section def_implementation.
      λ: "f" "effs",
        let, ("doLeakSend", "doLeakRecv") := "effs" in
        (* Magically share a lazily sampled key *)
+       let: "γ" := alloc #n in
        let: "key_opt" := ref NONEV in
        let: "sample_or_load" :=
          λ:<>, match: !"key_opt" with
            | NONE =>
-               let: "c" := (sample #()%V) in
+               let: "c" := (samplelbl "γ" #()%V) in
                let: "key" := g^"c" in
                "key_opt" <- SOME "key" ;;
                "key"
