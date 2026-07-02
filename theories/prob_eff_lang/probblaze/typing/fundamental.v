@@ -51,8 +51,8 @@ Qed.
    on the literal expression. *)
 Lemma typed_lbl_resolve_id Δ Γ1 e ρ τ Γ2 :
   Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2 → ∀ rm, dom rm ## dom Δ → lbl_resolve rm e = e
-  with pure_lbl_resolve_id Γ e τ :
-  Γ ⊢ₚ e : τ → ∀ rm, lbl_resolve rm e = e.
+  with pure_lbl_resolve_id Δ Γ e τ :
+  Δ ..| Γ ⊢ₚ e : τ → ∀ rm, dom rm ## dom Δ → lbl_resolve rm e = e.
 Proof.
   - intros Ht. induction Ht; intros rm Hdm;
       (* Structural cases: push [lbl_resolve] through constructors and the
@@ -76,7 +76,7 @@ Proof.
        ([Δ !! s = Some ()], so [s ∉ dom rm]).  Hypotheses matched by shape. *)
     all: first
       [ (* Pure *) match goal with
-          Hp : _ ⊢ₚ _ : _ |- _ => by rewrite (pure_lbl_resolve_id _ _ _ Hp)
+          Hp : _ ..| _ ⊢ₚ _ : _ |- _ => by rewrite (pure_lbl_resolve_id _ _ _ _ Hp)
         end
       | (* Effect (fresh binder [s]) *)
         rewrite lbl_resolve_effect; f_equal;
@@ -106,17 +106,16 @@ Proof.
             IH : ∀ rm, dom rm ## dom _ → lbl_resolve rm ?e0 = ?e0
             |- context[lbl_resolve _ ?e0] => erewrite IH by eassumption
           end; reflexivity ].
-  - intros Hp. induction Hp; intros rm;
+  - intros Hp. induction Hp; intros rm Hdm;
       rewrite ?lbl_resolve_val ?lbl_resolve_var ?lbl_resolve_rec
               ?lbl_resolve_pair ?lbl_resolve_injl ?lbl_resolve_injr;
       repeat match goal with
-             | IH : ∀ rm, lbl_resolve rm ?e0 = ?e0
+             | IH : ∀ rm, dom rm ## dom Δ → lbl_resolve rm ?e0 = ?e0
                |- context[lbl_resolve rm ?e0] => rewrite (IH rm)
              end;
-      try reflexivity.
+      try reflexivity; try done.
     + (* Rec_pure: body typed under [∅], resolution is identity for any rm. *)
-      f_equal. apply (typed_lbl_resolve_id _ _ _ _ _ _ H3 rm).
-      rewrite dom_empty_L. set_solver.
+      f_equal. by apply (typed_lbl_resolve_id _ _ _ _ _ _ H3 rm). 
 Qed.
 
 (* Extract the bare relational interpretation of a value from its semantic
@@ -132,18 +131,14 @@ Theorem fundamental Δ Γ1 e ρ τ Γ2 :
   Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2 → ⊢ 〈Δ;Γ1〉 ⊨ₜ e ≤log≤ e : ρ : τ ⫤ Γ2
   with fundamental_val v τ :
     ⊢ᵥ v : τ → ⊢ ⊨ᵥ v ≤log≤ v : τ
-  with fundamental_pure Γ e τ :
-    Γ ⊢ₚ e : τ → ⊢ bin_log_pure_related Γ e e τ.
+  with fundamental_pure Δ Γ e τ :
+    Δ ..| Γ ⊢ₚ e : τ → ⊢ bin_log_pure_related Δ Γ e e τ.
 Proof.
-  - intros Ht. destruct Ht; iIntros (η μ δ ξ' vs Hδ).
-    + (* Var_typed *) rewrite !lbl_resolve_var. iApply sem_typed_var.
+  - intros Ht. destruct Ht; iIntros (η μ δ ξ' Hδ).
+    + (* Var_typed *) rewrite !lbl_resolve_var. iApply sem_typed_var. 
     + (* Val_typed *) rewrite !lbl_resolve_val.
       iApply sem_typed_val; by iApply fundamental_val.
     + (* Pure_typed *)
-      (* [e] is pure, hence effect-free: collapse [lbl_resolve] back to the
-         literal [e] (matching the literal-expression [bin_log_pure_related]
-         provided by [fundamental_pure]). *)
-      rewrite !(pure_lbl_resolve_id _ _ _ H).
       rewrite fmap_app. iApply sem_typed_oval.
       by iApply fundamental_pure.
     + (* Pair_typed *)
@@ -152,33 +147,33 @@ Proof.
       push_lr.
       iApply sem_typed_pair_gen;
         [by eapply interp.row_type_sub_sound|apply fundamental in Ht1 as Ht|apply fundamental in Ht2 as Ht];
-        iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+        iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ Hδ).
     + (* Fst_typed *) push_lr. iApply sem_typed_fst_expr. apply fundamental in Ht.
-      iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      iPoseProof Ht as "Ht". by iApply "Ht". 
     + (* Snd_typed *) push_lr. iApply sem_typed_snd_expr. apply fundamental in Ht.
-      iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      iPoseProof Ht as "Ht". by iApply "Ht". 
     + (* InjL_typed *) push_lr. iApply sem_typed_left_inj. apply fundamental in Ht.
-      iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      iPoseProof Ht as "Ht". by iApply "Ht". 
     + (* InjR_typed *) push_lr. iApply sem_typed_right_inj. apply fundamental in Ht.
-      iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      iPoseProof Ht as "Ht". by iApply "Ht". 
     + (* Match_typed *) push_lr. iApply sem_typed_match;
         [ destruct x; [|eapply ctx_dom_env_dom]; apply H
         | destruct x; [|eapply ctx_dom_env_dom]; apply H0
         | destruct y; [|eapply ctx_dom_env_dom]; apply H1
         | destruct y; [|eapply ctx_dom_env_dom]; apply H2
         | apply fundamental in Ht1; iPoseProof Ht1 as "Ht";
-            iApply ("Ht" $! _ _ _ _ ∅ Hδ)
+          by iApply "Ht"
         | apply fundamental in Ht2; iPoseProof Ht2 as "Ht";
-            destruct x; iApply ("Ht" $! _ _ _ _ ∅ Hδ)
+            destruct x ; by iApply "Ht" 
         | apply fundamental in Ht3; iPoseProof Ht3 as "Ht";
-            destruct y; iApply ("Ht" $! _ _ _ _ ∅ Hδ) ].
+            destruct y; by iApply "Ht"].
     + (* If_typed *) push_lr. iApply sem_typed_if;
         [ apply fundamental in Ht1; iPoseProof Ht1 as "Ht";
-            iApply ("Ht" $! _ _ _ _ ∅ Hδ)
+            by iApply "Ht"
         | apply fundamental in Ht2; iPoseProof Ht2 as "Ht";
-            iApply ("Ht" $! _ _ _ _ ∅ Hδ)
+          by iApply "Ht"
         | apply fundamental in Ht3; iPoseProof Ht3 as "Ht";
-            iApply ("Ht" $! _ _ _ _ ∅ Hδ) ].
+          by iApply "Ht" ].
     + (* Rec_typed *)
       (* The conclusion context is [Γ ;; Γ'] (= [Γ ++ Γ']) and the type is
          [![m](arr)]; route via [sem_typed_oval] to peel [Γ'] off the
@@ -201,7 +196,7 @@ Proof.
       { destruct f as [|s]; [done|]. by eapply ctx_dom_env_dom. }
       { exact H. }
       apply fundamental in Ht. iPoseProof Ht as "Ht".
-      iSpecialize ("Ht" $! η μ δ ξ' vs Hδ).
+      iSpecialize ("Ht" $! η μ δ ξ' Hδ).
       destruct f as [|sf]; destruct x as [|sx]; simpl in *; iApply "Ht".
     + (* App_typed *) admit.
     + (* TAbsElim_typed *)
@@ -210,23 +205,23 @@ Proof.
       iApply (sem_typed_TApp (λ α, interp._ty (α :: η) μ δ τ ξ')
                 (interp._ty η μ δ τ' ξ')).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
-      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      by iApply "Ht". 
     + (* RAbsElim_typed *)
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
                 (interp.row_subst_single η μ δ ξ' τ ρ')).
       iApply (sem_typed_RApp (λ θ, interp._ty η μ δ τ (θ :: ξ'))
                 _ (interp._row η μ δ ρ' ξ')).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
-      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      by iApply "Ht". 
     + (* MAbsElim_typed *)
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
                 (interp.mode_subst_single η μ δ ξ' τ m)).
       iApply (sem_typed_MApp (λ ν, interp._ty η (ν :: μ) δ τ ξ')
                 _ (interp._mode μ m)).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
-      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      by iApply "Ht". 
     + (* TAlloc *) push_lr. iApply sem_typed_alloc. apply fundamental in Ht.
-      iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      iPoseProof Ht as "Ht". by iApply "Ht". 
     + (* TLoad *) push_lr. simpl. rewrite !lbl_resolve_var. iApply sem_typed_load. 
     + (* TStore *)
       (* Linear-reference store. *)
@@ -234,9 +229,9 @@ Proof.
       rewrite !lbl_resolve_var. simpl.
       iApply sem_typed_store. 
       apply fundamental in Ht. 
-        iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+        iPoseProof Ht as "Ht"; by iApply "Ht". 
     + (* TAllocTape *) push_lr. iApply sem_typed_alloctape. apply fundamental in Ht.
-      iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      iPoseProof Ht as "Ht". by iApply "Ht". 
     + (* TRand *)
       (* BLOCKED: needs a coupling lemma that reads TWO labelled (tape)
          [Rand] operations in a single step so they yield equal values
@@ -256,26 +251,26 @@ Proof.
       admit.
     + (* TRandU *) push_lr. iApply sem_typed_randu;
         [apply fundamental in Ht1 as Ht | apply fundamental in Ht2 as Ht];
-        iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+        iPoseProof Ht as "Ht"; by iApply "Ht". 
     + (* TFold *)
       iApply (sem_typed_fold (λ α, interp._ty (α :: η) μ δ τ ξ')).
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
                 (symmetry (interp.ty_subst_single η μ δ _ τ (μ: τ)%ty))).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
-      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      by iApply "Ht". 
     + (* TUnfold *)
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
                 (interp.ty_subst_single η μ δ _ τ (μ: τ)%ty)).
       iApply (sem_typed_unfold (λ α, interp._ty (α :: η) μ δ τ _)).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
-      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      by iApply "Ht". 
     + (* TPack *)
       iApply (sem_typed_pack (λ α, interp._ty (α :: η) μ δ τ _)
                 (interp._ty η μ δ τ' _)).
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
                 (symmetry (interp.ty_subst_single η μ δ _ τ τ'))).
       apply fundamental in Ht. iPoseProof Ht as "Ht".
-      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      by iApply "Ht". 
     + (* TUnpack *)
       (* The [TUnpack] statement bug fix in [types.v] (shifting the body's
          effect [ρ] and output ctx [Γ3] by [ren (+1)], consistently with the
@@ -294,10 +289,10 @@ Proof.
       { destruct x as [|s]; [done|]. by eapply ctx_dom_env_dom. }
       { destruct x as [|s]; [done|]. by eapply ctx_dom_env_dom. }
       { apply fundamental in Ht1. iPoseProof Ht1 as "Ht".
-        iApply ("Ht" $! _ _ _ _ ∅ Hδ). }
+        by iApply "Ht".  }
       iIntros (τ0).
       apply fundamental in Ht2. iPoseProof Ht2 as "Ht".
-      iSpecialize ("Ht" $! (τ0 :: η) μ δ ξ' ∅ Hδ).
+      iSpecialize ("Ht" $! (τ0 :: η) μ δ ξ' Hδ).
       iEval (cbn [ctx_insert fmap list_fmap]) in "Ht".
       iApply (sem_typed_sub with "[][][][] Ht").
       { rewrite /env_le /tc_opaque. iModIntro. iIntros (γ) "H".
@@ -367,7 +362,7 @@ Proof.
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
                 (symmetry (interp.ty_subst_single η μ δ ξ' ι τ))).
-      iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+      by iApply "Ht". 
     + (* DeepHandle_typed *)
       (* The lbl_resolve front-matter goes through:
          [rewrite !lbl_resolve_handle_name !resolve_map_lookup H /=]
@@ -425,17 +420,17 @@ Proof.
          [sem_typed_contraction]. *)
       destruct x as [|s]; simpl;
         [ apply fundamental in Ht; iPoseProof Ht as "Ht";
-          iApply ("Ht" $! _ _ _ _ ∅ Hδ)
+          by iApply "Ht"
         | pose proof (multi_ty_sound κ H η μ δ ξ') as Hmt;
           iApply (sem_typed_contraction _ _ _ _ _ _
                     (interp._ty η μ δ κ ξ'));
           apply fundamental in Ht; iPoseProof Ht as "Ht";
-          iApply ("Ht" $! _ _ _ _ ∅ Hδ) ].
+          by iApply "Ht" ].
     + (* Weakening_typed *) destruct x; simpl.
       * apply fundamental in Ht. iPoseProof Ht as "Ht".
-        iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+        by iApply "Ht". 
       * iApply sem_typed_weaken. apply fundamental in Ht.
-        iPoseProof Ht as "Ht". iApply ("Ht" $! _ _ _ _ ∅ Hδ).
+        iPoseProof Ht as "Ht". by iApply "Ht". 
   - intros Hv. destruct Hv; iIntros (η μ δ ξ).
     + (* Unit_val_typed *) rewrite /sem_val_typed /=. iModIntro. done.
     + (* Int_val_typed *) rewrite /sem_val_typed /=. iModIntro. eauto.
@@ -483,7 +478,7 @@ Proof.
              [BNamed sf ≠ x], contradicting [f = x]. *)
           exact H. }
         apply fundamental in H0. iPoseProof H0 as "H".
-        iSpecialize ("H" $! η μ δ ξ ∅ (empty_subseteq (dom δ))).
+        iSpecialize ("H" $! η μ δ ξ (empty_subseteq (dom δ))).
         (* [Δ = ∅] here, so [resolve_l/r ∅ δ = ∅] and [lbl_resolve] is the
            identity, matching the literal body of [sem_oval_typed_ufun_rec]. *)
         iEval (rewrite !resolve_map_empty !lbl_resolve_empty) in "H".
@@ -513,7 +508,7 @@ Proof.
     + (* MAbs_val_typed *) apply fundamental_val in Hv.
       rewrite /sem_val_typed /=. iModIntro. iIntros (m).
       iApply (sem_val_related_interp v τ η (m :: μ) δ ξ Hv).
-  - intros Hp. destruct Hp; iIntros (η μ δ ξ).
+  - intros Hp. destruct Hp; iIntros (η μ δ ξ Hδ).
     + (* Val_pure_typed *) apply fundamental_val in H. iPoseProof H as "H".
       iSpecialize ("H" $! η μ δ ξ). iApply sem_oval_typed_val. iApply "H".
     + (* Rec_pure_typed *)
@@ -525,15 +520,12 @@ Proof.
          needed.  [MultiE (interp Γ1)] from [multi_env_sound] (strengthened
          [le.MultiC Γ1]); freshness from [ctx_dom_env_dom]. *)
       pose proof (multi_env_sound Γ1 H2 η μ δ ξ) as HME.
-      iApply (@sem_oval_typed_ufun_rec_xf _ _ (interp._ty η μ δ τ ξ)
-                (interp._row η μ δ ρ ξ) (interp._ty η μ δ κ ξ)
-                (interp._mode μ m) _ f x e e HME).
+      iApply sem_oval_typed_ufun_rec_xf.
       { destruct x as [|s]; [done|]. by eapply ctx_dom_env_dom. }
       { destruct f as [|s]; [done|]. by eapply ctx_dom_env_dom. }
       { exact H. }
       apply fundamental in H3. iPoseProof H3 as "Ht".
-      iSpecialize ("Ht" $! η μ δ ξ ∅ (empty_subseteq (dom δ))).
-      iEval (rewrite !resolve_map_empty !lbl_resolve_empty) in "Ht".
+      iSpecialize ("Ht" $! η μ δ ξ (empty_subseteq (dom δ))).
       destruct f as [|sf]; destruct x as [|sx]; simpl in *; iApply "Ht".
     + (* Pair_pure_typed *)
       (* Now sound after removing [le.TBangRef_le] and adding the
@@ -542,17 +534,17 @@ Proof.
          discharges the [∀ vs, Persistent (Γ ⊨ₑ vs)] side condition of
          [sem_oval_typed_pair], needed to build the product [prel]. *)
       simpl. pose proof (multi_env_sound Γ H η μ δ ξ) as HME.
-      iApply sem_oval_typed_pair;
+      by iApply sem_oval_typed_pair;
         [ apply fundamental_pure in Hp1; iPoseProof Hp1 as "H1";
           iApply ("H1" $! η μ δ ξ)
         | apply fundamental_pure in Hp2; iPoseProof Hp2 as "H2";
           iApply ("H2" $! η μ δ ξ) ].
     + (* InjL_pure_typed *) iApply sem_oval_typed_injl.
       apply fundamental_pure in Hp. iPoseProof Hp as "H".
-      iApply ("H" $! η μ δ ξ).
-    + (* InjR_pure_typed *) iApply sem_oval_typed_injr.
+      by iApply "H".
+    + (* InjR_pure_typed *) iApply sem_oval_typed_injr. 
       apply fundamental_pure in Hp. iPoseProof Hp as "H".
-      iApply ("H" $! η μ δ ξ).
+      by iApply "H".
     + (* Var_pure_typed *) iApply sem_oval_typed_var.
     + (* BangIntro_pure_typed *)
       (* Now sound after removing [le.TBangRef_le]: the premise [m m⪯C Γ]
@@ -562,37 +554,34 @@ Proof.
       simpl. pose proof (mode_env_sound m Γ H η μ δ ξ) as Hmode.
       iApply (sem_typed_mbang (interp._mode μ m)).
       apply fundamental_pure in Hp. iPoseProof Hp as "H".
-      iApply ("H" $! η μ δ ξ).
+      by iApply "H".
     + (* TAbs_pure_typed *)
       (* The [TAbs_pure] rule shifts its premise context by [⤉] (a fresh
          TYPE binder), so the body IH at the EXTENDED type-env [α::η]
          cancels the shift via [interp.ctx_tweaken]. *)
       iApply (sem_typed_TLam (λ α, interp._ty (α :: η) μ δ τ ξ)).
       iIntros (α). apply fundamental_pure in Hp. iPoseProof Hp as "H".
-      iSpecialize ("H" $! (α :: η) μ δ ξ).
       rewrite /sem_oval_typed /tc_opaque.
       iModIntro. iIntros (vs) "Henv".
-      iApply "H". by rewrite interp.ctx_tweaken.
+      iApply "H"; first done. by rewrite interp.ctx_tweaken.
     + (* RAbs_pure_typed *)
       (* The [RAbs_pure] rule row-shifts its premise context, so the body
          IH at the EXTENDED row-env [θ::ξ] cancels the shift via
          [interp.ctx_rweaken]. *)
       iApply (sem_typed_RLam (λ θ, interp._ty η μ δ τ (θ :: ξ))).
       iIntros (θ). apply fundamental_pure in Hp. iPoseProof Hp as "H".
-      iSpecialize ("H" $! η μ δ (θ :: ξ)).
       rewrite /sem_oval_typed /tc_opaque.
       iModIntro. iIntros (vs) "Henv".
-      iApply "H". by rewrite interp.ctx_rweaken.
+      iApply "H"; first done. by rewrite interp.ctx_rweaken.
     + (* MAbs_pure_typed *)
       (* The [MAbs_pure] rule mode-shifts its premise context, so the body
          IH at the EXTENDED mode-env [ν::μ] cancels the shift via
          [interp.ctx_mweaken]. *)
       iApply (sem_typed_MLam (λ ν, interp._ty η (ν :: μ) δ τ ξ)).
       iIntros (ν). apply fundamental_pure in Hp. iPoseProof Hp as "H".
-      iSpecialize ("H" $! η (ν :: μ) δ ξ).
       rewrite /sem_oval_typed /tc_opaque.
       iModIntro. iIntros (vs) "Henv".
-      iApply "H". by rewrite interp.ctx_mweaken.
+      iApply "H"; first done. by rewrite interp.ctx_mweaken.
 Admitted.
 
 End fundamental.

@@ -1403,7 +1403,7 @@ Notation "⤉ Γ" := ((λ '(x, α), (x, α.[ren (+1)])) <$> (Γ : ctx)) (at leve
 Reserved Notation "Δ '.|' Γ1 '⊢ₜ' e ':' ρ ':' τ '⊣' Γ2"
   (at level 74, Γ1, e, ρ, τ, Γ2 at next level).
 Reserved Notation "'⊢ᵥ' v ':' τ"  (at level 20, v, τ at next level).
-Reserved Notation "Γ '⊢ₚ' e ':' τ" (at level 20, e, τ at next level). 
+Reserved Notation "Δ '..|' Γ '⊢ₚ' e ':' τ" (at level 20, e, τ at next level). 
 
 
 Inductive typed :
@@ -1417,7 +1417,7 @@ Inductive typed :
   Δ .| Γ ⊢ₜ Val v : RNil : τ ⊣ Γ
 
 | Pure_typed Δ Γ1 Γ2 e τ :
-  Γ1 ⊢ₚ e : τ → Δ .| Γ1 ;; Γ2 ⊢ₜ e : RNil : τ ⊣ Γ2
+  Δ ..| Γ1 ⊢ₚ e : τ → Δ .| Γ1 ;; Γ2 ⊢ₜ e : RNil : τ ⊣ Γ2
 
 | Pair_typed Δ Γ1 Γ2 Γ3 e1 e2 ρ τ1 τ2 :
   ρ R⪯T τ2 →
@@ -1565,42 +1565,42 @@ Inductive typed :
 
 (* Pure_typed is used for value restriction, but allowing a bit more freedom. Can be extended later to cover all pure expressions *)
 (* Additionally I think we need an effect name environment for this typing relation as well *)
-with pure_typed  : ctx → expr → type → Prop :=
+with pure_typed  : stringmap unit → ctx → expr → type → Prop :=
 | Val_pure_typed v τ : 
-  ⊢ᵥ v : τ → [] ⊢ₚ v : τ
+  ⊢ᵥ v : τ → ∅ ..| [] ⊢ₚ v : τ
 
-| Rec_pure_typed Γ1 f x e m τ ρ κ :
+| Rec_pure_typed Δ Γ1 f x e m τ ρ κ :
   match f with BNamed f => BNamed f ≠ x | BAnon => True end →
   (* TODO: for now we have to have this restriction *)
   (* [MultiC Γ1] strengthened from [m m⪯C Γ1]; see [Rec_typed]: the
      iLöb-built recursive closure needs a duplicable captured env. *)
   f ∉ ctx_dom Γ1 → x ∉ ctx_dom Γ1 →
   le.MultiC Γ1 →
-  ∅ .| <[ x :=c τ ]> <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> Γ1 ⊢ₜ e : ρ : κ ⊣ [] → Γ1 ⊢ₚ Rec f x e : (τ -{ ρ }-[m]-> κ)%ty
+  Δ .| <[ x :=c τ ]> <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> Γ1 ⊢ₜ e : ρ : κ ⊣ [] → Δ ..| Γ1 ⊢ₚ Rec f x e : (τ -{ ρ }-[m]-> κ)%ty
 
-| Pair_pure_typed Γ e1 e2 τ1 τ2 :
+| Pair_pure_typed Δ Γ e1 e2 τ1 τ2 :
   le.MultiC Γ →
-  Γ ⊢ₚ e1 : τ1 → Γ ⊢ₚ e2 : τ2 → Γ ⊢ₚ Pair e1 e2 : (τ1 * τ2)%ty
+  Δ ..| Γ ⊢ₚ e1 : τ1 → Δ ..| Γ ⊢ₚ e2 : τ2 → Δ ..| Γ ⊢ₚ Pair e1 e2 : (τ1 * τ2)%ty
 
-| InjL_pure_typed Γ e τ1 τ2 : 
-  Γ ⊢ₚ e : τ1 → Γ ⊢ₚ InjL e : (τ1 + τ2)%ty
-| InjR_pure_typed Γ e τ1 τ2 : 
-  Γ ⊢ₚ e : τ2 → Γ ⊢ₚ InjR e : (τ1 + τ2)%ty
+| InjL_pure_typed Δ Γ e τ1 τ2 : 
+  Δ ..| Γ ⊢ₚ e : τ1 → Δ ..| Γ ⊢ₚ InjL e : (τ1 + τ2)%ty
+| InjR_pure_typed Δ Γ e τ1 τ2 : 
+  Δ ..| Γ ⊢ₚ e : τ2 → Δ ..| Γ ⊢ₚ InjR e : (τ1 + τ2)%ty
 
-| Var_pure_typed Γ (x : string) τ : 
-   <[ x :=c τ ]> Γ ⊢ₚ Var x : τ 
+| Var_pure_typed Δ Γ (x : string) τ : 
+   Δ ..| <[ x :=c τ ]> Γ ⊢ₚ Var x : τ 
 
-| BangIntro_pure_typed Γ e m τ :
-  m m⪯C Γ → Γ ⊢ₚ e : τ → Γ ⊢ₚ e : (![m] τ)%ty
+| BangIntro_pure_typed Δ Γ e m τ :
+  m m⪯C Γ → Δ ..| Γ ⊢ₚ e : τ → Δ ..| Γ ⊢ₚ e : (![m] τ)%ty
 
-| TAbs_pure_typed Γ e τ :
-  (⤉ Γ) ⊢ₚ e : τ → Γ ⊢ₚ e : (∀T: τ)
-| RAbs_pure_typed Γ e τ :
-  ((λ '(x, α), (x, rename_row_type (+1) α)) <$> (Γ : ctx)) ⊢ₚ e : τ →
-  Γ ⊢ₚ e : (∀R: τ)
-| MAbs_pure_typed Γ e τ :
-  ((λ '(x, α), (x, α.|[ren (+1) : var → vmode])) <$> (Γ : ctx)) ⊢ₚ e : τ →
-  Γ ⊢ₚ e : (∀M: τ)
+| TAbs_pure_typed Δ Γ e τ :
+  Δ ..| (⤉ Γ) ⊢ₚ e : τ → Δ ..| Γ ⊢ₚ e : (∀T: τ)
+| RAbs_pure_typed Δ Γ e τ :
+  Δ ..| ((λ '(x, α), (x, rename_row_type (+1) α)) <$> (Γ : ctx)) ⊢ₚ e : τ →
+  Δ ..| Γ ⊢ₚ e : (∀R: τ)
+| MAbs_pure_typed Δ Γ e τ :
+  Δ ..| ((λ '(x, α), (x, α..|[ren (+1) : var → vmode])) <$> (Γ : ctx)) ⊢ₚ e : τ →
+  Δ ..| Γ ⊢ₚ e : (∀M: τ)
 
 
 
@@ -1635,7 +1635,7 @@ with val_typed : val → type → Prop :=
 
 where "Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2" := (typed Δ Γ1 e%E ρ τ%ty Γ2)
 and "⊢ᵥ e : τ" := (val_typed e τ%ty)
-and "Γ ⊢ₚ e : τ" := (pure_typed Γ e%E τ%ty).                   
+and "Δ ..| Γ ⊢ₚ e : τ" := (pure_typed Δ Γ e%E τ%ty).                   
  
 Section derived_rules. 
 

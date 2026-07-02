@@ -144,8 +144,7 @@ Section bin_log_related.
     (∀ (η : list (sem_ty Σ))
        (μ : list mode)
        (δ : gmap eff_name (label * label))
-       (ξ : list (sem_row Σ))
-       (vs : stringmap (val * val)),
+       (ξ : list (sem_row Σ)),
         ⌜ dom Δ ⊆ dom δ ⌝ -∗
        let Γ1'  :=  (λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ1 in
        let Γ2' :=  (λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ2 in
@@ -165,14 +164,16 @@ Section bin_log_related.
       (δ : gmap eff_name (label * label))
       (ξ : list (sem_row Σ)), sem_val_typed v v' (interp._ty η μ δ τ ξ).
 
-  Definition bin_log_pure_related (Γ : list (string * type)) (e e' : expr) (τ : type) : iProp Σ :=
+  Definition bin_log_pure_related (Δ : stringmap unit) (Γ : list (string * type)) (e e' : expr) (τ : type) : iProp Σ :=
     ∀ (η : list (sem_ty Σ))
       (μ : list mode)
       (δ : gmap eff_name (label * label))
-      (ξ : list (sem_row Σ)), 
+      (ξ : list (sem_row Σ)),
+      ⌜ dom Δ ⊆ dom δ ⌝ -∗
       let Γ'  :=  (λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ in
       let τ' := (interp._ty η μ δ τ ξ) in
-      sem_oval_typed Γ' e e' τ'.
+      sem_oval_typed Γ' (lbl_resolve (resolve_l Δ δ) e)
+                        (lbl_resolve (resolve_r Δ δ) e') τ'.
 
 
 End bin_log_related.
@@ -194,11 +195,11 @@ Notation "⊨ᵥ v '≤log≤' v' : τ" :=
        τ at level 200,
          format "'[hv' ⊨ᵥ  '/  ' v  '/' '≤log≤'  '/  ' v'  : τ ']'").
 
-Notation "Γ ⊨ₚ e '≤log≤' e' : τ" :=
+Notation "⟨ Δ ';' Γ ⟩ ⊨ₚ e '≤log≤' e' : τ" :=
   (bin_log_pure_related e%E e'%E (τ)%ty)
     (at level 100,  e, e' at next level,
        τ at level 200,
-         format "'[hv' Γ ⊨ₚ  '/  ' e  '/' '≤log≤'  '/  ' e'  : τ ']'").
+         format "'[hv' ⟨ Δ ';' Γ ⟩ ⊨ₚ  '/  ' e  '/' '≤log≤'  '/  ' e'  : τ ']'").
 
 
 (* ======================================================================= *)
