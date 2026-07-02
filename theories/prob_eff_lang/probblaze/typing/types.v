@@ -1525,26 +1525,33 @@ Inductive typed :
   Δ .| Γ1 ⊢ₜ e : ρ : ι.[τ/] ⊣ Γ2 →
                     Δ .| Γ1 ⊢ₜ Do (EffName s) e : ρ : κ.[τ/] ⊣ Γ2
 
-| DeepHandle_typed Δ Γ1 Γ2 Γ3 (m : mode) s e x k h y r ρ0 σ τ τ' ι κ ξ :
+| DeepHandle_typed Δ Γ1 Γ2 Γ3 (m : mode) s e x k h y r ρ0 σ τ τ' ι κ :
   le.MultiC Γ3 →
   Δ !! s = Some () →
   le.eff_name_from_sig σ = s →
+  x ∉ ctx_dom Γ2 → x ∉ ctx_dom Γ3 → k ∉ ctx_dom Γ3 → x ≠ k →
+  y ∉ ctx_dom Γ2 → y ∉ ctx_dom Γ3 →
   let ρ := RCons σ ρ0 in
   let ρ' := RCons (SFlip m (SSig s ι κ)) ρ0 in
   Δ .| Γ1 ⊢ₜ e : ρ' : τ ⊣ Γ2 →
   Δ .| <[ y :=c τ ]> (Γ2 ;; Γ3) ⊢ₜ r : ρ : τ' ⊣ Γ3 →
-  Δ .| <[ x :=c ι.[ξ/] ]> <[ k :=c ![m] (κ.[ξ/] -{ ρ }-∘ τ') ]> Γ3 ⊢ₜ h : ρ : τ' ⊣ Γ3 →
+  Δ .| <[ x :=c ι ]> <[ k :=c ![m] (κ -{ rename_type_row (+1) ρ }-∘ τ'.[ren (+1)]) ]> (⤉ Γ3)
+    ⊢ₜ h : rename_type_row (+1) ρ : τ'.[ren (+1)] ⊣ (⤉ Γ3) →
   Δ .| (Γ1 ;; Γ3) ⊢ₜ (Handle Deep m s e (Lam x (Lam k h)) (Lam y r)) : ρ : τ' ⊣ Γ3
 
-| ShallowHandle_typed Δ Γ1 Γ2 Γ3 (m : mode) s e x k h y r ρ0 σ τ τ' ι κ ξ :
+| ShallowHandle_typed Δ Γ1 Γ2 Γ3 (m : mode) s e x k h y r ρ0 σ τ τ' ι κ :
+  le.MultiC Γ3 →
   Δ !! s = Some () →
   le.eff_name_from_sig σ = s →
+  x ∉ ctx_dom Γ2 → x ∉ ctx_dom Γ3 → k ∉ ctx_dom Γ3 → x ≠ k →
+  y ∉ ctx_dom Γ2 → y ∉ ctx_dom Γ3 →
   let ρ := RCons σ ρ0 in
   ρ R⪯C Γ3 →
   let ρ' := RCons (SFlip m (SSig s ι κ)) ρ0 in
   Δ .| Γ1 ⊢ₜ e : ρ' : τ ⊣ Γ2 →
   Δ .| <[ y :=c τ ]> (Γ2 ;; Γ3) ⊢ₜ r : ρ : τ' ⊣ Γ3 →
-  Δ .| <[ x :=c ι.[ξ/] ]> <[ k :=c ![m] (κ.[ξ/] -{ ρ' }-∘ τ) ]> Γ3 ⊢ₜ h : ρ : τ' ⊣ Γ3 →
+  Δ .| <[ x :=c ι ]> <[ k :=c ![m] (κ -{ rename_type_row (+1) ρ' }-∘ τ.[ren (+1)]) ]> (⤉ Γ3)
+    ⊢ₜ h : rename_type_row (+1) ρ : τ'.[ren (+1)] ⊣ (⤉ Γ3) →
   Δ .| (Γ1 ;; Γ3) ⊢ₜ Handle Shallow m s e (Lam x (Lam k h)) (Lam y r) : ρ : τ' ⊣ Γ3
     
 | Sub_typed Δ Γ1 Γ1' Γ2 Γ2' ρ ρ' b τ τ' e : 

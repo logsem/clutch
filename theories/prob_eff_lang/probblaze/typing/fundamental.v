@@ -446,8 +446,189 @@ Proof.
          re-installs [σ] (out of scope of the lbl_resolve refinement; the
          four existing handler lemmas are all discharging). *)
       destruct m.
-      * rewrite !lbl_resolve_handle_name. unfold ctx_append. rewrite fmap_app. admit. (* iApply sem_typed_deep_handler_OS. *)
-      * admit.
+      * (* DeepHandle OS *)
+        rewrite !lbl_resolve_handle_name.
+        rewrite !resolve_map_lookup H0 /=.
+        rewrite !lbl_resolve_rec.
+        unfold ctx_append. rewrite fmap_app.
+        pose proof (multi_env_sound Γ3 H η μ δ ξ') as HME.
+        pose proof (sig_labels_eff_name σ η μ δ ξ') as Hlbl.
+        rewrite H1 in Hlbl.
+        destruct x as [|xs]; [| destruct k as [|ks]; [| destruct y as [|ys]]].
+        4:{
+          iApply (sem_typed_deep_handler_OS (δ !!! s)
+                    (λ α, interp._ty (α :: η) μ δ ι ξ')
+                    (λ α, interp._ty (α :: η) μ δ κ ξ')
+                    (interp._ty η μ δ τ ξ')
+                    (interp._ty η μ δ τ' ξ')
+                    (interp._eff_sig η μ δ σ ξ')
+                    (interp._row η μ δ ρ0 ξ')
+                    _ _ _ xs ys ks _ _ _ _ _ _
+                    _ _ _ _ _ _ Hlbl).
+          - apply fundamental in Ht1. iPoseProof Ht1 as "Ht".
+            iApply ("Ht" $! η μ δ ξ' Hδ).
+          - iIntros (α). apply fundamental in Ht3. iPoseProof Ht3 as "Ht".
+            iSpecialize ("Ht" $! (α :: η) μ δ ξ' Hδ).
+            iEval (cbn [ctx_insert fmap list_fmap]) in "Ht".
+            iApply (sem_typed_row_cong _ _ _ _ _ _ _
+                      (symmetry (row_tweaken ρ α η μ δ ξ'))).
+            iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                      (symmetry (ty_tweaken τ' α η μ δ ξ'))).
+            assert (Htail : ∀ (Γ0 : ctx), env_equiv_pw
+                      ((λ '(s0, τ0), (s0, interp._ty η μ δ τ0 ξ')) <$> Γ0)
+                      ((λ '(s0, τ0), (s0, interp._ty (α :: η) μ δ τ0 ξ')) <$>
+                         ((λ '(x, α0), (x, Autosubst_Classes.subst
+                             (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) α0))
+                            <$> Γ0)))
+              by (intros Γ0; induction Γ0 as [|[z β] Γ0' IH]; simpl; [constructor|];
+                  constructor; [split; [done|]|exact IH];
+                  simpl; symmetry; apply (ty_tweaken β α η μ δ ξ')).
+            assert (Hhead : (interp._ty (α :: η) μ δ
+                         (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ }-[ OS
+                          ]-> Autosubst_Classes.subst
+                                (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ')
+                         ξ')
+                      ≡ sem_types.sem_ty_mbang OS
+                  (sem_types.sem_ty_arr
+                     (sem_row.sem_row_cons (interp._eff_sig η μ δ σ ξ')
+                        (interp._row η μ δ ρ0 ξ'))
+                     (interp._ty (α :: η) μ δ κ ξ') (interp._ty η μ δ τ' ξ'))).
+            { change (interp._ty (α :: η) μ δ
+                         (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ }-[ OS
+                          ]-> Autosubst_Classes.subst
+                                (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ')
+                         ξ')
+                with (sem_types.sem_ty_mbang OS
+                  (sem_types.sem_ty_arr
+                     (interp._row (α :: η) μ δ
+                        (rename_type_row (Autosubst_Basics.lift 1%nat) ρ) ξ')
+                     (interp._ty (α :: η) μ δ κ ξ')
+                     (interp._ty (α :: η) μ δ (Autosubst_Classes.subst
+                         (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ') ξ'))).
+              rewrite (row_tweaken ρ α η μ δ ξ') (ty_tweaken τ' α η μ δ ξ').
+              reflexivity. }
+            assert (Hin : env_equiv_pw
+                ((xs, interp._ty (α :: η) μ δ ι ξ')
+                 :: (ks, sem_types.sem_ty_mbang OS
+                       (sem_types.sem_ty_arr
+                          (sem_row.sem_row_cons (interp._eff_sig η μ δ σ ξ')
+                             (interp._row η μ δ ρ0 ξ'))
+                          (interp._ty (α :: η) μ δ κ ξ') (interp._ty η μ δ τ' ξ')))
+                    :: ((λ '(s0, τ0), (s0, interp._ty η μ δ τ0 ξ')) <$> Γ3))
+                ((xs, interp._ty (α :: η) μ δ ι ξ')
+                 :: (ks, interp._ty (α :: η) μ δ
+                       (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ }-[ OS
+                        ]-> Autosubst_Classes.subst
+                              (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ')
+                       ξ')
+                    :: ((λ '(s0, τ0), (s0, interp._ty (α :: η) μ δ τ0 ξ')) <$>
+                        ((λ '(x, α0), (x, Autosubst_Classes.subst
+                            (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) α0))
+                           <$> Γ3)))).
+            { constructor; [split; [reflexivity|reflexivity]|].
+              constructor; [split; [reflexivity| exact (symmetry Hhead)]|].
+              exact (Htail Γ3). }
+            iApply (sem_typed_env_cong _ _ _ _ _ _ _ _ Hin (Htail Γ3)).
+            iApply "Ht".
+          - apply fundamental in Ht2. iPoseProof Ht2 as "Ht".
+            iSpecialize ("Ht" $! η μ δ ξ' Hδ).
+            iEval (cbn [ctx_insert ctx_append fmap list_fmap]) in "Ht".
+            rewrite fmap_app.
+            iApply "Ht".
+        }
+        all: admit. (* BAnon binder subcases: see report *)
+      * (* DeepHandle MS *)
+        rewrite !lbl_resolve_handle_name.
+        rewrite !resolve_map_lookup H0 /=.
+        rewrite !lbl_resolve_rec.
+        unfold ctx_append. rewrite fmap_app.
+        pose proof (multi_env_sound Γ3 H η μ δ ξ') as HME.
+        pose proof (sig_labels_eff_name σ η μ δ ξ') as Hlbl.
+        rewrite H1 in Hlbl.
+        destruct x as [|xs]; [| destruct k as [|ks]; [| destruct y as [|ys]]].
+        4:{
+          iApply (sem_typed_deep_handler_MS (δ !!! s)
+                    (λ α, interp._ty (α :: η) μ δ ι ξ')
+                    (λ α, interp._ty (α :: η) μ δ κ ξ')
+                    MS
+                    (interp._ty η μ δ τ ξ')
+                    (interp._ty η μ δ τ' ξ')
+                    (interp._eff_sig η μ δ σ ξ')
+                    (interp._row η μ δ ρ0 ξ')
+                    _ _ _ xs ys ks _ _ _ _ _ _
+                    _ _ _ _ _ _ Hlbl).
+          - apply fundamental in Ht1. iPoseProof Ht1 as "Ht".
+            iApply ("Ht" $! η μ δ ξ' Hδ).
+          - iIntros (α). apply fundamental in Ht3. iPoseProof Ht3 as "Ht".
+            iSpecialize ("Ht" $! (α :: η) μ δ ξ' Hδ).
+            iEval (cbn [ctx_insert fmap list_fmap]) in "Ht".
+            iApply (sem_typed_row_cong _ _ _ _ _ _ _
+                      (symmetry (row_tweaken ρ α η μ δ ξ'))).
+            iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                      (symmetry (ty_tweaken τ' α η μ δ ξ'))).
+            assert (Htail : ∀ (Γ0 : ctx), env_equiv_pw
+                      ((λ '(s0, τ0), (s0, interp._ty η μ δ τ0 ξ')) <$> Γ0)
+                      ((λ '(s0, τ0), (s0, interp._ty (α :: η) μ δ τ0 ξ')) <$>
+                         ((λ '(x, α0), (x, Autosubst_Classes.subst
+                             (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) α0))
+                            <$> Γ0)))
+              by (intros Γ0; induction Γ0 as [|[z β] Γ0' IH]; simpl; [constructor|];
+                  constructor; [split; [done|]|exact IH];
+                  simpl; symmetry; apply (ty_tweaken β α η μ δ ξ')).
+            assert (Hhead : (interp._ty (α :: η) μ δ
+                         (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ }-[ MS
+                          ]-> Autosubst_Classes.subst
+                                (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ')
+                         ξ')
+                      ≡ sem_types.sem_ty_mbang MS
+                  (sem_types.sem_ty_arr
+                     (sem_row.sem_row_cons (interp._eff_sig η μ δ σ ξ')
+                        (interp._row η μ δ ρ0 ξ'))
+                     (interp._ty (α :: η) μ δ κ ξ') (interp._ty η μ δ τ' ξ'))).
+            { change (interp._ty (α :: η) μ δ
+                         (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ }-[ MS
+                          ]-> Autosubst_Classes.subst
+                                (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ')
+                         ξ')
+                with (sem_types.sem_ty_mbang MS
+                  (sem_types.sem_ty_arr
+                     (interp._row (α :: η) μ δ
+                        (rename_type_row (Autosubst_Basics.lift 1%nat) ρ) ξ')
+                     (interp._ty (α :: η) μ δ κ ξ')
+                     (interp._ty (α :: η) μ δ (Autosubst_Classes.subst
+                         (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ') ξ'))).
+              rewrite (row_tweaken ρ α η μ δ ξ') (ty_tweaken τ' α η μ δ ξ').
+              reflexivity. }
+            assert (Hin : env_equiv_pw
+                ((xs, interp._ty (α :: η) μ δ ι ξ')
+                 :: (ks, sem_types.sem_ty_mbang MS
+                       (sem_types.sem_ty_arr
+                          (sem_row.sem_row_cons (interp._eff_sig η μ δ σ ξ')
+                             (interp._row η μ δ ρ0 ξ'))
+                          (interp._ty (α :: η) μ δ κ ξ') (interp._ty η μ δ τ' ξ')))
+                    :: ((λ '(s0, τ0), (s0, interp._ty η μ δ τ0 ξ')) <$> Γ3))
+                ((xs, interp._ty (α :: η) μ δ ι ξ')
+                 :: (ks, interp._ty (α :: η) μ δ
+                       (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ }-[ MS
+                        ]-> Autosubst_Classes.subst
+                              (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ')
+                       ξ')
+                    :: ((λ '(s0, τ0), (s0, interp._ty (α :: η) μ δ τ0 ξ')) <$>
+                        ((λ '(x, α0), (x, Autosubst_Classes.subst
+                            (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) α0))
+                           <$> Γ3)))).
+            { constructor; [split; [reflexivity|reflexivity]|].
+              constructor; [split; [reflexivity| exact (symmetry Hhead)]|].
+              exact (Htail Γ3). }
+            iApply (sem_typed_env_cong _ _ _ _ _ _ _ _ Hin (Htail Γ3)).
+            iApply "Ht".
+          - apply fundamental in Ht2. iPoseProof Ht2 as "Ht".
+            iSpecialize ("Ht" $! η μ δ ξ' Hδ).
+            iEval (cbn [ctx_insert ctx_append fmap list_fmap]) in "Ht".
+            rewrite fmap_app.
+            iApply "Ht".
+        }
+        all: admit. (* BAnon binder subcases: see report *)
     + (* ShallowHandle_typed *)
       (* Same lbl_resolve front-matter and the same row-shape mismatch as
          [DeepHandle_typed] above: the body row resolves to
@@ -460,7 +641,206 @@ Proof.
          row-context-sub side condition, not the [interp ρ0 ↔ interp σ·ρ0]
          reconciliation).  Needs the same NEW forwarding-handler compatibility
          lemma. *)
-      admit.
+      destruct m.
+      * (* ShallowHandle OS *)
+        rewrite !lbl_resolve_handle_name.
+        rewrite !resolve_map_lookup H0 /=.
+        rewrite !lbl_resolve_rec.
+        unfold ctx_append. rewrite fmap_app.
+        pose proof (multi_env_sound Γ3 H η μ δ ξ') as HME.
+        pose proof (sig_labels_eff_name σ η μ δ ξ') as Hlbl.
+        rewrite H1 in Hlbl.
+        destruct x as [|xs]; [| destruct k as [|ks]; [| destruct y as [|ys]]].
+        4:{
+          iApply (sem_typed_shallow_handler_OS (δ !!! s)
+                    (λ α, interp._ty (α :: η) μ δ ι ξ')
+                    (λ α, interp._ty (α :: η) μ δ κ ξ')
+                    (interp._ty η μ δ τ ξ')
+                    (interp._ty η μ δ τ' ξ')
+                    (interp._eff_sig η μ δ σ ξ')
+                    (interp._row η μ δ ρ0 ξ')
+                    _ _ _ xs ys ks _ _ _ _ _ _
+                    _ _ _ _ _ _ Hlbl).
+          - apply fundamental in Ht1. iPoseProof Ht1 as "Ht".
+            iApply ("Ht" $! η μ δ ξ' Hδ).
+          - iIntros (α). apply fundamental in Ht3. iPoseProof Ht3 as "Ht".
+            iSpecialize ("Ht" $! (α :: η) μ δ ξ' Hδ).
+            iEval (cbn [ctx_insert fmap list_fmap]) in "Ht".
+            iApply (sem_typed_row_cong _ _ _ _ _ _ _
+                      (symmetry (row_tweaken ρ α η μ δ ξ'))).
+            iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                      (symmetry (ty_tweaken τ' α η μ δ ξ'))).
+            assert (Htail : ∀ (Γ0 : ctx), env_equiv_pw
+                      ((λ '(s0, τ0), (s0, interp._ty η μ δ τ0 ξ')) <$> Γ0)
+                      ((λ '(s0, τ0), (s0, interp._ty (α :: η) μ δ τ0 ξ')) <$>
+                         ((λ '(x, α0), (x, Autosubst_Classes.subst
+                             (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) α0))
+                            <$> Γ0)))
+              by (intros Γ0; induction Γ0 as [|[z β] Γ0' IH]; simpl; [constructor|];
+                  constructor; [split; [done|]|exact IH];
+                  simpl; symmetry; apply (ty_tweaken β α η μ δ ξ')).
+            assert (Hhead : (interp._ty (α :: η) μ δ
+                         (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ' }-[ OS
+                          ]-> Autosubst_Classes.subst
+                                (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ)
+                         ξ')
+                      ≡ sem_types.sem_ty_mbang OS
+                  (sem_types.sem_ty_arr
+                     (sem_row.sem_row_cons
+                        (sem_sig.sem_sig_flip_mbang OS
+                           (sem_sig.sem_sig_eff (δ !!! s).1 (δ !!! s).2
+                              (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ ι ξ')
+                              (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ κ ξ')))
+                        (interp._row η μ δ ρ0 ξ'))
+                     (interp._ty (α :: η) μ δ κ ξ') (interp._ty η μ δ τ ξ'))).
+            { change (interp._ty (α :: η) μ δ
+                         (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ' }-[ OS
+                          ]-> Autosubst_Classes.subst
+                                (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ)
+                         ξ')
+                with (sem_types.sem_ty_mbang OS
+                  (sem_types.sem_ty_arr
+                     (interp._row (α :: η) μ δ
+                        (rename_type_row (Autosubst_Basics.lift 1%nat) ρ') ξ')
+                     (interp._ty (α :: η) μ δ κ ξ')
+                     (interp._ty (α :: η) μ δ (Autosubst_Classes.subst
+                         (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ) ξ'))).
+              rewrite (row_tweaken ρ' α η μ δ ξ') (ty_tweaken τ α η μ δ ξ').
+              reflexivity. }
+            assert (Hin : env_equiv_pw
+                ((xs, interp._ty (α :: η) μ δ ι ξ')
+                 :: (ks, sem_types.sem_ty_mbang OS
+                       (sem_types.sem_ty_arr
+                          (sem_row.sem_row_cons
+                             (sem_sig.sem_sig_flip_mbang OS
+                                (sem_sig.sem_sig_eff (δ !!! s).1 (δ !!! s).2
+                                   (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ ι ξ')
+                                   (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ κ ξ')))
+                             (interp._row η μ δ ρ0 ξ'))
+                          (interp._ty (α :: η) μ δ κ ξ') (interp._ty η μ δ τ ξ')))
+                    :: ((λ '(s0, τ0), (s0, interp._ty η μ δ τ0 ξ')) <$> Γ3))
+                ((xs, interp._ty (α :: η) μ δ ι ξ')
+                 :: (ks, interp._ty (α :: η) μ δ
+                       (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ' }-[ OS
+                        ]-> Autosubst_Classes.subst
+                              (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ)
+                       ξ')
+                    :: ((λ '(s0, τ0), (s0, interp._ty (α :: η) μ δ τ0 ξ')) <$>
+                        ((λ '(x, α0), (x, Autosubst_Classes.subst
+                            (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) α0))
+                           <$> Γ3)))).
+            { constructor; [split; [reflexivity|reflexivity]|].
+              constructor; [split; [reflexivity| exact (symmetry Hhead)]|].
+              exact (Htail Γ3). }
+            iApply (sem_typed_env_cong _ _ _ _ _ _ _ _ Hin (Htail Γ3)).
+            iApply "Ht".
+          - apply fundamental in Ht2. iPoseProof Ht2 as "Ht".
+            iSpecialize ("Ht" $! η μ δ ξ' Hδ).
+            iEval (cbn [ctx_insert ctx_append fmap list_fmap]) in "Ht".
+            rewrite fmap_app.
+            iApply "Ht".
+        }
+        all: admit. (* BAnon binder subcases: see report *)
+      * (* ShallowHandle MS *)
+        rewrite !lbl_resolve_handle_name.
+        rewrite !resolve_map_lookup H0 /=.
+        rewrite !lbl_resolve_rec.
+        unfold ctx_append. rewrite fmap_app.
+        pose proof (multi_env_sound Γ3 H η μ δ ξ') as HME.
+        pose proof (sig_labels_eff_name σ η μ δ ξ') as Hlbl.
+        rewrite H1 in Hlbl.
+        destruct x as [|xs]; [| destruct k as [|ks]; [| destruct y as [|ys]]].
+        4:{
+          iApply (sem_typed_shallow_handler_MS (δ !!! s)
+                    (λ α, interp._ty (α :: η) μ δ ι ξ')
+                    (λ α, interp._ty (α :: η) μ δ κ ξ')
+                    MS
+                    (interp._ty η μ δ τ ξ')
+                    (interp._ty η μ δ τ' ξ')
+                    (interp._eff_sig η μ δ σ ξ')
+                    (interp._row η μ δ ρ0 ξ')
+                    _ _ _ xs ys ks _ _ _ _ _ _
+                    _ _ _ _ _ _ Hlbl).
+          - apply fundamental in Ht1. iPoseProof Ht1 as "Ht".
+            iApply ("Ht" $! η μ δ ξ' Hδ).
+          - iIntros (α). apply fundamental in Ht3. iPoseProof Ht3 as "Ht".
+            iSpecialize ("Ht" $! (α :: η) μ δ ξ' Hδ).
+            iEval (cbn [ctx_insert fmap list_fmap]) in "Ht".
+            iApply (sem_typed_row_cong _ _ _ _ _ _ _
+                      (symmetry (row_tweaken ρ α η μ δ ξ'))).
+            iApply (sem_typed_type_cong _ _ _ _ _ _ _
+                      (symmetry (ty_tweaken τ' α η μ δ ξ'))).
+            assert (Htail : ∀ (Γ0 : ctx), env_equiv_pw
+                      ((λ '(s0, τ0), (s0, interp._ty η μ δ τ0 ξ')) <$> Γ0)
+                      ((λ '(s0, τ0), (s0, interp._ty (α :: η) μ δ τ0 ξ')) <$>
+                         ((λ '(x, α0), (x, Autosubst_Classes.subst
+                             (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) α0))
+                            <$> Γ0)))
+              by (intros Γ0; induction Γ0 as [|[z β] Γ0' IH]; simpl; [constructor|];
+                  constructor; [split; [done|]|exact IH];
+                  simpl; symmetry; apply (ty_tweaken β α η μ δ ξ')).
+            assert (Hhead : (interp._ty (α :: η) μ δ
+                         (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ' }-[ MS
+                          ]-> Autosubst_Classes.subst
+                                (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ)
+                         ξ')
+                      ≡ sem_types.sem_ty_mbang MS
+                  (sem_types.sem_ty_arr
+                     (sem_row.sem_row_cons
+                        (sem_sig.sem_sig_flip_mbang MS
+                           (sem_sig.sem_sig_eff (δ !!! s).1 (δ !!! s).2
+                              (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ ι ξ')
+                              (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ κ ξ')))
+                        (interp._row η μ δ ρ0 ξ'))
+                     (interp._ty (α :: η) μ δ κ ξ') (interp._ty η μ δ τ ξ'))).
+            { change (interp._ty (α :: η) μ δ
+                         (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ' }-[ MS
+                          ]-> Autosubst_Classes.subst
+                                (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ)
+                         ξ')
+                with (sem_types.sem_ty_mbang MS
+                  (sem_types.sem_ty_arr
+                     (interp._row (α :: η) μ δ
+                        (rename_type_row (Autosubst_Basics.lift 1%nat) ρ') ξ')
+                     (interp._ty (α :: η) μ δ κ ξ')
+                     (interp._ty (α :: η) μ δ (Autosubst_Classes.subst
+                         (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ) ξ'))).
+              rewrite (row_tweaken ρ' α η μ δ ξ') (ty_tweaken τ α η μ δ ξ').
+              reflexivity. }
+            assert (Hin : env_equiv_pw
+                ((xs, interp._ty (α :: η) μ δ ι ξ')
+                 :: (ks, sem_types.sem_ty_mbang MS
+                       (sem_types.sem_ty_arr
+                          (sem_row.sem_row_cons
+                             (sem_sig.sem_sig_flip_mbang MS
+                                (sem_sig.sem_sig_eff (δ !!! s).1 (δ !!! s).2
+                                   (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ ι ξ')
+                                   (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ κ ξ')))
+                             (interp._row η μ δ ρ0 ξ'))
+                          (interp._ty (α :: η) μ δ κ ξ') (interp._ty η μ δ τ ξ')))
+                    :: ((λ '(s0, τ0), (s0, interp._ty η μ δ τ0 ξ')) <$> Γ3))
+                ((xs, interp._ty (α :: η) μ δ ι ξ')
+                 :: (ks, interp._ty (α :: η) μ δ
+                       (κ -{ rename_type_row (Autosubst_Basics.lift 1%nat) ρ' }-[ MS
+                        ]-> Autosubst_Classes.subst
+                              (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ)
+                       ξ')
+                    :: ((λ '(s0, τ0), (s0, interp._ty (α :: η) μ δ τ0 ξ')) <$>
+                        ((λ '(x, α0), (x, Autosubst_Classes.subst
+                            (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) α0))
+                           <$> Γ3)))).
+            { constructor; [split; [reflexivity|reflexivity]|].
+              constructor; [split; [reflexivity| exact (symmetry Hhead)]|].
+              exact (Htail Γ3). }
+            iApply (sem_typed_env_cong _ _ _ _ _ _ _ _ Hin (Htail Γ3)).
+            iApply "Ht".
+          - apply fundamental in Ht2. iPoseProof Ht2 as "Ht".
+            iSpecialize ("Ht" $! η μ δ ξ' Hδ).
+            iEval (cbn [ctx_insert ctx_append fmap list_fmap]) in "Ht".
+            rewrite fmap_app.
+            iApply "Ht".
+        }
+        all: admit. (* BAnon binder subcases: see report *)
     + (* Sub_typed *)
       (* Transport the body derivation along [sem_typed_sub] (compatibility.v),
          discharging the four subtyping premises by the soundness lemmas run
