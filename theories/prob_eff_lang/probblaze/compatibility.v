@@ -1268,6 +1268,42 @@ Section compatibility.
     iExists n. iModIntro. by iSplit.
   Qed.
 
+  (* Expression-level labelled Rand rule.  The second argument is a tape
+     ([sem_ty_tape]); its invariant holds two empty same-[N] tapes.  The
+     labelled reads on both sides are coupled in a single atomic step with
+     the identity bijection ([wp_couple_rand_lbl_rand_lbl] under
+     [brel_atomic_l] + the [sem_ty_tape] invariant), yielding equal values
+     (hence [sem_ty_nat]).  The read bound [m] (from [e1]) need not equal
+     the tape bound [N]: an empty-tape read ignores the tape bound, so the
+     coupling holds regardless and the (still empty) tapes are returned. *)
+  Lemma sem_typed_rand ρ Γ1 Γ2 Γ3 e1 e2 e1' e2' :
+    ⊢ sem_typed Γ2 e1 e1' ρ sem_ty_nat Γ3 -∗
+    sem_typed Γ1 e2 e2' ρ sem_ty_tape Γ2 -∗
+    sem_typed Γ1 (Rand e1 e2) (Rand e1' e2') ρ sem_ty_nat Γ3.
+  Proof.
+    iIntros "#He1 #He2 %γ !# //= HΓ1".
+    iApply (brel_bind [RandRCtx _] [RandRCtx _]);
+      [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He2".
+    iIntros "!# % % ((%α1 & %α2 & %N & -> & -> & #Hinv) & HΓ2) //=".
+    iApply (brel_bind [RandLCtx _] [RandLCtx _]);
+      [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ2]"); first by iApply "He1".
+    iIntros "!# % % ((%m & -> & ->) & HΓ3) //=".
+    iApply (brel_atomic_l _ []).
+    iIntros (K') "Hj".
+    iMod (inv_acc _ (logN.@(α1,α2)) with "Hinv") as "[(>Hα1 & >Hα2) Hclose]";
+      first done.
+    iModIntro.
+    iApply (wp_couple_rand_lbl_rand_lbl _ (λ n : nat, n)
+              with "[$Hα1 $Hα2 $Hj]"); [done|].
+    iIntros (n) "!> (Hα1 & Hα2 & Hj & %Hlt)".
+    iMod ("Hclose" with "[$Hα1 $Hα2]") as "_".
+    iModIntro. iExists _. iFrame.
+    iApply brel_value. iIntros. iFrame.
+    iExists n. iModIntro. by iSplit.
+  Qed.
+
   (* Generic Store (cpy) rule *)
   Lemma sem_typed_store_cpy_gen τ ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' `{ ρ ᵣ⪯ₜ τ} :
     ⊢ sem_typed Γ2 e1 e1' ρ (Refᶜ τ) Γ3 -∗
