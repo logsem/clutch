@@ -52,20 +52,23 @@ Section schannel.
     λ: "a" "b",
       vg_of_int (xor (int_of_vg "a") (int_of_vg "b")).
 
-
+   (* Assumes a fixed direction from Alice to Bob, so the leak raised by CHAN doesnt need to send a destination with the argument Bob*)
+   (* InjL arg represents the message being sent by Alice, and InjR <>, just represents that Bob is requesting a receive , so "doSecRecv" is now a genuine thunk, because it doesnt need any argument anymore*)
     Definition CHAN : val :=
      λ: "f" "ChanOp" "doGK",
       let, ("doSend", "doRecv") := "ChanOp" in
       let: "message" := ref NONEV in
       effect "schannel"
       let: "doSecSend" := (λ: "m", do: (EffName "schannel") (Send "m")) in
-      let: "doSecRecv" := (λ: "from", do: (EffName "schannel") (Recv "from")) in
+      (*let: "doSecRecv" := (λ: "from", do: (EffName "schannel") (Recv "from")) in*)
+      let: "doSecRecv" := (λ: <>, do: (EffName "schannel") (Recv bob)) in
       handle: "f" ("doSecSend", "doSecRecv") with
       | effect (EffName "schannel") "payload", rec "k" as multi =>
         match: "payload" with
           (*SendSecure*)
-        | InjL "payload" =>
-            let, ("m", "dst") := "payload" in
+          (* | InjL "payload" =>*)
+          | InjL "m" =>
+            (*let, "m" := "payload" in*)
             match: !"message" with
               | NONE => "message" <- SOME "m";;
                      let: "key" := "doGK" (bob) in
@@ -100,7 +103,8 @@ Section schannel.
         end
       | return "y" => "y"
   end.
-
+  
+ (*reflecting the same change here as in the real functionality*)
    (* Ideal functionality of the ONE-SHOT secure channel *)
    Definition F_CHAN : val :=
      λ: "f" "LeakOp",
@@ -108,13 +112,14 @@ Section schannel.
       let: "message" := ref NONEV in
       effect "schannel"
       let: "doSecSend" := (λ: "m", do: (EffName "schannel") (Send "m"))  in
-      let: "doSecRecv" := (λ: "from", do: (EffName "schannel") (Recv "from")) in
+      (*let: "doSecRecv" := (λ: "from", do: (EffName "schannel") (Recv "from")) in*)
+      let: "doSecRecv" := (λ: <>, do: (EffName "schannel") (Recv bob)) in
       handle: "f" ("doSecSend" ,"doSecRecv") with
        | effect (EffName "schannel") "payload", rec "k" as multi =>
         match: "payload" with
           (*SendSecure*)
-         | InjL "payload" =>
-            let, ("m", "dst") := "payload" in
+         | InjL "m" =>
+            (*let, ("m", "dst") := "payload" in*)
             match: !"message" with
             | NONE => "message" <- SOME "m";;
                      ("doLeakSend" alice);;
@@ -132,7 +137,6 @@ Section schannel.
        | return "y" => "y"
   end.
 
-  Print alice.
 
   (*a function for requesting messages from the other party *)
   Definition ASK_KEY : val :=
@@ -223,7 +227,7 @@ Section schannel.
             (* assuming "dst" is alice for now *)
             (*let, ("m", "dst") := "payload" in*)
             (*("doKeyLeak" (Send("payload")));;*)
-            let: "m'" := "sample_or_load" #() in
+            let: "m'" := "sample_or_load" #()%V in
             ("doKeyLeakSnd" (bob));;
             let: "r" := "doKeyLeakRecv" (bob) in
                           match: "r" with
