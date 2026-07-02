@@ -118,6 +118,22 @@ Proof.
       f_equal. by apply (typed_lbl_resolve_id _ _ _ _ _ _ H3 rm). 
 Qed.
 
+Lemma disjointness_ctx_sem_jugdment Γ1 e e' η μ δ ρ ξ τ Γ2 :
+ □(erase_ctx η μ δ ξ (le.row_to_disj_ctx ρ) -∗ sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2) -∗
+  sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2.
+Proof.
+  iIntros "#H".
+  iIntros (vs) "!# Hvs".
+  iApply brel_learn.
+  iIntros "#Hvalid #Hdistinct".
+  iPoseProof erase_ctx_row_to_disj_ctx as "#HD".
+  iCombine "Hdistinct Hvalid" as "Hvd".
+  iDestruct ("HD" with "Hvd") as "Herase".
+  iDestruct ("H" with "Herase") as "Hrel".
+  iDestruct ("Hrel" with "Hvs") as "Hbrel".
+  done.
+Qed.
+
 (* Extract the bare relational interpretation of a value from its semantic
    value-typing judgement, at a given interpretation environment. *)
 Lemma sem_val_related_interp (v : val) (τ : type) η μ δ ξ :
@@ -198,7 +214,20 @@ Proof.
       apply fundamental in Ht. iPoseProof Ht as "Ht".
       iSpecialize ("Ht" $! η μ δ ξ' Hδ).
       destruct f as [|sf]; destruct x as [|sx]; simpl in *; iApply "Ht".
-    + (* App_typed *) admit.
+    + (* App_typed *) 
+      iApply disjointness_ctx_sem_jugdment.
+      iIntros "!# #HD".
+      iApply (sem_typed_app_gen (interp._ty η μ δ τ ξ') (interp._row η μ δ ρ' ξ') (interp._row η μ δ ρ ξ') (interp._row η μ δ ρ'' ξ') ).
+      { by eapply row_type_sub_sound in H1. }
+      { by eapply row_env_sub_sound in H2. }
+      { eapply row_le_sound in H. by iApply H. }
+      { eapply row_le_sound in H0. by iApply H0. }
+      { apply fundamental in Ht2.
+        iPoseProof Ht2 as "Ht2".
+        by iApply "Ht2". }
+      { apply fundamental in Ht1.
+        iPoseProof Ht1 as "Ht1".
+        by iApply "Ht1". }
     + (* TAbsElim_typed *)
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
                 (interp.ty_subst_single η μ δ ξ' τ τ')).
