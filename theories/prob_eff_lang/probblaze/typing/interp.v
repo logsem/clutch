@@ -1817,9 +1817,7 @@ Section interp_subst.
          routes through the (upstream-admitted) [row_le_union], since at
          [b = true] [RErase_le] may drop labels and label-monotonicity no
          longer holds. *)
-      destruct b.
-      + iApply (row_le_union with "[] []"); [by iApply H|by iApply H0].
-      + iApply (row_le_union' with "[] []");
+      iApply (row_le_union' with "[] []");
           [ by eapply row_le_false_labels_l
           | by eapply row_le_false_labels_l
           | by eapply row_le_false_labels_r

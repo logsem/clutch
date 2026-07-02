@@ -1117,8 +1117,8 @@ Module le.
     _row D false ρ ρ' →
     _row D b (RCons σ ρ) (RCons σ' ρ')
   | RUnion_le D b ρ1 ρ2 ρ1' ρ2' : 
-    _row D b ρ1 ρ1' →
-    _row D b ρ2 ρ2' →
+    _row D false ρ1 ρ1' →
+    _row D false ρ2 ρ2' →
     _row D b (RUnion ρ1 ρ2) (RUnion ρ1' ρ2')
 
   | RErase_le (D : disj_ctx) s ρ ss js :
