@@ -433,7 +433,29 @@ Proof.
          reconciliation).  Needs the same NEW forwarding-handler compatibility
          lemma. *)
       admit.
-    + (* Sub_typed *) admit.
+    + (* Sub_typed *)
+      (* Transport the body derivation along [sem_typed_sub] (compatibility.v),
+         discharging the four subtyping premises by the soundness lemmas run
+         under the [erase_ctx η μ δ ξ' (row_to_disj_ctx ρ)] bundle that
+         [disjointness_ctx_sem_jugdment] supplies: the two environment premises
+         by [ctx_le_sound], the row premise by [row_le_sound] (which handles the
+         [@ b] annotation), the type premise by [ty_le_sound], and the body by
+         the IH [fundamental] on [Ht]. *)
+      iApply disjointness_ctx_sem_jugdment. iIntros "!# #HD".
+      iApply (sem_typed_sub
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ')) <$> Γ1)
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ')) <$> Γ1')
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ')) <$> Γ2)
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ')) <$> Γ2')
+                _ _
+                (interp._row η μ δ ρ ξ') (interp._row η μ δ ρ' ξ')
+                (interp._ty η μ δ τ ξ') (interp._ty η μ δ τ' ξ')).
+      * iApply (ctx_le_sound _ _ _ H with "HD").
+      * iApply (ctx_le_sound _ _ _ H0 with "HD").
+      * iApply (row_le_sound _ _ _ _ _ _ _ _ H1 with "HD").
+      * iApply (ty_le_sound _ _ _ _ _ _ _ H2 with "HD").
+      * apply fundamental in Ht. iPoseProof Ht as "Ht".
+        iApply ("Ht" $! η μ δ ξ' Hδ).
     + (* Contraction_typed *)
       (* Now sound after removing [le.TBangRef_le]: the contracted type
          [κ] is [le.MultiT], so its interpretation is a semantic [MultiT]
