@@ -2054,6 +2054,58 @@ Section compatibility.
     sem_typed Γ1 e1 e2 ρ τ' Γ2 ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2.
   Proof. intros Hτ. by rewrite (sem_typed_type_proper _ _ _ _ _ _ _ Hτ). Qed.
 
+  (* [sem_typed] respects OFE-equivalence of the effect ROW.  Mirror of
+     [sem_typed_type_cong]: [sem_typed] unfolds to a [brel] over the
+     row-erasure [iLblSig_to_iLblThy ρ], which is [≡]-Proper
+     ([iLblSig_to_iLblThy_proper], sem_def.v), and [brel] is [≡]-Proper
+     ([brel_proper], logic.v).  Used by the [Effect] fundamental case to
+     reconcile the IH's row (taken at the extended [δ']) with the goal's row
+     (at the outer [δ]). *)
+  Lemma sem_typed_row_cong Γ1 e1 e2 (ρ ρ' : sem_row Σ) τ Γ2 :
+    (ρ ≡ ρ')%stdpp →
+    sem_typed Γ1 e1 e2 ρ' τ Γ2 ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2.
+  Proof.
+    intros Hρ. rewrite /sem_typed /tc_opaque.
+    do 2 f_equiv. intros vs. f_equiv. by rewrite Hρ.
+  Qed.
+
+  (* Pointwise environment equivalence: two environments have the same binders
+     in the same order, and pairwise [≡]-equivalent semantic types.  This is
+     the equivalence that [env_sem_typed] (a structural list fold) actually
+     respects -- unlike the set-based [≡] on [env]. *)
+  Definition env_equiv_pw (Γ Γ' : env Σ) : Prop :=
+    Forall2 (λ p q : string * sem_ty Σ, (p.1 = q.1 ∧ equiv p.2 q.2)%type) Γ Γ'.
+
+  (* [env_sem_typed] respects pointwise environment equivalence. *)
+  Lemma env_sem_typed_pw_equiv (Γ Γ' : env Σ) γ :
+    env_equiv_pw Γ Γ' → (env_sem_typed Γ γ ≡ env_sem_typed Γ' γ)%stdpp.
+  Proof.
+    rewrite /env_equiv_pw. intros HF.
+    induction HF as [| [x τ] [y τ'] Γ0 Γ0' [Hxy Hττ'] HF IH]; simpl.
+    - done.
+    - simpl in Hxy, Hττ'. subst y.
+      rewrite !env_sem_typed_cons IH.
+      f_equiv. f_equiv. intros v1. f_equiv. intros v2. f_equiv.
+      exact (Hττ' v1 v2).
+  Qed.
+
+  (* [sem_typed] respects pointwise environment equivalence in BOTH the input
+     ctx [Γ1] and the output ctx [Γ2].  Used by the [Effect] fundamental case
+     to reconcile the IH's contexts (taken at the extended [δ']) with the
+     goal's contexts (at the outer [δ]), which differ only in the [δ]-resolved
+     types of pointwise [≡]-equivalent entries. *)
+  Lemma sem_typed_env_cong Γ1 Γ1' e1 e2 ρ τ Γ2 Γ2' :
+    env_equiv_pw Γ1 Γ1' → env_equiv_pw Γ2 Γ2' →
+    sem_typed Γ1' e1 e2 ρ τ Γ2' ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2.
+  Proof.
+    intros H1 H2. rewrite /sem_typed /tc_opaque.
+    do 2 f_equiv. intros vs.
+    setoid_rewrite (env_sem_typed_pw_equiv _ _ vs H1).
+    iIntros "H HΓ". iApply (brel_wand with "[H HΓ]"); [by iApply "H"|].
+    iIntros "!> %v1 %v2 [$ HΓ2]".
+    by rewrite -(env_sem_typed_pw_equiv _ _ vs H2).
+  Qed.
+
 End compatibility.
 
     

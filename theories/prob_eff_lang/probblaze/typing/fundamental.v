@@ -327,40 +327,68 @@ Proof.
       { iEval (rewrite (interp.ty_tweaken τ2 τ0 η μ δ ξ')).
         iApply sem_types.ty_le_refl. }
     + (* Effect_typed *)
-      (* PARTIALLY MECHANISED — reduces to [sem_typed] row/env congruence.
-         The δ-resolved goal is [effect s (lbl_resolve_l e)] / [effect s
-         (lbl_resolve_r e)].  Routing via the binder-general
-         [sem_typed_effect_gen] and threading the IH at [δ' := <[s:=(l1,l2)]>δ]
-         (using [lbl_resolve_insert_subst] + [resolve_map_insert] to align the
-         body, and [dom (<[s]>Δ) ⊆ dom δ'] for the precondition) leaves a goal
-         whose ONLY gap is reconciling the IH's δ'-interpretations with the
-         goal's δ-interpretations:
-           - result type [interp τ]:  [interp.ty_delta_irrel] (s∉τ), via the
-             existing [sem_typed_type_cong];
-           - effect row head [interp (SAbs s) = sem_sig_bottom l1 l2]:
-             DEFINITIONAL (SAbs s := SSig s TBot TTop, [δ'!!!s = (l1,l2)]);
-           - tail row [interp ρ]:  [interp.row_delta_irrel] (s∉ρ);
+      (* MECHANISED.  The δ-resolved goal is
+           [effect s (lbl_resolve (delete s (resolve_l Δ δ)) e)]  /  [... _r ...].
+         Route via the binder-general [sem_typed_effect_gen] and thread the IH
+         at [δ' := <[s:=(l1,l2)]>δ]: [resolve_map_insert] +
+         [lbl_resolve_insert_subst] align the body ([lbl_subst s l · lbl_resolve
+         (delete s ..)] = [lbl_resolve (<[s:=l]>..)]) and the precondition
+         [dom (<[s]>Δ) ⊆ dom δ'] follows from [Hδ].  The IH's δ'-interpretations
+         are then reconciled with the goal's δ-interpretations:
+           - result type [interp τ]:  δ-irrelevant ([interp.ty_delta_irrel],
+             [s∉τ]) via [sem_typed_type_cong];
+           - effect row [interp Abs_ρ = sem_row_cons (interp (SAbs s)) (interp ρ)]:
+             the head [interp (SAbs s) = sem_sig_eff (δ'!!!s).1 (δ'!!!s).2 ⊥ ⊤ =
+             sem_sig_bottom l1 l2] is DEFINITIONAL ([δ'!!!s = (l1,l2)]) and the
+             tail is δ-irrelevant ([interp.row_delta_irrel], [s∉ρ]) — combined
+             via [sem_typed_row_cong];
            - contexts [interp Γ1]/[interp Γ2]:  pointwise δ-irrelevant
-             ([interp.ctx_elem_delta_irrel], s∉Γ1; Γ2 needs s∉Γ2, not in
-             [vars._fresh]).
-         The reconciliation needs two NOT-YET-AVAILABLE [sem_typed]
-         congruence lemmas: a ROW congruence ([ρ ≡ ρ' ⊢ sem_typed .. ρ' .. -∗
-         sem_typed .. ρ ..]) and an ENVIRONMENT congruence (sem_typed respects
-         the set-/membership-based env [≡] in both [Γ1] and [Γ2]).  All other
-         pieces (sem_typed_effect_gen, lbl_resolve_insert_subst,
-         resolve_map_insert, the δ-irrelevance lemmas) are PROVEN.  Adding the
-         two routine congruence lemmas [sem_typed_row_cong]/[sem_typed_env_cong]
-         discharges every reconciliation EXCEPT the output context [Γ2], which
-         needs [s ∉ vars._ctx Γ2].  That is the DECISIVE blocker and is NOT
-         derivable: a well-typed body may leak the freshly-bound name [s] into
-         its output context (e.g. by returning an [s]-effectful closure in
-         [Γ2]), so [vars._fresh] correctly omits it; the [Effect_typed]
-         Inductive would need an extra [s ∉ vars._ctx Γ2] premise, which the
-         task's hard rule forbids changing.  Left admitted accordingly. *)
+             ([interp.ctx_elem_delta_irrel]), via [sem_typed_env_cong].  Both
+             [s∉Γ1] and [s∉Γ2] are extracted from the freshness premise, now
+             taken over [Γ1 ++ Γ2] ([vars._ctx] distributes over [++]). *)
       iApply sem_typed_effect_gen. simpl.
-      apply fundamental in Ht. 
-      iPoseProof Ht as "Ht". 
-      admit.
+      apply fundamental in Ht.
+      iIntros (l1 l2).
+      iPoseProof Ht as "Ht".
+      rewrite /bin_log_related.
+      iSpecialize ("Ht" $! η μ (<[s:=(l1,l2)]>δ) ξ').
+      iSpecialize ("Ht" with "[]").
+      { iPureIntro. rewrite !dom_insert_L. set_solver. }
+      rewrite (resolve_map_insert fst Δ δ s (l1,l2))
+              (resolve_map_insert snd Δ δ s (l1,l2)).
+      rewrite -!lbl_resolve_insert_subst.
+      destruct H as (Hctx & Hrow & Hty).
+      assert (s ∉ vars._ctx Γ1) as HΓ1
+        by (intros Hin; apply Hctx;
+            rewrite /vars._ctx fmap_app union_list_app_L; set_solver).
+      assert (s ∉ vars._ctx Γ2) as HΓ2
+        by (intros Hin; apply Hctx;
+            rewrite /vars._ctx fmap_app union_list_app_L; set_solver).
+      assert (interp._ty η μ (<[s:=(l1,l2)]>δ) τ ξ' ≡ interp._ty η μ δ τ ξ')
+        as Hτeq by (by apply (interp.ty_delta_irrel δ s (l1,l2))).
+      assert (interp._row η μ (<[s:=(l1,l2)]>δ) Abs_ρ ξ'
+              ≡ sem_row.sem_row_cons (sem_sig.sem_sig_bottom l1 l2)
+                  (interp._row η μ δ ρ ξ')) as Hρeq.
+      { subst Abs_ρ; simpl.
+        rewrite (interp.row_delta_irrel δ s (l1,l2) ρ η μ ξ' Hrow)
+                lookup_total_insert_eq /=. reflexivity. }
+      assert (∀ (Γ0 : list (string*type)), s ∉ vars._ctx Γ0 →
+        env_equiv_pw
+          ((λ '(s0, τ0), (s0, interp._ty η μ δ τ0 ξ')) <$> Γ0)
+          ((λ '(s0, τ0), (s0, interp._ty η μ (<[s:=(l1,l2)]>δ) τ0 ξ'))
+             <$> Γ0)) as Henv.
+      { intros Γ0 HΓ0. rewrite /env_equiv_pw.
+        induction Γ0 as [|[x α] Γ0' IH]; simpl; [constructor|].
+        constructor.
+        - split; [done|]. symmetry.
+          apply (interp.ctx_elem_delta_irrel δ s (l1,l2) ((x,α)::Γ0') x α);
+            [done|by left].
+        - apply IH. intros Hin. apply HΓ0.
+          rewrite /vars._ctx /= in Hin |- *. set_solver. }
+      iApply (sem_typed_row_cong _ _ _ _ _ _ _ (symmetry Hρeq)).
+      iApply (sem_typed_type_cong _ _ _ _ _ _ _ (symmetry Hτeq)).
+      iApply (sem_typed_env_cong _ _ _ _ _ _ _ _ (Henv Γ1 HΓ1) (Henv Γ2 HΓ2)).
+      iApply "Ht".
     + (* Do_typed *)
       (* With [bin_log_related] now relating the δ-resolved expression, the
          goal carries [Do (EffLabel (δ!!!s).1) (lbl_resolve_l e)] on the left
