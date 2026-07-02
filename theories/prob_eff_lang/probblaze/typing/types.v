@@ -1652,74 +1652,83 @@ Section derived_rules.
       apply IH.
   Qed.
 
-  Lemma _ctx_perm_right D Γ1 Γ2 Γ3 : 
-    D ⊢ₗ Γ2 ≤C Γ1 → 
+  (* [_ctx] recurses on its second (right) argument, so permuting the left
+     argument is proved by structural induction on that right argument:
+     the matched element [(x, t')] of [Γ1] is relocated inside [Γ3] via
+     [Permutation_cons_inv_r], and the remainders stay permutation-related
+     for the induction hypothesis. *)
+  Lemma _ctx_perm_left D Γ1 Γ2 Γ3 :
+    D ⊢ₗ Γ1 ≤C Γ2 →
     Permutation Γ1 Γ3 →
-    D ⊢ₗ Γ2 ≤C Γ3. 
-  Proof. 
-  (*   intros Hle1 Hperm.
-       generalize dependent Γ2.
-       induction Hperm; intros Γ3 Hle1.
-       - exact Hle1.
-       - simpl in *. destruct x as (x, t).
-         destruct Hle1 as [t' [pre [post [Heq [Htyp Htail]]]]].
-         exists t', pre, post.
-         split; [assumption | split; [assumption |]].
-         apply IHHperm. exact Htail.
-       - destruct x as (x,t).
-         destruct y as (y, t').
-         destruct Hle1 as (t''&pre&post&->&Ht''&Hle).
-         destruct Hle as (r&pre'&post'&Heq&Ht&Hle).
-         eapply _ctx_perm_right; last apply Permutation_swap.
-         exists r, ((y,t'')::pre'), post'.
-         split. { rewrite -app_comm_cons. by rewrite -Heq. }
-         split; first done.
-         exists t'', [], (pre' ++ post'). split; first done.
-         split; done.
-       - apply IHHperm2, IHHperm1, Hle1.
-     Qed. *)
-  Admitted. 
+    D ⊢ₗ Γ3 ≤C Γ2.
+  Proof.
+    revert Γ1 Γ3.
+    induction Γ2 as [| [x t] tail IH]; intros Γ1 Γ3 Hle Hperm.
+    - exact I.
+    - destruct Hle as (t' & pre & post & Hpre & Ht' & Hrest).
+      assert (Hp : Γ3 ≡ₚ (x, t') :: (pre ++ post)).
+      { rewrite -Hperm Hpre. by rewrite Permutation_middle. }
+      apply Permutation_cons_inv_r in Hp as (k1 & k2 & Hk & Hperm').
+      exists t', k1, k2.
+      split; [exact Hk | split; [exact Ht' |]].
+      by apply (IH (pre ++ post) (k1 ++ k2)).
+  Qed.
 
-  Lemma _ctx_perm_left D Γ1 Γ2 Γ3 : 
-    D ⊢ₗ Γ1 ≤C Γ2 → 
+  (* Here we permute the argument [_ctx] recurses on, so we induct on the
+     permutation derivation.  Only the [perm_swap] case is nontrivial: the
+     two matched entries of [Γ2] live at unrelated positions, so we exhibit
+     an explicitly head-normalised permutation of [Γ2] on which the swapped
+     goal is immediate, then transport it back with [_ctx_perm_left]. *)
+  Lemma _ctx_perm_right D Γ1 Γ2 Γ3 :
+    D ⊢ₗ Γ2 ≤C Γ1 →
     Permutation Γ1 Γ3 →
-    D ⊢ₗ Γ3 ≤C Γ2. 
-  Proof. 
-  (*   intros Hle1 Hperm.
-       generalize dependent Γ2.
-       induction Hperm; intros Γ3 Hle1.
-       - exact Hle1.
-       - simpl in *. destruct x as (x, t).
-         destruct Hle1 as [t' [pre [post [Heq [Htyp Htail]]]]].
-         exists t', pre, post.
-         split; [assumption | split; [assumption |]].
-         apply IHHperm. exact Htail.
-       - destruct x as (x,t).
-         destruct y as (y, t').
-         destruct Hle1 as (t''&pre&post&->&Ht''&Hle).
-         destruct Hle as (r&pre'&post'&Heq&Ht&Hle).
-         eapply _ctx_perm_right; last apply Permutation_middle.
-         exists r, ((y,t'')::pre'), post'.
-         split. { rewrite -app_comm_cons. by rewrite -Heq. }
-         split; first done.
-         exists t'', [], (pre' ++ post'). split; first done.
-         split; done.
-       - apply IHHperm2, IHHperm1, Hle1.
-     Qed. *)
-  Admitted. 
-      
+    D ⊢ₗ Γ2 ≤C Γ3.
+  Proof.
+    intros Hle Hperm. revert Γ2 Hle.
+    induction Hperm as [ | a l l' Hp IH | a b l | l l' l'' Hp1 IH1 Hp2 IH2 ];
+      intros Γ2 Hle.
+    - exact Hle.
+    - destruct a as [na ta].
+      destruct Hle as (t' & pre & post & Hpre & Ht' & Hrest).
+      exists t', pre, post.
+      split; [exact Hpre | split; [exact Ht' |]].
+      by apply IH.
+    - destruct a as [na ta], b as [nb tb].
+      destruct Hle as (sb & pre & post & Hpre & Hsb & Hrest).
+      destruct Hrest as (sa & pre' & post' & Hpre' & Hsa & Hrest').
+      apply (_ctx_perm_left D ((na, sa) :: (nb, sb) :: (pre' ++ post')) _ Γ2).
+      + exists sa, [], ((nb, sb) :: (pre' ++ post')).
+        split; [reflexivity | split; [exact Hsa |]].
+        exists sb, [], (pre' ++ post').
+        split; [reflexivity | split; [exact Hsb | exact Hrest']].
+      + rewrite Hpre. rewrite <- Permutation_middle.
+        rewrite Hpre'. rewrite <- Permutation_middle.
+        apply perm_swap.
+    - apply IH2. apply IH1. exact Hle.
+  Qed.
+
+  (* Transitivity follows the recursion of [_ctx] on its third argument:
+     for the head entry [(x, t3)] of [Γ3] we obtain a match [(x, t2)] in
+     [Γ2] from the second premise, use [_ctx_perm_right] to surface it in
+     the first premise as a match [(x, t1)] in [Γ1], and chain the two type
+     subtypings with [TTrans_le]; the tails close by induction. *)
   Lemma CTrans_le D Γ1 Γ2 Γ3 :
     D ⊢ₗ Γ1 ≤C Γ2 → D ⊢ₗ Γ2 ≤C Γ3 → D ⊢ₗ Γ1 ≤C Γ3.
-  Proof. 
-  (*   generalize Γ2 Γ3. induction Γ1 as [| [x t1] Γ1_tail IH]; [done|].
-       intros Γ2' Γ3' (τ&pre&post&->&Hτ&Hle1) Hle2.
-       eapply _ctx_perm_left in Hle2; last by rewrite -Permutation_middle.
-       destruct Hle2 as (τ'&pre'&post'&->&Hτ'&Hle3).
-       exists τ', pre', post'.
-       split; first done. split; first by eapply le.TTrans_le.
-       by eapply IH.
-     Qed.  *)
-  Admitted. 
+  Proof.
+    revert Γ1 Γ2.
+    induction Γ3 as [| [x t3] tail3 IH]; intros Γ1 Γ2 H1 H2.
+    - exact I.
+    - destruct H2 as (t2 & pre & post & Hpre2 & Ht2 & Hrest2).
+      assert (H1' : D ⊢ₗ Γ1 ≤C ((x, t2) :: (pre ++ post))).
+      { apply (_ctx_perm_right D Γ2 Γ1 ((x, t2) :: (pre ++ post))).
+        - exact H1.
+        - rewrite Hpre2. by rewrite Permutation_middle. }
+      destruct H1' as (t1 & P & Q & HpreP & Ht1 & Hrest1).
+      exists t1, P, Q.
+      split; [exact HpreP | split].
+      + eapply le.TTrans_le; [exact Ht1 | exact Ht2].
+      + apply (IH (P ++ Q) (pre ++ post)); [exact Hrest1 | exact Hrest2].
+  Qed.
 
   Lemma SRefl_le D e : D ⊢ₗ e ≤S e.
   Proof. 
