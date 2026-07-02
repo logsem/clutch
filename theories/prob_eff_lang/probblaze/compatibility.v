@@ -1482,10 +1482,12 @@ Section compatibility.
     iIntros. by iFrame.
   Qed.
 
-  Lemma sem_typed_shallow_handler_MS op (A B : sem_ty Σ → sem_ty Σ) m τ τ' ρ' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
+  Lemma sem_typed_shallow_handler_MS op (A B : sem_ty Σ → sem_ty Σ) m τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
     x ∉ env_dom Γ2 →  x ∉ env_dom Γ3 → k ∉ env_dom Γ3 → x ≠ k →
+    (sem_sig_labels Σ σ') = op →
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, A α =[m]=> B α)%S in
-    let ρ := (σ · ρ')%R in
+    let ρ := (σ · ρ'')%R in
+    let ρ':= (σ'· ρ'')%R in 
     ⊢ valid (iLblSig_to_iLblThy ρ) -∗
     distinct' (iLblSig_to_iLblThy ρ) -∗
     sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
@@ -1500,23 +1502,10 @@ Section compatibility.
       | return x => r2 end)
       ρ' τ' Γ3.
   Proof. 
-    iIntros (??????) "#Hvalid #Hdistinct #He #Hh #Hr !# %γ HΓ1Γ3 /=".
+    iIntros (???? Hop ???) "#Hvalid #Hdistinct #He #Hh #Hr !# %γ HΓ1Γ3".
     iDestruct (env_sem_typed_app with "HΓ1Γ3") as "[HΓ1 #HΓ3]".
     iDestruct ("He" with "HΓ1") as "Hbrel".
-    rewrite <-(to_iThyIfMonoMS (iLblSig_to_iLblThy ρ')) at 3.
-    iApply (brel_mono _ _ _ (([op.1], [op.2], ⊥) :: iLblSig_to_iLblThy ρ') with "[][HΓ3 Hbrel]").
-    { iSplit; last iSplit; try iIntros "!# _".
-      - iIntros "!# % % % (%&%&%&%Hin&HX)".
-        inversion Hin; first by iApply iThy_le_iThyTraverse_bot.
-        subst. iExists _,_,_. by iFrame.
-      - iApply valid_submseteq'; last iApply "Hvalid"; set_solver.
-      - iDestruct "Hdistinct" as "%Hdistinct". iPureIntro. eapply distinct_submseteq'; set_solver.
-    }
-    2 : { simpl. iIntros "!# % % H". iApply "H". }
-    (* With the plain σ head (sem_row.v:23) the effect-case hypothesis is
-       [σ e1' e2' Q] directly, so we instantiate [brel_exhaustion] with [σ]
-       and destruct the [sem_sig_eff] protocol up-front -- no outer
-       [sem_sig_later] peel and no head later to pay. *)
+    simpl. rewrite Hop.
     iApply (brel_exhaustion _ _ _ _ σ with "Hbrel").
     1,2: simpl; set_solver.
     iSplit.
@@ -1526,11 +1515,10 @@ Section compatibility.
       rewrite -!fmap_insert /=.
       iDestruct ("Hr" $! (<[x:=(v1,v2)]> γ) with "[Hτ HΓ2]") as "Hbrelr".
       { solve_env. iApply env_sem_typed_app. iSplitL; solve_env. }
-      rewrite <-(to_iThyIfMonoMS (([op.1], [op.2], ⊥) :: (iLblSig_to_iLblThy ρ'))) at 1.
-      iApply (brel_mono _ _ _ (iLblSig_to_iLblThy ρ') with "[][Hbrelr]").
-      { iApply to_iThy_le_intro'. by apply submseteq_cons. }
-      2: { simpl. iIntros "!# % % H". iApply "H". }
-      iApply (brel_wand with "Hbrelr"). iIntros "!# % % ($ & _)". iFrame "#".
+      (* rewrite <-(to_iThyIfMonoMS (([op.1], [op.2], ⊥) :: (iLblSig_to_iLblThy ρ'))) at 1. *)
+      subst ρ'. simpl. rewrite Hop.
+      iApply (brel_wand with "Hbrelr").
+      iIntros "!# % % ($ & _)". iFrame "#".
     - destruct m.
       + iIntros "!# % % % % % %Hk1' %Hk2' Hσ #Hkont". unfold σ.
         iDestruct "Hσ" as (Q') "(Hσ & HQ'Q)".
@@ -1545,9 +1533,9 @@ Section compatibility.
         rewrite -!subst_map_insert.
         assert (KontV k1' = fst (KontV k1', KontV k2') ∧ KontV k2' = snd (KontV k1', KontV k2') ∧ v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & -> & -> & ->) by done.
         rewrite -!fmap_insert. simpl.
-        rewrite <-(to_iThyIfMonoMS (([op.1], [op.2], ⊥) :: (iLblSig_to_iLblThy ρ'))) at 1.
+        rewrite <-(to_iThyIfMonoMS (([op.1], [op.2], σ' : iThy Σ) :: (iLblSig_to_iLblThy ρ''))) at 1.
         iApply (brel_mono MS _ _ (iLblSig_to_iLblThy ρ') with "[][HA HQ'Q]").
-        { iApply to_iThy_le_intro'. by apply submseteq_cons. }
+        { subst ρ'. simpl. rewrite Hop. iApply to_iThy_le_refl. }
         2: { simpl. iIntros "!# % % H". iApply "H". }
         iDestruct ("Hh" with "[HA HQ'Q]") as "Hbrelh".
         2 : { iApply (brel_wand with "Hbrelh").  by iIntros "!# % % ($ & _)". }
@@ -1571,9 +1559,9 @@ Section compatibility.
         rewrite -!subst_map_insert.
         assert (KontV k1' = fst (KontV k1', KontV k2') ∧ KontV k2' = snd (KontV k1', KontV k2') ∧ v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & -> & -> & ->) by done.
         rewrite -!fmap_insert. simpl.
-        rewrite <-(to_iThyIfMonoMS (([op.1], [op.2], ⊥) :: (iLblSig_to_iLblThy ρ'))) at 1.
+        rewrite <-(to_iThyIfMonoMS (([op.1], [op.2], σ' : iThy Σ) :: (iLblSig_to_iLblThy ρ''))) at 1.
         iApply (brel_mono MS _ _ (iLblSig_to_iLblThy ρ') with "[][HA HBQ]").
-        { iApply to_iThy_le_intro'. by apply submseteq_cons. }
+        { subst ρ'. simpl. rewrite Hop. iApply to_iThy_le_refl. }
         2: { simpl. iIntros "!# % % H". iApply "H". }
         iDestruct ("Hh" with "[HA HBQ]") as "Hbrelh".
         2 : { iApply (brel_wand with "Hbrelh").  by iIntros "!# % % ($ & _)". }
