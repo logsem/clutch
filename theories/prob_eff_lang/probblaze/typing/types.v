@@ -1209,12 +1209,12 @@ Module le.
                                                                               | None => False 
                                                                               | Some rs => list_type_le D rs ts
                                                                               end) (map_to_list Γ2). *)
-
+  (* swappingh hte order oof the contexts *)
   Fixpoint _ctx (D : disj_ctx) (Γ Γ' : ctx) : Prop := 
-    match Γ with
+    match Γ' with
     | [] => True
     | (x,t) :: Γ_tail => 
-        ∃ t' pre post, Γ' = pre ++ (x, t') :: post ∧ _type D t t' ∧ _ctx D Γ_tail (pre ++ post)
+        ∃ t' pre post, Γ = pre ++ (x, t') :: post ∧ _type D t' t ∧ _ctx D (pre ++ post) Γ_tail
   end.
 
   (* Fixpoint _ctx D (Γ Γ' : ctx) : Prop := 
@@ -1652,75 +1652,74 @@ Section derived_rules.
       apply IH.
   Qed.
 
-  (* Lemma: If Γ' is a permutation of Γ'', and we can match Γ into Γ', 
-   we can also match it into Γ''. *)
-  Lemma _ctx_perm_right : forall D Γ Γ' Γ'',
-      le._ctx D Γ Γ' ->
-      Permutation Γ' Γ'' ->
-      le._ctx D Γ Γ''.
-  Proof.
-    intros D Γ. induction Γ as [| [x t] Γ_tail IH].
-    - simpl. auto.
-    - intros Γ' Γ'' Hctx Hperm. simpl in *.
-      destruct Hctx as [t' [pre [post [Heq [Htype Hrest]]]]].
-      subst Γ'.
-      (* Since (pre ++ (x, t') :: post) is permuted to Γ'', 
-       (x, t') must exist somewhere in Γ'' *)
-      assert (H_in: In (x, t') Γ''). {
-        apply Permutation_in with (l := pre ++ (x, t') :: post); first done.
-        apply in_elt.
-      }
-      (* Decompose Γ'' around (x, t') *)
-      apply in_split in H_in. destruct H_in as [pre' [post' Heq'']].
-      exists t', pre', post'.
-      split. { eassumption. }
-      split. { assumption. }
-      (* The key: the remainders are also permutations *)
-      apply IH with (Γ' := pre ++ post).
-      + assumption.
-      + eapply Permutation_cons_inv. 
-        rewrite !Permutation_middle. 
-        erewrite Hperm. by rewrite Heq''.
-  Qed. 
+  Lemma _ctx_perm_right D Γ1 Γ2 Γ3 : 
+    D ⊢ₗ Γ2 ≤C Γ1 → 
+    Permutation Γ1 Γ3 →
+    D ⊢ₗ Γ2 ≤C Γ3. 
+  Proof. 
+  (*   intros Hle1 Hperm.
+       generalize dependent Γ2.
+       induction Hperm; intros Γ3 Hle1.
+       - exact Hle1.
+       - simpl in *. destruct x as (x, t).
+         destruct Hle1 as [t' [pre [post [Heq [Htyp Htail]]]]].
+         exists t', pre, post.
+         split; [assumption | split; [assumption |]].
+         apply IHHperm. exact Htail.
+       - destruct x as (x,t).
+         destruct y as (y, t').
+         destruct Hle1 as (t''&pre&post&->&Ht''&Hle).
+         destruct Hle as (r&pre'&post'&Heq&Ht&Hle).
+         eapply _ctx_perm_right; last apply Permutation_swap.
+         exists r, ((y,t'')::pre'), post'.
+         split. { rewrite -app_comm_cons. by rewrite -Heq. }
+         split; first done.
+         exists t'', [], (pre' ++ post'). split; first done.
+         split; done.
+       - apply IHHperm2, IHHperm1, Hle1.
+     Qed. *)
+  Admitted. 
 
   Lemma _ctx_perm_left D Γ1 Γ2 Γ3 : 
     D ⊢ₗ Γ1 ≤C Γ2 → 
     Permutation Γ1 Γ3 →
     D ⊢ₗ Γ3 ≤C Γ2. 
   Proof. 
-    intros Hle1 Hperm.
-    generalize dependent Γ2.
-    induction Hperm; intros Γ3 Hle1.
-    - exact Hle1.
-    - simpl in *. destruct x as (x, t).
-      destruct Hle1 as [t' [pre [post [Heq [Htyp Htail]]]]].
-      exists t', pre, post.
-      split; [assumption | split; [assumption |]].
-      apply IHHperm. exact Htail.
-    - destruct x as (x,t).
-      destruct y as (y, t').
-      destruct Hle1 as (t''&pre&post&->&Ht''&Hle).
-      destruct Hle as (r&pre'&post'&Heq&Ht&Hle).
-      eapply _ctx_perm_right; last apply Permutation_middle.
-      exists r, ((y,t'')::pre'), post'.
-      split. { rewrite -app_comm_cons. by rewrite -Heq. }
-      split; first done.
-      exists t'', [], (pre' ++ post'). split; first done.
-      split; done.
-    - apply IHHperm2, IHHperm1, Hle1.
-  Qed.
+  (*   intros Hle1 Hperm.
+       generalize dependent Γ2.
+       induction Hperm; intros Γ3 Hle1.
+       - exact Hle1.
+       - simpl in *. destruct x as (x, t).
+         destruct Hle1 as [t' [pre [post [Heq [Htyp Htail]]]]].
+         exists t', pre, post.
+         split; [assumption | split; [assumption |]].
+         apply IHHperm. exact Htail.
+       - destruct x as (x,t).
+         destruct y as (y, t').
+         destruct Hle1 as (t''&pre&post&->&Ht''&Hle).
+         destruct Hle as (r&pre'&post'&Heq&Ht&Hle).
+         eapply _ctx_perm_right; last apply Permutation_middle.
+         exists r, ((y,t'')::pre'), post'.
+         split. { rewrite -app_comm_cons. by rewrite -Heq. }
+         split; first done.
+         exists t'', [], (pre' ++ post'). split; first done.
+         split; done.
+       - apply IHHperm2, IHHperm1, Hle1.
+     Qed. *)
+  Admitted. 
       
   Lemma CTrans_le D Γ1 Γ2 Γ3 :
     D ⊢ₗ Γ1 ≤C Γ2 → D ⊢ₗ Γ2 ≤C Γ3 → D ⊢ₗ Γ1 ≤C Γ3.
   Proof. 
-    generalize Γ2 Γ3. induction Γ1 as [| [x t1] Γ1_tail IH]; [done|].
-    intros Γ2' Γ3' (τ&pre&post&->&Hτ&Hle1) Hle2.
-    eapply _ctx_perm_left in Hle2; last by rewrite -Permutation_middle.
-    destruct Hle2 as (τ'&pre'&post'&->&Hτ'&Hle3).
-    exists τ', pre', post'.
-    split; first done. split; first by eapply le.TTrans_le.
-    by eapply IH.
-  Qed. 
+  (*   generalize Γ2 Γ3. induction Γ1 as [| [x t1] Γ1_tail IH]; [done|].
+       intros Γ2' Γ3' (τ&pre&post&->&Hτ&Hle1) Hle2.
+       eapply _ctx_perm_left in Hle2; last by rewrite -Permutation_middle.
+       destruct Hle2 as (τ'&pre'&post'&->&Hτ'&Hle3).
+       exists τ', pre', post'.
+       split; first done. split; first by eapply le.TTrans_le.
+       by eapply IH.
+     Qed.  *)
+  Admitted. 
 
   Lemma SRefl_le D e : D ⊢ₗ e ≤S e.
   Proof. 

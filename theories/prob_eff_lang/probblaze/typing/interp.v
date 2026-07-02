@@ -1766,7 +1766,7 @@ Section interp_subst.
     rewrite lookup_empty in Hlk. done.
   Qed.
 
-  Lemma multi_ty_sound' (τ : type) :
+  Lemma multi_ty_sound (τ : type) :
     le.MultiT τ → ∀ η μ δ ξ, MultiT (interp._ty η μ δ τ ξ).
   Proof.
     intros H ????. unfold le.MultiT in H. eapply ty_le_sound in H.
@@ -1787,7 +1787,7 @@ Section interp_subst.
     - apply multi_env_nil.
     - apply Forall_cons in Hm as [Hτ HΓ'].
       apply multi_env_cons; first by apply IH.
-      by apply multi_ty_sound'.
+      by apply multi_ty_sound.
   Qed.
 
   (* Soundness of [le._mode_type]: note [m m⪯T τ] forces [m ∈ {OS, MS}]. *)
@@ -1796,7 +1796,7 @@ Section interp_subst.
   Proof.
     intros Hm η μ δ ξ. inv Hm; simpl.
     - apply mode_type_sub_os.
-    - apply mode_type_sub_multi_ty. by apply multi_ty_sound'.
+    - apply mode_type_sub_multi_ty. by apply multi_ty_sound.
   Qed.
 
   (* Soundness of [le._mode_ctx]: a syntactic mode-context judgement
@@ -1850,7 +1850,7 @@ Section interp_subst.
     intros Hsub η0 μ0 δ0 ξ0. destruct Hsub as [ρ' τ' Honce | ρ' τ' Hmulti].
     - apply row_type_sub_once.
       by apply (once_row_sound _ Honce).
-    - pose proof (multi_ty_sound' _ Hmulti η0 μ0 δ0 ξ0) as Hm.
+    - pose proof (multi_ty_sound _ Hmulti η0 μ0 δ0 ξ0) as Hm.
       by apply row_type_sub_multi_ty.
   Qed.
 
