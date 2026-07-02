@@ -23,7 +23,7 @@ let mk_histo file =
   let rec aux reader acc =
     try
       let line = input_line reader in
-      aux reader (string_to_int line :: acc)
+      aux reader ((*string_to_int*) line :: acc)
     with e ->
       close_in_noerr reader;
       acc
@@ -46,11 +46,14 @@ let mk_histo file =
   norm ht;
   (size, domain, ht)
 
-let write_db db file i =
-  (* compute the histogram of the db contained in file *)
-  let writer = open_out (file ^ (int_to_string i) ^ ".csv") in
-  Hashtbl.iter (fun a b -> Printf.fprintf writer "%d,%f\n" a b) db;
-  close_out writer
+let write_db db gif i =
+  (* when gif = Some file, write the database in file_i.csv *)
+  match gif with
+  | Some file ->
+    let writer = open_out (file ^ (int_to_string i) ^ ".csv") in
+    Hashtbl.iter (fun a b -> Printf.fprintf writer "%s,%f\n" a b) db;
+    close_out writer
+  | _ -> ()
 
 let get_rd_query domaine =
   (* given a domaine returns a random query (random map of domain -> {0, 1}) *)
@@ -73,11 +76,11 @@ let get_unif domaine =
 let aff_db db =
   (* displays db *)
   Printf.printf "Aff_db ---\n---";
-  Hashtbl.iter (fun a b -> Printf.printf " %d: %f\n---" a b) db;
+  Hashtbl.iter (fun a b -> Printf.printf " %s: %f\n---" a b) db;
   Printf.printf "> OK\n"
 
 let aff_bq bq  =
   (* displays the boolean query *)
   Printf.printf "Aff_bq ---\n---";
-  Hashtbl.iter (fun a b -> Printf.printf "%d:%d|" a (int_of_float b)) bq;
+  Hashtbl.iter (fun a b -> Printf.printf "%s:%d|" a (int_of_float b)) bq;
   Printf.printf "\n"
