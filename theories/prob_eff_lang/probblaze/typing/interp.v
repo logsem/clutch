@@ -1733,14 +1733,15 @@ Section interp_subst.
      interpretation environments [η μ ξ] (extended by binders), takes the
      [erase_ctx] hypothesis bundle (only used by [RErase_le]), and yields
      the corresponding semantic subtyping. *)
-  Notation Psig D σ σ' :=
-    (∀ η μ ξ, erase_ctx D -∗
+  Definition sem_sig_le D σ σ' : iProp Σ :=
+    □ (∀ η μ ξ, erase_ctx D -∗
      interp._eff_sig η μ δ σ ξ ≤ₛ interp._eff_sig η μ δ σ' ξ).
-  Notation Prow D b ρ ρ' :=
-    (∀ η μ ξ, erase_ctx D -∗
+  (* Why is the boolean not used? *)
+  Definition sem_row_le D (b : bool) ρ ρ' : iProp Σ :=
+    □ (∀ η μ ξ, erase_ctx D -∗
      interp._row η μ δ ρ ξ ≤ᵣ interp._row η μ δ ρ' ξ).
-  Notation Pty D α β :=
-    (∀ η μ ξ, erase_ctx D -∗
+  Definition sem_ty_le D α β : iProp Σ :=
+    □ (∀ η μ ξ, erase_ctx D -∗
      interp._ty η μ δ α ξ ≤ₜ interp._ty η μ δ β ξ).
 
   (* Combined soundness of the three syntactic subtyping judgements, by ONE
@@ -1782,15 +1783,15 @@ Section interp_subst.
      [sem_row.row_le_erase].  ([RFlipCons_le] is closed via
      [row_le_mfbang_dist_cons], itself [Admitted] upstream.) *)
   Lemma subtyping_sound_all :
-    (∀ D σ σ', D ⊢ₗ σ ≤S σ' → Psig D σ σ') ∧
-    (∀ D b ρ ρ', D ⊢ₗ ρ ≤R ρ' @ b → Prow D b ρ ρ') ∧
-    (∀ D α β, D ⊢ₗ α ≤T β → Pty D α β).
+    (∀ D σ σ', D ⊢ₗ σ ≤S σ' → ⊢ sem_sig_le D σ σ') ∧
+    (∀ D b ρ ρ', D ⊢ₗ ρ ≤R ρ' @ b → ⊢ sem_row_le D b ρ ρ') ∧
+    (∀ D α β, D ⊢ₗ α ≤T β → ⊢ sem_ty_le D α β).
   Proof.
     apply le_subtyping_mut.
-    all: intros; iIntros "#He"; simpl.
+    all : intros; iIntros (???) "!# #He"; simpl.
     (* effect-signature cases *)
     - iApply sig_le_eff; iIntros "!#" (αs);
-        [by iApply (H (αs :: η)) | by iApply (H0 (αs :: η))].
+      [by iApply H | by iApply H0].
     - iApply sig_le_mfbang_intro.
     - iApply sig_le_mfbang_elim_ms.
     - iApply sig_le_mfbang_idemp.
@@ -1803,13 +1804,13 @@ Section interp_subst.
     - iApply row_le_refl.
     - iApply row_le_cons_extend.
     - iApply row_le_swap_second.
-    - iApply row_le_cons_comp.
-      3:{ by iApply H. }
-      3:{ by iApply H0. }
+    - iApply row_le_cons_comp; last first.
+      + by iApply H0.
+      + by iApply H.
       (* RCons_le: the two LABEL submseteq side-conditions follow from
          label-monotonicity of [≤R] along the [@false] row premise [_r]. *)
-      + by eapply row_le_false_labels_l.
       + by eapply row_le_false_labels_r.
+      + by eapply row_le_false_labels_l.
     - (* RUnion_le.  At [b = false] the cross-disjointness side-condition
          of [row_le_union'] is supplied by label-monotonicity of [≤R]
          ([row_le_false_labels_l]/[_r]); the [b = true] sub-case still
@@ -1848,9 +1849,9 @@ Section interp_subst.
     - iApply (ty_le_arr with "[] [] []").
       all: admit. (* TArrow_le: IHs need [erase_ctx D'] (see header) *)
     - iApply ty_le_ref; by iApply H.
-    - iApply ty_le_type_forall; iIntros (α'); by iApply (H (α' :: η)).
-    - iApply ty_le_row_forall; iIntros (θ); by iApply (H η μ (θ :: ξ)).
-    - iApply ty_le_mode_forall; iIntros (ν); by iApply (H η (ν :: μ)).
+    - iApply ty_le_type_forall; iIntros (α'); by iApply H.
+    - iApply ty_le_row_forall; iIntros (θ); by iApply H.
+    - iApply ty_le_mode_forall; iIntros (ν); by iApply H.
     - iApply ty_le_rec.
       (* TRec_le: STILL ADMITTED.  [ty_le_rec] (sem_types.v) requires the
          PARAMETRIC monotone premise
@@ -1891,15 +1892,15 @@ Section interp_subst.
 
   (* The three named soundness lemmas, projected from [subtyping_sound_all]. *)
   Lemma sig_le_sound_open D σ σ' :
-    D ⊢ₗ σ ≤S σ' → Psig D σ σ'.
+    D ⊢ₗ σ ≤S σ' → ⊢ sem_sig_le D σ σ'.
   Proof. apply subtyping_sound_all. Qed.
 
   Lemma row_le_sound_open D b ρ ρ' :
-    D ⊢ₗ ρ ≤R ρ' @ b → Prow D b ρ ρ'.
+    D ⊢ₗ ρ ≤R ρ' @ b → ⊢ sem_row_le D b ρ ρ'.
   Proof. apply subtyping_sound_all. Qed.
 
   Lemma ty_le_sound_open D α β :
-    D ⊢ₗ α ≤T β → Pty D α β.
+    D ⊢ₗ α ≤T β → ⊢ sem_ty_le D α β.
   Proof. apply subtyping_sound_all. Qed.
 
   (* ===================================================================== *)
