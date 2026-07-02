@@ -1519,26 +1519,27 @@ Section compatibility.
     iIntros. by iFrame.
   Qed.
 
-  Lemma sem_typed_shallow_handler_MS op (A B : sem_ty Σ → sem_ty Σ) m τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
+  Lemma sem_typed_shallow_handler_MS op (A B : sem_ty Σ → sem_ty Σ) m τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 x y k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
     x ∉ env_dom Γ2 →  x ∉ env_dom Γ3 → k ∉ env_dom Γ3 → x ≠ k →
+    y ∉ env_dom Γ2 → y ∉ env_dom Γ3 →
     (sem_sig_labels Σ σ') = op →
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, A α =[m]=> B α)%S in
     let ρ := (σ · ρ'')%R in
-    let ρ':= (σ'· ρ'')%R in 
-    ⊢ 
+    let ρ':= (σ'· ρ'')%R in
+    ⊢
     sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
     (∀ α, sem_typed ((x, A α) :: (k, B α -{ ρ }-[m]-> τ) :: Γ3) h1 h2 ρ' τ' Γ3) -∗
-    sem_typed ((x, τ) :: Γ2 ++ Γ3) r1 r2 ρ' τ' Γ3 -∗
+    sem_typed ((y, τ) :: Γ2 ++ Γ3) r1 r2 ρ' τ' Γ3 -∗
     sem_typed (Γ1 ++ Γ3)
       (handle: e1 with
       | effect op.1 x, k as multi => h1
-      | return x => r1 end)
+      | return y => r1 end)
       (handle: e2 with
       | effect op.2 x, k as multi => h2
-      | return x => r2 end)
+      | return y => r2 end)
       ρ' τ' Γ3.
-  Proof. 
-    iIntros (???? Hop ???) "#He #Hh #Hr !# %γ HΓ1Γ3".
+  Proof.
+    iIntros (?????? Hop ???) "#He #Hh #Hr !# %γ HΓ1Γ3".
     iDestruct (env_sem_typed_app with "HΓ1Γ3") as "[HΓ1 #HΓ3]".
     iDestruct ("He" with "HΓ1") as "Hbrel".
     simpl. rewrite Hop.
@@ -1549,7 +1550,7 @@ Section compatibility.
       rewrite -!subst_map_insert.
       assert (v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & ->) by done.
       rewrite -!fmap_insert /=.
-      iDestruct ("Hr" $! (<[x:=(v1,v2)]> γ) with "[Hτ HΓ2]") as "Hbrelr".
+      iDestruct ("Hr" $! (<[y:=(v1,v2)]> γ) with "[Hτ HΓ2]") as "Hbrelr".
       { solve_env. iApply env_sem_typed_app. iSplitL; solve_env. }
       (* rewrite <-(to_iThyIfMonoMS (([op.1], [op.2], ⊥) :: (iLblSig_to_iLblThy ρ'))) at 1. *)
       subst ρ'. simpl. rewrite Hop.
@@ -1610,26 +1611,27 @@ Section compatibility.
         iApply (brel_wand with "Hbrelk"). iIntros "!# %% ($&_)".
   Qed.
 
- Lemma sem_typed_deep_handler_MS op (A B : sem_ty Σ → sem_ty Σ) m τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
+ Lemma sem_typed_deep_handler_MS op (A B : sem_ty Σ → sem_ty Σ) m τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 x y k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
     x ∉ env_dom Γ2 →  x ∉ env_dom Γ3 → k ∉ env_dom Γ3 → x ≠ k →
+    y ∉ env_dom Γ2 → y ∉ env_dom Γ3 →
     (sem_sig_labels Σ σ') = op →
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, A α =[m]=> B α)%S in
     let ρ := (σ · ρ'')%R in
     let ρ':= (σ'· ρ'')%R in
-    ⊢ 
+    ⊢
     sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
     (∀ α, sem_typed ((x, A α) :: (k, B α -{ ρ' }-[m]-> τ') :: Γ3) h1 h2 ρ' τ' Γ3) -∗
-    sem_typed ((x, τ) :: Γ2 ++ Γ3) r1 r2 ρ' τ' Γ3 -∗
+    sem_typed ((y, τ) :: Γ2 ++ Γ3) r1 r2 ρ' τ' Γ3 -∗
     sem_typed (Γ1 ++ Γ3)
       (handle: e1 with
       | effect op.1 x, rec k as multi => h1
-      | return x => r1 end)
+      | return y => r1 end)
       (handle: e2 with
       | effect op.2 x, rec k as multi => h2
-      | return x => r2 end)
+      | return y => r2 end)
       ρ' τ' Γ3.
   Proof.
-    iIntros (???? Hop ???) "#He #Hh #Hr !# %γ HΓ1Γ3 /=".
+    iIntros (?????? Hop ???) "#He #Hh #Hr !# %γ HΓ1Γ3 /=".
     iDestruct (env_sem_typed_app with "HΓ1Γ3") as "[HΓ1 #HΓ3]".
     iDestruct ("He" with "HΓ1") as "Hbrel".
     simpl. rewrite Hop.
@@ -1640,7 +1642,7 @@ Section compatibility.
       rewrite -!subst_map_insert.
       assert (v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & ->) by done.
       rewrite -!fmap_insert /=.
-      iDestruct ("Hr" $! (<[x:=(v1,v2)]> γ) with "[Hτ HΓ2]") as "Hbrelr".
+      iDestruct ("Hr" $! (<[y:=(v1,v2)]> γ) with "[Hτ HΓ2]") as "Hbrelr".
       { solve_env. iApply env_sem_typed_app. iSplitL; solve_env. }
       iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
       { simpl. rewrite Hop. iApply to_iThy_le_refl. }
@@ -1660,11 +1662,11 @@ Section compatibility.
         assert (v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & ->) by done.
         eassert (KontV ((HandleCtx _ _ op.1
           (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1)
-          (λ: x, subst_map (delete x (fst <$> γ)) r1)) :: k1')
+          (λ: y, subst_map (delete y (fst <$> γ)) r1)) :: k1')
           = fst (KontV (_ :: _), KontV _) ∧
           KontV ((HandleCtx _ _ op.2
           (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2)
-          (λ: x, subst_map (delete x (snd <$> γ)) r2)) :: k2')
+          (λ: y, subst_map (delete y (snd <$> γ)) r2)) :: k2')
           = snd (KontV _, KontV (_ :: _))) as (Hkont1 & Hkont2) by done.
         rewrite Hkont1. rewrite Hkont2.
         rewrite -!fmap_insert. simpl.
@@ -1691,7 +1693,7 @@ Section compatibility.
           assert (v1'' = fst (v1'', v2'') ∧ v2'' = snd (v1'', v2''))
             as (-> & ->) by done.
           rewrite -!fmap_insert /=.
-          iDestruct ("Hr" $! (<[x:=(v1'',v2'')]> γ) with "[Hτ HΓ2]")
+          iDestruct ("Hr" $! (<[y:=(v1'',v2'')]> γ) with "[Hτ HΓ2]")
             as "Hbrelr".
           { solve_env. iApply env_sem_typed_app. iSplitL; solve_env. }
           iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')
@@ -1711,11 +1713,11 @@ Section compatibility.
             as (-> & ->) by done.
           eassert (KontV ((HandleCtx _ _ op.1
             (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1)
-            (λ: x, subst_map (delete x (fst <$> γ)) r1)) :: k1'0)
+            (λ: y, subst_map (delete y (fst <$> γ)) r1)) :: k1'0)
             = fst (KontV (_ :: _), KontV _) ∧
             KontV ((HandleCtx _ _ op.2
             (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2)
-            (λ: x, subst_map (delete x (snd <$> γ)) r2)) :: k2'0)
+            (λ: y, subst_map (delete y (snd <$> γ)) r2)) :: k2'0)
             = snd (KontV _, KontV (_ :: _))) as (Hkont1' & Hkont2') by done.
           rewrite Hkont1'. rewrite Hkont2'.
           rewrite -!fmap_insert. simpl.
@@ -1750,11 +1752,11 @@ Section compatibility.
         assert (v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & ->) by done.
         eassert (KontV ((HandleCtx _ _ op.1
           (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1)
-          (λ: x, subst_map (delete x (fst <$> γ)) r1)) :: k1')
+          (λ: y, subst_map (delete y (fst <$> γ)) r1)) :: k1')
           = fst (KontV (_ :: _), KontV _) ∧
           KontV ((HandleCtx _ _ op.2
           (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2)
-          (λ: x, subst_map (delete x (snd <$> γ)) r2)) :: k2')
+          (λ: y, subst_map (delete y (snd <$> γ)) r2)) :: k2')
           = snd (KontV _, KontV (_ :: _))) as (Hkont1 & Hkont2) by done.
         rewrite Hkont1. rewrite Hkont2.
         rewrite -!fmap_insert. simpl.
@@ -1780,7 +1782,7 @@ Section compatibility.
           assert (v1'' = fst (v1'', v2'') ∧ v2'' = snd (v1'', v2''))
             as (-> & ->) by done.
           rewrite -!fmap_insert /=.
-          iDestruct ("Hr" $! (<[x:=(v1'',v2'')]> γ) with "[Hτ HΓ2]")
+          iDestruct ("Hr" $! (<[y:=(v1'',v2'')]> γ) with "[Hτ HΓ2]")
             as "Hbrelr".
           { solve_env. iApply env_sem_typed_app. iSplitL; solve_env. }
           iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')
@@ -1799,11 +1801,11 @@ Section compatibility.
             as (-> & ->) by done.
           eassert (KontV ((HandleCtx _ _ op.1
             (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1)
-            (λ: x, subst_map (delete x (fst <$> γ)) r1)) :: k1'0)
+            (λ: y, subst_map (delete y (fst <$> γ)) r1)) :: k1'0)
             = fst (KontV (_ :: _), KontV _) ∧
             KontV ((HandleCtx _ _ op.2
             (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2)
-            (λ: x, subst_map (delete x (snd <$> γ)) r2)) :: k2'0)
+            (λ: y, subst_map (delete y (snd <$> γ)) r2)) :: k2'0)
             = snd (KontV _, KontV (_ :: _))) as (Hkont1' & Hkont2') by done.
           rewrite Hkont1'. rewrite Hkont2'.
           rewrite -!fmap_insert. simpl.
@@ -1823,26 +1825,27 @@ Section compatibility.
           Unshelve. all : try apply MS; try apply Deep.
   Qed.
 
-  Lemma sem_typed_shallow_handler_OS op (A B : sem_ty Σ → sem_ty Σ) τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
+  Lemma sem_typed_shallow_handler_OS op (A B : sem_ty Σ → sem_ty Σ) τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 x y k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
     x ∉ env_dom Γ2 →  x ∉ env_dom Γ3 → k ∉ env_dom Γ3 → x ≠ k →
+    y ∉ env_dom Γ2 → y ∉ env_dom Γ3 →
     (sem_sig_labels Σ σ') = op →
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, A α =[OS]=> B α)%S in
     let ρ := (σ · ρ'')%R in
     let ρ':= (σ'· ρ'')%R in
-    ⊢ 
+    ⊢
     sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
     (∀ α, sem_typed ((x, A α) :: (k, B α -{ ρ }-[OS]-> τ) :: Γ3) h1 h2 ρ' τ' Γ3) -∗
-    sem_typed ((x, τ) :: Γ2 ++ Γ3) r1 r2 ρ' τ' Γ3 -∗
+    sem_typed ((y, τ) :: Γ2 ++ Γ3) r1 r2 ρ' τ' Γ3 -∗
     sem_typed (Γ1 ++ Γ3)
       (handle: e1 with
       | effect op.1 x, k => h1
-      | return x => r1 end)
+      | return y => r1 end)
       (handle: e2 with
       | effect op.2 x, k => h2
-      | return x => r2 end)
+      | return y => r2 end)
       ρ' τ' Γ3.
   Proof.
-    iIntros (???? Hop ???) "#He #Hh #Hr !# %γ HΓ1Γ3 /=".
+    iIntros (?????? Hop ???) "#He #Hh #Hr !# %γ HΓ1Γ3 /=".
     iDestruct (env_sem_typed_app with "HΓ1Γ3") as "[HΓ1 #HΓ3]".
     iDestruct ("He" with "HΓ1") as "Hbrel".
     simpl. rewrite Hop.
@@ -1853,7 +1856,7 @@ Section compatibility.
       rewrite -!subst_map_insert.
       assert (v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & ->) by done.
       rewrite -!fmap_insert /=.
-      iDestruct ("Hr" $! (<[x:=(v1,v2)]> γ) with "[Hτ HΓ2]") as "Hbrelr".
+      iDestruct ("Hr" $! (<[y:=(v1,v2)]> γ) with "[Hτ HΓ2]") as "Hbrelr".
       { solve_env. iApply env_sem_typed_app. iSplitL; solve_env. }
       simpl. rewrite Hop.
       iApply (brel_wand with "Hbrelr").
@@ -1897,26 +1900,27 @@ Section compatibility.
       iApply (brel_wand with "Hbrelk"). iIntros "!# %% ($&_)".
   Qed.
 
-  Lemma sem_typed_deep_handler_OS op (A B : sem_ty Σ → sem_ty Σ) τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 x k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
+  Lemma sem_typed_deep_handler_OS op (A B : sem_ty Σ → sem_ty Σ) τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 x y k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
     x ∉ env_dom Γ2 →  x ∉ env_dom Γ3 → k ∉ env_dom Γ3 → x ≠ k →
+    y ∉ env_dom Γ2 → y ∉ env_dom Γ3 →
     (sem_sig_labels Σ σ') = op →
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, A α =[OS]=> B α)%S in
     let ρ := (σ · ρ'')%R in
     let ρ':= (σ'· ρ'')%R in
-    ⊢ 
+    ⊢
     sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
     (∀ α, sem_typed ((x, A α) :: (k, B α -{ ρ' }-[OS]-> τ') :: Γ3) h1 h2 ρ' τ' Γ3) -∗
-    sem_typed ((x, τ) :: Γ2 ++ Γ3) r1 r2 ρ' τ' Γ3 -∗
+    sem_typed ((y, τ) :: Γ2 ++ Γ3) r1 r2 ρ' τ' Γ3 -∗
     sem_typed (Γ1 ++ Γ3)
       (handle: e1 with
       | effect op.1 x, rec k => h1
-      | return x => r1 end)
+      | return y => r1 end)
       (handle: e2 with
       | effect op.2 x, rec k => h2
-      | return x => r2 end)
+      | return y => r2 end)
       ρ' τ' Γ3.
   Proof.
-    iIntros (???? Hop ???) "#He #Hh #Hr !# %γ HΓ1Γ3 /=".
+    iIntros (?????? Hop ???) "#He #Hh #Hr !# %γ HΓ1Γ3 /=".
     iDestruct (env_sem_typed_app with "HΓ1Γ3") as "[HΓ1 #HΓ3]".
     iDestruct ("He" with "HΓ1") as "Hbrel".
     simpl. rewrite Hop.
@@ -1927,7 +1931,7 @@ Section compatibility.
       rewrite -!subst_map_insert.
       assert (v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & ->) by done.
       rewrite -!fmap_insert /=.
-      iDestruct ("Hr" $! (<[x:=(v1,v2)]> γ) with "[Hτ HΓ2]") as "Hbrelr".
+      iDestruct ("Hr" $! (<[y:=(v1,v2)]> γ) with "[Hτ HΓ2]") as "Hbrelr".
       { solve_env. iApply env_sem_typed_app. iSplitL; solve_env. }
       iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
       { simpl. rewrite Hop. iApply to_iThy_le_refl. }
@@ -1950,11 +1954,11 @@ Section compatibility.
         by done.
       eassert (ContV f1 ((HandleCtx _ _ op.1
         (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1)
-        (λ: x, subst_map (delete x (fst <$> γ)) r1)) :: k1')
+        (λ: y, subst_map (delete y (fst <$> γ)) r1)) :: k1')
         = fst (ContV f1 (_ :: _), ContV f2 _) ∧
         ContV f2 ((HandleCtx _ _ op.2
         (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2)
-        (λ: x, subst_map (delete x (snd <$> γ)) r2)) :: k2')
+        (λ: y, subst_map (delete y (snd <$> γ)) r2)) :: k2')
         = snd (ContV f1 _, ContV f2 (_ :: _))) as (Hcont1 & Hcont2) by done.
       rewrite Hcont1. rewrite Hcont2.
       rewrite -!fmap_insert. simpl.
@@ -1982,7 +1986,7 @@ Section compatibility.
         assert (v1'' = fst (v1'', v2'') ∧ v2'' = snd (v1'', v2''))
           as (-> & ->) by done.
         rewrite -!fmap_insert /=.
-        iDestruct ("Hr" $! (<[x:=(v1'',v2'')]> γ) with "[Hτ HΓ2]")
+        iDestruct ("Hr" $! (<[y:=(v1'',v2'')]> γ) with "[Hτ HΓ2]")
           as "Hbrelr".
         { solve_env. iApply env_sem_typed_app. iSplitL; solve_env. }
         iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')
@@ -2005,11 +2009,11 @@ Section compatibility.
           as (-> & ->) by done.
         eassert (ContV f1' ((HandleCtx _ _ op.1
           (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1)
-          (λ: x, subst_map (delete x (fst <$> γ)) r1)) :: k1'0)
+          (λ: y, subst_map (delete y (fst <$> γ)) r1)) :: k1'0)
           = fst (ContV f1' (_ :: _), ContV f2' _) ∧
           ContV f2' ((HandleCtx _ _ op.2
           (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2)
-          (λ: x, subst_map (delete x (snd <$> γ)) r2)) :: k2'0)
+          (λ: y, subst_map (delete y (snd <$> γ)) r2)) :: k2'0)
           = snd (ContV f1' _, ContV f2' (_ :: _))) as (Hcont1 & Hcont2) by done.
         rewrite Hcont1. rewrite Hcont2.
         rewrite -!fmap_insert. simpl.
