@@ -1543,6 +1543,16 @@ Section interp_subst.
     by iApply "HD".
   Qed. 
 
+ (* Lemma erase_ctx_extend_row η μ δ ξ D θ :
+       ⊢ erase_ctx η μ δ ξ D -∗ erase_ctx η μ δ (θ :: ξ) D.
+     Proof.
+       iIntros "#HD !# % % % % % % %".
+       iSpecialize ("HD" $! _ _ _ _).
+       rewrite !labels_r_interp_row.
+       rewrite !labels_l_interp_row.
+       iApply "HD".
+     Qed . *)
+
   (* The three per-judgement predicates.  Each quantifies over the
      interpretation environments [η μ ξ] (extended by binders), takes the
      [erase_ctx] hypothesis bundle (only used by [RErase_le]), and yields
@@ -1663,7 +1673,7 @@ Section interp_subst.
       all: admit. (* TArrow_le: IHs need [erase_ctx D'] (see header) *)
     - iApply ty_le_ref; by iApply H.
     - iApply ty_le_type_forall; iIntros (α'); iApply H; by iApply erase_ctx_extend_ty.
-    - iApply ty_le_row_forall; iIntros (θ); iApply H. admit.
+    - iApply ty_le_row_forall; iIntros (θ). iApply H. admit.
     - iApply ty_le_mode_forall; iIntros (ν); iApply H; by iApply erase_ctx_extend_mode.
     - iApply ty_le_rec.
       (* TRec_le: STILL ADMITTED.  [ty_le_rec] (sem_types.v) requires the

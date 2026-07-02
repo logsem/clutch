@@ -1514,7 +1514,7 @@ Inductive typed :
 | Effect_typed Δ Γ1 e s ρ τ Γ2 :
   let Abs_ρ := RCons (SAbs s) ρ in
 
-  vars._fresh s Γ1 ρ τ →
+  vars._fresh s (Γ1 ++ Γ2) ρ τ →
   (<[ s := () ]> Δ) .| Γ1 ⊢ₜ e : Abs_ρ : τ ⊣ Γ2 →
   Δ .| Γ1 ⊢ₜ Effect s e : ρ : τ ⊣ Γ2
 
