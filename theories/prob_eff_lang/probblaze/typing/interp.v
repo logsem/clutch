@@ -1568,6 +1568,20 @@ Section interp_subst.
     □ (∀ η μ δ ξ, erase_ctx η μ δ ξ D -∗
      interp._ty η μ δ α ξ ≤ₜ interp._ty η μ δ β ξ).
 
+  Lemma arr_extend_D ρ' D η μ δ ξ : 
+     erase_ctx η μ δ ξ D -∗ distinct' (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)) -∗
+     logic.valid (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)) -∗
+     erase_ctx η μ δ ξ (le.update_disj_ctx ρ' D).
+  Proof.
+    iIntros "#HD #Hd #Hv !# % % % %".
+    iIntros (???). rewrite /le.update_disj_ctx /le.merge_ctx in H.
+    apply lookup_union_with_Some in H as [(H&_) | [H | H]].
+    (* - apply lookup_row_to_disj_ctx in H.
+       rewrite lookup_union_with in H. *)
+  Admitted.
+    
+    
+
   (* Combined soundness of the three syntactic subtyping judgements, by ONE
      simultaneous induction (combined scheme [le_subtyping_mut]).  The
      per-case tactics and IH names are uniform.  Cases left as documented
@@ -1669,8 +1683,16 @@ Section interp_subst.
     - iApply (ty_le_trans with "[] []"); [by iApply H|by iApply H0].
     - iApply ty_le_bot.
     - iIntros "!#" (v1 v2) "_". done.
-    - iApply (ty_le_arr with "[] [] []").
-      all: admit. (* TArrow_le: IHs need [erase_ctx D'] (see header) *)
+    - iIntros (??) "!# Hτ1 % % Hα". iApply brel_learn. iIntros "#Hd #Hv".
+      iDestruct (arr_extend_D with "[$He]") as "HD'".
+      iSpecialize ("HD'" with "Hd Hv"). 
+      iDestruct (H with "HD'") as "Hαα".
+      iDestruct ("Hαα" with "Hα") as "Hα'".
+      iDestruct ("Hτ1" with "Hα'") as "Hbrel".
+      iApply brel_introduction_mono.
+      { by iApply H0. }
+      iApply (brel_wand with "Hbrel").
+      iIntros (??) "!# Hβ". by iApply H1.
     - iApply ty_le_ref; by iApply H.
     - iApply ty_le_type_forall; iIntros (α'); iApply H; by iApply erase_ctx_extend_ty.
     (* Following case was removed from the syntactic rules *)
