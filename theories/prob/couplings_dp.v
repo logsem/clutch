@@ -226,6 +226,241 @@ Section couplings_theory.
   Qed.
 
 
+  Lemma DPcoupl_dbind_adv_kanto_s_cond
+      `{Countable A, Countable B, Countable A', Countable B'}
+    (f : A → distr A') (g : B → distr B')
+    (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
+    ε δ (E2 : A → B → R) (D2 : A -> B -> R) :
+    (∀ a b, Rle 0 (D2 a b)) →
+    (forall h1 h2,
+        (forall a : A, 0 <= h1 a <= 1) ->
+        (forall b : B, 0 <= h2 b <= 1) ->
+        (forall a b, S a b -> h1 a <= exp (E2 a b) * h2 b + D2 a b) ->
+        (SeriesC (λ a, μ1 a * h1 a) <=
+           exp(ε) * SeriesC (λ b, μ2 b * h2 b) + δ)) ->
+    (∀ a b, S a b → DPcoupl (f a) (g b) S' (E2 a b) (D2 a b)) →
+    DPcoupl (dbind f μ1) (dbind g μ2) S' ε δ.
+  Proof.
+    intros HD2 Hexp Hcoup_fg.
+    eapply (DPcoupl_dbind_adv_kanto_plain _ _ _ _ S' _ _ E2
+              (λ a b, if bool_decide (S a b) then D2 a b else 1)).
+    - intros a b. case_bool_decide; [apply HD2 | lra].
+    - intros h1 h2 Hh1pos Hh2pos Hh1h2.
+      apply Hexp; auto.
+      intros a b Hab.
+      specialize (Hh1h2 a b). rewrite bool_decide_true in Hh1h2; auto.
+    - intros a b. case_bool_decide.
+      + apply Hcoup_fg; auto.
+      + apply DPcoupl_1. lra.
+  Qed.
+
+
+  Lemma DPcoupl_dbind_adv_kanto_add `{Countable A, Countable B, Countable A', Countable B'}
+    (f : A → distr A') (g : B → distr B')
+    (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
+    (ε δ ε' δ' : R) (E2 : A → B → R) (D2 : A -> B -> R) :
+    (0 <= ε) → (0 <= δ) →
+    (∀ a b, Rle 0 (D2 a b)) →
+    (forall h1 h2,
+        (forall a : A, 0 <= h1 a <= 1) ->
+        (forall b : B, 0 <= h2 b <= 1) ->
+        (forall a b, S a b -> h1 a <= exp (E2 a b) * h2 b + D2 a b) ->
+        (SeriesC (λ a, μ1 a * h1 a) <=
+           exp(ε') * SeriesC (λ b, μ2 b * h2 b) + δ')) ->
+    DPcoupl μ1 μ2 S ε δ →
+    (∀ a b, S a b → DPcoupl (f a) (g b) S' (E2 a b) (D2 a b)) →
+    DPcoupl (dbind f μ1) (dbind g μ2) S' (ε + ε') (δ + δ').
+  Proof.
+    intros Hε Hδ HD2 Hexp Hcoup_S Hcoup_fg.
+    eapply (DPcoupl_dbind_adv_kanto_plain _ _ _ _ S' _ _ E2
+              (λ a b, if bool_decide (S a b) then D2 a b else 1)).
+    - intros a b. case_bool_decide; [apply HD2 | lra].
+    - intros h1 h2 Hh1pos Hh2pos Hh1h2.
+      have H_inner : SeriesC (λ a, μ1 a * h1 a) <=
+                     exp ε' * SeriesC (λ b, μ2 b * h2 b) + δ'.
+      { apply Hexp; auto.
+        intros a b Hab.
+        specialize (Hh1h2 a b). rewrite bool_decide_true in Hh1h2; auto. }
+      apply Rle_trans with (exp ε' * SeriesC (λ b, μ2 b * h2 b) + δ').
+      + exact H_inner.
+      + apply Rplus_le_compat.
+        * apply Rmult_le_compat_r.
+          ** apply SeriesC_ge_0'. intros b. apply Rmult_le_pos; [apply μ2 | apply Hh2pos].
+          ** apply exp_mono. lra.
+        * lra.
+    - intros a b. case_bool_decide.
+      + apply Hcoup_fg; auto.
+      + apply DPcoupl_1. lra.
+  Qed.
+
+  Lemma DPcoupl_dbind_adv_kanto_frame `{Countable A, Countable B, Countable A', Countable B'}
+    (f : A → distr A') (g : B → distr B')
+    (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
+    (ε δ ε' δ' : R) (E2 : A → B → R) (D2 : A -> B -> R) :
+    (0 <= ε) → (0 <= δ) →
+    (∀ a b, Rle 0 (D2 a b)) →
+    (∀ a b, Rle 0 (E2 a b)) →
+    (forall h1 h2,
+        (forall a : A, 0 <= h1 a <= 1) ->
+        (forall b : B, 0 <= h2 b <= 1) ->
+        (forall a b, S a b -> h1 a <= exp (E2 a b) * h2 b + D2 a b) ->
+        (SeriesC (λ a, μ1 a * h1 a) <=
+           exp(ε') * SeriesC (λ b, μ2 b * h2 b) + δ')) ->
+    (∀ a b, S a b → DPcoupl (f a) (g b) S' (ε + E2 a b) (δ + D2 a b)) →
+    DPcoupl (dbind f μ1) (dbind g μ2) S' (ε + ε') (δ + δ').
+  Proof.
+    intros Hε Hδ HD2 HE2pos Hkanto Hcont.
+    intros h k Hh Hk Hhk.
+    rewrite /pmf/=/dbind_pmf.
+    setoid_rewrite <- SeriesC_scal_r.
+    rewrite <-(fubini_pos_seriesC (λ '(a,x), μ1 x * f x a * h a)).
+    2: { intros a' a. specialize (Hh a') ; real_solver. }
+    2: { intro a'.
+         specialize (Hh a').
+         apply (ex_seriesC_le _ μ1); auto.
+         intro a; split.
+         + apply Rmult_le_pos; real_solver.
+         + rewrite <- Rmult_1_r. rewrite Rmult_assoc.
+           apply Rmult_le_compat_l; auto.
+           rewrite <- Rmult_1_r.
+           apply Rmult_le_compat; real_solver. }
+    2: { setoid_rewrite SeriesC_scal_r.
+         apply (ex_seriesC_le _ (λ a : A', SeriesC (λ x : A, μ1 x * f x a))); auto.
+         + intros a'; specialize (Hh a'); split.
+           * apply Rmult_le_pos; [ | lra].
+             apply (pmf_pos ((dbind f μ1)) a').
+           * rewrite <- Rmult_1_r.
+             apply Rmult_le_compat_l; auto.
+             -- apply SeriesC_ge_0'. real_solver.
+             -- real_solver.
+         + apply (pmf_ex_seriesC (dbind f μ1)). }
+    assert (SeriesC (λ b : A, SeriesC (λ a : A', μ1 b * f b a * h a)) =
+              SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h a))) as ->.
+    { apply SeriesC_ext; intro.
+      rewrite <- SeriesC_scal_l. apply SeriesC_ext; real_solver. }
+    rewrite <-(fubini_pos_seriesC (λ '(b,x), μ2 x * g x b * k b)).
+    2:{ intros b' b. specialize (Hk b'). real_solver. }
+    2:{ intro b'.
+        specialize (Hk b').
+        apply (ex_seriesC_le _ μ2); auto.
+        intro b; split.
+        - apply Rmult_le_pos; real_solver.
+        - rewrite <- Rmult_1_r. rewrite Rmult_assoc.
+          apply Rmult_le_compat_l; auto.
+          rewrite <- Rmult_1_r.
+          apply Rmult_le_compat; real_solver. }
+    2:{ setoid_rewrite SeriesC_scal_r.
+        apply (ex_seriesC_le _ (λ a : B', SeriesC (λ b : B, μ2 b * g b a))); auto.
+        - intros b'; specialize (Hk b'); split.
+          + apply Rmult_le_pos; [ | lra].
+            apply (pmf_pos ((dbind g μ2)) b').
+          + rewrite <- Rmult_1_r.
+            apply Rmult_le_compat_l; auto.
+            * apply SeriesC_ge_0'. real_solver.
+            * real_solver.
+        - apply (pmf_ex_seriesC (dbind g μ2)). }
+    assert (SeriesC (λ b : B, SeriesC (λ a : B', μ2 b * g b a * k a))
+            = SeriesC (λ b : B, μ2 b * SeriesC (λ a : B', g b a * k a))) as ->.
+    { apply SeriesC_ext; intro.
+      rewrite <- SeriesC_scal_l. apply SeriesC_ext; real_solver. }
+    set (X a := SeriesC (λ a' : A', f a a' * h a')).
+    replace (λ b, μ1 b * _) with (λ a, μ1 a * X a) by auto.
+    set (Y b := SeriesC (λ b' : B', g b b' * k b')).
+    replace (λ b, μ2 b * _) with (λ b, μ2 b * Y b) by auto.
+    have HXbnd : ∀ a, 0 <= X a <= 1.
+    { intro a. rewrite /X; split.
+      + series.
+      + trans (SeriesC (f a)) => //.
+        apply SeriesC_le => //. intros a'. destruct (Hh a'). real_solver. }
+    have HYbnd : ∀ b, 0 <= Y b <= 1.
+    { intro b. rewrite /Y; split.
+      + series.
+      + trans (SeriesC (g b)) => //.
+        apply SeriesC_le => //. intros b'. destruct (Hk b'). real_solver. }
+    set (X' a := Rmax 0 (X a - δ)).
+    set (Y' b := Rmin 1 (exp ε * Y b)).
+    have HX'bnd : ∀ a, 0 <= X' a <= 1.
+    { intro a. rewrite /X'. split; [apply Rmax_l|].
+      apply Rmax_lub; [lra|].
+      apply Rcomplements.Rle_minus_l. transitivity 1; [apply HXbnd|]. lra. }
+    have HY'bnd : ∀ b, 0 <= Y' b <= 1.
+    { intro b. rewrite /Y'. split.
+      + apply Rmin_glb; [lra|].
+        apply Rmult_le_pos; [left; apply exp_pos|apply HYbnd].
+      + apply Rmin_l. }
+    have Hpair : ∀ a b, S a b → X' a <= exp (E2 a b) * Y' b + D2 a b.
+    { intros a b HSab.
+      rewrite /X' /Y'.
+      apply Rmax_lub.
+      - apply Rplus_le_le_0_compat.
+        + apply Rmult_le_pos; [left; apply exp_pos|].
+          apply Rmin_glb; [lra|].
+          apply Rmult_le_pos; [left; apply exp_pos|apply HYbnd].
+        + apply HD2.
+      - have Hc := Hcont a b HSab h k Hh Hk Hhk.
+        destruct (Rle_or_lt (exp ε * Y b) 1) as [Hle | Hgt].
+        + rewrite Rmin_right; [|exact Hle].
+          have Hkey : exp (ε + E2 a b) * Y b = exp (E2 a b) * (exp ε * Y b).
+          { rewrite exp_plus. ring. }
+          rewrite Hkey in Hc. unfold X. lra.
+        + rewrite Rmin_left; [|lra]. rewrite Rmult_1_r.
+          have HexpE2 : 1 <= exp (E2 a b).
+          { exact (exp_pos_ge_1 _ (HE2pos a b)). }
+          have := HXbnd a. have := HD2 a b. lra. }
+    have HK := Hkanto X' Y' HX'bnd HY'bnd Hpair.
+    have HA : SeriesC (λ a, μ1 a * X a) <=
+              SeriesC (λ a, μ1 a * X' a) + δ.
+    { rewrite /X'.
+      transitivity (SeriesC (λ a, μ1 a * Rmax 0 (X a - δ) + μ1 a * δ)).
+      - apply SeriesC_le.
+        + intros a; split.
+          * apply Rmult_le_pos; [apply μ1|apply (HXbnd a).1].
+          * rewrite -Rmult_plus_distr_l.
+            apply Rmult_le_compat_l; [apply μ1|].
+            have := Rmax_r 0 (X a - δ). lra.
+        + apply ex_seriesC_plus.
+          * apply (ex_seriesC_le _ μ1); auto.
+            intros a; split; [apply Rmult_le_pos; [apply μ1|apply Rmax_l]|].
+            rewrite -{2}(Rmult_1_r (μ1 a)).
+            apply Rmult_le_compat_l; [apply μ1|].
+            have hxub := (HXbnd a).2.
+            apply Rmax_lub; lra.
+          * apply ex_seriesC_scal_r; auto.
+      - rewrite SeriesC_plus.
+        + apply Rplus_le_compat_l.
+          rewrite SeriesC_scal_r.
+          rewrite -{2}(Rmult_1_l δ).
+          apply Rmult_le_compat_r; [apply Hδ|apply pmf_SeriesC].
+        + apply (ex_seriesC_le _ μ1); auto.
+          intros a; split; [apply Rmult_le_pos; [apply μ1|apply Rmax_l]|].
+          rewrite -{2}(Rmult_1_r (μ1 a)).
+          apply Rmult_le_compat_l; [apply μ1|].
+          have hxub := (HXbnd a).2.
+          apply Rmax_lub; lra.
+        + apply ex_seriesC_scal_r; auto. }
+    have HC : exp ε' * SeriesC (λ b, μ2 b * Y' b) <=
+              exp (ε + ε') * SeriesC (λ b, μ2 b * Y b).
+    { have HYineq : SeriesC (λ b, μ2 b * Y' b) <=
+                exp ε * SeriesC (λ b, μ2 b * Y b).
+      { rewrite <- SeriesC_scal_l.
+        apply SeriesC_le.
+        - intros b; split.
+          + apply Rmult_le_pos; [apply μ2|apply (HY'bnd b).1].
+          + rewrite /Y'.
+            rewrite (Rmult_comm (exp ε) (μ2 b * Y b)) Rmult_assoc.
+            apply Rmult_le_compat_l; [apply μ2|].
+            rewrite -(Rmult_comm (exp ε)). apply Rmin_r.
+        - apply ex_seriesC_scal_l.
+          apply (ex_seriesC_le _ μ2); auto.
+          intros b; split; [apply Rmult_le_pos; [apply μ2|apply (HYbnd b).1]|].
+          rewrite -{2}(Rmult_1_r (μ2 b)).
+          apply Rmult_le_compat_l; [apply μ2|apply (HYbnd b).2]. }
+      rewrite exp_plus.
+      have Heps' : 0 < exp ε' := exp_pos _.
+      nra. }
+
+    lra.
+  Qed.
 
 
   Lemma DPcoupl_dbind_adv_lhs `{Countable A, Countable B, Countable A', Countable B'} (f : A → distr A') (g : B → distr B')
@@ -890,6 +1125,519 @@ Lemma DPcoupl_dbind_adv_rhs `{Countable A, Countable B, Countable A', Countable 
      Qed. *)
 
 
+  Lemma DPcoupl_choice_kernel `{Countable A, Countable B, Countable A', Countable B'}
+    (f : A → distr A') (g : B → distr B')
+    (P : A → Prop) (S1 S2 : A → B → Prop) (S' : A' → B' → Prop)
+    (ε2 ε2' δ2 : R) :
+    (0 <= δ2) →
+    (∀ a b, P a ∧ S1 a b → DPcoupl (f a) (g b) S' ε2 δ2) →
+    (∀ a b, ¬P a ∧ S2 a b → DPcoupl (f a) (g b) S' ε2' δ2) →
+    ∀ a b,
+      DPcoupl (f a) (g b) S'
+        (if bool_decide (P a) then ε2 else ε2')
+        (if bool_decide ((P a ∧ S1 a b) ∨ (¬P a ∧ S2 a b)) then δ2 else 1).
+  Proof.
+    intros Hδ2 Hfg1 Hfg2 a b.
+    case_bool_decide as HP.
+    - case_bool_decide as Hcov.
+      + apply Hfg1; naive_solver.
+      + apply DPcoupl_1; lra.
+    - case_bool_decide as Hcov.
+      + apply Hfg2; naive_solver.
+      + apply DPcoupl_1; lra.
+  Qed.
+
+
+  Lemma DPcoupl_adv_kanto `{Countable A, Countable B}
+      (μ1 : distr A) (μ2 : distr B)
+      (S : A → B → Prop)
+      (ε1 ε2 δ1 δ2 ε δ : R) :
+      (0 <= δ1) → (0 <= δ2) →
+      (ε1 + ε2 <= ε) →
+      (δ1 + δ2 <= δ) →
+      DPcoupl μ1 μ2 S ε1 δ1 →
+      ∀ (h1 : A → R) (h2 : B → R),
+        (∀ a, 0 <= h1 a <= 1) →
+        (∀ b, 0 <= h2 b <= 1) →
+        (∀ a b, S a b → h1 a <= exp ε2 * h2 b + δ2) →
+        SeriesC (λ a, μ1 a * h1 a) <= exp ε * SeriesC (λ b, μ2 b * h2 b) + δ.
+  Proof.
+    intros Hδ1 Hδ2 Hεleq Hδleq Hcoup h1 h2 Hh1pos Hh2pos HKanto.
+    (* Split [h1 a] into its δ2-shifted part [Rmax 0 (h1 a - δ2)] and a
+       residual bounded by δ2. The shift keeps δ2 out of the exp scaling. *)
+    assert (SeriesC (λ a : A, μ1 a * h1 a) <=
+              SeriesC (λ a : A, μ1 a * Rmax 0 (h1 a - δ2)) +
+              SeriesC (λ a : A, μ1 a * δ2)) as Htrans.
+    {
+      rewrite -SeriesC_plus.
+      - apply SeriesC_le'.
+        + intros a.
+          rewrite -Rmult_plus_distr_l.
+          apply Rmult_le_compat_l; auto.
+          rewrite Rplus_max_distr_r.
+          etrans; [|apply Rmax_r]. lra.
+        + apply (ex_seriesC_le _ μ1); auto.
+          intros a; split.
+          * apply Rmult_le_pos; auto. specialize (Hh1pos a); lra.
+          * rewrite -{2}(Rmult_1_r (μ1 a)).
+            apply Rmult_le_compat_l; auto. specialize (Hh1pos a); lra.
+        + apply ex_seriesC_plus.
+          * apply (ex_seriesC_le _ μ1); auto.
+            intro a; split.
+            ** apply Rmult_le_pos; auto. apply Rmax_l.
+            ** rewrite <- Rmult_1_r.
+               apply Rmult_le_compat_l; auto.
+               apply Rmax_lub; [lra|].
+               apply Rle_minus_l. specialize (Hh1pos a). lra.
+          * apply ex_seriesC_scal_r; auto.
+      - apply (ex_seriesC_le _ μ1); auto.
+        intros a; split.
+        * apply Rmult_le_pos; auto. apply Rmax_l.
+        * rewrite -{2}(Rmult_1_r (μ1 a)).
+          apply Rmult_le_compat_l; auto.
+          apply Rmax_lub; [lra|].
+          apply Rle_minus_l. specialize (Hh1pos a). lra.
+      - apply ex_seriesC_scal_r; auto.
+    }
+    etrans; [apply Htrans|].
+    (* The residual [SeriesC (μ1 · δ2)] is bounded by δ2 ≤ δ - δ1. *)
+    assert (SeriesC (λ a : A, μ1 a * δ2) <= δ2) as Hres.
+    { rewrite SeriesC_scal_r. rewrite -{2}(Rmult_1_l δ2).
+      apply Rmult_le_compat_r; auto. }
+    (* The shifted part is bounded via the coupling, against
+       [h3 b := Rmin 1 (exp ε2 * h2 b)]. *)
+    set (h3 := λ b, Rmin 1 (exp ε2 * h2 b)).
+    assert (∀ a b, S a b → Rmax 0 (h1 a - δ2) <= h3 b) as Htrans3.
+    {
+      intros a b HS. rewrite /h3.
+      apply Rmin_glb.
+      - apply Rmax_lub; [lra|]. specialize (Hh1pos a); lra.
+      - apply Rmax_lub.
+        + apply Rmult_le_pos; [left; apply exp_pos|specialize (Hh2pos b); lra].
+        + apply Rle_minus_l. by apply HKanto.
+    }
+    epose proof (Hcoup (λ a, Rmax 0 (h1 a - δ2)) h3 _ _ Htrans3) as Haux.
+    etrans.
+    { apply Rplus_le_compat; [apply Haux | apply Hres]. }
+    (* Close: exp ε1 * Σ μ2 · Rmin 1 (exp ε2 · h2) + δ1 + δ2
+              <= exp ε * Σ μ2 · h2 + δ.
+       It suffices to show
+         exp ε1 * Σ μ2 · h3  <= exp ε * Σ μ2 · h2
+       and  δ1 + δ2 <= δ. *)
+    assert (exp ε1 * SeriesC (λ b, μ2 b * h3 b) <=
+              exp ε * SeriesC (λ b, μ2 b * h2 b)) as Hmain.
+    {
+      rewrite -!SeriesC_scal_l.
+      apply SeriesC_le.
+      - intros b; split.
+        + apply Rmult_le_pos; [left; apply exp_pos|].
+          apply Rmult_le_pos; auto. rewrite /h3.
+          apply Rmin_glb; [lra|].
+          apply Rmult_le_pos; [left; apply exp_pos|specialize (Hh2pos b); lra].
+        + rewrite /h3.
+          etrans.
+          { apply Rmult_le_compat_l; [left; apply exp_pos|].
+            apply Rmult_le_compat_l; [auto|apply Rmin_r]. }
+          (* exp ε1 * (μ2 b * (exp ε2 * h2 b)) <= exp ε * (μ2 b * h2 b) *)
+          assert (exp ε1 * (μ2 b * (exp ε2 * h2 b))
+                  = (exp ε1 * exp ε2) * (μ2 b * h2 b)) as -> by lra.
+          apply Rmult_le_compat_r.
+          * apply Rmult_le_pos; auto. specialize (Hh2pos b); lra.
+          * rewrite -exp_plus. apply exp_mono; lra.
+      - apply ex_seriesC_scal_l.
+        apply (ex_seriesC_le _ μ2); auto.
+        intros b; split.
+        + apply Rmult_le_pos; auto. specialize (Hh2pos b); lra.
+        + rewrite -{2}(Rmult_1_r (μ2 b)).
+          apply Rmult_le_compat_l; auto. specialize (Hh2pos b); lra.
+    }
+    lra.
+    Unshelve.
+    - intros a. split.
+      + apply Rmax_l.
+      + apply Rmax_lub; [lra|]. apply Rle_minus_r. specialize (Hh1pos a); lra.
+    - intros b. split.
+      + rewrite /h3. apply Rmin_glb; [lra|].
+        apply Rmult_le_pos; [left; apply exp_pos|specialize (Hh2pos b); lra].
+      + rewrite /h3. apply Rmin_l.
+  Qed.
+
+
+  Lemma DPcoupl_choice_adv_kanto `{Countable A, Countable B}
+      (μ1 : distr A) (μ2 : distr B)
+      (P : A → Prop) (S1 S2 : A → B → Prop)
+      (ε1 ε2 δ1 δ2 ε1' ε2' δ1' ε δ : R) :
+      (0 <= δ1) → (0 <= δ2) → (0 <= δ1') →
+      (ε1 + ε2 <= ε) → (ε1' + ε2' <= ε) →
+      (δ1 + δ1' + δ2 <= δ) →
+      (∀ a a' b, P a → ¬P a' → ¬(S1 a b ∧ S2 a' b)) →
+      DPcoupl μ1 μ2 S1 ε1 δ1 →
+      DPcoupl μ1 μ2 S2 ε1' δ1' →
+      ∀ (h1 : A → R) (h2 : B → R),
+        (∀ a, 0 <= h1 a <= 1) →
+        (∀ b, 0 <= h2 b <= 1) →
+        (∀ a b, P a → S1 a b → h1 a <= exp ε2 * h2 b + δ2) →
+        (∀ a b, ¬P a → S2 a b → h1 a <= exp ε2' * h2 b + δ2) →
+        SeriesC (λ a, μ1 a * h1 a) <= exp ε * SeriesC (λ b, μ2 b * h2 b) + δ.
+  Proof.
+    intros Hδ1 Hδ2 Hδ1' Hεleq Hεleq' Hδleq
+      Hindep Hcoup_S1 Hcoup_S2 h1 h2 Hh1pos Hh2pos HKanto1 HKanto2.
+    rewrite /DPcoupl in Hcoup_S1.
+    rewrite /DPcoupl in Hcoup_S2.
+
+    (* Split the sum depending on whether P holds *)
+    assert (SeriesC (λ a : A, μ1 a * h1 a) =
+              SeriesC (λ a : A, μ1 a * (if (bool_decide (P a)) then h1 a else 0)) +
+              SeriesC (λ a : A, μ1 a * (if (bool_decide (¬ P a)) then h1 a else 0))) as ->.
+    {
+      rewrite -SeriesC_plus.
+      - apply SeriesC_ext.
+        intro a.
+        case_bool_decide; case_bool_decide; real_solver.
+      - apply (ex_seriesC_le _ μ1); auto.
+        intros a; split.
+        + apply Rmult_le_pos; auto.
+          case_bool_decide; [|lra]. specialize (Hh1pos a); lra.
+        + rewrite -{2}(Rmult_1_r (μ1 _)).
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; [|lra]. specialize (Hh1pos a); lra.
+      - apply (ex_seriesC_le _ μ1); auto.
+        intros a; split.
+        + apply Rmult_le_pos; auto.
+          case_bool_decide; [|lra]. specialize (Hh1pos a); lra.
+        + rewrite -{2}(Rmult_1_r (μ1 _)).
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; [|lra]. specialize (Hh1pos a); lra.
+    }
+
+    assert (
+        SeriesC (λ a : A, μ1 a * (if (bool_decide (P a)) then h1 a else 0))
+        <= SeriesC (λ a : A, μ1 a * if (bool_decide (P a)) then (Rmax 0 (h1 a - δ2)) else 0) +
+          SeriesC (λ a, μ1 a * (if (bool_decide (P a)) then δ2 else 0))
+      ) as Htrans1.
+    {
+      rewrite -SeriesC_plus.
+      - apply SeriesC_le'.
+        + intros a.
+          rewrite -Rmult_plus_distr_l.
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; last by lra.
+          rewrite Rplus_max_distr_r.
+          etrans; [|apply Rmax_r].
+          lra.
+        + apply (ex_seriesC_le _ μ1); auto.
+          intros a; split.
+          * apply Rmult_le_pos; auto.
+            case_bool_decide; last by lra. specialize (Hh1pos a); lra.
+          * case_bool_decide.
+            ** rewrite -{2}(Rmult_1_r (μ1 a)).
+               apply Rmult_le_compat_l; auto. specialize (Hh1pos a); lra.
+            ** rewrite Rmult_0_r; auto.
+        + apply ex_seriesC_plus.
+          * apply (ex_seriesC_le _ μ1); auto.
+            intro a; split.
+            ** apply Rmult_le_pos; auto.
+               case_bool_decide; last by lra.
+               apply Rmax_l.
+            ** rewrite <- Rmult_1_r.
+               apply Rmult_le_compat_l; auto.
+               case_bool_decide; last by lra.
+               apply Rmax_lub; [lra|].
+               apply Rle_minus_l. specialize (Hh1pos a). lra.
+          * apply (ex_seriesC_le _ (λ x, μ1 x * δ2)); [|apply ex_seriesC_scal_r; auto].
+            intro a; split.
+            ** case_bool_decide; real_solver.
+            ** case_bool_decide; real_solver.
+      - apply (ex_seriesC_le _ μ1); auto.
+        intros a; split.
+        * case_bool_decide; last by lra.
+          apply Rmult_le_pos; auto.
+          apply Rmax_l.
+        * rewrite -{2}(Rmult_1_r (μ1 a)).
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; [|lra].
+          apply Rmax_lub; [lra|].
+          apply Rle_minus_l. specialize (Hh1pos a). lra.
+     - apply (ex_seriesC_le _ (λ x, μ1 x * δ2)); [|apply ex_seriesC_scal_r; auto].
+       intro a; split; case_bool_decide; real_solver.
+    }
+
+    assert (
+        SeriesC (λ a : A, μ1 a * (if (bool_decide (¬ P a)) then h1 a else 0))
+        <= SeriesC (λ a : A, μ1 a * if (bool_decide (¬ P a)) then (Rmax 0 (h1 a - δ2)) else 0) +
+            SeriesC (λ a, μ1 a * (if (bool_decide (¬ P a)) then δ2 else 0))
+      ) as Htrans2.
+    {
+      rewrite -SeriesC_plus.
+      - apply SeriesC_le'.
+        + intros a.
+          rewrite -Rmult_plus_distr_l.
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; last by lra.
+          rewrite Rplus_max_distr_r.
+          etrans; [|apply Rmax_r].
+          lra.
+        + apply (ex_seriesC_le _ μ1); auto.
+          intros a; split.
+          * apply Rmult_le_pos; auto.
+            case_bool_decide; last by lra. specialize (Hh1pos a); lra.
+          * case_bool_decide.
+            ** rewrite -{2}(Rmult_1_r (μ1 a)).
+               apply Rmult_le_compat_l; auto. specialize (Hh1pos a); lra.
+            ** rewrite Rmult_0_r; auto.
+        + apply ex_seriesC_plus.
+          * apply (ex_seriesC_le _ μ1); auto.
+            intro a; split.
+            ** apply Rmult_le_pos; auto.
+               case_bool_decide; last by lra.
+               apply Rmax_l.
+            ** rewrite <- Rmult_1_r.
+               apply Rmult_le_compat_l; auto.
+               case_bool_decide; last by lra.
+               apply Rmax_lub; [lra|].
+               apply Rle_minus_l. specialize (Hh1pos a). lra.
+          * apply (ex_seriesC_le _ (λ x, μ1 x * δ2)); [|apply ex_seriesC_scal_r; auto].
+            intro a; split.
+            ** case_bool_decide; real_solver.
+            ** case_bool_decide; real_solver.
+      - apply (ex_seriesC_le _ μ1); auto.
+        intros a; split.
+        * case_bool_decide; last by lra.
+          apply Rmult_le_pos; auto.
+          apply Rmax_l.
+        * rewrite -{2}(Rmult_1_r (μ1 a)).
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; [|lra].
+          apply Rmax_lub; [lra|].
+          apply Rle_minus_l. specialize (Hh1pos a). lra.
+     - apply (ex_seriesC_le _ (λ x, μ1 x * δ2)); [|apply ex_seriesC_scal_r; auto].
+       intro a; split; case_bool_decide; real_solver.
+    }
+
+    erewrite (Rplus_le_compat); eauto.
+
+    assert (forall a b, S1 a b -> (if bool_decide (P a) then Rmax 0 (h1 a - δ2) else 0) <=
+                 (if bool_decide (exists a', P a' /\ S1 a' b ) then Rmin 1 (exp (ε2) * h2 b) else 0 ) ) as Htrans3.
+    {
+      intros a b HS1.
+      case_bool_decide as HdecL; case_bool_decide as HdecR.
+      - apply Rmin_glb; apply Rmax_lub; first by lra.
+        + apply Rle_minus_l.
+          specialize (Hh1pos a); lra.
+        + apply Rmult_le_pos; [left; apply exp_pos|specialize (Hh2pos b); lra].
+        + apply Rle_minus_l.
+          by apply HKanto1.
+      - exfalso.
+        apply HdecR.
+        by exists a.
+      - apply Rmin_glb; first lra.
+        apply Rmult_le_pos.
+        + left. by apply exp_pos.
+        + apply Hh2pos.
+      - lra.
+    }
+
+    assert (forall a b, S2 a b -> (if bool_decide (¬ P a) then Rmax 0 (h1 a - δ2) else 0) <=
+                 (if bool_decide (exists a', ¬ P a' /\ S2 a' b) then Rmin 1 (exp (ε2') * h2 b) else 0) ) as Htrans4.
+    {
+      intros a b HS4.
+      case_bool_decide as HdecL; case_bool_decide as HdecR.
+      - apply Rmin_glb; apply Rmax_lub; first by lra.
+        + apply Rle_minus_l.
+          specialize (Hh1pos a); lra.
+        + apply Rmult_le_pos; [left; apply exp_pos|specialize (Hh2pos b); lra].
+        + apply Rle_minus_l.
+          by apply HKanto2.
+      - exfalso.
+        apply HdecR.
+        by exists a.
+      - apply Rmin_glb; first lra.
+        apply Rmult_le_pos.
+        + left. by apply exp_pos.
+        + apply Hh2pos.
+      - lra.
+    }
+
+    epose proof (Hcoup_S1 _ _ _ _ Htrans3) as HauxS1.
+    epose proof (Hcoup_S2 _ _ _ _ Htrans4) as HauxS2.
+    simpl in HauxS1.
+    simpl in HauxS2.
+    erewrite Rplus_le_compat; eauto.
+    2:{
+      apply Rplus_le_compat; [apply HauxS1 | apply Rle_refl].
+    }
+    2:{
+      apply Rplus_le_compat; [apply HauxS2 | apply Rle_refl].
+    }
+
+    do 3 rewrite -SeriesC_scal_l.
+    assert (forall a b c d e f : R, a + b + c + (d + e + f) = (a + d) + (b + e + (c + f))) as ->.
+    { intros. lra. }
+    rewrite -SeriesC_plus.
+    2:{
+      apply (ex_seriesC_le _ (λ b, exp ε1 * μ2 b * exp ε2)).
+      - intros b.
+        split.
+        + apply Rmult_le_pos; [left; apply exp_pos |].
+          apply Rmult_le_pos; auto.
+          case_bool_decide; [|lra].
+          apply Rmin_glb; [lra|].
+          apply Rmult_le_pos; [left; apply exp_pos |specialize (Hh2pos b); lra].
+        + rewrite Rmult_assoc.
+          apply Rmult_le_compat_l; [left; apply exp_pos |].
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; [|left; apply exp_pos].
+          etrans; [apply Rmin_r |].
+          rewrite -{2}(Rmult_1_r (exp ε2)).
+          apply Rmult_le_compat_l; [left; apply exp_pos|].
+          specialize (Hh2pos b); lra.
+      - apply ex_seriesC_scal_r.
+        by apply ex_seriesC_scal_l.
+    }
+    2:{
+      apply (ex_seriesC_le _ (λ b, exp ε1' * μ2 b * exp ε2')).
+      - intros b.
+        split.
+        + apply Rmult_le_pos; [left; apply exp_pos |].
+          apply Rmult_le_pos; auto.
+          case_bool_decide; [|lra].
+          apply Rmin_glb; [lra|].
+          apply Rmult_le_pos; [left; apply exp_pos |specialize (Hh2pos b); lra].
+        + rewrite Rmult_assoc.
+          apply Rmult_le_compat_l; [left; apply exp_pos |].
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; [|left; apply exp_pos].
+          etrans; [apply Rmin_r |].
+          rewrite -{2}(Rmult_1_r (exp ε2')).
+          apply Rmult_le_compat_l; [left; apply exp_pos|].
+          specialize (Hh2pos b); lra.
+      - apply ex_seriesC_scal_r.
+        by apply ex_seriesC_scal_l.
+    }
+    apply Rplus_le_compat; last first.
+    {
+      rewrite -SeriesC_plus.
+      - etrans; [|apply Hδleq].
+        apply Rplus_le_compat; [lra|].
+        transitivity (SeriesC (λ x, μ1 x * δ2)).
+        + apply SeriesC_le; [|apply ex_seriesC_scal_r; auto].
+          intros; case_bool_decide; case_bool_decide; try done.
+          * rewrite Rmult_0_r Rplus_0_r.
+            real_solver.
+          * rewrite Rmult_0_r Rplus_0_l.
+            real_solver.
+        + rewrite SeriesC_scal_r.
+          rewrite -{2}(Rmult_1_l δ2).
+          apply Rmult_le_compat_r; auto.
+      - apply (ex_seriesC_le _ (λ x, μ1 x * δ2)); [|apply ex_seriesC_scal_r; auto].
+        intro a; split; case_bool_decide; real_solver.
+      - apply (ex_seriesC_le _ (λ x, μ1 x * δ2)); [|apply ex_seriesC_scal_r; auto].
+        intro a; split; case_bool_decide; real_solver.
+    }
+    apply SeriesC_le.
+    2:{
+      apply ex_seriesC_scal_l.
+      apply (ex_seriesC_le _ μ2); auto.
+      intros b; split.
+      - apply Rmult_le_pos; auto. specialize (Hh2pos b); lra.
+      - rewrite -{2}(Rmult_1_r (μ2 b)).
+        apply Rmult_le_compat_l; auto. specialize (Hh2pos b); lra.
+    }
+
+    intros b.
+    split.
+    - case_bool_decide as HdecL; case_bool_decide as HdecR.
+      + apply Rplus_le_le_0_compat.
+        * apply Rmult_le_pos; [left; apply exp_pos|].
+          apply Rmult_le_pos; auto.
+          apply Rmin_glb; [lra|].
+          apply Rmult_le_pos; [left; apply exp_pos|specialize (Hh2pos b); lra].
+        * apply Rmult_le_pos; [left; apply exp_pos|].
+          apply Rmult_le_pos; auto.
+          apply Rmin_glb; [lra|].
+          apply Rmult_le_pos; [left; apply exp_pos|specialize (Hh2pos b); lra].
+     + rewrite !Rmult_0_r Rplus_0_r.
+       apply Rmult_le_pos; [left; apply exp_pos|].
+       apply Rmult_le_pos; auto.
+       apply Rmin_glb; [lra|].
+       apply Rmult_le_pos; [left; apply exp_pos|specialize (Hh2pos b); lra].
+     + rewrite !Rmult_0_r Rplus_0_l.
+       apply Rmult_le_pos; [left; apply exp_pos|].
+       apply Rmult_le_pos; auto.
+       apply Rmin_glb; [lra|].
+       apply Rmult_le_pos; [left; apply exp_pos|specialize (Hh2pos b); lra].
+     + lra.
+
+    - specialize (Hh2pos b) as Hh2b.
+      assert (0 <= μ2 b) as Hμ2b by auto.
+      do 2 rewrite -Rmult_assoc.
+      assert (forall x y z r, x * y * (z * r) = (x * z) * (y * r)) as Haux_rw by real_solver.
+      case_bool_decide as HdecL; case_bool_decide as HdecR.
+      + destruct HdecL as [a [? ?]].
+        destruct HdecR as [a' [? ?]].
+        exfalso.
+        eapply Hindep; eauto.
+      + rewrite Rmult_0_r Rplus_0_r.
+        rewrite Rmult_min_distr_l.
+        * eapply Rle_trans ; [apply Rmin_r|].
+          rewrite Haux_rw.
+          rewrite -exp_plus.
+          apply Rmult_le_compat.
+          ** left; apply exp_pos.
+          ** apply Rmult_le_pos; auto; lra.
+          ** apply exp_mono; auto.
+          ** lra.
+       * apply Rmult_le_pos; auto.
+         left; apply exp_pos.
+      + rewrite Rmult_0_r Rplus_0_l.
+        rewrite Rmult_min_distr_l.
+        * eapply Rle_trans ; [apply Rmin_r|].
+          rewrite Haux_rw.
+          rewrite -exp_plus.
+          apply Rmult_le_compat.
+          ** left; apply exp_pos.
+          ** apply Rmult_le_pos; auto; lra.
+          ** apply exp_mono; auto.
+          ** lra.
+       * apply Rmult_le_pos; auto.
+         left; apply exp_pos.
+      + rewrite !Rmult_0_r Rplus_0_l.
+        apply Rmult_le_pos; [left; apply exp_pos|].
+        apply Rmult_le_pos; auto; lra.
+   Unshelve.
+   1:{
+     intros a. split.
+     - case_bool_decide; [apply Rmax_l|lra].
+     - case_bool_decide; [|lra].
+       apply Rmax_lub; [lra|].
+       apply Rle_minus_r.
+       specialize (Hh1pos a); lra.
+   }
+   1:{
+     intros b. split.
+     - case_bool_decide; [|lra].
+       apply Rmin_glb; [lra|].
+       apply Rmult_le_pos; [left; apply exp_pos|specialize (Hh2pos b); lra].
+     - case_bool_decide; [apply Rmin_l|lra].
+   }
+   1:{
+     intros a. split.
+     - case_bool_decide; [apply Rmax_l|lra].
+     - case_bool_decide; [|lra].
+       apply Rmax_lub; [lra|].
+       apply Rle_minus_r.
+       specialize (Hh1pos a); lra.
+   }
+   1:{
+     intros b. split.
+     - case_bool_decide; [|lra].
+       apply Rmin_glb; [lra|].
+       apply Rmult_le_pos; [left; apply exp_pos|specialize (Hh2pos b); lra].
+     - case_bool_decide; [apply Rmin_l|lra].
+   }
+  Qed.
+
+
   Lemma DPcoupl_dbind_choice `{Countable A, Countable B, Countable A', Countable B'} (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (S1 : A → B → Prop) (S2 : A → B → Prop) (S' : A' → B' → Prop)
     ε1 ε2 δ1 δ2 ε1' ε2' δ1' ε δ:
@@ -904,6 +1652,40 @@ Lemma DPcoupl_dbind_adv_rhs `{Countable A, Countable B, Countable A', Countable 
     DPcoupl μ1 μ2 S2 ε1' δ1' →
     DPcoupl (dbind f μ1) (dbind g μ2) S' ε δ.
   Proof.
+    intros Hδ1 Hδ2 Hδ1' Hεleq Hεleq' Hδleq Hindep Hcoup_fg1 Hcoup_fg2 Hcoup_S1 Hcoup_S2.
+    eapply (DPcoupl_dbind_adv_kanto_plain _ _ _ _ S' _ _
+              (λ a b, if bool_decide (P a) then ε2 else ε2')
+              (λ a b, if bool_decide ((P a ∧ S1 a b) ∨ (¬P a ∧ S2 a b)) then δ2 else 1)).
+    - intros a b. case_bool_decide; lra.
+    - intros h1 h2 Hh1 Hh2 Hkanto.
+      eapply DPcoupl_choice_adv_kanto.
+      + exact Hδ1.
+      + exact Hδ2.
+      + exact Hδ1'.
+      + exact Hεleq.
+      + exact Hεleq'.
+      + exact Hδleq.
+      + exact Hindep.
+      + exact Hcoup_S1.
+      + exact Hcoup_S2.
+      + exact Hh1.
+      + exact Hh2.
+      + intros a b HPa HS1ab.
+        have Hc := Hkanto a b.
+        rewrite (bool_decide_true _ HPa) in Hc.
+        have Hcov : (P a ∧ S1 a b) ∨ (¬P a ∧ S2 a b) := or_introl (conj HPa HS1ab).
+        rewrite (bool_decide_true _ Hcov) in Hc.
+        exact Hc.
+      + intros a b HnPa HS2ab.
+        have Hc := Hkanto a b.
+        rewrite (bool_decide_eq_false_2 _ HnPa) in Hc.
+        have Hcov : (P a ∧ S1 a b) ∨ (¬P a ∧ S2 a b) := or_intror (conj HnPa HS2ab).
+        rewrite (bool_decide_true _ Hcov) in Hc.
+        exact Hc.
+    - intros a b. eapply DPcoupl_choice_kernel; eauto.
+  Qed.
+
+(*  Old proof, kept for reference:
     intros Hδ1 Hδ2 Hδ1' Hεleq Hεleq' Hδleq
       Hindep
       Hcoup_fg1  Hcoup_fg2 Hcoup_S1 Hcoup_S2 h1 h2 Hh1pos Hh2pos Hh1h2S'.
@@ -1420,10 +2202,130 @@ Lemma DPcoupl_dbind_adv_rhs `{Countable A, Countable B, Countable A', Countable 
        apply SeriesC_ge_0'; real_solver.
      - case_bool_decide; [apply Rmin_l|lra].
    }
+*)
 
+
+  Lemma single_biased_coin_kanto_exp_bound (r : R) (Hr : 0 <= r <= 1) (ε δ : R) :
+    (0 < r) → (0 <= ε) → (0 <= δ) →
+    ∀ (h1 : bool → R) (p : R),
+      (∀ b, 0 <= h1 b <= 1) →
+      (0 <= p <= 1) →
+      (∀ b1 : bool,
+         h1 b1 <= exp (match b1 with false => 0 | _ => ε end) *
+                  p + match b1 with false => 0 | _ => δ end) →
+      SeriesC (λ b, (biased_coin r Hr) b * h1 b) <=
+        exp (ln (1 + r * (exp ε - 1))) * p + r * δ.
+  Proof.
+    intros H Hε Hδ h1 p Hh1 Hp Hh1p.
+    rewrite exp_ln; last first.
+    {
+      apply Rplus_lt_le_0_compat; [lra|].
+      apply Rmult_le_pos; [lra|].
+      apply Rle_minus_r.
+      rewrite Rplus_0_l.
+      by apply exp_pos_ge_1.
+    }
+    rewrite !SeriesC_bool.
+    rewrite /biased_coin/pmf/=.
+    specialize (Hh1p false) as Hff.
+    specialize (Hh1p true) as Htt.
+    simpl in Hff, Htt.
+    rewrite exp_0 in Hff.
+    have Hexp : 1 <= exp ε by apply exp_pos_ge_1.
+    have Hf := Hh1 false.
+    have Ht := Hh1 true.
+    nra.
   Qed.
 
 
+  Lemma biased_coin_kanto_exp_bound (r : R) (Hr : 0 <= r <= 1) (ε δ : R) :
+    (0 < r) → (0 <= ε) → (0 <= δ) →
+    ∀ h1 h2 : bool → R,
+      (∀ b, 0 <= h1 b <= 1) →
+      (∀ b, 0 <= h2 b <= 1) →
+      (∀ b1 b2 : bool,
+         h1 b1 <= exp (match b1, b2 with false, false => 0 | _, _ => ε end) *
+                  h2 b2 + match b1, b2 with false, false => 0 | _, _ => δ end) →
+      SeriesC (λ b, (biased_coin r Hr) b * h1 b) <=
+        exp (ln (1 + r * (exp ε - 1))) *
+        SeriesC (λ b, (biased_coin r Hr) b * h2 b) + r * δ.
+  Proof.
+    intros H Hε Hδ h1 h2 Hh1 Hh2 Hh1h2.
+    rewrite exp_ln; last first.
+    {
+      apply Rplus_lt_le_0_compat; [lra|].
+      apply Rmult_le_pos; [lra|].
+      apply Rle_minus_r.
+      rewrite Rplus_0_l.
+      by apply exp_pos_ge_1.
+    }
+    rewrite !SeriesC_bool.
+    rewrite /biased_coin/pmf/=.
+    transitivity (r * h1 true + (1-r) * h2 false).
+    {
+      apply Rplus_le_compat_l.
+      specialize (Hh1h2 false false).
+      rewrite exp_0 /= in Hh1h2.
+      real_solver.
+    }
+    set (ρ := r + (1-r) * exp (-ε)).
+    transitivity (r * (ρ * (exp (ε) * h2 true + δ) + (1-ρ) * (exp(ε) * h2 false + δ)) + (1-r) * h2 false).
+    {
+      apply Rplus_le_compat_r.
+      replace (h1 true) with (ρ * h1 true + (1-ρ) * h1 true) by lra.
+      apply Rmult_le_compat_l; [real_solver|].
+      apply Rplus_le_compat.
+      - apply Rmult_le_compat_l.
+        + rewrite /ρ.
+          apply Rplus_le_le_0_compat; [lra|].
+          apply Rmult_le_pos; [lra|].
+          left.
+          apply exp_pos.
+        + specialize (Hh1h2 true true).
+          done.
+      - apply Rmult_le_compat_l.
+        + rewrite /ρ.
+          apply Rle_minus_r.
+          rewrite Rplus_0_l.
+          replace 1 with (r + (1-r) * 1) at 2 by lra.
+          apply Rplus_le_compat_l.
+          apply Rmult_le_compat_l; [lra|].
+          rewrite exp_Ropp.
+          replace 1 with (/1) by lra.
+          apply Rinv_le_contravar; [lra|].
+          by apply exp_pos_ge_1.
+        + specialize (Hh1h2 true false).
+          done.
+    }
+    replace (r * (ρ * (exp ε * h2 true + δ) + (1 - ρ) * (exp ε * h2 false + δ)) + (1-r) * h2 false)
+      with (r * ρ * exp ε * h2 true + (r * (1 - ρ) * exp ε + (1-r)) * h2 false + r * δ) by lra.
+    apply Rplus_le_compat_r.
+    replace (1 + r * (exp ε-1)) with (r * exp ε + (1-r)) by lra.
+    rewrite Rmult_plus_distr_l.
+    apply Rplus_le_compat.
+    + replace (r * ρ * exp ε * h2 true) with (ρ * exp ε * (r * h2 true)) by lra.
+      apply Rmult_le_compat_r; [real_solver|].
+      rewrite /ρ.
+      rewrite Rmult_plus_distr_r.
+      apply Rplus_le_compat_l.
+      rewrite Rmult_assoc.
+      rewrite -exp_plus.
+      replace (-ε+ε) with 0 by lra.
+      rewrite exp_0.
+      lra.
+    + rewrite -Rmult_assoc.
+      apply Rmult_le_compat_r; [real_solver|].
+      rewrite /ρ.
+      rewrite Rmult_assoc.
+      rewrite (Rmult_minus_distr_r _ _(exp ε)).
+      rewrite Rmult_1_l.
+      rewrite (Rmult_plus_distr_r _ _(exp ε)).
+      rewrite Rmult_assoc.
+      rewrite -exp_plus.
+      replace (-ε+ε) with 0 by lra.
+      rewrite exp_0.
+      lra.
+  Qed.
 
 
   Lemma DPcoupl_dbind_subsampling `{Countable A}
@@ -1439,7 +2341,7 @@ Lemma DPcoupl_dbind_adv_rhs `{Countable A, Countable B, Countable A', Countable 
         (ln (1 + r*(exp(ε)-1))) (r*δ).
   Proof.
     intros Hε Hδ Hcoupl12 Hcoupl13 Hcoupl23 Hcoupl33.
-    assert (0 = r \/ 0 < r) as [<- | ] by lra.
+    assert (0 = r \/ 0 < r) as [<- | Hr_pos] by lra.
     {
       (* degenerate case r=0 *)
       simpl.
@@ -1462,83 +2364,36 @@ Lemma DPcoupl_dbind_adv_rhs `{Countable A, Countable B, Countable A', Countable 
     eapply (DPcoupl_dbind_adv_kanto_plain _ _ _ _ _ _ _ E2 D2).
     - intros [][]; rewrite /E2 /=; real_solver.
     - intros h1 h2 Hh1 Hh2 Hh1h2.
-      rewrite exp_ln; last first.
-      {
-        apply Rplus_lt_le_0_compat; [lra|].
-        apply Rmult_le_pos; [lra|].
-        apply Rle_minus_r.
-        rewrite Rplus_0_l.
-        by apply exp_pos_ge_1.
-      }
-      rewrite !SeriesC_bool.
-      rewrite /biased_coin/pmf/=.
-      (*  assert (h1 true + h1 false <= (exp ε + 1) * SeriesC (λ b : bool, fair_coin b * h2 b) + δ); last by lra. *)
-      transitivity (r * h1 true + (1-r) * h2 false).
-      {
-        apply Rplus_le_compat_l.
-        specialize (Hh1h2 false false).
-        rewrite /E2 /D2 exp_0 /= in Hh1h2.
-        real_solver.
-      }
-      set (ρ := r + (1-r) * exp (-ε)).
-      transitivity (r * (ρ * (exp (ε) * h2 true + δ) + (1-ρ) * (exp(ε) * h2 false + δ)) + (1-r) * h2 false).
-      {
-        apply Rplus_le_compat_r.
-        replace (h1 true) with (ρ * h1 true + (1-ρ) * h1 true) by lra.
-        apply Rmult_le_compat_l; [real_solver|].
-        apply Rplus_le_compat.
-        - apply Rmult_le_compat_l.
-          + rewrite /ρ.
-            apply Rplus_le_le_0_compat; [lra|].
-            apply Rmult_le_pos; [lra|].
-            left.
-            apply exp_pos.
-          + specialize (Hh1h2 true true).
-            done.
-       - apply Rmult_le_compat_l.
-         + rewrite /ρ.
-           apply Rle_minus_r.
-           rewrite Rplus_0_l.
-           replace 1 with (r + (1-r) * 1) at 2 by lra.
-           apply Rplus_le_compat_l.
-           apply Rmult_le_compat_l; [lra|].
-           rewrite exp_Ropp.
-           replace 1 with (/1) by lra.
-           apply Rinv_le_contravar; [lra|].
-           by apply exp_pos_ge_1.
-         + specialize (Hh1h2 true false).
-           done.
-      }
-      replace (r * (ρ * (exp ε * h2 true + δ) + (1 - ρ) * (exp ε * h2 false + δ)) + (1-r) * h2 false)
-        with (r * ρ * exp ε * h2 true + (r * (1 - ρ) * exp ε + (1-r)) * h2 false + r * δ) by lra.
-      apply Rplus_le_compat_r.
-      replace (1 + r * (exp ε-1)) with (r * exp ε + (1-r)) by lra.
-      rewrite Rmult_plus_distr_l.
-      apply Rplus_le_compat.
-      + replace (r * ρ * exp ε * h2 true) with (ρ * exp ε * (r * h2 true)) by lra.
-        apply Rmult_le_compat_r; [real_solver|].
-        rewrite /ρ.
-        rewrite Rmult_plus_distr_r.
-        apply Rplus_le_compat_l.
-        rewrite Rmult_assoc.
-        rewrite -exp_plus.
-        replace (-ε+ε) with 0 by lra.
-        rewrite exp_0.
-        lra.
-      + rewrite -Rmult_assoc.
-        apply Rmult_le_compat_r; [real_solver|].
-        rewrite /ρ.
-        rewrite Rmult_assoc.
-        rewrite (Rmult_minus_distr_r _ _(exp ε)).
-        rewrite Rmult_1_l.
-        rewrite (Rmult_plus_distr_r _ _(exp ε)).
-        rewrite Rmult_assoc.
-        rewrite -exp_plus.
-        replace (-ε+ε) with 0 by lra.
-        rewrite exp_0.
-        lra.
+      apply (biased_coin_kanto_exp_bound r Hr ε δ Hr_pos Hε Hδ h1 h2 Hh1 Hh2).
+      intros b1 b2; rewrite /E2/D2; exact (Hh1h2 b1 b2).
     - rewrite /E2/D2.
       intros [][]; simpl; auto.
+  Qed.
+
+  Lemma DPcoupl_dbind_subsampling_single `{Countable A}
+    (μ1 : distr A) (μ2 : distr A) (μ3 : distr A) (S : A -> A -> Prop) (r : R)
+    (Hr: 0 <= r <= 1) ε δ :
+    (0 <= ε) -> (0 <= δ) ->
+    (DPcoupl μ1 μ2 S ε δ) →
+    (DPcoupl μ2 μ2 S 0 0) →
+    DPcoupl (dbind (λ b, if b then μ1 else μ2) (biased_coin r Hr)) μ2 S
+      (ln (1 + r*(exp(ε)-1))) (r*δ).
+  Proof.
+    intros Hε Hδ Hcoupl12 Hcoupl22.
+    have Hmass : SeriesC (biased_coin r Hr) = 1.
+    { rewrite SeriesC_bool /biased_coin/pmf/= /biased_coin_pmf. lra. }
+    have Hsimp : dbind (fun b => if b then μ2 else μ2) (biased_coin r Hr) = μ2.
+    { apply distr_ext => a.
+      rewrite /dbind/pmf/=/dbind_pmf.
+      rewrite (SeriesC_ext _ (fun b => biased_coin r Hr b * μ2 a)).
+      2: { intros []; ring. }
+      rewrite SeriesC_scal_r Hmass. rewrite Rmult_1_l. done. }
+    have Hupgraded : DPcoupl μ2 μ2 S ε δ.
+    { eapply DPcoupl_mon_grading; [exact Hε | exact Hδ | exact Hcoupl22]. }
+    have Hkey := DPcoupl_dbind_subsampling μ1 μ2 μ2 S r Hr ε δ Hε Hδ
+                   Hcoupl12 Hcoupl12 Hupgraded Hcoupl22.
+    rewrite Hsimp in Hkey.
+    exact Hkey.
   Qed.
 
 

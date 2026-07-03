@@ -8,7 +8,7 @@ From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import erasure notation.
 From clutch.common Require Import language.
 From clutch.base_logic Require Import error_credits.
-From clutch.diffpriv Require Import weakestpre primitive_laws diffpriv_rules.
+From clutch.diffpriv Require Import weakestpre primitive_laws distance diffpriv_rules.
 From clutch.prob Require Import differential_privacy distribution couplings_dp.
 Import uPred.
 
@@ -24,45 +24,22 @@ Section adequacy.
     iRevert (σ1 e1' σ1' ε δ).
     iApply spec_coupl_ind.
     iIntros "!>" (σ1 e1' σ1' ε δ)
-      "[% | [boo | [(%T & %μ1 & %μ1' & %ε1 & %δ1 & %ε2 & %δ2 & % & % & % & %Hμ1 & %Hμ1' & H)
-              |(%T & %k & %μ1 & %μ1' & %δ' & %X2 & %r & % & % & % & %Hμ1 & %Hμ1' & H) ]]] HZ";
-      [ | by iMod ("HZ" with "[$]") | |].
+      "[% | [boo | (%S & %μ1 & %μ1' & %E2 & %D2 & %Heras & %Hrwr & %Hbdd & %Hkanto & H)]] HZ";
+      [ | by iMod ("HZ" with "[$]") |].
     - iApply step_fupdN_intro; [done|].
       do 2 iModIntro. iPureIntro. by apply DPcoupl_1.
-    - iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-      { iPureIntro. intros h. eapply DPcoupl_erasure_rewritable_rhs. 8: apply h. all: eauto. }
-      iIntros (σ2 (e2', σ2') HT).
-      iMod ("H" with "[//]") as "[H _]".
-      by iApply "H".
-    - iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-      { iPureIntro. intros h.
-        opose proof (ARcoupl_to_DPcoupl _ _ _ _ _) .
-        1: exact H.
-        (* should be possible to assume δ' = 0 here, judging from how spec_coupl_erasables_exp is used in coupling_rules. *)
-        (* eapply (DPcoupl_erasure_erasable_exp_rhs 0 δ' _ _ _ ε _ _ _ _ _ _ ε δ r m k).
-           8: apply h. all: eauto.
-           Unshelve.
-           1: lra.
-           apply cond_nonneg.
-         *)
-        eapply (DPcoupl_erasure_erasable_exp_rhs_specialized).
-        7: apply h. all: eauto.
-
-        (* (* eapply ARcoupl_to_DPcoupl. *)
-           eapply (DPcoupl_erasure_erasable_rhs _ _ ε 0 ε
-                     δ
-                     (Expval (μ1' ≫= λ σ2' : language.state prob_lang, pexec k (e1', σ2'))
-                     (λ x : mstate (lang_markov prob_lang), X2 x))
-                     δ'
-                  ). 8: apply h. all: eauto.
-           1: lra.
-           1: by (eapply Expval_ge_0' ; intros ; apply cond_nonneg).
-           1: by apply cond_nonneg.
-           (* 2: by eapply rewritable_erasable. *) *)
-        (* done. *)
-      }
-      iIntros (σ2 e2' σ2' HT).
-      (* opose proof (ARcoupl_to_DPcoupl _ _ _ _ H) . *)
+    - iApply (step_fupdN_mono _ _ _ ⌜∀ σ2 e2' σ2',
+        S σ2 (e2', σ2') →
+        DPcoupl (exec m (e1, σ2)) (lim_exec (e2', σ2')) φ
+          (E2 σ2 (e2', σ2')) (D2 σ2 (e2', σ2'))⌝).
+      { iPureIntro. intros HΦ.
+        rewrite -(Heras e1 m).
+        rewrite Hrwr.
+        eapply DPcoupl_dbind_adv_kanto_s_cond.
+        - intros. apply cond_nonneg.
+        - exact Hkanto.
+        - intros a [e2' σ2'] HS. by apply HΦ. }
+      iIntros (σ2 e2' σ2') "%HS".
       iMod ("H" with "[//]") as "[H _]".
       by iApply "H".
   Qed.
@@ -76,57 +53,23 @@ Section adequacy.
     iIntros (Hnone).
     rewrite exec_Sn.
     rewrite /step_or_final /= Hnone.
-    iIntros "(%P & %R & %R' & %k & %μ1' & %ε1 & % & % & % & % & % & % & % & % & % & % & % & % & % & % & Hcnt) Hcoupl /=".
-
-
-    (*
-    set (Q := ∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
-            ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝ ∗
-            ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2') ⌝
-        )%I.
-    *)
-    iApply (step_fupdN_mono _ _ _
-              (∀ (e2 : expr) (σ2 : state) (e2' : expr) (σ2' : state),
-                  ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝ ∗
-                    ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2) ⌝)
-           ).
-    { iPureIntro. simpl. intros.
-      eapply (DPcoupl_erasure_erasable_lhs_choice _ _ _ _ _ _ _ _ _ _ _ _ _ _ P).
-      9: apply H1.
-      9: apply H2.
-      all: eauto.
-      - intros.
-        destruct (H7 e2 σ2 e2' σ2').
-        by apply H9.
-      - intros.
-        destruct (H7 e2 σ2 e2' σ2').
-        by apply H10.
+    rewrite /prog_coupl.
+    iIntros "(%n0 & %μ1' & %E2 & %D2 & %S & %Hred & [%r %HD2r] & %Hkanto & %Heras & Hcnt) Hcoupl /=".
+    iApply (step_fupdN_mono _ _ _ ⌜∀ e2 σ2 e2' σ2',
+      S (e2, σ2) (e2', σ2') →
+      DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ
+        (E2 (e2, σ2) (e2', σ2')) (D2 (e2, σ2) (e2', σ2'))⌝).
+    { iPureIntro. intros HΦ.
+      rewrite -(erasable_pexec_lim_exec μ1' n0).
+      - eapply DPcoupl_dbind_adv_kanto_s_cond.
+        + intros. apply cond_nonneg.
+        + exact Hkanto.
+        + intros [] [] HS. apply HΦ. exact HS.
+      - exact Heras.
     }
-    iIntros (e2 σ2 e2' σ2').
-    iDestruct ("Hcnt" $! e2 σ2 e2' σ2') as "[Hcnt1  Hcnt2]".
-    destruct (decide (P (e2, σ2))).
-    - iApply (step_fupdN_mono _ _ _
-                  ⌜((P (e2, σ2) /\ R (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2 δ2)⌝).
-      {
-        iIntros (?).
-        iSplit; auto.
-        iIntros ((?&?)).
-        done.
-      }
-      iIntros ((?&?)).
-      iMod ("Hcnt1" with "[//]") as "Hcnt1".
-      by iApply "Hcoupl".
-    - iApply (step_fupdN_mono _ _ _
-                  ⌜((¬P (e2, σ2) /\ R' (e2, σ2) (e2', σ2')) → DPcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε2' δ2)⌝).
-      {
-        iIntros (?).
-        iSplit; auto.
-        iIntros ((?&?)).
-        done.
-      }
-      iIntros ((?&?)).
-      iMod ("Hcnt2" with "[//]") as "Hcnt2".
-      by iApply "Hcoupl".
+    iIntros (e2 σ2 e2' σ2') "%HS".
+    iMod ("Hcnt" $! e2 σ2 e2' σ2' with "[//]").
+    by iApply "Hcoupl".
   Qed.
 
   Lemma wp_adequacy_val_fupd (e e' : expr) (σ σ' : state) n φ v ε δ:
