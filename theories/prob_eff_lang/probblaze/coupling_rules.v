@@ -619,4 +619,73 @@ Section rules.
       apply fin_to_nat_le.
   Qed.
 
+  (** * rand(α, N) ~ rand(α', N) coupling on two labelled EMPTY tapes.
+        Because an empty tape read samples [dunifP N] and leaves the tapes
+        untouched (regardless of whether the tape bounds [M1]/[M2] equal
+        the read bound [N] — see [Rcoupl_rand_lbl_rand_lbl_empty]), the two
+        labelled reads couple in a single step to equal values [n]/[f n],
+        and the (still empty) tapes are handed straight back.  Mirrors the
+        unlabelled [wp_couple_rand_rand], threading the spec context [K]
+        with [fill_dmap]. *)
+  Lemma wp_couple_rand_lbl_rand_lbl N f `{Bij nat nat f} z K E α α'
+    (M1 M2 : nat) :
+    TCEq N (Z.to_nat z) →
+    (forall n:nat, (n < S N)%nat -> (f n < S N)%nat) ->
+    {{{ ▷ α ↪ (M1; []) ∗ ▷ α' ↪ₛ (M2; []) ∗
+        ⤇ semantics.fill K (rand(#lbl:α') #z) }}}
+      rand(#lbl:α) #z @ E
+    {{{ (n : nat), RET #n;
+        α ↪ (M1; []) ∗ α' ↪ₛ (M2; []) ∗
+        ⤇ semantics.fill K #(f n) ∗ ⌜ n ≤ N ⌝ }}}.
+  Proof.
+    iIntros (H0 Hdom Ψ) "(>Hα & >Hα' & Hr) HΨ".
+    pose proof (proj1 (TCEq_eq _ _) H0) as Hz.
+    destruct (restr_bij_fin (S N) f Hdom) as [ff [Hbij Hff]].
+    iApply (wp_lift_prim_steps_coupl); [done|].
+    iIntros (σ1 e1' σ1' ε) "[Hσ [Hs Hε]]".
+    iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
+    iDestruct "Hσ" as "[Hh1 [Ht1 Hl1]]".
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %Hα1.
+    iDestruct (spec_auth_lookup_tape with "Hs Hα'") as %Hα2.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    replace ε with (0 + ε)%NNR; last first.
+    { apply nnreal_ext; simpl; lra. }
+    iExists (λ ρ2 ρ2', ∃ (n : fin _),
+                ρ2 = (Val #n, σ1) ∧ ρ2' = (fill K #(f n), σ1')),_,_.
+    repeat iSplit.
+    - done.
+    - iPureIntro.
+      { eexists. simpl. apply head_step_prim_step.
+        apply head_step_support_equiv_rel.
+        destruct (decide (M1 = N)) as [->|Hne].
+        - eapply (RandTapeEmptyS _ _ _ Fin.F1); eauto.
+        - eapply (RandTapeOtherS _ _ M1 N [] Fin.F1); eauto. }
+    - iPureIntro.
+      { eexists. simpl. apply fill_step. apply head_step_prim_step.
+        apply head_step_support_equiv_rel.
+        destruct (decide (M2 = N)) as [->|Hne].
+        - eapply (RandTapeEmptyS _ _ _ Fin.F1); eauto.
+        - eapply (RandTapeOtherS _ _ M2 N [] Fin.F1); eauto. }
+    - iPureIntro.
+      rewrite /= fill_dmap //.
+      rewrite /= -(dret_id_right (prim_step _ _)) /=.
+      apply ARcoupl_exact.
+      eapply Rcoupl_dmap.
+      eapply Rcoupl_mono.
+      + eapply (Rcoupl_rand_lbl_rand_lbl_empty _ ff); eauto.
+      + intros [] [] (b & [=] & [=])=>/=.
+        simplify_eq.
+        exists b. split; [done|]. rewrite Hff. done.
+    - iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])) "!> !>".
+      iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
+      iMod "Hclose" as "_".
+      replace (0 + ε)%NNR with ε; last first.
+      { apply nnreal_ext; simpl; lra. }
+      iFrame.
+      iApply wp_value.
+      iApply "HΨ".
+      iModIntro. iFrame.
+      iPureIntro. rewrite Hz. apply fin_to_nat_le.
+  Qed.
+
 End rules.

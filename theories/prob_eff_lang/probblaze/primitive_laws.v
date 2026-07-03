@@ -852,7 +852,55 @@ Lemma wp_handle_os k k' E Φ hs (l : label) (v : syntax.val) (h ret : syntax.exp
   (▷ ∀ r, unshot r -∗ WP fill k (App (App h v) (ContV r c)) @ E {{ Φ }}) -∗
   WP fill k (Handle hs OS (EffLabel l) (fill k' (Do (EffLabel l) (Val v))) h ret) @ E {{ Φ }}.
 Proof.
-Admitted. 
+  simpl. iIntros (Hnotin) "HΦ". iApply wp_lift_step; eauto using semantics.fill_not_val.
+  iIntros (σ1) "[Hh [Ht Hlabs]]". iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
+  iSplit.
+  { iPureIntro. eexists. simpl. apply semantics.fill_step.
+    apply head_step_prim_step.
+    apply head_step_support_equiv_rel.
+    apply (HandleOSEffS hs l v k' _ h ret σ1); [done|].
+    rewrite (to_eff_fill l k' [] (do: l v) v); [| apply to_eff_eff].
+    by rewrite app_nil_r. }
+  iIntros "!>" (e2 σ2 Hs).
+  set (r := fresh_loc σ1.(heap)).
+  set (c := match hs with Deep => HandleCtx hs OS l h ret :: k' | Shallow => k' end).
+  apply prim_step_iff in Hs as (K & e1' & e2' & Hdecomp & Hfill & Hstep).
+  assert (to_eff (Handle hs OS l (fill k' (do: l v)) h ret) =
+            Some (l, v, HandleCtx hs OS l h ret :: k')) as Htoeff.
+  { apply to_eff_get_ectx'. simpl.
+    rewrite (to_eff_get_ectx (fill k' (do: l v)) l v k'); last first.
+    { rewrite (to_eff_fill l k' [] (do: l v) v); [| apply to_eff_eff]. by rewrite app_nil_r. }
+    reflexivity. }
+  assert (decomp (fill k (Handle hs OS l (fill k' (do: l v)) h ret)) =
+            (k, Handle hs OS l (fill k' (do: l v)) h ret)) as Hdc.
+  { erewrite (decomp_fill_comp_uncaught k [] (Handle hs OS l (fill k' (do: l v)) h ret)
+                (Handle hs OS l (fill k' (do: l v)) h ret) l v (HandleCtx hs OS l h ret :: k')).
+    - by rewrite app_nil_r.
+    - reflexivity.
+    - exact Htoeff.
+    - rewrite (ectx_labels_cons (HandleCtx hs OS l h ret)). simpl. apply list_elem_of_here.
+    - apply (head_reducible_decomp _ σ1). eexists. apply head_step_support_equiv_rel.
+      apply (HandleOSEffS hs l v k' _ h ret σ1); [done|].
+      rewrite (to_eff_fill l k' [] (do: l v) v); [| apply to_eff_eff]. by rewrite app_nil_r. }
+  rewrite Hdc in Hdecomp. inversion Hdecomp. subst K e1'. clear Hdecomp.
+  apply head_step_support_equiv_rel in Hstep.
+  inversion Hstep; simplify_eq.
+  2:{ exfalso. pose proof (of_eff_not_val l v k') as Hnv. unfold of_eff in Hnv.
+      rewrite -H3 in Hnv. done. }
+  assert (to_eff (fill k' (do: l v)) = Some (l, v, k')) as Htoeff2.
+  { rewrite (to_eff_fill l k' [] (do: l v) v); [| apply to_eff_eff]. by rewrite app_nil_r. }
+  rewrite Htoeff2 in H8. inversion H8. subst v0 k0.
+  iMod (ghost_map_insert r0 (#true) with "Hh") as "[Hh Hr]".
+  { apply not_elem_of_dom. subst r0. apply fresh_loc_is_fresh. }
+  iMod "Hclose".
+  iModIntro.
+  iSimpl.
+  iFrame "Ht Hlabs".
+  rewrite /unshot.
+  iSplitL "Hh".
+  { iFrame. }
+  iApply ("HΦ" with "Hr").
+Qed.
 
 Lemma wp_cont k E Φ r k' v :
   ▷ unshot r -∗
@@ -867,11 +915,22 @@ Proof.
   iSplit. { iPureIntro. eexists. simpl. apply semantics.fill_step.
             apply head_step_prim_step.
             apply head_step_support_equiv_rel. by apply ContS. }
-  iIntros "!>" (e2 σ2 Hstep).  
-(*   iMod (gen_heap_update  _ _ _ (Some #false) with "Hheap Hr") as "[$ Hr]".
-     by iFrame.
-   Qed. *)
-Admitted.
+  iIntros "!>" (e2 σ2 Hstep).
+  have Heq : (e2, σ2) = (fill k (fill k' v), state_upd_heap <[r:= LitV $ LitBool false]> σ1).
+  { apply prim_step_iff in Hstep as (K' & e1' & e2' & Hdecomp & <- & Hhs).
+    apply head_step_support_equiv_rel in Hhs.
+    have Hdecomp' : decomp (fill k (ContV r k' v)) = (k, ContV r k' v).
+    { apply (head_reducible_decomp_ctx k (ContV r k' v) σ1); [done |].
+      exists (fill k' v, state_upd_heap <[r:= LitV $ LitBool false]> σ1).
+      apply head_step_support_equiv_rel. by apply (ContS k' r v (fill k' v) σ1). }
+    rewrite Hdecomp' in Hdecomp. simplify_eq.
+    inversion Hhs; simplify_eq. done. }
+  simplify_eq.
+  iMod (ghost_map_update (LitV $ LitBool false) with "Hh Hr") as "[Hh Hr]".
+  iMod "Hclose". iModIntro.
+  iSplitL "Hh Ht Hlabs"; [| iApply "Hwp"].
+  simpl. iFrame.
+Qed.
 
 End lifting.
 

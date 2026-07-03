@@ -418,7 +418,10 @@ Section env_sub_typing.
 
   Lemma env_le_refl Γ : ⊢ Γ ≤ₑ Γ.
   Proof. iIntros "!# % $". Qed.
-  
+
+  Lemma env_le_nil Γ : ⊢ Γ ≤ₑ [].
+  Proof. iIntros "!# % _". by rewrite env_sem_typed_empty. Qed.
+
   Lemma env_le_trans Γ₁ Γ₂ Γ₃ : 
     Γ₁ ≤ₑ Γ₂ -∗
     Γ₂ ≤ₑ Γ₃ -∗

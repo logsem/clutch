@@ -296,7 +296,46 @@ Set Default Proof Using "Type*".
     intros n ? ->.
     apply Rcoupl_dret. eauto.
   Qed.
-  
+
+  (** * rand(α1, N) ~ rand(α2, N) coupling, both tapes EMPTY.
+        For an empty tape the labelled read samples uniformly from
+        [dunifP N] and leaves the state untouched, whether or not the
+        tape's own bound matches [N] (see [head_step] on [Rand]).  Hence
+        the two reads couple to equal values [n]/[f n] under any [f],
+        regardless of the (arbitrary) tape bounds [M1], [M2]. *)
+  Lemma Rcoupl_rand_lbl_rand_lbl_empty N f `{Bij (fin (S N)) (fin (S N)) f}
+    (M1 M2 : nat) α1 α2 z σ1 σ2 :
+    σ1.(tapes) !! α1 = Some (M1; []) →
+    σ2.(tapes) !! α2 = Some (M2; []) →
+    N = Z.to_nat z →
+    Rcoupl
+      (prim_step (rand(#lbl:α1) #z) σ1)
+      (prim_step (rand(#lbl:α2) #z) σ2)
+      (λ ρ2 ρ2', ∃ (n : fin (S N)),
+          ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
+  Proof.
+    intros Hσ1 Hσ2 Hz.
+    assert (head_reducible (rand(#lbl:α1) #z) σ1) as Hred1.
+    { destruct (decide (M1 = N)) as [->|Hne].
+      - eexists (_,_). apply head_step_support_equiv_rel.
+        eapply (RandTapeEmptyS _ _ _ 0%fin); eauto.
+      - eexists (_,_). apply head_step_support_equiv_rel.
+        eapply (RandTapeOtherS _ _ M1 N [] 0%fin); eauto. }
+    assert (head_reducible (rand(#lbl:α2) #z) σ2) as Hred2.
+    { destruct (decide (M2 = N)) as [->|Hne].
+      - eexists (_,_). apply head_step_support_equiv_rel.
+        eapply (RandTapeEmptyS _ _ _ 0%fin); eauto.
+      - eexists (_,_). apply head_step_support_equiv_rel.
+        eapply (RandTapeOtherS _ _ M2 N [] 0%fin); eauto. }
+    rewrite (head_prim_step_eq _ _ Hred1) (head_prim_step_eq _ _ Hred2).
+    simpl.
+    rewrite Hσ1 Hσ2.
+    subst N.
+    case_bool_decide as HM1; [subst M1|]; case_bool_decide as HM2; try subst M2;
+      rewrite /dmap; (eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif]);
+      intros n ? ->; apply Rcoupl_dret; eauto.
+  Qed.
+
 
 (** Some useful lemmas to reason about language properties  *)
 

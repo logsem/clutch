@@ -1894,6 +1894,45 @@ Section interp_subst.
         by apply (row_type_sub_sound _ _ Hτ).
   Qed.
 
-  
+  (* Soundness of context subtyping [le._ctx].  The syntactic [D ⊢ₗ Γ ≤C Γ']
+     interprets to an [env_le] between the pointwise-interpreted contexts.
+     [le._ctx] recurses on [Γ'], so we induct on [Γ']: the [[]] case is the
+     unconditional [env_le_nil]; the cons case uses [env_le_bring_forth] to
+     surface the matched entry [(x,t')] out of [Γ = pre ++ (x,t') :: post],
+     [env_le_cons] with [ty_le_sound] on the head and the IH on the tail
+     (both under the [erase_ctx] bundle), combined by [env_le_trans]. *)
+  Lemma ctx_le_sound (D : le.disj_ctx) (Γ Γ' : ctx) :
+    D ⊢ₗ Γ ≤C Γ' → ∀ η μ δ ξ,
+      erase_ctx η μ δ ξ D -∗
+      interp_env η μ δ ξ Γ ≤ₑ interp_env η μ δ ξ Γ'.
+  Proof.
+    revert Γ. induction Γ' as [|[x t] Γ'_tail IH]; intros Γ Hle η μ δ ξ.
+    - iIntros "#Herase". simpl. iApply env_le_nil.
+    - iIntros "#Herase". simpl in Hle.
+      destruct Hle as (t' & pre & post & -> & Ht & Htail).
+      (* [(x,t')] sits at position [length pre] in the interpreted [Γ]. *)
+      assert (Hnth : nth_error ((λ '(s, τ), (s, interp._ty η μ δ τ ξ))
+                                  <$> (pre ++ (x, t') :: post))
+                       (length pre) = Some (x, interp._ty η μ δ t' ξ)).
+      { rewrite fmap_app /=. rewrite (nth_error_app2 _ _ (n := length pre)).
+        { rewrite length_fmap Nat.sub_diag //. }
+        rewrite length_fmap //. }
+      (* Deleting it leaves the interpretation of [pre ++ post]. *)
+      assert (Hdel : list_delete (length pre)
+                       ((λ '(s, τ), (s, interp._ty η μ δ τ ξ))
+                          <$> (pre ++ (x, t') :: post))
+                     = (λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> (pre ++ post)).
+      { rewrite !fmap_app /=.
+        rewrite -(length_fmap (λ '(s, τ), (s, interp._ty η μ δ τ ξ)) pre).
+        apply delete_middle. }
+      simpl.
+      iApply (env_le_trans _ ((x, interp._ty η μ δ t' ξ)
+                :: ((λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> (pre ++ post)))).
+      + rewrite -Hdel.
+        iApply (env_le_bring_forth _ (length pre) x (interp._ty η μ δ t' ξ) Hnth).
+      + iApply env_le_cons.
+        * iApply (IH _ Htail with "Herase").
+        * iApply (ty_le_sound _ _ _ _ _ _ _ Ht with "Herase").
+  Qed.
 
 End interp_subst.
