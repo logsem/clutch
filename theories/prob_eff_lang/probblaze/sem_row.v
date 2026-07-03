@@ -80,27 +80,27 @@ Proof.
 Qed.
 
 
-Program Definition iThy_later {Σ} (l1 l2 : label) : sem_sig Σ -n> iThy Σ := λne T, λ e e', λne ψ, (∃ v1 v2, ⌜e = do: l1 v1⌝%E ∗ ⌜e' = do: l2 v2⌝%E ∗  ▷ ((pmono_prot_car T) e e' ψ))%I.
-Next Obligation.
-  intros. intros ψ ψ' Hne. do 6 f_equiv. rewrite Hne. done.
-Qed.
-Next Obligation.
-  intros. intros T T' Hne. intros e e' ψ.
-  simpl. 
-  do 6 f_equiv.
-  by rewrite (Hne e e' ψ).
-Qed.
-
-Instance iThy_later_contractive {Σ} (l1 l2 : label) : Contractive (@iThy_later Σ l1 l2).
-Proof.
-  unfold iThy_later. simpl.
-  intros ? T T' ?.
-  intros e e' ?. simpl.
-  do 6 f_equiv.
-  f_contractive.
-  rewrite (H e e' _).
-  done.
-Qed.
+(* Program Definition iThy_later {Σ} (l1 l2 : label) : sem_sig Σ -n> iThy Σ := λne T, λ e e', λne ψ, (∃ v1 v2, ⌜e = do: l1 v1⌝%E ∗ ⌜e' = do: l2 v2⌝%E ∗  ▷ ((pmono_prot_car T) e e' ψ))%I.
+   Next Obligation.
+     intros. intros ψ ψ' Hne. do 6 f_equiv. rewrite Hne. done.
+   Qed.
+   Next Obligation.
+     intros. intros T T' Hne. intros e e' ψ.
+     simpl. 
+     do 6 f_equiv. destruct Hne.
+     by rewrite (Hne e e' ψ).
+   Qed.
+   
+   Instance iThy_later_contractive {Σ} (l1 l2 : label) : Contractive (@iThy_later Σ l1 l2).
+   Proof.
+     unfold iThy_later. simpl.
+     intros ? T T' ?.
+     intros e e' ?. simpl.
+     do 6 f_equiv.
+     f_contractive.
+     rewrite (H e e' _).
+     done.
+   Qed. *)
 
 (* Definition sem_sig_later {Σ} : sem_sig Σ -n> sem_sig Σ.
    Proof.
@@ -177,81 +177,81 @@ Qed.
        set (x := later <$> )
      fixpoint R. *)
 
-Definition iLblThy_later {Σ} (L : iLblSig Σ) : iLblThy Σ := map (λ '((ls1,ls2), X), ((ls1, ls2), iThy_later (@sem_sig_labels Σ X).1 (@sem_sig_labels Σ X).2 X)) L.
-
-(* Lemma sem_row_shape X ρ : X :: ρ → ∃ σ, X = ((sem_sig_labels σ).1, (sem_sig_labels σ).2, σ). *)
-                                                                                   
-
-Lemma sem_row_later_iLblThy_later {Σ} ρ : iLblSig_to_iLblThy (sem_row_later ρ) = @iLblThy_later Σ ρ.
-Admitted.
-(* Proof.
-     destruct ρ. 
-     induction sem_row_car.
-     - done.
-     - unfold sem_row_later. unfold sem_sig_later. rewrite iLblSig_to_iLblThy_proj.
-       simpl. destruct a as ((ls1,ls2), σ). unfold pmono_prot_car. simpl.
-       f_equiv.
-       + f_equiv.   admit.
-       + unshelve eapply IHsem_row_car.
-         admit.
-   Admitted. *)
-
-(* Global Instance iLblSig_to_iLblThy_ne {Σ} : NonExpansive (@iLblSig_to_iLblThy Σ).
-   Admitted. *)
-
-Global Instance sem_row_later_contractive {Σ} : Contractive (@sem_row_later Σ). 
-Proof. 
-  intros n l k Hlater. destruct n; first done.
-(*   assert (n < S n)%nat as Heq by lia.
-     apply Hlater in Heq.
-     destruct n.
-     - unfold dist,sem_row_dist,listO,ofe_dist,list_dist in *. apply list_dist_Forall2.
-       
+(* Definition iLblThy_later {Σ} (L : iLblSig Σ) : iLblThy Σ := map (λ '((ls1,ls2), X), ((ls1, ls2), iThy_later (@sem_sig_labels Σ X).1 (@sem_sig_labels Σ X).2 X)) L.
    
-       
-     unfold sem_rowO. simpl. unfold ofe_dist. unfold sem_row_dist. simpl.
-     destruct l, k. unfold dist. (* rewrite !sem_row_later_iLblThy_later. *)
-     destruct n; first done.
-     apply map_list_contractive; first lia.
-     - intros ???. destruct x as ((xs1 & xs2) & X). 
-       destruct y as ((ys1&ys2) &Y). f_equiv.
-       + assert (n < S n) as Hlt by lia.  apply H in Hlt. 
-         by inversion Hlt.
-       + destruct X. destruct Y.
-         assert (n < S n) as Hlt by lia.
-         apply H in Hlt.
-         inversion Hlt. simpl in *. 
-         unfold dist,sem_sigO,ofe_dist,sem_sig_dist in H1. admit.
-     - apply Build_dist_later. intros m Hm. 
-       apply Hdist in Hm.
-       unfold dist,sem_row_dist in Hm.
-   p    
-       by apply Hdist.
-   Qed. *)
-Admitted. 
+   (* Lemma sem_row_shape X ρ : X :: ρ → ∃ σ, X = ((sem_sig_labels σ).1, (sem_sig_labels σ).2, σ). *)
+                                                                                      
+   
+   Lemma sem_row_later_iLblThy_later {Σ} ρ : iLblSig_to_iLblThy (sem_row_later ρ) = @iLblThy_later Σ ρ.
+   Admitted.
+   (* Proof.
+        destruct ρ. 
+        induction sem_row_car.
+        - done.
+        - unfold sem_row_later. unfold sem_sig_later. rewrite iLblSig_to_iLblThy_proj.
+          simpl. destruct a as ((ls1,ls2), σ). unfold pmono_prot_car. simpl.
+          f_equiv.
+          + f_equiv.   admit.
+          + unshelve eapply IHsem_row_car.
+            admit.
+      Admitted. *)
+   
+   (* Global Instance iLblSig_to_iLblThy_ne {Σ} : NonExpansive (@iLblSig_to_iLblThy Σ).
+      Admitted. *)
+   
+   Global Instance sem_row_later_contractive {Σ} : Contractive (@sem_row_later Σ). 
+   Proof. 
+     intros n l k Hlater. destruct n; first done.
+   (*   assert (n < S n)%nat as Heq by lia.
+        apply Hlater in Heq.
+        destruct n.
+        - unfold dist,sem_row_dist,listO,ofe_dist,list_dist in *. apply list_dist_Forall2.
+          
+      
+          
+        unfold sem_rowO. simpl. unfold ofe_dist. unfold sem_row_dist. simpl.
+        destruct l, k. unfold dist. (* rewrite !sem_row_later_iLblThy_later. *)
+        destruct n; first done.
+        apply map_list_contractive; first lia.
+        - intros ???. destruct x as ((xs1 & xs2) & X). 
+          destruct y as ((ys1&ys2) &Y). f_equiv.
+          + assert (n < S n) as Hlt by lia.  apply H in Hlt. 
+            by inversion Hlt.
+          + destruct X. destruct Y.
+            assert (n < S n) as Hlt by lia.
+            apply H in Hlt.
+            inversion Hlt. simpl in *. 
+            unfold dist,sem_sigO,ofe_dist,sem_sig_dist in H1. admit.
+        - apply Build_dist_later. intros m Hm. 
+          apply Hdist in Hm.
+          unfold dist,sem_row_dist in Hm.
+      p    
+          by apply Hdist.
+      Qed. *)
+   Admitted.  *)
 
-Definition sem_row_rec_pre {Σ} (R : sem_row Σ -n> sem_row Σ) (ρ : sem_row Σ) : sem_row Σ :=
-  sem_row_later (R ρ).
-Global Instance sem_row_rec_pre_contractive {Σ} (R : sem_row Σ -n> sem_row Σ) : Contractive (sem_row_rec_pre R).
-Proof.
-  intros ??? Hdist. apply sem_row_later_contractive. 
-  apply ne_dist_later; last done. solve_proper.
-Qed.
-
-Definition sem_row_rec' {Σ} (R : sem_row Σ -n> sem_row Σ) : sem_row Σ := fixpoint (sem_row_rec_pre R).
-
-Global Instance sem_row_rec_pre_ne {Σ} : ∀ n, Proper (@dist _ _ ofe_mor_dist n ==> @dist _ _ discrete_fun_dist n) (@sem_row_rec_pre Σ).
-Proof.
-  solve_proper.
-Qed.
-
-(* Recursive Row *)
-Definition sem_row_rec {Σ} (R : sem_row Σ → sem_row Σ) `{Contractive R} : sem_row Σ :=
-  fixpoint R.
-
-Lemma sem_row_rec_unfold {Σ} (R : sem_row Σ → sem_row Σ) `{Contractive R} :
-  sem_row_rec R ≡ R (sem_row_rec R).
-Proof. rewrite /sem_row_rec {1} fixpoint_unfold //. Qed.
+(* Definition sem_row_rec_pre {Σ} (R : sem_row Σ -n> sem_row Σ) (ρ : sem_row Σ) : sem_row Σ :=
+     sem_row_later (R ρ).
+   Global Instance sem_row_rec_pre_contractive {Σ} (R : sem_row Σ -n> sem_row Σ) : Contractive (sem_row_rec_pre R).
+   Proof.
+     intros ??? Hdist. apply sem_row_later_contractive. 
+     apply ne_dist_later; last done. solve_proper.
+   Qed.
+   
+   Definition sem_row_rec' {Σ} (R : sem_row Σ -n> sem_row Σ) : sem_row Σ := fixpoint (sem_row_rec_pre R).
+   
+   Global Instance sem_row_rec_pre_ne {Σ} : ∀ n, Proper (@dist _ _ ofe_mor_dist n ==> @dist _ _ discrete_fun_dist n) (@sem_row_rec_pre Σ).
+   Proof.
+     solve_proper.
+   Qed.
+   
+   (* Recursive Row *)
+   Definition sem_row_rec {Σ} (R : sem_row Σ → sem_row Σ) `{Contractive R} : sem_row Σ :=
+     fixpoint R.
+   
+   Lemma sem_row_rec_unfold {Σ} (R : sem_row Σ → sem_row Σ) `{Contractive R} :
+     sem_row_rec R ≡ R (sem_row_rec R).
+   Proof. rewrite /sem_row_rec {1} fixpoint_unfold //. Qed. *)
 
 (* Lemma sem_row_rec_unfold_iThy {Σ} (R : sem_row Σ → sem_row Σ) `{Contractive R} e1 e2 Φ:
      pmono_prot_car (sem_row_car (sem_row_rec R)) e1 e2 Φ ≡ pmono_prot_car (sem_row_car (R (sem_row_rec R))) e1 e2 Φ.
@@ -283,15 +283,15 @@ Notation "⟨⟩" := (sem_row_nil) : sem_row_scope.
 Notation "σ · ρ" := (sem_row_cons (* opσ.1.1 opσ.1.2 *) σ ρ) (at level 80, right associativity) : sem_row_scope.
 Notation "¡[ m ] ρ" := (sem_row_flip_mbang m ρ) (at level 10) : sem_row_scope.
 Notation "¡ ρ" := (sem_row_flip_mbang OS ρ) (at level 10) : sem_row_scope.
-Notation "'μᵣ' θ , ρ " := (sem_row_rec (λ θ, ρ%R)) (at level 50) : sem_row_scope.
+(* Notation "'μᵣ' θ , ρ " := (sem_row_rec (λ θ, ρ%R)) (at level 50) : sem_row_scope. *)
 
 Section row_properties.
   (* TODO: finish proofs in this section *)
   Global Instance sem_row_cons_ne {Σ} (* op op' *) : NonExpansive2 (@sem_row_cons Σ (* op op' *)).
   Proof.
-    intros n σ1 σ2 Hσ ρ1 ρ2 Hρ. destruct n; first done.
+    intros n σ1 σ2 Hσ ρ1 ρ2 Hρ. 
     unfold sem_row_cons, dist, sem_row_dist. simpl.
-    f_equiv; last exact Hρ. f_equiv; last exact Hσ.
+    (* f_equiv; last exact Hρ. f_equiv; last exact Hσ. *)
     (* Residual goal: the head LABELS coincide,
          ([labels σ1].1, [labels σ1].2) ≡{Sn}≡ ([labels σ2].1, [labels σ2].2).
        Labels live in a DISCRETE ofe, so this is the EQUALITY
@@ -333,7 +333,7 @@ Section row_properties.
   (*   intros ??????. rewrite /sem_row_flip_mbang. simpl.
        do 4 f_equiv. apply non_dep_fun_dist. by apply Contractive0.
      Qed.  *)
-  Admitted. 
+  Admitted.
     
 End row_properties.
 
@@ -519,13 +519,13 @@ Section row_sub_typing.
        by iApply row_le_swap_second.
      Qed. *)
   
-  Lemma row_le_rec_unfold (R : sem_row Σ → sem_row Σ) `{Contractive R} :
-    ⊢ (μᵣ θ, R θ) ≤ᵣ R (μᵣ θ, R θ).
-  Proof. rewrite {1} sem_row_rec_unfold //. iApply row_le_refl. Qed.
-  
-  Lemma row_le_rec_fold (R : sem_row Σ → sem_row Σ) `{ Contractive R }:
-    ⊢ R (μᵣ θ, R θ) ≤ᵣ (μᵣ θ, R θ).
-  Proof. rewrite - {1} sem_row_rec_unfold. iApply row_le_refl. Qed.
+  (* Lemma row_le_rec_unfold (R : sem_row Σ → sem_row Σ) `{Contractive R} :
+       ⊢ (μᵣ θ, R θ) ≤ᵣ R (μᵣ θ, R θ).
+     Proof. rewrite {1} sem_row_rec_unfold //. iApply row_le_refl. Qed.
+     
+     Lemma row_le_rec_fold (R : sem_row Σ → sem_row Σ) `{ Contractive R }:
+       ⊢ R (μᵣ θ, R θ) ≤ᵣ (μᵣ θ, R θ).
+     Proof. rewrite - {1} sem_row_rec_unfold. iApply row_le_refl. Qed. *)
 
   Lemma row_le_mfbang_intro (m : mode) (ρ : sem_row Σ) :
     ⊢ ρ ≤ᵣ ¡[ m ] ρ. 
@@ -671,20 +671,20 @@ Section row_sub_typing.
   Global Instance row_nil_once : OnceR (⟨⟩ : sem_row Σ)%R.
   Proof. constructor. iApply row_le_mfbang_elim_nil. Qed.
   
-  Lemma row_le_mfbang_elim_rec (m : mode) (R : sem_row Σ → sem_row Σ) `{ Contractive R }: 
-    (∀ θ, ¡[ m ] (R θ) ≤ᵣ (R θ)) -∗ ¡[ m ] (μᵣ θ, R θ) ≤ᵣ (μᵣ θ, R θ).
-  Proof. 
-    iIntros "Hle". destruct m; last iApply row_le_mfbang_elim_ms.
-    rewrite sem_row_rec_unfold. iApply "Hle".
-  Qed.
-  
-  Global Instance row_rec_once (R : sem_row Σ → sem_row Σ) `{Contractive R} :
-    (∀ θ, OnceR (R θ)) → OnceR (μᵣ θ, R θ)%R.
-  Proof.
-    intros Hle. constructor. 
-    iApply row_le_mfbang_elim_rec. iIntros (θ). 
-    destruct (Hle θ). iApply row_le_mfbang_elim0.
-  Qed.
+  (* Lemma row_le_mfbang_elim_rec (m : mode) (R : sem_row Σ → sem_row Σ) `{ Contractive R }: 
+       (∀ θ, ¡[ m ] (R θ) ≤ᵣ (R θ)) -∗ ¡[ m ] (μᵣ θ, R θ) ≤ᵣ (μᵣ θ, R θ).
+     Proof. 
+       iIntros "Hle". destruct m; last iApply row_le_mfbang_elim_ms.
+       rewrite sem_row_rec_unfold. iApply "Hle".
+     Qed.
+     
+     Global Instance row_rec_once (R : sem_row Σ → sem_row Σ) `{Contractive R} :
+       (∀ θ, OnceR (R θ)) → OnceR (μᵣ θ, R θ)%R.
+     Proof.
+       intros Hle. constructor. 
+       iApply row_le_mfbang_elim_rec. iIntros (θ). 
+       destruct (Hle θ). iApply row_le_mfbang_elim0.
+     Qed. *)
 
 End row_sub_typing.
 
@@ -749,11 +749,11 @@ Section sem_row_union.
   Global Instance sem_row_union_ne n : Proper (dist n ==> dist n ==> dist n) sem_row_union.
   Proof.
     intros ρ1 ρ1' Heq1 ρ2 ρ2' Heq2.
-    destruct n; first done.     (* because of the definition of distance on rows *)
     unfold sem_row_union.
-    unfold dist, sem_row_dist. rewrite !iLblSig_to_iLblThy_app.
-    f_equiv; done.
-  Qed.
+    unfold dist, sem_row_dist, ofe_dist. 
+    (* rewrite iLblSig_to_iLblThy_proj.
+       rewrite !iLblSig_to_iLblThy_app.
+       f_equiv; done. *) Admitted.
 
   (* [valid]/[distinct] decompose over [iLblThy] append. *)
   Lemma valid_app (L M : iLblThy Σ) :
@@ -773,34 +773,35 @@ Section sem_row_union.
     split; split; tauto.
   Qed.
 
-  (* Union is monotone: the semantic counterpart of [le.RUnion_le]. *)
-  Lemma row_le_union (ρ1 ρ2 ρ1' ρ2' : sem_row Σ) :
-    ρ1 ≤ᵣ ρ1' -∗ ρ2 ≤ᵣ ρ2' -∗
-    sem_row_union ρ1 ρ2 ≤ᵣ sem_row_union ρ1' ρ2'.
-  Proof.
-    unfold row_le, sem_row_union. simpl.
-    rewrite !iLblSig_to_iLblThy_app.
-    iIntros "#(Hthy1 & Hvl1 & Hd1) #(Hthy2 & Hvl2 & Hd2)".
-    iSplit; last iSplit.
-    - iApply iThy_le_trans; first iApply iThy_le_to_iThy_app_inv.
-      iApply iThy_le_trans; last iApply iThy_le_to_iThy_app.
-      by iApply (iThy_le_sum_map with "Hthy1 Hthy2").
-    - iIntros "!# Hv".
-      iDestruct (valid_app with "Hv") as "[Hva Hvb]".
-      iApply valid_app; iSplitL "Hva"; [by iApply "Hvl1"|by iApply "Hvl2"].
-    - iIntros "!# %Hd".
-      (* CROSS-DISJOINTNESS of the two unioned rows' labels.  From
-         [Hd : distinct (ρ1'++ρ2')] we get [labels ρ1' # labels ρ2'] and
-         (via the IH bundles [Hd1]/[Hd2]) per-component [distinct ρ1],
-         [distinct ρ2]; but reconstructing the CROSS term
-         [labels ρ1 # labels ρ2] needs label-set MONOTONICITY of [≤ᵣ]
-         ([labels ρ1 ⊆ labels ρ1']), which the abstract [row_le] bundle
-         ([iThy_le] + ownership [valid] + pure [distinct]) does NOT expose
-         as a Coq fact.  Adding a [row_le_labels_subseteq] lemma would
-         require [row_le] to carry that subset relation; out of scope here.
-         (Affects only the [RUnion_le] case of [row_le_sound].) *)
-      admit.
-  Admitted.
+  (* Unsound and not used *)
+  (* (* Union is monotone: the semantic counterpart of [le.RUnion_le]. *)
+     Lemma row_le_union (ρ1 ρ2 ρ1' ρ2' : sem_row Σ) :
+       ρ1 ≤ᵣ ρ1' -∗ ρ2 ≤ᵣ ρ2' -∗
+       sem_row_union ρ1 ρ2 ≤ᵣ sem_row_union ρ1' ρ2'.
+     Proof.
+       unfold row_le, sem_row_union. simpl.
+       rewrite !iLblSig_to_iLblThy_app.
+       iIntros "#(Hthy1 & Hvl1 & Hd1) #(Hthy2 & Hvl2 & Hd2)".
+       iSplit; last iSplit.
+       - iApply iThy_le_trans; first iApply iThy_le_to_iThy_app_inv.
+         iApply iThy_le_trans; last iApply iThy_le_to_iThy_app.
+         by iApply (iThy_le_sum_map with "Hthy1 Hthy2").
+       - iIntros "!# Hv".
+         iDestruct (valid_app with "Hv") as "[Hva Hvb]".
+         iApply valid_app; iSplitL "Hva"; [by iApply "Hvl1"|by iApply "Hvl2"].
+       - iIntros "!# %Hd".
+         (* CROSS-DISJOINTNESS of the two unioned rows' labels.  From
+            [Hd : distinct (ρ1'++ρ2')] we get [labels ρ1' # labels ρ2'] and
+            (via the IH bundles [Hd1]/[Hd2]) per-component [distinct ρ1],
+            [distinct ρ2]; but reconstructing the CROSS term
+            [labels ρ1 # labels ρ2] needs label-set MONOTONICITY of [≤ᵣ]
+            ([labels ρ1 ⊆ labels ρ1']), which the abstract [row_le] bundle
+            ([iThy_le] + ownership [valid] + pure [distinct]) does NOT expose
+            as a Coq fact.  Adding a [row_le_labels_subseteq] lemma would
+            require [row_le] to carry that subset relation; out of scope here.
+            (Affects only the [RUnion_le] case of [row_le_sound].) *)
+         admit.
+     Admitted. *)
 
   (* Union monotonicity, with the cross-disjointness premise supplied as
      two LABEL sub-multiset facts (one per side).  These let us derive

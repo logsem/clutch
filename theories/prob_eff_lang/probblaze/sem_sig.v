@@ -100,9 +100,11 @@ Global Instance sem_sig_eff_ne {Σ} op1 op2 :
   NonExpansive2 (@sem_sig_eff Σ op1 op2).
 Proof.
   intros n A1 A2 HA B1 B2 HB.
-  unfold dist, ofe_dist. simpl. intros e1 e2 Φ. simpl.
-  f_equiv. intro αs. repeat f_equiv.
-  all: (eapply (HA _ _ _) || eapply (HB _ _ _)).
+  unfold dist, ofe_dist. simpl. split. 
+  - intros e1 e2 Φ. simpl.
+    f_equiv. intro αs. repeat f_equiv.
+    all: (eapply (HA _ _ _) || eapply (HB _ _ _)).
+  - done.
 Qed.
 
 Global Instance sem_sig_eff_alt_ne {Σ}:
@@ -135,10 +137,12 @@ Qed.
 Global Instance sem_sig_flip_mbang_ne {Σ} m : NonExpansive (@sem_sig_flip_mbang Σ m).
 Proof.
   intros n σ1 σ2 Hσ.
-  rewrite /sem_sig_flip_mbang /sem_sig_dist /=.
-  apply pmono_prot_distI.
-  by apply iThyIfMono_ne.
+  rewrite /sem_sig_flip_mbang /sem_sig_dist /=. split.
+  - apply pmono_prot_distI.
+    apply iThyIfMono_ne. by destruct Hσ.  
+  - simpl. destruct Hσ. done.
 Qed.
+
 Global Instance sem_sig_flip_mbang_proper {Σ} m : Proper ((≡) ==> (≡)) (@sem_sig_flip_mbang Σ m).
 Proof. apply ne_proper. apply _. Qed.
 
