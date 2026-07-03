@@ -340,10 +340,8 @@ Section row_properties.
   Global Instance sem_row_flip_mbang_rec_contractive {Σ} m (R : sem_row Σ -d> sem_row Σ) `{Contractive R} : 
     Contractive (λ θ, sem_row_flip_mbang m (R θ)).
   Proof.
-  (*   intros ??????. rewrite /sem_row_flip_mbang. simpl.
-       do 4 f_equiv. apply non_dep_fun_dist. by apply Contractive0.
-     Qed.  *)
-  Admitted. 
+    intros n x y Hxy. apply sem_row_flip_mbang_ne. by apply Contractive0.
+  Qed.
     
 End row_properties.
 
