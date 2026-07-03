@@ -1900,17 +1900,24 @@ Section compatibility.
       iApply (brel_wand with "Hbrelk"). iIntros "!# %% ($&_)".
   Qed.
 
-  Lemma sem_typed_deep_handler_OS op (A B : sem_ty Σ → sem_ty Σ) τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 x y k e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
-    x ∉ env_dom Γ2 →  x ∉ env_dom Γ3 → k ∉ env_dom Γ3 → x ≠ k →
-    y ∉ env_dom Γ2 → y ∉ env_dom Γ3 →
+  Lemma sem_typed_deep_handler_OS op (A B : sem_ty Σ → sem_ty Σ) τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 (x y k : binder) e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
+    (match x with BNamed s => s ∉ env_dom Γ2 | BAnon => True end) →
+    (match x with BNamed s => s ∉ env_dom Γ3 | BAnon => True end) →
+    (match k with BNamed s => s ∉ env_dom Γ3 | BAnon => True end) →
+    (match x, k with BNamed a, BNamed b => a ≠ b | _, _ => True end) →
+    (match y with BNamed s => s ∉ env_dom Γ2 | BAnon => True end) →
+    (match y with BNamed s => s ∉ env_dom Γ3 | BAnon => True end) →
     (sem_sig_labels Σ σ') = op →
     let σ := (⟨op.1, op.2⟩ : ∀ₛ α, A α =[OS]=> B α)%S in
     let ρ := (σ · ρ'')%R in
     let ρ':= (σ'· ρ'')%R in
     ⊢
     sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
-    (∀ α, sem_typed ((x, A α) :: (k, B α -{ ρ' }-[OS]-> τ') :: Γ3) h1 h2 ρ' τ' Γ3) -∗
-    sem_typed ((y, τ) :: Γ2 ++ Γ3) r1 r2 ρ' τ' Γ3 -∗
+    (∀ α, sem_typed
+       (match x with BNamed sx => (sx, A α) :: match k with BNamed sk => (sk, B α -{ ρ' }-[OS]-> τ') :: Γ3 | BAnon => Γ3 end
+                   | BAnon => match k with BNamed sk => (sk, B α -{ ρ' }-[OS]-> τ') :: Γ3 | BAnon => Γ3 end end)
+       h1 h2 ρ' τ' Γ3) -∗
+    sem_typed (match y with BNamed sy => (sy, τ) :: (Γ2 ++ Γ3) | BAnon => Γ2 ++ Γ3 end) r1 r2 ρ' τ' Γ3 -∗
     sem_typed (Γ1 ++ Γ3)
       (handle: e1 with
       | effect op.1 x, rec k => h1
@@ -1920,7 +1927,7 @@ Section compatibility.
       | return y => r2 end)
       ρ' τ' Γ3.
   Proof.
-    iIntros (?????? Hop ???) "#He #Hh #Hr !# %γ HΓ1Γ3 /=".
+    iIntros (Hx2 Hx3 Hk3 Hxk Hy2 Hy3 Hop σ ρ ρ') "#He #Hh #Hr !# %γ HΓ1Γ3 /=".
     iDestruct (env_sem_typed_app with "HΓ1Γ3") as "[HΓ1 #HΓ3]".
     iDestruct ("He" with "HΓ1") as "Hbrel".
     simpl. rewrite Hop.
@@ -1928,11 +1935,13 @@ Section compatibility.
     1,2: simpl; set_solver.
     iSplit.
     - iIntros (v1 v2) "!# (Hτ & HΓ2)". brel_pures_l. brel_pures_r.
-      rewrite -!subst_map_insert.
+      rewrite -!subst_map_binder_insert.
       assert (v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & ->) by done.
-      rewrite -!fmap_insert /=.
-      iDestruct ("Hr" $! (<[y:=(v1,v2)]> γ) with "[Hτ HΓ2]") as "Hbrelr".
-      { solve_env. iApply env_sem_typed_app. iSplitL; solve_env. }
+      rewrite -!binder_insert_fmap /=.
+      iDestruct ("Hr" $! (binder_insert y (v1,v2) γ) with "[Hτ HΓ2]") as "Hbrelr".
+      { destruct y as [|sy]; simpl in *;
+          [ iApply env_sem_typed_app; iFrame "#"; iFrame
+          | solve_env; iApply env_sem_typed_app; iSplitL; solve_env ]. }
       iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
       { simpl. rewrite Hop. iApply to_iThy_le_refl. }
       iApply (brel_wand with "Hbrelr"). iIntros "!# % % ($ & _)". iFrame "#".
@@ -1943,78 +1952,125 @@ Section compatibility.
       iIntros "!> %f1 Hunshot".
       iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
       iIntros "%f2 Hunshots".
-      brel_pures_l. brel_pures_r.
-      destruct (decide _) as [[]|[]]; [|].
-      2: { split; eauto. intros ?. simplify_eq. }
-      do 2 rewrite (delete_delete _ k).
-      rewrite -!subst_map_insert.
-      do 2 (rewrite -delete_insert_ne; last done).
-      rewrite -!subst_map_insert.
-      assert (v1' = fst (v1', v2') ∧ v2' = snd (v1', v2')) as (-> & ->)
-        by done.
-      eassert (ContV f1 ((HandleCtx _ _ op.1
-        (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1)
-        (λ: y, subst_map (delete y (fst <$> γ)) r1)) :: k1')
-        = fst (ContV f1 (_ :: _), ContV f2 _) ∧
-        ContV f2 ((HandleCtx _ _ op.2
-        (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2)
-        (λ: y, subst_map (delete y (snd <$> γ)) r2)) :: k2')
-        = snd (ContV f1 _, ContV f2 (_ :: _))) as (Hcont1 & Hcont2) by done.
-      rewrite Hcont1. rewrite Hcont2.
-      rewrite -!fmap_insert. simpl.
-      iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
-      { simpl. rewrite Hop. iApply to_iThy_le_refl. }
-      iDestruct ("Hh" with "[Hunshot Hunshots HA HQ'Q]") as "Hbrelh".
-      2 : { iApply (brel_wand with "Hbrelh").
-            by iIntros "!# % % ($ & _)". }
-      solve_env; last (by do 2 (rewrite -env_sem_typed_insert; last done)).
-      rewrite /sem_ty_arr /sem_ty_mbang /=.
-      iIntros (??) "HB".
-      iApply (brel_cont_l with "Hunshot"). iModIntro.
-      iApply (brel_cont_r with "Hunshots").
-      iDestruct ("HBQ'" $! w1 w2 with "[HB]") as "HQ'"; first by iFrame.
-      iDestruct ("HQ'Q" with "HQ'") as "HQ".
-      iDestruct ("Hkont" with "HQ") as "Hbrelk".
-      clear Hcont1 Hcont2. iClear "Hkont".
-      iLöb as "IH" forall (k1' k2' w1 w2 Hk1' Hk2').
-      rewrite Hop. 
-      iApply (brel_exhaustion _ _ _ _ σ with "Hbrelk").
-      1,2: simpl; set_solver.
-      iSplit.
-      + iIntros (v1'' v2'') "!# (Hτ & HΓ2)". brel_pures_l. brel_pures_r.
-        rewrite -!subst_map_insert.
-        assert (v1'' = fst (v1'', v2'') ∧ v2'' = snd (v1'', v2''))
-          as (-> & ->) by done.
-        rewrite -!fmap_insert /=.
-        iDestruct ("Hr" $! (<[y:=(v1'',v2'')]> γ) with "[Hτ HΓ2]")
-          as "Hbrelr".
-        { solve_env. iApply env_sem_typed_app. iSplitL; solve_env. }
-        iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')
-          with "[][Hbrelr]").
-        { simpl. rewrite Hop. iApply to_iThy_le_refl. }
-        iApply (brel_wand with "Hbrelr"). iIntros "!# % % ($ & _)".
-      + iIntros "!# % % % % % %Hk1'' %Hk2'' Hσ #Hkont'". unfold σ.
-        iDestruct "Hσ" as (Q'') "(Hσ & HQ'Q)".
-        iDestruct "Hσ" as (α' v1'' v2'' -> ->) "(HA & #HBQ'')".
-        iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
-        iIntros "!> %f1' Hunshot".
-        iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
-        iIntros "%f2' Hunshots".
+      destruct x as [|sx], k as [|sk]; simpl in *.
+      + (* x = BAnon, k = BAnon: continuation dropped, body typed at ρ'. *)
         brel_pures_l. brel_pures_r.
-        destruct (decide _) as [[]|[]]; [|done].
+        iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
+        { simpl. rewrite Hop. iApply to_iThy_le_refl. }
+        iDestruct ("Hh" $! α with "[HΓ3]") as "Hbrelh".
+        { iFrame "#". }
+        iApply (brel_wand with "Hbrelh"). by iIntros "!# % % ($ & _)".
+      + (* x = BAnon, k = BNamed sk: only the continuation binder. *)
+        brel_pures_l. brel_pures_r.
+        rewrite -!subst_map_insert.
+        eassert (ContV f1 ((HandleCtx Deep OS op.1
+          (λ: <> sk, subst_map (delete sk (fst <$> γ)) h1)
+          (λ: y, subst_map (binder_delete y (fst <$> γ)) r1)) :: k1')
+          = fst (ContV f1 (_ :: _), ContV f2 _) ∧
+          ContV f2 ((HandleCtx Deep OS op.2
+          (λ: <> sk, subst_map (delete sk (snd <$> γ)) h2)
+          (λ: y, subst_map (binder_delete y (snd <$> γ)) r2)) :: k2')
+          = snd (ContV f1 _, ContV f2 (_ :: _))) as (Hcont1 & Hcont2) by done.
+        rewrite Hcont1. rewrite Hcont2.
+        rewrite -!fmap_insert. simpl.
+        iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
+        { simpl. rewrite Hop. iApply to_iThy_le_refl. }
+        iDestruct ("Hh" with "[Hunshot Hunshots HQ'Q]") as "Hbrelh".
+        2 : { iApply (brel_wand with "Hbrelh").
+              by iIntros "!# % % ($ & _)". }
+        rewrite env_sem_typed_cons.
+        iSplitR "".
+        2:{ by rewrite -env_sem_typed_insert; last done. }
+        iExists _,_. iSplitR; first (iPureIntro; apply lookup_insert_eq).
+        rewrite /sem_ty_arr /sem_ty_mbang /=. iIntros (??) "HB".
+        iApply (brel_cont_l with "Hunshot"). iModIntro.
+        iApply (brel_cont_r with "Hunshots").
+        iDestruct ("HBQ'" $! w1 w2 with "[HB]") as "HQ'"; first by iFrame.
+        iDestruct ("HQ'Q" with "HQ'") as "HQ".
+        iDestruct ("Hkont" with "HQ") as "Hbrelk".
+        clear Hcont1 Hcont2. iClear "Hkont".
+        iLöb as "IH" forall (k1' k2' w1 w2 Hk1' Hk2').
+        rewrite Hop.
+        iApply (brel_exhaustion _ _ _ _ σ with "Hbrelk").
+        1,2: simpl; set_solver.
+        iSplit.
+        * iIntros (v1'' v2'') "!# (Hτ & HΓ2)". brel_pures_l. brel_pures_r.
+          rewrite -!subst_map_binder_insert.
+          assert (v1'' = fst (v1'', v2'') ∧ v2'' = snd (v1'', v2''))
+            as (-> & ->) by done.
+          rewrite -!binder_insert_fmap /=.
+          iDestruct ("Hr" $! (binder_insert y (v1'',v2'') γ) with "[Hτ HΓ2]")
+            as "Hbrelr".
+          { destruct y as [|sy]; simpl in *;
+              [ iApply env_sem_typed_app; iFrame "#"; iFrame
+              | solve_env; iApply env_sem_typed_app; iSplitL; solve_env ]. }
+          iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')
+            with "[][Hbrelr]").
+          { simpl. rewrite Hop. iApply to_iThy_le_refl. }
+          iApply (brel_wand with "Hbrelr"). iIntros "!# % % ($ & _)".
+        * iIntros "!# % % % % % %Hk1'' %Hk2'' Hσ #Hkont'". unfold σ.
+          iDestruct "Hσ" as (Q'') "(Hσ & HQ'Q)".
+          iDestruct "Hσ" as (α' v1'' v2'' -> ->) "(HA' & #HBQ'')".
+          iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
+          iIntros "!> %f1' Hunshot".
+          iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
+          iIntros "%f2' Hunshots".
+          brel_pures_l. brel_pures_r.
+          rewrite -!subst_map_insert.
+          eassert (ContV f1' ((HandleCtx Deep OS op.1
+            (λ: <> sk, subst_map (delete sk (fst <$> γ)) h1)
+            (λ: y, subst_map (binder_delete y (fst <$> γ)) r1)) :: k1'0)
+            = fst (ContV f1' (_ :: _), ContV f2' _) ∧
+            ContV f2' ((HandleCtx Deep OS op.2
+            (λ: <> sk, subst_map (delete sk (snd <$> γ)) h2)
+            (λ: y, subst_map (binder_delete y (snd <$> γ)) r2)) :: k2'0)
+            = snd (ContV f1' _, ContV f2' (_ :: _))) as (Hcont1 & Hcont2) by done.
+          rewrite Hcont1. rewrite Hcont2.
+          rewrite -!fmap_insert. simpl.
+          iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
+          { simpl. rewrite Hop. iApply to_iThy_le_refl. }
+          iDestruct ("Hh" with "[Hunshot Hunshots HQ'Q]") as "Hbrelh".
+          2 : { iApply (brel_wand with "Hbrelh").
+                by iIntros "!# % % ($ & _)". }
+          rewrite env_sem_typed_cons.
+          iSplitR "".
+          2:{ by rewrite -env_sem_typed_insert; last done. }
+          iExists _,_. iSplitR; first (iPureIntro; apply lookup_insert_eq).
+          iIntros (??) "HB".
+          iApply (brel_cont_l with "Hunshot"). iModIntro.
+          iApply (brel_cont_r with "Hunshots").
+          iDestruct ("HBQ''" $! w0 w3 with "[HB]") as "HQ'";first by iFrame.
+          iDestruct ("HQ'Q" with "HQ'") as "HQ".
+          iDestruct ("Hkont'" with "HQ") as "Hbrelk".
+          iApply ("IH" with "[][][Hbrelk]"); try done.
+      + (* x = BNamed sx, k = BAnon: continuation dropped, body typed at ρ'. *)
+        brel_pures_l. brel_pures_r.
+        rewrite -!subst_map_insert.
+        assert (v1' = fst (v1', v2') ∧ v2' = snd (v1', v2')) as (-> & ->) by done.
+        rewrite -!fmap_insert. simpl.
+        iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
+        { simpl. rewrite Hop. iApply to_iThy_le_refl. }
+        iDestruct ("Hh" $! α (<[sx:=(v1',v2')]> γ) with "[HA]") as "Hbrelh".
+        { solve_env. }
+        iApply (brel_wand with "Hbrelh"). by iIntros "!# % % ($ & _)".
+      + (* x = BNamed sx, k = BNamed sk: full deep-handler continuation. *)
+        brel_pures_l. brel_pures_r.
+        destruct (decide _) as [[]|[]]; [|].
+        2: { split; eauto. intros ?. simplify_eq. }
+        do 2 rewrite (delete_delete _ sk).
         rewrite -!subst_map_insert.
         do 2 (rewrite -delete_insert_ne; last done).
         rewrite -!subst_map_insert.
-        assert (v1'' = fst (v1'', v2'') ∧ v2'' = snd (v1'', v2''))
-          as (-> & ->) by done.
-        eassert (ContV f1' ((HandleCtx _ _ op.1
-          (λ: x k, subst_map (delete x (delete k (fst <$> γ))) h1)
-          (λ: y, subst_map (delete y (fst <$> γ)) r1)) :: k1'0)
-          = fst (ContV f1' (_ :: _), ContV f2' _) ∧
-          ContV f2' ((HandleCtx _ _ op.2
-          (λ: x k, subst_map (delete x (delete k (snd <$> γ))) h2)
-          (λ: y, subst_map (delete y (snd <$> γ)) r2)) :: k2'0)
-          = snd (ContV f1' _, ContV f2' (_ :: _))) as (Hcont1 & Hcont2) by done.
+        assert (v1' = fst (v1', v2') ∧ v2' = snd (v1', v2')) as (-> & ->)
+          by done.
+        eassert (ContV f1 ((HandleCtx Deep OS op.1
+          (λ: sx sk, subst_map (delete sx (delete sk (fst <$> γ))) h1)
+          (λ: y, subst_map (binder_delete y (fst <$> γ)) r1)) :: k1')
+          = fst (ContV f1 (_ :: _), ContV f2 _) ∧
+          ContV f2 ((HandleCtx Deep OS op.2
+          (λ: sx sk, subst_map (delete sx (delete sk (snd <$> γ))) h2)
+          (λ: y, subst_map (binder_delete y (snd <$> γ)) r2)) :: k2')
+          = snd (ContV f1 _, ContV f2 (_ :: _))) as (Hcont1 & Hcont2) by done.
         rewrite Hcont1. rewrite Hcont2.
         rewrite -!fmap_insert. simpl.
         iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
@@ -2022,20 +2078,77 @@ Section compatibility.
         iDestruct ("Hh" with "[Hunshot Hunshots HA HQ'Q]") as "Hbrelh".
         2 : { iApply (brel_wand with "Hbrelh").
               by iIntros "!# % % ($ & _)". }
-        rewrite env_sem_typed_cons.
-        iSplitL "HA"; [iFrame; iPureIntro|].
-        { rewrite lookup_insert_ne; first apply lookup_insert_eq. done. }
-        rewrite env_sem_typed_cons.
-        iSplitL; last (by do 2 (rewrite -env_sem_typed_insert; last done)).
-        iExists _,_. iSplitR; first (iPureIntro; apply lookup_insert_eq).
+        solve_env; last (by do 2 (rewrite -env_sem_typed_insert; last done)).
+        rewrite /sem_ty_arr /sem_ty_mbang /=.
         iIntros (??) "HB".
         iApply (brel_cont_l with "Hunshot"). iModIntro.
         iApply (brel_cont_r with "Hunshots").
-        iDestruct ("HBQ''" $! w0 w3 with "[HB]") as "HQ'";first by iFrame.
+        iDestruct ("HBQ'" $! w1 w2 with "[HB]") as "HQ'"; first by iFrame.
         iDestruct ("HQ'Q" with "HQ'") as "HQ".
-        iDestruct ("Hkont'" with "HQ") as "Hbrelk".
-        iApply ("IH" with "[][][Hbrelk]"); try done.
-        Unshelve. all : try apply OS; try apply Deep.
+        iDestruct ("Hkont" with "HQ") as "Hbrelk".
+        clear Hcont1 Hcont2. iClear "Hkont".
+        iLöb as "IH" forall (k1' k2' w1 w2 Hk1' Hk2').
+        rewrite Hop.
+        iApply (brel_exhaustion _ _ _ _ σ with "Hbrelk").
+        1,2: simpl; set_solver.
+        iSplit.
+        * iIntros (v1'' v2'') "!# (Hτ & HΓ2)". brel_pures_l. brel_pures_r.
+          rewrite -!subst_map_binder_insert.
+          assert (v1'' = fst (v1'', v2'') ∧ v2'' = snd (v1'', v2''))
+            as (-> & ->) by done.
+          rewrite -!binder_insert_fmap /=.
+          iDestruct ("Hr" $! (binder_insert y (v1'',v2'') γ) with "[Hτ HΓ2]")
+            as "Hbrelr".
+          { destruct y as [|sy]; simpl in *;
+              [ iApply env_sem_typed_app; iFrame "#"; iFrame
+              | solve_env; iApply env_sem_typed_app; iSplitL; solve_env ]. }
+          iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')
+            with "[][Hbrelr]").
+          { simpl. rewrite Hop. iApply to_iThy_le_refl. }
+          iApply (brel_wand with "Hbrelr"). iIntros "!# % % ($ & _)".
+        * iIntros "!# % % % % % %Hk1'' %Hk2'' Hσ #Hkont'". unfold σ.
+          iDestruct "Hσ" as (Q'') "(Hσ & HQ'Q)".
+          iDestruct "Hσ" as (α' v1'' v2'' -> ->) "(HA & #HBQ'')".
+          iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
+          iIntros "!> %f1' Hunshot".
+          iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
+          iIntros "%f2' Hunshots".
+          brel_pures_l. brel_pures_r.
+          destruct (decide _) as [[]|[]]; [|done].
+          rewrite -!subst_map_insert.
+          do 2 (rewrite -delete_insert_ne; last done).
+          rewrite -!subst_map_insert.
+          assert (v1'' = fst (v1'', v2'') ∧ v2'' = snd (v1'', v2''))
+            as (-> & ->) by done.
+          eassert (ContV f1' ((HandleCtx Deep OS op.1
+            (λ: sx sk, subst_map (delete sx (delete sk (fst <$> γ))) h1)
+            (λ: y, subst_map (binder_delete y (fst <$> γ)) r1)) :: k1'0)
+            = fst (ContV f1' (_ :: _), ContV f2' _) ∧
+            ContV f2' ((HandleCtx Deep OS op.2
+            (λ: sx sk, subst_map (delete sx (delete sk (snd <$> γ))) h2)
+            (λ: y, subst_map (binder_delete y (snd <$> γ)) r2)) :: k2'0)
+            = snd (ContV f1' _, ContV f2' (_ :: _))) as (Hcont1 & Hcont2) by done.
+          rewrite Hcont1. rewrite Hcont2.
+          rewrite -!fmap_insert. simpl.
+          iApply (brel_introduction_mono (iLblSig_to_iLblThy ρ')).
+          { simpl. rewrite Hop. iApply to_iThy_le_refl. }
+          iDestruct ("Hh" with "[Hunshot Hunshots HA HQ'Q]") as "Hbrelh".
+          2 : { iApply (brel_wand with "Hbrelh").
+                by iIntros "!# % % ($ & _)". }
+          rewrite env_sem_typed_cons.
+          iSplitL "HA"; [iFrame; iPureIntro|].
+          { rewrite lookup_insert_ne; first apply lookup_insert_eq. done. }
+          rewrite env_sem_typed_cons.
+          iSplitL; last (by do 2 (rewrite -env_sem_typed_insert; last done)).
+          iExists _,_. iSplitR; first (iPureIntro; apply lookup_insert_eq).
+          iIntros (??) "HB".
+          iApply (brel_cont_l with "Hunshot"). iModIntro.
+          iApply (brel_cont_r with "Hunshots").
+          iDestruct ("HBQ''" $! w0 w3 with "[HB]") as "HQ'";first by iFrame.
+          iDestruct ("HQ'Q" with "HQ'") as "HQ".
+          iDestruct ("Hkont'" with "HQ") as "Hbrelk".
+          iApply ("IH" with "[][][Hbrelk]"); try done.
+          Unshelve. all : try apply OS; try apply Deep.
   Qed.
 
   (* [sem_typed] respects OFE-equivalence of the result type.  Needed by the
