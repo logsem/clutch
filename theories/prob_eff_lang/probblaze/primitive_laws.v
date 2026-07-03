@@ -867,11 +867,22 @@ Proof.
   iSplit. { iPureIntro. eexists. simpl. apply semantics.fill_step.
             apply head_step_prim_step.
             apply head_step_support_equiv_rel. by apply ContS. }
-  iIntros "!>" (e2 σ2 Hstep).  
-(*   iMod (gen_heap_update  _ _ _ (Some #false) with "Hheap Hr") as "[$ Hr]".
-     by iFrame.
-   Qed. *)
-Admitted.
+  iIntros "!>" (e2 σ2 Hstep).
+  have Heq : (e2, σ2) = (fill k (fill k' v), state_upd_heap <[r:= LitV $ LitBool false]> σ1).
+  { apply prim_step_iff in Hstep as (K' & e1' & e2' & Hdecomp & <- & Hhs).
+    apply head_step_support_equiv_rel in Hhs.
+    have Hdecomp' : decomp (fill k (ContV r k' v)) = (k, ContV r k' v).
+    { apply (head_reducible_decomp_ctx k (ContV r k' v) σ1); [done |].
+      exists (fill k' v, state_upd_heap <[r:= LitV $ LitBool false]> σ1).
+      apply head_step_support_equiv_rel. by apply (ContS k' r v (fill k' v) σ1). }
+    rewrite Hdecomp' in Hdecomp. simplify_eq.
+    inversion Hhs; simplify_eq. done. }
+  simplify_eq.
+  iMod (ghost_map_update (LitV $ LitBool false) with "Hh Hr") as "[Hh Hr]".
+  iMod "Hclose". iModIntro.
+  iSplitL "Hh Ht Hlabs"; [| iApply "Hwp"].
+  simpl. iFrame.
+Qed.
 
 End lifting.
 
