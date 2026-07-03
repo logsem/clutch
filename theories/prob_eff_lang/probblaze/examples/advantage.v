@@ -313,3 +313,28 @@ Proof.
   }
   done.
 Qed.
+
+Theorem sem_typed_advantage_aff `{!probblazeRGpreS Σ} A e e' (τ : ∀ `{probblazeRGS Σ}, sem_ty Σ) (ε : R) :
+  0 <= ε →
+  ∀ (b : bool), (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (τ → 𝔹)%T) ->
+                (∀ `{probblazeRGS Σ}, ↯ ε ⊢ τ e e')  /\ (∀ `{probblazeRGS Σ}, ↯ ε ⊢ τ e' e) ->
+                advantage A e e' #b <= ε.
+Proof.
+  intros Hnn b Hadv (Hee' & He'e).
+  apply advantage_uniform => σ.
+  apply Rabs_le. 
+  cut (lim_exec (A e, σ) #b <= lim_exec (A e', σ) #b + ε ∧ lim_exec (A e', σ) #b  <= lim_exec (A e, σ) #b + ε); [lra|].
+  split.
+  - eapply ARcoupl_eq_elim. eapply brel_approximates_coupling; try done; first last.
+    + iIntros (HRGS) "Herr".
+      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang //= in Hadv.
+      iPoseProof Hadv as "#Hadv". 
+      iApply "Hadv". by iApply Hee'.
+    + by iIntros (???) "(%&->&->)".
+  - eapply ARcoupl_eq_elim. eapply brel_approximates_coupling; try done; first last.
+    + iIntros (HRGS) "Herr".
+      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang //= in Hadv.
+      iPoseProof Hadv as "#Hadv". 
+      iApply "Hadv". by iApply He'e.
+    + by iIntros (???) "(%&->&->)".
+Qed.  
