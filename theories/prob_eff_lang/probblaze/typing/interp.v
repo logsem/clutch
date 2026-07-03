@@ -1673,7 +1673,8 @@ Section interp_subst.
       all: admit. (* TArrow_le: IHs need [erase_ctx D'] (see header) *)
     - iApply ty_le_ref; by iApply H.
     - iApply ty_le_type_forall; iIntros (α'); iApply H; by iApply erase_ctx_extend_ty.
-    - iApply ty_le_row_forall; iIntros (θ). iApply H. admit.
+    (* Following case was removed from the syntactic rules *)
+    (* - iApply ty_le_row_forall; iIntros (θ). iApply H. admit. *) 
     - iApply ty_le_mode_forall; iIntros (ν); iApply H; by iApply erase_ctx_extend_mode.
     - iApply ty_le_rec.
       (* TRec_le: STILL ADMITTED.  [ty_le_rec] (sem_types.v) requires the

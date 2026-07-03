@@ -1167,10 +1167,11 @@ Module le.
     _type D (TArrow α ρ β) (TArrow α' ρ' β')
   | TRef_le D α β :
     _type D α β → _type D (TRef α) (TRef β)
-  | TForallT_le D α β :
+  | TForallT_le D α β : 
     _type D α β → _type D (TForallT α) (TForallT β)
-  | TForallR_le D α β :
-    _type D α β → _type D (TForallR α) (TForallR β)
+  (* Unsure if it is sound *)
+  (* | TForallR_le D α β :
+       _type D α β → _type D (TForallR α) (TForallR β) *)
   | TForallM_le D α β :
     _type D α β → _type D (TForallM α) (TForallM β)
   | TRec_le D α β : _type D α β → _type D (TRec α) (TRec β)
