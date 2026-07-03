@@ -22,8 +22,9 @@ Section adv_dhke.
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_ot → 𝔹)%T) →
     advantage A OT_SIM_FOT_thunk (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Receiver_Corrupted "f" ("effs", "doCRS"))%E)%V #true <= 3/n. 
   Proof using n_prime G inG2 H. 
-    intros. eapply sem_typed_advantage_aff; first done.
-    split.
+    intros. eapply sem_typed_advantage_aff; try done; last split.
+    - apply Rcomplements.Rdiv_le_0_compat; first lra.
+      apply lt_0_INR. lia.
     - intros Hrgs. by unshelve iApply OT_ideal_real.
     - intros Hrgs. by unshelve iApply OT_real_ideal.
   Qed.
