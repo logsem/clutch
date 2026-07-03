@@ -97,8 +97,8 @@ Section subsampling_code.
             ⤇ fill K v' ∗
             ⌜is_list vs v ⌝ ∗
             ⌜is_list vs' v' ⌝ ∗
-            ((⌜ vs  = vs' ⌝ ∗ ↯m ( ln (2*(exp ε)-1) ) ∗ ↯ (2*δ) ) ∨
-               (⌜ neighbour vs vs' ⌝ ))
+            ((⌜ vs  = vs' ⌝  ∨
+               (⌜ neighbour vs vs' ⌝ ) ∗ ↯m ( ln (2*(exp ε)-1) ) ∗ ↯ (2*δ) ))
         }}}.
   Proof.
     iIntros (Hε Hδ). iLöb as "IH" forall (ε δ xs ys xsv ysv K Hε Hδ).
@@ -113,8 +113,8 @@ Section subsampling_code.
       wp_rec. wp_pures.
       wp_bind (rand _)%E.
       wp_apply (hoare_couple_rand_l_adv 1
-                  (fun n => if bool_decide (n = 0)%nat then ln (2*(exp ε)-1) else 0)
-                  (fun n => if bool_decide (n = 0)%nat then 2*δ else 0)
+                  (fun n => if bool_decide (n = 1)%nat then ln (2*(exp ε)-1) else 0)
+                  (fun n => if bool_decide (n = 1)%nat then 2*δ else 0)
                   1%Z ⊤ ε δ with "[$Hεm $Hδ']").
       - intros n. case_bool_decide; [|lra].
         have Hexp1 : 1 <= exp ε.
@@ -161,7 +161,7 @@ Section subsampling_code.
           wp_pures.
           iApply ("HΦ" $! v vs vs).
           iModIntro. iExists v. iFrame "Hspec". iSplit; [done|]. iSplit; [done|].
-          iLeft. iSplit; [done|]. iFrame.
+          iLeft. done.
         + (* coin = 1: the extra element is kept, so the results are neighbours. *)
           wp_pures.
           iApply ("HΦ" $! (SOMEV (inject a, v)) (a :: vs) vs).
@@ -169,7 +169,9 @@ Section subsampling_code.
           iSplit.
           { iPureIntro. simpl. eexists. split; [done|]. exact Hvs. }
           iSplit; [done|].
-          iRight. iPureIntro. eapply (neighbour_add_l _ _ [] vs a); by simpl.
+          iRight. iSplitR.
+          { iPureIntro. eapply (neighbour_add_l _ _ [] vs a); by simpl. }
+          iFrame.
         + exfalso. apply INR_le in Hn. lia. }
     { (* Case 2: [xs] and [ys] share a common head [a]. *)
       subst xs. subst ys.
@@ -207,9 +209,11 @@ Section subsampling_code.
         { iPureIntro. simpl. eexists. split; [done|]. exact Hvs. }
         iSplit.
         { iPureIntro. simpl. eexists. split; [done|]. exact Hvs'. }
-        iDestruct "Hdisj" as "[(%Heq & Hεm' & Hδ') | %Hnbd]".
-        + iLeft. iFrame. iPureIntro. by rewrite Heq.
-        + iRight. iPureIntro. by apply neighbour_cons.
+        iDestruct "Hdisj" as "[%Heq | (%Hnbd & Hεm' & Hδ')]".
+        + iLeft. iPureIntro. by rewrite Heq.
+        + iRight. iSplitR.
+          { iPureIntro. by apply neighbour_cons. }
+          iFrame.
       - exfalso. lia. }
   Qed.
 
