@@ -1573,12 +1573,129 @@ Section interp_subst.
      logic.valid (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)) -∗
      erase_ctx η μ δ ξ (le.update_disj_ctx ρ' D).
   Proof.
-    iIntros "#HD #Hd #Hv !# % % % %".
-    iIntros (???). rewrite /le.update_disj_ctx /le.merge_ctx in H.
-    apply lookup_union_with_Some in H as [(H&_) | [H | H]].
-    (* - apply lookup_row_to_disj_ctx in H.
-       rewrite lookup_union_with in H. *)
-  Admitted.
+    iIntros "#HD #Hd #Hv".
+    iDestruct (erase_ctx_row_to_disj_ctx η μ δ ξ ρ' with "[$Hv $Hd]")
+      as "#Hrow".
+    rewrite /erase_ctx /le.update_disj_ctx /le.merge_ctx.
+    iIntros "!#" (s ss js ρ0 Hlk Hc Ha).
+    apply lookup_union_with_Some in Hlk as [(Hlk1&Hlk2) | [(Hlk1&Hlk2) | Hb]].
+    (* [row_to_disj_ctx ρ'] only: discharge directly from [Hrow]. *)
+    1: by iApply ("Hrow" $! s ss js ρ0 with "[//] [//] [//]").
+    (* [D] only: discharge directly from [HD]. *)
+    1: by iApply ("HD" $! s ss js ρ0 with "[//] [//] [//]").
+    (* Both: the merged entry has [ss = ss1 ∪ ss2], [js = js1 ∪ js2].  Every
+       concrete name / row variable of [ρ0] lands in one of the two summands,
+       so freshness of [(δ !!! s)] against [ρ0] is reconstructed element-wise
+       from the per-side facts [Hm1] ([Hrow]) and [Hm2] ([HD]). *)
+    destruct Hb as ([ss1 js1] & [ss2 js2] & Hlk1 & Hlk2 & Heq).
+    simpl in Heq. injection Heq as <- <-.
+    iAssert (⌜∀ ρa, le.conc_sigs ρa ⊆ ss1 → le.abst_sigs ρa ⊆ js1 →
+      (δ !!! s).1 ∉ row_labels_l ρa ξ δ
+      ∧ (δ !!! s).2 ∉ row_labels_r ρa ξ δ⌝)%I as %Hm1.
+    { iIntros (ρa Hca Haa).
+      iDestruct ("Hrow" $! s ss1 js1 ρa with "[//] [//] [//]")
+        as "(_ & _ & %Hfl & %Hfr)".
+      rewrite (labels_l_interp_row ρa η μ δ ξ) in Hfl.
+      rewrite (labels_r_interp_row ρa η μ δ ξ) in Hfr.
+      iPureIntro; split; assumption. }
+    iAssert (⌜∀ ρa, le.conc_sigs ρa ⊆ ss2 → le.abst_sigs ρa ⊆ js2 →
+      (δ !!! s).1 ∉ row_labels_l ρa ξ δ
+      ∧ (δ !!! s).2 ∉ row_labels_r ρa ξ δ⌝)%I as %Hm2.
+    { iIntros (ρa Hca Haa).
+      iDestruct ("HD" $! s ss2 js2 ρa with "[//] [//] [//]")
+        as "(_ & _ & %Hfl & %Hfr)".
+      rewrite (labels_l_interp_row ρa η μ δ ξ) in Hfl.
+      rewrite (labels_r_interp_row ρa η μ δ ξ) in Hfr.
+      iPureIntro; split; assumption. }
+    (* Ownership does not depend on [ρ0]; read it off [D] at the empty row. *)
+    assert (Hc0 : le.conc_sigs RNil ⊆ ss2)
+      by (cbn [le.conc_sigs]; multiset_solver).
+    assert (Ha0 : le.abst_sigs RNil ⊆ js2)
+      by (cbn [le.abst_sigs]; set_solver).
+    iDestruct ("HD" $! s ss2 js2 RNil with "[//] [//] [//]")
+      as "(#Hown1 & #Hown2 & _)".
+    iSplit; [iApply "Hown1"|].
+    iSplit; [iApply "Hown2"|].
+    iSplit.
+    - iPureIntro.
+      rewrite (labels_l_interp_row ρ0 η μ δ ξ).
+      intros Hin. rewrite row_labels_l_split elem_of_app in Hin.
+      destruct Hin as [Hn | Hvr].
+      + rewrite /name_labels_l list_elem_of_fmap in Hn.
+        destruct Hn as (t & Heqt & Ht). apply gmultiset_elem_of_elements in Ht.
+        assert (Htu : t ∈ ss1 ∪ ss2)
+          by (eapply gmultiset_elem_of_subseteq; eauto).
+        apply gmultiset_elem_of_union in Htu as [Ht1 | Ht2].
+        * assert (Hp1 : le.conc_sigs (RCons (SSig t TBot TBot) RNil) ⊆ ss1)
+            by (cbn [le.conc_sigs le.eff_name_from_sig]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RCons (SSig t TBot TBot) RNil) ⊆ js1)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm1 _ Hp1 Hp2) as [Hnl _].
+          apply Hnl. cbn [row_labels_l le.eff_name_from_sig].
+          rewrite Heqt. apply list_elem_of_here.
+        * assert (Hp1 : le.conc_sigs (RCons (SSig t TBot TBot) RNil) ⊆ ss2)
+            by (cbn [le.conc_sigs le.eff_name_from_sig]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RCons (SSig t TBot TBot) RNil) ⊆ js2)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm2 _ Hp1 Hp2) as [Hnl _].
+          apply Hnl. cbn [row_labels_l le.eff_name_from_sig].
+          rewrite Heqt. apply list_elem_of_here.
+      + destruct (elem_of_var_labels_l_mono ρ0 ρ0 ξ _ (reflexivity _) Hvr)
+          as (i & Hi & Hl).
+        assert (Hiu : i ∈ js1 ∪ js2) by (eapply elem_of_weaken; eauto).
+        apply elem_of_union in Hiu as [Hi1 | Hi2].
+        * assert (Hp1 : le.conc_sigs (RVar i) ⊆ ss1)
+            by (cbn [le.conc_sigs]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RVar i) ⊆ js1)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm1 _ Hp1 Hp2) as [Hnl _].
+          apply Hnl. cbn [row_labels_l]. exact Hl.
+        * assert (Hp1 : le.conc_sigs (RVar i) ⊆ ss2)
+            by (cbn [le.conc_sigs]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RVar i) ⊆ js2)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm2 _ Hp1 Hp2) as [Hnl _].
+          apply Hnl. cbn [row_labels_l]. exact Hl.
+    - iPureIntro.
+      rewrite (labels_r_interp_row ρ0 η μ δ ξ).
+      intros Hin. rewrite row_labels_r_split elem_of_app in Hin.
+      destruct Hin as [Hn | Hvr].
+      + rewrite /name_labels_r list_elem_of_fmap in Hn.
+        destruct Hn as (t & Heqt & Ht). apply gmultiset_elem_of_elements in Ht.
+        assert (Htu : t ∈ ss1 ∪ ss2)
+          by (eapply gmultiset_elem_of_subseteq; eauto).
+        apply gmultiset_elem_of_union in Htu as [Ht1 | Ht2].
+        * assert (Hp1 : le.conc_sigs (RCons (SSig t TBot TBot) RNil) ⊆ ss1)
+            by (cbn [le.conc_sigs le.eff_name_from_sig]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RCons (SSig t TBot TBot) RNil) ⊆ js1)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm1 _ Hp1 Hp2) as [_ Hnr].
+          apply Hnr. cbn [row_labels_r le.eff_name_from_sig].
+          rewrite Heqt. apply list_elem_of_here.
+        * assert (Hp1 : le.conc_sigs (RCons (SSig t TBot TBot) RNil) ⊆ ss2)
+            by (cbn [le.conc_sigs le.eff_name_from_sig]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RCons (SSig t TBot TBot) RNil) ⊆ js2)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm2 _ Hp1 Hp2) as [_ Hnr].
+          apply Hnr. cbn [row_labels_r le.eff_name_from_sig].
+          rewrite Heqt. apply list_elem_of_here.
+      + destruct (elem_of_var_labels_r_mono ρ0 ρ0 ξ _ (reflexivity _) Hvr)
+          as (i & Hi & Hl).
+        assert (Hiu : i ∈ js1 ∪ js2) by (eapply elem_of_weaken; eauto).
+        apply elem_of_union in Hiu as [Hi1 | Hi2].
+        * assert (Hp1 : le.conc_sigs (RVar i) ⊆ ss1)
+            by (cbn [le.conc_sigs]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RVar i) ⊆ js1)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm1 _ Hp1 Hp2) as [_ Hnr].
+          apply Hnr. cbn [row_labels_r]. exact Hl.
+        * assert (Hp1 : le.conc_sigs (RVar i) ⊆ ss2)
+            by (cbn [le.conc_sigs]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RVar i) ⊆ js2)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm2 _ Hp1 Hp2) as [_ Hnr].
+          apply Hnr. cbn [row_labels_r]. exact Hl.
+  Qed.
     
     
 
