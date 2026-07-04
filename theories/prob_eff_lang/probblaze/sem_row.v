@@ -289,21 +289,17 @@ Section row_properties.
   (* TODO: finish proofs in this section *)
   Global Instance sem_row_cons_ne {Σ} (* op op' *) : NonExpansive2 (@sem_row_cons Σ (* op op' *)).
   Proof.
-    intros n σ1 σ2 Hσ ρ1 ρ2 Hρ. 
-    unfold sem_row_cons, dist, sem_row_dist. simpl.
-    (* f_equiv; last exact Hρ. f_equiv; last exact Hσ. *)
-    (* Residual goal: the head LABELS coincide,
-         ([labels σ1].1, [labels σ1].2) ≡{Sn}≡ ([labels σ2].1, [labels σ2].2).
-       Labels live in a DISCRETE ofe, so this is the EQUALITY
-       sem_sig_labels σ1 = sem_sig_labels σ2.  But the [sem_sig] ofe
-       (sem_def.v) is defined ONLY on [sem_sig_car], so [Hσ : σ1 ≡{n}≡ σ2]
-       gives no information about labels.  Hence full NonExpansive2 in σ is
-       UNPROVABLE for the current [sem_sig] ofe.  This obstacle is
-       PRE-EXISTING and ORTHOGONAL to the [sem_sig_later] head removal:
-       it held identically for the old [sem_sig_later σ] head (which also
-       reads [sem_sig_labels σ]).  Fixing it requires putting the labels
-       into the [sem_sig] ofe (a separate sem_sig redesign). *)
-  Admitted.
+    (* Now provable: the [sem_sig] dist tracks labels (car-dist ∧ labels-eq)
+       and the [sem_row] dist is the list dist of the [iLblSig_to_iLblThy]
+       image, whose head reads both the labels and [sem_sig_car] of σ.  The
+       label-equality conjunct closes the discrete head-label components; the
+       car-dist conjunct closes the [sem_sig_car] component; [Hρ] is exactly
+       the tail dist. *)
+    intros n σ1 σ2 [Hcar Hlbl] ρ1 ρ2 Hρ.
+    unfold sem_row_cons, dist, ofe_dist, sem_rowO, sem_row_dist; simpl.
+    rewrite Hlbl. f_equiv; [| exact Hρ].
+    apply pair_ne; [done|]. exact Hcar.
+  Qed.
   Global Instance sem_row_cons_Proper {Σ} (* op op' *): Proper ((≡) ==> (≡) ==> (≡)) (@sem_row_cons Σ (* op op' *)).
   Proof. apply ne_proper_2. apply _. Qed.
 
