@@ -782,36 +782,6 @@ Section sem_row_union.
     split; split; tauto.
   Qed.
 
-  (* Unsound and not used *)
-  (* (* Union is monotone: the semantic counterpart of [le.RUnion_le]. *)
-     Lemma row_le_union (ρ1 ρ2 ρ1' ρ2' : sem_row Σ) :
-       ρ1 ≤ᵣ ρ1' -∗ ρ2 ≤ᵣ ρ2' -∗
-       sem_row_union ρ1 ρ2 ≤ᵣ sem_row_union ρ1' ρ2'.
-     Proof.
-       unfold row_le, sem_row_union. simpl.
-       rewrite !iLblSig_to_iLblThy_app.
-       iIntros "#(Hthy1 & Hvl1 & Hd1) #(Hthy2 & Hvl2 & Hd2)".
-       iSplit; last iSplit.
-       - iApply iThy_le_trans; first iApply iThy_le_to_iThy_app_inv.
-         iApply iThy_le_trans; last iApply iThy_le_to_iThy_app.
-         by iApply (iThy_le_sum_map with "Hthy1 Hthy2").
-       - iIntros "!# Hv".
-         iDestruct (valid_app with "Hv") as "[Hva Hvb]".
-         iApply valid_app; iSplitL "Hva"; [by iApply "Hvl1"|by iApply "Hvl2"].
-       - iIntros "!# %Hd".
-         (* CROSS-DISJOINTNESS of the two unioned rows' labels.  From
-            [Hd : distinct (ρ1'++ρ2')] we get [labels ρ1' # labels ρ2'] and
-            (via the IH bundles [Hd1]/[Hd2]) per-component [distinct ρ1],
-            [distinct ρ2]; but reconstructing the CROSS term
-            [labels ρ1 # labels ρ2] needs label-set MONOTONICITY of [≤ᵣ]
-            ([labels ρ1 ⊆ labels ρ1']), which the abstract [row_le] bundle
-            ([iThy_le] + ownership [valid] + pure [distinct]) does NOT expose
-            as a Coq fact.  Adding a [row_le_labels_subseteq] lemma would
-            require [row_le] to carry that subset relation; out of scope here.
-            (Affects only the [RUnion_le] case of [row_le_sound].) *)
-         admit.
-     Admitted. *)
-
   (* Union monotonicity, with the cross-disjointness premise supplied as
      two LABEL sub-multiset facts (one per side).  These let us derive
      [distinct (ρ1 ++ ρ2)] (the LARGER, left rows) from
