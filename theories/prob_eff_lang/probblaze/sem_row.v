@@ -755,10 +755,14 @@ Section sem_row_union.
   Proof.
     intros ρ1 ρ1' Heq1 ρ2 ρ2' Heq2.
     unfold sem_row_union.
-    unfold dist, sem_row_dist, ofe_dist. 
-    (* rewrite iLblSig_to_iLblThy_proj.
-       rewrite !iLblSig_to_iLblThy_app.
-       f_equiv; done. *) Admitted.
+    unfold dist, sem_row_dist, ofe_dist.
+    simpl. unfold sem_row_dist.
+    rewrite iLblSig_to_iLblThy_proj iLblSig_to_iLblThy_proj.
+    rewrite !iLblSig_to_iLblThy_app.
+    f_equiv.
+    - exact Heq1.
+    - exact Heq2.
+  Qed.
 
   (* [valid]/[distinct] decompose over [iLblThy] append. *)
   Lemma valid_app (L M : iLblThy Σ) :
