@@ -141,16 +141,23 @@ Section sem_sig_cofe.
   Instance sem_sig_dist : Dist (sem_sig Σ) := λ n σ1 σ2, sem_sig_car σ1 ≡{n}≡ sem_sig_car σ2 
                                                          ∧ (sem_sig_labels Σ σ1) = (sem_sig_labels Σ σ2).
   Lemma sem_sig_ofe_mixin : OfeMixin (sem_sig Σ).
-  Proof. Admitted.
+  Proof.
+    apply (iso_ofe_mixin
+      (A := prodO (pmono_protO Σ) (leibnizO (label * label)))
+      (λ σ : sem_sig Σ, (sem_sig_car σ, sem_sig_labels _ σ))).
+    all: reflexivity.
+  Qed.
   Canonical Structure sem_sigO := Ofe (sem_sig Σ) sem_sig_ofe_mixin.
   Global Instance sem_sig_cofe : Cofe sem_sigO.
   Proof.
-    (* apply (iso_cofe_subtype' (λ Ψ, ⊢ sem_row_val_prop (to_iThy Ψ)) (@SemRow _ _) sem_row_car)=> //.
-       - by intros [].
-       - apply bi.limit_preserving_emp_valid.
-         intros ????. rewrite /sem_row_val_prop. 
-         do 6 f_equiv. apply non_dep_fun_dist.  *)
-  Admitted.
+    apply (iso_cofe
+      (A := prodO (pmono_protO Σ) (leibnizO (label * label)))
+      (B := sem_sigO)
+      (λ p, @SemSig Σ p.1 p.2)
+      (λ σ : sem_sig Σ, (sem_sig_car σ, sem_sig_labels _ σ))).
+    1: reflexivity.
+    intros x; split; reflexivity.
+  Qed.
  
   Global Program Instance sem_sig_inhabited : Inhabited (sem_sig Σ) := 
     populate (@SemSig Σ ⊥ _ ).
