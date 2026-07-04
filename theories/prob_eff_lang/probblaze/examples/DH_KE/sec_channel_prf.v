@@ -1708,6 +1708,8 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   simpl. iFrame "Hα". iSplit => //.
   iIntros (n ?) "!> Hα". brel_pures.
   brel_exp_l. brel_pures. *)
+  About brel_alloctape_l.
+  iApply brel_alloctape_l. iIntros (γ) "!> Hγ". brel_pures_l.
   iApply brel_alloc_l. iIntros (l_key) "!> Hl_key". brel_pures_l.
    iApply brel_effect_l. iIntros (getKey') "!> HgK !>". brel_pures_l.
   iApply brel_effect_r. iIntros (leaksec') "Hleaksec !>". brel_pures.
@@ -1768,12 +1770,12 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
          let: "r" := (λ: "m", do: leakauth1 Recv "m")%V "from" in
          match: "r" with InjL <> => "k" (InjLV #()%V) | InjR "x" => "k" ! #l_auth end
        end )%E).
-  set (kl3 := ( match: "p" with
+  set (kl3 := (match: "p" with
          InjL <> =>
            let: "key" := (λ: <>,
                             match: ! #l_key with
                               InjL <> =>
-                                let: "c" := #();; rand #(S n'') in
+                                let: "c" := #();; rand(#lbl:γ) #(S n'') in
                                 let: "key" := vexp g "c" in
                                 #l_key <- InjR "key";; "key"
                             | InjR "key" => "key"
@@ -1796,7 +1798,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
            | InjR "key" => "k" (InjR "key")
            end
          end
-       end )%E).
+       end)%E).
   set (kr1 := ( match: "payload" with
          InjL "m" =>
            match: ! #l_fchan with
@@ -1860,18 +1862,18 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   unfold sem_val_typed. simpl.
   iDestruct "Hschn" as "#Hschn".
   iSpecialize ("Hrelf1f2" with "Hschn"). simpl.  
-  set (d1 := (l_m'sim ↦ₛ NONEV ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗  l_key ↦ NONEV)%I).
+  set (d1 := (γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ NONEV ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗  l_key ↦ NONEV)%I).
   (*set (d2 := ((∃ g m, α ↪ₛ□ (S n''; []) ∗ l_sim ↦ₛ□ SOMEV #n ∗
                   l_auth ↦□ SOMEV (vgval
                                      (bij_group_xor_sem m (g ^+ n)))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval g) ∗  l_rchan ↦□ SOMEV (vgval g))%I)).*)
-  set (d2 := ((∃ g m : vgG, ∃ n : nat, l_m'sim ↦ₛ□ SOMEV #n ∗ l_sim ↦ₛ□ SOMEV #n ∗
+  set (d2 := ((∃ g m : vgG, ∃ n : nat, γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #n ∗ l_sim ↦ₛ□ SOMEV #n ∗
                   l_auth ↦□ SOMEV (vgval
                                      (bij_group_xor_sem m (g ^+ n)))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I)).
 
-  set (d3 := (∃ g m : vgG, ∃ n : nat, l_m'sim ↦ₛ□ SOMEV #n ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval g) ∗  l_rchan ↦□ SOMEV (vgval g) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I).
+  set (d3 := (∃ g m : vgG, ∃ n : nat, γ ↪N (S n''; [n]) ∗ l_m'sim ↦ₛ□ SOMEV #n ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval g) ∗  l_rchan ↦□ SOMEV (vgval g) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I).
   (* set (d3 := (∃ m, (α ↪ₛN (S n''; [n])) ∗ l_fchan ↦ₛ□ SOMEV m ∗  l_rchan ↦□ SOMEV m ∗  l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV)%I).*)
   iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
-   iSplitL "Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; iFrame|].
+   iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; iFrame|].
    iIntros "#Hinvα".
    iApply brel_new_theory.
    iApply (brel_add_label_l with "Hschannel_l").
@@ -1919,7 +1921,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
             eapply NeutralEctx_label_cons_inv_1 in Hk2. eapply Hk2. } 
          iApply (brel_na_inv _ _ alphaN); first set_solver.
          iFrame "Hinvα".
-         iIntros "([(>Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
+         iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
          (*iIntros "([(>Hα & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan) | #>Hpersrfsa] & Hclose)".*)
          (*iFrame "Hinvβ".
          iIntros "([(>Hl_fchan  & >Hl_rchan) | #>Hrfchan] & Hclose)".*)
@@ -1941,9 +1943,14 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
            iApply (brel_load_l _ _ _ [AppRCtx _ ; CaseCtx _ _] with "Hl_key"). iIntros "!> Hl_key".
            brel_pures_l.
            iApply (brel_load_r _ _ _ _ [AppRCtx _ ; CaseCtx _ _] with "Hl_m'sim"). iIntros "Hl_m'sim".
-           brel_pures.  
-       (*    
-           iApply (brel_couple_rand_rand _ _ f _ [AppRCtx _; AppRCtx _] [AppRCtx _; AppRCtx _] _ _).
+           brel_pures.
+           About brel_randT_empty_l. 
+           iApply (brel_randT_empty_l _ [AppRCtx _; AppRCtx _] γ _ _ _ _ _). 1: auto.
+  simpl. iFrame "Hγ". (*iSplit => //.*) iModIntro.
+  iIntros (n) "Hγ Hn". brel_pures.
+  iApply (brel_couple_TU _ _ (λ x, x) [AppRCtx _; AppRCtx _] γ _ _ _ _ _); simpl; auto.
+           simpl. iFrame "Hγ". iSplit => //.
+           iApply (brel_couple_rand_rand _ _ (λ x, x) _ [AppRCtx _; AppRCtx _] [AppRCtx _; AppRCtx _] _ _).
            { intros. apply H0. }
            iIntros (n) "%Hn".
            brel_pures.
