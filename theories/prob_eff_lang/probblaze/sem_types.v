@@ -191,15 +191,7 @@ Section types_properties.
   Proof. solve_non_expansive. Qed.
 
   Global Instance sem_ty_arr_ne : NonExpansive3 sem_ty_arr.
-  Proof. 
-    intros ??????????. 
-    intros ??. unfold sem_ty_arr.
-    f_equiv. f_equiv. f_equiv. f_equiv.
-    f_equiv; first solve_non_expansive.
-    f_equiv.
-    { admit. }                  (*  *)
-    solve_non_expansive.
-  Admitted.    
+  Proof. solve_non_expansive. Qed.
   
   Global Instance sem_ty_ref_ne : NonExpansive (@sem_ty_ref Σ _).
   Proof. solve_non_expansive. Qed.
