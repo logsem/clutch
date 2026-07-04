@@ -914,12 +914,12 @@ Proof. apply ne_proper_2. apply _. Qed.
 Global Instance sig_le_ne {Σ} :
   NonExpansive2 (@sig_le Σ).
 Proof.
-  intros n σ₁ σ₂ Hequiv σ₁' σ₂' Hequiv'. 
-  rewrite /sig_le /tc_opaque. f_equiv; last apply iThy_le_ne; try done.
-  - rewrite /dist /sem_sigO in Hequiv, Hequiv'. (* apply that the labels of σ1 = σ2 *) admit.
-  - apply Hequiv.
-  - apply Hequiv'.
-Admitted.
+  intros n σ₁ σ₂ Hequiv σ₁' σ₂' Hequiv'.
+  rewrite /sig_le /tc_opaque.
+  destruct Hequiv as [Hcar Hlbl]. destruct Hequiv' as [Hcar' Hlbl']. f_equiv.
+  - rewrite Hlbl Hlbl'. done.
+  - by apply iThy_le_ne.
+Qed.
 
 Global Instance sig_le_proper {Σ} :
   Proper ((≡) ==> (≡) ==> (≡)) (@sig_le Σ).
@@ -929,8 +929,16 @@ Global Instance row_le_ne `{probblazeRGS Σ} :
   NonExpansive2 (row_le).
 Proof.
   intros n ρ₁ ρ₂ Hequiv ρ₁' ρ₂' Hequiv'.
-  rewrite /row_le /tc_opaque. unfold to_iThy_le. do 3 f_equiv; try done. 
-Admitted.
+  rewrite /row_le /tc_opaque. unfold to_iThy_le. do 2 f_equiv.
+  - apply to_iThy_ne, Hequiv.
+  - apply to_iThy_ne, Hequiv'.
+  - f_equiv. f_equiv.
+    + apply valid_ne, Hequiv'.
+    + apply valid_ne, Hequiv.
+  - f_equiv. f_equiv.
+    + apply distinct'_ne, Hequiv'.
+    + apply distinct'_ne, Hequiv.
+Qed.
 
 Global Instance row_le_proper `{probblazeRGS Σ} :
   Proper ((≡) ==> (≡) ==> (≡)) (row_le).
