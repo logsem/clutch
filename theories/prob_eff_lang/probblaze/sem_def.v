@@ -157,9 +157,9 @@ Section sem_sig_cofe.
   Next Obligation. split; apply label_inhabited. Qed.
     
   Global Instance sem_sig_car_ne n : Proper (dist n ==> dist n) sem_sig_car.
-  Proof. (* by intros Ψ1 Ψ2 ?. Qed. *) Admitted.
+  Proof. by intros ?? [? ?]. Qed.
   Global Instance sem_sig_car_proper : Proper ((≡) ==> (≡)) (@sem_sig_car Σ).
-  Proof. (* by intros Ψ1 Ψ2 ?. Qed. *) Admitted.
+  Proof. by intros ?? [? ?]. Qed.
  
 End sem_sig_cofe.
 
@@ -260,11 +260,9 @@ Section sem_row_cofe.
   Proof. by intros Ψ1 Ψ2 ?. Qed.
   
   Global Instance sem_row_ne n Ψ : Proper ((λ _ _, True) ==> dist n) (@SemRow Σ Ψ).
-  (* Proof. intros P1 P2 _ ?. apply non_dep_fun_dist. rewrite /sem_row_car //. Qed. *)
-  Admitted. 
+  Proof. intros P1 P2 _. unfold dist, sem_row_dist; simpl; reflexivity. Qed.
   Global Instance sem_row_proper Ψ : Proper ((λ _ _, True) ==> (≡)) (@SemRow Σ Ψ).
-  (* Proof. intros P1 P2 _ ?. apply non_dep_fun_equiv. rewrite /sem_row_car //. Qed. *)
-  Admitted.
+  Proof. intros P1 P2 _. unfold equiv, sem_row_equiv; simpl; reflexivity. Qed.
 
 End sem_row_cofe.
 
