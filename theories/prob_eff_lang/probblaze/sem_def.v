@@ -242,19 +242,58 @@ Section sem_row_cofe.
   Canonical Structure iLblSigO := Ofe (iLblSig Σ) iLblSig_ofe_mixin.
   Instance iLblSig_cofe : Cofe iLblSigO.
   Proof.
-  Admitted. 
+    apply (iso_cofe
+      (A := listO
+        (prodO (prodO (listO labelO) (listO labelO)) (pmono_protO Σ)))
+      (B := iLblSigO)
+      (map (λ '(l1, l2, p), (l1, l2, @SemSig Σ p inhabitant)))
+      (map (λ '(l1, l2, ss), (l1, l2, sem_sig_car ss)))).
+    - intros n y1 y2.
+      unfold dist, iLblSig_dist.
+      change (ofe_dist iLblSigO n y1 y2)
+        with (iLblSig_to_iLblThy y1 ≡{n}≡ iLblSig_to_iLblThy y2).
+      rewrite !list_dist_Forall2.
+      unfold iLblSig_to_iLblThy.
+      setoid_rewrite list_dist_Forall2.
+      generalize dependent y2.
+      induction y1 as [|[[a1 a2] s1] y1 IH]; intros [|[[b1 b2] s2] y2].
+      1: (split; intros _; constructor).
+      1: (split; intros H; inversion H).
+      1: (split; intros H; inversion H).
+      simpl. rewrite !Forall2_cons. rewrite (IH y2). reflexivity.
+    - intros x.
+      induction x as [|[[l1 l2] p] x IH]; [done|].
+      simpl. rewrite IH. reflexivity.
+  Qed.
   
   Lemma sem_row_ofe_mixin : OfeMixin (sem_row Σ).
   Proof. by apply (iso_ofe_mixin sem_row_car). Qed.
   Canonical Structure sem_rowO := Ofe (sem_row Σ) sem_row_ofe_mixin.
   Global Instance sem_row_cofe : Cofe sem_rowO.
   Proof.
-    (* apply (iso_cofe_subtype' (λ Ψ, ⊢ pers_mono_row (iLblSig_to_iLblThy Ψ)) (λ Ψ, @SemRow _ _) sem_row_car)=> //.
-       - by intros [].
-       - apply bi.limit_preserving_emp_valid.
-         intros ????. rewrite /pers_mono_row. 
-         do 17 f_equiv. apply non_dep_fun_dist. *)
-  Admitted. 
+    (* [pers_mono_row L] holds for *every* [L], since [iThyTraverse] already
+       carries a persistent continuation that provides monotonicity in the
+       postcondition, independently of the underlying theory [X]. Hence the
+       subtype predicate is always true and thus trivially limit-preserving.
+       (The membership [∈] in [pers_mono_row] is Leibniz-sensitive, so the
+       predicate is *not* non-expansive and [limit_preserving_emp_valid] does
+       not apply directly.) *)
+    assert (Hgen : ∀ L : iLblThy Σ, ⊢ pers_mono_row L).
+    { iIntros (L v1 v2 Φ Φ') "#H1". iIntros (l1s l2s X) "[%Hin H2]".
+      iSplitR; first done.
+      rewrite /iThyTraverse /=.
+      iDestruct "H2" as (e1' e2' k1 k2 S) "(->&%&->&%&HX&#Hcont)".
+      iExists e1', e2', k1, k2, S. iFrame "HX".
+      iSplit; first done. iSplit; first done.
+      iSplit; first done. iSplit; first done.
+      iModIntro. iIntros (s1 s2) "HS". iApply "H1". by iApply "Hcont". }
+    apply (iso_cofe_subtype' (λ Ψ, ⊢ pers_mono_row (iLblSig_to_iLblThy Ψ))
+      (λ Ψ HΨ, @SemRow Σ Ψ HΨ) sem_row_car).
+    - intros y. apply Hgen.
+    - intros n y1 y2. reflexivity.
+    - intros x Hx. reflexivity.
+    - apply Build_LimitPreserving; intros; apply Hgen.
+  Qed.
 
   Global Program Instance sem_row_inhabited : Inhabited (sem_row Σ) := 
     populate (@SemRow Σ ⊥ _ (* _ *)).
