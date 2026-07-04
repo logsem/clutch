@@ -322,18 +322,18 @@ Section row_properties.
   Admitted.
   Global Instance sem_row_flip_mbang_ne {Σ} m : NonExpansive (@sem_row_flip_mbang Σ m).
   Proof.
-    (* intros n ρ1 ρ2 Hρ.
-       (* destruct n as [|n]; first done. *)
-       unfold dist, sem_row_dist. simpl.
-       unfold dist, sem_row_dist in Hρ. simpl in Hρ.
-       enough (H : iLblSig_to_iLblThy (¡[m] ρ1)%R = to_iThyIfMono m (iLblSig_to_iLblThy ρ1) ∧
-                   iLblSig_to_iLblThy (¡[m] ρ2)%R = to_iThyIfMono m (iLblSig_to_iLblThy ρ2)).
-       { destruct H as [-> ->]. by apply to_iThyIfMono_ne. }
-       split.
-       all: rewrite /sem_row_flip_mbang /iLblSig_to_iLblThy /iThyIfMono_iLblSig
-              /to_iThyIfMono !map_map;
-            f_equal; extensionality x; by destruct x as [[? ?] ?]. *)
-  Admitted.
+    intros n ρ1 ρ2 Hρ.
+    unfold dist, sem_row_dist. simpl.
+    unfold dist, sem_row_dist in Hρ. simpl in Hρ.
+    enough (H : iLblSig_to_iLblThy (¡[m] ρ1)%R = to_iThyIfMono m (iLblSig_to_iLblThy ρ1) ∧
+                iLblSig_to_iLblThy (¡[m] ρ2)%R = to_iThyIfMono m (iLblSig_to_iLblThy ρ2)).
+    { unfold ofe_dist, sem_rowO, sem_row_dist; simpl.
+      destruct H as [-> ->]. by apply to_iThyIfMono_ne. }
+    split.
+    all: rewrite /sem_row_flip_mbang /iLblSig_to_iLblThy /iThyIfMono_iLblSig
+           /to_iThyIfMono !map_map;
+         f_equal; extensionality x; by destruct x as [[? ?] ?].
+  Qed.
   Global Instance sem_row_flip_bang_Proper {Σ} m : Proper ((≡) ==> (≡)) (@sem_row_flip_mbang Σ m).
   Proof. apply ne_proper. apply _. Qed.
   
