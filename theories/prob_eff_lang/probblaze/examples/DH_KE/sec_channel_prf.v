@@ -2054,7 +2054,10 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                         iIntros "([ (>Hα & >Hl_sim & >Hl_auth & >Hl_fchan' & >Hl_rchan') | [>Hd2 | >Hd3]] & Hclose)".
                          (*contradiction branch as the first message has been sent and stored*)
                           -
-                            Search (_ ↦ₛ _)%I.
+                            Search _ (_ ↦ _)%I (_ ↦ _)%I.        (* lemmas relating two of these *)
+Search "agree".                   (* anything named *agree* in scope *)
+Search "valid" (_ ↦ _)%I.           (* validity lemmas for this connective *)
+                            
                             admit.
                           -
                             unfold d2. 
@@ -2252,8 +2255,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
          iFrame "Hinvα".
          iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
                   (* no message has been sent yet by the secure channel*)
-                  ++ About brel_load_l.
-                     iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
+                  ++ iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
                      iIntros "!> Hl_key". brel_pures.
                      iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_m'sim").
                      iIntros "Hl_m'sim". brel_pures. simpl.
