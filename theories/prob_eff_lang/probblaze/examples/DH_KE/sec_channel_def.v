@@ -212,7 +212,7 @@ Section schannel.
         | NONE =>
             let: "m'" := (sample #()%V) in
             "m'_opt" <- SOME "m'" ;;
-            "key"
+            "m'"
         | SOME "m'" => "m'"
         end
     in
@@ -252,8 +252,9 @@ Section schannel.
                                (*(do: leakauth ("from"));;*)
                                "k" NONEV
                              | SOME "x" =>
-                               ("doKeyLeakSnd" alice);;
-                               match: !"message" with
+                                 ("doKeyLeakSnd" alice);;
+                               match: !"m'_opt" with
+                              (* match: !"message" with*)
                                | NONE => "k" NONEV
                                | SOME "_" =>
                                    let: "rla" := ("doLeakARecv" bob) in
