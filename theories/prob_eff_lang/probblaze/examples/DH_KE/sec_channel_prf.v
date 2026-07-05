@@ -2051,16 +2051,13 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                        {  simpl.
                         iApply (brel_na_inv _ _ alphaN); first set_solver.
                         iFrame "Hinvα".  
-                        iIntros "([ (>Hα & >Hl_sim & >Hl_auth & >Hl_fchan' & >Hl_rchan') | [>Hd2 | >Hd3]] & Hclose)".
+                        iIntros "([ (>Hγ & (>Hl_m'sim' & (>Hl_asim & (>Hl_auth &
+(>Hl_fchan' & (>Hl_rchan' & Hl_key')))))) | [>Hd2 | >Hd3]] & Hclose)".
                          (*contradiction branch as the first message has been sent and stored*)
-                          -
-                            Search _ (_ ↦ _)%I (_ ↦ _)%I.        (* lemmas relating two of these *)
-Search "agree".                   (* anything named *agree* in scope *)
-Search "valid" (_ ↦ _)%I.           (* validity lemmas for this connective *)
-                            
-                            admit.
-                          -
-                            unfold d2. 
+                          - iDestruct (ghost_map_elem_agree
+                                        with "Hl_fchan Hl_fchan'") as %Heq.
+                            congruence.
+                          - unfold d2. 
                             iDestruct "Hd2" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))". 
                             iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _ ;CaseCtx _ _] with "Hl_auth").                                          
                           iIntros "!> Hl_auth".
@@ -2215,7 +2212,7 @@ Search "valid" (_ ↦ _)%I.           (* validity lemmas for this connective *)
              iModIntro.
              (* two cases now; either keyleakrecv alice returns without a value, or it returns with a value *)
               iSplitL.
-              { (* keyleka recv alice returns without a value *)
+              { (* keyleak recv alice returns without a value *)
                 repeat foldkont.
                 iApply brel_value. 
                 iIntros "$ !>". brel_pures.
@@ -2389,7 +2386,9 @@ Search "valid" (_ ↦ _)%I.           (* validity lemmas for this connective *)
                             iFrame "Hinvα".
                             iIntros "([(>Hγ & >Hl_m'sim' & >Hl_sim & >Hl_auth & >Hl_fchan' & >Hl_rchan' & >Hl_key') | [>Hd2 | >Hd3 ]] & Hclose)".
                             (*contradiction branch since we already know that a message has been sent by the secure channel *)
-                           -- admit.
+                           -- iDestruct (ghost_map_elem_agree
+                                        with "Hl_fchan Hl_fchan'") as %Heq.
+                            congruence.
                             (*the next two brances will move the proof forward with a case analysis on l_auth and l_sim having been set or not *)
                            -- unfold d2. 
                               iDestruct "Hd2" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))".
@@ -2442,22 +2441,22 @@ Search "valid" (_ ↦ _)%I.           (* validity lemmas for this connective *)
                               iIntros "Hl_sim".
                               iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_auth").
                               iIntros "!> Hl_auth".
-                                 iApply fupd_brel.
-           iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
-           iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
-           iMod (ghost_map_elem_persist with "Hl_key'") as "#Hl_key'".
-           iMod (ghost_map_elem_persist with "Hl_m'sim'") as "#Hl_m'sim'".
-           iModIntro.
+                              iApply fupd_brel.
+                              iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
+                              iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
+                              iMod (ghost_map_elem_persist with "Hl_key'") as "#Hl_key'".
+                              iMod (ghost_map_elem_persist with "Hl_m'sim'") as "#Hl_m'sim'".
+                              iModIntro.
                     
-                       iApply brel_na_close. iFrame.
-           iSplitL.
-           { iModIntro. iRight. iRight. iFrame "#". iFrame. }
-           simpl. brel_pures.
-            iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
-                          { simpl. set_solver. }
-                          { simpl. set_solver. }
-                          { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
-                          {iApply "IH". }
+                              iApply brel_na_close. iFrame.
+                              iSplitL.
+                              { iModIntro. iRight. iRight. iFrame "#". iFrame. }
+                             simpl. brel_pures.
+                             iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
+                            { simpl. set_solver. }
+                            { simpl. set_solver. }
+                            { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
+                            {iApply "IH". }
                            (* leakauth doesnt return with a value *)
                             -  iApply brel_value. iIntros "$ !>".
                            brel_pures. simpl. 
@@ -2683,15 +2682,12 @@ Proof with (repeat foldkont) using G.
    iApply brel_learn. iIntros "%Hdist' _".
    About brel_exhaustion.
    iApply ((brel_exhaustion (f1 ((λ: "m", do: schannel_l InjL "m"),(λ: <>, do: schannel_l InjR bob))%V) (f2 ((λ: "m", do: schannel_r InjL "m"),(λ: <>, do: schannel_r InjR bob))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]").
-   { try simpl; try auto; try (apply sublist_subseteq); try (apply singleton_sublist_l);
-       try (apply list_elem_of_In); try simpl; try auto; try (repeat (eapply sublist_skip)) ; try eapply sublist_nil_l. admit. }
+   {  simpl. set_solver. }
    { simpl. set_solver. }   
    {
      set clt := ([channel'; getKey'; schannel_l], [leaksec'; schannel_r], X').
      set cltheory := iLblSig_to_iLblThy [([channel'; getKey'; schannel_l] , [leaksec'; schannel_r] , X')].
      set (L' := cltheory ++ (iLblSig_to_iLblThy L)).
-     About sem_row_union.
-     Print sem_row.
     (* set (keytheory := iLblSig_to_iLblThy [([keyleak1], [keyleak2], keyleak keyleak1 keyleak2)]).
      set (leaktheory := (iLblSig_to_iLblThy [([leakauth1], [leakauth2], leakauth leakauth1 leakauth2)])).*)
      set (keytheory := keyeff).
@@ -2700,7 +2696,18 @@ Proof with (repeat foldkont) using G.
       iApply (brel_introduction_mono L' M).
      + simpl.
        iApply to_iThy_le_intro'.
-       unfold L'. unfold M.
+       unfold L'. unfold M. 
+       Print sem_row_union.
+       Print iLblSig_to_iLblThy.
+       Print iLblSig.
+       Print iLblThy.
+       Print sem_sig.
+       Search "⊆+".
+       Search iLblSig_to_iLblThy.
+       unfold sem_row_union. simpl.
+       rewrite -> iLblSig_to_iLblThy_app.
+       iApply (submseteq_skips_l cltheory (iLblSig_to_iLblThy L) (iLblSig_to_iLblThy  (sem_row_union
+          (sem_row_union leaktheory keytheory) L))).
        set (l := cltheory ++ iLblSig_to_iLblThy (sem_row_union leaktheory keytheory)).
        Search iLblSig_to_iLblThy.
        (*rewrite -> iLblSig_to_iLblThy_app.
@@ -2754,7 +2761,6 @@ Proof with (repeat foldkont) using G.
           iModIntro. iIntros "Hγ %Hc".
            brel_pures. 
            simpl.
-           About brel_exp_l.
            iApply (brel_exp_l [AppRCtx _ ; AppRCtx _] _ _ _ g c _).
            brel_pures.
            iApply (brel_store_l _ _ _ [AppRCtx _; AppRCtx _ ] with "Hl_key"). iIntros "!> Hl_key".
@@ -2836,13 +2842,13 @@ Proof with (repeat foldkont) using G.
                         eapply NoDup_cons_1_1. destruct H1 as [H1' H2'].
                         (*apply (NoDup_app [channel'; getKey'] [schannel_l]) in H1'.
                         destruct H1' as [H1' H2'']. (*apply H1'.*)*) admit.  }
-                          iApply (brel_na_inv _ _ alphaN); first set_solver.
-                  iFrame "Hinvα".
-                        iIntros "([ (>Hα & >Hl_sim & >Hl_auth & >Hl_fchan' & >Hl_rchan') | [>Hd2 | >Hd3]] & Hclose)".
+                        iApply (brel_na_inv _ _ alphaN); first set_solver.
+                        iFrame "Hinvα".
+                        iIntros "([ (>Hγ & (>Hl_m'sim' & (>Hl_sim' & (>Hl_auth & (>Hl_fchan' & (>Hl_rchan' & Hl_key')))))) | [>Hd2 | >Hd3]] & Hclose)".
                          (*contradiction branch as the first message has been sent and stored*)
-                          -
-                            Search (_ ↦ₛ _)%I.
-                            admit.
+                          - iDestruct (ghost_map_elem_agree
+                                        with "Hl_fchan Hl_fchan'") as %Heq.
+                            congruence.
                           -
                             unfold d2. 
                             iDestruct "Hd2" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))". 
@@ -3099,8 +3105,7 @@ Proof with (repeat foldkont) using G.
          iFrame "Hinvα".
          iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
                   (* no message has been sent yet by the secure channel*)
-                  ++ About brel_load_l.
-                     iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
+                  ++ iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
                      iIntros "!> Hl_key". brel_pures.
                      iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_m'sim").
                      iIntros "Hl_m'sim". brel_pures. simpl.
@@ -3185,7 +3190,7 @@ Proof with (repeat foldkont) using G.
                                iApply (brel_exhaustion (fill k1'((InjRV (vgval g_enc))%V)) (fill k2' ((InjRV (vgval m)))%V)).
                                { simpl. auto. set_solver. }
                                 { simpl. set_solver. }
-                               { unfold kont0. iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]".unfold g_enc. rewrite -> Bij_xor_sem. iApply "Hsome". }
+                               { unfold kont0. iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". unfold g_enc. rewrite -> Bij_xor_sem. iApply "Hsome". }
                                { iApply "IH". }
                                (* a message has been sent by the secure channel but not the authenticated channel*)
                            ++ simpl. brel_pures.
@@ -3194,7 +3199,7 @@ Proof with (repeat foldkont) using G.
                                iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
                                iIntros "!> Hl_key". brel_pures.
                                { simpl. set_solver. }
-                        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_m'sim").
+                               iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_m'sim").
                                iIntros "Hl_m'sim". brel_pures. simpl.
                                repeat foldkont.
                                iApply fupd_brel.
@@ -3205,8 +3210,8 @@ Proof with (repeat foldkont) using G.
                               iModIntro.
                     
                        iApply brel_na_close. iFrame.
-           iSplitL.
-           { iModIntro. iRight. iRight. iFrame "#". iFrame. }
+                       iSplitL.
+                       { iModIntro. iRight. iRight. iFrame "#". iFrame. }
            iApply (brel_bind'' _ _  (iLblSig_to_iLblThy leaktheory)  [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ([([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++
                                                                                                                                                    iLblSig_to_iLblThy (sem_row_union (sem_row_union leaktheory keytheory) L)) 𝟙%T (arcv_l bob) (arcv_r bob)).
                { simpl. set_solver. }
@@ -3240,7 +3245,9 @@ Proof with (repeat foldkont) using G.
                             iFrame "Hinvα".
                             iIntros "([(>Hγ & >Hl_m'sim' & >Hl_sim & >Hl_auth & >Hl_fchan' & >Hl_rchan' & >Hl_key') | [>Hd2 | >Hd3 ]] & Hclose)".
                             (*contradiction branch since we already know that a message has been sent by the secure channel *)
-                           -- admit.
+                           -- iDestruct (ghost_map_elem_agree
+                                        with "Hl_fchan Hl_fchan'") as %Heq.
+                              congruence.
                             (*the next two brances will move the proof forward with a case analysis on l_auth and l_sim having been set or not *)
                            -- unfold d2. 
                               iDestruct "Hd2" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))".
@@ -3261,14 +3268,9 @@ Proof with (repeat foldkont) using G.
            iSplitL.
            { iModIntro. iRight. iLeft. iFrame "#". }
                               simpl. brel_pures.
-                               (*iApply brel_na_close. iFrame.
-                               iSplitL; [iModIntro; iRight; iLeft; iFrame; iFrame "#" |].
-                               brel_pures.*)
                                iApply G_XOR_CORRECT_l.
                                { admit. }
                                brel_pures.
-                               Print ectx.
-                               Print frame.
                                iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _ ] with "Hl_fchan").
                                iIntros "Hl_fchan''".
                                brel_pures.
@@ -3294,22 +3296,22 @@ Proof with (repeat foldkont) using G.
                               iIntros "Hl_sim".
                               iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_auth").
                               iIntros "!> Hl_auth".
-                                 iApply fupd_brel.
-           iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
-           iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
-           iMod (ghost_map_elem_persist with "Hl_key'") as "#Hl_key'".
-           iMod (ghost_map_elem_persist with "Hl_m'sim'") as "#Hl_m'sim'".
-           iModIntro.
+                              iApply fupd_brel.
+                              iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
+                              iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
+                              iMod (ghost_map_elem_persist with "Hl_key'") as "#Hl_key'".
+                              iMod (ghost_map_elem_persist with "Hl_m'sim'") as "#Hl_m'sim'".
+                              iModIntro.
                     
-                       iApply brel_na_close. iFrame.
-           iSplitL.
-           { iModIntro. iRight. iRight. iFrame "#". iFrame. }
-           simpl. brel_pures.
-            iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
-                          { simpl. set_solver. }
-                          { simpl. set_solver. }
-                          { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
-                          { iApply "IH". }
+                             iApply brel_na_close. iFrame.
+                             iSplitL.
+                             { iModIntro. iRight. iRight. iFrame "#". iFrame. }
+                             simpl. brel_pures.
+                             iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
+                            { simpl. set_solver. }
+                            { simpl. set_solver. }
+                            { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
+                            { iApply "IH". }
 Admitted.
  
 
