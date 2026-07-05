@@ -131,7 +131,7 @@ Section schannel.
             let: "r" := ("doLeakRecv" bob) in
             match: "r" with
             | NONE => "k" NONEV
-            | SOME "x" => "k" (SOME !"message")
+            | SOME "x" => "k" (!"message")
             end              
          end
        | return "y" => "y"
