@@ -30,7 +30,7 @@ with open("data/len.csv", "r") as flen:
             if max_d < float(row[1]):
                 max_d = float(row[1])
         for i in range(nb_images):
-            print(str(int(100*i/nb_images)/100) + "%", "\r", end="")
+            print(str(int(10000*i/nb_images)/100) + "%", "\r", end="")
             with open(f"data/gif{i+1}.csv", "r") as f:
                 data = csv.reader(f)
                 x = []
