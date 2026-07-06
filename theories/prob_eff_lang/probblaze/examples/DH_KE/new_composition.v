@@ -37,13 +37,10 @@ Section new_comp_verification.
   Notation "'𝔾'" := sem_ty_group.
   Definition τ := (* the type should match the program. Look carefully at the order of the incoming effects *)
         (* the type of the client needs to change to a linear function *)
-        (∀ᵣ θ__L ,(∀ᵣ θₕ, ((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option 𝔾))) 
-                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙)
+        (∀ᵣ θ__L ,(∀ᵣ θₕ, ((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option 𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)
                   (* the product needs to be under a bang, since the effects can be used multiple times *)
-                                                             ⊸ (∀ᵣ θ₁,∀ᵣ θ2, (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) 
-                                                                                 ⊸ (((𝔾 × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ2 }-> Option 𝔾)) -{ sem_row_union θ₁ (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
+                   ⊸ (∀ᵣ θ₁,∀ᵣ θ2, ((((𝔾 × (𝟙 + 𝟙))) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) 
+                    ⊸ (((𝔾 × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) × ((𝟙 + 𝟙) -{ θ2 }-> Option 𝔾)) -{ sem_row_union θ₁ (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
 
   Definition REAL_CHAN_DHKE : val :=
     λ: "f", ((λ: "f", F_AUTH (DH_KE "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f").
@@ -152,14 +149,17 @@ Admitted.
     (F_AUTH ∘f DH_SIM) ∘F (CHAN_SIM_lazy ∘f F_CHAN).
     (* (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (λ: "f", CHAN_SIM (F_CHAN "f"))%V "f" "rH" "rG") "rF").  *)
 
+  Axiom helper : (@sec_channel_prf.sem_ty_group Σ vg) = 𝔾.
+
   Lemma DHSIM_FKE_CHAN4_SIMFCHAN :
     ⊢ sem_val_typed DHSIM_FKE_CHAN4 SIMSIMFCHAN τ.
   Proof.           
+    unfold DHSIM_FKE_CHAN4, SIMSIMFCHAN.
     iApply functionality_comp_cong. 
     - admit.                    (* closed *)
     - admit.                    (* closed *)
     - admit.                    (* closed *)
-    - (* unshelve iApply R_I_SCHAN; done. *) admit.                    (* security of secure channel  *)
+    - rewrite -helper. unshelve iApply R_I_SCHAN; done. admit.                    (* security of secure channel  *)
     - admit.                    (* well-typedness *)
   Admitted. 
 
