@@ -220,7 +220,7 @@ Admitted.
     - admit.
     - admit.
     - admit.
-    - admit.                    (* security of secure channel *)
+    - unshelve iApply I_R_SCHAN; done.                    (* security of secure channel *)
     - admit.
   Admitted. 
 
