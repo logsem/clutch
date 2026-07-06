@@ -1950,7 +1950,12 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
            { simpl. apply not_elem_of_nil. }
            iApply (brel_store_l _ _ _  [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_rchan"). 
            iIntros "!>Hl_rchan". brel_pures; try (simpl); try (apply not_elem_of_nil).
-           { admit. }
+           { unfold distinct in Hdist'. destruct Hdist'. unfold distinct_l in H0.
+                        simpl in H0.
+                        repeat (rewrite -> labels_l_cons in H0).
+                        eapply NoDup_app in H0.
+                        eapply NoDup_cons_1_1. destruct H0.
+                        eapply (submseteq_NoDup _ [channel'; getKey'; schannel_l]); [solve_submseteq | apply H0]. }
            repeat foldkont.
            iApply (brel_load_l _ _ _ [AppRCtx _ ; CaseCtx _ _] with "Hl_key"). iIntros "!> Hl_key".
            brel_pures_l.
@@ -2040,14 +2045,10 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                       {admit. }
                       brel_pures.
                        { simpl. unfold distinct in Hdistinct. destruct Hdistinct.
-                        unfold distinct_l in H1. (*unfold LblClients in H1. simpl in H1.*)
-                        unfold N in H1. simpl in H1.
-                        repeat (rewrite -> labels_l_cons in H1).
-                        eapply NoDup_app in H1.
-                        Print val.
-                        eapply NoDup_cons_1_1. destruct H1 as [H1' H2'].
-                       (* apply (NoDup_app [channel'; getKey'] [schannel_l]) in H1'.
-                        destruct H1' as [H1' H2''].*) (*apply H1'.*) admit.  }
+                        unfold distinct_l in H0. (*unfold LblClients in H1. simpl in H1.*)
+                        unfold N in H0. simpl in H0.
+                        repeat (rewrite -> labels_l_cons in H0).
+                        set_solver.  }
                        {  simpl.
                         iApply (brel_na_inv _ _ alphaN); first set_solver.
                         iFrame "Hinvα".  
@@ -2072,8 +2073,8 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                          
                 brel_pures. 
                 iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-                            { simpl. auto. admit. }
-                            { simpl. auto. (*admit.*) }
+                            { simpl. auto. set_solver. }
+                            { simpl. auto. }
                             { iApply "Hrel". iApply "HmQ". }
                             { iApply "IH". }
                           - unfold d3.
@@ -2118,7 +2119,9 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                             + simpl. unfold distinct.
                               unfold distinct_l, distinct_r.
                               unfold labels_l, labels_r. simpl.
-                              (*split; eapply NoDup_singleton.*)
+                              unfold N in Hdistinct. unfold distinct in Hdistinct. simpl in Hdistinct.
+                              unfold distinct_l, distinct_r in Hdistinct. destruct Hdistinct as [Hl Hr].
+                              unfold labels_l in Hl. unfold labels_r in Hr. simpl in Hl, Hr.
                               admit.
                             }
                             { simpl. unfold N. iApply to_iThy_le_intro'. 
@@ -2134,7 +2137,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                 iModIntro. iApply brel_value. iIntros "$ !>".
                 brel_pures. 
                 iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-                            { simpl. auto. admit. }
+                            { simpl. auto. set_solver. }
                             { simpl. auto. (*admit.*) }
                             { iApply "Hrel". iApply "HmQ". }
                             { iApply "IH". }          }  }  }  }
@@ -2153,7 +2156,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
            iSplitL.
            { iModIntro. iRight. iLeft. iFrame. }
            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-           { simpl. auto. admit. }
+           { simpl. auto. set_solver. }
            { simpl. auto. (*admit.*) }
            { iApply "Hrel". iApply "HmQ". }
            { iApply "IH". }         
@@ -2168,7 +2171,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
            iSplitL.
            { iModIntro. iRight. iRight. iFrame. }
            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-           { simpl. auto. admit. }
+           { simpl. auto. set_solver. }
            { simpl. auto. (*admit.*) }
            { iApply "Hrel". iApply "HmQ". }
            { iApply "IH". }      
@@ -2178,7 +2181,12 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
      { split.
        + apply -> NeutralEctx_ectx_labels_singleton.
          do 2 (eapply NeutralEctx_label_cons_inv_2 in Hk1). eapply Hk1.
-       + simpl. (*set_solver.*) admit. }
+       + simpl. unfold distinct in Hdist'. destruct Hdist'. unfold distinct_l in H0.
+                        simpl in H0.
+                        repeat (rewrite -> labels_l_cons in H0).
+                        eapply NoDup_app in H0.
+                        eapply NoDup_cons_1_1. destruct H0.
+                        eapply (submseteq_NoDup _ [channel'; getKey'; schannel_l]); [solve_submseteq | apply H0]. }
      { split.
        + apply -> NeutralEctx_ectx_labels_singleton.
             eapply NeutralEctx_label_cons_inv_2 in Hk2.
@@ -2261,7 +2269,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
            { iModIntro. iLeft. iFrame. }
                      
                       iApply (brel_exhaustion (fill k1'(InjLV #()%V)) (fill k2' (InjLV #()%V))).
-                               { simpl. auto. admit. }
+                               { simpl. auto. set_solver. }
                                { simpl. set_solver. }
                                { iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone".  }
                                { iApply "IH". }
@@ -2749,7 +2757,12 @@ Proof with (repeat foldkont) using G.
            { simpl. apply not_elem_of_nil. }
            iApply (brel_store_l _ _ _  [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_rchan"). 
            iIntros "!>Hl_rchan". brel_pures; try (simpl); try (apply not_elem_of_nil).
-           { admit. }
+           { unfold distinct in Hdist'. destruct Hdist'. unfold distinct_l in H0.
+                        simpl in H0.
+                        repeat (rewrite -> labels_l_cons in H0).
+                        eapply NoDup_app in H0.
+                        eapply NoDup_cons_1_1. destruct H0.
+                        eapply (submseteq_NoDup _ [channel'; getKey'; schannel_l]); [solve_submseteq | apply H0]. }
            repeat foldkont.
            iApply (brel_load_l _ _ _ [AppRCtx _ ; CaseCtx _ _] with "Hl_key"). iIntros "!> Hl_key".
            brel_pures_l.
@@ -2870,8 +2883,8 @@ Proof with (repeat foldkont) using G.
                          
                 brel_pures. 
                 iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-                            { simpl. auto. admit. }
-                            { simpl. auto. (*admit.*) }
+                            { simpl. auto. set_solver. }
+                            { simpl. auto. }
                             { iApply "Hrel". iApply "HmQ". }
                             { iApply "IH". }
                           - unfold d3.
@@ -2942,7 +2955,7 @@ Proof with (repeat foldkont) using G.
                                     N _ (asnd_l (InjLV (vgval g_sem, bob)))
                             (asnd_r (InjLV (vgval (valgroup.g ^+ f m c), bob)))).*)
                          { simpl. unfold leaktheory. auto.
-                            iApply (traversable_ectx_labels _ _ [getKey'] [] iThyBot _).
+                            iApply (traversable_ectx_labels _ _ [getKey'] [] iThyBot _). 
                             + simpl. auto.
                             + unfold kont0. simpl. auto.
                             + simpl. unfold distinct.
@@ -2962,7 +2975,7 @@ Proof with (repeat foldkont) using G.
                                unfold g_sem. simpl. unfold sem_ty_prod.
                                iExists ((bij_group_xor_sem m (valgroup.g ^+ c))) , (vgval (valgroup.g ^+ f m c)) , bob , bob.
                                repeat (iSplit); try (iPureIntro); try reflexivity.
-                               + auto. admit.
+                               + auto. simpl.  admit.
                                + admit. }
                             iModIntro. iIntros (v0 v3) "#HRv0v3".
                             unfold R. unfold sem_ty_unit.
@@ -2971,7 +2984,7 @@ Proof with (repeat foldkont) using G.
                             brel_pures.
                             iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
                             { simpl. auto. set_solver. }
-                            { simpl. auto. (*admit.*) }
+                            { simpl. auto. }
                             { iApply "Hrel". iApply "HmQ". }
                             { iApply "IH". } } }
         (* A message has already been sent by the secure channel *)     
@@ -2989,8 +3002,8 @@ Proof with (repeat foldkont) using G.
            iSplitL.
            { iModIntro. iRight. iLeft. iFrame. }
            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-           { simpl. auto. admit. }
-           { simpl. auto. (*admit.*) }
+           { simpl. auto. set_solver. }
+           { simpl. auto. }
            { iApply "Hrel". iApply "HmQ". }
            { iApply "IH". }         
         ++ unfold d3.
@@ -3004,8 +3017,8 @@ Proof with (repeat foldkont) using G.
            iSplitL.
            { iModIntro. iRight. iRight. iFrame. }
            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-           { simpl. auto. admit. }
-           { simpl. auto. (*admit.*) }
+           { simpl. auto. set_solver. }
+           { simpl. auto. }
            { iApply "Hrel". iApply "HmQ". }
            { iApply "IH". }
 
@@ -3015,7 +3028,14 @@ Proof with (repeat foldkont) using G.
      { split.
        + apply -> NeutralEctx_ectx_labels_singleton.
          do 2 (eapply NeutralEctx_label_cons_inv_2 in Hk1). eapply Hk1.
-       + simpl. (*set_solver.*) admit. }
+       + simpl.  unfold distinct in Hdist'. destruct Hdist'.
+                        unfold distinct_l in H0.
+                        simpl in H0.
+                        repeat (rewrite -> labels_l_cons in H0).
+                        eapply NoDup_app in H0.
+                        eapply NoDup_cons_1_1. destruct H0.
+                        eapply (submseteq_NoDup _ [channel'; getKey'; schannel_l]); [solve_submseteq | apply H0].
+                       }
      { split.
        + apply -> NeutralEctx_ectx_labels_singleton.
             eapply NeutralEctx_label_cons_inv_2 in Hk2.
@@ -3057,7 +3077,7 @@ Proof with (repeat foldkont) using G.
                                  end )%E).
           iApply (brel_bind'' _ _  (iLblSig_to_iLblThy (keytheory))  [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] (([channel'; getKey'; schannel_l], [leaksec'; schannel_r], iThyBot)
      :: iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)).
-         { simpl. unfold M. unfold labels_l. simpl. (*apply (list_subseteq_skip channel' [] [getKey'; schannel_l]). set_solver.*) admit. }
+         { simpl. unfold labels_l. simpl. set_solver. }
         { simpl. unfold M. unfold labels_r. simpl. set_solver. }
         { iApply to_iThy_le_intro'. unfold M. unfold N. admit. (*  eapply submseteq_sublist_r.  *) }
         iApply brel_wand.
@@ -3119,7 +3139,7 @@ Proof with (repeat foldkont) using G.
            { iModIntro. iLeft. iFrame. }
                      
                       iApply (brel_exhaustion (fill k1'(InjLV #()%V)) (fill k2' (InjLV #()%V))).
-                               { simpl. auto. admit. }
+                               { simpl. auto. set_solver. }
                                { simpl. set_solver. }
                                { iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone".  }
                                { iApply "IH". }
@@ -3270,8 +3290,8 @@ Proof with (repeat foldkont) using G.
                               iModIntro.
                     
                        iApply brel_na_close. iFrame.
-           iSplitL.
-           { iModIntro. iRight. iLeft. iFrame "#". }
+                       iSplitL.
+                       { iModIntro. iRight. iLeft. iFrame "#". }
                               simpl. brel_pures.
                                iApply G_XOR_CORRECT_l.
                                { admit. }
