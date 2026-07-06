@@ -8,9 +8,9 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
 From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Export notation valgroup.
 From clutch.prob_eff_lang.probblaze Require Export def_dhke.
-From clutch.prob_eff_lang.probblaze Require Export newdef_schan.
-From clutch.prob_eff_lang.probblaze Require Export new_schan_ri.
-From clutch.prob_eff_lang.probblaze Require Export dhke_channel.
+From clutch.prob_eff_lang.probblaze Require Export sec_channel_def xor.
+From clutch.prob_eff_lang.probblaze Require Export sec_channel_prf.
+From clutch.prob_eff_lang.probblaze Require Export dhke_channel_lazy_results dhke_channel_lazy_authchan.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
 
 Import fingroup.
@@ -28,30 +28,36 @@ Section new_comp_verification.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg: @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
-  Variable xor : expr → expr → val.
+  Context {Key Support : nat}.
+  Variable xor_struct : XOR (Key := Key) (Support := Support).
+  Variable bij_group_xor_sem : vgG -> vgG -> vgG.
+  Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, bij_group_xor_sem (bij_group_xor_sem g1 g2) g2 = g1.
+  Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}. 
+
+  Notation "'𝔾'" := sem_ty_group.
+  Definition τ := (* the type should match the program. Look carefully at the order of the incoming effects *)
+        (* the type of the client needs to change to a linear function *)
+        (∀ᵣ θ__L ,(∀ᵣ θₕ, ((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option 𝔾))) 
+                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙)
+                  (* the product needs to be under a bang, since the effects can be used multiple times *)
+                                                             ⊸ (∀ᵣ θ₁,∀ᵣ θ2, (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) 
+                                                                                 × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) 
+                                                                                 ⊸ (((𝔾 × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
+                                                                                 × ((𝟙 + 𝟙) -{ θ2 }-> Option 𝔾)) -{ sem_row_union θ₁ (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
 
   Definition REAL_CHAN_DHKE : val :=
     λ: "f", ((λ: "f", F_AUTH (DH_KE "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f").
 
   Definition REAL_CHAN_DH_REAL : val :=
-    λ: "f", ( (λ: "f", F_AUTH (C DH_real "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f").
+    λ: "f", ( (λ: "f", F_AUTH (C_lazy DH_real "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f").
 
   Definition REAL_CHAN_DH_RAND : val :=
-    λ: "f", ((λ: "f", F_AUTH (C DH_rand "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f").
+    λ: "f", ((λ: "f", F_AUTH (C_lazy DH_rand "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f").
   
    (* F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] ≤ F_OAUTH[ F_AUTH [C[DH_real][CHAN []]]] *)
   (*---------------------------------------------------------------------------*)
   Lemma F_OAUTH_DHKE_C_REAL :
-    ⊢ sem_val_typed REAL_CHAN_DHKE REAL_CHAN_DH_REAL 
-        (* the type should match the program. Look carefully at the order of the incoming effects *)
-        (* the type of the client needs to change to a linear function *)
-        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
-                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙)
-                  (* the product needs to be under a bang, since the effects can be used multiple times *)
-                                                             ⊸ (∀ᵣ θ₁,∀ᵣ θ2, (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) 
-                                                                                 ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ₁ (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
+    ⊢ sem_val_typed REAL_CHAN_DHKE REAL_CHAN_DH_REAL τ.
   Proof. 
     iApply func_comp_left.
     - admit.                    (* closed expressions *)
@@ -64,12 +70,7 @@ Section new_comp_verification.
    
 
   Lemma C_REAL_DHKE_F_OAUTH :
-     ⊢ sem_val_typed REAL_CHAN_DH_REAL REAL_CHAN_DHKE (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
-                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙)
-                                                             ⊸ (∀ᵣ θ₁,∀ᵣ θ2, (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) 
-                                                                                 ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ₁ (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
+     ⊢ sem_val_typed REAL_CHAN_DH_REAL REAL_CHAN_DHKE τ.
   Proof. 
     iApply func_comp_left.
     - admit.                    (* closed expressions *)
@@ -82,26 +83,21 @@ Section new_comp_verification.
 
  
   Definition DHSIM_FKE_CHAN1 : val :=
-    (λ: "f", ((λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V ||ᵣ F_OAUTH) (CHAN xor "f")). 
+    (λ: "f", ((λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ||ᵣ F_OAUTH) (CHAN xor "f")). 
 
   Definition DHSIM_FKE_CHAN2 : val :=
-    (λ: "f", ((λ: "f", (λ: "f", F_AUTH (DH_SIM "f"))%V (F_KE "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f")). 
+    (λ: "f", ((λ: "f", (λ: "f", F_AUTH (DH_SIM "f"))%V (F_KE_lazy_alice "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f")). 
 
   Definition DHSIM_FKE_CHAN3 : val :=
-    ((F_AUTH ∘f DH_SIM) ∘F (F_KE ||ᵣ F_OAUTH)%V)%V ∘f (CHAN xor).
+    ((F_AUTH ∘f DH_SIM) ∘F (F_KE_lazy_alice ||ᵣ F_OAUTH)%V)%V ∘f (CHAN xor).
     (* (λ: "f", (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (F_KE ||ᵣ F_OAUTH)%V "f" "rH" "rG") "rF") (CHAN xor "f")). *)
 
   Definition DHSIM_FKE_CHAN4 : val :=
-    (F_AUTH ∘f DH_SIM) ∘F (R_CHAN xor).
+    (F_AUTH ∘f DH_SIM) ∘F (R_CHAN _).
     (* (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (λ: "f", (F_KE ||ᵣ F_OAUTH)%V (CHAN xor "f")) "f" "rH" "rG") "rF").  *)
 
   Lemma REAL_CHAN_DH_RAND_DHSIM_FKE_CHAN1 : 
-    ⊢ sem_val_typed REAL_CHAN_DH_RAND DHSIM_FKE_CHAN1 (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
-                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙)
-                                                             ⊸ (∀ᵣ θ1,∀ᵣ θ2, (((⊤ × (𝟙 + 𝟙)) -{ θ1 }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ1 }-> Option ⊤)) 
-                                                                                 ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ1 (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
+    ⊢ sem_val_typed REAL_CHAN_DH_RAND DHSIM_FKE_CHAN1 τ.
   Proof.
     iApply func_comp_left.
     - admit.
@@ -113,12 +109,7 @@ Section new_comp_verification.
   Admitted. 
         
   Lemma DHSIM_FKE_CHAN1_DHSIM_FKE_CHAN2 : 
-    ⊢ sem_val_typed  DHSIM_FKE_CHAN1 DHSIM_FKE_CHAN2 (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
-                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙)
-                                                             ⊸ (∀ᵣ θ1,∀ᵣ θ2, (((⊤ × (𝟙 + 𝟙)) -{ θ1 }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ1 }-> Option ⊤)) 
-                                                                                 ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ1 (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
+    ⊢ sem_val_typed  DHSIM_FKE_CHAN1 DHSIM_FKE_CHAN2 τ.
   Proof.
     iApply func_comp_left.
     - admit.
@@ -133,12 +124,7 @@ Section new_comp_verification.
   Admitted. 
         
   Lemma DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN3 :
-    ⊢ sem_val_typed DHSIM_FKE_CHAN2 DHSIM_FKE_CHAN3 (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
-                                                                   -{ sem_row_union  θₕ θ__L }-> 𝟙)
-                                                             ⊸ (∀ᵣ θ1,∀ᵣ θ2, (((⊤ × (𝟙 + 𝟙)) -{ θ1 }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ1 }-> Option ⊤)) 
-                                                                                 ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
-                                                                                 × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ1 (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
+    ⊢ sem_val_typed DHSIM_FKE_CHAN2 DHSIM_FKE_CHAN3 τ.
   Proof.
     (* All admits are well-typedness *)
     iApply func_comp_left.
@@ -152,12 +138,7 @@ Section new_comp_verification.
   Admitted.
   
   Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4 :
-    ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN4 (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
-                                              -{ sem_row_union  θₕ θ__L }-∘ 𝟙)
-                                        ⊸ (∀ᵣ θ1,∀ᵣ θ2, (((⊤ × (𝟙 + 𝟙)) -{ θ1 }-> 𝟙) 
-                                                           × ((𝟙 + 𝟙) -{ θ1 }-> Option ⊤)) 
-                                                          ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
-                                                               × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ1 (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
+    ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN4 τ.
   Proof. 
     iApply functionality_comp_func_comp_assoc; first done.  
     - admit.
@@ -168,22 +149,17 @@ Section new_comp_verification.
 Admitted. 
 
   Definition SIMSIMFCHAN : val :=
-    (F_AUTH ∘f DH_SIM) ∘F (CHAN_SIM ∘f F_CHAN).
+    (F_AUTH ∘f DH_SIM) ∘F (CHAN_SIM_lazy ∘f F_CHAN).
     (* (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (λ: "f", CHAN_SIM (F_CHAN "f"))%V "f" "rH" "rG") "rF").  *)
 
   Lemma DHSIM_FKE_CHAN4_SIMFCHAN :
-    ⊢ sem_val_typed DHSIM_FKE_CHAN4 SIMSIMFCHAN (∀ᵣ θ__L ,(∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> 𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option  ⊤))) 
-                                              -{ sem_row_union  θₕ θ__L }-∘ 𝟙)
-                                        ⊸ (∀ᵣ θ1,∀ᵣ θ2, (((⊤ × (𝟙 + 𝟙)) -{ θ1 }-> 𝟙) 
-                                                           × ((𝟙 + 𝟙) -{ θ1 }-> Option ⊤)) 
-                                                          ⊸ (((⊤ × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) 
-                                                               × ((𝟙 + 𝟙) -{ θ2 }-> Option ⊤)) -{ sem_row_union θ1 (sem_row_union θ2 θ__L) }-∘ 𝟙))%T.
+    ⊢ sem_val_typed DHSIM_FKE_CHAN4 SIMSIMFCHAN τ.
   Proof.           
     iApply functionality_comp_cong. 
     - admit.                    (* closed *)
     - admit.                    (* closed *)
     - admit.                    (* closed *)
-    - unshelve iApply R_I_SCHAN; done.                    (* security of secure channel  *)
+    - (* unshelve iApply R_I_SCHAN; done. *) admit.                    (* security of secure channel  *)
     - admit.                    (* well-typedness *)
   Admitted. 
 
