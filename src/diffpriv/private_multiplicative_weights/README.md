@@ -33,8 +33,8 @@ stream of queries and get each time a numeric answer.
 This algorithm is working. There is just a point to raise.
 The implementation is derived from C.Dwork book on differential privacy (!!!cite better),
 in which the threshold is computed in order to match an accuracy statement.
-Since we are working on databases with small domain, the threshold often 
-get really high. Then very few updates are made and the execution is not interesting.
+Since we are working on small databases, the threshold often get really high. 
+Then very few updates are made and the execution is not interesting.
 Then we can lower manually the threshold to get an interesting output.
 Even if it does change something about the accuracy statement, it do
 not change anything for the privacy one. 
@@ -58,6 +58,10 @@ The output is, the initial database and the approached (sanitized) database as w
 as the list of the distances between the real answer and the returned answer 
 to the stream of queries.
 
+You can add the two optional following arguments:
+- `--gif` in order to save the databases in a folder
+- `--file [file]` in order to specify the database to use
+
 ## DATA
 
 To get the data, you can go to [`data/`](https://github.com/Pbi0/clutch/tree/pMW_formal/src/diffpriv/private_multiplicative_weights/data).
@@ -74,10 +78,12 @@ In order to get the gif, go in the `gif/` folder and run:
 ```bash
 python render_gif.py
 ```
-Then it will ask you how many databases where saved, you can get back this number
-by reading the `- NB UPDATE : ...` from the output of the `main_pmw.ml`. 
+or 
+```bash
+./render_gif.py
+```
 
-Then it will build the gif.
+It will build the gif under the name of `evolution_distrib.gif`.
 
 
 
