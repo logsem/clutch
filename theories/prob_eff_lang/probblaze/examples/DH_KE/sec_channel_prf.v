@@ -3326,6 +3326,19 @@ Proof with (repeat foldkont) using G.
 Admitted.
  
 
+Lemma SEM_R_CHAN_SIM_rev (f1 f2 : val) (L : sem_row Σ) :
+  (* sem_val_typed f1 f2 ((∀ᵣ θₕ, (((⊤ × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }-> (Option ⊤)) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option ⊤))) -{ sem_row_union  θₕ L }-∘ 𝟙))%T -∗*)
+   (∀ᵣ θₕ, (((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙))%T
+                 f1 f2 -∗
+    BREL CHAN_SIM_lazy (F_CHAN f1)
+      ≤ (R_CHAN f2) <|⊥|> {{λ v1 v2,
+                                       (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ L }-∘ 𝟙)%T v1 v2 }}.*)
+                              (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ L) }-∘ 𝟙)%T v1 v2 }}.
+Proof with (repeat foldkont) using G.
+ Admitted.
+
+
+
 Lemma R_CHAN_CHAN_SIM_F_CHAN :
   ⊢ sem_val_typed (R_CHAN)%V (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V
       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
@@ -3342,7 +3355,23 @@ Proof using G inG0 inG1 inG2.
      iApply "Hrelf1f2".
   +  iIntros (??) "$". 
 Qed.
-   
+
+Lemma CHAN_SIM_F_CHAN_R_CHAN :
+   ⊢ sem_val_typed (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V (R_CHAN)%V
+      (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+                (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T.
+ Proof using G inG0 inG1 inG2.   
+  iModIntro. iIntros (L).
+  iIntros (f1 f2) "Hrelf1f2".
+  brel_pures'.
+  simpl.
+  assert (to_iThyIfMono OS [] = []) as <- by done.
+  iApply (brel_mono OS with "[][Hrelf1f2]");
+  [iApply to_iThy_le_refl|simpl|simpl].
+  +  iApply (SEM_R_CHAN_SIM_rev _ _ L).
+     iApply "Hrelf1f2".
+  +  iIntros (??) "$". 
+Qed. 
 
 (*top level statements for the secure channel *)
 (*----------------------------------------------------------------*)
@@ -3357,10 +3386,23 @@ Proof using G inG0 inG1 inG2 klk1 klk2 lka1 lka2.
   iSplit; try (done).  
   iPoseProof R_CHAN_CHAN_SIM_F_CHAN as "Hsemty".
   rewrite /sem_val_typed /=.
-  iDestruct "Hsemty" as "#Hsemty".
+  iDestruct "Hsemty" as "#Hsemty". 
   iApply "Hsemty".
 Qed.
- 
 
-  
+Lemma I_R_SCHAN : 
+ ⊢ sem_typed [] (λ: "f", (CHAN_SIM_lazy (F_CHAN "f")))%V R_CHAN ⊥
+       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+                 (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T [].
+Proof using G inG0 inG1 inG2 klk1 klk2 lka1 lka2. 
+  iIntros (vs) "!# H". simpl.
+  iApply brel_value.
+  iIntros "$ !>".
+  iSplit; try (done).  
+  iPoseProof CHAN_SIM_F_CHAN_R_CHAN as "Hsemty".
+  rewrite /sem_val_typed /=.
+  iDestruct "Hsemty" as "#Hsemty".
+   iApply "Hsemty".
+Qed.
+
 End schan_security.
