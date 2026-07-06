@@ -16,7 +16,7 @@ let () =
   if (Array.mem "--list" Sys.argv) then (
     let size, index, db = mk_histo_l (path ^ file) in
     let card_q = List.length index in
-    let nb_q = 100 * card_q in
+    let nb_q = 1000 * card_q in
     let stream_query =
       let a = ref nb_q in
       fun bs ->

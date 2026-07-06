@@ -1,5 +1,5 @@
 #use "numeric_sparse_vector.ml"
-#use "db_query.ml"
+(* #use "db_query.ml" *)
 
 (* Hashtbl. implementation *)
 let mw x f v eta =
@@ -12,7 +12,7 @@ let mw x f v eta =
 let oPMW ?(gif=None) size domaine db unif stream_q card_q num den alpha beta =
   write_db db gif 0;
   let c = 4. *. (log (float_of_int (List.length domaine))) /.  (alpha *. alpha) in
-  let t = 0.00005 *. (float_of_int size) *. ((float_of_int den) *. 18. *. c *. (log (2.) +. card_q +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. (float_of_int size)) in
+  let t = 0.005 *. (float_of_int size) *. ((float_of_int den) *. 18. *. c *. (log (2.) +. card_q +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. (float_of_int size)) in
   let f = num_sparse_vector num den (int_of_float t) (int_of_float c) db in
   let rec aux i bs distrib =
     match stream_q bs with
@@ -47,7 +47,7 @@ let mw_l db q v eta =
 let oPMW_l ?(gif=None) size db index unif stream_q card_q num den alpha beta =
   write_db_l index db gif 0;
   let c = 4. *. (log (float_of_int (List.length db))) /.  (alpha *. alpha) in
-  let t = 0.00005 *. (float_of_int size) *. ((float_of_int den) *. 18. *. c *. (log (2.) +. card_q +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. (float_of_int size)) in
+  let t = 0.005 *. (float_of_int size) *. ((float_of_int den) *. 18. *. c *. (log (2.) +. card_q +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. (float_of_int size)) in
   let f = num_sparse_vector num den (int_of_float t) (int_of_float c) db in
   let rec aux i bs distrib =
     match stream_q bs with
