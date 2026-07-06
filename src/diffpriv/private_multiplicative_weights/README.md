@@ -61,6 +61,11 @@ to the stream of queries.
 You can add the two optional following arguments:
 - `--gif` in order to save the databases in a folder
 - `--file [file]` in order to specify the database to use
+- `--list` use the list implementation.
+
+For the `--list` option, instead of using the hastable implementation, it uses
+lists. It is the translation of what is written in rocq into ocaml.
+It then uses a natural (int) distribution / it is not normalized.
 
 ## DATA
 
