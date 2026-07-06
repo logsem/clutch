@@ -32,7 +32,8 @@ if __name__ == "__main__":
                 if max_d < float(row[1]):
                     max_d = float(row[1])
             for i in range(nb_images):
-                print(str(int(1000*i/nb_images)/10) + "%", "\r", end="")
+                if i % int(nb_images / 100) == 0:
+                    print(str(int(1000*i/nb_images)/10) + "%", "\r", end="")
                 with open(f"data/gif{i+1}.csv", "r") as f:
                     data = csv.reader(f)
                     x = []
@@ -43,7 +44,7 @@ if __name__ == "__main__":
                     fig, ax = plt.subplots()
                     ax.bar(x0, y0, color='yellow', alpha=0.8)
                     ax.bar(x, y, color='cyan', alpha=0.5)
-                    ax.set_ylim(0, max_d+0.1)
+                    ax.set_ylim(0, max_d+max_d/10)
     
                     buf = io.BytesIO()
                     fig.savefig(buf, format='png')
