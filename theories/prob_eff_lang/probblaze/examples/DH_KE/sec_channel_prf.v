@@ -1724,7 +1724,6 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   simpl. iFrame "Hα". iSplit => //.
   iIntros (n ?) "!> Hα". brel_pures.
   brel_exp_l. brel_pures. *)
-  About brel_alloctape_l.
   iApply brel_alloctape_l. iIntros (γ) "!> Hγ". brel_pures_l.
   iApply brel_alloc_l. iIntros (l_key) "!> Hl_key". brel_pures_l.
    iApply brel_effect_l. iIntros (getKey') "!> HgK !>". brel_pures_l.
@@ -1900,7 +1899,6 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
    set (R := (λ u1 u2 : val, 𝟙%T u1 u2)).
    set (X' := sec_channel schannel_l schannel_r).
    iApply brel_learn. iIntros "%Hdist' _".
-   About brel_exhaustion.
    iApply ((brel_exhaustion (f1 ((λ: "m", do: schannel_l InjL "m"),(λ: <>, do: schannel_l InjR bob))%V) (f2 ((λ: "m", do: schannel_r InjL "m"),(λ: <>, do: schannel_r InjR bob))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]").
    { try simpl; try auto; try (apply sublist_subseteq); try (apply singleton_sublist_l);
        try (apply list_elem_of_In); try simpl; try auto; try (repeat (eapply sublist_skip)) ; try eapply sublist_nil_l. admit. }
@@ -1938,7 +1936,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
          iFrame "Hinvα".
          iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
           (* First message to be sent by the secure channel*)
-        ++ About brel_load_r.
+        ++ 
            iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
            iIntros "Hl_fchan".
            iApply (brel_load_l _ _ _  [HandleCtx Deep MS getKey' _ _ ; HandleCtx Deep MS channel' _ _; CaseCtx _ _] with "Hl_rchan").
@@ -1972,7 +1970,6 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
           iModIntro. iIntros "Hγ %Hc".
            brel_pures. 
            simpl.
-           About brel_exp_l.
            iApply (brel_exp_l [AppRCtx _ ; AppRCtx _] _ _ _ g c _).
            brel_pures.
            iApply (brel_store_l _ _ _ [AppRCtx _; AppRCtx _ ] with "Hl_key"). iIntros "!> Hl_key".
@@ -2028,7 +2025,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                 iSplitL;  [|by iIntros "!>" (??) "H"; iApply "H"].
                 iRight. iRight. simpl.
                 repeat (iSplit; try (iPureIntro); try (unfold RecvV); try reflexivity);
-                  try (iModIntro); simpl.                                                                  iSplitL.
+                  try (iModIntro); simpl. iSplitL.
                +++    iApply brel_value.
                       iIntros "$ !>". brel_pures.
                       simpl. brel_pures.
@@ -2084,7 +2081,6 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                           simpl. brel_pures_l.
                           iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_sim").
                           iIntros "Hl_sim". brel_pures. simpl.
-                          About brel_exp_r.
                           iApply (brel_exp_r [AppRCtx _]). brel_pures.                     
                           iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl_sim").
                           iIntros "Hl_sim". rel_pures. 
@@ -2101,8 +2097,6 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                           iSplitL; [iModIntro; iRight; iLeft; iFrame "#" |]; try auto.
                           simpl. brel_pures.
                           set (g_sem := (bij_group_xor_sem m (valgroup.g ^+ c))).
-                          About brel_bind.
-                          About HandleCtx.
                           iApply (brel_bind [HandleCtx _ _ _ _ _ ; AppRCtx _] [AppRCtx _] ⊤ leaktheory
                                     N _ (Do leakauth1 (InjLV (vgval g_sem, bob)))
                             (Do leakauth2 (InjLV (vgval (valgroup.g ^+ f m c), bob)))).
@@ -2138,7 +2132,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                 brel_pures. 
                 iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
                             { simpl. auto. set_solver. }
-                            { simpl. auto. (*admit.*) }
+                            { simpl. auto. }
                             { iApply "Hrel". iApply "HmQ". }
                             { iApply "IH". }          }  }  }  }
         (* A message has already been sent by the secure channel *)     
@@ -2172,7 +2166,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
            { iModIntro. iRight. iRight. iFrame. }
            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
            { simpl. auto. set_solver. }
-           { simpl. auto. (*admit.*) }
+           { simpl. auto. }
            { iApply "Hrel". iApply "HmQ". }
            { iApply "IH". }      
            (* Bob receives the message *) 
@@ -2198,8 +2192,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
          set (M := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)]).
          set (N := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++ keytheory ++ leaktheory ++ (iLblSig_to_iLblThy L)).
          iApply (brel_bind'' _ _ keytheory M N _ (Do keyleak1 (InjRV alice)) (Do keyleak2 (InjRV alice))).
-         { simpl. unfold M. unfold labels_l. simpl. set_solver.
-           (*apply (list_subseteq_skip channel' [] [getKey'; schannel_l]). set_solver.*) }
+         { simpl. unfold M. unfold labels_l. simpl. set_solver. }
         { simpl. unfold M. unfold labels_r. simpl. set_solver. }
         { iApply to_iThy_le_intro'. unfold M. unfold N.
           eapply submseteq_sublist_r.
@@ -2248,9 +2241,8 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                 iIntros "$ !>". brel_pures.
                 { simpl. unfold distinct in Hdist'. destruct Hdist' as [Hdl HdR].
                        unfold distinct_l in Hdl. unfold labels_l in Hdl. simpl in Hdl.
-                       Search "NoDup".
                        assert (HNoDup : NoDup [channel'; getKey']).
-                       { About sublist_NoDup. eapply sublist_NoDup; [eapply Hdl| auto].
+                       { eapply sublist_NoDup; [eapply Hdl| auto].
                          eapply (sublist_inserts_r _ [channel'; getKey'] [channel'; getKey']). auto. } 
                        (*Search "NoDup". apply NoDup_cons_1_1 in HNoDup. auto. set_solver. }*)
                 brel_pures.
@@ -2297,7 +2289,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                     iApply (brel_bind'' _ _ leaktheory M N _ (Do leakauth1 (InjRV bob)) (Do leakauth2 (InjRV bob))).
                       { simpl. unfold M. unfold labels_l. simpl. set_solver. }
                       { simpl. unfold M. unfold labels_r. simpl. set_solver. }
-                      {  iApply to_iThy_le_intro'. unfold M. unfold N. Search "⊆+".
+                      {  iApply to_iThy_le_intro'. unfold M. unfold N.
           eapply submseteq_sublist_r.
           exists ([([channel'; getKey'; schannel_l], [leaksec'; schannel_r],
                  iThyBot)] ++ leaktheory). split.
@@ -2423,8 +2415,6 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                                iApply G_XOR_CORRECT_l.
                                { admit. }
                                brel_pures.
-                               Print ectx.
-                               Print frame.
                                iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _ ] with "Hl_fchan").
                                iIntros "Hl_fchan''".
                                brel_pures.
@@ -2688,7 +2678,6 @@ Proof with (repeat foldkont) using G.
    set (R := (λ u1 u2 : val, 𝟙%T u1 u2)).
    set (X' := sec_channel schannel_l schannel_r).
    iApply brel_learn. iIntros "%Hdist' _".
-   About brel_exhaustion.
    iApply ((brel_exhaustion (f1 ((λ: "m", do: schannel_l InjL "m"),(λ: <>, do: schannel_l InjR bob))%V) (f2 ((λ: "m", do: schannel_r InjL "m"),(λ: <>, do: schannel_r InjR bob))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]").
    {  simpl. set_solver. }
    { simpl. set_solver. }   
@@ -2745,7 +2734,7 @@ Proof with (repeat foldkont) using G.
          iFrame "Hinvα".
            iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
           (* First message to be sent by the secure channel*)
-        ++ About brel_load_r.
+        ++ 
            iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
            iIntros "Hl_fchan".
            iApply (brel_load_l _ _ _  [HandleCtx Deep MS getKey' _ _ ; HandleCtx Deep MS channel' _ _; CaseCtx _ _] with "Hl_rchan").
@@ -2805,7 +2794,7 @@ Proof with (repeat foldkont) using G.
              { simpl. set_solver. }
              { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. eapply Permutation_submseteq.
                (*eapply perm_swap.*) admit. }
-             { About brel_wand.
+             {
                iApply (brel_wand _ _ _  R _ ).
                { iDestruct "Hkeysnd" as "#Hkeysnd".
                  iSpecialize ("Hkeysnd" $! bob bob).
@@ -2856,7 +2845,6 @@ Proof with (repeat foldkont) using G.
                         unfold N in H1. simpl in H1.
                         repeat (rewrite -> labels_l_cons in H1).
                         eapply NoDup_app in H1.
-                        Print val.
                         eapply NoDup_cons_1_1. destruct H1 as [H1' H2'].
                         (*apply (NoDup_app [channel'; getKey'] [schannel_l]) in H1'.
                         destruct H1' as [H1' H2'']. (*apply H1'.*)*) admit.  }
@@ -3204,8 +3192,6 @@ Proof with (repeat foldkont) using G.
                                iApply G_XOR_CORRECT_l.
                                { admit. }
                                brel_pures.
-                               Print ectx.
-                               Print frame.
                                iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _ ] with "Hl_fchan").
                                iIntros "Hl_fchan'".
                                brel_pures.
