@@ -2475,7 +2475,7 @@ Lemma SEM_R_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
     BREL R_CHAN f1
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ L }-∘ 𝟙)%T v1 v2 }}.*)
-                                       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (sem_row_union θ₁ θ₂) L }-∘ 𝟙)%T v1 v2 }}.
+                                       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ L) }-∘ 𝟙)%T v1 v2 }}.
 Proof with (repeat foldkont) using G.
  iIntros "Hrelf1f2". 
   repeat simpl. 
@@ -2692,19 +2692,24 @@ Proof with (repeat foldkont) using G.
      set (leaktheory := (iLblSig_to_iLblThy [([leakauth1], [leakauth2], leakauth leakauth1 leakauth2)])).*)
      set (keytheory := keyeff).
      set (leaktheory := autheff).
-     set (M := cltheory ++ (iLblSig_to_iLblThy (sem_row_union (sem_row_union leaktheory keytheory) L))).
+     set (M := cltheory ++ (iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L)))).
       iApply (brel_introduction_mono L' M).
      + simpl.
        iApply to_iThy_le_intro'.
        unfold L'. unfold M. 
-       Print sem_row_union.
+      (* Print sem_row_union.
        Print iLblSig_to_iLblThy.
        Print iLblSig.
        Print iLblThy.
        Print sem_sig.
        Search "⊆+".
        Search iLblSig_to_iLblThy.
-       unfold sem_row_union. simpl.
+       Search iLblSig_to_iLblThy.
+       set (ρ__c := (sem_row_union (sem_row_union leaktheory keytheory) L)).
+       About submseteq_skips_l.
+       iApply (submseteq_skips_l cltheory (iLblSig_to_iLblThy L) (iLblSig_to_iLblThy ρ__c)).
+       iAssert (iLblSig_to_iLblThy () := iLblSig_to_iLblThy ()) 
+       iApply iLblSig_to_iLblThy_proj.
        rewrite -> iLblSig_to_iLblThy_app.
        iApply (submseteq_skips_l cltheory (iLblSig_to_iLblThy L) (iLblSig_to_iLblThy  (sem_row_union
           (sem_row_union leaktheory keytheory) L))).
@@ -2712,7 +2717,7 @@ Proof with (repeat foldkont) using G.
        Search iLblSig_to_iLblThy.
        (*rewrite -> iLblSig_to_iLblThy_app.
        apply (submseteq_skips_r (iLblSig_to_iLblThy L) (cltheory) (cltheory ++ keytheory ++ leaktheory)).
-       eapply submseteq_inserts_r. eapply Permutation_submseteq. auto. *)
+       eapply submseteq_inserts_r. eapply Permutation_submseteq. auto. *)*)
        admit.
      + unfold L'. unfold cltheory. simpl. iApply "Hrelf1f2". } 
     iLöb as "IH".
@@ -2781,7 +2786,7 @@ Proof with (repeat foldkont) using G.
             (* set (leaktheory := (iLblSig_to_iLblThy [([leakauth1], [leakauth2], leakauth leakauth1 leakauth2)])).*)
             set (leaktheory := autheff).
             set (M := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union leaktheory L))).
-            set (N := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union (sem_row_union leaktheory keytheory) L))).
+            set (N := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L)))).
              iApply (brel_bind'' [ AppRCtx _] [AppRCtx _] (iLblSig_to_iLblThy keytheory) M N (𝟙%T) (kysnd_l bob) (kysnd_r bob)).
              { simpl. set_solver. }
              { simpl. set_solver. }
@@ -3024,7 +3029,7 @@ Proof with (repeat foldkont) using G.
          set (M := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)]).
          (* set (N := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++ keytheory ++ leaktheory ++ (iLblSig_to_iLblThy L)).*)
          set (N := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++
-                     iLblSig_to_iLblThy (sem_row_union (sem_row_union keytheory leaktheory) L)).
+                     iLblSig_to_iLblThy (sem_row_union keytheory (sem_row_union leaktheory L))).
          repeat foldkont.
          brel_pures.
          set (leftkontbind := ( match: "r" with
@@ -3051,7 +3056,7 @@ Proof with (repeat foldkont) using G.
        end
                                  end )%E).
           iApply (brel_bind'' _ _  (iLblSig_to_iLblThy (keytheory))  [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] (([channel'; getKey'; schannel_l], [leaksec'; schannel_r], iThyBot)
-     :: iLblSig_to_iLblThy (sem_row_union (sem_row_union leaktheory keytheory) L)) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)).
+     :: iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)).
          { simpl. unfold M. unfold labels_l. simpl. (*apply (list_subseteq_skip channel' [] [getKey'; schannel_l]). set_solver.*) admit. }
         { simpl. unfold M. unfold labels_r. simpl. set_solver. }
         { iApply to_iThy_le_intro'. unfold M. unfold N. admit. (*  eapply submseteq_sublist_r.  *) }
@@ -3086,7 +3091,7 @@ Proof with (repeat foldkont) using G.
                                | InjR "x" => kont0 ! #l_sim
                                 end)%E).
               iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keytheory)  [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ([([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++
-                     iLblSig_to_iLblThy (sem_row_union (sem_row_union leaktheory keytheory) L)) 𝟙%T (kysnd_l alice) (kysnd_r alice)).
+                     iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)).
              { simpl. set_solver. }
              { simpl. set_solver. }
              { iApply to_iThy_le_intro'. unfold M. unfold N. admit. } 
@@ -3140,7 +3145,7 @@ Proof with (repeat foldkont) using G.
                     iSplitL.
                     { iModIntro. iRight. iLeft. iFrame "#". }
                      iApply (brel_bind'' _ _  (iLblSig_to_iLblThy leaktheory)  [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ([([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++
-                                                                                                                                                   iLblSig_to_iLblThy (sem_row_union (sem_row_union leaktheory keytheory) L)) 𝟙%T (arcv_l bob) (arcv_r bob)).
+                                                                                                                                                   iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
                { simpl. set_solver. }
                { simpl. set_solver. }
                { iApply to_iThy_le_intro'. (*solve_submseteq.*) admit. }
@@ -3213,7 +3218,7 @@ Proof with (repeat foldkont) using G.
                        iSplitL.
                        { iModIntro. iRight. iRight. iFrame "#". iFrame. }
            iApply (brel_bind'' _ _  (iLblSig_to_iLblThy leaktheory)  [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ([([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++
-                                                                                                                                                   iLblSig_to_iLblThy (sem_row_union (sem_row_union leaktheory keytheory) L)) 𝟙%T (arcv_l bob) (arcv_r bob)).
+                                                                                                                                                   iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
                { simpl. set_solver. }
                { simpl. set_solver. }
                { iApply to_iThy_le_intro'. (*solve_submseteq.*) admit. }
@@ -3318,7 +3323,7 @@ Admitted.
 Lemma R_CHAN_CHAN_SIM_F_CHAN :
   ⊢ sem_val_typed (R_CHAN)%V (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V
       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-      (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T.
+      (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T.
 Proof using G inG0 inG1 inG2.   
   iModIntro. iIntros (L).
   iIntros (f1 f2) "Hrelf1f2".
@@ -3338,7 +3343,7 @@ Qed.
 Lemma R_I_SCHAN :
   ⊢ sem_typed [] R_CHAN (λ: "f", (CHAN_SIM_lazy (F_CHAN "f")))%V ⊥
        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                 (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T [].
+                 (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T [].
 Proof using G inG0 inG1 inG2 klk1 klk2 lka1 lka2. 
   iIntros (vs) "!# H". simpl.
   iApply brel_value.
