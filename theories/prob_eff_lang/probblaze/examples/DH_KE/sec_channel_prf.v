@@ -2693,29 +2693,11 @@ Proof with (repeat foldkont) using G.
       iApply (brel_introduction_mono L' M).
      + simpl.
        iApply to_iThy_le_intro'.
-       unfold L'. unfold M. 
-      (* Print sem_row_union.
-       Print iLblSig_to_iLblThy.
-       Print iLblSig.
-       Print iLblThy.
-       Print sem_sig.
-       Search "⊆+".
-       Search iLblSig_to_iLblThy.
-       Search iLblSig_to_iLblThy.
-       set (ρ__c := (sem_row_union (sem_row_union leaktheory keytheory) L)).
-       About submseteq_skips_l.
-       iApply (submseteq_skips_l cltheory (iLblSig_to_iLblThy L) (iLblSig_to_iLblThy ρ__c)).
-       iAssert (iLblSig_to_iLblThy () := iLblSig_to_iLblThy ()) 
-       iApply iLblSig_to_iLblThy_proj.
-       rewrite -> iLblSig_to_iLblThy_app.
-       iApply (submseteq_skips_l cltheory (iLblSig_to_iLblThy L) (iLblSig_to_iLblThy  (sem_row_union
-          (sem_row_union leaktheory keytheory) L))).
-       set (l := cltheory ++ iLblSig_to_iLblThy (sem_row_union leaktheory keytheory)).
-       Search iLblSig_to_iLblThy.
-       (*rewrite -> iLblSig_to_iLblThy_app.
-       apply (submseteq_skips_r (iLblSig_to_iLblThy L) (cltheory) (cltheory ++ keytheory ++ leaktheory)).
-       eapply submseteq_inserts_r. eapply Permutation_submseteq. auto. *)*)
-       admit.
+       unfold L'. unfold M.
+       set (ρ__c := (sem_row_union leaktheory (sem_row_union keytheory L))).
+       apply (submseteq_skips_l cltheory (iLblSig_to_iLblThy L) (iLblSig_to_iLblThy ρ__c)).
+       unfold ρ__c. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
+       solve_submseteq.
      + unfold L'. unfold cltheory. simpl. iApply "Hrelf1f2". } 
     iLöb as "IH".
    unfold kl1.
@@ -2792,8 +2774,9 @@ Proof with (repeat foldkont) using G.
              iApply (brel_bind'' [ AppRCtx _] [AppRCtx _] (iLblSig_to_iLblThy keytheory) M N (𝟙%T) (kysnd_l bob) (kysnd_r bob)).
              { simpl. set_solver. }
              { simpl. set_solver. }
-             { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. eapply Permutation_submseteq.
-               (*eapply perm_swap.*) admit. }
+             { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. 
+               unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
+               solve_submseteq. }
              {
                iApply (brel_wand _ _ _  R _ ).
                { iDestruct "Hkeysnd" as "#Hkeysnd".
@@ -2806,8 +2789,9 @@ Proof with (repeat foldkont) using G.
                 iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keytheory) M N 𝟙%T (kyrcv_l bob) (kyrcv_r bob)).
                 { simpl. unfold M.  repeat (rewrite -> labels_l_cons). set_solver. }
                 { simpl. apply list_subseteq_nil. }
-                { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. eapply Permutation_submseteq.
-               (*eapply perm_swap.*) admit. }
+                { simpl. unfold M. unfold N. iApply to_iThy_le_intro'.
+                  unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
+               solve_submseteq. }
                 (*iApply (brel_introduction' [keyleak1] [keyleak2]).*)
                 iApply brel_wand.
                 { iDestruct "Hkeyrcv" as "#Hkeyrcv".
@@ -2840,14 +2824,7 @@ Proof with (repeat foldkont) using G.
                   iApply G_XOR_CORRECT_l.
                   { admit. }
                   brel_pures.
-                  { simpl. unfold distinct in Hdist'. destruct Hdist'.
-                        unfold distinct_l in H1. (*unfold LblClients in H1. simpl in H1.*)
-                        unfold N in H1. simpl in H1.
-                        repeat (rewrite -> labels_l_cons in H1).
-                        eapply NoDup_app in H1.
-                        eapply NoDup_cons_1_1. destruct H1 as [H1' H2'].
-                        (*apply (NoDup_app [channel'; getKey'] [schannel_l]) in H1'.
-                        destruct H1' as [H1' H2'']. (*apply H1'.*)*) admit.  }
+                  { simpl. set_solver.  }
                         iApply (brel_na_inv _ _ alphaN); first set_solver.
                         iFrame "Hinvα".
                         iIntros "([ (>Hγ & (>Hl_m'sim' & (>Hl_sim' & (>Hl_auth & (>Hl_fchan' & (>Hl_rchan' & Hl_key')))))) | [>Hd2 | >Hd3]] & Hclose)".
@@ -2953,9 +2930,9 @@ Proof with (repeat foldkont) using G.
                               admit.
                             }
                             { simpl. unfold N. iApply to_iThy_le_intro'. 
-                             (* set (k1 :=  [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], iThyBot)] ++ keytheory).
-                              apply (submseteq_middle leaktheory k1 (iLblSig_to_iLblThy L)).*) admit. }
-                            {   iApply (brel_wand _ _ _ R _).
+                              unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
+                              solve_submseteq. }
+                            {  iApply (brel_wand _ _ _ R _).
                             {  iDestruct "Hasnd" as "#Hasnd".
                                iSpecialize ("Hasnd" $! (vgval g_sem, bob)%V).
                                iSpecialize ("Hasnd" $! (vgval (valgroup.g ^+ f m c), bob)%V).
@@ -2964,7 +2941,8 @@ Proof with (repeat foldkont) using G.
                                iExists ((bij_group_xor_sem m (valgroup.g ^+ c))) , (vgval (valgroup.g ^+ f m c)) , bob , bob.
                                repeat (iSplit); try (iPureIntro); try reflexivity.
                                + auto. simpl.  admit.
-                               + admit. }
+                               + simpl. exists #()%V, #()%V. repeat split; unfold bob; try reflexivity.
+                                 left. repeat split; reflexivity. }
                             iModIntro. iIntros (v0 v3) "#HRv0v3".
                             unfold R. unfold sem_ty_unit.
                             iDestruct "HRv0v3" as "(%Hv0 & %Hv3)".
@@ -3067,7 +3045,7 @@ Proof with (repeat foldkont) using G.
      :: iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)).
          { simpl. unfold labels_l. simpl. set_solver. }
         { simpl. unfold M. unfold labels_r. simpl. set_solver. }
-        { iApply to_iThy_le_intro'. unfold M. unfold N. admit. (*  eapply submseteq_sublist_r.  *) }
+        { iApply to_iThy_le_intro'. unfold M. unfold N. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
         iApply brel_wand.
           {  iDestruct "Hkeyrcv" as "#Hkeyrcv".
             iSpecialize ("Hkeyrcv" $! alice alice).
@@ -3102,7 +3080,7 @@ Proof with (repeat foldkont) using G.
                      iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)).
              { simpl. set_solver. }
              { simpl. set_solver. }
-             { iApply to_iThy_le_intro'. unfold M. unfold N. admit. } 
+             { iApply to_iThy_le_intro'. unfold M. unfold N. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. } 
              iApply brel_wand.
              { iDestruct "Hkeysnd" as "#Hkeysnd".
                iSpecialize ("Hkeysnd" $! alice alice).
@@ -3156,7 +3134,7 @@ Proof with (repeat foldkont) using G.
                                                                                                                                                    iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
                { simpl. set_solver. }
                { simpl. set_solver. }
-               { iApply to_iThy_le_intro'. (*solve_submseteq.*) admit. }
+               { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
                
                iApply brel_wand.
                { iDestruct "Harcv" as "#Harcv".
@@ -3227,7 +3205,7 @@ Proof with (repeat foldkont) using G.
                                                                                                                                                    iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
                { simpl. set_solver. }
                { simpl. set_solver. }
-               { iApply to_iThy_le_intro'. (*solve_submseteq.*) admit. }
+               { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
                
                iApply brel_wand.
                { iDestruct "Harcv" as "#Harcv".
