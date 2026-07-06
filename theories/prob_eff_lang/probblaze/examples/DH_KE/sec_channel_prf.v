@@ -245,8 +245,22 @@ Section schan_security.
    all: iDestruct "HR" as (??) "(#H1 & #H2)"; simpl; iSplit; first done; iSplit; first done; iModIntro; iSplitL " "; iApply "HΦ"; try (iApply "H1"); try (iApply "H2").
   Qed.
   Definition keyleak (keyleak1 keyleak2 : label) := @SemSig Σ (keyleak_mono keyleak1 keyleak2) (keyleak1, keyleak2).
-  Lemma keyleak_pers_mono_row (keyleak1 keyleak2 : label) : ⊢ pers_mono_row (iLblSig_to_iLblThy [([keyleak1] , [keyleak2] , keyleak keyleak1 keyleak2)]).
-  Proof. Admitted.
+ Lemma keyleak_pers_mono_row (keyleak1 keyleak2 : label) : ⊢ pers_mono_row (iLblSig_to_iLblThy [([keyleak1] , [keyleak2] , keyleak keyleak1 keyleak2)]).
+  Proof.
+         intros. unfold pers_mono_row. iIntros (????) "#HΦΦ'". iIntros (???) "(%H1 & H2)".
+         iSplitR "H2"; [iPureIntro; apply H1 |].
+         unfold keyleak in H1. simpl in H1. unfold keyleak_mono in H1. simpl in H1.       Search "∈". apply list_elem_of_singleton in H1. simpl in H1.
+         inversion H1. simpl in *.
+         iDestruct "H2" as (?e1' ?e2' ?k1 ?k2 ?S) "H2e1e2".
+         iExists e1', e2', k1, k2, S.
+         iDestruct "H2e1e2" as "(%Hv1 & (%HNk1 & (%Hv2 & (%HNk2 & HS))))".
+         repeat iSplit; try iPureIntro; try auto.
+         { iDestruct "HS" as "(He1e2 & Hs1s2)". iApply "He1e2". }
+         { iDestruct "HS" as "(He1e2 & #Hs1s2)". iModIntro.
+           iIntros (??) "HS". iApply "HΦΦ'". iApply "Hs1s2". iApply "HS".
+         }
+Qed.
+  
   Definition keyleak_row (keyleak1 keyleak2 : label) := SemRow [([keyleak1] , [keyleak2] , keyleak keyleak1 keyleak2)] (keyleak_pers_mono_row keyleak1 keyleak2).
  
   Program Definition leakauth_mono (leakauth1 leakauth2 : label) := {| pmono_prot_car := iThySum (iThySum (LASendAlice leakauth1 leakauth2) (LASendBob leakauth1 leakauth2)) (iThySum (LARecvAlice leakauth1 leakauth2) (LARecvBob leakauth1 leakauth2)) ; pmono_prot_prop := _ |}.
@@ -261,24 +275,69 @@ Section schan_security.
 
   Definition leakauth (leakauth1 leakauth2 : label) := @SemSig Σ (leakauth_mono leakauth1 leakauth2) (leakauth1, leakauth2).
   Lemma leakauth_pers_mono_row (leakauth1 leakauth2 : label) : ⊢ pers_mono_row (iLblSig_to_iLblThy [([leakauth1], [leakauth2], leakauth leakauth1 leakauth2)]).
-  Proof. Admitted.
+  Proof.
+     intros. unfold pers_mono_row. iIntros (????) "#HΦΦ'". iIntros (???) "(%H1 & H2)".
+         iSplitR "H2"; [iPureIntro; apply H1 |].
+         unfold keyleak in H1. simpl in H1. unfold keyleak_mono in H1. simpl in H1.       Search "∈". apply list_elem_of_singleton in H1. simpl in H1.
+         inversion H1. simpl in *.
+         iDestruct "H2" as (?e1' ?e2' ?k1 ?k2 ?S) "H2e1e2".
+         iExists e1', e2', k1, k2, S.
+         iDestruct "H2e1e2" as "(%Hv1 & (%HNk1 & (%Hv2 & (%HNk2 & HS))))".
+         repeat iSplit; try iPureIntro; try auto.
+         { iDestruct "HS" as "(He1e2 & Hs1s2)". iApply "He1e2". }
+         { iDestruct "HS" as "(He1e2 & #Hs1s2)". iModIntro.
+           iIntros (??) "HS". iApply "HΦΦ'". iApply "Hs1s2". iApply "HS".
+         }
+Qed.
+    
   Definition leakauth_row (leakauth1 leakauth2 : label) := SemRow [([leakauth1],[leakauth2] , leakauth leakauth1 leakauth2 )] (leakauth_pers_mono_row leakauth1 leakauth2).
   Program Definition envsec_row (keyleak1 keyleak2 leakauth1 leakauth2 : label) :=
     sem_row_union (keyleak_row keyleak1 keyleak2) (leakauth_row leakauth1 leakauth2).
 
   Program Definition sec_channel_mono (schannel1 schannel2 : label) := {| pmono_prot_car := iThySum (SendSec schannel1 schannel2) (RecvSecB schannel1 schannel2) ; pmono_prot_prop := _ |}.
   Next Obligation.
-  Admitted.
+    iIntros (??). unfold pers_mono. iIntros (????) "#Hw1w2 [HS | HR]".
+    { iLeft. simpl.  iDestruct "HS" as (?m) "(Hv1v2 & #HS)". iExists m.
+      iSplitL "Hv1v2"; [iFrame |iModIntro; iApply "Hw1w2"; iApply "HS"]. }
+    { iRight. simpl.   iDestruct "HR" as "(%Hv1 &(%Hv2 & #HR))". repeat iSplit; try iPureIntro; try apply Hv1; try apply Hv2.
+      iModIntro. iDestruct "HR" as "(HR1 & HR2)".
+      iSplit; [iIntros (?); iApply "Hw1w2"; iApply "HR1" | iApply "Hw1w2"; iApply "HR2"].
+     }
+  Qed.
 
   Definition sec_channel (schannel1 schannel2 : label) := @SemSig Σ (sec_channel_mono schannel1 schannel2) (schannel1, schannel2).
 
   Lemma client_pers_mono_row (channel leaksec getKey1 schannel1 schannel2 : label) : ⊢ pers_mono_row (iLblSig_to_iLblThy [([channel; getKey1; schannel1] , [leaksec; schannel2] , sec_channel schannel1 schannel2)]).
   Proof.
-  Admitted.
+    intros. unfold pers_mono_row. iIntros (????) "#HΦΦ'". iIntros (???) "(%H1 & H2)".
+         iSplitR "H2"; [iPureIntro; apply H1 |].
+         unfold keyleak in H1. simpl in H1. unfold keyleak_mono in H1. simpl in H1.       Search "∈". apply list_elem_of_singleton in H1. simpl in H1.
+         inversion H1. simpl in *.
+         iDestruct "H2" as (?e1' ?e2' ?k1 ?k2 ?S) "H2e1e2".
+         iExists e1', e2', k1, k2, S.
+         iDestruct "H2e1e2" as "(%Hv1 & (%HNk1 & (%Hv2 & (%HNk2 & HS))))".
+         repeat iSplit; try iPureIntro; try auto.
+         { iDestruct "HS" as "(He1e2 & Hs1s2)". iApply "He1e2". }
+         { iDestruct "HS" as "(He1e2 & #Hs1s2)". iModIntro.
+           iIntros (??) "HS". iApply "HΦΦ'". iApply "Hs1s2". iApply "HS".
+         }
+Qed.
 
   Lemma sec_channel_pers_mono_row (schannel1 schannel2 : label) : ⊢ pers_mono_row (iLblSig_to_iLblThy [([schannel1] , [schannel2], sec_channel schannel1 schannel2)]).
   Proof.
-  Admitted.
+    intros. unfold pers_mono_row. iIntros (????) "#HΦΦ'". iIntros (???) "(%H1 & H2)".
+         iSplitR "H2"; [iPureIntro; apply H1 |].
+         unfold keyleak in H1. simpl in H1. unfold keyleak_mono in H1. simpl in H1.       Search "∈". apply list_elem_of_singleton in H1. simpl in H1.
+         inversion H1. simpl in *.
+         iDestruct "H2" as (?e1' ?e2' ?k1 ?k2 ?S) "H2e1e2".
+         iExists e1', e2', k1, k2, S.
+         iDestruct "H2e1e2" as "(%Hv1 & (%HNk1 & (%Hv2 & (%HNk2 & HS))))".
+         repeat iSplit; try iPureIntro; try auto.
+         { iDestruct "HS" as "(He1e2 & Hs1s2)". iApply "He1e2". }
+         { iDestruct "HS" as "(He1e2 & #Hs1s2)". iModIntro.
+           iIntros (??) "HS". iApply "HΦΦ'". iApply "Hs1s2". iApply "HS".
+         }
+Qed.
   
   Program Definition sec_channel_row (schannel1 schannel2 : label) := SemRow [([schannel1], [schannel2], sec_channel schannel1 schannel2)] (sec_channel_pers_mono_row schannel1 schannel2).
   Program Definition client_row (channel leaksec getKey1 schannel1 schannel2 : label) := SemRow [([channel; getKey1; schannel1], [leaksec; schannel2], sec_channel schannel1 schannel2)] (client_pers_mono_row channel leaksec getKey1 schannel1 schannel2) .
