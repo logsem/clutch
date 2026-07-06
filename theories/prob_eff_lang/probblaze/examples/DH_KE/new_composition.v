@@ -104,7 +104,19 @@ Section new_comp_verification.
       + admit.
     - admit.
   Admitted. 
-        
+
+  Lemma DHSIM_FKE_CHAN1_REAL_CHAN_DH_RAND : 
+    ⊢ sem_val_typed DHSIM_FKE_CHAN1 REAL_CHAN_DH_RAND τ.
+  Proof.
+    iApply func_comp_left.
+    - admit.
+    - admit.
+    - iIntros (θ). iApply parallel_comp_right.
+      + iApply F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand; try done. 
+      + admit.
+    -  admit.
+  Admitted. 
+
   Lemma DHSIM_FKE_CHAN1_DHSIM_FKE_CHAN2 : 
     ⊢ sem_val_typed  DHSIM_FKE_CHAN1 DHSIM_FKE_CHAN2 τ.
   Proof.
@@ -113,6 +125,21 @@ Section new_comp_verification.
     - admit.
     - iIntros (θ). iApply parallel_comp_right.
       + unfold τ__F. iApply func_comp_assoc.
+        * admit.
+        * admit.
+        * admit.
+      + admit.
+    - admit.
+  Admitted. 
+
+  Lemma DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN1 : 
+    ⊢ sem_val_typed DHSIM_FKE_CHAN2 DHSIM_FKE_CHAN1 τ.
+  Proof.
+    iApply func_comp_left.
+    - admit.
+    - admit.
+    - iIntros (θ). iApply parallel_comp_right.
+      + iApply func_comp_assoc_rev.
         * admit.
         * admit.
         * admit.
@@ -133,7 +160,20 @@ Section new_comp_verification.
       + admit.
     - admit.
   Admitted.
-  
+
+  Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN2 :
+    ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN2 τ.
+  Proof.
+    iApply func_comp_left.
+    - admit.
+    - admit.
+    - iIntros (θ). iApply func_comp_parallel_comp_assoc_rev; try done.
+      + admit.
+      + admit.
+      + admit.
+    - admit.
+  Admitted. 
+   
   Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4 :
     ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN4 τ.
   Proof. 
@@ -145,22 +185,43 @@ Section new_comp_verification.
     - admit.
 Admitted. 
 
+  Lemma DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3 :
+    ⊢ sem_val_typed DHSIM_FKE_CHAN4 DHSIM_FKE_CHAN3 τ.
+  Proof. 
+    iApply functionality_comp_func_comp_assoc_rev; first done. 
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+  Admitted. 
+ 
+
   Definition SIMSIMFCHAN : val :=
     (F_AUTH ∘f DH_SIM) ∘F (CHAN_SIM_lazy ∘f F_CHAN).
     (* (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (λ: "f", CHAN_SIM (F_CHAN "f"))%V "f" "rH" "rG") "rF").  *)
 
-  Axiom helper : (@sec_channel_prf.sem_ty_group Σ vg) = 𝔾.
-
   Lemma DHSIM_FKE_CHAN4_SIMFCHAN :
     ⊢ sem_val_typed DHSIM_FKE_CHAN4 SIMSIMFCHAN τ.
   Proof.           
-    unfold DHSIM_FKE_CHAN4, SIMSIMFCHAN.
     iApply functionality_comp_cong. 
     - admit.                    (* closed *)
     - admit.                    (* closed *)
     - admit.                    (* closed *)
-    - rewrite -helper. unshelve iApply R_I_SCHAN; done. admit.                    (* security of secure channel  *)
+    - unshelve iApply R_I_SCHAN; done.                    (* security of secure channel  *)
     - admit.                    (* well-typedness *)
+  Admitted. 
+
+
+  Lemma SIMFCHAN_DHSIM_FKE_CHAN4 :
+    ⊢ sem_val_typed SIMSIMFCHAN DHSIM_FKE_CHAN4 τ.
+  Proof.           
+    iApply functionality_comp_cong.
+    - admit.
+    - admit.
+    - admit.
+    - admit.                    (* security of secure channel *)
+    - admit.
   Admitted. 
 
 End new_comp_verification.
