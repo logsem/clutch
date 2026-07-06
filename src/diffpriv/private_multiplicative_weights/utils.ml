@@ -130,7 +130,7 @@ let normalize_l l size =
   let ln = List.map (fun x -> (size * x)/s) l in
   let s' = sum_l ln and
       lln = List.length ln in
-  List.mapi (fun i x -> (if i <= size - s' -1 mod lln then 1 else 0) + (((size - s'))/lln) + x) ln
+  List.mapi (fun i x -> (if i <= size - s' - 1 mod lln then 1 else 0) + (((size - s'))/lln) + x) ln
 
 let mk_histo_l file =
   let (size, index, ht) = mk_histo file in
