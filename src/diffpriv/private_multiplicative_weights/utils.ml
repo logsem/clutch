@@ -123,22 +123,25 @@ let aff_bq bq  =
 (** Utils functions for the list implementation *)
 
 let sum_l l =
-  List.fold_left (fun acc x -> acc +. x) 0. l
+  List.fold_left (fun acc x -> acc + x) 0 l
 
-let normalize_l l =
+let normalize_l l size =
   let s = sum_l l in
-  List.map (fun x -> x /. s) l
+  let ln = List.map (fun x -> (size * x)/s) l in
+  let s' = sum_l ln and
+      lln = List.length ln in
+  List.mapi (fun i x -> (if i <= size - s' -1 mod lln then 1 else 0) + (((size - s'))/lln) + x) ln
 
 let mk_histo_l file =
   let (size, index, ht) = mk_histo file in
-  (size, index, List.map (fun x -> Hashtbl.find ht x) index)
+  (size, index, normalize_l (List.map (fun x -> int_of_float (Hashtbl.find ht x *. (float_of_int size))) index) size)
 
 let write_db_l domain db gif i =
   (* when gif = Some file, write the database in file_i.csv *)
   match gif with
   | Some file ->
     let writer = open_out (file ^ (int_to_string i) ^ ".csv") in
-    List.iteri (fun i x -> Printf.fprintf writer "%s,%f\n" x (List.nth db i)) domain;
+    List.iteri (fun i x -> Printf.fprintf writer "%s,%d\n" x (List.nth db i)) domain;
     close_out writer
   | _ -> ()
 
@@ -146,19 +149,22 @@ let get_rd_query_l domaine =
   (* given a domaine returns a random query (random map of domain -> {0, 1}) *)
   List.map (fun x -> (0 = Random.int 2)) domaine
 
-let get_unif_l domaine =
+let get_unif_l domaine size =
   (* returns the uniform db on domaine *)
   let s = List.length domaine in
-  List.init s (fun _ -> 1. /. (float_of_int s))
+  List.init s (fun i -> (if i < size mod s then 1 else 0) + size / s)
 
 let c_query_l q db =
   (* given a query and a db compute the result (scalar product) *)
-  let res = ref 0. in
-  List.iteri (fun i x -> if (List.nth q i) then (res := x +. !res) else ()) db;
+  let res = ref 0 in
+  List.iteri (fun i x -> if (List.nth q i) then (res := x + !res) else ()) db;
   !res
 
 let aff_db_l db index =
   (* displays db *)
   Printf.printf "Aff_db ---\n---";
-  List.iteri (fun i a -> Printf.printf " %s: %f\n---" a (List.nth db i)) index;
+  List.iteri (fun i a -> Printf.printf " %s: %d\n---" a (List.nth db i)) index;
   Printf.printf "> OK\n"
+
+let max_l2 l =
+  List.fold_left max 0 l

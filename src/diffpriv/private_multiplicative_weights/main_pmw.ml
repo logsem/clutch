@@ -31,7 +31,7 @@ let () =
         size
         db
         index
-        (get_unif_l index)
+        (get_unif_l index size)
         stream_query
         (float_of_int card_q)
         1 1 0.1 0.1
@@ -49,9 +49,9 @@ let () =
       printf "\n\n- SANITIZED DB :\n";
       aff_db_l db' index;
       printf "\n\n- LIST RESULT :\n";
-      printf "%f\n" (max_l res);
-      printf "Above 0.1: %f (%d/%d)\n" ( float_of_int (count_above res 0.1) /. float_of_int nb_q) (count_above res 0.1) nb_q;
-      printf "Above 0.01: %f (%d/%d)\n" ( float_of_int (count_above res 0.01) /. float_of_int nb_q) (count_above res 0.01) nb_q
+      printf "%d\n" (max_l2 res);
+      printf "size init : %d | size fin : %d\n" (sum_l db) (sum_l db');
+      ()
     )
   )
   else (
