@@ -29,11 +29,14 @@ Section schan_security.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg : @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
-  Context {Key Support : nat}.
-  Variable xor_struct : XOR (Key := Key) (Support := Support).
+ (* Context {Key Support : nat}.*)
+  Variable xor_struct : XOR (Key := S (S n'')) (Support := S (S n'')).
   Variable bij_group_xor_sem : vgG -> vgG -> vgG.
   Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, bij_group_xor_sem (bij_group_xor_sem g1 g2) g2 = g1.
-  Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}. 
+  Variable log__g : vgG -> fin (S (S n'')).
+  Hypothesis Val_log : ∀ x : vgG, (g ^+(log__g x))%g = x.
+  Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, log__g (bij_group_xor_sem m (g ^+n))).
+  Context `{!XOR_spec (Key := S (S n'')) (Support := S (S n'')) (H := xor_struct)}. 
 
 
   Definition atokN' : namespace := nroot .@ "atokN1".
@@ -1877,15 +1880,16 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   unfold sem_val_typed. simpl.
   iDestruct "Hschn" as "#Hschn".
   iSpecialize ("Hrelf1f2" with "Hschn"). simpl.
-   set (f m := (λ x, int_of_vg_sem (bij_group_xor_sem m (g ^+x)))).
-   assert (Hf : ∀ m : vgG, Bij (f m)).
-   { admit. }
+  (*set (f m := (λ x, int_of_vg_sem (bij_group_xor_sem m (g ^+x)))).*)
+  set (f m := (fun (x : fin (S (S n''))) => log__g (bij_group_xor_sem m (g ^+x)))).
+  assert (Hf : ∀ m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (f m)).
+   { apply Bij_log. }
   set (d1 := (γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ NONEV ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗  l_key ↦ NONEV)%I).
-  set (d2 := ((∃ m : vgG, ∃ n : nat, γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ□ SOMEV #(f m n) ∗
+  set (d2 := ((∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ□ SOMEV #(f m n) ∗
                   l_auth ↦□ SOMEV (vgval
                                      (bij_group_xor_sem m (g ^+ n)))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I)).
 
-  set (d3 := (∃ m : vgG, ∃ n : nat, γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I). 
+  set (d3 := (∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I). 
   iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
    iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; iFrame|].
    iIntros "#Hinvα".
@@ -1899,10 +1903,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
    set (R := (λ u1 u2 : val, 𝟙%T u1 u2)).
    set (X' := sec_channel schannel_l schannel_r).
    iApply brel_learn. iIntros "%Hdist' _".
-   iApply ((brel_exhaustion (f1 ((λ: "m", do: schannel_l InjL "m"),(λ: <>, do: schannel_l InjR bob))%V) (f2 ((λ: "m", do: schannel_r InjL "m"),(λ: <>, do: schannel_r InjR bob))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]").
-   { try simpl; try auto; try (apply sublist_subseteq); try (apply singleton_sublist_l);
-       try (apply list_elem_of_In); try simpl; try auto; try (repeat (eapply sublist_skip)) ; try eapply sublist_nil_l. admit. }
-   { simpl. auto. }
+   iApply ((brel_exhaustion (f1 ((λ: "m", do: schannel_l InjL "m"),(λ: <>, do: schannel_l InjR bob))%V) (f2 ((λ: "m", do: schannel_r InjL "m"),(λ: <>, do: schannel_r InjR bob))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]"); try simpl; try set_solver.
    {
      set clt := ([channel'; getKey'; schannel_l], [leaksec'; schannel_r], X').
      set cltheory := iLblSig_to_iLblThy [([channel'; getKey'; schannel_l] , [leaksec'; schannel_r] , X')].
@@ -1960,8 +1961,8 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
            iApply (brel_load_r _ _ _ _ [AppRCtx _ ; CaseCtx _ _] with "Hl_m'sim"). iIntros "Hl_m'sim".
            brel_pures.
            iDestruct "Hγ" as (ms) "(%Hf' & Hγ)". apply map_eq_nil in Hf'. simplify_eq.
-           iApply (brel_couple_TU_gen _ _ (f m) [AppRCtx _; AppRCtx _] _ _ _ _ _ _); simpl; auto.
-           { admit. }
+           iApply (brel_couple_TU _ _ (f m) [AppRCtx _; AppRCtx _] _ _ _ _ _ _); simpl; auto.
+           (*{ admit. }*)
            simpl. iSplitL "Hγ". {iModIntro ; iFrame "Hγ". }
           iIntros (c) "Hγ". 
           brel_pures.
@@ -2115,7 +2116,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                               unfold labels_l, labels_r. simpl.
                               unfold N in Hdistinct. unfold distinct in Hdistinct. simpl in Hdistinct.
                               unfold distinct_l, distinct_r in Hdistinct. destruct Hdistinct as [Hl Hr].
-                              unfold labels_l in Hl. unfold labels_r in Hr. simpl in Hl, Hr.
+                              unfold labels_l in Hl. unfold labels_r in Hr. simpl in Hl, Hr. 
                               admit.
                             }
                             { simpl. unfold N. iApply to_iThy_le_intro'. 
@@ -2244,7 +2245,6 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                        assert (HNoDup : NoDup [channel'; getKey']).
                        { eapply sublist_NoDup; [eapply Hdl| auto].
                          eapply (sublist_inserts_r _ [channel'; getKey'] [channel'; getKey']). auto. } 
-                       (*Search "NoDup". apply NoDup_cons_1_1 in HNoDup. auto. set_solver. }*)
                 brel_pures.
                        repeat foldkont.
                        (* open invariant for case analysis *)
@@ -2430,6 +2430,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                                   iCombine "Hl_m'sim Hl_m'sim'" gives %[Hsim Hsim2]. clear Hval Hsim.
                                   inversion Hsim2. specialize (Hf m0). destruct Hf as [Hfinj Hfsurj].
                                   apply Nat2Z.inj in H2.
+                                  apply fin_to_nat_inj in H2.
                                   apply (@inj _ _ eq eq (f m0) Hfinj n n0) in H2. rewrite -> H2.
                                   rewrite -> Bij_xor_sem. iApply "Hsome". }
                                { iApply "IH". }
@@ -2473,7 +2474,7 @@ Lemma SEM_R_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
     BREL R_CHAN f1
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ L }-∘ 𝟙)%T v1 v2 }}.*)
-                                       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ L) }-∘ 𝟙)%T v1 v2 }}.
+                                       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ L) }-∘ 𝟙)%T v1 v2 }}. 
 Proof with (repeat foldkont) using G.
  iIntros "Hrelf1f2". 
   repeat simpl. 
@@ -2656,15 +2657,15 @@ Proof with (repeat foldkont) using G.
   unfold sem_val_typed. simpl.
   iDestruct "Hschn" as "#Hschn".
   iSpecialize ("Hrelf1f2" with "Hschn"). simpl.
-   set (f m := (λ x, int_of_vg_sem (bij_group_xor_sem m (g ^+x)))).
-   assert (Hf : ∀ m : vgG, Bij (f m)).
-   { admit. }
+   set (f m := (fun (x : fin (S (S n''))) => log__g (bij_group_xor_sem m (g ^+x)))).
+  assert (Hf : ∀ m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (f m)).
+   { apply Bij_log. }
   set (d1 := (γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ NONEV ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗  l_key ↦ NONEV)%I).
-  set (d2 := ((∃ m : vgG, ∃ n : nat, γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ□ SOMEV #(f m n) ∗
+  set (d2 := ((∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ□ SOMEV #(f m n) ∗
                   l_auth ↦□ SOMEV (vgval
                                      (bij_group_xor_sem m (g ^+ n)))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I)).
 
-  set (d3 := (∃ m : vgG, ∃ n : nat, γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I). 
+  set (d3 := (∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I). 
   iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
    iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; iFrame|].
    iIntros "#Hinvα".
@@ -2740,8 +2741,8 @@ Proof with (repeat foldkont) using G.
            iApply (brel_load_r _ _ _ _ [AppRCtx _ ; CaseCtx _ _] with "Hl_m'sim"). iIntros "Hl_m'sim".
            brel_pures.
            iDestruct "Hγ" as (ms) "(%Hf' & Hγ)". apply map_eq_nil in Hf'. simplify_eq.
-          iApply (brel_couple_TU_gen _ _ (f m) [AppRCtx _; AppRCtx _] _ _ _ _ _ _); simpl; auto.
-          { admit. }
+          iApply (brel_couple_TU _ _ (f m) [AppRCtx _; AppRCtx _] _ _ _ _ _ _); simpl; auto.
+          (*{ admit. }*)
           simpl. iSplitL "Hγ". {iModIntro ; iFrame "Hγ". }
           iIntros (c) "Hγ". 
           brel_pures.
@@ -2938,9 +2939,10 @@ Proof with (repeat foldkont) using G.
                                iSpecialize ("Hasnd" $! (vgval (valgroup.g ^+ f m c), bob)%V).
                                iApply "Hasnd".
                                unfold g_sem. simpl. unfold sem_ty_prod.
-                               iExists ((bij_group_xor_sem m (valgroup.g ^+ c))) , (vgval (valgroup.g ^+ f m c)) , bob , bob.
+                               iExists (vgval (bij_group_xor_sem m (valgroup.g ^+ c))) , (vgval (valgroup.g ^+ f m c)) , bob , bob.
                                repeat (iSplit); try (iPureIntro); try reflexivity.
-                               + auto. simpl.  admit.
+                               + auto. simpl. unfold f. rewrite -> Val_log. exists (bij_group_xor_sem m (g ^+ c)).
+                                 repeat split; reflexivity.
                                + simpl. exists #()%V, #()%V. repeat split; unfold bob; try reflexivity.
                                  left. repeat split; reflexivity. }
                             iModIntro. iIntros (v0 v3) "#HRv0v3".
@@ -3276,6 +3278,7 @@ Proof with (repeat foldkont) using G.
                                   iCombine "Hl_m'sim Hl_m'sim'" gives %[Hsim Hsim2]. clear Hval Hsim.
                                   inversion Hsim2. specialize (Hf m0). destruct Hf as [Hfinj Hfsurj].
                                   apply Nat2Z.inj in H2.
+                                  apply fin_to_nat_inj in H2.
                                   apply (@inj _ _ eq eq (f m0) Hfinj n n0) in H2. rewrite -> H2.
                                   rewrite -> Bij_xor_sem. iApply "Hsome". }
                                { iApply "IH". }
