@@ -119,7 +119,7 @@ Section handlee_verification.
   
   Program Definition SendBobImpl c1 c2 γtok γfrac γauth ι : iThy Σ :=
     λ e1 e2, (λne Q,
-                ∃ m m': val, ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded m) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
+                ∃ m m': vgG, ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (vgval m)) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
                               (⌜ e1 = do: c1 (SendV (m, alice)) ⌝%E ∗
                                ⌜ e2 = do: c2 (SendV (m', alice)) ⌝%E)  ∗ 
                               □ (Q (Val #()%V) (Val #()%V)))
@@ -173,7 +173,7 @@ Section handlee_verification.
 
   Program Definition SendAliceImpl c1 c2 γtok γfrac γauth ι : iThy Σ :=
     λ e1 e2, (λne Q,
-                ∃ (m m' : val), ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded m) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
+                ∃ (m m' : vgG), ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (vgval m%g)) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
                                  (⌜ e1 = do: c1 (SendV (m, bob)) ⌝%E ∗
                                   ⌜ e2 = do: c2 (SendV (m', bob)) ⌝%E)  ∗ 
                                  □ (Q (Val #()%V) (Val #()%V)))
@@ -317,7 +317,7 @@ Section handlee_verification.
                                               v2 ((λ: "m", do: c2 (Send "m")), (λ: "m", do: c2 (Recv "m")))%V 
                                               <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
     BREL F_AUTH f1 ≤ F_AUTH f2 <| ⊥ |> {{ λ v1 v2, 
-                                            (∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
+                                            (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option 𝔾)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
   Proof with (repeat foldkont) using G. 
     iIntros "Hfraca Hfracb Hff". 
     
@@ -430,8 +430,10 @@ Section handlee_verification.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists _, _; iFrame "#"; iFrame|].
         
-        iAssert (sem_val_typed (_, bob)%V (_,bob)%V (⊤ × (𝟙 + 𝟙))%T) as "Hmm".
-        { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
+        iAssert (sem_val_typed (_, bob)%V (_,bob)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
+        { iModIntro. iExists _,_,_,_. 
+          repeat (iSplit; first done). 
+          iSplit; first (iExists (g ^+ m)%g; done).
           iExists _,_. iLeft. done. }
         unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
         unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
@@ -538,8 +540,9 @@ Section handlee_verification.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
         
-        iAssert (sem_val_typed (m, alice)%V (m,alice)%V (⊤ × (𝟙 + 𝟙))%T) as "Hmm".
+        iAssert (sem_val_typed (m, alice)%V (m,alice)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
         { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
+          iSplit; first (iExists _; done).
           iExists _,_. iRight. done. }
         unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
         unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
@@ -628,7 +631,7 @@ Section handlee_verification.
                                               v2 ((λ: "m", do: c2 (Send "m")), (λ: "m", do: c2 (Recv "m")))%V 
                                               <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
     BREL F_AUTH f1 ≤ F_AUTH f2 <| ⊥ |> {{ λ v1 v2, 
-                                            (∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
+                                            (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option 𝔾)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
   Proof with (repeat foldkont) using G. 
     iIntros "Hfraca Hfracb Hff". 
     
@@ -741,8 +744,9 @@ Section handlee_verification.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists _, _; iFrame "#"; iFrame|].
         
-        iAssert (sem_val_typed (_, bob)%V (_,bob)%V (⊤ × (𝟙 + 𝟙))%T) as "Hmm".
+        iAssert (sem_val_typed (_, bob)%V (_,bob)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
         { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
+          iSplit; first (iExists _; done).
           iExists _,_. iLeft. done. }
         unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
         unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
@@ -849,8 +853,9 @@ Section handlee_verification.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
         
-        iAssert (sem_val_typed (m, alice)%V (m,alice)%V (⊤ × (𝟙 + 𝟙))%T) as "Hmm".
+        iAssert (sem_val_typed (m, alice)%V (m,alice)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
         { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
+          iSplit; first (iExists _; done).
           iExists _,_. iRight. done. }
         unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
         unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
@@ -939,7 +944,7 @@ Section handlee_verification.
                                               v2 ((λ: "m", do: c2 (Send "m")), (λ: "m", do: c2 (Recv "m")))%V 
                                               <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
     BREL F_AUTH f1 ≤ F_AUTH f2 <| ⊥ |> {{ λ v1 v2, 
-                                            (∀ᵣ θₗ, (((⊤ × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ⊤)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
+                                            (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option 𝔾)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
   Proof with (repeat foldkont) using G. 
     iIntros "Hfraca Hfracb Hff". 
     
@@ -1050,8 +1055,9 @@ Section handlee_verification.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
 
-        iAssert (sem_val_typed (m, bob)%V (m,bob)%V (⊤ × (𝟙 + 𝟙))%T) as "Hmm".
+        iAssert (sem_val_typed (m, bob)%V (m,bob)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
         { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
+          iSplit; first (iExists _; done).
           iExists _,_. iLeft. done. }
         unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
         unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
@@ -1158,8 +1164,9 @@ Section handlee_verification.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
 
-        iAssert (sem_val_typed (m, alice)%V (m,alice)%V (⊤ × (𝟙 + 𝟙))%T) as "Hmm".
+        iAssert (sem_val_typed (m, alice)%V (m,alice)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
         { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
+          iSplit; first (iExists _; done).
           iExists _,_. iRight. done. }
         unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
         unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".

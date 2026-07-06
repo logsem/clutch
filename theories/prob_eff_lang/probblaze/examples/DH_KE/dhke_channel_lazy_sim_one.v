@@ -190,7 +190,7 @@ Section handlee_verification.
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
         iLeft. iLeft. simpl.
-        iExists (vgval (g ^+ a)%g),  (vgval (g ^+ a)%g).
+        iExists ((g ^+ a)%g),  ((g ^+ a)%g).
         iSplitL.
         { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
           - iModIntro. iLeft.
