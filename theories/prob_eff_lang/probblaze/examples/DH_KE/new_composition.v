@@ -3,15 +3,11 @@ From iris.base_logic.lib Require Import na_invariants.
 From iris.algebra Require Import agree excl auth frac excl_auth.
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
-  spec_rules spec_ra class_instances.
-From clutch.prob_eff_lang.probblaze Require Import tactics.
-From clutch.prob_eff_lang.probblaze Require Export notation valgroup.
-From clutch.prob_eff_lang.probblaze Require Export def_dhke.
-From clutch.prob_eff_lang.probblaze Require Export sec_channel_def xor.
-From clutch.prob_eff_lang.probblaze Require Export sec_channel_prf.
-From clutch.prob_eff_lang.probblaze Require Export dhke_channel_lazy_results dhke_channel_lazy_authchan.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
+From clutch.prob_eff_lang.probblaze Require Import
+  logic primitive_laws proofmode
+  spec_rules spec_ra class_instances tactics notation valgroup metatheory
+  sem_types sem_row sem_sig sem_judgement sem_def
+  def_dhke sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_lazy_authchan.
 From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
 
 Import fingroup.
@@ -95,20 +91,20 @@ Section new_comp_verification.
     (λ: "f", ((λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ||ᵣ F_OAUTH) (CHAN xor "f")).
 
   Lemma DHSIM_FKE_CHAN1_closed : is_closed_expr ∅ ((λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ||ᵣ F_OAUTH).
-  Proof. closed_val. Qed.
+  Proof. is_closed. Qed.
 
   Definition DHSIM_FKE_CHAN2 : val :=
     (λ: "f", ((λ: "f", (λ: "f", F_AUTH (DH_SIM "f"))%V (F_KE_lazy_alice "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f")).
 
   Lemma DHSIM_FKE_CHAN2_closed : is_closed_expr ∅ ((λ: "f", (λ: "f", F_AUTH (DH_SIM "f"))%V (F_KE_lazy_alice "f"))%V ||ᵣ F_OAUTH).
-  Proof. closed_val. Qed.
+  Proof. is_closed. Qed.
 
   Definition DHSIM_FKE_CHAN3 : val :=
     ((F_AUTH ∘f DH_SIM) ∘F (F_KE_lazy_alice ||ᵣ F_OAUTH)%V)%V ∘f (CHAN xor).
     (* (λ: "f", (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (F_KE ||ᵣ F_OAUTH)%V "f" "rH" "rG") "rF") (CHAN xor "f")). *)
 
   Lemma DHSIM_FKE_CHAN3_closed : is_closed_expr ∅ ((F_AUTH ∘f DH_SIM) ∘F (F_KE_lazy_alice ||ᵣ F_OAUTH)%V)%V.
-  Proof. closed_val. Qed.
+  Proof. is_closed. Qed.
 
   Definition DHSIM_FKE_CHAN4 : val :=
     (F_AUTH ∘f DH_SIM) ∘F (R_CHAN xor_struct).
@@ -196,10 +192,10 @@ Section new_comp_verification.
   Admitted.
 
   Lemma F_AUTH_DH_SIM_closed : is_closed_expr ∅ (F_AUTH ∘f DH_SIM).
-  Proof. closed_val. Qed.
+  Proof. is_closed. Qed.
 
   Lemma F_KE_lazy_alice_F_OAUTH_closed : is_closed_expr ∅ (F_KE_lazy_alice ||ᵣ F_OAUTH).
-  Proof. closed_val. Qed.
+  Proof. is_closed. Qed.
 
   Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4 :
     ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN4 τ.
@@ -230,11 +226,11 @@ Admitted.
 
   Lemma R_CHAN_closed : is_closed_expr ∅ (R_CHAN xor_struct).
   Proof using int_of_vg_closed vg vg_of_int_closed xor_closed.
-    closed_val.
+    is_closed.
   Qed.
 
   Lemma CHAN_SIM_lazy_F_CHAN_closed : is_closed_expr ∅ (CHAN_SIM_lazy ∘f F_CHAN).
-  Proof. closed_val. Qed.
+  Proof. is_closed. Qed.
 
   Lemma DHSIM_FKE_CHAN4_SIMFCHAN :
     ⊢ sem_val_typed DHSIM_FKE_CHAN4 SIMSIMFCHAN τ.
