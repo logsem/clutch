@@ -310,12 +310,12 @@ Section row_properties.
      (commented out in interp.v).  With the plain σ head, [sem_row_cons] is
      genuinely NOT contractive in σ (no guarding later); since the instance
      is unused and now vacuous, it is left Admitted. *)
-  Global Instance sem_row_cons_contractive {Σ} (* op *) n : Proper (dist_later n ==> dist n ==> dist n) (@sem_row_cons Σ (* op *)).
-  Proof.
-    intros ??????. rewrite /sem_row_cons.
-    (* intros ???????. rewrite /sem_row_cons.
-       intros ?. simpl. do 6 f_equiv; first f_contractive; f_equiv; apply non_dep_fun_dist; by f_equiv. *)
-  Admitted.
+  (* Global Instance sem_row_cons_contractive {Σ} (* op *) n : Proper (dist_later n ==> dist n ==> dist n) (@sem_row_cons Σ (* op *)).
+     Proof.
+       intros ??????. rewrite /sem_row_cons.
+       (* intros ???????. rewrite /sem_row_cons.
+          intros ?. simpl. do 6 f_equiv; first f_contractive; f_equiv; apply non_dep_fun_dist; by f_equiv. *)
+     Admitted. *)
   Global Instance sem_row_flip_mbang_ne {Σ} m : NonExpansive (@sem_row_flip_mbang Σ m).
   Proof.
     intros n ρ1 ρ2 Hρ.
