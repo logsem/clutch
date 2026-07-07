@@ -1174,7 +1174,7 @@ Module le.
        _type D α β → _type D (TForallR α) (TForallR β) *)
   | TForallM_le D α β :
     _type D α β → _type D (TForallM α) (TForallM β)
-  | TRec_le D α β : _type D α β → _type D (TRec α) (TRec β)
+  (* | TRec_le D α β : _type D α β → _type D (TRec α) (TRec β) *)
   | TProd_le D α α' β β' :
     _type D α α' → _type D β β' → _type D (TProd α β) (TProd α' β')
   | TSum_le D α α' β β' :

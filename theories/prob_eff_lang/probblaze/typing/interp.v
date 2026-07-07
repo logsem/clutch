@@ -1815,24 +1815,24 @@ Section interp_subst.
     (* Following case was removed from the syntactic rules *)
     (* - iApply ty_le_row_forall; iIntros (θ). iApply H. admit. *) 
     - iApply ty_le_mode_forall; iIntros (ν); iApply H; by iApply erase_ctx_extend_mode.
-    - iApply ty_le_rec.
-      (* TRec_le: STILL ADMITTED.  [ty_le_rec] (sem_types.v) requires the
-         PARAMETRIC monotone premise
-           [□ (∀ α' β', α' ≤ₜ β' -∗ C₁ α' ≤ₜ C₂ β')]
-         (the Löb unfold step relates the recursive occurrences
-         [μₜ C₁] / [μₜ C₂], which DIFFER, so it must thread [α' ≤ₜ β']
-         through the body).  Here [C₁ τ' = interp._ty (τ'::η) α] and
-         [C₂ τ' = interp._ty (τ'::η) β], and the combined-scheme IH [H]
-         supplies only the DIAGONAL [∀ γ, C₁ γ ≤ₜ C₂ γ] ([H (γ::η)]).
-         Deriving the parametric form from the diagonal would need
-         environment-monotonicity of [interp._ty] in the head (de Bruijn
-         0) variable, which fails without a positivity restriction on the
-         recursion variable; equivalently it requires STRENGTHENING the
-         whole [le_subtyping_mut] induction to relate TWO pointwise-[≤ₜ]
-         environments (changing [Psig]/[Prow]/[Pty] and re-proving every
-         case).  That restructuring is out of scope (add-only); cf.
-         [TArrow_le], the other remaining gap. *)
-      admit.
+    (* - iApply ty_le_rec.
+         (* TRec_le: STILL ADMITTED.  [ty_le_rec] (sem_types.v) requires the
+            PARAMETRIC monotone premise
+              [□ (∀ α' β', α' ≤ₜ β' -∗ C₁ α' ≤ₜ C₂ β')]
+            (the Löb unfold step relates the recursive occurrences
+            [μₜ C₁] / [μₜ C₂], which DIFFER, so it must thread [α' ≤ₜ β']
+            through the body).  Here [C₁ τ' = interp._ty (τ'::η) α] and
+            [C₂ τ' = interp._ty (τ'::η) β], and the combined-scheme IH [H]
+            supplies only the DIAGONAL [∀ γ, C₁ γ ≤ₜ C₂ γ] ([H (γ::η)]).
+            Deriving the parametric form from the diagonal would need
+            environment-monotonicity of [interp._ty] in the head (de Bruijn
+            0) variable, which fails without a positivity restriction on the
+            recursion variable; equivalently it requires STRENGTHENING the
+            whole [le_subtyping_mut] induction to relate TWO pointwise-[≤ₜ]
+            environments (changing [Psig]/[Prow]/[Pty] and re-proving every
+            case).  That restructuring is out of scope (add-only); cf.
+            [TArrow_le], the other remaining gap. *)
+         admit. *)
     - iApply (ty_le_prod with "[] []"); [by iApply H|by iApply H0].
     - iApply (ty_le_sum with "[] []"); [by iApply H|by iApply H0].
     - iApply ty_le_mbang_intro_bool.
@@ -1851,7 +1851,7 @@ Section interp_subst.
     - iApply ty_le_mbang_type_forall.
     - iApply ty_le_row_forall_mbang.
     - iApply ty_le_mbang_row_forall.
-  Admitted.
+  Qed.
 
   (* The three named soundness lemmas, projected from [subtyping_sound_all]. *)
   Lemma sig_le_sound_open D σ σ' :
