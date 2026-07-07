@@ -28,7 +28,9 @@ Section new_comp_verification.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg: @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
-  Context {Key Support : nat}.
+  (* Context {Key Support : nat}. *)
+  Let Key := S (S n'').
+  Let Support := S (S n'').
   Variable xor_struct : XOR (Key := Key) (Support := Support).
   Variable bij_group_xor_sem : vgG -> vgG -> vgG.
   Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, bij_group_xor_sem (bij_group_xor_sem g1 g2) g2 = g1.
@@ -90,7 +92,7 @@ Section new_comp_verification.
     (* (λ: "f", (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (F_KE ||ᵣ F_OAUTH)%V "f" "rH" "rG") "rF") (CHAN xor "f")). *)
 
   Definition DHSIM_FKE_CHAN4 : val :=
-    (F_AUTH ∘f DH_SIM) ∘F (R_CHAN _).
+    (F_AUTH ∘f DH_SIM) ∘F (R_CHAN xor_struct).
     (* (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (λ: "f", (F_KE ||ᵣ F_OAUTH)%V (CHAN xor "f")) "f" "rH" "rG") "rF").  *)
 
   Lemma REAL_CHAN_DH_RAND_DHSIM_FKE_CHAN1 : 
