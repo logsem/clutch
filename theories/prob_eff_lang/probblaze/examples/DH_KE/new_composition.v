@@ -12,6 +12,7 @@ From clutch.prob_eff_lang.probblaze Require Export sec_channel_def xor.
 From clutch.prob_eff_lang.probblaze Require Export sec_channel_prf.
 From clutch.prob_eff_lang.probblaze Require Export dhke_channel_lazy_results dhke_channel_lazy_authchan.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
+From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -19,6 +20,29 @@ Import fingroup.fingroup.
 
 
 Import valgroup_tactics.
+
+Ltac closed_val :=
+  cbn ; rewrite (bool_decide_eq_true_2 _ _) ; [|set_solver] ;
+  rewrite !andb_true_r !andb_true_l ;
+  repeat (apply andb_prop_intro ; split) ; auto.
+
+
+(* TODO move these hints to valgroup *)
+#[export] Hint Resolve vunit_closed : core.
+#[export] Hint Resolve vinv_closed : core.
+#[export] Hint Resolve vmult_closed : core.
+#[export] Hint Resolve veq_closed : core.
+(* TODO add these assumptions to clutch_group_struct *)
+(* #[export] Hint Resolve int_of_vg_closed : core.
+   #[export] Hint Resolve vg_of_int_closed : core. *)
+#[export] Hint Resolve g_closed : core.
+
+Definition vexp_closed `{!clutch_group_struct} :
+  is_closed_val vexp.
+Proof. unfold vexp, vexp'. closed_val ; auto. Qed.
+
+#[export] Hint Resolve vexp_closed : core.
+(* TODO end move *)
 
 Section new_comp_verification.
   Context `{probblazeRGS Σ}.
@@ -55,76 +79,95 @@ Section new_comp_verification.
   
    (* F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] ≤ F_OAUTH[ F_AUTH [C[DH_real][CHAN []]]] *)
   (*---------------------------------------------------------------------------*)
+  Lemma F_AUTH_DHKE_closed : is_closed_expr ∅ ((λ: "f", F_AUTH (DH_KE "f"))%V ||ᵣ F_OAUTH).
+  Proof. closed_val. Qed.
+  Lemma F_AUTH_C_DDH_real_closed : is_closed_expr ∅ ( (λ: "f", F_AUTH (C_lazy DH_real "f"))%V ||ᵣ F_OAUTH).
+  Proof. closed_val. Qed.
+  Lemma F_AUTH_C_DDH_rand_closed : is_closed_expr ∅ ((λ: "f", F_AUTH (C_lazy DH_rand "f"))%V ||ᵣ F_OAUTH).
+  Proof. closed_val. Qed.
+  Hint Resolve F_AUTH_DHKE_closed : core.
+  Hint Resolve F_AUTH_C_DDH_real_closed : core.
+  Hint Resolve F_AUTH_C_DDH_rand_closed : core.
+
   Lemma F_OAUTH_DHKE_C_REAL :
     ⊢ sem_val_typed REAL_CHAN_DHKE REAL_CHAN_DH_REAL τ.
-  Proof. 
+  Proof.
     iApply func_comp_left.
-    - admit.                    (* closed expressions *)
-    - admit.                    (* closed expressions *)
+    - apply F_AUTH_DHKE_closed.
+    - apply F_AUTH_C_DDH_real_closed.
     - iIntros (θ). iApply parallel_comp_right.
       + unfold τ__F. unshelve iApply F_AUTH_DH_KE_FAUTH_C_DH_real; try done. 
       + admit.                  (* F_OAUTH well-typed *)
     - admit.                    (* CHAN well-typed *)
   Admitted. 
-   
+
 
   Lemma C_REAL_DHKE_F_OAUTH :
      ⊢ sem_val_typed REAL_CHAN_DH_REAL REAL_CHAN_DHKE τ.
-  Proof. 
+  Proof.
     iApply func_comp_left.
-    - admit.                    (* closed expressions *)
-    - admit.                    (* closed expressions *)
+    - apply F_AUTH_C_DDH_real_closed.
+    - apply F_AUTH_DHKE_closed.
     - iIntros (θ). iApply parallel_comp_right.
       + unfold τ__F. iApply F_AUTH_C_DH_real_FAUTH_DH_KE; try done.
       + admit.                  (* F_OAUTH well-typed *)
     - admit.                    (* CHAN well-typed *)
-  Admitted. 
+  Admitted.
 
- 
+
   Definition DHSIM_FKE_CHAN1 : val :=
-    (λ: "f", ((λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ||ᵣ F_OAUTH) (CHAN xor "f")). 
+    (λ: "f", ((λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ||ᵣ F_OAUTH) (CHAN xor "f")).
+
+  Lemma DHSIM_FKE_CHAN1_closed : is_closed_expr ∅ ((λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ||ᵣ F_OAUTH).
+  Proof. closed_val. Qed.
 
   Definition DHSIM_FKE_CHAN2 : val :=
-    (λ: "f", ((λ: "f", (λ: "f", F_AUTH (DH_SIM "f"))%V (F_KE_lazy_alice "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f")). 
+    (λ: "f", ((λ: "f", (λ: "f", F_AUTH (DH_SIM "f"))%V (F_KE_lazy_alice "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f")).
+
+  Lemma DHSIM_FKE_CHAN2_closed : is_closed_expr ∅ ((λ: "f", (λ: "f", F_AUTH (DH_SIM "f"))%V (F_KE_lazy_alice "f"))%V ||ᵣ F_OAUTH).
+  Proof. closed_val. Qed.
 
   Definition DHSIM_FKE_CHAN3 : val :=
     ((F_AUTH ∘f DH_SIM) ∘F (F_KE_lazy_alice ||ᵣ F_OAUTH)%V)%V ∘f (CHAN xor).
     (* (λ: "f", (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (F_KE ||ᵣ F_OAUTH)%V "f" "rH" "rG") "rF") (CHAN xor "f")). *)
 
+  Lemma DHSIM_FKE_CHAN3_closed : is_closed_expr ∅ ((F_AUTH ∘f DH_SIM) ∘F (F_KE_lazy_alice ||ᵣ F_OAUTH)%V)%V.
+  Proof. closed_val. Qed.
+
   Definition DHSIM_FKE_CHAN4 : val :=
     (F_AUTH ∘f DH_SIM) ∘F (R_CHAN xor_struct).
     (* (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (λ: "f", (F_KE ||ᵣ F_OAUTH)%V (CHAN xor "f")) "f" "rH" "rG") "rF").  *)
 
-  Lemma REAL_CHAN_DH_RAND_DHSIM_FKE_CHAN1 : 
+  Lemma REAL_CHAN_DH_RAND_DHSIM_FKE_CHAN1 :
     ⊢ sem_val_typed REAL_CHAN_DH_RAND DHSIM_FKE_CHAN1 τ.
   Proof.
     iApply func_comp_left.
-    - admit.
-    - admit.
-    - iIntros (θ). iApply parallel_comp_right. 
+    - apply F_AUTH_C_DDH_rand_closed.
+    - apply DHSIM_FKE_CHAN1_closed.
+    - iIntros (θ). iApply parallel_comp_right.
       + iApply F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE; try done.
       + admit.
     - admit.
-  Admitted. 
+  Admitted.
 
-  Lemma DHSIM_FKE_CHAN1_REAL_CHAN_DH_RAND : 
+  Lemma DHSIM_FKE_CHAN1_REAL_CHAN_DH_RAND :
     ⊢ sem_val_typed DHSIM_FKE_CHAN1 REAL_CHAN_DH_RAND τ.
   Proof.
     iApply func_comp_left.
-    - admit.
-    - admit.
+    - apply DHSIM_FKE_CHAN1_closed.
+    - apply F_AUTH_C_DDH_rand_closed.
     - iIntros (θ). iApply parallel_comp_right.
       + iApply F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand; try done. 
       + admit.
     -  admit.
-  Admitted. 
+  Admitted.
 
-  Lemma DHSIM_FKE_CHAN1_DHSIM_FKE_CHAN2 : 
+  Lemma DHSIM_FKE_CHAN1_DHSIM_FKE_CHAN2 :
     ⊢ sem_val_typed  DHSIM_FKE_CHAN1 DHSIM_FKE_CHAN2 τ.
   Proof.
     iApply func_comp_left.
-    - admit.
-    - admit.
+    - apply DHSIM_FKE_CHAN1_closed.
+    - apply DHSIM_FKE_CHAN2_closed.
     - iIntros (θ). iApply parallel_comp_right.
       + unfold τ__F. iApply func_comp_assoc.
         * admit.
@@ -132,14 +175,14 @@ Section new_comp_verification.
         * admit.
       + admit.
     - admit.
-  Admitted. 
+  Admitted.
 
-  Lemma DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN1 : 
+  Lemma DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN1 :
     ⊢ sem_val_typed DHSIM_FKE_CHAN2 DHSIM_FKE_CHAN1 τ.
   Proof.
     iApply func_comp_left.
-    - admit.
-    - admit.
+    - apply DHSIM_FKE_CHAN2_closed.
+    - apply DHSIM_FKE_CHAN1_closed.
     - iIntros (θ). iApply parallel_comp_right.
       + iApply func_comp_assoc_rev.
         * admit.
@@ -147,15 +190,15 @@ Section new_comp_verification.
         * admit.
       + admit.
     - admit.
-  Admitted. 
-        
+  Admitted.
+
   Lemma DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN3 :
     ⊢ sem_val_typed DHSIM_FKE_CHAN2 DHSIM_FKE_CHAN3 τ.
   Proof.
     (* All admits are well-typedness *)
     iApply func_comp_left.
-    - admit.                    (* closed expr *)
-    - admit.                    (* closed expr *)
+    - apply DHSIM_FKE_CHAN2_closed.
+    - apply DHSIM_FKE_CHAN3_closed.
     - iIntros (θ). iApply func_comp_parallel_comp_assoc; try done.
       + admit.
       + admit.
@@ -167,63 +210,81 @@ Section new_comp_verification.
     ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN2 τ.
   Proof.
     iApply func_comp_left.
-    - admit.
-    - admit.
+    - apply DHSIM_FKE_CHAN3_closed.
+    - apply DHSIM_FKE_CHAN2_closed.
     - iIntros (θ). iApply func_comp_parallel_comp_assoc_rev; try done.
       + admit.
       + admit.
       + admit.
     - admit.
-  Admitted. 
-   
+  Admitted.
+
+  Lemma F_AUTH_DH_SIM_closed : is_closed_expr ∅ (F_AUTH ∘f DH_SIM).
+  Proof. closed_val. Qed.
+
+  Lemma F_KE_lazy_alice_F_OAUTH_closed : is_closed_expr ∅ (F_KE_lazy_alice ||ᵣ F_OAUTH).
+  Proof. closed_val. Qed.
+
   Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4 :
     ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN4 τ.
-  Proof. 
-    iApply functionality_comp_func_comp_assoc; first done.  
+  Proof.
+    iApply functionality_comp_func_comp_assoc; first done.
+    - apply F_AUTH_DH_SIM_closed.
+    - apply F_KE_lazy_alice_F_OAUTH_closed.
     - admit.
     - admit.
     - admit.
-    - admit.
-    - admit.
-Admitted. 
+Admitted.
 
   Lemma DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3 :
     ⊢ sem_val_typed DHSIM_FKE_CHAN4 DHSIM_FKE_CHAN3 τ.
-  Proof. 
-    iApply functionality_comp_func_comp_assoc_rev; first done. 
+  Proof.
+    iApply functionality_comp_func_comp_assoc_rev; first done.
+    - apply F_AUTH_DH_SIM_closed.
+    - apply F_KE_lazy_alice_F_OAUTH_closed.
     - admit.
     - admit.
     - admit.
-    - admit.
-    - admit.
-  Admitted. 
- 
+  Admitted.
+
 
   Definition SIMSIMFCHAN : val :=
     (F_AUTH ∘f DH_SIM) ∘F (CHAN_SIM_lazy ∘f F_CHAN).
     (* (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (λ: "f", CHAN_SIM (F_CHAN "f"))%V "f" "rH" "rG") "rF").  *)
 
+  Context (vg_of_int_closed : is_closed_val vg_of_int).
+  Context (int_of_vg_closed : is_closed_val int_of_vg).
+  Context (xor_closed : is_closed_val xor).
+
+  Lemma R_CHAN_closed : is_closed_expr ∅ (R_CHAN xor_struct).
+  Proof using int_of_vg_closed vg vg_of_int_closed xor_closed.
+    closed_val.
+  Qed.
+
+  Lemma CHAN_SIM_lazy_F_CHAN_closed : is_closed_expr ∅ (CHAN_SIM_lazy ∘f F_CHAN).
+  Proof. closed_val. Qed.
+
   Lemma DHSIM_FKE_CHAN4_SIMFCHAN :
     ⊢ sem_val_typed DHSIM_FKE_CHAN4 SIMSIMFCHAN τ.
-  Proof.           
-    iApply functionality_comp_cong. 
-    - admit.                    (* closed *)
-    - admit.                    (* closed *)
-    - admit.                    (* closed *)
+  Proof.
+    iApply functionality_comp_cong.
+    - apply F_AUTH_DH_SIM_closed.
+    - apply R_CHAN_closed.
+    - apply CHAN_SIM_lazy_F_CHAN_closed.
     - unshelve iApply R_I_SCHAN; done.                    (* security of secure channel  *)
     - admit.                    (* well-typedness *)
-  Admitted. 
+  Admitted.
 
 
   Lemma SIMFCHAN_DHSIM_FKE_CHAN4 :
     ⊢ sem_val_typed SIMSIMFCHAN DHSIM_FKE_CHAN4 τ.
-  Proof.           
+  Proof.
     iApply functionality_comp_cong.
-    - admit.
-    - admit.
-    - admit.
+    - apply F_AUTH_DH_SIM_closed.
+    - apply CHAN_SIM_lazy_F_CHAN_closed.
+    - apply R_CHAN_closed.
     - unshelve iApply I_R_SCHAN; done.                    (* security of secure channel *)
     - admit.
-  Admitted. 
+  Admitted.
 
 End new_comp_verification.
