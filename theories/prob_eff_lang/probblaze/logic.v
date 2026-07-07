@@ -3581,16 +3581,6 @@ Section brel_probabilistic_rules.
     iFrame. iIntros (n) "Hα".
     by iApply ("H" with "[$][$]").
   Qed.    
-
-  Lemma brel_couple_TU_gen E N f `{Bij nat nat f} K α X R z ns e :
-    TCEq N (Z.to_nat z) ->
-    (∀ n, n < S N -> f n < S N)%nat →
-    to_val e = None ->
-     ▷ α ↪ (N; ns) ∗
-    (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) -∗ BREL e ≤ fill K (Val #(f n)) @ E <|X|> {{R}})
-    ⊢ BREL e ≤ fill K (rand #z) @ E <|X|> {{R}}.
-  Proof.
-    Admitted.
     
   Lemma brel_couple_UT E N f `{Bij nat nat f} K α X R z ns e :
     TCEq N (Z.to_nat z) →
