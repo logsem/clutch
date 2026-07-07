@@ -28,7 +28,9 @@ Class XOR {Key Support : nat} :=
      may fail if `key` and `input` are of different lengths. *)
 
   } .
- 
+
+#[export] Hint Resolve xor_closed : core.
+
 Class XOR_spec `{!probblazeRGS Σ} `{XOR} :=
   { XOR_CORRECT_L := ∀ E K (x : nat) (y : nat) e X R
                        (*(_: (0<=x)%Z)*)
