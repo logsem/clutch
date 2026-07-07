@@ -2,7 +2,7 @@ From clutch.prob_eff_lang.probblaze Require Import advantage.
 From iris.algebra Require Import excl.
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup.
-From clutch.prob_eff_lang.probblaze Require Import new_schan_ri newdef_schan adequacy.
+From clutch.prob_eff_lang.probblaze Require Import sec_channel_def sec_channel_prf adequacy.
 
 
 Section adv_schan.
