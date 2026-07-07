@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base proofmode classes.                                           
+From iris.proofmode Require Import base proofmode classes.                                            
 From iris.base_logic.lib Require Import  na_invariants.   
 From iris.algebra Require Import agree excl auth frac excl_auth. 
 From iris.algebra.lib Require Import dfrac_agree.
@@ -2544,7 +2544,10 @@ Lemma SEM_R_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ L }-∘ 𝟙)%T v1 v2 }}.*)
                                        (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ L) }-∘ 𝟙)%T v1 v2 }}. 
-Proof with (repeat foldkont) using G.
+Proof with (repeat foldkont) using  Bdd_int_vg Bij_log Bij_xor_sem G H
+Val_log XOR_spec0 cg group_xor_sem log__g vg
+vg_int_xor_sem vgg xor_struct Σ.
+
  iIntros "Hrelf1f2".  
   repeat simpl. 
   unfold R_CHAN. brel_pures.
@@ -3000,18 +3003,22 @@ Proof with (repeat foldkont) using G.
                               unfold labels_l, labels_r in *.
                               destruct Hdist' as [Hl Hr].
                               split.
-                              ++ Search list_fmap.
+                              ++ 
                                 set (l1 := (concat  (([getKey'], [], iThyBot) :: iLblSig_to_iLblThy autheff).*1.*1)).
                                  eapply (submseteq_NoDup l1 _); try eapply Hl.
-                                 unfold l1. simpl. eapply submseteq_cons.  Search "⊆+". eapply submseteq_skip.
+                                 unfold l1. simpl. eapply submseteq_cons. eapply submseteq_skip.
                                   repeat (rewrite -> iLblSig_to_iLblThy_proj;
-                                          rewrite -> iLblSig_to_iLblThy_app). Search list_fmap.
-                                  repeat (rewrite -> fmap_app). simpl. eapply submseteq_cons. Search concat.
-                                admit.
+                                          rewrite -> iLblSig_to_iLblThy_app). 
+                                  repeat (rewrite -> fmap_app). simpl. eapply submseteq_cons. 
+                                  eapply concat_submseteq. simpl. solve_submseteq.
                               ++ set (l2 := (concat (([getKey'], [], iThyBot)
                                   :: iLblSig_to_iLblThy autheff).*1.*2)).
-                                eapply (submseteq_NoDup l2 _); try eapply Hr.
-                              admit.
+                                 eapply (submseteq_NoDup l2 _); try eapply Hr.
+                                 unfold l2. simpl. eapply submseteq_cons. eapply submseteq_cons.
+                                  repeat (rewrite -> iLblSig_to_iLblThy_proj;
+                                          rewrite -> iLblSig_to_iLblThy_app). 
+                                  repeat (rewrite -> fmap_app). simpl.
+                                  eapply concat_submseteq. simpl. solve_submseteq.
                             }
                             { simpl. unfold N. iApply to_iThy_le_intro'. 
                               unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
@@ -3387,7 +3394,7 @@ Proof with (repeat foldkont) using G.
                             { simpl. set_solver. }
                             { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
                             { iApply "IH". }
-Admitted.
+Qed.
  
 
 Lemma SEM_R_CHAN_SIM_rev (f1 f2 : val) (L : sem_row Σ) :
