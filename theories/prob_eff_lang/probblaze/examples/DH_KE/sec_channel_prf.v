@@ -31,13 +31,15 @@ Section schan_security.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
  (* Context {Key Support : nat}.*)
   Variable xor_struct : XOR (Key := S (S n'')) (Support := S (S n'')).
-  Variable bij_group_xor_sem : vgG -> vgG -> vgG.
-  Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, bij_group_xor_sem (bij_group_xor_sem g1 g2) g2 = g1.
+  Context `{!XOR_spec (Key := S (S n'')) (Support := S (S n'')) (H := xor_struct)}. 
+  Variable group_xor_sem : vgG -> vgG -> vgG.
+  Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, group_xor_sem (group_xor_sem g1 g2) g2 = g1.
+  Hypothesis vg_int_xor_sem : ∀ g1 g2 : vgG, vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some (group_xor_sem g1 g2 ).
   Variable log__g : vgG -> fin (S (S n'')).
   Hypothesis Val_log : ∀ x : vgG, (g ^+(log__g x))%g = x.
-  Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, log__g (bij_group_xor_sem m (g ^+n))).
-  Context `{!XOR_spec (Key := S (S n'')) (Support := S (S n'')) (H := xor_struct)}. 
-
+  Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, log__g (group_xor_sem m (g ^+n))).
+  Hypothesis Bdd_int_vg : ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
+ 
 
   Definition atokN' : namespace := nroot .@ "atokN1".
   Definition btokN' : namespace := nroot .@ "btokN1".
@@ -384,12 +386,13 @@ Qed.
 Qed.
 
   Lemma G_XOR_CORRECT_l (g1 g2 : vgG) E K X e R :
-    let g := (bij_group_xor_sem g1 g2) in
+    let g := (group_xor_sem g1 g2) in
     (* vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some g1 ->*)
      vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some g ->
         (BREL (fill K (SOMEV (vgval g))) ≤ e @ E <|X|> {{R}}) -∗ 
      (BREL (fill K (G_XOR xor (vgval g1) (vgval g2))) ≤ e @ E <|X|> {{R}}).
-  Proof. 
+  Proof using Bdd_int_vg G H XOR_spec0 group_xor_sem cg vg vgg xor_struct
+Σ.
     simpl.
     intro Hg1g2.
     iIntros "Hrelxor".
@@ -409,14 +412,12 @@ Qed.
    assert (fill (K ++ [AppRCtx vg_of_int ]) (xor #(int_of_vg_sem g1) #(int_of_vg_sem g2)) = fill K (fill [AppRCtx vg_of_int] (xor #(int_of_vg_sem g1) #(int_of_vg_sem g2)))) as Hectxxor.
    { rewrite fill_app. auto. }
    rewrite -Hectxxor.
-   iApply xor_correct_l.
-   { admit. }
-   { admit. }
+   iApply xor_correct_l; try (eapply Bdd_int_vg).
    rewrite fill_app. simpl.
    iApply brel_vg_of_int_correct_l.
    { apply Hg1g2. }
    { simpl. iApply "Hrelxor". }
-  Admitted.
+  Qed.
 
 (*secure channel only assumes a fixed direction of messag epassing, so this needs to relfect in the type of the thunks that its client receives*)
 (*Verification of F_OAUTH[F_KE_L[CHAN[]]] ≤ CHAN_SIM[F_CHAN[]]*)
@@ -424,13 +425,13 @@ Qed.
 Lemma F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
  (*(∀ᵣ θₕ, (((𝔾 × 𝟙 + 𝟙) -{ θₕ }-> 𝟙) × 𝟙 + 𝟙 -{ θₕ }-> Option 𝔾) -{ sem_row_union θₕ L }-∘ 𝟙)%T
                  f1 f2 -∗*)
-   (∀ᵣ θₕ, ((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T
+   (∀ᵣ θₕ, (((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙))%T
                  f1 f2 -∗
     BREL REAL_CHAN f1
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
                                        BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V ((λ: "m", do: keyleak1 (Send "m")), (λ: "m", do: keyleak1 (Recv "m")))%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V ((λ: "m", do: keyleak2 (Send "m")), (λ: "m", do: keyleak2 (Recv "m")))%V <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
-Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg vgg Σ Key Support.
+Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg vgg Σ.
 (*  iIntros "Hrelf1f2". 
   repeat simpl.
   unfold REAL_CHAN. brel_pures.
@@ -1031,7 +1032,7 @@ Admitted.
 Lemma SEM_F_KE_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
   (* (∀ᵣ θₕ, (((𝔾 × 𝟙 + 𝟙) -{ θₕ }-> 𝟙) × 𝟙 + 𝟙 -{ θₕ }-> Option 𝔾) -{ sem_row_union θₕ L }-∘ 𝟙)%T
                  f1 f2 -∗*)
-    (∀ᵣ θₕ, ((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾) -{ sem_row_union θₕ L }-∘ 𝟙))%T
+    (∀ᵣ θₕ, ((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T
                  f1 f2 -∗
     BREL REAL_CHAN f1
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
@@ -1712,11 +1713,11 @@ Proof with (repeat foldkont) using G.
                           { simpl. set_solver. }
                           { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
                           {iApply "IH". }*)
-    Admitted.
+    Admitted. 
                       
 Lemma REAL_CHAN_CHAN_SIM_F_CHAN :
   ⊢ sem_val_typed (REAL_CHAN)%V (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V
-     (* (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }->  𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙) ⊸ (*type of client*)*)                                                                                           (∀ᵣ θ__L ,(∀ᵣ θₕ, ((𝔾 -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option 𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙) ⊸ (*type of client*) 
+     (* (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 × (sem_ty_sum 𝟙 𝟙)) -{ θₕ }->  𝟙) × ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙) ⊸ (*type of client*)*)                                                                                           (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option 𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*) 
       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (sem_row_union θ₁ θ₂) θ__L }-∘ 𝟙))%T.
 Proof using G inG0 inG1 inG2.   
   iModIntro. iIntros (L).
@@ -1727,9 +1728,9 @@ Proof using G inG0 inG1 inG2.
   iApply (brel_mono OS with "[][Hrelf1f2]");
   [iApply to_iThy_le_refl|simpl|simpl].
   +  iApply (SEM_F_KE_CHAN_SIM _ _ L).
-     (*iApply "Hrelf1f2".*) admit.
+     iApply "Hrelf1f2".
   + iIntros (??) "$". 
-Admitted. 
+Qed. 
    
 (*top level statements for the secure channel *)
 (*----------------------------------------------------------------*)
@@ -1763,7 +1764,10 @@ Lemma F_OAUTH_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
                                        BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V ((λ: "m", do: keyleak1 (Send "m")), (λ: "m", do: keyleak1 (Recv "m")))%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V ((λ: "m", do: keyleak2 (Send "m")), (λ: "m", do: keyleak2 (Recv "m")))%V  <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
-Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg vgg Σ.
+Proof with (repeat foldkont) using Bdd_int_vg Bij_log Bij_xor_sem G
+H Val_log XOR_spec0 cg group_xor_sem inG0
+inG1 inG2 klk1 klk2 lka1 lka2 log__g vg
+vg_int_xor_sem vgg xor_struct Σ.
   iIntros "Hrelf1f2". 
   repeat simpl. 
   unfold R_CHAN.
@@ -1940,13 +1944,13 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
   iDestruct "Hschn" as "#Hschn".
   iSpecialize ("Hrelf1f2" with "Hschn"). simpl.
   (*set (f m := (λ x, int_of_vg_sem (bij_group_xor_sem m (g ^+x)))).*)
-  set (f m := (fun (x : fin (S (S n''))) => log__g (bij_group_xor_sem m (g ^+x)))).
+  set (f m := (fun (x : fin (S (S n''))) => log__g (group_xor_sem m (g ^+x)))).
   assert (Hf : ∀ m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (f m)).
    { apply Bij_log. }
   set (d1 := (γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ NONEV ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗  l_key ↦ NONEV)%I).
   set (d2 := ((∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ□ SOMEV #(f m n) ∗
                   l_auth ↦□ SOMEV (vgval
-                                     (bij_group_xor_sem m (g ^+ n)))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I)).
+                                     (group_xor_sem m (g ^+ n)))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I)).
 
   set (d3 := (∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I). 
   iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
@@ -1962,7 +1966,9 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
    set (R := (λ u1 u2 : val, 𝟙%T u1 u2)).
    set (X' := sec_channel schannel_l schannel_r).
    iApply brel_learn. iIntros "%Hdist' _".
-   iApply ((brel_exhaustion (f1 ((λ: "m", do: schannel_l InjL "m"),(λ: <>, do: schannel_l InjR bob))%V) (f2 ((λ: "m", do: schannel_r InjL "m"),(λ: <>, do: schannel_r InjR bob))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]"); try simpl; try set_solver.
+   iApply ((brel_exhaustion (f1 ((λ: "m", do: schannel_l InjL "m"),(λ: <>, do: schannel_l InjR bob))%V) (f2 ((λ: "m", do: schannel_r InjL "m"),(λ: <>, do: schannel_r InjR bob))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]").
+   { simpl; set_solver. }
+   { simpl; set_solver. }
    {
      set clt := ([channel'; getKey'; schannel_l], [leaksec'; schannel_r], X').
      set cltheory := iLblSig_to_iLblThy [([channel'; getKey'; schannel_l] , [leaksec'; schannel_r] , X')].
@@ -2099,7 +2105,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                       unfold kont.
                       brel_pures. 
                       iApply (G_XOR_CORRECT_l m (g ^+ c) _ _ _ _).
-                      {admit. }
+                      { eapply vg_int_xor_sem. }
                       brel_pures.
                        { simpl. unfold distinct in Hdistinct. destruct Hdistinct.
                         unfold distinct_l in H0. (*unfold LblClients in H1. simpl in H1.*)
@@ -2156,7 +2162,7 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                           iApply brel_na_close. iFrame. 
                           iSplitL; [iModIntro; iRight; iLeft; iFrame "#" |]; try auto.
                           simpl. brel_pures.
-                          set (g_sem := (bij_group_xor_sem m (valgroup.g ^+ c))).
+                          set (g_sem := (group_xor_sem m (valgroup.g ^+ c))).
                           iApply (brel_bind [HandleCtx _ _ _ _ _ ; AppRCtx _] [AppRCtx _] ⊤ leaktheory
                                     N _ (Do leakauth1 (InjLV (vgval g_sem, bob)))
                             (Do leakauth2 (InjLV (vgval (valgroup.g ^+ f m c), bob)))).
@@ -2170,13 +2176,16 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                             iApply (traversable_ectx_labels _ _ [getKey'] [] iThyBot _).
                             + simpl. auto.
                             + unfold kont0. simpl. auto.
-                            + simpl. unfold distinct.
-                              unfold distinct_l, distinct_r.
-                              unfold labels_l, labels_r. simpl.
-                              unfold N in Hdistinct. unfold distinct in Hdistinct. simpl in Hdistinct.
-                              unfold distinct_l, distinct_r in Hdistinct. destruct Hdistinct as [Hl Hr].
-                              unfold labels_l in Hl. unfold labels_r in Hr. simpl in Hl, Hr. 
-                              admit.
+                            + unfold N in Hdistinct.
+                              unfold keytheory, leaktheory, distinct in *.                           
+                              unfold distinct_l, distinct_r in *.
+                              unfold labels_l, labels_r in *. simpl in *.  
+                              destruct Hdistinct as [Hl Hr].
+                              split.
+                              ++ eapply (submseteq_NoDup [getKey'; leakauth1] _); try eapply Hl.
+                                 solve_submseteq.
+                              ++ eapply (submseteq_NoDup [leakauth2] _); try eapply Hr.
+                                 solve_submseteq.
                             }
                             { simpl. unfold N. iApply to_iThy_le_intro'. 
                               set (k1 :=  [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], iThyBot)] ++ keytheory).
@@ -2377,13 +2386,13 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                                iSplitL; [iModIntro; iRight; iLeft; iFrame; iFrame "#" |].
                                brel_pures.*)
                                iApply G_XOR_CORRECT_l.
-                               { admit. }
+                               { rewrite -> Bij_xor_sem. rewrite -> vg_int_xor_sem. rewrite -> Bij_xor_sem. reflexivity. }
                                brel_pures.
                                iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _ ] with "Hl_fchan").
                                iIntros "Hl_fchan'".
                                brel_pures.
-                                set (g_enc := (bij_group_xor_sem
-                                        (bij_group_xor_sem m (g ^+ n))
+                                set (g_enc := (group_xor_sem
+                                        (group_xor_sem m (g ^+ n))
                                         (g ^+ n))).
                                iApply (brel_exhaustion (fill k1'((InjRV (vgval g_enc))%V)) (fill k2' ((InjRV (vgval m))%V))).
                                { simpl. auto. set_solver. }
@@ -2464,34 +2473,35 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                               iMod (ghost_map_elem_persist with "Hl_sim") as "#Hl_sim".
                               iModIntro.
                     
-                       iApply brel_na_close. iFrame.
-           iSplitL.
-           { iModIntro. iRight. iLeft. iFrame "#". }
+                              iApply brel_na_close. iFrame.
+                              iSplitL.
+                              { iModIntro. iRight. iLeft. iFrame "#". }
                               simpl. brel_pures.
-                               (*iApply brel_na_close. iFrame.
-                               iSplitL; [iModIntro; iRight; iLeft; iFrame; iFrame "#" |].
-                               brel_pures.*)
-                               iApply G_XOR_CORRECT_l.
-                               { admit. }
-                               brel_pures.
-                               iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _ ] with "Hl_fchan").
-                               iIntros "Hl_fchan''".
-                               brel_pures.
-                                set (g_enc := (bij_group_xor_sem
-                                        (bij_group_xor_sem m0 (g ^+ n0))
-                                        (g ^+ n))).
-                               iApply (brel_exhaustion (fill k1'((InjRV (vgval g_enc))%V)) (fill k2' ((InjRV (vgval m))%V))).
-                               { simpl. auto. set_solver. }
-                                { simpl. set_solver. }
-                                { unfold kont0. iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". unfold xor. unfold g_enc.
-                                   iCombine "Hl_fchan Hl_fchan'" gives %[Hval Hval2].
+                              iCombine "Hl_fchan Hl_fchan'" gives %[Hval Hval2].
                                   inversion Hval2. apply vgval_inj in H1. rewrite -> H1.
                                   iCombine "Hl_m'sim Hl_m'sim'" gives %[Hsim Hsim2]. clear Hval Hsim.
                                   inversion Hsim2. specialize (Hf m0). destruct Hf as [Hfinj Hfsurj].
                                   apply Nat2Z.inj in H2.
                                   apply fin_to_nat_inj in H2.
                                   apply (@inj _ _ eq eq (f m0) Hfinj n n0) in H2. rewrite -> H2.
-                                  rewrite -> Bij_xor_sem. iApply "Hsome". }
+           
+                               (*iApply brel_na_close. iFrame.
+                               iSplitL; [iModIntro; iRight; iLeft; iFrame; iFrame "#" |].
+                               brel_pures.*)
+                               iApply G_XOR_CORRECT_l.
+                               { rewrite -> Bij_xor_sem. rewrite -> vg_int_xor_sem. rewrite -> Bij_xor_sem. reflexivity. }
+                               brel_pures.
+                               iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _ ] with "Hl_fchan").
+                               iIntros "Hl_fchan''".
+                               brel_pures.
+                                set (g_enc := (group_xor_sem
+                                        (group_xor_sem m0 (g ^+ n0))
+                                        (g ^+ n0))).
+                               iApply (brel_exhaustion (fill k1'((InjRV (vgval g_enc))%V)) (fill k2' ((InjRV (vgval m0))%V))).
+                               { simpl. auto. set_solver. }
+                                { simpl. set_solver. }
+                                { unfold kont0. iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". unfold xor. unfold g_enc.
+                                  rewrite -> Bij_xor_sem. iApply "Hsome". } 
                                { iApply "IH". }
                            -- unfold d3.
                               iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))".
@@ -2522,8 +2532,8 @@ Proof with (repeat foldkont) using G H cg inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg 
                           { simpl. set_solver. }
                           { simpl. set_solver. }
                           { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
-                          {iApply "IH". } }
-Admitted.
+                          {iApply "IH". } } } } } }
+Qed.
 
 
 Lemma SEM_R_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
@@ -2535,7 +2545,7 @@ Lemma SEM_R_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
                                        (* (∀ᵣ θ₁,  (((⊤ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤)) ⊸ ((𝟙 + 𝟙) -{ θ₁ }-> Option ⊤) -{ sem_row_union θ₁ L }-∘ 𝟙)%T v1 v2 }}.*)
                                        (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ L) }-∘ 𝟙)%T v1 v2 }}. 
 Proof with (repeat foldkont) using G.
- iIntros "Hrelf1f2". 
+ iIntros "Hrelf1f2".  
   repeat simpl. 
   unfold R_CHAN. brel_pures.
   unfold right_composition. brel_pures.
@@ -2716,13 +2726,13 @@ Proof with (repeat foldkont) using G.
   unfold sem_val_typed. simpl.
   iDestruct "Hschn" as "#Hschn".
   iSpecialize ("Hrelf1f2" with "Hschn"). simpl.
-   set (f m := (fun (x : fin (S (S n''))) => log__g (bij_group_xor_sem m (g ^+x)))).
+   set (f m := (fun (x : fin (S (S n''))) => log__g (group_xor_sem m (g ^+x)))).
   assert (Hf : ∀ m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (f m)).
    { apply Bij_log. }
   set (d1 := (γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ NONEV ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗  l_key ↦ NONEV)%I).
   set (d2 := ((∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ□ SOMEV #(f m n) ∗
                   l_auth ↦□ SOMEV (vgval
-                                     (bij_group_xor_sem m (g ^+ n)))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I)).
+                                     (group_xor_sem m (g ^+ n)))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I)).
 
   set (d3 := (∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I). 
   iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
@@ -2882,7 +2892,7 @@ Proof with (repeat foldkont) using G.
                   rewrite -> Hw1. rewrite -> Hw2.
                   brel_pures.
                   iApply G_XOR_CORRECT_l.
-                  { admit. }
+                  { rewrite -> vg_int_xor_sem.  repeat (rewrite -> Bij_xor_sem). reflexivity. }
                   brel_pures.
                   { simpl. set_solver.  }
                         iApply (brel_na_inv _ _ alphaN); first set_solver.
@@ -2934,7 +2944,7 @@ Proof with (repeat foldkont) using G.
                           iApply brel_na_close. iFrame. 
                           iSplitL; [iModIntro; iRight; iLeft; iFrame "#" |]; try auto.
                           simpl. brel_pures.
-                          set (g_sem := (bij_group_xor_sem m (valgroup.g ^+ c))).
+                          set (g_sem := (group_xor_sem m (valgroup.g ^+ c))).
                           repeat foldkont.
                           unfold kl3.
                           set (hbranchleft := (λ: "p" "k",
@@ -2983,10 +2993,24 @@ Proof with (repeat foldkont) using G.
                             iApply (traversable_ectx_labels _ _ [getKey'] [] iThyBot _). 
                             + simpl. auto.
                             + unfold kont0. simpl. auto.
-                            + simpl. unfold distinct.
-                              unfold distinct_l, distinct_r.
-                              unfold labels_l, labels_r. simpl.
-                              (*split; eapply NoDup_singleton.*)
+                            + simpl.
+                              unfold sem_row_union in Hdist'.
+                              unfold distinct in *.
+                              unfold distinct_l, distinct_r in *.
+                              unfold labels_l, labels_r in *.
+                              destruct Hdist' as [Hl Hr].
+                              split.
+                              ++ Search list_fmap.
+                                set (l1 := (concat  (([getKey'], [], iThyBot) :: iLblSig_to_iLblThy autheff).*1.*1)).
+                                 eapply (submseteq_NoDup l1 _); try eapply Hl.
+                                 unfold l1. simpl. eapply submseteq_cons.  Search "⊆+". eapply submseteq_skip.
+                                  repeat (rewrite -> iLblSig_to_iLblThy_proj;
+                                          rewrite -> iLblSig_to_iLblThy_app). Search list_fmap.
+                                  repeat (rewrite -> fmap_app). simpl. eapply submseteq_cons. Search concat.
+                                admit.
+                              ++ set (l2 := (concat (([getKey'], [], iThyBot)
+                                  :: iLblSig_to_iLblThy autheff).*1.*2)).
+                                eapply (submseteq_NoDup l2 _); try eapply Hr.
                               admit.
                             }
                             { simpl. unfold N. iApply to_iThy_le_intro'. 
@@ -2998,9 +3022,9 @@ Proof with (repeat foldkont) using G.
                                iSpecialize ("Hasnd" $! (vgval (valgroup.g ^+ f m c), bob)%V).
                                iApply "Hasnd".
                                unfold g_sem. simpl. unfold sem_ty_prod.
-                               iExists (vgval (bij_group_xor_sem m (valgroup.g ^+ c))) , (vgval (valgroup.g ^+ f m c)) , bob , bob.
+                               iExists (vgval (group_xor_sem m (valgroup.g ^+ c))) , (vgval (valgroup.g ^+ f m c)) , bob , bob.
                                repeat (iSplit); try (iPureIntro); try reflexivity.
-                               + auto. simpl. unfold f. rewrite -> Val_log. exists (bij_group_xor_sem m (g ^+ c)).
+                               + auto. simpl. unfold f. rewrite -> Val_log. exists (group_xor_sem m (g ^+ c)).
                                  repeat split; reflexivity.
                                + simpl. exists #()%V, #()%V. repeat split; unfold bob; try reflexivity.
                                  left. repeat split; reflexivity. }
@@ -3229,13 +3253,13 @@ Proof with (repeat foldkont) using G.
                                iSplitL; [iModIntro; iRight; iLeft; iFrame; iFrame "#" |].
                                brel_pures.*)
                                iApply G_XOR_CORRECT_l.
-                               { admit. }
+                               { rewrite -> vg_int_xor_sem. repeat (rewrite -> Bij_xor_sem). reflexivity. }
                                brel_pures.
                                iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _ ] with "Hl_fchan").
                                iIntros "Hl_fchan'".
                                brel_pures.
-                                set (g_enc := (bij_group_xor_sem
-                                        (bij_group_xor_sem m (g ^+ n))
+                                set (g_enc := (group_xor_sem
+                                        (group_xor_sem m (g ^+ n))
                                         (g ^+ n))).
                                iApply (brel_exhaustion (fill k1'((InjRV (vgval g_enc))%V)) (fill k2' ((InjRV (vgval m)))%V)).
                                { simpl. auto. set_solver. }
@@ -3317,28 +3341,28 @@ Proof with (repeat foldkont) using G.
                        iApply brel_na_close. iFrame.
                        iSplitL.
                        { iModIntro. iRight. iLeft. iFrame "#". }
-                              simpl. brel_pures.
-                               iApply G_XOR_CORRECT_l.
-                               { admit. }
-                               brel_pures.
-                               iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _ ] with "Hl_fchan").
-                               iIntros "Hl_fchan''".
-                               brel_pures.
-                                set (g_enc := (bij_group_xor_sem
-                                        (bij_group_xor_sem m0 (g ^+ n0))
-                                        (g ^+ n))).
-                               iApply (brel_exhaustion (fill k1'((InjRV (vgval g_enc))%V)) (fill k2' ((InjRV (vgval m)))%V)).
-                               { simpl. auto. set_solver. }
-                                { simpl. set_solver. }
-                                { unfold kont0. iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]".
-                                   unfold g_enc.
-                                  iCombine "Hl_fchan Hl_fchan'" gives %[Hval Hval2].
+                       simpl. brel_pures.
+                       iCombine "Hl_fchan Hl_fchan'" gives %[Hval Hval2].
                                   inversion Hval2. apply vgval_inj in H1. rewrite -> H1.
                                   iCombine "Hl_m'sim Hl_m'sim'" gives %[Hsim Hsim2]. clear Hval Hsim.
                                   inversion Hsim2. specialize (Hf m0). destruct Hf as [Hfinj Hfsurj].
                                   apply Nat2Z.inj in H2.
                                   apply fin_to_nat_inj in H2.
                                   apply (@inj _ _ eq eq (f m0) Hfinj n n0) in H2. rewrite -> H2.
+                               iApply G_XOR_CORRECT_l.
+                               { rewrite -> vg_int_xor_sem. repeat (rewrite -> Bij_xor_sem). reflexivity. }
+                               brel_pures.
+                               iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _ ] with "Hl_fchan").
+                               iIntros "Hl_fchan''".
+                               brel_pures.
+                                set (g_enc := (group_xor_sem
+                                        (group_xor_sem m0 (g ^+ n0))
+                                        (g ^+ n0))).
+                               iApply (brel_exhaustion (fill k1'((InjRV (vgval g_enc))%V)) (fill k2' ((InjRV (vgval m0)))%V)).
+                               { simpl. auto. set_solver. }
+                                { simpl. set_solver. }
+                                { unfold kont0. iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]".
+                                   unfold g_enc.
                                   rewrite -> Bij_xor_sem. iApply "Hsome". }
                                { iApply "IH". }
                            -- unfold d3.
