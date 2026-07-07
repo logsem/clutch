@@ -225,7 +225,7 @@ Admitted.
     (* (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (λ: "f", CHAN_SIM (F_CHAN "f"))%V "f" "rH" "rG") "rF").  *)
 
   Lemma R_CHAN_closed : is_closed_expr ∅ (R_CHAN xor_struct).
-  Proof using int_of_vg_closed vg vg_of_int_closed xor_closed.
+  Proof.
     is_closed.
   Qed.
 
