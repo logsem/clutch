@@ -17,32 +17,8 @@ From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
 Import fingroup.
 Import fingroup.fingroup.
 
-
-
 Import valgroup_tactics.
 
-Ltac closed_val :=
-  cbn ; rewrite (bool_decide_eq_true_2 _ _) ; [|set_solver] ;
-  rewrite !andb_true_r !andb_true_l ;
-  repeat (apply andb_prop_intro ; split) ; auto.
-
-
-(* TODO move these hints to valgroup *)
-#[export] Hint Resolve vunit_closed : core.
-#[export] Hint Resolve vinv_closed : core.
-#[export] Hint Resolve vmult_closed : core.
-#[export] Hint Resolve veq_closed : core.
-(* TODO add these assumptions to clutch_group_struct *)
-(* #[export] Hint Resolve int_of_vg_closed : core.
-   #[export] Hint Resolve vg_of_int_closed : core. *)
-#[export] Hint Resolve g_closed : core.
-
-Definition vexp_closed `{!clutch_group_struct} :
-  is_closed_val vexp.
-Proof. unfold vexp, vexp'. closed_val ; auto. Qed.
-
-#[export] Hint Resolve vexp_closed : core.
-(* TODO end move *)
 
 Section new_comp_verification.
   Context `{probblazeRGS Σ}.
@@ -80,11 +56,11 @@ Section new_comp_verification.
    (* F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] ≤ F_OAUTH[ F_AUTH [C[DH_real][CHAN []]]] *)
   (*---------------------------------------------------------------------------*)
   Lemma F_AUTH_DHKE_closed : is_closed_expr ∅ ((λ: "f", F_AUTH (DH_KE "f"))%V ||ᵣ F_OAUTH).
-  Proof. closed_val. Qed.
+  Proof. is_closed. Qed.
   Lemma F_AUTH_C_DDH_real_closed : is_closed_expr ∅ ( (λ: "f", F_AUTH (C_lazy DH_real "f"))%V ||ᵣ F_OAUTH).
-  Proof. closed_val. Qed.
+  Proof. is_closed. Qed.
   Lemma F_AUTH_C_DDH_rand_closed : is_closed_expr ∅ ((λ: "f", F_AUTH (C_lazy DH_rand "f"))%V ||ᵣ F_OAUTH).
-  Proof. closed_val. Qed.
+  Proof. is_closed. Qed.
   Hint Resolve F_AUTH_DHKE_closed : core.
   Hint Resolve F_AUTH_C_DDH_real_closed : core.
   Hint Resolve F_AUTH_C_DDH_rand_closed : core.
@@ -251,10 +227,6 @@ Admitted.
   Definition SIMSIMFCHAN : val :=
     (F_AUTH ∘f DH_SIM) ∘F (CHAN_SIM_lazy ∘f F_CHAN).
     (* (λ: "f" "rF" "rH", (λ: "f", F_AUTH (DH_SIM "f"))%V (λ: "rG", (λ: "f", CHAN_SIM (F_CHAN "f"))%V "f" "rH" "rG") "rF").  *)
-
-  Context (vg_of_int_closed : is_closed_val vg_of_int).
-  Context (int_of_vg_closed : is_closed_val int_of_vg).
-  Context (xor_closed : is_closed_val xor).
 
   Lemma R_CHAN_closed : is_closed_expr ∅ (R_CHAN xor_struct).
   Proof using int_of_vg_closed vg vg_of_int_closed xor_closed.

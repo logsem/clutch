@@ -986,3 +986,8 @@ Lemma subst_map_lbl_subst s l vs e :
 Proof.
   revert vs. induction e => vs; simpl; try rewrite IHe; try (rewrite IHe1; rewrite IHe2); try rewrite IHe3; try case_match; try done.
 Qed.
+
+Ltac is_closed :=
+  cbn ; rewrite (bool_decide_eq_true_2 _ _) ; [|set_solver] ;
+  rewrite !andb_true_r !andb_true_l ;
+  repeat (apply andb_prop_intro ; split) ; auto.

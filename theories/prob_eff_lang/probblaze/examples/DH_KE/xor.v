@@ -19,6 +19,8 @@ Class XOR {Key Support : nat} :=
   ; TInput := TNat
   ; TOutput := TNat
 
+  ; xor_closed : is_closed_val xor
+
   (* TODO: should xor be partial? `xor key input` may fail unless 0 <= key <=
      Key /\ 0 <= input <= Input
 

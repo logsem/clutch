@@ -1,5 +1,7 @@
 From clutch.prelude Require Import base.
-From clutch.prob_eff_lang.probblaze Require Import syntax semantics spec_ra logic notation proofmode spec_rules class_instances.
+From clutch.prob_eff_lang.probblaze Require Import syntax semantics spec_ra logic notation proofmode spec_rules class_instances metatheory.
+From clutch.prob_eff_lang.probblaze.typing Require Import types. (*  interp *)
+From clutch.prob_eff_lang.probblaze Require Import sem_def.
 From clutch.approxis Require Import app_weakestpre.
 
 From mathcomp Require Import solvable.cyclic choice eqtype finset fintype seq
@@ -32,11 +34,29 @@ Class clutch_group_struct :=
     ; veq : cval
     ; int_of_vg : cval
     ; vg_of_int : cval
+    ; τG : type
+
     ; vunit_closed : is_closed_val vunit
     ; vinv_closed : is_closed_val vinv
     ; vmult_closed : is_closed_val vmult
     ; veq_closed : is_closed_val veq
+    ; int_of_vg_closed : is_closed_val int_of_vg
+    ; vg_of_int_closed : is_closed_val vg_of_int
+
+    ; vunit_typed : val_typed vunit τG
+    ; vinv_typed : val_typed vinv (τG ⇾ τG)%ty
+    ; vmult_typed : val_typed vmult (τG ⇾ τG ⇾ τG)%ty
+    ; veq_typed : val_typed veq (τG ⇾ τG ⇾ TBool)%ty
+    ; int_of_vg_typed : val_typed int_of_vg (τG ⇾ TInt)%ty
+    ; vg_of_int_typed : val_typed vg_of_int (TInt ⇾ () + τG)%ty
     }.
+
+#[export] Hint Resolve vunit_closed : core.
+#[export] Hint Resolve vinv_closed : core.
+#[export] Hint Resolve vmult_closed : core.
+#[export] Hint Resolve veq_closed : core.
+#[export] Hint Resolve int_of_vg_closed : core.
+#[export] Hint Resolve vg_of_int_closed : core.
 
 (* In some cases (Zpˣ), we might want to use exponentiation to define
    inversion, so we expose a bare version parametrised by only the unit and
@@ -46,10 +66,36 @@ Definition vexp' (vunit : cval) (vmult : cval) : cval := λ:"a", rec: "vexp" "n"
 
 Definition vexp `{!clutch_group_struct} : cval := vexp' vunit vmult.
 
+Definition vexp_closed `{!clutch_group_struct} :
+  is_closed_val vexp.
+Proof. unfold vexp, vexp'. is_closed ; auto. Qed.
+
+#[export] Hint Resolve vexp_closed : core.
+
+Definition vexp_typed `{!clutch_group_struct} :
+  val_typed vexp (τG ⇾ TInt ⇾ τG)%ty.
+Proof.
+  unfold vexp, vexp'.
+(*   auto using vunit_typed, vmult_typed.
+   Qed. *)
+Abort.
+
+#[export] Hint Extern 0 (val_typed vunit _) => apply vunit_typed : core.
+#[export] Hint Extern 0 (val_typed vmult _) => apply vmult_typed : core.
+(* #[export] Hint Extern 0 (val_typed vexp _) => apply vexp_typed : core. *)
+#[export] Hint Extern 0 (val_typed int_of_vg _) => apply int_of_vg_typed : core.
+#[export] Hint Extern 0 (val_typed vg_of_int _) => apply vg_of_int_typed : core.
+
+
+Definition lrel_G `{probblazeRGS Σ} {vg : val_group} : sem_ty Σ
+  := (λ w1 w2, ∃ a : vgG, ⌜ w1 = a ∧ w2 = a ⌝)%I.
+
 
 Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
-    { is_unit : vunit = vgval 1
+    {
+    (*   τG_lrel v1 v2 Δ : lrel_G v1 v2 ⊣⊢ interp._ty τG Δ v1 v2
+       ; *) is_unit : vunit = vgval 1
     ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = vgval $ x^-1⌝ }}
     ; is_spec_inv (x : vgG) K :
       ⤇ fill K (
@@ -98,6 +144,8 @@ Class val_group_generator {vg : val_group} :=
     ; g_nontriv : #[g] = S (S n'')
     ; g_generator : generator [set: vgG] g
     }.
+
+#[export] Hint Resolve g_closed : core.
 
 
 Set Default Proof Using "Type*".
