@@ -127,7 +127,22 @@ Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct
           (BREL (fill K (vgval (vg_of_int_sem' x))) ≤ e @ E <|X|> {{R}}) -∗
           (BREL (fill K (vg_of_int (#x))) ≤ e @ E <|X|> {{R}})
     ; brel_vg_of_int_correct_l' : BREL_VG_OF_INT_CORRECT_L'
-        
+    ; BREL_VG_OF_INT_CORRECT_R := ∀ E K X R e x g,
+          vg_of_int_sem x = Some g ->
+          (BREL e ≤ (fill K (SOMEV (vgval g))) @ E <|X|> {{R}}) -∗
+          (BREL e ≤ (fill K (vg_of_int (#x))) @ E <|X|> {{R}})
+    ; brel_vg_of_int_correct_r : BREL_VG_OF_INT_CORRECT_R
+    ; BREL_VG_OF_INT_NONE_L := ∀ E K X R e x,
+          vg_of_int_sem x = None ->
+          (BREL (fill K NONEV) ≤ e @ E <|X|> {{R}}) -∗
+          (BREL (fill K (vg_of_int (#x))) ≤ e @ E <|X|> {{R}})
+    ; brel_vg_of_int_none_l : BREL_VG_OF_INT_NONE_L
+    ; BREL_VG_OF_INT_NONE_R := ∀ E K X R e x,
+          vg_of_int_sem x = None ->
+          (BREL e ≤ (fill K NONEV) @ E <|X|> {{R}}) -∗
+          (BREL e ≤ (fill K (vg_of_int (#x))) @ E <|X|> {{R}})
+    ; brel_vg_of_int_none_r : BREL_VG_OF_INT_NONE_R
+
     }.
 
 Definition vg_of_cg := λ {Σ HΣ} vg cg (G : @clutch_group Σ HΣ vg cg), vg.
