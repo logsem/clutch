@@ -959,6 +959,20 @@ Section compatibility.
       iDestruct "Hτ" as "(%n2 & -> & ->)";
       brel_pures_l; brel_pures_r; iFrame; eauto.
   Qed.
+
+  Lemma sem_typed_un_op τ κ Γ1 Γ2 e e' ρ op : 
+    typed_un_op op τ κ →
+    ⊢ sem_typed Γ1 e e' ρ τ Γ2 -∗
+    sem_typed Γ1 (UnOp op e) (UnOp op e') ρ κ Γ2. 
+  Proof. 
+    iIntros (Hop) "#Hee !# %γ HΓ1 //=".
+    iApply (brel_bind [UnOpCtx _] [UnOpCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "Hee".
+    iIntros "!# % % (Hτ & HΓ2) /=".
+    destruct op; inversion Hop;
+      iDestruct "Hτ" as "(%n2 & -> & ->)";
+      brel_pures_l; brel_pures_r; iFrame; eauto.
+  Qed. 
   
   Lemma sem_typed_if τ ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' e3 e3' :
     ⊢ sem_typed Γ1 e1 e1' ρ 𝔹 Γ2 -∗
