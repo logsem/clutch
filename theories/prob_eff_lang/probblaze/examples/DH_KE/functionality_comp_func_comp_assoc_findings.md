@@ -1,5 +1,17 @@
 # `functionality_comp_func_comp_assoc` is mis-fit for `DHSIM_FKE_CHAN3 ↔ CHAN4`: BOTH its G- and J-premises are uninhabitable for the terms supplied
 
+> **✅ RESOLVED (2026-07-08).** A *curried* pair of combinators —
+> `functionality_comp_func_comp_assoc_curried` / `_rev_curried` (now in
+> `new_composition.v`) — fixes this exactly per **Candidate fix 1** below: the
+> G-premise client is now the two-interface `∀ᵣθJ, τJ θJ ⊸ τJ' θJ -∘ 𝟙` and the
+> J-premise takes a third binder `y` (so `CHAN_body` types as a genuine 𝟙-computation
+> under `[f; ChanOp; doGK]`). All four resulting lemmas are proved and
+> `DHSIM_FKE_CHAN3 ↔ CHAN4` are admit-free (commits `ca019045`, `98d704b2`,
+> `074cff9f`, `1185fd53`). Key ingredient for `F_KE_F_OAUTH_typed`: since
+> `right_composition` hands the chan/gk interfaces at independent rows, they are
+> weakened to a common row via arrow effect-row monotonicity (`chan_le`/`gk_le`). The
+> analysis below is retained as the historical motivation for the curried design.
+
 **Status:** the two top-level lemmas `DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4` and
 `DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3` (`new_composition.v:158,169`) apply
 `functionality_comp_func_comp_assoc(_rev)` and discharge its premises with
