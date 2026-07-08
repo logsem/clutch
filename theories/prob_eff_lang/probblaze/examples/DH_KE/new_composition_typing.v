@@ -1199,12 +1199,88 @@ Section new_comp_verification.
     iPoseProof F_AUTH_DH_SIM_typed_val as "H". rewrite /sem_val_typed //=.
   Qed.
 
+  (* [chan]/[gk] interfaces (products of [-{θ}->] arrows) are usable at any
+     larger effect row θ' ⊇ θ (covariant effect subtyping). *)
+  Lemma chan_le (θ θ' : sem_row Σ) : θ ≤ᵣ θ' -∗ chan θ ≤ₜ chan θ'.
+  Proof using Type*.
+    iIntros "#Hle". rewrite /chan.
+    iApply ty_le_prod; iApply ty_le_uarr; try iApply "Hle"; iApply ty_le_refl.
+  Qed.
+  Lemma gk_le (θ θ' : sem_row Σ) : θ ≤ᵣ θ' -∗ gk θ ≤ₜ gk θ'.
+  Proof using Type*.
+    iIntros "#Hle". rewrite /gk.
+    iApply ty_le_uarr; [iApply "Hle" | iApply ty_le_refl | iApply ty_le_refl].
+  Qed.
+
   Lemma F_KE_F_OAUTH_typed :
     ⊢ sem_typed [] (F_KE_lazy_alice ||ᵣ F_OAUTH) (F_KE_lazy_alice ||ᵣ F_OAUTH) ⊥
         ((∀ᵣ θ, (∀ᵣ θJ, chan θJ ⊸ gk θJ -{ sem_row_union θJ θ }-∘ 𝟙) ⊸
             (∀ᵣ θ1, oaleak θ1 ⊸ ∀ᵣ θ2, leakI θ2
                     -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T) [].
-  Proof using Type*. Admitted.
+  Proof using Type*.
+    iPoseProof F_KE_lazy_alice_typed as "#HFF".
+    iPoseProof F_OAUTH_typed as "#HF".
+    rewrite /sem_val_typed /τ__F //=.
+    iIntros (vs) "!# Hvs". simpl.
+    rewrite /right_composition.
+    brel_pures'.
+    iModIntro.
+    iSplitR "Hvs"; last (iApply "Hvs").
+    iIntros (θ).
+    iIntros (f1 f2) "Hff".
+    brel_pures'.
+    iModIntro.
+    iIntros (θ1).
+    iIntros (r2a r2b) "#Hoa".
+    brel_pures'.
+    iModIntro.
+    iIntros (θ2).
+    iIntros (r1a r1b) "#Hleak".
+    brel_pures'.
+    iAssert ((∀ᵣ θ2', gk θ2' -{ sem_row_union θ2' (sem_row_union θ1 θ) }-∘ 𝟙)%T
+               (λ: "h₁", F_OAUTH (λ: "h₂", f1 "h₂" "h₁") r2a)%V
+               (λ: "h₁", F_OAUTH (λ: "h₂", f2 "h₂" "h₁") r2b)%V) with "[Hff]" as "Hclients".
+    { iIntros (θ2' v1 v2) "Hgk". brel_pures'.
+      iAssert ((∀ᵣ θ1', chan θ1' -{ sem_row_union θ1' (sem_row_union θ2' θ) }-∘ 𝟙)%T
+                 (λ: "h₂", f1 "h₂" v1)%V (λ: "h₂", f2 "h₂" v2)%V)
+        with "[Hff Hgk]" as "Hinner".
+      { iIntros (θ1' v1' v2') "Hchan". brel_pures'.
+        iAssert (θ1' ≤ᵣ sem_row_union θ1' θ2')%I as "#Hle1".
+        { iApply to_iThy_le_intro'. unfold sem_row_union. simpl.
+          rewrite iLblSig_to_iLblThy_app. apply submseteq_inserts_r. done. }
+        iAssert (θ2' ≤ᵣ sem_row_union θ1' θ2')%I as "#Hle2".
+        { iApply to_iThy_le_intro'. unfold sem_row_union. simpl.
+          rewrite iLblSig_to_iLblThy_app. apply submseteq_inserts_l. done. }
+        iDestruct (chan_le with "Hle1") as "#Hcw". iDestruct ("Hcw" with "Hchan") as "Hchan'".
+        iDestruct (gk_le with "Hle2") as "#Hgw". iDestruct ("Hgw" with "Hgk") as "Hgk'".
+        iDestruct ("Hff" $! (sem_row_union θ1' θ2') with "Hchan'") as "Hff1".
+        iApply (brel_bind [AppLCtx v1] [AppLCtx v2]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+        assert (to_iThyIfMono OS [] = []) as <- by done.
+        iApply (brel_mono OS with "[][$Hff1]"); [iApply to_iThy_le_refl|simpl].
+        iIntros (fv1 fv2) "Hff1".
+        iSpecialize ("Hff1" with "Hgk'").
+        iApply (brel_introduction_mono (iLblSig_to_iLblThy (sem_row_union (sem_row_union θ1' θ2') θ)) with "[] Hff1").
+        iApply to_iThy_le_intro'. unfold sem_row_union. simpl.
+        rewrite !iLblSig_to_iLblThy_app. rewrite -app_assoc. done. }
+      iSpecialize ("HF" with "Hinner").
+      iApply (brel_bind [AppLCtx r2a] [AppLCtx r2b]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+      assert (to_iThyIfMono OS [] = []) as <- by done.
+      iApply (brel_mono OS with "[][$HF]"); [iApply to_iThy_le_refl|simpl].
+      iIntros (FO1 FO2) "HF".
+      iSpecialize ("HF" $! θ1 with "Hoa").
+      iApply (brel_introduction_mono (iLblSig_to_iLblThy (sem_row_union θ1 (sem_row_union θ2' θ))) with "[] HF").
+      iApply to_iThy_le_intro'. unfold sem_row_union. simpl.
+      rewrite !iLblSig_to_iLblThy_app. solve_submseteq. }
+    iSpecialize ("HFF" with "Hclients").
+    iApply (brel_bind [AppLCtx r1a] [AppLCtx r1b] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][$HFF]"); [iApply to_iThy_le_refl|simpl].
+    iIntros (FK1 FK2) "Hvv".
+    iSpecialize ("Hvv" $! θ2 with "Hleak").
+    iApply (brel_introduction_mono (iLblSig_to_iLblThy (sem_row_union θ2 (sem_row_union θ1 θ))) with "[] Hvv").
+    iApply to_iThy_le_intro'. unfold sem_row_union. simpl.
+    rewrite !iLblSig_to_iLblThy_app. solve_submseteq.
+  Qed.
 
   (* Open bodies of [F_KE_lazy_alice] and [CHAN xor], needed as the [G]/[J]
      premises of the (functionality-)composition-associativity lemmas.
