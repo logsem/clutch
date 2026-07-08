@@ -1200,7 +1200,9 @@ Module le.
   | TBangTForallTComm1_le D m α : _type D (TBang m (TForallT α)) (TForallT (TBang m α))
   | TBangTForallTComm2_le D m α : _type D (TForallT (TBang m α)) (TBang m (TForallT α))
   | TBangTForallRComm1_le D m α : _type D (TBang m (TForallR α)) (TForallR (TBang m α))
-  | TBangTForallRComm2_le D m α : _type D (TForallR (TBang m α)) (TBang m (TForallR α)).
+  | TBangTForallRComm2_le D m α : _type D (TForallR (TBang m α)) (TBang m (TForallR α))
+  (* A nat is an int (nat literals ARE int literals). *)
+  | TNat_le_TInt D : _type D TNat TInt.
 
   (* Definition list_type_le D (ts rs : list type) : Prop :=
        ∃ l, l ⊆+ rs → Forall2 (_type D) ts l.  
@@ -1524,9 +1526,9 @@ Inductive typed :
 | TStore Δ Γ1 Γ2 (x : string) e ρ τ κ ι:
   Δ .| <[ x :=c ref τ ]> Γ1 ⊢ₜ e : ρ : ι ⊣ <[ x :=c ref κ ]> Γ2 →
                                        Δ .| <[ x :=c ref τ]> Γ1 ⊢ₜ Store x e : ρ : () ⊣ <[ x :=c ref ι ]> Γ2
-| TAllocTape Δ Γ1 e ρ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : ℕ ⊣ Γ2 →  Δ .| Γ1 ⊢ₜ AllocTape e : ρ : TTape ⊣ Γ2
-| TRand Δ Γ1 Γ2 Γ3 e1 e2 ρ : Δ .| Γ2 ⊢ₜ e1 : ρ : ℕ ⊣ Γ3 → Δ .| Γ1 ⊢ₜ e2 : ρ : TTape ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Rand e1 e2 : ρ : ℕ ⊣ Γ3
-| TRandU Δ Γ1 Γ2 Γ3 e1 e2 ρ : Δ .| Γ2 ⊢ₜ e1 : ρ : ℕ ⊣ Γ3 → Δ .| Γ1 ⊢ₜ e2 : ρ : () ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Rand e1 e2 : ρ : ℕ ⊣ Γ3
+| TAllocTape Δ Γ1 e ρ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : ℤ ⊣ Γ2 →  Δ .| Γ1 ⊢ₜ AllocTape e : ρ : TTape ⊣ Γ2
+| TRand Δ Γ1 Γ2 Γ3 e1 e2 ρ : Δ .| Γ2 ⊢ₜ e1 : ρ : ℤ ⊣ Γ3 → Δ .| Γ1 ⊢ₜ e2 : ρ : TTape ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Rand e1 e2 : ρ : ℕ ⊣ Γ3
+| TRandU Δ Γ1 Γ2 Γ3 e1 e2 ρ : Δ .| Γ2 ⊢ₜ e1 : ρ : ℤ ⊣ Γ3 → Δ .| Γ1 ⊢ₜ e2 : ρ : () ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Rand e1 e2 : ρ : ℕ ⊣ Γ3
 | TFold Δ Γ1 e ρ τ Γ2 :
      Δ .| Γ1 ⊢ₜ e : ρ : τ.[(μ: τ)%ty/] ⊣ Γ2 →
      Δ .| Γ1 ⊢ₜ e : ρ : (μ: τ) ⊣ Γ2

@@ -1242,29 +1242,29 @@ Section compatibility.
 
   (* Expression-level AllocTape rule. *)
   Lemma sem_typed_alloctape ρ Γ1 Γ2 e1 e2 :
-    ⊢ sem_typed Γ1 e1 e2 ρ sem_ty_nat Γ2 -∗
+    ⊢ sem_typed Γ1 e1 e2 ρ sem_ty_int Γ2 -∗
     sem_typed Γ1 (AllocTape e1) (AllocTape e2) ρ sem_ty_tape Γ2.
   Proof.
     iIntros "#He %γ !# //= HΓ1".
     iApply (brel_bind [AllocTapeCtx] [AllocTapeCtx]);
       [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
     iApply (brel_wand with "[HΓ1]"); first by iApply "He".
-    iIntros "!# % % ((%n & -> & ->) & HΓ2) //=".
-    iApply (brel_alloctape_l _ n). iIntros "!> %α1 Hα1".
-    iApply (brel_alloctape_r _ n). iIntros "%α2 Hα2".
+    iIntros "!# % % ((%z & -> & ->) & HΓ2) //=".
+    iApply (brel_alloctape_l _ (Z.to_nat z)). iIntros "!> %α1 Hα1".
+    iApply (brel_alloctape_r _ (Z.to_nat z)). iIntros "%α2 Hα2".
     iApply fupd_brel.
     iDestruct (tapeN_to_empty with "Hα1") as "Hα1".
     iMod (inv_alloc (logN.@(α1,α2)) _
-            (α1 ↪ (n; []) ∗ α2 ↪ₛ (n; []))%I with "[Hα1 Hα2]") as "#Hinv".
+            (α1 ↪ (Z.to_nat z; []) ∗ α2 ↪ₛ (Z.to_nat z; []))%I with "[Hα1 Hα2]") as "#Hinv".
     { iFrame. }
     iModIntro. iApply brel_value. iIntros. iFrame.
-    iExists α1, α2, n. by iFrame "Hinv".
+    iExists α1, α2, (Z.to_nat z). by iFrame "Hinv".
   Qed.
 
   (* Expression-level unlabelled Rand rule.  Both sides reduce to the
      unlabelled [rand #m] and are coupled with the identity bijection. *)
   Lemma sem_typed_randu ρ Γ1 Γ2 Γ3 e1 e2 e1' e2' :
-    ⊢ sem_typed Γ2 e1 e1' ρ sem_ty_nat Γ3 -∗
+    ⊢ sem_typed Γ2 e1 e1' ρ sem_ty_int Γ3 -∗
     sem_typed Γ1 e2 e2' ρ sem_ty_unit Γ2 -∗
     sem_typed Γ1 (Rand e1 e2) (Rand e1' e2') ρ sem_ty_nat Γ3.
   Proof.
@@ -1276,8 +1276,8 @@ Section compatibility.
     iApply (brel_bind [RandLCtx _] [RandLCtx _]);
       [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
     iApply (brel_wand with "[HΓ2]"); first by iApply "He1".
-    iIntros "!# % % ((%m & -> & ->) & HΓ3) //=".
-    iApply (brel_couple_rand_rand _ m (λ n : nat, n) m [] []); [done|].
+    iIntros "!# % % ((%z & -> & ->) & HΓ3) //=".
+    iApply (brel_couple_rand_rand _ (Z.to_nat z) (λ n : nat, n) z [] []); [done|].
     iIntros (n) "%Hle". iApply brel_value. iIntros. iFrame.
     iExists n. iModIntro. by iSplit.
   Qed.
@@ -1291,7 +1291,7 @@ Section compatibility.
      the tape bound [N]: an empty-tape read ignores the tape bound, so the
      coupling holds regardless and the (still empty) tapes are returned. *)
   Lemma sem_typed_rand ρ Γ1 Γ2 Γ3 e1 e2 e1' e2' :
-    ⊢ sem_typed Γ2 e1 e1' ρ sem_ty_nat Γ3 -∗
+    ⊢ sem_typed Γ2 e1 e1' ρ sem_ty_int Γ3 -∗
     sem_typed Γ1 e2 e2' ρ sem_ty_tape Γ2 -∗
     sem_typed Γ1 (Rand e1 e2) (Rand e1' e2') ρ sem_ty_nat Γ3.
   Proof.
@@ -1303,7 +1303,7 @@ Section compatibility.
     iApply (brel_bind [RandLCtx _] [RandLCtx _]);
       [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
     iApply (brel_wand with "[HΓ2]"); first by iApply "He1".
-    iIntros "!# % % ((%m & -> & ->) & HΓ3) //=".
+    iIntros "!# % % ((%z & -> & ->) & HΓ3) //=".
     iApply (brel_atomic_l _ []).
     iIntros (K') "Hj".
     iMod (inv_acc _ (logN.@(α1,α2)) with "Hinv") as "[(>Hα1 & >Hα2) Hclose]";

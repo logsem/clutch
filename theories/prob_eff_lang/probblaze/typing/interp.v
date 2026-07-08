@@ -1851,6 +1851,9 @@ Section interp_subst.
     - iApply ty_le_mbang_type_forall.
     - iApply ty_le_row_forall_mbang.
     - iApply ty_le_mbang_row_forall.
+    - (* TNat_le_TInt: a nat literal [#n] is the int literal [#(Z.of_nat n)]. *)
+      iIntros "!#" (v1 v2) "Hnat". iDestruct "Hnat" as (n) "[-> ->]".
+      iExists (Z.of_nat n). done.
   Qed.
 
   (* The three named soundness lemmas, projected from [subtyping_sound_all]. *)
