@@ -69,9 +69,202 @@ Section new_comp_verification.
 
   (* Atomic functionalities, as effect-handler transformers (τ__F τ τ' takes
      a τ'-consuming handler to a τ-consuming handler). *)
+
+  (* ----------------------------------------------------------------- *)
+  (* Effect theory for [F_OAUTH]'s [channel] effect.                    *)
+  (*                                                                    *)
+  (* F_OAUTH gives its client [f] a [chan]-interface: [doSend] takes a  *)
+  (* (group, direction) and returns unit; [doRecv] takes a direction    *)
+  (* and returns [Option 𝔾].  We cannot type this syntactically as a    *)
+  (* self-refinement because F_OAUTH forwards the client's [Recv] to     *)
+  (* the environment's [doLeakRecv : dir → Option 𝟙] (a presence flag)   *)
+  (* while returning [!message : Option 𝔾] to the client's continuation. *)
+  (* Instead we relate F_OAUTH to itself in BREL, running both copies    *)
+  (* in lockstep with a plain invariant tying the two message refs.      *)
+  (*                                                                    *)
+  (* [OASend]/[OARecv] are the two branches of the [channel] theory the *)
+  (* client raises through [doSend]/[doRecv]; the [Send] branch returns  *)
+  (* unit, the [Recv] branch returns an [Option 𝔾].                      *)
+  Program Definition OASend (c1 c2 : label) : iThy Σ :=
+    (λ e1 e2, λne Q,
+      ∃ (m1 m2 dst1 dst2 : val),
+        𝔾 m1 m2 ∗ (𝟙 + 𝟙)%T dst1 dst2 ∗
+        ⌜ e1 = do: c1 (SendV (m1, dst1)) ⌝%E ∗
+        ⌜ e2 = do: c2 (SendV (m2, dst2)) ⌝%E ∗
+        □ (Q #()%V #()%V))%I.
+  Next Obligation. solve_proper. Qed.
+
+  Program Definition OARecv (c1 c2 : label) : iThy Σ :=
+    (λ e1 e2, λne Q,
+      ∃ (from1 from2 : val),
+        (𝟙 + 𝟙)%T from1 from2 ∗
+        ⌜ e1 = do: c1 (RecvV from1) ⌝%E ∗
+        ⌜ e2 = do: c2 (RecvV from2) ⌝%E ∗
+        □ (Q NONEV NONEV ∗ ∀ m : vgG, Q (SOMEV m) (SOMEV m)))%I.
+  Next Obligation. solve_proper. Qed.
+
+  Program Definition oachan_mono (c1 c2 : label) :=
+    {| pmono_prot_car := iThySum (OASend c1 c2) (OARecv c1 c2); pmono_prot_prop := _ |}.
+  Next Obligation.
+    intros ??.
+    iIntros (????) "#HΦ [H|H]".
+    - iLeft. iDestruct "H" as (????) "(HG&Hd&%&%&#H)".
+      iExists _,_,_,_. iFrame. repeat (iSplit; first done). iModIntro. by iApply "HΦ".
+    - iRight. iDestruct "H" as (??) "(Hd&%&%&#(H1&H2))".
+      iExists _,_. iFrame. repeat (iSplit; first done). iModIntro.
+      iSplitL; [by iApply "HΦ"|]. iIntros (m); by iApply "HΦ".
+  Qed.
+
+  Definition oachan (c1 c2 : label) := @SemSig Σ (oachan_mono c1 c2) (c1, c2).
+  Program Definition oachan_row (c1 c2 : label) := SemRow [([c1],[c2], oachan c1 c2)] _.
+  Next Obligation.
+    intros ??.
+    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
+    iExists _,_,_,_,_.
+    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H".
+  Qed.
+
   Lemma F_OAUTH_typed :
     ⊢ sem_val_typed F_OAUTH F_OAUTH (τ__F oaleak chan).
-  Proof using Type*. Admitted.
+  Proof using Type*.
+    rewrite /sem_val_typed /τ__F //=.
+    iModIntro. iIntros (θ).
+    iIntros (f1 f2) "Hff".
+    unfold F_OAUTH. brel_pures'. iModIntro. iIntros (θ₂).
+    iIntros (LeakOp1 LeakOp2) "HLeak".
+    iDestruct "HLeak" as (dls1 dls2 dlr1 dlr2) "(->&->&#Hls&#Hlr)".
+    brel_pures'.
+    iApply brel_alloc_l. iIntros (lm) "!> Hlm".
+    brel_pures_l.
+    iApply brel_alloc_r. iIntros (lm') "Hlm'".
+    brel_pures_r.
+    iApply (brel_na_alloc (∃ v1 v2, lm ↦ v1 ∗ lm' ↦ₛ v2 ∗ (Option 𝔾)%T v1 v2)%I
+                          (nroot .@ "oamsg")).
+    iSplitL "Hlm Hlm'".
+    { iNext. iExists _, _. iFrame. iExists _,_. iLeft. done. }
+    iIntros "#Hinv".
+    iApply brel_effect_l. iIntros (chan1) "!> Hchan1".
+    iApply brel_effect_r. iModIntro. iIntros (chan2) "Hchan2 !>".
+    brel_pures'.
+    (* Build the (doSend,doRecv) pair related at [chan (oachan_row chan1 chan2)]. *)
+    iAssert (chan (oachan_row chan1 chan2)
+               (λ: "m", do: chan1 InjL "m", λ: "m", do: chan1 InjR "m")%V
+               (λ: "m", do: chan2 InjL "m", λ: "m", do: chan2 InjR "m")%V) as "#Hops".
+    { iExists _, _, _, _. iSplit; [done|]. iSplit; [done|].
+      rewrite /sem_ty_mbang /=. iSplit.
+      - iModIntro. iIntros (a1 a2) "Ha".
+        iDestruct "Ha" as (m1 m2 d1 d2) "(->&->&#Hm&#Hd)".
+        brel_pures'.
+        iApply (brel_introduction' [chan1] [chan2]
+                  (iThySum (OASend chan1 chan2) (OARecv chan1 chan2))); [ by left | ].
+        rewrite /iThyTraverse /=.
+        iExists _, _, [], [], (λ s1 s2, ⌜ s1 = Val #()%V ⌝ ∗ ⌜ s2 = Val #()%V ⌝)%I.
+        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
+        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
+        iSplitL.
+        + iLeft. iExists m1, m2, d1, d2. iFrame "Hm Hd". do 2 (iSplit; [done|]).
+          iModIntro. iSplit; done.
+        + iIntros "!>" (s1 s2) "(->&->)". iApply brel_value. iIntros "$ !>". done.
+      - iModIntro. iIntros (a1 a2) "#Hfr".
+        brel_pures'.
+        iApply (brel_introduction' [chan1] [chan2]
+                  (iThySum (OASend chan1 chan2) (OARecv chan1 chan2))); [ by left | ].
+        rewrite /iThyTraverse /=.
+        iExists _, _, [], [],
+          (λ s1 s2, ∃ v1 v2 : val, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ (Option 𝔾)%T v1 v2)%I.
+        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
+        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
+        iSplitL.
+        + iRight. iExists a1, a2. iFrame "Hfr". do 2 (iSplit; [done|]).
+          iModIntro. iSplit.
+          * iExists NONEV, NONEV. do 2 (iSplit; [done|]). iExists _,_. iLeft. done.
+          * iIntros (m). iExists (SOMEV m), (SOMEV m). do 2 (iSplit; [done|]).
+            iExists _,_. iRight. iSplit; [done|]. iSplit; [done|]. iExists m. done.
+        + iIntros "!>" (s1 s2) "(%v1&%v2&->&->&#Hopt)". iApply brel_value. iIntros "$ !>". done. }
+    iDestruct ("Hff" $! (oachan_row chan1 chan2) with "Hops") as "Hfbrel".
+    iApply brel_new_theory.
+    iApply (brel_add_label_l with "Hchan1").
+    iApply (brel_add_label_r with "Hchan2").
+    iApply (brel_exhaustion _ _ [_] [_] with "[Hfbrel]"); [done|done| |].
+    { iApply (brel_introduction_mono with "[][$Hfbrel]").
+      iApply to_iThy_le_intro'. apply submseteq_skip. rewrite iLblSig_to_iLblThy_app.
+      by apply submseteq_inserts_l. }
+    iLöb as "IH".
+    iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+    iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 Hpayload #Hkont".
+    iDestruct "Hpayload" as "[HSend|HRecv]".
+    - (* Send. *)
+      iDestruct "HSend" as (m1 m2 d1 d2) "(#Hm & #Hd & -> & -> & #HQ)".
+      brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+      iApply (brel_na_inv _ _ (nroot.@"oamsg")); [set_solver|]. iFrame "Hinv".
+      iIntros "((%v1 & %v2 & Hlm & Hlm' & #Hopt) & Hclose)".
+      iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hlm"). iIntros "!> Hlm".
+      iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hlm'"). iIntros "Hlm'".
+      iDestruct "Hopt" as (w1 w2) "[(->&->&_)|(->&->&#Hgm)]".
+      + (* First message: store, leak, resume. *)
+        brel_pures.
+        iApply (brel_store_l _ _ _ [AppRCtx _] with "Hlm"). iIntros "!> Hlm".
+        iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hlm'"). iIntros "Hlm'".
+        brel_pures.
+        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+          by apply submseteq_inserts_r. }
+        iApply brel_na_close. iFrame "Hclose".
+        iSplitL "Hlm Hlm'".
+        { iNext. iExists (SOMEV m1), (SOMEV m2). iFrame. iExists _,_. iRight.
+          do 2 (iSplit; [done|]). iApply "Hm". }
+        iAssert ((𝔾 × (𝟙 + 𝟙))%T (m1, d1)%V (m2, d2)%V) as "#Hmm".
+        { iExists m1, m2, d1, d2. iSplit; [done|]. iSplit; [done|]. iFrame "Hm Hd". }
+        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
+        iDestruct ("Hls" with "Hmm") as "Hsend1".
+        iApply (brel_wand with "[$Hsend1]").
+        iIntros (u1 u2) "!# (->&->)".
+        brel_pures'.
+        iDestruct ("Hkont" with "HQ") as "Hbrel".
+        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+      + (* Message already stored: just resume. *)
+        brel_pures.
+        iApply brel_na_close. iFrame "Hclose".
+        iSplitL "Hlm Hlm'".
+        { iNext. iExists (SOMEV w1), (SOMEV w2). iFrame. iExists _,_. iRight.
+          do 2 (iSplit; [done|]). iApply "Hgm". }
+        iDestruct ("Hkont" with "HQ") as "Hbrel".
+        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+    - (* Recv. *)
+      iDestruct "HRecv" as (fr1 fr2) "(#Hfr & -> & -> & #HQ)".
+      iDestruct "HQ" as "(#HQN & #HQS)".
+      brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+      iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+      { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+        by apply submseteq_inserts_r. }
+      iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
+      iDestruct ("Hlr" with "Hfr") as "Hrecv1".
+      iApply (brel_wand with "[$Hrecv1]").
+      iIntros (r1 r2) "!# #Hr".
+      iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
+      + (* Leak reports absent: forward NONE to the client. *)
+        brel_pures'.
+        iDestruct ("Hkont" with "HQN") as "Hbrel".
+        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+      + (* Leak reports present: forward !message (Option 𝔾) to the client. *)
+        brel_pures'.
+        iApply (brel_na_inv _ _ (nroot.@"oamsg")); [set_solver|]. iFrame "Hinv".
+        iIntros "((%v1 & %v2 & Hlm & Hlm' & #Hopt) & Hclose)".
+        iApply (brel_load_l _ _ _ [AppRCtx _] with "Hlm"). iIntros "!> Hlm".
+        iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hlm'"). iIntros "Hlm'".
+        iApply brel_na_close. iFrame "Hclose".
+        iSplitL "Hlm Hlm'".
+        { iNext. iExists v1, v2. iFrame "Hlm Hlm'". iFrame "Hopt". }
+        iDestruct "Hopt" as (og1 og2) "[(->&->&%Hu)|(->&->&#Hgm)]".
+        * destruct Hu as [-> ->]. brel_pures'.
+          iDestruct ("Hkont" with "HQN") as "Hbrel".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+        * iDestruct "Hgm" as (gg) "(->&->)".
+          brel_pures'.
+          iDestruct ("HQS" $! gg) as "HQSg".
+          iDestruct ("Hkont" with "HQSg") as "Hbrel".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+  Qed.
 
   Lemma F_AUTH_typed :
     ⊢ sem_val_typed F_AUTH F_AUTH (τ__F chan chan).
