@@ -33,7 +33,7 @@ Section new_comp_verification.
   Variable xor_struct : XOR (Key := Key) (Support := Support).
   Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
 
-  Notation "'𝔾'" := sem_ty_group.
+  Import valgroup_notation.
 
   Definition τ := (* the type should match the program. Look carefully at the order of the incoming effects *)
         (* the type of the client needs to change to a linear function *)

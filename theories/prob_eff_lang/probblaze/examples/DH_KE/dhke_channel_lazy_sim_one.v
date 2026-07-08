@@ -27,7 +27,7 @@ Section handlee_verification.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
 
   #[local] Notation n := (S n'').
-  Notation "'𝔾'" := sem_ty_group.
+  Import valgroup_notation.
 
   Local Notation authchan_row  := (authchan_row channel1 channel2).
   Local Notation authchan_rowL := (authchan_rowL channel1 channel2).

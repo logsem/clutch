@@ -54,7 +54,7 @@ Section new_comp_verification.
   Variable xor_struct : XOR (Key := Key) (Support := Support).
   Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
 
-  Notation "'𝔾'" := sem_ty_group.
+  Import valgroup_notation.
 
   (* Interface families (each parametrised by the effect row of its ops).*)
   (* [chan]   : authenticated channel — group send, group recv.          *)

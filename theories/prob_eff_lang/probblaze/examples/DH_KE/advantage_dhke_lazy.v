@@ -14,7 +14,7 @@ Section adv_dhke.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
   Context {la1 la2 : label}.     (* TODO can be removed once dhke_channel.v has been cleaned up *)
 
-  Notation "'𝔾'" := sem_ty_group.
+  Import valgroup_notation.
 
   Definition τ_DH `{!probblazeRGS Σ}
     := (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T 

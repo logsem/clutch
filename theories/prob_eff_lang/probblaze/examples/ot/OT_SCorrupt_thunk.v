@@ -155,8 +155,7 @@ Section handlee_verification.
   (* Theories for the implementations *)
   (*------------------------------------------------------------*)
 
-  Definition sem_ty_group : sem_ty Σ := (λ v1 v2, ∃ g : vgG, ⌜ v1 = g ⌝ ∗ ⌜ v2 = g ⌝)%I.
-  Notation "'𝔾'" := sem_ty_group.   
+  Import valgroup_notation.
 
   Definition alicep := InjRV.
   Definition bobp := InjLV. 

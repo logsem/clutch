@@ -13,7 +13,8 @@ Section adv_rc.
   #[local] Notation n := (S (S n'')).
   Context `{n_prime : is_true (prime.prime n)}.
 
-  Notation "'𝔾'" := sem_ty_group.   
+  Import valgroup_notation.
+
   Definition τ_rc `{probblazeRGS Σ} := (∀ᵣ θ, τC θ ⊸ ((((𝔾 × 𝔾) × (𝔾 × 𝔾)) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option (𝔾 × 𝔾)))
             -{ ¡[OS] θ}-∘ 𝟙)%T.
 
@@ -41,7 +42,8 @@ Section adv_sc.
   #[local] Notation n := (S (S n'')).
   Context `{n_prime : is_true (prime.prime n)}.
 
-  Notation "'𝔾'" := sem_ty_group.   
+  Import valgroup_notation.
+
   Definition τ_sc `{probblazeRGS Σ} := (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((𝔾 × 𝔾) × (𝔾 × 𝔾))))
             -{ ¡[OS] θ}-∘ 𝟙)%T.
 

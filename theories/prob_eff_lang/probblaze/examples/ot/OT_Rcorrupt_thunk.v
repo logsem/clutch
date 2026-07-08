@@ -154,11 +154,8 @@ Section handlee_verification.
                 )%I.
      Next Obligation. solve_proper. Qed. *)
 
+  Import valgroup_notation.
   
-  Definition sem_ty_group : sem_ty Σ := (λ v1 v2, ∃ g : vgG, ⌜ v1 = g ⌝ ∗ ⌜ v2 = g ⌝)%I.
-  Notation "'𝔾'" := sem_ty_group.   
-
-
   Program Definition SenderTheoryR (SENDERl SENDERr : label) : iThy Σ :=
     λ e1 e2, (λne Q, ∃ g1 g2 g1' g2', 𝔾 g1 g2 ∗ 𝔾 g1' g2' ∗
                  ⌜ e1 = do: SENDERl (g1,g1')%V ⌝%E ∗

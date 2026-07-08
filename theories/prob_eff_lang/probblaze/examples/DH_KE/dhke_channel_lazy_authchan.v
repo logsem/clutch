@@ -202,10 +202,9 @@ Section handlee_verification.
   (* semantic types *)
   (*------------------------------------------------------------*)
 
-  Definition sem_ty_group : sem_ty Σ := (λ v1 v2, ∃ g : vgG, ⌜ v1 = g ⌝ ∗ ⌜ v2 = g ⌝)%I.
-  Notation "'𝔾'" := sem_ty_group. 
+  Import valgroup_notation.
 
-  Program Definition gkmono (gk1 gk2 : label) :=  {| pmono_prot_car := GetKey gk1 gk2; pmono_prot_prop := _ |}. 
+  Program Definition gkmono (gk1 gk2 : label) :=  {| pmono_prot_car := GetKey gk1 gk2; pmono_prot_prop := _ |}.
   Next Obligation.
     intros ??. iIntros (????) "#HΦ ([(->&->)|(->&->)] & #(H1&H2))"; repeat iSplit; [by iLeft| |by iRight|]; iModIntro; iSplitL; try iIntros (?); by iApply "HΦ".
   Qed. 

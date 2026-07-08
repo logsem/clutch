@@ -1,6 +1,6 @@
 From clutch.prelude Require Import base.
 From clutch.prob_eff_lang.probblaze Require Import syntax semantics spec_ra logic notation proofmode spec_rules class_instances metatheory.
-From clutch.prob_eff_lang.probblaze.typing Require Import types. (*  interp *)
+From clutch.prob_eff_lang.probblaze.typing Require Import types interp.
 From clutch.prob_eff_lang.probblaze Require Import sem_def.
 From clutch.approxis Require Import app_weakestpre.
 
@@ -87,15 +87,14 @@ Abort.
 #[export] Hint Extern 0 (val_typed vg_of_int _) => apply vg_of_int_typed : core.
 
 
-Definition lrel_G `{probblazeRGS Σ} {vg : val_group} : sem_ty Σ
-  := (λ w1 w2, ∃ a : vgG, ⌜ w1 = a ∧ w2 = a ⌝)%I.
-
+Definition sem_ty_group `{probblazeRGS Σ} {vg : val_group} : sem_ty Σ :=
+  (λ v1 v2, ∃ g : vgG, ⌜ v1 = g ⌝ ∗ ⌜ v2 = g ⌝)%I.
 
 Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
     {
-    (*   τG_lrel v1 v2 Δ : lrel_G v1 v2 ⊣⊢ interp._ty τG Δ v1 v2
-       ; *) is_unit : vunit = vgval 1
+      τG_lrel v1 v2 η μ δ ξ : sem_ty_group v1 v2 = interp._ty η μ δ τG ξ v1 v2
+    ; is_unit : vunit = vgval 1
     ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = vgval $ x^-1⌝ }}
     ; is_spec_inv (x : vgG) K :
       ⤇ fill K (
@@ -597,7 +596,9 @@ End valgroup_tactics.
 
 Module valgroup_notation.
 
-  Notation "e1 · e2" := (vmult e1 e2) (at level 40) : expr_scope.
+  Notation "'𝔾'" := sem_ty_group.
+
+  Notation "e1 · e2" := (vmult e1 e2) (at level 80, right associativity) : expr_scope.
   Notation "e ^-1" := (vinv e) : expr_scope.
   Notation "e1 ^ e2" := (vexp e1 e2) : expr_scope.
   Notation "e1 ^- e2" := (e1 ^ e2)^-1%E : expr_scope.
