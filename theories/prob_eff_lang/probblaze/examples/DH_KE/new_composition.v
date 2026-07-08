@@ -30,7 +30,6 @@ Section new_comp_verification.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg: @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
-  Hypothesis Bdd_int_vg : ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
   Let Key := S (S n'').
   Let Support := S (S n'').
   Variable xor_struct : XOR (Key := Key) (Support := Support).
@@ -49,7 +48,6 @@ Section new_comp_verification.
   Local Notation DHSIM_FKE_CHAN2 := (DHSIM_FKE_CHAN2 xor_struct).
   Local Notation DHSIM_FKE_CHAN3 := (DHSIM_FKE_CHAN3 xor_struct).
   Local Notation DHSIM_FKE_CHAN4 := (DHSIM_FKE_CHAN4 xor_struct).
-  Local Notation CHAN_typed := (CHAN_typed Bdd_int_vg).
 
   (* F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] ≤ F_OAUTH[ F_AUTH [C[DH_real][CHAN []]]] *)
   (*---------------------------------------------------------------------------*)
@@ -61,7 +59,7 @@ Section new_comp_verification.
     - apply F_AUTH_C_DDH_real_closed.
     - iIntros (θ). iApply parallel_comp_right.
       + unfold τ__F. unshelve iApply F_AUTH_DH_KE_FAUTH_C_DH_real; try done.
-      + iApply F_OAUTH_typed. exact Bdd_int_vg.   (* F_OAUTH well-typed *)
+      + iApply F_OAUTH_typed.   (* F_OAUTH well-typed *)
     - iApply CHAN_typed.        (* CHAN well-typed *)
   Qed.
 
@@ -73,7 +71,7 @@ Section new_comp_verification.
     - apply F_AUTH_DHKE_closed.
     - iIntros (θ). iApply parallel_comp_right.
       + unfold τ__F. iApply F_AUTH_C_DH_real_FAUTH_DH_KE; try done.
-      + iApply F_OAUTH_typed. exact Bdd_int_vg.   (* F_OAUTH well-typed *)
+      + iApply F_OAUTH_typed.   (* F_OAUTH well-typed *)
     - iApply CHAN_typed.        (* CHAN well-typed *)
   Qed.
 
@@ -85,7 +83,7 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN1_closed.
     - iIntros (θ). iApply parallel_comp_right.
       + iApply F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE; try done.
-      + iApply F_OAUTH_typed. exact Bdd_int_vg.
+      + iApply F_OAUTH_typed.
     - iApply CHAN_typed.
   Qed.
 
@@ -97,7 +95,7 @@ Section new_comp_verification.
     - apply F_AUTH_C_DDH_rand_closed.
     - iIntros (θ). iApply parallel_comp_right.
       + iApply F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand; try done.
-      + iApply F_OAUTH_typed. exact Bdd_int_vg.
+      + iApply F_OAUTH_typed.
     - iApply CHAN_typed.
   Qed.
 
@@ -109,10 +107,10 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN2_closed.
     - iIntros (θ). iApply parallel_comp_right.
       + unfold τ__F. iApply func_comp_assoc.
-        * iApply F_AUTH_typed. exact Bdd_int_vg.
-        * iApply DH_SIM_typed. exact Bdd_int_vg.
-        * iApply F_KE_lazy_alice_typed. exact Bdd_int_vg.
-      + iApply F_OAUTH_typed. exact Bdd_int_vg.
+        * iApply F_AUTH_typed.
+        * iApply DH_SIM_typed.
+        * iApply F_KE_lazy_alice_typed.
+      + iApply F_OAUTH_typed.
     - iApply CHAN_typed.
   Qed.
 
@@ -124,10 +122,10 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN1_closed.
     - iIntros (θ). iApply parallel_comp_right.
       + unfold τ__F. iApply func_comp_assoc_rev.
-        * iApply F_AUTH_typed. exact Bdd_int_vg.
-        * iApply DH_SIM_typed. exact Bdd_int_vg.
-        * iApply F_KE_lazy_alice_typed. exact Bdd_int_vg.
-      + iApply F_OAUTH_typed. exact Bdd_int_vg.
+        * iApply F_AUTH_typed.
+        * iApply DH_SIM_typed.
+        * iApply F_KE_lazy_alice_typed.
+      + iApply F_OAUTH_typed.
     - iApply CHAN_typed.
   Qed.
 
@@ -138,9 +136,9 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN2_closed.
     - apply DHSIM_FKE_CHAN3_closed.
     - iIntros (θ). iApply func_comp_parallel_comp_assoc; try done.
-      + iApply F_AUTH_DH_SIM_typed_val. exact Bdd_int_vg.
-      + iApply F_KE_body_typed. exact Bdd_int_vg.
-      + iApply F_OAUTH_typed. exact Bdd_int_vg.
+      + iApply F_AUTH_DH_SIM_typed_val.
+      + iApply F_KE_body_typed.
+      + iApply F_OAUTH_typed.
     - iApply CHAN_typed.
   Qed.
 
@@ -151,9 +149,9 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN3_closed.
     - apply DHSIM_FKE_CHAN2_closed.
     - iIntros (θ). iApply func_comp_parallel_comp_assoc_rev; try done.
-      + iApply F_AUTH_DH_SIM_typed_val. exact Bdd_int_vg.
-      + iApply F_KE_body_typed. exact Bdd_int_vg.
-      + iApply F_OAUTH_typed. exact Bdd_int_vg.
+      + iApply F_AUTH_DH_SIM_typed_val.
+      + iApply F_KE_body_typed.
+      + iApply F_OAUTH_typed.
     - iApply CHAN_typed.
   Qed.
 
@@ -163,9 +161,9 @@ Section new_comp_verification.
     iApply functionality_comp_func_comp_assoc; first done.
     - apply F_AUTH_DH_SIM_closed.
     - apply F_KE_lazy_alice_F_OAUTH_closed.
-    - iApply F_AUTH_DH_SIM_typed. exact Bdd_int_vg.
-    - iApply F_KE_F_OAUTH_typed. exact Bdd_int_vg.
-    - iApply CHAN_body_typed. exact Bdd_int_vg.
+    - iApply F_AUTH_DH_SIM_typed.
+    - iApply F_KE_F_OAUTH_typed.
+    - iApply CHAN_body_typed.
   Qed.
 
   Lemma DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3 :
@@ -174,9 +172,9 @@ Section new_comp_verification.
     iApply functionality_comp_func_comp_assoc_rev; first done.
     - apply F_AUTH_DH_SIM_closed.
     - apply F_KE_lazy_alice_F_OAUTH_closed.
-    - iApply F_AUTH_DH_SIM_typed. exact Bdd_int_vg.
-    - iApply F_KE_F_OAUTH_typed. exact Bdd_int_vg.
-    - iApply CHAN_body_typed. exact Bdd_int_vg.
+    - iApply F_AUTH_DH_SIM_typed.
+    - iApply F_KE_F_OAUTH_typed.
+    - iApply CHAN_body_typed.
   Qed.
 
   Lemma DHSIM_FKE_CHAN4_SIMFCHAN :
@@ -187,7 +185,7 @@ Section new_comp_verification.
     - apply R_CHAN_closed.
     - apply CHAN_SIM_lazy_F_CHAN_closed.
     - unshelve iApply R_I_SCHAN; done.                    (* security of secure channel  *)
-    - iApply F_AUTH_DH_SIM_typed. exact Bdd_int_vg.       (* well-typedness *)
+    - iApply F_AUTH_DH_SIM_typed.                         (* well-typedness *)
   Qed.
 
   Lemma SIMFCHAN_DHSIM_FKE_CHAN4 :
@@ -198,7 +196,7 @@ Section new_comp_verification.
     - apply CHAN_SIM_lazy_F_CHAN_closed.
     - apply R_CHAN_closed.
     - unshelve iApply I_R_SCHAN; done.                    (* security of secure channel *)
-    - iApply F_AUTH_DH_SIM_typed. exact Bdd_int_vg.
+    - iApply F_AUTH_DH_SIM_typed.
   Qed.
 
 End new_comp_verification.

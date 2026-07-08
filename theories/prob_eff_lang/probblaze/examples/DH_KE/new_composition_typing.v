@@ -41,7 +41,14 @@ Section new_comp_verification.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg: @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
-  Hypothesis Bdd_int_vg : ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
+  (* The group index [int_of_vg_sem g] is bounded by the group order
+     [#|[set : vgG]| = S (S n'')] (class field [int_of_vg_sem_bound] +
+     [vgG_card]); in particular it is [< S (S (S n''))]. *)
+  Lemma Bdd_int_vg : ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
+  Proof using Type*.
+    intros g. pose proof (int_of_vg_sem_bound g) as Hb.
+    rewrite vgG_card in Hb. lia.
+  Qed.
   Let Key := S (S n'').
   Let Support := S (S n'').
   Variable xor_struct : XOR (Key := Key) (Support := Support).
@@ -992,7 +999,7 @@ Section new_comp_verification.
     (⌜vg_of_int_sem (xor_sem (int_of_vg_sem gm) (int_of_vg_sem gk0)) = None⌝ -∗
        R NONEV NONEV) -∗
     BREL (G_XOR xor (vgval gm) (vgval gk0)) ≤ (G_XOR xor (vgval gm) (vgval gk0)) <|X|> {{R}}.
-  Proof using Type* Bdd_int_vg XOR_spec0.
+  Proof using Type* XOR_spec0.
     iIntros "HSome HNone". rewrite /G_XOR. brel_pures'.
     iApply (brel_int_of_vg_sem_correct_l _ [AppRCtx vg_of_int; AppRCtx (App xor (int_of_vg (vgval gm)))] gk0).
     iApply (brel_int_of_vg_sem_correct_r _ [AppRCtx vg_of_int; AppRCtx (App xor (int_of_vg (vgval gm)))] gk0).
@@ -1015,7 +1022,7 @@ Section new_comp_verification.
 
   Lemma CHAN_typed :
     ⊢ ∀ θ, sem_val_typed (CHAN xor) (CHAN xor) ((hdl cli θ ⊸ τ__f θ chan gk)%T).
-  Proof using Type* Bdd_int_vg.
+  Proof using Type*.
     iIntros (θ). rewrite /sem_val_typed. iModIntro.
     rewrite /hdl /τ__f /=.
     iIntros (f1 f2) "Hff".
