@@ -1166,14 +1166,38 @@ Section new_comp_verification.
              iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
   Qed.
 
+  (* Generic composition of two functionality transformers:
+     [F : τ__F A B] and [G : τ__F B B'] compose to [F ∘f G : τ__F A B'].
+     Pure plumbing of the two [τ__F] applications (no effects/invariants):
+     [G] turns the [B']-client [f] into a [B]-handler, and [F] turns that
+     into the [A]-handler. *)
+  Lemma func_comp_typed (F J : val) (A B B' : sem_row Σ → sem_ty Σ) :
+    ⊢ sem_val_typed F F (τ__F A B) -∗ sem_val_typed J J (τ__F B B') -∗
+      sem_val_typed (F ∘f J) (F ∘f J) (τ__F A B').
+  Proof using Type*.
+    iIntros "#HF #HJ". rewrite /sem_val_typed /τ__F /func_comp //=.
+    iModIntro. iIntros (θ). iIntros (f1 f2) "Hff". brel_pures'.
+    iDestruct ("HJ" $! θ f1 f2 with "Hff") as "HJf".
+    iApply (brel_bind' [AppRCtx F] [AppRCtx F]); [iApply traversable_to_iThy_nil|].
+    iApply (brel_wand with "HJf").
+    iIntros (gv1 gv2) "!# Hgv".
+    iApply ("HF" $! θ gv1 gv2 with "Hgv").
+  Qed.
+
   (* [F_AUTH ∘f DH_SIM], in both value and open (sem_typed) presentations. *)
   Lemma F_AUTH_DH_SIM_typed_val :
     ⊢ sem_val_typed (F_AUTH ∘f DH_SIM) (F_AUTH ∘f DH_SIM) (τ__F chan leakI).
-  Proof using Type*. Admitted.
+  Proof using Type*.
+    iApply func_comp_typed; [iApply F_AUTH_typed | iApply DH_SIM_typed].
+  Qed.
 
   Lemma F_AUTH_DH_SIM_typed :
     ⊢ sem_typed [] (F_AUTH ∘f DH_SIM) (F_AUTH ∘f DH_SIM) ⊥ (τ__F chan leakI) [].
-  Proof using Type*. Admitted.
+  Proof using Type*.
+    iIntros (vs) "!# _". simpl. brel_pures'.
+    iApply brel_value. iIntros "$ !>". iSplit; last done.
+    iPoseProof F_AUTH_DH_SIM_typed_val as "H". rewrite /sem_val_typed //=.
+  Qed.
 
   Lemma F_KE_F_OAUTH_typed :
     ⊢ sem_typed [] (F_KE_lazy_alice ||ᵣ F_OAUTH) (F_KE_lazy_alice ||ᵣ F_OAUTH) ⊥
