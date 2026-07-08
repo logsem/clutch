@@ -49,6 +49,12 @@ Class clutch_group_struct :=
     ; veq_typed : val_typed veq (τG ⇾ τG ⇾ TBool)%ty
     ; int_of_vg_typed : val_typed int_of_vg (τG ⇾ TInt)%ty
     ; vg_of_int_typed : val_typed vg_of_int (TInt ⇾ () + τG)%ty
+    (* Group elements are duplicable values; this records [τG]'s
+       duplicability syntactically (needed to type [vexp]'s recursion, which
+       captures its base argument [a:τG] across recursive calls).  The clutch
+       (non-affine) development needs no analogue; the prob_eff affine [Rec]
+       rule imposes [MultiC] on the captured context. *)
+    ; τG_multi : le.MultiT τG
     }.
 
 #[export] Hint Resolve vunit_closed : core.
@@ -72,17 +78,93 @@ Proof. unfold vexp, vexp'. is_closed ; auto. Qed.
 
 #[export] Hint Resolve vexp_closed : core.
 
+(* Empty row respects any type / context: [RNil] is [OnceR] (via
+   [RFlipNil_le]), which suffices for the [App]/[Rec] side-conditions
+   produced when typing [vexp]. *)
+Local Lemma RNil_rtype (τ : type) : RNil R⪯T τ.
+Proof. apply le.Once_le. exists true. apply le.RFlipNil_le. Qed.
+
+Local Lemma RNil_rctx (Γ : ctx) : RNil R⪯C Γ.
+Proof.
+  induction Γ as [|[x t] Γ IH].
+  - apply le.NilR_le.
+  - apply (le.ConsR_le RNil (BNamed x) t Γ); [apply RNil_rtype | exact IH].
+Qed.
+
+(* [vexp]'s recursive call and the [vmult]/lambda applications all put a
+   duplicable (![MS]) arrow in function position, whereas [App_typed]
+   expects a bare (affine) arrow; strip the bang with [TBangElim_le]. *)
+Local Ltac coerce_fn :=
+  eapply Sub_typed;
+    [ apply CRefl_le
+    | apply CRefl_le
+    | apply RRefl_le
+    | apply le.TBangElim_le
+    | ].
+
 Definition vexp_typed `{!clutch_group_struct} :
   val_typed vexp (τG ⇾ TInt ⇾ τG)%ty.
 Proof.
   unfold vexp, vexp'.
-(*   auto using vunit_typed, vmult_typed.
-   Qed. *)
-Abort.
+  apply Rec_val_typed; [done|].
+  cbn [ctx_insert].
+  rewrite <- (app_nil_r (("a", τG) :: ∅)).
+  apply Rec_typed.
+  - done.
+  - cbn; set_solver.
+  - cbn; set_solver.
+  - unfold le.MultiC; cbn; apply Forall_cons_2; [exact τG_multi | apply Forall_nil_2].
+  - eapply (Sub_typed _ _
+              (<["n":=c ℤ]>(<["vexp":=c (ℤ ⇾ τG)%ty]>(("a",τG)::∅)))
+              ∅ ∅ RNil RNil _ τG τG).
+    { eapply _ctx_perm_right; [apply CRefl_le | cbn [ctx_insert]; apply perm_swap]. }
+    { apply CRefl_le. }
+    { apply RRefl_le. }
+    { apply le.TRefl_le. }
+    apply (Contraction_typed _ _ _ _ _ _ (BNamed "n") ℤ).
+    { apply le.TBangInt_le. }
+    eapply If_typed.
+    + eapply BinOp_typed;
+        [ apply syn_typed_bin_op_le
+        | apply Var_typed
+        | apply Val_typed; apply Int_val_typed ].
+    + eapply (Sub_typed _ _ ∅ ∅ ∅ RNil RNil _ τG τG).
+      { exact I. }
+      { apply CRefl_le. }
+      { apply RRefl_le. }
+      { apply le.TRefl_le. }
+      apply Val_typed. apply vunit_typed.
+    + eapply App_typed;
+        [ apply le.RNil_le | apply le.RNil_le | apply RNil_rtype | apply RNil_rctx | | ].
+      * eapply App_typed;
+          [ apply le.RNil_le | apply le.RNil_le | apply RNil_rtype | apply RNil_rctx | | ].
+        -- eapply BinOp_typed;
+             [ apply syn_typed_bin_op_minus
+             | apply Var_typed
+             | apply Val_typed; apply Int_val_typed ].
+        -- coerce_fn. apply Var_typed.
+      * coerce_fn.
+        cbn [ctx_insert].
+        rewrite <- (app_nil_r (("a", τG) :: ∅)).
+        apply Rec_typed.
+        { done. }
+        { cbn; set_solver. }
+        { cbn; set_solver. }
+        { unfold le.MultiC; cbn; apply Forall_cons_2; [exact τG_multi | apply Forall_nil_2]. }
+        eapply App_typed;
+          [ apply le.RNil_le | apply le.RNil_le | apply RNil_rtype | apply RNil_rctx | | ].
+        -- apply Var_typed.
+        -- coerce_fn.
+           eapply App_typed;
+             [ apply le.RNil_le | apply le.RNil_le | apply RNil_rtype | apply RNil_rctx | | ].
+           ++ apply Var_typed.
+           ++ coerce_fn. apply Val_typed. apply vmult_typed.
+  Unshelve. all: first [exact true | exact OS].
+Qed.
 
 #[export] Hint Extern 0 (val_typed vunit _) => apply vunit_typed : core.
 #[export] Hint Extern 0 (val_typed vmult _) => apply vmult_typed : core.
-(* #[export] Hint Extern 0 (val_typed vexp _) => apply vexp_typed : core. *)
+#[export] Hint Extern 0 (val_typed vexp _) => apply vexp_typed : core.
 #[export] Hint Extern 0 (val_typed int_of_vg _) => apply int_of_vg_typed : core.
 #[export] Hint Extern 0 (val_typed vg_of_int _) => apply vg_of_int_typed : core.
 
