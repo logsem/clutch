@@ -752,9 +752,203 @@ Section new_comp_verification.
         iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
   Qed.
 
+  (* ----------------------------------------------------------------- *)
+  (* Effect theory for F_KE_lazy_alice's [getKey] effect.  This is a     *)
+  (* SINGLE operation (not a Send/Recv sum), so a plain [iThy]: payload  *)
+  (* [(𝟙+𝟙)] (the party), result [Option 𝔾] (the key).                   *)
+  Program Definition GKeff (c1 c2 : label) : iThy Σ :=
+    (λ e1 e2, λne Q,
+      ∃ (p1 p2 : val), (𝟙 + 𝟙)%T p1 p2 ∗
+        ⌜ e1 = do: c1 p1 ⌝%E ∗ ⌜ e2 = do: c2 p2 ⌝%E ∗
+        □ (Q NONEV NONEV ∗ ∀ g : vgG, Q (SOMEV g) (SOMEV g)))%I.
+  Next Obligation. solve_proper. Qed.
+
+  Program Definition gkeff_mono (c1 c2 : label) :=
+    {| pmono_prot_car := GKeff c1 c2; pmono_prot_prop := _ |}.
+  Next Obligation.
+    intros ??.
+    iIntros (????) "#HΦ H". iDestruct "H" as (??) "(Hp&%&%&#(H1&H2))".
+    iExists _,_. iFrame. repeat (iSplit; first done). iModIntro.
+    iSplitL; [by iApply "HΦ"|]. iIntros (g); by iApply "HΦ".
+  Qed.
+
+  Definition gkeff (c1 c2 : label) := @SemSig Σ (gkeff_mono c1 c2) (c1, c2).
+  Program Definition gkeff_row (c1 c2 : label) := SemRow [([c1],[c2], gkeff c1 c2)] _.
+  Next Obligation.
+    intros ??.
+    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
+    iExists _,_,_,_,_.
+    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H".
+  Qed.
+
+  (* F_KE_lazy_alice lazily samples a shared key [g^c].  As in DH_SIM the two
+     copies must draw the SAME exponent, so we couple the [samplelbl γ] draws
+     with the identity bijection.  The [na_inv] keeps the tape EMPTY between
+     invocations and both cache refs holding [SOMEV (vgval (g^+c))] for the SAME
+     [c:nat] (storing the exponent [c] rather than a [vgG] element avoids an
+     [Inhabited vgG] obligation when destructing under the invariant's later).
+     Equal [c] ⇒ equal key ⇒ 𝔾-related value handed to the client. *)
   Lemma F_KE_lazy_alice_typed :
     ⊢ sem_val_typed F_KE_lazy_alice F_KE_lazy_alice (τ__F leakI gk).
-  Proof using Type*. Admitted.
+  Proof using Type*.
+    rewrite /sem_val_typed /τ__F //=.
+    iModIntro. iIntros (θ).
+    iIntros (f1 f2) "Hff".
+    unfold F_KE_lazy_alice. brel_pures'. iModIntro. iIntros (θ₂).
+    iIntros (effs1 effs2) "Heffs".
+    iDestruct "Heffs" as (dls1 dls2 dlr1 dlr2) "(->&->&#Hls&#Hlr)".
+    brel_pures'.
+    iApply brel_alloctape_l. iIntros (γ) "!> Hγ". brel_pures_l.
+    iApply brel_alloc_l. iIntros (ko) "!> Hko". brel_pures_l.
+    iApply brel_alloctape_r. iIntros (γs) "Hγs". brel_pures_r.
+    iApply brel_alloc_r. iIntros (kos) "Hkos". brel_pures_r.
+    iAssert (γs ↪ₛN (S n''; []))%I with "[Hγs]" as "Hγs". { iExists []. by iFrame. }
+    iApply (brel_na_alloc
+      (γ ↪N (S n''; []) ∗ γs ↪ₛN (S n''; []) ∗
+       ((ko ↦ NONEV ∗ kos ↦ₛ NONEV)
+        ∨ (∃ c : nat, ko ↦ SOMEV (vgval (g ^+ c)%g) ∗ kos ↦ₛ SOMEV (vgval (g ^+ c)%g))))%I
+      (nroot .@ "keyinv")).
+    iSplitL "Hγ Hγs Hko Hkos".
+    { iNext. iFrame "Hγ Hγs". iLeft. iFrame. }
+    iIntros "#Hinv".
+    iApply brel_effect_l. iIntros (gk1) "!> Hgk1".
+    iApply brel_effect_r. iModIntro. iIntros (gk2) "Hgk2 !>".
+    brel_pures'.
+    (* Build the [doGK] operation related at [gk (gkeff_row gk1 gk2)]. *)
+    iAssert (gk (gkeff_row gk1 gk2)
+               (λ: "party", do: gk1 "party")%V (λ: "party", do: gk2 "party")%V) as "#Hgg".
+    { rewrite /gk /sem_ty_mbang /=. iModIntro. iIntros (a1 a2) "#Hp". brel_pures'.
+      iApply (brel_introduction' [gk1] [gk2] (gkeff gk1 gk2)); [ by left | ].
+      rewrite /iThyTraverse /=.
+      iExists _, _, [], [],
+        (λ s1 s2, ∃ v1 v2 : val, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ (Option 𝔾)%T v1 v2)%I.
+      iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
+      iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
+      iSplitL.
+      + iExists a1, a2. iSplit; [iApply "Hp"|]. do 2 (iSplit; [done|]).
+        iModIntro. iSplit.
+        * iExists NONEV, NONEV. do 2 (iSplit; [done|]). iExists _,_. iLeft. done.
+        * iIntros (gg). iExists (SOMEV gg), (SOMEV gg). do 2 (iSplit; [done|]).
+          iExists _,_. iRight. iSplit; [done|]. iSplit; [done|]. iExists gg. done.
+      + iIntros "!>" (s1 s2) "(%v1&%v2&->&->&#Hopt)". iApply brel_value. iIntros "$ !>". done. }
+    iDestruct ("Hff" $! (gkeff_row gk1 gk2) with "Hgg") as "Hfbrel".
+    iApply brel_new_theory.
+    iApply (brel_add_label_l with "Hgk1").
+    iApply (brel_add_label_r with "Hgk2").
+    iApply (brel_exhaustion _ _ [_] [_] with "[Hfbrel]"); [done|done| |].
+    { iApply (brel_introduction_mono with "[][$Hfbrel]").
+      iApply to_iThy_le_intro'. apply submseteq_skip. rewrite iLblSig_to_iLblThy_app.
+      by apply submseteq_inserts_l. }
+    iLöb as "IH".
+    iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+    iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 Hpayload #Hkont".
+    iDestruct "Hpayload" as (p1 p2) "(#Hp & -> & -> & #HQ)".
+    iDestruct "HQ" as "(#HQN & #HQS)".
+    iDestruct "Hp" as (pw1 pw2) "[(-> & -> & _)|(-> & -> & _)]".
+    - (* Alice: sample-or-load the key, leak send+recv, forward the key. *)
+      iAssert ((𝟙 + 𝟙)%T bob bob) as "#Hbob". { iExists _,_. iLeft. done. }
+      brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+      iApply (brel_na_inv _ _ (nroot.@"keyinv")); [set_solver|]. iFrame "Hinv".
+      iIntros "((Hγ & Hγs & Hko) & Hclose)".
+      iDestruct "Hko" as "[(Hko & Hkos)|(%cc & Hko & Hkos)]".
+      + (* first use: couple the two draws, sample, cache the key. *)
+        iApply (brel_load_l _ _ _ [AppRCtx _; CaseCtx _ _] with "Hko"). iIntros "!> Hko".
+        iApply (brel_load_r _ _ _ _ [AppRCtx _; CaseCtx _ _] with "Hkos"). iIntros "Hkos".
+        brel_pures'.
+        iApply (brel_couple_TT_frag _ (S n'') (S n'') (λ x:nat, x) _ _ _ _ γ γs [] []);
+          [ lia | by (intros ??; lia) | ].
+        iFrame "Hγ Hγs". iIntros (kk) "%Hkk". rewrite bool_decide_eq_true_2; [| by exists kk].
+        iIntros (mm) "(Hγ & Hγs & %Hle1 & %Hle2)".
+        iApply (brel_randT_l _ [AppRCtx _; AppRCtx _]). iFrame "Hγ". iIntros "!> Hγ _".
+        iApply (brel_randT_r _ [AppRCtx _; AppRCtx _] with "Hγs"). iIntros "Hγs _".
+        brel_pures'.
+        iApply (brel_exp_l [AppRCtx _; AppRCtx _]). iApply (brel_exp_r [AppRCtx _; AppRCtx _]).
+        brel_pures'.
+        iApply (brel_store_l _ _ _ [AppRCtx _; AppRCtx _] with "Hko"). iIntros "!> Hko".
+        iApply (brel_store_r _ _ _ _ [AppRCtx _; AppRCtx _] with "Hkos"). iIntros "Hkos".
+        brel_pures'.
+        iApply brel_na_close. iFrame "Hclose".
+        iSplitL "Hγ Hγs Hko Hkos".
+        { iNext. iFrame "Hγ Hγs". iRight. iExists mm. iFrame. }
+        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+          by apply submseteq_inserts_r. }
+        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
+        iDestruct ("Hls" with "Hbob") as "Hsend1".
+        iApply (brel_wand with "[$Hsend1]"). iIntros (u1 u2) "!# (->&->)". brel_pures'.
+        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+          by apply submseteq_inserts_r. }
+        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
+        iDestruct ("Hlr" with "Hbob") as "Hrecv1".
+        iApply (brel_wand with "[$Hrecv1]"). iIntros (r1 r2) "!# #Hr".
+        iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
+        * brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+        * brel_pures'. iDestruct ("HQS" $! (g ^+ mm)%g) as "HQSg".
+          iDestruct ("Hkont" with "HQSg") as "Hbrel".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+      + (* cached: reuse the key. *)
+        iApply (brel_load_l _ _ _ [AppRCtx _; CaseCtx _ _] with "Hko"). iIntros "!> Hko".
+        iApply (brel_load_r _ _ _ _ [AppRCtx _; CaseCtx _ _] with "Hkos"). iIntros "Hkos".
+        brel_pures'.
+        iApply brel_na_close. iFrame "Hclose".
+        iSplitL "Hγ Hγs Hko Hkos".
+        { iNext. iFrame "Hγ Hγs". iRight. iExists cc. iFrame. }
+        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+          by apply submseteq_inserts_r. }
+        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
+        iDestruct ("Hls" with "Hbob") as "Hsend1".
+        iApply (brel_wand with "[$Hsend1]"). iIntros (u1 u2) "!# (->&->)". brel_pures'.
+        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+          by apply submseteq_inserts_r. }
+        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
+        iDestruct ("Hlr" with "Hbob") as "Hrecv1".
+        iApply (brel_wand with "[$Hrecv1]"). iIntros (r1 r2) "!# #Hr".
+        iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
+        * brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+        * brel_pures'. iDestruct ("HQS" $! (g ^+ cc)%g) as "HQSg".
+          iDestruct ("Hkont" with "HQSg") as "Hbrel".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+    - (* Bob: leak recv; on presence, leak send and forward the cached key. *)
+      iAssert ((𝟙 + 𝟙)%T alice alice) as "#Halice". { iExists _,_. iRight. done. }
+      brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+      iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+      { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+        by apply submseteq_inserts_r. }
+      iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
+      iDestruct ("Hlr" with "Halice") as "Hrecv1".
+      iApply (brel_wand with "[$Hrecv1]"). iIntros (r1 r2) "!# #Hr".
+      iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
+      + brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
+        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+      + brel_pures'.
+        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+          by apply submseteq_inserts_r. }
+        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
+        iDestruct ("Hls" with "Halice") as "Hsend1".
+        iApply (brel_wand with "[$Hsend1]"). iIntros (u1 u2) "!# (->&->)". brel_pures'.
+        iApply (brel_na_inv _ _ (nroot.@"keyinv")); [set_solver|]. iFrame "Hinv".
+        iIntros "((Hγ & Hγs & Hko) & Hclose)".
+        iDestruct "Hko" as "[(Hko & Hkos)|(%cc & Hko & Hkos)]".
+        * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hko"). iIntros "!> Hko".
+          iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hkos"). iIntros "Hkos".
+          iApply brel_na_close. iFrame "Hclose". iSplitL "Hγ Hγs Hko Hkos".
+          { iNext. iFrame "Hγ Hγs". iLeft. iFrame. }
+          brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+        * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hko"). iIntros "!> Hko".
+          iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hkos"). iIntros "Hkos".
+          iApply brel_na_close. iFrame "Hclose". iSplitL "Hγ Hγs Hko Hkos".
+          { iNext. iFrame "Hγ Hγs". iRight. iExists cc. iFrame. }
+          brel_pures'. iDestruct ("HQS" $! (g ^+ cc)%g) as "HQSg".
+          iDestruct ("Hkont" with "HQSg") as "Hbrel".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+  Qed.
 
   Lemma CHAN_typed :
     ⊢ ∀ θ, sem_val_typed (CHAN xor) (CHAN xor) ((hdl cli θ ⊸ τ__f θ chan gk)%T).
