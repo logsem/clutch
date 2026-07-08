@@ -12,7 +12,7 @@ Section adv_dhke.
   Context {G : ∀ `{!probblazeRGS Σ}, clutch_group}.
   Context `{probblazeRGpreS Σ}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
-  Context {la1 la2 : label}.     (* can be removed once dhke_channel.v has been cleaned up *)
+  Context {la1 la2 : label}.     (* TODO can be removed once dhke_channel.v has been cleaned up *)
 
   Notation "'𝔾'" := sem_ty_group.
 

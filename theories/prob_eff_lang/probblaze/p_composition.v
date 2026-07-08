@@ -74,8 +74,6 @@ Section parallel_composition.
 
   Notation "F ∘f G" := (func_comp F G) (at level 10).
 
-  About sem_ty_row_forall.
-  About sem_ty_type_forall.
   Definition τ := ( ∀ᵣ θ, ∀ₜ α ,α ⊸ 𝟙)%T.
   
   (* changed the type of τ__f to be a function that can be applied multiple times *)

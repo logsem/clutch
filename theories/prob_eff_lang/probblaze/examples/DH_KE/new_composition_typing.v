@@ -1201,7 +1201,7 @@ Section new_comp_verification.
 
   Lemma F_KE_F_OAUTH_typed :
     ⊢ sem_typed [] (F_KE_lazy_alice ||ᵣ F_OAUTH) (F_KE_lazy_alice ||ᵣ F_OAUTH) ⊥
-        ((∀ᵣ θ, hdl chan θ ⊸
+        ((∀ᵣ θ, (∀ᵣ θJ, chan θJ ⊸ gk θJ -{ sem_row_union θJ θ }-∘ 𝟙) ⊸
             (∀ᵣ θ1, oaleak θ1 ⊸ ∀ᵣ θ2, leakI θ2
                     -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T) [].
   Proof using Type*. Admitted.
@@ -1253,8 +1253,7 @@ Section new_comp_verification.
      | return "y" => "y" end)%E.
 
   Definition CHAN_body : expr :=
-    (λ: "doGK",
-      let, ("doSend", "doRecv") := "ChanOp" in
+    ( let, ("doSend", "doRecv") := "ChanOp" in
       let: "message" := ref NONEV in
       effect "schannel"
       let: "doSecSend" := (λ: "m", do: (EffName "schannel") (Send "m")) in
@@ -1467,7 +1466,7 @@ Section new_comp_verification.
 
   Lemma CHAN_body_typed :
     ⊢ ∀ (θ θJ : sem_row Σ),
-      sem_typed [("f", hdl cli θ); ("ChanOp", chan θJ)]
+      sem_typed [("f", hdl cli θ); ("ChanOp", chan θJ); ("doGK", gk θJ)]
         CHAN_body CHAN_body (sem_row_union θJ θ) (𝟙)%T [].
   Proof using Type*. Admitted.
 

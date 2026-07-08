@@ -24,6 +24,41 @@ Import valgroup_tactics.
 
 Section new_comp_verification.
   Context `{probblazeRGS Σ}.
+
+
+  Lemma functionality_comp_func_comp_assoc_curried (F G : expr) (J : expr) (f x y : string) τ1 τ2 τ1' τJ τJ' τF :
+    (BNamed f) ≠ (BNamed x) →
+    (BNamed f) ≠ (BNamed y) →
+    (BNamed x) ≠ (BNamed y) →
+     is_closed_expr ∅ F →
+     is_closed_expr ∅ G →
+    ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union θF θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union θ1 θ }-∘ 𝟙)%T [] -∗
+
+    sem_typed [] G G ⊥ (∀ᵣ θ, (∀ᵣ θJ, τJ θJ ⊸ τJ' θJ -{ sem_row_union θJ θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ1 θ1 ⊸ ∀ᵣ θ2, τF θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ)}-∘ 𝟙)%T [] -∗
+
+    (∀ θ θJ, sem_typed [(f, τ1' θ); (x, τJ θJ); (y, τJ' θJ)] J J (sem_row_union θJ θ) (𝟙)%T []) -∗
+
+    sem_val_typed ((F ∘F G) ∘f (λ: f x y, J)%V) (F ∘F (G ∘f (λ: f x y, J)%V))
+      (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1) ⊸ (τ2 θ2) -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T.
+  Admitted.
+
+  Lemma functionality_comp_func_comp_assoc_rev_curried (F G : expr) (J : expr) (f x y : string) τ1 τ2 τ1' τJ τJ' τF :
+    (BNamed f) ≠ (BNamed x) →
+    (BNamed f) ≠ (BNamed y) →
+    (BNamed x) ≠ (BNamed y) →
+     is_closed_expr ∅ F →
+     is_closed_expr ∅ G →
+    ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union θF θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union θ1 θ }-∘ 𝟙)%T [] -∗
+
+    sem_typed [] G G ⊥ (∀ᵣ θ, (∀ᵣ θJ, τJ θJ ⊸ τJ' θJ -{ sem_row_union θJ θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ1 θ1 ⊸ ∀ᵣ θ2, τF θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ)}-∘ 𝟙)%T [] -∗
+
+    (∀ θ θJ, sem_typed [(f, τ1' θ); (x, τJ θJ); (y, τJ' θJ)] J J (sem_row_union θJ θ) (𝟙)%T []) -∗
+
+    sem_val_typed (F ∘F (G ∘f (λ: f x y, J)%V)) ((F ∘F G) ∘f (λ: f x y, J)%V)
+      (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1) ⊸ (τ2 θ2) -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T.
+  Admitted.
+
+
   Context (channel leaksec channel1 channel2 getKey1 getKey2 leakauth1 leakauth2 keyleak1 keyleak2 schannel1 schannel2 l1 l2 l2': label).
   Context {vg: val_group}.
   Context {cg: clutch_group_struct}.
@@ -155,10 +190,11 @@ Section new_comp_verification.
     - iApply CHAN_typed.
   Qed.
 
+
   Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4 :
     ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN4 τ.
   Proof using All.
-    iApply functionality_comp_func_comp_assoc; first done.
+    iApply functionality_comp_func_comp_assoc_curried; first done ; first done ; first done.
     - apply F_AUTH_DH_SIM_closed.
     - apply F_KE_lazy_alice_F_OAUTH_closed.
     - iApply F_AUTH_DH_SIM_typed.
@@ -169,7 +205,7 @@ Section new_comp_verification.
   Lemma DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3 :
     ⊢ sem_val_typed DHSIM_FKE_CHAN4 DHSIM_FKE_CHAN3 τ.
   Proof using All.
-    iApply functionality_comp_func_comp_assoc_rev; first done.
+    iApply functionality_comp_func_comp_assoc_rev_curried; first done.
     - apply F_AUTH_DH_SIM_closed.
     - apply F_KE_lazy_alice_F_OAUTH_closed.
     - iApply F_AUTH_DH_SIM_typed.
