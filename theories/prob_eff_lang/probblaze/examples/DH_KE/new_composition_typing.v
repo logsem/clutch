@@ -1544,6 +1544,160 @@ Section new_comp_verification.
     ⊢ ∀ (θ θJ : sem_row Σ),
       sem_typed [("f", hdl cli θ); ("ChanOp", chan θJ); ("doGK", gk θJ)]
         CHAN_body CHAN_body (sem_row_union θJ θ) (𝟙)%T [].
-  Proof using Type*. Admitted.
+  Proof using Type*.
+    (* Open-body version of [CHAN_typed]: [f]/[ChanOp]/[doGK] come from the
+       environment, and both interfaces are at the SAME row [θJ] (whereas
+       [CHAN_typed] uses two independent rows [θ1],[θ2]).  Row idempotence is
+       NOT derivable ([to_iThy_le] enforces [distinct']), so we re-prove the
+       body directly at the single row [θJ]: the effect firing at [θJ] once
+       makes the residual effect [θJ ∪ θ] (not [θJ ∪ (θJ ∪ θ)]).  Compared to
+       [CHAN_typed], every row-management [submseteq] script drops one segment
+       ([Lθ1 ++ Lθ2 ++ Lθ] collapses to [LθJ ++ Lθ]). *)
+    iIntros (θ θJ). iIntros (vs) "!# Henv".
+    rewrite !env_sem_typed_cons env_sem_typed_empty.
+    iDestruct "Henv" as "((%f1 & %f2 & %Hlf & Hff) & (%c1 & %c2 & %Hlc & HChanOp) & (%d1 & %d2 & %Hld & #Hgk) & _)".
+    rewrite /CHAN_body.
+    assert (Hf' : (fst<$>vs) !! "f" = Some f1) by (rewrite lookup_fmap Hlf //).
+    assert (Hc' : (fst<$>vs) !! "ChanOp" = Some c1) by (rewrite lookup_fmap Hlc //).
+    assert (Hd' : (fst<$>vs) !! "doGK" = Some d1) by (rewrite lookup_fmap Hld //).
+    assert (Hf2' : (snd<$>vs) !! "f" = Some f2) by (rewrite lookup_fmap Hlf //).
+    assert (Hc2' : (snd<$>vs) !! "ChanOp" = Some c2) by (rewrite lookup_fmap Hlc //).
+    assert (Hd2' : (snd<$>vs) !! "doGK" = Some d2) by (rewrite lookup_fmap Hld //).
+    simpl; simplify_map_eq.
+    iApply (brel_wand _ _ _ (λ v1 v2 : val, 𝟙%T v1 v2) with "[-]"); last first.
+    { iModIntro. iIntros (v1 v2) "H". iFrame. }
+    iDestruct "HChanOp" as (dsend1 dsend2 drecv1 drecv2) "(->&->&#Hsend&#Hrecv)".
+    brel_pures'.
+    iApply brel_alloc_l. iIntros (lm) "!> Hlm". brel_pures_l.
+    iApply brel_alloc_r. iIntros (lms) "Hlms". brel_pures_r.
+    iApply (brel_na_alloc (∃ v1 v2, lm ↦ v1 ∗ lms ↦ₛ v2 ∗ (Option 𝔾)%T v1 v2)%I
+                          (nroot .@ "scmsg")).
+    iSplitL "Hlm Hlms". { iNext. iExists _,_. iFrame. iExists _,_. iLeft. done. }
+    iIntros "#Hinv".
+    iApply brel_effect_l. iIntros (schan1) "!> Hschan1".
+    iApply brel_effect_r. iModIntro. iIntros (schan2) "Hschan2 !>".
+    brel_pures'.
+    iAssert (cli (scchan_row schan1 schan2)
+               (λ: "m", do: schan1 (Send "m"), λ: <>, do: schan1 (Recv bob))%V
+               (λ: "m", do: schan2 (Send "m"), λ: <>, do: schan2 (Recv bob))%V) as "#Hcli".
+    { iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. rewrite /sem_ty_mbang /=. iSplit.
+      - iModIntro. iIntros (a1 a2) "#Hm". brel_pures'.
+        iApply (brel_introduction' [schan1] [schan2] (iThySum (SCSend schan1 schan2) (SCRecv schan1 schan2))); [ by left | ].
+        rewrite /iThyTraverse /=.
+        iExists _,_,[],[], (λ s1 s2, ⌜ s1 = Val #()%V ⌝ ∗ ⌜ s2 = Val #()%V ⌝)%I.
+        iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|]. iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|].
+        iSplitL.
+        + iLeft. iExists a1, a2. iSplit; [iApply "Hm"|]. do 2 (iSplit;[done|]). iModIntro. iSplit; done.
+        + iIntros "!>" (s1 s2) "(->&->)". iApply brel_value. iIntros "$ !>". done.
+      - iModIntro. iIntros (a1 a2) "#Hu". brel_pures'.
+        iApply (brel_introduction' [schan1] [schan2] (iThySum (SCSend schan1 schan2) (SCRecv schan1 schan2))); [ by left | ].
+        rewrite /iThyTraverse /=.
+        iExists _,_,[],[], (λ s1 s2, ∃ v1 v2 : val, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ (Option 𝔾)%T v1 v2)%I.
+        iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|]. iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|].
+        iSplitL.
+        + iRight. do 2 (iSplit;[done|]). iModIntro. iSplit.
+          * iExists NONEV, NONEV. do 2 (iSplit;[done|]). iExists _,_. iLeft. done.
+          * iIntros (g). iExists (SOMEV g), (SOMEV g). do 2 (iSplit;[done|]). iExists _,_. iRight. iSplit;[done|]. iSplit;[done|]. iExists g. done.
+        + iIntros "!>" (s1 s2) "(%v1&%v2&->&->&#Hopt)". iApply brel_value. iIntros "$ !>". done. }
+    iDestruct ("Hff" $! (scchan_row schan1 schan2) with "Hcli") as "Hfbrel".
+    iApply brel_new_theory.
+    iApply (brel_add_label_l with "Hschan1").
+    iApply (brel_add_label_r with "Hschan2").
+    iApply (brel_exhaustion _ _ [_] [_] with "[Hfbrel]"); [done|done| |].
+    { iApply (brel_introduction_mono with "[][$Hfbrel]").
+      iApply to_iThy_le_intro'. apply submseteq_skip. rewrite !iLblSig_to_iLblThy_app.
+      apply submseteq_inserts_l. reflexivity. }
+    iLöb as "IH".
+    iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+    iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 Hpayload #Hkont".
+    iDestruct "Hpayload" as "[HS|HR]".
+    - (* SendSecure: store the message, [doGK], encrypt via [G_XOR], [doSend]. *)
+      iDestruct "HS" as (m1 m2) "(#Hm & -> & -> & #HQ)".
+      iDestruct "Hm" as (gm) "(-> & ->)".
+      brel_pures; try (solve [apply Hk1; set_solver]); try (solve [apply Hk2; set_solver]).
+      all: try iModIntro.
+      iApply (brel_na_inv _ _ (nroot.@"scmsg")); [set_solver|]. iFrame "Hinv".
+      iIntros "((%v1 & %v2 & Hlm & Hlms & #Hopt) & Hclose)".
+      iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hlm"). iIntros "!> Hlm".
+      iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hlms"). iIntros "Hlms".
+      iDestruct "Hopt" as (w1 w2) "[(->&->&_)|(->&->&#Hgw)]".
+      + (* first message: store, get key, encrypt, forward. *)
+        brel_pures.
+        iApply (brel_store_l _ _ _ [AppRCtx _] with "Hlm"). iIntros "!> Hlm".
+        iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hlms"). iIntros "Hlms".
+        brel_pures.
+        iApply brel_na_close. iFrame "Hclose". iSplitL "Hlm Hlms".
+        { iNext. iExists (SOMEV (vgval gm)), (SOMEV (vgval gm)). iFrame. iExists _,_. iRight.
+          do 2 (iSplit;[done|]). iExists gm. done. }
+        iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θJ)); [iApply traversable_to_iThy| |].
+        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
+          apply submseteq_inserts_r. reflexivity. }
+        iAssert ((𝟙 + 𝟙)%T bob bob) as "#Hbob". { iExists _,_. iLeft. done. }
+        iEval (rewrite /gk /sem_ty_arr /sem_ty_mbang /=) in "Hgk".
+        iDestruct ("Hgk" with "Hbob") as "Hgkbob".
+        iApply (brel_wand with "[$Hgkbob]"). iIntros (key1 key2) "!# #Hkey".
+        iDestruct "Hkey" as (kw1 kw2) "[(->&->&_)|(->&->&#Hgkey)]".
+        * brel_pures'. iDestruct ("Hkont" with "HQ") as "Hbrel".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+        * iDestruct "Hgkey" as (gkey) "(->&->)".
+          brel_pures'.
+          iApply (brel_bind' [CaseCtx _ _] [CaseCtx _ _]); [iApply traversable_to_iThy|].
+          iApply (brel_gxor gm gkey).
+          -- iIntros (mg) "%Hmg". brel_pures'.
+             iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θJ)); [iApply traversable_to_iThy| |].
+             { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
+               apply submseteq_inserts_r. reflexivity. }
+             iAssert ((𝔾 × (𝟙 + 𝟙))%T (vgval mg, bob)%V (vgval mg, bob)%V) as "#Harg".
+             { iExists _,_,_,_. iSplit;[done|]. iSplit;[done|]. iSplit; [iExists mg; done | iExists _,_; iLeft; done]. }
+             iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hsend".
+             iDestruct ("Hsend" with "Harg") as "Hsend1".
+             iApply (brel_wand with "[$Hsend1]"). iIntros (u1 u2) "!# (->&->)". brel_pures'.
+             iDestruct ("Hkont" with "HQ") as "Hbrel".
+             iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+          -- iIntros "%Hnone". brel_pures'.
+             iDestruct ("Hkont" with "HQ") as "Hbrel".
+             iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+      + (* message already stored: just resume. *)
+        brel_pures.
+        iApply brel_na_close. iFrame "Hclose". iSplitL "Hlm Hlms".
+        { iNext. iExists (InjRV w1), (InjRV w2). iFrame "Hlm Hlms". iExists _,_. iRight.
+          do 2 (iSplit;[done|]). iApply "Hgw". }
+        iDestruct ("Hkont" with "HQ") as "Hbrel".
+        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+    - (* RecvSecure: get key, [doRecv], decrypt via [G_XOR], forward. *)
+      iDestruct "HR" as "(-> & -> & #HQ)". iDestruct "HQ" as "(#HQN & #HQS)".
+      brel_pures; try (solve [apply Hk1; set_solver]); try (solve [apply Hk2; set_solver]).
+      iAssert ((𝟙 + 𝟙)%T alice alice) as "#Halice". { iExists _,_. iRight. done. }
+      iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θJ)); [iApply traversable_to_iThy| |].
+      { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
+        apply submseteq_inserts_r. reflexivity. }
+      iEval (rewrite /gk /sem_ty_arr /sem_ty_mbang /=) in "Hgk".
+      iDestruct ("Hgk" with "Halice") as "Hgkal".
+      iApply (brel_wand with "[$Hgkal]"). iIntros (key1 key2) "!# #Hkey".
+      iDestruct "Hkey" as (kw1 kw2) "[(->&->&_)|(->&->&#Hgkey)]".
+      + brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
+        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+      + iDestruct "Hgkey" as (gkey) "(->&->)".
+        brel_pures'.
+        iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θJ)); [iApply traversable_to_iThy| |].
+        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
+          apply submseteq_inserts_r. reflexivity. }
+        iAssert ((𝟙 + 𝟙)%T bob bob) as "#Hbob". { iExists _,_. iLeft. done. }
+        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hrecv".
+        iDestruct ("Hrecv" with "Hbob") as "Hrecvbob".
+        iApply (brel_wand with "[$Hrecvbob]"). iIntros (r1 r2) "!# #Hr".
+        iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&#Hgx)]".
+        * brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+        * iDestruct "Hgx" as (gx) "(->&->)".
+          brel_pures'.
+          iApply (brel_bind' [CaseCtx _ _] [CaseCtx _ _]); [iApply traversable_to_iThy|].
+          iApply (brel_gxor gx gkey).
+          -- iIntros (mg) "%Hmg". brel_pures'. iDestruct ("HQS" $! mg) as "HQSmg".
+             iDestruct ("Hkont" with "HQSmg") as "Hbrel".
+             iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+          -- iIntros "%Hnone". brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
+             iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
+  Qed.
 
 End new_comp_verification.
