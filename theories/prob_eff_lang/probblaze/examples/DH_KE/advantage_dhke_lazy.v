@@ -57,6 +57,7 @@ Section adv_dhke.
   Context {la1 la2 : label}.     (* TODO can be removed once dhke_channel.v has been cleaned up *)
 
   Import valgroup_notation.
+  Import valgroup_tactics.
 
   Definition τ_DH `{!probblazeRGS Σ}
     := (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T 
@@ -149,20 +150,153 @@ Section adv_dhke.
     intros. eapply adv_DHKE; eauto; lra.
   Qed.
     
+  (* The section's [G] is a function [∀ Σ RGS, clutch_group]; expose the
+     specialised group as an instance so the group tactics ([brel_exp_*],
+     [τG_lrel], …) resolve it. *)
+  #[local] Instance clutch_group_inst `{!probblazeRGS Σ} : clutch_group := G _ _.
+
+  (* [DH_real]/[DH_rand] self-refine at [𝟙 ⊸ 𝔾×𝔾×𝔾]: the two runs draw the
+     same exponents (coupled [rand]s), so the deterministic [g^_] outputs agree
+     and form a group-triple.  (A syntactic typing + fundamental lemma is not
+     available: the [typed] relation has no binary-op rule, so [vexp]/[g^(a*b)]
+     are untypeable — hence the direct relational proof.) *)
+  Lemma DH_real_self `{!probblazeRGS Σ} :
+    ⊢ sem_val_typed DH_real DH_real (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
+  Proof using All.
+    rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang /=.
+    iModIntro. iIntros (w1 w2) "(->&->)".
+    rewrite /DH_real. brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (a Ha). brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (b Hb). brel_pures'.
+    rewrite -!Nat2Z.inj_mul. do 3 brel_exp_l. do 3 brel_exp_r.
+    brel_pures'. iModIntro.
+    iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
+    { iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
+      - iExists _. by iSplit.
+      - iExists _. by iSplit. }
+    { iExists _. by iSplit. }
+  Qed.
+
+  Lemma DH_rand_self `{!probblazeRGS Σ} :
+    ⊢ sem_val_typed DH_rand DH_rand (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
+  Proof using All.
+    rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang /=.
+    iModIntro. iIntros (w1 w2) "(->&->)".
+    rewrite /DH_rand. brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (a Ha). brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (b Hb). brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (c Hc). brel_pures'.
+    iModIntro.
+    iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
+    { iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
+      - iExists _. by iSplit.
+      - iExists _. by iSplit. }
+    { iExists _. by iSplit. }
+  Qed.
+
+  (* The reduction [red = λ DH f, F_AUTH (C_lazy DH f)] self-refines at
+     [(𝟙 ⊸ 𝔾×𝔾×𝔾) → τ_DH]: a [C_lazy] self-refinement (symbolic execution of
+     the [getKey] handler, with an invariant tying the two [lc] refs) composed
+     with [F_AUTH_F_AUTH]. *)
+  Lemma red_self `{!probblazeRGS Σ} :
+    ⊢ sem_val_typed (λ: "DH", (λ: "f", F_AUTH (C_lazy "DH" "f")))%V
+                    (λ: "DH", (λ: "f", F_AUTH (C_lazy "DH" "f")))%V
+        ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾)) → τ_DH)%T.
+  Proof using All.
+    (* Outer structure: intro the [DH] argument (related at [𝟙 ⊸ 𝔾×𝔾×𝔾]) and
+       the [τ_DH]-client [f], allocate the authenticated-channel ghost state,
+       and reduce to a [C_lazy] self-refinement via [F_AUTH_F_AUTH]. *)
+    rewrite /sem_val_typed /τ_DH.
+    iModIntro. rewrite {1}/sem_ty_mbang {1}/sem_ty_arr /=.
+    iModIntro. iIntros (DH1 DH2) "HDH".
+    brel_pures'. iModIntro.
+    iIntros (θ__L). iIntros (f1 f2) "Hf". brel_pures'.
+    iApply fupd_brel.
+    iMod token_alloc as (γtoka) "Htoka".
+    iMod token_alloc as (γtokb) "Htokb".
+    iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
+    iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
+    iMod dfrac_alloc as (γfraca) "Hfraca".
+    iMod dfrac_alloc as (γfracb) "Hfracb".
+    iModIntro.
+    iApply (F_AUTH_F_AUTH la1 la2 (C_lazy DH1 f1) (C_lazy DH2 f2)
+              γtoka γtokb γfraca γfracb γautha γauthb θ__L
+              with "Hfraca Hfracb [-]").
+    (* Remaining: the [C_lazy] self-refinement (the [F_AUTH_F_AUTH] C-part).
+       Reduce [C_lazy], call [DH #()] once (relating the two group triples via
+       [HDH]), allocate the two [lc] refs under an invariant tying them, then
+       set up the multi-shot [getKey] handler over the client [f]. *)
+    rewrite /C_lazy. brel_pures'. iModIntro. iIntros (c1 c2). brel_pures'.
+    iDestruct ("HDH" $! #()%V #()%V with "[]") as "Hdh"; [by iPureIntro|].
+    iApply (brel_bind [AppRCtx _] [AppRCtx _] _ []);
+      [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][$Hdh]"); [iApply to_iThy_le_refl|].
+    simpl. iIntros (t1 t2) "Ht".
+    iDestruct "Ht" as (p1 p2 gc1 gc2) "(->&->&Hpp&Hgc)".
+    iDestruct "Hpp" as (ga1 ga2 gb1 gb2) "(->&->&Hga&Hgb)".
+    iDestruct "Hga" as (A) "(->&->)". iDestruct "Hgb" as (B) "(->&->)".
+    iDestruct "Hgc" as (C) "(->&->)".
+    brel_pures'.
+    iApply brel_alloc_l. iIntros (l1) "!> Hl1". brel_pures_l.
+    iApply brel_alloc_r. iIntros (l2) "Hl2". brel_pures_r.
+    iApply (brel_na_alloc
+              ((l1 ↦ NONEV ∗ l2 ↦ₛ NONEV)
+               ∨ (l1 ↦□ SOMEV (vgval C) ∗ l2 ↦ₛ□ SOMEV (vgval C)))%I
+              (nroot .@ "lc")).
+    iSplitL "Hl1 Hl2"; [iNext; iLeft; iFrame|].
+    iIntros "#Hlcinv".
+    iApply brel_effect_l. iIntros (gk1) "!> Hgk1".
+    iApply brel_effect_r. iModIntro. iIntros (gk2) "Hgk2 !>".
+    brel_pures'.
+    iSpecialize ("Hf" $! (θ gk1 gk2)).
+    rewrite /sem_ty_arr /sem_ty_mbang /=.
+    iAssert (sem_val_typed (λ: "party", do: gk1 "party")%V (λ: "party", do: gk2 "party")%V
+               ((𝟙 + 𝟙)%T -{ θ gk1 gk2 }-> (Option 𝔾))%T) as "Hgg".
+    { iModIntro. rewrite /sem_ty_arr /sem_ty_mbang //=.
+      iIntros (??) "!# #(%&%&[(->&->&->&->)|(->&->&->&->)])";
+        brel_pures';
+        iApply brel_introduction'; try constructor;
+        iExists _,_,[],[],_; do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]);
+                          iSplit; try (iIntros (??) "!# H"; iApply "H").
+      - iSplit; first (iPureIntro; left; split; done); iModIntro; iSplitL; last iIntros (key); brel_pures'; iApply brel_value; iIntros "$ !>";
+          iExists _,_; [iLeft; by iPureIntro| iRight; iPureIntro; repeat (split; first done); by eexists].
+      - iSplit; first (iPureIntro; right; split; done); iModIntro; iSplitL; last iIntros (key); brel_pures'; iApply brel_value; iIntros "$ !>";
+          iExists _,_; [iLeft; by iPureIntro| iRight; iPureIntro; repeat (split; first done); by eexists]. }
+    unfold sem_val_typed. simpl. iDestruct "Hgg" as "#Hgg".
+    iSpecialize ("Hf" with "Hgg").
+    set (ac := authchan_row la1 la2 c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb).
+    iApply brel_new_theory.
+    iApply (brel_add_label_l with "Hgk1").
+    iApply (brel_add_label_r with "Hgk2").
+    iDestruct (brel_introduction_mono _ ([([gk1],[gk2],GetKey gk1 gk2)] ++ (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy θ__L)) with "[][$Hf]") as "Hf'".
+    { iApply to_iThy_le_intro'. apply submseteq_skip. by apply submseteq_cons. }
+    iApply (brel_exhaustion with "[$Hf']"); [done|done|].
+    iLöb as "IH".
+    iSplit; [iIntros (v1 v2) "!# (-> & ->)"; by brel_pures|].
+    iIntros (?????) "!# %Hk1 %Hk2 ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) #Hcont".
+    (* getKey InjL (Alice's request): store_if_none;; doSend (A, bob) [SendAliceImpl];;
+       doRecv bob [RecvBobImpl]; resume.  Mirror dhke_channel_lazy_real_one.v:147-275,
+       specialised to the self case (both sides send the same [A], no tape/sampling). *)
+    + admit.
+    (* getKey InjR (Bob's request): doRecv alice [RecvAliceImpl]; on Some, doSend (B, alice)
+       [SendBobImpl];; read lc; resume.  Mirror dhke_channel_lazy_real_one.v:277-386. *)
+    + admit.
+  Admitted.
+
   Theorem adv_DHKE_real A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
     advantage A (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V #true <=
       advantage (λ: "v", A (((λ: "DH", (λ: "f", F_AUTH (C_lazy "DH" "f")))%V "v")))%V DH_real DH_rand #true.
-  Proof using H inG0 inG1 inG2 G la2.  
-    intros.
-    etrans. 
+  Proof using H inG0 inG1 inG2 G la1 la2.
+    intros HA.
+    etrans.
     - apply adv_DHKE_no_epsilon; eauto.
-    - eapply advantage_reduction. 
-      intros ?. eexists _,_.
-      split; try done.
-      split.
-      + admit.                  (* F_AUTH ∘ C is well-typed *)
-      + admit.                  (* DH_real and DH_rand are well-typed *)
-  Admitted. 
+    - eapply advantage_reduction.
+      intros HRGS. exists (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T, τ_DH.
+      split; [apply HA | split].
+      + apply red_self.
+      + split; [apply DH_real_self | apply DH_rand_self].
+  Qed.
 
 End adv_dhke.
