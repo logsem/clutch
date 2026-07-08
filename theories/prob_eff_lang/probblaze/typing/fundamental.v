@@ -1,7 +1,7 @@
 From iris.base_logic Require Export invariants.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext. 
-From clutch.prob_eff_lang.probblaze Require Import metatheory notation syntax semantics sem_judgement sem_def.
+From clutch.prob_eff_lang.probblaze Require Import metatheory notation syntax semantics sem_judgement sem_def sem_operators.
 From clutch.prob_eff_lang.probblaze Require Import primitive_laws compatibility.
 From clutch.prob_eff_lang.probblaze Require Import sem_env.
 From clutch.prob_eff_lang.probblaze Require Import types.
@@ -143,6 +143,19 @@ Proof.
   iEval (rewrite /sem_val_typed /tc_opaque) in "H'". iApply "H'".
 Qed.
 
+Lemma syn_typed_binop_typed_binop op ι κ τ η μ δ ξ:
+  syn_typed_bin_op op ι κ τ → typed_bin_op op (interp._ty η μ δ ι ξ) (interp._ty η μ δ κ ξ) (interp._ty η μ δ τ ξ).
+Proof.
+  intros []; constructor.
+Qed.
+
+Lemma syn_typed_unop_typed_unop op κ τ η μ δ ξ:
+  syn_typed_un_op op κ τ → typed_un_op op (interp._ty η μ δ κ ξ) (interp._ty η μ δ τ ξ).
+Proof.
+  intros []; constructor.
+Qed.
+
+
 Theorem fundamental Δ Γ1 e ρ τ Γ2 :
   Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2 → ⊢ 〈Δ;Γ1〉 ⊨ₜ e ≤log≤ e : ρ : τ ⫤ Γ2
   with fundamental_val v τ :
@@ -152,6 +165,13 @@ Theorem fundamental Δ Γ1 e ρ τ Γ2 :
 Proof.
   - intros Ht. destruct Ht; iIntros (η μ δ ξ' Hδ).
     + (* Var_typed *) rewrite !lbl_resolve_var. iApply sem_typed_var. 
+    + (* BinOp *) rewrite !lbl_resolve_binop. iApply sem_typed_bin_op; [by apply syn_typed_binop_typed_binop| |].
+      1 : apply fundamental in Ht1; iPoseProof Ht1 as "Ht".
+      2 : apply fundamental in Ht2; iPoseProof Ht2 as "Ht".
+      all : try by iApply "Ht". 
+    + rewrite !lbl_resolve_unop. iApply sem_typed_un_op; [by apply syn_typed_unop_typed_unop|].
+       apply fundamental in Ht; iPoseProof Ht as "Ht".
+       by iApply "Ht". 
     + (* Val_typed *) rewrite !lbl_resolve_val.
       iApply sem_typed_val; by iApply fundamental_val.
     + (* Pure_typed *)

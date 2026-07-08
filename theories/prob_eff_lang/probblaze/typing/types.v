@@ -1396,6 +1396,27 @@ Module vars.
 
 End vars.
 
+Inductive syn_typed_un_op : un_op → type → type → Prop :=  
+  | syn_typed_un_op_neg : syn_typed_un_op NegOp TBool TBool
+  | syn_typed_un_op_minus : syn_typed_un_op MinusUnOp TInt TInt
+.
+
+Inductive syn_typed_bin_op : bin_op → type → type → type → Prop :=  
+  | syn_typed_bin_op_plus : syn_typed_bin_op PlusOp ℤ ℤ ℤ
+  | syn_typed_bin_op_minus : syn_typed_bin_op MinusOp ℤ ℤ ℤ
+  | syn_typed_bin_op_mult : syn_typed_bin_op MultOp ℤ ℤ ℤ
+  | syn_typed_bin_op_quot : syn_typed_bin_op QuotOp ℤ ℤ ℤ
+  | syn_typed_bin_op_rem : syn_typed_bin_op RemOp ℤ ℤ ℤ
+  | syn_typed_bin_op_and : syn_typed_bin_op AndOp 𝔹 𝔹 𝔹
+  | syn_typed_bin_op_or : syn_typed_bin_op OrOp 𝔹 𝔹 𝔹
+  | syn_typed_bin_op_xor : syn_typed_bin_op XorOp 𝔹 𝔹 𝔹
+  | syn_typed_bin_op_shiftl : syn_typed_bin_op ShiftLOp ℤ ℤ ℤ
+  | syn_typed_bin_op_shiftr : syn_typed_bin_op ShiftROp ℤ ℤ ℤ
+  | syn_typed_bin_op_le : syn_typed_bin_op LeOp ℤ ℤ 𝔹
+  | syn_typed_bin_op_lt : syn_typed_bin_op LtOp ℤ ℤ 𝔹
+  | syn_typed_bin_op_Eq : syn_typed_bin_op EqOp ℤ ℤ 𝔹
+.
+
 (* Shift all the indices in the context by one, *)
 (*    used when inserting a new type interpretation in Δ. *)
 (* Definition up_list_type (ts : list type) : list type := subst (ren (+1)) <$> ts. *)
@@ -1412,6 +1433,18 @@ Inductive typed :
 
 | Var_typed Δ Γ (x : string) τ :
   Δ .| <[ x :=c τ ]> Γ ⊢ₜ Var x : RNil : τ ⊣ Γ
+
+| BinOp_typed Δ Γ1 Γ2 Γ3 ι κ τ ρ e1 e2 op :
+  syn_typed_bin_op op ι κ τ →
+  Δ .| Γ2 ⊢ₜ e1 : ρ : ι ⊣ Γ3 →
+                        Δ .| Γ1 ⊢ₜ e2 : ρ : κ ⊣ Γ2 →
+                        Δ .| Γ1 ⊢ₜ BinOp op e1 e2 : ρ : τ ⊣ Γ3
+
+| UnOp_typed Δ Γ1 Γ2 κ τ ρ e op :
+  syn_typed_un_op op κ τ →
+  Δ .| Γ1 ⊢ₜ e : ρ : κ ⊣ Γ2 →
+                     Δ .| Γ1 ⊢ₜ UnOp op e : ρ : τ ⊣ Γ2
+
 
 | Val_typed Δ Γ v τ :
   ⊢ᵥ v : τ →
