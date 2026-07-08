@@ -40,7 +40,92 @@ Section new_comp_verification.
 
     sem_val_typed ((F ∘F G) ∘f (λ: f x y, J)%V) (F ∘F (G ∘f (λ: f x y, J)%V))
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1) ⊸ (τ2 θ2) -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T.
-  Admitted.
+  Proof using All.
+    iIntros (Hfx Hfy Hxy HFclosed HGclosed) "#HFF #HGG #HJJ".
+    rewrite /functionality_composition /func_comp //=.
+    iIntros (θ f1 f2) "!# Hτ1'".
+    rewrite /functionality_composition /func_comp //=.
+    brel_pures'.
+    do 2 (erewrite subst_is_closed; try done).
+    erewrite (subst_is_closed _ F); try done.
+    iModIntro.
+    iIntros (θ1 θ2 v1 v1') "Hτ1".
+    brel_pures'.
+    iModIntro.
+    iIntros (v2 v2') "Hτ2".
+    brel_pures'.
+    erewrite !(subst_is_closed _ F); try done.
+    erewrite !(subst_is_closed _ G); try done.
+    rewrite decide_True; last (split; done).
+    iApply (brel_bind [_;_] [_;_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][HFF]"); [iApply to_iThy_le_refl| |].
+    { iAssert ([] ⊨ₑ ∅) as "HΓ"; first done. iSpecialize ("HFF" with "HΓ").
+      rewrite subst_map_empty. iApply "HFF". }
+    iClear (F HFclosed) "HFF".
+    simpl. iIntros (F1 F2) "(HFF&_)".
+    iSpecialize ("HFF" $! (sem_row_union θ1 θ)).
+    iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][HFF Hτ1' Hτ1]"); [iApply to_iThy_le_refl|iApply "HFF"|].
+    - iIntros (θF rF1 rF2) "HτF".
+      brel_pures'.
+      rewrite decide_True; last (split; done).
+      erewrite !(subst_is_closed _ G); try done.
+      iApply (brel_bind [_;_;_] [_;_;_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+      assert (to_iThyIfMono OS [] = []) as <- by done.
+      iApply (brel_mono OS with "[][HGG]"); [iApply to_iThy_le_refl| |].
+      { iAssert ([] ⊨ₑ ∅) as "HΓ"; first done. iSpecialize ("HGG" with "HΓ").
+        rewrite subst_map_empty. iApply "HGG". }
+      iClear (G HGclosed) "HGG".
+      simpl. iIntros (G1 G2) "(HGG&_)".
+      iApply (brel_bind [_;_] [_;_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+      assert (to_iThyIfMono OS [] = []) as <- by done.
+      iApply (brel_mono OS with "[][HGG Hτ1']"); [iApply to_iThy_le_refl|iApply "HGG"|].
+      + iIntros (θJ x1 x2) "HτJ". brel_pures'.
+        rewrite decide_True; [| (split; done)]; rewrite decide_True; [| (split; done)].
+        simpl.
+        repeat (rewrite decide_True; last (split; done)).
+        brel_pures'.
+        iModIntro.
+        iIntros (y1 y2) "HτJ'". brel_pures'.
+        assert (Hs1 : subst_map (fst <$> {[y:=(y1,y2); x:=(x1,x2); f:=(f1,f2)]}) J
+                      = val_subst y y1 (val_subst x x1 (val_subst f f1 J))).
+        { rewrite !fmap_insert fmap_empty /= subst_map_insert delete_insert_ne; [|naive_solver].
+          rewrite delete_insert_ne; [|naive_solver]. rewrite delete_empty.
+          rewrite subst_map_insert delete_insert_ne; [|naive_solver]. rewrite delete_empty.
+          rewrite subst_map_insert delete_empty subst_map_empty //. }
+        assert (Hs2 : subst_map (snd <$> {[y:=(y1,y2); x:=(x1,x2); f:=(f1,f2)]}) J
+                      = val_subst y y2 (val_subst x x2 (val_subst f f2 J))).
+        { rewrite !fmap_insert fmap_empty /= subst_map_insert delete_insert_ne; [|naive_solver].
+          rewrite delete_insert_ne; [|naive_solver]. rewrite delete_empty.
+          rewrite subst_map_insert delete_insert_ne; [|naive_solver]. rewrite delete_empty.
+          rewrite subst_map_insert delete_empty subst_map_empty //. }
+        iAssert ([(f, τ1' θ); (x, τJ θJ); (y, τJ' θJ)] ⊨ₑ {[ y:=(y1,y2); x:=(x1,x2); f:=(f1,f2) ]}) with "[Hτ1' HτJ HτJ']" as "HΓ".
+        { rewrite !sem_env.env_sem_typed_cons sem_env.env_sem_typed_empty.
+          iSplitL "Hτ1'". { iExists f1, f2. iFrame "Hτ1'". iPureIntro. rewrite lookup_insert_ne; [|naive_solver]. rewrite lookup_insert_ne; [|naive_solver]. by simplify_map_eq. }
+          iSplitL "HτJ". { iExists x1, x2. iFrame "HτJ". iPureIntro. rewrite lookup_insert_ne; [|naive_solver]. by simplify_map_eq. }
+          iSplitL "HτJ'". { iExists y1, y2. iFrame "HτJ'". iPureIntro. by simplify_map_eq. }
+          done. }
+        iDestruct ("HJJ" $! θ θJ with "HΓ") as "Hrel".
+        rewrite -Hs1 -Hs2.
+        iApply (brel_wand with "[Hrel]"). { iApply "Hrel". }
+        iIntros (v0 v3) "!# ($&_)".
+      + simpl. iIntros (GJ1 GJ2) "HGJ".
+        iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+        assert (to_iThyIfMono OS [] = []) as <- by done.
+        iApply (brel_mono OS with "[][HGJ Hτ1]"); [iApply to_iThy_le_refl| by iApply "HGJ"|].
+        simpl. iIntros (G1' G2') "HG'".
+        iDestruct ("HG'" with "HτF") as "HG'".
+        rewrite !iLblSig_to_iLblThy_distr.
+        iApply (brel_introduction_mono (iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θF ++ iLblSig_to_iLblThy θ)); last done.
+        iApply to_iThy_le_intro'; solve_submseteq.
+    - simpl. iIntros (F1' F2') "HF'".
+      iDestruct ("HF'" with "Hτ2") as "HF".
+      rewrite !iLblSig_to_iLblThy_distr.
+      iApply (brel_introduction_mono (iLblSig_to_iLblThy θ2 ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ)); last done.
+      iApply to_iThy_le_intro'; solve_submseteq.
+  Qed.
 
   Lemma functionality_comp_func_comp_assoc_rev_curried (F G : expr) (J : expr) (f x y : string) τ1 τ2 τ1' τJ τJ' τF :
     (BNamed f) ≠ (BNamed x) →
@@ -205,7 +290,7 @@ Section new_comp_verification.
   Lemma DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3 :
     ⊢ sem_val_typed DHSIM_FKE_CHAN4 DHSIM_FKE_CHAN3 τ.
   Proof using All.
-    iApply functionality_comp_func_comp_assoc_rev_curried; first done.
+    iApply functionality_comp_func_comp_assoc_rev_curried; first done ; first done ; first done.
     - apply F_AUTH_DH_SIM_closed.
     - apply F_KE_lazy_alice_F_OAUTH_closed.
     - iApply F_AUTH_DH_SIM_typed.
