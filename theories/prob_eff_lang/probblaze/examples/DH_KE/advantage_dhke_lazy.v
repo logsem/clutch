@@ -238,6 +238,19 @@ Section adv_dhke.
     iDestruct "Hga" as (A) "(->&->)". iDestruct "Hgb" as (B) "(->&->)".
     iDestruct "Hgc" as (C) "(->&->)".
     brel_pures'.
+    (* Record the two sent group elements in the authchan ghost state
+       ([γautha := A] Alice's message, [γauthb := B] Bob's) and open the
+       token/frac invariants ([atokN]/[btokN]) that the Send protocol uses. *)
+    iApply fupd_brel.
+    iMod (auth_upd (vgval A) with "Hautha") as "Hautha".
+    iMod (auth_upd (vgval B) with "Hauthb") as "Hauthb".
+    iMod (auth_persist with "Hautha") as "#Hautha".
+    iMod (auth_persist with "Hauthb") as "#Hauthb".
+    iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
+    { iNext; iLeft; iFrame. }
+    iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
+    { iNext; iLeft; iFrame. }
+    iModIntro.
     iApply brel_alloc_l. iIntros (l1) "!> Hl1". brel_pures_l.
     iApply brel_alloc_r. iIntros (l2) "Hl2". brel_pures_r.
     iApply (brel_na_alloc
@@ -278,11 +291,101 @@ Section adv_dhke.
     (* getKey InjL (Alice's request): store_if_none;; doSend (A, bob) [SendAliceImpl];;
        doRecv bob [RecvBobImpl]; resume.  Mirror dhke_channel_lazy_real_one.v:147-275,
        specialised to the self case (both sides send the same [A], no tape/sampling). *)
-    + admit.
-    (* getKey InjR (Bob's request): doRecv alice [RecvAliceImpl]; on Some, doSend (B, alice)
-       [SendBobImpl];; read lc; resume.  Mirror dhke_channel_lazy_real_one.v:277-386. *)
-    + admit.
-  Admitted.
+    + (* store_if_none (open the lc invariant, lockstep on both refs), then
+         doSend (A,bob) [SendAliceImpl] and doRecv bob [RecvBobImpl]. *)
+      brel_pures; [apply Hk1; set_solver | apply Hk2; set_solver |].
+      brel_pures'.
+      iApply (brel_na_inv _ _ (nroot.@"lc")); [set_solver|]. iFrame "Hlcinv".
+      iIntros "(>[(Hl1 & Hl2) | #(Hl1 & Hl2)] & Hclose)".
+      - iApply (brel_load_l _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl1"). iIntros "!> Hl1". brel_pures_l.
+        iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1". brel_pures_l.
+        iApply (brel_load_r _ _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl2"). iIntros "Hl2". brel_pures_r.
+        iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl2"). iIntros "Hl2". brel_pures_r.
+        iApply fupd_brel.
+        iMod (ghost_map_elem_persist with "Hl1") as "#Hl1c".
+        iMod (ghost_map_elem_persist with "Hl2") as "#Hl2c".
+        iModIntro.
+        iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb"; [iNext; iRight; iFrame "#"|].
+        iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
+        iApply (brel_introduction' [c1] [c2]). { apply elem_of_cons. right. apply list_elem_of_here. }
+        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+        iLeft. iLeft. iExists A, A.
+        iSplitL.
+        { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
+          - iModIntro. iLeft. iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". by iModIntro.
+          - iModIntro. iRight. iFrame "#". iApply "Hclose". iNext. by iRight. }
+        iSplit; first (do 2 (iSplit; try (iPureIntro; done))). iModIntro.
+        iApply brel_value. iIntros "$ !>". brel_pures'.
+        iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
+        iApply (brel_introduction' [c1] [c2]). { apply elem_of_cons. right. apply list_elem_of_here. }
+        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+        iLeft. iRight. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
+        { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
+        iIntros (m) "Ha'". iDestruct (auth_agree with "[$Hauthb] [$Ha']") as "<-".
+        iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hsome") as "Hkk".
+        iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
+      - iApply (brel_load_l _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl1"). iIntros "!> _". brel_pures_l.
+        iApply (brel_load_r _ _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl2"). iIntros "_". brel_pures_r.
+        iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb"; [iNext; iRight; iFrame "#"|].
+        iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
+        iApply (brel_introduction' [c1] [c2]). { apply elem_of_cons. right. apply list_elem_of_here. }
+        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+        iLeft. iLeft. iExists A, A.
+        iSplitL.
+        { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
+          - iModIntro. iLeft. iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". by iModIntro.
+          - iModIntro. iRight. iFrame "#". iApply "Hclose". iNext. by iRight. }
+        iSplit; first (do 2 (iSplit; try (iPureIntro; done))). iModIntro.
+        iApply brel_value. iIntros "$ !>". brel_pures'.
+        iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
+        iApply (brel_introduction' [c1] [c2]). { apply elem_of_cons. right. apply list_elem_of_here. }
+        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+        iLeft. iRight. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
+        { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
+        iIntros (m) "Ha'". iDestruct (auth_agree with "[$Hauthb] [$Ha']") as "<-".
+        iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hsome") as "Hkk".
+        iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
+    + (* doRecv alice [RecvAliceImpl]; on Some, doSend (B,alice) [SendBobImpl];;
+         read lc; resume. *)
+      brel_pures; [apply Hk1; set_solver | apply Hk2; set_solver |].
+      brel_pures'.
+      iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
+      iApply (brel_introduction' [c1] [c2]). { apply elem_of_cons. right. apply list_elem_of_here. }
+      iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+      iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+      iRight. iRight. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
+      { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
+        iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
+      iIntros (m) "Ha'". iDestruct (auth_agree with "[$Hautha] [$Ha']") as "<-".
+      iApply brel_value. iIntros "$ !>". brel_pures'.
+      iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
+      iApply (brel_introduction' [c1] [c2]). { apply elem_of_cons. right. apply list_elem_of_here. }
+      iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
+      iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
+      iRight. iLeft. iExists B, B.
+      iSplitL.
+      { iMod (inv_acc with "Hinvtb") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
+        - iModIntro. iLeft. iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". by iModIntro.
+        - iModIntro. iRight. iFrame "#". iApply "Hclose". iNext. by iRight. }
+      iSplit; first (do 2 (iSplit; try (iPureIntro; done))). iModIntro.
+      iApply brel_value. iIntros "$ !>". brel_pures'.
+      iApply (brel_na_inv _ _ (nroot.@"lc")); [set_solver|]. iFrame "Hlcinv".
+      iIntros "(>[(Hl1 & Hl2) | #(Hl1 & Hl2)] & Hclose)".
+      - iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "!> Hl1". brel_pures_l.
+        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2". brel_pures_r.
+        iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb"; [iNext; iLeft; iFrame|].
+        iDestruct ("Hcont" with "Hnone") as "Hkk". iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
+      - iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "!> _". brel_pures_l.
+        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "_". brel_pures_r.
+        iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb"; [iNext; iRight; iFrame "#"|].
+        iDestruct ("Hcont" with "Hsome") as "Hkk". iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
+  Qed.
 
   Theorem adv_DHKE_real A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
