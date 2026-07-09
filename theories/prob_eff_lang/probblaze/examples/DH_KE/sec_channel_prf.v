@@ -2867,7 +2867,7 @@ split.
                                         (group_xor_sem m (g ^+ f m n))
                                         (g ^+ f m n))).
                                iApply (brel_exhaustion (fill k1'((InjRV (vgval m))%V)) (fill k2' ((InjRV (vgval g_enc)))%V)).
-                               { simpl. auto.}
+                               { simpl. auto. }
                                 { simpl. set_solver. }
                                { unfold kont0. iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". unfold g_enc. rewrite -> Bij_xor_sem. iApply "Hsome". }
                                { iApply "IH". }
