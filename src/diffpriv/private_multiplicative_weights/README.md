@@ -22,13 +22,13 @@ Outputs a function which given a database (`db`) and a query (`qi`) outputs:
 
 The `nSVT_stream` is a client which given a stream of queries (represented by a 
 function which computes the next query adaptively to the answers) returns the 
-list of the answers.
+list of the answers while preserving the $\varepsilon$-DP.
 
 ## PMW
 
 The private multiplicative weights is a mechanism which given a database and 
-some privacy parameters returns a function which one can call with an adaptive 
-stream of queries and get each time a numeric answer.
+some privacy and accuracy parameters returns a function which one can call 
+with an adaptive stream of queries and get each time a numeric answer.
 
 This algorithm is working. There is just a point to raise.
 The implementation is derived from C.Dwork book on differential privacy (!!!cite better),
@@ -46,22 +46,25 @@ example, we consider the database that are randomly generated  [`rd_data.csv`](h
 .
 Or the databases from ... (!!!push and cite the database.)
 
-In order to manage the databases and histograms we uses functions defined in 
-[`db_query.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/db_query.ml).
+In order to manage the databases, inputs, outputs and histograms we uses 
+functions defined in 
+[`utils.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/utils.ml).
 
 When calling:
 ```bash
 ocaml main_pmw.ml
 ```
 
-The output is, the initial database and the approached (sanitized) database as well 
-as the list of the distances between the real answer and the returned answer 
-to the stream of queries.
+The output is, the initial database and the approached (sanitized) database as 
+well as the list (of the distances between the real answer and the returned 
+answer to the stream of queries) *see what to put in the final version*.
 
-You can add the two optional following arguments:
-- `--gif` in order to save the databases in a folder
+You can add the three optional following arguments:
 - `--file [file]` in order to specify the database to use
 - `--list` use the list implementation.
+- `--gif` in order to save the databases in a folder and then to be able to 
+    build a graphical representation of the evolution of the sanitized database
+    during the update process.
 
 For the `--list` option, instead of using the hastable implementation, it uses
 lists. It is the translation of what is written in rocq into ocaml.
@@ -78,7 +81,7 @@ the pmw, you can add the argument `--gif` when calling
 [`main_pmw.ml`](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/numeric_sparse_vector/main_pmw.ml)
 and then can go to [`gif/`](https://github.com/Pbi0/clutch/tree/pMW_formal/src/diffpriv/private_multiplicative_weights/gif)
 where you will find in the folder `gif/data/` all the distribution that $h$
-went through. The 0 database is the real distribution.
+went through. The 0 database is the real database.
 In order to get the gif, go in the `gif/` folder and run:
 ```bash
 python render_gif.py
@@ -89,7 +92,7 @@ or
 ```
 
 It will build the gif under the name of `evolution_distrib.gif`.
-
+What follows is a output of this function.
 ![Evolution of the distribution.](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/private_multiplicative_weights/gif/evolution_distrib.gif?raw=true "Evolution of the distribution.")
 
 ## NOTES

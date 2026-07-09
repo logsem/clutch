@@ -42,9 +42,10 @@ if __name__ == "__main__":
                         x.append(row[0])
                         y.append(float(row[1]))
                     fig, ax = plt.subplots()
-                    ax.bar(x0, y0, color='yellow', alpha=0.8)
-                    ax.bar(x, y, color='cyan', alpha=0.5)
+                    ax.bar(x0, y0, color='yellow', alpha=0.8, label='DB')
+                    ax.bar(x, y, color='cyan', alpha=0.5, label='sDB')
                     ax.set_ylim(0, max_d+max_d/10)
+                    plt.legend(loc='upper left')
     
                     buf = io.BytesIO()
                     fig.savefig(buf, format='png')
