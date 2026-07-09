@@ -30,7 +30,7 @@ Section new_comp_verification.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
   Let Key := S (S n'').
   Let Support := S (S n'').
-  Variable xor_struct : XOR (Key := Key) (Support := Support).
+  Context {xor_struct : XOR (Key := Key) (Support := Support)}.
   Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
 
   Import valgroup_notation.
@@ -47,6 +47,12 @@ Section new_comp_verification.
 
   Definition REAL_CHAN_DH_REAL : val :=
     λ: "f", ( (λ: "f", F_AUTH (C_lazy DH_real "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f").
+
+  Definition REAL_CHAN_DH_RED : val :=
+    λ:"DH", λ: "f", ( (λ: "f", F_AUTH (C_lazy "DH" "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f").
+
+  Definition REAL_CHAN_DH_RED_REAL : expr := REAL_CHAN_DH_RED DH_real.
+  Definition REAL_CHAN_DH_RED_RAND : expr := REAL_CHAN_DH_RED DH_rand.
 
   Definition REAL_CHAN_DH_RAND : val :=
     λ: "f", ((λ: "f", F_AUTH (C_lazy DH_rand "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f").

@@ -1700,4 +1700,9 @@ Section new_comp_verification.
              iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
   Qed.
 
+  Lemma REAL_CHAN_DH_RED_sem_typed `{!probblazeRGS Σ} :
+    ⊢ ⊨ᵥ REAL_CHAN_DH_RED ≤ REAL_CHAN_DH_RED
+      : ((𝟙 ⊸ (sem_ty_group × sem_ty_group) × sem_ty_group) → τ).
+  Admitted.
+
 End new_comp_verification.
