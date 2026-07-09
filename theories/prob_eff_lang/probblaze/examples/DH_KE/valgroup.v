@@ -176,6 +176,10 @@ Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct
   Clutch_group
     {
       τG_lrel v1 v2 η μ δ ξ : sem_ty_group v1 v2 = interp._ty η μ δ τG ξ v1 v2
+    (* Group elements are [τG] values: the syntactic mirror of [sem_ty_group]
+       (whose members are exactly the [vgval x]).  Needed to type constants
+       like the generator [g] when syntactically typing e.g. [DH_real]. *)
+    ; vgval_typed : ∀ x : vgG, val_typed (vgval x) τG
     ; is_unit : vunit = vgval 1
     ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = vgval $ x^-1⌝ }}
     ; is_spec_inv (x : vgG) K :
