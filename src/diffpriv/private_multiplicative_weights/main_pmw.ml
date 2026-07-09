@@ -16,7 +16,7 @@ let () =
   if (Array.mem "--list" Sys.argv) then (
     let size, index, db = mk_histo_l (path ^ file) in
     let card_q = List.length index in
-    let nb_q = 1000 * card_q in
+    let nb_q = 10000 * card_q in
     let stream_query =
       let a = ref nb_q in
       fun bs ->
@@ -34,7 +34,7 @@ let () =
         (get_unif_l index size)
         stream_query
         (float_of_int card_q)
-        1 1 0.1 0.1
+        1 1 0.01 0.1
         ~gif:(if (Array.mem "--gif" Sys.argv) then Some (path_gif ^ file_gif) else None)
     in
     if (Array.mem "--gif" Sys.argv) then (

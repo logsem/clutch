@@ -55,4 +55,4 @@ if __name__ == "__main__":
     print("exporting")
     images[0].save('evolution_distrib.gif',
                    save_all=True, append_images=images[1:],
-                   optimize=False, duration=30)
+                   optimize=False, duration=15)
