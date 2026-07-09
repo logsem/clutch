@@ -47,7 +47,41 @@ Section adv_sc_typing.
 
   Lemma OT_REDUCTION_sem_typed `{!probblazeRGS Σ} :
     ⊢ ⊨ᵥ OT_REDUCTION ≤ OT_REDUCTION : ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾)) → τ_sc).
-  Admitted.     
+  Proof. 
+    unfold OT_REDUCTION. unfold sem_ty_mbang. simpl.
+    iIntros (DH1 DH2) "!# !# HDH".
+    brel_pures'.
+    iModIntro.
+    iIntros (? f1 f2) "HτC".
+    brel_pures'.
+    iModIntro.
+    iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
+    unfold reduction.
+    brel_pures'.
+    iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][HDH]"); first iApply to_iThy_le_refl.
+    { by iApply "HDH". }            
+    simpl.
+    iIntros (??) "HG".
+    iDestruct "HG" as "(%&%&%&%&->&->&H1&H2)".
+    iDestruct "H1" as "(%&%&%&%&->&->&H1'&H2')".
+    iDestruct "H1'" as "(%&%&%&%&->&->&H1''&H2'')".
+    iDestruct "H1''" as "(%&->&->)".
+    iDestruct "H2''" as "(%&->&->)".
+    iDestruct "H2'" as "(%&->&->)".
+    iDestruct "H2" as "(%&->&->)".
+    brel_pures'.
+    iApply brel_effect_l. iIntros (l) "!> Hl !>". 
+    iApply brel_effect_r. iIntros (r) "Hr !>".
+    brel_pures'.
+    unfold OT_Real_Sender_corrupt.
+    brel_pures'.
+    iApply brel_effect_l. iIntros (l2) "!> Hl2 !>". 
+    iApply brel_effect_r. iIntros (r2) "Hr2 !>".
+    brel_pures'.
+  Admitted. 
+    
 
   Lemma DH_rand_sem_typed `{!probblazeRGS Σ} :
     ⊢ ⊨ᵥ DH_rand ≤ DH_rand : (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾)).
