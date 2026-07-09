@@ -499,17 +499,16 @@ Proof.
   by iApply ("Hbrel" with "[$][$]").
 Qed.
 
-Lemma log_g :
-   ∀ v : vgG, ∃ k : fin (S (S n'')), (v = g^+k)%g.
+Lemma log_g (v : vgG) : {k : fin (S (S n'')) | (v = g^+k)%g}.
 Proof using.
   pose proof g_nontriv.
   pose proof g_generator.
   unfold generator in *.
-  intros v ; destruct (@cyclePmin vgG g v).
+  destruct (@cyclePmin vgG g v).
   2: {
     assert (hx : x < #[g]%g). { apply lt_INR. rewrite Rcomplements.SSR_leq in i. lia. }
     rewrite g_nontriv in hx. apply INR_lt in hx.
-    exists (nat_to_fin hx). 
+    exists (nat_to_fin hx).
     symmetry. rewrite e. f_equal.
     rewrite fin_to_nat_to_fin.
     reflexivity.

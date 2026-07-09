@@ -35,6 +35,17 @@ Section new_comp_verification.
   Context {xor_struct : XOR (Key := Key) (Support := Support)}.
   Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
 
+  Variable group_xor_sem : vgG -> vgG -> vgG.
+  (* actual BITWISE xor has both left and right inverse, so this assumption is a valid spec.*)
+  Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, group_xor_sem (group_xor_sem g1 g2) g2 = g1.
+  Hypothesis Bij_xor_sem_l : ∀ g1 g2 : vgG, group_xor_sem g1 (group_xor_sem g1 g2) = g2.
+  Hypothesis vg_int_xor_sem : ∀ g1 g2 : vgG, vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some (group_xor_sem g1 g2 ).
+  Variable log__g : vgG -> fin (S (S n'')).
+  Hypothesis Val_log : ∀ x : vgG, (g ^+(log__g x))%g = x.
+  Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, log__g (group_xor_sem m (g ^+n))).
+  Hypothesis Bdd_int_vg : ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
+
+
 
   (* F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] ≤ F_OAUTH[ F_AUTH [C[DH_real][CHAN []]]] *)
   (*---------------------------------------------------------------------------*)
@@ -192,9 +203,9 @@ Section new_comp_verification.
     - apply F_AUTH_DH_SIM_closed.
     - apply R_CHAN_closed.
     - apply CHAN_SIM_lazy_F_CHAN_closed.
-    - unshelve iApply R_I_SCHAN; try done; admit.  (* security of secure channel -- admit related to bijectio assumptions *)
-    - iApply F_AUTH_DH_SIM_typed.                         (* well-typedness *)
-  Admitted.
+    - unshelve iApply R_I_SCHAN ; done.
+    - iApply F_AUTH_DH_SIM_typed.
+  Qed.
 
   Lemma SIMFCHAN_DHSIM_FKE_CHAN4 :
     ⊢ sem_val_typed SIMSIMFCHAN DHSIM_FKE_CHAN4 τ.
@@ -203,7 +214,7 @@ Section new_comp_verification.
     - apply F_AUTH_DH_SIM_closed.
     - apply CHAN_SIM_lazy_F_CHAN_closed.
     - apply R_CHAN_closed.
-    - unshelve iApply I_R_SCHAN; done.                    (* security of secure channel *)
+    - unshelve iApply I_R_SCHAN ; done.
     - iApply F_AUTH_DH_SIM_typed.
   Qed.
 
