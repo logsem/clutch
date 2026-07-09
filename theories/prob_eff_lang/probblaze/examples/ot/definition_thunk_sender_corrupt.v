@@ -179,4 +179,5 @@ Section DDH_reduction.
     let: "c" := sample #()%V in
     ( "g"^"c", "g"^"b", "g"^"a", "g").
 
+  Definition OT_REDUCTION : val := (λ: "DH" "f" "effs", (reduction "DH") (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS"))).
 End DDH_reduction.

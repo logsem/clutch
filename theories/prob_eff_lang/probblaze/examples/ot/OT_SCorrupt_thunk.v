@@ -295,7 +295,7 @@ Section handlee_verification.
   Lemma vgG_expg_n (x : vgG) : (x ^+ n)%g = 1%g.
   Proof.
     rewrite -g_nontriv.
-    assert (∃ ck : fin n, x = (g ^+ ck)%g) as (ck & ->) by apply log_g.
+    assert (∃ ck : fin n, x = (g ^+ ck)%g) as (ck & ->) by (edestruct log_g as [v H]; by exists v).
     by rewrite expgAC expg_order expg1n.
   Qed.
 
@@ -610,14 +610,21 @@ Section handlee_verification.
         iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|by iApply "IH"]. 
     Qed.
 
+  Definition τ_sc := (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((𝔾 × 𝔾) × (𝔾 × 𝔾))))
+            -{ ¡[OS] θ}-∘ 𝟙)%T.
+  
   Lemma OT_real_DH_real : 
      ⊢ ↯ (1 / n) -∗
-     (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((𝔾 × 𝔾) × (𝔾 × 𝔾))))
-            -{ ¡[OS] θ}-∘ 𝟙)%T 
-       (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V
-       (λ: "f" "effs", (reduction DH_rand) (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V. 
+     BREL (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V ≤
+          OT_REDUCTION DH_rand <| ⊥ |> {{ τ_sc}}.
+
+     (* (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((𝔾 × 𝔾) × (𝔾 × 𝔾))))
+               -{ ¡[OS] θ}-∘ 𝟙)%T 
+          (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V
+          (λ: "f" "effs", (reduction DH_rand) (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V.  *)
     Proof using G n_prime inG2.
-      iIntros "Herr %θ %f1 %f2 Hff".
+      iIntros "Herr". unfold OT_REDUCTION. brel_pures'.
+      iIntros "!> %θ %f1 %f2 Hff".
       brel_pures'.
       iModIntro.
       iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
@@ -635,14 +642,14 @@ Section handlee_verification.
       iApply (OT_Real_Sender_corrupt_self with "Hsend Hrecv Hff").
     Qed.
 
-
-
   Lemma DH_OT_sim :
     ⊢ ↯ (1 / n) -∗
-    (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((𝔾 × 𝔾) × (𝔾 × 𝔾))))
-                  -{ ¡[OS] θ}-∘ 𝟙)%T (λ: "f" "effs", (reduction DH_real) (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V OT_SIM_FOT_thunk.
+    BREL OT_REDUCTION DH_real ≤ OT_SIM_FOT_thunk <| ⊥ |> {{ τ_sc }}.
+    (* (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((𝔾 × 𝔾) × (𝔾 × 𝔾))))
+                     -{ ¡[OS] θ}-∘ 𝟙)%T (λ: "f" "effs", (reduction DH_real) (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V OT_SIM_FOT_thunk. *)
   Proof using G n_prime inG2. 
-    iIntros "Herr %θ %f1 %f2 Hff".
+    iIntros "Herr". unfold OT_REDUCTION. brel_pures'.
+    iIntros "!> %θ %f1 %f2 Hff".
     rewrite /reduction /DH_real /OT_Real_Sender_corrupt /OT_SIM_FOT_thunk.
     brel_pures'. iModIntro.
     iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
@@ -1013,12 +1020,15 @@ Section handlee_verification.
       Unshelve. done.
   Qed.
 
+  
   Lemma OT_sim_DH :
     ⊢ ↯ (1 / n) -∗
-    (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((𝔾 × 𝔾) × (𝔾 × 𝔾))))
-                  -{ ¡[OS] θ}-∘ 𝟙)%T OT_SIM_FOT_thunk (λ: "f" "effs", (reduction DH_real) (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V .
+    BREL OT_SIM_FOT_thunk ≤ OT_REDUCTION DH_real <| ⊥ |> {{ τ_sc }}.
+    (* (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((𝔾 × 𝔾) × (𝔾 × 𝔾))))
+                     -{ ¡[OS] θ}-∘ 𝟙)%T OT_SIM_FOT_thunk (λ: "f" "effs", (reduction DH_real) (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V . *)
   Proof using G n_prime inG2. 
-    iIntros "Herr %θ %f1 %f2 Hff".
+    iIntros "Herr". unfold OT_REDUCTION. brel_pures'.
+    iIntros "!> %θ %f1 %f2 Hff".
     rewrite /reduction /DH_real /OT_Real_Sender_corrupt /OT_SIM_FOT_thunk.
     brel_pures'. iModIntro.
     iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
@@ -1491,12 +1501,14 @@ Section handlee_verification.
 
   Lemma DH_real_OT_real : 
      ⊢ ↯ (1 / n) -∗
-     (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((𝔾 × 𝔾) × (𝔾 × 𝔾))))
-            -{ ¡[OS] θ}-∘ 𝟙)%T 
-       (λ: "f" "effs", (reduction DH_rand) (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V
-       (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V. 
+     BREL OT_REDUCTION DH_rand ≤ (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V <| ⊥ |> {{ τ_sc }}.
+     (* (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((𝔾 × 𝔾) × (𝔾 × 𝔾))))
+               -{ ¡[OS] θ}-∘ 𝟙)%T 
+          (λ: "f" "effs", (reduction DH_rand) (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V
+          (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V.  *)
     Proof using G n_prime inG2.
-      iIntros "Herr %θ %f1 %f2 Hff".
+      iIntros "Herr". unfold OT_REDUCTION. brel_pures'.
+      iIntros "!> %θ %f1 %f2 Hff".
       brel_pures'.
       iModIntro.
       iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
