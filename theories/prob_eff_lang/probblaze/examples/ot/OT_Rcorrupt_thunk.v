@@ -688,7 +688,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          { rewrite /sem_ty_arr /sem_ty_mbang /=. iApply "Hsend".
            iExists _,_,_,_. do 2 (iSplit; try done).
            iSplit; iExists _,_,_,_; try (do 2 (iSplit; try done));
-                                 iSplit; iExists _; done.
+                                 iSplit; iExists _; try done.
+           by rewrite ssrnat.addnA.
          }
          iIntros (??) "(->&->)".
          brel_pures'.
@@ -788,7 +789,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          { rewrite /sem_ty_arr /sem_ty_mbang /=. iApply "Hsend".
            iExists _,_,_,_. do 2 (iSplit; try done).
            iSplit; iExists _,_,_,_; try (do 2 (iSplit; try done));
-                                 iSplit; iExists _; done.
+                                 iSplit; iExists _; try done.
+           by rewrite ssrnat.addnA.
          }
          iIntros (??) "(->&->)".
          brel_pures'.
@@ -1139,6 +1141,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       2 : rewrite -g_nontriv; apply expg_order.
       unshelve rewrite enc_fin_cancel1_mirror //.
       2,3 : rewrite Rcomplements.SSR_leq; lia.
+      rewrite (ssrnat.addnA km).
       rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.addn km _) _)).
       2: rewrite -g_nontriv; apply expg_order.
       rewrite enc_fin_cancel2_mirror //.
@@ -1240,6 +1243,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       2 : rewrite -g_nontriv; apply expg_order.
       unshelve rewrite enc_fin_cancel1_mirror //.
       2,3 : rewrite Rcomplements.SSR_leq; lia.
+      rewrite (ssrnat.addnA km).
       rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.addn km _) _)).
       2: rewrite -g_nontriv; apply expg_order.
       rewrite enc_fin_cancel2_mirror //.

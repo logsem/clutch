@@ -1,5 +1,4 @@
 From clutch.prob_eff_lang.probblaze Require Export notation valgroup.
-From clutch.prob_eff_lang.probblaze Require Import mutual_handlers_composition.
 
 Import fingroup.
 
