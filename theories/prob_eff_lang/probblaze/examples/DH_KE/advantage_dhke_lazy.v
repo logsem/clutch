@@ -1,4 +1,4 @@
-From clutch.prob_eff_lang.probblaze.typing Require Import types interp.
+From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental.
 From Coq.Logic Require Import FunctionalExtensionality.
 From clutch.prob_eff_lang.probblaze Require Import advantage.
 From iris.algebra Require Import excl.
@@ -157,9 +157,11 @@ Section adv_dhke.
 
   (* [DH_real]/[DH_rand] self-refine at [𝟙 ⊸ 𝔾×𝔾×𝔾]: the two runs draw the
      same exponents (coupled [rand]s), so the deterministic [g^_] outputs agree
-     and form a group-triple.  (A syntactic typing + fundamental lemma is not
-     available: the [typed] relation has no binary-op rule, so [vexp]/[g^(a*b)]
-     are untypeable — hence the direct relational proof.) *)
+     and form a group-triple.  A syntactic-typing + fundamental-lemma route is
+     ALSO available now (see [DH_real_self_ftlr]/[DH_rand_self_ftlr] below): the
+     type system gained [ℕ⪯ℤ] subtyping, [ℤ]-bound [rand], binop rules,
+     [vexp_typed], and the [vgval_typed] group-element field, so [g^(a*b)] is
+     typeable.  We keep this direct relational proof as well. *)
   Lemma DH_real_self `{!probblazeRGS Σ} :
     ⊢ sem_val_typed DH_real DH_real (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
   Proof using All.
@@ -192,6 +194,188 @@ Section adv_dhke.
       - iExists _. by iSplit.
       - iExists _. by iSplit. }
     { iExists _. by iSplit. }
+  Qed.
+
+  (* ---------------------------------------------------------------------
+     Sanity check: type [DH_real]/[DH_rand] SYNTACTICALLY and recover their
+     self-refinement via the fundamental lemma.  [T_real] is the syntactic
+     type whose interpretation is [![MS](𝟙 ⊸ 𝔾×𝔾×𝔾)]; the outer [![MS]]
+     (from the [Rec_val] rule) collapses by □-idempotency onto the same
+     statement as [DH_real_self]. *)
+  Definition T_real : type := (TUnit ⇾ (τG * τG * τG))%ty.
+
+  Lemma RNil_rtype' (τ : type) : RNil R⪯T τ.
+  Proof using. apply le.Once_le. exists true. apply le.RFlipNil_le. Qed.
+  Lemma RNil_rctx' (Γ : ctx) : RNil R⪯C Γ.
+  Proof using.
+    induction Γ as [|[x t] Γ IH].
+    - apply le.NilR_le.
+    - apply (le.ConsR_le RNil (BNamed x) t Γ); [apply RNil_rtype' | exact IH].
+  Qed.
+
+  (* [App]/[Rec] put a duplicable [⇾] arrow in function position but the rules
+     want a bare [-∘] arrow; strip the bang with [TBangElim_le]. *)
+  Local Ltac coerce_fn :=
+    eapply Sub_typed;
+      [apply CRefl_le | apply CRefl_le | apply RRefl_le | apply le.TBangElim_le | ].
+  (* The four [App_typed] row/type/ctx side-conditions at [ρ = RNil]. *)
+  Local Ltac appsides :=
+    apply le.RNil_le || apply RNil_rtype' || apply RNil_rctx'.
+  (* Permute the input context to [Γ'] (via [Sub_typed] + a [Permutation]). *)
+  Local Ltac reorder Γ' :=
+    eapply (Sub_typed _ _ Γ' _ _ RNil RNil _ _ _);
+      [ eapply (_ctx_perm_right _ _ _ Γ'); [apply CRefl_le | cbn [ctx_insert]; solve_Permutation]
+      | apply CRefl_le | apply RRefl_le | apply le.TRefl_le | ].
+
+  Local Ltac gexp_fn :=
+    coerce_fn;
+    eapply App_typed;
+      [ appsides | appsides | appsides | appsides
+      | apply Val_typed; apply vgval_typed
+      | coerce_fn; apply Val_typed; apply vexp_typed ].
+
+  Lemma T_real_interp `{!probblazeRGS Σ} η μ δ ξ :
+    interp._ty η μ δ T_real ξ = sem_ty_mbang syntax.MS (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
+  Proof using All.
+    assert (HG : ∀ ζ, interp._ty η μ δ τG ζ = sem_ty_group) by
+      (intros ζ; extensionality v1; extensionality v2; symmetry;
+       apply (τG_lrel (clutch_group := G _ _))).
+    rewrite /T_real.
+    repeat (
+      rewrite ?interp_TBang ?interp_TArrow ?interp_TProd ?interp_TUnit
+              ?interp_RNil ?interp_mode_MS;
+      first [ apply HG | reflexivity
+            | apply (f_equal2 sem_ty_prod)
+            | apply (f_equal3 sem_ty_arr)
+            | apply (f_equal2 (@sem_ty_mbang Σ))
+            | (apply functional_extensionality; intros ?) ]).
+  Qed.
+
+  (* [sample #() = (λ:<>, rand #n) #()] has type [ℕ] in any context. *)
+  Lemma sample_app_typed Γ : ∅ .| Γ ⊢ₜ (sample #()%V) : RNil : TNat ⊣ Γ.
+  Proof using All.
+    eapply App_typed; [ appsides | appsides | appsides | appsides | | ].
+    - apply Val_typed. apply Unit_val_typed.
+    - coerce_fn. unfold sample.
+      apply (Rec_typed _ [] Γ).
+      + done.
+      + cbn; set_solver.
+      + cbn; set_solver.
+      + unfold le.MultiC; cbn; apply Forall_nil_2.
+      + eapply TRandU.
+        * apply Val_typed. apply Int_val_typed.
+        * apply Val_typed. apply Unit_val_typed.
+    Unshelve. all: first [exact true | exact OS].
+  Qed.
+
+  Lemma DH_real_typed `{!probblazeRGS Σ} : val_typed DH_real T_real.
+  Proof using All.
+    rewrite /DH_real /T_real.
+    apply Rec_val_typed; [done|]. cbn [ctx_insert].
+    eapply App_typed; [ appsides | appsides | appsides | appsides | | ].
+    - eapply (Sub_typed _ _ _ _ _ RNil RNil _ TInt TNat);
+        [ apply CRefl_le | apply CRefl_le | apply RRefl_le | apply le.TNat_le_TInt | ].
+      apply sample_app_typed.
+    - coerce_fn. apply (Rec_typed _ [] ∅).
+      + done.
+      + cbn; set_solver.
+      + cbn; set_solver.
+      + unfold le.MultiC; cbn; apply Forall_nil_2.
+      + cbn [ctx_insert].
+        eapply App_typed; [ appsides | appsides | appsides | appsides | | ].
+        * eapply (Sub_typed _ _ _ _ _ RNil RNil _ TInt TNat);
+            [ apply CRefl_le | apply CRefl_le | apply RRefl_le | apply le.TNat_le_TInt | ].
+          apply sample_app_typed.
+        * coerce_fn.
+          rewrite <- (app_nil_r (("a", TInt) :: [])).
+          apply Rec_typed.
+          -- done.
+          -- cbn; set_solver.
+          -- cbn; set_solver.
+          -- unfold le.MultiC; cbn; apply Forall_cons_2; [apply le.TBangInt_le | apply Forall_nil_2].
+          -- cbn [ctx_insert].
+             apply (Contraction_typed _ _ _ _ _ _ (BNamed "b") TInt); [apply le.TBangInt_le|].
+             reorder (("a",TInt)::("b",TInt)::("b",TInt)::[]).
+             apply (Contraction_typed _ _ _ _ _ _ (BNamed "a") TInt); [apply le.TBangInt_le|].
+             reorder (("b",TInt)::("a",TInt)::("b",TInt)::("a",TInt)::[]).
+             eapply Pair_typed; [ apply RNil_rtype' | | ].
+             ++ eapply Pair_typed; [ apply RNil_rtype' | | ].
+                ** eapply App_typed; [ appsides | appsides | appsides | appsides | apply Var_typed | gexp_fn ].
+                ** eapply App_typed; [ appsides | appsides | appsides | appsides | apply Var_typed | gexp_fn ].
+             ++ eapply App_typed;
+                  [ appsides | appsides | appsides | appsides
+                  | eapply BinOp_typed; [ apply syn_typed_bin_op_mult | apply Var_typed | apply Var_typed ]
+                  | gexp_fn ].
+    Unshelve. all: first [exact true | exact OS].
+  Qed.
+
+  Lemma DH_real_self_ftlr `{!probblazeRGS Σ} :
+    ⊢ sem_val_typed DH_real DH_real (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
+  Proof using All.
+    iPoseProof (fundamental_val DH_real T_real DH_real_typed) as "H".
+    rewrite /bin_log_val_related.
+    iSpecialize ("H" $! [] [] ∅ []).
+    rewrite (T_real_interp [] [] ∅ []).
+    rewrite /sem_val_typed /sem_ty_mbang /=.
+    iDestruct "H" as "#H". iModIntro. iApply "H".
+  Qed.
+
+  Lemma DH_rand_typed `{!probblazeRGS Σ} : val_typed DH_rand T_real.
+  Proof using All.
+    rewrite /DH_rand /T_real.
+    apply Rec_val_typed; [done|]. cbn [ctx_insert].
+    eapply App_typed; [ appsides | appsides | appsides | appsides | | ].
+    - eapply (Sub_typed _ _ _ _ _ RNil RNil _ TInt TNat);
+        [ apply CRefl_le | apply CRefl_le | apply RRefl_le | apply le.TNat_le_TInt | ].
+      apply sample_app_typed.
+    - coerce_fn. apply (Rec_typed _ [] ∅).
+      + done.
+      + cbn; set_solver.
+      + cbn; set_solver.
+      + unfold le.MultiC; cbn; apply Forall_nil_2.
+      + cbn [ctx_insert].
+        eapply App_typed; [ appsides | appsides | appsides | appsides | | ].
+        * eapply (Sub_typed _ _ _ _ _ RNil RNil _ TInt TNat);
+            [ apply CRefl_le | apply CRefl_le | apply RRefl_le | apply le.TNat_le_TInt | ].
+          apply sample_app_typed.
+        * coerce_fn.
+          rewrite <- (app_nil_r (("a", TInt) :: [])).
+          apply Rec_typed.
+          -- done.
+          -- cbn; set_solver.
+          -- cbn; set_solver.
+          -- unfold le.MultiC; cbn; apply Forall_cons_2; [apply le.TBangInt_le | apply Forall_nil_2].
+          -- cbn [ctx_insert].
+             eapply App_typed; [ appsides | appsides | appsides | appsides | | ].
+             ++ eapply (Sub_typed _ _ _ _ _ RNil RNil _ TInt TNat);
+                  [ apply CRefl_le | apply CRefl_le | apply RRefl_le | apply le.TNat_le_TInt | ].
+                apply sample_app_typed.
+             ++ coerce_fn.
+                rewrite <- (app_nil_r (("b", TInt) :: ("a", TInt) :: [])).
+                apply Rec_typed.
+                ** done.
+                ** cbn; set_solver.
+                ** cbn; set_solver.
+                ** unfold le.MultiC; cbn; apply Forall_cons_2;
+                     [apply le.TBangInt_le | apply Forall_cons_2; [apply le.TBangInt_le | apply Forall_nil_2] ].
+                ** cbn [ctx_insert].
+                   eapply Pair_typed; [ apply RNil_rtype' | | ].
+                   --- eapply Pair_typed; [ apply RNil_rtype' | | ].
+                       +++ eapply App_typed; [ appsides | appsides | appsides | appsides | apply Var_typed | gexp_fn ].
+                       +++ eapply App_typed; [ appsides | appsides | appsides | appsides | apply Var_typed | gexp_fn ].
+                   --- eapply App_typed; [ appsides | appsides | appsides | appsides | apply Var_typed | gexp_fn ].
+    Unshelve. all: first [exact true | exact OS].
+  Qed.
+
+  Lemma DH_rand_self_ftlr `{!probblazeRGS Σ} :
+    ⊢ sem_val_typed DH_rand DH_rand (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
+  Proof using All.
+    iPoseProof (fundamental_val DH_rand T_real DH_rand_typed) as "H".
+    rewrite /bin_log_val_related.
+    iSpecialize ("H" $! [] [] ∅ []).
+    rewrite (T_real_interp [] [] ∅ []).
+    rewrite /sem_val_typed /sem_ty_mbang /=.
+    iDestruct "H" as "#H". iModIntro. iApply "H".
   Qed.
 
   (* The reduction [red = λ DH f, F_AUTH (C_lazy DH f)] self-refines at
