@@ -49,7 +49,7 @@ Section new_comp_verification.
     λ: "f", ( (λ: "f", F_AUTH (C_lazy DH_real "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f").
 
   Definition REAL_CHAN_DH_RED : val :=
-    λ:"DH", λ: "f", ( (λ: "f", F_AUTH (C_lazy "DH" "f"))%V ||ᵣ F_OAUTH) (CHAN xor "f").
+    λ:"DH", λ: "f", ( (λ: "f", F_AUTH (C_lazy "DH" "f")) ||ᵣ F_OAUTH) (CHAN xor "f").
 
   Definition REAL_CHAN_DH_RED_REAL : expr := REAL_CHAN_DH_RED DH_real.
   Definition REAL_CHAN_DH_RED_RAND : expr := REAL_CHAN_DH_RED DH_rand.
