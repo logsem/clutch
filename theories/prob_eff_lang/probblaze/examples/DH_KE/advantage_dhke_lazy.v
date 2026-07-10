@@ -581,3 +581,5 @@ Section adv_dhke.
   Qed.
 
 End adv_dhke.
+
+Print Assumptions adv_DHKE_real.
