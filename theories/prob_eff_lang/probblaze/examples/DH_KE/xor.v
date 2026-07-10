@@ -5,8 +5,6 @@ primitive_laws proofmode
   spec_rules spec_ra 
   class_instances types.
 Set Default Proof Using "Type*".
-About Bij.
-About R.
 (*Local Close Scope R_scope.*)
 
 Class XOR {Key Support : nat} :=
