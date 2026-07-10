@@ -5,7 +5,7 @@ From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
   spec_rules spec_ra 
-  class_instances definition sem_types
+  class_instances sem_types
   sem_def sem_row.
 From clutch.clutch Require ElGamal_bijection.
 From clutch.prob_eff_lang.probblaze.examples.ot Require Import definition_thunk_receiver_corrupt ot_bijection.
