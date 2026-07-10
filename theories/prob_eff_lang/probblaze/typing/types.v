@@ -892,6 +892,8 @@ Infix "*" := TProd : FType_scope.
 Notation "(*)" := TProd (only parsing) : FType_scope.
 Infix "+" := TSum : FType_scope.
 Notation "(+)" := TSum (only parsing) : FType_scope.
+(* Row-union of two effect rows (the row layer is otherwise notation-free). *)
+Infix "∪ᵣ" := RUnion (at level 50, left associativity) : FType_scope.
 (* TODO: add arrow notation *)
 Notation "α '-{' ρ '}-∘' β" := (TArrow α%ty ρ β%ty)
                                  (at level 100, ρ, β at level 200) : FType_scope.

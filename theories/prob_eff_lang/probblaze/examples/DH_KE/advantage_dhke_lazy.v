@@ -70,16 +70,10 @@ Section adv_dhke.
      (RVar 1%nat)].  Leaves: [𝟙+𝟙 = TSum TUnit TUnit], [Option 𝔾 = TSum TUnit τG],
      [𝔾×(𝟙+𝟙) = TProd τG (TSum TUnit TUnit)], [𝔾 = interp τG] via [τG_lrel]. *)
   Definition T_DH : type :=
-    TForallR (
-      TArrow
-        (TForallR (
-           TArrow (TBang MS (TArrow (TSum TUnit TUnit) (RVar 0%nat) (TSum TUnit τG)))
-                  (RUnion (RVar 0%nat) (RVar 1%nat)) TUnit))
-        RNil
-        (TForallR (
-           TArrow (TProd (TBang MS (TArrow (TProd τG (TSum TUnit TUnit)) (RVar 0%nat) TUnit))
-                         (TBang MS (TArrow (TSum TUnit TUnit) (RVar 0%nat) (TSum TUnit τG))))
-                  (RUnion (RVar 0%nat) (RVar 1%nat)) TUnit))).
+    (∀R:
+       ((∀R: (((() + ()) -{ RVar 0%nat }-> (() + τG)) -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()))
+        -∘
+        (∀R: ((((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + τG))) -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()))))%ty.
 
   Lemma T_DH_interp `{!probblazeRGS Σ} η μ δ ξ :
     interp._ty η μ δ T_DH ξ = τ_DH.
