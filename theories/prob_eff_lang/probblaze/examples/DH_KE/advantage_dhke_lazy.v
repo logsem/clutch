@@ -54,7 +54,6 @@ Section adv_dhke.
   Context {G : ∀ `{!probblazeRGS Σ}, clutch_group}.
   Context `{probblazeRGpreS Σ}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
-  Context {la1 la2 : label}.     (* TODO can be removed once dhke_channel.v has been cleaned up *)
 
   Import valgroup_notation.
   Import valgroup_tactics.
@@ -106,26 +105,26 @@ Section adv_dhke.
     (∀ `{!probblazeRGS Σ}, 
        ⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
     nonneg (advantage A (λ: "f", F_AUTH (DH_KE "f"))%V ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_real) #true) = 0%R.
-  Proof using H inG0 inG1 inG2 la2 G. (* also debris from dhke_channel *)
+  Proof using inG2 inG1 inG0 H G.
     intros. eapply sem_typed_advantage; eauto. split.
-    - intros Hrgs. apply DHKE_RED; eauto. 
-    - intros Hrgs. apply RED_DHKE; eauto.
+    - intros Hrgs. apply DHKE_RED; eauto. 1,2: do 2 constructor.
+    - intros Hrgs. apply RED_DHKE; eauto. 1,2: do 2 constructor.
   Qed. 
 
   Lemma adv_DH_rand_FKE  A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
     nonneg (advantage A ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_rand) (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V  #true) = 0%R.
-  Proof using H inG0 inG1 inG2 G la2. 
+  Proof using H inG0 inG1 inG2 G.
     intros. eapply sem_typed_advantage; eauto. split.
-    - intros Hrgs. apply RED_DHSIM; eauto.
-    - intros Hrgs. apply DHSIM_RED; eauto.
+    - intros Hrgs. apply RED_DHSIM; eauto. 1,2: do 2 constructor.
+    - intros Hrgs. apply DHSIM_RED; eauto. 1,2: do 2 constructor.
   Qed. 
 
   Theorem adv_DHKE A (ε : R) :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
     advantage A ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_real) ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_rand) #true <= ε →
     advantage A (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V #true <= ε.
-  Proof using H inG0 inG1 inG2 G la2. 
+  Proof using H inG0 inG1 inG2 G.
     intros HA HAadv.
     eapply advantage_triangle.
     - right. by apply adv_DHKE_DH_real.
@@ -140,7 +139,7 @@ Section adv_dhke.
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
     advantage A (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V #true 
     <= advantage A ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_real) ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_rand) #true.
-  Proof using H inG0 inG1 inG2 G la2. 
+  Proof using H inG0 inG1 inG2 G.
     intros. eapply adv_DHKE; eauto; lra.
   Qed.
     
@@ -397,7 +396,7 @@ Section adv_dhke.
     iMod dfrac_alloc as (γfraca) "Hfraca".
     iMod dfrac_alloc as (γfracb) "Hfracb".
     iModIntro.
-    iApply (F_AUTH_F_AUTH la1 la2 (C_lazy DH1 f1) (C_lazy DH2 f2)
+    iApply (F_AUTH_F_AUTH _ _ (C_lazy DH1 f1) (C_lazy DH2 f2)
               γtoka γtokb γfraca γfracb γautha γauthb θ__L
               with "Hfraca Hfracb [-]").
     (* Remaining: the [C_lazy] self-refinement (the [F_AUTH_F_AUTH] C-part).
@@ -456,7 +455,7 @@ Section adv_dhke.
           iExists _,_; [iLeft; by iPureIntro| iRight; iPureIntro; repeat (split; first done); by eexists]. }
     unfold sem_val_typed. simpl. iDestruct "Hgg" as "#Hgg".
     iSpecialize ("Hf" with "Hgg").
-    set (ac := authchan_row la1 la2 c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb).
+    eset (ac := authchan_row _ _ c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb).
     iApply brel_new_theory.
     iApply (brel_add_label_l with "Hgk1").
     iApply (brel_add_label_r with "Hgk2").
@@ -563,13 +562,14 @@ Section adv_dhke.
         iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "_". brel_pures_r.
         iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb"; [iNext; iRight; iFrame "#"|].
         iDestruct ("Hcont" with "Hsome") as "Hkk". iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
+        Unshelve. all: do 2 constructor. 
   Qed.
 
   Theorem adv_DHKE_real A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
     advantage A (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V #true <=
       advantage (λ: "v", A (((λ: "DH", (λ: "f", F_AUTH (C_lazy "DH" "f")))%V "v")))%V DH_real DH_rand #true.
-  Proof using H inG0 inG1 inG2 G la1 la2.
+  Proof using H inG0 inG1 inG2 G.
     intros HA.
     etrans.
     - apply adv_DHKE_no_epsilon; eauto.

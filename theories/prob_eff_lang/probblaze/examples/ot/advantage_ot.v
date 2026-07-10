@@ -264,8 +264,9 @@ Section adv_sc.
       eapply (advantage_reduction A OT_REDUCTION DH_rand DH_real true).
       intros HRGS. exists (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾))%T, τ_sc.
       split; [apply HA | split].
-      + by unshelve eapply OT_REDUCTION_sem_typed.
-      + by unshelve (split; [eapply DH_rand_sem_typed | eapply DH_real_sem_typed ]).
+      + by eapply OT_REDUCTION_sem_typed.
+      + by (split; [eapply DH_rand_sem_typed | eapply DH_real_sem_typed ]).
+        Unshelve. all: assumption.
   Qed.
 
 End adv_sc.

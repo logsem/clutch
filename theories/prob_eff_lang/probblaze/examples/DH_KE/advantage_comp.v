@@ -22,11 +22,11 @@ Section adv_comp.
   (* actual BITWISE xor has both left and right inverse, so this assumption is a valid spec.*)
   Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, group_xor_sem (group_xor_sem g1 g2) g2 = g1.
   Hypothesis Bij_xor_sem_l : ∀ g1 g2 : vgG, group_xor_sem g1 (group_xor_sem g1 g2) = g2.
-  Hypothesis vg_int_xor_sem : ∀ g1 g2 : vgG, vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some (group_xor_sem g1 g2 ).
+  Hypothesis vg_int_xor_sem : ∀ `{!probblazeRGS Σ}, ∀ g1 g2 : vgG, vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some (group_xor_sem g1 g2 ).
   Variable log__g : vgG -> fin (S (S n'')).
   Hypothesis Val_log : ∀ x : vgG, (g ^+(log__g x))%g = x.
   Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, log__g (group_xor_sem m (g ^+n))).
-  Hypothesis Bdd_int_vg : ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
+  Hypothesis Bdd_int_vg : ∀ `{!probblazeRGS Σ}, ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
 
 
   Theorem adv_composition A :
@@ -34,38 +34,38 @@ Section adv_comp.
      advantage A REAL_CHAN_DHKE SIMSIMFCHAN #true
     <=
       advantage A REAL_CHAN_DH_REAL REAL_CHAN_DH_RAND #true.
-  Proof using G Hpre Key Support X cg inG0 inG1 inG2 vg vgg xor_struct Σ.
+  Proof using All.
     intros Hadv.
     eapply (advantage_triangle _ _ _ _ _ 0); last (rewrite Rplus_0_l; apply Rle_refl).
     - right. eapply sem_val_typed_advantage; first apply Hadv.
       split.
-      + intros H. apply F_OAUTH_DHKE_C_REAL; try done.
-      + intros H. apply C_REAL_DHKE_F_OAUTH; try done.
+      + intros H. eapply F_OAUTH_DHKE_C_REAL; try done.
+      + intros H. eapply C_REAL_DHKE_F_OAUTH; try done.
     - eapply (advantage_triangle _ _ _ _ _ _ 0); [apply Rle_refl| | (rewrite Rplus_0_r; apply Rle_refl)].
       eapply (advantage_triangle _ _ _ _ _ 0 0); last lra.
       { right. eapply sem_val_typed_advantage; first apply Hadv.
         split. 
-        - intros H. by apply REAL_CHAN_DH_RAND_DHSIM_FKE_CHAN1. 
-        - intros H. by apply DHSIM_FKE_CHAN1_REAL_CHAN_DH_RAND. }
+        - intros H. by eapply REAL_CHAN_DH_RAND_DHSIM_FKE_CHAN1.
+        - intros H. by eapply DHSIM_FKE_CHAN1_REAL_CHAN_DH_RAND. }
       eapply (advantage_triangle _ _ _ _ _ 0 0); last lra.
       { right. eapply sem_val_typed_advantage; first apply Hadv.
         split. 
-        - intros H. by apply DHSIM_FKE_CHAN1_DHSIM_FKE_CHAN2.
-        - intros H. by apply DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN1. }
+        - intros H. by eapply DHSIM_FKE_CHAN1_DHSIM_FKE_CHAN2.
+        - intros H. by eapply DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN1. }
       eapply (advantage_triangle _ _ _ _ _ 0 0); last lra.
       { right. eapply sem_val_typed_advantage; first apply Hadv.
         split. 
-        - intros H. by apply DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN3.
-        - intros H. by apply DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN2. }
+        - intros H. by eapply DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN3.
+        - intros H. by eapply DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN2. }
       eapply (advantage_triangle _ _ _ _ _ 0 0); last lra.
       { right. eapply sem_val_typed_advantage; first apply Hadv.
         split. 
-        - intros H. by apply DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4.
-        - intros H. by apply DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3. }
+        - intros H. by eapply DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4.
+        - intros H. by eapply DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3. }
       right. eapply sem_val_typed_advantage; first apply Hadv.
       split.
-      + intros H. by apply DHSIM_FKE_CHAN4_SIMFCHAN.
-      + intros H. by apply SIMFCHAN_DHSIM_FKE_CHAN4. 
+      + intros H. by eapply DHSIM_FKE_CHAN4_SIMFCHAN.
+      + intros H. by eapply SIMFCHAN_DHSIM_FKE_CHAN4.
   Qed. 
 
 
@@ -97,7 +97,7 @@ Section adv_comp.
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ → 𝔹)%T) →
     advantage A REAL_CHAN_DHKE SIMSIMFCHAN #true <=
       advantage (λ: "v", A ((REAL_CHAN_DH_RED "v")))%V DH_real DH_rand #true.
-  Proof using G Hpre Key Support X cg inG0 inG1 inG2 vg vgg xor_struct Σ. 
+  Proof using All.
     intros Aty.
     etrans. 
     - apply adv_composition; eauto.
@@ -112,9 +112,9 @@ Section adv_comp.
       intros. eexists _,_. split ; [|split].
       1: apply Aty.
       2:{ split.
-          - by unshelve eapply DH_real_self.
-          - by unshelve eapply DH_rand_self. }
-      apply REAL_CHAN_DH_RED_sem_typed.
+          - by eapply new_composition.DH_real_self.
+          - by eapply new_composition.DH_rand_self. }
+      by apply new_composition_typing.REAL_CHAN_DH_RED_sem_typed.
   Qed.
 
-Section adv_comp.
+End adv_comp.
