@@ -580,6 +580,28 @@ Section adv_dhke.
       + split; [apply DH_real_self | apply DH_rand_self].
   Qed.
 
+  Lemma T_DH_bool `{!probblazeRGS Σ} η μ δ ξ :
+    interp._ty η μ δ (T_DH ⇾ TBool)  ξ = (τ_DH → 𝔹)%T.
+  Proof using All.
+    repeat rewrite ?interp_TArrow ?interp_TBang.
+    rewrite T_DH_interp. by simpl.
+  Qed. 
+
+  Lemma adv_DHKE_typed A :
+   ⊢ᵥ A : (T_DH ⇾ TBool) →
+          advantage A (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V #true <=
+            advantage (λ: "v", A (((λ: "DH", (λ: "f", F_AUTH (C_lazy "DH" "f")))%V "v")))%V DH_real DH_rand #true.
+  Proof using All.
+    intros HAtyped. apply adv_DHKE_real. 
+    intros HRGS.
+    apply (@fundamental_val Σ HRGS) in HAtyped.
+    iPoseProof HAtyped as "Hadv".
+    unfold bin_log_val_related.
+    iSpecialize ("Hadv" $! [] [] ∅ []). 
+    by rewrite T_DH_bool.
+  Qed. 
+ 
+
 End adv_dhke.
 
 Print Assumptions adv_DHKE_real.
