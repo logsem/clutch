@@ -9,13 +9,11 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   sem_judgement sem_row sem_def 
   p_composition
   fundamental .
-From clutch.clutch Require ElGamal_bijection.
 From clutch.prob_eff_lang.probblaze.examples.ot Require Import definition_thunk_sender_corrupt ot_bijection.
 From mathcomp Require Import ssrbool.
 Import fingroup.
 Import fingroup.fingroup.
 Import finset cyclic.
-Import ElGamal_bijection.bij_nat.
 
 (* Import valgroup_notation. *)
 Import valgroup_tactics.
