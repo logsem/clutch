@@ -5,6 +5,9 @@ From clutch.prob_eff_lang.probblaze Require Import sec_channel_def p_composition
 From clutch.prob_eff_lang.probblaze Require Import new_composition xor new_composition_defs def_dhke.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import advantage_dhke_lazy.
 
+Import fingroup.
+Import fingroup.fingroup.
+
 Section adv_comp.
   Context {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg}.
   Context {G : ∀ `{!probblazeRGS Σ}, clutch_group}.  
