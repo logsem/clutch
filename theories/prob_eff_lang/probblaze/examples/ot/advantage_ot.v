@@ -45,42 +45,99 @@ Section adv_sc_typing.
   Import valgroup_notation.
   Import valgroup_tactics.
 
-  Lemma OT_REDUCTION_sem_typed `{!probblazeRGS Σ} :
-    ⊢ ⊨ᵥ OT_REDUCTION ≤ OT_REDUCTION : ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾)) → τ_sc).
-  Proof. 
-    unfold OT_REDUCTION. unfold sem_ty_mbang. simpl.
-    iIntros (DH1 DH2) "!# !# HDH".
-    brel_pures'.
+  (* reduction applied to related DH samplers is self-related: the sampled
+     DH tuple is stored in a ghost variable and handed out as the CRS by
+     the "CRS" handler on both sides. This is the self-related analogue of
+     fcrs_dh_ideal and dh_ideal_fcrs. *)
+  Lemma reduction_self `{!probblazeRGS Σ} γcrs (DH1 DH2 : val) :
+    own γcrs (to_dfrac_agree (DfracOwn 1) #()%V) -∗
+    (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾))%T DH1 DH2 -∗
+    BREL (reduction DH1) ≤ (reduction DH2) <|⊥|> {{ λ v1 v2, (∀ᵣ θ__L, (∀ᵣ θ__CRS, ((𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾))) -{ sem_row_union (¡ θ__CRS) θ__L}-∘ 𝟙) -{ θ__L }-∘ 𝟙)%T v1 v2}}.
+  Proof.
+    iIntros "Hcrs HDH".
+    unfold reduction. brel_pures.
     iModIntro.
-    iIntros (? f1 f2) "HτC".
-    brel_pures'.
-    iModIntro.
-    iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
-    unfold reduction.
-    brel_pures'.
+    iIntros (θL f1 f2) "Hff". brel_pures'.
     iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][HDH]"); first iApply to_iThy_le_refl.
-    { by iApply "HDH". }            
+    { by iApply "HDH". }
     simpl.
     iIntros (??) "HG".
     iDestruct "HG" as "(%&%&%&%&->&->&H1&H2)".
     iDestruct "H1" as "(%&%&%&%&->&->&H1'&H2')".
     iDestruct "H1'" as "(%&%&%&%&->&->&H1''&H2'')".
-    iDestruct "H1''" as "(%&->&->)".
-    iDestruct "H2''" as "(%&->&->)".
-    iDestruct "H2'" as "(%&->&->)".
-    iDestruct "H2" as "(%&->&->)".
+    iDestruct "H1''" as "(%ga&->&->)".
+    iDestruct "H2''" as "(%gb&->&->)".
+    iDestruct "H2'" as "(%gc&->&->)".
+    iDestruct "H2" as "(%gd&->&->)".
     brel_pures'.
-    iApply brel_effect_l. iIntros (l) "!> Hl !>". 
-    iApply brel_effect_r. iIntros (r) "Hr !>".
+    iApply fupd_brel.
+    iDestruct (auth_upd (vgval ga, vgval gb, vgval gc, vgval gd)%V with "Hcrs") as ">Hcrs".
+    iDestruct (auth_persist with "Hcrs") as ">Hcrs".
+    iDestruct "Hcrs" as "#Hcrs".
+    iModIntro.
+    iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
+    iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>".
     brel_pures'.
-    unfold OT_Real_Sender_corrupt.
+    iApply brel_new_theory.
+    iApply (brel_add_label_l with "Hcrsl").
+    iApply (brel_add_label_r with "Hcrsr").
+    unfold sem_val_typed. simpl.
+    set (CRSrow := crsrow CRSl CRSr γcrs).
+    iSpecialize ("Hff" $! CRSrow).
+    unfold sem_ty_arr, sem_ty_mbang. simpl.
+    iAssert (sem_val_typed (λ: <>, do: CRSl #()%V)%V (λ: <>, do: CRSr #()%V)%V (𝟙 -{ CRSrow }-> (𝔾 × 𝔾 × 𝔾 × 𝔾))%T) as "Hgg".
+    { iModIntro. rewrite /sem_ty_arr /sem_ty_mbang //=.
+      iIntros (??) "!# (->&->)". brel_pures'.
+      iApply brel_introduction'; first constructor.
+      iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
+      do 2 (iSplit; [by iPureIntro|]). iIntros (crs) "Hcrs'". iDestruct (auth_agree with "[$][$]") as "->".
+      iApply brel_value. iIntros "$ !>".
+      do 3 (iExists _,_,_,_; do 2 (iSplit; [by iPureIntro|]);
+      iSplit; last (iExists _; done)). iExists _; done. }
+    unfold sem_val_typed. simpl. iDestruct "Hgg" as "#Hgg".
+    iSpecialize ("Hff" with "Hgg").
+    iApply (brel_exhaustion (f1 _) (f2 _) with "Hff"); [done|done|].
+    iLöb as "IH".
+    iSplit; [iIntros (??) "!# (->&->)"; by brel_pures|].
+    iIntros (?????) "!# %Hk1' %Hk2 (%&(->&->&HQ)&HQ'Q) #HQkont".
+    iApply brel_handle_os_l; [apply neutral_ectx;constructor|]. iIntros (ul) "!> Hul".
+    iApply brel_handle_os_r; [apply neutral_ectx;constructor|]. iIntros (ur) "Hur".
+    brel_pures.
+    iApply (brel_cont_l with "[$]"). iModIntro.
+    iApply (brel_cont_r with "[$]").
+    iDestruct ("HQ" with "Hcrs") as "HQ".
+    iDestruct ("HQ'Q" with "HQ") as "HQ".
+    iDestruct ("HQkont" with "HQ") as "Hkont".
+    iApply (brel_exhaustion _ _ [_] [_] with "Hkont"); [done|done|].
+    iApply "IH".
+  Qed.
+
+  Lemma OT_REDUCTION_sem_typed `{!probblazeRGS Σ} :
+    ⊢ ⊨ᵥ OT_REDUCTION ≤ OT_REDUCTION : ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾)) → τ_sc).
+  Proof using G cg inG2 n_prime vg vgg Σ.
+    unfold OT_REDUCTION. unfold sem_ty_mbang. simpl.
+    iIntros (DH1 DH2) "!# !# HDH".
     brel_pures'.
-    iApply brel_effect_l. iIntros (l2) "!> Hl2 !>". 
-    iApply brel_effect_r. iIntros (r2) "Hr2 !>".
+    iModIntro.
+    iIntros (θ f1 f2) "HτC".
     brel_pures'.
-  Admitted. 
+    iModIntro.
+    iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
+    brel_pures'.
+    iApply (brel_bind' [AppLCtx _] [AppLCtx _]).
+    { iApply traversable_to_iThy. }
+    iApply brel_introduction_mono; [iApply to_iThy_le_bot|].
+    iApply fupd_brel.
+    iDestruct auth_alloc as ">(%γcrs&Hcrs)".
+    iModIntro.
+    assert (to_iThyIfMono OS [] = ⊥) as <-; first done.
+    iApply (brel_mono OS with "[][Hcrs HDH]"); [iApply to_iThy_le_refl|iApply (reduction_self with "Hcrs HDH")|simpl].
+    iIntros (g1 g2) "Hgg /=".
+    iApply "Hgg".
+    by unshelve iApply (OT_Real_Sender_corrupt_self with "Hsend Hrecv HτC").
+  Qed.
     
 
   Lemma DH_rand_sem_typed `{!probblazeRGS Σ} :
@@ -150,6 +207,8 @@ Section adv_sc.
         #true <= 1/n. 
   Proof using n_prime G inG2 H. 
     intros Hadv. eapply brel_advantage; try done; last split.
+    - apply Rcomplements.Rdiv_le_0_compat; first lra.
+      apply lt_0_INR. lia.
     - apply Hadv.
     - intros Hrgs. by unshelve iApply OT_real_DH_real.
     - intros Hrgs. by unshelve iApply DH_real_OT_real.
@@ -160,6 +219,8 @@ Section adv_sc.
     advantage A ((λ: "DH" "f" "effs", (reduction "DH") (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V DH_real) OT_SIM_FOT_thunk #true <= 1/n. 
   Proof using n_prime G inG2 H. 
     intros Hadv. eapply brel_advantage; try done; last split.
+    - apply Rcomplements.Rdiv_le_0_compat; first lra.
+      apply lt_0_INR. lia.
     - apply Hadv.
     - intros Hrgs. by unshelve iApply DH_OT_sim.
     - intros Hrgs. by unshelve iApply OT_sim_DH.
