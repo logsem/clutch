@@ -687,11 +687,11 @@ End ARcoupl.
 Section ARcoupl_sets.
 
   Context `{Countable A, Countable B, Countable A', Countable B'}.
-  Context (μ1 : distr A) (μ2 : distr B) (S : A -> B -> Prop).
+  Context (μ1 : distr A) (μ2 : distr B) (P : A -> B -> Prop).
 
   Definition ARcoupl_sets (ε : R) :=
     forall (P1: A → Prop) (P2: B -> Prop),
-      (forall a b, S a b -> P1 a -> P2 b) ->
+      (forall a b, P a b -> P1 a -> P2 b) ->
       prob μ1 (λ a, bool_decide (P1 a)) <= prob μ2 (λ b, bool_decide (P2 b)) + ε.
 
   (**
@@ -702,6 +702,17 @@ Section ARcoupl_sets.
      that the ideal solution would be to prove an extensional equality
      lemma for prob to change the instance of the Decision typeclass.
    *)
+
+  Local Lemma sum_f_R0_le (An Bn : nat → R) (N : nat) :
+    (∀ k, (k ≤ N)%nat → An k <= Bn k) → sum_f_R0 An N <= sum_f_R0 Bn N.
+  Proof.
+    intros Hleq. induction N.
+    - simpl. apply Hleq. lia.
+    - rewrite !tech5. apply Rplus_le_compat.
+      + apply IHN. intros k Hk. apply Hleq. lia.
+      + apply Hleq. lia.
+  Qed.
+
   Lemma exp_val_from_interval (f : A -> R) (g : B -> R) ε:
     (forall a, 0 <= f a <= 1) ->
     (forall b, 0 <= g b <= 1) ->
@@ -709,11 +720,47 @@ Section ARcoupl_sets.
         prob μ1 (λ a, @bool_decide (r <= f a) (make_decision (r <= f a))) <=
           prob μ2 (λ b, @bool_decide (r <= g b) (make_decision (r <= g b))) + ε) ->
     SeriesC (λ a, μ1 a * f a) <= SeriesC (λ b, μ2 b * g b) + ε.
-  Admitted.
+  Proof.
+    intros Hf Hg Hr.
+    (* For every n ≥ 1 we have SeriesC(μ1·f) - 1/n ≤ SeriesC(μ2·g) + ε. *)
+    assert (∀ n, (0 < n)%nat →
+        SeriesC (λ a, μ1 a * f a) - / INR n <= SeriesC (λ b, μ2 b * g b) + ε) as Hcore.
+    { intros n Hn.
+      etrans. { exact (SeriesC_step_approx_lower μ1 n f Hn Hf). }
+      etrans.
+      2: { apply Rplus_le_compat_r. exact (SeriesC_step_approx_upper μ2 n g Hn Hg). }
+      (* Goal: SeriesC(μ1·step_approx n f) ≤ SeriesC(μ2·step_approx n g) + ε *)
+      rewrite (SeriesC_step_approx μ1 n f Hn) (SeriesC_step_approx μ2 n g Hn).
+      set (Tf := λ k, SeriesC (λ a : A,
+        if @bool_decide (INR (S k) / INR n <= f a) (make_decision _) then μ1 a else 0)).
+      set (Tg := λ k, SeriesC (λ b : B,
+        if @bool_decide (INR (S k) / INR n <= g b) (make_decision _) then μ2 b else 0)).
+      assert (Hne : INR n ≠ 0) by (apply not_0_INR; lia).
+      assert (Hn_pos : 0 <= / INR n) by (apply Rinv_0_le; apply pos_INR).
+      (* Level-set bound: apply Hr at each threshold r = (k+1)/n ∈ (0,1]. *)
+      assert (Hk : ∀ k, (k ≤ pred n)%nat → Tf k <= Tg k + ε).
+      { intros k Hkn. rewrite /Tf /Tg. apply Hr. split.
+        - unfold Rdiv. apply Rmult_le_pos; [apply pos_INR | exact Hn_pos].
+        - unfold Rdiv. rewrite -(Rinv_r (INR n) Hne).
+          apply Rmult_le_compat_r; [exact Hn_pos | apply le_INR; lia]. }
+      (* Multiply the pointwise bound by 1/n and simplify. *)
+      etrans. { apply Rmult_le_compat_l; [exact Hn_pos | apply sum_f_R0_le; exact Hk]. }
+      have Heq : / INR n * sum_f_R0 (λ k, Tg k + ε) (pred n) =
+                 / INR n * sum_f_R0 Tg (pred n) + ε.
+      { rewrite sum_plus sum_cte. erewrite Nat.lt_succ_pred => //. field. exact Hne. }
+      lra. }
+    (* Conclude by the Archimedean property: 1/n → 0 forces the gap to 0. *)
+    apply Rnot_gt_le. intro Hcontra.
+    set (x := SeriesC (λ a, μ1 a * f a)).
+    set (y := SeriesC (λ b, μ2 b * g b) + ε).
+    assert (Hgap : 0 < x - y) by (fold x y in Hcontra; lra).
+    destruct (archimed_cor1 (x - y) Hgap) as [m [Hm Hmpos]].
+    fold x y in Hcore. pose proof (Hcore m Hmpos) as hnf. lra.
+  Qed.
 
   Lemma equiv_ARcoupl_sets_1 (ε : R) :
-    ARcoupl_sets ε -> ARcoupl μ1 μ2 S ε.
-  Proof using A A' B B' EqDecision0 EqDecision1 EqDecision2 EqDecision3 H H0 H1 H2 S μ1 μ2.
+    ARcoupl_sets ε -> ARcoupl μ1 μ2 P ε.
+  Proof using A A' B B' EqDecision0 EqDecision1 EqDecision2 EqDecision3 H H0 H1 H2 P μ1 μ2.
     intros Hcoupl f g Hf Hg Hfg.
     apply exp_val_from_interval; auto.
     intros r Hr.
@@ -725,8 +772,8 @@ Section ARcoupl_sets.
   Qed.
 
   Lemma equiv_ARcoupl_sets_2 (ε : R) :
-    ARcoupl μ1 μ2 S ε -> ARcoupl_sets ε .
-  Proof using A A' B B' EqDecision0 EqDecision1 EqDecision2 EqDecision3 H H0 H1 H2 S μ1 μ2.
+    ARcoupl μ1 μ2 P ε -> ARcoupl_sets ε .
+  Proof using A A' B B' EqDecision0 EqDecision1 EqDecision2 EqDecision3 H H0 H1 H2 P μ1 μ2.
     intros Hcoupl P1 P2 HP12.
     rewrite /prob.
     rewrite /ARcoupl in Hcoupl.
@@ -746,8 +793,8 @@ Section ARcoupl_sets.
 
 
   Lemma equiv_ARcoupl_sets (ε : R) :
-    ARcoupl_sets ε <-> ARcoupl μ1 μ2 S ε.
-  Proof using A A' B B' EqDecision0 EqDecision1 EqDecision2 EqDecision3 H H0 H1 H2 S μ1 μ2.
+    ARcoupl_sets ε <-> ARcoupl μ1 μ2 P ε.
+  Proof using A A' B B' EqDecision0 EqDecision1 EqDecision2 EqDecision3 H H0 H1 H2 P μ1 μ2.
     split; [apply equiv_ARcoupl_sets_1 | apply equiv_ARcoupl_sets_2].
   Qed.
 
