@@ -12,6 +12,9 @@ def max_l(l):
             a = x
     return a
 
+fps = 3
+ts = 20
+
 
 if __name__ == "__main__":
     images = []
@@ -21,6 +24,7 @@ if __name__ == "__main__":
         nb_images = 0
         for row in datalen:
             nb_images = int(row[0])
+        step = nb_images/(fps*ts)
         with open("data/gif0.csv", "r") as f0:
             data0 = csv.reader(f0)
             x0 = []
@@ -31,7 +35,7 @@ if __name__ == "__main__":
                 y0.append(float(row[1]))
                 if max_d < float(row[1]):
                     max_d = float(row[1])
-            for i in range(nb_images):
+            for i in range(0, nb_images, int(step)):
                 if i % int(nb_images / 100) == 0:
                     print(str(int(1000*i/nb_images)/10) + "%", "\r", end="")
                 with open(f"data/gif{i+1}.csv", "r") as f:
@@ -55,4 +59,4 @@ if __name__ == "__main__":
     print("exporting")
     images[0].save('evolution_distrib.gif',
                    save_all=True, append_images=images[1:],
-                   optimize=True, duration=15)
+                   optimize=False, duration=5*ts)
