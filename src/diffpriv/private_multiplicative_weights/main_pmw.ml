@@ -15,8 +15,8 @@ let () =
   in
   if (Array.mem "--list" Sys.argv) then (
     let size, index, db = mk_histo_l (path ^ file) in
-    let card_q = List.length index in
-    let nb_q = 10000 * card_q in
+    let log_card_q = List.length index in
+    let nb_q = 10000 * log_card_q in
     let stream_query =
       let a = ref nb_q in
       fun bs ->
@@ -33,7 +33,7 @@ let () =
         index
         (get_unif_l index size)
         stream_query
-        (float_of_int card_q)
+        (float_of_int log_card_q)
         1 1 0.01 0.1
         ~gif:(if (Array.mem "--gif" Sys.argv) then Some (path_gif ^ file_gif) else None)
     in
@@ -59,8 +59,8 @@ let () =
     (* Printf.printf "tl: %d\n" (pow 2 (List.length domaine)); *)
     (* let card_q = pow 2 (List.length domaine) in *)
     (* let nb_q = 2 * card_q in *)
-    let card_q = List.length domaine in
-    let nb_q = 100 * card_q in
+    let log_card_q = List.length domaine in
+    let nb_q = 100 * log_card_q in
     let stream_query =
       let a = ref nb_q in
       fun bs ->
@@ -77,7 +77,7 @@ let () =
         db
         (get_unif domaine)
         stream_query
-        (float_of_int card_q)
+        (float_of_int log_card_q)
         1 1 0.1 0.1
         ~gif:(if (Array.mem "--gif" Sys.argv) then Some (path_gif ^ file_gif) else None)
     in
