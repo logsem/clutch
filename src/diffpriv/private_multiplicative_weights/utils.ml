@@ -156,9 +156,12 @@ let get_unif_l domaine size =
 
 let c_query_l q db =
   (* given a query and a db compute the result (scalar product) *)
-  let res = ref 0 in
-  List.iteri (fun i x -> if (List.nth q i) then (res := x + !res) else ()) db;
-  !res
+  snd List.(
+      if length db <= length q
+      then
+        fold_left (fun acc x -> (fst acc +1, snd acc + if nth q (fst acc) then x else 0)) (0, 0) db
+      else
+        fold_left (fun acc x -> (fst acc +1, snd acc + if x then nth db (fst acc) else 0)) (0, 0) q)
 
 let aff_db_l db index =
   (* displays db *)
