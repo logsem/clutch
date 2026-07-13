@@ -3020,6 +3020,265 @@ Section laplace.
 
 End laplace.
 
+
+Section gauss.
+  Definition gauss_f_nat (σ : posreal) (n:nat) := exp (- ((INR n) ^ 2) / (2 * (σ ^ 2))).
+  Definition gauss_f (σ : posreal) (z:Z) := gauss_f_nat σ (Z.to_nat (Z.abs z)).
+  
+  Lemma gauss_f_nat_pos σ n : 0 <= gauss_f_nat σ n.
+  Proof.
+    left. apply exp_pos.
+  Qed.
+ 
+  Local Lemma exp_Rle_mono (r s : R) : r <= s -> exp r <= exp s.
+  Proof.
+    intro Hrs.
+    inversion Hrs as [? | ->]; [|lra].
+    left.
+    by apply exp_increasing.
+  Qed.
+
+
+  Lemma ex_seriesC_gauss_f_nat σ: ex_seriesC (λ n, gauss_f_nat σ n).
+  Proof.
+    rewrite /gauss_f_nat. eapply (ex_seriesC_le _ (λ n, (exp (-1/(2*(σ ^ 2))) ^ n))).
+    - intros. split.
+      + left. apply exp_pos.
+      + rewrite exp_pow. 
+        apply exp_Rle_mono.
+        replace (-1 / (2 * σ ^ 2) * n) with (-n / (2 * σ ^ 2)) by lra.
+        apply Rmult_le_compat_r.
+        * left.
+          apply Rinv_pos.
+          apply Rlt_gt.
+          apply Rmult_lt_0_compat; [lra|].
+          apply pow_lt.
+          apply cond_pos.
+        * apply Ropp_ge_le_contravar.
+          apply Rle_ge.
+          destruct n; [simpl; lra|].
+          rewrite -{1}(pow_1 (S n)).
+          apply Rle_pow; [|lia].
+          rewrite S_INR.
+          rewrite -{1}(Rplus_0_l 1).
+          apply Rplus_le_compat_r.
+          real_solver.
+    - rewrite -ex_seriesC_nat. apply ex_series_geom.
+      apply Rabs_def1.
+      + replace (-1 / (2 * σ ^ 2)) with (-(1 / (2 * σ ^ 2))) by lra.
+        rewrite exp_Ropp.
+        rewrite -Rdiv_1_l. rewrite -Rdiv_lt_1; last apply exp_pos.
+        replace 1 with (exp 0); last apply exp_0.
+        apply exp_increasing.
+        apply Rdiv_lt_0_compat; [rewrite exp_0; lra|].
+        apply Rmult_lt_0_compat; [lra|].
+        simpl; rewrite Rmult_1_r.
+        apply Rmult_lt_0_compat; apply cond_pos.
+      + trans 0; [lra|apply exp_pos].
+  Qed.
+  
+  Lemma ex_seriesC_gauss_f σ : ex_seriesC (λ z, gauss_f σ z).
+  Proof.
+    pose (h:=(λ '(n,z), if Z.to_nat (Z.abs z) =?  n then gauss_f_nat σ n else 0)).
+    apply (ex_seriesC_ext (λ z, SeriesC (λ n, h (n,z)))).
+    { rewrite /h.
+      intros z.
+      erewrite SeriesC_ext; first erewrite (SeriesC_singleton_dependent (Z.to_nat (Z.abs z)) (gauss_f_nat σ)); first done.
+      simpl.
+      intros n.
+      case_match eqn:H.
+      - apply Nat.eqb_eq in H. subst. by rewrite bool_decide_eq_true_2.
+      - apply Nat.eqb_neq in H. by rewrite bool_decide_eq_false_2.
+    }
+    apply fubini_pos_seriesC_ex_double.
+    - rewrite /h. intros. case_match; last done.
+      rewrite /gauss_f_nat. left. apply exp_pos.
+    - rewrite /h.
+      intros n.
+      destruct n.
+      + eapply ex_seriesC_ext; last apply (ex_seriesC_singleton 0%Z).
+        simpl.
+        intros z.
+        case_bool_decide; subst; simpl; first done.
+        case_match eqn :H'; last done.
+        apply Nat.eqb_eq in H'. lia.
+      + apply (ex_seriesC_ext (λ b, if bool_decide (b∈ [Z.of_nat (S n); (- (Z.of_nat (S n)))%Z]) then gauss_f_nat σ (S n) else 0)); last apply ex_seriesC_list.
+        intros. case_bool_decide as H.
+        * set_unfold. destruct H as [| [|[]]]; subst; simpl.
+          -- by rewrite -Zabs2Nat.abs_nat_spec Zabs2Nat.id/=Nat.eqb_refl.
+          -- by rewrite Z.abs_opp -Zabs2Nat.abs_nat_spec Zabs2Nat.id/=Nat.eqb_refl.
+        * case_match eqn:H'; last done.
+          exfalso. apply H.
+          apply Nat.eqb_eq in H'.
+          set_unfold. lia.
+    - rewrite /h.
+      apply (ex_seriesC_ext (λ n, if bool_decide (n=0)%nat then gauss_f_nat σ 0 else 2 * gauss_f_nat σ n)).
+      + intros.
+        case_bool_decide as H1.
+        * erewrite SeriesC_ext; first (erewrite (SeriesC_singleton 0%Z); first done).
+          intros z. simpl. subst.
+          case_bool_decide; subst; simpl; first done.
+          case_match eqn :H'; last done.
+          apply Nat.eqb_eq in H'. lia.
+        * erewrite (SeriesC_ext _ (λ b, if bool_decide (b∈ [Z.of_nat (n); (- (Z.of_nat (n)))%Z]) then gauss_f_nat σ (n) else 0)).
+          -- rewrite SeriesC_list/=.
+             ++ lra. 
+             ++ assert (Z.of_nat (n) ≠ -Z.of_nat (n))%Z by lia.
+                repeat constructor; set_solver.
+          -- intros. case_bool_decide as H.
+             ++ set_unfold. destruct H as [| [|[]]]; subst; simpl.
+                ** by rewrite -Zabs2Nat.abs_nat_spec Zabs2Nat.id/=Nat.eqb_refl.
+                ** by rewrite Z.abs_opp -Zabs2Nat.abs_nat_spec Zabs2Nat.id/=Nat.eqb_refl.
+             ++ case_match eqn:H'; last done.
+                exfalso. apply H.
+                apply Nat.eqb_eq in H'.
+                set_unfold. lia.
+      + apply (ex_seriesC_le _ (λ n, 2*gauss_f_nat σ n)).
+        * intros n. pose proof gauss_f_nat_pos σ n. case_bool_decide; split; subst; lra.
+        * apply ex_seriesC_scal_l, ex_seriesC_gauss_f_nat.
+  Qed.
+  
+  Program Definition gauss' σ : distr (Z) :=
+    MkDistr (λ z, gauss_f σ z / SeriesC (λ z, gauss_f σ z)) _ _ _.
+  Next Obligation.
+    intros.
+    apply Rdiv_le_0_compat.
+    - left. apply exp_pos.
+    - eapply Rlt_le_trans; last eapply (SeriesC_ge_elem _ 0%Z).
+      + apply exp_pos.
+      + intros; left. apply exp_pos.
+      + apply ex_seriesC_gauss_f.
+  Qed.
+  Next Obligation.
+    intros.
+    setoid_rewrite Rdiv_def.
+    apply ex_seriesC_scal_r, ex_seriesC_gauss_f.
+  Qed.
+  Next Obligation.
+    intros.
+    setoid_rewrite Rdiv_def.
+    rewrite SeriesC_scal_r.
+    rewrite Rinv_r; first done.
+    assert (0<SeriesC (gauss_f σ)) as ?; last lra.
+    eapply Rlt_le_trans; last eapply (SeriesC_ge_elem _ 0%Z).
+      - apply exp_pos.
+      - intros; left. apply exp_pos.
+      - apply ex_seriesC_gauss_f.
+  Qed.
+
+  Program Definition gauss μ σ :distr (Z) :=
+    MkDistr (λ z, gauss' σ (z-μ)%Z) _ _ _.
+  Next Obligation.
+    simpl; intros.
+    apply pmf_pos.
+  Qed.
+  Next Obligation.
+    intros.
+    pose (h:= (λ '(z1, z2), if bool_decide (z2 - z1 = μ)%Z then gauss' σ z1 else 0)).
+    apply (ex_seriesC_ext (λ z2, SeriesC (λ z1, h (z1, z2)))).
+    { rewrite /h.
+      intros z2.
+      erewrite SeriesC_ext; first apply SeriesC_singleton_dependent.
+      simpl. intros; repeat case_bool_decide; try done; lia.
+    }
+    apply fubini_pos_seriesC_ex_double; rewrite /h.
+    - intros. case_bool_decide; [apply pmf_pos|done].
+    - intros. eapply ex_seriesC_ext; last apply (ex_seriesC_singleton (μ+a)%Z).
+      intros. simpl. repeat case_bool_decide; try lia; done.
+    - eapply ex_seriesC_ext; last apply (pmf_ex_seriesC (gauss' σ)).
+      intros n.
+      erewrite SeriesC_ext; first by erewrite (SeriesC_singleton (n+μ)%Z).
+      intros. simpl. repeat case_bool_decide; try lia; done.
+  Qed.
+  Next Obligation.
+    intros.
+    pose (h:= (λ '(z1, z2), if bool_decide (z2 -z1 = μ)%Z then gauss' σ z1 else 0)).
+    rewrite (SeriesC_ext _ (λ z, SeriesC (λ n, h (n,z)))).
+    - rewrite fubini_pos_seriesC.
+      + rewrite /h.
+        erewrite (SeriesC_ext _ (gauss' σ)).
+        * apply pmf_SeriesC.
+        * intros n.
+          erewrite (SeriesC_ext _ (λ b, if bool_decide (b=n+μ)%Z then gauss' σ n else 0)); first by rewrite SeriesC_singleton.
+          intros. repeat case_bool_decide; try lia; done.
+      + rewrite /h. intros. case_bool_decide; last done.
+        apply pmf_pos.
+      + rewrite /h.
+        intros n. apply (ex_seriesC_ext (λ b, if bool_decide (b=n+μ)%Z then gauss' σ n else 0));
+          last apply ex_seriesC_singleton.
+        intros. repeat case_bool_decide; try lia; done.
+      + rewrite /h.
+        apply (ex_seriesC_ext (gauss' σ)); last apply pmf_ex_seriesC.
+        intros n. erewrite (SeriesC_ext _ (λ b, if bool_decide (b=n+μ)%Z then gauss' σ n else 0)); first by rewrite SeriesC_singleton.
+        intros. repeat case_bool_decide; try lia; done.
+    - intros n. rewrite /h.
+      erewrite (SeriesC_ext _ (λ b, if bool_decide (b=n-μ)%Z then gauss' σ b else 0)); first by rewrite SeriesC_singleton_dependent.
+      intros. repeat case_bool_decide; try lia; done.
+  Qed.
+
+  Lemma gauss_mass μ σ :
+    SeriesC (gauss μ σ) = 1.
+  Proof.
+    rewrite /gauss/pmf/gauss'.
+    rewrite SeriesC_scal_r.
+    cut (SeriesC (λ z0 : Z, gauss_f σ (z0 - μ)) = SeriesC (λ z1 : Z, gauss_f σ z1)).
+    { intros ->. apply Rdiv_diag.
+      cut (0 < SeriesC (λ z0 : Z, gauss_f σ z0)) ; [lra|].
+      opose proof (ex_seriesC_gauss_f σ).
+      rewrite /gauss_f/gauss_f_nat.
+      rewrite -(@dzero_mass Z _ _).
+      apply SeriesC_lt.
+      -- intros. split.
+         ++ rewrite dzero_0. done.
+         ++ rewrite dzero_0. left. apply exp_pos.
+      -- simpl. exists 0%Z. rewrite dzero_0. apply exp_pos.
+      -- done.
+    }
+    apply SeriesC_translate.
+    { intros. rewrite /gauss_f/gauss_f_nat. left. apply exp_pos. }
+    apply ex_seriesC_gauss_f.
+  Qed.
+
+  Definition gauss_rat (loc num den : Z) : distr Z
+    :=
+    match decide (0 < IZR num / IZR den)%R with
+    | left σpos => gauss loc (mkposreal (IZR num / IZR den) σpos)
+    | right nσpos => dret loc
+    end.
+
+  Lemma gauss_rat_pos (loc num den : Z) z :
+    (0 < IZR num / IZR den ∨ loc = z) →
+    gauss_rat loc num den z > 0.
+  Proof.
+    rewrite /gauss_rat.
+    case_decide => //.
+    {
+    intros.
+    rewrite /gauss. rewrite /pmf. rewrite /gauss'.
+    apply Rdiv_lt_0_compat.
+    - rewrite /gauss_f/gauss_f_nat. apply exp_pos.
+    - epose proof (ex_seriesC_gauss_f {| cond_pos := _ |}).
+      rewrite /gauss_f/gauss_f_nat.
+      rewrite -(@dzero_mass Z _ _). apply SeriesC_lt.
+      + intros. split.
+        * rewrite dzero_0. done.
+        * rewrite dzero_0. left. apply exp_pos.
+      + simpl. exists 0%Z. rewrite dzero_0. apply exp_pos.
+      + eassumption.
+    }
+    intros [] => //. simplify_eq. apply Rlt_gt. rewrite ((iffLR (dret_1 z z))) => //. lra.
+  Qed.
+
+  Corollary gauss_rat_mass loc num den :
+    SeriesC (gauss_rat loc num den) = 1.
+  Proof.
+    rewrite /gauss_rat. case_decide.
+    - apply gauss_mass.
+    - apply dret_mass.
+  Qed.
+
+End gauss.
+
 Section proj_Some.
   Context `{Countable A}.
   Definition d_proj_Some (x:option A) :=
@@ -3080,6 +3339,9 @@ Ltac inv_distr :=
     | H : ((laplace_rat ?num ?den _).(pmf) _) > 0 |- _
       => rewrite /laplace_rat in H ;
          destruct (decide (0 < IZR num / IZR den)) ; [|inv_distr]
+    | H : ((gauss_rat _ ?num ?den).(pmf) _) > 0 |- _
+      => rewrite /gauss_rat in H ;
+         destruct (decide (0 < IZR num / IZR den)) ; [|inv_distr]
     end.
 
 Ltac solve_distr :=
@@ -3094,6 +3356,7 @@ Ltac solve_distr :=
     | |- (dunifv _ _).(pmf) _ > 0 => apply dunifv_pos
     | |- (unif_set _).(pmf) _ > 0 => apply unif_set_pos
     | |- (laplace_rat _ _ _).(pmf) _ > 0 => apply laplace_rat_pos
+    | |- (gauss_rat _ _ _).(pmf) _ > 0 => apply gauss_rat_pos
     | |- (d_proj_Some _).(pmf) _ > 0 => rewrite d_proj_Some_pos
     end.
 
@@ -3107,6 +3370,7 @@ Ltac solve_distr_mass :=
   | |- SeriesC (dunifv _ _).(pmf) = 1 => rewrite dunifv_mass //
   | |- SeriesC (unif_set _).(pmf) = 1 => rewrite unif_set_mass //
   | |- SeriesC (laplace_rat _ _ _).(pmf) = 1 => rewrite laplace_rat_mass //
+  | |- SeriesC (gauss_rat _ _ _).(pmf) = 1 => rewrite gauss_rat_mass //
   end .
 
 Ltac inv_dzero :=

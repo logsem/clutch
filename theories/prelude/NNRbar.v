@@ -297,6 +297,34 @@ Section nnreals_theory.
     nnreal_nat (S n) = (nnreal_one + nnreal_nat n)%NNR.
   Proof. rewrite nnreal_nat_Sn nnreal_nat_1 //. Qed.
 
+  Definition NNRmin (x y : nonnegreal) : nonnegreal :=
+    mknonnegreal (Rmin x y) (Rmin_glb _ _ _ x.(cond_nonneg) y.(cond_nonneg)).
+
+  Lemma NNRmin_left (x y : nonnegreal) : x <= y -> NNRmin x y = x.
+  Proof.
+    intros Hxy.
+    apply nnreal_ext=>/=.
+    by apply Rmin_left.
+  Qed.
+
+  Lemma NNRmin_assoc (x y z : nonnegreal) : NNRmin x (NNRmin y z) = NNRmin (NNRmin x y) z.
+  Proof.
+    apply nnreal_ext=>/=.
+    by apply Rmin_assoc.
+  Qed.
+
+  Lemma NNRmin_comm (x y : nonnegreal) : NNRmin x y = NNRmin y x.
+  Proof.
+    apply nnreal_ext=>/=.
+    by apply Rmin_comm.
+  Qed.
+
+  Lemma NNRmin_l (x y : nonnegreal) : NNRmin x y <= x.
+  Proof.
+    by apply Rmin_l.
+  Qed.
+
+
 End nnreals_theory.
 
 (** * Definitions *)

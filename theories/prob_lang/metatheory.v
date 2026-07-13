@@ -2,7 +2,7 @@ From Stdlib Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
 From clutch.prob Require Import distribution couplings couplings_app
-  couplings_exp differential_privacy couplings_dp.
+  couplings_exp differential_privacy couplings_dp couplings_rdp.
 From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import tactics notation.
 From clutch.prob_lang Require Export lang.
@@ -34,6 +34,7 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | AllocTape e => is_closed_expr X e
   | AllocTapeLaplace e1 e2 e3 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3
   | Laplace e1 e2 e3 e4 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3 && is_closed_expr X e4
+  | Gauss e1 e2 e3 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3
   | Tick e => is_closed_expr X e
   end
 with is_closed_val (v : val) : bool :=
@@ -67,6 +68,7 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | AllocTapeLaplace e1 e2 e3 => AllocTapeLaplace (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
   | Rand e1 e2 => Rand (subst_map vs e1) (subst_map vs e2)
   | Laplace e1 e2 e3 e4 => Laplace (subst_map vs e1) (subst_map vs e2) (subst_map vs e3) (subst_map vs e4)
+  | Gauss e1 e2 e3 => Gauss (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
   | Tick e => Tick (subst_map vs e)
   end.
 
@@ -789,6 +791,60 @@ Proof.
   apply DPcoupl_dret; [done|done|]. subst.
   exists z1. done.
 Qed.
+
+
+(* Coupling Gauss(m,s) with Gauss(m',s)*)
+Lemma RDPcoupl_gauss_primstep
+  (m m' k : Z)
+  (Hdist : (Z.abs (m - m') <= k)%Z)
+  (num den : Z) s α ρ σ1 σ1' :
+  (1 <= α) ->
+  (IZR num / IZR den)%R = s →
+  (0 < IZR num / IZR den)%R →
+  ρ = (((IZR k)^2)/(2 * (s^2)))%R →
+  RDPcoupl (language.prim_step (Gauss #m #num #den) σ1)
+    (prim_step (Gauss #m' #num #den) σ1')
+    (λ ρ2 ρ2', ∃ (z : Z),
+        ρ2 = (Val #z, σ1) ∧ ρ2' = (Val #z, σ1'))
+    α ρ.
+Proof.
+  intros Hα Hs ? Hρ. simpl. fold cfg.
+  rewrite !head_prim_step_eq /= ; try by exact 0%Z.
+  rewrite /dmap.
+  replace ρ with (ρ + 0)%R by lra.
+  eapply RDPcoupl_dbind => //;
+    [rewrite Hρ; apply Rcomplements.Rdiv_le_0_compat; nra| |].
+  2:{
+      rewrite /gauss_rat.
+      case_decide ; [|done].
+      rewrite Hρ -Hs.
+      eapply (RDPcoupl_gauss); done.
+  }
+  simpl.
+  intros z1 z2 Hres.
+  apply RDPcoupl_dret; [lra|done|]. subst.
+  eexists. done.
+Qed.
+
+
+Lemma RDPcoupl_gauss_exact
+  (m : Z)
+  (num den : Z) s α σ1 σ1' :
+  (1 <= α) ->
+  (IZR num / IZR den)%R = s →
+  (0 < IZR num / IZR den)%R →
+  RDPcoupl (language.prim_step (Gauss #m #num #den) σ1)
+    (prim_step (Gauss #m #num #den) σ1')
+    (λ ρ2 ρ2', ∃ (z : Z),
+        ρ2 = (Val #z, σ1) ∧ ρ2' = (Val #z, σ1'))
+    α 0.
+Proof.
+  intros Hα Hs ?.
+  eapply (RDPcoupl_gauss_primstep m m 0); eauto.
+  - lia.
+  - lra.
+Qed.
+
 
 Lemma DPcoupl_laplace_primstep_exact
   (loc : Z)
@@ -1599,6 +1655,9 @@ Inductive prob_head_step_pred : expr -> state -> Prop :=
   σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num' den' mean' xs) →
   (not ((num = num') ∧ (den = den') ∧ (mean = mean'))) →
   prob_head_step_pred (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+
+| GaussPSP (mean num den : Z) σ :
+  prob_head_step_pred (Gauss #mean #num #den) σ
 .
 
 Definition head_step_pred e1 σ1 :=
@@ -1670,6 +1729,7 @@ Proof.
     + apply LaplaceNoTapeS. by right.
     + eapply LaplaceTapeEmptyS => // ; by right.
     + eapply LaplaceTapeOtherS => // ; by right.
+    + eapply GaussS. by right.
       Unshelve. all: apply 0%fin.
   - intros (?&?& H). inversion H; simplify_eq;
       (try by (left; econstructor));
@@ -1735,6 +1795,7 @@ Proof.
       by apply not_elem_of_dom_2 in H5.
     + rewrite lookup_insert_ne // in H6.
       rewrite H5 in H6. done.
+  - rewrite Hz. apply dmap_dzero.
   - rewrite Hz. apply dmap_dzero.
   - rewrite Hz. apply dmap_dzero.
   - rewrite Hz. apply dmap_dzero.

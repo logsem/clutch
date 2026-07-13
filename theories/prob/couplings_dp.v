@@ -41,6 +41,96 @@ Section couplings_theory.
     by rewrite exp_0.
   Qed.
 
+  (** * Pure-DP to approximate-DP conversion (arithmetic core)
+
+      These are the real-analysis facts underlying the conversion of an
+      [(ε,0)] guarantee into an [(ε',δ)] guarantee with
+      [ε' = ½ε² + √(2 ln(1/δ)) · ε] (the standard zCDP-style bound, with
+      [ρ = ε²/2]). They are the obligations a conversion rule reduces to on
+      trivial (point) distributions; they do not themselves mention couplings
+      or the WP modality. *)
+
+  (* Parametrized by [t = √(2 ln(1/δ))] to keep [sqrt]/[ln] out of the core.
+     Reduces (dividing by [exp eps] and completing the square) to the clean
+     symmetric fact [exp(-t²/2) + exp(-(1-t)²/2) ≥ 1], which follows from the
+     elementary [1 + x ≤ exp x]; the [t ≥ 1] case is immediate. *)
+  Lemma conv_core (t ε : R) : 0 <= t -> 0 <= ε ->
+    (1 - exp (- t^2 / 2)) * exp ε <= exp (/2 * ε^2 + t * ε).
+  Proof.
+    intros Ht Heps.
+    replace (/2 * ε^2 + t * ε) with ((/2 * ε^2 + (t-1) * ε) + ε) by ring.
+    rewrite exp_plus.
+    apply Rmult_le_compat_r; [left; apply exp_pos|].
+    destruct (Rle_lt_dec 1 t) as [Ht1|Ht1].
+    - trans 1.
+      + pose proof (exp_pos (- t^2/2)). lra.
+      + apply exp_pos_ge_1. nra.
+    - trans (exp (- (1-t)^2 / 2)).
+      + pose proof (exp_ineq1_le (- t^2/2)) as A.
+        pose proof (exp_ineq1_le (- (1-t)^2/2)) as B.
+        nra.
+      + apply exp_mono. pose proof (pow2_ge_0 (ε + t - 1)). nra.
+  Qed.
+
+  (* The key inequality  (1-δ)·exp ε ≤ exp ε'  with  ε' = ½ε² + √(2 ln(1/δ))·ε. *)
+  Lemma conv_delta (δ ε : R) : 0 < δ <= 1 -> 0 <= ε ->
+    (1 - δ) * exp ε <= exp (/2 * ε^2 + sqrt (2 * ln (/ δ)) * ε).
+  Proof.
+    intros Hδ Hε.
+    assert (Hln : 0 <= ln (/ δ)).
+    { rewrite ln_Rinv; [|lra].
+      assert (ln δ <= 0) by (rewrite <- ln_1; apply Rcomplements.ln_le; lra). lra. }
+    set (t := sqrt (2 * ln (/ δ))).
+    assert (Ht2 : t^2 = 2 * ln (/ δ)) by (unfold t; apply pow2_sqrt; lra).
+    assert (Hexp : exp (- t^2 / 2) = δ).
+    { rewrite Ht2. rewrite ln_Rinv; [|lra].
+      replace (- (2 * - ln δ) / 2) with (ln δ) by lra.
+      apply exp_ln; lra. }
+    rewrite <- Hexp. apply conv_core; [apply sqrt_pos | exact Hε].
+  Qed.
+
+  (* The graded [0,1]-Kantorovich obligation on trivial (point) distributions:
+     any [(ε,0)]-bounded pair satisfies the [(ε',δ)] bound. *)
+  Lemma conversion_obligation (δ ε : R) : 0 < δ <= 1 -> 0 <= ε ->
+    forall x y, 0 <= x <= 1 -> 0 <= y <= 1 ->
+      x <= exp ε * y ->
+      x <= exp (/2 * ε^2 + sqrt (2 * ln (/ δ)) * ε) * y + δ.
+  Proof.
+    intros Hδ Hε x y Hx Hy Hxy.
+    pose proof (conv_delta δ ε Hδ Hε) as Hconv.
+    set (E := exp ε) in *.
+    set (E' := exp (/2 * ε^2 + sqrt (2 * ln (/ δ)) * ε)) in *.
+    assert (H1 : (1 - δ) * x <= (1 - δ) * (E * y)) by (apply Rmult_le_compat_l; lra).
+    assert (H2 : (1 - δ) * (E * y) <= E' * y).
+    { rewrite <- Rmult_assoc. apply Rmult_le_compat_r; [lra | exact Hconv]. }
+    nra.
+  Qed.
+
+  (* Framed version of [conversion_obligation]: the reframe tolerates ambient
+     multiplicative credit [er] and additive credit [dr] in the budget. This
+     is the exact Kantorovich obligation for a [spec_coupl] conversion step
+     when the supply also carries unrelated credit. The ambient [er] rides
+     through cleanly because the linear combination scales [exp(er)] on both
+     sides symmetrically. *)
+  Lemma conversion_obligation_framed (er dr δ ε : R) :
+    0 <= er -> 0 <= dr -> 0 < δ <= 1 -> 0 <= ε ->
+    forall x y, 0 <= x <= 1 -> 0 <= y <= 1 ->
+      x <= exp (er + ε) * y + dr ->
+      x <= exp (er + (/2 * ε^2 + sqrt (2 * ln (/ δ)) * ε)) * y + (dr + δ).
+  Proof.
+    intros Her Hdr Hδ Hε x y Hx Hy Hxy.
+    pose proof (conv_delta δ ε Hδ Hε) as Hconv.
+    set (ε' := /2 * ε^2 + sqrt (2 * ln (/ δ)) * ε) in *.
+    assert (Hframe : (1 - δ) * exp (er + ε) <= exp (er + ε')).
+    { rewrite (exp_plus er ε) (exp_plus er ε'). pose proof (exp_pos er). nra. }
+    set (E1 := exp (er + ε)) in *.
+    set (E1' := exp (er + ε')) in *.
+    assert (H1 : (1 - δ) * x <= (1 - δ) * (E1 * y + dr)) by (apply Rmult_le_compat_l; lra).
+    assert (H2 : (1 - δ) * (E1 * y) <= E1' * y).
+    { rewrite <- Rmult_assoc. apply Rmult_le_compat_r; [lra | exact Hframe]. }
+    nra.
+  Qed.
+
 
   Lemma DPcoupl_mono `{Countable A', Countable B'} (μ1 μ1': distr A') (μ2 μ2': distr B') R R' ε ε' δ δ':
     (∀ a, μ1 a = μ1' a) ->

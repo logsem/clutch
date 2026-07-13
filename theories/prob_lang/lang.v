@@ -52,6 +52,8 @@ Inductive expr :=
   | Rand (e1 e2 : expr)
   (* Sample from discrete Laplace distribution, with scale e1/e2, located at e3, with tape e4 *)
   | Laplace (e1 : expr) (e2 : expr) (e3 : expr) (e4 : expr)
+  (* Sample from discrete Gauss distribution, with mean e1 and scale e2/e3 *)
+  | Gauss (e1 : expr) (e2 : expr) (e3 : expr)
   (* No-op operator used for cost *)
   | Tick (e : expr)
 with val :=
@@ -236,6 +238,7 @@ Proof.
      | AllocTapeLaplace e1 e2 e3, AllocTapeLaplace e1' e2' e3' => cast_if_and3 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3'))
      | Rand e1 e2, Rand e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | Laplace e1 e2 e3 e4, Laplace e1' e2' e3' e4' => cast_if_and4 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3')) (decide (e4 = e4'))
+     | Gauss e1 e2 e3, Gauss e1' e2' e3' => cast_if_and3 (decide (e1 = e1')) (decide (e2 = e2')) (decide (e3 = e3'))
      | Tick e, Tick e' => cast_if (decide (e = e'))
      | _, _ => right _
      end
@@ -315,7 +318,8 @@ Proof.
      | AllocTapeLaplace e1 e2 e3 => GenNode 16 [go e1; go e2; go e3]
      | Rand e1 e2 => GenNode 17 [go e1; go e2]
      | Laplace e1 e2 e3 e4 => GenNode 18 [go e1; go e2; go e3; go e4]
-     | Tick e => GenNode 19 [go e]
+     | Gauss e1 e2 e3 => GenNode 19 [go e1; go e2; go e3]
+     | Tick e => GenNode 20 [go e]
      end
    with gov v :=
      match v with
@@ -350,7 +354,8 @@ Proof.
      | GenNode 16 [e1; e2; e3] => AllocTapeLaplace (go e1) (go e2) (go e3)
      | GenNode 17 [e1; e2] => Rand (go e1) (go e2)
      | GenNode 18 [e1; e2; e3; e4] => Laplace (go e1) (go e2) (go e3) (go e4)
-     | GenNode 19 [e] => Tick (go e)
+     | GenNode 19 [e1; e2; e3] => Gauss (go e1) (go e2) (go e3)
+     | GenNode 20 [e] => Tick (go e)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -365,7 +370,7 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
      [exact (gov v)|done..].
  - destruct v; by f_equal.
 Qed.
@@ -419,6 +424,9 @@ Inductive ectx_item :=
   | LaplaceDenCtx (e1 : expr) (v3 : val) (v4 : val)
   | LaplaceMeanCtx (e1 : expr) (e2 : expr) (v4 : val)
   | LaplaceTapeCtx (e1 : expr) (e2 : expr) (e3 : expr)
+  | GaussDenCtx (e1 : expr) (e2 : expr)
+  | GaussNumCtx (e1 : expr) (v3 : val)
+  | GaussMeanCtx (v2 : val) (v3 : val)
   | TickCtx.
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
@@ -451,6 +459,9 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | LaplaceDenCtx e1 v3 v4 => Laplace e1 e (Val v3) (Val v4)
   | LaplaceMeanCtx e1 e2 v4 => Laplace e1 e2 e (Val v4)
   | LaplaceTapeCtx e1 e2 e3 => Laplace e1 e2 e3 e
+  | GaussMeanCtx v2 v3 => Gauss e (Val v2) (Val v3)
+  | GaussNumCtx e1 v3 => Gauss e1 e (Val v3)
+  | GaussDenCtx e1 e2 => Gauss e1 e2 e
   | TickCtx => Tick e
   end.
 
@@ -520,6 +531,15 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
           end
       | _ => Some (LaplaceTapeCtx e1 e2 e3, e4)
       end
+  | Gauss e1 e2 e3  =>
+        match e3 with
+        | Val v3 =>
+            match e2 with
+            | Val v2 => noval e1 (GaussMeanCtx v2 v3)
+            | _ => Some (GaussNumCtx e1 v3, e2)
+            end
+        | _ => Some (GaussDenCtx e1 e2, e3)
+        end
   | Tick e         => noval e TickCtx
   | _              => None
   end.
@@ -548,6 +568,7 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | AllocTapeLaplace e1 e2 e3 => AllocTapeLaplace (subst x v e1) (subst x v e2) (subst x v e3)
   | Rand e1 e2 => Rand (subst x v e1) (subst x v e2)
   | Laplace e1 e2 e3 e4 => Laplace (subst x v e1) (subst x v e2) (subst x v e3) (subst x v e4)
+  | Gauss e1 e2 e3 => Gauss (subst x v e1) (subst x v e2) (subst x v e3)
   | Tick e => Tick (subst x v e)
   end.
 
@@ -844,7 +865,8 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
             dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1)) (laplace_rat num den loc)
       | None => dzero
       end
-
+  | Gauss (Val (LitV (LitInt mean))) (Val (LitV (LitInt num))) (Val (LitV (LitInt den)))  =>
+      dmap (λ z : Z, (Val $ LitV $ LitInt z, σ1)) (gauss_rat mean num den)
   | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1)
   | _ => dzero
   end.
@@ -1015,6 +1037,10 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
      head_step_rel (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
        (Val $ LitV $ LitInt $ mean) σ *)
 
+| GaussS mean num den σ z :
+  ((0 < IZR num / IZR den) ∨ mean = z) →
+  head_step_rel (Gauss (Val $ LitV $ LitInt mean) (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den)) σ (Val $ LitV $ LitInt z) σ
+
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
 
@@ -1101,6 +1127,7 @@ Proof.
   - destruct e; inv_head_step; ( (eexists; solve_distr)) ; try done.
     all: try rewrite dzero_0.
     4-9: eapply laplace_rat_pos ; eauto.
+    4-5: eapply gauss_rat_pos ; eauto.
     + exfalso.
       destruct (decide (α = l1)) ; simplify_eq.
       * eapply (Some_ne_None ((_; _) : tape)).
@@ -1125,6 +1152,7 @@ Proof.
   - destruct e; inv_head_step; try ((eexists; solve_distr)) ; try done.
     all: try rewrite dzero_0.
     4-9: eapply laplace_rat_pos ; eauto.
+    4-5: eapply gauss_rat_pos ; eauto.
 
     + destruct (decide (α = l1)); simplify_eq.
       * apply not_elem_of_dom_2 in H11. done.
@@ -1189,6 +1217,7 @@ Fixpoint height (e : expr) : nat :=
   | AllocTapeLaplace e1 e2 e3 => 1 + height e1 + height e2 + height e3
   | Rand e1 e2 => 1 + height e1 + height e2
   | Laplace e1 e2 e3 e4 => 1 + height e1 + height e2 + height e3 + height e4
+  | Gauss e1 e2 e3 => 1 + height e1 + height e2 + height e3
   | Tick e => 1 + height e
   end.
 

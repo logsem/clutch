@@ -405,6 +405,42 @@ Section erasure_helpers.
 
   Qed.
 
+  Local Lemma ind_case_gauss σ α K (M : nat) ns (mean num den : Z) :
+    tapes σ !! α = Some (M; ns) →
+  Rcoupl
+    (dmap (fill_lift K) (head_step (Gauss #mean #num #den) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+    (dunifP M ≫=
+     λ n : fin (S M),
+       dmap (fill_lift K)
+         (head_step (Gauss #mean #num #den)
+               (state_upd_tapes <[α:=(M; ns ++ [n]) : tape]> σ))
+          ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+    eq.
+  Proof using m IH.
+    intros Hα.
+    rewrite /head_step.
+    rewrite {1 2}/dmap.
+    erewrite (dbind_ext_right (dunifP M)); last first.
+    { intro.
+      rewrite {1 2}/dmap.
+      do 2 rewrite -dbind_assoc //. }
+    rewrite -/exec /=.
+    rewrite -!dbind_assoc -/exec.
+    erewrite (dbind_ext_right (dunifP M)); last first.
+    { intros n. rewrite -!dbind_assoc. done. }
+    rewrite dbind_comm.
+    eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+    intros; simplify_eq.
+    do 2 rewrite dret_id_left.
+    erewrite (distr_ext (dunifP M ≫=_ )); last first.
+    { intros. apply dbind_pmf_ext; [|done..].
+      intros. rewrite !dret_id_left; done.
+    }
+    rewrite -dmap_dbind.
+    apply IH; auto.
+  Qed.
+
+
 End erasure_helpers.
 
 Section erasure_helpers_laplace.
@@ -1066,6 +1102,42 @@ Proof. rewrite /state_upd_tapes_laplace insert_insert_eq //. Qed.
          by apply IH.
      Qed.
 
+
+  Local Lemma ind_laplace_case_gauss σ α K num den mean xs (mean' num' den' : Z) :
+       tapes_laplace σ !! α = Some (Tape_Laplace num den mean xs) →
+       Rcoupl
+         (dmap (fill_lift K) (head_step (Gauss #mean' #num' #den') σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+         (laplace_rat num den mean ≫=
+          λ x,
+            dmap (fill_lift K)
+              (head_step (Gauss #mean' #num' #den' )
+                 (state_upd_tapes_laplace <[α:=(Tape_Laplace num den mean (xs ++ [x]))]> σ))
+              ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))
+         eq.
+     Proof using m IH.
+       intros Hα.
+       rewrite /head_step.
+       rewrite {1 2}/dmap.
+       erewrite (dbind_ext_right (laplace_rat num den mean)); last first.
+       { intro.
+         rewrite {1 2}/dmap.
+         do 2 rewrite -dbind_assoc //. }
+       rewrite -/exec /=.
+       rewrite -!dbind_assoc -/exec.
+       erewrite (dbind_ext_right (laplace_rat num den mean)); last first.
+       { intros n. rewrite -!dbind_assoc. done. }
+       rewrite dbind_comm.
+       eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+       intros; simplify_eq.
+       do 2 rewrite dret_id_left.
+       erewrite (distr_ext (laplace_rat num den mean ≫=_ )); last first.
+       { intros. apply dbind_pmf_ext; [|done..].
+         intros. rewrite !dret_id_left; done.
+       }
+       rewrite -dmap_dbind.
+       apply IH; auto.
+     Qed.
+
 End erasure_helpers_laplace.
 
 Lemma prim_coupl_upd_tapes_dom m e1 σ1 α N ns :
@@ -1124,6 +1196,7 @@ Proof.
         -- eapply ind_case_tape_laplace ; eauto.
         -- eapply ind_case_tape_laplace ; eauto.
         -- eapply ind_case_tape_laplace ; eauto. right. right. repeat eexists ; eauto.
+        -- eapply ind_case_gauss ; eauto.
       * by eapply ind_case_dzero.
 Qed.
 
@@ -1261,6 +1334,7 @@ Proof.
         -- eapply ind_laplace_case_tape_laplace ; eauto.
         -- eapply ind_laplace_case_tape_laplace ; eauto.
         -- eapply ind_laplace_case_tape_laplace ; eauto. right. right. repeat eexists ; eauto.
+        -- by eapply ind_laplace_case_gauss.
       * by eapply ind_laplace_case_dzero.
 Qed.
 
