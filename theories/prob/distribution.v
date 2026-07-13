@@ -3164,7 +3164,7 @@ Proof.
     + replace (λ a : A, F (S n) a) with (F (S n)) by done. apply HF. lia.
 Qed.
 
-Lemma SeriesC_fin_sum `{Countable A} (F : nat -> A -> R) n :
+Lemma SeriesC_sum_f_R0 `{Countable A} (F : nat -> A -> R) n :
   (∀ k, (k <= n)%nat -> ex_seriesC (F k)) ->
   SeriesC (λ a, sum_f_R0 (λ k, F k a) n) = sum_f_R0 (λ k, SeriesC (F k)) n.
 Proof.
@@ -3189,7 +3189,7 @@ Proof.
   { apply SeriesC_ext. intros. lra. }
   rewrite SeriesC_scal_l. f_equal.
   set (F := λ k a, if @bool_decide (INR (S k) / INR n <= u a) (make_decision _) then μ a else 0).
-  rewrite -(SeriesC_fin_sum F (pred n)).
+  rewrite -(SeriesC_sum_f_R0 F (pred n)).
   2:{ intros k _. eapply ex_seriesC_le. 2: apply pmf_ex_seriesC.
       intro a. rewrite /F. case_bool_decide; real_solver. }
   apply SeriesC_ext. intro a. rewrite /F scal_sum.
