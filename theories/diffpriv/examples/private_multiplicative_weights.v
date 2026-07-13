@@ -44,12 +44,14 @@ Section pmw.
     ∀ K (vq vdb: val) (q : list bool) (db : list nat) (size_dom : nat),
       ⌜ is_list q vq ⌝ -∗ ⌜ is_list db vdb ⌝ -∗ ⌜ length q = size_dom ⌝ -∗ ⌜ length db = size_dom ⌝ -∗
       ⤇ fill K (c_query vdb vq) -∗
-      WP c_query vdb vq {{ v, ⤇ fill K (Val v) ∗ ∃ (n : Z), ⌜ v = #n ⌝ }}.
+      WP c_query vdb vq {{ v, ⤇ fill K (Val v) ∗ ∃ (n : nat), ⌜ v = #n ⌝ }}.
    Proof with (wp_pures; tp_pures).
      iIntros (K vq vdb q db) "%H1  %H2  %H3 %H4 %H5 hrs".
      rewrite /c_query...
      wp_alloc resw as "Hrw"; tp_alloc as rest "Hrt"...
      (* proove that iteri has the same comportement *)
+     (* iApply (wp_list_iteri db (λ: "i" "x", if: list_nth vq "i" then #rest <- "x" + ! #rest else #()) *)
+     (*           vdb _ (λ i x, ∃ (n : nat), resw ↦ #n ∗ rest ↦ₛ #n)%I (λ i x, ∃ (n : nat), resw ↦ #n ∗ rest ↦ₛ #n)%I). *)
      Admitted.
 
   Lemma c_query_1_sens :
@@ -62,6 +64,7 @@ Section pmw.
     rewrite /c_query.
     wp_lam; tp_lam...
     wp_alloc res1 as "Hres1"; tp_alloc as res2 "Hres2"...
+    (* issue, in wp_sensitive, x and x' are list nat not especially lists of the same size...*)
     (* need to show that for each elements of the lists if they are distant of n then the queue of the list is distant of d - n *)
     Admitted.
 
@@ -83,48 +86,48 @@ Section pmw.
       let: "ln" := list_map (λ: "x", "div" ("size" * "x") "s") "db" in
       let: "s'" := sum_db "ln" in
       let: "lln" := list_length "ln" in
-      list_mapi (λ: "i" "x", (if: "i" < "mod" ("size" - "s'" - #1) "lln" then #1 else #0) + ("div" ("size" - "s'") "lln") + "x") "ln".
+      list_mapi (λ: "i" "x", (if: "i" < ("size" - "s'" - #1) `rem` "lln" then #1 else #0) + ("div" ("size" - "s'") "lln") + "x") "ln".
 
   Definition unif : val :=
     λ: "size" "div",
       list_init "size" (λ: "i", "div" #1 "size").
 
-   Definition mw_upd : val :=
-    λ: "div" "exp" "mod" "db" "q" "v" "eta" "size",
-      if: c_query "db" "q" < "v"
-      then normalize "div" "mod" (list_mapi (λ: "i" "x", "exp" (-"eta" * (if: list_nth "q" "i" then #0 else #1)) * "x") "db") "size"
-      else normalize "div" "mod" (list_mapi (λ: "i" "x", "exp" (-"eta" * (if: list_nth "q" "i" then #1 else #0)) * "x") "db") "size".
+  Definition mw_upd : val :=
+   λ: "div" "exp" "mod" "ηnum" "ηden" "size" "db" "q" "v",
+     if: c_query "db" "q" < "v"
+     then normalize "div" "mod" (list_mapi (λ: "i" "x", "exp" (-"eta" * (if: list_nth "q" "i" then #0 else #1)) * "x") "db") "size"
+     else normalize "div" "mod" (list_mapi (λ: "i" "x", "exp" (-"eta" * (if: list_nth "q" "i" then #1 else #0)) * "x") "db") "size".
 
-   Definition det_int_fun (f : val) : Prop :=
-     ∀ K (n : nat),
-       ⤇ fill K (f #n) -∗
-       WP f #n {{v, ⤇ fill K (Val v) ∗ ∃ (n' : nat), ⌜ v = #n ⌝ }}.
+  Definition det_int_fun (f : val) : Prop :=
+    ∀ K (n : nat),
+      ⤇ fill K (f #n) -∗
+      WP f #n {{v, ⤇ fill K (Val v) ∗ ∃ (n' : nat), ⌜ v = #n ⌝ }}.
 
-   Definition det_q (q : val) : Prop :=
-     ∀ K (vdb : val) (db : list nat),
-       ⌜ is_list db vdb ⌝ -∗
-       ⤇ fill K (q vdb) -∗
-       WP q vdb {{v, ⤇ fill K (Val v) ∗ ∃ r : nat, ⌜ v = #r ⌝ }}.
+  Definition det_q (q : val) : Prop :=
+    ∀ K (vdb : val) (db : list nat),
+      ⌜ is_list db vdb ⌝ -∗
+      ⤇ fill K (q vdb) -∗
+      WP q vdb {{v, ⤇ fill K (Val v) ∗ ∃ r : nat, ⌜ v = #r ⌝ }}.
 
-   Definition spec_upd (upd : val) : Prop :=
-     (∀ K (vdb vq : val) (l : Z) (db : list nat) (q : list bool),
-            (* The update returns a database of the right size for the "right" inputs *)
-          ⌜is_list db vdb⌝ ∗ ⌜is_list q vq⌝ ∗
-          ⌜length q = length db⌝ -∗
-          ⤇ fill K ((upd vdb) vq #l) -∗
-          WP upd vdb vq #l
-          {{ v, ⤇ fill K (Val v) ∗ ∃ db' : list nat, ⌜is_list db' v⌝ ∗ ⌜length db' = length db⌝ }}).
+  Definition spec_upd (upd : val) : Prop :=
+    (∀ K (vdb vq : val) (l : Z) (db : list nat) (q : list bool),
+           (* The update returns a database of the right size for the "right" inputs *)
+         ⌜is_list db vdb⌝ ∗ ⌜is_list q vq⌝ ∗
+         ⌜length q = length db⌝ -∗
+         ⤇ fill K ((upd vdb) vq #l) -∗
+         WP upd vdb vq #l
+         {{ v, ⤇ fill K (Val v) ∗ ∃ db' : list nat, ⌜is_list db' v⌝ ∗ ⌜length db' = length db⌝ }}).
 
-   Definition spec_stream (stream_q : val) (size_dom : nat) : Prop :=
-     (∀ K (bs : val),
-            (* stream_q returns a boolean query of the right size *)
-          ⤇ fill K (stream_q bs) -∗
-          WP stream_q bs
-          {{ qopt, ⤇ fill K (Val qopt) ∗
-                     (⌜qopt = NONEV⌝ ∨ ∃ (vq : val) (q : list bool),
-                         ⌜is_list q vq⌝ ∗ ⌜length q = size_dom⌝ ∗ ⌜qopt = SOMEV vq⌝)}}).
+  Definition spec_stream (stream_q : val) (size_dom : nat) : Prop :=
+    (∀ K (bs : val),
+           (* stream_q returns a boolean query of the right size *)
+         ⤇ fill K (stream_q bs) -∗
+         WP stream_q bs
+         {{ qopt, ⤇ fill K (Val qopt) ∗
+                    (⌜qopt = NONEV⌝ ∨ ∃ (vq : val) (q : list bool),
+                        ⌜is_list q vq⌝ ∗ ⌜length q = size_dom⌝ ∗ ⌜qopt = SOMEV vq⌝)}}).
 
-   Definition spec_f (f : val) : Prop :=
+  Definition spec_f (f : val) : Prop :=
      (∀ K (vq vdb: val) (db : list nat) (q : list bool),
             (* f returns a 1sens deterministic query for the "right" inputs *)
           ⌜is_list db vdb⌝ ∗ ⌜is_list q vq⌝ ∗
@@ -134,21 +137,24 @@ Section pmw.
           {{ v, ⤇ fill K (Val v) ∗ □ wp_sensitive v 1 (dlist nat) dnat ∗ ⌜ det_q v ⌝ }}).
   Lemma upd_deterministic :
     (* If we have the good arguments then we get a distribution of the same size *)
-    ⊢ □ (∀ K (vdb vq : val) (db : list nat) (q : list bool) (l size eta : nat) (div exp modu : val),
+    ∀ K (vdb vq : val) (db : list nat) (q : list bool) (l size ηnum ηden : nat) (div exp modu : val),
           ⌜ det_int_fun div ⌝ ∗ ⌜ det_int_fun exp ⌝ ∗ ⌜ det_int_fun modu ⌝  -∗
           ⌜ is_list q vq ⌝ ∗ ⌜ is_list db vdb ⌝ ∗ ⌜ length q = length db ⌝ -∗
-          ⤇ fill K (mw_upd div exp modu vdb vq #l #eta #size) -∗
-          WP mw_upd div exp modu vdb vq #l #eta #size
-          {{ v, ⤇ fill K (Val v) ∗ ∃ (db' : list nat), ⌜ is_list db' v ⌝ ∗ ⌜ length db = length db' ⌝}}).
+          ⤇ fill K (mw_upd div exp modu #ηnum #ηden #size vdb vq #l) -∗
+          WP mw_upd div exp modu #ηnum #ηden #size vdb vq #l
+          {{ v, ⤇ fill K (Val v) ∗ ∃ (db' : list nat), ⌜ is_list db' v ⌝ ∗ ⌜ length db = length db' ⌝}}.
   Proof with (tp_pures; wp_pures).
-    iIntros.
-    iModIntro.
-    iIntros (K vdb vq db q l size eta div exp modu) "[%Hf1 [%Hf2 %Hf3]] [%H1 [%H2 %H3]] hrs".
-    rewrite /mw_upd.
-    wp_lam; tp_lam.
-    do 14 (wp_pure; tp_pure).
+    iIntros (K vdb vq db q l size ηnum ηden div exp modu) "(%Hf1 & %Hf2 & %Hf3) (%H1 & %H2 & %H3) hrs".
+    rewrite /mw_upd...
     wp_bind (c_query _ _); tp_bind (c_query _ _).
-    Admitted.
+    iPoseProof (c_query_det _ vq vdb q db (length db) $! _ _ _ _ with "hrs") as "Hcqd".
+    Unshelve.
+    2, 3, 4, 5: done.
+    iApply (wp_strong_mono'' with "Hcqd").
+    iIntros (vr) "(rhs & %r & ->)".
+    simpl.
+
+  Admitted.
 
 
   (** General implementation *)
@@ -174,12 +180,12 @@ Section pmw.
          end) #0 list_nil "unif".
 
   Definition oPMW : val :=
-    λ: "db" "size_db" "size_dom" "stream_q" "nb_q" "num" "den" "alpha" "beta" "eta" "div" "exp" "log",
-      let: "c" := "div" (#4 * ("log" "size_dom")) ("alpha" * "alpha") in
-      let: "t" := "div" ("den" * #18 * "c" * ("log" (#2 * "nb_q") + "log" (#4 * "c") - "log" "beta")) ("num" * "size_db") in
+    λ: "εnum" "εden" "αnum" "αden" "βnum" "βden" "ηnum" "ηden" "db" "unif" "size_db" "size_dom" "stream_q" "nb_q" "upd" "fc" "ft",
+      let: "c" := "fc" "size_dom" "αden" "αnum" in
+      let: "t" := "ft" "εnum" "εden" "βnum" "βden" "c" "nb_q" "size_db" in
       let: "f1" := (λ: "q" "distrib" "x", c_query "x" "q" "size" - c_query "distrib" "q" "size") in
       let: "f2" := (λ: "q" "distrib" "x", c_query "distrib" "q" "size" - c_query "x" "q" "size") in
-      oPMW_large "db" "stream_q" "num" ("c"*"den") "c" "t" (unif "size_dom" "div") (mw_upd "div" "exp" "eta") "f1" "f2".
+      oPMW_large "db" "stream_q" "εnum" ("c"*"εden") "c" "t" "unif" "upd" (*"div" "exp" "mod" "ηnum" "ηden"*) "f1" "f2".
 
   (* Lemma f1_deterministic `(dDB : DistanceDB): *)
   (*   ⊢ □ (∀ K (distrib q : DB), (* we get back a 1sens query *) *)
@@ -204,7 +210,7 @@ Section pmw.
                          end
                   end)%V.
 
-  Lemma pMW_general_diffpriv (num den : Z) (c t : nat) (stream_q : val) (upd f1 f2 vunif : val) (unif : list nat) :
+  Lemma pMW_general_diffpriv (num den c t : nat) (stream_q : val) (upd f1 f2 vunif : val) (unif : list nat) :
     let ε := IZR num / IZR den in
     let size_dom := length unif in
     ⌜ is_list unif vunif ⌝ -∗
@@ -241,8 +247,8 @@ Section pmw.
       ∀ (db db' : list nat) (adj : (dlist nat) db db' <= 1) K,
       ⌜ length db = size_dom ⌝ ∗ ⌜ length db' = size_dom ⌝ -∗
       ↯m (c * ε) -∗
-      ⤇ fill K (oPMW_large (Val (inject db')) stream_q #num #den #c #t vunif upd f1 f2) -∗
-      WP oPMW_large (Val (inject db)) stream_q #num #den #c #t vunif upd f1 f2
+      ⤇ fill K (oPMW_large (inject db') stream_q #num #den #c #t vunif upd f1 f2) -∗
+      WP oPMW_large (inject db) stream_q #num #den #c #t vunif upd f1 f2
       {{ v, ⤇ fill K (Val v) }}.
   Proof with (tp_pures; wp_pures).
     iIntros (ε size_dom) "#Hvunif #Hlunif %εpos %cpos %tpos #Hstream #Hupdate #Hf1 #Hf2 % % % % [%Hldb %Hlbd'] ε rhs".
@@ -360,19 +366,135 @@ Section pmw.
           iApply ("IH" with "[] [] Hvdistrib Hldistrib rhs inSVT"). 3: done. 1,2: iPureIntro. 1,2: lia.
   Qed.
 
-  (* Lemma pMW_diffpriv (num den size_db size_dom nb_q alpha beta eta : Z) (stream_q div exp log : val) `(dDB : Distance DB) : *)
-  (*   let ε := IZR num / IZR den in *)
-  (*   ∀ (εpos : 0 < ε), *)
-  (*     □ (∀ K (bs : val), *)
-  (*         ⤇ fill K (stream_q bs) -∗ *)
-  (*         WP stream_q bs *)
-  (*         {{ qopt, ⤇ fill K (Val qopt) ∗ *)
-  (*                    (⌜qopt = NONEV⌝ ∨ ∃ q : val, ⌜qopt = SOMEV q⌝ ∗ □ wp_sensitive q 1 dDB dZ ∗ *)
-  (*                       □ (∀ K db, ⤇ fill K (q db) -∗ WP q db {{v, ∃ r : Z, ⌜v = inject r⌝ ∗ ⤇ fill K (Val v) }}) ) }}) -∗ *)
-  (*     ∀ (db db' : DB) (adj : dDB db db' <= 1) K, *)
-  (*     ↯m (ε) -∗ *)
-  (*     ⤇ fill K (oPMW (Val (inject db')) #size_db #size_dom stream_q #nb_q #num #den #alpha #beta #eta div exp log) -∗ *)
-  (*     WP oPMW (Val (inject db)) #size_db #size_dom stream_q #nb_q #num #den #alpha #beta #eta div exp log *)
-  (*     {{ v, ⤇ fill K (Val v) }}. *)
+  Lemma pMW_diffpriv (εnum εden αnum αden βnum βden ηnum ηden size_db nb_q : nat) (unif : list nat) (stream_q fc ft (*div mul exp log modu*) : val) :
+    let ε := IZR εnum / IZR εden in
+    ∀ (εpos : 0 < ε),
+      □ (∀ K (bs : val),
+            (* stream_q returns a boolean query of the right size *)
+          ⤇ fill K (stream_q bs) -∗
+          WP stream_q bs
+          {{ qopt, ⤇ fill K (Val qopt) ∗
+                     (⌜qopt = NONEV⌝ ∨ ∃ (vq : val) (q : list bool),
+                         ⌜is_list q vq⌝ ∗ ⌜length q = length unif⌝ ∗ ⌜qopt = SOMEV vq⌝)}}) -∗
+      □ (∀ K (a1 a2 a3 : nat),
+        ⤇ fill K (fc #a1 #a2 #a3) -∗
+        WP fc #a1 #a2 #a3 {{ v, ⤇ fill K (Val v) ∗ ∃ (n : nat ), ⌜ v = #n ⌝ ∗ ⌜ 0 < n ⌝ }}) -∗
+      □ (∀ K (a1 a2 a3 a4 a5 a6 a7 : nat),
+        ⤇ fill K (ft #a1 #a2 #a3 #a4 #a5 #a6 #a7) -∗
+        WP ft #a1 #a2 #a3 #a4 #a5 #a6 #a7 {{ v, ⤇ fill K (Val v) ∗ ∃ (n : nat ), ⌜ v = #n ⌝ ∗ ⌜ 0 < n ⌝ }}) -∗
+      ∀ K (db db' : list nat) (adj : (dlist nat) db db' <= 1),
+        ↯m (ε) -∗
+        ⌜ length db = length unif ⌝ -∗
+        ⌜ length db' = length unif ⌝ -∗
+        ⌜ sum_db (inject db) = #size_db ⌝ -∗
+        ⌜ sum_db (inject db') = #size_db ⌝ -∗
+        ⤇ fill K (oPMW #εnum #εden #αnum #αden #βnum #βden #ηnum #ηden (Val (inject db')) (inject unif) #size_db #(length unif) stream_q #nb_q mw_upd fc ft(*div mul exp log modu*)) -∗
+        WP oPMW #εnum #εden #αnum #αden #βnum #βden #ηnum #ηden (Val (inject db)) (inject unif) #size_db #(length unif) stream_q #nb_q mw_upd fc ft(*div mul exp log modu*)
+        {{ v, ⤇ fill K (Val v) }}.
+  Proof with (wp_pures; tp_pures).
+    iIntros (ε εpos) "#Hstream #Hfc #Hft".
+    iIntros (K db db' ddb) "Hε #Hl #Hl' #Hs #Hs' rhs".
+    rewrite /oPMW...
+    simpl.
+    tp_pures.
+    wp_bind (fc _ _ _); tp_bind (fc _ _ _).
+    iPoseProof ("Hfc" $! _ _ _ with "rhs") as "Hfc'".
+    iApply (wp_strong_mono'' with "Hfc'").
+    iIntros (tmpC) "(rhs & %c & %HtmpC & %HposC)".
+    rewrite HtmpC.
+    simpl...
+    wp_bind (ft _ _ _ _ _ _ _); tp_bind (ft _ _ _ _ _ _ _).
+    iPoseProof ("Hft" $! _ _ _ with "rhs") as "Hft'".
+    iApply (wp_strong_mono'' with "Hft'").
+    iIntros (tmpT) "(rhs & %t & %HtmpT & %HposT)".
+    rewrite HtmpT.
+    simpl...
+    iPoseProof (pMW_general_diffpriv εnum (c * εden) c t stream_q mw_upd (λ: "q" "distrib" "x", c_query "x" "q" "size" - c_query "distrib" "q" "size")%V
+                  (λ: "q" "distrib" "x", c_query "distrib" "q" "size" - c_query "x" "q" "size")%V (inject unif) unif) as "pMWG".
+    iSpecialize ("pMWG" $! _ _).
+    Unshelve.
+    2: { by apply is_list_inject. }
+    2: { reflexivity. }
+    iSpecialize ("pMWG" $! _ _ _).
+    Unshelve.
+    3 : { real_solver. }
+    3 : { real_solver. }
+    2: {
+         do 2 rewrite -INR_IZR_INZ.
+         rewrite mult_INR Rmult_comm Rdiv_mult_distr.
+         replace (INR εnum / INR εden) with ε.
+         {
+           apply RIneq.Rdiv_pos_pos.
+           1, 2: done.
+         }
+         subst ε.
+         do 2 rewrite -INR_IZR_INZ.
+         done.
+    }
+
+    (* Hypothesis of stream query *)
+    iSpecialize ("pMWG" with "Hstream").
+
+    (* Hyposthesis of update *)
+    iSpecialize ("pMWG" with "[]" ).
+    {
+      admit.
+    }
+
+    (* Hyposthesis of f1 *)
+    iSpecialize ("pMWG" with "[]" ).
+    {
+      iModIntro.
+      iIntros (K' vq' vh h q') "#Hlh #Hlq' #Hsh #Hsq' rhs".
+      tp_pures; wp_pures.
+      iModIntro.
+      iFrame.
+      iSplit.
+      - admit.
+      - iPureIntro.
+        rewrite /det_q.
+        (* add a condition on the size of the list in det_q *)
+        iIntros (K'' vh' h') "#Hlh' rhs".
+        tp_pures; wp_pures.
+
+        admit.
+    }
+
+    (* Hyposthesis of f2 *)
+    iSpecialize ("pMWG" with "[]" ).
+    {
+      iModIntro.
+      iIntros (K' vq' vh h q') "#Hlh #Hlq' #Hsh #Hsq' rhs".
+      tp_pures; wp_pures.
+      iModIntro.
+      iFrame.
+      iSplit.
+      - admit.
+      - iPureIntro.
+        rewrite /det_q.
+        (* add a condition on the size of the list in det_q *)
+        admit.
+    }
+
+    iSpecialize ("pMWG" $! db db' ddb K).
+    iSpecialize ("pMWG" with "[$]").
+    iSpecialize ("pMWG" with "[Hε]").
+    {
+      subst ε.
+      (* Set Printing Coercions. *)
+      replace (INR c * (IZR (Z.of_nat εnum) / IZR (Z.of_nat (c * εden)))) with (IZR (Z.of_nat εnum) / IZR (Z.of_nat εden)). 1: done.
+      do 3 rewrite -INR_IZR_INZ.
+      rewrite mult_INR Rmult_div_assoc Rdiv_mult_distr Rmult_div_r.
+      1: done.
+      lra.
+    }
+
+    (* Set Printing Coercions. *)
+    replace (Val #(LitInt (Z.of_nat (c * εden)))) with (Val #(LitInt (Z.of_nat c * Z.of_nat εden))).
+    { iApply ("pMWG" with "rhs"). }
+    do 3 f_equal.
+    lia.
+
+
 
 End pmw.
