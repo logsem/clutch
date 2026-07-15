@@ -16,7 +16,7 @@ let () =
   if (Array.mem "--list" Sys.argv) then (
     let size, index, db = mk_histo_l (path ^ file) in
     let log_card_q = List.length index in
-    let nb_q = 10000 * log_card_q in
+    let nb_q = 100_000 * log_card_q in
     let stream_query =
       let a = ref nb_q in
       fun bs ->
@@ -34,7 +34,7 @@ let () =
         (get_unif_l index size)
         stream_query
         (float_of_int log_card_q)
-        1 1 0.01 0.1
+        1 1 1 100 1 100
         ~gif:(if (Array.mem "--gif" Sys.argv) then Some (path_gif ^ file_gif) else None)
     in
     if (Array.mem "--gif" Sys.argv) then (
@@ -48,6 +48,8 @@ let () =
       aff_db_l db index;
       printf "\n\n- SANITIZED DB :\n";
       aff_db_l db' index;
+      printf "\n\n- UNIF DB :\n";
+      aff_db_l (get_unif_l index size) index;
       printf "\n\n- LIST RESULT :\n";
       printf "%d\n" (max_l2 res);
       printf "size init : %d | size fin : %d\n" (sum_l db) (sum_l db');

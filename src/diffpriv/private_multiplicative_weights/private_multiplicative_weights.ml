@@ -39,16 +39,16 @@ let oPMW ?(gif=None) size domaine db unif stream_q log_card_q num den alpha beta
   aux 0 [] unif
 
 (* List implementation *)
-let mw_l db size q v eta =
+let mw_l db size q v etanum etaden =
   if c_query_l q db < v
-  then normalize_l (List.mapi (fun i x -> int_of_float(exp (-. eta *. (if List.nth q i then 0. else 1.)) *. (float_of_int x))) db) size
-  else normalize_l (List.mapi (fun i x -> int_of_float(exp (-. eta *. (if List.nth q i then 1. else 0.)) *. (float_of_int x))) db) size
+  then normalize_l (List.mapi (fun i x -> int_of_float(exp (-. ((float_of_int etanum) /. (float_of_int etaden)) *. (if List.nth q i then 0. else 1.)) *. (float_of_int x))) db) size
+  else normalize_l (List.mapi (fun i x -> int_of_float(exp (-. ((float_of_int etanum) /. (float_of_int etaden)) *. (if List.nth q i then 1. else 0.)) *. (float_of_int x))) db) size
 
-let oPMW_l ?(gif=None) size db index unif stream_q log_card_q num den alpha beta =
+let oPMW_l ?(gif=None) size db index unif stream_q log_card_q enum eden anum aden bnum bden =
   write_db_l index db gif 0;
-  let c = 4. *. (log (float_of_int (List.length db))) /.  (alpha *. alpha) in
-  let t = 10. *. ((float_of_int den) *. 18. *. c *. (log (2.) +. log_card_q +. log (4. *. c) -. log beta)) /. ((float_of_int num) *. (float_of_int size)) in
-  let f = num_sparse_vector num den (int_of_float t) (int_of_float c) db in
+  let c = 4. *. (log (float_of_int (List.length db))) *. (float_of_int aden *. float_of_int aden) /.  (float_of_int anum *. float_of_int anum) in
+  let t = 10. *. ((float_of_int eden) *. 18. *. c *. (log (2.) +. log_card_q +. log (4. *. c) -. log (float_of_int bnum)) +. log (float_of_int bden)) /. ((float_of_int enum) *. (float_of_int size)) in
+  let f = num_sparse_vector enum eden (int_of_float t) (int_of_float c) db in
   let rec aux i bs distrib =
     match stream_q bs with
     | None -> (bs, distrib, i, c, t) (* no more queries we stop *)
@@ -62,11 +62,11 @@ let oPMW_l ?(gif=None) size db index unif stream_q log_card_q num den alpha beta
               | Some v -> (
                   write_db_l index distrib gif (i +1) ;
                   let a = c_query_l q distrib - v in
-                  aux (i + 1) ((abs (c_query_l q db - a)) :: bs) (mw_l distrib size q a  (alpha /. 2.))))
+                  aux (i + 1) ((abs (c_query_l q db - a)) :: bs) (mw_l distrib size q a  anum (2*aden) )))
           | Some v -> (
               write_db_l index distrib gif (i +1) ;
               let a = c_query_l q distrib + v in
-              aux (i + 1) ((abs (c_query_l q db - a)) :: bs) (mw_l distrib size q a  (alpha /. 2.)))
+              aux (i + 1) ((abs (c_query_l q db - a)) :: bs) (mw_l distrib size q a  anum (2*aden)))
           )
         )
     )

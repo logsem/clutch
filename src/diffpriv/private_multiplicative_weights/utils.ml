@@ -151,8 +151,7 @@ let get_rd_query_l domaine =
 
 let get_unif_l domaine size =
   (* returns the uniform db on domaine *)
-  let s = List.length domaine in
-  List.init s (fun i -> (if i < size mod s then 1 else 0) + size / s)
+  normalize_l List.(init (length domaine) (fun i -> 1)) size
 
 let c_query_l q db =
   (* given a query and a db compute the result (scalar product) *)
