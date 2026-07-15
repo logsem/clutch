@@ -391,9 +391,6 @@ Section fdr_spec.
     rewrite compute_distr_unif.
     rewrite /dmap.
     rewrite -dbind_assoc'.
-    setoid_rewrite <-dbind_assoc'.
-    setoid_rewrite dret_id_left.
-    (* rewrite pointwise on the support, exposing [c]'s value *)
     trans (dbind
              (λ f, match urn_subst_val f (LitV bl) with
                    | Some (LitV (LitInt a)) =>
@@ -401,9 +398,11 @@ Section fdr_spec.
                    | _ => dzero
                    end) (urns_f_distr m)).
     { apply dbind_ext_right_strong. intros f Hf.
+      rewrite -dbind_assoc'.
       destruct (Hpoint f Hf) as (a & Ha & Hfa).
       rewrite Hfa.
       apply dbind_ext_right. intros b.
+      rewrite dret_id_left. cbn beta.
       by rewrite (Hval f a b) // (Hflb f Hf). }
     (* pull the pushforward equation through *)
     trans (dbind
@@ -415,11 +414,11 @@ Section fdr_spec.
     { rewrite /dmap -dbind_assoc'.
       apply dbind_ext_right. intros f. by rewrite dret_id_left. }
     rewrite Hdistr /unif_val_distr /dmap -dbind_assoc'.
-    setoid_rewrite dret_id_left.
     (* conclude with the pure doubling lemma *)
     rewrite -(unif_double_distr v Hv).
     rewrite /dmap -dbind_assoc'.
     apply dbind_ext_right. intros a.
+    rewrite dret_id_left.
     rewrite -dbind_assoc'.
     apply dbind_ext_right. intros b.
     by rewrite dret_id_left.
