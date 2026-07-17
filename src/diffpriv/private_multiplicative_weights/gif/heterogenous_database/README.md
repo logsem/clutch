@@ -14,3 +14,8 @@ With the following parameters :
 | Alpha     |     1/100 |
 | Beta      |     1/100 |
 | Eta       | 100*Alpha |
+
+We get the following evolution :
+
+
+![Evolution of the distribution.](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/private_multiplicative_weights/gif/heterogenous_database/evolution_distrib.gif?raw=true "Evolution of the distribution.")
