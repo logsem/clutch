@@ -10,10 +10,10 @@ With the following parameters :
 
 |   Parameter   |    Value   |
 |:--------------|-----------:|
-| $\varepsilon$ |          1 |
-| $\alpha$      |       1/10 |
-| $\beta$       |       1/10 |
-| $\eta$        | $\alpha$/2 |
+| $\varepsilon$ |        $1$ |
+| $\alpha$      |     $1/10$ |
+| $\beta$       |     $1/10$ |
+| $\eta$        | $\alpha/2$ |
 
 We get the following evolution :
 
@@ -27,9 +27,9 @@ With the following parameters :
 
 |   Parameter   |    Value   |
 |:--------------|-----------:|
-| $\varepsilon$ |          1 |
-| $\alpha$      |      1/100 |
-| $\beta$       |      1/100 |
+| $\varepsilon$ |        $1$ |
+| $\alpha$      |    $1/100$ |
+| $\beta$       |    $1/100$ |
 | $\eta$        | $\alpha$/2 |
 
 We get the following evolution :
@@ -40,3 +40,15 @@ We can see the issue in the scaling step.
 The firsts elements are overestimated and
 some elements (the small ones) are underestimated.
 
+While with the following parameters :
+
+|   Parameter   |    Value   |
+|:--------------|-----------:|
+| $\varepsilon$ |        $1$ |
+| $\alpha$      |    $1/100$ |
+| $\beta$       |    $1/100$ |
+| $\eta$        | $6*\alpha$ |
+
+We get the following evolution :
+
+![Evolution of the distribution.](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/private_multiplicative_weights/gif/heterogenous_database/evolution_distrib_alf.gif?raw=true "Evolution of the distribution with an addapted learning factor.")
