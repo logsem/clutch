@@ -36,7 +36,7 @@ We get the following evolution :
 
 ![Evolution of the distribution.](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/private_multiplicative_weights/gif/heterogenous_database/evolution_distrib_issue.gif?raw=true "Evolution of the distribution with overestimation of the first elements.")
 
-We don't the issue in the scaling step.
+We can see the issue in the scaling step.
 The firsts elements are overestimated and
 some elements (the small ones) are underestimated.
 

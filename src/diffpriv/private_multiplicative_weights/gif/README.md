@@ -26,3 +26,10 @@ To do something perfect where the axis are clipped and where everything is in
 the view, we should range twice each database to first find the global maximum
 and then to build the plots. We prefer clipping the axis based on `DB` which
 is fixed and who should be the histogram towards which tends `sDB`.
+
+# Illustration of the issue that comes with the lists implementation
+
+In [`heterogenous_database`](https://github.com/Pbi0/clutch/tree/pMW_formal/src/diffpriv/private_multiplicative_weights/gif/heterogenous_database/)link to the folder you can find several evolutions and the parameters 
+associated. It illustrates the issue we encountered with the list 
+implementation.
+
