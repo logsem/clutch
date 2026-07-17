@@ -93,7 +93,7 @@ or
 
 It will build the gif under the name of `evolution_distrib.gif`.
 What follows is a output of this function.
-![Evolution of the distribution.](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/private_multiplicative_weights/gif/evolution_distrib.gif?raw=true "Evolution of the distribution.")
+![Evolution of the distribution.](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/private_multiplicative_weights/gif/ref_evolution/evolution_distrib.gif?raw=true "Evolution of the distribution.")
 
 ## NOTES
 

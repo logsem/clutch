@@ -16,7 +16,7 @@ let () =
   if (Array.mem "--list" Sys.argv) then (
     let size, index, db = mk_histo_l (path ^ file) in
     let log_card_q = List.length index in
-    let nb_q = 100_000 * log_card_q in
+    let nb_q = 1_000 * log_card_q in
     let stream_query =
       let a = ref nb_q in
       fun bs ->
@@ -43,7 +43,7 @@ let () =
       close_out writer
     );
     Printf.(
-      printf "c: %f\nt: %f\n" c t;
+      printf "c: %d\nt: %d\n" c t;
       printf "- NB UPDATE : %d\n- ORIGINAL DB :\n" nb_upd;
       aff_db_l db index;
       printf "\n\n- SANITIZED DB :\n";
@@ -62,7 +62,7 @@ let () =
     (* let card_q = pow 2 (List.length domaine) in *)
     (* let nb_q = 2 * card_q in *)
     let log_card_q = List.length domaine in
-    let nb_q = 100 * log_card_q in
+    let nb_q = 10000 * log_card_q in
     let stream_query =
       let a = ref nb_q in
       fun bs ->
@@ -80,7 +80,7 @@ let () =
         (get_unif domaine)
         stream_query
         (float_of_int log_card_q)
-        1 1 0.1 0.1
+        1 1 0.01 0.01
         ~gif:(if (Array.mem "--gif" Sys.argv) then Some (path_gif ^ file_gif) else None)
     in
     if (Array.mem "--gif" Sys.argv) then (

@@ -12,7 +12,7 @@ def max_l(l):
             a = x
     return a
 
-fps = 3
+fps = 10
 ts = 20
 
 
@@ -31,18 +31,21 @@ if __name__ == "__main__":
             y0 = []
             max_d = 0
             for row in data0:
+                #x0.append(int(row[0]))
                 x0.append(row[0])
                 y0.append(float(row[1]))
                 if max_d < float(row[1]):
                     max_d = float(row[1])
             for i in range(0, nb_images, int(step)):
-                if i % int(nb_images / 100) == 0:
-                    print(str(int(1000*i/nb_images)/10) + "%", "\r", end="")
+                #if i % int(step) == 0:
+                #    print(str(int(1000*i/nb_images)/10) + "%", "\r", end="")
+                print(str(int(1000*i/nb_images)/10) + "%", "\r", end="")
                 with open(f"data/gif{i+1}.csv", "r") as f:
                     data = csv.reader(f)
                     x = []
                     y = []
                     for row in data:
+                        #x.append(int(row[0]))
                         x.append(row[0])
                         y.append(float(row[1]))
                     fig, ax = plt.subplots()
