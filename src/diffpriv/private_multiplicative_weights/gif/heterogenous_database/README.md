@@ -4,6 +4,8 @@ In this folder you can find the representation of the evolution of
 $h$ on a database with a huge domain and the distribution over it
 is far from beeing uniform.
 
+The data under study are from the [programming dp book](https://github.com/uvm-plaid/programming-dp/blob/master/notebooks/adult_with_pii.csv).
+
 ## Evolution with the probability distribution (Hasthbl. implmentation)
 
 With the following parameters :
