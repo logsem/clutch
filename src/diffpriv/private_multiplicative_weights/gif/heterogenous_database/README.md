@@ -51,4 +51,8 @@ While with the following parameters :
 
 We get the following evolution :
 
-![Evolution of the distribution.](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/private_multiplicative_weights/gif/heterogenous_database/evolution_distrib_alf.gif?raw=true "Evolution of the distribution with an addapted learning factor.")
+![Evolution of the distribution.](https://github.com/Pbi0/clutch/blob/pMW_formal/src/diffpriv/private_multiplicative_weights/gif/heterogenous_database/evolution_distrib_adapted_factor.gif?raw=true "Evolution of the distribution with an addapted learning factor.")
+
+We can see that there is no longer overestimation and that the convergence is 
+faster as well. However there is more gittering (it is less precise than the
+first example using the Hastbl. implementation.
