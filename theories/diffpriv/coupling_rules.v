@@ -901,6 +901,34 @@ Section rules.
         simplify_eq. simpl. lra.
   Qed.
 
+  Lemma hoare_couple_rand_rand_kanto_diag (N : nat) (X Y : nat -> R)
+                            z K E (ε δ : R) :
+    TCEq N (Z.to_nat z) →
+    (forall n, 0 <= X n) ->
+    (forall n, 0 <= Y n <= 1) ->
+    (forall h1 h2,
+          (forall a, 0 <= h1 a <= 1) ->
+          (forall b, 0 <= h2 b <= 1) ->
+          (forall a, h1 a <= exp (X a) * h2 a + Y a) ->
+          (Expval (dunifP N) h1 <=
+             exp ε * Expval (dunifP N) h2 + δ)) ->
+    {{{ ⤇ fill K (rand #z) ∗ ↯m ε ∗ ↯ δ }}}
+      rand #z @ E
+      {{{ (n : nat), RET #n; ⤇ fill K #n ∗ ↯m (X n) ∗ ↯ (Y n)  }}}.
+  Proof.
+    iIntros (HN HX_nonneg HY_bounds Hkanto Φ) "(Hr & Hε & Hδ) HΦ".
+    iApply (hoare_couple_rand_rand_kanto N N (λ n m, n = m)
+              (λ n _, X n) (λ n _, Y n)
+              z z K E ε δ with "[$Hr $Hε $Hδ] [HΦ]").
+    - intros n m. apply HX_nonneg.
+    - intros n m. apply HY_bounds.
+    - intros h1 h2 Hh1 Hh2 Hbound.
+      apply Hkanto; [exact Hh1 | exact Hh2 |].
+      intros a. apply (Hbound a a). reflexivity.
+    - iModIntro. iIntros (n m) "(Hspec & %Hnm & Hm & Ha)".
+      subst m. iApply "HΦ". iFrame.
+  Qed.
+
 
   Lemma hoare_couple_rand_l_adv (N : nat) (E2 D2 : nat -> R) z E (ε δ : R) :
     TCEq N (Z.to_nat z) →
@@ -1089,6 +1117,76 @@ Section rules.
     -  iModIntro.
        iIntros (n m) "H".
        iApply "HΨ". iFrame.
+  Qed.
+
+  (** Converting an [(ε,0)] multiplicative-DP requirement into an [(ε',δ)]
+      budget with [ε' = ½ε² + √(2 ln(1/δ)) · ε] (the pure-DP → zCDP →
+      approximate-DP conversion, with [ρ = ε²/2]).
+
+      No program step is taken: we use [wp_lift_step_spec_couple] and
+      instantiate [spec_coupl] with two trivial dirac distributions, so the
+      only content is the credit reframe. The reframe's soundness obligation
+      is exactly [conversion_obligation_framed] (framed by the ambient credit
+      [x3]/[y3] left in the supply). If [δ ≥ 1], the [↯ δ] resource is already
+      contradictory, so no upper bound on [δ] is needed. *)
+  Lemma wp_eps_to_delta_conv (ε δ : R) E e Φ :
+    0 <= ε -> 0 < δ ->
+    ↯m (/2 * ε^2 + sqrt (2 * ln (/δ)) * ε) ∗ ↯ δ ∗
+    (↯m ε -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    intros Heps Hd.
+    iIntros "(Hεm & Hδ & Hwp)".
+    (* If [δ ≥ 1] then [↯ δ] is already contradictory. *)
+    destruct (Rlt_le_dec δ 1) as [Hδ1 | Hδ1].
+    2:{ iExFalso. iApply (ec_contradict with "Hδ"); lra. }
+    assert (Hd1 : 0 < δ <= 1) by lra.
+    iApply wp_lift_step_spec_couple.
+    iIntros (σ1 e1' σ1' ε_now δ_now) "(Hσ & Hspec & Hεm2 & Hδ2)".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    iDestruct (ecm_supply_ecm_inv with "Hεm2 Hεm") as %(x1 & x3 & Hnow & Hx1).
+    iDestruct (ec_supply_ec_inv with "Hδ2 Hδ") as %(y1 & y3 & Hδnow & Hy1).
+    iApply spec_coupl_rec.
+    iExists (fun σ2 (ρ : cfg) => σ2 = σ1 /\ ρ = (e1', σ1')),
+            (dret σ1), (dret (e1', σ1')),
+            (fun _ _ => (x3 + mknonnegreal ε Heps)%NNR),
+            (fun _ _ => y3).
+    iSplit; [iPureIntro; apply dret_erasable|].
+    iSplit; [iPureIntro; apply dret_rewritable|].
+    iSplit; [iPureIntro; exists y3; intros; simpl; lra|].
+    iSplit.
+    { iPureIntro. intros h1 h2 Hh1 Hh2 Hpre.
+      rewrite !Expval_dret.
+      specialize (Hpre σ1 (e1', σ1') (conj eq_refl eq_refl)).
+      assert (Hεeq : nonneg ε_now = nonneg x3 + (/2 * ε^2 + sqrt (2 * ln (/δ)) * ε)).
+      { rewrite Hnow /=. rewrite Hx1. lra. }
+      assert (Hδeq : nonneg δ_now = nonneg y3 + δ).
+      { rewrite Hδnow /=. rewrite Hy1. lra. }
+      rewrite Hεeq Hδeq.
+      apply (conversion_obligation_framed (nonneg x3) (nonneg y3) δ ε
+               (cond_nonneg x3) (cond_nonneg y3) Hd1 Heps
+               (h1 σ1) (h2 (e1', σ1')) (Hh1 σ1) (Hh2 (e1', σ1'))).
+      exact Hpre. }
+    iIntros (σ2 e2' σ2') "%HS". destruct HS as [-> HS2]. injection HS2 as -> ->.
+    iApply spec_coupl_ret.
+    iMod (ecm_supply_decrease with "Hεm2 Hεm") as (x1' x3' Hnow' Hx1') "Hεm2".
+    iMod (ec_supply_decrease with "Hδ2 Hδ") as (y1' y3' Hδnow' Hy1') "Hδ2".
+    iMod (ecm_supply_increase x3' (mknonnegreal ε Heps) with "Hεm2") as "[Hεm2 Hεfrag]".
+    iModIntro. iMod "Hclose" as "_".
+    iFrame "Hσ Hspec".
+    assert (Hx3 : nonneg x3 = nonneg x3').
+    { pose proof (f_equal nonneg Hnow) as A. pose proof (f_equal nonneg Hnow') as B.
+      simpl in A, B. rewrite Hx1 in A. rewrite Hx1' in B. lra. }
+    assert (Hy3 : nonneg y3' = nonneg y3).
+    { pose proof (f_equal nonneg Hδnow) as A. pose proof (f_equal nonneg Hδnow') as B.
+      simpl in A, B. rewrite Hy1 in A. rewrite Hy1' in B. lra. }
+    iModIntro.
+    iSplitR "Hwp Hεfrag".
+    - rewrite /err_interp /mult_ec_supply /add_ec_supply.
+      iSplitL "Hεm2".
+      + iApply (ecm_supply_eq with "Hεm2"). simpl. rewrite Hx3. lra.
+      + iApply (ec_supply_eq with "Hδ2"). simpl. exact Hy3.
+    - iApply "Hwp". iApply (ecm_eq with "Hεfrag"). done.
   Qed.
 
   (*
