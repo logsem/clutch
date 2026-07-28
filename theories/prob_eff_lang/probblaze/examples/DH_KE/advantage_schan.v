@@ -49,15 +49,8 @@ Section adv_schan.
       (intros ζ; extensionality v1; extensionality v2; symmetry;
        apply (τG_lrel (clutch_group := G _ _))).
     rewrite /T_CHAN /τ_CHAN /sem_ty_option. simpl.
-    repeat f_equiv; first done.
-    apply functional_extensionality; intros?.
-    repeat f_equiv; first done.
-    - apply functional_extensionality; intros?.
-      rewrite HG. done.
-    - apply functional_extensionality; intros?.
-      f_equiv.
-      apply functional_extensionality; intros?.
-      rewrite HG. done.
+    repeat (f_equiv; try (apply functional_extensionality; intros ?));
+      first [done | by rewrite HG].
   Qed. 
   
   Lemma adv_SCHAN A :
