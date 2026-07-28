@@ -9,46 +9,6 @@ From clutch.prob_eff_lang.probblaze Require Import
   dhke_channel_lazy_authchan
   def_dhke adequacy.
 
-(* [interp._ty]/[interp._row]/[interp._mode] are fixpoints returning OFE
-   morphisms ([_ -n> _]); [cbn]/[simpl] fail to reduce them (they choke on the
-   [ofe_mor_car] / [NonExpansive] proof terms).  These one-step unfolding
-   equations hold by [reflexivity] (they are definitional) and let us drive the
-   interpretation of a closed type by [rewrite] instead. *)
-Section interp_unfold.
-  Context `{!probblazeRGS Σ}.
-  Lemma interp_TForallR η μ δ (τ : type) ξ :
-    interp._ty η μ δ (TForallR τ) ξ
-    = sem_ty_row_forall (λ ρ, interp._ty η μ δ τ (ρ :: ξ)).
-  Proof. reflexivity. Qed.
-  Lemma interp_TArrow η μ δ α ρ β ξ :
-    interp._ty η μ δ (TArrow α ρ β) ξ
-    = sem_ty_arr (interp._row η μ δ ρ ξ) (interp._ty η μ δ α ξ) (interp._ty η μ δ β ξ).
-  Proof. reflexivity. Qed.
-  Lemma interp_TBang η μ δ m τ ξ :
-    interp._ty η μ δ (TBang m τ) ξ = sem_ty_mbang (interp._mode μ m) (interp._ty η μ δ τ ξ).
-  Proof. reflexivity. Qed.
-  Lemma interp_TProd η μ δ τ1 τ2 ξ :
-    interp._ty η μ δ (TProd τ1 τ2) ξ
-    = sem_ty_prod (interp._ty η μ δ τ1 ξ) (interp._ty η μ δ τ2 ξ).
-  Proof. reflexivity. Qed.
-  Lemma interp_TSum η μ δ τ1 τ2 ξ :
-    interp._ty η μ δ (TSum τ1 τ2) ξ
-    = sem_ty_sum (interp._ty η μ δ τ1 ξ) (interp._ty η μ δ τ2 ξ).
-  Proof. reflexivity. Qed.
-  Lemma interp_TUnit η μ δ ξ : interp._ty η μ δ TUnit ξ = sem_ty_unit.
-  Proof. reflexivity. Qed.
-  Lemma interp_RVar η μ δ i ξ : interp._row η μ δ (RVar i) ξ = ξ !!! i.
-  Proof. reflexivity. Qed.
-  Lemma interp_RUnion η μ δ ρ1 ρ2 ξ :
-    interp._row η μ δ (RUnion ρ1 ρ2) ξ
-    = sem_row_union (interp._row η μ δ ρ1 ξ) (interp._row η μ δ ρ2 ξ).
-  Proof. reflexivity. Qed.
-  Lemma interp_RNil η μ δ ξ : interp._row η μ δ RNil ξ = sem_row_nil.
-  Proof. reflexivity. Qed.
-  Lemma interp_mode_MS μ : interp._mode μ MS = syntax.MS.
-  Proof. reflexivity. Qed.
-End interp_unfold.
-
 Section adv_dhke.
   Context {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg}.
   Context {G : ∀ `{!probblazeRGS Σ}, clutch_group}.
@@ -82,23 +42,9 @@ Section adv_dhke.
     assert (HG : ∀ ζ, interp._ty η μ δ τG ζ = sem_ty_group) by
       (intros ζ; extensionality v1; extensionality v2; symmetry;
        apply (τG_lrel (clutch_group := G _ _))).
-    rewrite /T_DH /τ_DH /sem_ty_option.
-    (* Peel the interpretation constructor-by-constructor: [rewrite] the
-       reflexivity-unfolding lemmas at the head, then a congruence step
-       (targeted [f_equal]/[functional_extensionality], since generic [f_equal]
-       is too slow on these OFE terms), closing group leaves with [HG]. *)
-    repeat (
-      rewrite ?interp_TForallR ?interp_TArrow ?interp_TBang ?interp_TProd ?interp_TSum
-              ?interp_TUnit ?interp_RVar ?interp_RUnion ?interp_RNil ?interp_mode_MS;
-      first [ apply HG
-            | reflexivity
-            | apply (f_equal sem_ty_row_forall)
-            | apply (f_equal3 sem_ty_arr)
-            | apply (f_equal2 sem_ty_prod)
-            | apply (f_equal2 sem_ty_sum)
-            | apply (f_equal2 sem_ty_mbang)
-            | apply (f_equal2 sem_row_union)
-            | (apply functional_extensionality; intros ?) ]).
+    rewrite /T_DH /τ_DH /sem_ty_option /=.
+    repeat (f_equiv; try (apply functional_extensionality; intros ?));
+      first [done | by rewrite HG].
   Qed.
 
   Lemma adv_DHKE_DH_real  A :
@@ -233,15 +179,9 @@ Section adv_dhke.
     assert (HG : ∀ ζ, interp._ty η μ δ τG ζ = sem_ty_group) by
       (intros ζ; extensionality v1; extensionality v2; symmetry;
        apply (τG_lrel (clutch_group := G _ _))).
-    rewrite /T_real.
-    repeat (
-      rewrite ?interp_TBang ?interp_TArrow ?interp_TProd ?interp_TUnit
-              ?interp_RNil ?interp_mode_MS;
-      first [ apply HG | reflexivity
-            | apply (f_equal2 sem_ty_prod)
-            | apply (f_equal3 sem_ty_arr)
-            | apply (f_equal2 (@sem_ty_mbang Σ))
-            | (apply functional_extensionality; intros ?) ]).
+    rewrite /T_real /=.
+    repeat (f_equiv; try (apply functional_extensionality; intros ?));
+      first [done | by rewrite HG].
   Qed.
 
   (* [sample #() = (λ:<>, rand #n) #()] has type [ℕ] in any context. *)
@@ -580,10 +520,19 @@ Section adv_dhke.
       + split; [apply DH_real_self | apply DH_rand_self].
   Qed.
 
+  (* Helper lemmas to not unfold too much *)
+  Lemma interp_TArrow `{!probblazeRGS Σ} η μ δ α ρ β ξ :
+    interp._ty η μ δ (TArrow α ρ β) ξ
+    = sem_ty_arr (interp._row η μ δ ρ ξ) (interp._ty η μ δ α ξ) (interp._ty η μ δ β ξ).
+  Proof. reflexivity. Qed.
+  Lemma interp_TBang `{!probblazeRGS Σ} η μ δ m τ ξ :
+    interp._ty η μ δ (TBang m τ) ξ = sem_ty_mbang (interp._mode μ m) (interp._ty η μ δ τ ξ).
+  Proof. reflexivity. Qed.
+
   Lemma T_DH_bool `{!probblazeRGS Σ} η μ δ ξ :
     interp._ty η μ δ (T_DH ⇾ TBool)  ξ = (τ_DH → 𝔹)%T.
   Proof using All.
-    repeat rewrite ?interp_TArrow ?interp_TBang.
+    repeat rewrite ?interp_TArrow ?interp_TBang. 
     rewrite T_DH_interp. by simpl.
   Qed. 
 
