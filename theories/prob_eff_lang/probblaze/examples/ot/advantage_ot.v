@@ -1,9 +1,10 @@
 From clutch.prob_eff_lang.probblaze Require Import advantage.
 From iris.algebra Require Import excl.
 From iris.algebra.lib Require Import dfrac_agree.
+From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row semantics proofmode valgroup sem_judgement.
 From clutch.prob_eff_lang.probblaze.typing Require Import types fundamental interp.
-From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup.
-From clutch.prob_eff_lang.probblaze Require Import OT_Rcorrupt_thunk definition_thunk_receiver_corrupt adequacy.
+From clutch.prob_eff_lang.probblaze Require Import OT_Rcorrupt_thunk definition_thunk_receiver_corrupt adequacy syntax.
+
 Import fingroup.
 
 Section type_unfold.
@@ -30,7 +31,6 @@ Section adv_rc.
 
   Definition τ_rc `{probblazeRGS Σ} := (∀ᵣ θ, τC θ ⊸ ((((𝔾 × 𝔾) × (𝔾 × 𝔾)) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option (𝔾 × 𝔾)))
             -{ ¡[OS] θ}-∘ 𝟙)%T.
-
 
   Theorem adv_ot_rc A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_rc → 𝔹)%T) →
@@ -163,7 +163,7 @@ Section adv_sc_typing.
   Qed.
 
   Lemma OT_REDUCTION_sem_typed `{!probblazeRGS Σ} :
-    ⊢ ⊨ᵥ OT_REDUCTION ≤ OT_REDUCTION : ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾)) → τ_sc).
+    ⊢ sem_val_typed OT_REDUCTION OT_REDUCTION ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾)) → τ_sc)%T.
   Proof using G cg inG2 n_prime vg vgg Σ.
     unfold OT_REDUCTION. unfold sem_ty_mbang. simpl.
     iIntros (DH1 DH2) "!# !# HDH".
@@ -189,7 +189,7 @@ Section adv_sc_typing.
 
 
   Lemma DH_rand_sem_typed `{!probblazeRGS Σ} :
-    ⊢ ⊨ᵥ DH_rand ≤ DH_rand : (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾)).
+    ⊢ sem_val_typed DH_rand DH_rand (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾))%T.
   Proof using All.
     unfold DH_rand.
     iIntros (??) "!# (->&->)" .
@@ -213,13 +213,13 @@ Section adv_sc_typing.
   Qed.
 
   Lemma DH_real_sem_typed `{!probblazeRGS Σ} :
-    ⊢ ⊨ᵥ DH_real ≤ DH_real : (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾)).
+    ⊢ sem_val_typed DH_real DH_real (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾 × 𝔾))%T.
   Proof using All.
     unfold DH_real.
     iIntros (??) "!# (->&->)" .
     brel_pures'.
     iApply brel_couple_rand_rand; first done.
-n    iIntros (x) "%".
+    iIntros (x) "%".
     brel_pures'.
     iApply brel_couple_rand_rand; first done.
     iIntros (a) "%".
@@ -317,46 +317,45 @@ Section adv_sc.
         Unshelve. all: assumption.
   Qed.
 
- Definition T_sc : type :=
-    (∀R: 
-   (∀R:  ((τG -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> () + τG)) -{ RUnion (RVar 0%nat) (RVar 1%nat) }-∘ ())
-   -∘ ∀R:
-     (∀R:
-      (((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> () + ()))
-      -∘ (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ (RVar 0%nat) }-> () + τG)) -{ RUnion (RVar 1%nat) (RUnion (RVar 0%nat) (RVar 2%nat)) }-∘ ())).
+  Definition T_sc : type :=
+    (∀R:  (∀R: (∀R: ((() -{ (RVar 0%nat) }-> ((τG * τG) * τG) * τG) * (TBool -{ (RVar 1%nat) }-> () + τG)) -{ RUnion (RVar 1%nat) (RUnion (RVar 0%nat) (RVar 2%nat)) }-∘ ()))
+          -∘ (((τG * τG) -{ (RVar 0%nat) }-> ()) * (() -{ (RVar 0%nat) }-> (() + ((τG * τG) * (τG * τG))))) -{ ¡[OS] (RVar 0%nat) }-∘ ()).
 
-  Lemma T_interp `{!probblazeRGS Σ} η μ δ ξ :
-    interp._ty η μ δ T ξ = τ.
+  Lemma T_sc_interp `{!probblazeRGS Σ} η μ δ ξ :
+    interp._ty η μ δ T_sc ξ = τ_sc.
   Proof using All.
     assert (HG : ∀ ζ, interp._ty η μ δ τG ζ = sem_ty_group) by
       (intros ζ; extensionality v1; extensionality v2; symmetry;
        apply (τG_lrel (clutch_group := G _ _))).
-    rewrite /T /τ /sem_ty_option /=.
+    rewrite /T_sc /τ_sc /τC /sem_ty_option /=.
     repeat (f_equiv; try (apply functional_extensionality; intros ?));
-      first [done | by rewrite HG].
+      try first [done | by rewrite HG].
   Qed.
 
-
-  Lemma T_bool `{!probblazeRGS Σ} η μ δ ξ :
-    interp._ty η μ δ (T ⇾ TBool)  ξ = (τ → 𝔹)%T.
+  Lemma T_sc_bool `{!probblazeRGS Σ} η μ δ ξ :
+    interp._ty η μ δ (T_sc ⇾ TBool)  ξ = (τ_sc → 𝔹)%T.
   Proof using All.
-    repeat rewrite ?interp_TArrow ?interp_TBang.
-    rewrite T_interp. by simpl.
+    repeat rewrite ?interp_TArrow ?interp_TBang. 
+    rewrite T_sc_interp. by simpl.
   Qed. 
 
 
-  Lemma adv_composition_typed A :
-   ⊢ᵥ A : (T ⇾ TBool) →
-    advantage A REAL_CHAN_DHKE SIMSIMFCHAN #true <=
-      advantage (λ: "v", A ((REAL_CHAN_DH_RED "v")))%V DH_real DH_rand #true.
+  Theorem adv_ot_sc_typed A :
+    ⊢ᵥ A : (T_sc ⇾ TBool) →
+    advantage A
+      (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Sender_corrupt "f" ("effs", "doCRS")))%V
+      OT_SIM_FOT_thunk #true
+    <= advantage (λ: "v", A (OT_REDUCTION "v"))%V
+                            DH_rand
+                            DH_real #true + 2/n.
   Proof using All.
-    intros HAtyped. apply adv_composition_real. 
+    intros HAtyped. apply adv_ot_final. 
     intros HRGS.
     apply (@fundamental_val Σ HRGS) in HAtyped.
     iPoseProof HAtyped as "Hadv".
     unfold bin_log_val_related.
     iSpecialize ("Hadv" $! [] [] ∅ []). 
-    by rewrite T_bool.
-  Qed. 
+    by rewrite T_sc_bool.
+  Qed.
 
 End adv_sc.
