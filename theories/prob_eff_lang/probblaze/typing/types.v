@@ -922,6 +922,7 @@ Notation "∃: τ" :=
   (at level 100, τ at level 200) : FType_scope.
 Notation "'ref' τ" := (TRef τ%ty) (at level 10, τ at next level, right associativity): FType_scope.
 Notation "![ m ] τ" := (TBang m τ%ty) (at level 10, τ at next level, right associativity): FType_scope.
+Notation "¡[ m ] ρ" := (RFlip m ρ) (at level 10, ρ at next level, right associativity).
 (* Notation "! τ" := (TBang MS τ%ty) (at level 10, τ at next level, right associativity): FType_scope. *)
 
 
