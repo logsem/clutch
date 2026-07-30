@@ -330,25 +330,25 @@ Section Zpx.
   Qed.
 
   Fact is_inv_p (x : vgG) : ⊢ WP x^-1 {{ λ (v : cval), ⌜v = (vgval_p (x^-1)%g)⌝ }}.
-  (* Proof.
-       simpl. rewrite /vinv_p {1}/vgval_p. wp_pures => /=.
-       wp_apply is_exp' => //.
-       iIntros (? ->). wp_pures. iPureIntro.
-       rewrite rem_modn // /vgval_p. rewrite Zpx_small. rewrite order_inv. done.
-     Qed. *)
-  Admitted. 
+  Proof.
+    simpl. rewrite /vinv_p {1}/vgval_p. wp_pures => /=.
+    iApply (primitive_laws.wp_bind [BinOpLCtx _ _]).
+    iApply is_exp' => //.
+    iIntros (? ->) "!>". wp_pures. iPureIntro.
+    rewrite rem_modn // /vgval_p. rewrite Zpx_small. rewrite order_inv. done.
+  Qed.
 
   Fact is_spec_inv_p (x : vgG) K :
     ⤇ fill K x^-1 -∗ spec_update ⊤ (⤇ fill K (vgval_p (x^-1)%g)).
   Proof.
-  (*   iIntros "hlog" => /=. rewrite /vinv_p {2}/vgval_p. tp_pures => /=.
-       tp_bind (vexp' _ _ _ _)%E.
-       iMod (is_spec_exp' with "hlog") as "hlog /=".
-       tp_pures.
-       rewrite rem_modn //. rewrite Zpx_small order_inv /=.
-       iModIntro. iAssumption.
-     Qed. *)
-  Admitted.
+    iIntros "hlog" => /=. rewrite /vinv_p {2}/vgval_p. tp_pures => /=.
+    tp_bind (vexp' _ _ _ _)%E.
+    iMod (is_spec_exp' with "hlog") as "hlog /=". 
+    rewrite fill_app.
+    tp_pures.
+    rewrite rem_modn //. rewrite Zpx_small order_inv /=.
+    iModIntro. iAssumption.
+  Qed.
 
   Fact is_eq_p (x y : vgG) : ⊢ WP veq_p x y {{ λ v, ⌜ v = #(bool_decide (x = y)) ⌝ }}.
   Admitted.
