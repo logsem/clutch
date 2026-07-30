@@ -1,4 +1,4 @@
-From clutch.prob_eff_lang.probblaze Require Import semantics syntax notation logic.
+From clutch.prob_eff_lang.probblaze Require Import semantics syntax notation logic proofmode spec_tactics.
 From clutch.prob_eff_lang.probblaze.typing Require Import types.
 
 #[warning="-hiding-delimiting-key,-overwriting-delimiting-key -notation-incompatible-prefix"]
@@ -7,7 +7,7 @@ From mathcomp Require Import fingroup solvable.cyclic choice eqtype finset
 
 From clutch.prelude Require Import mc_stdlib.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import valgroup.
-(* From clutch.approxis Require Import app_weakestpre. *)
+From clutch.approxis Require Import app_weakestpre.
 
 Local Open Scope group_scope.
 Import fingroup.fingroup.
@@ -266,65 +266,57 @@ Section Zpx.
 
   Fact is_mult_p (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = vgval_p (x * y)%g⌝ }}.
   Proof.
-    rewrite /vmult /= /vmult_p /vgval_p /=.
-    iApply wp_pure_step_later; [eapply (logic.pure_exec_ctx [AppLCtx _]); eapply pure_beta; apply AsRecV_recv| done |iModIntro; simpl].
-    iApply wp_pure_step_later; [eapply (logic.pure_exec_ctx [AppLCtx _]); eapply pure_recc| done |iModIntro; simpl].
-    iApply wp_pure_step_later; [done|iModIntro; simpl].
-    iApply wp_pure_step_later; [eapply (logic.pure_exec_ctx [BinOpLCtx _ _]); eapply pure_binop|done|iModIntro; simpl].
-    iApply wp_pure_step_later; [done|iModIntro; simpl].
-    iApply wp_value.
+    rewrite /vmult /= /vmult_p /vgval_p /=. wp_pures.
     iPureIntro.
-    rewrite -Nat2Z.inj_mul. rewrite rem_modn //.
+    rewrite -Nat2Z.inj_mul rem_modn //=. 
   Qed.
 
   Fact is_spec_mult_p (x y : vgG) K :
     ⤇ fill K (vmult x y) -∗ spec_update ⊤ (⤇ fill K (vgval_p (x * y)%g)).
   Proof.
-  (*   iIntros. rewrite /vmult /cgs_p /vmult_p /= /vgval_p. tp_pures => /=.
-       iModIntro.
-       by rewrite -Nat2Z.inj_mul -ssrnat.multE rem_modn.
-     Qed. *)
-  Admitted. 
+    iIntros. rewrite /vmult /cgs_p /vmult_p /= /vgval_p //=. tp_pures => /=.
+    by rewrite -ssrnat.multE -Nat2Z.inj_mul -rem_modn. 
+  Qed. 
 
   Fact is_exp' (b : vgG) (x : nat) :
     {{{ True }}} vexp' vunit_p vmult_p b #x {{{ v, RET (v : cval); ⌜v = vgval_p (b ^+ x)%g⌝ }}}.
   Proof.
-  (*   unfold vexp, vexp'. iIntros (? _) "hlog".
-       wp_pure. wp_pure.
-       iInduction x as [|x] "IH" forall (Φ).
-       - wp_pures.
-         unfold vunit_p.
-         iApply ("hlog").
-         by rewrite expg0.
-       - do 4 wp_pure.
-         wp_bind ((rec: _ _ := _)%V _).
-         replace (S x - 1)%Z with (Z.of_nat x) by lia.
-         iApply "IH".
-         iIntros. wp_pures.
-         iApply (wp_frame_wand with "hlog"). iApply (wp_mono $! (is_mult_p b v)).
-         iIntros (??) "hlog" ; subst. iApply "hlog".
-         by rewrite expgS.
-     Qed. *)
-  Admitted. 
+    unfold vexp, vexp'. iIntros (? _) "hlog".
+    wp_pure. wp_pure.
+    iInduction x as [|x] "IH" forall (Φ).
+    - wp_pures.
+      unfold vunit_p.
+      iApply ("hlog").
+      by rewrite expg0.
+    - do 4 wp_pure.
+      iApply (primitive_laws.wp_bind _ _ ((rec: _ _ := _)%V _)).
+      replace (S x - 1)%Z with (Z.of_nat x) by lia.
+      iApply "IH".
+      iIntros. wp_pures.
+      iApply (wp_frame_wand with "hlog"). rewrite H. 
+      iApply (wp_mono $! (is_mult_p b (b ^+ x))).
+      iIntros (??) "hlog" ; subst. iApply "hlog".
+      by rewrite expgS.
+  Qed.
 
   Fact is_spec_exp' (b : vgG) (x : nat) K :
     ⤇ fill K (vexp' vunit_p vmult_p b #x) ⊢ spec_update ⊤ (⤇ fill K (vgval_p (b ^+ x)%g)).
   Proof.
-  (*   unfold vexp, vexp'. iIntros "hlog".
-       tp_pure. tp_pure.
-       iInduction x as [|x] "IH" forall (K).
-       - tp_pures. iModIntro.
-         iApply ("hlog").
-       - do 4 tp_pure.
-         tp_bind ((rec: _ _ := _)%V _).
-         replace (S x - 1)%Z with (Z.of_nat x) by lia.
-         iSpecialize ("IH" with "hlog").
-         iMod "IH" as "IH /=".
-         tp_pures.
-         rewrite is_spec_mult_p.
-         by rewrite expgS.
-     Qed. *)
-  Admitted. 
+    unfold vexp, vexp'. iIntros "hlog".
+    tp_pure. tp_pure.
+    iInduction x as [|x] "IH" forall (K).
+    - tp_pures. iModIntro.
+      iApply ("hlog").
+    - do 4 tp_pure.
+      tp_bind ((rec: _ _ := _)%V _).
+      replace (S x - 1)%Z with (Z.of_nat x) by lia.
+      iSpecialize ("IH" with "hlog").
+      iMod "IH" as "IH /=".
+      rewrite fill_app //=.
+      tp_pures.
+      rewrite expgS.
+      by iApply is_spec_mult_p.
+  Qed.
 
   Fact Zpx_small : ∀ (x : vgG), div.modn (FinRing.uval x) p = FinRing.uval x.
   Proof. move => [/= x i]. rewrite div.modn_small //. Qed.
