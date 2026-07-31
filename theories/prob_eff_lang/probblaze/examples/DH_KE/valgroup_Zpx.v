@@ -27,7 +27,7 @@ Section Zpx.
 
   Definition vgval_p (n : Zpx) : cval := #(Z.of_nat (nat_of_ord (FinRing.uval n))).
 
-  Fact vgval_inj_p : Inj eq eq vgval_p.
+  Local Instance vgval_inj_p : Inj eq eq vgval_p.
   Proof.
     intros x y h. inversion h as [hh]. apply val_inj.
     destruct x as [x hx], y as [y hy] ; simpl in *.
@@ -350,17 +350,36 @@ Section Zpx.
     iModIntro. iAssumption.
   Qed.
 
+  Lemma bool_decide_vgval_p x y : bool_decide (vgval_p x = vgval_p y) = bool_decide (x = y).
+  Proof. 
+    apply bool_decide_ext.
+    split; [apply (inj vgval_p)|by intros ->].
+  Qed. 
+  
   Fact is_eq_p (x y : vgG) : ⊢ WP veq_p x y {{ λ v, ⌜ v = #(bool_decide (x = y)) ⌝ }}.
-  Admitted.
+  Proof. 
+    rewrite /veq_p //=.
+    wp_pures.
+    iPureIntro.
+    by rewrite bool_decide_vgval_p.
+  Qed. 
+
 
   Fact is_spec_eq_p (x y : vgG) K : ⤇ fill K (veq_p x y) -∗ spec_update ⊤ (⤇ fill K #(bool_decide (x = y))).
-  Admitted.                                       
+  Proof. 
+    iIntros "Hj".
+    rewrite /veq_p. 
+    tp_pures.
+    iModIntro.
+    by rewrite bool_decide_vgval_p.
+  Qed.     
+
   (* Fact τG_subtype_p v1 v2 Δ : lrel_G v1 v2 ⊢ interp τG Δ v1 v2.
      Proof. iIntros ((w&->&->)). iExists _. eauto. Qed. *)
 
   Definition cg_p : clutch_group (cg := cgs_p).
     unshelve eapply (
-        {|is_inv := is_inv_p
+        {| is_inv := is_inv_p
         ; is_mult := is_mult_p
         ; is_spec_mult := is_spec_mult_p
         ; is_spec_inv := is_spec_inv_p
