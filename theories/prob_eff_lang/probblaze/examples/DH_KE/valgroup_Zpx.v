@@ -44,6 +44,8 @@ Section Zpx.
   Definition vunit_p : cval := vgval (1%g : vgG).
   Lemma vunit_p_typed : ⊢ᵥ vunit_p : ℤ. 
   Proof. apply Int_val_typed. Qed.
+  Lemma is_unit_p : vunit_p = vgval_p 1. 
+  Proof. done. Qed.
   Definition vmult_p := (λ:"a" "b", ("a" * "b") `rem` #p)%V.
   Lemma vmult_p_typed : ⊢ᵥ vmult_p : (ℤ ⇾ ℤ ⇾ ℤ).
   Proof. 
@@ -228,6 +230,121 @@ Section Zpx.
   Defined.
 
   Context `{p_prime : is_true (prime.prime p)}.
+
+  Definition vgg_p : val_group_generator (vg:=vg_p).
+  Proof.
+    move /cyclicP : (units_Zp_cyclic p_prime) => /= h.
+    pose ((λ x, units_Zp p == cycle x) : ssrbool.pred {unit 'Z_p}) as P ; simpl in P.
+    assert (zpgen : (∃ x, units_Zp p = cycle x) →
+                    ∃ x, is_true (units_Zp p == cycle x)).
+    { move => [/= x hx]. exists x. by apply /eqP. }
+    destruct (sigW (zpgen h)) as [g hg].
+    clear -hg p_prime ; simpl in *.
+    unshelve econstructor.
+    - exact g.
+    - exact p'''.
+    - done.
+    - unfold order. move /eqP : hg => <-.
+      rewrite card_units_Zp //=.
+      apply prime.totient_prime => //.
+    - rewrite /generator /=. unfold units_Zp in hg.
+      apply Is_true_eq_left. by rewrite hg.
+  Defined.
+
+  (* Definition cgg_p : @clutch_group_generator vg_p cgs_p vgg_p.
+     Proof.
+       constructor. constructor.
+     Defined. *)
+
+  (* **************************************** *)
+  (* Semantic conversion funcitons *)
+  Lemma bound_is_a_unit : ∀ (n : Z), (1 ≤ n)%Z → (n < p)%Z
+    → is_true ((inZp (Z.to_nat n)) \is a (@ssralg.GRing.unit ('Z_p : finUnitRingType))).
+  Proof. rewrite /in_mem. simpl.
+    rewrite /Zp_trunc. simpl.
+    intros n Hnnonzero Hnbound.
+    erewrite prime.prime_coprime.
+    - rewrite /div.dvdn.
+      rewrite div.modn_mod.
+      rewrite div.modn_small.
+      + Set Printing Coercions.
+        rewrite -(Z2Nat.id n) in Hnbound; last lia. 
+        apply Nat2Z.inj_lt in Hnbound.
+        rewrite /is_true.
+        apply negb_true_iff.
+        apply (introF (@eqP _ _ _)).
+        intro contra. lia.
+      + rewrite -(Z2Nat.id n) in Hnbound; last lia.
+        apply Nat2Z.inj_lt in Hnbound.
+        apply (reflect_iff _ _ (@ssrnat.ltP _ _)) in Hnbound.
+        apply Hnbound.
+    - apply p_prime.
+  Qed.
+  
+  Lemma bound_is_a_unit_Zp : ∀ (n : 'Z_p), (1 ≤ n)%Z
+                                           → is_true (n \is a (@ssralg.GRing.unit ('Z_p : finUnitRingType))).
+  Proof. intros n Hnnonzero.
+         assert (eqnp : inZp (Z.to_nat (Z.of_nat (nat_of_ord n))) = n) by
+           (rewrite Nat2Z.id; apply valZpK).
+         rewrite -eqnp.
+         apply (bound_is_a_unit (Z.of_nat (nat_of_ord n))).
+         - apply Hnnonzero.
+         - apply inj_lt.
+           pose proof (ltn_ord n) as Hnlep.
+           apply (reflect_iff _ _ (@ssrnat.ltP _ _)) in Hnlep.
+           rewrite /Zp_trunc in Hnlep. simpl in Hnlep.
+           apply Hnlep.
+  Defined.
+  
+  Definition Zp_nonzero_to_unit (n : 'Z_p) (Hnnonzero : (1 ≤ n)%Z) : Zpx :=
+    FinRing.Unit (bound_is_a_unit_Zp n Hnnonzero).
+  
+  Definition Zp_to_unit (n : 'Z_p) : option Zpx :=
+    let b := ((nat_of_ord n) <? p)%nat in
+    if b then
+      match Z_le_dec 1 (Z.of_nat (nat_of_ord n)) with
+      | left Hnnonzero => Some (Zp_nonzero_to_unit n Hnnonzero)
+      | right _ => None
+      end
+    else None.
+
+  Definition unit_to_Zp (g : Zpx) : 'Z_p := FinRing.uval g.
+
+  Definition int_of_vg_sem_p (n : Zpx) : nat := nat_of_ord (unit_to_Zp n).
+  
+  Definition vg_of_int_sem_p (n : nat) : option Zpx := 
+    let bbound := bool_decide ((@inZp (S p'') n) < p)%nat in
+    let bnonzero := bool_decide (1 ≤ @inZp (S p'') (Z.to_nat n))%nat in
+    if (1 <=? n)%nat && (n <? p)%nat then
+      Zp_to_unit (@inZp (S p'') n)
+    else None.
+
+
+  Lemma int_of_vg_sem_p_bound : 
+    ∀ g : vgG, (int_of_vg_sem_p g < S (#|pred_of_set [set: fingroup_FinGroup__to__fintype_Finite vgG]|))%nat. 
+  Proof. 
+    intros g.
+    unshelve erewrite vgG_card; first exact vgg_p.
+    assert (S (S n'') = S (S p'')) as ->. 
+    { admit. }
+    apply Nat.lt_succ_r. 
+    eapply (leq_zmodp (p'')).
+  Admitted. 
+
+  Lemma vg_of_int_of_vg_sem_p (n : nat) (x : vgG) :
+    vg_of_int_sem_p n = Some x → int_of_vg_sem_p x = n.
+  Proof.
+    intros Hsome. unfold vg_of_int_sem_p, int_of_vg_sem_p in *.
+    destruct (1 <=? n) eqn:Hnz; last (rewrite andb_false_l in Hsome; inversion Hsome).
+    destruct (n <? p) eqn:Hbound; last (rewrite andb_false_r in Hsome; inversion Hsome).
+    rewrite andb_diag /Zp_to_unit in Hsome.
+    destruct (nat_of_ord (inZp n) <? p) eqn:Hin; last inversion Hsome.
+    destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (inZp n)))) eqn:Hnonzero; inversion Hsome.
+    subst. 
+  Admitted. 
+
+  (* **************************************** *)
+
   Import valgroup_tactics.
   Context `{!probblazeRGS Σ}.
 
@@ -364,7 +481,6 @@ Section Zpx.
     by rewrite bool_decide_vgval_p.
   Qed. 
 
-
   Fact is_spec_eq_p (x y : vgG) K : ⤇ fill K (veq_p x y) -∗ spec_update ⊤ (⤇ fill K #(bool_decide (x = y))).
   Proof. 
     iIntros "Hj".
@@ -374,12 +490,18 @@ Section Zpx.
     by rewrite bool_decide_vgval_p.
   Qed.     
 
-  (* Fact τG_subtype_p v1 v2 Δ : lrel_G v1 v2 ⊢ interp τG Δ v1 v2.
-     Proof. iIntros ((w&->&->)). iExists _. eauto. Qed. *)
+  Fact τG_subtype_p v1 v2 η μ δ ξ : 𝔾 v1 v2 ⊢ interp.interp._ty η μ δ τG ξ v1 v2.
+  Proof. iIntros ((w&->&->)). iExists _. eauto. Qed.
+
+  Lemma vgval_p_typed : ∀ x : vgG, ⊢ᵥ vgval x : τG. 
+  Proof. intros ?. constructor. Qed.
 
   Definition cg_p : clutch_group (cg := cgs_p).
     unshelve eapply (
-        {| is_inv := is_inv_p
+        {| (* τG_lrel := τG_subtype_p 
+           ; *) vgval_typed := vgval_p_typed
+        ; is_unit := is_unit_p
+        ; is_inv := is_inv_p
         ; is_mult := is_mult_p
         ; is_spec_mult := is_spec_mult_p
         ; is_spec_inv := is_spec_inv_p
@@ -390,25 +512,7 @@ Section Zpx.
      Defined. *)
   Admitted. 
 
-  Definition vgg_p : val_group_generator (vg:=vg_p).
-  Proof.
-    move /cyclicP : (units_Zp_cyclic p_prime) => /= h.
-    pose ((λ x, units_Zp p == cycle x) : ssrbool.pred {unit 'Z_p}) as P ; simpl in P.
-    assert (zpgen : (∃ x, units_Zp p = cycle x) →
-                    ∃ x, is_true (units_Zp p == cycle x)).
-    { move => [/= x hx]. exists x. by apply /eqP. }
-    destruct (sigW (zpgen h)) as [g hg].
-    clear -hg p_prime ; simpl in *.
-    unshelve econstructor.
-    - exact g.
-    - exact p'''.
-    - done.
-    - unfold order. move /eqP : hg => <-.
-      rewrite card_units_Zp //=.
-      apply prime.totient_prime => //.
-    - rewrite /generator /=. unfold units_Zp in hg.
-      apply Is_true_eq_left. by rewrite hg.
-  Defined.
+ 
 
   (* clutch_group_generator states that the val_group_generator is well-typed *)
   (* Definition cgg_p : @clutch_group_generator vg_p cgs_p vgg_p.

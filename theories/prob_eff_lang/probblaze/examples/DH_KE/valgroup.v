@@ -191,7 +191,7 @@ Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct
     ; is_eq (x y : vgG) : ⊢ WP veq (vgval x) (vgval y) {{ λ (v : cval), ⌜v = #(bool_decide (x = y))⌝ }}
     ; is_spec_eq (x y : vgG) K : ⤇ fill K (veq (vgval x) (vgval y)) -∗ spec_update ⊤ (⤇ fill K #(bool_decide (x = y)))
     ; int_of_vg_sem : vgG -> nat
-    ; int_of_vg_sem_bound : ∀ g : vgG, (int_of_vg_sem g < #|[set : vgG]|)%nat
+    ; int_of_vg_sem_bound : ∀ g : vgG, (int_of_vg_sem g < S (#|[set : vgG]|))%nat
     ; vg_of_int_sem : nat -> option vgG
     ; vg_of_int_of_vg_sem : forall (n : nat) (xg : vgG),
         vg_of_int_sem n = Some xg -> int_of_vg_sem xg = n
