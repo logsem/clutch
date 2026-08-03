@@ -320,16 +320,17 @@ Section Zpx.
     else None.
 
 
-  Lemma int_of_vg_sem_p_bound : 
-    ∀ g : vgG, (int_of_vg_sem_p g < S (#|pred_of_set [set: fingroup_FinGroup__to__fintype_Finite vgG]|))%nat. 
-  Proof. 
-    intros g.
-    unshelve erewrite vgG_card; first exact vgg_p.
-    assert (S (S n'') = S (S p'')) as ->. 
-    { admit. }
-    apply Nat.lt_succ_r. 
-    eapply (leq_zmodp (p'')).
-  Admitted. 
+  Lemma int_of_vg_sem_p_bound :
+    ∀ g : vgG, (int_of_vg_sem_p g < S (#|pred_of_set [set: fingroup_FinGroup__to__fintype_Finite vgG]|))%nat.
+  Proof.
+    intros g. unfold int_of_vg_sem_p, unit_to_Zp.
+    rewrite card_units_Zp; last done.
+    rewrite (prime.totient_prime p_prime).
+    pose proof (ltn_ord (FinRing.uval g)) as Hlt.
+    move/ssrnat.ltP in Hlt.
+    rewrite /Zp_trunc /= in Hlt.
+    exact Hlt.
+  Qed.
 
   Lemma vg_of_int_of_vg_sem_p (n : nat) (x : vgG) :
     vg_of_int_sem_p n = Some x → int_of_vg_sem_p x = n.
@@ -341,19 +342,17 @@ Section Zpx.
     destruct (nat_of_ord (inZp n) <? p) eqn:Hin; last inversion Hsome.
     destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (inZp n)))) eqn:Hnonzero; inversion Hsome.
     subst. 
-  Admitted. 
+    rewrite /unit_to_Zp /=.
+    apply div.modn_small. 
+    rewrite Rcomplements.SSR_leq. 
+    rewrite Nat.ltb_lt in Hbound. lia.
+  Qed. 
+
 
   (* **************************************** *)
 
   Import valgroup_tactics.
   Context `{!probblazeRGS Σ}.
-
-  (* Fact int_of_vg_lrel_G_p :
-       ⊢ (lrel_G (vg:=vg_p) → lrel_int)%lrel int_of_vg int_of_vg.
-     Proof with rel_pures.
-       iIntros "!>" (??) "(%v&->&->)".
-       unfold int_of_vg, cgs_p, int_of_vg_p... rel_vals.
-     Qed. *)
 
   Definition vg_of_int_unpacked (x : Z) (vmin : (1 ≤ x)%Z) (vmax : (x < p)%Z) : Zpx.
   Proof.
@@ -370,16 +369,6 @@ Section Zpx.
       unshelve epose proof (div.dvdn_leq _ h) as lepx => // ; [apply /ssrnat.leP ; lia|].
       move /ssrnat.leP : lepx. lia.
   Defined.
-
-  (* Fact vg_of_int_lrel_G_p :
-       ⊢ (lrel_int → () + lrel_G (vg:=vg_p))%lrel vg_of_int vg_of_int.
-     Proof with rel_pures.
-       iIntros "!>" (??) "(%v&->&->)". unfold vg_of_int, cgs_p, vg_of_int_p...
-       case_bool_decide as vmin ; rel_pures ; [case_bool_decide as vmax|]...
-       all: rel_vals.
-       iExists (vg_of_int_unpacked v vmin vmax) => /=.
-       rewrite /vgval_p /=. rewrite Z2Nat.id //. lia.
-     Qed. *)
 
   Fact is_mult_p (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = vgval_p (x * y)%g⌝ }}.
   Proof.
@@ -493,13 +482,35 @@ Section Zpx.
   Fact τG_subtype_p v1 v2 η μ δ ξ : 𝔾 v1 v2 ⊢ interp.interp._ty η μ δ τG ξ v1 v2.
   Proof. iIntros ((w&->&->)). iExists _. eauto. Qed.
 
+  (* Should be removed once examples has been updated *)
+  Fact τG_contra v1 v2 η μ δ ξ : 𝔾 v1 v2 = interp.interp._ty η μ δ τG ξ v1 v2.
+  Admitted. 
+
   Lemma vgval_p_typed : ∀ x : vgG, ⊢ᵥ vgval x : τG. 
   Proof. intros ?. constructor. Qed.
 
+  Lemma dec_left (A : Prop) (d : {A} + {~ A}) : A -> exists h, d = left h.
+  Proof.
+    intro a; destruct d as [h | n].
+    - exists h; reflexivity.
+    - exfalso; exact (n a).
+  Qed.
+
+  Lemma Zle_dec_modn (x p : nat) :
+    (x < p)%nat -> (1 <=? x) = true ->
+    exists H, Z_le_dec 1 (Z.of_nat (div.modn x p)) = left H.
+  Proof.
+    intros hxp h1.
+    assert (hmod : div.modn x p = x). { apply div.modn_small. apply Rcomplements.SSR_leq. lia. }
+    assert (h1' : (1 <= x)%nat) by (apply Nat.leb_le; exact h1).
+    assert (key : (1 <= Z.of_nat (div.modn x p))%Z) by (rewrite hmod; lia).
+    exact (dec_left _ _ key).
+  Qed.
+
   Definition cg_p : clutch_group (cg := cgs_p).
     unshelve eapply (
-        {| (* τG_lrel := τG_subtype_p 
-           ; *) vgval_typed := vgval_p_typed
+        {| τG_subtype := τG_subtype_p 
+        ; vgval_typed := vgval_p_typed
         ; is_unit := is_unit_p
         ; is_inv := is_inv_p
         ; is_mult := is_mult_p
@@ -507,17 +518,84 @@ Section Zpx.
         ; is_spec_inv := is_spec_inv_p
         ; is_eq := is_eq_p
         ; is_spec_eq := is_spec_eq_p
+        ; int_of_vg_sem := int_of_vg_sem_p
+        ; int_of_vg_sem_bound := int_of_vg_sem_p_bound
+        ; vg_of_int_sem := vg_of_int_sem_p
+        ; vg_of_int_of_vg_sem := vg_of_int_of_vg_sem_p
         |}).
-  (*   done.                       (* handles is_unit *)
-     Defined. *)
-  Admitted. 
-
+    - exact τG_contra.
+    - iIntros (??????) "Hbrel /=". unfold int_of_vg_p.
+      by brel_pures_l. 
+    - iIntros (??????) "Hbrel /=". unfold int_of_vg_p.
+      by brel_pures_r. 
+    - iIntros (??????? Heq) "Hbrel /=". unfold vg_of_int_p.
+      brel_pures_l. unfold vg_of_int_sem_p in Heq.
+      destruct (1 <=? x) eqn:Hnz; last (rewrite andb_false_l in Heq; inversion Heq). 
+      rewrite Nat.ltb_lt in Hnz.
+      destruct (x <? p) eqn:Hbound; last (rewrite andb_false_r in Heq; inversion Heq).
+      rewrite Nat.ltb_lt in Hbound.
+      rewrite bool_decide_eq_true_2; last lia. 
+      brel_pures_l. 
+      rewrite bool_decide_eq_true_2; last lia.     
+      brel_pures_l. 
+      rewrite andb_diag /Zp_to_unit in Heq. 
+      destruct (nat_of_ord (inZp x) <? p) eqn:Hin; last inversion Heq.
+      destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (inZp x)))) eqn:Hnonzero; inversion Heq.
+      subst. unfold vgval_p. simpl.
+      by rewrite div.modn_small; last (rewrite Rcomplements.SSR_leq; lia).
+    - iIntros (??????? Heq) "Hbrel /=". unfold vg_of_int_p.
+      brel_pures_r. unfold vg_of_int_sem_p in Heq.
+      destruct (1 <=? x) eqn:Hnz; last (rewrite andb_false_l in Heq; inversion Heq). 
+      rewrite Nat.ltb_lt in Hnz.
+      destruct (x <? p) eqn:Hbound; last (rewrite andb_false_r in Heq; inversion Heq).
+      rewrite Nat.ltb_lt in Hbound.
+      rewrite bool_decide_eq_true_2; last lia. 
+      brel_pures_r. 
+      rewrite bool_decide_eq_true_2; last lia.     
+      brel_pures_r. 
+      rewrite andb_diag /Zp_to_unit in Heq. 
+      destruct (nat_of_ord (inZp x) <? p) eqn:Hin; last inversion Heq.
+      destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (inZp x)))) eqn:Hnonzero; inversion Heq.
+      subst. unfold vgval_p. simpl.
+      by rewrite div.modn_small; last (rewrite Rcomplements.SSR_leq; lia).
+    - iIntros (?????? Heq) "Hbrel /=". unfold vg_of_int_p.
+      brel_pures_l. unfold vg_of_int_sem_p in Heq.
+      destruct ((1 <=? x) && (x <? p)) eqn:Hnz.  
+      + rewrite /Zp_to_unit /= in Heq. 
+        apply andb_prop in Hnz as [Hnz Hbound].
+        rewrite Nat.ltb_lt in Hbound.
+        assert (div.modn x p <? p = true) as Hmod. 
+        { apply Nat.ltb_lt. rewrite div.modn_small; first lia. 
+          by rewrite Rcomplements.SSR_leq. }
+        rewrite Hmod in Heq.
+        eassert (∃ H, Z_le_dec 1 (Z.of_nat (div.modn x p)) = left H) as [Hnonzero Hle] by by apply Zle_dec_modn.
+        rewrite Hle in Heq. inversion Heq. 
+      + destruct (bool_decide (1 ≤ Z.of_nat x)%Z) eqn:Hb1; brel_pures; last done.
+        destruct (bool_decide (Z.of_nat x < Z.of_nat p)%Z) eqn:Hb2; brel_pures; last done.
+        apply andb_false_iff in Hnz as [Hnz | Hbound].
+        * rewrite Nat.ltb_ge in Hnz.
+          apply bool_decide_eq_true_1 in Hb1. lia.
+        * rewrite Nat.ltb_ge in Hbound.
+          apply bool_decide_eq_true_1 in Hb2. lia.
+    - iIntros (?????? Heq) "Hbrel /=". unfold vg_of_int_p.
+      brel_pures_r. unfold vg_of_int_sem_p in Heq.
+      destruct ((1 <=? x) && (x <? p)) eqn:Hnz.  
+      + rewrite /Zp_to_unit /= in Heq. 
+        apply andb_prop in Hnz as [Hnz Hbound].
+        rewrite Nat.ltb_lt in Hbound.
+        assert (div.modn x p <? p = true) as Hmod. 
+        { apply Nat.ltb_lt. rewrite div.modn_small; first lia. 
+          by rewrite Rcomplements.SSR_leq. }
+        rewrite Hmod in Heq.
+        eassert (∃ H, Z_le_dec 1 (Z.of_nat (div.modn x p)) = left H) as [Hnonzero Hle] by by apply Zle_dec_modn.
+        rewrite Hle in Heq. inversion Heq. 
+      + destruct (bool_decide (1 ≤ Z.of_nat x)%Z) eqn:Hb1; brel_pures; last done.
+        destruct (bool_decide (Z.of_nat x < Z.of_nat p)%Z) eqn:Hb2; brel_pures; last done.
+        apply andb_false_iff in Hnz as [Hnz | Hbound].
+        * rewrite Nat.ltb_ge in Hnz.
+          apply bool_decide_eq_true_1 in Hb1. lia.
+        * rewrite Nat.ltb_ge in Hbound.
+          apply bool_decide_eq_true_1 in Hb2. lia.
+  Qed. 
  
-
-  (* clutch_group_generator states that the val_group_generator is well-typed *)
-  (* Definition cgg_p : @clutch_group_generator vg_p cgs_p vgg_p.
-     Proof.
-       constructor. constructor.
-     Defined. *)
-
 End Zpx.
