@@ -257,7 +257,7 @@ Section Zpx.
      Defined. *)
 
   (* **************************************** *)
-  (* Semantic conversion funcitons *)
+  (* Semantic conversion functions *)
   Lemma bound_is_a_unit : ∀ (n : Z), (1 ≤ n)%Z → (n < p)%Z
     → is_true ((inZp (Z.to_nat n)) \is a (@ssralg.GRing.unit ('Z_p : finUnitRingType))).
   Proof. rewrite /in_mem. simpl.
@@ -523,79 +523,42 @@ Section Zpx.
         ; vg_of_int_sem := vg_of_int_sem_p
         ; vg_of_int_of_vg_sem := vg_of_int_of_vg_sem_p
         |}).
-    - exact τG_contra.
-    - iIntros (??????) "Hbrel /=". unfold int_of_vg_p.
-      by brel_pures_l. 
-    - iIntros (??????) "Hbrel /=". unfold int_of_vg_p.
-      by brel_pures_r. 
-    - iIntros (??????? Heq) "Hbrel /=". unfold vg_of_int_p.
-      brel_pures_l. unfold vg_of_int_sem_p in Heq.
-      destruct (1 <=? x) eqn:Hnz; last (rewrite andb_false_l in Heq; inversion Heq). 
-      rewrite Nat.ltb_lt in Hnz.
-      destruct (x <? p) eqn:Hbound; last (rewrite andb_false_r in Heq; inversion Heq).
-      rewrite Nat.ltb_lt in Hbound.
-      rewrite bool_decide_eq_true_2; last lia. 
-      brel_pures_l. 
-      rewrite bool_decide_eq_true_2; last lia.     
-      brel_pures_l. 
-      rewrite andb_diag /Zp_to_unit in Heq. 
-      destruct (nat_of_ord (inZp x) <? p) eqn:Hin; last inversion Heq.
-      destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (inZp x)))) eqn:Hnonzero; inversion Heq.
-      subst. unfold vgval_p. simpl.
+    1 : exact τG_contra.
+    1,2 : iIntros (??????) "Hbrel /="; unfold int_of_vg_p; by brel_pures. 
+    1,2 : iIntros (??????? Heq) "Hbrel /="; unfold vg_of_int_p;
+      brel_pures; unfold vg_of_int_sem_p in Heq;
+      destruct (1 <=? x) eqn:Hnz; [|(rewrite andb_false_l in Heq; inversion Heq)];
+      rewrite Nat.ltb_lt in Hnz;
+      destruct (x <? p) eqn:Hbound; [|(rewrite andb_false_r in Heq; inversion Heq)];
+      rewrite Nat.ltb_lt in Hbound;
+      rewrite bool_decide_eq_true_2; [|lia];
+      brel_pures;
+      rewrite bool_decide_eq_true_2; [|lia];     
+      brel_pures;
+      rewrite andb_diag /Zp_to_unit in Heq;
+      destruct (nat_of_ord (inZp x) <? p) eqn:Hin; [|inversion Heq];
+      destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (inZp x)))) eqn:Hnonzero; inversion Heq;
+      subst; unfold vgval_p; simpl;
       by rewrite div.modn_small; last (rewrite Rcomplements.SSR_leq; lia).
-    - iIntros (??????? Heq) "Hbrel /=". unfold vg_of_int_p.
-      brel_pures_r. unfold vg_of_int_sem_p in Heq.
-      destruct (1 <=? x) eqn:Hnz; last (rewrite andb_false_l in Heq; inversion Heq). 
-      rewrite Nat.ltb_lt in Hnz.
-      destruct (x <? p) eqn:Hbound; last (rewrite andb_false_r in Heq; inversion Heq).
-      rewrite Nat.ltb_lt in Hbound.
-      rewrite bool_decide_eq_true_2; last lia. 
-      brel_pures_r. 
-      rewrite bool_decide_eq_true_2; last lia.     
-      brel_pures_r. 
-      rewrite andb_diag /Zp_to_unit in Heq. 
-      destruct (nat_of_ord (inZp x) <? p) eqn:Hin; last inversion Heq.
-      destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (inZp x)))) eqn:Hnonzero; inversion Heq.
-      subst. unfold vgval_p. simpl.
-      by rewrite div.modn_small; last (rewrite Rcomplements.SSR_leq; lia).
-    - iIntros (?????? Heq) "Hbrel /=". unfold vg_of_int_p.
-      brel_pures_l. unfold vg_of_int_sem_p in Heq.
-      destruct ((1 <=? x) && (x <? p)) eqn:Hnz.  
-      + rewrite /Zp_to_unit /= in Heq. 
-        apply andb_prop in Hnz as [Hnz Hbound].
-        rewrite Nat.ltb_lt in Hbound.
-        assert (div.modn x p <? p = true) as Hmod. 
-        { apply Nat.ltb_lt. rewrite div.modn_small; first lia. 
-          by rewrite Rcomplements.SSR_leq. }
-        rewrite Hmod in Heq.
-        eassert (∃ H, Z_le_dec 1 (Z.of_nat (div.modn x p)) = left H) as [Hnonzero Hle] by by apply Zle_dec_modn.
-        rewrite Hle in Heq. inversion Heq. 
-      + destruct (bool_decide (1 ≤ Z.of_nat x)%Z) eqn:Hb1; brel_pures; last done.
-        destruct (bool_decide (Z.of_nat x < Z.of_nat p)%Z) eqn:Hb2; brel_pures; last done.
-        apply andb_false_iff in Hnz as [Hnz | Hbound].
-        * rewrite Nat.ltb_ge in Hnz.
-          apply bool_decide_eq_true_1 in Hb1. lia.
-        * rewrite Nat.ltb_ge in Hbound.
-          apply bool_decide_eq_true_1 in Hb2. lia.
-    - iIntros (?????? Heq) "Hbrel /=". unfold vg_of_int_p.
-      brel_pures_r. unfold vg_of_int_sem_p in Heq.
-      destruct ((1 <=? x) && (x <? p)) eqn:Hnz.  
-      + rewrite /Zp_to_unit /= in Heq. 
-        apply andb_prop in Hnz as [Hnz Hbound].
-        rewrite Nat.ltb_lt in Hbound.
-        assert (div.modn x p <? p = true) as Hmod. 
-        { apply Nat.ltb_lt. rewrite div.modn_small; first lia. 
-          by rewrite Rcomplements.SSR_leq. }
-        rewrite Hmod in Heq.
-        eassert (∃ H, Z_le_dec 1 (Z.of_nat (div.modn x p)) = left H) as [Hnonzero Hle] by by apply Zle_dec_modn.
-        rewrite Hle in Heq. inversion Heq. 
-      + destruct (bool_decide (1 ≤ Z.of_nat x)%Z) eqn:Hb1; brel_pures; last done.
-        destruct (bool_decide (Z.of_nat x < Z.of_nat p)%Z) eqn:Hb2; brel_pures; last done.
-        apply andb_false_iff in Hnz as [Hnz | Hbound].
-        * rewrite Nat.ltb_ge in Hnz.
-          apply bool_decide_eq_true_1 in Hb1. lia.
-        * rewrite Nat.ltb_ge in Hbound.
-          apply bool_decide_eq_true_1 in Hb2. lia.
+    1,2 : iIntros (?????? Heq) "Hbrel /="; unfold vg_of_int_p;
+      brel_pures; unfold vg_of_int_sem_p in Heq;
+      destruct ((1 <=? x) && (x <? p)) eqn:Hnz;
+      [rewrite /Zp_to_unit /= in Heq;
+       apply andb_prop in Hnz as [Hnz Hbound];
+       rewrite Nat.ltb_lt in Hbound;
+       assert (div.modn x p <? p = true) as Hmod;
+       first (apply Nat.ltb_lt; rewrite div.modn_small; first lia; 
+         by rewrite Rcomplements.SSR_leq);
+       rewrite Hmod in Heq;
+       (eassert (∃ H, Z_le_dec 1 (Z.of_nat (div.modn x p)) = left H) as [Hnonzero Hle] by by apply Zle_dec_modn);
+       rewrite Hle in Heq; inversion Heq
+      |destruct (bool_decide (1 ≤ Z.of_nat x)%Z) eqn:Hb1; brel_pures; last done;
+       destruct (bool_decide (Z.of_nat x < Z.of_nat p)%Z) eqn:Hb2; brel_pures; last done;
+       apply andb_false_iff in Hnz as [Hnz | Hbound];
+       [rewrite Nat.ltb_ge in Hnz;
+        apply bool_decide_eq_true_1 in Hb1; lia
+       |rewrite Nat.ltb_ge in Hbound;
+        apply bool_decide_eq_true_1 in Hb2; lia]].
   Qed. 
  
 End Zpx.
