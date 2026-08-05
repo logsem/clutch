@@ -101,61 +101,15 @@ Section handlee_verification.
   Qed.
 
 
-  (* Theories for the client *)
-  (*------------------------------------------------------------*)
-  
-  (* Program Definition SenderTheory (s1 s2 : label) : iThy Σ :=
-       λ e1 e2, (λne Q, ∃ m0 m1 : vgG,
-                   ⌜ e1 = do: s1 (m0, m1)%V ⌝%E ∗
-                   ⌜ e2 = do: s2 (m0, m1)%V ⌝%E ∗
-                   (Q #()%V #()%V)
-                )%I.
-     Next Obligation. solve_proper. Qed. *)
 
 
   (* Theories for the implementations *)
   (*------------------------------------------------------------*)
   
-  (* Program Definition SendBobImpl c1 c2 γtok γfrac γauth ι : iThy Σ :=
-       λ e1 e2, (λne Q,            
-                   ∃ v1 v2 v1' v2': val, (* Consider moving (u,v) into first message branch to allow for more general behaviour *)
-                      ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (v1, v2)%V) ∗ ⌜(v1, v2) = (v1', v2')⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
-                               (⌜ e1 = do: c1 (SendV ((v1, v2), alice)) ⌝%E ∗
-                                ⌜ e2 = do: channel (SendV ((v1',v2'), alice)) ⌝%E)  ∗ 
-                               (Q (Val #()%V) (Val #()%V)))
-                )%I.
-     Next Obligation. solve_proper. Qed.
-     
-     Program Definition RecvAliceImpl γauth : iThy Σ :=
-       λ e1 e2, (λne Q,
-                    ⌜ e1 = do: channel (RecvV alice) ⌝%E ∗
-                    ⌜ e2 = do: channel (RecvV alice) ⌝%E ∗
-                    ▷ (Q NONEV NONEV ∧ (∀ u v : vgG, own γauth (to_dfrac_agree DfracDiscarded (u, v)%V) -∗ Q (SOMEV (u,v)) (SOMEV (u, v))))
-                )%I.
-     Next Obligation. solve_proper. Qed.
-     
-     Program Definition SendAliceImpl γtok γfrac γauth ι : iThy Σ :=
-       λ e1 e2, (λne Q,
-                   ∃ m m' : val, ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded m) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
-                                (⌜ e1 = do: channel (SendV (m, bob)) ⌝%E ∗
-                                 ⌜ e2 = do: channel (SendV (m', bob)) ⌝%E)  ∗ 
-                                ▷ (Q (Val #()%V) (Val #()%V)))
-                )%I.
-     Next Obligation. solve_proper. Qed.
-     
-     Program Definition RecvBobImpl γauth : iThy Σ :=
-       λ e1 e2, (λne Q,
-                   ⌜ e1 = do: channel (RecvV bob) ⌝%E ∗
-                   ⌜ e2 = do: channel (RecvV bob) ⌝%E ∗
-                   (* Added a later, since RHS doesn't take a step *)
-                   ▷ (Q NONEV NONEV ∗ (∀ m, own γauth (to_dfrac_agree DfracDiscarded m) -∗ Q (SOMEV m) (SOMEV m)))
-                )%I.
-     Next Obligation. solve_proper. Qed. *)
-
   Import valgroup_notation.
   
   Program Definition SenderTheoryR (SENDERl SENDERr : label) : iThy Σ :=
-    λ e1 e2, (λne Q, ∃ g1 g2 g1' g2', 𝔾 g1 g2 ∗ 𝔾 g1' g2' ∗
+    λ e1 e2, (λne Q, ∃ g1 g2 g1' g2', ℕ%T g1 g2 ∗ ℕ%T g1' g2' ∗
                  ⌜ e1 = do: SENDERl (g1,g1')%V ⌝%E ∗
                  ⌜ e2 = do: SENDERr (InjRV (g2, g2')) ⌝%E ∗
                  Q #()%V #()%V
@@ -189,7 +143,7 @@ Section handlee_verification.
   Qed.
 
   Program Definition SenderTheoryL (SENDERl SENDERr : label) : iThy Σ :=
-    λ e1 e2, (λne Q, ∃ g1 g2 g1' g2', 𝔾 g1 g2 ∗ 𝔾 g1' g2' ∗
+    λ e1 e2, (λne Q, ∃ g1 g2 g1' g2', ℕ%T g1 g2 ∗ ℕ%T g1' g2' ∗
                  ⌜ e1 = do: SENDERl (InjRV (g1,g1')) ⌝%E ∗
                  ⌜ e2 = do: SENDERr (g2, g2')%V ⌝%E ∗
                  Q #()%V #()%V
@@ -254,11 +208,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
                 (⌜ e2 = do: crs1 #()%V ⌝%E ∗ (∀ crs, own γcrs (to_dfrac_agree DfracDiscarded crs) -∗ ▷ Q e1 (Val crs))))%I.
   Next Obligation. solve_proper. Qed.
 
-  (* Definition LblAdv γcrs γtokb γfracb γauthb btokN := [([CRS],[CRS], @CRSThy γcrs);([channel], [channel],
-                                                                              (iThySum (SendBobImpl γtokb γfracb γauthb btokN) (RecvBobImpl γauthb)));
-                                                                            ([Sender],[Sender;Receiver;Leak],SenderTheory)].
-     Definition LblAuthChannel γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := [([channel],[channel], (iThySum (iThySum (SendAliceImpl γtoka γfraca γautha atokN) (RecvBobImpl γauthb))
-                                                                           (iThySum (SendBobImpl γtokb γfracb γauthb btokN) (RecvAliceImpl γautha))))]. *)
+ 
   (* TODO: move all of the above to a common authenticated channel file. *)
 
   Lemma fin_not_0 (x : fin n) : x ∉ [0%fin] → (0 < x)%nat.
@@ -301,31 +251,12 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     apply fin_to_nat_inj. rewrite Hnat fin_to_nat_to_fin //.
     Qed.
 
-  (* Lemma f_cancel_g_ring (x : fin n) y :
-       (y < n)%nat →
-       (g ^+ x ^+ f_ring n'' (@Fp_of_fin n'' n_prime x) y = g ^+ y)%g.
-     Proof using G n_prime.
-       intros Hlt.
-       rewrite -expgM. unfold f_ring.
-       rewrite Rcomplements.SSR_leq. in Hlt.
-       unfold f_ring.
-       apply Nat.ltb_lt in Hlt. erewrite Hlt.
-       rewrite -(@expg_mod _ n (ssrnat.muln x (div.modn (ssrnat.muln y (ssrnat.expn x n'')) n))).
-       2 : rewrite -g_nontriv; apply expg_order.
-       rewrite crs_bij_cancel; [|done | |].
-       3 : pose proof (fin_to_nat_lt x) as Hg0le; apply Rcomplements.SSR_leq; lia.
-       2 : { apply Rcomplements.SSR_leq. by apply fin_not_0. }
-       rewrite expg_mod; [done|].
-       rewrite -g_nontriv; apply expg_order.
-     Qed.  *)
-
-
- Definition τC θ := (∀ᵣ θ__SENDER, ∀ᵣ θ__CRS, ((𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾)) × ((𝔾 × 𝔾) -{ θ__SENDER }-> 𝟙)) 
+ Definition τC θ := (∀ᵣ θ__SENDER, ∀ᵣ θ__CRS, ((𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾)) × ((ℕ × ℕ) -{ θ__SENDER }-> 𝟙)) 
                                          -{ sem_row_union θ__SENDER (sem_row_union θ__CRS θ) }-∘ 𝟙)%T.
 
   Lemma OT_real_ideal : 
     ⊢ ↯ (3 / n) -∗
-    (∀ᵣ θ, τC θ ⊸ ((((𝔾 × 𝔾) × (𝔾 × 𝔾)) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option (𝔾 × 𝔾)))
+    (∀ᵣ θ, τC θ ⊸ ((((𝔾 × 𝔾) × (𝔾 × 𝔾)) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option (ℕ × ℕ)))
             -{ ¡[OS] θ}-∘ 𝟙)%T 
       (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Receiver_Corrupted "f" ("effs", "doCRS"))%E)%V
       OT_SIM_FOT_thunk.
@@ -410,7 +341,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        set θCRS := crsrow CRSl CRSr γcrs.
        set θSENDER := senderrow IDEALl IDEALr LEAK.
        
-       iAssert (((𝟙 -{ θCRS }-> ((𝔾 × 𝔾) × 𝔾) × 𝔾) × (𝔾 × 𝔾) -{ θSENDER }-> 𝟙)%T
+       iAssert (((𝟙 -{ θCRS }-> ((𝔾 × 𝔾) × 𝔾) × 𝔾) × (ℕ × ℕ) -{ θSENDER }-> 𝟙)%T
                    (λ: <>, do: CRSl #(), λ: "mm", do: IDEALl "mm")%V   
                    (λ: <>, do: CRSr #(), λ: "mm", do: IDEALr InjR "mm")%V) as "Hgg".
        { iExists _,_,_,_. repeat (iSplit; try done); rewrite /sem_ty_mbang //=.
@@ -424,7 +355,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          - iIntros (??) "!# (%&%&%&%&->&->&(%h1&->&->)&(%h2&->&->))". brel_pures'.
            iApply brel_introduction'; first constructor.
            iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
-           iExists h1,h1,h2,h2. do 2 (iSplit; first by iExists _).
+           iExists _,_,_,_. do 2 (iSplit; first by iExists _).
            do 2 (iSplit; [by iPureIntro|]). 
            iApply brel_value. by iIntros "$ !>". }
        
@@ -510,13 +441,78 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        
        iApply (brel_exhaustion' OS (f1 _) (f2 _) with "[$Hff]"); [done|set_solver|].
        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-       iIntros (???????) "(%&%&%&%&(%m0&->&->)&(%m1&->&->)&->&->&HQ) Hkont".
+       iIntros (???????) "(%&%&%&%&(%m0z&->&->)&(%m1z&->&->)&->&->&HQ) Hkont".
        iApply brel_handle_os_l; [apply neutral_ectx;set_solver|].
        iIntros (cl) "!> Hcl".
        iApply brel_handle_os_r; [apply neutral_ectx;set_solver|].
        iIntros (cr) "Hcr".
        brel_pures_l. brel_pures_r.
-   
+
+       (* Deserialize a group element from m0 *)
+       destruct (vg_of_int_sem m0z) as [m0|] eqn:Hm0z.
+       2 : {
+         iApply brel_vg_of_int_none_l; first done.
+         iApply brel_vg_of_int_none_r; first done.
+         brel_pures_l. brel_pures_r.
+
+         (* Protocol done loop *)
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures_l. brel_pures_r.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+
+       iApply brel_vg_of_int_correct_l; first done.
+       iApply brel_vg_of_int_correct_r; first done.
+       brel_pures_l. brel_pures_r.
+
+
+       (* Deserialize a group element from m1 *)
+       destruct (vg_of_int_sem m1z) as [m1|] eqn:Hm1z.
+       2 : {
+         iApply brel_vg_of_int_none_l; first done.
+         iApply brel_vg_of_int_none_r; first done.
+         brel_pures_l. brel_pures_r.
+
+         (* Protocol done loop *)
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures_l. brel_pures_r.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+
+       iApply brel_vg_of_int_correct_l; first done.
+       iApply brel_vg_of_int_correct_r; first done.
+       brel_pures_l. brel_pures_r.
+       
        unfold store_if_none. brel_pures_r.
        iApply (brel_load_r with "Hl0"). iIntros "Hl0".
        iApply (brel_store_r with "Hl0"). iIntros "Hl0".
@@ -577,9 +573,75 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          iDestruct ("Hkont" with "HQ") as "Hfill".
          by iApply "IH". }
    
-       iDestruct "H" as (????) "(->&->&(%u&->&->)&(%v&->&->))".
+       iDestruct "H" as (????) "(->&->&(%uz&->&->)&(%vz&->&->))".
        brel_pures_l.
        brel_pures_r.
+
+       (* Deserialize a group element from u *)
+       destruct (vg_of_int_sem uz) as [u|] eqn:Huz.
+       2 : {
+         iApply brel_vg_of_int_none_l; first done.
+         iApply brel_vg_of_int_none_r; first done.
+         brel_pures_l. brel_pures_r.
+
+         (* Protocol done loop *)
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iApply (brel_cont_r with "[$]").
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures_l. brel_pures_r.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+
+       iApply brel_vg_of_int_correct_l; first done.
+       iApply brel_vg_of_int_correct_r; first done.
+       brel_pures_l. brel_pures_r.
+
+       (* Deserialize a group element from v *)
+       destruct (vg_of_int_sem vz) as [v|] eqn:Hvz.
+       2 : {
+         iApply brel_vg_of_int_none_l; first done.
+         iApply brel_vg_of_int_none_r; first done.
+         brel_pures_l. brel_pures_r.
+
+         (* Protocol done loop *)
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iApply (brel_cont_r with "[$]").
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures_l. brel_pures_r.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+
+       iApply brel_vg_of_int_correct_l; first done.
+       iApply brel_vg_of_int_correct_r; first done.
+       brel_pures_l. brel_pures_r.
        
        rewrite is_unit.
        iApply brel_eq_l. iApply brel_eq_r. 
@@ -821,7 +883,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
 
  Lemma OT_ideal_real : 
     ⊢ ↯ (3 / n) -∗
-    (∀ᵣ θ, τC θ ⊸ ((((𝔾 × 𝔾) × (𝔾 × 𝔾)) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option (𝔾 × 𝔾)))
+    (∀ᵣ θ, τC θ ⊸ ((((𝔾 × 𝔾) × (𝔾 × 𝔾)) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option (ℕ × ℕ)))
             -{ ¡[OS] θ}-∘ 𝟙)%T 
       OT_SIM_FOT_thunk
       (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Receiver_Corrupted "f" ("effs", "doCRS"))%E)%V.
@@ -906,7 +968,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     set θCRS := crsrow CRSl CRSr γcrs.
     set θSENDER := senderrowl IDEALl IDEALr LEAK.
 
-    iAssert (((𝟙 -{ θCRS }-> ((𝔾 × 𝔾) × 𝔾) × 𝔾) × (𝔾 × 𝔾) -{ θSENDER }-> 𝟙)%T
+    iAssert (((𝟙 -{ θCRS }-> ((𝔾 × 𝔾) × 𝔾) × 𝔾) × (ℕ × ℕ) -{ θSENDER }-> 𝟙)%T
                 (λ: <>, do: CRSl #(), λ: "mm", do: IDEALl InjR "mm")%V   
                 (λ: <>, do: CRSr #(), λ: "mm", do: IDEALr "mm")%V) as "Hgg".
     { iExists _,_,_,_. repeat (iSplit; try done); rewrite /sem_ty_mbang //=.
@@ -920,7 +982,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       - iIntros (??) "!# (%&%&%&%&->&->&(%h1&->&->)&(%h2&->&->))". brel_pures'.
         iApply brel_introduction'; first constructor.
         iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
-        iExists h1,h1,h2,h2. do 2 (iSplit; first by iExists _).
+        iExists _,_,_,_. do 2 (iSplit; first by iExists _).
         do 2 (iSplit; [by iPureIntro|]). 
         iApply brel_value. by iIntros "$ !>". }
 
@@ -991,12 +1053,78 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
 
     iApply (brel_exhaustion' OS (f1 _) (f2 _) with "[$Hff]"); [set_solver|set_solver|].
     iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-    iIntros (???????) "(%&%&%&%&(%m0&->&->)&(%m1&->&->)&->&->&HQ) Hkont".
+    iIntros (???????) "(%&%&%&%&(%m0z&->&->)&(%m1z&->&->)&->&->&HQ) Hkont".
     iApply brel_handle_os_r; [apply neutral_ectx;set_solver|].
     iIntros (cr) "Hcr".
     iApply brel_handle_os_l; [apply neutral_ectx;set_solver|].
     iIntros (cl) "!> Hcl".
     brel_pures_l. brel_pures_r.
+
+
+       (* Deserialize a group element from m0 *)
+       destruct (vg_of_int_sem m0z) as [m0|] eqn:Hm0z.
+       2 : {
+         iApply brel_vg_of_int_none_l; first done.
+         iApply brel_vg_of_int_none_r; first done.
+         brel_pures_l. brel_pures_r.
+
+         (* Protocol done loop *)
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures_l. brel_pures_r.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+
+       iApply brel_vg_of_int_correct_l; first done.
+       iApply brel_vg_of_int_correct_r; first done.
+       brel_pures_l. brel_pures_r.
+
+
+       (* Deserialize a group element from m1 *)
+       destruct (vg_of_int_sem m1z) as [m1|] eqn:Hm1z.
+       2 : {
+         iApply brel_vg_of_int_none_l; first done.
+         iApply brel_vg_of_int_none_r; first done.
+         brel_pures_l. brel_pures_r.
+
+         (* Protocol done loop *)
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures_l. brel_pures_r.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+
+       iApply brel_vg_of_int_correct_l; first done.
+       iApply brel_vg_of_int_correct_r; first done.
+       brel_pures_l. brel_pures_r.
 
     unfold store_if_none. brel_pures_l.
     iApply (brel_load_l with "Hl0"). iIntros "!> Hl0".
@@ -1045,7 +1173,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       iLöb as "IH". iIntros (????) "Hfill".
       iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
       iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-      iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+      iIntros (???????) "(%&%&%&%&(%uz&->&->)&(%vz&->&->)&->&->&HQ) Hkont".
       iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
       iIntros (rr) "Hrr".
       iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
@@ -1056,9 +1184,75 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       iDestruct ("Hkont" with "HQ") as "Hfill".
       by iApply "IH". }
 
-    iDestruct "H" as (????) "(->&->&(%u&->&->)&(%v&->&->))".
+    iDestruct "H" as (????) "(->&->&(%uz&->&->)&(%vz&->&->))".
     brel_pures_l.
     brel_pures_r.
+
+(* Deserialize a group element from u *)
+       destruct (vg_of_int_sem uz) as [u|] eqn:Huz.
+       2 : {
+         iApply brel_vg_of_int_none_l; first done.
+         iApply brel_vg_of_int_none_r; first done.
+         brel_pures_l. brel_pures_r.
+
+         (* Protocol done loop *)
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures_l. brel_pures_r.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+
+       iApply brel_vg_of_int_correct_l; first done.
+       iApply brel_vg_of_int_correct_r; first done.
+       brel_pures_l. brel_pures_r.
+
+       (* Deserialize a group element from u *)
+       destruct (vg_of_int_sem vz) as [v|] eqn:Hvz.
+       2 : {
+         iApply brel_vg_of_int_none_l; first done.
+         iApply brel_vg_of_int_none_r; first done.
+         brel_pures_l. brel_pures_r.
+
+         (* Protocol done loop *)
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         brel_pures.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iClear "Hl0 Hl1".
+         iRevert (k1' k2' H H0) "Hfill".
+         iLöb as "IH". iIntros (????) "Hfill".
+         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
+         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
+         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
+         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
+         iIntros (rl) "!> Hrl".
+         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
+         iIntros (rr) "Hrr". 
+         brel_pures_l. brel_pures_r.
+         iApply (brel_cont_l with "[$]"). iModIntro.
+         iApply (brel_cont_r with "[$]").
+         iDestruct ("Hkont" with "HQ") as "Hfill".
+         by iApply "IH". }
+
+       iApply brel_vg_of_int_correct_l; first done.
+       iApply brel_vg_of_int_correct_r; first done.
+       brel_pures_l. brel_pures_r.
     
     rewrite is_unit.
     iApply brel_eq_l. iApply brel_eq_r. 

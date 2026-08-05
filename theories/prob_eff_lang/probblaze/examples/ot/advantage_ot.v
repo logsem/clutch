@@ -1,7 +1,7 @@
 From clutch.prob_eff_lang.probblaze Require Import advantage.
 From iris.algebra Require Import excl.
 From iris.algebra.lib Require Import dfrac_agree.
-From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row semantics proofmode valgroup sem_judgement.
+From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row semantics proofmode valgroup sem_judgement mode.
 From clutch.prob_eff_lang.probblaze.typing Require Import types fundamental interp.
 From clutch.prob_eff_lang.probblaze Require Import OT_Rcorrupt_thunk definition_thunk_receiver_corrupt adequacy syntax.
 
@@ -29,7 +29,7 @@ Section adv_rc.
 
   Import valgroup_notation.
 
-  Definition τ_rc `{probblazeRGS Σ} := (∀ᵣ θ, τC θ ⊸ ((((𝔾 × 𝔾) × (𝔾 × 𝔾)) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option (𝔾 × 𝔾)))
+  Definition τ_rc `{probblazeRGS Σ} := (∀ᵣ θ, τC θ ⊸ ((((𝔾 × 𝔾) × (𝔾 × 𝔾)) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option (ℕ × ℕ)))
             -{ ¡[OS] θ}-∘ 𝟙)%T.
 
   Theorem adv_ot_rc A :
@@ -44,25 +44,34 @@ Section adv_rc.
   Qed.
 
   Definition T_rc : type :=
-    (∀R:  (∀R: (∀R: ((() -{ (RVar 0%nat) }-> ((τG * τG) * τG) * τG) * ((τG * τG) -{ (RVar 1%nat) }-> ())) -{ RUnion (RVar 1%nat) (RUnion (RVar 0%nat) (RVar 2%nat)) }-∘ ())) -∘ ((((τG * τG) * (τG * τG)) -{ (RVar 0%nat) }-> ()) * (() -{ (RVar 0%nat) }-> () + (τG * τG)))
+    (∀R:  (∀R: (∀R: ((() -{ (RVar 0%nat) }-> ((τG * τG) * τG) * τG) * ((ℕ * ℕ) -{ (RVar 1%nat) }-> ())) -{ RUnion (RVar 1%nat) (RUnion (RVar 0%nat) (RVar 2%nat)) }-∘ ())) -∘ ((((τG * τG) * (τG * τG)) -{ (RVar 0%nat) }-> ()) * (() -{ (RVar 0%nat) }-> () + (ℕ * ℕ)))
           -{ ¡[OS] (RVar 0%nat)}-∘ ()).
 
-  Lemma T_rc_interp `{!probblazeRGS Σ} η μ δ ξ :
-    interp._ty η μ δ T_rc ξ = τ_rc.
-  Proof using All.
-    assert (HG : ∀ ζ, interp._ty η μ δ τG ζ = sem_ty_group) by
-      (intros ζ; extensionality v1; extensionality v2; symmetry;
-       apply (τG_lrel (clutch_group := G _ _))).
-    rewrite /T_rc /τ_rc /τC /sem_ty_option /=.
-    repeat (f_equiv; try (apply functional_extensionality; intros ?));
-      first [done | by rewrite HG].
-  Qed.
+  Lemma T_rc_subtype `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ τ_rc ≤ₜ interp._ty η μ δ T_rc ξ.
+  Proof using All. 
+    rewrite /T_rc /τ_rc /sem_ty_option /=. 
+    iApply ty_le_row_forall; iIntros (?).
+    iApply ty_le_arr; first iApply row_le_refl.
+    - iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
+      iApply ty_le_prod; last iApply ty_le_refl.
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
+      repeat iApply ty_le_prod; iIntros (??) "!#"; iApply τG_subtype.
+    - iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      iApply ty_le_prod; last iApply ty_le_refl.
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      repeat iApply ty_le_prod; iIntros (??) "!#"; iApply τG_subtype.
+  Qed. 
 
-  Lemma T_rc_bool `{!probblazeRGS Σ} η μ δ ξ :
-    interp._ty η μ δ (T_rc ⇾ TBool)  ξ = (τ_rc → 𝔹)%T.
-  Proof using All.
-    repeat rewrite ?interp_TArrow ?interp_TBang. 
-    rewrite T_rc_interp. by simpl.
+  Lemma T_rc_bool_subtype  `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ (interp._ty η μ δ (T_rc ⇾ 𝔹) ξ)%T ≤ₜ (τ_rc → 𝔹)%T.
+  Proof using All. 
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
+    iApply ty_le_arr; [iApply row_le_refl|iApply T_rc_subtype |iApply ty_le_refl].
   Qed. 
 
   Theorem adv_ot_rc_typed A :
@@ -75,7 +84,8 @@ Section adv_rc.
     iPoseProof HAtyped as "Hadv".
     unfold bin_log_val_related.
     iSpecialize ("Hadv" $! [] [] ∅ []). 
-    by rewrite T_rc_bool.
+    iModIntro. iApply T_rc_bool_subtype. 
+    by rewrite /sem_val_typed /=. 
   Qed.
 
 End adv_rc.
@@ -319,26 +329,38 @@ Section adv_sc.
 
   Definition T_sc : type :=
     (∀R:  (∀R: (∀R: ((() -{ (RVar 0%nat) }-> ((τG * τG) * τG) * τG) * (TBool -{ (RVar 1%nat) }-> () + τG)) -{ RUnion (RVar 1%nat) (RUnion (RVar 0%nat) (RVar 2%nat)) }-∘ ()))
-          -∘ (((τG * τG) -{ (RVar 0%nat) }-> ()) * (() -{ (RVar 0%nat) }-> (() + ((τG * τG) * (τG * τG))))) -{ ¡[OS] (RVar 0%nat) }-∘ ()).
+          -∘ (((τG * τG) -{ (RVar 0%nat) }-> ()) * (() -{ (RVar 0%nat) }-> (() + ((ℕ * ℕ) * (ℕ * ℕ))))) -{ ¡[OS] (RVar 0%nat) }-∘ ()).
 
-  Lemma T_sc_interp `{!probblazeRGS Σ} η μ δ ξ :
-    interp._ty η μ δ T_sc ξ = τ_sc.
-  Proof using All.
-    assert (HG : ∀ ζ, interp._ty η μ δ τG ζ = sem_ty_group) by
-      (intros ζ; extensionality v1; extensionality v2; symmetry;
-       apply (τG_lrel (clutch_group := G _ _))).
-    rewrite /T_sc /τ_sc /τC /sem_ty_option /=.
-    repeat (f_equiv; try (apply functional_extensionality; intros ?));
-      try first [done | by rewrite HG].
-  Qed.
-
-  Lemma T_sc_bool `{!probblazeRGS Σ} η μ δ ξ :
-    interp._ty η μ δ (T_sc ⇾ TBool)  ξ = (τ_sc → 𝔹)%T.
-  Proof using All.
-    repeat rewrite ?interp_TArrow ?interp_TBang. 
-    rewrite T_sc_interp. by simpl.
+  Lemma T_sc_subtype `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ τ_sc ≤ₜ interp._ty η μ δ T_sc ξ.
+  Proof using All. 
+    rewrite /T_sc /τ_sc /τC /sem_ty_option /=. 
+    iApply ty_le_row_forall; iIntros (?).
+    iApply ty_le_arr; first iApply row_le_refl.
+    - iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
+      iApply ty_le_prod. 
+      + iApply ty_le_mbang_comp; first iApply mode_le_refl.
+        iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
+        repeat iApply ty_le_prod; iIntros (??) "!#"; iApply τG_subtype.
+      + iApply ty_le_mbang_comp; first iApply mode_le_refl.
+        iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
+        iApply ty_le_sum; first iApply ty_le_refl.
+        repeat iApply ty_le_prod; iIntros (??) "!#"; iApply τG_subtype.
+    - iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      iApply ty_le_prod; last iApply ty_le_refl.
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      repeat iApply ty_le_prod; iIntros (??) "!#"; iApply τG_subtype.
   Qed. 
 
+  Lemma T_sc_bool_subtype  `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ (interp._ty η μ δ (T_sc ⇾ 𝔹) ξ)%T ≤ₜ (τ_sc → 𝔹)%T.
+  Proof using All. 
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
+    iApply ty_le_arr; [iApply row_le_refl|iApply T_sc_subtype |iApply ty_le_refl].
+  Qed. 
 
   Theorem adv_ot_sc_typed A :
     ⊢ᵥ A : (T_sc ⇾ TBool) →
@@ -355,7 +377,8 @@ Section adv_sc.
     iPoseProof HAtyped as "Hadv".
     unfold bin_log_val_related.
     iSpecialize ("Hadv" $! [] [] ∅ []). 
-    by rewrite T_sc_bool.
+    iModIntro. iApply T_sc_bool_subtype. 
+    by rewrite /sem_val_typed /=. 
   Qed.
 
 End adv_sc.

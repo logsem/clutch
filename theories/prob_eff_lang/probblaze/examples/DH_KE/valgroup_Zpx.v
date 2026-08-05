@@ -348,6 +348,28 @@ Section Zpx.
     rewrite Nat.ltb_lt in Hbound. lia.
   Qed. 
 
+  Fact int_of_vg_of_int_sem_p : ∀ (xg : vgG),
+      vg_of_int_sem_p (int_of_vg_sem_p xg) = Some xg.
+  Proof.
+    intros xg.
+    unfold vg_of_int_sem_p, int_of_vg_sem_p, unit_to_Zp.
+    pose proof (ltn_ord (FinRing.uval xg)) as Hlt.
+    move/ssrnat.ltP in Hlt.
+    rewrite /Zp_trunc /= in Hlt.
+    pose proof (valP xg) as Hu.
+    assert (Hnz : nat_of_ord (FinRing.uval xg) = 0%nat -> False).
+    { intro h0.
+      assert (Hc : is_true (div.coprime p (nat_of_ord (FinRing.uval xg)))).
+      { rewrite -unitZpE; last done. rewrite natr_Zp. exact Hu. }
+      rewrite h0 /div.coprime div.gcdn0 in Hc. move/eqP in Hc. discriminate. }
+    assert (Hge1 : (1 <= nat_of_ord (FinRing.uval xg))%nat) by lia.
+    rewrite (proj2 (Nat.leb_le _ _) Hge1) (proj2 (Nat.ltb_lt _ _) Hlt)
+            andb_diag.
+    rewrite /Zp_to_unit valZpK (proj2 (Nat.ltb_lt _ _) Hlt).
+    destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (FinRing.uval xg))))
+      as [Hle|Hgt]; last lia.
+    f_equal. apply val_inj. done.
+  Qed.
 
   (* **************************************** *)
 
@@ -482,10 +504,6 @@ Section Zpx.
   Fact τG_subtype_p v1 v2 η μ δ ξ : 𝔾 v1 v2 ⊢ interp.interp._ty η μ δ τG ξ v1 v2.
   Proof. iIntros ((w&->&->)). iExists _. eauto. Qed.
 
-  (* Should be removed once examples has been updated *)
-  Fact τG_contra v1 v2 η μ δ ξ : 𝔾 v1 v2 = interp.interp._ty η μ δ τG ξ v1 v2.
-  Admitted. 
-
   Lemma vgval_p_typed : ∀ x : vgG, ⊢ᵥ vgval x : τG. 
   Proof. intros ?. constructor. Qed.
 
@@ -522,8 +540,8 @@ Section Zpx.
         ; int_of_vg_sem_bound := int_of_vg_sem_p_bound
         ; vg_of_int_sem := vg_of_int_sem_p
         ; vg_of_int_of_vg_sem := vg_of_int_of_vg_sem_p
+        ; int_of_vg_of_int_sem := int_of_vg_of_int_sem_p
         |}).
-    1 : exact τG_contra.
     1,2 : iIntros (??????) "Hbrel /="; unfold int_of_vg_p; by brel_pures. 
     1,2 : iIntros (??????? Heq) "Hbrel /="; unfold vg_of_int_p;
       brel_pures; unfold vg_of_int_sem_p in Heq;

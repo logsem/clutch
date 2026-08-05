@@ -174,10 +174,7 @@ Definition sem_ty_group `{probblazeRGS Σ} {vg : val_group} : sem_ty Σ :=
 
 Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
-    {
-      τG_lrel v1 v2 η μ δ ξ : sem_ty_group v1 v2 = interp._ty η μ δ τG ξ v1 v2
-    (* provable version of the above assumption *)
-    ; τG_subtype v1 v2 η μ δ ξ : sem_ty_group v1 v2 ⊢ interp._ty η μ δ τG ξ v1 v2
+    { τG_subtype v1 v2 η μ δ ξ : sem_ty_group v1 v2 ⊢ interp._ty η μ δ τG ξ v1 v2
     (* Group elements are [τG] values: the syntactic mirror of [sem_ty_group]
        (whose members are exactly the [vgval x]).  Needed to type constants
        like the generator [g] when syntactically typing e.g. [DH_real]. *)
@@ -197,6 +194,8 @@ Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct
     ; vg_of_int_sem : nat -> option vgG
     ; vg_of_int_of_vg_sem : forall (n : nat) (xg : vgG),
         vg_of_int_sem n = Some xg -> int_of_vg_sem xg = n
+    ; int_of_vg_of_int_sem : forall (xg : vgG),
+        vg_of_int_sem (int_of_vg_sem xg) = Some xg
     (* ; vg_of_int_sem' : nat -> vgG *)
     ; BREL_INT_OF_VG_CORRECT_L := ∀ E K g X R e,
                                     (BREL (fill K #(int_of_vg_sem g)) ≤ e @ E <|X|> {{R}}) -∗
