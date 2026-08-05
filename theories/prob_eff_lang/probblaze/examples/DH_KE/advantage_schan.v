@@ -1,8 +1,9 @@
 From clutch.prob_eff_lang.probblaze Require Import advantage.
 From iris.algebra Require Import excl.
 From iris.algebra.lib Require Import dfrac_agree.
-From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup.
-From clutch.prob_eff_lang.probblaze Require Import xor sec_channel_def sec_channel_prf adequacy types interp fundamental.
+From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy mode.
+From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental.
+From clutch.prob_eff_lang.probblaze Require Import xor sec_channel_def sec_channel_prf.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -31,28 +32,45 @@ Section adv_schan.
   Import valgroup_notation.
 
   Definition τ_CHAN `{!probblazeRGS Σ}
-      :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+      :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((ℕ -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T.
 
   Definition T_CHAN : type :=
-    (∀R: (∀R: ((τG -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> (() + τG)) -{ RVar 0%nat ∪ᵣ (RVar 1%nat) }-∘ ())) -∘
+    (∀R: (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> (() + τG)) -{ RVar 0%nat ∪ᵣ (RVar 1%nat) }-∘ ())) -∘
   (∀R: (∀R: (((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> (() + ()))) 
             -∘ ((() + ()) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ())) 
                 -{ RVar 1%nat ∪ᵣ (RVar 0%nat ∪ᵣ RVar 2%nat) }-∘ ()))).
 
-  Lemma T_CHAN_interp `{!probblazeRGS Σ} η μ δ ξ :
-    interp._ty η μ δ (T_CHAN ⇾ TBool) ξ = (τ_CHAN → 𝔹)%T.
-  Proof using All.
-    (* Only the group leaves are non-definitional; [HG] bridges them via
-       [τG_lrel] (instance supplied by the section's [G]). *)
-    assert (HG : ∀ ζ, interp._ty η μ δ τG ζ = sem_ty_group) by
-      (intros ζ; extensionality v1; extensionality v2; symmetry;
-       apply (τG_lrel (clutch_group := G _ _))).
-    rewrite /T_CHAN /τ_CHAN /sem_ty_option. simpl.
-    repeat (f_equiv; try (apply functional_extensionality; intros ?));
-      first [done | by rewrite HG].
+  Lemma T_CHAN_subtype `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ τ_CHAN ≤ₜ (interp._ty η μ δ T_CHAN ξ).
+  Proof using All. 
+    rewrite /T_CHAN /τ_CHAN /sem_ty_option /=. 
+    iApply ty_le_row_forall; iIntros (?).
+    iApply ty_le_arr; first iApply row_le_refl.
+    - iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
+      iApply ty_le_prod; first iApply ty_le_refl.
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
+      iApply ty_le_sum; first iApply ty_le_refl.
+      iIntros (??) "!#". iApply τG_subtype.
+    - iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      iApply ty_le_prod; last iApply ty_le_refl.
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      iApply ty_le_prod; last iApply ty_le_refl.
+      iIntros (??) "!#". iApply τG_subtype.
   Qed. 
-  
+
+  Lemma T_CHAN_bool_subtype  `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ (interp._ty η μ δ (T_CHAN ⇾ 𝔹) ξ)%T ≤ₜ (τ_CHAN → 𝔹)%T.
+  Proof using All. 
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
+    iApply ty_le_arr; [iApply row_le_refl|iApply T_CHAN_subtype |iApply ty_le_refl].
+  Qed. 
+
   Lemma adv_SCHAN A :
     (∀ `{!probblazeRGS Σ}, 
        ⊢ sem_val_typed A A (τ_CHAN → 𝔹)%T) →
@@ -73,8 +91,8 @@ Section adv_schan.
     iPoseProof HAtyped as "Hadv".
     unfold bin_log_val_related.
     iSpecialize ("Hadv" $! [] [] ∅ []). 
-    repeat rewrite ?interp_TArrow ?interp_TBang.
-    by rewrite T_CHAN_interp.
+    iModIntro. iApply T_CHAN_bool_subtype. 
+    by rewrite /sem_val_typed /=. 
   Qed. 
   
 End adv_schan.

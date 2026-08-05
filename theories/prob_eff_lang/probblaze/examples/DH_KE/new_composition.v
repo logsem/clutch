@@ -6,12 +6,12 @@ From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import
   logic primitive_laws proofmode
   spec_rules spec_ra class_instances tactics notation valgroup metatheory
-  sem_types sem_row sem_sig sem_judgement sem_def
-  def_dhke sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_lazy_authchan.
+  sem_types sem_row sem_sig sem_judgement sem_def.
 From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import
+  def_dhke sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_lazy_authchan
   new_composition_defs new_composition_closed new_composition_typing.
-
+ 
 Import fingroup.
 Import fingroup.fingroup.
 
@@ -84,7 +84,7 @@ Section new_comp_verification.
     (𝟙 ⊸ (𝔾 × 𝔾) × 𝔾)%T DH1 DH2 -∗
     τ__f θ__L chan gk v1 v2 -∗
     oaleak θ₁ r1 r2 -∗
-    chan θ2 r1' r2' -∗
+    aleak θ2 r1' r2' -∗
     brel ⊤ (F_AUTH (C_lazy DH1 (λ: "h₁", F_OAUTH (λ: "h₂", v1 "h₂" "h₁") r1)%V) r1')
            (F_AUTH (C_lazy DH2 (λ: "h₁", F_OAUTH (λ: "h₂", v2 "h₂" "h₁") r2)%V) r2')
            (iLblSig_to_iLblThy (sem_row_union θ₁ (sem_row_union θ2 θ__L)))

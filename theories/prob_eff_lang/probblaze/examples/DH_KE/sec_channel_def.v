@@ -69,21 +69,25 @@ Section schannel.
           (* | InjL "payload" =>*)
           | InjL "m" =>
             (*let, "m" := "payload" in*)
-            match: !"message" with
-              | NONE => "message" <- SOME "m";;
-                     let: "key" := "doGK" (bob) in
-                                     match: "key" with
-                                     | NONE => "k" #()%V
-                                     | SOME "x" =>
-                                         match: G_XOR "m" "x" with
-                                         | SOME "mg" =>
-                                             ("doSend" ("mg" , bob));;
-                                             "k" #()%V
-                                         | NONE => "k" #()%V
-                                         end
-                                     end
-              | SOME "m" => "k" #()%V
-               end
+            match: vg_of_int "m" with
+            | NONE => "k" #()%V
+            | SOME "m" => 
+                match: !"message" with
+                | NONE => "message" <- SOME "m";;
+                          let: "key" := "doGK" (bob) in
+                          match: "key" with
+                          | NONE => "k" #()%V
+                          | SOME "x" =>
+                              match: G_XOR "m" "x" with
+                              | SOME "mg" =>
+                                  ("doSend" ("mg" , bob));;
+                                  "k" #()%V
+                              | NONE => "k" #()%V
+                              end
+                          end
+                | SOME "m" => "k" #()%V
+                end
+            end 
           (*RecvSecure*)
         | InjR <> =>
             let: "key" := "doGK" (alice) in
@@ -120,12 +124,16 @@ Section schannel.
           (*SendSecure*)
          | InjL "m" =>
             (*let, ("m", "dst") := "payload" in*)
-            match: !"message" with
-            | NONE => "message" <- SOME "m";;
-                     ("doLeakSend" alice);;
-                     "k" #()%V 
-            | SOME "x" => "k" #()%V
-            end
+             match: vg_of_int "m" with
+             | NONE => "k" #()%V
+             | SOME "m" => 
+                 match: !"message" with
+                 | NONE => "message" <- SOME "m";;
+                           ("doLeakSend" alice);;
+                           "k" #()%V 
+                 | SOME "x" => "k" #()%V
+                 end
+             end
           (*ReceiveSecure*)
          | InjR <> =>
             let: "r" := ("doLeakRecv" bob) in

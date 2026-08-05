@@ -2,9 +2,9 @@ From clutch.prob_eff_lang.probblaze Require Import advantage.
 From iris.algebra Require Import excl.
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch.prob_eff_lang.probblaze.typing Require Import types fundamental interp.
-From clutch.prob_eff_lang.probblaze Require Import sec_channel_def p_composition sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy.
-From clutch.prob_eff_lang.probblaze Require Import new_composition xor new_composition_defs def_dhke.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import advantage_dhke_lazy.
+From clutch.prob_eff_lang.probblaze Require Import p_composition sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy mode.
+From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import new_composition xor def_dhke sec_channel_def new_composition_defs.
+
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -120,31 +120,47 @@ Section adv_comp.
 
   Definition T : type :=
     (∀R: 
-   (∀R:  ((τG -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> () + τG)) -{ RUnion (RVar 0%nat) (RVar 1%nat) }-∘ ())
+   (∀R:  ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> () + τG)) -{ RUnion (RVar 0%nat) (RVar 1%nat) }-∘ ())
    -∘ ∀R:
      (∀R:
       (((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> () + ()))
-      -∘ (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ (RVar 0%nat) }-> () + τG)) -{ RUnion (RVar 1%nat) (RUnion (RVar 0%nat) (RVar 2%nat)) }-∘ ())).
+      -∘ (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ (RVar 0%nat) }-> () + ℕ)) -{ RUnion (RVar 1%nat) (RUnion (RVar 0%nat) (RVar 2%nat)) }-∘ ())).
 
-  Lemma T_interp `{!probblazeRGS Σ} η μ δ ξ :
-    interp._ty η μ δ T ξ = τ.
+  Lemma T_subtype `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ τ ≤ₜ interp._ty η μ δ T ξ.
   Proof using All.
-    assert (HG : ∀ ζ, interp._ty η μ δ τG ζ = sem_ty_group) by
-      (intros ζ; extensionality v1; extensionality v2; symmetry;
-       apply (τG_lrel (clutch_group := G _ _))).
-    rewrite /T /τ /sem_ty_option /=.
-    repeat (f_equiv; try (apply functional_extensionality; intros ?));
-      first [done | by rewrite HG].
-  Qed.
-
-
-  Lemma T_bool `{!probblazeRGS Σ} η μ δ ξ :
-    interp._ty η μ δ (T ⇾ TBool)  ξ = (τ → 𝔹)%T.
-  Proof using All.
-    repeat rewrite ?interp_TArrow ?interp_TBang.
-    rewrite T_interp. by simpl.
+    rewrite /T /τ /sem_ty_option /=. 
+    iApply ty_le_row_forall. iIntros (?).
+    iApply ty_le_arr; first iApply row_le_refl.
+    - iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
+      iApply ty_le_prod; first iApply ty_le_refl.
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
+      iApply ty_le_sum; first iApply ty_le_refl.
+      iIntros (??) "!#". iApply τG_subtype.
+    - iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_arr; [iApply row_le_refl| |].
+      + iApply ty_le_prod; last iApply ty_le_refl.
+        iApply ty_le_mbang_comp; first iApply mode_le_refl.
+        iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+        iApply ty_le_prod; last iApply ty_le_refl.
+        iIntros (??) "!#". iApply τG_subtype.
+      + iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+        iApply ty_le_prod; last iApply ty_le_refl.
+        iApply ty_le_mbang_comp; first iApply mode_le_refl.
+        iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+        iApply ty_le_prod; last iApply ty_le_refl.
+        iIntros (??) "!#". iApply τG_subtype.
   Qed. 
 
+  Lemma T_bool_subtype  `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ (interp._ty η μ δ (T ⇾ 𝔹) ξ)%T ≤ₜ (τ → 𝔹)%T.
+  Proof using All. 
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
+    iApply ty_le_arr; [iApply row_le_refl|iApply T_subtype |iApply ty_le_refl].
+  Qed. 
 
   Lemma adv_composition_typed A :
    ⊢ᵥ A : (T ⇾ TBool) →
@@ -157,7 +173,8 @@ Section adv_comp.
     iPoseProof HAtyped as "Hadv".
     unfold bin_log_val_related.
     iSpecialize ("Hadv" $! [] [] ∅ []). 
-    by rewrite T_bool.
+    iModIntro. iApply T_bool_subtype. 
+    by rewrite /sem_val_typed /=. 
   Qed. 
 
 End adv_comp.

@@ -3,9 +3,9 @@ From Coq.Logic Require Import FunctionalExtensionality.
 From clutch.prob_eff_lang.probblaze Require Import advantage.
 From iris.algebra Require Import excl.
 From iris.algebra.lib Require Import dfrac_agree.
-From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup.
+From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup mode.
 From clutch.prob_eff_lang.probblaze Require Import 
-  dhke_channel_lazy_results 
+  dhke_channel_lazy_results
   dhke_channel_lazy_authchan
   def_dhke adequacy.
 
@@ -17,42 +17,47 @@ Section adv_dhke.
 
   Import valgroup_notation.
   Import valgroup_tactics.
-
-  Definition τ_DH `{!probblazeRGS Σ}
-    := (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T 
-                 ⊸ ((∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option 𝔾))
-                            -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
-
-  (* Syntactic type whose interpretation is [τ_DH].  De Bruijn indices: inside
-     [∀ᵣ θ__L] then [∀ᵣ θₕ] (resp. [∀ᵣ θₗ]) the inner bound row is [RVar 0] and
-     [θ__L] is [RVar 1], so the effect [sem_row_union θₕ θ__L] is [RUnion (RVar 0%nat)
-     (RVar 1%nat)].  Leaves: [𝟙+𝟙 = TSum TUnit TUnit], [Option 𝔾 = TSum TUnit τG],
-     [𝔾×(𝟙+𝟙) = TProd τG (TSum TUnit TUnit)], [𝔾 = interp τG] via [τG_lrel]. *)
+  
   Definition T_DH : type :=
     (∀R:
        ((∀R: (((() + ()) -{ RVar 0%nat }-> (() + τG)) -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()))
         -∘
-        (∀R: ((((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + τG))) -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()))))%ty.
+        (∀R: ((((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + TNat))) -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()))))%ty.
 
-  Lemma T_DH_interp `{!probblazeRGS Σ} η μ δ ξ :
-    interp._ty η μ δ T_DH ξ = τ_DH.
-  Proof using All.
-    (* Only the group leaves are non-definitional; [HG] bridges them via
-       [τG_lrel] (instance supplied by the section's [G]). *)
-    assert (HG : ∀ ζ, interp._ty η μ δ τG ζ = sem_ty_group) by
-      (intros ζ; extensionality v1; extensionality v2; symmetry;
-       apply (τG_lrel (clutch_group := G _ _))).
-    rewrite /T_DH /τ_DH /sem_ty_option /=.
-    repeat (f_equiv; try (apply functional_extensionality; intros ?));
-      first [done | by rewrite HG].
-  Qed.
+  Lemma T_DH_subtype `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ τ_DH ≤ₜ (interp._ty η μ δ T_DH ξ).
+  Proof using All. 
+    rewrite /T_DH /τ_DH /sem_ty_option /=. 
+    iApply ty_le_row_forall. iIntros (?).
+    iApply ty_le_arr; first iApply row_le_refl.
+    - iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
+      iApply ty_le_sum; first iApply ty_le_refl.
+      iIntros (??) "!#". iApply τG_subtype.
+    - iApply ty_le_row_forall; iIntros (?).
+      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      iApply ty_le_prod; last iApply ty_le_refl.
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      iApply ty_le_prod; last iApply ty_le_refl.
+      iIntros (??) "!#". iApply τG_subtype.
+  Qed. 
+
+  Lemma T_DH_bool_subtype  `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ (interp._ty η μ δ (T_DH ⇾ 𝔹) ξ)%T ≤ₜ (τ_DH → 𝔹)%T.
+  Proof using All. 
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
+    iApply ty_le_arr; [iApply row_le_refl|iApply T_DH_subtype |iApply ty_le_refl].
+  Qed. 
 
   Lemma adv_DHKE_DH_real  A :
     (∀ `{!probblazeRGS Σ}, 
        ⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
     nonneg (advantage A (λ: "f", F_AUTH (DH_KE "f"))%V ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_real) #true) = 0%R.
   Proof using inG2 inG1 inG0 H G.
-    intros. eapply sem_typed_advantage; eauto. split.
+    intros HA. eapply sem_typed_advantage; first apply HA. split.
     - intros Hrgs. apply DHKE_RED; eauto. 1,2: do 2 constructor.
     - intros Hrgs. apply RED_DHKE; eauto. 1,2: do 2 constructor.
   Qed. 
@@ -61,7 +66,7 @@ Section adv_dhke.
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
     nonneg (advantage A ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_rand) (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V  #true) = 0%R.
   Proof using H inG0 inG1 inG2 G.
-    intros. eapply sem_typed_advantage; eauto. split.
+    intros HA. eapply sem_typed_advantage; first apply HA. split.
     - intros Hrgs. apply RED_DHSIM; eauto. 1,2: do 2 constructor.
     - intros Hrgs. apply DHSIM_RED; eauto. 1,2: do 2 constructor.
   Qed. 
@@ -519,23 +524,7 @@ Section adv_dhke.
       + apply red_self.
       + split; [apply DH_real_self | apply DH_rand_self].
   Qed.
-
-  (* Helper lemmas to not unfold too much *)
-  Lemma interp_TArrow `{!probblazeRGS Σ} η μ δ α ρ β ξ :
-    interp._ty η μ δ (TArrow α ρ β) ξ
-    = sem_ty_arr (interp._row η μ δ ρ ξ) (interp._ty η μ δ α ξ) (interp._ty η μ δ β ξ).
-  Proof. reflexivity. Qed.
-  Lemma interp_TBang `{!probblazeRGS Σ} η μ δ m τ ξ :
-    interp._ty η μ δ (TBang m τ) ξ = sem_ty_mbang (interp._mode μ m) (interp._ty η μ δ τ ξ).
-  Proof. reflexivity. Qed.
-
-  Lemma T_DH_bool `{!probblazeRGS Σ} η μ δ ξ :
-    interp._ty η μ δ (T_DH ⇾ TBool)  ξ = (τ_DH → 𝔹)%T.
-  Proof using All.
-    repeat rewrite ?interp_TArrow ?interp_TBang. 
-    rewrite T_DH_interp. by simpl.
-  Qed. 
-
+ 
   Lemma adv_DHKE_typed A :
    ⊢ᵥ A : (T_DH ⇾ TBool) →
           advantage A (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V #true <=
@@ -547,9 +536,9 @@ Section adv_dhke.
     iPoseProof HAtyped as "Hadv".
     unfold bin_log_val_related.
     iSpecialize ("Hadv" $! [] [] ∅ []). 
-    by rewrite T_DH_bool.
+    iModIntro. iApply T_DH_bool_subtype. 
+    by rewrite /sem_val_typed /=. 
   Qed. 
- 
 
 End adv_dhke.
 

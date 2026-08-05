@@ -159,9 +159,9 @@ Section schan_security.
 
   Program Definition SendSec (schannel1 schannel2 : label) : iThy Σ :=
      λ e1 e2, (λne Q,
-                ∃ m : vgG,
-                            (⌜ e1 = do: schannel1 (SendV (vgval m)) ⌝%E ∗
-                             ⌜ e2 = do: schannel2 (SendV (vgval m)) ⌝%E)  ∗
+                ∃ m : nat,
+                            (⌜ e1 = do: schannel1 (SendV (#m)) ⌝%E ∗
+                             ⌜ e2 = do: schannel2 (SendV (#m)) ⌝%E)  ∗
                             □ (Q (Val #()%V) (Val #()%V))
              )%I.
   Next Obligation. solve_proper. Qed.
@@ -173,17 +173,8 @@ Section schan_security.
                 □ ((∀ g : vgG, Q (SOMEV (vgval g)) (SOMEV (vgval g))) ∧ Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed.
-
-
-
-
-
-   (* semantic types*)
-  (*----------------------------------------------------------------------------*)
-    Definition sem_ty_group : sem_ty Σ := (λ v1 v2, ∃ g : vgG, ⌜ v1 = vgval g ⌝ ∗ ⌜ v2 = vgval g ⌝)%I.
  
-  Notation "'𝔾'" := sem_ty_group.
- (* Import valgroup_notation.*)
+ Import valgroup_notation.
 
   Program Definition keyleak_mono (keyleak1 keyleak2 : label) := {| pmono_prot_car := iThySum (iThySum (KLeakSendAlice keyleak1 keyleak2) (KLeakRecvAlice keyleak1 keyleak2)) (iThySum (KLeakSendBob keyleak1 keyleak2) (KLeakRecvBob keyleak1 keyleak2)) ; pmono_prot_prop := _|}.
   Next Obligation.
@@ -319,7 +310,7 @@ Qed.
    Lemma SEM_TYPED_EFF : ∀ channel leaksec getKey schannel_l schannel_r : label,
     let θ := client_row channel leaksec getKey schannel_l schannel_r in
     ⊢
-    (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: <>, do: schannel_l InjR bob))%V ((λ: "m", do: schannel_r InjL "m") , (λ: <>, do: schannel_r InjR bob))%V (((𝔾)%T -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)%I.
+    (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: <>, do: schannel_l InjR bob))%V ((λ: "m", do: schannel_r InjL "m") , (λ: <>, do: schannel_r InjR bob))%V (((sem_ty_nat)%T -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)%I.
   Proof.
     unfold sem_val_typed. simpl. intros.
     iModIntro. rewrite /sem_ty_arr /sem_ty_mbang /sem_ty_option /sem_ty_sum //=. rewrite /sem_ty_prod.
@@ -328,8 +319,8 @@ Qed.
       iApply brel_introduction'; try constructor;
       iExists _,_,[],[],_; do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]);
       iSplit; try (iIntros (??) "!# H"; iApply "H").
-      simpl. iLeft. unfold sem_ty_group.
-      iDestruct "Hw1w1" as (g) "[%Hw1 %Hw2]".
+      simpl. iLeft. 
+      iDestruct "Hw1w1" as (m) "[%Hw1 %Hw2]".
       iExists _. repeat iSplit; try iPureIntro; try auto; unfold SendV; try rewrite -> Hw1;
       try rewrite -> Hw2; try reflexivity.
       iModIntro. iApply brel_value. iIntros "$ !>".
@@ -348,8 +339,7 @@ Qed.
         iExists _,_; iRight; iPureIntro; repeat (split; first done). exists g. split; reflexivity. }
       { iApply brel_value. iIntros "$ !>".
         iExists _,_; iLeft; iPureIntro; repeat (split; first done); reflexivity. }
-
-Qed.
+  Qed.
 
   Lemma G_XOR_CORRECT_l (g1 g2 : vgG) E K X e R :
     let g := (group_xor_sem g1 g2) in
@@ -430,7 +420,7 @@ Definition R_CHAN : val :=
 (*Verification of F_KE_L[F_OAUTH[CHAN[]]] ≤ CHAN_SIM[F_CHAN[]]*)
 (*----------------------------------------------------------*)
 Lemma F_OAUTH_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
-   (∀ᵣ θₕ, ((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T
+   (∀ᵣ θₕ, ((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T
                  f1 f2 -∗
     BREL R_CHAN f1
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
@@ -607,7 +597,7 @@ vg_int_xor_sem vgg xor_struct Σ.
   set (θ := client_row channel' leaksec' getKey' schannel_l schannel_r).
   iSpecialize ("Hrelf1f2" $! θ).
   unfold sem_ty_arr, sem_ty_mbang. simpl.
-  iAssert (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: <>, do: schannel_l InjR bob))%V ((λ: "m", do: schannel_r InjL "m") , (λ: <>, do: schannel_r InjR bob))%V (((𝔾 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)) as "Hschn".
+  iAssert (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: <>, do: schannel_l InjR bob))%V ((λ: "m", do: schannel_r InjL "m") , (λ: <>, do: schannel_r InjR bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)) as "Hschn".
   { iApply SEM_TYPED_EFF. }
   unfold sem_val_typed. simpl.
   iDestruct "Hschn" as "#Hschn".
@@ -660,13 +650,27 @@ vg_int_xor_sem vgg xor_struct Σ.
    iIntros (?????) "!# %Hk1 %Hk2 HXQ #Hrel".
    iDestruct "HXQ" as "[HSendAlice | HRecvBob]".
    (* Send a message using the secure channel from Alice To Bob *)
-   + iDestruct "HSendAlice" as (?m) "[[%He1 %He2] #HmQ]".
+   + iDestruct "HSendAlice" as (?mz) "[[%He1 %He2] #HmQ]".
       rewrite -> He1. rewrite -> He2. brel_pures.
          { apply -> NeutralEctx_ectx_labels_singleton.
            do 2 (eapply NeutralEctx_label_cons_inv_2 in Hk1). eapply Hk1. }
          {  apply -> NeutralEctx_ectx_labels_singleton.
             eapply NeutralEctx_label_cons_inv_2 in Hk2.
             eapply NeutralEctx_label_cons_inv_1 in Hk2. eapply Hk2. }
+
+         (* Interpreting a group element from mz *)
+         destruct (vg_of_int_sem mz) as [m|] eqn:Hmz .
+         2 : {
+           iApply brel_vg_of_int_none_l; first done.
+           iApply brel_vg_of_int_none_r; first done.
+           brel_pures'. 
+           iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V));
+             [set_solver|done|by iApply "Hrel"|iApply "IH"]. }
+         
+         iApply brel_vg_of_int_correct_l; first done.
+         iApply brel_vg_of_int_correct_r; first done.
+         brel_pures'. 
+ 
          iApply (brel_na_inv _ _ alphaN); first set_solver.
          iFrame "Hinvα".
          iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
@@ -1207,7 +1211,7 @@ Qed.
 
 
 Lemma SEM_R_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
-   (∀ᵣ θₕ, (((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙))%T
+   (∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙))%T
                  f1 f2 -∗
     BREL R_CHAN f1
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
@@ -1388,7 +1392,7 @@ vg_int_xor_sem vgg xor_struct Σ.
   set (θ := client_row channel' leaksec' getKey' schannel_l schannel_r).
   iSpecialize ("Hrelf1f2" $! θ).
   unfold sem_ty_arr, sem_ty_mbang. simpl.
-  iAssert (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: <>, do: schannel_l InjR bob))%V ((λ: "m", do: schannel_r InjL "m") , (λ: <>, do: schannel_r InjR bob))%V (((𝔾 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)) as "Hschn".
+  iAssert (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: <>, do: schannel_l InjR bob))%V ((λ: "m", do: schannel_r InjL "m") , (λ: <>, do: schannel_r InjR bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)) as "Hschn".
   { iApply SEM_TYPED_EFF. }
   unfold sem_val_typed. simpl.
   iDestruct "Hschn" as "#Hschn".
@@ -1442,13 +1446,27 @@ vg_int_xor_sem vgg xor_struct Σ.
    iIntros (?????) "!# %Hk1 %Hk2 HXQ #Hrel".
    iDestruct "HXQ" as "[HSendAlice | HRecvBob]".
    (* Send a message using the secure channel from Alice To Bob *)
-   + iDestruct "HSendAlice" as (?m) "[[%He1 %He2] #HmQ]".
+   + iDestruct "HSendAlice" as (?mz) "[[%He1 %He2] #HmQ]".
       rewrite -> He1. rewrite -> He2. brel_pures.
          { apply -> NeutralEctx_ectx_labels_singleton.
            do 2 (eapply NeutralEctx_label_cons_inv_2 in Hk1). eapply Hk1. }
          {  apply -> NeutralEctx_ectx_labels_singleton.
             eapply NeutralEctx_label_cons_inv_2 in Hk2.
             eapply NeutralEctx_label_cons_inv_1 in Hk2. eapply Hk2. }
+
+         (* Interpreting a group element from mz *)
+         destruct (vg_of_int_sem mz) as [m|] eqn:Hmz .
+         2 : {
+           iApply brel_vg_of_int_none_l; first done.
+           iApply brel_vg_of_int_none_r; first done.
+           brel_pures'. 
+           iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V));
+             [set_solver|done|by iApply "Hrel"|iApply "IH"]. }
+         
+         iApply brel_vg_of_int_correct_l; first done.
+         iApply brel_vg_of_int_correct_r; first done.
+         brel_pures'. 
+
          iApply (brel_na_inv _ _ alphaN); first set_solver.
          iFrame "Hinvα".
            iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
@@ -2062,7 +2080,7 @@ Qed.
 
 
 Lemma SEM_R_CHAN_SIM_rev (f1 f2 : val) (L : sem_row Σ) :
-   (∀ᵣ θₕ, (((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙))%T
+   (∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙))%T
                  f1 f2 -∗
     BREL CHAN_SIM_lazy (F_CHAN f1)
       ≤ (R_CHAN f2) <|⊥|> {{λ v1 v2,
@@ -2243,9 +2261,8 @@ vg_int_xor_sem vgg xor_struct Σ.
   set (θ := client_row' channel' leaksec' getKey' schannel_l schannel_r).
   iSpecialize ("Hrelf1f2" $! θ).
   unfold sem_ty_arr, sem_ty_mbang. simpl.
-  iAssert (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: <>, do: schannel_l InjR bob))%V ((λ: "m", do: schannel_r InjL "m") , (λ: <>, do: schannel_r InjR bob))%V (((𝔾 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)) as "Hschn".
-  {
-      unfold sem_val_typed. simpl. intros. 
+  iAssert (sem_val_typed  ((λ: "m", do: schannel_l InjL "m"), (λ: <>, do: schannel_l InjR bob))%V ((λ: "m", do: schannel_r InjL "m") , (λ: <>, do: schannel_r InjR bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)) as "Hschn".
+  { unfold sem_val_typed. simpl. intros. 
     iModIntro. rewrite /sem_ty_arr /sem_ty_mbang /sem_ty_option /sem_ty_sum //=. rewrite /sem_ty_prod. 
     iExists (λ: "m", do: schannel_l InjL "m")%V , (λ: "m", do: schannel_r InjL "m")%V , (λ: <>, do: schannel_l InjR bob)%V , (λ: <>, do: schannel_r InjR bob)%V.  repeat iSplit; try iPureIntro; try auto.
     + iModIntro. iIntros (??) "Hw1w1". brel_pures.
@@ -2362,13 +2379,27 @@ split.
    iIntros (?????) "!# %Hk1 %Hk2 HXQ #Hrel".  
    iDestruct "HXQ" as "[HSendAlice | HRecvBob]". 
    (* Send a message using the secure channel from Alice To Bob *)
-   + iDestruct "HSendAlice" as (?m) "[[%He1 %He2] #HmQ]".
+   + iDestruct "HSendAlice" as (?mz) "[[%He1 %He2] #HmQ]".
       rewrite -> He1. rewrite -> He2. brel_pures.
       { apply -> NeutralEctx_ectx_labels_singleton.
          eapply NeutralEctx_label_cons_inv_2 in Hk1.
          eapply NeutralEctx_label_cons_inv_1 in Hk1. eapply Hk1. }
     {  apply -> NeutralEctx_ectx_labels_singleton.
        do 2 (eapply NeutralEctx_label_cons_inv_2 in Hk2). eapply Hk2. } 
+
+    (* Interpreting a group element from mz *)
+    destruct (vg_of_int_sem mz) as [m|] eqn:Hmz .
+      2 : {
+        iApply brel_vg_of_int_none_l; first done.
+        iApply brel_vg_of_int_none_r; first done.
+        brel_pures'. 
+        iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V));
+          [done|set_solver|by iApply "Hrel"|iApply "IH"]. }
+      
+      iApply brel_vg_of_int_correct_l; first done.
+      iApply brel_vg_of_int_correct_r; first done.
+      brel_pures'. 
+
          iApply (brel_na_inv _ _ alphaN); first set_solver.
          iFrame "Hinvα".
            iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
@@ -2999,7 +3030,7 @@ Qed.
 
 Lemma R_CHAN_CHAN_SIM_F_CHAN :
   ⊢ sem_val_typed (R_CHAN)%V (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V
-      (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+      (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T.
 Proof using Bdd_int_vg Bij_log Bij_xor_sem Bij_xor_sem_l G H
 Val_log XOR_spec0 cg group_xor_sem inG0 inG1 inG2
@@ -3018,7 +3049,7 @@ Qed.
 
 Lemma CHAN_SIM_F_CHAN_R_CHAN :
    ⊢ sem_val_typed (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V (R_CHAN)%V
-      (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+      (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
                 (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T.
  Proof using Bdd_int_vg Bij_log Bij_xor_sem
 Bij_xor_sem_l G H Val_log XOR_spec0 cg
@@ -3040,7 +3071,7 @@ Qed.
 (*----------------------------------------------------------------*)
 Lemma R_I_SCHAN :
   ⊢ sem_typed [] R_CHAN (λ: "f", (CHAN_SIM_lazy (F_CHAN "f")))%V ⊥
-       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T [].
 Proof using Bdd_int_vg Bij_log Bij_xor_sem Bij_xor_sem_l G H
 Val_log XOR_spec0 cg group_xor_sem inG0 inG1 inG2
@@ -3058,7 +3089,7 @@ Qed.
 
 Lemma I_R_SCHAN :
  ⊢ sem_typed [] (λ: "f", (CHAN_SIM_lazy (F_CHAN "f")))%V R_CHAN ⊥
-       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((𝔾 -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T [].
 Proof using Bdd_int_vg Bij_log Bij_xor_sem
 Bij_xor_sem_l G H Val_log XOR_spec0 cg
