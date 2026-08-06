@@ -1,4 +1,3 @@
-
 From iris.proofmode Require Import base proofmode classes.                                             
 From iris.base_logic.lib Require Import  na_invariants.   
 From iris.algebra Require Import agree excl auth frac excl_auth. 
@@ -41,8 +40,6 @@ Section schan_security.
   Variable log__g : vgG -> fin (S (S n'')).
   Hypothesis Val_log : ∀ x : vgG, (g ^+(log__g x))%g = x.
   Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, log__g (group_xor_sem m (g ^+n))).
-  Hypothesis Bdd_int_vg : ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
-
 
   Definition atokN' : namespace := nroot .@ "atokN1".
   Definition btokN' : namespace := nroot .@ "btokN1".
@@ -347,7 +344,7 @@ Qed.
      vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some g ->
         (BREL (fill K (SOMEV (vgval g))) ≤ e @ E <|X|> {{R}}) -∗
      (BREL (fill K (G_XOR xor (vgval g1) (vgval g2))) ≤ e @ E <|X|> {{R}}).
-  Proof using Bdd_int_vg G H XOR_spec0 group_xor_sem cg vg vgg xor_struct
+  Proof using  G H XOR_spec0 group_xor_sem cg vg vgg xor_struct
 Σ.
     simpl.
     intro Hg1g2.
@@ -368,7 +365,8 @@ Qed.
    assert (fill (K ++ [AppRCtx vg_of_int ]) (xor #(int_of_vg_sem g1) #(int_of_vg_sem g2)) = fill K (fill [AppRCtx vg_of_int] (xor #(int_of_vg_sem g1) #(int_of_vg_sem g2)))) as Hectxxor.
    { rewrite fill_app. auto. }
    rewrite -Hectxxor.
-   iApply xor_correct_l; try (eapply Bdd_int_vg).
+   iApply xor_correct_l. 
+   1,2: rewrite -vgG_card; apply int_of_vg_sem_bound. 
    rewrite fill_app. simpl.
    iApply brel_vg_of_int_correct_l.
    { apply Hg1g2. }
@@ -382,7 +380,7 @@ Qed.
      vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some g ->
         (BREL e ≤ (fill K (SOMEV (vgval g))) @ E <|X|> {{R}}) -∗ 
      (BREL e ≤ (fill K (G_XOR xor (vgval g1) (vgval g2))) @ E <|X|> {{R}}).
-  Proof using Bdd_int_vg G H XOR_spec0 group_xor_sem cg vg vgg xor_struct
+  Proof using  G H XOR_spec0 group_xor_sem cg vg vgg xor_struct
 Σ.
     simpl.
     intro Hg1g2.
@@ -403,7 +401,8 @@ Qed.
    assert (fill (K ++ [AppRCtx vg_of_int ]) (xor #(int_of_vg_sem g1) #(int_of_vg_sem g2)) = fill K (fill [AppRCtx vg_of_int] (xor #(int_of_vg_sem g1) #(int_of_vg_sem g2)))) as Hectxxor.
    { rewrite fill_app. auto. }
    rewrite -Hectxxor.
-   iApply xor_correct_r; try (eapply Bdd_int_vg).
+   iApply xor_correct_r.
+   1,2: rewrite -vgG_card; apply int_of_vg_sem_bound. 
    rewrite fill_app. simpl.
    iApply brel_vg_of_int_correct_r.
    { apply Hg1g2. }
@@ -426,7 +425,7 @@ Lemma F_OAUTH_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        ∀ (leakauth1 leakauth2 keyleak1 keyleak2 : label),
                                        BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V ((λ: "m", do: keyleak1 (Send "m")), (λ: "m", do: keyleak1 (Recv "m")))%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V ((λ: "m", do: keyleak2 (Send "m")), (λ: "m", do: keyleak2 (Recv "m")))%V  <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
-Proof with (repeat foldkont) using Bdd_int_vg Bij_log Bij_xor_sem Bij_xor_sem_l G
+Proof with (repeat foldkont) using  Bij_log Bij_xor_sem Bij_xor_sem_l G
 H Val_log XOR_spec0 cg group_xor_sem inG0
 inG1 inG2 klk1 klk2 lka1 lka2 log__g vg
 vg_int_xor_sem vgg xor_struct Σ.
@@ -1216,7 +1215,7 @@ Lemma SEM_R_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
     BREL R_CHAN f1
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ L) }-∘ 𝟙)%T v1 v2 }}. 
-Proof with (repeat foldkont) using  Bdd_int_vg Bij_log Bij_xor_sem Bij_xor_sem_l G H
+Proof with (repeat foldkont) using   Bij_log Bij_xor_sem Bij_xor_sem_l G H
 Val_log XOR_spec0 cg group_xor_sem log__g vg
 vg_int_xor_sem vgg xor_struct Σ.
 
@@ -2085,7 +2084,7 @@ Lemma SEM_R_CHAN_SIM_rev (f1 f2 : val) (L : sem_row Σ) :
     BREL CHAN_SIM_lazy (F_CHAN f1)
       ≤ (R_CHAN f2) <|⊥|> {{λ v1 v2,
                               (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ L) }-∘ 𝟙)%T v1 v2 }}.
-Proof with (repeat foldkont) using  Bdd_int_vg Bij_log Bij_xor_sem Bij_xor_sem_l G H
+Proof with (repeat foldkont) using   Bij_log Bij_xor_sem Bij_xor_sem_l G H
 Val_log XOR_spec0 cg group_xor_sem log__g vg
 vg_int_xor_sem vgg xor_struct Σ.
 
@@ -3032,7 +3031,7 @@ Lemma R_CHAN_CHAN_SIM_F_CHAN :
   ⊢ sem_val_typed (R_CHAN)%V (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V
       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T.
-Proof using Bdd_int_vg Bij_log Bij_xor_sem Bij_xor_sem_l G H
+Proof using  Bij_log Bij_xor_sem Bij_xor_sem_l G H
 Val_log XOR_spec0 cg group_xor_sem inG0 inG1 inG2
 log__g vg vg_int_xor_sem vgg xor_struct Σ.
   iModIntro. iIntros (L).
@@ -3051,7 +3050,7 @@ Lemma CHAN_SIM_F_CHAN_R_CHAN :
    ⊢ sem_val_typed (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V (R_CHAN)%V
       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
                 (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T.
- Proof using Bdd_int_vg Bij_log Bij_xor_sem
+ Proof using  Bij_log Bij_xor_sem
 Bij_xor_sem_l G H Val_log XOR_spec0 cg
 group_xor_sem inG0 inG1 inG2 log__g vg
 vg_int_xor_sem vgg xor_struct Σ.
@@ -3073,7 +3072,7 @@ Lemma R_I_SCHAN :
   ⊢ sem_typed [] R_CHAN (λ: "f", (CHAN_SIM_lazy (F_CHAN "f")))%V ⊥
        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T [].
-Proof using Bdd_int_vg Bij_log Bij_xor_sem Bij_xor_sem_l G H
+Proof using  Bij_log Bij_xor_sem Bij_xor_sem_l G H
 Val_log XOR_spec0 cg group_xor_sem inG0 inG1 inG2
 klk1 klk2 lka1 lka2 log__g vg vg_int_xor_sem vgg
 xor_struct Σ.
@@ -3091,7 +3090,7 @@ Lemma I_R_SCHAN :
  ⊢ sem_typed [] (λ: "f", (CHAN_SIM_lazy (F_CHAN "f")))%V R_CHAN ⊥
        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T [].
-Proof using Bdd_int_vg Bij_log Bij_xor_sem
+Proof using Bij_log Bij_xor_sem
 Bij_xor_sem_l G H Val_log XOR_spec0 cg
 group_xor_sem inG0 inG1 inG2 klk1 klk2 lka1 lka2
 log__g vg vg_int_xor_sem vgg xor_struct Σ. 
