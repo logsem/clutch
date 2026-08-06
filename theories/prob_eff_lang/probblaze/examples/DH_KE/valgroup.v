@@ -519,6 +519,33 @@ Proof using.
   by destruct (@eqtype.eqP _ [set: vgG] (cycle g)).
 Qed.
 
+Definition g_log : vgG -> fin (S (S n'')) := fun xg => match log_g xg with 
+                                                      | exist k _ => k 
+                                                      end.
+Lemma g_log_id : ∀ x : vgG, (g ^+ (g_log x))%g = x.
+Proof. 
+  intros. unfold g_log.
+  by destruct (log_g x) as [k Hk]. 
+Qed. 
+Lemma log_g_bij : Bij g_log. 
+Proof. 
+  split.
+  - intros ?? Hk. unfold g_log in *. 
+    destruct (log_g x) as [m Hm]; destruct (log_g y) as [n Hn]. 
+    by subst.
+  - intros k. exists (g ^+ k)%g. unfold g_log in *. 
+    subst. destruct (log_g (g ^+ k)%g) as [k' Hkeq]. 
+    revert Hkeq.
+    move=> /eqP Heq. 
+    rewrite eq_expg_mod_order in Heq.
+    rewrite !div.modn_small in Heq.
+    2,3 : rewrite g_nontriv; apply Rcomplements.SSR_leq.
+    2 : pose proof (fin.fin_to_nat_le k'); lia.
+    2 : pose proof (fin.fin_to_nat_le k); lia.
+    apply: (inj fin_to_nat).
+    by rewrite (eqP Heq).
+Qed. 
+
 End facts.
 
 

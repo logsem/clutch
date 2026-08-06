@@ -37,15 +37,7 @@ Section schan_security.
   Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, group_xor_sem (group_xor_sem g1 g2) g2 = g1.
   Hypothesis Bij_xor_sem_l : ∀ g1 g2 : vgG, group_xor_sem g1 (group_xor_sem g1 g2) = g2.
   Hypothesis vg_int_xor_sem : ∀ g1 g2 : vgG, vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some (group_xor_sem g1 g2 ).
-  Definition log__g : vgG -> fin (S (S n'')) := fun xg => match log_g xg with 
-                                                        | exist k _ => k 
-                                                        end.
-  Lemma val_log : ∀ x : vgG, (g ^+ (log__g x))%g = x.
-  Proof. 
-    intros. unfold log__g.
-    by destruct (log_g x) as [k Hk]. 
-  Qed. 
-    Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, log__g (group_xor_sem m (g ^+n))).
+  Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, g_log (group_xor_sem m (g ^+n))).
 
   Definition atokN' : namespace := nroot .@ "atokN1".
   Definition btokN' : namespace := nroot .@ "btokN1".
@@ -433,7 +425,7 @@ Lemma F_OAUTH_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
                                        BREL v1 ((λ: "m", do: leakauth1 (Send "m")), (λ: "m", do: leakauth1 (Recv "m")))%V ((λ: "m", do: keyleak1 (Send "m")), (λ: "m", do: keyleak1 (Recv "m")))%V ≤ v2 ((λ: "m", do: leakauth2 (Send "m")), (λ: "m", do: leakauth2 (Recv "m")))%V ((λ: "m", do: keyleak2 (Send "m")), (λ: "m", do: keyleak2 (Recv "m")))%V  <| (iLblSig_to_iLblThy (envsec_row keyleak1 keyleak2 leakauth1 leakauth2 )) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2)}}}}.
 Proof with (repeat foldkont) using  Bij_log Bij_xor_sem Bij_xor_sem_l G
 H XOR_spec0 cg group_xor_sem inG0
-inG1 inG2 klk1 klk2 lka1 lka2 log__g vg
+inG1 inG2 klk1 klk2 lka1 lka2 vg
 vg_int_xor_sem vgg xor_struct Σ.
   iIntros "Hrelf1f2".
   repeat simpl.
@@ -608,7 +600,7 @@ vg_int_xor_sem vgg xor_struct Σ.
   iDestruct "Hschn" as "#Hschn".
   iSpecialize ("Hrelf1f2" with "Hschn"). simpl.
   (*set (f m := (λ x, int_of_vg_sem (bij_group_xor_sem m (g ^+x)))).*)
-  set (f m := (fun (x : fin (S (S n''))) => log__g (group_xor_sem m (g ^+x)))).
+  set (f m := (fun (x : fin (S (S n''))) => g_log (group_xor_sem m (g ^+x)))).
   assert (Hf : ∀ m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (f m)).
    { apply Bij_log. }
   set (d1 := (γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ NONEV ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗  l_key ↦ NONEV)%I).
@@ -1221,7 +1213,7 @@ Lemma SEM_R_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
     BREL R_CHAN f1
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
                                        (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ L) }-∘ 𝟙)%T v1 v2 }}. 
-Proof with (repeat foldkont) using   Bij_log Bij_xor_sem Bij_xor_sem_l G H XOR_spec0 cg group_xor_sem log__g vg
+Proof with (repeat foldkont) using   Bij_log Bij_xor_sem Bij_xor_sem_l G H XOR_spec0 cg group_xor_sem vg
 vg_int_xor_sem vgg xor_struct Σ.
 
  iIntros "Hrelf1f2".
@@ -1401,7 +1393,7 @@ vg_int_xor_sem vgg xor_struct Σ.
   unfold sem_val_typed. simpl.
   iDestruct "Hschn" as "#Hschn".
   iSpecialize ("Hrelf1f2" with "Hschn"). simpl.
-   set (f m := (fun (x : fin (S (S n''))) => log__g (group_xor_sem m (g ^+x)))).
+   set (f m := (fun (x : fin (S (S n''))) => g_log (group_xor_sem m (g ^+x)))).
   assert (Hf : ∀ m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (f m)).
    { apply Bij_log. }
   set (d1 := (γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ NONEV ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗  l_key ↦ NONEV)%I).
@@ -1717,7 +1709,7 @@ vg_int_xor_sem vgg xor_struct Σ.
                                unfold g_sem. simpl. unfold sem_ty_prod.
                                iExists (vgval (group_xor_sem m (valgroup.g ^+ c))) , (vgval (valgroup.g ^+ f m c)) , bob , bob.
                                repeat (iSplit); try (iPureIntro); try reflexivity.
-                               + auto. simpl. unfold f. rewrite -> val_log. exists (group_xor_sem m (g ^+ c)).
+                               + auto. simpl. unfold f. rewrite -> g_log_id. exists (group_xor_sem m (g ^+ c)).
                                  repeat split; reflexivity.
                                + simpl. exists #()%V, #()%V. repeat split; unfold bob; try reflexivity.
                                  left. repeat split; reflexivity. }
@@ -2089,7 +2081,7 @@ Lemma SEM_R_CHAN_SIM_rev (f1 f2 : val) (L : sem_row Σ) :
     BREL CHAN_SIM_lazy (F_CHAN f1)
       ≤ (R_CHAN f2) <|⊥|> {{λ v1 v2,
                               (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ L) }-∘ 𝟙)%T v1 v2 }}.
-Proof with (repeat foldkont) using   Bij_log Bij_xor_sem Bij_xor_sem_l G H XOR_spec0 cg group_xor_sem log__g vg
+Proof with (repeat foldkont) using   Bij_log Bij_xor_sem Bij_xor_sem_l G H XOR_spec0 cg group_xor_sem vg
 vg_int_xor_sem vgg xor_struct Σ.
 
  iIntros "Hrelf1f2".  
@@ -2298,14 +2290,14 @@ vg_int_xor_sem vgg xor_struct Σ.
   iSpecialize ("Hrelf1f2" with "Hschn"). simpl.
   set (f m := (fun (x : nat) =>
                  match (decide (x < S (S n'')))%nat with
-                 | left H =>  fin_to_nat (log__g (group_xor_sem m (g ^+(nat_to_fin H))))
+                 | left H =>  fin_to_nat (g_log (group_xor_sem m (g ^+(nat_to_fin H))))
                  | right _ => x
                  end )).
   assert (Hf : ∀ m : vgG, @Bij nat nat (f m)).
   {
     intro m.
      set (f' m := (λ n : fin (S (S n'')),
-         log__g (group_xor_sem m (g ^+ n)))).
+         g_log (group_xor_sem m (g ^+ n)))).
 pose proof (Bij_log m) as [Hinj_fin Hsurj_fin].
 split.
 - intros x y Hxy. unfold f in Hxy.
@@ -2660,7 +2652,7 @@ split.
                                iExists (vgval (valgroup.g ^+ c)) , (vgval (group_xor_sem m (valgroup.g ^+ f m c))) , bob , bob.
                                repeat (iSplit); try (iPureIntro); try reflexivity.
                                + auto. simpl. unfold f. case_decide as Hc'; [| exfalso; lia].
-                                 rewrite -> val_log.
+                                 rewrite -> g_log_id.
                                  rewrite -> Bij_xor_sem_l.
                                  assert (fin_to_nat (nat_to_fin Hc') = c)
                                  as -> by apply fin_to_nat_to_fin.
@@ -3036,7 +3028,7 @@ Lemma R_CHAN_CHAN_SIM_F_CHAN :
       (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
       (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T.
 Proof using  Bij_log Bij_xor_sem Bij_xor_sem_l G H XOR_spec0 cg group_xor_sem inG0 inG1 inG2
-log__g vg vg_int_xor_sem vgg xor_struct Σ.
+vg vg_int_xor_sem vgg xor_struct Σ.
   iModIntro. iIntros (L).
   iIntros (f1 f2) "Hrelf1f2".
   brel_pures'.
@@ -3055,7 +3047,7 @@ Lemma CHAN_SIM_F_CHAN_R_CHAN :
                 (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T.
  Proof using  Bij_log Bij_xor_sem
 Bij_xor_sem_l G H XOR_spec0 cg
-group_xor_sem inG0 inG1 inG2 log__g vg
+group_xor_sem inG0 inG1 inG2 vg
 vg_int_xor_sem vgg xor_struct Σ.
   iModIntro. iIntros (L).
   iIntros (f1 f2) "Hrelf1f2".
@@ -3076,7 +3068,7 @@ Lemma R_I_SCHAN :
        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T [].
 Proof using  Bij_log Bij_xor_sem Bij_xor_sem_l G H XOR_spec0 cg group_xor_sem inG0 inG1 inG2
-klk1 klk2 lka1 lka2 log__g vg vg_int_xor_sem vgg
+klk1 klk2 lka1 lka2 vg vg_int_xor_sem vgg
 xor_struct Σ.
   iIntros (vs) "!# H". simpl.
   iApply brel_value.
@@ -3094,8 +3086,7 @@ Lemma I_R_SCHAN :
                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union θ₁ (sem_row_union θ₂ θ__L) }-∘ 𝟙))%T [].
 Proof using Bij_log Bij_xor_sem
 Bij_xor_sem_l G H XOR_spec0 cg
-group_xor_sem inG0 inG1 inG2 klk1 klk2 lka1 lka2
-log__g vg vg_int_xor_sem vgg xor_struct Σ. 
+group_xor_sem inG0 inG1 inG2 klk1 klk2 lka1 lka2 vg vg_int_xor_sem vgg xor_struct Σ. 
   iIntros (vs) "!# H". simpl.
   iApply brel_value.
   iIntros "$ !>".
