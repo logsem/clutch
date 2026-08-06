@@ -75,6 +75,12 @@ Section new_comp_verification.
 
   Import valgroup_notation.
 
+  (* ************************************************************************** *)
+  (* The following is not a part of the composition argument                    *)
+  (* It is just relating a beta-unfolded version of the secure                  *)
+  (* channel is related to the secure channel in order to make                  *)
+  (* the final reduction argument nice.                                         *)
+  
   (* The client-intro'd composite core, shared by all four reductions below.
      After the τ-client is applied and [brel_pures'] converges the two inner
      [Rec]/[Val(RecV)] forms of [λ:"f", F_AUTH (C_lazy DH "f")], both sides are
@@ -446,6 +452,8 @@ Section new_comp_verification.
     iDestruct "Hdh" as "#Hdh2".
     iApply (comp_core DH_rand DH_rand θ__L θ₁ θ2 v1 v2 r1 r2 r1' r2' with "Hdh2 Hvv Hoaleak Hchan").
   Qed.
+
+  (* ************************************************************************** *)
 
   Lemma REAL_CHAN_DH_RAND_DHSIM_FKE_CHAN1 :
     ⊢ sem_val_typed REAL_CHAN_DH_RAND DHSIM_FKE_CHAN1 τ.
