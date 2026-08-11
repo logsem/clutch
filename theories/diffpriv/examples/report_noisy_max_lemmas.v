@@ -791,12 +791,12 @@ Section coupling_rule.
     length zs' = length xιs ->
     ls = zip (zip xιs.*2 xιs.*1) (replicate (length xιs) []) ->
     ls' =zip (zip xιs'.*2 xιs'.*1) (replicate (length xιs) []) ->
-    tapes_laplace_auth 1 (tapes_laplace σ) -∗
+    tapes_laplace_auth (DfracOwn 1) (tapes_laplace σ) -∗
     spec_tapes_laplace_auth (tapes_laplace σ') -∗
     ([∗ list] '(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num,2 * den,x; []) ∗
             ι' ↪Lₛ (num,2 * den,x'; []) ∗ ⌜(Rabs (IZR (x - x')) <= 1)%R⌝)
     ==∗
-    (tapes_laplace_auth 1 (tapes_laplace (replace_laplace_tape num (2 * den) σ (zip ls zs)))) ∗
+    (tapes_laplace_auth (DfracOwn 1) (tapes_laplace (replace_laplace_tape num (2 * den) σ (zip ls zs)))) ∗
      spec_tapes_laplace_auth (tapes_laplace (replace_laplace_tape num (2 * den) σ' (zip ls' zs'))) ∗
     ([∗ list] k↦'(x, ι);'(x', ι') ∈ xιs;xιs', ι ↪L (num,2 * den,x; [
                                                     zs !!! k]) ∗ ι' ↪Lₛ (num,2 * den,x'; [zs' !!! k]) ∗ ⌜(Rabs (IZR (x - x')) <= 1)%R⌝).

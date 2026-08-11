@@ -294,13 +294,13 @@ Section keyed_hash.
   Definition keyed_hash_auth (γ : gname) (f : val) : iProp Σ :=
     ∃ (f0 : val) (mphys : gmap nat bool) (mghost : gmap fin_hash_dom_space (option bool)),
       keyed_hash_auth_pure f f0 mphys mghost ∗
-      ghost_map_auth γ 1 mghost ∗
+      ghost_map_auth γ (DfracOwn 1) mghost ∗
       hashfun' MAX_HASH_DOM f0 mphys.
 
   Definition skeyed_hash_auth (γ : gname) (f : val) : iProp Σ :=
     ∃ (f0 : val) (mphys : gmap nat bool) (mghost : gmap fin_hash_dom_space (option bool)),
       keyed_hash_auth_pure f f0 mphys mghost ∗
-      ghost_map_auth γ 1 mghost ∗
+      ghost_map_auth γ (DfracOwn 1) mghost ∗
       shashfun' MAX_HASH_DOM f0 mphys.
 
   Section timeless_spec.

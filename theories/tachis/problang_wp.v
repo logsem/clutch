@@ -33,7 +33,7 @@ Global Instance tachisGS_tachisWpGSS `{!tachisGS Σ F} : tachisWpGS prob_lang Σ
   tachisWpGS_invGS := tachisGS_invG;
   tachisWpGS_etcGS := tachisGS_etc;
 
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+  state_interp σ := (heap_auth (DfracOwn 1) σ.(heap) ∗ tapes_auth (DfracOwn 1) σ.(tapes))%I;
   costfun := F
 }.
 

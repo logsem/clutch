@@ -17,28 +17,30 @@ Local Hint Resolve head_stuck_stuck : core.
 
 Lemma wp_lift_head_step_fupd_couple {E Φ} e1 s :
   to_val e1 = None →
-  (∀ σ1 ε1,
-    state_interp σ1 ∗ err_interp ε1
+  (∀ n σ1 ε1,
+    state_interp n σ1 ∗ err_interp ε1
     ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
     glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
-      ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
+      £ (S (num_laters_per_step n))
+      ={∅}▷=∗^(S (num_laters_per_step n)) |={∅,E}=>
+      state_interp (S n) σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H". iApply wp_lift_step_fupd_glm; [done|].
-  iIntros (σ1 ε) "Hσε".
+  iIntros (n σ1 ε) "Hσε".
   iMod ("H" with "Hσε") as "[% H]"; iModIntro; auto.
 Qed.
 
 Lemma wp_lift_head_step {E Φ} e1 s :
   to_val e1 = None →
-  (∀ σ1, state_interp σ1 ={E,∅}=∗
+  (∀ n σ1, state_interp n σ1 ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
     ▷ ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={∅,E}=∗
-      state_interp σ2 ∗ WP e2 @ s; E {{ Φ }})
+      state_interp (S n) σ2 ∗ WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_step_fupd; [done|]. iIntros (?) "Hσ".
+  iIntros (?) "H". iApply wp_lift_step_fupd; [done|]. iIntros (??) "Hσ".
   iMod ("H" with "Hσ") as "[% H]"; iModIntro.
   iSplit.
   { iPureIntro. by eapply head_prim_reducible. }
@@ -47,15 +49,15 @@ Qed.
 
 Lemma wp_lift_atomic_head_step_fupd {E1 E2 Φ} e1 s :
   to_val e1 = None →
-  (∀ σ1, state_interp σ1 ={E1}=∗
+  (∀ n σ1, state_interp n σ1 ={E1}=∗
     ⌜head_reducible e1 σ1⌝ ∗
     ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={E1}[E2]▷=∗
-      state_interp σ2 ∗
+      state_interp (S n) σ2 ∗
       from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E1 {{ Φ }}.
 Proof.
   iIntros (?) "H". iApply wp_lift_atomic_step_fupd; [done|].
-  iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
+  iIntros (n σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
   iSplit.
   { iPureIntro. by apply head_prim_reducible. }
   iIntros (e2 σ2 Hstep).
@@ -64,15 +66,15 @@ Qed.
 
 Lemma wp_lift_atomic_head_step {E Φ} e1 s :
   to_val e1 = None →
-  (∀ σ1, state_interp σ1 ={E}=∗
+  (∀ n σ1, state_interp n σ1 ={E}=∗
     ⌜head_reducible e1 σ1⌝ ∗
     ▷ ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗
-      state_interp σ2 ∗
+      state_interp (S n) σ2 ∗
       from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H". iApply wp_lift_atomic_step; eauto.
-  iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
+  iIntros (n σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
   iSplit.
   { iPureIntro. by apply head_prim_reducible. }
   iNext. iIntros (e2 σ2 Hstep).

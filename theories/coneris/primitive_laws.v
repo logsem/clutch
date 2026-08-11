@@ -34,7 +34,7 @@ Definition tapes_auth `{conerisGS Σ} :=
 
 Global Instance conerisGS_conerisWpGS `{!conerisGS Σ} : conerisWpGS con_prob_lang Σ := {
   conerisWpGS_invGS := conerisGS_invG;
-    state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+    state_interp σ := (heap_auth (DfracOwn 1) σ.(heap) ∗ tapes_auth (DfracOwn 1) σ.(tapes))%I;
     fork_post := (λ _, True%I);
     err_interp ε := (ec_supply ε);
     
@@ -112,7 +112,7 @@ Section tape_interface.
   Qed.
 
   Lemma tapeN_lookup α N ns m: 
-    tapes_auth 1 m -∗ α ↪N (N; ns) -∗ ⌜∃ ns', m!!α = Some (N; ns') /\ fin_to_nat <$> ns' = ns⌝.
+    tapes_auth (DfracOwn 1) m -∗ α ↪N (N; ns) -∗ ⌜∃ ns', m!!α = Some (N; ns') /\ fin_to_nat <$> ns' = ns⌝.
   Proof.
     iIntros "? (%&%&?)".
     iDestruct (ghost_map_lookup with "[$][$]") as "%".
@@ -120,7 +120,7 @@ Section tape_interface.
   Qed.
 
   Lemma tapeN_update_append α N ns m (x : fin (S N)):
-    tapes_auth 1 m -∗ α ↪N (N; fin_to_nat <$> ns) ==∗ tapes_auth 1 (<[α:=(N; ns ++ [x])]> m) ∗ α ↪N (N; (fin_to_nat <$> ns) ++ [fin_to_nat x]).
+    tapes_auth (DfracOwn 1) m -∗ α ↪N (N; fin_to_nat <$> ns) ==∗ tapes_auth (DfracOwn 1) (<[α:=(N; ns ++ [x])]> m) ∗ α ↪N (N; (fin_to_nat <$> ns) ++ [fin_to_nat x]).
   Proof.
     iIntros "? (%&%&?)".
     iMod (ghost_map_update with "[$][$]") as "[??]".
@@ -129,7 +129,7 @@ Section tape_interface.
   Qed. 
 
   Lemma tapeN_update_append' α N m (ns ns':list (fin (S N))):
-    tapes_auth 1 m -∗ α ↪N (N; fin_to_nat <$> ns) ==∗ tapes_auth 1 (<[α:=(N; ns ++ ns')]> m) ∗ α ↪N (N; (fin_to_nat <$> ns) ++ (fin_to_nat <$> ns')).
+    tapes_auth (DfracOwn 1) m -∗ α ↪N (N; fin_to_nat <$> ns) ==∗ tapes_auth (DfracOwn 1) (<[α:=(N; ns ++ ns')]> m) ∗ α ↪N (N; (fin_to_nat <$> ns) ++ (fin_to_nat <$> ns')).
   Proof.
     iIntros "? (%&%&?)".
     iMod (ghost_map_update with "[$][$]") as "[??]".

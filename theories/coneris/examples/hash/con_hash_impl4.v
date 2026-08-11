@@ -124,7 +124,7 @@ Section con_hash_impl.
 
   Definition hashfunI (γs : gname * gname * gname) (val_size : nat) : iProp Σ :=
     ∃ (m : gmap nat (option nat)),
-      ghost_map_auth γs.1.1 1 m ∗
+      ghost_map_auth γs.1.1 (DfracOwn 1) m ∗
       [∗ map] k ↦ o ∈ m,
         ∃ α : loc, k ↪[γs.1.2]□ α ∗
            if o is Some n then α ↪N (val_size; [n]) ∨ k ↪[γs.2]□ n
@@ -140,8 +140,8 @@ Section con_hash_impl.
        ⌜f = compute_hash_specialized #val_size #lvm #ltm ⌝ ∗
        map_list lvm ((λ (n : nat), LitV (LitInt n)) <$> vm) ∗
        map_list ltm ((λ (α : loc), LitV (LitLbl α)) <$> tm) ∗
-       ghost_map_auth γs.1.2 1 tm ∗
-       ghost_map_auth γs.2   1 vm ∗
+       ghost_map_auth γs.1.2 (DfracOwn 1) tm ∗
+       ghost_map_auth γs.2   (DfracOwn 1) vm ∗
        ([∗ map] k ↦ n ∈ vm, k ↪[γs.1.1]□ (Some n)).
 
   Lemma wp_init_hash_state N val_size max :
