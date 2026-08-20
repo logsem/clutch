@@ -184,11 +184,18 @@ Section Zpx.
                               |simpl].
     eapply BinOp_typed; first constructor; apply Var_typed.
   Qed. 
-  Definition int_of_vg_p := (λ:"a", "a")%V.
-  Lemma int_of_vg_p_typed : ⊢ᵥ int_of_vg_p : (ℤ ⇾ ℤ). 
-  Proof. apply Rec_val_typed; first done. apply Var_typed. Qed.
+  (* Group elements are represented by their unit value in [1, p-1], but the
+     exposed index [int_of_vg] is 0-based, ranging over [0, p-2] = [0, #|G|-1].
+     The +-1 conversion therefore lives in [int_of_vg_p] / [vg_of_int_p]. *)
+  Definition int_of_vg_p := (λ:"a", "a" - #1)%V.
+  Lemma int_of_vg_p_typed : ⊢ᵥ int_of_vg_p : (ℤ ⇾ ℤ).
+  Proof.
+    apply Rec_val_typed; first done.
+    eapply BinOp_typed; [constructor | apply Var_typed |].
+    apply Weakening_typed. apply Val_typed. constructor.
+  Qed.
   Definition vg_of_int_p :=
-    (λ:"a", if: (#1 ≤ "a") && ("a" < #p) then SOME "a" else NONE)%V.
+    (λ:"a", if: (#0 ≤ "a") && ("a" < #(S p'')) then SOME ("a" + #1) else NONE)%V.
   Lemma vg_of_int_p_typed :  ⊢ᵥ vg_of_int_p : (ℤ ⇾ () + ℤ).
   Proof. 
     apply Rec_val_typed; first done. 
@@ -204,7 +211,9 @@ Section Zpx.
                            |apply Var_typed
                            |apply Val_typed; constructor].
       + apply Weakening_typed. apply Val_typed. constructor.
-    - apply InjR_typed. apply Var_typed.
+    - apply InjR_typed.
+      eapply BinOp_typed; [constructor | apply Var_typed |].
+      apply Val_typed. constructor.
     - apply InjL_typed. apply Weakening_typed. apply Val_typed. constructor.
   Qed. 
 
@@ -310,63 +319,121 @@ Section Zpx.
 
   Definition unit_to_Zp (g : Zpx) : 'Z_p := FinRing.uval g.
 
-  Definition int_of_vg_sem_p (n : Zpx) : nat := nat_of_ord (unit_to_Zp n).
-  
-  Definition vg_of_int_sem_p (n : nat) : option Zpx := 
-    let bbound := bool_decide ((@inZp (S p'') n) < p)%nat in
-    let bnonzero := bool_decide (1 ≤ @inZp (S p'') (Z.to_nat n))%nat in
-    if (1 <=? n)%nat && (n <? p)%nat then
-      Zp_to_unit (@inZp (S p'') n)
-    else None.
+  Lemma uval_nonzero (g : Zpx) : (1 ≤ unit_to_Zp g)%Z.
+  Proof.
+    destruct g as [x H].
+    generalize dependent H.
+    rewrite /in_mem.
+    rewrite /ssralg.GRing.unit.
+    rewrite /mem. simpl.
+    rewrite /Zp_trunc. simpl.
+    rewrite /div.coprime.
+    destruct (zerop x) as [eq|ineq].
+    - rewrite eq. rewrite /div.gcdn.
+      rewrite /div.egcdn_rec. simpl.
+      intro contra.
+      discriminate contra.
+    - intro H; clear H.
+      replace 1%Z with (Z.of_nat 1) by lia.
+      apply inj_le. assumption.
+  Defined.
+  Lemma unit_to_Zp_nonzero (g : Zpx) : (1 ≤ unit_to_Zp g)%Z.
+  Proof.
+    rewrite /unit_to_Zp.
+    apply uval_nonzero.
+  Qed.
+
+  Definition int_of_vg_sem_p (n : Zpx) : nat :=
+    Nat.pred (nat_of_ord (unit_to_Zp n)).
+
+  Definition vg_of_int_sem_p (n : nat) : option Zpx :=
+    if (n <? S p'')%nat then Zp_to_unit (@inZp (S p'') (S n)) else None.
 
 
   Lemma int_of_vg_sem_p_bound :
-    ∀ g : vgG, (int_of_vg_sem_p g < S (#|pred_of_set [set: fingroup_FinGroup__to__fintype_Finite vgG]|))%nat.
+    ∀ g : vgG, (int_of_vg_sem_p g < #|pred_of_set [set: fingroup_FinGroup__to__fintype_Finite vgG]|)%nat.
   Proof.
-    intros g. unfold int_of_vg_sem_p, unit_to_Zp.
+    intros g.
+    assert (Hlt : (nat_of_ord (unit_to_Zp g) < p)%nat).
+    { rewrite /unit_to_Zp. pose proof (ltn_ord (FinRing.uval g)) as H'.
+      move/ssrnat.leP in H'. exact H'. }
+    assert (Hpred : forall k : nat, Nat.pred k = (k - 1)%nat)
+      by (intro k; destruct k; simpl; lia).
+    unfold int_of_vg_sem_p.
     rewrite card_units_Zp; last done.
     rewrite (prime.totient_prime p_prime).
-    pose proof (ltn_ord (FinRing.uval g)) as Hlt.
-    move/ssrnat.ltP in Hlt.
-    rewrite /Zp_trunc /= in Hlt.
-    exact Hlt.
+    rewrite !Hpred.
+    lia.
+  Qed.
+
+
+  (* Stated with [m] abstract so the guards can be destructed: the branches of
+     [Zp_to_unit] depend on the scrutinee, which blocks [destruct] once [m] is
+     an applied term. *)
+  Lemma Zp_to_unit_uval (m : 'Z_p) (x : Zpx) :
+    Zp_to_unit m = Some x → unit_to_Zp x = m.
+  Proof.
+    rewrite /Zp_to_unit /unit_to_Zp.
+    destruct (nat_of_ord m <? p)%nat; last discriminate.
+    destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord m))) as [Hle|Hgt]; last discriminate.
+    intro Heq. inversion Heq. reflexivity.
+  Qed.
+
+  Lemma Zp_to_unit_isSome (m : 'Z_p) :
+    (1 <= nat_of_ord m)%nat → (nat_of_ord m < p)%nat →
+    exists x : Zpx, Zp_to_unit m = Some x.
+  Proof.
+    intros H1 H2. rewrite /Zp_to_unit.
+    rewrite (proj2 (Nat.ltb_lt _ _) H2).
+    destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord m))) as [Hle|Hgt]; last lia.
+    eexists. reflexivity.
   Qed.
 
   Lemma vg_of_int_of_vg_sem_p (n : nat) (x : vgG) :
     vg_of_int_sem_p n = Some x → int_of_vg_sem_p x = n.
   Proof.
     intros Hsome. unfold vg_of_int_sem_p, int_of_vg_sem_p in *.
-    destruct (1 <=? n) eqn:Hnz; last (rewrite andb_false_l in Hsome; inversion Hsome).
-    destruct (n <? p) eqn:Hbound; last (rewrite andb_false_r in Hsome; inversion Hsome).
-    rewrite andb_diag /Zp_to_unit in Hsome.
-    destruct (nat_of_ord (inZp n) <? p) eqn:Hin; last inversion Hsome.
-    destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (inZp n)))) eqn:Hnonzero; inversion Hsome.
-    subst. 
-    rewrite /unit_to_Zp /=.
-    apply div.modn_small. 
-    rewrite Rcomplements.SSR_leq. 
-    rewrite Nat.ltb_lt in Hbound. lia.
-  Qed. 
+    destruct (n <? S p'')%nat eqn:Hbound; last inversion Hsome.
+    rewrite Nat.ltb_lt in Hbound.
+    apply Zp_to_unit_uval in Hsome. rewrite Hsome.
+    assert (Hmod : nat_of_ord (@inZp (S p'') (S n)) = S n).
+    { simpl. apply div.modn_small. rewrite Rcomplements.SSR_leq. lia. }
+    rewrite Hmod. reflexivity.
+  Qed.
 
+  (* [Hlt] and [Hnz] are stated over [unit_to_Zp xg] rather than over
+     [FinRing.uval xg]: the two are convertible, but [lia] needs the atom to
+     match the goal *syntactically* (the goal's copy carries [Zp_trunc p] in
+     its coercion where [ltn_ord]'s carries [p''] already reduced). *)
   Fact int_of_vg_of_int_sem_p : ∀ (xg : vgG),
       vg_of_int_sem_p (int_of_vg_sem_p xg) = Some xg.
   Proof.
     intros xg.
-    unfold vg_of_int_sem_p, int_of_vg_sem_p, unit_to_Zp.
-    pose proof (ltn_ord (FinRing.uval xg)) as Hlt.
-    move/ssrnat.ltP in Hlt.
-    rewrite /Zp_trunc /= in Hlt.
+    assert (Hlt : (nat_of_ord (unit_to_Zp xg) < p)%nat).
+    { rewrite /unit_to_Zp. pose proof (ltn_ord (FinRing.uval xg)) as H'.
+      move/ssrnat.leP in H'. exact H'. }
     pose proof (valP xg) as Hu.
-    assert (Hnz : nat_of_ord (FinRing.uval xg) = 0%nat -> False).
-    { intro h0.
+    assert (Hnz : nat_of_ord (unit_to_Zp xg) = 0%nat -> False).
+    { rewrite /unit_to_Zp. intro h0.
       assert (Hc : is_true (div.coprime p (nat_of_ord (FinRing.uval xg)))).
       { rewrite -unitZpE; last done. rewrite natr_Zp. exact Hu. }
       rewrite h0 /div.coprime div.gcdn0 in Hc. move/eqP in Hc. discriminate. }
-    assert (Hge1 : (1 <= nat_of_ord (FinRing.uval xg))%nat) by lia.
-    rewrite (proj2 (Nat.leb_le _ _) Hge1) (proj2 (Nat.ltb_lt _ _) Hlt)
-            andb_diag.
-    rewrite /Zp_to_unit valZpK (proj2 (Nat.ltb_lt _ _) Hlt).
-    destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (FinRing.uval xg))))
+    assert (Hpred : forall k : nat, Nat.pred k = (k - 1)%nat).
+    { intro k; destruct k; simpl; lia. }
+    unfold vg_of_int_sem_p, int_of_vg_sem_p.
+    rewrite !Hpred.
+    assert (Hb : ((nat_of_ord (unit_to_Zp xg) - 1) <? S p'')%nat = true).
+    { apply Nat.ltb_lt. lia. }
+    rewrite Hb.
+    assert (Hs : S (nat_of_ord (unit_to_Zp xg) - 1) = nat_of_ord (unit_to_Zp xg))
+      by lia.
+    rewrite Hs.
+    assert (Hge1 : (1 <= nat_of_ord (unit_to_Zp xg))%nat).
+    { destruct (Nat.eq_dec (nat_of_ord (unit_to_Zp xg)) 0%nat) as [E|E];
+        [exfalso; exact (Hnz E) | lia]. }
+    rewrite valZpK /Zp_to_unit.
+    rewrite (proj2 (Nat.ltb_lt _ _) Hlt).
+    destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (unit_to_Zp xg))))
       as [Hle|Hgt]; last lia.
     f_equal. apply val_inj. done.
   Qed.
@@ -542,41 +609,46 @@ Section Zpx.
         ; vg_of_int_of_vg_sem := vg_of_int_of_vg_sem_p
         ; int_of_vg_of_int_sem := int_of_vg_of_int_sem_p
         |}).
-    1,2 : iIntros (??????) "Hbrel /="; unfold int_of_vg_p; by brel_pures. 
-    1,2 : iIntros (??????? Heq) "Hbrel /="; unfold vg_of_int_p;
+    (* [int_of_vg] subtracts one: the unit value lives in [1, p-1] while the
+       exposed index lives in [0, p-2]. *)
+    1,2 : iIntros (E K g X R2 e) "Hbrel /="; unfold int_of_vg_p; brel_pures;
+      pose proof (unit_to_Zp_nonzero g) as H1; rewrite /unit_to_Zp in H1;
+      assert (Hpred : forall k : nat, Nat.pred k = (k - 1)%nat)
+        by (intro k; destruct k; simpl; lia);
+      replace (Z.of_nat (nat_of_ord (FinRing.uval g)) - 1)%Z
+        with (Z.of_nat (int_of_vg_sem_p g))
+        by (rewrite /int_of_vg_sem_p /unit_to_Zp Hpred; lia);
+      iApply "Hbrel".
+    (* [vg_of_int] adds one back; the guard is now [0 <= a < p-1]. *)
+    1,2 : iIntros (E K X R2 e x g Heq) "Hbrel /="; unfold vg_of_int_p;
       brel_pures; unfold vg_of_int_sem_p in Heq;
-      destruct (1 <=? x) eqn:Hnz; [|(rewrite andb_false_l in Heq; inversion Heq)];
-      rewrite Nat.ltb_lt in Hnz;
-      destruct (x <? p) eqn:Hbound; [|(rewrite andb_false_r in Heq; inversion Heq)];
+      destruct (x <? S p'')%nat eqn:Hbound; last inversion Heq;
       rewrite Nat.ltb_lt in Hbound;
-      rewrite bool_decide_eq_true_2; [|lia];
-      brel_pures;
-      rewrite bool_decide_eq_true_2; [|lia];     
-      brel_pures;
-      rewrite andb_diag /Zp_to_unit in Heq;
-      destruct (nat_of_ord (inZp x) <? p) eqn:Hin; [|inversion Heq];
-      destruct (Z_le_dec 1 (Z.of_nat (nat_of_ord (inZp x)))) eqn:Hnonzero; inversion Heq;
-      subst; unfold vgval_p; simpl;
-      by rewrite div.modn_small; last (rewrite Rcomplements.SSR_leq; lia).
-    1,2 : iIntros (?????? Heq) "Hbrel /="; unfold vg_of_int_p;
+      apply Zp_to_unit_uval in Heq;
+      rewrite bool_decide_eq_true_2; [|lia]; brel_pures;
+      rewrite bool_decide_eq_true_2; [|lia]; brel_pures;
+      assert (Hval : nat_of_ord (unit_to_Zp g) = S x)
+        by (rewrite Heq; simpl; apply div.modn_small;
+            rewrite Rcomplements.SSR_leq; lia);
+      rewrite /unit_to_Zp in Hval;
+      rewrite /vgval_p Hval;
+      replace (Z.of_nat x + 1)%Z with (Z.of_nat (S x)) by lia;
+      iApply "Hbrel".
+    (* [None] can only come from the range check failing. *)
+    1,2 : iIntros (E K X R2 e x Heq) "Hbrel /="; unfold vg_of_int_p;
       brel_pures; unfold vg_of_int_sem_p in Heq;
-      destruct ((1 <=? x) && (x <? p)) eqn:Hnz;
-      [rewrite /Zp_to_unit /= in Heq;
-       apply andb_prop in Hnz as [Hnz Hbound];
-       rewrite Nat.ltb_lt in Hbound;
-       assert (div.modn x p <? p = true) as Hmod;
-       first (apply Nat.ltb_lt; rewrite div.modn_small; first lia; 
-         by rewrite Rcomplements.SSR_leq);
-       rewrite Hmod in Heq;
-       (eassert (∃ H, Z_le_dec 1 (Z.of_nat (div.modn x p)) = left H) as [Hnonzero Hle] by by apply Zle_dec_modn);
-       rewrite Hle in Heq; inversion Heq
-      |destruct (bool_decide (1 ≤ Z.of_nat x)%Z) eqn:Hb1; brel_pures; last done;
-       destruct (bool_decide (Z.of_nat x < Z.of_nat p)%Z) eqn:Hb2; brel_pures; last done;
-       apply andb_false_iff in Hnz as [Hnz | Hbound];
-       [rewrite Nat.ltb_ge in Hnz;
-        apply bool_decide_eq_true_1 in Hb1; lia
-       |rewrite Nat.ltb_ge in Hbound;
-        apply bool_decide_eq_true_1 in Hb2; lia]].
-  Qed. 
+      destruct (x <? S p'')%nat eqn:Hbound;
+      [ exfalso; rewrite Nat.ltb_lt in Hbound;
+        assert (Hmod : nat_of_ord (@inZp (S p'') (S x)) = S x)
+          by (simpl; apply div.modn_small; rewrite Rcomplements.SSR_leq; lia);
+        assert (Hlo : (1 <= nat_of_ord (@inZp (S p'') (S x)))%nat) by lia;
+        assert (Hhi : (nat_of_ord (@inZp (S p'') (S x)) < p)%nat) by lia;
+        destruct (Zp_to_unit_isSome _ Hlo Hhi) as [y Hy];
+        rewrite Hy in Heq; inversion Heq
+      | rewrite Nat.ltb_ge in Hbound;
+        rewrite bool_decide_eq_true_2; [|lia]; brel_pures;
+        rewrite bool_decide_eq_false_2; [|lia]; brel_pures;
+        iApply "Hbrel" ].
+  Qed.
  
 End Zpx.

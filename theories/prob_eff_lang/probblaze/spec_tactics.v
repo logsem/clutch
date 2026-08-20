@@ -3,8 +3,8 @@ From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import coq_tactics ltac_tactics reduction.
 From clutch.common Require Import language ectx_language ectxi_language.
 From clutch.base_logic Require Export spec_update.
-From clutch.prob_eff_lang Require Import notation tactics metatheory syntax class_instances.
-From clutch.prob_eff_lang Require Export spec_rules spec_ra.
+From clutch.prob_eff_lang.probblaze Require Import notation tactics metatheory syntax class_instances.
+From clutch.prob_eff_lang.probblaze Require Export spec_rules spec_ra.
 From clutch.prob_lang Require Import wp_tactics.
 Set Default Proof Using "Type".
 
