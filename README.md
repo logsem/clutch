@@ -10,8 +10,8 @@ Read more about the Clutch project on [clutch-project.org](https://clutch-projec
 If you want to work through our tutorial material, follow the instructions in the [link](https://github.com/logsem/clutch/blob/main/theories/eris/tutorial/readme.md).
 
 ## Publications
-[**Verifying Exact Samplers for Continuous Distributions with a Discrete Program Logic**](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.LICS.2026.71)
-*Markus de Medeiros, Puming Liu, Kwing Hei Li, Alejandro Aguirre, Lars Birkedal, Joseph Tassarotti*
+[**Verifying Exact Samplers for Continuous Distributions with a Discrete Program Logic**](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.LICS.2026.71)<br>
+*Markus de Medeiros, Puming Liu, Kwing Hei Li, Alejandro Aguirre, Lars Birkedal, Joseph Tassarotti*<br>
 In LICS 2026: ACM/IEEE Symposium on Logic in Computer Science
 
 [**Modular Verification of Differential Privacy in Probabilistic Higher-Order Separation Logic**](https://dl.acm.org/doi/10.1145/3808311)<br>
