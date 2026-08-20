@@ -15,7 +15,8 @@ Lemma prop_cond (ws : list nat) (i : nat) :
 Proof.
   intros Hadm Hi.
   rewrite <- (conditioned_original_mass ws i Hadm Hi).
-  assert (Hw : ~ weight_sum ws = 0%nat) by (destruct Hadm as [_ H]; lia).
+  assert (Hw : ~ weight_sum ws = 0%nat) by
+    (pose proof (admissible_weight_sum_pos ws Hadm) as Hpos; lia).
   assert (Hd : ~ denominator ws = 0%nat) by (pose proof (denominator_pos ws); lia).
   field; split; apply not_0_INR; assumption.
 Qed.
@@ -98,7 +99,7 @@ Proof.
   intros a r.
   pose proof (denominator_bounds ws Hadm) as [Hle Hlt].
   assert (Hw : (0 < weight_sum ws)%nat).
-  { exact (proj2 Hadm). }
+  { exact (admissible_weight_sum_pos _ Hadm). }
   assert (Hd : (0 < denominator ws)%nat).
   { apply denominator_pos. }
   assert (Ha : (0 < a)%R).

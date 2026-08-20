@@ -109,11 +109,25 @@ Section FldrImpl.
   (** ** Top level
 
     Preprocess the weights, then sample.  The public entry point takes only
-    the weight vector. *)
+    the weight vector.  This mirrors the [if (x->n == 1) return 0;] guard in
+    the reference FLDR implementations by Saad, Freer, Rinard and Mansinghka
+    (C: [src/c/fldr.c:82], Python: [src/python/fldr.py] in
+    [github.com/probcomp/fast-loaded-dice-roller]).  The DDG construction
+    writes each extended weight in binary using [dyadic_width ws] bits.  If a
+    single weight equals [denominator ws = 2 ^ dyadic_width ws], its expansion
+    in that many bits is all zeros, so the table carries no labels at all
+    (for example, [ddg_table [1] = []], [ddg_table [2] = [[]]], and
+    [ddg_table [4] = [[]; []]]) and the rejection loop never terminates.
+    With strictly positive weights and [2 <= length ws], every weight satisfies
+    [w_i <= weight_sum ws - (length ws - 1) < weight_sum ws <= denominator ws],
+    so the table is well formed; [length ws = 1] is the only remaining case
+    and this guard handles it. *)
   Definition fldr_tape : val :=
     λ: "α" "ws",
+      let: "n" := list_length "ws" in
+      if: "n" = #1 then #0 else
       let: "rows" := fldr_table "ws" in
-      fldr_loop "α" "rows" (list_length "ws").
+      fldr_loop "α" "rows" "n".
 
   Definition fldr : val := λ: "ws", fldr_tape #() "ws".
 

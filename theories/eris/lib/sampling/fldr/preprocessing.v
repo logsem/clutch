@@ -453,7 +453,7 @@ Section FldrPreprocess.
     iDestruct "Hm" as %Hm.
     wp_let.
     wp_bind (fldr_width (fldr_lit_nat m) #1 #0).
-    wp_apply (twp_fldr_width E m); [rewrite Hm; exact (proj2 Hadm)|done|].
+    wp_apply (twp_fldr_width E m); [rewrite Hm; exact (admissible_weight_sum_pos _ Hadm)|done|].
     iIntros (k) "Hk".
     iDestruct "Hk" as %Hk.
     wp_let.

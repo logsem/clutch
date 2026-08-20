@@ -5,7 +5,18 @@ Import ListNotations.
     zero based.  The last extended label is the rejection label. *)
 
 Definition weight_sum (ws : list nat) : nat := fold_right Nat.add 0%nat ws.
-Definition admissible (ws : list nat) : Prop := ws <> [] /\ 0 < weight_sum ws.
+Definition admissible (ws : list nat) : Prop :=
+  ws <> [] /\ Forall (fun w => 0 < w) ws.
+
+Lemma admissible_weight_sum_pos ws : admissible ws -> 0 < weight_sum ws.
+Proof.
+  intros Hadm.
+  destruct ws as [|w ws].
+  - destruct Hadm as [Hne _]. contradiction.
+  - destruct Hadm as [_ Hforall].
+    inversion Hforall as [|w' ws' Hw Htail].
+    simpl. lia.
+Qed.
 Definition dyadic_width (ws : list nat) : nat := Nat.log2_up (weight_sum ws).
 Definition denominator (ws : list nat) : nat := 2 ^ dyadic_width ws.
 Definition rejection_weight (ws : list nat) : nat := denominator ws - weight_sum ws.
@@ -15,7 +26,8 @@ Lemma denominator_bounds ws :
   admissible ws ->
   weight_sum ws <= denominator ws /\ denominator ws < 2 * weight_sum ws.
 Proof.
-  intros [_ Hpos].
+  intros Hadm.
+  pose proof (admissible_weight_sum_pos ws Hadm) as Hpos.
   unfold denominator, dyadic_width.
   destruct (Nat.eq_dec (weight_sum ws) 1) as [->|Hne].
   - rewrite Nat.log2_up_1. simpl. lia.
@@ -245,7 +257,8 @@ Lemma target_mass_normalized ws :
   admissible ws ->
   fold_right Rplus 0%R (map (target_mass ws) (seq 0 (length ws))) = 1%R.
 Proof.
-  intros [_ Hsum].
+  intros Hadm.
+  pose proof (admissible_weight_sum_pos ws Hadm) as Hsum.
   unfold target_mass.
   assert (Hmap :
     map (fun i : nat =>
@@ -305,7 +318,9 @@ Lemma conditioned_original_mass ws i :
   ((proposal_mass ws i) /
     (INR (weight_sum ws) / INR (denominator ws)))%R = target_mass ws i.
 Proof.
-  intros [_ Hsum] Hi. rewrite proposal_original_mass by exact Hi.
+  intros Hadm Hi.
+  pose proof (admissible_weight_sum_pos ws Hadm) as Hsum.
+  rewrite proposal_original_mass by exact Hi.
   unfold target_mass.
   assert (Hb : (i <? length ws) = true) by (apply Nat.ltb_lt; exact Hi).
   rewrite Hb. field; split; apply not_0_INR; try lia.

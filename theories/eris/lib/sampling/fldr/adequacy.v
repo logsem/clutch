@@ -7,17 +7,17 @@ Import ListNotations.
 #[local] Open Scope R.
 
 Section FldrImplementation.
-  Context (ws : list nat) (Hws : admissible ws) (Hnd : nondegenerate ws).
+  Context (ws : list nat) (Hws : admissible ws).
 
-  Instance fldr_impl : distr_impl (fldr_val_distr ws Hws).
-  Proof using ws Hws Hnd.
+  Global Instance fldr_impl : distr_impl (fldr_val_distr ws Hws).
+  Proof using ws Hws.
     refine (MkDistrImpl (fldr_val_distr ws Hws)
               (fldr_sample ws) fldr_alloc loc
               (λ _ _ Δ l, fldr_own_tape ws Δ l)
               (λ _ _ Δ α, ⌜fldr_is_abs_loc Δ α⌝)%I
               fldr_unit_loc _ _ _ _).
     - iIntros (Σ erisGS0 D ε L ε_ge_0 D_bounds D_sum Φ) "Herr HΦ".
-      wp_apply (twp_fldr_sample_adv_comp ws Hws Hnd D ε L with "Herr")
+      wp_apply (twp_fldr_sample_adv_comp_general ws Hws D ε L with "Herr")
         as (i) "Herr"; try done.
       by iApply ("HΦ" $! i).
     - iIntros (Σ erisGS0 Φ) "_ HΦ".
@@ -26,7 +26,7 @@ Section FldrImplementation.
       + iExact "HΦ".
     - iIntros (Σ erisGS0 e ε Δ l D L Φ e_not_val ε_ge_0 D_bounds D_sum)
         "(Herr & Htape & Hnext)".
-      iApply (twp_fldr_sample_presample_adv_comp ws Hws Hnd e ε Δ l D L Φ
+      iApply (twp_fldr_sample_presample_adv_comp_general ws Hws e ε Δ l D L Φ
         e_not_val ε_ge_0 D_bounds D_sum).
       iFrame.
     - iIntros (Σ erisGS0 α Δ l v Φ) "Hpre HΦ".

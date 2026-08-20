@@ -16,7 +16,7 @@ Section FldrPresampleOutput.
   Lemma twp_fldr_presample_output_aux E (ws : list nat) (α : loc)
       (outs : list nat) (raw : list (fin 2)) (rej : list (list (fin 2)))
       (e : expr) (Φ : val -> iProp Σ) (D : nat -> R) (L ε : R) :
-    admissible ws -> nondegenerate ws -> to_val e = None ->
+    admissible ws -> (2 <= length ws)%nat -> nondegenerate ws -> to_val e = None ->
     (forall i, (0 <= D i <= L)%R) ->
     SeriesC (fun i => target_mass ws i * D i)%R = ε ->
     ⌜is_fldr_translation ws raw outs⌝ ∗
@@ -26,7 +26,7 @@ Section FldrPresampleOutput.
       own_fldr_tape ws α (outs ++ [i]) ∗ ↯ (D i) -∗ WP e @ E [{ Φ }])
     ⊢ WP e @ E [{ Φ }].
   Proof.
-    intros Hadm Hnd He HD HSum.
+    intros Hadm Hlen Hnd He HD HSum.
     set (n := length ws).
     set (a := (INR (weight_sum ws) / INR (denominator ws))%R).
     set (r := proposal_mass ws n).
@@ -69,15 +69,16 @@ iApply "Hnext".
              ++ rewrite <- (app_assoc raw (concat rej) bs). iExact "Htape".
              ++ iPureIntro.
                 apply is_fldr_translation_snoc.
+                --- exact Hlen.
                 --- exact Htrans.
                 --- exact Hrej.
                 --- exact Hround.
                 --- exact Hacc_ws.
           -- iApply (ec_eq with "Hcredit"). unfold D'. assert (Hacc' : (i <? n) = true) by (apply Nat.ltb_lt; exact Hacc). rewrite Hacc'. reflexivity.
       +
-        assert (Hlen : length (extended_weights ws) = S n).
+        assert (Hextlen : length (extended_weights ws) = S n).
         { unfold extended_weights. rewrite app_length. simpl. lia. }
-        rewrite Hlen in Hi.
+        rewrite Hextlen in Hi.
         assert (HiEq : i = n) by lia.
         assert (HDone : D' i = 1%R).
         { unfold D'. rewrite HiEq. rewrite Nat.ltb_irrefl. reflexivity. }
@@ -143,15 +144,16 @@ iApply "Hnext".
             * iExists (raw ++ concat rej ++ bs). iSplitL "Htape".
               -- rewrite (app_assoc raw (concat rej) bs). iExact "Htape".
               -- iPureIntro. apply is_fldr_translation_snoc.
+                 --- exact Hlen.
                  --- exact Htrans.
                  --- exact Hrej.
                  --- exact Hround.
                  --- exact Hacc_ws.
             * iApply (ec_eq with "Hcredit"). unfold D'. assert (Hacc' : (i <? n) = true) by (apply Nat.ltb_lt; exact Hacc). rewrite Hacc'. reflexivity.
         -
-          assert (Hlen : length (extended_weights ws) = S n).
+          assert (Hextlen : length (extended_weights ws) = S n).
           { unfold extended_weights. rewrite app_length. simpl. lia. }
-          rewrite Hlen in Hi.
+          rewrite Hextlen in Hi.
           assert (HiEq : i = n) by lia.
           assert (HDone : D' i = q).
           { unfold D'. rewrite HiEq. rewrite Nat.ltb_irrefl. reflexivity. }
@@ -211,14 +213,44 @@ iApply "Hnext".
     intros Hadm Hnd He HD HSum.
     iIntros "(Htape & Herr & Hnext)".
     iDestruct "Htape" as "(%raw & Hα & %Htrans)".
-    iApply (twp_fldr_presample_output_aux E ws α outs raw [] e Φ D L ε
-      Hadm Hnd He HD HSum).
-    iSplitL "".
-    - iPureIntro. exact Htrans.
-    - iSplitL "".
-      + iPureIntro. constructor.
+    assert (Hlenpos : (1 <= length ws)%nat).
+    { pose proof (proj1 Hadm) as Hne. destruct ws as [|w ws].
+      - exfalso. apply Hne. reflexivity.
+      - simpl. lia. }
+    destruct (decide (length ws = 1%nat)) as [Hone|Hnotone].
+    - pose proof (is_fldr_translation_single ws raw outs Hone Htrans)
+        as [Hraw Houts].
+      subst raw.
+      assert (Htm : target_mass ws 0%nat = 1%R).
+      { pose proof (admissible_weight_sum_pos ws Hadm) as Hsumpos.
+        destruct ws as [|w ws']; [exfalso; simpl in Hsumpos; lia|].
+        destruct ws' as [|w' ws'']; [|simpl in Hone; lia].
+        simpl in Hsumpos.
+        unfold target_mass. simpl. rewrite Nat.add_0_r. field. apply not_0_INR. lia.
+      }
+      assert (Hexp : SeriesC (fun i => target_mass ws i * D i)%R = D 0%nat).
+      { rewrite (target_mass_expectation ws D). rewrite Hone. simpl.
+        rewrite Htm. ring. }
+      assert (Heps : ε = D 0%nat) by (rewrite <- HSum; exact Hexp).
+      pose proof (is_fldr_translation_single_snoc ws [] outs Hone Htrans)
+        as Htrans0.
+      iApply ("Hnext" $! 0%nat).
+      iSplitL "".
+      + iPureIntro. rewrite Hone. lia.
       + iSplitL "Hα".
-        * rewrite app_nil_r. iExact "Hα".
-        * iSplitL "Herr"; [iExact "Herr"|iExact "Hnext"].
+        * iExists []. iSplitL "Hα".
+          -- iExact "Hα".
+          -- iPureIntro. exact Htrans0.
+        * iApply (ec_eq with "Herr"). exact Heps.
+    - assert (Hlen : (2 <= length ws)%nat) by lia.
+      iApply (twp_fldr_presample_output_aux E ws α outs raw [] e Φ D L ε
+        Hadm Hlen Hnd He HD HSum).
+      iSplitL "".
+      + iPureIntro. exact Htrans.
+      + iSplitL "".
+        * iPureIntro. constructor.
+        * iSplitL "Hα".
+          -- rewrite app_nil_r. iExact "Hα".
+          -- iSplitL "Herr"; [iExact "Herr"|iExact "Hnext"].
   Qed.
 End FldrPresampleOutput.

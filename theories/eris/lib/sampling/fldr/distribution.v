@@ -192,7 +192,7 @@ Qed.
 Lemma target_mass_pos ws (Hws : admissible ws) i :
   (0 <= target_mass ws i)%R.
 Proof.
-  destruct Hws as [_ Hsum].
+  pose proof (admissible_weight_sum_pos ws Hws) as Hsum.
   unfold target_mass.
   destruct (i <? length ws) eqn:Hi; [|lra].
   apply Rcomplements.Rdiv_le_0_compat.

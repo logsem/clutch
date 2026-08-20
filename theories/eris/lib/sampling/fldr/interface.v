@@ -47,6 +47,46 @@ Definition fldr_own_tape `{!erisGS Σ} (ws : list nat) (Δ : loc) (l : list val)
 
 Definition fldr_is_abs_loc (Δ : loc) (α : val) : Prop := α = #lbl:Δ.
 
+Lemma nth_lt_weight_sum (ws : list nat) (i : nat) :
+    Forall (fun w : nat => (0 < w)%nat) ws ->
+    (i < length ws)%nat ->
+    (2 <= length ws)%nat ->
+    ((nth i ws 0%nat) < weight_sum ws)%nat.
+Proof.
+  induction ws as [|w ws IH] in i |- *; intros Hfor Hi Hlen.
+  - simpl in Hi. lia.
+  - inversion Hfor as [|w' ws' Hw Htail].
+    destruct i as [|i].
+    + destruct ws as [|x xs]; simpl in Hlen; try lia.
+      inversion Htail as [|y ys Hy Htail']; simpl [weight_sum]. lia.
+    + apply PeanoNat.lt_S_n in Hi.
+      assert (Hin : In (nth i ws 0%nat) ws) by (apply nth_In; exact Hi).
+      pose proof (in_le_weight_sum _ _ Hin) as Hle.
+      simpl [weight_sum]. lia.
+Qed.
+
+Lemma admissible_nondegenerate ws :
+    admissible ws -> (2 <= length ws)%nat -> nondegenerate ws.
+Proof.
+  intros Hws Hlen i Hi.
+  unfold extended_weights in Hi |- *.
+  rewrite app_length in Hi.
+  simpl in Hi.
+  assert (Hile : (i <= length ws)%nat) by lia.
+  apply Nat.lt_eq_cases in Hile.
+  destruct Hile as [Hil | Heq].
+  - rewrite app_nth1; [| exact Hil].
+    pose proof (nth_lt_weight_sum ws i (proj2 Hws) Hil Hlen) as Hlt.
+    pose proof (denominator_bounds ws Hws) as [Hsum _].
+    lia.
+  - subst i.
+    rewrite nth_middle.
+    unfold rejection_weight.
+    pose proof (admissible_weight_sum_pos ws Hws) as Hsumpos.
+    pose proof (denominator_bounds ws Hws) as [Hsum _].
+    lia.
+Qed.
+
 Section FldrFields.
   Context `{!erisGS Σ}.
 
@@ -60,11 +100,6 @@ Section FldrFields.
     iIntros (Hε HD Hsum Φ) "Herr HΦ".
     rewrite /fldr_sample /fldr_unit_loc /fldr_tape.
     wp_pures.
-    wp_bind (fldr_table (inject_list ws)).
-    wp_apply (twp_fldr_table _ ws (inject_list ws)) as (vrows) "Hrows";
-      [exact Hws|iPureIntro; apply (is_list_inject ws (inject_list ws))|].
-    all: try (change (inject_list ws = inject_list ws); reflexivity).
-    wp_let.
     wp_bind (list_length (inject_list ws)).
     wp_apply (twp_list_length _ ws (inject_list ws)) as (n) "Hn";
       [iPureIntro; apply (is_list_inject ws (inject_list ws))|].
@@ -79,12 +114,108 @@ Section FldrFields.
           (fun i : nat => #i) D L) in Hsum.
       - exact Hsum.
       - intros i. apply HD. }
-    symmetry in Hsum'.
-    wp_apply (twp_fldr_loop_adv_comp _ ws vrows Dn L ε Hws Hnd HDn Hsum'
-      with "[$Hrows Herr]") as (i) "[Herr _]".
-    all: try done.
-    iApply ("HΦ" $! #i).
-    iExact "Herr".
+    assert (Hlenpos : (1 <= length ws)%nat).
+    { pose proof (proj1 Hws) as Hne. destruct ws as [|w ws].
+      - exfalso. apply Hne. reflexivity.
+      - simpl. lia. }
+    destruct (decide (length ws = 1%nat)) as [Hone|Hnotone].
+    - wp_pures; case_bool_decide as Hcond.
+      + wp_pures.
+        assert (Htm : target_mass ws 0%nat = 1%R).
+        { pose proof (admissible_weight_sum_pos ws Hws) as Hsumpos.
+          destruct ws as [|w ws']; [exfalso; simpl in Hsumpos; lia|].
+          destruct ws' as [|w' ws'']; [|simpl in Hone; lia].
+          simpl in Hsumpos.
+          unfold target_mass. simpl. rewrite Nat.add_0_r.
+          field. apply not_0_INR. lia. }
+        assert (Hexp : SeriesC (fun i => target_mass ws i * Dn i)%R = Dn 0%nat).
+        { rewrite (target_mass_expectation ws Dn). rewrite Hone. simpl.
+          rewrite Htm. ring. }
+        assert (Heps0 : ε = Dn 0%nat) by (rewrite Hsum'; exact Hexp).
+        iApply ("HΦ" $! #0%nat).
+        iApply (ec_eq with "Herr"). exact Heps0.
+      + exfalso. apply Hcond. rewrite Hone. reflexivity.
+    - assert (Hlen : (2 <= length ws)%nat) by lia.
+      wp_pures; case_bool_decide as Hcond.
+      + exfalso. apply Hnotone.
+        change (LitV (LitInt (Z.of_nat (length ws))) = LitV (LitInt 1%Z)) in Hcond.
+        inversion Hcond. lia.
+      + wp_pures.
+        wp_bind (fldr_table (inject_list ws)).
+        wp_apply (twp_fldr_table _ ws (inject_list ws)) as (vrows) "Hrows";
+          [exact Hws|iPureIntro; apply (is_list_inject ws (inject_list ws))|].
+        all: try (change (inject_list ws = inject_list ws); reflexivity).
+        wp_let.
+        symmetry in Hsum'.
+        wp_apply (twp_fldr_loop_adv_comp ⊤ ws vrows Dn L ε Hws Hnd HDn Hsum'
+          with "[$Hrows Herr]") as (i) "[Herr _]".
+        all: try done.
+        iApply ("HΦ" $! #i).
+        iExact "Herr".
+  Qed.
+  Lemma twp_fldr_sample_adv_comp_general (ws : list nat) (Hws : admissible ws)
+      (D : val -> R) (ε L : R) :
+      (0 <= ε)%R -> (forall v : val, (0 <= D v <= L)%R) ->
+      ε = SeriesC (fun v : val => fldr_val_distr ws Hws v * D v)%R ->
+      [[{ ↯ ε }]] fldr_sample ws fldr_unit_loc
+      [[{ (v : val), RET v; ↯ (D v) }]].
+  Proof.
+    iIntros (Hε HD Hsum Φ) "Herr HΦ".
+    rewrite /fldr_sample /fldr_unit_loc /fldr_tape.
+    wp_pures.
+    wp_bind (list_length (inject_list ws)).
+    wp_apply (twp_list_length _ ws (inject_list ws)) as (n) "Hn";
+      [iPureIntro; apply (is_list_inject ws (inject_list ws))|].
+    all: try (change (inject_list ws = inject_list ws); reflexivity).
+    iDestruct "Hn" as %Hn.
+    rewrite Hn.
+    set (Dn := fun i : nat => D #i).
+    assert (HDn : forall i, (0 <= Dn i <= L)%R).
+    { intros i. apply HD. }
+    assert (Hsum' : ε = SeriesC (fun i : nat => target_mass ws i * Dn i)%R).
+    { rewrite (dmap_expected_value (fldr_distr ws Hws)
+          (fun i : nat => #i) D L) in Hsum.
+      - exact Hsum.
+      - intros i. apply HD. }
+    assert (Hlenpos : (1 <= length ws)%nat).
+    { pose proof (proj1 Hws) as Hne. destruct ws as [|w ws].
+      - exfalso; apply Hne; reflexivity.
+      - simpl; lia. }
+    destruct (decide (length ws = 1%nat)) as [Hone|Hnotone].
+    - wp_pures; case_bool_decide as Hcond.
+      + wp_pures.
+        assert (Htm : target_mass ws 0%nat = 1%R).
+        { pose proof (admissible_weight_sum_pos ws Hws) as Hsumpos.
+          destruct ws as [|w ws']; [exfalso; simpl in Hsumpos; lia|].
+          destruct ws' as [|w' ws'']; [|simpl in Hone; lia].
+          simpl in Hsumpos.
+          unfold target_mass. simpl. rewrite Nat.add_0_r.
+          field. apply not_0_INR. lia. }
+        assert (Hexp : SeriesC (fun i : nat => target_mass ws i * Dn i)%R = Dn 0%nat).
+        { rewrite (target_mass_expectation ws Dn). rewrite Hone. simpl.
+          rewrite Htm. ring. }
+        assert (Heps0 : ε = Dn 0%nat) by (rewrite Hsum'; exact Hexp).
+        iApply ("HΦ" $! #0%nat).
+        iApply (ec_eq with "Herr"). exact Heps0.
+      + exfalso. apply Hcond. rewrite Hone. reflexivity.
+    - assert (Hlen : (2 <= length ws)%nat) by lia.
+      wp_pures; case_bool_decide as Hcond.
+      + exfalso. apply Hnotone.
+        change (LitV (LitInt (Z.of_nat (length ws))) = LitV (LitInt 1%Z)) in Hcond.
+        inversion Hcond. lia.
+      + wp_pures.
+        wp_bind (fldr_table (inject_list ws)).
+        wp_apply (twp_fldr_table _ ws (inject_list ws)) as (vrows) "Hrows";
+          [exact Hws|iPureIntro; apply (is_list_inject ws (inject_list ws))|].
+        all: try (change (inject_list ws = inject_list ws); reflexivity).
+        wp_let.
+        symmetry in Hsum'.
+        wp_apply (twp_fldr_loop_adv_comp ⊤ ws vrows Dn L ε Hws
+          (admissible_nondegenerate ws Hws Hlen) HDn Hsum'
+          with "[$Hrows Herr]") as (i) "[Herr _]".
+        all: try done.
+        iApply ("HΦ" $! #i).
+        iExact "Herr".
   Qed.
   Lemma twp_fldr_sample_presample_adv_comp (ws : list nat) (Hws : admissible ws)
       (Hnd : nondegenerate ws) (e : expr) (ε : R) (Δ : loc) (l : list val)
@@ -118,6 +249,58 @@ Section FldrFields.
       + iPureIntro.
         rewrite Hl. rewrite map_app. reflexivity.
     - iExact "Hcredit".
+  Qed.
+  Lemma twp_fldr_sample_presample_adv_comp_general (ws : list nat) (Hws : admissible ws)
+      (e : expr) (ε : R) (Δ : loc) (l : list val)
+      (D : val -> R) (L : R) (Φ : val -> iProp Σ) :
+    to_val e = None -> (0 <= ε)%R -> (forall v : val, (0 <= D v <= L)%R) ->
+    SeriesC (fun v : val => fldr_val_distr ws Hws v * D v)%R = ε ->
+    ↯ ε ∗ fldr_own_tape ws Δ l ∗
+    (∀ (v : val), fldr_own_tape ws Δ (l ++ [v]) ∗ ↯ (D v) -∗ WP e [{ v, Φ v }])
+    ⊢ WP e [{ v, Φ v }].
+  Proof.
+    intros He Hε HD Hsum.
+    assert (Hlenpos : (1 <= length ws)%nat).
+    { pose proof (proj1 Hws) as Hne. destruct ws as [|w ws].
+      - exfalso; apply Hne; reflexivity.
+      - simpl; lia. }
+    destruct (decide (length ws = 1%nat)) as [Hone|Hnotone].
+    - iIntros "(Herr & (%outs & Htape & %Hl) & Hnext)".
+      set (Dn := fun i : nat => D #i).
+      assert (HDn : forall i, (0 <= Dn i <= L)%R).
+      { intros i. apply HD. }
+      assert (Hsum' : SeriesC (fun i : nat => target_mass ws i * Dn i)%R = ε).
+      { rewrite (dmap_expected_value (fldr_distr ws Hws)
+            (fun i : nat => #i) D L) in Hsum.
+        - exact Hsum.
+        - intros i. apply HD. }
+      iDestruct "Htape" as "(%raw & HΔ & %Htrans)".
+      pose proof (is_fldr_translation_single_snoc ws raw outs Hone Htrans)
+        as Htrans0.
+      assert (Htm : target_mass ws 0%nat = 1%R).
+      { pose proof (admissible_weight_sum_pos ws Hws) as Hsumpos.
+        destruct ws as [|w ws']; [exfalso; simpl in Hsumpos; lia|].
+        destruct ws' as [|w' ws'']; [|simpl in Hone; lia].
+        simpl in Hsumpos.
+        unfold target_mass. simpl. rewrite Nat.add_0_r.
+        field. apply not_0_INR. lia. }
+      assert (Hexp : SeriesC (fun i : nat => target_mass ws i * Dn i)%R = Dn 0%nat).
+      { rewrite (target_mass_expectation ws Dn). rewrite Hone. simpl.
+        rewrite Htm. ring. }
+      assert (Heps : ε = Dn 0%nat) by (rewrite <- Hsum'; exact Hexp).
+      iApply ("Hnext" $! #0%nat).
+      iSplitL "HΔ".
+      + iExists (outs ++ [0%nat]).
+        iSplitL "HΔ".
+        * iExists raw. iSplitL "HΔ".
+          -- iExact "HΔ".
+          -- iPureIntro. exact Htrans0.
+        * iPureIntro. rewrite Hl. rewrite map_app. reflexivity.
+      + iApply (ec_eq with "Herr"). exact Heps.
+    - assert (Hlen : (2 <= length ws)%nat) by lia.
+      iApply (twp_fldr_sample_presample_adv_comp ws Hws
+        (admissible_nondegenerate ws Hws Hlen) e ε Δ l D L Φ
+        He Hε HD Hsum).
   Qed.
   Lemma twp_fldr_sample_alloc (ws : list nat) :
       [[{ True }]] fldr_alloc #()
