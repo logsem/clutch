@@ -149,7 +149,17 @@ Global Instance into_handle_ctx e1 e2 e3 hs m l P K :
   IntoCtx (Handle hs m (EffLabel l) e1 e2 e3) P (HandleCtx hs m l e2 e3 :: K).
 Proof. solve_into_ctx. Qed.
 
-(* TODO : add into_ctx for rand *)
+(* TODO : add into_ctx for rand (DONE) *)
+Global Instance into_ctx_rand_l e v P K:
+  IntoCtx e P K ->
+  IntoCtx (Rand e (Val v)) P (RandLCtx v :: K).
+Proof. solve_into_ctx. Qed.
+       
+Global Instance into_ctx_rand_r e1 e2 P K:
+  IntoCtx e2 P K ->
+  IntoCtx (Rand e1 e2) P (RandRCtx e1 :: K).
+Proof. solve_into_ctx. Qed.
+
 
 Class MakeApp {A} (k1 k2 l : list A) := make_app : l = k1 ++ k2.
 Global Hint Mode MakeApp ! ! ! - : typeclass_instances.
