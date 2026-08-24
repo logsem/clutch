@@ -14,20 +14,20 @@ Section adv_schan.
   Context `{probblazeRGpreS Σ}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
   (* Context (lka1 lka2 klk1 klk2 : label). *)
-  Let Key := S (S n'').
-  Let Support := S (S n'').
+  Let Key := (S n'').
+  Let Support := (S n'').
   Context {xor_struct : XOR (Key := Key) (Support := Support)}.
   Context `{X : ∀ `{!probblazeRGS Σ}, XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
 
-  Variable group_xor_sem : vgG -> vgG -> vgG.
-  (* actual BITWISE xor has both left and right inverse, so this assumption is a valid spec.*)
-  Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, group_xor_sem (group_xor_sem g1 g2) g2 = g1.
-  Hypothesis Bij_xor_sem_l : ∀ g1 g2 : vgG, group_xor_sem g1 (group_xor_sem g1 g2) = g2.
-  Hypothesis vg_int_xor_sem : ∀ `{!probblazeRGS Σ}, ∀ g1 g2 : vgG, vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some (group_xor_sem g1 g2 ).
-  Variable log__g : vgG -> fin (S (S n'')).
-  Hypothesis Val_log : ∀ x : vgG, (g ^+(log__g x))%g = x.
-  Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, log__g (group_xor_sem m (g ^+n))).
-  Hypothesis Bdd_int_vg : ∀ `{!probblazeRGS Σ}, ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
+  (* Variable group_xor_sem : vgG -> vgG -> vgG.
+     (* actual BITWISE xor has both left and right inverse, so this assumption is a valid spec.*)
+     Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, group_xor_sem (group_xor_sem g1 g2) g2 = g1.
+     Hypothesis Bij_xor_sem_l : ∀ g1 g2 : vgG, group_xor_sem g1 (group_xor_sem g1 g2) = g2.
+     Hypothesis vg_int_xor_sem : ∀ `{!probblazeRGS Σ}, ∀ g1 g2 : vgG, vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some (group_xor_sem g1 g2 ).
+     Variable log__g : vgG -> fin (S (S n'')).
+     Hypothesis Val_log : ∀ x : vgG, (g ^+(log__g x))%g = x.
+     Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, log__g (group_xor_sem m (g ^+n))).
+     Hypothesis Bdd_int_vg : ∀ `{!probblazeRGS Σ}, ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat. *)
 
   Import valgroup_notation.
 

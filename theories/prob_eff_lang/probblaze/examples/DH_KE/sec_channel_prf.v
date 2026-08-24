@@ -2015,7 +2015,7 @@ Section schan_security.
          iApply (brel_exhaustion (fill k1'((InjRV (vgval m0))%V)) (fill k2' ((InjRV (vgval m0)))%V)).
          { simpl. auto. set_solver. }
          { simpl. set_solver. }
-         { unfold kont0. iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]".
+         { unfold kont0. iApply "Hrel". by iDestruct "HmQ" as "[Hsome Hnone]". }
          { iApply "IH". }
       -- unfold d3.
          iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))".
