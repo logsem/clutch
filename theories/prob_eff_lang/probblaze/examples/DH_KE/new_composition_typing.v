@@ -42,16 +42,8 @@ Section new_comp_verification.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg: @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
-  (* The group index [int_of_vg_sem g] is bounded by the group order
-     [#|[set : vgG]| = S (S n'')] (class field [int_of_vg_sem_bound] +
-     [vgG_card]); in particular it is [< S (S (S n''))]. *)
-  Lemma Bdd_int_vg : ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
-  Proof using Type*.
-    intros g. pose proof (int_of_vg_sem_bound g) as Hb.
-    rewrite vgG_card in Hb. lia.
-  Qed.
-  Let Key := S (S n'').
-  Let Support := S (S n'').
+  Let Key := (S n'').
+  Let Support := (S n'').
   Variable xor_struct : XOR (Key := Key) (Support := Support).
   Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
 
@@ -1009,11 +1001,11 @@ Section new_comp_verification.
     iApply (brel_int_of_vg_sem_correct_l _ [AppRCtx vg_of_int; AppLCtx #(int_of_vg_sem gk0); AppRCtx xor] gm).
     iApply (brel_int_of_vg_sem_correct_r _ [AppRCtx vg_of_int; AppLCtx #(int_of_vg_sem gk0); AppRCtx xor] gm).
     iApply (xor_correct_l _ [AppRCtx vg_of_int]);
-      [ rewrite /Key; eapply Nat.lt_le_trans; [apply Bdd_int_vg| lia]
-      | rewrite /Support; eapply Nat.lt_le_trans; [apply Bdd_int_vg| lia] | ].
+      [ rewrite -vgG_card; apply int_of_vg_sem_bound
+      | rewrite -vgG_card; apply int_of_vg_sem_bound | ].
     iApply (xor_correct_r _ [AppRCtx vg_of_int]);
-      [ rewrite /Key; eapply Nat.lt_le_trans; [apply Bdd_int_vg| lia]
-      | rewrite /Support; eapply Nat.lt_le_trans; [apply Bdd_int_vg| lia] | ].
+      [ rewrite -vgG_card; apply int_of_vg_sem_bound
+      | rewrite -vgG_card; apply int_of_vg_sem_bound | ].
     destruct (vg_of_int_sem (xor_sem (int_of_vg_sem gm) (int_of_vg_sem gk0))) as [mg|] eqn:Hvz.
     - iApply (brel_vg_of_int_correct_l _ [] _ _ _ _ mg Hvz).
       iApply (brel_vg_of_int_correct_r _ [] _ _ _ _ mg Hvz).

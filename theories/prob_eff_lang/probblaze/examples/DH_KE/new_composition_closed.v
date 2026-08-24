@@ -26,8 +26,8 @@ Section new_comp_verification.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg: @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
-  Let Key := S (S n'').
-  Let Support := S (S n'').
+  Let Key := (S n'').
+  Let Support := (S n'').
   Variable xor_struct : XOR (Key := Key) (Support := Support).
   Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
 

@@ -5,7 +5,6 @@ From clutch.prob_eff_lang.probblaze.typing Require Import types fundamental inte
 From clutch.prob_eff_lang.probblaze Require Import p_composition sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy mode.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import new_composition xor def_dhke sec_channel_def new_composition_defs.
 
-
 Import fingroup.
 Import fingroup.fingroup.
 
@@ -14,21 +13,10 @@ Section adv_comp.
   Context {G : ∀ `{!probblazeRGS Σ}, clutch_group}.  
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
   Context `{Hpre :probblazeRGpreS Σ}.
-  Let Key := S (S n'').
-  Let Support := S (S n'').
+  Let Key := (S n'').
+  Let Support := (S n'').
   Context {xor_struct : XOR (Key := Key) (Support := Support)}.
   Context `{X : ∀ `{!probblazeRGS Σ}, XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
-
-  Variable group_xor_sem : vgG -> vgG -> vgG.
-  (* actual BITWISE xor has both left and right inverse, so this assumption is a valid spec.*)
-  Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, group_xor_sem (group_xor_sem g1 g2) g2 = g1.
-  Hypothesis Bij_xor_sem_l : ∀ g1 g2 : vgG, group_xor_sem g1 (group_xor_sem g1 g2) = g2.
-  Hypothesis vg_int_xor_sem : ∀ `{!probblazeRGS Σ}, ∀ g1 g2 : vgG, vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some (group_xor_sem g1 g2 ).
-  Variable log__g : vgG -> fin (S (S n'')).
-  Hypothesis Val_log : ∀ x : vgG, (g ^+(log__g x))%g = x.
-  Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, log__g (group_xor_sem m (g ^+n))).
-  Hypothesis Bdd_int_vg : ∀ `{!probblazeRGS Σ}, ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
-
 
   Theorem adv_composition A :
      (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ → 𝔹)%T) →
