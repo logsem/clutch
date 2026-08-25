@@ -2,23 +2,13 @@
 
 (using rocq 0.11)
 
-; (name clutch)
-
 (generate_opam_files true)
 
-(source (github logsem/clutch))
+(authors "anonymous")
 
-(authors "Simon Oddershede Gregersen"
-         "Alejandro Aguirre"
-         "Philipp G. Haselwarter"
-         "Kwing Hei Li"
-         "Markus de Medeiros"
-         "Joseph Tassarotti"
-         "Lars Birkedal")
+(maintainers "anonymous <anon@ymo.us>")
 
-(maintainers "Simon Oddershede Gregersen <s.gregersen@nyu.edu>")
-
-(homepage "https://github.com/logsem/clutch")
+(homepage "https://example.com")
 
 (license MIT)
 
@@ -26,7 +16,7 @@
 
 (package
  (name rocq-clutch)
- (synopsis "Higher-order probabilistic separation logics")
+ (synopsis "empty")
  (depends
   ; use a recent ocaml version to compile the code in src/ that uses algebraic effects
   (ocaml (and (>= 5.4.0) (< "5.5~")))
@@ -44,6 +34,6 @@
   (rocq-elpi (= 3.2.0))
   (elpi (= 3.4.2)))
  (tags
-  ("awesome" "separation logic" probabilities)))
+  ("empty")))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html

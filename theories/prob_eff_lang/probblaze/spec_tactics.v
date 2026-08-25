@@ -1,14 +1,15 @@
 (** Tactics for updating the specification program. *)
 From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import coq_tactics ltac_tactics reduction.
-From clutch.common Require Import language locations.
+From clutch.common Require Import language ectx_language ectxi_language.
 From clutch.base_logic Require Export spec_update.
-From clutch.prob_eff_lang.hazel_prob Require Import notation tactics metatheory lang.
-From clutch.prob_eff_lang.hazel_prob Require Export spec_rules spec_ra class_instances.
+From clutch.prob_eff_lang.probblaze Require Import notation tactics metatheory syntax class_instances.
+From clutch.prob_eff_lang.probblaze Require Export spec_rules spec_ra.
+From clutch.prob_lang Require Import wp_tactics.
 Set Default Proof Using "Type".
 
 (** ** bind *)
-Lemma tac_tp_bind_gen `{!specG_prob_eff_lang Σ} Δ Δ' i p e e' Q :
+Lemma tac_tp_bind_gen `{!specG_blaze_prob_lang Σ} Δ Δ' i p e e' Q :
   envs_lookup i Δ = Some (p, ⤇ e)%I →
   e = e' →
   envs_simple_replace i p (Esnoc Enil i (⤇ e')) Δ = Some Δ' →
@@ -20,7 +21,7 @@ Proof.
   destruct p; rewrite /= ?right_id; by rewrite bi.wand_elim_r.
 Qed.
 
-Lemma tac_tp_bind `{specG_prob_eff_lang Σ} e' Δ Δ' i p K' e Q :
+Lemma tac_tp_bind `{specG_blaze_prob_lang Σ} e' Δ Δ' i p K' e Q :
   envs_lookup i Δ = Some (p, ⤇ e)%I →
   e = fill K' e' →
   envs_simple_replace i p (Esnoc Enil i (⤇ fill K' e')) Δ = Some Δ' →
@@ -34,9 +35,9 @@ Ltac tp_bind_helper :=
   | |- fill ?K ?e = fill _ ?efoc =>
      reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
-       let K'' := eval cbn[app] in (K' ++ K) in
+       let K'' := eval cbn[app] in (K ++ K') in
        replace (fill K e) with (fill K'' e') by (by rewrite ?fill_app))
-  | |- ?e = fill _ ?efoc =>
+  | |- ?e = fill _ ?efoc => 
      reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
        replace e with (fill K' e') by (by rewrite ?fill_app))
@@ -62,7 +63,7 @@ Tactic Notation "tp_bind" open_constr(efoc) :=
     |reflexivity
     |(* new goal *)].
 
-Lemma tac_tp_pure `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} e K e1 e2 Δ1 i1 e' ϕ ψ E1 Q n :
+Lemma tac_tp_pure `{specG_blaze_prob_lang Σ, invGS_gen hasLc Σ} e K (e1 e2 : expr) Δ1 i1 e' ϕ ψ E1 Q n :
   e = fill K e1 →
   PureExec ϕ n e1 e2 →
   (∀ P, ElimModal ψ false false (spec_update E1 P) P Q Q) →
@@ -75,7 +76,7 @@ Lemma tac_tp_pure `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} e K e1 e2 Δ1 i1
   | None => False
   end →
   envs_entails Δ1 Q.
-Proof.
+Proof. 
   rewrite envs_entails_unseal. intros -> Hpure ? HΔ1 Hψ Hϕ -> ?.
   destruct (envs_simple_replace _ _ _ _) as [Δ2|] eqn:HΔ2; try done.
   rewrite (envs_simple_replace_sound Δ1 Δ2 i1) //; simpl.
@@ -92,19 +93,19 @@ Tactic Notation "tp_pure_at" open_constr(ef) :=
   lazymatch goal with
   | |- context[environments.Esnoc _ ?H (⤇ (fill ?K' ?e))] =>
     reshape_expr e ltac:(fun K e' =>
-      unify e' ef;
-      eapply (tac_tp_pure (fill K' e) (K++K') e');
-      [by rewrite ?fill_app | tc_solve | ..])
+      unify e' ef; 
+      eapply (tac_tp_pure (fill K' e) (K'++K) e');
+      [by rewrite ?fill_app | tc_solve | ..]; try rewrite fill_app)
   | |- context[environments.Esnoc _ ?H (⤇ ?e)] =>
     reshape_expr e ltac:(fun K e' =>
       unify e' ef;
       eapply (tac_tp_pure e K e');
-      [by rewrite ?fill_app | tc_solve | ..])
+      [by rewrite ?fill_app | tc_solve | ..]; try rewrite fill_app)
   end;
   [tc_solve || fail "tp_pure: cannot eliminate modality in the goal"
   |iAssumptionCore || fail "tp_pure: cannot find the RHS" (* TODO fix error message *)
   |try (exact I || reflexivity) (* ψ *)
-  |try (exact I || reflexivity) (* ϕ *)
+  |try (exact I || reflexivity || solve_vals_compare_safe) (* ϕ *)
   |simpl; reflexivity ||  fail "tp_pure: this should not happen" (* e' = fill K' e2 *)
   |pm_reduce (* new goal *)].
 
@@ -132,7 +133,7 @@ Tactic Notation "tp_if" := tp_pure_at (If _ _ _).
 Tactic Notation "tp_pair" := tp_pure_at (Pair _ _).
 Tactic Notation "tp_closure" := tp_pure_at (Rec _ _ _).
 
-Lemma tac_tp_store `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e (l : loc) e' e2 v' v Q :
+Lemma tac_tp_store `{specG_blaze_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e (l : locations.loc) e' e2 v' v Q :
   (* TODO: here instead of True we can consider another Coq premise, like in tp_pure.
      Same goes for the rest of those tactics *)
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
@@ -140,7 +141,7 @@ Lemma tac_tp_store `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i
   e = fill K (Store (# l) e') →
   IntoVal e' v →
   (* re-compose the expression and the evaluation context *)
-  e2 = fill K #() →
+  e2 = fill K #()%V →
   envs_lookup i2 Δ2 = Some (false, l ↦ₛ v')%I →
   match envs_simple_replace i2 false
      (Esnoc (Esnoc Enil i1 (⤇ e2)) i2 (l ↦ₛ v)) Δ2 with
@@ -175,7 +176,7 @@ Tactic Notation "tp_store" :=
   |iAssumptionCore || fail "tp_store: cannot find '? ↦ₛ ?'"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_load `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) v Q q :
+Lemma tac_tp_load `{specG_blaze_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : locations.loc) (v : val) Q q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
   e = fill K (Load #l) →
@@ -212,12 +213,13 @@ Tactic Notation "tp_load" :=
   |simpl; reflexivity || fail "tp_load: this should not happen"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_alloc `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e e' v Q :
+
+Lemma tac_tp_alloc `{specG_blaze_prob_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e e' v Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
   e = fill K (ref e') →
   IntoVal e' v →
-  (∀ l : loc, ∃ Δ2,
+  (∀ l : locations.loc, ∃ Δ2,
     envs_simple_replace i1 false
        (Esnoc Enil i1 (⤇ fill K #l)) Δ1 = Some Δ2 ∧
     (envs_entails Δ2 ((l ↦ₛ v) -∗ Q)%I)) →
@@ -256,12 +258,12 @@ Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloc" "as" ident(j') :=
   let H := iFresh in tp_alloc as j' H.
 
-Lemma tac_tp_alloctape `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e N z Q :
+Lemma tac_tp_alloctape `{specG_blaze_prob_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e N z Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
   e = fill K (alloc #z) →
-  (∀ α : loc, ∃ Δ2,
+  (∀ α : locations.loc, ∃ Δ2,
     envs_simple_replace i1 false
        (Esnoc Enil i1 (⤇ fill K #lbl:α)) Δ1 = Some Δ2 ∧
     (envs_entails Δ2 ((α ↪ₛ (N; [])) -∗ Q)%I)) →
@@ -301,12 +303,12 @@ Tactic Notation "tp_alloctape" "as" ident(j') :=
   let H := iFresh in tp_alloctape as j' H.
 
 
-Lemma tac_tp_allocnattape `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e N z Q :
+Lemma tac_tp_allocnattape `{specG_blaze_prob_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e N z Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
   e = fill K (alloc #z) →
-  (∀ α : loc, ∃ Δ2,
+  (∀ α : locations.loc, ∃ Δ2,
     envs_simple_replace i1 false
        (Esnoc Enil i1 (⤇ fill K #lbl:α)) Δ1 = Some Δ2 ∧
     (envs_entails Δ2 ((α ↪ₛN (N; [])) -∗ Q)%I)) →
@@ -346,7 +348,51 @@ Tactic Notation "tp_allocnattape" ident(l) "as"  constr(H) :=
 Tactic Notation "tp_allocnattape" ident(j') :=
   let H := iFresh in tp_alloctape as j' H.
 
-Lemma tac_tp_rand `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) N z n ns Q :
+(* Laplacian sample not ported *)
+(* Lemma tac_tp_alloctape_laplace `{specG_blaze_prob_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e (num den mean : Z) Q :
+     (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
+     envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
+     e = fill K (AllocTapeLaplace #num #den #mean) →
+     (∀ α : loc, ∃ Δ2,
+       envs_simple_replace i1 false
+          (Esnoc Enil i1 (⤇ fill K #lbl:α)) Δ1 = Some Δ2 ∧
+       (envs_entails Δ2 ((α ↪Lₛ Tape_Laplace num den mean []) -∗ Q)%I)) →
+     envs_entails Δ1 Q.
+   Proof.
+     rewrite envs_entails_unseal. intros ?? Hfill HQ.
+     rewrite (envs_lookup_sound' Δ1 false i1); last by eassumption.
+     rewrite Hfill /=.
+     rewrite step_alloctape_laplace //.
+     rewrite -[Q]elim_modal //.
+     apply bi.sep_mono_r, bi.wand_intro_l.
+     rewrite bi.sep_exist_r.
+     apply bi.exist_elim=> l.
+     destruct (HQ l) as (Δ2 & HΔ2 & HQ').
+     rewrite (envs_simple_replace_sound' _ _ i1 _ _ HΔ2) /=.
+     rewrite HQ' right_id.
+     iIntros "[[H Hl] Hcnt]".
+     iApply ("Hcnt" with "H Hl").
+   Qed.
+   
+   Tactic Notation "tp_alloctape_laplace" ident(l) "as" constr(H) :=
+     let finish _ :=
+         first [ intros l | fail 1 "tp_alloctape_laplace:" l "not fresh"];
+           eexists; split;
+           [ reduction.pm_reflexivity
+           | (iIntros H; tp_normalise) || fail 1 "tp_alloctape_laplace:" H "not correct intro pattern" ] in
+     iStartProof;
+     eapply (tac_tp_alloctape_laplace);
+     [tc_solve || fail "tp_alloctape_laplace: cannot eliminate modality in the goal"
+     (* |tc_solve || fail "tp_alloctape_laplace: cannnot convert bound to a natural number" *)
+     |iAssumptionCore || fail "tp_alloctape_laplace: cannot find the RHS"
+     |tp_bind_helper
+     |finish ()
+   (* new goal *)].
+   
+   Tactic Notation "tp_alloctape_laplace" "as" ident(j') :=
+     let H := iFresh in tp_alloctape_laplace j' as H. *)
+
+Lemma tac_tp_rand `{specG_blaze_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : locations.loc) N z n ns Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
   envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
@@ -389,7 +435,7 @@ Tactic Notation "tp_rand" :=
   |].
 
 
-Lemma tac_tp_randnat `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) N z n ns Q :
+Lemma tac_tp_randnat `{specG_blaze_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : locations.loc) N z n ns Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
   envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
@@ -440,9 +486,58 @@ Tactic Notation "tp_randnat" :=
   tp_randnat as "%".
 
 
+(* Lemma tac_tp_laplace `{specG_blaze_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) (num den mean num' den' mean' z : Z) zs Q :
+     (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
+     TCEq num num' →
+     TCEq den den' →
+     TCEq mean mean' →
+     envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
+     e = fill K (Laplace #num #den #mean (#lbl:l)) →
+     envs_lookup i2 Δ2 = Some (false, l ↪Lₛ Tape_Laplace num' den' mean' (z::zs))%I →
+     e2 = fill K (of_val #z) →
+     match envs_simple_replace i2 false
+       (Esnoc (Esnoc Enil i1 (⤇ e2)) i2 (l ↪Lₛ Tape_Laplace num' den' mean' zs)%I) Δ2 with
+     | Some Δ3 => envs_entails Δ3 Q
+     | None    => False
+     end →
+     envs_entails Δ1 Q.
+   Proof.
+     rewrite envs_entails_unseal. intros ????? -> ? -> HQ.
+     rewrite envs_lookup_delete_sound //; simpl.
+     destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
+     rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl.
+     rewrite right_id.
+     rewrite assoc.
+     rewrite step_laplace //=.
+     rewrite -[Q]elim_modal //.
+     apply bi.sep_mono_r.
+     apply bi.wand_intro_l.
+     rewrite HQ.
+     rewrite (comm _ _ (l ↪Lₛ Tape_Laplace num' den' mean' zs)%I).
+     by apply bi.wand_elim_r.
+   Qed.
+   
+   Tactic Notation "tp_laplace" :=
+     iStartProof;
+     eapply tac_tp_laplace;
+     [tc_solve || fail "tp_laplace: cannot eliminate modality in the goal"
+     | (* postpone solving [TCEq ...] until after the tape has been unified *)
+     | (* postpone solving [TCEq ...] until after the tape has been unified *)
+     | (* postpone solving [TCEq ...] until after the tape has been unified *)
+     |iAssumptionCore || fail "tp_laplace: cannot find the RHS"
+     |tp_bind_helper
+     |iAssumptionCore || fail "tp_laplace: cannot find '? ↪Lₛ ?'"
+     |simpl; reflexivity || fail "tp_laplace: this should not happen"
+     |pm_reduce (* new goal *)];
+     [tc_solve || fail "tp_laplace: Laplace numerator does not match the tape numerator"
+     |tc_solve || fail "tp_laplace: Laplace denominator does not match the tape denominator"
+     |tc_solve || fail "tp_laplace: Laplace mean does not match the tape mean"
+     |]. *)
+
+
 (** Some simple tests *)
 Section tests.
-  Context `{specG_prob_eff_lang Σ, invGS_gen hasLc Σ}.
+  Context `{specG_blaze_prob_lang Σ, invGS_gen hasLc Σ}.
 
   Local Lemma test_tp_pures E :
     ⤇ (#2 + #2 + #2) ⊢ spec_update E (⤇ #6).
@@ -456,7 +551,7 @@ Section tests.
   Local Lemma test_heap E :
     ⤇ (let: "x" := ref #41 in "x" <- !"x" + #1;; !"x") ⊢ spec_update E (⤇ #42).
   Proof.
-    iIntros "Hs".
+    iIntros "Hs". 
     tp_alloc as l "Hl".
     tp_pures.
     tp_load.
@@ -467,6 +562,15 @@ Section tests.
     iModIntro.
     done.
   Qed.
+
+  Local Lemma test_ctx K E :
+    ⤇ fill K (#2 + #2 + #2) ⊢ spec_update E (⤇ fill K #6).
+  Proof.
+    iIntros "Hs".
+    tp_pures.
+    iModIntro.
+    done. 
+  Qed. 
 
   Local Lemma test_rand E α :
     α ↪ₛ ((1; [0%fin]) : tape) ∗ ⤇ (rand(#lbl:α) #1) ⊢ spec_update E (⤇ #0).

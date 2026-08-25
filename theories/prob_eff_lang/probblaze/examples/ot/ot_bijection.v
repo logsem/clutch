@@ -1,5 +1,4 @@
 From Coquelicot Require Import Rcomplements.
-From clutch.clutch Require ElGamal_bijection.
 From mathcomp Require all_boot ssrnat prime solvable.cyclic.
 From clutch.prelude Require base stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require valgroup.

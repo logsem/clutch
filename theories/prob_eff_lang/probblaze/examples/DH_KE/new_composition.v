@@ -6,12 +6,12 @@ From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import
   logic primitive_laws proofmode
   spec_rules spec_ra class_instances tactics notation valgroup metatheory
-  sem_types sem_row sem_sig sem_judgement sem_def
-  def_dhke sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_lazy_authchan.
+  sem_types sem_row sem_sig sem_judgement sem_def.
 From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import
+  def_dhke sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_lazy_authchan
   new_composition_defs new_composition_closed new_composition_typing.
-
+ 
 Import fingroup.
 Import fingroup.fingroup.
 
@@ -30,22 +30,10 @@ Section new_comp_verification.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg: @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
-  Let Key := S (S n'').
-  Let Support := S (S n'').
+  Let Key := (S n'').
+  Let Support := (S n'').
   Context {xor_struct : XOR (Key := Key) (Support := Support)}.
   Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
-
-  Variable group_xor_sem : vgG -> vgG -> vgG.
-  (* actual BITWISE xor has both left and right inverse, so this assumption is a valid spec.*)
-  Hypothesis Bij_xor_sem : ∀ g1 g2 : vgG, group_xor_sem (group_xor_sem g1 g2) g2 = g1.
-  Hypothesis Bij_xor_sem_l : ∀ g1 g2 : vgG, group_xor_sem g1 (group_xor_sem g1 g2) = g2.
-  Hypothesis vg_int_xor_sem : ∀ g1 g2 : vgG, vg_of_int_sem (xor_sem (int_of_vg_sem g1) (int_of_vg_sem g2)) = Some (group_xor_sem g1 g2 ).
-  Variable log__g : vgG -> fin (S (S n'')).
-  Hypothesis Val_log : ∀ x : vgG, (g ^+(log__g x))%g = x.
-  Hypothesis Bij_log : forall m : vgG, @Bij (fin (S (S n''))) (fin (S (S n''))) (λ n, log__g (group_xor_sem m (g ^+n))).
-  Hypothesis Bdd_int_vg : ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
-
-
 
   (* F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] ≤ F_OAUTH[ F_AUTH [C[DH_real][CHAN []]]] *)
   (*---------------------------------------------------------------------------*)
@@ -75,6 +63,12 @@ Section new_comp_verification.
 
   Import valgroup_notation.
 
+  (* ************************************************************************** *)
+  (* The following is not a part of the composition argument                    *)
+  (* It is just relating a beta-unfolded version of the secure                  *)
+  (* channel is related to the secure channel in order to make                  *)
+  (* the final reduction argument nice.                                         *)
+  
   (* The client-intro'd composite core, shared by all four reductions below.
      After the τ-client is applied and [brel_pures'] converges the two inner
      [Rec]/[Val(RecV)] forms of [λ:"f", F_AUTH (C_lazy DH "f")], both sides are
@@ -84,7 +78,7 @@ Section new_comp_verification.
     (𝟙 ⊸ (𝔾 × 𝔾) × 𝔾)%T DH1 DH2 -∗
     τ__f θ__L chan gk v1 v2 -∗
     oaleak θ₁ r1 r2 -∗
-    chan θ2 r1' r2' -∗
+    aleak θ2 r1' r2' -∗
     brel ⊤ (F_AUTH (C_lazy DH1 (λ: "h₁", F_OAUTH (λ: "h₂", v1 "h₂" "h₁") r1)%V) r1')
            (F_AUTH (C_lazy DH2 (λ: "h₁", F_OAUTH (λ: "h₂", v2 "h₂" "h₁") r2)%V) r2')
            (iLblSig_to_iLblThy (sem_row_union θ₁ (sem_row_union θ2 θ__L)))
@@ -446,6 +440,8 @@ Section new_comp_verification.
     iDestruct "Hdh" as "#Hdh2".
     iApply (comp_core DH_rand DH_rand θ__L θ₁ θ2 v1 v2 r1 r2 r1' r2' with "Hdh2 Hvv Hoaleak Hchan").
   Qed.
+
+  (* ************************************************************************** *)
 
   Lemma REAL_CHAN_DH_RAND_DHSIM_FKE_CHAN1 :
     ⊢ sem_val_typed REAL_CHAN_DH_RAND DHSIM_FKE_CHAN1 τ.

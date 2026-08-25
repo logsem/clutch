@@ -106,6 +106,7 @@ Qed.
 Notation "'𝟙'" := sem_ty_unit : sem_ty_scope.
 Notation "'𝔹'" := (sem_ty_bool) : sem_ty_scope.
 Notation "'ℤ'" := (sem_ty_int) : sem_ty_scope.
+Notation "'ℕ'" := (sem_ty_nat) : sem_ty_scope.
 Notation "![ m ] τ" := (sem_ty_mbang m τ) (at level 10) : sem_ty_scope.
 Notation "! τ" := (sem_ty_mbang MS τ) (at level 9, τ at level 9) : sem_ty_scope.
 

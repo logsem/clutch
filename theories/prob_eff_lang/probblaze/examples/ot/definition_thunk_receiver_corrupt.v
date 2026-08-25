@@ -51,21 +51,37 @@ Section implementation.
        let: "doSender" := (λ: "mm", do: "sender" "mm") in
        handle: "f" ("doCRS", "doSender")  with
        | effect "sender" "mm", "k" =>
-           let, ("h1", "h0", "g1", "g0") := "doCRS" #()%V in
            let, ("m0", "m1") := "mm" in
-           let: "r" := "doRecv" #()%V in
-           match: "r" with
-             SOME "uv" =>
-               let, ("u", "v") := "uv" in
-               if: veq "u" vunit then Protocol_Done "sender" ("k" #()%V) else 
-                 let: "pk0" := ("g0", "h0", "u", "v") in
-                 let: "pk1" := ("g1", "h1", "u", "v") in
-                 let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
-                 let: "e0" := enc "pk0" "m0" "r0" "s0" in
-                 let: "e1" := enc "pk1" "m1" "r1" "s1" in
-                 ("doSend" ("e0","e1"));;
-                 Protocol_Done "sender" ("k" #()%V)
+           match: vg_of_int "m0" with
            | NONE => Protocol_Done "sender" ("k" #()%V)
+           | SOME "m0" => 
+               match: vg_of_int "m1" with
+               | NONE => Protocol_Done "sender" ("k" #()%V)
+               | SOME "m1" =>
+                   let, ("h1", "h0", "g1", "g0") := "doCRS" #()%V in
+                   let: "r" := "doRecv" #()%V in
+                   match: "r" with
+                     SOME "uv" =>
+                       let, ("u", "v") := "uv" in
+                       match: vg_of_int "u" with
+                       | NONE => Protocol_Done "sender" ("k" #()%V)
+                       | SOME "u" => 
+                           match: vg_of_int "v" with
+                           | NONE => Protocol_Done "sender" ("k" #()%V)
+                           | SOME "v" => 
+                               if: veq "u" vunit then Protocol_Done "sender" ("k" #()%V) else 
+                                 let: "pk0" := ("g0", "h0", "u", "v") in
+                                 let: "pk1" := ("g1", "h1", "u", "v") in
+                                 let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
+                                 let: "e0" := enc "pk0" "m0" "r0" "s0" in
+                                 let: "e1" := enc "pk1" "m1" "r1" "s1" in
+                                 ("doSend" ("e0","e1"));;
+                                 Protocol_Done "sender" ("k" #()%V)
+                           end 
+                       end 
+                   | NONE => Protocol_Done "sender" ("k" #()%V)
+                   end
+               end 
            end
        | return "y" => "y" end).
   
@@ -99,8 +115,17 @@ Section implementation.
     λ: "doLeak" "x" "k",
       match: "x" with
       | InjL "b" => ("doLeak" alice) ;; "k" (if: "b" then !"l0" else !"l1")
-      | InjR "mm" => let, ("m0", "m1") := "mm" in (store_if_none "l0" "m0");; (store_if_none "l1" "m1");; 
-                                                  ("doLeak" bob);; "k" #()%V
+      | InjR "mm" => let, ("m0", "m1") := "mm" in
+                     match: vg_of_int "m0" with
+                     | NONE => "k" #()%V
+                     | SOME "m0" => 
+                         match: vg_of_int "m1" with
+                         | NONE => "k" #()%V
+                         | SOME "m1" =>
+                             (store_if_none "l0" "m0");; (store_if_none "l1" "m1");; 
+                             ("doLeak" bob);; "k" #()%V
+                         end
+                     end
       end.
 
   Definition simhandler : val :=
@@ -112,23 +137,31 @@ Section implementation.
           match: "r" with
           | NONE => "k" #()%V
           | SOME "uv" => let, ("u","v") := "uv" in
-                         if: veq "u" vunit then "k" #()%V else
-                           (* in paper: if v = u^t0 then true else if v = u^t1 then false else false *)
-                           let: "td" :=  if: veq "v" ("u" ^ "t0") then #true else #false in
-                           let: "mb" := "doReceiver" "td" in
-                           let: "mb" := match: "mb" with
-                                        | NONE => "k" #()%V
-                                        | SOME "m" => "m"
-                                        end in 
-                           (* replace #1 with sample to get a random group element or just use the unit of the group *)
-                           let, ("m0", "m1") := if: "td" then ("mb", g ^ #(Z.of_nat 1)) else (g ^ #(Z.of_nat 1), "mb") in
-                           let: "pk0" := ("g0", "h0", "u", "v") in
-                           let: "pk1" := ("g1", "h1", "u", "v") in
-                           let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
-                           let: "e0" := enc "pk0" "m0" "r0" "s0" in
-                           let: "e1" := enc "pk1" "m1" "r1" "s1" in
-                           ("doSend" ("e0", "e1"));;
-                           "k" #()%V
+                         match: vg_of_int "u" with
+                         | NONE => "k" #()%V
+                         | SOME "u" => 
+                             match: vg_of_int "v" with
+                             | NONE => "k" #()%V
+                             | SOME "v" => 
+                                 if: veq "u" vunit then "k" #()%V else
+                                   (* in paper: if v = u^t0 then true else if v = u^t1 then false else false *)
+                                   let: "td" :=  if: veq "v" ("u" ^ "t0") then #true else #false in
+                                   let: "mb" := "doReceiver" "td" in
+                                   let: "mb" := match: "mb" with
+                                                | NONE => "k" #()%V
+                                                | SOME "m" => "m"
+                                                end in 
+                                   (* replace #1 with sample to get a random group element or just use the unit of the group *)
+                                   let, ("m0", "m1") := if: "td" then ("mb", g ^ #(Z.of_nat 1)) else (g ^ #(Z.of_nat 1), "mb") in
+                                   let: "pk0" := ("g0", "h0", "u", "v") in
+                                   let: "pk1" := ("g1", "h1", "u", "v") in
+                                   let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
+                                   let: "e0" := enc "pk0" "m0" "r0" "s0" in
+                                   let: "e1" := enc "pk1" "m1" "r1" "s1" in
+                                   ("doSend" ("e0", "e1"));;
+                                   "k" #()%V
+                             end 
+                         end 
           end
       | InjR <> => "k" #()%V
       end.
@@ -150,76 +183,4 @@ Section implementation.
       | effect "CRS" "x", rec "k" => "k" "crs"
       | return "y" => "y" end. 
 
-
-
-
-
-
-  (* Definition OT_SIM_logic : expr :=
-       effect "leak" 
-         let: "doLeak" := (λ: "p", do: "leak" "p") in
-     
-         λ: "g0" "g1" "t0" "t1" "h0" "h1" "mhandler" "f" "effs",
-         let, ("doSend", "doRecv", "doReceiver") := "effs" in
-         handle: "f" "doLeak" with
-         | effect "leak" "x", "k" => "mhandler"
-              (λ: <>, (λ: "x" "k" , 
-               match: "x" with
-               | InjL <> => 
-                   let: "r" := "doRecv" alice in
-                   match: "r" with
-                   | NONE => "k" NONEV
-                   | SOME "uv" => let, ("u","v") := "uv" in
-                                  if: veq "u" vunit then "k" #()%V else
-                                    (* in paper: if v = u^t0 then true else if v = u^t1 then false else false *)
-                                    let: "td" :=  if: veq "v" ("u" ^ "t0") then #true else #false in
-                                    (* handle the other leakage -- this is not too pretty *)
-                                    let: "mb" := "doReceiver" "td" in
-                                    let: "mb" := match: "mb" with
-                                                 | NONE => "k" #()%V
-                                                 | SOME "m" => "m"
-                                                 end in 
-                                    (* replace #1 with sample to get a random group element or just use the unit of the group *)
-                                    let, ("m0", "m1") := if: "td" then ("mb", g ^ #(Z.of_nat 1)) else (g ^ #(Z.of_nat 1), "mb") in
-                                    let: "pk0" := ("g0", "h0", "u", "v") in
-                                    let: "pk1" := ("g1", "h1", "u", "v") in
-                                    let, ("r0", "s0", "r1", "s1") := (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
-                                    let: "e0" := enc "pk0" "m0" "r0" "s0" in
-                                    let: "e1" := enc "pk1" "m1" "r1" "s1" in
-                                    ("doSend" (("e0", "e1"), alice));;
-                                    "k" #()%V
-                   end
-               | InjR <> => "k" #()%V
-               end) "x" "k")
-       | return "y" => "y"
-        end.
-     
-     Definition mut_handler_constructor : val :=
-       λ: "h1" "h2",
-         
-         rec: "mhandler" "f" :=
-         (* instantiate the first handler-branch with the mutually recursive handler *)
-         let: "mh1" := "h1" "mhandler" in 
-         (* handle: handle: f with ... with ... *)
-         "mh1" (λ: <>, "h2" "f").
-     
-     Definition OT_SIM : val := 
-       (λ: "FOT" "f", 
-       (* sampling crs with a trapdoor to compute b from (u,v) *)
-       let, ("g1", "g0") := (g^(sample #()%V), g^(sample #()%V)) in
-       (* as in the real protocol, these should be distinct *)
-       let, ("t1", "t0") := (sample #()%V, sample #()%V) in
-       let, ("h0", "h1") := ("g0"^"t0", "g1"^"t1") in
-       let: "crs" := ("h1", "h0", "g1", "g0") in
-       
-       let: "mh" := mut_handler_constructor (OT_SIM_logic "g0" "g1" "t0" "t1" "h0" "h1") "FOT" in 
-       effect "crs" 
-       let: "doCRS" := (λ: <>, do: "crs" #()%V) in
-       handle: "mh" "f" "doCRS" with
-       | effect "crs" "x", rec "k" => "k" "crs"
-       | return "y" => "y" end). 
-     
-     Definition OT_SIM_FOT message0 message1 : val :=
-       (λ: "f", OT_SIM (F_OT message0 message1) "f").  *)
-                              
 End implementation.  

@@ -174,8 +174,7 @@ Definition sem_ty_group `{probblazeRGS Σ} {vg : val_group} : sem_ty Σ :=
 
 Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
-    {
-      τG_lrel v1 v2 η μ δ ξ : sem_ty_group v1 v2 = interp._ty η μ δ τG ξ v1 v2
+    { τG_subtype v1 v2 η μ δ ξ : sem_ty_group v1 v2 ⊢ interp._ty η μ δ τG ξ v1 v2
     (* Group elements are [τG] values: the syntactic mirror of [sem_ty_group]
        (whose members are exactly the [vgval x]).  Needed to type constants
        like the generator [g] when syntactically typing e.g. [DH_real]. *)
@@ -195,7 +194,9 @@ Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct
     ; vg_of_int_sem : nat -> option vgG
     ; vg_of_int_of_vg_sem : forall (n : nat) (xg : vgG),
         vg_of_int_sem n = Some xg -> int_of_vg_sem xg = n
-    ; vg_of_int_sem' : nat -> vgG
+    ; int_of_vg_of_int_sem : forall (xg : vgG),
+        vg_of_int_sem (int_of_vg_sem xg) = Some xg
+    (* ; vg_of_int_sem' : nat -> vgG *)
     ; BREL_INT_OF_VG_CORRECT_L := ∀ E K g X R e,
                                     (BREL (fill K #(int_of_vg_sem g)) ≤ e @ E <|X|> {{R}}) -∗
                                     (BREL (fill K (int_of_vg (vgval g))) ≤ e @ E <|X|> {{R}})
@@ -209,10 +210,10 @@ Class clutch_group `{probblazeRGS Σ} {vg : val_group} {cg : clutch_group_struct
                                    (BREL (fill K (SOMEV (vgval g))) ≤ e @ E <|X|> {{R}}) -∗
                                    (BREL (fill K (vg_of_int (#x))) ≤ e @ E <|X|> {{R}})
     ; brel_vg_of_int_correct_l : BREL_VG_OF_INT_CORRECT_L
-    ; BREL_VG_OF_INT_CORRECT_L' := ∀ E K x X R e,
-          (BREL (fill K (vgval (vg_of_int_sem' x))) ≤ e @ E <|X|> {{R}}) -∗
-          (BREL (fill K (vg_of_int (#x))) ≤ e @ E <|X|> {{R}})
-    ; brel_vg_of_int_correct_l' : BREL_VG_OF_INT_CORRECT_L'
+    (* ; BREL_VG_OF_INT_CORRECT_L' := ∀ E K x X R e,
+             (BREL (fill K (vgval (vg_of_int_sem' x))) ≤ e @ E <|X|> {{R}}) -∗
+             (BREL (fill K (vg_of_int (#x))) ≤ e @ E <|X|> {{R}})
+       ; brel_vg_of_int_correct_l' : BREL_VG_OF_INT_CORRECT_L' *)
     ; BREL_VG_OF_INT_CORRECT_R := ∀ E K X R e x g,
         vg_of_int_sem x = Some g ->
         (BREL e ≤ (fill K (SOMEV (vgval g))) @ E <|X|> {{R}}) -∗
@@ -517,6 +518,74 @@ Proof using.
   2: apply in_setT.
   by destruct (@eqtype.eqP _ [set: vgG] (cycle g)).
 Qed.
+
+Definition g_log : vgG -> fin (S (S n'')) := fun xg => match log_g xg with 
+                                                      | exist k _ => k 
+                                                      end.
+Lemma g_log_id : ∀ x : vgG, (g ^+ (g_log x))%g = x.
+Proof. 
+  intros. unfold g_log.
+  by destruct (log_g x) as [k Hk]. 
+Qed. 
+Global Instance log_g_bij : Bij g_log. 
+Proof. 
+  split.
+  - intros ?? Hk. unfold g_log in *. 
+    destruct (log_g x) as [m Hm]; destruct (log_g y) as [n Hn]. 
+    by subst.
+  - intros k. exists (g ^+ k)%g. unfold g_log in *. 
+    subst. destruct (log_g (g ^+ k)%g) as [k' Hkeq]. 
+    revert Hkeq.
+    move=> /eqP Heq. 
+    rewrite eq_expg_mod_order in Heq.
+    rewrite !div.modn_small in Heq.
+    2,3 : rewrite g_nontriv; apply Rcomplements.SSR_leq.
+    2 : pose proof (fin.fin_to_nat_le k'); lia.
+    2 : pose proof (fin.fin_to_nat_le k); lia.
+    apply: (inj fin_to_nat).
+    by rewrite (eqP Heq).
+Qed. 
+
+Lemma int_of_vg_sem_inj (a b : vgG) : int_of_vg_sem a = int_of_vg_sem b → a = b.
+Proof.
+  intros Heq. pose proof (int_of_vg_of_int_sem a) as Ha.
+  rewrite Heq int_of_vg_of_int_sem in Ha. by injection Ha.
+Qed.
+
+(* The decodable codes are exactly {0, .., #|G| - 1}: by [int_of_vg_sem_bound]
+   the injection [int_of_vg_sem] lands in that set, which has #|G| elements,
+   so it is onto. *)
+Lemma vg_of_int_sem_surj :
+  ∀ m : nat, (m < #|[set : vgG]|)%nat →
+    ∃ xg, vg_of_int_sem m = Some xg ∧ int_of_vg_sem xg = m.
+Proof.
+  intros m HmN.
+  have Hb : forall x : vgG, is_true (ssrnat.leq (S (int_of_vg_sem x)) (S (S n''))).
+  { intro x. apply/ssrnat.leP.
+    pose proof (int_of_vg_sem_bound x) as H1. rewrite vgG_card in H1. lia. }
+  pose (F := fun x : vgG => Ordinal (Hb x)).
+  have HFinj : ssrfun.injective F.
+  { intros a b HF. apply int_of_vg_sem_inj.
+    exact: (f_equal (@nat_of_ord (S (S n''))) HF). }
+  have Hcard : is_true (ssrnat.leq #|'I_(S (S n''))| #|vgG|).
+  { rewrite card_ord -cardsT vgG_card. by []. }
+  have Hm' : is_true (ssrnat.leq (S m) (S (S n''))).
+  { apply/ssrnat.leP. rewrite vgG_card in HmN. lia. }
+  move: (inj_card_onto HFinj Hcard (Ordinal Hm')) => Hcod.
+  case/codomP: Hcod => xg Hxg.
+  have Hv := f_equal (@nat_of_ord (S (S n''))) Hxg. simpl in Hv.
+  assert (Hint : int_of_vg_sem xg = m) by lia.
+  exists xg. split; [| exact Hint]. rewrite -Hint. apply int_of_vg_of_int_sem.
+Qed.
+
+Lemma vg_of_int_sem_inj :
+  ∀ m n : nat,
+    (m < #|[set : vgG]|)%nat →
+    (n < #|[set : vgG]|)%nat →
+    vg_of_int_sem m = vg_of_int_sem n →
+    m = n.
+Proof.
+Admitted.
 
 End facts.
 

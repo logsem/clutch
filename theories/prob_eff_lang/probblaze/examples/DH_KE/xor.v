@@ -5,8 +5,6 @@ primitive_laws proofmode
   spec_rules spec_ra 
   class_instances types.
 Set Default Proof Using "Type*".
-About Bij.
-About R.
 (*Local Close Scope R_scope.*)
 
 Class XOR {Key Support : nat} :=
@@ -52,6 +50,13 @@ Class XOR_spec `{!probblazeRGS Σ} `{XOR} :=
   *)  
   ; xor_sem_inverse_r : forall (x y : nat), x < S Key →
     y < S Support → xor_sem (xor_sem x y) y = x
+  (* Involutivity in the *message* slot.  Independent of [xor_sem_inverse_r]:
+     that one is involutivity of [xor_sem · y], this one of [xor_sem x ·].
+     Note this field, unlike [xor_sem_inverse_r], keeps [Key] and [Support]
+     independent: [xor_dom] already places [xor_sem x y] in the [Support]
+     range, which is exactly the slot it is fed back into. *)
+  ; xor_sem_invol : forall (x y : nat), x < S Key →
+    y < S Support → xor_sem x (xor_sem x y) = y
   }.
 
 Section xor_minus_mod.

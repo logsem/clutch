@@ -66,8 +66,26 @@ Section implementation.
               NONE => Protocol_Done "ideal" ("k" NONE)
             | SOME "cd" =>
                 let, ("cd0", "cd1") := "cd" in
-                let: "m" := if: "b" then (dec "x" "cd0") else (dec "x" "cd1") in
-                Protocol_Done "ideal" ("k" (SOME "m"))
+                let, ("c0", "d0") := "cd0" in 
+                let, ("c1", "d1") := "cd1" in
+                match: vg_of_int "c0" with
+                | NONE => Protocol_Done "ideal" ("k" NONE)
+                | SOME "c0" =>
+                    match: vg_of_int "d0" with
+                    | NONE => Protocol_Done "ideal" ("k" NONE)
+                    | SOME "d0" =>
+                        match: vg_of_int "c1" with
+                        | NONE => Protocol_Done "ideal" ("k" NONE)
+                        | SOME "c1" =>
+                            match: vg_of_int "d1" with
+                            | NONE => Protocol_Done "ideal" ("k" NONE)
+                            | SOME "d1" =>
+                                let: "m" := if: "b" then (dec "x" ("c0","d0")) else (dec "x" ("c1", "d1")) in
+                                Protocol_Done "ideal" ("k" (SOME "m"))
+                            end
+                        end
+                    end
+                end
             end
         end 
     | return "y" => "y" end.
@@ -100,8 +118,17 @@ Section implementation.
     λ: "doLeak" "x" "k",
       match: "x" with
       | InjL "b" => ("doLeak" alice) ;; "k" (if: "b" then !"l0" else !"l1")
-      | InjR "mm" => let, ("m0", "m1") := "mm" in (store_if_none "l0" "m0");; (store_if_none "l1" "m1");; 
-                                                  ("doLeak" bob);; "k" #()%V
+      | InjR "mm" => let, ("m0", "m1") := "mm" in
+                     match: vg_of_int "m0" with
+                     | NONE => "k" #()%V
+                     | SOME "m0" => 
+                         match: vg_of_int "m1" with
+                         | NONE => "k" #()%V
+                         | SOME "m1" =>
+                             (store_if_none "l0" "m0");; (store_if_none "l1" "m1");; 
+                             ("doLeak" bob);; "k" #()%V
+                         end
+                     end
       end.
 
   Definition simhandler : val :=
@@ -121,9 +148,25 @@ Section implementation.
               let, ("cd0","cd1") := "mm" in
               let, ("c0", "d0") := "cd0" in 
               let, ("c1", "d1") := "cd1" in
-              let, ("m0", "m1") := ("d0" · ("c0"^- "α0"),"d1" · ("c1"^- "α1")) in
-              ("doSender" ("m0","m1"));;
-              "k" #()%V
+               match: vg_of_int "c0" with
+                | NONE => "k" NONE
+                | SOME "c0" =>
+                    match: vg_of_int "d0" with
+                    | NONE => "k" NONE
+                    | SOME "d0" =>
+                        match: vg_of_int "c1" with
+                        | NONE => "k" NONE
+                        | SOME "c1" =>
+                            match: vg_of_int "d1" with
+                            | NONE => "k" NONE
+                            | SOME "d1" =>
+                                let, ("m0", "m1") := ("d0" · ("c0"^- "α0"),"d1" · ("c1"^- "α1")) in
+                                ("doSender" (int_of_vg "m0",int_of_vg "m1"));;
+                                "k" #()%V
+                            end
+                        end
+                    end
+               end
           end 
       end.
 

@@ -44,6 +44,6 @@ clean:
 	rm -f Makefile.coq.conf
 
 tar:
-	git archive --format=tar.gz -o coq-clutch.tar.gz HEAD
+	git archive --format=tar.gz -o Rocq-ClutchEff.tar.gz HEAD
 
 .PHONY: clean zip

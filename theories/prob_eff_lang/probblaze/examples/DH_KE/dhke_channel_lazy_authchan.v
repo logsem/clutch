@@ -316,7 +316,7 @@ Section handlee_verification.
                                               v2 ((λ: "m", do: c2 (Send "m")), (λ: "m", do: c2 (Recv "m")))%V 
                                               <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
     BREL F_AUTH f1 ≤ F_AUTH f2 <| ⊥ |> {{ λ v1 v2, 
-                                            (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option 𝔾)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
+                                            (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
   Proof with (repeat foldkont) using G. 
     iIntros "Hfraca Hfracb Hff". 
     
@@ -630,7 +630,7 @@ Section handlee_verification.
                                               v2 ((λ: "m", do: c2 (Send "m")), (λ: "m", do: c2 (Recv "m")))%V 
                                               <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
     BREL F_AUTH f1 ≤ F_AUTH f2 <| ⊥ |> {{ λ v1 v2, 
-                                            (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option 𝔾)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
+                                            (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
   Proof with (repeat foldkont) using G. 
     iIntros "Hfraca Hfracb Hff". 
     
@@ -943,7 +943,7 @@ Section handlee_verification.
                                               v2 ((λ: "m", do: c2 (Send "m")), (λ: "m", do: c2 (Recv "m")))%V 
                                               <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
     BREL F_AUTH f1 ≤ F_AUTH f2 <| ⊥ |> {{ λ v1 v2, 
-                                            (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option 𝔾)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
+                                            (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
   Proof with (repeat foldkont) using G. 
     iIntros "Hfraca Hfracb Hff". 
     

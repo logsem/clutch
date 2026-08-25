@@ -42,16 +42,8 @@ Section new_comp_verification.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg: @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
-  (* The group index [int_of_vg_sem g] is bounded by the group order
-     [#|[set : vgG]| = S (S n'')] (class field [int_of_vg_sem_bound] +
-     [vgG_card]); in particular it is [< S (S (S n''))]. *)
-  Lemma Bdd_int_vg : ∀ g : vgG, (int_of_vg_sem g < S (S (S n'')))%nat.
-  Proof using Type*.
-    intros g. pose proof (int_of_vg_sem_bound g) as Hb.
-    rewrite vgG_card in Hb. lia.
-  Qed.
-  Let Key := S (S n'').
-  Let Support := S (S n'').
+  Let Key := (S n'').
+  Let Support := (S n'').
   Variable xor_struct : XOR (Key := Key) (Support := Support).
   Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
 
@@ -67,11 +59,13 @@ Section new_comp_verification.
     (((𝔾 × (𝟙 + 𝟙)) -{ θ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ }-> Option 𝔾))%T.
   Definition oaleak (θ : sem_row Σ) : sem_ty Σ :=
     (((𝔾 × (𝟙 + 𝟙)) -{ θ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ }-> Option 𝟙))%T.
+  Definition aleak (θ : sem_row Σ) : sem_ty Σ :=
+    (((𝔾 × (𝟙 + 𝟙)) -{ θ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ }-> Option ℕ))%T.
   Definition leakI (θ : sem_row Σ) : sem_ty Σ :=
     (((𝟙 + 𝟙) -{ θ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ }-> Option 𝟙))%T.
   Definition gk (θ : sem_row Σ) : sem_ty Σ := ((𝟙 + 𝟙) -{ θ }-> Option 𝔾)%T.
   Definition cli (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝔾 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option 𝔾))%T.
+    ((ℕ -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option 𝔾))%T.
   (* the handler consuming an interface I, polymorphic over I's row *)
   Definition hdl (I : sem_row Σ -> sem_ty Σ) (θ : sem_row Σ) : sem_ty Σ :=
     (∀ᵣ θ', I θ' -{ sem_row_union θ' θ }-∘ 𝟙)%T.
@@ -97,7 +91,7 @@ Section new_comp_verification.
   Program Definition OASend (c1 c2 : label) : iThy Σ :=
     (λ e1 e2, λne Q,
       ∃ (m1 m2 dst1 dst2 : val),
-        𝔾 m1 m2 ∗ (𝟙 + 𝟙)%T dst1 dst2 ∗
+        𝔾%T m1 m2 ∗ (𝟙 + 𝟙)%T dst1 dst2 ∗
         ⌜ e1 = do: c1 (SendV (m1, dst1)) ⌝%E ∗
         ⌜ e2 = do: c2 (SendV (m2, dst2)) ⌝%E ∗
         □ (Q #()%V #()%V))%I.
@@ -187,8 +181,8 @@ Section new_comp_verification.
         + iRight. iExists a1, a2. iFrame "Hfr". do 2 (iSplit; [done|]).
           iModIntro. iSplit.
           * iExists NONEV, NONEV. do 2 (iSplit; [done|]). iExists _,_. iLeft. done.
-          * iIntros (m). iExists (SOMEV m), (SOMEV m). do 2 (iSplit; [done|]).
-            iExists _,_. iRight. iSplit; [done|]. iSplit; [done|]. iExists m. done.
+          * iIntros (m). iExists _, _. do 2 (iSplit; [done|]).
+            iExists _,_. iRight. iSplit; [done|]. iSplit; [done|]. iExists _. done.
         + iIntros "!>" (s1 s2) "(%v1&%v2&->&->&#Hopt)". iApply brel_value. iIntros "$ !>". done. }
     iDestruct ("Hff" $! (oachan_row chan1 chan2) with "Hops") as "Hfbrel".
     iApply brel_new_theory.
@@ -284,7 +278,7 @@ Section new_comp_verification.
      the leaked value and returns [!m1]/[!m2] to the client (the auth
      cross-over). *)
   Lemma F_AUTH_typed :
-    ⊢ sem_val_typed F_AUTH F_AUTH (τ__F chan chan).
+    ⊢ sem_val_typed F_AUTH F_AUTH (τ__F aleak chan).
   Proof using Type*.
     rewrite /sem_val_typed /τ__F //=.
     iModIntro. iIntros (θ).
@@ -964,7 +958,7 @@ Section new_comp_verification.
      effect): [SendSecure] payload 𝔾 (a group message) → result 𝟙;
      [RecvSecure] payload is the fixed [Recv bob] → result [Option 𝔾]. *)
   Program Definition SCSend (c1 c2 : label) : iThy Σ :=
-    (λ e1 e2, λne Q, ∃ m1 m2 : val, 𝔾 m1 m2 ∗
+    (λ e1 e2, λne Q, ∃ m1 m2 : val, ℕ%T m1 m2 ∗
       ⌜ e1 = do: c1 (SendV m1) ⌝%E ∗ ⌜ e2 = do: c2 (SendV m2) ⌝%E ∗ □ (Q #()%V #()%V))%I.
   Next Obligation. solve_proper. Qed.
   Program Definition SCRecv (c1 c2 : label) : iThy Σ :=
@@ -1007,11 +1001,11 @@ Section new_comp_verification.
     iApply (brel_int_of_vg_sem_correct_l _ [AppRCtx vg_of_int; AppLCtx #(int_of_vg_sem gk0); AppRCtx xor] gm).
     iApply (brel_int_of_vg_sem_correct_r _ [AppRCtx vg_of_int; AppLCtx #(int_of_vg_sem gk0); AppRCtx xor] gm).
     iApply (xor_correct_l _ [AppRCtx vg_of_int]);
-      [ rewrite /Key; eapply Nat.lt_le_trans; [apply Bdd_int_vg| lia]
-      | rewrite /Support; eapply Nat.lt_le_trans; [apply Bdd_int_vg| lia] | ].
+      [ rewrite -vgG_card; apply int_of_vg_sem_bound
+      | rewrite -vgG_card; apply int_of_vg_sem_bound | ].
     iApply (xor_correct_r _ [AppRCtx vg_of_int]);
-      [ rewrite /Key; eapply Nat.lt_le_trans; [apply Bdd_int_vg| lia]
-      | rewrite /Support; eapply Nat.lt_le_trans; [apply Bdd_int_vg| lia] | ].
+      [ rewrite -vgG_card; apply int_of_vg_sem_bound
+      | rewrite -vgG_card; apply int_of_vg_sem_bound | ].
     destruct (vg_of_int_sem (xor_sem (int_of_vg_sem gm) (int_of_vg_sem gk0))) as [mg|] eqn:Hvz.
     - iApply (brel_vg_of_int_correct_l _ [] _ _ _ _ mg Hvz).
       iApply (brel_vg_of_int_correct_r _ [] _ _ _ _ mg Hvz).
@@ -1080,11 +1074,27 @@ Section new_comp_verification.
     iDestruct "Hpayload" as "[HS|HR]".
     - (* SendSecure: store the message, [doGK], encrypt via [G_XOR], [doSend]. *)
       iDestruct "HS" as (m1 m2) "(#Hm & -> & -> & #HQ)".
-      iDestruct "Hm" as (gm) "(-> & ->)".
+      iDestruct "Hm" as (mz) "(-> & ->)".
       brel_pures; try (solve [apply Hk1; set_solver]); try (solve [apply Hk2; set_solver]).
       all: try iModIntro.
       iApply (brel_na_inv _ _ (nroot.@"scmsg")); [set_solver|]. iFrame "Hinv".
       iIntros "((%v1 & %v2 & Hlm & Hlms & #Hopt) & Hclose)".
+
+      (* Interpreting a group element from mz *)
+      destruct (vg_of_int_sem mz) as [gm|] eqn:Hmz .
+      2 : {
+        iApply brel_na_close. iFrame "Hclose". iSplitL "Hlm Hlms".
+        { iNext. iExists v1, v2. iFrame. done. }
+        iApply brel_vg_of_int_none_l; first done.
+        iApply brel_vg_of_int_none_r; first done.
+        brel_pures'. 
+        iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V));
+          [set_solver|done|by iApply "Hkont"|iApply "IH"]. }
+      
+      iApply (brel_vg_of_int_correct_l _ [CaseCtx _ _]); first done.
+      iApply (brel_vg_of_int_correct_r _ [CaseCtx _ _]); first done.
+      brel_pures'. 
+
       iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hlm"). iIntros "!> Hlm".
       iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hlms"). iIntros "Hlms".
       iDestruct "Hopt" as (w1 w2) "[(->&->&_)|(->&->&#Hgw)]".
@@ -1187,13 +1197,13 @@ Section new_comp_verification.
 
   (* [F_AUTH ∘f DH_SIM], in both value and open (sem_typed) presentations. *)
   Lemma F_AUTH_DH_SIM_typed_val :
-    ⊢ sem_val_typed (F_AUTH ∘f DH_SIM) (F_AUTH ∘f DH_SIM) (τ__F chan leakI).
+    ⊢ sem_val_typed (F_AUTH ∘f DH_SIM) (F_AUTH ∘f DH_SIM) (τ__F aleak leakI).
   Proof using Type*.
     iApply func_comp_typed; [iApply F_AUTH_typed | iApply DH_SIM_typed].
   Qed.
 
   Lemma F_AUTH_DH_SIM_typed :
-    ⊢ sem_typed [] (F_AUTH ∘f DH_SIM) (F_AUTH ∘f DH_SIM) ⊥ (τ__F chan leakI) [].
+    ⊢ sem_typed [] (F_AUTH ∘f DH_SIM) (F_AUTH ∘f DH_SIM) ⊥ (τ__F aleak leakI) [].
   Proof using Type*.
     iIntros (vs) "!# _". simpl. brel_pures'.
     iApply brel_value. iIntros "$ !>". iSplit; last done.
@@ -1339,19 +1349,23 @@ Section new_comp_verification.
       | effect (EffName "schannel") "payload", rec "k" as multi =>
         match: "payload" with
           | InjL "m" =>
-            match: !"message" with
-              | NONE => "message" <- SOME "m";;
-                     let: "key" := "doGK" (bob) in
-                     match: "key" with
-                     | NONE => "k" #()%V
-                     | SOME "x" =>
-                         match: G_XOR xor "m" "x" with
-                         | SOME "mg" => ("doSend" ("mg", bob));; "k" #()%V
-                         | NONE => "k" #()%V
-                         end
-                     end
-              | SOME "m" => "k" #()%V
-            end
+              match: vg_of_int "m" with
+              | NONE => "k" #()%V
+              | SOME "m" => 
+                  match: !"message" with
+                  | NONE => "message" <- SOME "m";;
+                            let: "key" := "doGK" (bob) in
+                            match: "key" with
+                            | NONE => "k" #()%V
+                            | SOME "x" =>
+                                match: G_XOR xor "m" "x" with
+                                | SOME "mg" => ("doSend" ("mg", bob));; "k" #()%V
+                                | NONE => "k" #()%V
+                                end
+                            end
+                  | SOME "m" => "k" #()%V
+                  end
+              end 
         | InjR <> =>
             let: "key" := "doGK" (alice) in
             match: "key" with
@@ -1564,8 +1578,8 @@ Section new_comp_verification.
     assert (Hf2' : (snd<$>vs) !! "f" = Some f2) by (rewrite lookup_fmap Hlf //).
     assert (Hc2' : (snd<$>vs) !! "ChanOp" = Some c2) by (rewrite lookup_fmap Hlc //).
     assert (Hd2' : (snd<$>vs) !! "doGK" = Some d2) by (rewrite lookup_fmap Hld //).
-    simpl; simplify_map_eq.
-    iApply (brel_wand _ _ _ (λ v1 v2 : val, 𝟙%T v1 v2) with "[-]"); last first.
+    simplify_map_eq.
+        iApply (brel_wand _ _ _ (λ v1 v2 : val, 𝟙%T v1 v2) with "[-]"); last first.
     { iModIntro. iIntros (v1 v2) "H". iFrame. }
     iDestruct "HChanOp" as (dsend1 dsend2 drecv1 drecv2) "(->&->&#Hsend&#Hrecv)".
     brel_pures'.
@@ -1614,9 +1628,23 @@ Section new_comp_verification.
     iDestruct "Hpayload" as "[HS|HR]".
     - (* SendSecure: store the message, [doGK], encrypt via [G_XOR], [doSend]. *)
       iDestruct "HS" as (m1 m2) "(#Hm & -> & -> & #HQ)".
-      iDestruct "Hm" as (gm) "(-> & ->)".
+      iDestruct "Hm" as (mz) "(-> & ->)".
       brel_pures; try (solve [apply Hk1; set_solver]); try (solve [apply Hk2; set_solver]).
       all: try iModIntro.
+
+      (* Interpreting a group element from mz *)
+      destruct (vg_of_int_sem mz) as [gm|] eqn:Hmz .
+      2 : {
+        iApply brel_vg_of_int_none_l; first done.
+        iApply brel_vg_of_int_none_r; first done.
+        brel_pures'. 
+        iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V));
+          [set_solver|done|by iApply "Hkont"|iApply "IH"]. }
+      
+      iApply brel_vg_of_int_correct_l; first done.
+      iApply brel_vg_of_int_correct_r; first done.
+      brel_pures'. 
+
       iApply (brel_na_inv _ _ (nroot.@"scmsg")); [set_solver|]. iFrame "Hinv".
       iIntros "((%v1 & %v2 & Hlm & Hlms & #Hopt) & Hclose)".
       iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hlm"). iIntros "!> Hlm".
