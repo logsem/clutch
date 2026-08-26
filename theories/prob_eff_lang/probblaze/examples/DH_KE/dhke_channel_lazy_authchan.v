@@ -120,32 +120,32 @@ Section handlee_verification.
   Program Definition SendBobImpl c1 c2 γtok γfrac γauth ι : iThy Σ :=
     λ e1 e2, (λne Q,
                 ∃ m m': vgG, ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (vgval m)) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
-                              (⌜ e1 = do: c1 (SendV (m, alice)) ⌝%E ∗
-                               ⌜ e2 = do: c2 (SendV (m', alice)) ⌝%E)  ∗ 
+                              (⌜ e1 = do: c1 (m, alice)%V ⌝%E ∗
+                               ⌜ e2 = do: c2 (m', alice)%V ⌝%E)  ∗ 
                               □ (Q (Val #()%V) (Val #()%V)))
              )%I.
   Next Obligation. solve_proper. Qed.
 
   Program Definition RecvAliceImplL c1 c2 γauth : iThy Σ :=
     λ e1 e2, (λne Q,
-                ⌜ e1 = do: c1 (RecvV alice) ⌝%E ∗
-                ⌜ e2 = do: c2 (RecvV alice) ⌝%E ∗
+                ⌜ e1 = do: c1 alice ⌝%E ∗
+                ⌜ e2 = do: c2 alice ⌝%E ∗
                 □ (Q NONEV NONEV ∗ (∀ (l : loc) (m : nat), (own γauth (to_dfrac_agree DfracDiscarded (#l, #m)%V) ∗ l ↦□ SOMEV #m) -∗ Q (SOMEV (vgval (g ^+ m)%g)) (SOMEV (vgval (g ^+ m)%g))))
              )%I.
   Next Obligation. solve_proper. Qed.
 
   Program Definition RecvAliceImplR c1 c2 γauth : iThy Σ :=
     λ e1 e2, (λne Q,
-                ⌜ e1 = do: c1 (RecvV alice) ⌝%E ∗
-                ⌜ e2 = do: c2 (RecvV alice) ⌝%E ∗
+                ⌜ e1 = do: c1 alice ⌝%E ∗
+                ⌜ e2 = do: c2 alice ⌝%E ∗
                 □ (Q NONEV NONEV ∗ (∀ (l : loc) (m : nat), (own γauth (to_dfrac_agree DfracDiscarded (#l, #m)%V) ∗ l ↦ₛ□ SOMEV #m) -∗ Q (SOMEV (vgval (g ^+ m)%g)) (SOMEV (vgval (g ^+ m)%g))))
              )%I.
   Next Obligation. solve_proper. Qed.
 
   Program Definition RecvAliceImpl c1 c2 γauth : iThy Σ :=
     λ e1 e2, (λne Q,
-                ⌜ e1 = do: c1 (RecvV alice) ⌝%E ∗
-                ⌜ e2 = do: c2 (RecvV alice) ⌝%E ∗
+                ⌜ e1 = do: c1 alice ⌝%E ∗
+                ⌜ e2 = do: c2 alice ⌝%E ∗
                 □ (Q NONEV NONEV ∗ (∀ m, (own γauth (to_dfrac_agree DfracDiscarded m)) -∗ Q (SOMEV m) (SOMEV m)))
              )%I.
   Next Obligation. solve_proper. Qed.
@@ -154,8 +154,8 @@ Section handlee_verification.
     λ e1 e2, (λne Q,
                 ∃ (l : loc) (m m' : nat), ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (#l, #m)%V)
                                                                                                             ∗ l ↦□ SOMEV #m ∗ ⌜(g ^+ m)%g = (g ^+ m')%g⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
-                                           (⌜ e1 = do: c1 (SendV (vgval (g ^+ m)%g, bob)) ⌝%E ∗
-                                            ⌜ e2 = do: c2 (SendV (vgval (g ^+ m')%g, bob)) ⌝%E)  ∗ 
+                                           (⌜ e1 = do: c1 (vgval (g ^+ m)%g, bob)%V ⌝%E ∗
+                                            ⌜ e2 = do: c2 (vgval (g ^+ m')%g, bob)%V ⌝%E)  ∗ 
                                            □ (Q (Val #()%V) (Val #()%V)))
              )%I.
   Next Obligation. solve_proper. Qed.
@@ -165,8 +165,8 @@ Section handlee_verification.
     λ e1 e2, (λne Q,
                 ∃ (l : loc) (m m' : nat), ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (#l, #m)%V)
                                                                                                             ∗ l ↦ₛ□ SOMEV #m ∗ ⌜(g ^+ m)%g = (g ^+ m')%g⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
-                                           (⌜ e1 = do: c1 (SendV (vgval (g ^+ m)%g, bob)) ⌝%E ∗
-                                            ⌜ e2 = do: c2 (SendV (vgval (g ^+ m')%g, bob)) ⌝%E)  ∗ 
+                                           (⌜ e1 = do: c1 (vgval (g ^+ m)%g, bob)%V ⌝%E ∗
+                                            ⌜ e2 = do: c2 (vgval (g ^+ m')%g, bob)%V ⌝%E)  ∗ 
                                            □ (Q (Val #()%V) (Val #()%V)))
              )%I.
   Next Obligation. solve_proper. Qed.
@@ -174,8 +174,8 @@ Section handlee_verification.
   Program Definition SendAliceImpl c1 c2 γtok γfrac γauth ι : iThy Σ :=
     λ e1 e2, (λne Q,
                 ∃ (m m' : vgG), ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (vgval m%g)) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
-                                 (⌜ e1 = do: c1 (SendV (m, bob)) ⌝%E ∗
-                                  ⌜ e2 = do: c2 (SendV (m', bob)) ⌝%E)  ∗ 
+                                 (⌜ e1 = do: c1 (m, bob)%V ⌝%E ∗
+                                  ⌜ e2 = do: c2 (m', bob)%V ⌝%E)  ∗ 
                                  □ (Q (Val #()%V) (Val #()%V)))
              )%I.
   Next Obligation. solve_proper. Qed.
@@ -183,8 +183,8 @@ Section handlee_verification.
 
   Program Definition RecvBobImpl c1 c2 γauth : iThy Σ :=
     λ e1 e2, (λne Q,
-                ⌜ e1 = do: c1 (RecvV bob) ⌝%E ∗
-                ⌜ e2 = do: c2 (RecvV bob) ⌝%E ∗
+                ⌜ e1 = do: c1 bob ⌝%E ∗
+                ⌜ e2 = do: c2 bob ⌝%E ∗
                 □ (Q NONEV NONEV ∗ (∀ m, own γauth (to_dfrac_agree DfracDiscarded m) -∗ Q (SOMEV m) (SOMEV m)))
              )%I.
   Next Obligation. solve_proper. Qed. 
@@ -235,11 +235,65 @@ Section handlee_verification.
     repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
   Qed. 
   
-  Program Definition authchan_mono c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
-    {| pmono_prot_car := (iThySum (iThySum (SendAliceImpl c1 c2 γtoka γfraca γautha atokN) (RecvBobImpl c1 c2 γauthb))
-                            (iThySum (SendBobImpl c1 c2 γtokb γfracb γauthb btokN) (RecvAliceImpl c1 c2 γautha))); pmono_prot_prop := _|}.
+  Program Definition send_mono send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb :=
+    {| pmono_prot_car := iThySum (SendAliceImpl send1 send2 γtoka γfraca γautha atokN) (SendBobImpl send1 send2 γtokb γfracb γauthb btokN); pmono_prot_prop := _|}.
   Next Obligation.
     intros ??????????. 
+    iIntros (????) "#HΦ [H|H]".
+    1 : iLeft. 2: iRight.
+    all : iDestruct "H" as (??) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
+  Qed.   
+
+  Program Definition send_monoL send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb :=
+    {| pmono_prot_car := iThySum (SendAliceImplL send1 send2 γtoka γfraca γautha atokN) (SendBobImpl send1 send2 γtokb γfracb γauthb btokN); pmono_prot_prop := _|}.
+  Next Obligation.
+    intros ??????????. 
+    iIntros (????) "#HΦ [H|H]".
+    - iLeft; iDestruct "H" as (???) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
+    - iRight; iDestruct "H" as (??) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
+  Qed.   
+
+  Program Definition send_monoR send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb :=
+    {| pmono_prot_car := iThySum (SendAliceImplR send1 send2 γtoka γfraca γautha atokN) (SendBobImpl send1 send2 γtokb γfracb γauthb btokN); pmono_prot_prop := _|}.
+  Next Obligation.
+    intros ??????????. 
+    iIntros (????) "#HΦ [H|H]".
+    - iLeft; iDestruct "H" as (???) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
+    - iRight; iDestruct "H" as (??) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
+  Qed.   
+
+  Program Definition recv_mono recv1 recv2 γautha γauthb :=
+    {| pmono_prot_car := iThySum (RecvAliceImpl recv1 recv2 γautha) (RecvBobImpl recv1 recv2 γauthb); pmono_prot_prop := _|}.
+  Next Obligation.
+    intros ????. 
+    iIntros (????) "#HΦ [H|H]".
+    1 : iLeft. 2: iRight.
+    all : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (m) "#H"); iApply "HΦ"; try iApply ("H2" $! m); done.
+  Qed.   
+
+  Program Definition recv_monoL recv1 recv2 γautha γauthb :=
+    {| pmono_prot_car := iThySum (RecvAliceImplL recv1 recv2 γautha) (RecvBobImpl recv1 recv2 γauthb); pmono_prot_prop := _|}.
+  Next Obligation.
+    intros ????. 
+    iIntros (????) "#HΦ [H|H]".
+    - iLeft; iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (l m) "#H"); iApply "HΦ"; try iApply ("H2" $! l m); done.
+    - iRight; iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (m) "#H"); iApply "HΦ"; try iApply ("H2" $! m); done.
+  Qed.   
+
+  Program Definition recv_monoR recv1 recv2 γautha γauthb :=
+    {| pmono_prot_car := iThySum (RecvAliceImplR recv1 recv2 γautha) (RecvBobImpl recv1 recv2 γauthb); pmono_prot_prop := _|}.
+  Next Obligation.
+    intros ????. 
+    iIntros (????) "#HΦ [H|H]".
+    - iLeft; iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (l m) "#H"); iApply "HΦ"; try iApply ("H2" $! l m); done.
+    - iRight; iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (m) "#H"); iApply "HΦ"; try iApply ("H2" $! m); done.
+  Qed.   
+
+  Program Definition authchan_mono send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
+    {| pmono_prot_car := (iThySum (iThySum (SendAliceImpl send1 send2 γtoka γfraca γautha atokN) (RecvBobImpl recv1 recv2 γauthb))
+                            (iThySum (SendBobImpl send1 send2 γtokb γfracb γauthb btokN) (RecvAliceImpl recv1 recv2 γautha))); pmono_prot_prop := _|}.
+  Next Obligation.
+    intros ????????????. 
     iIntros (????) "#HΦ [[H| H]|[H|H]]".
     1 : iLeft;iLeft. 2: iLeft; iRight.
     3 : iRight;iLeft. 4: iRight;iRight.
@@ -247,11 +301,11 @@ Section handlee_verification.
     all : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (m) "#H"); iApply "HΦ"; try iApply ("H2" $! m); done.
   Qed.   
 
-  Program Definition authchan_monoL c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
-    {| pmono_prot_car := (iThySum (iThySum (SendAliceImplL c1 c2 γtoka γfraca γautha atokN) (RecvBobImpl c1 c2 γauthb))
-                            (iThySum (SendBobImpl c1 c2 γtokb γfracb γauthb btokN) (RecvAliceImplL c1 c2 γautha))); pmono_prot_prop := _|}.
+  Program Definition authchan_monoL send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
+    {| pmono_prot_car := (iThySum (iThySum (SendAliceImplL send1 send2 γtoka γfraca γautha atokN) (RecvBobImpl recv1 recv2 γauthb))
+                            (iThySum (SendBobImpl send1 send2 γtokb γfracb γauthb btokN) (RecvAliceImplL recv1 recv2 γautha))); pmono_prot_prop := _|}.
   Next Obligation.
-    intros ??????????. 
+    intros ????????????. 
     iIntros (????) "#HΦ [[H| H]|[H|H]]".
     1 : iLeft;iLeft. 2: iLeft; iRight.
     3 : iRight;iLeft. 4: iRight;iRight.
@@ -261,11 +315,11 @@ Section handlee_verification.
     1 : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (l m) "#H"); iApply "HΦ"; try iApply ("H2" $! l m); done.
   Qed.   
 
-  Program Definition authchan_monoR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
-    {| pmono_prot_car := (iThySum (iThySum (SendAliceImplR c1 c2 γtoka γfraca γautha atokN) (RecvBobImpl c1 c2 γauthb))
-                            (iThySum (SendBobImpl c1 c2 γtokb γfracb γauthb btokN) (RecvAliceImplR c1 c2 γautha))); pmono_prot_prop := _|}.
+  Program Definition authchan_monoR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
+    {| pmono_prot_car := (iThySum (iThySum (SendAliceImplR send1 send2 γtoka γfraca γautha atokN) (RecvBobImpl recv1 recv2 γauthb))
+                            (iThySum (SendBobImpl send1 send2 γtokb γfracb γauthb btokN) (RecvAliceImplR recv1 recv2 γautha))); pmono_prot_prop := _|}.
   Next Obligation.
-    intros ??????????. 
+    intros ????????????. 
     iIntros (????) "#HΦ [[H| H]|[H|H]]".
     1 : iLeft;iLeft. 2: iLeft; iRight.
     3 : iRight;iLeft. 4: iRight;iRight.
@@ -275,8 +329,60 @@ Section handlee_verification.
     1 : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (l m) "#H"); iApply "HΦ"; try iApply ("H2" $! l m); done.
   Qed. 
 
-  Definition authchan (c1 c2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_mono c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (c1, c2).
-  Program Definition authchan_row c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := SemRow [([c1],[c2], authchan c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
+  Definition sendsig  (send1 send2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
+    @SemSig Σ (send_mono send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (send1, send2).
+  Definition recvsig  (recv1 recv2 : label) γautha γauthb := @SemSig Σ (recv_mono recv1 recv2 γautha γauthb) (recv1, recv2).
+  Definition sendsigL  (send1 send2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
+    @SemSig Σ (send_monoL send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (send1, send2).
+  Definition recvsigL  (recv1 recv2 : label) γautha γauthb := @SemSig Σ (recv_monoL recv1 recv2 γautha γauthb) (recv1, recv2).
+  Definition sendsigR  (send1 send2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
+    @SemSig Σ (send_monoR send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (send1, send2).
+  Definition recvsigR  (recv1 recv2 : label) γautha γauthb := @SemSig Σ (recv_monoR recv1 recv2 γautha γauthb) (recv1, recv2).
+
+  Program Definition chan_row send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
+    SemRow [
+        ([recv1],[recv2],recvsig recv1 recv2 γautha γauthb);
+        ([send1],[send2], sendsig send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
+  Next Obligation.
+    intros ????????????.
+    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
+    iExists _,_,_,_,_. 
+    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
+  Qed. 
+
+  Program Definition chan_rowL send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
+    SemRow [
+        ([recv1],[recv2], recvsigL recv1 recv2 γautha γauthb);
+        ([send1],[send2], sendsigL send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
+  Next Obligation.
+    intros ????????????.
+    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
+    iExists _,_,_,_,_. 
+    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
+  Qed. 
+
+  Program Definition chan_rowR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
+    SemRow [
+        ([recv1],[recv2],recvsigR recv1 recv2 γautha γauthb);
+        ([send1],[send2], sendsigR send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
+  Next Obligation.
+    intros ????????????.
+    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
+    iExists _,_,_,_,_. 
+    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
+  Qed. 
+
+  (* Definition authchan (send1 send2 recv1 recv2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_mono send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (c1, c2).
+     Program Definition authchan_row send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := SemRow [([c1],[c2], authchan send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
+     Next Obligation.
+       intros ??????????.
+       iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
+       iExists _,_,_,_,_. 
+       repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
+     Qed. 
+
+  Definition authchanL (send1 send2 recv1 recv2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_monoL send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (c1, c2).
+  Program Definition authchan_rowL send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := SemRow [([c1],[c2], authchanL send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
   Next Obligation.
     intros ??????????.
     iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
@@ -284,23 +390,14 @@ Section handlee_verification.
     repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
   Qed. 
 
-  Definition authchanL (c1 c2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_monoL c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (c1, c2).
-  Program Definition authchan_rowL c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := SemRow [([c1],[c2], authchanL c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
+  Definition authchanR (send1 send2 recv1 recv2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_monoR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (c1, c2).
+  Program Definition authchan_rowR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := SemRow [([c1],[c2], authchanR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
   Next Obligation.
     intros ??????????.
     iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
     iExists _,_,_,_,_. 
     repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
-  Qed. 
-
-  Definition authchanR (c1 c2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_monoR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (c1, c2).
-  Program Definition authchan_rowR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := SemRow [([c1],[c2], authchanR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
-  Next Obligation.
-    intros ??????????.
-    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_. 
-    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
-  Qed. 
+  Qed. *)
 
   (* Verification of F_AUTH ≤ F_AUTH *)
   (*------------------------------------------------------------*)
@@ -309,9 +406,9 @@ Section handlee_verification.
     own γfraca (DfracOwn 1) -∗
     own γfracb (DfracOwn 1) -∗
     BREL f1 ≤ f2 <|⊥|> {{λ v1 v2, 
-                           ∀ c1 c2 : label, let ac := authchan_rowL c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
-                                            BREL v1 ((λ: "m", do: c1 (Send "m")), (λ: "m", do: c1 (Recv "m")))%V ≤
-                                              v2 ((λ: "m", do: c2 (Send "m")), (λ: "m", do: c2 (Recv "m")))%V 
+                           ∀ send1 send2 recv1 recv2 : label, let ac := chan_rowL send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
+                                            BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
+                                              v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V 
                                               <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
     BREL F_AUTH f1 ≤ F_AUTH f2 <| ⊥ |> {{ λ v1 v2, 
                                             (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
@@ -356,10 +453,11 @@ Section handlee_verification.
     iSplitL "Hl2 Hl2s Hfracb"; [iNext; iLeft; iFrame|].
     iIntros "#Hinvb".
     
-    iApply brel_effect_l. iIntros (chan1) "!> Hchan1".
-    iApply brel_effect_r. iModIntro. iIntros (chan2) "Hchan2 !>".
-    iSpecialize ("Hff" $! chan1 chan2).
-    
+    iApply brel_effect_l. iIntros (sendlabel1) "!> Hsend1".
+    iApply brel_effect_r. iModIntro. iIntros (sendlabel2) "Hsend2 !>".
+    iApply brel_effect_l. iIntros (recvlabel1) "!> Hrecv1".
+    iApply brel_effect_r. iModIntro. iIntros (recvlabel2) "Hrecv2 !>".
+    iSpecialize ("Hff" $! sendlabel1 sendlabel2 recvlabel1 recvlabel2).
     brel_pures'.
     
     (* unfold sem_ty_arr. 
@@ -389,130 +487,89 @@ Section handlee_verification.
                 
        
             admit. } *)
-    
+
     iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hchan1").
-    iApply (brel_add_label_r with "Hchan2").
+    iApply (brel_add_label_l with "Hsend1").
+    iApply (brel_add_label_r with "Hsend2").
+
+    iApply brel_new_theory.
+    iApply (brel_add_label_l with "Hrecv1").
+    iApply (brel_add_label_r with "Hrecv2").
     
-    iApply (brel_exhaustion _ _ [_] [_] with "[Hff]"); [done|done| |].
-    { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'. apply submseteq_skip. rewrite iLblSig_to_iLblThy_app. 
-      by apply submseteq_inserts_l. }
-    iLöb as "IH".
-    iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-    iIntros (?????) "!# %Hk1 %Hk2 [[(%&%&%&Hupd&(->&->)&#HQ) | (->&->&#(HNone & HSome))]| [(%&%&Hupd&(->&->)&#HQ) | (->&->&#(HNone & HSome))]] #Hkont".
+    (* Peel the outer (recv) handler.  This leaves two goals: the send-handled
+       body -- where the inner (send) handler is peeled in turn -- and the
+       value/effect cases of the recv handler itself.  R has to be given
+       explicitly, otherwise it stays an evar until the recv branch. *)
+    iApply (brel_exhaustion _ _ [_] [_] _ _ _ (λ w1 w2, 𝟙%T w1 w2) with "[Hff]"); [done|done| |].
+
+    (* SEND *)
+    (*------------------------------------------------------------*)
     1 : {
-      iApply (brel_na_inv _ _ alphaN ); [set_solver|].
-      iFrame "Hinva". 
-      iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%la & %a & #Hl1 & #Hl1s & Htoka & #Hfraca & #Hautha & #Hla)] & Hclose)".
-      - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
-        2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
-        iMod (dfrac_persist with "Hfraca") as "#Hfraca".
-        iMod ("Hupd" with "Hfraca") as "(Htok & Hauth & #Hla & <-)".
-        iModIntro.
-        brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
-        iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "!> Hl1".
-        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl1s"). iIntros "Hl1s".
-        brel_pures.
-        iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1".
-        iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl1s"). iIntros "Hl1s".
-        brel_pures.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
-          by apply submseteq_inserts_r. }
-        
-        iApply fupd_brel.
-        iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
-        iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
-        iModIntro.
-        iApply brel_na_close. iFrame.
-        iSplitL "Htok Hauth"; [iNext; iRight; iExists _, _; iFrame "#"; iFrame|].
-        
-        iAssert (sem_val_typed (_, bob)%V (_,bob)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
-        { iModIntro. iExists _,_,_,_. 
-          repeat (iSplit; first done). 
-          iSplit; first (iExists (g ^+ m)%g; done).
-          iExists _,_. iLeft. done. }
-        unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
-        unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
-        iDestruct ("Hsend" with "Hmm") as "Hsend1". 
-        iApply (brel_wand with "[$Hsend1]").
-        iIntros (??) "!# (->&->)".
-        brel_pures'.
-        
-        (* iApply brel_introduction'. { apply list_elem_of_further. apply list_elem_of_here. }
-           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-           iLeft. iRight.
-           iExists _.
-           do 2 (iSplit; try (iPureIntro; done)).
-           iModIntro.
-           iApply brel_value. iIntros "$ !>".
-           brel_pures. *)
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IH".
-        
-      - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
-        1 : { iMod ("Hupd" with "Hfraca") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
-        iApply brel_na_close. iFrame.
-        iSplitL "Htoka"; [iNext; iRight; iExists _,_; iFrame; iFrame "#"|].
-        brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
-        iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$Hl1]"). iIntros "!> _".
-        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "_".
-        brel_pures.
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        
-        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done| done|]. iApply "IH". }
-    
-    1 : { brel_pures; [apply Hk1|apply Hk2|]; try set_solver...
-          iApply (brel_bind [_] [_]); [iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
-            by apply submseteq_inserts_r. }
-          
-          iAssert (sem_val_typed (bob)%V (bob)%V ((𝟙 + 𝟙))%T) as "Hbob".
-          { iModIntro. iExists _,_. iLeft. done. }
-          unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hrecv" as "#Hrecv".
-          unfold sem_val_typed. simpl. iDestruct "Hbob" as "#Hbob".
-          iDestruct ("Hrecv" with "Hbob") as "Hrecv1". 
-          iApply (brel_wand with "[$Hrecv1]").
-          iIntros (??) "!# (%&%&[(->&->&->&->)|(->&->&_)])"; brel_pures'.
-          (* iIntros (??) "!# (->&->)".
-             brel_pures'.
-             
-             iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here|].
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iRight. iRight. do 2 (iSplit; try (iPureIntro; done)).
-             iModIntro.
-             iSplit; last first. *)
-          
-          + iDestruct ("Hkont" with "HNone") as "Hbrel".
-            iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IH".
-            
-          + iApply (brel_na_inv _ _ betaN); [set_solver|].
-            iFrame "Hinvb". 
-            iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%gB & #Hl2 & #Hl2s & Htokb & #Hfracb & #Hauthb)] & Hclose)".
-            * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> Hl2".
-              iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "Hl2s".
+      (* brel_exhaustion consumes the head of the row, so bring send to the front. *)
+      iApply brel_introduction_mono; first (iApply to_iThy_le_intro'; apply submseteq_swap).
+      iApply (brel_exhaustion _ _ [_] [_] with "[Hff]"); [done|done| |].
+      { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'.
+        etrans; [apply submseteq_swap|]. do 2 apply submseteq_skip.
+        rewrite iLblSig_to_iLblThy_app. by apply submseteq_inserts_l. }
+      iLöb as "IHsend".
+      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+      iIntros (?????) "!# %Hk1 %Hk2 [(%&%&%&Hupd&(->&->)&#HQ) | (%&%&Hupd&(->&->)&#HQ)] #Hkont".
+
+      (* SendAliceImplL : Alice sends to Bob, stored in l1 *)
+      1 : { iApply (brel_na_inv _ _ alphaN ); [set_solver|].
+            iFrame "Hinva".
+            iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%la & %a & #Hl1 & #Hl1s & Htoka & #Hfraca & #Hautha & #Hla)] & Hclose)".
+            - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
+              2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
+              iMod (dfrac_persist with "Hfraca") as "#Hfraca".
+              iMod ("Hupd" with "Hfraca") as "(Htok & Hauth & #Hla & <-)".
+              iModIntro.
+              brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+              iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "!> Hl1".
+              iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl1s"). iIntros "Hl1s".
               brel_pures.
-              iApply brel_na_close. iFrame. iSplitL; [iLeft; iFrame|].
-              iDestruct ("Hkont" with "HNone") as "Hbrel".
-              
-              (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-              
-            * iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"; iFrame|].
-              iApply (brel_load_l with "[$]"). iIntros "!> _".
-              iApply (brel_load_r with "Hl2s"). iIntros "_". 
+              iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1".
+              iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl1s"). iIntros "Hl1s".
               brel_pures.
-              iDestruct ("HSome" with "Hauthb") as "HS".
-              iDestruct ("Hkont" with "HS") as "Hbrel".
-              
-              (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH". }
-    
-    1 : {
+              iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+              { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+                by apply submseteq_inserts_r. }
+
+              iApply fupd_brel.
+              iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
+              iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
+              iModIntro.
+              iApply brel_na_close. iFrame.
+              iSplitL "Htok Hauth"; [iNext; iRight; iExists _, _; iFrame "#"; iFrame|].
+
+              iAssert (sem_val_typed (_, bob)%V (_,bob)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
+              { iModIntro. iExists _,_,_,_.
+                repeat (iSplit; first done).
+                iSplit; first (iExists (g ^+ m)%g; done).
+                iExists _,_. iLeft. done. }
+              unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
+              unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
+              iDestruct ("Hsend" with "Hmm") as "Hsend1".
+              iApply (brel_wand with "[$Hsend1]").
+              iIntros (??) "!# (->&->)".
+              brel_pures'.
+              iDestruct ("Hkont" with "HQ") as "Hbrel".
+              iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IHsend".
+
+            - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
+              1 : { iMod ("Hupd" with "Hfraca") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
+              iApply brel_na_close. iFrame.
+              iSplitL "Htoka"; [iNext; iRight; iExists _,_; iFrame; iFrame "#"|].
+              brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+              iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$Hl1]"). iIntros "!> _".
+              iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$Hl1s]"). iIntros "_".
+              brel_pures.
+              iDestruct ("Hkont" with "HQ") as "Hbrel".
+              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done| done|]. iApply "IHsend". }
+
+      (* SendBobImpl : Bob sends to Alice, stored in l2 *)
       iApply (brel_na_inv _ _ betaN ); [set_solver|].
-      iFrame "Hinvb". 
+      iFrame "Hinvb".
       iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%gB & #Hl2 & #Hl2s & Htokb & #Hfracb & #Hauthb)] & Hclose)".
       - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
         2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
@@ -527,40 +584,29 @@ Section handlee_verification.
         iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl2s"). iIntros "Hl2s".
         brel_pures.
         iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
+        { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
           by apply submseteq_inserts_r. }
-        
+
         iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hl2s") as "#Hl2s".
         iMod (ghost_map_elem_persist with "Hl2") as "#Hl2".
         iModIntro.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
-        
+
         iAssert (sem_val_typed (m, alice)%V (m,alice)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
-        { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
+        { iModIntro. iExists _,_,_,_. repeat (iSplit; first done).
           iSplit; first (iExists _; done).
           iExists _,_. iRight. done. }
         unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
         unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
-        iDestruct ("Hsend" with "Hmm") as "Hsend1". 
+        iDestruct ("Hsend" with "Hmm") as "Hsend1".
         iApply (brel_wand with "[$Hsend1]").
         iIntros (??) "!# (->&->)".
         brel_pures'.
-        
-        (* iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here| ].
-           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-           iLeft. iLeft.
-           iExists _.
-           do 2 (iSplit; try (iPureIntro; done)).
-           iModIntro.
-           iApply brel_value. iIntros "$ !>".
-           brel_pures. *)
-        
         iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-        
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHsend".
+
       - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
         1 : { iMod ("Hupd" with "Hfracb") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
         iApply brel_na_close. iFrame.
@@ -570,62 +616,100 @@ Section handlee_verification.
         iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "_".
         brel_pures.
         iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH". }
-    
-    1 : { brel_pures; [apply Hk1| apply Hk2|]; try set_solver.
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHsend". }
+
+    (* RECV *)
+    (*------------------------------------------------------------*)
+    iLöb as "IHrecv".
+    iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+    iIntros (?????) "!# %Hk1 %Hk2 [(->&->&#(HNone & HSome)) | (->&->&#(HNone & HSome))] #Hkont".
+
+    (* RecvAliceImplL : receive from Alice, i.e. read l1 *)
+    1 : { brel_pures; [apply Hk1| apply Hk2|]; try set_solver...
           iApply (brel_bind [_] [_]); [by iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
+          { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
             by apply submseteq_inserts_r. }
-          
+
           iAssert (sem_val_typed (alice)%V (alice)%V ((𝟙 + 𝟙))%T) as "Halice".
           { iModIntro. iExists _,_. iRight. done. }
           unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hrecv" as "#Hrecv".
           unfold sem_val_typed. simpl. iDestruct "Halice" as "#Halice".
-          iDestruct ("Hrecv" with "Halice") as "Hrecv1". 
+          iDestruct ("Hrecv" with "Halice") as "Hrecv1".
           iApply (brel_wand with "[$Hrecv1]").
           iIntros (??) "!# (%&%&[(->&->&->&->)|(->&->&_)])"; brel_pures'.
-          
-          
-          (* iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here|].
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iRight. iLeft. do 2 (iSplit; try (iPureIntro; done)).
-             iModIntro.
-             iSplit; last first. *)
-          
+
           + iDestruct ("Hkont" with "HNone") as "Hbrel".
-            iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-            
+            iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
           + iApply (brel_na_inv _ _ alphaN); [set_solver|].
-            iFrame "#". 
+            iFrame "#".
             iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%la & %a & #Hl1 & #Hl1s & Htoka & #Hfraca & #Hautha & #Hla)] & Hclose)".
             * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> Hl1".
               iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "Hl1s".
               brel_pures.
               iApply brel_na_close. iFrame. iSplitL; [iLeft; iFrame|].
               iDestruct ("Hkont" with "HNone") as "Hbrel".
-              
+
               (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-              
+              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
             * iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"; iFrame|].
               iApply (brel_load_l with "Hl1"). iIntros "!> _".
-              iApply (brel_load_r with "Hl1s"). iIntros "_". 
+              iApply (brel_load_r with "Hl1s"). iIntros "_".
               brel_pures.
               iDestruct ("HSome" with "[$Hautha $Hla]") as "HS".
               iDestruct ("Hkont" with "HS") as "Hbrel".
-              
+
               (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH". } 
+              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv". }
+
+    (* RecvBobImpl : receive from Bob, i.e. read l2 *)
+    brel_pures; [apply Hk1|apply Hk2|]; try set_solver...
+    iApply (brel_bind [_] [_]); [iApply traversable_to_iThy| |].
+    { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+      by apply submseteq_inserts_r. }
+
+    iAssert (sem_val_typed (bob)%V (bob)%V ((𝟙 + 𝟙))%T) as "Hbob".
+    { iModIntro. iExists _,_. iLeft. done. }
+    unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hrecv" as "#Hrecv".
+    unfold sem_val_typed. simpl. iDestruct "Hbob" as "#Hbob".
+    iDestruct ("Hrecv" with "Hbob") as "Hrecv1".
+    iApply (brel_wand with "[$Hrecv1]").
+    iIntros (??) "!# (%&%&[(->&->&->&->)|(->&->&_)])"; brel_pures'.
+
+    + iDestruct ("Hkont" with "HNone") as "Hbrel".
+      iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
+    + iApply (brel_na_inv _ _ betaN); [set_solver|].
+      iFrame "Hinvb".
+      iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%gB & #Hl2 & #Hl2s & Htokb & #Hfracb & #Hauthb)] & Hclose)".
+      * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> Hl2".
+        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "Hl2s".
+        brel_pures.
+        iApply brel_na_close. iFrame. iSplitL; [iLeft; iFrame|].
+        iDestruct ("Hkont" with "HNone") as "Hbrel".
+
+        (* First call is done. Can call getKey1 or getKey2 again. *)
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
+      * iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"; iFrame|].
+        iApply (brel_load_l with "[$]"). iIntros "!> _".
+        iApply (brel_load_r with "Hl2s"). iIntros "_".
+        brel_pures.
+        iDestruct ("HSome" with "Hauthb") as "HS".
+        iDestruct ("Hkont" with "HS") as "Hbrel".
+
+        (* First call is done. Can call getKey1 or getKey2 again. *)
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
   Qed.
 
   Lemma F_AUTH_F_AUTHR (f1 f2 : expr) γtoka γtokb γfraca γfracb γautha γauthb (L : sem_row Σ) :
     own γfraca (DfracOwn 1) -∗
     own γfracb (DfracOwn 1) -∗
     BREL f1 ≤ f2 <|⊥|> {{λ v1 v2, 
-                           ∀ c1 c2 : label, let ac := authchan_rowR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
-                                            BREL v1 ((λ: "m", do: c1 (Send "m")), (λ: "m", do: c1 (Recv "m")))%V ≤
-                                              v2 ((λ: "m", do: c2 (Send "m")), (λ: "m", do: c2 (Recv "m")))%V 
+                           ∀ send1 send2 recv1 recv2 : label, let ac := chan_rowR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
+                                            BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
+                                              v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V 
                                               <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
     BREL F_AUTH f1 ≤ F_AUTH f2 <| ⊥ |> {{ λ v1 v2, 
                                             (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
@@ -670,10 +754,11 @@ Section handlee_verification.
     iSplitL "Hl2 Hl2s Hfracb"; [iNext; iLeft; iFrame|].
     iIntros "#Hinvb".
     
-    iApply brel_effect_l. iIntros (chan1) "!> Hchan1".
-    iApply brel_effect_r. iModIntro. iIntros (chan2) "Hchan2 !>".
-    iSpecialize ("Hff" $! chan1 chan2).
-    
+    iApply brel_effect_l. iIntros (sendlabel1) "!> Hsend1".
+    iApply brel_effect_r. iModIntro. iIntros (sendlabel2) "Hsend2 !>".
+    iApply brel_effect_l. iIntros (recvlabel1) "!> Hrecv1".
+    iApply brel_effect_r. iModIntro. iIntros (recvlabel2) "Hrecv2 !>".
+    iSpecialize ("Hff" $! sendlabel1 sendlabel2 recvlabel1 recvlabel2).
     brel_pures'.
     
     (* unfold sem_ty_arr. 
@@ -703,129 +788,89 @@ Section handlee_verification.
                 
        
             admit. } *)
-    
+
     iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hchan1").
-    iApply (brel_add_label_r with "Hchan2").
+    iApply (brel_add_label_l with "Hsend1").
+    iApply (brel_add_label_r with "Hsend2").
+
+    iApply brel_new_theory.
+    iApply (brel_add_label_l with "Hrecv1").
+    iApply (brel_add_label_r with "Hrecv2").
     
-    iApply (brel_exhaustion _ _ [_] [_] with "[Hff]"); [done|done| |].
-    { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'. apply submseteq_skip. rewrite iLblSig_to_iLblThy_app. 
-      by apply submseteq_inserts_l. }
-    iLöb as "IH".
-    iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-    iIntros (?????) "!# %Hk1 %Hk2 [[(%&%&%&Hupd&(->&->)&#HQ) | (->&->&#(HNone & HSome))]| [(%&%&Hupd&(->&->)&#HQ) | (->&->&#(HNone & HSome))]] #Hkont".
+    (* Peel the outer (recv) handler.  This leaves two goals: the send-handled
+       body -- where the inner (send) handler is peeled in turn -- and the
+       value/effect cases of the recv handler itself.  R has to be given
+       explicitly, otherwise it stays an evar until the recv branch. *)
+    iApply (brel_exhaustion _ _ [_] [_] _ _ _ (λ w1 w2, 𝟙%T w1 w2) with "[Hff]"); [done|done| |].
+
+    (* SEND *)
+    (*------------------------------------------------------------*)
     1 : {
-      iApply (brel_na_inv _ _ alphaN ); [set_solver|].
-      iFrame "Hinva". 
-      iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%la & %a & #Hl1 & #Hl1s & Htoka & #Hfraca & #Hautha & #Hla)] & Hclose)".
-      - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
-        2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
-        iMod (dfrac_persist with "Hfraca") as "#Hfraca".
-        iMod ("Hupd" with "Hfraca") as "(Htok & Hauth & #Hla & <-)".
-        iModIntro.
-        brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
-        iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "!> Hl1".
-        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl1s"). iIntros "Hl1s".
-        brel_pures.
-        iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1".
-        iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl1s"). iIntros "Hl1s".
-        brel_pures.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
-          by apply submseteq_inserts_r. }
-        
-        iApply fupd_brel.
-        iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
-        iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
-        iModIntro.
-        iApply brel_na_close. iFrame.
-        iSplitL "Htok Hauth"; [iNext; iRight; iExists _, _; iFrame "#"; iFrame|].
-        
-        iAssert (sem_val_typed (_, bob)%V (_,bob)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
-        { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
-          iSplit; first (iExists _; done).
-          iExists _,_. iLeft. done. }
-        unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
-        unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
-        iDestruct ("Hsend" with "Hmm") as "Hsend1". 
-        iApply (brel_wand with "[$Hsend1]").
-        iIntros (??) "!# (->&->)".
-        brel_pures'.
-        
-        (* iApply brel_introduction'. { apply list_elem_of_further. apply list_elem_of_here. }
-           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-           iLeft. iRight.
-           iExists _.
-           do 2 (iSplit; try (iPureIntro; done)).
-           iModIntro.
-           iApply brel_value. iIntros "$ !>".
-           brel_pures. *)
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IH".
-        
-      - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
-        1 : { iMod ("Hupd" with "Hfraca") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
-        iApply brel_na_close. iFrame.
-        iSplitL "Htoka"; [iNext; iRight; iExists _,_; iFrame; iFrame "#"|].
-        brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
-        iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$Hl1]"). iIntros "!> _".
-        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$Hl1s]"). iIntros "_".
-        brel_pures.
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        
-        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done| done|]. iApply "IH". }
-    
-    1 : { brel_pures; [apply Hk1|apply Hk2|]; try set_solver...
-          iApply (brel_bind [_] [_]); [iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
-            by apply submseteq_inserts_r. }
-          
-          iAssert (sem_val_typed (bob)%V (bob)%V ((𝟙 + 𝟙))%T) as "Hbob".
-          { iModIntro. iExists _,_. iLeft. done. }
-          unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hrecv" as "#Hrecv".
-          unfold sem_val_typed. simpl. iDestruct "Hbob" as "#Hbob".
-          iDestruct ("Hrecv" with "Hbob") as "Hrecv1". 
-          iApply (brel_wand with "[$Hrecv1]").
-          iIntros (??) "!# (%&%&[(->&->&->&->)|(->&->&_)])"; brel_pures'.
-          (* iIntros (??) "!# (->&->)".
-             brel_pures'.
-             
-             iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here|].
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iRight. iRight. do 2 (iSplit; try (iPureIntro; done)).
-             iModIntro.
-             iSplit; last first. *)
-          
-          + iDestruct ("Hkont" with "HNone") as "Hbrel".
-            iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IH".
-            
-          + iApply (brel_na_inv _ _ betaN); [set_solver|].
-            iFrame "Hinvb". 
-            iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%gB & #Hl2 & #Hl2s & Htokb & #Hfracb & #Hauthb)] & Hclose)".
-            * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> Hl2".
-              iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "Hl2s".
+      (* brel_exhaustion consumes the head of the row, so bring send to the front. *)
+      iApply brel_introduction_mono; first (iApply to_iThy_le_intro'; apply submseteq_swap).
+      iApply (brel_exhaustion _ _ [_] [_] with "[Hff]"); [done|done| |].
+      { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'.
+        etrans; [apply submseteq_swap|]. do 2 apply submseteq_skip.
+        rewrite iLblSig_to_iLblThy_app. by apply submseteq_inserts_l. }
+      iLöb as "IHsend".
+      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+      iIntros (?????) "!# %Hk1 %Hk2 [(%&%&%&Hupd&(->&->)&#HQ) | (%&%&Hupd&(->&->)&#HQ)] #Hkont".
+
+      (* SendAliceImplL : Alice sends to Bob, stored in l1 *)
+      1 : { iApply (brel_na_inv _ _ alphaN ); [set_solver|].
+            iFrame "Hinva".
+            iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%la & %a & #Hl1 & #Hl1s & Htoka & #Hfraca & #Hautha & #Hla)] & Hclose)".
+            - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
+              2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
+              iMod (dfrac_persist with "Hfraca") as "#Hfraca".
+              iMod ("Hupd" with "Hfraca") as "(Htok & Hauth & #Hla & <-)".
+              iModIntro.
+              brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+              iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "!> Hl1".
+              iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl1s"). iIntros "Hl1s".
               brel_pures.
-              iApply brel_na_close. iFrame. iSplitL; [iLeft; iFrame|].
-              iDestruct ("Hkont" with "HNone") as "Hbrel".
-              
-              (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-              
-            * iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"; iFrame|].
-              iApply (brel_load_l with "[$]"). iIntros "!> _".
-              iApply (brel_load_r with "Hl2s"). iIntros "_". 
+              iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1".
+              iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl1s"). iIntros "Hl1s".
               brel_pures.
-              iDestruct ("HSome" with "Hauthb") as "HS".
-              iDestruct ("Hkont" with "HS") as "Hbrel".
-              
-              (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH". }
-    
-    1 : {
+              iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+              { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+                by apply submseteq_inserts_r. }
+
+              iApply fupd_brel.
+              iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
+              iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
+              iModIntro.
+              iApply brel_na_close. iFrame.
+              iSplitL "Htok Hauth"; [iNext; iRight; iExists _, _; iFrame "#"; iFrame|].
+
+              iAssert (sem_val_typed (_, bob)%V (_,bob)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
+              { iModIntro. iExists _,_,_,_.
+                repeat (iSplit; first done).
+                iSplit; first (iExists (g ^+ m)%g; done).
+                iExists _,_. iLeft. done. }
+              unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
+              unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
+              iDestruct ("Hsend" with "Hmm") as "Hsend1".
+              iApply (brel_wand with "[$Hsend1]").
+              iIntros (??) "!# (->&->)".
+              brel_pures'.
+              iDestruct ("Hkont" with "HQ") as "Hbrel".
+              iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IHsend".
+
+            - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
+              1 : { iMod ("Hupd" with "Hfraca") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
+              iApply brel_na_close. iFrame.
+              iSplitL "Htoka"; [iNext; iRight; iExists _,_; iFrame; iFrame "#"|].
+              brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+              iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$Hl1]"). iIntros "!> _".
+              iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$Hl1s]"). iIntros "_".
+              brel_pures.
+              iDestruct ("Hkont" with "HQ") as "Hbrel".
+              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done| done|]. iApply "IHsend". }
+
+      (* SendBobImpl : Bob sends to Alice, stored in l2 *)
       iApply (brel_na_inv _ _ betaN ); [set_solver|].
-      iFrame "Hinvb". 
+      iFrame "Hinvb".
       iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%gB & #Hl2 & #Hl2s & Htokb & #Hfracb & #Hauthb)] & Hclose)".
       - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
         2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
@@ -840,40 +885,29 @@ Section handlee_verification.
         iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl2s"). iIntros "Hl2s".
         brel_pures.
         iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
+        { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
           by apply submseteq_inserts_r. }
-        
+
         iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hl2s") as "#Hl2s".
         iMod (ghost_map_elem_persist with "Hl2") as "#Hl2".
         iModIntro.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
-        
+
         iAssert (sem_val_typed (m, alice)%V (m,alice)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
-        { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
+        { iModIntro. iExists _,_,_,_. repeat (iSplit; first done).
           iSplit; first (iExists _; done).
           iExists _,_. iRight. done. }
         unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
         unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
-        iDestruct ("Hsend" with "Hmm") as "Hsend1". 
+        iDestruct ("Hsend" with "Hmm") as "Hsend1".
         iApply (brel_wand with "[$Hsend1]").
         iIntros (??) "!# (->&->)".
         brel_pures'.
-        
-        (* iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here| ].
-           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-           iLeft. iLeft.
-           iExists _.
-           do 2 (iSplit; try (iPureIntro; done)).
-           iModIntro.
-           iApply brel_value. iIntros "$ !>".
-           brel_pures. *)
-        
         iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-        
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHsend".
+
       - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
         1 : { iMod ("Hupd" with "Hfracb") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
         iApply brel_na_close. iFrame.
@@ -883,62 +917,100 @@ Section handlee_verification.
         iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "_".
         brel_pures.
         iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH". }
-    
-    1 : { brel_pures; [apply Hk1| apply Hk2|]; try set_solver.
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHsend". }
+
+    (* RECV *)
+    (*------------------------------------------------------------*)
+    iLöb as "IHrecv".
+    iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+    iIntros (?????) "!# %Hk1 %Hk2 [(->&->&#(HNone & HSome)) | (->&->&#(HNone & HSome))] #Hkont".
+
+    (* RecvAliceImplL : receive from Alice, i.e. read l1 *)
+    1 : { brel_pures; [apply Hk1| apply Hk2|]; try set_solver...
           iApply (brel_bind [_] [_]); [by iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
+          { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
             by apply submseteq_inserts_r. }
-          
+
           iAssert (sem_val_typed (alice)%V (alice)%V ((𝟙 + 𝟙))%T) as "Halice".
           { iModIntro. iExists _,_. iRight. done. }
           unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hrecv" as "#Hrecv".
           unfold sem_val_typed. simpl. iDestruct "Halice" as "#Halice".
-          iDestruct ("Hrecv" with "Halice") as "Hrecv1". 
+          iDestruct ("Hrecv" with "Halice") as "Hrecv1".
           iApply (brel_wand with "[$Hrecv1]").
           iIntros (??) "!# (%&%&[(->&->&->&->)|(->&->&_)])"; brel_pures'.
-          
-          
-          (* iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here|].
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iRight. iLeft. do 2 (iSplit; try (iPureIntro; done)).
-             iModIntro.
-             iSplit; last first. *)
-          
+
           + iDestruct ("Hkont" with "HNone") as "Hbrel".
-            iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-            
+            iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
           + iApply (brel_na_inv _ _ alphaN); [set_solver|].
-            iFrame "#". 
+            iFrame "#".
             iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%la & %a & #Hl1 & #Hl1s & Htoka & #Hfraca & #Hautha & #Hla)] & Hclose)".
             * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> Hl1".
               iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "Hl1s".
               brel_pures.
               iApply brel_na_close. iFrame. iSplitL; [iLeft; iFrame|].
               iDestruct ("Hkont" with "HNone") as "Hbrel".
-              
+
               (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-              
+              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
             * iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"; iFrame|].
               iApply (brel_load_l with "Hl1"). iIntros "!> _".
-              iApply (brel_load_r with "Hl1s"). iIntros "_". 
+              iApply (brel_load_r with "Hl1s"). iIntros "_".
               brel_pures.
               iDestruct ("HSome" with "[$Hautha $Hla]") as "HS".
               iDestruct ("Hkont" with "HS") as "Hbrel".
-              
+
               (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH". } 
+              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv". }
+
+    (* RecvBobImpl : receive from Bob, i.e. read l2 *)
+    brel_pures; [apply Hk1|apply Hk2|]; try set_solver...
+    iApply (brel_bind [_] [_]); [iApply traversable_to_iThy| |].
+    { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+      by apply submseteq_inserts_r. }
+
+    iAssert (sem_val_typed (bob)%V (bob)%V ((𝟙 + 𝟙))%T) as "Hbob".
+    { iModIntro. iExists _,_. iLeft. done. }
+    unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hrecv" as "#Hrecv".
+    unfold sem_val_typed. simpl. iDestruct "Hbob" as "#Hbob".
+    iDestruct ("Hrecv" with "Hbob") as "Hrecv1".
+    iApply (brel_wand with "[$Hrecv1]").
+    iIntros (??) "!# (%&%&[(->&->&->&->)|(->&->&_)])"; brel_pures'.
+
+    + iDestruct ("Hkont" with "HNone") as "Hbrel".
+      iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
+    + iApply (brel_na_inv _ _ betaN); [set_solver|].
+      iFrame "Hinvb".
+      iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%gB & #Hl2 & #Hl2s & Htokb & #Hfracb & #Hauthb)] & Hclose)".
+      * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> Hl2".
+        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "Hl2s".
+        brel_pures.
+        iApply brel_na_close. iFrame. iSplitL; [iLeft; iFrame|].
+        iDestruct ("Hkont" with "HNone") as "Hbrel".
+
+        (* First call is done. Can call getKey1 or getKey2 again. *)
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
+      * iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"; iFrame|].
+        iApply (brel_load_l with "[$]"). iIntros "!> _".
+        iApply (brel_load_r with "Hl2s"). iIntros "_".
+        brel_pures.
+        iDestruct ("HSome" with "Hauthb") as "HS".
+        iDestruct ("Hkont" with "HS") as "Hbrel".
+
+        (* First call is done. Can call getKey1 or getKey2 again. *)
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
   Qed.
 
   Lemma F_AUTH_F_AUTH (f1 f2 : expr) γtoka γtokb γfraca γfracb γautha γauthb (L : sem_row Σ) :
     own γfraca (DfracOwn 1) -∗
     own γfracb (DfracOwn 1) -∗
     BREL f1 ≤ f2 <|⊥|> {{λ v1 v2, 
-                           ∀ c1 c2 : label, let ac := authchan_row c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
-                                            BREL v1 ((λ: "m", do: c1 (Send "m")), (λ: "m", do: c1 (Recv "m")))%V ≤
-                                              v2 ((λ: "m", do: c2 (Send "m")), (λ: "m", do: c2 (Recv "m")))%V 
+                           ∀ send1 send2 recv1 recv2 : label, let ac := chan_row send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
+                                            BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
+                                              v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V 
                                               <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
     BREL F_AUTH f1 ≤ F_AUTH f2 <| ⊥ |> {{ λ v1 v2, 
                                             (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union θₗ L }-∘ 𝟙)%T v1 v2 }}.
@@ -957,7 +1029,7 @@ Section handlee_verification.
        brel_pures'. iModIntro.
        iIntros (drecv1 drecv2) "#Hrecv".  *)
     brel_pures'.
-
+    
     iApply brel_alloc_l. iIntros (l1) "!> Hl1".
     iApply brel_alloc_l. iIntros (l2) "!> Hl2".
     brel_pures_l. 
@@ -967,7 +1039,7 @@ Section handlee_verification.
     
     iApply (brel_na_alloc
               ((l1 ↦ NONEV ∗ l1'  ↦ₛ NONEV ∗ own γfraca (DfracOwn 1))
-               ∨ (∃ gA , l1 ↦□ SOMEV gA∗ l1' ↦ₛ□ SOMEV gA ∗ token γtoka
+               ∨ (∃ gA , l1 ↦□ SOMEV gA ∗ l1' ↦ₛ□ SOMEV gA ∗ token γtoka
                          ∗ own γfraca DfracDiscarded
                          ∗ own γautha (to_dfrac_agree DfracDiscarded gA))) alphaN).
     iSplitL "Hl1 Hl1s Hfraca"; [iNext; iLeft; iFrame|].
@@ -980,13 +1052,14 @@ Section handlee_verification.
                          ∗ own γauthb (to_dfrac_agree DfracDiscarded gB))) betaN).
     iSplitL "Hl2 Hl2s Hfracb"; [iNext; iLeft; iFrame|].
     iIntros "#Hinvb".
-
-    iApply brel_effect_l. iIntros (chan1) "!> Hchan1".
-    iApply brel_effect_r. iModIntro. iIntros (chan2) "Hchan2 !>".
-    iSpecialize ("Hff" $! chan1 chan2).
-
+    
+    iApply brel_effect_l. iIntros (sendlabel1) "!> Hsend1".
+    iApply brel_effect_r. iModIntro. iIntros (sendlabel2) "Hsend2 !>".
+    iApply brel_effect_l. iIntros (recvlabel1) "!> Hrecv1".
+    iApply brel_effect_r. iModIntro. iIntros (recvlabel2) "Hrecv2 !>".
+    iSpecialize ("Hff" $! sendlabel1 sendlabel2 recvlabel1 recvlabel2).
     brel_pures'.
-
+    
     (* unfold sem_ty_arr. 
        set (ac := authchan_row chan1 chan2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb).
        iAssert ((BREL f1 (λ: "m", do: chan1 InjL "m")%V (λ: "m", do: chan1 InjR "m")%V ≤ f2 (λ: "m", do: chan2 InjL "m")%V (λ: "m", do: chan2 InjR "m")%V <|(iLblSig_to_iLblThy (sem_row_union ac L))|> {{(λ u1 u2 : val, 𝟙%T u1 u2)}})%I) with "[Hff]" as "Hff".
@@ -1016,127 +1089,87 @@ Section handlee_verification.
             admit. } *)
 
     iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hchan1").
-    iApply (brel_add_label_r with "Hchan2").
-    
-    iApply (brel_exhaustion _ _ [_] [_] with "[Hff]"); [done|done| |].
-    { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'. apply submseteq_skip. rewrite iLblSig_to_iLblThy_app. 
-      by apply submseteq_inserts_l. }
-    iLöb as "IH".
-    iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-    iIntros (?????) "!# %Hk1 %Hk2 [[(%&%&Hupd&(->&->)&#HQ) | (->&->&#(HNone & HSome))]| [(%&%&Hupd&(->&->)&#HQ) | (->&->&#(HNone & HSome))]] #Hkont".
-    1 : {
-      iApply (brel_na_inv _ _ alphaN ); [set_solver|].
-      iFrame "Hinva". 
-      iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%gA & #Hl1 & #Hl1s & Htoka & #Hfraca & #Hautha)] & Hclose)".
-      - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
-        2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
-        iMod (dfrac_persist with "Hfraca") as "#Hfraca".
-        iMod ("Hupd" with "Hfraca") as "(Htok & Hauth & <-)".
-        iModIntro.
-        brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
-        iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "!> Hl1".
-        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl1s"). iIntros "Hl1s".
-        brel_pures.
-        iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1".
-        iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl1s"). iIntros "Hl1s".
-        brel_pures.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
-          by apply submseteq_inserts_r. }
-        
-        iApply fupd_brel.
-        iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
-        iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
-        iModIntro.
-        iApply brel_na_close. iFrame.
-        iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
+    iApply (brel_add_label_l with "Hsend1").
+    iApply (brel_add_label_r with "Hsend2").
 
-        iAssert (sem_val_typed (m, bob)%V (m,bob)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
-        { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
-          iSplit; first (iExists _; done).
-          iExists _,_. iLeft. done. }
-        unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
-        unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
-        iDestruct ("Hsend" with "Hmm") as "Hsend1". 
-        iApply (brel_wand with "[$Hsend1]").
-        iIntros (??) "!# (->&->)".
-        brel_pures'.
-        
-        (* iApply brel_introduction'. { apply list_elem_of_further. apply list_elem_of_here. }
-           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-           iLeft. iRight.
-           iExists _.
-           do 2 (iSplit; try (iPureIntro; done)).
-           iModIntro.
-           iApply brel_value. iIntros "$ !>".
-           brel_pures. *)
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IH".
-        
-      - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
-        1 : { iMod ("Hupd" with "Hfraca") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
-        iApply brel_na_close. iFrame.
-        iSplitL "Htoka"; [iNext; iRight; iExists gA; iFrame; iFrame "#"|].
-        brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
-        iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> _".
-        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "_".
-        brel_pures.
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        
-        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done| done|]. iApply "IH". }
+    iApply brel_new_theory.
+    iApply (brel_add_label_l with "Hrecv1").
+    iApply (brel_add_label_r with "Hrecv2").
     
-    1 : { brel_pures; [apply Hk1|apply Hk2|]; try set_solver...
-          iApply (brel_bind [_] [_]); [iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
-            by apply submseteq_inserts_r. }
-          
-          iAssert (sem_val_typed (bob)%V (bob)%V ((𝟙 + 𝟙))%T) as "Hbob".
-          { iModIntro. iExists _,_. iLeft. done. }
-          unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hrecv" as "#Hrecv".
-          unfold sem_val_typed. simpl. iDestruct "Hbob" as "#Hbob".
-          iDestruct ("Hrecv" with "Hbob") as "Hrecv1". 
-          iApply (brel_wand with "[$Hrecv1]").
-          iIntros (??) "!# (%&%&[(->&->&->&->)|(->&->&_)])"; brel_pures'.
-          (* iIntros (??) "!# (->&->)".
-             brel_pures'.
-             
-             iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here|].
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iRight. iRight. do 2 (iSplit; try (iPureIntro; done)).
-             iModIntro.
-             iSplit; last first. *)
-          
-          + iDestruct ("Hkont" with "HNone") as "Hbrel".
-            iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IH".
-            
-          + iApply (brel_na_inv _ _ betaN); [set_solver|].
-            iFrame "Hinvb". 
-            iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%gB & #Hl2 & #Hl2s & Htokb & #Hfracb & #Hauthb)] & Hclose)".
-            * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> Hl2".
-              iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "Hl2s".
-              brel_pures.
-              iApply brel_na_close. iFrame. iSplitL; [iLeft; iFrame|].
-              iDestruct ("Hkont" with "HNone") as "Hbrel".
-              
-              (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-              
-            * iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"; iFrame|].
-              iApply (brel_load_l with "[$]"). iIntros "!> _".
-              iApply (brel_load_r with "Hl2s"). iIntros "_". 
-              brel_pures.
-              iDestruct ("HSome" with "Hauthb") as "HS".
-              iDestruct ("Hkont" with "HS") as "Hbrel".
-              
-              (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH". }
-    
+    (* Peel the outer (recv) handler.  This leaves two goals: the send-handled
+       body -- where the inner (send) handler is peeled in turn -- and the
+       value/effect cases of the recv handler itself.  R has to be given
+       explicitly, otherwise it stays an evar until the recv branch. *)
+    iApply (brel_exhaustion _ _ [_] [_] _ _ _ (λ w1 w2, 𝟙%T w1 w2) with "[Hff]"); [done|done| |].
+
+    (* SEND *)
+    (*------------------------------------------------------------*)
     1 : {
+      (* brel_exhaustion consumes the head of the row, so bring send to the front. *)
+      iApply brel_introduction_mono; first (iApply to_iThy_le_intro'; apply submseteq_swap).
+      iApply (brel_exhaustion _ _ [_] [_] with "[Hff]"); [done|done| |].
+      { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'.
+        etrans; [apply submseteq_swap|]. do 2 apply submseteq_skip.
+        rewrite iLblSig_to_iLblThy_app. by apply submseteq_inserts_l. }
+      iLöb as "IHsend".
+      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+      iIntros (?????) "!# %Hk1 %Hk2 [(%&%&Hupd&(->&->)&#HQ) | (%&%&Hupd&(->&->)&#HQ)] #Hkont".
+
+      (* SendAliceImplL : Alice sends to Bob, stored in l1 *)
+      1 : { iApply (brel_na_inv _ _ alphaN ); [set_solver|].
+            iFrame "Hinva".
+            iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%gA & #Hl1 & #Hl1s & Htoka & #Hfraca & #Hautha)] & Hclose)".
+            - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
+              2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
+              iMod (dfrac_persist with "Hfraca") as "#Hfraca".
+              iMod ("Hupd" with "Hfraca") as "(Htok & Hauth & <-)".
+              iModIntro.
+              brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+              iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "!> Hl1".
+              iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl1s"). iIntros "Hl1s".
+              brel_pures.
+              iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1".
+              iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl1s"). iIntros "Hl1s".
+              brel_pures.
+              iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
+              { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+                by apply submseteq_inserts_r. }
+
+              iApply fupd_brel.
+              iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
+              iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
+              iModIntro.
+              iApply brel_na_close. iFrame.
+              iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
+
+              iAssert (sem_val_typed (m, bob)%V (m,bob)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
+              { iModIntro. iExists _,_,_,_.
+                repeat (iSplit; first done).
+                iSplit; first (iExists _; done).
+                iExists _,_. iLeft. done. }
+              unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
+              unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
+              iDestruct ("Hsend" with "Hmm") as "Hsend1".
+              iApply (brel_wand with "[$Hsend1]").
+              iIntros (??) "!# (->&->)".
+              brel_pures'.
+              iDestruct ("Hkont" with "HQ") as "Hbrel".
+              iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IHsend".
+
+            - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
+              1 : { iMod ("Hupd" with "Hfraca") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
+              iApply brel_na_close. iFrame.
+              iSplitL "Htoka"; [iNext; iRight; iExists gA; iFrame; iFrame "#"|].
+              brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+              iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$Hl1]"). iIntros "!> _".
+              iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$Hl1s]"). iIntros "_".
+              brel_pures.
+              iDestruct ("Hkont" with "HQ") as "Hbrel".
+              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done| done|]. iApply "IHsend". }
+
+      (* SendBobImpl : Bob sends to Alice, stored in l2 *)
       iApply (brel_na_inv _ _ betaN ); [set_solver|].
-      iFrame "Hinvb". 
+      iFrame "Hinvb".
       iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%gB & #Hl2 & #Hl2s & Htokb & #Hfracb & #Hauthb)] & Hclose)".
       - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
         2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
@@ -1151,7 +1184,7 @@ Section handlee_verification.
         iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl2s"). iIntros "Hl2s".
         brel_pures.
         iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
+        { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
           by apply submseteq_inserts_r. }
 
         iApply fupd_brel.
@@ -1162,29 +1195,18 @@ Section handlee_verification.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
 
         iAssert (sem_val_typed (m, alice)%V (m,alice)%V (𝔾 × (𝟙 + 𝟙))%T) as "Hmm".
-        { iModIntro. iExists _,_,_,_. repeat (iSplit; first done). 
+        { iModIntro. iExists _,_,_,_. repeat (iSplit; first done).
           iSplit; first (iExists _; done).
           iExists _,_. iRight. done. }
         unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hsend" as "#Hsend".
         unfold sem_val_typed. simpl. iDestruct "Hmm" as "#Hmm".
-        iDestruct ("Hsend" with "Hmm") as "Hsend1". 
+        iDestruct ("Hsend" with "Hmm") as "Hsend1".
         iApply (brel_wand with "[$Hsend1]").
         iIntros (??) "!# (->&->)".
         brel_pures'.
-        
-        (* iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here| ].
-           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-           iLeft. iLeft.
-           iExists _.
-           do 2 (iSplit; try (iPureIntro; done)).
-           iModIntro.
-           iApply brel_value. iIntros "$ !>".
-           brel_pures. *)
-        
         iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-        
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHsend".
+
       - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
         1 : { iMod ("Hupd" with "Hfracb") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
         iApply brel_na_close. iFrame.
@@ -1194,55 +1216,91 @@ Section handlee_verification.
         iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "_".
         brel_pures.
         iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH". }
-    
-    1 : { brel_pures; [apply Hk1| apply Hk2|]; try set_solver.
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHsend". }
+
+    (* RECV *)
+    (*------------------------------------------------------------*)
+    iLöb as "IHrecv".
+    iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
+    iIntros (?????) "!# %Hk1 %Hk2 [(->&->&#(HNone & HSome)) | (->&->&#(HNone & HSome))] #Hkont".
+
+    (* RecvAliceImplL : receive from Alice, i.e. read l1 *)
+    1 : { brel_pures; [apply Hk1| apply Hk2|]; try set_solver...
           iApply (brel_bind [_] [_]); [by iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app. 
+          { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
             by apply submseteq_inserts_r. }
-          
+
           iAssert (sem_val_typed (alice)%V (alice)%V ((𝟙 + 𝟙))%T) as "Halice".
           { iModIntro. iExists _,_. iRight. done. }
           unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hrecv" as "#Hrecv".
           unfold sem_val_typed. simpl. iDestruct "Halice" as "#Halice".
-          iDestruct ("Hrecv" with "Halice") as "Hrecv1". 
+          iDestruct ("Hrecv" with "Halice") as "Hrecv1".
           iApply (brel_wand with "[$Hrecv1]").
           iIntros (??) "!# (%&%&[(->&->&->&->)|(->&->&_)])"; brel_pures'.
 
-
-          (* iApply brel_introduction'; [apply list_elem_of_further; apply list_elem_of_here|].
-             iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-             iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iRight. iLeft. do 2 (iSplit; try (iPureIntro; done)).
-             iModIntro.
-             iSplit; last first. *)
-          
           + iDestruct ("Hkont" with "HNone") as "Hbrel".
-            iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-            
+            iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
           + iApply (brel_na_inv _ _ alphaN); [set_solver|].
-            iFrame "#". 
+            iFrame "#".
             iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%gA & #Hl1 & #Hl1s & Htoka & #Hfraca & #Hautha)] & Hclose)".
             * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> Hl1".
               iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "Hl1s".
               brel_pures.
               iApply brel_na_close. iFrame. iSplitL; [iLeft; iFrame|].
               iDestruct ("Hkont" with "HNone") as "Hbrel".
-              
+
               (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH".
-              
+              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
             * iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"; iFrame|].
-              iApply (brel_load_l with "[$]"). iIntros "!> _".
-              iApply (brel_load_r with "Hl1s"). iIntros "_". 
+              iApply (brel_load_l with "Hl1"). iIntros "!> _".
+              iApply (brel_load_r with "Hl1s"). iIntros "_".
               brel_pures.
               iDestruct ("HSome" with "Hautha") as "HS".
               iDestruct ("Hkont" with "HS") as "Hbrel".
-              
+
               (* First call is done. Can call getKey1 or getKey2 again. *)
-              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IH". } 
-  Qed. 
+              iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv". }
+
+    (* RecvBobImpl : receive from Bob, i.e. read l2 *)
+    brel_pures; [apply Hk1|apply Hk2|]; try set_solver...
+    iApply (brel_bind [_] [_]); [iApply traversable_to_iThy| |].
+    { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
+      by apply submseteq_inserts_r. }
+
+    iAssert (sem_val_typed (bob)%V (bob)%V ((𝟙 + 𝟙))%T) as "Hbob".
+    { iModIntro. iExists _,_. iLeft. done. }
+    unfold sem_ty_arr, sem_ty_mbang. simpl. iDestruct "Hrecv" as "#Hrecv".
+    unfold sem_val_typed. simpl. iDestruct "Hbob" as "#Hbob".
+    iDestruct ("Hrecv" with "Hbob") as "Hrecv1".
+    iApply (brel_wand with "[$Hrecv1]").
+    iIntros (??) "!# (%&%&[(->&->&->&->)|(->&->&_)])"; brel_pures'.
+
+    + iDestruct ("Hkont" with "HNone") as "Hbrel".
+      iApply (brel_exhaustion _ _  [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
+    + iApply (brel_na_inv _ _ betaN); [set_solver|].
+      iFrame "Hinvb".
+      iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%gB & #Hl2 & #Hl2s & Htokb & #Hfracb & #Hauthb)] & Hclose)".
+      * iApply (brel_load_l _ _ _ [CaseCtx _ _] with "[$]"). iIntros "!> Hl2".
+        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "[$]"). iIntros "Hl2s".
+        brel_pures.
+        iApply brel_na_close. iFrame. iSplitL; [iLeft; iFrame|].
+        iDestruct ("Hkont" with "HNone") as "Hbrel".
+
+        (* First call is done. Can call getKey1 or getKey2 again. *)
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+
+      * iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"; iFrame|].
+        iApply (brel_load_l with "[$]"). iIntros "!> _".
+        iApply (brel_load_r with "Hl2s"). iIntros "_".
+        brel_pures.
+        iDestruct ("HSome" with "Hauthb") as "HS".
+        iDestruct ("Hkont" with "HS") as "Hbrel".
+
+        (* First call is done. Can call getKey1 or getKey2 again. *)
+        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|]. iApply "IHrecv".
+  Qed.
 
 End handlee_verification.
-
-

@@ -33,15 +33,13 @@ Section def_implementation.
     let, ("doLeakSend", "doLeakRecv") := "effs" in
     let: "m1" := ref NONEV in
     let: "m2" := ref NONEV in
-    effect "channel" 
-    let: "doSend" := (λ: "m", do: (EffName "channel") (Send "m")) in  
-    let: "doRecv" := (λ: "m", do: (EffName "channel") (Recv "m")) in
-    handle: "f" ("doSend", "doRecv") with
-    | effect (EffName "channel") "message", rec "k" as multi =>
-        match: "message" with
-        (* SEND *)
-        | InjL "payload" =>
-            let, ("m", "dst") := "payload" in
+    effect "send"
+    effect "recv"
+    let: "doSend" := (λ: "m", do: "send" "m") in  
+    let: "doRecv" := (λ: "m", do: "recv" "m") in
+    handle: handle: "f" ("doSend", "doRecv") with
+    | effect "send" "message", rec "k" as multi =>
+            let, ("m", "dst") := "message" in
             match: "dst" with
               (* Alice *)
               InjL <> => match: !"m1" with (* Send only the first value. Discard all others.  *)
@@ -54,26 +52,26 @@ Section def_implementation.
                         | SOME "x" => "k" #()%V 
                         end
             end
-        (* Recv *)
-        | InjR "from" =>
-            let: "r" := ("doLeakRecv" "from") in
-             match: "r" with
-               NONE => "k" NONEV
-             | SOME "x" => match: "from" with
-                             (* Alice *)
-                             InjL <> => match: !"m2" with
-                                          NONE => "k" NONEV
-                                        | SOME "m" => "k" (SOME "m")
-                                        end
-                           (* Bob *)
-                           | InjR <> => match: !"m1" with
-                                          NONE => "k" NONEV
-                                        | SOME "m" => "k" (SOME "m")
-                                        end
-                           end
-             end
+    | return "y" => #()%V end with
+    (* Recv *)
+    | effect "recv" "from", rec "k" as multi =>
+        let: "r" := ("doLeakRecv" "from") in
+        match: "r" with
+          NONE => "k" NONEV
+        | SOME "x" => match: "from" with
+                        (* Alice *)
+                        InjL <> => match: !"m2" with
+                                     NONE => "k" NONEV
+                                   | SOME "m" => "k" (SOME "m")
+                                   end
+                      (* Bob *)
+                      | InjR <> => match: !"m1" with
+                                     NONE => "k" NONEV
+                                   | SOME "m" => "k" (SOME "m")
+                                   end
+                      end
         end
-    | return "y" => #()%V end.
+     | return "y" => #()%V end.
 
   Definition DH_KE  : val :=
     λ: "f" "effs",

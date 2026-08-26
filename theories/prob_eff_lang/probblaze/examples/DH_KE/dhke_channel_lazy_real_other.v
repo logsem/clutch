@@ -38,15 +38,15 @@ Section handlee_verification.
     (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T f1 f2 -∗
 
     BREL C_lazy DH_real f1 ≤ DH_KE f2 <|⊥|> {{ λ v1 v2, 
-                                                 ∀ c1 c2 : label, let ac := authchan_rowR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
-                                                                  BREL v1 ((λ: "m", do: c1 (Send "m")), (λ: "m", do: c1 (Recv "m")))%V ≤
-                                                                    v2 ((λ: "m", do: c2 (Send "m")), (λ: "m", do: c2 (Recv "m")))%V 
+                                                 ∀ send1 send2 recv1 recv2 : label, let ac := chan_rowR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
+                                                                  BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
+                                                                    v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V 
                                                                     <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }}.
   Proof using G.
     iIntros "Htoka Htokb Ha Hb Hff". 
     unfold DH_KE, C_lazy. 
     brel_pures'. iModIntro. 
-    iIntros (c1 c2). set (ac := authchan_rowR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb).
+    iIntros (send1 send2 recv1 recv2). set (ac := chan_rowR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb).
     brel_pures'.
     iApply brel_alloctape_r. iIntros (α) "Hα". brel_pures_r.
     
@@ -124,7 +124,7 @@ Section handlee_verification.
     iApply (brel_add_label_r with "Hgk2").
     
     iDestruct (brel_introduction_mono _ ([([gk1],[gk2],GetKey gk1 gk2)] ++  (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L)) with "[][$Hff]") as "Hf".
-    { iApply to_iThy_le_intro'. apply submseteq_skip. by apply submseteq_cons. }
+    { iApply to_iThy_le_intro'. apply submseteq_skip. by do 2 apply submseteq_cons. }
     iApply (brel_exhaustion with "[$]"); [done|done|].
     
     iLöb as "IH".
@@ -166,11 +166,11 @@ Section handlee_verification.
         (* Send (gA, bob) *)
         iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
         iApply brel_introduction'.
-        { apply elem_of_cons. right. apply list_elem_of_here. }
+        { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
         
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iLeft. iLeft. 
+        iLeft. 
         iExists _,_,_.
         iSplitL.
         { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
@@ -189,7 +189,7 @@ Section handlee_verification.
         { apply elem_of_cons. right. apply list_elem_of_here. }
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iLeft. iRight.
+        iRight.
         do 2 (iSplit; try (iPureIntro; done)).
         iModIntro.
         iSplitL.
@@ -221,10 +221,10 @@ Section handlee_verification.
         (* Send (gA, bob) *)
         iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
         iApply brel_introduction'.
-        { apply elem_of_cons. right. apply list_elem_of_here. }
+        { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iLeft. iLeft.
+        iLeft.
         iExists _,_,_.
         iSplitL.
         { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
@@ -244,7 +244,7 @@ Section handlee_verification.
         { apply elem_of_cons. right. apply list_elem_of_here. }
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iLeft. iRight.
+        iRight.
         do 2 (iSplit; try (iPureIntro; done)).
         iModIntro.
         iSplitL.
@@ -274,7 +274,7 @@ Section handlee_verification.
       { apply elem_of_cons. right. apply list_elem_of_here. }
       iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
       iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-      iRight. iRight.
+      iLeft.
       do 2 (iSplit; try (iPureIntro; done)).
       iModIntro.
       iSplitL.
@@ -312,10 +312,10 @@ Section handlee_verification.
         
         (* Send (gB, alice) *)
         iApply (brel_bind' [_] [_]); [by iApply traversable_to_iThy|].
-        iApply brel_introduction'. { apply elem_of_cons. right. apply list_elem_of_here. }
+        iApply brel_introduction'. { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iRight. iLeft. 
+        iRight. 
         iExists _,_.
         iSplitL.
         { iMod (inv_acc with "Hinvtb") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
@@ -347,10 +347,10 @@ Section handlee_verification.
         
         (* Send (gB, alice) *)
         iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [by iApply traversable_to_iThy|].
-        iApply brel_introduction'. { apply elem_of_cons. right. apply list_elem_of_here. }
+        iApply brel_introduction'. { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iRight. iLeft.
+        iRight.
         iExists _,_.
         iSplitL.
         { iMod (inv_acc with "Hinvtb") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
