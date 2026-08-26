@@ -18,7 +18,7 @@ Import valgroup_tactics.
 
 Section handlee_verification.
   Context `{!probblazeRGS Σ}.
-  Context (channel1 channel2 : label).
+  (* Context (channel1 channel2 : label). *)
   Context {vg : val_group}.           (* A group on a subset of values. *)
   Context {cg : clutch_group_struct}. (* Implementations of the vg group operations *)
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
@@ -275,7 +275,7 @@ Section handlee_verification.
     1 : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (l m) "#H"); iApply "HΦ"; try iApply ("H2" $! l m); done.
   Qed. 
 
-  Definition authchan c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_mono c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (channel1, channel2).
+  Definition authchan (c1 c2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_mono c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (c1, c2).
   Program Definition authchan_row c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := SemRow [([c1],[c2], authchan c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
   Next Obligation.
     intros ??????????.
@@ -284,7 +284,7 @@ Section handlee_verification.
     repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
   Qed. 
 
-  Definition authchanL c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_monoL c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (channel1, channel2).
+  Definition authchanL (c1 c2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_monoL c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (c1, c2).
   Program Definition authchan_rowL c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := SemRow [([c1],[c2], authchanL c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
   Next Obligation.
     intros ??????????.
@@ -293,7 +293,7 @@ Section handlee_verification.
     repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
   Qed. 
 
-  Definition authchanR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_monoR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (channel1, channel2).
+  Definition authchanR (c1 c2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := @SemSig Σ (authchan_monoR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (c1, c2).
   Program Definition authchan_rowR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := SemRow [([c1],[c2], authchanR c1 c2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
   Next Obligation.
     intros ??????????.
@@ -301,8 +301,6 @@ Section handlee_verification.
     iExists _,_,_,_,_. 
     repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
   Qed. 
-  
-
 
   (* Verification of F_AUTH ≤ F_AUTH *)
   (*------------------------------------------------------------*)
@@ -1246,4 +1244,5 @@ Section handlee_verification.
   Qed. 
 
 End handlee_verification.
+
 

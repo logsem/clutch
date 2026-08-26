@@ -24,7 +24,6 @@ From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import
 
 Section handlee_verification.
   Context `{!probblazeRGS Σ}.
-  Context (channel1 channel2 : label).
   Context {vg : val_group}.           (* A group on a subset of values. *)
   Context {cg : clutch_group_struct}. (* Implementations of the vg group operations *)
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
@@ -33,14 +32,6 @@ Section handlee_verification.
 
   #[local] Notation n := (S n'').
   Import valgroup_notation.
-
-  Local Notation F_AUTH_F_AUTHL := (F_AUTH_F_AUTHL channel1 channel2).
-  Local Notation F_AUTH_F_AUTHR := (F_AUTH_F_AUTHR channel1 channel2).
-  Local Notation F_AUTH_F_AUTH := (F_AUTH_F_AUTH channel1 channel2).
-  Local Notation DH_KE_C_DH_real := (DH_KE_C_DH_real channel1 channel2).
-  Local Notation C_DH_real_DH_KE := (C_DH_real_DH_KE channel1 channel2).
-  Local Notation DH_SIM_F_KE_C_DH_rand := (DH_SIM_F_KE_C_DH_rand channel1 channel2).
-  Local Notation C_DH_rand_DH_SIM_F_KE := (C_DH_rand_DH_SIM_F_KE channel1 channel2).
 
   Definition τ_DH := (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
 
@@ -51,7 +42,7 @@ Section handlee_verification.
   Lemma F_AUTH_DH_KE_FAUTH_C_DH_real :
     ⊢ sem_val_typed (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (C_lazy DH_real "f"))%V  
         τ_DH.
-  Proof using G channel1 channel2 inG0 inG1 inG2. (* TODO: remove channel1 channel2 from context *)
+  Proof using G inG0 inG1 inG2.
     iModIntro. iIntros (L).
        iIntros (f1 f2) "Hff".
        brel_pures'.
@@ -76,7 +67,7 @@ Section handlee_verification.
   Lemma F_AUTH_C_DH_real_FAUTH_DH_KE :
     ⊢ sem_val_typed (λ: "f", F_AUTH (C_lazy DH_real "f"))%V (λ: "f", F_AUTH (DH_KE "f"))%V  
         τ_DH.
-  Proof using G channel1 channel2 inG0 inG1 inG2.
+  Proof using G inG0 inG1 inG2.
     iModIntro. iIntros (L).
     iIntros (f1 f2) "Hff".
     brel_pures'.
@@ -103,7 +94,7 @@ Section handlee_verification.
   Lemma F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand :
     ⊢ sem_val_typed (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V (λ: "f", F_AUTH (C_lazy DH_rand "f"))%V  
         τ_DH.
-  Proof using G channel1 channel2 inG0 inG1 inG2.
+  Proof using G inG0 inG1 inG2.
     iModIntro. iIntros (L).
     iIntros (f1 f2) "Hff".
     brel_pures'.
@@ -128,7 +119,7 @@ Section handlee_verification.
   Lemma F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE :
     ⊢ sem_val_typed (λ: "f", F_AUTH (C_lazy DH_rand "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V  
         τ_DH.
-  Proof using channel1 channel2 G inG0 inG1 inG2.
+  Proof using G inG0 inG1 inG2.
     iModIntro. iIntros (L).
     iIntros (f1 f2) "Hff".
     brel_pures'.
@@ -151,7 +142,7 @@ Section handlee_verification.
   (*------------------------------------------------------------*)
   Lemma DHSIM_RED : 
     ⊢ sem_typed [] (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_rand) ⊥ τ_DH [].
-  Proof using G channel1 channel2 inG0 inG1 inG2.
+  Proof using G inG0 inG1 inG2.
     iIntros (vs) "!# _". simpl.
     brel_pures'.
     iModIntro. iSplit; last done.
@@ -161,7 +152,7 @@ Section handlee_verification.
   
   Lemma RED_DHSIM :
     ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_rand) (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ⊥ τ_DH [].
-  Proof using G channel1 channel2 inG0 inG1 inG2.
+  Proof using G inG0 inG1 inG2.
     iIntros (vs) "!# _". simpl.
     brel_pures'.
     iModIntro. iSplit; last done.
@@ -172,7 +163,7 @@ Section handlee_verification.
   Lemma DHKE_RED :
     ⊢ sem_typed [] (λ: "f", F_AUTH (DH_KE "f"))%V ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_real) ⊥
         τ_DH [].
-  Proof using G channel1 channel2 inG0 inG1 inG2.
+  Proof using G inG0 inG1 inG2.
     iIntros (vs) "!# _". simpl.
     brel_pures'.
     iModIntro. iSplit; last done.
@@ -183,7 +174,7 @@ Section handlee_verification.
   Lemma RED_DHKE :
     ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_real) (λ: "f", F_AUTH (DH_KE "f"))%V ⊥
         τ_DH [].
-  Proof using G channel1 channel2 inG0 inG1 inG2.
+  Proof using G inG0 inG1 inG2.
     iIntros (vs) "!# _". simpl.
     brel_pures'.
     iModIntro. iSplit; last done.

@@ -19,7 +19,6 @@ From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import dhke_channel_l
 
 Section handlee_verification.
   Context `{!probblazeRGS Σ}.
-  Context (channel1 channel2 : label).
   Context {vg : val_group}.           (* A group on a subset of values. *)
   Context {cg : clutch_group_struct}. (* Implementations of the vg group operations *)
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
@@ -29,9 +28,9 @@ Section handlee_verification.
   #[local] Notation n := (S n'').
   Import valgroup_notation.
 
-  Local Notation authchan_row  := (authchan_row channel1 channel2).
-  Local Notation authchan_rowL := (authchan_rowL channel1 channel2).
-  Local Notation authchan_rowR := (authchan_rowR channel1 channel2).
+  (* Local Notation authchan_row  := (authchan_row channel1 channel2).
+     Local Notation authchan_rowL := (authchan_rowL channel1 channel2).
+     Local Notation authchan_rowR := (authchan_rowR channel1 channel2). *)
   Local Notation θ := (θ (Σ:=Σ) (vg:=vg)).
 
   (* Verification of DH_KE ≤ C[DH_real] *)
