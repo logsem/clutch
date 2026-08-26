@@ -73,6 +73,53 @@ Section def_implementation.
         end
      | return "y" => #()%V end.
 
+Definition F_AUTH_legacy : val :=
+  λ: "f" "effs",  
+    let, ("doLeakSend", "doLeakRecv") := "effs" in
+    let: "m1" := ref NONEV in
+    let: "m2" := ref NONEV in
+    effect "channel" 
+    let: "doSend" := (λ: "m", do: (EffName "channel") (Send "m")) in  
+    let: "doRecv" := (λ: "m", do: (EffName "channel") (Recv "m")) in
+    handle: "f" ("doSend", "doRecv") with
+    | effect (EffName "channel") "message", rec "k" as multi =>
+        match: "message" with
+        (* SEND *)
+        | InjL "payload" =>
+            let, ("m", "dst") := "payload" in
+            match: "dst" with
+              (* Alice *)
+              InjL <> => match: !"m1" with (* Send only the first value. Discard all others.  *)
+                         NONE => "m1" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
+                       | SOME "x" => "k" #()%V 
+                         end
+            (* Bob *)
+            | InjR <> => match: !"m2" with
+                          NONE => "m2" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
+                        | SOME "x" => "k" #()%V 
+                        end
+            end
+        (* Recv *)
+        | InjR "from" =>
+            let: "r" := ("doLeakRecv" "from") in
+             match: "r" with
+               NONE => "k" NONEV
+             | SOME "x" => match: "from" with
+                             (* Alice *)
+                             InjL <> => match: !"m2" with
+                                          NONE => "k" NONEV
+                                        | SOME "m" => "k" (SOME "m")
+                                        end
+                           (* Bob *)
+                           | InjR <> => match: !"m1" with
+                                          NONE => "k" NONEV
+                                        | SOME "m" => "k" (SOME "m")
+                                        end
+                           end
+             end
+        end
+    | return "y" => #()%V end.
+
   Definition DH_KE  : val :=
     λ: "f" "effs",
     let, ("doSend", "doRecv") := "effs" in

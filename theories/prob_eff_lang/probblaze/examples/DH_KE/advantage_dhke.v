@@ -19,7 +19,7 @@ Section adv_dhke.
   Lemma adv_DHKE_DH_real  A :
     (∀ `{!probblazeRGS Σ}, 
        ⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
-    nonneg (advantage A (λ: "f", F_AUTH (DH_KE "f"))%V ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_real) #true) = 0%R.
+    nonneg (advantage A (λ: "f", F_AUTH_legacy (DH_KE "f"))%V ((λ: "DH" "f", F_AUTH_legacy (C "DH" "f"))%V DH_real) #true) = 0%R.
   Proof using H inG0 inG1 inG2 la2 G. (* also debris from dhke_channel *)
     intros. eapply sem_typed_advantage; eauto. split.
     - intros Hrgs. apply DHKE_RED; eauto. 
@@ -28,7 +28,7 @@ Section adv_dhke.
 
   Lemma adv_DH_rand_FKE  A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
-    nonneg (advantage A ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_rand) (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V  #true) = 0%R.
+    nonneg (advantage A ((λ: "DH" "f", F_AUTH_legacy (C "DH" "f"))%V DH_rand) (λ: "f", F_AUTH_legacy (DH_SIM (F_KE "f")))%V  #true) = 0%R.
   Proof using H inG0 inG1 inG2 G la2. 
     intros. eapply sem_typed_advantage; eauto. split.
     - intros Hrgs. apply RED_DHSIM; eauto.
@@ -37,8 +37,8 @@ Section adv_dhke.
 
   Theorem adv_DHKE A (ε : R) :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
-    advantage A ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_real) ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_rand) #true <= ε →
-    advantage A (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V #true <= ε.
+    advantage A ((λ: "DH" "f", F_AUTH_legacy (C "DH" "f"))%V DH_real) ((λ: "DH" "f", F_AUTH_legacy (C "DH" "f"))%V DH_rand) #true <= ε →
+    advantage A (λ: "f", F_AUTH_legacy (DH_KE "f"))%V (λ: "f", F_AUTH_legacy (DH_SIM (F_KE "f")))%V #true <= ε.
   Proof using H inG0 inG1 inG2 G la2. 
     intros HA HAadv.
     eapply advantage_triangle.
@@ -52,16 +52,16 @@ Section adv_dhke.
 
   Corollary adv_DHKE_no_epsilon  A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
-    advantage A (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V #true 
-    <= advantage A ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_real) ((λ: "DH" "f", F_AUTH (C "DH" "f"))%V DH_rand) #true.
+    advantage A (λ: "f", F_AUTH_legacy (DH_KE "f"))%V (λ: "f", F_AUTH_legacy (DH_SIM (F_KE "f")))%V #true 
+    <= advantage A ((λ: "DH" "f", F_AUTH_legacy (C "DH" "f"))%V DH_real) ((λ: "DH" "f", F_AUTH_legacy (C "DH" "f"))%V DH_rand) #true.
   Proof using H inG0 inG1 inG2 G la2. 
     intros. eapply adv_DHKE; eauto; lra.
   Qed.
     
   Theorem adv_DHKE_real A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
-    advantage A (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE "f")))%V #true <=
-      advantage (λ: "v", A (((λ: "DH", (λ: "f", F_AUTH (C "DH" "f")))%V "v")))%V DH_real DH_rand #true.
+    advantage A (λ: "f", F_AUTH_legacy (DH_KE "f"))%V (λ: "f", F_AUTH_legacy (DH_SIM (F_KE "f")))%V #true <=
+      advantage (λ: "v", A (((λ: "DH", (λ: "f", F_AUTH_legacy (C "DH" "f")))%V "v")))%V DH_real DH_rand #true.
   Proof using H inG0 inG1 inG2 G la2.  
     intros.
     etrans. 
