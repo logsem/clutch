@@ -8,6 +8,7 @@ From stdpp Require Import fin_maps.
 From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
 From clutch.prob_lang Require Import tactics lang notation.
+From clutch.prob_lang.gwp Require Import gen_weakestpre.
 From clutch.eris Require Export total_primitive_laws array_laws.
 From iris.prelude Require Import options.
 
@@ -96,3 +97,34 @@ Qed.
 End lifting.
 
 Global Typeclasses Opaque array.
+
+Section eris_twp_genwp.
+
+  Context `{!erisGS Σ}.
+
+  Local Definition eris_twp_gwp_mixin :
+    GenWpMixin
+      false
+      (λ E e Φ, WP e @ twp_default; E [{ Φ }])%I
+      (λ l dq v, (l ↦{dq} v)%I).
+  Proof.
+    constructor.
+    - intros l dq v. apply _.
+    - iIntros. by iApply tgl_wp_value.
+    - intros. apply tgl_wp_fupd.
+    - intros. apply (tgl_wp_bind (ectxi_language.fill _)).
+    - intros. by iApply total_lifting.twp_pure_step_fupd.
+    - iIntros. by iApply twp_alloc.
+    - iIntros. by iApply (twp_load with "[$]").
+    - iIntros. by iApply (twp_store with "[$]").
+  Qed.
+
+  Canonical Structure eris_twp_genwp : GenWp Σ :=
+    {| gwp_laters := false;
+       gwp :=
+         λ E e Φ, WP e @ twp_default; E [{ Φ }];
+       gwp_pointsto :=
+         λ l dq v, (l ↦{dq} v)%I;
+       gwp_mixin := eris_twp_gwp_mixin |}%I.
+
+End eris_twp_genwp.

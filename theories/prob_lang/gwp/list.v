@@ -261,6 +261,21 @@ Definition list_update : val :=
   | NONE => []
   end.
 
+Definition list_swap : val :=
+  λ: "l" "i" "j",
+    let: "temp" :=
+      (match: list_nth "l" "j" with
+       | SOME "x" => "x"
+       | NONE => #()
+       end) in
+    let: "l'" :=
+      list_update "l" "j"
+        (match: list_nth "l" "i" with
+         | SOME "x" => "x"
+         | NONE => #()
+         end) in
+    list_update "l'" "i" "temp".
+
 Definition list_suf : val :=
   rec: "list_suf" "i" "l" :=
   (if: "i" = #0
@@ -1017,6 +1032,10 @@ Section list_specs.
     ∀ l1 l2, is_list lM l1 → is_list lM l2 → l1 = l2.
   Proof. induction lM; intros []; naive_solver eauto with f_equal. Qed.
 
+  Lemma is_list_inj (l1 : list A) : ∀ (l2 : list A) (v : val),
+      is_list l1 v -> is_list l2 v -> l1 = l2.
+  Proof. induction l1; intros []; naive_solver eauto with f_equal. Qed.
+
   Lemma is_list_inv_l l:
     ∀ lM1 lM2, is_list lM1 l → lM1 = lM2 → is_list lM2 l.
   Proof. by intros ? ? ? <-. Qed.
@@ -1293,6 +1312,107 @@ Section list_specs_extra.
       iPureIntro.
       apply (is_list_inject) in Hv' as ->.
       by apply is_list_inject.
+  Qed.
+
+  Lemma gwp_list_update E l lv a i :
+    G{{{ ⌜is_list l lv⌝ ∗ ⌜i < length l⌝ }}}
+      list_update lv #i (inject a) @ g; E
+    {{{ v, RET v; ⌜is_list (<[i := a]> l) v⌝ }}}.
+  Proof.
+    iIntros (Φ) "[%Hv %Hlen] HΦ".
+    iInduction l as [|x l'] "IH" forall (i a lv Hv Hlen Φ).
+    { simpl in Hlen. lia. }
+
+    rewrite /list_update.
+    gwp_pures.
+    destruct Hv as [lv' [-> Hv]].
+    gwp_pures.
+    case_bool_decide as Hi.
+
+    - gwp_pures.
+      gwp_apply gwp_list_tail.
+      { iPureIntro. instantiate (1 := x :: l'). naive_solver. }
+      iIntros (tl) "%Htl".
+      gwp_apply gwp_list_cons; first done.
+      iIntros (v) "%Hv'".
+      iApply "HΦ".
+      iPureIntro.
+      assert (i = 0) as ->.
+      { inversion Hi. lia. }
+      naive_solver.
+
+    - rewrite -/list_update.
+      gwp_pures.
+      assert (i ≠ 0) by (intro; naive_solver).
+      replace (_ - _)%Z with (Z.of_nat (i - 1)) by lia.
+      gwp_apply "IH"; [done|..].
+      { iPureIntro. simpl in Hlen. lia. }
+      iIntros (u) "%Hu".
+      gwp_pures.
+      gwp_apply gwp_list_cons; first done.
+      iIntros (v) "%Hv'".
+      iApply "HΦ".
+      iPureIntro.
+      replace (x :: l') with ([x] ++ l') by done.
+      replace i with (length [x] + (i - 1)) by (simpl; lia).
+      rewrite insert_app_r.
+      naive_solver.
+  Qed.
+
+  Lemma gwp_list_swap E l lv i j :
+    G{{{ ⌜is_list l lv⌝ ∗ ⌜i < length l⌝ ∗ ⌜j < length l⌝ }}}
+      list_swap lv #i #j @ g; E
+    {{{ lv', RET lv';
+        ∃ x y,
+          ⌜l !! i = Some x⌝ ∗
+          ⌜l !! j = Some y⌝ ∗
+          ⌜is_list (<[i := y]> (<[j := x]> l)) lv'⌝ }}}.
+  Proof.
+    iIntros (Φ) "(%Hl & %Hi & %Hj) HΦ".
+    rewrite /list_swap.
+    gwp_pures.
+
+    gwp_apply gwp_list_nth_some.
+    { iPureIntro. split; first done. lia. }
+    iIntros (vj) "(%y & -> & %Hy)".
+    gwp_pures.
+
+    gwp_apply gwp_list_nth_some.
+    { iPureIntro. split; first done. lia. }
+    iIntros (vi) "(%x & -> & %Hx)".
+    gwp_pures.
+
+    gwp_apply gwp_list_update.
+    { iPureIntro. split; first done. lia. }
+    iIntros (lv') "%Hlv'".
+    gwp_pures.
+
+    gwp_apply gwp_list_update.
+    {
+      iPureIntro.
+      split; first exact Hlv'.
+      rewrite length_insert. lia.
+    }
+    iIntros (lv'') "%Hlv''".
+
+    iApply "HΦ".
+    iExists x, y.
+    repeat iSplit ; iPureIntro ; try done.
+    - unshelve erewrite (nth_error_nth' _ x) in Hx => //.
+      unshelve erewrite (nth_error_nth' _ y) in Hy => //.
+      rewrite -Hx.
+      rewrite nth_lookup. simpl.
+      inversion Hx as [hx]. rewrite hx.
+      destruct (nth_lookup_or_length l i x) as [->|].
+      2: lia.
+      rewrite hx. reflexivity.
+    - unshelve erewrite (nth_error_nth' _ y) in Hy => //.
+      rewrite -Hy.
+      rewrite nth_lookup. simpl.
+      inversion Hy as [hy]. rewrite hy.
+      destruct (nth_lookup_or_length l j y) as [->|].
+      2: lia.
+      rewrite hy. reflexivity.
   Qed.
 
   Lemma gwp_list_suf E (n:nat) l lv :
