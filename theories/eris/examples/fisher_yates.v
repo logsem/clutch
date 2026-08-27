@@ -331,105 +331,130 @@ Qed.
         by intros ->.
     }
     iDestruct "Herr" as "[Herr | %Hdiff]".
-    - set (j := list_find (λ y, bool_decide (lav !! i' = Some y)) l).
-      assert (is_Some j) as [ [k a] Hk].
-      {
-        rewrite /j.
-        epose proof (lookup_lt_is_Some_2 lav i' _) as [y Hy].
-        eapply list_find_elem_of; last first.
-        - by apply bool_decide_spec.
-        - apply list_elem_of_lookup_2 in Hy.
-          rewrite Hperm //.
-      }
+
+    - (* We have error credit.  Pick the position in [l] of the element
+         that [lav] has at the position currently being fixed. *)
+      pose proof (Permutation_length Hperm) as Hlenperm.
+      assert (S i' < length lav) as Hlenlav by lia.
+      destruct (lookup_lt_is_Some_2 lav (S i') Hlenlav) as [a Ha].
+      assert (a ∈ l) as Hain.
+      { rewrite Hperm. by eapply list_elem_of_lookup_2. }
+      apply list_elem_of_lookup in Hain as [k Hk].
       wp_apply (wp_rand_err_amp_nat _ _ k); iFrame.
       iIntros (x) "(%Hnleq & [%Hneq | Herr])".
-      + wp_pures.
-        wp_apply wp_list_swap.
-        { repeat iSplit; try done. iPureIntro.
-          lia.
-        }
-      iIntros (lv') "(%&%&%H1&%H2&%)".
+      + (* We did not draw [k].  Hence position [S i'] becomes different
+           from the corresponding position of [lav]. *)
+        wp_pures. wp_apply wp_list_swap.
+        { repeat iSplit; try done. iPureIntro. lia. }
+        iIntros (lv') "(%xi & %xj & %H1 & %H2 & %Hlv')".
+        do 3 wp_pure.
+        replace (_-_)%Z with (Z.of_nat i'); last lia.
+        wp_apply ("IH" $! (<[S i' := xj]> (<[x := xi]> l)) lav with "[][][][]").
+        * iPureIntro. transitivity l; last exact Hperm.
+          symmetry. by apply permutation_insert_swap.
+        * iPureIntro. exact Hlv'.
+        * iPureIntro. rewrite !length_insert. lia.
+        * iPureIntro.
+          eapply NoDup_ListNoDup, Permutation_NoDup ; last eapply NoDup_ListNoDup, Hdup.
+          by apply permutation_insert_swap.
+        * iRight. iPureIntro. intros Heq.
+          (* Equality of the suffixes would in particular imply that the new value at [S i'] is [a]. *)
+          assert (xj = a) as Hxja.
+          {
+            pose proof (f_equal (λ xs, xs !! 0) Heq) as Hlookup.
+            rewrite !lookup_drop in Hlookup.
+            simpl in Hlookup. rewrite Nat.add_0_r in Hlookup.
+            rewrite list_lookup_insert_eq in Hlookup ; [|rewrite length_insert; lia].
+            rewrite Ha in Hlookup. by simplify_eq.
+          }
+
+          (* But [xj] came from position [x], whereas [a] occurs at [k].
+             NoDup therefore forces [x = k], contradicting [Hneq]. *)
+          assert (l !! x = Some a) as Hxa by rewrite -Hxja => //.
+          apply Hneq.
+          exact (NoDup_lookup l x k a Hdup Hxa Hk).
+        * iIntros (v) "(%l' & %Hl' & %Hperm' & %Hneq')".
+          iApply "HΦ".
+          iExists l'.
+          iSplit.
+          { iPureIntro. exact Hl'. }
+          iSplit.
+          { iPureIntro.
+            transitivity (<[S i' := xj]> (<[x := xi]> l)); first exact Hperm'.
+            symmetry. by apply permutation_insert_swap. }
+          by iPureIntro.
+
+      + (* Exceptional draw: retain the amplified credit and continue. *)
+        wp_pures. wp_apply wp_list_swap.
+        { repeat iSplit; try done. iPureIntro. lia.}
+        iIntros (lv') "(%xi & %xj & %H1 & %H2 & %Hlv')".
+        do 3 wp_pure.
+        replace (_-_)%Z with (Z.of_nat i'); last lia.
+        wp_apply ("IH" $! (<[S i' := xj]> (<[x := xi]> l)) lav with "[][][][][Herr]").
+        * iPureIntro. transitivity l; last exact Hperm. symmetry. by apply permutation_insert_swap.
+        * iPureIntro. exact Hlv'.
+        * iPureIntro. rewrite !length_insert. lia.
+        * iPureIntro.
+          eapply NoDup_ListNoDup, Permutation_NoDup; last eapply NoDup_ListNoDup, Hdup.
+          by apply permutation_insert_swap.
+        * iLeft. iApply (ec_eq with "Herr").
+          (* (1/(i'+2)!) * (i'+2) = 1/(i'+1)! *)
+          rewrite !Nat.add_1_r.
+          rewrite -(S_INR (S i')).
+          rewrite (fact_simpl (S i')) mult_INR.
+          rewrite /Rdiv !Rmult_1_l Rinv_mult.
+          rewrite (Rmult_comm (/ INR (S (S i'))) (/ INR (fact (S i')))).
+          rewrite Rmult_assoc Rinv_l.
+          { by rewrite Rmult_1_r. }
+          apply not_0_INR. lia.
+        * iIntros (v) "(%l' & %Hl' & %Hperm' & %Hneq')".
+          iApply "HΦ".
+          iExists l'.
+          iSplit.
+          { iPureIntro. exact Hl'. }
+          iSplit.
+          { iPureIntro. transitivity (<[S i' := xj]> (<[x := xi]> l)); first exact Hperm'.
+            symmetry. by apply permutation_insert_swap. }
+          by iPureIntro.
+
+    - (* The already-fixed suffix differs from [lav].  Any swap performed
+         at indices <= S i' leaves the still-later suffix unchanged. *)
+      wp_apply wp_rand; auto.
+      iIntros (n) "?". wp_pures. wp_apply wp_list_swap.
+      { repeat iSplit; try done. iPureIntro. pose proof (fin_to_nat_lt n). lia. }
+      iIntros (lv') "(%xi & %xj & %H1 & %H2 & %Hlv')".
       do 3 wp_pure.
       replace (_-_)%Z with (Z.of_nat i'); last lia.
-      wp_apply ("IH" $! (<[S i':=y]> (<[x:=x0]> l)) lav with "[][][][]").
+
+      wp_apply ("IH" $! (<[S i' := xj]> (<[fin_to_nat n := xi]> l)) lav with "[][][][]").
+      * iPureIntro. transitivity l; last exact Hperm. symmetry. by apply permutation_insert_swap.
+      * iPureIntro. exact Hlv'.
+      * iPureIntro. rewrite !length_insert. lia.
       * iPureIntro.
-        transitivity l; auto.
-        symmetry.
+        eapply NoDup_ListNoDup, Permutation_NoDup; last eapply NoDup_ListNoDup, Hdup.
         by apply permutation_insert_swap.
-      * auto.
-      * rewrite !length_insert. iPureIntro.
-        lia.
-      * iPureIntro.
-        rewrite -(permutation_insert_swap l (S i') x x0 y H1 H2) //.
-      * iRight. iPureIntro.
-        admit.
-      * iIntros (?) "(%&%&%&%)".
-        iApply "HΦ".
-        iExists l'. iPureIntro; split; first done. admit.
-        (*
-        etrans; first exact.
-        rewrite Permutation_inj. split.
-        { rewrite !length_insert. lia. }
-        exists (λ x, if (bool_decide (x=fin_to_nat n)) then (S i')
-                else if (bool_decide (x=S i')) then (fin_to_nat n)
-                     else x
-          ).
-        split.
-        + intros ??. repeat case_bool_decide; simpl; naive_solver.
-        + intros. repeat case_bool_decide; subst.
-          * destruct (decide (fin_to_nat n=S i')) as [Heq|Heq].
-            -- rewrite Heq in H2. rewrite Heq. rewrite list_lookup_insert_eq; first naive_solver.
-               rewrite !length_insert. lia.
-            -- rewrite list_lookup_insert_ne; last done. rewrite list_lookup_insert_eq; first naive_solver.
-               pose proof fin_to_nat_lt n. lia.
-          * rewrite list_lookup_insert_eq; first naive_solver.
-            rewrite length_insert. lia.
-          * repeat (rewrite list_lookup_insert_ne; last done). done.
-          *)
-      + wp_pures.
-        wp_apply wp_list_swap.
-        { repeat iSplit; try done. iPureIntro.
-          lia.
-        }
-      iIntros (lv') "(%&%&%H1&%H2&%)".
-      do 3 wp_pure.
-      replace (_-_)%Z with (Z.of_nat i'); last lia.
-      wp_apply ("IH" $! (<[S i':=y]> (<[x:=x0]> l)) lav with "[][][][][Herr]").
-      * admit.
-      * admit.
-      * rewrite !length_insert. iPureIntro.
-        admit.
-      * admit.
-      * iLeft.
-        admit.
-      * iIntros (?) "(%&%&%&%)".
-        iApply "HΦ".
-        iExists l'. iPureIntro; split; first done. admit.
-    - wp_apply wp_rand; auto.
-      iIntros (n) "?".
-      wp_pures.
-      wp_apply wp_list_swap.
-      { repeat iSplit; try done. iPureIntro.
-        pose proof fin_to_nat_lt n. lia. }
-      iIntros (lv') "(%&%&%H1&%H2&%)".
-      do 3 wp_pure.
-      replace (_-_)%Z with (Z.of_nat i'); last lia.
-      wp_apply ("IH" $! (<[S i':=y]> (<[fin_to_nat n:=x]> l)) lav with "[][][][]").
-      * iPureIntro.
-        rewrite -Hperm.
-        rewrite (insert_take_drop _ n); [|admit].
-        rewrite (insert_take_drop); [|admit].
+      * iRight. iPureIntro. intros Heq. apply Hdiff.
 
-        **
-        auto.
-        admit.
-      * admit.
-      * admit.
-      * admit.
-      * iRight.
+        (* Drop one more element from the alleged equal suffixes.
+           Both swap positions are before that point, so the deeper
+           suffix of the swapped list is exactly the deeper suffix of l. *)
+        pose proof (f_equal (drop 1) Heq) as Heq'.
+        rewrite !drop_drop in Heq'.
+        rewrite !Nat.add_1_r in Heq'.
+        rewrite drop_insert_lt in Heq'; [|lia].
+        rewrite drop_insert_lt in Heq'; [|pose proof (fin_to_nat_lt n); lia].
+        exact Heq'.
+      * iIntros (v) "(%l' & %Hl' & %Hperm' & %Hneq')".
+        iApply "HΦ".
+        iExists l'.
+        iSplit.
+        { iPureIntro. exact Hl'. }
+        iSplit.
+        2: by iPureIntro.
         iPureIntro.
-  Admitted.
-
+        transitivity (<[S i' := xj]> (<[fin_to_nat n := xi]> l)) => //.
+        symmetry. by apply permutation_insert_swap.
+  Qed.
 
 
   Lemma wp_fisher_yates E l lav lv:
