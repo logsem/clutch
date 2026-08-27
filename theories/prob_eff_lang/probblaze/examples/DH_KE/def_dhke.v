@@ -73,53 +73,6 @@ Section def_implementation.
         end
      | return "y" => #()%V end.
 
-Definition F_AUTH_legacy : val :=
-  λ: "f" "effs",  
-    let, ("doLeakSend", "doLeakRecv") := "effs" in
-    let: "m1" := ref NONEV in
-    let: "m2" := ref NONEV in
-    effect "channel" 
-    let: "doSend" := (λ: "m", do: (EffName "channel") (Send "m")) in  
-    let: "doRecv" := (λ: "m", do: (EffName "channel") (Recv "m")) in
-    handle: "f" ("doSend", "doRecv") with
-    | effect (EffName "channel") "message", rec "k" as multi =>
-        match: "message" with
-        (* SEND *)
-        | InjL "payload" =>
-            let, ("m", "dst") := "payload" in
-            match: "dst" with
-              (* Alice *)
-              InjL <> => match: !"m1" with (* Send only the first value. Discard all others.  *)
-                         NONE => "m1" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
-                       | SOME "x" => "k" #()%V 
-                         end
-            (* Bob *)
-            | InjR <> => match: !"m2" with
-                          NONE => "m2" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
-                        | SOME "x" => "k" #()%V 
-                        end
-            end
-        (* Recv *)
-        | InjR "from" =>
-            let: "r" := ("doLeakRecv" "from") in
-             match: "r" with
-               NONE => "k" NONEV
-             | SOME "x" => match: "from" with
-                             (* Alice *)
-                             InjL <> => match: !"m2" with
-                                          NONE => "k" NONEV
-                                        | SOME "m" => "k" (SOME "m")
-                                        end
-                           (* Bob *)
-                           | InjR <> => match: !"m1" with
-                                          NONE => "k" NONEV
-                                        | SOME "m" => "k" (SOME "m")
-                                        end
-                           end
-             end
-        end
-    | return "y" => #()%V end.
-
   Definition DH_KE  : val :=
     λ: "f" "effs",
     let, ("doSend", "doRecv") := "effs" in
@@ -180,13 +133,12 @@ Definition F_AUTH_legacy : val :=
     let: "β" := alloc #n in
     let: "l1" := ref NONEV in
     let: "l2" := ref NONEV in
-    effect "leak"  
-    let: "doLeakSend" := (λ: "m", do: (EffName "leak") (Send "m")) in
-    let: "doLeakRecv" := (λ: "m", do: (EffName "leak") (Recv "m")) in
-      handle: "f" ("doLeakSend", "doLeakRecv") with
-    | effect (EffName "leak") "payload", rec "k" as multi =>
-        match: "payload" with
-        | InjL "dst" =>
+    effect "leakSend"
+    effect "leakRecv"
+    let: "doLeakSend" := (λ: "m", do: "leakSend" "m") in
+    let: "doLeakRecv" := (λ: "m", do: "leakRecv" "m") in
+    handle: handle: "f" ("doLeakSend", "doLeakRecv") with
+    | effect "leakSend" "dst", rec "k" as multi =>
             match: "dst" with
               InjL <> => let: "c" :=
                            (match: !"l1" with
@@ -205,14 +157,14 @@ Definition F_AUTH_legacy : val :=
                          "doSend" ("gC", alice);;
                          "k" #()%V
             end
-        | InjR "from" =>
-            let: "r" := "doRecv" "from" in
-             match: "r" with
-               NONE => "k" NONE
-             | SOME "x" => "k" (SOME #()%V)
-             end
-        end
-    | return "y" => "y" end.
+   | return "y" => "y" end with
+   | effect "leakRecv" "from", rec "k" as multi => 
+       let: "r" := "doRecv" "from" in
+       match: "r" with
+         NONE => "k" NONE
+       | SOME "x" => "k" (SOME #()%V)
+       end
+   | return "y" => "y" end.
 
   
    Definition F_KE : val :=

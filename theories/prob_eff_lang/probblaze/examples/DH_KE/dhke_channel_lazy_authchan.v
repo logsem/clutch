@@ -219,17 +219,17 @@ Section handlee_verification.
     repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
   Qed. 
   
-  Program Definition gkleakl leak gk1 gk2 := SemRow [([leak;gk1],[gk2],gk gk1 gk2)] _.
+  Program Definition gkleakl leaks leakr gk1 gk2 := SemRow [([leaks;leakr;gk1],[gk2],gk gk1 gk2)] _.
   Next Obligation.
-    intros ???.
+    intros ????.
     iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
     iExists _,_,_,_,_. 
     repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
   Qed. 
 
-  Program Definition gkleakr leak gk1 gk2 := SemRow [([gk1],[leak;gk2],gk gk1 gk2)] _.
+  Program Definition gkleakr leaks leakr gk1 gk2 := SemRow [([gk1],[leaks;leakr;gk2],gk gk1 gk2)] _.
   Next Obligation.
-    intros ???.
+    intros ????.
     iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
     iExists _,_,_,_,_. 
     repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
