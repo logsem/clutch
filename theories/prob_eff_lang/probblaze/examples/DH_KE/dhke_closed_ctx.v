@@ -1,6 +1,6 @@
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import advantage_dhke_lazy valgroup_Zpx.
-From clutch.prob_eff_lang.probblaze Require Import adequacy syntax.
-From clutch Require Import stdpp_ext.
+From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import advantage_dhke_lazy valgroup_Zpx def_dhke.
+From clutch.prob_eff_lang.probblaze Require Import adequacy syntax types notation advantage.
+From Stdlib Require Import Reals.
 From iris.base_logic.lib Require Import ghost_map.
 From iris.algebra Require Import excl dfrac_agree.
 
@@ -40,10 +40,26 @@ Section multiplicative.
   Local Instance inGdfrac_agree : inG closedΣ (dfrac_agreeR valO).
   Proof. apply (subG_inG _ (GFunctor (dfrac_agreeR valO))). apply _. Qed.
 
-  Definition DHKE_secure := @adv_DHKE_typed (vg_p _) (cgs_p p''') (@vgg_p p''' rfc3526_id18_prime) (@cg_p _ p_prime) closedΣ _ _ _ _.  
+  Definition vg := vg_p p'''.
+  Definition cgs := cgs_p p'''.
+  Definition vgg := @vgg_p p''' rfc3526_id18_prime.
+  Definition DHKE := @DH_KE vg cgs vgg.
+  Definition DHSIM := @DH_SIM vg cgs vgg.
+  Definition FKE := @F_KE_lazy_alice vg cgs vgg.
+  Definition DDHR := @DH_real vg cgs vgg.
+  Definition DDHI := @DH_rand vg cgs vgg.
 
-  Set Printing Implicit.
-  Check DHKE_secure.
+  Definition DHKE_secure := @adv_DHKE_typed vg cgs vgg (@cg_p _ p_prime) closedΣ _ _ _ _.  
+
+  Lemma adv_DHKE_typed A :
+    ⊢ᵥ A : (@T_DH cgs ⇾ TBool) →
+           (advantage A (λ: "f", F_AUTH (DHKE "f"))%V (λ: "f", F_AUTH (DHSIM (FKE "f")))%V #true <=
+             advantage (λ: "v", A (((λ: "DH", (λ: "f", F_AUTH (C_lazy "DH" "f")))%V "v")))%V DDHR DDHI #true)%R.
+  Proof.
+    exact (DHKE_secure A).
+  Qed. 
 
 End multiplicative.
 
+Set Printing Implicit.
+Check adv_DHKE_typed.
