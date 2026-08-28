@@ -578,15 +578,6 @@ Proof.
   exists xg. split; [| exact Hint]. rewrite -Hint. apply int_of_vg_of_int_sem.
 Qed.
 
-Lemma vg_of_int_sem_inj :
-  ∀ m n : nat,
-    (m < #|[set : vgG]|)%nat →
-    (n < #|[set : vgG]|)%nat →
-    vg_of_int_sem m = vg_of_int_sem n →
-    m = n.
-Proof.
-Admitted.
-
 End facts.
 
 

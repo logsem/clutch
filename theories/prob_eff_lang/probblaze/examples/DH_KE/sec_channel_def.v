@@ -22,28 +22,27 @@ Section schannel.
      λ: "f" "LeakOp",
       let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
       let: "message" := ref NONEV in
-      effect "channel"
-      let: "doSend" := (λ: "m", do: (EffName "channel") (Send "m")) in
-      let: "doRecv" := (λ: "m", do: (EffName "channel") (Recv "m")) in
-      handle: "f" ("doSend", "doRecv") with
-      | effect (EffName "channel") "payload", rec "k" as multi =>
-      match: "payload" with
+      effect "send"
+      effect "recv"
+      let: "doSend" := (λ: "m", do: "send" "m") in
+      let: "doRecv" := (λ: "m", do: "recv" "m") in
+      handle: handle: "f" ("doSend", "doRecv") with
       (*Send Auth*)
-      | InjL "payload" =>
+      | effect "send" "payload", rec "k" as multi =>
           let, ("m", "dst") := "payload" in
           match: !"message" with
           | NONE => "message" <- SOME "m" ;;
                    ("doLeakSend" ("m", "dst"));; "k" #()%V
           | SOME "message" => "k" #()%V
           end
+     | return "y" => "y" end with
       (* Receive Auth *)
-      | InjR "from" => 
+      | effect "recv" "from", rec "k" as multi =>
           let: "r" := ("doLeakRecv" "from") in
           match: "r" with
           | NONE => "k" NONEV
           | SOME "x" => "k" !"message"                         
           end
-      end
      | return "y" => "y"
   end.
 
