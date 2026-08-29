@@ -216,14 +216,13 @@ Section schannel.
         | SOME "m'" => "m'"
         end
     in
-    effect "leaksec"
-    let: "doLeakSecSend" := (λ: "m", do: (EffName "leaksec") (Send "m")) in
-    let: "doLeakSecRecv" := (λ: "m", do: (EffName "leaksec") (Recv "m")) in
-    handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
-    | effect (EffName "leaksec") "payload", rec "k" as multi =>
-        match: "payload" with
+    effect "lsend"
+    effect "lrecv"
+    let: "doLeakSecSend" := (λ: "m", do: "lsend" "m") in
+    let: "doLeakSecRecv" := (λ: "m", do: "lrecv" "m") in
+    handle: handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
           (*Broadcast a message*)
-        | InjL <> =>
+    | effect "lsend" "payload", rec "k" as multi =>
             (* assuming "dst" is alice for now *)
             (*let, ("m", "dst") := "payload" in*)
             (*("doKeyLeak" (Send("payload")));;*)
@@ -244,7 +243,8 @@ Section schannel.
                               | SOME "m" => "k" #()%V
                               end
                           end
-       | InjR <> =>
+    | return "y" => "y" end with
+       | effect "lrecv" "payload", rec "k" as multi =>
                             (*("doKeyLeakRecv" (alice));;*)
                             let: "r" := "doKeyLeakRecv" (alice) in
                             match: "r" with
@@ -265,7 +265,6 @@ Section schannel.
                                end
 
                            end
-        end
     | return "y" => "y" end.
 
 End schannel.

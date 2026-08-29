@@ -252,7 +252,7 @@ Section schan_security.
      and every row below is built by hand, so the [send] pair is a safe choice. *)
   Definition sec_channel (ssend1 ssend2 srecv1 srecv2 : label) := @SemSig Σ (sec_channel_mono ssend1 ssend2 srecv1 srecv2) (ssend1, ssend2).
 
-  Lemma client_pers_mono_row (csend crecv leaksec getKey1 ssend1 srecv1 ssend2 srecv2 : label) : ⊢ pers_mono_row (iLblSig_to_iLblThy [([csend; crecv; getKey1; srecv1; ssend1] , [leaksec; srecv2; ssend2] , sec_channel ssend1 ssend2 srecv1 srecv2)]).
+  Lemma client_pers_mono_row (csend crecv lsend lrecv getKey1 ssend1 srecv1 ssend2 srecv2 : label) : ⊢ pers_mono_row (iLblSig_to_iLblThy [([csend; crecv; getKey1; srecv1; ssend1] , [lrecv; lsend; srecv2; ssend2] , sec_channel ssend1 ssend2 srecv1 srecv2)]).
   Proof.
     intros. unfold pers_mono_row. iIntros (????) "#HΦΦ'". iIntros (???) "(%H1 & H2)".
     iSplitR "H2"; [iPureIntro; apply H1 |].
@@ -268,7 +268,7 @@ Section schan_security.
     }
   Qed.
 
-  Lemma client_pers_mono_row' (csend crecv leaksec getKey1 ssend1 srecv1 ssend2 srecv2 : label) : ⊢ pers_mono_row (iLblSig_to_iLblThy [([leaksec; srecv1; ssend1] , [csend; crecv; getKey1; srecv2; ssend2] , sec_channel ssend1 ssend2 srecv1 srecv2)]).
+  Lemma client_pers_mono_row' (csend crecv lsend lrecv getKey1 ssend1 srecv1 ssend2 srecv2 : label) : ⊢ pers_mono_row (iLblSig_to_iLblThy [([lrecv; lsend; srecv1; ssend1] , [csend; crecv; getKey1; srecv2; ssend2] , sec_channel ssend1 ssend2 srecv1 srecv2)]).
   Proof.
     intros. unfold pers_mono_row. iIntros (????) "#HΦΦ'". iIntros (???) "(%H1 & H2)".
     iSplitR "H2"; [iPureIntro; apply H1 |].
@@ -301,9 +301,9 @@ Section schan_security.
   Qed.
 
   Program Definition sec_channel_row (ssend1 srecv1 ssend2 srecv2 : label) := SemRow [([srecv1; ssend1], [srecv2; ssend2], sec_channel ssend1 ssend2 srecv1 srecv2)] (sec_channel_pers_mono_row ssend1 srecv1 ssend2 srecv2).
-  Program Definition client_row (csend crecv leaksec getKey1 ssend1 srecv1 ssend2 srecv2 : label) := SemRow [([csend; crecv; getKey1; srecv1; ssend1], [leaksec; srecv2; ssend2], sec_channel ssend1 ssend2 srecv1 srecv2)] (client_pers_mono_row csend crecv leaksec getKey1 ssend1 srecv1 ssend2 srecv2).
+  Program Definition client_row (csend crecv lsend lrecv getKey1 ssend1 srecv1 ssend2 srecv2 : label) := SemRow [([csend; crecv; getKey1; srecv1; ssend1], [lrecv; lsend; srecv2; ssend2], sec_channel ssend1 ssend2 srecv1 srecv2)] (client_pers_mono_row csend crecv lsend lrecv getKey1 ssend1 srecv1 ssend2 srecv2).
 
-  Program Definition client_row' (csend crecv leaksec getKey1 ssend1 srecv1 ssend2 srecv2 : label) := SemRow [([leaksec; srecv1; ssend1], [csend; crecv; getKey1; srecv2; ssend2], sec_channel ssend1 ssend2 srecv1 srecv2)] (client_pers_mono_row' csend crecv leaksec getKey1 ssend1 srecv1 ssend2 srecv2).
+  Program Definition client_row' (csend crecv lsend lrecv getKey1 ssend1 srecv1 ssend2 srecv2 : label) := SemRow [([lrecv; lsend; srecv1; ssend1], [csend; crecv; getKey1; srecv2; ssend2], sec_channel ssend1 ssend2 srecv1 srecv2)] (client_pers_mono_row' csend crecv lsend lrecv getKey1 ssend1 srecv1 ssend2 srecv2).
   
   Definition REAL_CHAN : val :=
     λ: "f",
@@ -656,8 +656,8 @@ Section schan_security.
     set (X' := sec_channel schannel_l schannel_r).
     iApply brel_learn. iIntros "%Hdist' _".
     iApply ((brel_exhaustion (f1 ((λ: "m", do: schannel_l InjL "m"),(λ: <>, do: schannel_l InjR bob))%V) (f2 ((λ: "m", do: schannel_r InjL "m"),(λ: <>, do: schannel_r InjR bob))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]").
-    { simpl; set_solver. }
-    { simpl; set_solver. }
+    { simpl; (set_unfold; tauto). }
+    { simpl; (set_unfold; tauto). }
     {
       set clt := ([channel'; getKey'; schannel_l], [leaksec'; schannel_r], X').
       set cltheory := iLblSig_to_iLblThy [([channel'; getKey'; schannel_l] , [leaksec'; schannel_r] , X')].
@@ -695,13 +695,13 @@ Section schan_security.
         iApply brel_vg_of_int_none_r; first done.
         brel_pures'. 
         iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V));
-          [set_solver|done|by iApply "Hrel"|iApply "IH"]. }
+          [(set_unfold; tauto)|done|by iApply "Hrel"|iApply "IH"]. }
       
       iApply brel_vg_of_int_correct_l; first done.
       iApply brel_vg_of_int_correct_r; first done.
       brel_pures'. 
       
-      iApply (brel_na_inv _ _ alphaN); first set_solver.
+      iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto).
       iFrame "Hinvα".
       iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
       (* First message to be sent by the secure channel*)
@@ -762,8 +762,8 @@ Section schan_security.
         set (N := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++ keytheory ++ leaktheory ++ (iLblSig_to_iLblThy L)).
         brel_pures. simpl.
         iApply (brel_bind'' [AppRCtx _] [AppRCtx _] keytheory M N (𝟙%T) (Do keyleak1 (InjLV bob)) (Do keyleak2 (InjLV bob))).
-        { simpl. set_solver. }
-        { simpl. set_solver. }
+        { simpl. (set_unfold; tauto). }
+        { simpl. (set_unfold; tauto). }
         { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. eapply Permutation_submseteq.
           eapply perm_swap. }
         {  iApply (brel_introduction' [keyleak1] [keyleak2]).
@@ -781,7 +781,7 @@ Section schan_security.
            { unfold N. unfold keytheory. unfold leaktheory. simpl.
              unfold distinct'. iPureIntro. apply Hdist'. }
            iApply (brel_bind'' _ _ keytheory M N 𝟙%T (Do keyleak1 (InjRV bob)) (Do keyleak2 (InjRV bob))).
-           { simpl. unfold M.  repeat (rewrite -> labels_l_cons). set_solver. }
+           { simpl. unfold M.  repeat (rewrite -> labels_l_cons). (set_unfold; tauto). }
            { simpl. apply list_subseteq_nil. }
            { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. eapply Permutation_submseteq.
              eapply perm_swap. }
@@ -798,7 +798,7 @@ Section schan_security.
                     iIntros "$ !>". brel_pures.
                     simpl. brel_pures.
                     iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-                    { simpl. auto. set_solver. }
+                    { simpl. auto. (set_unfold; tauto). }
                     { simpl. repeat (eapply list_subseteq_skip). eapply list_subseteq_nil. }
                     { iApply "Hrel". iApply "HmQ". }
                     { iApply "IH". }
@@ -813,9 +813,9 @@ Section schan_security.
                    unfold distinct_l in H0. (*unfold LblClients in H1. simpl in H1.*)
                    unfold N in H0. simpl in H0.
                    repeat (rewrite -> labels_l_cons in H0).
-                   set_solver.  }
+                   (set_unfold; tauto).  }
                  {  simpl.
-                    iApply (brel_na_inv _ _ alphaN); first set_solver.
+                    iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto).
                     iFrame "Hinvα".
                     iIntros "([ (>Hγ & (>Hl_m'sim' & (>Hl_asim & (>Hl_auth &
 (>Hl_fchan' & (>Hl_rchan' & Hl_key')))))) | [>Hd2 | >Hd3]] & Hclose)".
@@ -838,7 +838,7 @@ Section schan_security.
 
                       brel_pures.
                       iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-                      { simpl. auto. set_solver. }
+                      { simpl. auto. (set_unfold; tauto). }
                       { simpl. auto. }
                       { iApply "Hrel". iApply "HmQ". }
                       { iApply "IH". }
@@ -896,7 +896,7 @@ Section schan_security.
                         iModIntro. iApply brel_value. iIntros "$ !>".
                         brel_pures.
                         iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-                        { simpl. auto. set_solver. }
+                        { simpl. auto. (set_unfold; tauto). }
                         { simpl. auto. }
                         { iApply "Hrel". iApply "HmQ". }
                         { iApply "IH". }          }  }  }  }
@@ -915,7 +915,7 @@ Section schan_security.
          iSplitL.
          { iModIntro. iRight. iLeft. iFrame. }
          iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-         { simpl. auto. set_solver. }
+         { simpl. auto. (set_unfold; tauto). }
          { simpl. auto. (*admit.*) }
          { iApply "Hrel". iApply "HmQ". }
          { iApply "IH". }
@@ -931,7 +931,7 @@ Section schan_security.
          iSplitL.
          { iModIntro. iRight. iRight. iFrame. }
          iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-         { simpl. auto. set_solver. }
+         { simpl. auto. (set_unfold; tauto). }
          { simpl. auto. }
          { iApply "Hrel". iApply "HmQ". }
          { iApply "IH". }
@@ -951,15 +951,15 @@ Section schan_security.
         + apply -> NeutralEctx_ectx_labels_singleton.
           eapply NeutralEctx_label_cons_inv_2 in Hk2.
           eapply NeutralEctx_label_cons_inv_1 in Hk2. eapply Hk2.
-        + simpl. set_solver. }
+        + simpl. (set_unfold; tauto). }
       brel_pures.
       set (keytheory := iLblSig_to_iLblThy [([keyleak1], [keyleak2], keyleak keyleak1 keyleak2)]).
       set (leaktheory := (iLblSig_to_iLblThy [([leakauth1], [leakauth2], leakauth leakauth1 leakauth2)])).
       set (M := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)]).
       set (N := [([channel'; getKey'; schannel_l], [leaksec'; schannel_r], @iThyBot Σ)] ++ keytheory ++ leaktheory ++ (iLblSig_to_iLblThy L)).
       iApply (brel_bind'' _ _ keytheory M N _ (Do keyleak1 (InjRV alice)) (Do keyleak2 (InjRV alice))).
-      { simpl. unfold M. unfold labels_l. simpl. set_solver. }
-      { simpl. unfold M. unfold labels_r. simpl. set_solver. }
+      { simpl. unfold M. unfold labels_l. simpl. (set_unfold; tauto). }
+      { simpl. unfold M. unfold labels_r. simpl. (set_unfold; tauto). }
       { iApply to_iThy_le_intro'. unfold M. unfold N.
         eapply submseteq_sublist_r.
         exists ([([channel'; getKey'; schannel_l], [leaksec'; schannel_r],
@@ -984,16 +984,16 @@ Section schan_security.
              iApply brel_value.
              iIntros "$ !>". brel_pures.
              iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
-             { simpl. set_solver. }
-             { simpl. set_solver. }
+             { simpl. (set_unfold; tauto). }
+             { simpl. (set_unfold; tauto). }
              { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
              {iApply "IH". } }
            { (*keyleak alice returns with a value *)
              repeat foldkont.
              iApply brel_value. iIntros "$ !>". brel_pures.
              iApply (brel_bind'' _ _ keytheory M N _ (Do keyleak1 (InjLV alice)) (Do keyleak2 (InjLV alice))).
-             { simpl. unfold M. unfold labels_l. simpl. (*apply (list_subseteq_skip channel' [] [getKey'; schannel_l]).*) set_solver. }
-             { simpl. unfold M. unfold labels_r. simpl. set_solver. }
+             { simpl. unfold M. unfold labels_l. simpl. (*apply (list_subseteq_skip channel' [] [getKey'; schannel_l]).*) (set_unfold; tauto). }
+             { simpl. unfold M. unfold labels_r. simpl. (set_unfold; tauto). }
              {  iApply to_iThy_le_intro'. unfold M. unfold N. solve_submseteq. }
              iApply (brel_introduction' [keyleak1] [keyleak2]).
              1: { unfold keytheory.
@@ -1013,7 +1013,7 @@ Section schan_security.
                brel_pures.
                repeat foldkont.
                (* open invariant for case analysis *)
-               iApply (brel_na_inv _ _ alphaN); first set_solver.
+               iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto).
                iFrame "Hinvα".
                iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
                (* no message has been sent yet by the secure channel*)
@@ -1026,8 +1026,8 @@ Section schan_security.
                   { iModIntro. iLeft. iFrame. }
 
                   iApply (brel_exhaustion (fill k1'(InjLV #()%V)) (fill k2' (InjLV #()%V))).
-                  { simpl. auto. set_solver. }
-                  { simpl. set_solver. }
+                  { simpl. auto. (set_unfold; tauto). }
+                  { simpl. (set_unfold; tauto). }
                   { iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone".  }
                   { iApply "IH". }
                (* a message has been sent by both the secure channel and the authenticated channel *)
@@ -1035,7 +1035,7 @@ Section schan_security.
                   iDestruct "Hd2" as (?m ?n) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (Hl_rchan & Hl_key))))))".
                   iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
                   iIntros "!> Hl_key". brel_pures.
-                  { simpl. set_solver. }
+                  { simpl. (set_unfold; tauto). }
                   iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_m'sim").
                   iIntros "Hl_m'sim". brel_pures. simpl.
                   repeat foldkont.
@@ -1052,8 +1052,8 @@ Section schan_security.
                   iSplitL.
                   { iModIntro. iRight. iLeft. iFrame "#". }
                   iApply (brel_bind'' _ _ leaktheory M N _ (Do leakauth1 (InjRV bob)) (Do leakauth2 (InjRV bob))).
-                  { simpl. unfold M. unfold labels_l. simpl. set_solver. }
-                  { simpl. unfold M. unfold labels_r. simpl. set_solver. }
+                  { simpl. unfold M. unfold labels_l. simpl. (set_unfold; tauto). }
+                  { simpl. unfold M. unfold labels_r. simpl. (set_unfold; tauto). }
                   {  iApply to_iThy_le_intro'. unfold M. unfold N.
                      eapply submseteq_sublist_r.
                      exists ([([channel'; getKey'; schannel_l], [leaksec'; schannel_r],
@@ -1087,16 +1087,16 @@ Section schan_security.
                        brel_pures.
                        set (g_enc := (g ^+ sc_coupling (g ^+ f m n) n)%g).
                        iApply (brel_exhaustion (fill k1'((InjRV (vgval g_enc))%V)) (fill k2' ((InjRV (vgval m))%V))).
-                       { simpl. auto. set_solver. }
-                       { simpl. set_solver. }
+                       { simpl. auto. (set_unfold; tauto). }
+                       { simpl. (set_unfold; tauto). }
                        { unfold kont0. iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". unfold g_enc. rewrite sc_coupling_invol. iApply "Hsome". }
                        { iApply "IH". }
                     (* leakauth doesnt return with a value *)
                     -  iApply brel_value. iIntros "$ !>".
                        brel_pures. simpl.
                        iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
-                       { simpl. set_solver. }
-                       { simpl. set_solver. }
+                       { simpl. (set_unfold; tauto). }
+                       { simpl. (set_unfold; tauto). }
                        { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
                        {iApply "IH". } }
                (* a message has been sent by the secure channel but not the authenticated channel*)
@@ -1105,7 +1105,7 @@ Section schan_security.
                   iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (Hl_rchan & Hl_key))))))".
                   iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
                   iIntros "!> Hl_key". brel_pures.
-                  { simpl. set_solver. }
+                  { simpl. (set_unfold; tauto). }
                   iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_m'sim").
                   iIntros "Hl_m'sim". brel_pures. simpl.
                   repeat foldkont.
@@ -1120,8 +1120,8 @@ Section schan_security.
                   iSplitL.
                   { iModIntro. iRight. iRight. iFrame "#". iFrame. }
                   iApply (brel_bind'' _ _ leaktheory M N _ (Do leakauth1 (InjRV bob)) (Do leakauth2 (InjRV bob))).
-                  { simpl. unfold M. unfold labels_l. simpl. set_solver. }
-                  { simpl. unfold M. unfold labels_r. simpl. set_solver. }
+                  { simpl. unfold M. unfold labels_l. simpl. (set_unfold; tauto). }
+                  { simpl. unfold M. unfold labels_r. simpl. (set_unfold; tauto). }
                   {  iApply to_iThy_le_intro'. unfold M. unfold N.
                      eapply submseteq_sublist_r.
                      exists ([([channel'; getKey'; schannel_l], [leaksec'; schannel_r],
@@ -1142,7 +1142,7 @@ Section schan_security.
                     -  iIntros (b1 b2). iApply brel_value. iIntros "$ !>".
                        brel_pures. simpl.
                        (*another case analysis by opening the invariant again, since we need access to the pointers l_sim and l_auth *)
-                       iApply (brel_na_inv _ _ alphaN); first set_solver.
+                       iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto).
                        iFrame "Hinvα".
                        iIntros "([(>Hγ & >Hl_m'sim' & >Hl_sim & >Hl_auth & >Hl_fchan' & >Hl_rchan' & >Hl_key') | [>Hd2 | >Hd3 ]] & Hclose)".
                        (*contradiction branch since we already know that a message has been sent by the secure channel *)
@@ -1185,8 +1185,8 @@ Section schan_security.
                           brel_pures.
                           set (g_enc := (g ^+ sc_coupling (g ^+ f m0 n0) n0)%g).
                           iApply (brel_exhaustion (fill k1'((InjRV (vgval g_enc))%V)) (fill k2' ((InjRV (vgval m0))%V))).
-                          { simpl. auto. set_solver. }
-                          { simpl. set_solver. }
+                          { simpl. auto. (set_unfold; tauto). }
+                          { simpl. (set_unfold; tauto). }
                           { unfold kont0. iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". unfold xor. unfold g_enc.
                             rewrite sc_coupling_invol. iApply "Hsome". }
                           { iApply "IH". }
@@ -1208,16 +1208,16 @@ Section schan_security.
                           { iModIntro. iRight. iRight. iFrame "#". iFrame. }
                           simpl. brel_pures.
                           iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
-                          { simpl. set_solver. }
-                          { simpl. set_solver. }
+                          { simpl. (set_unfold; tauto). }
+                          { simpl. (set_unfold; tauto). }
                           { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
                           {iApply "IH". }
                     (* leakauth doesnt return with a value *)
                     -  iApply brel_value. iIntros "$ !>".
                        brel_pures. simpl.
                        iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
-                       { simpl. set_solver. }
-                       { simpl. set_solver. }
+                       { simpl. (set_unfold; tauto). }
+                       { simpl. (set_unfold; tauto). }
                        { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
                        {iApply "IH". } } } } } }
   Qed.
@@ -1260,7 +1260,9 @@ Section schan_security.
     iApply brel_alloctape_l. iIntros (γ) "!> Hγ". brel_pures_l.
     iApply brel_alloc_l. iIntros (l_key) "!> Hl_key". brel_pures_l.
     iApply brel_effect_l. iIntros (getKey') "!> HgK !>". brel_pures_l.
-    iApply brel_effect_r. iIntros (leaksec') "Hleaksec !>". brel_pures.
+    (* CHAN_SIM_lazy now binds two labels: [lsend] first, then [lrecv]. *)
+    iApply brel_effect_r. iIntros (lsend') "Hlsend !>".
+    iApply brel_effect_r. iIntros (lrecv') "Hlrecv !>". brel_pures.
     iApply brel_alloc_l. iIntros (l_auth) "!>Hl_auth". brel_pures_l.
     (* F_OAUTH now binds two labels: [send] first, then [recv]. *)
     iApply brel_effect_l. iIntros (csend') "!> Hcsend !>".
@@ -1355,11 +1357,11 @@ Section schan_security.
                       match: ! #l_fchan with
                         InjL <> =>
                           #l_fchan <- InjR "m";;
-                          (λ: "m", do: leaksec' InjL "m")%V alice;; "k" #()%V
+                          (λ: "m", do: lsend' "m")%V alice;; "k" #()%V
                       | InjR "x" => "k" #()%V
                       end
                   | InjR <> =>
-                      let: "r" := (λ: "m", do: leaksec' InjR "m")%V bob in
+                      let: "r" := (λ: "m", do: lrecv' "m")%V bob in
                       match: "r" with
                         InjL <> => "k" (InjLV #()%V)
                       | InjR "x" => "k" (InjR ! #l_fchan)
@@ -1404,7 +1406,7 @@ Section schan_security.
                           end
                       end
                   end )%E).
-    set (θ := client_row csend' crecv' leaksec' getKey' ssend_l srecv_l ssend_r srecv_r).
+    set (θ := client_row csend' crecv' lsend' lrecv' getKey' ssend_l srecv_l ssend_r srecv_r).
     iSpecialize ("Hrelf1f2" $! θ).
     unfold sem_ty_arr, sem_ty_mbang. simpl.
     iAssert (sem_val_typed  ((λ: "m", do: ssend_l "m"), (λ: <>, do: srecv_l bob))%V ((λ: "m", do: ssend_r "m") , (λ: <>, do: srecv_r bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)) as "Hschn".
@@ -1430,35 +1432,36 @@ Section schan_security.
     iApply (brel_add_label_l with "HgK").
     iApply (brel_add_label_l with "Hcrecv").
     iApply (brel_add_label_l with "Hcsend").
-    iApply (brel_add_label_r with "Hleaksec").
+    iApply (brel_add_label_r with "Hlsend").
+    iApply (brel_add_label_r with "Hlrecv").
     set (X :=  iLblSig_to_iLblThy [([srecv_l; ssend_l] , [srecv_r; ssend_r] , sec_channel ssend_l ssend_r srecv_l srecv_r)]).
     set (R := (λ u1 u2 : val, 𝟙%T u1 u2)).
     set (X' := sec_channel ssend_l ssend_r srecv_l srecv_r).
     iApply brel_learn. iIntros "%Hdist' _".
     (* Splitting F_OAUTH's [channel] and CHAN/F_CHAN's [schannel] into two
        handlers each makes [brel_pures] emit label-freshness side goals
-       ([crecv' ∉ [csend']], [leaksec' ∉ [srecv_r]], ...) at every reduction
+       ([crecv' ∉ [csend']], [lrecv' ∉ [lsend']], ...) at every reduction
        that crosses one of the new handlers.  Derive the FULL pairwise
        distinctness of each side's label list once from [Hdist']; every such
-       goal then closes with the [set_solver] already in the script. *)
+       goal then closes with the [set_unfold; tauto] already in the script. *)
     assert (NoDup [csend'; crecv'; getKey'; srecv_l; ssend_l]) as Hnd_l.
     { unfold distinct in Hdist'. destruct Hdist' as [Hd' _].
       unfold distinct_l in Hd'. simpl in Hd'.
       repeat (rewrite -> labels_l_cons in Hd').
       try (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]).
       eapply (submseteq_NoDup [csend'; crecv'; getKey'; srecv_l; ssend_l] _) in Hd'; [|solve_submseteq]. exact Hd'. }
-    assert (NoDup [leaksec'; srecv_r; ssend_r]) as Hnd_r.
+    assert (NoDup [lrecv'; lsend'; srecv_r; ssend_r]) as Hnd_r.
     { unfold distinct in Hdist'. destruct Hdist' as [_ Hd'].
       unfold distinct_r in Hd'. simpl in Hd'.
       repeat (rewrite -> labels_r_cons in Hd').
       try (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]).
-      eapply (submseteq_NoDup [leaksec'; srecv_r; ssend_r] _) in Hd'; [|solve_submseteq]. exact Hd'. }
+      eapply (submseteq_NoDup [lrecv'; lsend'; srecv_r; ssend_r] _) in Hd'; [|solve_submseteq]. exact Hd'. }
     iApply ((brel_exhaustion (f1 ((λ: "m", do: ssend_l "m"),(λ: <>, do: srecv_l bob))%V) (f2 ((λ: "m", do: ssend_r "m"),(λ: <>, do: srecv_r bob))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]").
-    {  simpl. set_solver. }
-    { simpl. set_solver. }
+    {  simpl. (set_unfold; tauto). }
+    { simpl. (set_unfold; tauto). }
     {
-      set clt := ([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], X').
-      set cltheory := iLblSig_to_iLblThy [([csend'; crecv'; getKey'; srecv_l; ssend_l] , [leaksec'; srecv_r; ssend_r] , X')].
+      set clt := ([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], X').
+      set cltheory := iLblSig_to_iLblThy [([csend'; crecv'; getKey'; srecv_l; ssend_l] , [lrecv'; lsend'; srecv_r; ssend_r] , X')].
       set (L' := cltheory ++ (iLblSig_to_iLblThy L)).
       set (keytheory := keyeff).
       set (leaktheory := autheff).
@@ -1483,7 +1486,7 @@ Section schan_security.
       { apply -> NeutralEctx_ectx_labels_singleton.
         do 4 (eapply NeutralEctx_label_cons_inv_2 in Hk1). eapply Hk1. }
       {  apply -> NeutralEctx_ectx_labels_singleton.
-         do 2 (eapply NeutralEctx_label_cons_inv_2 in Hk2). eapply Hk2. }
+         do 3 (eapply NeutralEctx_label_cons_inv_2 in Hk2). eapply Hk2. }
 
       (* Interpreting a group element from mz *)
       destruct (vg_of_int_sem mz) as [m|] eqn:Hmz .
@@ -1492,42 +1495,38 @@ Section schan_security.
         iApply brel_vg_of_int_none_r; first done.
         brel_pures'. 
         iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V));
-          [set_solver|done|by iApply "Hrel"|iApply "IH"]. }
+          [(set_unfold; tauto)|done|by iApply "Hrel"|iApply "IH"]. }
       
       iApply brel_vg_of_int_correct_l; first done.
       iApply brel_vg_of_int_correct_r; first done.
       brel_pures'. 
 
-      iApply (brel_na_inv _ _ alphaN); first set_solver.
+      iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto).
       iFrame "Hinvα".
       iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
       (* First message to be sent by the secure channel*)
       ++
-        iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
+        iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
         iIntros "Hl_fchan".
         iApply (brel_load_l _ _ _  [HandleCtx Deep MS getKey' _ _ ; HandleCtx Deep MS crecv' _ _ ; HandleCtx Deep MS csend' _ _ ; HandleCtx Deep MS srecv_l _ _; CaseCtx _ _] with "Hl_rchan").
         iIntros "!>Hl_rchan". brel_pures.
         simpl. brel_pures.
-        iApply (brel_store_r _ _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_fchan"). iIntros "Hl_fchan".
+        iApply (brel_store_r _ _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_fchan"). iIntros "Hl_fchan".
         simpl.
         brel_pures.
-        { simpl. rewrite !NoDup_cons in Hnd_l, Hnd_r; set_solver. }
+        { simpl. rewrite !NoDup_cons in Hnd_l, Hnd_r; (set_unfold; tauto). }
         iApply (brel_store_l _ _ _  [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_rchan").
         iIntros "!>Hl_rchan". 
         brel_pures'.
-        { unfold distinct in Hdist'. destruct Hdist'. unfold distinct_l in H0.
-          simpl in H0.
-          repeat (rewrite -> labels_l_cons in H0).
-          eapply NoDup_app in H0.
-          eapply NoDup_cons_1_1. destruct H0.
-          eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | apply H0]. }
+        { eapply NoDup_cons_1_1.
+          eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | exact Hnd_l]. }
         repeat foldkont.
         iApply (brel_load_l _ _ _ [AppRCtx _ ; CaseCtx _ _] with "Hl_key"). iIntros "!> Hl_key".
         brel_pures_l.
-        iApply (brel_load_r _ _ _ _ [AppRCtx _ ; CaseCtx _ _] with "Hl_m'sim"). iIntros "Hl_m'sim".
+        iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _ ; CaseCtx _ _] with "Hl_m'sim"). iIntros "Hl_m'sim".
         brel_pures.
         iDestruct "Hγ" as (ms) "(%Hf' & Hγ)". apply map_eq_nil in Hf'. simplify_eq.
-        iApply (brel_couple_TU _ _ (f m) [AppRCtx _; AppRCtx _] _ _ _ _ _ _); simpl; auto.
+        iApply (brel_couple_TU _ _ (f m) [HandleCtx _ _ _ _ _ ; AppRCtx _; AppRCtx _] _ _ _ _ _ _); simpl; auto.
         (*{ admit. }*)
         simpl. iSplitL "Hγ". {iModIntro ; iFrame "Hγ". }
         iIntros (c) "Hγ".
@@ -1540,7 +1539,7 @@ Section schan_security.
         iApply (brel_exp_l [AppRCtx _ ; AppRCtx _] _ _ _ g c _).
         brel_pures.
         iApply (brel_store_l _ _ _ [AppRCtx _; AppRCtx _ ] with "Hl_key"). iIntros "!> Hl_key".
-        iApply (brel_store_r _ _ _ _ [AppRCtx _; AppRCtx _] with "Hl_m'sim").
+        iApply (brel_store_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _; AppRCtx _] with "Hl_m'sim").
         iIntros "Hl_m'sim". brel_pures. simpl.
         iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hl_fchan") as "#Hl_fchan".
@@ -1554,11 +1553,11 @@ Section schan_security.
           iFrame "Hγ Hl_m'sim Hl_sim Hl_auth Hl_fchan Hl_rchan Hl_key". }
         set (keytheory := keyeff).
         set (leaktheory := autheff).
-        set (M := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union leaktheory L))).
-        set (N := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L)))).
-        iApply (brel_bind'' [ AppRCtx _] [AppRCtx _] (iLblSig_to_iLblThy keytheory) M N (𝟙%T) (kysnd_l bob) (kysnd_r bob)).
-        { simpl. set_solver. }
-        { simpl. set_solver. }
+        set (M := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union leaktheory L))).
+        set (N := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L)))).
+        iApply (brel_bind'' [ AppRCtx _] [HandleCtx _ _ _ _ _ ; AppRCtx _] (iLblSig_to_iLblThy keytheory) M N (𝟙%T) (kysnd_l bob) (kysnd_r bob)).
+        { simpl. (set_unfold; tauto). }
+        { simpl. (set_unfold; tauto). }
         { simpl. unfold M. unfold N. iApply to_iThy_le_intro'.
           unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
           solve_submseteq. }
@@ -1572,8 +1571,8 @@ Section schan_security.
           iModIntro. iIntros (v1 v2) "#HRv1v2".
           brel_pures.
           iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keytheory) M N 𝟙%T (kyrcv_l bob) (kyrcv_r bob)).
-          { simpl. unfold M.  repeat (rewrite -> labels_l_cons). set_solver. }
-          { simpl. apply list_subseteq_nil. }
+          { simpl. unfold M.  repeat (rewrite -> labels_l_cons). (set_unfold; tauto). }
+          { simpl. unfold M. repeat (rewrite -> labels_r_cons). (set_unfold; tauto). }
           { simpl. unfold M. unfold N. iApply to_iThy_le_intro'.
             unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
             solve_submseteq. }
@@ -1595,7 +1594,7 @@ Section schan_security.
              rewrite -> Hw1. rewrite -> Hw2.
              brel_pures.
              iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-             { simpl. auto. set_solver. }
+             { simpl. auto. (set_unfold; tauto). }
              { simpl. repeat (eapply list_subseteq_skip). eapply list_subseteq_nil. }
              { iApply "Hrel". iApply "HmQ". }
              { iApply "IH". }
@@ -1607,13 +1606,9 @@ Section schan_security.
              brel_pures.
              iApply G_XOR_CORRECT_l.
              brel_pures.
-             { unfold distinct in Hdist'. destruct Hdist'. unfold distinct_l in H0.
-               simpl in H0.
-               repeat (rewrite -> labels_l_cons in H0).
-               eapply NoDup_app in H0.
-               eapply NoDup_cons_1_1. destruct H0.
-               eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | apply H0]. }
-             iApply (brel_na_inv _ _ alphaN); first set_solver.
+             { eapply NoDup_cons_1_1.
+               eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | exact Hnd_l]. }
+             iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto).
              iFrame "Hinvα".
              iIntros "([ (>Hγ & (>Hl_m'sim' & (>Hl_sim' & (>Hl_auth & (>Hl_fchan' & (>Hl_rchan' & Hl_key')))))) | [>Hd2 | >Hd3]] & Hclose)".
           (*contradiction branch as the first message has been sent and stored*)
@@ -1626,7 +1621,7 @@ Section schan_security.
             iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ;CaseCtx _ _] with "Hl_auth").
             iIntros "!> Hl_auth".
             simpl. brel_pures_l.
-            iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_sim").
+            iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_sim").
             iIntros "Hl_sim". brel_pures. simpl.
             iApply fupd_brel.
             iModIntro.
@@ -1636,7 +1631,7 @@ Section schan_security.
 
             brel_pures.
             iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-            { set_solver. }
+            { (set_unfold; tauto). }
             { done. }
             { iApply "Hrel". iApply "HmQ". }
             { iApply "IH". }
@@ -1645,10 +1640,10 @@ Section schan_security.
             iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ;CaseCtx _ _] with "Hl_auth").
             iIntros "!> Hl_auth".
             simpl. brel_pures_l.
-            iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_sim").
+            iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_sim").
             iIntros "Hl_sim". brel_pures. simpl.
-            iApply (brel_exp_r [AppRCtx _]). brel_pures.
-            iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl_sim").
+            iApply (brel_exp_r [HandleCtx _ _ _ _ _ ; AppRCtx _]). brel_pures.
+            iApply (brel_store_r _ _ _ _ [HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_sim").
             iIntros "Hl_sim". rel_pures.
             iApply (brel_store_l _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; AppRCtx _] with "Hl_auth").
             iIntros "!> Hl_auth". brel_pures.
@@ -1699,16 +1694,16 @@ Section schan_security.
                                    end)%E).
 
             iPoseProof (brel_bind [HandleCtx Deep MS getKey' hbranchleft (λ: "y", "y"); HandleCtx _ _ _ _ _ ; AppRCtx (λ: <>, kont1 #()%V)]
-                          [AppRCtx (λ: <>, kont0 #()%V)]
+                          [HandleCtx _ _ _ _ _ ; AppRCtx (λ: <>, kont0 #()%V)]
                           ⊤ (iLblSig_to_iLblThy leaktheory) N  𝟙%T
                           (asnd_l (vgval g_sem, bob))%V
                           (asnd_r (vgval (valgroup.g ^+ f m c), bob))%V) as "Hbind".
             rewrite g_log_exp.
             iApply "Hbind".
             { simpl. unfold leaktheory. auto.
-              iApply (traversable_ectx_labels _ _ [crecv'; getKey'] [] iThyBot _).
-              + simpl. set_solver.
-              + unfold kont0. simpl. auto.
+              iApply (traversable_ectx_labels _ _ [crecv'; getKey'] [lrecv'] iThyBot _).
+              + simpl. (set_unfold; tauto).
+              + unfold kont0. simpl. (set_unfold; tauto).
               + simpl.
                 unfold sem_row_union in Hdist'.
                 unfold distinct in *.
@@ -1717,17 +1712,17 @@ Section schan_security.
                 destruct Hdist' as [Hl Hr].
                 split.
                 ++
-                  set (l1 := (concat  (([crecv'; getKey'], [], iThyBot) :: iLblSig_to_iLblThy autheff).*1.*1)).
+                  set (l1 := (concat  (([crecv'; getKey'], [lrecv'], iThyBot) :: iLblSig_to_iLblThy autheff).*1.*1)).
                   eapply (submseteq_NoDup l1 _); try eapply Hl.
                   unfold l1. simpl. eapply submseteq_cons. do 2 eapply submseteq_skip.
                   repeat (rewrite -> iLblSig_to_iLblThy_proj;
                           rewrite -> iLblSig_to_iLblThy_app).
                   repeat (rewrite -> fmap_app). simpl. do 2 apply submseteq_cons.
                   eapply concat_submseteq. simpl. solve_submseteq.
-                ++ set (l2 := (concat (([crecv'; getKey'], [], iThyBot)
+                ++ set (l2 := (concat (([crecv'; getKey'], [lrecv'], iThyBot)
                                          :: iLblSig_to_iLblThy autheff).*1.*2)).
                    eapply (submseteq_NoDup l2 _); try eapply Hr.
-                   unfold l2. simpl. do 3 eapply submseteq_cons.
+                   unfold l2. simpl. eapply submseteq_skip. do 3 eapply submseteq_cons.
                    repeat (rewrite -> iLblSig_to_iLblThy_proj;
                            rewrite -> iLblSig_to_iLblThy_app).
                    repeat (rewrite -> fmap_app). simpl.
@@ -1753,7 +1748,7 @@ Section schan_security.
                rewrite -> Hv0. rewrite -> Hv3.
                brel_pures.
                iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-               { simpl. auto. set_solver. }
+               { simpl. auto. (set_unfold; tauto). }
                { simpl. auto. }
                { iApply "Hrel". iApply "HmQ". }
                { iApply "IH". } } }
@@ -1771,7 +1766,7 @@ Section schan_security.
          iSplitL.
          { iModIntro. iRight. iLeft. iFrame. }
          iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-         { simpl. auto. set_solver. }
+         { simpl. auto. (set_unfold; tauto). }
          { simpl. auto. }
          { iApply "Hrel". iApply "HmQ". }
          { iApply "IH". }
@@ -1786,7 +1781,7 @@ Section schan_security.
          iSplitL.
          { iModIntro. iRight. iRight. iFrame. }
          iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)).
-         { simpl. auto. set_solver. }
+         { simpl. auto. (set_unfold; tauto). }
          { simpl. auto. }
          { iApply "Hrel". iApply "HmQ". }
          { iApply "IH". }
@@ -1799,23 +1794,14 @@ Section schan_security.
           do 3 (eapply NeutralEctx_label_cons_inv_2 in Hk1).
           eapply NeutralEctx_label_cons_inv_1 in Hk1. 
           eapply HandleCtx_NeutralEctx; last eapply Hk1.
-          unfold distinct in Hdist'. destruct Hdist'. unfold distinct_l in H0.
-          simpl in H0.
-          repeat (rewrite -> labels_l_cons in H0).
-          eapply NoDup_app in H0.
-          eapply NoDup_cons_1_1. destruct H0.
-          eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | apply H0].
-        + simpl.  unfold distinct in Hdist'. destruct Hdist'.
-          unfold distinct_l in H0.
-          simpl in H0.
-          repeat (rewrite -> labels_l_cons in H0).
-          eapply NoDup_app in H0.
-          eapply NoDup_cons_1_1. destruct H0.
-          eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | apply H0].
+          eapply NoDup_cons_1_1.
+            eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | exact Hnd_l].
+        + simpl. eapply NoDup_cons_1_1.
+          eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | exact Hnd_l].
       }
       { split.
         + apply -> NeutralEctx_ectx_labels_singleton.
-          eapply NeutralEctx_label_cons_inv_2 in Hk2.
+          do 2 (eapply NeutralEctx_label_cons_inv_2 in Hk2).
           eapply NeutralEctx_label_cons_inv_1 in Hk2. 
           eapply HandleCtx_NeutralEctx; last eapply Hk2.
           unfold distinct in Hdist'. destruct Hdist'. unfold distinct_r in H0.
@@ -1823,13 +1809,13 @@ Section schan_security.
           repeat (rewrite -> labels_r_cons in H0).
           eapply NoDup_app in H0.
           eapply NoDup_cons_1_1. destruct H0.
-          eapply (submseteq_NoDup _ [leaksec'; srecv_r; ssend_r]); [solve_submseteq | done].
-        + simpl. set_solver. }
+          eapply (submseteq_NoDup _ [lrecv'; lsend'; srecv_r; ssend_r]); [solve_submseteq | done].
+        + simpl. rewrite !NoDup_cons in Hnd_l, Hnd_r; (set_unfold; tauto). }
       brel_pures.
       set (keytheory := keyeff).
       set (leaktheory := autheff).
-      set (M := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], @iThyBot Σ)]).
-      set (N := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], @iThyBot Σ)] ++
+      set (M := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)]).
+      set (N := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
                   iLblSig_to_iLblThy (sem_row_union keytheory (sem_row_union leaktheory L))).
       repeat foldkont.
       brel_pures.
@@ -1856,10 +1842,10 @@ Section schan_security.
                                       end
                                   end
                               end )%E).
-      iApply (brel_bind'' _ _  (iLblSig_to_iLblThy (keytheory))  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], @iThyBot Σ)] (([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], iThyBot)
+      iApply (brel_bind'' _ _  (iLblSig_to_iLblThy (keytheory))  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] (([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], iThyBot)
                                                                                                                                             :: iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)).
-      { simpl. unfold labels_l. simpl. set_solver. }
-      { simpl. unfold M. unfold labels_r. simpl. set_solver. }
+      { simpl. unfold labels_l. simpl. (set_unfold; tauto). }
+      { simpl. unfold M. unfold labels_r. simpl. (set_unfold; tauto). }
       { iApply to_iThy_le_intro'. unfold M. unfold N. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
       iApply brel_wand.
       {  iDestruct "Hkeyrcv" as "#Hkeyrcv".
@@ -1877,8 +1863,8 @@ Section schan_security.
       iDestruct "Hw1w2" as "(%Hw1 & %Hw2)".
       rewrite -> Hw1. rewrite -> Hw2. brel_pures.
       iApply (brel_exhaustion (fill k1'(InjLV #()%V)) (fill k2' (InjLV #()%V))).
-      { simpl. auto. set_solver. }
-      { simpl. set_solver. }
+      { simpl. auto. (set_unfold; tauto). }
+      { simpl. (set_unfold; tauto). }
       { iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone".  }
       { iApply "IH". }
     (*key receive returned successfully*)
@@ -1890,10 +1876,10 @@ Section schan_security.
                            InjL <> => kont0 (InjLV #()%V)
                          | InjR "x" => kont0 ! #l_sim
                          end)%E).
-      iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keytheory)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], @iThyBot Σ)] ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], @iThyBot Σ)] ++
+      iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keytheory)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
                                                                                                                                          iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)).
-      { simpl. set_solver. }
-      { simpl. set_solver. }
+      { simpl. (set_unfold; tauto). }
+      { simpl. (set_unfold; tauto). }
       { iApply to_iThy_le_intro'. unfold M. unfold N. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
       iApply brel_wand.
       { iDestruct "Hkeysnd" as "#Hkeysnd".
@@ -1906,7 +1892,7 @@ Section schan_security.
       iDestruct "HRv0v3" as "(%Hv0 & %Hv3)".
       rewrite -> Hv0. rewrite -> Hv3. brel_pures.
       repeat foldkont.
-      iApply (brel_na_inv _ _ alphaN); first set_solver.
+      iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto).
       iFrame "Hinvα".
       iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
       (* no message has been sent yet by the secure channel*)
@@ -1919,8 +1905,8 @@ Section schan_security.
          { iModIntro. iLeft. iFrame. }
 
          iApply (brel_exhaustion (fill k1'(InjLV #()%V)) (fill k2' (InjLV #()%V))).
-         { simpl. auto. set_solver. }
-         { simpl. set_solver. }
+         { simpl. auto. (set_unfold; tauto). }
+         { simpl. (set_unfold; tauto). }
          { iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone".  }
          { iApply "IH". }
       (* a message has been sent by both the secure channel and the authenticated channel *)
@@ -1928,12 +1914,8 @@ Section schan_security.
          iDestruct "Hd2" as (?m ?n) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (Hl_rchan & Hl_key))))))".
          iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
          iIntros "!> Hl_key". brel_pures'.
-         { unfold distinct in Hdist'. destruct Hdist'. unfold distinct_l in H0.
-           simpl in H0.
-           repeat (rewrite -> labels_l_cons in H0).
-           eapply NoDup_app in H0.
-           eapply NoDup_cons_1_1. destruct H0.
-           eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | apply H0]. }
+         { eapply NoDup_cons_1_1.
+           eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | exact Hnd_l]. }
          iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_m'sim").
          iIntros "Hl_m'sim". brel_pures'. simpl.
          repeat foldkont.
@@ -1949,10 +1931,10 @@ Section schan_security.
          iApply brel_na_close. iFrame.
          iSplitL.
          { iModIntro. iRight. iLeft. iFrame "#". }
-         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy leaktheory)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], @iThyBot Σ)] ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], @iThyBot Σ)] ++
+         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy leaktheory)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
                                                                                                                                               iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
-         { simpl. set_solver. }
-         { simpl. set_solver. }
+         { simpl. (set_unfold; tauto). }
+         { simpl. (set_unfold; tauto). }
          { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
 
          iApply brel_wand.
@@ -1969,8 +1951,8 @@ Section schan_security.
            rewrite -> Hv4. rewrite -> Hv5. rewrite -> Hw0. rewrite -> Hw3.
            brel_pures'.
            iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
-           { simpl. set_solver. }
-           { simpl. set_solver. }
+           { simpl. (set_unfold; tauto). }
+           { simpl. (set_unfold; tauto). }
            { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
            {iApply "IH". }
          +++ (* leakauth returns successfully with a value *)
@@ -1987,8 +1969,8 @@ Section schan_security.
            brel_pures'. 
            rewrite sc_coupling_invol.
            iApply (brel_exhaustion (fill k1'((InjRV (vgval m))%V)) (fill k2' ((InjRV (vgval m)))%V)).
-           { simpl. auto. set_solver. }
-           { simpl. set_solver. }
+           { simpl. auto. (set_unfold; tauto). }
+           { simpl. (set_unfold; tauto). }
            { unfold kont0. iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hsome". }
            { iApply "IH". }
       (* a message has been sent by the secure channel but not the authenticated channel*)
@@ -1997,12 +1979,8 @@ Section schan_security.
          iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (Hl_rchan & Hl_key))))))".
          iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
          iIntros "!> Hl_key". brel_pures'.
-         { unfold distinct in Hdist'. destruct Hdist'. unfold distinct_l in H0.
-          simpl in H0.
-          repeat (rewrite -> labels_l_cons in H0).
-          eapply NoDup_app in H0.
-          eapply NoDup_cons_1_1. destruct H0.
-          eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | apply H0]. }
+         { eapply NoDup_cons_1_1.
+           eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | exact Hnd_l]. }
          brel_load_r. brel_pures'.
          repeat foldkont.
          iApply fupd_brel.
@@ -2015,10 +1993,10 @@ Section schan_security.
          iApply brel_na_close. iFrame.
          iSplitL.
          { iModIntro. iRight. iRight. iFrame "#". iFrame. }
-         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy leaktheory)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], @iThyBot Σ)] ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [leaksec'; srecv_r; ssend_r], @iThyBot Σ)] ++
+         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy leaktheory)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
                                                                                                                                               iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
-         { simpl. set_solver. }
-         { simpl. set_solver. }
+         { simpl. (set_unfold; tauto). }
+         { simpl. (set_unfold; tauto). }
          { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
 
          iApply brel_wand.
@@ -2035,8 +2013,8 @@ Section schan_security.
              rewrite -> Hv4. rewrite -> Hv5. rewrite -> Hw0. rewrite -> Hw3.
              brel_pures'.
              iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
-             { simpl. set_solver. }
-             { simpl. set_solver. }
+             { simpl. (set_unfold; tauto). }
+             { simpl. (set_unfold; tauto). }
              { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
              {iApply "IH". }
          (* leakauth returns successfully with a value *)
@@ -2044,7 +2022,7 @@ Section schan_security.
              rewrite -> Hv4. rewrite -> Hv5. rewrite -> Hw0. rewrite -> Hw3.
              brel_pures'.
              (*another case analysis by opening the invariant again, since we need access to the pointers l_sim and l_auth *)
-             iApply (brel_na_inv _ _ alphaN); first set_solver.
+             iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto).
              iFrame "Hinvα".
              iIntros "([(>Hγ & >Hl_m'sim' & >Hl_sim & >Hl_auth & >Hl_fchan' & >Hl_rchan' & >Hl_key') | [>Hd2 | >Hd3 ]] & Hclose)".
       (*contradiction branch since we already know that a message has been sent by the secure channel *)
@@ -2081,8 +2059,8 @@ Section schan_security.
          brel_load_r.
          brel_pures'.
          iApply (brel_exhaustion (fill k1'((InjRV (vgval m0))%V)) (fill k2' ((InjRV (vgval m0)))%V)).
-         { simpl. auto. set_solver. }
-         { simpl. set_solver. }
+         { simpl. auto. (set_unfold; tauto). }
+         { simpl. (set_unfold; tauto). }
          { unfold kont0. iApply "Hrel". by iDestruct "HmQ" as "[Hsome Hnone]". }
          { iApply "IH". }
       -- unfold d3.
@@ -2102,8 +2080,8 @@ Section schan_security.
          { iModIntro. iRight. iRight. iFrame "#". iFrame. }
          simpl. brel_pures'.
          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))).
-         { simpl. set_solver. }
-         { simpl. set_solver. }
+         { simpl. (set_unfold; tauto). }
+         { simpl. (set_unfold; tauto). }
          { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
          { iApply "IH". }
   Qed.
@@ -2133,7 +2111,9 @@ Section schan_security.
     brel_alloctape_r γ as "Hγ"...
     brel_alloc_r l_key as "Hl_key"...
     iApply brel_effect_r. iIntros (getKey') "HgK !>"... 
-    iApply brel_effect_l. iIntros (leaksec') "!> Hleaksec !>"...
+    (* CHAN_SIM_lazy now binds two labels: [lsend] first, then [lrecv]. *)
+    iApply brel_effect_l. iIntros (lsend') "!> Hlsend !>".
+    iApply brel_effect_l. iIntros (lrecv') "!> Hlrecv !>"...
     brel_alloc_r l_auth as "Hl_auth"...
 
     (* F_OAUTH now binds two labels: [send] first, then [recv]. *)
@@ -2229,11 +2209,11 @@ Section schan_security.
                       match: ! #l_fchan with
                         InjL <> =>
                           #l_fchan <- InjR "m";; 
-                          (λ: "m", do: leaksec' InjL "m")%V alice;; "k" #()%V
+                          (λ: "m", do: lsend' "m")%V alice;; "k" #()%V
                       | InjR "x" => "k" #()%V
                       end
                   | InjR <> =>
-                      let: "r" := (λ: "m", do: leaksec' InjR "m")%V bob in
+                      let: "r" := (λ: "m", do: lrecv' "m")%V bob in
                       match: "r" with
                         InjL <> => "k" (InjLV #()%V)
                       | InjR "x" => "k" (InjR ! #l_fchan)
@@ -2278,7 +2258,7 @@ Section schan_security.
                           end
                       end
                   end )%E).
-    set (θ := client_row' csend' crecv' leaksec' getKey' ssend_l srecv_l ssend_r srecv_r).
+    set (θ := client_row' csend' crecv' lsend' lrecv' getKey' ssend_l srecv_l ssend_r srecv_r).
     iSpecialize ("Hrelf1f2" $! θ).
     unfold sem_ty_arr, sem_ty_mbang. simpl.
     iAssert (sem_val_typed  ((λ: "m", do: ssend_l "m"), (λ: <>, do: srecv_l bob))%V ((λ: "m", do: ssend_r "m") , (λ: <>, do: srecv_r bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)) as "Hschn".
@@ -2330,23 +2310,24 @@ Section schan_security.
     iApply (brel_add_label_r with "HgK").
     iApply (brel_add_label_r with "Hcrecv").
     iApply (brel_add_label_r with "Hcsend").
-    iApply (brel_add_label_l with "Hleaksec").
+    iApply (brel_add_label_l with "Hlsend").
+    iApply (brel_add_label_l with "Hlrecv").
     set (X :=  iLblSig_to_iLblThy [([srecv_l; ssend_l] , [srecv_r; ssend_r] , sec_channel ssend_l ssend_r srecv_l srecv_r)]).
     set (R := (λ u1 u2 : val, 𝟙%T u1 u2)).
     set (X' := sec_channel ssend_l ssend_r srecv_l srecv_r).
     iApply brel_learn. iIntros "%Hdist' _".
     (* Splitting F_OAUTH's [channel] and CHAN/F_CHAN's [schannel] into two
        handlers each makes [brel_pures] emit label-freshness side goals
-       ([crecv' ∉ [csend']], [leaksec' ∉ [srecv_r]], ...) at every reduction
+       ([crecv' ∉ [csend']], [lrecv' ∉ [lsend']], ...) at every reduction
        that crosses one of the new handlers.  Derive the FULL pairwise
        distinctness of each side's label list once from [Hdist']; every such
-       goal then closes with the [set_solver] already in the script. *)
-    assert (NoDup [leaksec'; srecv_l; ssend_l]) as Hnd_l.
+       goal then closes with the [set_unfold; tauto] already in the script. *)
+    assert (NoDup [lrecv'; lsend'; srecv_l; ssend_l]) as Hnd_l.
     { unfold distinct in Hdist'. destruct Hdist' as [Hd' _].
       unfold distinct_l in Hd'. simpl in Hd'.
       repeat (rewrite -> labels_l_cons in Hd').
       try (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]).
-      eapply (submseteq_NoDup [leaksec'; srecv_l; ssend_l] _) in Hd'; [|solve_submseteq]. exact Hd'. }
+      eapply (submseteq_NoDup [lrecv'; lsend'; srecv_l; ssend_l] _) in Hd'; [|solve_submseteq]. exact Hd'. }
     assert (NoDup [csend'; crecv'; getKey'; srecv_r; ssend_r]) as Hnd_r.
     { unfold distinct in Hdist'. destruct Hdist' as [_ Hd'].
       unfold distinct_r in Hd'. simpl in Hd'.
@@ -2354,11 +2335,11 @@ Section schan_security.
       try (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]).
       eapply (submseteq_NoDup [csend'; crecv'; getKey'; srecv_r; ssend_r] _) in Hd'; [|solve_submseteq]. exact Hd'. }
     iApply ((brel_exhaustion (f1 ((λ: "m", do: ssend_l "m"),(λ: <>, do: srecv_l bob))%V) (f2 ((λ: "m", do: ssend_r "m"),(λ: <>, do: srecv_r bob))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]").
-    {  simpl. set_solver. }
-    { simpl. set_solver. }   
+    {  simpl. (set_unfold; tauto). }
+    { simpl. (set_unfold; tauto). }   
     {
-      set clt := ([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], X').
-      set cltheory := iLblSig_to_iLblThy [([leaksec'; srecv_l; ssend_l] , [csend'; crecv'; getKey'; srecv_r; ssend_r] , X')].
+      set clt := ([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], X').
+      set cltheory := iLblSig_to_iLblThy [([lrecv'; lsend'; srecv_l; ssend_l] , [csend'; crecv'; getKey'; srecv_r; ssend_r] , X')].
       set (L' := cltheory ++ (iLblSig_to_iLblThy L)).
       set (keytheory := keyeff).
       set (leaktheory := autheff).
@@ -2381,7 +2362,7 @@ Section schan_security.
     + iDestruct "HSendAlice" as (?mz) "[[%He1 %He2] #HmQ]".
       rewrite -> He1. rewrite -> He2. brel_pures.
       { apply -> NeutralEctx_ectx_labels_singleton.
-        do 2 eapply NeutralEctx_label_cons_inv_2 in Hk1.
+        do 3 (eapply NeutralEctx_label_cons_inv_2 in Hk1).
         eapply Hk1. }
       {  apply -> NeutralEctx_ectx_labels_singleton.
          do 4 (eapply NeutralEctx_label_cons_inv_2 in Hk2). eapply Hk2. } 
@@ -2393,33 +2374,29 @@ Section schan_security.
         iApply brel_vg_of_int_none_r; first done.
         brel_pures'. 
         iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V));
-          [done|set_solver|by iApply "Hrel"|iApply "IH"]. }
+          [done|(set_unfold; tauto)|by iApply "Hrel"|iApply "IH"]. }
       
       iApply brel_vg_of_int_correct_l; first done.
       iApply brel_vg_of_int_correct_r; first done.
       brel_pures'. 
 
-      iApply (brel_na_inv _ _ alphaN); first set_solver.
+      iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto).
       iFrame "Hinvα".
       iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
       (* First message to be sent by the secure channel*)
       ++ 
-        iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
+        iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
         iIntros "!>Hl_fchan".
         brel_load_r...
         brel_store_l...
         { simpl. rewrite !NoDup_cons in Hnd_l, Hnd_r; set_unfold; tauto. }
         brel_store_r...
-        { unfold distinct in Hdist'. destruct Hdist'. unfold distinct_r in H1.
-          simpl in H1.
-          repeat (rewrite -> labels_l_cons in H1).
-          eapply NoDup_app in H1.
-          eapply NoDup_cons_1_1. destruct H1.
-          eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_r; ssend_r]); [solve_submseteq | apply H1]. }
+        { eapply NoDup_cons_1_1.
+          eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_r; ssend_r]); [solve_submseteq | exact Hnd_r]. }
         brel_load_r...
         brel_load_l...
         iDestruct "Hγ" as (ms) "(%Hf' & Hγ)". apply map_eq_nil in Hf'. simplify_eq.
-        iApply (brel_couple_UT _ _ (f m) [AppRCtx _; AppRCtx _] _ _ _ _ _ _).
+        iApply (brel_couple_UT _ _ (f m) [HandleCtx _ _ _ _ _ ; AppRCtx _; AppRCtx _] _ _ _ _ _ _).
         1: auto.
         { intros. unfold f. case_decide as Hn.
           + apply fin_to_nat_lt.
@@ -2442,10 +2419,10 @@ Section schan_security.
           iFrame "Hγ Hl_m'sim Hl_sim Hl_auth Hl_fchan Hl_rchan Hl_key". }
         set (keytheory := keyeff).
         set (leaktheory := autheff).
-        set (M := [([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union leaktheory L))).
-        set (N := [([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L)))).
+        set (M := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union leaktheory L))).
+        set (N := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L)))).
         brel_pures'.
-        iApply (brel_bind'' [ AppRCtx _] [AppRCtx _] (iLblSig_to_iLblThy keytheory) M N (𝟙%T) (kysnd_l bob) (kysnd_r bob)).
+        iApply (brel_bind'' [ HandleCtx _ _ _ _ _ ; AppRCtx _] [AppRCtx _] (iLblSig_to_iLblThy keytheory) M N (𝟙%T) (kysnd_l bob) (kysnd_r bob)).
         { set_unfold; tauto. }
         { set_unfold; tauto. }
         { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. 
@@ -2496,12 +2473,8 @@ Section schan_security.
              brel_pures'.
              iApply G_XOR_CORRECT_r. 
              brel_pures'.
-             { unfold distinct in Hdist'. destruct Hdist'. unfold distinct_r in H2.
-               simpl in H2.
-               repeat (rewrite -> labels_l_cons in H2).
-               eapply NoDup_app in H2.
-               eapply NoDup_cons_1_1. destruct H2.
-               eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_r; ssend_r]); [solve_submseteq | apply H2]. }
+             { eapply NoDup_cons_1_1.
+               eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_r; ssend_r]); [solve_submseteq | exact Hnd_r]. }
              apply Nat.lt_succ_r in Hc.
              rewrite -(fin.fin_to_nat_to_fin _ _ Hc) g_log_exp.
              iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto).
@@ -2531,7 +2504,7 @@ Section schan_security.
             iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ;CaseCtx _ _] with "Hl_auth").                                          
             iIntros "Hl_auth"...
             brel_load_l...
-            iApply (brel_exp_l [AppRCtx _])... 
+            iApply (brel_exp_l [HandleCtx _ _ _ _ _ ; AppRCtx _])... 
             brel_store_l...
             brel_store_r...
             iApply fupd_brel.
@@ -2589,8 +2562,8 @@ Section schan_security.
                           (asnd_r (vgval (g ^+ sc_coupling m (nat_to_fin Hc)), bob))%V) as "Hbind".
             iApply "Hbind".
             { simpl. unfold leaktheory. auto.
-              iApply (traversable_ectx_labels _ _ [] [crecv'; getKey'] iThyBot _). 
-              + simpl. auto.
+              iApply (traversable_ectx_labels _ _ [lrecv'] [crecv'; getKey'] iThyBot _). 
+              + simpl. (set_unfold; tauto).
               + unfold kont1. simpl. set_unfold; tauto.
               + simpl.
                 unfold sem_row_union in Hdist'.
@@ -2600,14 +2573,14 @@ Section schan_security.
                 destruct Hdist' as [Hl Hr].
                 split.
                 ++ 
-                  set (l1 := (concat  (([], [crecv'; getKey'], iThyBot) :: iLblSig_to_iLblThy autheff).*1.*1)).
+                  set (l1 := (concat  (([lrecv'], [crecv'; getKey'], iThyBot) :: iLblSig_to_iLblThy autheff).*1.*1)).
                   eapply (submseteq_NoDup l1 _); try eapply Hl.
-                  unfold l1. simpl. eapply submseteq_cons. (*eapply submseteq_skip.*)
+                  unfold l1. simpl. eapply submseteq_skip. (*eapply submseteq_skip.*)
                   repeat (rewrite -> iLblSig_to_iLblThy_proj;
                           rewrite -> iLblSig_to_iLblThy_app). 
-                  repeat (rewrite -> fmap_app). do 2 eapply submseteq_cons. 
+                  repeat (rewrite -> fmap_app). do 3 eapply submseteq_cons. 
                   eapply concat_submseteq. solve_submseteq.
-                ++ set (l2 := (concat (([], [crecv'; getKey'], iThyBot)
+                ++ set (l2 := (concat (([lrecv'], [crecv'; getKey'], iThyBot)
                                          :: iLblSig_to_iLblThy autheff).*1.*2)).
                    eapply (submseteq_NoDup l2 _); try eapply Hr.
                    unfold l2. simpl. (*eapply submseteq_skip.*)
@@ -2671,12 +2644,12 @@ Section schan_security.
       rewrite -> He1. rewrite -> He2. brel_pures.
       { split.
         + apply -> NeutralEctx_ectx_labels_singleton.
-          eapply NeutralEctx_label_cons_inv_2 in Hk1. 
+          do 2 (eapply NeutralEctx_label_cons_inv_2 in Hk1). 
           eapply NeutralEctx_label_cons_inv_1 in Hk1. 
           eapply HandleCtx_NeutralEctx; last eapply Hk1.
           { eapply NoDup_cons_1_1.
-            eapply (submseteq_NoDup _ [leaksec'; srecv_l; ssend_l]); [solve_submseteq | done]. }
-        + simpl. set_unfold; tauto. }
+            eapply (submseteq_NoDup _ [lrecv'; lsend'; srecv_l; ssend_l]); [solve_submseteq | done]. }
+        + simpl. rewrite !NoDup_cons in Hnd_l, Hnd_r; (set_unfold; tauto). }
       { split.
         + apply -> NeutralEctx_ectx_labels_singleton.
           do 3 (eapply NeutralEctx_label_cons_inv_2 in Hk2).
@@ -2690,8 +2663,8 @@ Section schan_security.
       brel_pures.
       set (keytheory := keyeff).
       set (leaktheory := autheff).
-      set (M := [([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)]).
-      set (N := [([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
+      set (M := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)]).
+      set (N := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
                   iLblSig_to_iLblThy (sem_row_union keytheory (sem_row_union leaktheory L))).
       repeat foldkont.
       brel_pures'.
@@ -2718,7 +2691,7 @@ Section schan_security.
                                       end
                                   end
                               end )%E).
-      iApply (brel_bind'' _ _  (iLblSig_to_iLblThy (keytheory))  [([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] (([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], iThyBot)
+      iApply (brel_bind'' _ _  (iLblSig_to_iLblThy (keytheory))  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] (([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], iThyBot)
                                                                                                                                             :: iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)).
       { unfold labels_l. set_unfold; tauto. }
       { unfold labels_r. set_unfold; tauto. }
@@ -2750,7 +2723,7 @@ Section schan_security.
                            InjL <> => kont0 (InjLV #()%V)
                          | InjR "x" => kont0 ! #l_sim
                          end)%E).
-      iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keytheory)  [([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ([([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
+      iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keytheory)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ([([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
                                                                                                                                          iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)).
       1,2: set_unfold; tauto. 
       { iApply to_iThy_le_intro'. unfold M. unfold N. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. } 
@@ -2798,7 +2771,7 @@ Section schan_security.
          iApply brel_na_close. iFrame.
          iSplitL.
          { iModIntro. iRight. iLeft. iFrame "#". }
-         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy leaktheory)  [([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ([([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
+         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy leaktheory)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ([([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
                                                                                                                                               iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
          1,2: set_unfold; tauto.
          { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
@@ -2852,7 +2825,7 @@ Section schan_security.
          iApply brel_na_close. iFrame.
          iSplitL.
          { iModIntro. iRight. iRight. iFrame "#". iFrame. }
-         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy leaktheory)  [([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ([([leaksec'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
+         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy leaktheory)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ([([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
                                                                                                                                               iLblSig_to_iLblThy (sem_row_union leaktheory (sem_row_union keytheory L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
          1,2 : set_unfold; tauto.
          { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
@@ -2877,7 +2850,7 @@ Section schan_security.
          +++ iDestruct "Hsome" as "(%Hv4 & (%Hv5 & (%Hw0 & %Hw3)))".
              rewrite -> Hv4. rewrite -> Hv5. rewrite -> Hw0. rewrite -> Hw3...
              (*another case analysis by opening the invariant again, since we need access to the pointers l_sim and l_auth *)
-             iApply (brel_na_inv _ _ alphaN); first set_solver. 
+             iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto). 
              iFrame "Hinvα".
              iIntros "([(>Hγ & >Hl_m'sim' & >Hl_sim & >Hl_auth & >Hl_fchan' & >Hl_rchan' & >Hl_key') | [>Hd2 | >Hd3 ]] & Hclose)".
       (*contradiction branch since we already know that a message has been sent by the secure channel *)
