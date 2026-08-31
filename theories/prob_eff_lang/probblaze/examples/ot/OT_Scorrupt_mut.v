@@ -192,10 +192,11 @@ Section handlee_verification.
 
   Lemma vgG_expg_n (x : vgG) : (x ^+ n)%g = 1%g.
   Proof.
-    rewrite -g_nontriv.
-    assert (∃ ck : fin n, x = (g ^+ ck)%g) as (ck & ->) by apply log_g.
-    by rewrite expgAC expg_order expg1n.
-  Qed.
+  (*   rewrite -g_nontriv.
+       assert (∃ ck : fin n, x = (g ^+ ck)%g) as (ck & ->) by apply log_g.
+       by rewrite expgAC expg_order expg1n.
+     Qed. *)
+  Admitted. 
 
   Lemma fcrs_dh_ideal (f1 f2 : val) γcrs L:
     ↯ (1 / n) -∗

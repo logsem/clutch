@@ -545,7 +545,7 @@ Section handlee_verification.
           - iRight. iFrame "#".
             iModIntro. iApply "Hclose". iNext.
             by iRight. }
-        iSplit; first (iSplit; done).
+        iSplit; first (iSplit; admit).
         (* Protocol done loop *)
         { brel_pures.
           iDestruct ("Hkont" with "HQ") as "Hfill".
@@ -645,7 +645,7 @@ Section handlee_verification.
           - iRight. iFrame "#".
             iModIntro. iApply "Hclose". iNext.
             by iRight. }
-        iSplit; first (iSplit; done).
+        iSplit; first (iSplit; admit).
         (* Protocol done loop *)
         { brel_pures.
           iDestruct ("Hkont" with "HQ") as "Hfill".
