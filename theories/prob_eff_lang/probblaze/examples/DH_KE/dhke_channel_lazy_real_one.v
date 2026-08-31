@@ -65,10 +65,10 @@ Section handlee_verification.
     rewrite -Nat2Z.inj_mul...
     brel_alloc_r lcs as "Hlcs"...
         
-    iApply brel_effect_l. iIntros (gk1) "!> Hgk1 !>".
-    iApply brel_effect_r. iIntros (gk2) "Hgk2 !>"...
+    brel_effect_l gk1 as "Hgk1".
+    brel_effect_r gk2 as "Hgk2"...
 
-    (* rewrite /sem_ty_arr /sem_ty_mbang //=. *)
+
     iAssert (sem_val_typed (λ: "party", do: gk1 "party")%V (λ: "party", do: gk2 "party")%V ((𝟙 + 𝟙)%T -{ θ gk1 gk2 }-> (Option 𝔾))%T) as "Hgg".
     (* TODO: refactor this goal into a better proof script *)
     { iModIntro. rewrite /sem_ty_arr /sem_ty_mbang //=.

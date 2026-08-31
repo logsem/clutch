@@ -1342,9 +1342,9 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     REL e1 ≤ e2' <|X|> {{R}} ⊢ REL e1 ≤ e2 <|X|> {{R}}.
   Proof. by intros ??; apply (rel_pure_step_r _ _ e2' _ φ n). Qed.
 
-  Lemma rel_effect_l X k1 s1 e1 e2 R :
-    ▷ (∀ l1, primitive_laws.is_label l1 (DfracOwn 1) ==∗ REL fill k1 (lbl_subst s1 l1 e1) ≤ e2 <|X|> {{R}}) -∗
-    REL fill k1 (Effect s1 e1) ≤ e2 <|X|> {{R}}.
+  Lemma rel_effect_l E X k1 s1 e1 e2 R :
+    ▷ (∀ l1, primitive_laws.is_label l1 (DfracOwn 1) ==∗ REL fill k1 (lbl_subst s1 l1 e1) ≤ e2 @ E <|X|> {{R}}) -∗
+    REL fill k1 (Effect s1 e1) ≤ e2 @ E <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     iIntros "Hrel" (k1' k2' S) "Hkwp %k2 %ε Hj Hnais Herr %Hpos".
@@ -1357,9 +1357,9 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     by iApply ("Hrel" with "Hkwp Hj Hnais Herr").
   Qed.
 
-  Lemma rel_effect_r X R e1 k2 s2 e2 :
-    (∀ l2, spec_labels_frag l2 (DfracOwn 1) ==∗ REL e1 ≤ fill k2 (lbl_subst s2 l2 e2) <|X|> {{R}}) -∗
-    REL e1 ≤ fill k2 (Effect s2 e2) <|X|> {{R}}.
+  Lemma rel_effect_r E X R e1 k2 s2 e2 :
+    (∀ l2, spec_labels_frag l2 (DfracOwn 1) ==∗ REL e1 ≤ fill k2 (lbl_subst s2 l2 e2) @ E <|X|> {{R}}) -∗
+    REL e1 ≤ fill k2 (Effect s2 e2) @ E <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
     iIntros "Hrel %k1' %k2' %S Hkwp %k2'' %ε Hj Hnais Herr %Hpos".
@@ -3010,31 +3010,31 @@ End blaze_rules_state_rules.
 Section brel_effect_rules.
   Context `{!probblazeRGS Σ}.
 
-  Lemma brel_effect_l L R k1 s1 e1 e2 :
+  Lemma brel_effect_l E L R k1 s1 e1 e2 :
     (▷ ∀ l1, is_label l1 (DfracOwn 1) ==∗
-      BREL fill k1 (lbl_subst s1 l1 e1) ≤ e2 <|L|> {{R}}
+      BREL fill k1 (lbl_subst s1 l1 e1) ≤ e2 @ E <|L|> {{R}}
     ) -∗
-    BREL fill k1 (Effect s1 e1) ≤ e2 <|L|> {{R}}.
+    BREL fill k1 (Effect s1 e1) ≤ e2 @ E <|L|> {{R}}.
   Proof.
     iIntros "Hbrel #Hvalid %Hdistinct".
     iApply rel_effect_l. iIntros "!> %l1 Hl1".
     by iApply ("Hbrel" with "Hl1").
   Qed.
 
-  Lemma brel_effect_r L R e1 k2 s2 e2 :
+  Lemma brel_effect_r E L R e1 k2 s2 e2 :
     (∀ l2, spec_labels_frag l2 (DfracOwn 1) ==∗
-      BREL e1 ≤ fill k2 (lbl_subst s2 l2 e2) <|L|> {{R}}
+      BREL e1 ≤ fill k2 (lbl_subst s2 l2 e2) @ E <|L|> {{R}}
     ) -∗
-    BREL e1 ≤ fill k2 (Effect s2 e2) <|L|> {{R}}.
+    BREL e1 ≤ fill k2 (Effect s2 e2) @ E <|L|> {{R}}.
   Proof.
     iIntros "Hbrel #Hvalid %Hdistinct".
     iApply rel_effect_r. iIntros "%l2 Hl2".
     by iApply ("Hbrel" with "Hl2").
   Qed.
 
-   Lemma brel_new_theory e1 e2 L R :
-    BREL e1 ≤ e2 <|([], [], iThyBot) :: L|> {{R}} -∗
-    BREL e1 ≤ e2 <|L|> {{R}}.
+   Lemma brel_new_theory E e1 e2 L R :
+    BREL e1 ≤ e2 @ E <|([], [], iThyBot) :: L|> {{R}} -∗
+    BREL e1 ≤ e2 @ E <|L|> {{R}}.
   Proof.
     iIntros "Hbrel [#Hvalid_l #Hvalid_r] [%Hdistinct_l %Hdistinct_r]".
     iApply (rel_introduction_mono with "[Hbrel]").
@@ -3049,10 +3049,10 @@ Section brel_effect_rules.
     { by iApply iThy_le_to_iThy_1. }
   Qed.
 
-   Lemma brel_add_label_l e1 e2 l1 l1s l2s L R :
+   Lemma brel_add_label_l E e1 e2 l1 l1s l2s L R :
     is_label l1 (DfracOwn 1) -∗
-    BREL e1 ≤ e2 <|((l1 :: l1s, l2s, iThyBot) :: L)|> {{R}} -∗
-    BREL e1 ≤ e2 <|((l1s, l2s, iThyBot) :: L)|> {{R}}.
+    BREL e1 ≤ e2 @ E <|((l1 :: l1s, l2s, iThyBot) :: L)|> {{R}} -∗
+    BREL e1 ≤ e2 @ E <|((l1s, l2s, iThyBot) :: L)|> {{R}}.
   Proof.
     iIntros "Hl1 Hbrel
       [#Hvalid_l1s #Hvalid_l2s]
@@ -3069,10 +3069,10 @@ Section brel_effect_rules.
     { by iApply iThy_le_to_iThy_2. }
   Qed.
 
-  Lemma brel_add_label_r e1 e2 l1s l2 l2s L R :
+  Lemma brel_add_label_r E e1 e2 l1s l2 l2s L R :
     spec_labels_frag l2 (DfracOwn 1) -∗
-    BREL e1 ≤ e2 <|((l1s, l2 :: l2s, iThyBot) :: L)|> {{R}} -∗
-    BREL e1 ≤ e2 <|((l1s, l2s, iThyBot) :: L)|> {{R}}.
+    BREL e1 ≤ e2 @ E <|((l1s, l2 :: l2s, iThyBot) :: L)|> {{R}} -∗
+    BREL e1 ≤ e2 @ E <|((l1s, l2s, iThyBot) :: L)|> {{R}}.
   Proof.
     iIntros "Hl2 Hbrel
       [#Hvalid_l1s #Hvalid_l2s]

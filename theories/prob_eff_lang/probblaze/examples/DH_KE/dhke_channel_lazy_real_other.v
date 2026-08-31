@@ -87,8 +87,8 @@ Section handlee_verification.
     iSplitL "Hα Hla Hlc"; [iNext; iFrame; iLeft; iFrame|].
     iIntros "#Hinva".
     
-    iApply brel_effect_l. iIntros (gk1) "!> Hgk1 !>".
-    iApply brel_effect_r. iIntros (gk2) "Hgk2 !>"...
+    brel_effect_l gk1 as "Hgk1".
+    brel_effect_r gk1 as "Hgk2"...
 
     iAssert (sem_val_typed (λ: "party", do: gk1 "party")%V (λ: "party", do: gk2 "party")%V ((𝟙 + 𝟙)%T -{ θ gk1 gk2 }-> (Option 𝔾))%T) as "Hgg".
     { iModIntro. rewrite /sem_ty_arr /sem_ty_mbang //=. iIntros (??) "!# #(%&%&[(->&->&->&->)|(->&->&->&->)])";

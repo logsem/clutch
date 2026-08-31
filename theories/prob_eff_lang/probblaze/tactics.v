@@ -422,6 +422,59 @@ Tactic Notation "brel_alloc_r" simple_intropattern(l) "as" constr(Hl) :=
   | |- _ => fail "brel_alloc_r: goal not a brel"
   end.
 
+Lemma tac_brel_effect_l `{!probblazeRGS Σ} E K Δ Δ' e s eₛ eₜ L R:
+  IntoCtx eₛ (TCEq (Effect s e)) K ->
+  MaybeIntoLaterNEnvs 1 Δ Δ' ->
+  (envs_entails Δ' (∀ (l : label),
+                      (is_label l (DfracOwn 1) ==∗ brel E (fill K (lbl_subst s l e)) eₜ L R))) ->
+  envs_entails Δ (brel E eₛ eₜ L R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (???) "Hi".
+  rewrite into_laterN_env_sound /=.
+  apply tc_eq_fill in H. rewrite <- H.
+  iApply (brel_effect_l E L R K s e eₜ).
+  iModIntro. iApply H1. auto.
+Qed.
+
+Tactic Notation "brel_effect_l" simple_intropattern(l) "as" constr(Hl) :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (brel _ _ _ _ _ ) =>
+      eapply tac_brel_effect_l;
+      [ tc_solve || fail "no effect allocation found in the goal"
+      | tc_solve (*later envs *)
+      | simpl; iIntros (l) Hl; iModIntro (* new goal *)
+      ]
+  | |- _ => fail "brel_effect_l: goal not a brel"
+  end.
+
+
+Lemma tac_brel_effect_r `{!probblazeRGS Σ} E K Δ eₛ eₜ e s L R :
+  IntoCtx eₜ (TCEq (Effect s e)) K ->
+  (envs_entails Δ (∀ (l: label),
+     (spec_labels_frag l (DfracOwn 1) ==∗ brel E eₛ (fill K (lbl_subst s l e)) L R))) ->
+  envs_entails Δ (brel E eₛ eₜ L R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (??) "Hi".
+  apply tc_eq_fill in H. rewrite <- H.
+  iApply (brel_effect_r E L R eₛ K s e ).
+  iApply H0. auto.
+Qed.
+
+Tactic Notation "brel_effect_r" simple_intropattern(l) "as" constr(Hl) :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (brel _ _ _ _ _) =>
+      eapply tac_brel_effect_r;
+      [ tc_solve || fail "no effect allocation found in the goal"
+      | simpl; iIntros (l) Hl; iModIntro (* new goal *)
+      ]
+  | |- _ => fail "brel_effect_r: goal not a brel"
+  end.
+
+
 (*tape allocation requires all invariant namespaces to be closed*)
 Lemma tac_brel_alloctape_l `{!probblazeRGS Σ} K Δ Δ' eₛ eₜ N z L R:
   TCEq N (Z.to_nat z) ->
@@ -532,17 +585,10 @@ Tactic Notation "brel_rand_l" :=
       eapply tac_brel_rand_l;
       [ tc_solve ||
           fail "unable to find a rand operation in the goal"
-      | match goal with |- ?G => idtac "LOOKUP GOAL:" G end;
-        let α := match goal with
+      | let α := match goal with
                  | |- _ = Some ( _ ,(?α ↪N ( _ ; _ ))%I) => α
                  end in
         iAssumptionCore || fail "brel_rand_l: cannot find" α "↪N ?"
-       (* match goal with
-          | |- envs_lookup ?i (Envs _ ?Γs _) = Some (_, ?P) =>
-              match Γs with
-                | Esnoc _ ?j ?Q => idtac "trying unify..."; unify P Q; idtac "P,Q unified!"; unify i j; idtac "i,j unified!"
-              end
-        end*)
       | match goal with |- ?G => idtac "LOOKUP GOAL:" G end;
         tc_solve || fail "cant solve" (*math equality*)
       | pm_reflexivity || fail "unable to update environment"
@@ -558,17 +604,10 @@ Tactic Notation "brel_rand_r" :=
   | |- envs_entails _ (brel _ _ _ _ _ ) =>
       eapply tac_brel_rand_r;
       [ tc_solve || fail "unable to find a rand operation in the goal"
-      | match goal with |- ?G => idtac "LOOKUP GOAL:" G end;
-        let α := match goal with
+      | let α := match goal with
                  | |- _ = Some ( _ ,(?α ↪ₛN ( _ ; _ ))%I) => α
                  end in
         iAssumptionCore || fail "brel_rand_r: cannot find" α "↪ₛN ?"
-        (*match goal with
-          | |- envs_lookup ?i (Envs _ ?Γs _) = Some (_, ?P) =>
-              match Γs with
-               | Esnoc _ ?j ?Q => idtac "trying unify..."; unify P Q; idtac "P,Q unified!"; unify i j; idtac "i,j unified!"
-              end
-        end*)
       | tc_solve (*math equality*)
       | pm_reflexivity || fail "unable to update environment"
       | reflexivity
@@ -579,3 +618,4 @@ Tactic Notation "brel_rand_r" :=
 
 
 End Tactics.
+
