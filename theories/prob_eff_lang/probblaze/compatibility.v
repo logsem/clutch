@@ -1483,8 +1483,8 @@ Section compatibility.
     sem_typed Γ1 (effect s1 e1) (effect s2 e2) ρ τ Γ2.
   Proof.
     iIntros "#H !# % Hvs /=".
-    iApply (brel_effect_l _ _ []). iIntros (l1) "!> Hl1 !>".
-    iApply (brel_effect_r _ _ _ []). iIntros (l2) "Hl2 !>". simpl.
+    iApply (brel_effect_l _ _ _ []). iIntros (l1) "!> Hl1 !>".
+    iApply (brel_effect_r _ _ _ _ []). iIntros (l2) "Hl2 !>". simpl.
     iDestruct ("H" $! l1 l2 with "Hvs") as "He".
     iApply (brel_introduction_mono (([], [], sem_sig_bottom l1 l2 : iThy Σ) :: (iLblSig_to_iLblThy ρ))).
     { iSplit.

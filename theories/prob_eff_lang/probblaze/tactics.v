@@ -589,11 +589,29 @@ Tactic Notation "brel_rand_l" :=
                  | |- _ = Some ( _ ,(?α ↪N ( _ ; _ ))%I) => α
                  end in
         iAssumptionCore || fail "brel_rand_l: cannot find" α "↪N ?"
-      | match goal with |- ?G => idtac "LOOKUP GOAL:" G end;
-        tc_solve || fail "cant solve" (*math equality*)
+      | tc_solve || fail "cant solve" (*math equality*)
       | pm_reflexivity || fail "unable to update environment"
       | reflexivity
-      | simpl (*new goal*)
+      | simpl; iIntros "_" (*new goal*)
+      ]
+  | |- _ => fail "brel_rand_l: goal not a brel"
+  end.
+
+Tactic Notation "brel_rand_l" "as" constr(Hn) :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (brel _ _ _ _ _ ) =>
+      eapply tac_brel_rand_l;
+      [ tc_solve ||
+          fail "unable to find a rand operation in the goal"
+      | let α := match goal with
+                 | |- _ = Some ( _ ,(?α ↪N ( _ ; _ ))%I) => α
+                 end in
+        iAssumptionCore || fail "brel_rand_l: cannot find" α "↪N ?"
+      | tc_solve || fail "cant solve" (*math equality*)
+      | pm_reflexivity || fail "unable to update environment"
+      | reflexivity
+      | simpl; iIntros Hn (*new goal*)
       ]
   | |- _ => fail "brel_rand_l: goal not a brel"
   end.
@@ -611,7 +629,25 @@ Tactic Notation "brel_rand_r" :=
       | tc_solve (*math equality*)
       | pm_reflexivity || fail "unable to update environment"
       | reflexivity
-      | simpl (*new goal*)
+      | simpl; iIntros "_" (*new goal*)
+      ]
+  | |- _ => fail "brel_rand_r: goal not a brel"
+  end.
+
+Tactic Notation "brel_rand_r" "as" constr(Hn) :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (brel _ _ _ _ _ ) =>
+      eapply tac_brel_rand_r;
+      [ tc_solve || fail "unable to find a rand operation in the goal"
+      | let α := match goal with
+                 | |- _ = Some ( _ ,(?α ↪ₛN ( _ ; _ ))%I) => α
+                 end in
+        iAssumptionCore || fail "brel_rand_r: cannot find" α "↪ₛN ?"
+      | tc_solve (*math equality*)
+      | pm_reflexivity || fail "unable to update environment"
+      | reflexivity
+      | simpl; iIntros Hn (*new goal*)
       ]
   | |- _ => fail "brel_rand_r: goal not a brel"
   end.
