@@ -126,7 +126,7 @@ Section handlee_verification.
     iApply (brel_add_label_r with "Hgk2").
     
     iDestruct (brel_introduction_mono _ ([([leaksend;leakrecv;gk1],[gk2],GetKey gk1 gk2)] ++ (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L)) with "[][$Hff]") as "Hf".
-    { iApply to_iThy_le_intro'. apply submseteq_skip. by do 2 apply submseteq_cons. }
+    { iApply to_iThy_le_intro'. solve_submseteq. }
     iApply (brel_exhaustion with "[$]"); [set_solver|done|].
     
     iLöb as "IH".
