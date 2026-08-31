@@ -1,13 +1,11 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import agree excl auth frac excl_auth.
-From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import
-  logic primitive_laws proofmode
-  spec_rules spec_ra class_instances tactics notation valgroup metatheory
-  sem_types sem_row sem_sig sem_env sem_judgement sem_def
-  def_dhke sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_lazy_authchan
+  primitive_laws proofmode
+  spec_rules spec_ra class_instances tactics notation metatheory
+  sem_types sem_row sem_sig sem_env sem_judgement
+  dhke_common sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_lazy_authchan
   new_composition_defs.
 From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
 

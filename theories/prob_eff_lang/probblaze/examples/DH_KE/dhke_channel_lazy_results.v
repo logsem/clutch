@@ -1,20 +1,19 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import  na_invariants.
-From iris.algebra Require Import agree excl auth frac excl_auth.
-From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
+From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode
   spec_rules spec_ra 
   class_instances. 
 From clutch.prob_eff_lang.probblaze Require Import tactics.
-From clutch.prob_eff_lang.probblaze Require Import def_dhke.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def. 
+From clutch.prob_eff_lang.probblaze Require Import dhke_common.
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement. 
 
 Import fingroup.
 
 Import fingroup.fingroup.
 
 Import valgroup_tactics.
+Import valgroup_notation.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import
   dhke_channel_lazy_authchan
   dhke_channel_lazy_real_one
@@ -31,7 +30,6 @@ Section handlee_verification.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
 
   #[local] Notation n := (S n'').
-  Import valgroup_notation.
 
   Definition τ_DH := (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
 

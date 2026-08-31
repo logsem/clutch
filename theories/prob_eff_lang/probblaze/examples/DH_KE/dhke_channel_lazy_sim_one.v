@@ -1,19 +1,19 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import  na_invariants.
 From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
+From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode
   spec_rules spec_ra 
   class_instances. 
 From clutch.prob_eff_lang.probblaze Require Import tactics.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import def_dhke dhke_common.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def. 
+From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import dhke_common.
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement. 
 
 Import fingroup.
 
 Import fingroup.fingroup.
 
 Import valgroup_tactics.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import dhke_channel_lazy_authchan.
+Import valgroup_notation.
 
 Section handlee_verification.
   Context `{!probblazeRGS Σ}.

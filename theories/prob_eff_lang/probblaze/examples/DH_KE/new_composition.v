@@ -4,12 +4,12 @@ From iris.algebra Require Import agree excl auth frac excl_auth.
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import
-  logic primitive_laws proofmode
-  spec_rules spec_ra class_instances tactics notation valgroup metatheory
-  sem_types sem_row sem_sig sem_judgement sem_def.
+  primitive_laws proofmode
+  spec_rules spec_ra class_instances tactics notation metatheory
+  sem_types sem_row sem_sig sem_judgement.
 From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import
-  def_dhke sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_lazy_authchan
+  dhke_common sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_lazy_authchan
   new_composition_defs new_composition_closed new_composition_typing.
  
 Import fingroup.

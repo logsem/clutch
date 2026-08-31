@@ -1,21 +1,19 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import  na_invariants.
-From iris.algebra Require Import agree excl auth frac excl_auth.
-From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
+From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode
   spec_rules spec_ra 
   class_instances. 
 From clutch.prob_eff_lang.probblaze Require Import tactics.
-From clutch.prob_eff_lang.probblaze Require Import def_dhke dhke_common.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def. 
+From clutch.prob_eff_lang.probblaze Require Import dhke_common.
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement. 
 
 Import fingroup.
 
 Import fingroup.fingroup.
 
 Import valgroup_tactics.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import dhke_channel_lazy_authchan.
+Import valgroup_notation.
 
 Section handlee_verification.
   Context `{!probblazeRGS Σ}.
@@ -26,9 +24,7 @@ Section handlee_verification.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
 
   #[local] Notation n := (S n'').
-  Import valgroup_notation.
   Local Notation θ := (θ (Σ:=Σ) (vg:=vg)).
-
 
   Lemma C_DH_real_DH_KE (f1 f2 : val) γtoka γtokb γfraca γfracb γautha γauthb L :
     token γtoka -∗

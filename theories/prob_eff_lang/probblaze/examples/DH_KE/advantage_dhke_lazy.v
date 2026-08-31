@@ -1,13 +1,11 @@
 From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental.
 From Coq.Logic Require Import FunctionalExtensionality.
 From clutch.prob_eff_lang.probblaze Require Import advantage.
-From iris.algebra Require Import excl.
-From iris.algebra.lib Require Import dfrac_agree.
-From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup mode.
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_judgement sem_row syntax semantics proofmode mode.
 From clutch.prob_eff_lang.probblaze Require Import 
   dhke_channel_lazy_results
   dhke_channel_lazy_authchan
-  def_dhke adequacy.
+  dhke_common adequacy.
 
 Section adv_dhke.
   Context {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg}.

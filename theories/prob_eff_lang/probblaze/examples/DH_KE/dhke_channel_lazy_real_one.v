@@ -3,19 +3,19 @@ From iris.base_logic.lib Require Import  na_invariants.
 From iris.algebra Require Import agree excl auth frac excl_auth.
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
+From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode
   spec_rules spec_ra 
   class_instances. 
 From clutch.prob_eff_lang.probblaze Require Import tactics.
-From clutch.prob_eff_lang.probblaze Require Import def_dhke dhke_common.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def. 
+From clutch.prob_eff_lang.probblaze Require Import dhke_common.
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement. 
 
 Import fingroup.
 
 Import fingroup.fingroup.
 
 Import valgroup_tactics.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import dhke_channel_lazy_authchan.
+Import valgroup_notation.
 
 Section handlee_verification.
   Context `{!probblazeRGS Σ}.
@@ -27,10 +27,6 @@ Section handlee_verification.
 
   #[local] Notation n := (S n'').
   Import valgroup_notation.
-
-  (* Local Notation authchan_row  := (authchan_row channel1 channel2).
-     Local Notation authchan_rowL := (authchan_rowL channel1 channel2).
-     Local Notation authchan_rowR := (authchan_rowR channel1 channel2). *)
   Local Notation θ := (θ (Σ:=Σ) (vg:=vg)).
 
   (* Verification of DH_KE ≤ C[DH_real] *)
