@@ -7,7 +7,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   spec_rules spec_ra 
   class_instances. 
 From clutch.prob_eff_lang.probblaze Require Import tactics.
-From clutch.prob_eff_lang.probblaze Require Import def_dhke.
+From clutch.prob_eff_lang.probblaze Require Import def_dhke dhke_common.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def. 
 
 Import fingroup.
@@ -34,7 +34,6 @@ Section handlee_verification.
   Definition atokN : namespace := nroot .@ "atokN".
   Definition btokN : namespace := nroot .@ "btokN".
 
-  Definition token γ := own γ (Excl ()).
 
   
   Lemma token_alloc : ⊢ |==> ∃ γ, token γ.

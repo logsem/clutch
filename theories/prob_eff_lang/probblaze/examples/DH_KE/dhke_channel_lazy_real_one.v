@@ -7,7 +7,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   spec_rules spec_ra 
   class_instances. 
 From clutch.prob_eff_lang.probblaze Require Import tactics.
-From clutch.prob_eff_lang.probblaze Require Import def_dhke.
+From clutch.prob_eff_lang.probblaze Require Import def_dhke dhke_common.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def. 
 
 Import fingroup.
@@ -170,14 +170,7 @@ Section handlee_verification.
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
         iLeft. iExists _,_,_.
-        iSplitL.
-        { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
-          - iModIntro. iLeft.
-            iIntros. iFrame "Hla". iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". 
-            by iModIntro. 
-          - iModIntro. iRight. iFrame "#".
-            iApply "Hclose". iNext.
-            by iRight. }
+        iSplitL; first (iApply send_upd; by iFrame "#").
         iSplit; first ( do 2 (iSplit; try (iPureIntro; done))).
                 
         iModIntro. iApply brel_value. iIntros "$ !>"...
@@ -194,7 +187,7 @@ Section handlee_verification.
         (* Recv bob = None *)
         + iApply brel_value. iIntros "$ !>".
           iDestruct ("Hcont" with "Hnone") as "Hkk".
-          iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|].
+          iApply (brel_exhaustion with "[$]"); [done|done|].
           iApply "IH".
           
         (* Recv bob = Some gB *)
@@ -204,7 +197,7 @@ Section handlee_verification.
           rewrite -expgM. rewrite -ssrnat.multE.
           rewrite -Nat.mul_comm.
           iDestruct ("Hcont" with "Hsome") as "Hkk".
-          iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|].
+          iApply (brel_exhaustion with "[$]"); [done|done|].
           iApply "IH".
           
       - iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
@@ -217,14 +210,7 @@ Section handlee_verification.
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
         iLeft.
         iExists _,_,_.
-        iSplitL.
-        { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
-          - iModIntro. iLeft.
-            iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". 
-            by iModIntro. 
-          - iModIntro. iRight. iFrame "#".
-            iApply "Hclose". iNext.
-            by iRight. }
+        iSplitL; first (iApply send_upd; by iFrame "#").
         iSplit; first (iSplit; try (iPureIntro; done)).
         iModIntro.
         iApply brel_value. iIntros "$ !>"...
@@ -241,7 +227,7 @@ Section handlee_verification.
         (* Recv bob = None *)
         + iApply brel_value. iIntros "$ !>"...
           iDestruct ("Hcont" with "Hnone") as "Hkk".
-          iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|].
+          iApply (brel_exhaustion with "[$]"); [done|done|].
           iApply "IH".
           
         (* Recv bob = Some gB *)
@@ -251,7 +237,7 @@ Section handlee_verification.
           rewrite -expgM. rewrite -ssrnat.multE.
           rewrite -Nat.mul_comm.
           iDestruct ("Hcont" with "Hsome") as "Hkk".
-          iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|].
+          iApply (brel_exhaustion with "[$]"); [done|done|].
           iApply "IH". }
     
     1 : {
@@ -298,14 +284,7 @@ Section handlee_verification.
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
         iRight.
         iExists _,_.
-        iSplitL.
-        { iMod (inv_acc with "Hinvtb") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
-          - iModIntro. iLeft.
-            iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". 
-            by iModIntro. 
-          - iModIntro. iRight. iFrame "#".
-            iApply "Hclose". iNext.
-            by iRight. }
+        iSplitL; first (iApply send_upd; by iFrame "#").
         iSplit; first ( do 2 (iSplit; try (iPureIntro; done))).
         iModIntro.
         
@@ -331,12 +310,7 @@ Section handlee_verification.
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
         iRight.
         iExists _,_.
-        iSplitL.
-        { iMod (inv_acc with "Hinvtb") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
-          - iModIntro. iLeft.
-            iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". 
-            by iModIntro. 
-          - iModIntro. iRight. by iMod ("Hclose" with "[$]") as "_". }
+        iSplitL; first (iApply send_upd; by iFrame "#").
         iSplit; first ( do 2 (iSplit; try (iPureIntro; done))).
         iModIntro.
         
@@ -352,7 +326,7 @@ Section handlee_verification.
         brel_load_r...
         iDestruct ("Hcont" with "Hsome") as "Hkk". 
         apply Nat2Z.inj in Ha as ->.
-        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|].
+        iApply (brel_exhaustion with "[$]"); [done|done|].
         iApply "IH". }
   Qed.
 
