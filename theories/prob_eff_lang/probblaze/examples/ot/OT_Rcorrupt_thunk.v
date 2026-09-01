@@ -324,6 +324,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
        iDestruct (ec_split with "Herr") as "(Herr & Herr')".
        1,2 : destruct n''; first lra; rewrite -!(plus_INR _ 1); apply Rdiv_INR_ge_0.
+       iFrame.
        iIntros (g1 Hg1) "!>".
        apply not_elem_of_cons in Hg1 as [Hg1 _].
    
