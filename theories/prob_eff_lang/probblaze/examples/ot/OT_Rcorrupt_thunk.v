@@ -254,6 +254,52 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
  Definition τC θ := (∀ᵣ θ__SENDER, ∀ᵣ θ__CRS, ((𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾)) × ((ℕ × ℕ) -{ θ__SENDER }-> 𝟙)) 
                                          -{ sem_row_union θ__SENDER (sem_row_union θ__CRS θ) }-∘ 𝟙)%T.
 
+
+  (* ------------------------------------------------------------------ *)
+  (* Once the protocol has run to completion, the only effects the       *)
+  (* client can still perform are SENDER calls, which both handlers      *)
+  (* forward unchanged.  Löb induction over the (neutral) continuation   *)
+  (* contexts closes the goal.  Expects the binders introduced by the    *)
+  (* effect case of [brel_exhaustion'] to be named [k1'], [k2'], [Hnk1], *)
+  (* [Hnk2], and the client's continuation to be [Hkont] applied to the  *)
+  (* theory witness [HQ].                                                *)
+  (* ------------------------------------------------------------------ *)
+  Local Ltac sender_forward_loop :=
+    iClear "Hl0 Hl1";
+    iRevert (k1' k2' Hnk1 Hnk2) "Hfill";
+    iLöb as "IH"; iIntros (????) "Hfill";
+    iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill");
+      [set_solver|set_solver|];
+    iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|];
+    iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont";
+    iApply brel_handle_os_l; [apply neutral_ectx; set_solver|];
+    iIntros (rl) "!> Hrl";
+    iApply brel_handle_os_r; [apply neutral_ectx; set_solver|];
+    iIntros (rr) "Hrr";
+    brel_pures';
+    iApply (brel_cont_l with "[$]"); iModIntro;
+    iApply (brel_cont_r with "[$]");
+    iDestruct ("Hkont" with "HQ") as "Hfill";
+    by iApply "IH".
+
+  (* Feed the client's result to its continuation and resume both sides. *)
+  Local Ltac protocol_done_pre :=
+    brel_pures';
+    iDestruct ("Hkont" with "HQ") as "Hfill";
+    iApply (brel_cont_l with "[$]"); iModIntro;
+    iApply (brel_cont_r with "[$]");
+    brel_pures'.
+
+  (* [pop_r] / [pop_l] additionally pop the pending LEAK continuation:
+     on the right in OT_real_ideal, on the left in OT_ideal_real. *)
+  Local Tactic Notation "protocol_done" :=
+    protocol_done_pre; sender_forward_loop.
+  Local Tactic Notation "protocol_done" "pop_r" :=
+    protocol_done_pre; iApply (brel_cont_r with "[$]"); sender_forward_loop.
+  Local Tactic Notation "protocol_done" "pop_l" :=
+    protocol_done_pre; iApply (brel_cont_l with "[$]"); iModIntro;
+    sender_forward_loop.
+
   Lemma OT_real_ideal : 
     ⊢ ↯ (3 / n) -∗
     (∀ᵣ θ, τC θ ⊸ ((((𝔾 × 𝔾) × (𝔾 × 𝔾)) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option (ℕ × ℕ)))
@@ -277,7 +323,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        brel_pures'. 
        iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
        iDestruct (ec_split with "Herr") as "(Herr & Herr')".
-       1, 2: (* apply Rdiv_INR_ge_0. *) admit. iFrame.
+       1,2 : destruct n''; first lra; rewrite -!(plus_INR _ 1); apply Rdiv_INR_ge_0.
        iIntros (g1 Hg1) "!>".
        apply not_elem_of_cons in Hg1 as [Hg1 _].
    
@@ -441,7 +487,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        
        iApply (brel_exhaustion' OS (f1 _) (f2 _) with "[$Hff]"); [done|set_solver|].
        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-       iIntros (???????) "(%&%&%&%&(%m0z&->&->)&(%m1z&->&->)&->&->&HQ) Hkont".
+       iIntros (k1' k2' ??? Hnk1 Hnk2)
+         "(%&%&%&%&(%m0z&->&->)&(%m1z&->&->)&->&->&HQ) Hkont".
        iApply brel_handle_os_l; [apply neutral_ectx;set_solver|].
        iIntros (cl) "!> Hcl".
        iApply brel_handle_os_r; [apply neutral_ectx;set_solver|].
@@ -456,25 +503,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          brel_pures_l. brel_pures_r.
 
          (* Protocol done loop *)
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures.
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures_l. brel_pures_r.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+         protocol_done. }
 
        iApply brel_vg_of_int_correct_l; first done.
        iApply brel_vg_of_int_correct_r; first done.
@@ -489,25 +518,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          brel_pures_l. brel_pures_r.
 
          (* Protocol done loop *)
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures.
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures_l. brel_pures_r.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+         protocol_done. }
 
        iApply brel_vg_of_int_correct_l; first done.
        iApply brel_vg_of_int_correct_r; first done.
@@ -551,27 +562,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])".
        
         (* Protocol done loop *)
-       { brel_pures_l. brel_pures_r.
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures.
-         iApply (brel_cont_r with "[$]").
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures_l. brel_pures_r.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+       { protocol_done pop_r. }
    
        iDestruct "H" as (????) "(->&->&(%uz&->&->)&(%vz&->&->))".
        brel_pures_l.
@@ -585,26 +576,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          brel_pures_l. brel_pures_r.
 
          (* Protocol done loop *)
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures.
-         iApply (brel_cont_r with "[$]").
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures_l. brel_pures_r.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+         protocol_done pop_r. }
 
        iApply brel_vg_of_int_correct_l; first done.
        iApply brel_vg_of_int_correct_r; first done.
@@ -618,26 +590,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          brel_pures_l. brel_pures_r.
 
          (* Protocol done loop *)
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures.
-         iApply (brel_cont_r with "[$]").
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures_l. brel_pures_r.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+         protocol_done pop_r. }
 
        iApply brel_vg_of_int_correct_l; first done.
        iApply brel_vg_of_int_correct_r; first done.
@@ -647,26 +600,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        destruct (bool_decide (u = 1%g)) eqn:Heq.
    
     (* Protocol done loop *)
-       { iDestruct ("Hkont" with "HQ") as "Hfill". 
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures'.
-         iApply (brel_cont_r with "[$]").
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures'.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+       { protocol_done pop_r. }
        
        brel_pures'.
        destruct (bool_decide (v = (u ^+ (f_ring (Fp_of_fin g0) t0))%g)) eqn:Heq1; brel_pures'.
@@ -746,27 +680,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          brel_pures'.
    
          (* Protocol done loop *)
-       { brel_pures'.
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures'.
-         iApply (brel_cont_r with "[$]").
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures'.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+       { protocol_done pop_r. }
    
        + iApply (brel_handle_os_r [_] [AppRCtx _]); [set_solver|].
          iIntros (rRecv) "Hr". brel_pures.
@@ -837,29 +751,9 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          brel_pures'.
    
          (* Protocol done loop *)
-       { brel_pures'.
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures'.
-         iApply (brel_cont_r with "[$]").
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures'.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+       { protocol_done pop_r. }
        Unshelve. all : done.
-   Admitted.
+   Qed.
 
 
  Lemma OT_ideal_real : 
@@ -885,7 +779,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     brel_pures'. 
     iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
     iDestruct (ec_split with "Herr") as "(Herr & Herr')".
-    1, 2: admit. (* apply Rdiv_INR_ge_0. *) iFrame.
+    1,2 : destruct n''; first lra; rewrite -!(plus_INR _ 1); apply Rdiv_INR_ge_0.
+    iFrame.
     iIntros (g1 Hg1) "!>".
     apply not_elem_of_cons in Hg1 as [Hg1 _].
 
@@ -1025,7 +920,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
 
     iApply (brel_exhaustion' OS (f1 _) (f2 _) with "[$Hff]"); [set_solver|set_solver|].
     iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-    iIntros (???????) "(%&%&%&%&(%m0z&->&->)&(%m1z&->&->)&->&->&HQ) Hkont".
+    iIntros (k1' k2' ??? Hnk1 Hnk2)
+      "(%&%&%&%&(%m0z&->&->)&(%m1z&->&->)&->&->&HQ) Hkont".
     iApply brel_handle_os_r; [apply neutral_ectx;set_solver|].
     iIntros (cr) "Hcr".
     iApply brel_handle_os_l; [apply neutral_ectx;set_solver|].
@@ -1041,25 +937,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          brel_pures_l. brel_pures_r.
 
          (* Protocol done loop *)
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures.
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures_l. brel_pures_r.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+         protocol_done. }
 
        iApply brel_vg_of_int_correct_l; first done.
        iApply brel_vg_of_int_correct_r; first done.
@@ -1074,25 +952,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          brel_pures_l. brel_pures_r.
 
          (* Protocol done loop *)
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures.
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures_l. brel_pures_r.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+         protocol_done. }
 
        iApply brel_vg_of_int_correct_l; first done.
        iApply brel_vg_of_int_correct_r; first done.
@@ -1134,27 +994,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])".
     
     (* Protocol done loop *)
-    { brel_pures_l. brel_pures_r.
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      brel_pures.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iClear "Hl0 Hl1".
-      iRevert (k1' k2' H H0) "Hfill".
-      iLöb as "IH". iIntros (????) "Hfill".
-      iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-      iIntros (???????) "(%&%&%&%&(%uz&->&->)&(%vz&->&->)&->&->&HQ) Hkont".
-      iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-      iIntros (rr) "Hrr".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl". 
-      brel_pures_l. brel_pures_r.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      by iApply "IH". }
+    { protocol_done pop_l. }
 
     iDestruct "H" as (????) "(->&->&(%uz&->&->)&(%vz&->&->))".
     brel_pures_l.
@@ -1168,26 +1008,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          brel_pures_l. brel_pures_r.
 
          (* Protocol done loop *)
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures_l. brel_pures_r.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+         protocol_done pop_l. }
 
        iApply brel_vg_of_int_correct_l; first done.
        iApply brel_vg_of_int_correct_r; first done.
@@ -1201,26 +1022,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          brel_pures_l. brel_pures_r.
 
          (* Protocol done loop *)
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         brel_pures.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iClear "Hl0 Hl1".
-         iRevert (k1' k2' H H0) "Hfill".
-         iLöb as "IH". iIntros (????) "Hfill".
-         iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-         iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-         iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-         iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-         iIntros (rl) "!> Hrl".
-         iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-         iIntros (rr) "Hrr". 
-         brel_pures_l. brel_pures_r.
-         iApply (brel_cont_l with "[$]"). iModIntro.
-         iApply (brel_cont_r with "[$]").
-         iDestruct ("Hkont" with "HQ") as "Hfill".
-         by iApply "IH". }
+         protocol_done pop_l. }
 
        iApply brel_vg_of_int_correct_l; first done.
        iApply brel_vg_of_int_correct_r; first done.
@@ -1231,27 +1033,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        destruct (bool_decide (u = 1%g)) eqn:Heq.
        
     (* Protocol done loop *)
-    { brel_pures_l. brel_pures_r.
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      brel_pures.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iClear "Hl0 Hl1".
-      iRevert (k1' k2' H H0) "Hfill".
-      iLöb as "IH". iIntros (????) "Hfill".
-      iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-      iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl".
-      iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-      iIntros (rr) "Hrr". 
-      brel_pures_l. brel_pures_r.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      by iApply "IH". }
+    { protocol_done pop_l. }
     
     brel_pures'.
     destruct (bool_decide (v = (u ^+ t0)%g)) eqn:Heq1; brel_pures'.
@@ -1331,26 +1113,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       brel_pures'.
 
       (* Protocol done loop *)
-      { iDestruct ("Hkont" with "HQ") as "Hfill".
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      brel_pures.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iClear "Hl0 Hl1".
-      iRevert (k1' k2' H H0) "Hfill".
-      iLöb as "IH". iIntros (????) "Hfill".
-      iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-      iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl".
-      iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-      iIntros (rr) "Hrr". 
-      brel_pures_l. brel_pures_r.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      by iApply "IH". }
+      { protocol_done pop_l. }
 
     + iApply (brel_handle_os_l [_] [AppRCtx _]); [set_solver|].
       iIntros (rRecv) "!> Hr". brel_pures.
@@ -1422,29 +1185,10 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
 
 
       (* Protocol done loop *)
-      { iDestruct ("Hkont" with "HQ") as "Hfill".
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iClear "Hl0 Hl1".
-      iRevert (k1' k2' H H0) "Hfill".
-      iLöb as "IH". iIntros (????) "Hfill".
-      iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill"); [set_solver|set_solver|].
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
-      iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl".
-      iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
-      iIntros (rr) "Hrr". 
-      brel_pures_l. brel_pures_r.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQ") as "Hfill".
-      by iApply "IH". }
+      { protocol_done pop_l. }
       
       Unshelve. all : done.
-  Admitted. 
+  Qed. 
 
 
 
