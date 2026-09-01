@@ -1,3 +1,4 @@
+From iris.proofmode Require Import coq_tactics.
 From clutch.prelude Require Import base.
 From clutch.prob_eff_lang.probblaze Require Import syntax semantics spec_ra logic notation proofmode spec_rules class_instances metatheory.
 From clutch.prob_eff_lang.probblaze.typing Require Import types interp.
@@ -580,142 +581,392 @@ Qed.
 
 End facts.
 
+Section tactic_lemmas.
+Context `{!probblazeRGS Σ}.
 
-(* fast tactics to simplify inversion *)
-Tactic Notation "rel_inv_l" :=
+Context {vg : val_group}.
+Context {cg : clutch_group_struct}.
+Context {G : clutch_group (vg:=vg) (cg:=cg)}.
+Context {vgg : @val_group_generator vg}.
+
+Lemma tac_rel_inv_l E K Δ eₛ eₜ (a : vgG) X R:
+  IntoCtx eₛ (TCEq (vinv a)) K ->
+  (envs_entails Δ (logic.rel E (fill K (vgval a^-1)) eₜ X R)) ->
+  envs_entails Δ (logic.rel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. 
+  rewrite <- Hctx.
+  iApply rel_inv_l. 
+  by iApply Hentail. 
+Qed.
+
+Lemma tac_rel_inv_r E K Δ eₛ eₜ (a : vgG) X R:
+  IntoCtx eₜ (TCEq (vinv a)) K ->
+  (envs_entails Δ (logic.rel E eₛ (fill K (vgval a^-1)) X R)) ->
+  envs_entails Δ (logic.rel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. rewrite <- Hctx.
+  iApply rel_inv_r.
+  by iApply Hentail.
+Qed.
+
+Lemma tac_brel_inv_l E K Δ eₛ eₜ (a : vgG) X R:
+  IntoCtx eₛ (TCEq (vinv a)) K ->
+  (envs_entails Δ (brel E (fill K (vgval a^-1)) eₜ X R)) ->
+  envs_entails Δ (brel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. 
+  rewrite <- Hctx.
+  iApply brel_inv_l. 
+  by iApply Hentail. 
+Qed.
+
+Lemma tac_brel_inv_r E K Δ eₛ eₜ (a : vgG) X R:
+  IntoCtx eₜ (TCEq (vinv a)) K ->
+  (envs_entails Δ (brel E eₛ (fill K (vgval a^-1)) X R)) ->
+  envs_entails Δ (brel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. rewrite <- Hctx.
+  iApply brel_inv_r.
+  by iApply Hentail.
+Qed.
+
+Lemma tac_rel_mult_l E K Δ eₛ eₜ (a b : vgG) X R:
+  IntoCtx eₛ (TCEq (vmult a b)) K ->
+  (envs_entails Δ (logic.rel E (fill K (vgval (a * b))) eₜ X R)) ->
+  envs_entails Δ (logic.rel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. 
+  rewrite <- Hctx.
+  iApply rel_mult_l. 
+  by iApply Hentail. 
+Qed.
+
+Lemma tac_rel_mult_r E K Δ eₛ eₜ (a b : vgG) X R:
+  IntoCtx eₜ (TCEq (vmult a b)) K ->
+  (envs_entails Δ (logic.rel E eₛ (fill K (vgval (a * b))) X R)) ->
+  envs_entails Δ (logic.rel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. rewrite <- Hctx.
+  iApply rel_mult_r.
+  by iApply Hentail.
+Qed.
+
+Lemma tac_brel_mult_l E K Δ eₛ eₜ (a b : vgG) X R:
+  IntoCtx eₛ (TCEq (vmult a b)) K ->
+  (envs_entails Δ (brel E (fill K (vgval (a * b))) eₜ X R)) ->
+  envs_entails Δ (brel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. 
+  rewrite <- Hctx.
+  iApply brel_mult_l. 
+  by iApply Hentail. 
+Qed.
+
+Lemma tac_brel_mult_r E K Δ eₛ eₜ (a b : vgG) X R:
+  IntoCtx eₜ (TCEq (vmult a b)) K ->
+  (envs_entails Δ (brel E eₛ (fill K (vgval (a * b))) X R)) ->
+  envs_entails Δ (brel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. rewrite <- Hctx.
+  iApply brel_mult_r.
+  by iApply Hentail.
+Qed.
+
+Lemma tac_rel_eq_l E K Δ eₛ eₜ (a b : vgG) X R:
+  IntoCtx eₛ (TCEq (veq a b)) K ->
+  (envs_entails Δ (logic.rel E (fill K #(bool_decide (a = b))) eₜ X R)) ->
+  envs_entails Δ (logic.rel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. 
+  rewrite <- Hctx.
+  iApply rel_eq_l. 
+  by iApply Hentail. 
+Qed.
+
+Lemma tac_rel_eq_r E K Δ eₛ eₜ (a b : vgG) X R:
+  IntoCtx eₜ (TCEq (veq a b)) K ->
+  (envs_entails Δ (logic.rel E eₛ (fill K #(bool_decide (a = b))) X R)) ->
+  envs_entails Δ (logic.rel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. rewrite <- Hctx.
+  iApply rel_eq_r.
+  by iApply Hentail.
+Qed.
+
+Lemma tac_brel_eq_l E K Δ eₛ eₜ (a b : vgG) X R:
+  IntoCtx eₛ (TCEq (veq a b)) K ->
+  (envs_entails Δ (brel E (fill K #(bool_decide (a = b))) eₜ X R)) ->
+  envs_entails Δ (brel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. 
+  rewrite <- Hctx.
+  iApply brel_eq_l. 
+  by iApply Hentail. 
+Qed.
+
+Lemma tac_brel_eq_r E K Δ eₛ eₜ (a b : vgG) X R:
+  IntoCtx eₜ (TCEq (veq a b)) K ->
+  (envs_entails Δ (brel E eₛ (fill K #(bool_decide (a = b))) X R)) ->
+  envs_entails Δ (brel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. rewrite <- Hctx.
+  iApply brel_eq_r.
+  by iApply Hentail.
+Qed.
+
+Lemma tac_rel_exp_l E K Δ eₛ eₜ (b : vgG) (p : nat) X R:
+  IntoCtx eₛ (TCEq (vexp b #p)) K ->
+  (envs_entails Δ (logic.rel E (fill K (vgval (b ^+ p))) eₜ X R)) ->
+  envs_entails Δ (logic.rel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. 
+  rewrite <- Hctx.
+  iApply rel_exp_l. 
+  by iApply Hentail. 
+Qed.
+
+Lemma tac_rel_exp_r E K Δ eₛ eₜ (b : vgG) (p : nat) X R:
+  IntoCtx eₜ (TCEq (vexp b #p)) K ->
+  (envs_entails Δ (logic.rel E eₛ (fill K (vgval (b ^+ p))) X R)) ->
+  envs_entails Δ (logic.rel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. rewrite <- Hctx.
+  iApply rel_exp_r.
+  by iApply Hentail.
+Qed.
+
+Lemma tac_brel_exp_l E K Δ eₛ eₜ (b : vgG) (p : nat) X R:
+  IntoCtx eₛ (TCEq (vexp b #p)) K ->
+  (envs_entails Δ (brel E (fill K (vgval (b ^+ p))) eₜ X R)) ->
+  envs_entails Δ (brel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. 
+  rewrite <- Hctx.
+  iApply brel_exp_l. 
+  by iApply Hentail. 
+Qed.
+
+Lemma tac_brel_exp_r E K Δ eₛ eₜ (b : vgG) (p : nat) X R:
+  IntoCtx eₜ (TCEq (vexp b #p)) K ->
+  (envs_entails Δ (brel E eₛ (fill K (vgval (b ^+ p))) X R)) ->
+  envs_entails Δ (brel E eₛ eₜ X R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hctx Hentail) "Hi".
+  apply tc_eq_fill in Hctx. rewrite <- Hctx.
+  iApply brel_exp_r.
+  by iApply Hentail.
+Qed.
+
+End tactic_lemmas.
+
+Tactic Notation "rel_group_apply" constr(H) :=
+  iStartProof;
   lazymatch goal with
-  | |- environments.envs_entails _ (logic.rel _ ?e _ _ _) =>
-      match e with
-      | context[App (Val vinv) (Val ?a)] =>
-          iApply (rel_inv_l _ _ _ _ _ _) => //
-      | _ => fail "rel_inv_l: no vinv / group element found"
-      end
-  | _ => fail "rel_inv_l: not proving a refinement"
+  | |- envs_entails _ (logic.rel _ _ _ _ _) =>
+      eapply H;
+      [ tc_solve (*math equality*)
+      | simpl (* new goal *)
+      ]
+  | |- _ => fail "rel_group: goal not a rel"
   end.
 
-Tactic Notation "brel_inv_l" :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
-      match e with
-      | context[App (Val vinv) (Val ?a)] =>
-          iApply (brel_inv_l _ _ _ _ _ _) => //
-      | _ => fail "brel_inv_l: no vinv / group element found"
-      end
-  | _ => fail "brel_inv_l: not proving a refinement"
-  end.
-
-Tactic Notation "rel_inv_r" :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
-      match e with
-      | context[App (Val vinv) (Val ?a)] =>
-          iApply (rel_inv_r _ _ _ _ _ _) => //
-      | _ => fail "rel_inv_r: no vinv / group element found"
-      end
-  | _ => fail "rel_inv_r: not proving a refinement"
-  end.
-
-Tactic Notation "brel_inv_r" :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
-      match e with
-      | context[App (Val vinv) (Val ?a)] =>
-          iApply (brel_inv_r _ _ _ _ _ _) => //
-      | _ => fail "brel_inv_r: no vinv / group element found"
-      end
-  | _ => fail "brel_inv_r: not proving a refinement"
-  end.
-
-(* fast tactics to simplify multiplications *)
-Tactic Notation "rel_mult_l" :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (logic.rel _ ?e _ _ _) =>
-      match e with
-      | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
-          iApply (rel_mult_l _ _ _ _ _ _ _) => //
-      | _ => fail "rel_mult_l: no vmult / v1 / v2 found"
-      end
-  | _ => fail "rel_mult_l: not proving a refinement"
-  end.
-
-Tactic Notation "brel_mult_l" :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
-      match e with
-      | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
-          iApply (brel_mult_l _ _ _ _ _ _ _) => //
-      | _ => fail "brel_mult_l: no vmult / v1 / v2 found"
-      end
-  | _ => fail "brel_mult_l: not proving a refinement"
-  end.
-
-Tactic Notation "rel_mult_r" :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
-      match e with
-      | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
-          iApply (rel_mult_r _ _ _ _ _ _ _) => //
-      | _ => fail "rel_mult_r: no vmult / v1 / v2 found"
-      end
-  | _ => fail "rel_mult_r: not proving a refinement"
-  end.
-
-Tactic Notation "brel_mult_r" :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
-      match e with
-      | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
-          iApply (brel_mult_r _ _ _ _ _ _ _) => //
-      | _ => fail "brel_mult_r: no vmult / v1 / v2 found"
-      end
-  | _ => fail "brel_mult_r: not proving a refinement"
-  end.
-
-(* fast tactics to simplify exponentials *)
-Tactic Notation "rel_exp_l" :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (logic.rel _ ?e _ _ _) =>
-      match e with
-      | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
-          iApply (rel_exp_l _ _ _ _ _ _ _) => //
-      | _ => fail "rel_exp_l: no vexp / base / exponent found"
-      end
-  | _ => fail "rel_exp_l: not proving a refinement"
-  end.
-
-Tactic Notation "brel_exp_l" :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
-      match e with
-      | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
-          iApply (brel_exp_l _ _ _ _ _ _ _) => //
-      | _ => fail "brel_exp_l: no vexp / base / exponent found"
-      end
-  | _ => fail "brel_exp_l: not proving a refinement"
-  end.
+Tactic Notation "rel_inv_l" := rel_group_apply tac_rel_inv_l.
+Tactic Notation "rel_inv_r" := rel_group_apply tac_rel_inv_r.
+Tactic Notation "rel_mult_l" := rel_group_apply tac_rel_mult_l.
+Tactic Notation "rel_mult_r" := rel_group_apply tac_rel_mult_r.
+Tactic Notation "rel_eq_l" := rel_group_apply tac_rel_eq_l.
+Tactic Notation "rel_eq_r" := rel_group_apply tac_rel_eq_r.
+Tactic Notation "rel_exp_l" := rel_group_apply tac_rel_exp_l.
+Tactic Notation "rel_exp_r" := rel_group_apply tac_rel_exp_r.
 
 
-Tactic Notation "rel_exp_r" :=
+Tactic Notation "brel_group_apply" constr(H) :=
+  iStartProof;
   lazymatch goal with
-  | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
-      match e with
-      | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
-          iApply (rel_exp_r _ _ _ _ _ _ _) => //
-      | _ => fail "rel_exp_r: no vexp / base / exponent found"
-      end
-  | _ => fail "rel_exp_r: not proving a refinement"
+  | |- envs_entails _ (brel _ _ _ _ _) =>
+      eapply H;
+      [ tc_solve (*math equality*)
+      | simpl (* new goal *)
+      ]
+  | |- _ => fail "brel_group: goal not a brel"
   end.
 
-Tactic Notation "brel_exp_r" :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
-      match e with
-      | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
-          iApply (brel_exp_r _ _ _ _ _ _ _) => //
-      | _ => fail "brel_exp_r: no vexp / base / exponent found"
-      end
-  | _ => fail "brel_exp_r: not proving a refinement"
-  end.
+Tactic Notation "brel_inv_l" := brel_group_apply tac_brel_inv_l.
+Tactic Notation "brel_inv_r" := brel_group_apply tac_brel_inv_r.
+Tactic Notation "brel_mult_l" := brel_group_apply tac_brel_mult_l.
+Tactic Notation "brel_mult_r" := brel_group_apply tac_brel_mult_r.
+Tactic Notation "brel_eq_l" := brel_group_apply tac_brel_eq_l.
+Tactic Notation "brel_eq_r" := brel_group_apply tac_brel_eq_r.
+Tactic Notation "brel_exp_l" := brel_group_apply tac_brel_exp_l.
+Tactic Notation "brel_exp_r" := brel_group_apply tac_brel_exp_r.
+
+(* (* fast tactics to simplify inversion *)
+   Tactic Notation "rel_inv_l" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.rel _ ?e _ _ _) =>
+         match e with
+         | context[App (Val vinv) (Val ?a)] =>
+             iApply (rel_inv_l _ _ _ _ _ _) => //
+         | _ => fail "rel_inv_l: no vinv / group element found"
+         end
+     | _ => fail "rel_inv_l: not proving a refinement"
+     end.
+   
+   Tactic Notation "brel_inv_l" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
+         match e with
+         | context[App (Val vinv) (Val ?a)] =>
+             iApply (brel_inv_l _ _ _ _ _ _) => //
+         | _ => fail "brel_inv_l: no vinv / group element found"
+         end
+     | _ => fail "brel_inv_l: not proving a refinement"
+     end.
+   
+   Tactic Notation "rel_inv_r" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
+         match e with
+         | context[App (Val vinv) (Val ?a)] =>
+             iApply (rel_inv_r _ _ _ _ _ _) => //
+         | _ => fail "rel_inv_r: no vinv / group element found"
+         end
+     | _ => fail "rel_inv_r: not proving a refinement"
+     end.
+   
+   Tactic Notation "brel_inv_r" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
+         match e with
+         | context[App (Val vinv) (Val ?a)] =>
+             iApply (brel_inv_r _ _ _ _ _ _) => //
+         | _ => fail "brel_inv_r: no vinv / group element found"
+         end
+     | _ => fail "brel_inv_r: not proving a refinement"
+     end.
+   
+   (* fast tactics to simplify multiplications *)
+   Tactic Notation "rel_mult_l" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.rel _ ?e _ _ _) =>
+         match e with
+         | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
+             iApply (rel_mult_l _ _ _ _ _ _ _) => //
+         | _ => fail "rel_mult_l: no vmult / v1 / v2 found"
+         end
+     | _ => fail "rel_mult_l: not proving a refinement"
+     end.
+   
+   Tactic Notation "brel_mult_l" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
+         match e with
+         | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
+             iApply (brel_mult_l _ _ _ _ _ _ _) => //
+         | _ => fail "brel_mult_l: no vmult / v1 / v2 found"
+         end
+     | _ => fail "brel_mult_l: not proving a refinement"
+     end.
+   
+   Tactic Notation "rel_mult_r" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
+         match e with
+         | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
+             iApply (rel_mult_r _ _ _ _ _ _ _) => //
+         | _ => fail "rel_mult_r: no vmult / v1 / v2 found"
+         end
+     | _ => fail "rel_mult_r: not proving a refinement"
+     end.
+   
+   Tactic Notation "brel_mult_r" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
+         match e with
+         | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
+             iApply (brel_mult_r _ _ _ _ _ _ _) => //
+         | _ => fail "brel_mult_r: no vmult / v1 / v2 found"
+         end
+     | _ => fail "brel_mult_r: not proving a refinement"
+     end.
+   
+   (* fast tactics to simplify exponentials *)
+   Tactic Notation "rel_exp_l" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.rel _ ?e _ _ _) =>
+         match e with
+         | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
+             iApply (rel_exp_l _ _ _ _ _ _ _) => //
+         | _ => fail "rel_exp_l: no vexp / base / exponent found"
+         end
+     | _ => fail "rel_exp_l: not proving a refinement"
+     end.
+   
+   Tactic Notation "brel_exp_l" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.brel _ ?e _ _ _) =>
+         match e with
+         | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
+             iApply (brel_exp_l _ _ _ _ _ _ _) => //
+         | _ => fail "brel_exp_l: no vexp / base / exponent found"
+         end
+     | _ => fail "brel_exp_l: not proving a refinement"
+     end.
+   
+   
+   Tactic Notation "rel_exp_r" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.rel _ _ ?e _ _) =>
+         match e with
+         | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
+             iApply (rel_exp_r _ _ _ _ _ _ _) => //
+         | _ => fail "rel_exp_r: no vexp / base / exponent found"
+         end
+     | _ => fail "rel_exp_r: not proving a refinement"
+     end.
+   
+   Tactic Notation "brel_exp_r" :=
+     lazymatch goal with
+     | |- environments.envs_entails _ (logic.brel _ _ ?e _ _) =>
+         match e with
+         | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
+             iApply (brel_exp_r _ _ _ _ _ _ _) => //
+         | _ => fail "brel_exp_r: no vexp / base / exponent found"
+         end
+     | _ => fail "brel_exp_r: not proving a refinement"
+     end. *)
 
 
 Module valgroup_tactics.
@@ -727,13 +978,13 @@ Module valgroup_tactics.
 
   Ltac brel_pures :=
     iStartProof ;
-    repeat (try brel_pures_l ; try first [brel_exp_r | brel_mult_r | brel_inv_r]) ;
-    repeat (try brel_pures_r ; try first [brel_exp_l | brel_mult_l | brel_inv_l]).
+    repeat (try brel_pures_l ; try first [brel_exp_r | brel_mult_r | brel_inv_r ]) ;
+    repeat (try brel_pures_r ; try first [brel_exp_l | brel_mult_l | brel_inv_l ]).
 
   Ltac brel_pures' :=
     iStartProof ;
-    repeat (first [try brel_pures_r| brel_exp_r | brel_mult_r | brel_inv_r]) ;
-    repeat (first [try brel_pures_l | brel_exp_l | brel_mult_l | brel_inv_l]).
+    repeat (first [try brel_pures_r | brel_exp_r | brel_mult_r | brel_inv_r | brel_eq_r]) ;
+    repeat (first [try brel_pures_l | brel_exp_l | brel_mult_l | brel_inv_l | brel_eq_l]).
 
 
 End valgroup_tactics.
