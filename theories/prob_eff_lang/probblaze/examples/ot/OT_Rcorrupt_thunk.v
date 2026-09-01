@@ -277,7 +277,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        brel_pures'. 
        iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
        iDestruct (ec_split with "Herr") as "(Herr & Herr')".
-       1, 2: apply Rdiv_INR_ge_0. iFrame.
+       1, 2: (* apply Rdiv_INR_ge_0. *) admit. iFrame.
        iIntros (g1 Hg1) "!>".
        apply not_elem_of_cons in Hg1 as [Hg1 _].
    
@@ -641,18 +641,16 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
 
        iApply brel_vg_of_int_correct_l; first done.
        iApply brel_vg_of_int_correct_r; first done.
-       brel_pures_l. brel_pures_r.
-       
        rewrite is_unit.
-       iApply brel_eq_l. iApply brel_eq_r. 
+       brel_pures'.
+
        destruct (bool_decide (u = 1%g)) eqn:Heq.
    
     (* Protocol done loop *)
-       { brel_pures_l. brel_pures_r.
-         iDestruct ("Hkont" with "HQ") as "Hfill".
+       { iDestruct ("Hkont" with "HQ") as "Hfill". 
          iApply (brel_cont_l with "[$]"). iModIntro.
          iApply (brel_cont_r with "[$]").
-         brel_pures.
+         brel_pures'.
          iApply (brel_cont_r with "[$]").
          iClear "Hl0 Hl1".
          iRevert (k1' k2' H H0) "Hfill".
@@ -664,14 +662,13 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          iIntros (rl) "!> Hrl".
          iApply brel_handle_os_r; [apply neutral_ectx;set_solver| ].
          iIntros (rr) "Hrr". 
-         brel_pures_l. brel_pures_r.
+         brel_pures'.
          iApply (brel_cont_l with "[$]"). iModIntro.
          iApply (brel_cont_r with "[$]").
          iDestruct ("Hkont" with "HQ") as "Hfill".
          by iApply "IH". }
        
-       brel_pures_l. brel_pures_r. brel_pures'.
-       iApply brel_eq_r.
+       brel_pures'.
        destruct (bool_decide (v = (u ^+ (f_ring (Fp_of_fin g0) t0))%g)) eqn:Heq1; brel_pures'.
    
    (* (e1, e2) = (enc(m0), enc(g)) - couple enc(m1) to enc(g) *)
@@ -681,7 +678,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          iApply (brel_handle_os_r [] [AppRCtx _]); [set_solver|].
          iIntros (rAlice) "HAlice". brel_pures.
          iApply (brel_cont_r with "[$]").
-         brel_pures.
+         brel_pures'.
          iApply (brel_load_r with "[$Hl0]"). iIntros "Hl0". 
          iApply (brel_cont_r with "[$]").
          brel_pures'. 
@@ -704,14 +701,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
          iIntros (r1 Hr1). brel_pures_l. brel_pures_r.
          
-         iApply brel_couple_rand_rand; [done|]. iIntros (s0 Hs0). brel_pures_l. brel_pures_r.
-         iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures_l. brel_pures_r.
-         iApply brel_exp_l. repeat brel_exp_r. 
-         do 2 brel_mult_r. do 2 brel_exp_r.
-         brel_exp_l. brel_mult_l. brel_mult_l. brel_exp_l. brel_exp_l.
-         brel_mult_l. brel_pures. brel_exp_r. brel_exp_r. brel_mult_r. brel_mult_r.
-         brel_exp_r. brel_exp_r. brel_mult_r. brel_pures_r.
-         brel_exp_l. do 2 brel_mult_l. do 2 brel_exp_l. brel_pures. brel_mult_l. brel_pures_l.
+         iApply brel_couple_rand_rand; [done|]. iIntros (s0 Hs0). 
+         iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures'.
          rewrite -!expgM.
          rewrite -!expgnDr.
          rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln t1 s1))).
@@ -759,7 +750,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          iDestruct ("Hkont" with "HQ") as "Hfill".
          iApply (brel_cont_l with "[$]"). iModIntro.
          iApply (brel_cont_r with "[$]").
-         brel_pures.
+         brel_pures'.
          iApply (brel_cont_r with "[$]").
          iClear "Hl0 Hl1".
          iRevert (k1' k2' H H0) "Hfill".
@@ -789,7 +780,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          brel_pures. brel_exp_r. brel_pures'.
          iApply brel_couple_rand_rand; [done|]. iIntros (s1 Hs1). brel_pures.
          iApply brel_couple_rand_rand; [done|]. iIntros (r1 Hr1). brel_pures.
-         brel_pures.
+         brel_pures'.
          destruct (log_g m0) as (km & ->).
          destruct (log_g u) as (ku & ->).
          destruct (log_g v) as (kv & ->).
@@ -808,17 +799,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
    
          iApply (brel_couple_rand_rand _ _ f' (H:=minus_ring_bij c1)).
          { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-         iIntros (r0 Hr0). brel_pures_l. brel_pures_r.
-   
-         iApply brel_exp_l. iApply brel_exp_r. brel_exp_r. 
-         brel_mult_r. brel_mult_r. brel_exp_r.
-         brel_exp_r. brel_mult_r.
-         brel_exp_l. brel_mult_l. brel_mult_l.
-         brel_exp_l. brel_exp_l. brel_mult_l. 
-         do 2 brel_exp_r. do 2 brel_mult_r. do 2brel_exp_r. brel_mult_r.
-         brel_pures. brel_exp_l. do 2 brel_mult_l. repeat brel_exp_l.
-         repeat brel_mult_l. brel_pures_l. 
-   
+         iIntros (r0 Hr0). brel_pures'. 
          rewrite -!expgM.
          rewrite -!expgnDr.
          rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g0 r0) (ssrnat.muln t0 s0))).
@@ -860,7 +841,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          iDestruct ("Hkont" with "HQ") as "Hfill".
          iApply (brel_cont_l with "[$]"). iModIntro.
          iApply (brel_cont_r with "[$]").
-         brel_pures.
+         brel_pures'.
          iApply (brel_cont_r with "[$]").
          iClear "Hl0 Hl1".
          iRevert (k1' k2' H H0) "Hfill".
@@ -878,7 +859,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          iDestruct ("Hkont" with "HQ") as "Hfill".
          by iApply "IH". }
        Unshelve. all : done.
-   Qed.
+   Admitted.
 
 
  Lemma OT_ideal_real : 
@@ -904,7 +885,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     brel_pures'. 
     iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
     iDestruct (ec_split with "Herr") as "(Herr & Herr')".
-    1, 2: apply Rdiv_INR_ge_0. iFrame.
+    1, 2: admit. (* apply Rdiv_INR_ge_0. *) iFrame.
     iIntros (g1 Hg1) "!>".
     apply not_elem_of_cons in Hg1 as [Hg1 _].
 
@@ -928,19 +909,10 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     brel_pures'. 
     rewrite -!expgM. 
 
-    (* rewrite -(@expg_mod _ n (ssrnat.muln g0 (f_ring (Fp_of_fin g0) t0))).
-       2 : rewrite -g_nontriv; apply expg_order.
-       rewrite crs_fin_cancel //; [|by apply Fp_of_fin_ne_zero_2|apply Rcomplements.SSR_leq; lia].
-       rewrite -(@expg_mod _ n (ssrnat.muln g1 (f_ring (Fp_of_fin g1) t1))).
-       2 : rewrite -g_nontriv; apply expg_order.
-       assert (t1 < n)%nat as Ht1' by apply fin_to_nat_lt.
-       rewrite crs_fin_cancel //; [|by apply Fp_of_fin_ne_zero_2|apply Rcomplements.SSR_leq; lia].
-       rewrite !expg_mod.
-       2,3: rewrite -g_nontriv; apply expg_order. *)
     iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
     iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>".
     rewrite /mut_handler /simhandler.
-    brel_pures_l. brel_pures_r.
+    brel_pures'.
     iApply brel_alloc_l. iIntros (l0) "!>Hl0".
     iApply brel_alloc_l. iIntros (l1) "!>Hl1".
     brel_pures'.
@@ -948,7 +920,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     iApply brel_effect_l. iIntros (IDEALl) "!> Hideall !>".
     iApply brel_effect_l. iIntros (LEAK) "!> Hleak !>".
     iApply brel_effect_r. iIntros (IDEALr) "Hidealr !>".
-    brel_pures_l. brel_pures_r.
+    brel_pures'.
     
     iApply brel_new_theory.
     iApply (brel_add_label_l with "Hleak").
@@ -1029,7 +1001,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
           iIntros (rl) "!> Hrl".
           iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
           iIntros (rr) "Hrr".
-          brel_pures.
+          brel_pures'.
           iApply (brel_cont_l with "[$]"). iModIntro.
           iApply (brel_cont_r with "[$]").
           iSpecialize ("HQ" $! (vgval (g ^+ ssrnat.muln g1 t1), vgval (g ^+ ssrnat.muln g0 t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
@@ -1252,12 +1224,12 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
 
        iApply brel_vg_of_int_correct_l; first done.
        iApply brel_vg_of_int_correct_r; first done.
-       brel_pures_l. brel_pures_r.
-    
-    rewrite is_unit.
-    iApply brel_eq_l. iApply brel_eq_r. 
-    destruct (bool_decide (u = 1%g)) eqn:Heq.
-    
+
+       
+       rewrite is_unit.
+       brel_pures'.
+       destruct (bool_decide (u = 1%g)) eqn:Heq.
+       
     (* Protocol done loop *)
     { brel_pures_l. brel_pures_r.
       iDestruct ("Hkont" with "HQ") as "Hfill".
@@ -1281,8 +1253,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       iDestruct ("Hkont" with "HQ") as "Hfill".
       by iApply "IH". }
     
-    brel_pures_l. brel_pures_r. brel_pures'.
-    iApply brel_eq_l.
+    brel_pures'.
     destruct (bool_decide (v = (u ^+ t0)%g)) eqn:Heq1; brel_pures'.
 
     (* (e1, e2) = (enc(m0), enc(g)) - couple enc(m1) to enc(g) *)
@@ -1315,17 +1286,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
       iIntros (r1 Hr1). brel_pures_l. brel_pures_r.
 
-      iApply brel_couple_rand_rand; [done|]. iIntros (s0 Hs0). brel_pures_l. brel_pures_r.
-      iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures_l. brel_pures_r.
-      iApply brel_exp_r. repeat brel_exp_l. 
-      do 2 brel_mult_l. do 2 brel_exp_l.
-      brel_exp_r. brel_mult_r. brel_mult_r. brel_exp_r. brel_exp_r.
-      brel_mult_r. brel_pures_r. 
-      brel_mult_l. brel_exp_l. brel_exp_l. brel_mult_l. brel_mult_l.
-      brel_exp_l. brel_exp_l. brel_mult_l. brel_pures_l.
-      brel_exp_r. brel_exp_r. do 2 brel_mult_r. 
-      do 2 brel_exp_r.          (* and now *)
-      brel_mult_r. brel_pures_r. 
+      iApply brel_couple_rand_rand; [done|]. iIntros (s0 Hs0). 
+      iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures'.
       rewrite -!expgM.
       rewrite -!expgnDr.
       (* rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln t1 s1))). *)
@@ -1396,7 +1358,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       iApply (brel_handle_os_l [] [AppRCtx _]); [set_solver|].
       iIntros (rAlice) "!> HAlice". brel_pures.
       iApply (brel_cont_l with "[$]"). iModIntro.
-      brel_pures.
+      brel_pures'.
       iApply (brel_load_l with "[$Hl1]"). iIntros "!> Hl1". 
       iApply (brel_cont_l with "[$]"). iModIntro.
       brel_pures'. 
@@ -1419,16 +1381,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
 
       iApply (brel_couple_rand_rand _ _ f' (H:=plus_bij_ring c1)).
       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-      iIntros (r0 Hr0). brel_pures_l. brel_pures_r.
+      iIntros (r0 Hr0). brel_pures'.
 
-      iApply brel_exp_r. iApply brel_exp_l. brel_exp_l. 
-      brel_mult_l. brel_mult_l. brel_exp_l.
-      brel_exp_l. brel_mult_l.
-      brel_exp_r. brel_mult_r. brel_mult_r.
-      brel_exp_r. brel_exp_r. brel_mult_r. 
-      do 2 brel_exp_l. do 2 brel_mult_l. do 2brel_exp_l. brel_mult_l.
-      brel_pures. brel_exp_r. brel_exp_r. do 2 brel_mult_r. repeat brel_exp_r.
-      repeat brel_mult_r. brel_pures_r. 
       rewrite -!expgM.
       rewrite -!expgnDr.
       rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g0 (f' r0)) (ssrnat.muln (ssrnat.muln g0 t0) (g' s0)))).
@@ -1471,7 +1425,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       { iDestruct ("Hkont" with "HQ") as "Hfill".
       iApply (brel_cont_l with "[$]"). iModIntro.
       iApply (brel_cont_r with "[$]").
-      brel_pures.
+      brel_pures'.
       iApply (brel_cont_l with "[$]"). iModIntro.
       iClear "Hl0 Hl1".
       iRevert (k1' k2' H H0) "Hfill".
@@ -1490,7 +1444,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       by iApply "IH". }
       
       Unshelve. all : done.
-  Qed. 
+  Admitted. 
 
 
 

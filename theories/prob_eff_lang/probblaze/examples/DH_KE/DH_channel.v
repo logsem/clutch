@@ -776,7 +776,7 @@ Section handlee_verification.
          iSplit; first ( do 2 (iSplit; try (iPureIntro; done))).
          iModIntro.
          iApply brel_value. iIntros "$ !>".
-         brel_pures.
+         brel_pures'.
          rewrite -expgM. rewrite -ssrnat.multE.
          rewrite -Nat.mul_comm.
 
@@ -785,8 +785,7 @@ Section handlee_verification.
          iApply "IH".
          
        - iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
-         iApply (brel_load_r with "Hlb"). iIntros "_". brel_pures.
-         brel_exp_r. brel_pures.
+         iApply (brel_load_r with "Hlb"). iIntros "_". brel_pures'.
          
          (* Send (gB, alice) *)
          iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [by iApply traversable_to_iThy|].
@@ -805,7 +804,7 @@ Section handlee_verification.
          
          iModIntro. 
          iApply brel_value. iIntros "$ !>".
-         brel_pures.
+         brel_pures'.
          rewrite -expgM. rewrite -ssrnat.multE.
          rewrite -Nat.mul_comm.
 

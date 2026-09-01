@@ -690,7 +690,6 @@ Section new_comp_verification.
           iApply brel_na_close. iFrame "Hclose".
           iSplitL "Hα Hαs Hβ Hβs Hlca Hlcas Hcb".
           { iNext. iFrame "Hα Hαs Hβ Hβs Hcb". iRight. iExists mm. iFrame. }
-          iApply (brel_exp_l [AppRCtx _]). iApply (brel_exp_r [AppRCtx _]). brel_pures'.
           iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
           { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
             by apply submseteq_inserts_r. }
@@ -712,7 +711,6 @@ Section new_comp_verification.
           iApply brel_na_close. iFrame "Hclose".
           iSplitL "Hα Hαs Hβ Hβs Hlca Hlcas Hcb".
           { iNext. iFrame "Hα Hαs Hβ Hβs Hcb". iRight. iExists cc. iFrame. }
-          iApply (brel_exp_l [AppRCtx _]). iApply (brel_exp_r [AppRCtx _]). brel_pures'.
           iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
           { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
             by apply submseteq_inserts_r. }
@@ -750,7 +748,6 @@ Section new_comp_verification.
           iApply brel_na_close. iFrame "Hclose".
           iSplitL "Hα Hαs Hβ Hβs Hlcb Hlcbs Hca".
           { iNext. iFrame "Hα Hαs Hβ Hβs Hca". iRight. iExists mm. iFrame. }
-          iApply (brel_exp_l [AppRCtx _]). iApply (brel_exp_r [AppRCtx _]). brel_pures'.
           iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
           { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
             by apply submseteq_inserts_r. }
@@ -771,7 +768,6 @@ Section new_comp_verification.
           iApply brel_na_close. iFrame "Hclose".
           iSplitL "Hα Hαs Hβ Hβs Hlcb Hlcbs Hca".
           { iNext. iFrame "Hα Hαs Hβ Hβs Hca". iRight. iExists cc. iFrame. }
-          iApply (brel_exp_l [AppRCtx _]). iApply (brel_exp_r [AppRCtx _]). brel_pures'.
           iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
           { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
             by apply submseteq_inserts_r. }
@@ -919,8 +915,6 @@ Section new_comp_verification.
         iIntros (mm) "(Hγ & Hγs & %Hle1 & %Hle2)".
         iApply (brel_randT_l _ [AppRCtx _; AppRCtx _]). iFrame "Hγ". iIntros "!> Hγ _".
         iApply (brel_randT_r _ [AppRCtx _; AppRCtx _] with "Hγs"). iIntros "Hγs _".
-        brel_pures'.
-        iApply (brel_exp_l [AppRCtx _; AppRCtx _]). iApply (brel_exp_r [AppRCtx _; AppRCtx _]).
         brel_pures'.
         iApply (brel_store_l _ _ _ [AppRCtx _; AppRCtx _] with "Hko"). iIntros "!> Hko".
         iApply (brel_store_r _ _ _ _ [AppRCtx _; AppRCtx _] with "Hkos"). iIntros "Hkos".
@@ -1547,8 +1541,6 @@ Section new_comp_verification.
         iIntros (mm) "(Hγ & Hγs & %Hle1 & %Hle2)".
         iApply (brel_randT_l _ [AppRCtx _; AppRCtx _]). iFrame "Hγ". iIntros "!> Hγ _".
         iApply (brel_randT_r _ [AppRCtx _; AppRCtx _] with "Hγs"). iIntros "Hγs _".
-        brel_pures'.
-        iApply (brel_exp_l [AppRCtx _; AppRCtx _]). iApply (brel_exp_r [AppRCtx _; AppRCtx _]).
         brel_pures'.
         iApply (brel_store_l _ _ _ [AppRCtx _; AppRCtx _] with "Hko"). iIntros "!> Hko".
         iApply (brel_store_r _ _ _ _ [AppRCtx _; AppRCtx _] with "Hkos"). iIntros "Hkos".

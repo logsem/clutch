@@ -1,7 +1,6 @@
 From Coquelicot Require Import Rcomplements.
 From mathcomp Require all_boot ssrnat prime solvable.cyclic.
 From clutch.prelude Require base stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require valgroup.
 From Stdlib Require Import Lia.
 Set Default Proof Using "Type*".
 
@@ -252,7 +251,7 @@ End crs_bijection_Fp.
 
 Section crs_fin_cancel.
 
-  Import prime fingroup ssralg all_boot zmodp valgroup.
+  Import prime fingroup ssralg all_boot zmodp.
   Import GroupScope. (* For group-related notations *)
   Import GRing.Theory. (* For ring-related notations like + and * *)
   Open Scope ring_scope.
@@ -473,7 +472,7 @@ End enc_bij_cancel.
 
 Section enc_fin_cancel.
 
-  Import prime fingroup ssralg all_boot zmodp valgroup.
+  Import prime fingroup ssralg all_boot zmodp.
   Import GroupScope. (* For group-related notations *)
   Import GRing.Theory. (* For ring-related notations like + and * *)
   Open Scope ring_scope.
@@ -541,7 +540,7 @@ End enc_fin_cancel.
 
 Section enc_nondeg.
 
-  Import prime fingroup ssralg all_boot zmodp valgroup.
+  Import prime fingroup ssralg all_boot zmodp.
   Import GroupScope.
   Import GRing.Theory.
   Open Scope ring_scope.
@@ -668,7 +667,7 @@ End enc_bij_cancel_mirror.
 
 Section enc_fin_cancel_mirror.
 
-  Import prime fingroup ssralg all_boot zmodp valgroup.
+  Import prime fingroup ssralg all_boot zmodp.
   Import GroupScope.
   Import GRing.Theory.
   Open Scope ring_scope.
@@ -724,7 +723,7 @@ End enc_fin_cancel_mirror.
 
 Section enc_nondeg_mirror.
 
-  Import prime fingroup ssralg all_boot zmodp valgroup.
+  Import prime fingroup ssralg all_boot zmodp.
   Import GroupScope.
   Import GRing.Theory.
   Open Scope ring_scope.

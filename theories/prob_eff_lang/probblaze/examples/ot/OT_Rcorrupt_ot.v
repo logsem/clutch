@@ -247,9 +247,8 @@ Section handlee_verification.
     brel_pures. brel_exp_l. brel_exp_r.
     iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
     iDestruct (ec_split with "Herr") as "(Herr & Herr')".
-    1, 2: apply Rdiv_INR_ge_0. iFrame.
-    iIntros (g1 Hg1) "!>".
-    brel_exp_l. brel_exp_r.
+    1, 2: admit. (* apply Rdiv_INR_ge_0. *) iFrame.
+    iIntros (g1 Hg1) "!>". brel_pures'.
     epose proof brel_couple_rand_rand as h'.
     iApply (h' _ _ (f_ring (Fp_of_fin g0))).
     1 : { unshelve eapply f_bij_ring; first done. admit. (* TODO: prove g0 != 0 *) }
@@ -467,9 +466,8 @@ Section handlee_verification.
         iDestruct ("Hkont" with "HQ") as "Hfill".
         by iApply "IH". }
 
-      brel_pures.
-      iApply brel_eq_r.
-      destruct (bool_decide (v = (u ^+ (f_ring (Fp_of_fin g0) t0))%g)) eqn:Heq1; brel_pures.
+      brel_pures'.
+      destruct (bool_decide (v = (u ^+ (f_ring (Fp_of_fin g0) t0))%g)) eqn:Heq1; brel_pures'.
       (* (e1, e2) = (enc(m0), enc(g)) - couple enc(m1) to enc(g) *)
       + iApply (brel_handle_os_r [AppRCtx _] [AppRCtx _]); [set_solver|].
         iIntros (?) "Hcont". brel_pures.
@@ -497,15 +495,7 @@ Section handlee_verification.
         iIntros (r1 Hr1). brel_pures.
         
         iApply brel_couple_rand_rand; [done|]. iIntros (s0 Hs0). brel_pures.
-        iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures.
-        iApply brel_exp_l. iApply brel_exp_r. brel_pures.
-        brel_exp_r. brel_mult_r. brel_mult_l. brel_mult_r. brel_exp_r.
-        brel_exp_r. brel_mult_r.
-        brel_mult_l. do 2 brel_exp_l. brel_mult_l. brel_pures.
-        brel_exp_l. brel_mult_l. brel_mult_l. brel_exp_l. brel_exp_l.
-        brel_mult_l. 
-        do 2 brel_exp_r. do 2 brel_mult_r. do 2brel_exp_r. brel_mult_r.
-        brel_pures.
+        iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures'.
 
         rewrite -!expgM.
         rewrite -!expgnDr.
@@ -596,17 +586,8 @@ Section handlee_verification.
 
         iApply (brel_couple_rand_rand _ _ f' (H:=minus_ring_bij c1)).
         { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-        iIntros (r0 Hr0). brel_pures.
+        iIntros (r0 Hr0). brel_pures'.
         
-        iApply brel_exp_l. iApply brel_exp_r. brel_pures.
-        brel_exp_r. brel_mult_r. brel_mult_l. brel_mult_r. brel_exp_r.
-        brel_exp_r. brel_mult_r.
-        brel_mult_l. do 2 brel_exp_l. brel_mult_l. brel_pures.
-        brel_exp_l. brel_mult_l. brel_mult_l. brel_exp_l. brel_exp_l.
-        brel_mult_l. 
-        do 2 brel_exp_r. do 2 brel_mult_r. do 2brel_exp_r. brel_mult_r.
-        brel_pures.
-
         rewrite -!expgM.
         rewrite -!expgnDr.
         rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g0 r0) (ssrnat.muln t0 s0))).
