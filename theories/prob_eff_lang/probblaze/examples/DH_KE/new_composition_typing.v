@@ -860,7 +860,7 @@ Section new_comp_verification.
     iApply (brel_na_alloc
       (γ ↪N (S n''; []) ∗ γs ↪ₛN (S n''; []) ∗
        ((ko ↦ NONEV ∗ kos ↦ₛ NONEV)
-        ∨ (∃ c : nat, ko ↦ SOMEV (vgval (g ^+ c)%g) ∗ kos ↦ₛ SOMEV (vgval (g ^+ c)%g))))%I
+        ∨ (∃ c : nat, ko ↦ SOMEV #c ∗ kos ↦ₛ SOMEV #c)))%I
       (nroot .@ "keyinv")).
     iSplitL "Hγ Hγs Hko Hkos".
     { iNext. iFrame "Hγ Hγs". iLeft. iFrame. }
@@ -1377,43 +1377,52 @@ Section new_comp_verification.
   Definition F_KE_body : expr :=
     (let, ("doLeakSend", "doLeakRecv") := "effs" in
      let: "γ" := alloc #(S n'') in
-     let: "key_opt" := ref NONEV in
-     let: "sample_or_load" :=
-       λ:<>, match: !"key_opt" with
-         | NONE =>
-             let: "c" := (samplelbl "γ" #()%V) in
-             let: "key" := vexp g "c" in
-             "key_opt" <- SOME "key" ;;
-             "key"
-         | SOME "key" => "key"
-         end
-     in
-     effect "getKey"
-       let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
-       handle: "f" "doGK" with
+     let: "lc" := ref NONEV in
+       let: "sample_or_load" :=
+         λ:<>, match: !"lc" with
+           | NONE =>
+               let: "c" := (samplelbl "γ" #()%V) in
+               "lc" <- SOME "c" ;;
+               "c"
+           | SOME "c" => "c"
+           end
+       in
+
+       effect "getKey"
+         let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+     handle: "f" "doGK" with
      | effect (EffName "getKey") "p", rec "k" as multi =>
          match: "p" with
+           (* Alice *)
            InjL <> =>
-             let: "key" := "sample_or_load" #()%V in
+             let: "c" := "sample_or_load" #()%V in
+             let: "key" := g^"c" in
+             (* Leak a send *)
              ("doLeakSend" bob);;
+             (* Receive a dummy value *)
              let: "r" := ("doLeakRecv" bob) in
              match: "r" with
                NONE => "k" NONEV
-             | SOME "w" => "k" (SOME "key")
+             | SOME "w" =>
+                 "k" (SOME "key")
              end
+         (* Bob  *)
          | InjR <> =>
              let: "r" := ("doLeakRecv" alice) in
              match: "r" with
                NONE => "k" NONEV
              | SOME "w" =>
                  ("doLeakSend" alice);;
-                 match: !"key_opt" with
+                 match: !"lc" with
                  | NONE => "k" NONEV
-                 | SOME "key" => "k" (SOME "key")
+                 | SOME "c" =>
+                     let: "key" := g^"c" in
+                     "k" (SOME "key")
                  end
              end
          end
-     | return "y" => "y" end)%E.
+     | return "y" => "y" end).
+    
 
   Definition CHAN_body : expr :=
     ( let, ("doSend", "doRecv") := "ChanOp" in
@@ -1486,7 +1495,7 @@ Section new_comp_verification.
     iApply (brel_na_alloc
       (γ ↪N (S n''; []) ∗ γs ↪ₛN (S n''; []) ∗
        ((ko ↦ NONEV ∗ kos ↦ₛ NONEV)
-        ∨ (∃ c : nat, ko ↦ SOMEV (vgval (g ^+ c)%g) ∗ kos ↦ₛ SOMEV (vgval (g ^+ c)%g))))%I
+        ∨ (∃ c : nat, ko ↦ SOMEV #c ∗ kos ↦ₛ SOMEV #c)))%I
       (nroot .@ "keyinv")).
     iSplitL "Hγ Hγs Hko Hkos".
     { iNext. iFrame "Hγ Hγs". iLeft. iFrame. }
