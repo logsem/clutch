@@ -1401,9 +1401,9 @@ Section schan_security.
     set (d1 := (γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ NONEV ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗  l_key ↦ NONEV)%I).
     set (d2 := ((∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ□ SOMEV #(f m n) ∗
                                                    l_auth ↦□ SOMEV (vgval
-                                                                      (g ^+ f m n))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I)).
+                                                                      (g ^+ f m n))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV #n))%I).
 
-    set (d3 := (∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV (vgval (g ^+n)))%I).
+    set (d3 := (∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV #n)%I).
     iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
     iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; iFrame|].
     iIntros "#Hinvα".
@@ -1601,47 +1601,11 @@ Section schan_security.
             iApply brel_na_close. iFrame.
             iSplitL; [iModIntro; iRight; iLeft; rewrite g_log_exp; iFrame "#" |]; try auto...
             set (g_sem := (g ^+ sc_coupling m c)%g).
-            unfold kl3.
-            set (hbranchleft := (λ: "p" "k",
-                                   match: "p" with
-                                     InjL <> =>
-                                       let: "key" := (λ: <>,
-                                                        match: ! #l_key with
-                                                          InjL <> =>
-                                                            let: "c" :=
-                                                              #();; rand(#lbl:γ) #(S n'') in
-                                                            let: "key" :=
-                                                              vexp valgroup.g "c" in
-                                                            #l_key <- InjR "key";; "key"
-                                                        | InjR "key" => "key"
-                                                        end)%V
-                                                       #()%V in
-                                       kysnd_l bob;;
-                                       let: "r" := kyrcv_l bob in
-                                       match: "r" with
-                                         InjL <> => "k" (InjLV #()%V)
-                                       | InjR "w" => "k" (InjR "key")
-                                       end
-                                   | InjR <> =>
-                                       let: "r" := kyrcv_l alice in
-                                       match: "r" with
-                                         InjL <> => "k" (InjLV #()%V)
-                                       | InjR "w" =>
-                                           kysnd_l alice;;
-                                           match: ! #l_key with
-                                             InjL <> => "k" (InjLV #()%V)
-                                           | InjR "key" => "k" (InjR "key")
-                                           end
-                                       end
-                                   end)%E).
-
-            iPoseProof (brel_bind [HandleCtx Deep MS getKey' hbranchleft (λ: "y", "y"); HandleCtx _ _ _ _ _ ; AppRCtx (λ: <>, kont3 #()%V)]
-                          [HandleCtx _ _ _ _ _ ; AppRCtx (λ: <>, kont1 #()%V)]
+            rewrite g_log_exp...
+            iApply (brel_bind [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _] [HandleCtx _ _ _ _ _; AppRCtx _]
                           ⊤ (iLblSig_to_iLblThy leaktheory) N  𝟙%T
                           (asnd_l (vgval g_sem, bob))%V
-                          (asnd_r (vgval (valgroup.g ^+ f m c), bob))%V) as "Hbind".
-            rewrite g_log_exp...
-            iApply "Hbind".
+                          (asnd_r (vgval (valgroup.g ^+ f m c), bob))%V).
             { simpl. unfold leaktheory. auto.
               iApply (traversable_ectx_labels _ _ [crecv'; getKey'] [lrecv'] iThyBot _).
               + set_unfold; tauto.
@@ -2155,9 +2119,9 @@ Section schan_security.
     set (d1 := (γ ↪ₛN (S n''; []) ∗ l_m'sim ↦ NONEV ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦ NONEV ∗ l_rchan ↦ₛ NONEV ∗  l_key ↦ₛ NONEV)%I).
     set (d2 := ((∃ m : vgG, ∃ n : nat, ∃ Hfm : (f m n < S (S n''))%nat, γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #n ∗ l_sim ↦□ SOMEV #n ∗
                                                                         l_auth ↦ₛ□ SOMEV (vgval
-                                                                                            ((g ^+(sc_coupling m (nat_to_fin Hfm)))%g))%V ∗  l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV (vgval (g ^+(f m n))))%I)).
+                                                                                            ((g ^+(sc_coupling m (nat_to_fin Hfm)))%g))%V ∗  l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(f m n)))%I).
 
-    set (d3 := (∃ m : vgG, ∃ n : nat, γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #n ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV (vgval (g ^+(f m n))))%I). 
+    set (d3 := (∃ m : vgG, ∃ n : nat, γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #n ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(f m n))%I). 
     iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
     iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; rewrite Nat2Z.id; iFrame|].
     { iPureIntro. auto. }
@@ -2348,45 +2312,9 @@ Section schan_security.
               iExists m, c. 
               rewrite fin.fin_to_nat_to_fin.
               iFrame "#".  by iPureIntro. }
-            set (hbranchright := (λ: "p" "k",
-                                    match: "p" with
-                                      InjL <> =>
-                                        let: "key" := (λ: <>,
-                                                         match: ! #l_key with
-                                                           InjL <> =>
-                                                             let: "c" := 
-                                                               #();; 
-                                                               rand(#lbl:γ) #
-                                                                 (S n'') in
-                                                             let: "key" := 
-                                                               vexp g "c" in
-                                                             #l_key <-
-                                                               InjR "key";; "key"
-                                                         | InjR "key" => "key"
-                                                         end)%V
-                                                        #()%V in
-                                        kysnd_r bob;; 
-                                        let: "r" := kyrcv_r bob in
-                                        match: "r" with
-                                          InjL <> => "k" (InjLV #()%V)
-                                        | InjR "w" => "k" (InjR "key")
-                                        end
-                                    | InjR <> =>
-                                        let: "r" := kyrcv_r alice in
-                                        match: "r" with
-                                          InjL <> => "k" (InjLV #()%V)
-                                        | InjR "w" =>
-                                            kysnd_r alice;; 
-                                            match: ! #l_key with
-                                              InjL <> => "k" (InjLV #()%V)
-                                            | InjR "key" => "k" (InjR "key")
-                                            end
-                                        end end )%E).
-            
-            iPoseProof (brel_bind _ _ _ _ _ _
+            iApply (brel_bind _ _ _ _ _ _
                           (asnd_l (vgval (g ^+c), bob))%V
-                          (asnd_r (vgval (g ^+ sc_coupling m (nat_to_fin Hc)), bob))%V) as "Hbind".
-            iApply "Hbind".
+                          (asnd_r (vgval (g ^+ sc_coupling m (nat_to_fin Hc)), bob))%V).
             { simpl. unfold leaktheory. auto.
               iApply (traversable_ectx_labels _ _ [lrecv'] [crecv'; getKey'] iThyBot _). 
               + simpl. (set_unfold; tauto).

@@ -140,7 +140,7 @@ Section def_implementation.
     handle: handle: "f" ("doLeakSend", "doLeakRecv") with
     | effect "leakSend" "dst", rec "k" as multi =>
             match: "dst" with
-              InjL <> => let: "c" :=
+              InjL <> => let: "c" := 
                            (match: !"l1" with
                               NONE => let: "c" := (samplelbl "α" #()%V) in "l1" <- SOME "c";; "c"
                             | SOME "c" => "c"
@@ -206,26 +206,26 @@ Section def_implementation.
        let, ("doLeakSend", "doLeakRecv") := "effs" in
        (* Magically share a lazily sampled key *)
        let: "γ" := alloc #n in
-       let: "key_opt" := ref NONEV in
+       let: "lc" := ref NONEV in
        let: "sample_or_load" :=
-         λ:<>, match: !"key_opt" with
+         λ:<>, match: !"lc" with
            | NONE =>
                let: "c" := (samplelbl "γ" #()%V) in
-               let: "key" := g^"c" in
-               "key_opt" <- SOME "key" ;;
-               "key"
-           | SOME "key" => "key"
+               "lc" <- SOME "c" ;;
+               "c"
+           | SOME "c" => "c"
            end
        in
 
        effect "getKey"
          let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
-         handle: "f" "doGK" with
+     handle: "f" "doGK" with
      | effect (EffName "getKey") "p", rec "k" as multi =>
          match: "p" with
            (* Alice *)
            InjL <> =>
-             let: "key" := "sample_or_load" #()%V in
+             let: "c" := "sample_or_load" #()%V in
+             let: "key" := g^"c" in
              (* Leak a send *)
              ("doLeakSend" bob);;
              (* Receive a dummy value *)
@@ -242,9 +242,10 @@ Section def_implementation.
                NONE => "k" NONEV
              | SOME "w" =>
                  ("doLeakSend" alice);;
-                 match: !"key_opt" with
+                 match: !"lc" with
                  | NONE => "k" NONEV
-                 | SOME "key" =>
+                 | SOME "c" =>
+                     let: "key" := g^"c" in
                      "k" (SOME "key")
                  end
              end

@@ -6,16 +6,8 @@ From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode
   spec_rules spec_ra 
   class_instances. 
-From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import dhke_common.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement. 
-
-Import fingroup.
-
-Import fingroup.fingroup.
-
-Import valgroup_tactics.
-Import valgroup_notation.
 
 Section handlee_verification.
   Context `{!probblazeRGS Σ}.
@@ -32,85 +24,7 @@ Section handlee_verification.
   (* Verification of DH_KE ≤ C[DH_real] *)
   (*------------------------------------------------------------*)
 
-  (* A spec for sample_or_read for alice *)
-  Lemma sample_or_read_alice α a b la lcs K K' L R :
-    na_invP alphaN (α ↪ (n; [a]) ∗ la ↦ InjLV #()%V ∗ lcs ↦ₛ InjLV #()%V ∨ α ↪□ (n; []) ∗ la ↦□ InjRV #a ∗ lcs ↦ₛ□ InjRV (vgval (g ^+ (a * b)))) -∗
-    □ (la ↦□ InjRV #a -∗
-     α ↪□ (n; []) -∗
-     lcs ↦ₛ□ InjRV (vgval (g ^+ (a * b))) -∗ 
-     BREL fill K #a ≤ fill K' #()%V <|L|> {{ R }}) -∗ 
-    BREL fill K (match: ! #la with InjL <> => let: "a" := #()%V;; rand(#lbl:α) #n in #la <- InjR "a";; "a" | InjR "a" => "a" end) 
-      ≤ fill K' (match: ! #lcs with InjL <> => #lcs <- InjR (vgval (g ^+ (a * b))) | InjR "key" => #()%V end) <|L|> {{ R }}.
-  Proof with (try rewrite fill_app //=; brel_pures'). 
-    iIntros "#Hinva #Hkont".
-    
-    iApply (brel_na_inv _ _ alphaN); first set_solver.
-    iFrame "Hinva".
-    
-    (* open Alice's invariant to see if it is the first or a subsequent protocol run *)
-    iIntros "([(Hα & Hla & Hlcs) | (#Hα & #Hla & #Hlcs)] & Hclose)".
-    
-    (* first run *)
-    - brel_load_l...
-      (* TAPES : stems from the fact that some lemmas uses fin-tapes other nat-tapes -- should be unified *)
-      iAssert (α ↪N (n; [fin_to_nat a]))%I with "[Hα]" as "Hα". 
-      { iExists [a]. simpl. iFrame. done. }
-      brel_rand_l...
-      brel_store_l...
-      brel_load_r...
-      brel_store_r...
-      
-      iApply fupd_brel.
-      iMod (ghost_map_elem_persist with "Hla") as "#Hla".
-      (* TAPES : stems from the fact that some lemmas uses fin-tapes other nat-tapes -- should be unified *)
-      iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
-      iMod (ghost_map_elem_persist with "Hα") as "#Hα".
-      iMod (ghost_map_elem_persist with "Hlcs") as "#Hlcs".
-      iModIntro.
-      iApply brel_na_close. iFrame.
-      iSplitL; [iNext; iRight; iFrame "#"|].
-      
-      by iApply "Hkont".
-    - iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
-      brel_load_l...
-      brel_load_r...
-      by iApply "Hkont".
-  Qed. 
-
- (* A spec for sample_or_read for bob *)
-  Lemma sample_or_read_bob β b lb K e L R :
-    na_invP betaN (β ↪ (n; [b]) ∗ lb ↦ InjLV #()%V ∨ β ↪□ (n; []) ∗ lb ↦□ InjRV #b) -∗
-    □ (lb ↦□ InjRV #b -∗
-     β ↪□ (n; []) -∗
-     BREL fill K #b ≤ e <|L|> {{ R }}) -∗ 
-    BREL fill K (match: ! #lb with InjL <> => let: "b" := #()%V;; rand(#lbl:β) #n in #lb <- InjR "b";; "b" | InjR "b" => "b" end) 
-      ≤ e <|L|> {{ R }}.
-  Proof with (try rewrite fill_app //=; brel_pures'). 
-    iIntros "#Hinvb #Hkont".
-        
-    iApply (brel_na_inv _ _ betaN ); [set_solver|].
-    iFrame "Hinvb". 
-    iIntros "([(Hβ & Hlb) | #(Hβ & Hlb)] & Hclosed)".
-    - brel_load_l... 
-      (* TAPES : stems from the fact that some lemmas uses fin-tapes other nat-tapes -- should be unified *)
-      iAssert (β ↪N (n; [fin_to_nat b]))%I with "[Hβ]" as "Hβ".
-      { iExists [b]. simpl. iFrame. done. }
-      brel_rand_l...
-      brel_store_l...
-      
-      iApply fupd_brel.
-      iMod (ghost_map_elem_persist with "Hlb") as "#Hlb".
-      (* TAPES : stems from the fact that some lemmas uses fin-tapes other nat-tapes -- should be unified *)
-      iDestruct "Hβ" as (ns) "(%Hf & Hβ)". apply map_eq_nil in Hf. simplify_eq.
-      iMod (ghost_map_elem_persist with "Hβ") as "#Hβ".
-      iModIntro.
-      iApply brel_na_close. iFrame.
-      iSplitL; [iRight; iFrame "#"|].
-      by iApply "Hkont".
-    - iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
-      brel_load_l...
-      by iApply "Hkont".
-  Qed.
+ 
   
   Lemma DH_KE_C_DH_real (f1 f2 : val) γtoka γtokb γfraca γfracb γautha γauthb (L : sem_row Σ):
     token γtoka -∗
@@ -225,8 +139,13 @@ Section handlee_verification.
     1 : {
       brel_pures'; [apply Hk2; set_solver|apply Hk1; set_solver|]...
       (* sample_or_read always returns a *)
-      iApply sample_or_read_alice; first done.
-      iIntros "!# #Hla #Hα #Hlcs"...
+      iApply (brel_na_inv _ _ alphaN ); [set_solver|].
+      iFrame "Hinva". 
+      iIntros "(>H & Hclose)".
+      iApply (sample_or_read_store (⊤ ∖ ↑alphaN) _ _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "[H]"); first done.
+      iIntros "#Hla #Hα #Hlcs"...
+      iApply brel_na_close. iFrame.
+      iSplitL; [iNext; iFrame "#"|]...
 
       (* send g^a *)
       iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
@@ -294,9 +213,15 @@ Section handlee_verification.
       inversion Heq as [(Hla&Ha)]. rewrite Ha //=.
       iApply brel_value. iIntros "$ !>"...
       (* sample_or_read returns b *)
-      iApply sample_or_read_bob; first done.
-      iIntros "!# #Hlb #Hβ"...
-      
+
+      iApply (brel_na_inv _ _ betaN ); [set_solver|].
+      iFrame "Hinvb". 
+      iIntros "(>H & Hclose)".
+      iApply (sample_or_read _ _ _ _ _ [AppRCtx _] with "[H]"); first done.
+      iIntros "#Hlb #Hβ"...
+      iApply brel_na_close. iFrame.
+      iSplitL; [iNext; iFrame "#"|]...      
+
       (* send *)
       iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
       iApply (brel_introduction' [send1]); [repeat constructor|].
@@ -328,4 +253,5 @@ Section handlee_verification.
   Qed.
 
 End handlee_verification.
+
 
