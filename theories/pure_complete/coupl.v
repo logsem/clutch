@@ -3,12 +3,13 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
 From clutch.common Require Import language ectx_language ectxi_language locations.
 From clutch.prelude Require Import fin.
+From clutch.prob Require Import couplings_dp_complete.
 From clutch.prob_lang Require Import notation lang.
 From clutch.prob_lang.spec Require Import spec_ra spec_rules spec_tactics.
 From clutch.approxis Require Import ectx_lifting app_weakestpre model.
 From clutch.approxis Require Export proofmode primitive_laws coupling_rules app_rel_rules.
 From clutch.base_logic Require Export spec_update.
-From Coq.Logic Require Import ClassicalEpsilon.
+From Stdlib.Logic Require Import ClassicalEpsilon.
 From clutch.pure_complete Require Import pure term prob_additional samples_one.
 
 Local Open Scope R.
@@ -214,7 +215,7 @@ Proof.
     { by rewrite Ht. }
     simpl. lia.
   - eapply IHn; eauto. 
-    { rewrite Ht. by apply lookup_insert. }
+    { rewrite Ht. by apply lookup_insert_eq. }
     lia.
 Qed. 
 
@@ -267,7 +268,7 @@ Proof.
     { by rewrite Ht. }
     simpl. lia. 
   - eapply IHn; eauto. 
-    { rewrite Ht. by apply lookup_insert. }
+    { rewrite Ht. by apply lookup_insert_eq. }
     lia.
 Qed.
 
@@ -277,7 +278,9 @@ Lemma presamples_pexec_det_state l σ σ' n t e e':
   SamplesOneTape l e -> 
   pexec n (e, σ) = dret (e', σ') ->
   heap σ' = heap σ ∧ 
-  ∃ t', tapes σ' = <[l := (2%nat; t')]>(tapes σ).
+  (∃ t', tapes σ' = <[l := (2%nat; t')]>(tapes σ)) ∧
+  tapes_laplace σ' = tapes_laplace σ
+.
 Proof.
   revert σ e e' σ' t.
   induction n; intros.
@@ -286,7 +289,7 @@ Proof.
     apply dret_ext_inv in H2. 
     inversion H2; subst. 
     split; auto.
-    exists t. by rewrite insert_id.
+    split; auto. exists t. by rewrite insert_id.
   } 
   destruct t as [|nv t]; simpl in H0; try lia. 
   rewrite pexec_Sn in H2. 
@@ -318,6 +321,7 @@ Proof.
   rewrite dret_id_left' in H2. 
   eapply SamplesOneTape_step_heap in Hst as Hh; eauto.
   eapply SamplesOneTape_step_tapes in Hst as Ht; eauto.
+  eapply SamplesOneTape_step_tapes_laplace in Hst as Htl; eauto.
   assert (∃ t', tapes σ1 = <[l:=(2%nat; t')]> (tapes σ) ∧ n ≤ length t' ) as [t' [Ht' Ht'l]]. {
     destruct Ht as [-> | ->].
     - exists (nv :: t). split.  
@@ -325,13 +329,13 @@ Proof.
       symmetry. by eapply insert_id. 
     - exists t; split; auto; lia. 
   }
-  eapply IHn in H2 as [H21 H22]; eauto.
-  2 : { rewrite Ht'. apply lookup_insert. }
+  eapply IHn in H2 as [H21 [H22 H23]]; eauto.
+  2 : { rewrite Ht'. apply lookup_insert_eq. }
   split. 
   { by rewrite H21. }
   destruct H22.
-  exists x.
-  by rewrite Ht' insert_insert in H2. 
+  split ; [| by rewrite H23]. exists x.
+  by rewrite Ht' insert_insert_eq in H2.
 Qed. 
 
 Lemma presamples_stepN_det l σ n t e:
@@ -466,8 +470,8 @@ Proof.
     - exists t; split; auto; lia. 
   }
   eapply IHn.
-  - erewrite Ht''. eapply lookup_insert. 
-  - simpl. rewrite Ht Ht''. eapply lookup_insert.  
+  - erewrite Ht''. eapply lookup_insert_eq.
+  - simpl. rewrite Ht Ht''. eapply lookup_insert_eq.
   - auto.
   - apply He'. 
   - apply H3.
@@ -522,7 +526,41 @@ Proof.
     replace (heap σ') with (heap σ1).
     2 : {
       eapply IHn.
-      - by rewrite H0 lookup_insert.
+      - by rewrite H0 lookup_insert_eq.
+      - by rewrite /state_stepN.
+    }
+    apply state_step_support_equiv_rel in H2.
+    by inversion H2.
+Qed.
+
+Lemma state_stepN_tapes_laplace σ l n σ' t : 
+  σ.(tapes) !! l = Some (2%nat; t) ->
+  (state_stepN σ l n) σ' > 0 ->
+  σ.(tapes_laplace) = σ'.(tapes_laplace).
+Proof.
+  revert σ σ' t.
+  induction n.
+  - intros. 
+    rewrite /state_stepN iterM_O // in H0.
+    apply dret_pos in H0.
+    by subst.
+  - intros.
+    rewrite /state_stepN iterM_Sn // in H0.
+    apply dbind_pos in H0 as (σ1 & H1 & H2).
+    epose proof (state_stepN_tape _ _ 1 _ _ H _). 
+    Unshelve.
+    3 : {
+      rewrite /state_stepN iterM_Sn.
+      replace (iterM 0 _) with (fun s : state => dret s). 
+      2 : { apply functional_extensionality. intros. by rewrite iterM_O. }
+      rewrite dret_id_right.
+      apply H2.
+    }
+    destruct H0 as [t' [H00 H0]].
+    replace (tapes_laplace σ') with (tapes_laplace σ1).
+    2 : {
+      eapply IHn.
+      - by rewrite H0 lookup_insert_eq.
       - by rewrite /state_stepN.
     }
     apply state_step_support_equiv_rel in H2.
@@ -539,8 +577,8 @@ Proof.
   apply (state_stepN_heap _ _ _ _ _ H) in H1 as Hh.
   pose proof (state_stepN_tape _ _ _ _ _ H H1) as [t' [Ht Hst]].
   eapply presamples_exec_det_part; eauto.
-  - rewrite Hst. apply lookup_insert. 
-  - rewrite app_length Ht. lia.
+  - rewrite Hst. apply lookup_insert_eq.
+  - rewrite length_app Ht. lia.
 Qed.
 
 Lemma SamplesOneTape_state_stepN_exec_det l σ σ' n t e:
@@ -686,7 +724,7 @@ End Presample.
 Section Coupl.
 Context `{!approxisGS Σ}.
 
-Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
+Notation σ₀ := {| heap := ∅; tapes := ∅; tapes_laplace := ∅ |}.
 
 Lemma det_result_rel_wp (e1 e2 : expr) (σ1 σ2 : state) l1 l2 n m t1 t2 v1 v2 :
   SamplesOneTape l1 e1 -> SamplesOneTape l2 e2 ->
@@ -703,7 +741,7 @@ Proof.
   iIntros "%%%% ((Hsa & Hta) & Hspa & Hea)". 
   iPoseProof (spec_auth_prog_agree with "Hspa Hsp") as "%He2".
   subst.
-  iDestruct "Hspa" as "(Hspa & (Hsha & Hsta))".
+  iDestruct "Hspa" as "(Hspa & (Hsha & Hsta & Hstalap))".
   simpl. 
   iApply fupd_mask_intro.
   { set_solver. }
@@ -715,15 +753,15 @@ Proof.
     eapply presamples_exec_det_pexec in x6 as [σ' Hs']; eauto.
     eapply presamples_pexec_var in Hs' as [σ'2 Hs1']; eauto. 
     pose proof Hs1' as Hs1''.
-    eapply presamples_pexec_det_state in Hs1'' as [Hs1'h [t'' Hs1't] ]; eauto.
-    iApply spec_coupl_steps_det. 
+    eapply presamples_pexec_det_state in Hs1'' as [Hs1'h [[t'' Hs1't] Hs1'tl] ]; eauto.
+    iApply spec_coupl_steps_det.
     { 
       simpl.
       erewrite Hs1'. eapply dret_1_1.
       reflexivity.
     }
     iApply spec_coupl_ret.
-    iMod (spec_update_prog (Val v2) with "[Hspa Hsha Hsta] Hsp") as "[Hspa Hsp]".
+    iMod (spec_update_prog (Val v2) with "[Hspa Hsha Hsta Hstalap] Hsp") as "[Hspa Hsp]".
     { iFrame. }    
     iMod (spec_auth_update_tape (2%nat; t'') with "Hspa Hl2") as "[Hspa Hl2]".
     iMod "hclose".
@@ -731,9 +769,9 @@ Proof.
     { set_solver. }
     iIntros.
     unfold spec_auth. simpl.
-    iDestruct "Hspa" as "(H1 & H2 & H3)". 
-    rewrite Hs1'h. rewrite Hs1't. 
-    iFrame. 
+    iDestruct "Hspa" as "(H1 & H2 & H3 & H4)".
+    rewrite Hs1'h. rewrite Hs1't. rewrite Hs1'tl.
+    iFrame.
     iPureIntro.
     rewrite exec_unfold in x5. 
     simpl in x5. rewrite Hev in x5. by apply dret_ext_inv in x5.
@@ -782,6 +820,14 @@ Proof.
     rewrite H.
     apply ARcoupl_dret; auto; lra.
   }
+  iSplitR.
+  {
+    iModIntro.
+    iIntros.
+    iModIntro.
+    iApply spec_coupl_err_ge_1.
+    done.
+  }
   iIntros "%%%". 
   destruct H0 as [H00 _].
   inversion H00; subst. clear H00.
@@ -820,7 +866,7 @@ Proof.
     rewrite exec_Sn step_or_final_no_final in Hl1'; auto. 
     by rewrite H0' dret_id_left' in Hl1'. 
   - eapply SamplesOneTape_step_state_var in H0; eauto. 
-    rewrite H0 Ht'. apply lookup_insert.  
+    rewrite H0 Ht'. apply lookup_insert_eq.
   - eapply SamplesOneTape_inv; eauto.
 Qed.
   
@@ -838,7 +884,7 @@ Proof.
   iIntros "%%%% ((Hsa & Hta) & Hspa & Hea)". 
   iPoseProof (spec_auth_prog_agree with "Hspa Hsp") as "%He2".
   subst.
-  iDestruct "Hspa" as "(Hspa & (Hsha & Hsta))".
+  iDestruct "Hspa" as "(Hspa & (Hsha & Hsta & Hstalap))".
   simpl. 
   iApply fupd_mask_intro.
   { set_solver. } 
@@ -876,28 +922,29 @@ Proof.
   iIntros "hclose'".
   eapply state_stepN_heap in Hs1 as Hs1'; eauto. 
   eapply state_stepN_heap in Hs2 as Hs2'; eauto. 
+  eapply state_stepN_tapes_laplace in Hs2 as Htl2'; eauto.
   eapply state_stepN_tape in Hs1 as [t1' [Hlt1 Ht1']]; eauto. 
   eapply state_stepN_tape in Hs2 as [t2' [Hlt2 Ht2']]; eauto. 
-  unfold spec_auth. simpl. 
+  unfold spec_auth. simpl.
   destruct (to_val e1) eqn : Hve1. 
   {
     assert (tapes s2 !! l2 = Some (2%nat; t2 ++ t2')) as _H1. {
-      by rewrite Ht2' lookup_insert. 
+      by rewrite Ht2' lookup_insert_eq.
     }
     assert (m ≤ length (t2 ++ t2')) as _H2. {
-      rewrite app_length. lia.
+      rewrite length_app. lia.
     }
     eapply presamples_exec_det_pexec in Hex2 as [σ' Hs']; eauto. 
     pose proof Hs' as Hs''.
-    eapply presamples_pexec_det_state in Hs'' as [Hs1'h [t'' Hs1't] ]; eauto. 
-    iApply spec_coupl_steps_det. 
+    eapply presamples_pexec_det_state in Hs'' as [Hs1'h [[t'' Hs1't] Hs1'tl] ]; eauto.
+    iApply spec_coupl_steps_det.
     { 
       simpl.
       erewrite Hs'. eapply dret_1_1.
       reflexivity.
     }
     iApply spec_coupl_ret.
-    iMod (spec_update_prog (Val v2) with "[Hspa Hsha Hsta] Hsp") as "[Hspa Hsp]".
+    iMod (spec_update_prog (Val v2) with "[Hspa Hsha Hsta Hstalap] Hsp") as "[Hspa Hsp]".
     { iFrame. }    
     iMod (spec_auth_update_tape (2%nat; t'') with "Hspa Hl2") as "[Hspa Hl2]".
     iMod (ghost_map_update with "Hta Hl1") as "[Hta Hl1]".
@@ -912,9 +959,14 @@ Proof.
     { set_solver. }
     iIntros.
     unfold spec_auth. simpl.
-    iDestruct "Hspa" as "(H1 & H2 & H3)". 
-    rewrite Hs1'h Hs1't Hs1' Hs2' Ht1' Ht2' insert_insert. 
-    iFrame.  
+    iDestruct "Hspa" as "(H1 & H2 & H3 & H4)".
+    iFrame.
+    rewrite Hs1'. iFrame.
+    rewrite Hs1'h -Hs2'. iFrame.
+    rewrite Ht1'. iFrame.
+    rewrite Hs1't Ht2' insert_insert_eq. iFrame.
+    rewrite Hs1'tl Htl2'. iFrame.
+    iFrame.
     iPureIntro.
     rewrite exec_unfold in Hex1. 
     simpl in Hex1. 
@@ -950,7 +1002,7 @@ Proof.
   } 
   assert (step (e1, s1) = dret (e', σ')) as H'. {
     eapply pmf_1_eq_dret, SamplesOneTape_step_det; eauto.
-    by rewrite Ht1' lookup_insert Hvt.  
+    by rewrite Ht1' lookup_insert_eq Hvt.
   }
   assert (SamplesOneTape l1 e') as He'. {
     by eapply SamplesOneTape_inv. 
@@ -958,19 +1010,19 @@ Proof.
   assert (heap σ' = heap σ0) as <-. {
     rewrite Hs1'.
     eapply (SamplesOneTape_step_heap _ e1); eauto;
-    by rewrite Ht1' lookup_insert Hvt.
+    by rewrite Ht1' lookup_insert_eq Hvt.
   }
   assert (∃ t1'', tapes σ' = <[l1 := (2%nat; t1'')]>(tapes σ0) ∧ (n ≤ length t1'')) as [t1'' [Ht1'' Hlt1']]. {
     eapply SamplesOneTape_step_tapes in Hst as Ht' ; eauto;
-    try by rewrite Ht1' lookup_insert Hvt.
+    try by rewrite Ht1' lookup_insert_eq Hvt.
     destruct Ht' as [-> | ->].
     - exists (t1 ++ t :: t1'). split; auto.
-      simpl. rewrite app_length. lia. 
+      simpl. rewrite length_app. lia. 
     - exists tt; split; eauto. 
-      { by rewrite Ht1' insert_insert.  }
+      { by rewrite Ht1' insert_insert_eq.  }
       apply le_S_n. 
       apply (f_equal length) in Hvt.  
-      simpl in *. rewrite -Hvt app_length. 
+      simpl in *. rewrite -Hvt length_app. 
       simpl. lia.
   }
   assert (exec n (e', σ') = dret v1). {
@@ -989,8 +1041,17 @@ Proof.
     rewrite H'. 
     apply ARcoupl_dret; auto; lra. 
   }
-  iIntros. 
-  destruct H10. inversion H10. subst e0 σ3. 
+  iSplitR.
+  {
+    iModIntro.
+    iIntros.
+    iModIntro.
+    iApply spec_coupl_err_ge_1.
+    done.
+  }
+  iIntros.
+  destruct H10. inversion H10.
+  subst e0 σ3.
   iMod "hclose'". 
   iApply fupd_mask_intro.
   { set_solver. }  
@@ -1005,7 +1066,7 @@ Proof.
   }     
   iMod (ghost_map_update with "Hta Hl1") as "[Hta Hl1]". 
   iMod (ghost_map_update with "Hsta Hl2") as "[Hsta Hl2]". 
-  rewrite Ht2' Hs2' Ht1''.  
+  rewrite Ht2' Hs2' Ht1'' Htl2'.
   iMod "hclose''".
   iApply fupd_mask_intro.
   { set_solver. }  
@@ -1013,11 +1074,32 @@ Proof.
   iFrame. 
   iPoseProof ((det_result_rel_wp e' _ σ' s2 l1 l2 n m) with "[Hl1 Hl2 Hsp]") as "Hwp";
   try iFrame; eauto. 
-  { rewrite app_length Hlt2; lia. }
-  { by rewrite Ht1'' lookup_insert. } 
-  { by rewrite Ht2' lookup_insert. } 
-  iApply (wp_mono with "Hwp"). 
+  { rewrite length_app Hlt2; lia. }
+  { by rewrite Ht1'' lookup_insert_eq. }
+  { by rewrite Ht2' lookup_insert_eq. }
+  iApply (wp_mono with "Hwp").
   iIntros "% (Hsv & %)"; subst; iFrame. 
   by iPureIntro. 
 Qed.  
+
+Fact SamplesOneTape_exec_wp (e1 e2 : expr) (σ1 σ2 : state) l1 l2 t1 t2 ψ ε ε':
+  SamplesOneTape l1 e1 -> SamplesOneTape l2 e2 ->
+  σ1.(tapes) !! l1 = Some (2%nat; t1) -> σ2.(tapes) !! l2 = Some (2%nat; t2) ->
+  SeriesC (lim_exec (e1, σ1)) = 1 ->
+  0 <= ε -> ε < ε' ->
+
+  (∀ (P : val -> Prop) (Q : val -> Prop),
+      (∀ a b, ψ a b -> P a -> Q b) ->
+      prob (lim_exec (e1, σ1)) (λ a, bool_decide (P a)) <=
+        prob (lim_exec (e2, σ2)) (λ b, bool_decide (Q b)) + ε) →
+
+  ↯ ε' ∗ l1 ↪ (2%nat; t1) ∗ l2 ↪ₛ (2%nat; t2) ∗ ⤇ e2 -∗
+    WP e1 {{ v, ∃ v', ⤇ (Val v') ∗ ⌜ψ v v'⌝ }}.
+Proof.
+  intros.
+  eapply SamplesOneTape_coupl_wp => //.
+  eapply ARcoupl_complete.
+  done.
+Qed.
+
 End Coupl.

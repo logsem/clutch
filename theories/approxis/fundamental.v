@@ -107,7 +107,7 @@ Section fundamental.
       rewrite /= ?fmap_insert ?subst_map_insert //.
       try by iApply "H".
     destruct (decide (x = f)) as [->|]; iSimpl in "Ht".
-    - rewrite !delete_insert_delete !subst_subst !delete_idemp.
+    - rewrite !delete_insert_eq !subst_subst !delete_delete_eq.
       by iApply "Ht".
     - rewrite !delete_insert_ne // subst_map_insert.
       rewrite !(subst_subst_ne _ x f) // subst_map_insert.

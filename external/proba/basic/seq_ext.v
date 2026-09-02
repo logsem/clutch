@@ -1,6 +1,6 @@
 From discprob.basic Require Import base nify.
 From mathcomp Require Import ssreflect seq ssrbool eqtype.
-Import Lia Zify.
+From Stdlib Require Import Lia Zify.
 
 Lemma undup_map {A B: eqType} (l: seq A) (f: A → B):
   undup [seq f x | x <- l] = undup [seq f x | x <- undup l].
@@ -80,12 +80,12 @@ Proof.
     * apply /orP; right; subst; auto.
 Qed.
 
-Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 
 Local Open Scope R.
 From discprob.basic Require Import base nify order.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
-Import List.
+From Stdlib Require Import List.
 
 Lemma fold_left_Rmin_init l x:
   fold_left Rmin l x <= x.
@@ -337,7 +337,7 @@ Proof.
   - right. split; auto; intros ? [].
   - intros x. edestruct (IHl (Z.max x a)) as [(r&Hin&Heq)|Hlt].
     * left. exists r. split; auto.
-    * destruct (Z_gt_dec x a).
+    * destruct (ZArith_dec.Z_gt_dec x a).
       ** right; split.
          *** intros ? [|]; eauto.
              **** subst. lia.
@@ -346,7 +346,7 @@ Proof.
          *** destruct Hlt as (?&->). rewrite Z.max_l; lia.
       ** left. move: Hlt. rewrite Z.max_r; last by lia=> Hlt.
          intros. exists a; split; first by left.
-         apply Zle_antisym.
+         apply Zorder.Zle_antisym.
          *** apply fold_left_Zmax_init.
          *** apply fold_left_Zle_max_lub; try lia. intros.
              destruct Hlt as (Hlt&?). cut (r' < a); first lia.

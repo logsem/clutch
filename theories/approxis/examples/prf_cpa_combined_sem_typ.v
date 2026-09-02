@@ -79,9 +79,9 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
 
   Ltac2 prf_cpa_val typ k :=
     lazy_match! typ with
-    | (lrel_car lrel_message ?v1 ?v2) =>
+    | (lrel_car lrel_message _ _) =>
         let typ := eval unfold lrel_message in $typ in k typ
-    | (lrel_car lrel_cipher ?v1 ?v2) =>
+    | (lrel_car lrel_cipher _ _) =>
         let typ := eval unfold lrel_cipher in $typ in k typ
     | _ => Stuck
     end.
@@ -500,7 +500,7 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
       { apply NoDup_fmap with fin_to_nat; first apply fin_to_nat_inj.
         rewrite Hl'. apply NoDup_elements. }
       replace (length l') with q; last first.
-      { erewrite <-fmap_length, Hl'.
+      { erewrite <-length_fmap, Hl'.
         by replace (length (elements (dom M))) with (size (dom M)).
       }
       pose proof pos_INR_S (card_input).
@@ -512,7 +512,9 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
       assert (q * (q + 1) <= (Q - 1) * Q)%R.
       {
         rewrite -INR_1.
-        apply Rmult_le_compat ; try real_solver.
+        apply Rmult_le_compat.
+        - real_solver.
+        - rewrite -S_INR. real_solver.
         - rewrite -minus_INR. 2: lia. apply le_INR. lia.
         - rewrite -plus_INR. apply le_INR. lia.
       }
@@ -541,7 +543,7 @@ Hypothesis refines_tape_couple_avoid : forall `{!approxisRGS Σ} (N:nat) α l z 
       iIntros (?) "mapref #->"...
       assert ((M !! fin_to_nat r_in) = None) as r_fresh_M.
       { apply not_elem_of_dom_1. rewrite -elem_of_elements. rewrite -Hl'.
-        intros K. apply elem_of_list_fmap_2_inj in K; [done | apply fin_to_nat_inj]. }
+        intros K. apply list_elem_of_fmap_inj_2 in K; [done | apply fin_to_nat_inj]. }
       rewrite r_fresh_M...
       unshelve rel_apply (refines_couple_UU _ (@xor_sem _ _ xor_struct (Z.to_nat msg))) ;
         [apply xor_bij|apply xor_dom => //|..].

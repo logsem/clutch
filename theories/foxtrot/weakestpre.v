@@ -1,7 +1,7 @@
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates.
-From iris.bi Require Export fixpoint big_op.
+From iris.bi Require Export lib.fixpoint_mono big_op.
 From iris.prelude Require Import options.
 
 From clutch.bi Require Export weakestpre.
@@ -276,6 +276,7 @@ Section modalities.
         - apply Expval_ge_0'.
           intros [??]. by repeat case_match.
         - Local Opaque full_info_lift_osch.
+          Local Opaque decode_nat. 
           simpl.
           rewrite out_of_bounds_step'; last first.
           { rewrite /n. lia. }
@@ -411,12 +412,12 @@ Section modalities.
       pose proof epsilon_correct _ e1. simpl in *.
       destruct (epsilon e1) as [[]].
       simplify_eq.
-      apply app_inj_1 in H1 as [K ->]; last by rewrite !insert_length.
+      apply app_inj_1 in H1 as [K ->]; last by rewrite !length_insert.
       right.
       repeat f_equal.
       assert (<[j:=e0]> l !!j = <[j:=e2]> l!!j) as K'.
       { by f_equal. }
-      rewrite !list_lookup_insert in K'; first by simplify_eq.
+      rewrite !list_lookup_insert_eq in K'; first by simplify_eq.
       all: by eapply lookup_lt_Some.
     - iPureIntro.
       replace (ε1) with (ε1+0 )%NNR; last first.
@@ -452,11 +453,11 @@ Section modalities.
       split; first done.
       rewrite pair_eq.
       split.
-      + apply app_inj_1 in H2 as [K ->]; last by rewrite !insert_length.
+      + apply app_inj_1 in H2 as [K ->]; last by rewrite !length_insert.
         rewrite app_inv_tail_iff.
         assert (<[j:=e'0]> ρ1.1 !!j = <[j:=e']> ρ1.1!!j) as K'.
         { by f_equal. }
-        rewrite !list_lookup_insert in K'; first by simplify_eq.
+        rewrite !list_lookup_insert_eq in K'; first by simplify_eq.
         all: by eapply lookup_lt_Some.
       + destruct σ'0, σ'. simpl in *; naive_solver.
     - iIntros (????).
@@ -469,10 +470,10 @@ Section modalities.
       iMod ("H" with "[]") as "H"; first (iPureIntro; naive_solver).
       iModIntro.
       simplify_eq.
-      apply app_inj_1 in H2 as [K ->]; last by rewrite !insert_length.
+      apply app_inj_1 in H2 as [K ->]; last by rewrite !length_insert.
       assert (<[j:=e']> ρ1.1 !!j = <[j:=e1]> ρ1.1!!j) as K'.
       { by f_equal. }
-      rewrite !list_lookup_insert in K'; first by simplify_eq.
+      rewrite !list_lookup_insert_eq in K'; first by simplify_eq.
       all: by eapply lookup_lt_Some.
   Qed.
 

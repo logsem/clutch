@@ -5,7 +5,7 @@
    b_tree.v *)
 
 
-From Coq.Program Require Import Wf.
+From Stdlib.Program Require Import Wf.
 From stdpp Require Import list.
 From clutch.approxis Require Import approxis list.
 From clutch.approxis Require adequacy.
@@ -509,13 +509,13 @@ Section b_tree_adt.
       specialize (b_tree.min_child_num_pos) => ?.
       wp_apply wp_list_head; first eauto.
       iIntros (? [(->&->)|Hvals]).
-      { rewrite fmap_length /= in Heq2; lia. }
+      { rewrite length_fmap /= in Heq2; lia. }
       destruct Hvals as (pc&?&->&->).
       rewrite /get; wp_pures.
-      destruct v_lis as [|tv v_lis]; first by (rewrite fmap_length /= in Heq3; lia).
+      destruct v_lis as [|tv v_lis]; first by (rewrite length_fmap /= in Heq3; lia).
       iDestruct (big_sepL_lookup_acc _ _ O with "H1") as "(H1&H1clos)".
       { eauto. }
-      destruct l as [|(?&t) l_lis]; first by (rewrite fmap_length /= in Heq3; lia).
+      destruct l as [|(?&t) l_lis]; first by (rewrite length_fmap /= in Heq3; lia).
       iDestruct (big_sepL_lookup_acc _ _ O with "H2") as "(H2&H2clos)".
       { eauto. }
       wp_apply ("IH" with "[H1 H2]").
@@ -560,13 +560,13 @@ Section b_tree_adt.
       iMod (spec_list_head with "[$]") as "Hhd"; first eauto.
       iDestruct "Hhd" as (?) "(Hspec&%Hcases)".
       destruct Hcases as [(->&->)|Hvals].
-      { rewrite fmap_length /= in Heq2; lia. }
+      { rewrite length_fmap /= in Heq2; lia. }
       destruct Hvals as (pc&?&->&->).
       rewrite /get; tp_pures.
-      destruct v_lis as [|tv v_lis]; first by (rewrite fmap_length /= in Heq3; lia).
+      destruct v_lis as [|tv v_lis]; first by (rewrite length_fmap /= in Heq3; lia).
       iDestruct (big_sepL_lookup_acc _ _ O with "H1") as "(H1&H1clos)".
       { eauto. }
-      destruct l as [|(?&t) l_lis]; first by (rewrite fmap_length /= in Heq3; lia).
+      destruct l as [|(?&t) l_lis]; first by (rewrite length_fmap /= in Heq3; lia).
       iDestruct (big_sepL_lookup_acc _ _ O with "H2") as "(H2&H2clos)".
       { eauto. }
       iEval (simpl) in "Hspec". tp_pures.
@@ -671,13 +671,13 @@ Section b_tree_adt.
           ** rewrite /l0'. simpl. split; first lia.
              rewrite /b_tree.max_child_num.
              cut (length l0 = length l); first by lia.
-             subst. rewrite map_length //.
+             subst. rewrite length_map //.
         * rewrite relate_ab_tree_with_v_Br. iExists _, (ptrv :: loc_lis), (tv :: v_lis).
           iSplit; first eauto.
           iSplit.
-          { iPureIntro; rewrite /l'/l0'. rewrite fmap_cons ?cons_length. congruence. }
+          { iPureIntro; rewrite /l'/l0'. rewrite fmap_cons ?length_cons. congruence. }
           iSplit.
-          { iPureIntro; rewrite /l'/l0'. rewrite fmap_cons ?cons_length. congruence. }
+          { iPureIntro; rewrite /l'/l0'. rewrite fmap_cons ?length_cons. congruence. }
           iSplit; first done.
           simpl. iFrame.
       }
@@ -688,13 +688,13 @@ Section b_tree_adt.
           ** rewrite /l0'. simpl. split; first lia.
              rewrite /b_tree.max_child_num.
              cut (length l0 = length l); first by lia.
-             subst. rewrite map_length //.
+             subst. rewrite length_map //.
         * rewrite relate_ab_tree_with_v_Br'. iExists _, (ptrv' :: loc_lis0), (tv' :: v_lis0).
           iSplit; first eauto.
           iSplit.
-          { iPureIntro; rewrite /l'/l0'. rewrite fmap_cons ?cons_length. congruence. }
+          { iPureIntro; rewrite /l'/l0'. rewrite fmap_cons ?length_cons. congruence. }
           iSplit.
-          { iPureIntro; rewrite /l'/l0'. rewrite fmap_cons ?cons_length. congruence. }
+          { iPureIntro; rewrite /l'/l0'. rewrite fmap_cons ?length_cons. congruence. }
           iSplit; first done.
           simpl. iFrame.
       }
@@ -894,7 +894,7 @@ Section b_tree_adt.
       tp_pures.
       tp_bind (rand _)%E.
       assert (1<= length loc_lis)%nat.
-      { rewrite -Heq2 map_length. rewrite /b_tree.min_child_num in H1. lia. }
+      { rewrite -Heq2 length_map. rewrite /b_tree.min_child_num in H1. lia. }
       assert ((Z.of_nat (length loc_lis) - 1)%Z = (length loc_lis - 1)%nat) as ->.
       { lia. }
       wp_apply (wp_couple_rand_rand with "H"); first auto.
@@ -944,9 +944,11 @@ Section b_tree_adt.
 
       assert (Hvs1 : ∃ vs1, l !! (n : nat) = Some (vs1, tvl) /\ @is_ab_b_tree max_child_num' depth' vs1 tvl).
       { rewrite list_lookup_fmap_Some in Htvl.
-        destruct Htvl as ((vs1&?)&Hvs1&Heq'). simpl in Heq'. symmetry in Heq'. subst.
+        destruct Htvl as ((vs1&?)&Hvs1&Heq'). simpl in Heq'. symmetry in Heq'.
         exists vs1. split; auto.
-        eapply Forall_lookup_1 in Hvs1; eauto. simpl in Hvs1.
+        1: by subst.
+        simplify_eq.
+        symmetry in Heq'. eapply Forall_lookup_1 in Heq'; eauto. simpl in Heq'.
         eauto.
       }
       tp_bind (insert_tree_aux _ _)%E.
@@ -980,14 +982,14 @@ Section b_tree_adt.
         iSplit; last first.
         { rewrite relate_ab_tree_with_v_Br.
           iExists _, _, _. iSplit; first eauto. iFrame.
-          rewrite ?insert_length //.
+          rewrite ?length_insert //.
           iSplit; first eauto.
           { rewrite /l'. iPureIntro.
-            rewrite list_fmap_insert /= insert_length //.
+            rewrite list_fmap_insert /= length_insert //.
           }
           iSplit; first eauto.
           { rewrite /l'. iPureIntro.
-            rewrite list_fmap_insert /= insert_length //.
+            rewrite list_fmap_insert /= length_insert //.
           }
           iSplit.
           { iPureIntro. rewrite list_insert_id //. }
@@ -996,7 +998,7 @@ Section b_tree_adt.
         iPureIntro.
         econstructor.
         * rewrite /l'. eapply Forall_insert; eauto.
-        * rewrite /l' insert_length //.
+        * rewrite /l' length_insert //.
       }
 
       iAssert (btree_ptrv' p' _ (S depth') (Br l'.*2) vs')%I with "[Hp' H1' H2' Hp1']" as "Hp'".
@@ -1008,14 +1010,14 @@ Section b_tree_adt.
         iSplit; last first.
         { rewrite relate_ab_tree_with_v_Br'.
           iExists _, _, _. iSplit; first eauto. iFrame.
-          rewrite ?insert_length //.
+          rewrite ?length_insert //.
           iSplit; first eauto.
           { rewrite /l'. iPureIntro.
-            rewrite list_fmap_insert /= insert_length //.
+            rewrite list_fmap_insert /= length_insert //.
           }
           iSplit; first eauto.
           { rewrite /l'. iPureIntro.
-            rewrite list_fmap_insert /= insert_length //.
+            rewrite list_fmap_insert /= length_insert //.
           }
           iSplit.
           { iPureIntro. rewrite list_insert_id //. }
@@ -1024,7 +1026,7 @@ Section b_tree_adt.
         iPureIntro.
         econstructor.
         * rewrite /l'. eapply Forall_insert; eauto.
-        * rewrite /l' insert_length //.
+        * rewrite /l' length_insert //.
       }
 
       assert (Forall (olift P) vs').
@@ -1614,7 +1616,8 @@ Section b_tree_adt.
       wp_pures.
 
       iMod (ec_zero) as "Hz".
-      wp_apply (naive_annotated_naive_refinement with "[$Hrel1_ranked $Hrel2_ranked $HK $Hz]"); eauto.
+      epose proof naive_annotated_naive_refinement as h.
+      wp_apply (h with "[$Hrel1_ranked $Hrel2_ranked $HK $Hz]"); eauto.
       iIntros (?) "(HK&%Helem&Hrel2_ranked&Hrel1_ranked)". iMod ("Hclo" with "[Hp1 Hp2 $Hna Hrel1 Hrel2]").
       { iNext. rewrite /btree_inv. iExists _, _, _.
         iFrame "%". iSplitR "Hp1 Hrel1"; iExists _; iFrame; eauto. }
@@ -1670,7 +1673,8 @@ Section b_tree_adt.
       wp_pures.
 
       iMod (ec_zero) as "Hz".
-      wp_apply (annotated_naive_naive_refinement with "[$Hrel1_ranked $Hrel2_ranked $HK $Hz]"); eauto.
+      epose proof annotated_naive_naive_refinement as h.
+      wp_apply (h with "[$Hrel1_ranked $Hrel2_ranked $HK $Hz]"); eauto.
       iIntros (?) "(HK&%Helem&Hrel2_ranked&Hrel1_ranked)". iMod ("Hclo" with "[Hp1 Hp2 $Hna Hrel1 Hrel2]").
       { iNext. rewrite /btree_inv. iExists _, _, _.
         iFrame "%". iSplitR "Hp1 Hrel1"; iExists _; iFrame; eauto. }

@@ -13,8 +13,8 @@ Proof.
   induction l1; first done. 
   simpl.
   intros.
-  rewrite app_length.
-  rewrite fmap_length.
+  rewrite length_app.
+  rewrite length_fmap.
   by f_equal.
 Qed. 
   
@@ -220,17 +220,17 @@ Section von_neumann.
       iMod (pupd_couple_von_neumann_1 l1 l2 with "[$Hα][$Hβ][$]") as"H".
       { rewrite /l1. rewrite Forall_forall.
         intros [].
-        rewrite elem_of_list_bind.
+        rewrite list_elem_of_bind.
         rewrite /small/large.
-        setoid_rewrite elem_of_list_fmap.
+        setoid_rewrite list_elem_of_fmap.
         setoid_rewrite elem_of_seq.
         intros. destruct!/=. lia.
       }
       { rewrite /l2. rewrite Forall_forall.
         intros [].
-        rewrite elem_of_list_bind.
+        rewrite list_elem_of_bind.
         rewrite /small/large.
-        setoid_rewrite elem_of_list_fmap.
+        setoid_rewrite list_elem_of_fmap.
         setoid_rewrite elem_of_seq.
         intros. destruct!/=. lia.
       }
@@ -239,7 +239,7 @@ Section von_neumann.
         - rewrite /l1.
           rewrite /small/large.
           apply NoDup_bind.
-          + setoid_rewrite elem_of_list_fmap.
+          + setoid_rewrite list_elem_of_fmap.
             setoid_rewrite elem_of_seq.
             intros. destruct!/=. lia.
           + intros.
@@ -250,14 +250,14 @@ Section von_neumann.
         - rewrite /l1 /l2.
           intros [].
           rewrite /small/large.
-          rewrite !elem_of_list_bind.
-          setoid_rewrite elem_of_list_fmap.
+          rewrite !list_elem_of_bind.
+          setoid_rewrite list_elem_of_fmap.
           setoid_rewrite elem_of_seq.
           intros. intros ?. destruct!/=. lia.
         - rewrite /l2.
           rewrite /small/large.
           apply NoDup_bind.
-          + setoid_rewrite elem_of_list_fmap.
+          + setoid_rewrite list_elem_of_fmap.
             setoid_rewrite elem_of_seq.
             intros. destruct!/=. lia.
           + intros.
@@ -269,10 +269,10 @@ Section von_neumann.
       { rewrite /l1/l2.
         rewrite !length_bind. lia. }
       { rewrite !length_bind. rewrite /small/large.
-        rewrite !seq_length. destruct!/=.
+        rewrite !length_seq. destruct!/=.
         apply Nat.mul_pos_pos; lia.
       }
-      { rewrite !length_bind/small/large !seq_length. subst.
+      { rewrite !length_bind/small/large !length_seq. subst.
         assert (∀ x N', x<= N' -> 2* ((x+1) * (S N' - x)) <= (S (S N'))* (S (S N')))%nat as H'.
         - clear.
           intros x N.
@@ -291,8 +291,8 @@ Section von_neumann.
       { (* return true *)
         iMod (spec_int_to_bool with "[$]").
         rewrite Z_to_bool_neq_0; last done.
-        rewrite /l1 elem_of_list_bind in K1.
-        setoid_rewrite elem_of_list_fmap in K1.
+        rewrite /l1 list_elem_of_bind in K1.
+        setoid_rewrite list_elem_of_fmap in K1.
         rewrite /large/small in K1.
         setoid_rewrite elem_of_seq in K1.
         destruct!/=.
@@ -309,8 +309,8 @@ Section von_neumann.
       { (* return false *)
         iMod (spec_int_to_bool with "[$]").
         rewrite Z_to_bool_eq_0. 
-        rewrite /l2 elem_of_list_bind in K2.
-        setoid_rewrite elem_of_list_fmap in K2.
+        rewrite /l2 list_elem_of_bind in K2.
+        setoid_rewrite list_elem_of_fmap in K2.
         rewrite /large/small in K2.
         setoid_rewrite elem_of_seq in K2.
         destruct!/=.
@@ -325,9 +325,9 @@ Section von_neumann.
       }
       rewrite /l1 in K1.
       rewrite /l2 in K2.
-      rewrite !elem_of_list_bind/small/large in K1 K2.
-      setoid_rewrite elem_of_list_fmap in K1.
-      setoid_rewrite elem_of_list_fmap in K2.
+      rewrite !list_elem_of_bind/small/large in K1 K2.
+      setoid_rewrite list_elem_of_fmap in K1.
+      setoid_rewrite list_elem_of_fmap in K2.
       setoid_rewrite elem_of_seq in K1.
       setoid_rewrite elem_of_seq in K2.
       wp_randtape.
@@ -474,22 +474,22 @@ Section von_neumann.
         - apply NoDup_fmap.
           + intros ???. by simplify_eq.
           + apply NoDup_seq.
-        - intros []. rewrite !elem_of_list_fmap.
+        - intros []. rewrite !list_elem_of_fmap.
           setoid_rewrite elem_of_seq.
           intros. intros ?. destruct!/=. lia.
         - apply NoDup_fmap.
           + intros ???. by simplify_eq.
           + apply NoDup_seq.
       }
-      { by rewrite !fmap_length seq_length. }
-      { rewrite fmap_length seq_length. lia. }
-      { rewrite fmap_length seq_length. lia. }
+      { by rewrite !length_fmap length_seq. }
+      { rewrite length_fmap length_seq. lia. }
+      { rewrite length_fmap length_seq. lia. }
       { done. }
-      rewrite fmap_length seq_length.
+      rewrite length_fmap length_seq.
       iDestruct "H" as "(%&%&%&%&Hspec1&Hspec2&Hα)".
       case_bool_decide as C1.
       { (* return true *)
-        rewrite elem_of_list_fmap/lis in C1.
+        rewrite list_elem_of_fmap/lis in C1.
         setoid_rewrite elem_of_seq in C1.
         destruct!/=.
         tp_pures j1.
@@ -505,7 +505,7 @@ Section von_neumann.
         by iExists _. }
       case_bool_decide as C2.
       { (* return false *)
-        rewrite elem_of_list_fmap/lis in C2.
+        rewrite list_elem_of_fmap/lis in C2.
         setoid_rewrite elem_of_seq in C2.
         destruct!/=.
         tp_pures j1.
@@ -523,7 +523,7 @@ Section von_neumann.
       tp_pures j1.
       case_bool_decide as C3.
       - tp_pures j2.
-        rewrite !elem_of_list_fmap/lis in C1, C2.
+        rewrite !list_elem_of_fmap/lis in C1, C2.
         setoid_rewrite elem_of_seq in C1.
         setoid_rewrite elem_of_seq in C2.
         rewrite bool_decide_eq_true_2; last first.
@@ -541,7 +541,7 @@ Section von_neumann.
         rewrite /k.
         do 3 f_equal; lia.
       - tp_pures j2.
-        rewrite !elem_of_list_fmap/lis in C1, C2.
+        rewrite !list_elem_of_fmap/lis in C1, C2.
         setoid_rewrite elem_of_seq in C1.
         setoid_rewrite elem_of_seq in C2.
         rewrite bool_decide_eq_false_2; last first.

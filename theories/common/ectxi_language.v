@@ -1,7 +1,7 @@
 (** An axiomatization of languages based on evaluation context items, including
     a proof that these are instances of general ectx-based languages. *)
-From Coq Require Import Reals.
-From Coq.Program Require Import Wf.
+From Stdlib Require Import Reals.
+From Stdlib.Program Require Import Wf WfExtensionality.
 From iris.prelude Require Export prelude.
 From clutch.common Require Import language ectx_language.
 From clutch.prob Require Import distribution.
@@ -80,6 +80,7 @@ Structure ectxiLanguage := EctxiLanguage {
 
   of_val : val → expr;
   to_val : expr → option val;
+  def_val : val;
 
   fill_item : ectx_item → expr → expr;
   decomp_item : expr → option (ectx_item * expr);
@@ -106,9 +107,10 @@ Structure ectxiLanguage := EctxiLanguage {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments EctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _ _.
+Global Arguments EctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _ _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
+Global Arguments def_val {_}.
 Global Arguments fill_item {_} _ _.
 Global Arguments decomp_item {_} _.
 Global Arguments expr_ord {_} _ _.
@@ -257,7 +259,7 @@ Section ectxi_language.
       intros ?%head_ctx_step_val; eauto using fill_val.
   Qed.
 
-  Canonical Structure ectxi_lang_ectx := EctxLanguage (get_active := get_active) ectxi_lang_ectx_mixin.
+  Canonical Structure ectxi_lang_ectx := EctxLanguage (get_active := get_active) (def_val := def_val) ectxi_lang_ectx_mixin.
   Canonical Structure ectxi_lang := LanguageOfEctx ectxi_lang_ectx.
 
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
@@ -281,8 +283,8 @@ Coercion ectxi_lang_ectx : ectxiLanguage >-> ectxLanguage.
 Coercion ectxi_lang : ectxiLanguage >-> language.
 
 Definition EctxLanguageOfEctxi (Λ : ectxiLanguage) : ectxLanguage :=
-  let '@EctxiLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val fill decomp expr_ord head state act mix := Λ in
-  @EctxLanguage E V (list C) St StI _ _ _ _ _ _ _ _ of_val to_val _ _ _ _ _ state act
-    (@ectxi_lang_ectx_mixin (@EctxiLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val fill decomp expr_ord head state act mix)).
+  let '@EctxiLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val def_val fill decomp expr_ord head state act mix := Λ in
+  @EctxLanguage E V (list C) St StI _ _ _ _ _ _ _ _ of_val to_val def_val _ _ _ _ _ state act
+    (@ectxi_lang_ectx_mixin (@EctxiLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val def_val fill decomp expr_ord head state act mix)).
 
 Global Arguments EctxLanguageOfEctxi : simpl never.

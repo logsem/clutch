@@ -1,5 +1,6 @@
 From stdpp Require Export fin_maps.
 From iris.algebra Require Import excl_auth numbers gset_bij.
+#[warning="-notation-incompatible-prefix"]
 From clutch.coneris Require Export coneris lib.map hocap_rand abstract_tape coll_free_hash_view_interface seq_hash_interface.
 Set Default Proof Using "Type*".
 
@@ -134,7 +135,7 @@ Section seq_hash_impl.
     destruct (decide (n = k1)).
     - destruct (decide (n = k2)); simplify_eq; auto.
       destruct Hk2 as [|Hk2]; auto.
-      rewrite lookup_total_insert in Heq.
+      rewrite lookup_total_insert_eq in Heq.
       rewrite lookup_total_insert_ne // in Heq.
       apply lookup_lookup_total in Hk2.
       rewrite -Heq in Hk2.
@@ -146,7 +147,7 @@ Section seq_hash_impl.
     - destruct (decide (n = k2)); simplify_eq; auto.
       {
         destruct Hk1 as [|Hk1]; auto.
-        rewrite lookup_total_insert in Heq.
+        rewrite lookup_total_insert_eq in Heq.
         rewrite lookup_total_insert_ne // in Heq.
         apply lookup_lookup_total in Hk1.
         rewrite Heq in Hk1.
@@ -322,7 +323,7 @@ Section seq_hash_impl.
         * rewrite SeriesC_list_2; last apply NoDup_elements.
           rewrite -length_elements_size_gset size_difference.
           -- rewrite size_set_seq size_list_to_set; last done.
-             rewrite app_length fmap_length S_INR/= plus_INR/=.
+             rewrite length_app length_fmap S_INR/= plus_INR/=.
              right. rewrite -!Rmult_assoc. rewrite (Rmult_comm _ (val_size+1)).
              rewrite Rdiv_1_l Rmult_inv_r; last first.
              { pose proof pos_INR val_size. lra. }
@@ -346,7 +347,7 @@ Section seq_hash_impl.
              ++ rewrite Forall_forall in Hforall2.
                 apply Hforall2 in H1. lia.
              ++ rewrite /map_Forall in Hforall.
-                rewrite elem_of_list_fmap in H1.
+                rewrite list_elem_of_fmap in H1.
                 destruct H1 as ([]&->&H1).
                 rewrite elem_of_map_to_list in H1.
                 apply Hforall in H1. simpl. lia.
@@ -377,7 +378,7 @@ Section seq_hash_impl.
         -- rewrite /f. rewrite S_INR.
            rewrite SeriesC_list_2; last done.
            simpl.
-           rewrite app_length fmap_length. right. rewrite Nat.add_comm.
+           rewrite length_app length_fmap. right. rewrite Nat.add_comm.
            rewrite !plus_INR/=. lra.
         -- rewrite /f.
            intros. case_bool_decide; first done.
@@ -386,7 +387,7 @@ Section seq_hash_impl.
            intros [Hcontra|Hcontra].
            ++ rewrite Forall_forall in Hforall2.
               apply Hforall2 in Hcontra. lia.
-           ++ rewrite elem_of_list_fmap in Hcontra.
+           ++ rewrite list_elem_of_fmap in Hcontra.
               destruct Hcontra as ([]&->&Hcontra).
               rewrite elem_of_map_to_list in Hcontra.
               rewrite /map_Forall in Hforall.
@@ -400,10 +401,10 @@ Section seq_hash_impl.
       rewrite /tape_m_elements.
       apply NoDup_Permutation_proper with (((fin_to_nat n)::tape_m_elements tape_m) ++ (map_to_list m).*2).
       + apply Permutation_app_tail.
-        rewrite <-insert_delete_insert.
-        erewrite <-(insert_delete tape_m) at 2; last done.
+        rewrite <-insert_delete_eq.
+        erewrite <-(insert_delete_id tape_m) at 2; last done.
         rewrite /tape_m_elements.
-        rewrite !map_to_list_insert; try apply lookup_delete.
+        rewrite !map_to_list_insert; try apply lookup_delete_eq.
         rewrite fmap_cons. simpl.
         rewrite app_comm_cons. apply Permutation_app_tail.
         by rewrite -Permutation_cons_append.
@@ -444,15 +445,15 @@ Section seq_hash_impl.
     { rewrite NoDup_app in Hnodup.
       destruct Hnodup as (?&H1&?).
       rewrite List.Forall_forall.
-      intros x'. rewrite -elem_of_list_In.
+      intros x'. rewrite -list_elem_of_In.
       specialize (H1 x). rewrite /not in H1 *.
       intros. subst. apply H1; last done.
       rewrite /tape_m_elements.
-      rewrite elem_of_list_In.
+      rewrite list_elem_of_In.
       rewrite in_concat.
       exists (x'::xs); split; last by constructor.
-      rewrite -elem_of_list_In.
-      eapply elem_of_list_fmap_1_alt with (α, x'::xs); last done.
+      rewrite -list_elem_of_In.
+      eapply list_elem_of_fmap_2' with (α, x'::xs); last done.
       by rewrite elem_of_map_to_list.
     }
     iMod (abstract_tapes_pop with "[$][$]") as "[Hauth Htape]".
@@ -469,11 +470,11 @@ Section seq_hash_impl.
       eapply NoDup_Permutation_proper; last done.
       rewrite /tape_m_elements.
       rewrite (map_to_list_insert m); last done.
-      erewrite <-insert_delete_insert.
-      rewrite map_to_list_insert; last apply lookup_delete.
+      erewrite <-insert_delete_eq.
+      rewrite map_to_list_insert; last apply lookup_delete_eq.
       replace tape_m with (<[α:=x::xs]> tape_m) at 2; last by apply insert_id.
-      erewrite <-insert_delete_insert.
-      rewrite map_to_list_insert; last apply lookup_delete.
+      erewrite <-insert_delete_eq.
+      rewrite map_to_list_insert; last apply lookup_delete_eq.
       rewrite !fmap_cons.
       rewrite !concat_cons.
       simpl; by rewrite Permutation_middle.

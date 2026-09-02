@@ -1,9 +1,9 @@
 From clutch Require Import clutch.
 From clutch.prob_lang.typing Require Import tychk.
 
-#[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
+#[warning="-hiding-delimiting-key,-overwriting-delimiting-key -notation-incompatible-prefix"]
 From mathcomp Require Import fingroup solvable.cyclic choice eqtype finset
-  fintype seq ssrbool ssrnat zmodp.
+  fintype seq ssrbool zmodp.
 
 From clutch.prelude Require Import mc_stdlib.
 From clutch.clutch.examples.crypto Require Import valgroup.
@@ -75,7 +75,7 @@ Section Zpx.
   Definition vg_of_int_unpacked (x : Z) (vmin : (1 ≤ x)%Z) (vmax : (x < p)%Z) : Zpx.
   Proof.
     unshelve econstructor.
-    - exists (Z.to_nat x). rewrite Zp_cast //. apply /leP. lia.
+    - exists (Z.to_nat x). rewrite Zp_cast //. apply /ssrnat.leP. lia.
     - rewrite qualifE /=. rewrite Zp_cast //.
       destruct x as [|xpos | xneg] eqn:hx ; [|shelve|].
       { exfalso. destruct vmin. simpl. by reflexivity. }
@@ -84,8 +84,8 @@ Section Zpx.
       rewrite prime.prime_coprime //.
       rewrite -hx. rewrite -hx in vmin, vmax.
       apply /negP => h.
-      unshelve epose proof (div.dvdn_leq _ h) as lepx => // ; [apply /leP ; lia|].
-      move /leP : lepx. lia.
+      unshelve epose proof (div.dvdn_leq _ h) as lepx => // ; [apply /ssrnat.leP ; lia|].
+      move /ssrnat.leP : lepx. lia.
   Defined.
 
   Fact vg_of_int_lrel_G_p :

@@ -309,7 +309,7 @@ Section rng.
     iApply (hash.impl_couplable_elim with "[-]").
     iFrame "Hcoup HK". iIntros (b) ">(Hauth&Hhash) HK".
     wp_apply (wp_khashfun_prev with "[$]").
-    { rewrite lookup_insert //. }
+    { rewrite lookup_insert_eq //. }
     iIntros "(Hauth&Hhash)". wp_pures.
     wp_store. iMod ("Hclo" with "[$]") as "Htok". iModIntro. iApply "HΦ".
     iFrame "#∗". iExists _. 
@@ -352,7 +352,7 @@ Section rng.
     iModIntro.
     tp_bind (h #k #n).
     iMod (spec_khashfun_prev with "[$] [$] [$]") as "(HK&Hauth&Hhash) /=".
-    { rewrite lookup_insert //. }
+    { rewrite lookup_insert_eq //. }
     tp_pures.
     tp_store.
     tp_pures.

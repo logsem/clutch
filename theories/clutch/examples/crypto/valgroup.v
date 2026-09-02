@@ -7,6 +7,8 @@ From clutch Require Import clutch.
 From mathcomp Require Import solvable.cyclic choice eqtype finset fintype seq
   ssrbool ssreflect zmodp.
 From mathcomp Require ssralg.
+
+#[warning="-notation-incompatible-prefix"]
 Import fingroup.
 Set Bullet Behavior "Strict Subproofs".
 
@@ -19,12 +21,17 @@ Class val_group :=
             ; vgval : vgG → cval
             ; vgval_inj : Inj eq eq vgval }.
 
-(* Both of the below seem necessary since there is a subtle difference in the
-   domain type DOM, despite the two being convertible. *)
+(* This doesn't seem right.... *)
 #[warning="-uniform-inheritance"] Coercion vgval_as {vg : val_group}
   (x : FinGroup.sort vgG) : cval := vgval x.
-#[warning="-uniform-inheritance"] Coercion vgval_s {vg : val_group}
+#[warning="-uniform-inheritance -deprecated-syntactic-definition-since-mathcomp-2.5.0"] Coercion vgval_s {vg : val_group}
   (x : BaseFinGroup.sort vgG) : cval := vgval x.
+#[warning="-uniform-inheritance"] Coercion vgval_s' {vg : val_group}
+  (x : BaseGroup.sort vgG) : cval := vgval x.
+#[warning="-uniform-inheritance"] Coercion vgval_s'' {vg : val_group}
+  (x : BaseUMagma.sort vgG) : cval := vgval x.
+#[warning="-uniform-inheritance"] Coercion vgval_s''' {vg : val_group}
+  (x : Magma.sort vgG) : cval := vgval x.
 
 Class clutch_group_struct :=
   Clutch_group_struct
@@ -58,12 +65,12 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
     ; vg_of_int_lrel_G : ⊢ (lrel_int → (() + lrel_G))%lrel vg_of_int vg_of_int
     ; τG_subtype v1 v2 Δ : lrel_G v1 v2 ⊢ interp τG Δ v1 v2
     ; is_unit : vunit = 1
-    ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = x^-1⌝ }}
+    ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = vgval (x^-1)⌝ }}
     ; is_spec_inv (x : vgG) K :
-      ⤇ fill K (vinv x) ⊢ spec_update ⊤ (⤇ fill K (x^-1))
-    ; is_mult (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = (x * y)%g⌝ }}
+      ⤇ fill K (vinv x) ⊢ spec_update ⊤ (⤇ fill K (vgval (x^-1)))
+    ; is_mult (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = vgval (x * y)%g⌝ }}
     ; is_spec_mult (x y : vgG) K :
-      ⤇ fill K (vmult x y) ⊢ spec_update ⊤ (⤇ fill K (x * y)%g)
+      ⤇ fill K (vmult x y) ⊢ spec_update ⊤ (⤇ fill K (vgval (x * y)%g))
     }.
 
 Definition vexp_typed `{!clutch_group_struct} :
@@ -109,7 +116,7 @@ Context {G : clutch_group (vg:=vg) (cg:=cg)}.
 Context {vgg : @val_group_generator vg}.
 
 Lemma refines_inv_l E K A (a : vgG) t :
-  (refines E (ectxi_language.fill K (Val (a^-1)%g)) t A)
+  (refines E (ectxi_language.fill K (Val (vgval (a^-1)%g))) t A)
     ⊢ refines E (ectxi_language.fill K (vinv a)) t A.
 Proof.
   iIntros "H". rel_apply_l refines_wp_l.

@@ -152,7 +152,7 @@ Proof.
       apply not_elem_of_singleton_2.
       intros H2.
       apply loc_add_inj in H2.
-      rewrite replicate_length in H1.
+      rewrite length_replicate in H1.
       lia.
 Qed.
 
@@ -194,6 +194,20 @@ Proof.
   inv_head_step.
   iFrame.
   by iApply ("HΦ" $! x) .
+Qed.
+
+
+Lemma wp_rand_nat (N : nat) (z : Z) E s :
+  TCEq N (Z.to_nat z) →
+  {{{ True }}} rand #z @ s; E {{{ (n : nat), RET #n; ⌜ n < S N ⌝ }}}.
+Proof.
+  iIntros (-> Φ) "_ HΦ".
+  iApply wp_rand; auto.
+  iModIntro.
+  iIntros (n) "_".
+  iApply "HΦ".
+  iPureIntro.
+  apply fin_to_nat_lt.
 Qed.
 
 

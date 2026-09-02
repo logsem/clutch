@@ -5,7 +5,7 @@ From Coquelicot Require Import Hierarchy.
 From HB Require Import structures.
 
 
-Require Import Reals.
+From Stdlib Require Import Reals.
 Global Instance Rge_Transitive: Transitive Rge.
 Proof. intros ???. eapply Rge_trans. Qed.
 Global Instance Rle_Transitive: Transitive Rle.
@@ -48,7 +48,7 @@ Proof. move => x y. apply sumboolP. Qed.
 
 HB.instance Definition _ := hasDecEq.Build _ R_eqP.
 
-Require Import Psatz.
+From Stdlib Require Import Psatz.
 Global Instance Rlt_plus_proper: Proper (Rlt ==> Rlt ==> Rlt) Rplus.
 Proof.
   intros ?? Hle ?? Hle'. apply Rplus_lt_compat; auto.

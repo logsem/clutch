@@ -281,11 +281,11 @@ Section lazy_int.
     iInduction n as [| n] "IH" forall (zs1 zs2 Hlen1 Hlen2 l1 l2).
     - destruct zs1; last by (simpl in Hlen1; inversion Hlen1).
       destruct zs2; last by (simpl in Hlen2; inversion Hlen2).
-      tp_pures; first solve_vals_compare_safe.
+      tp_pures.
       iModIntro. iExists _. iFrame. simpl; eauto.
     - destruct zs1 as [| z1 zs1]; first by (simpl in Hlen1; inversion Hlen1).
       destruct zs2 as [| z2 zs2]; first by (simpl in Hlen2; inversion Hlen2).
-      tp_pures; first solve_vals_compare_safe.
+      tp_pures.
       tp_bind (get_chunk _ _)%E.
       iMod (spec_get_chunk with "Hzs1 [$]") as (l1') "(HK&Hzs1'&Hclo1) /=".
       tp_pures.
@@ -294,7 +294,7 @@ Section lazy_int.
       tp_pures.
       tp_bind (cmpZ _ _).
       iMod (spec_cmpZ with "[$]") as "HK /=".
-      tp_pures; first solve_vals_compare_safe.
+      tp_pures.
       case_bool_decide as Hcase.
       { assert (z1 ?= z2 = Eq)%Z as Hzcmp.
         { destruct (z1 ?= z2)%Z; try simpl in Hcase; try inversion Hcase. auto. }
@@ -518,7 +518,7 @@ Section lazy_int.
     rewrite /cmp_lazy_int. tp_pures.
     iDestruct "Hv1" as (α1 l1 zs1 -> Hz1 Hlen1 Hwf1) "H1".
     iDestruct "Hv2" as (α2 l2 zs2 -> Hz2 Hlen2 Hwf2) "H2".
-    tp_pures; first solve_vals_compare_safe.
+    tp_pures.
     case_bool_decide.
     { iDestruct (spec_chunk_and_tape_list_sep_no_alias with "[$] [$]") as %Hneq; congruence. }
     tp_pures.
@@ -561,7 +561,7 @@ Section lazy_int.
     iIntros "HK Hv1".
     rewrite /cmp_lazy_int. tp_pures.
     iDestruct "Hv1" as (α1 l1 zs1 -> Hz1 Hlen1 Hwf1) "H1".
-    tp_pures; first solve_vals_compare_safe.
+    tp_pures.
     case_bool_decide; last by congruence.
     tp_pures. rewrite Z.compare_refl //. iModIntro; iExists _; iFrame "HK". iSplit; first eauto.
     iExists _, _, _. eauto.

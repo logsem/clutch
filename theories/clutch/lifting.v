@@ -1,6 +1,6 @@
 (** The "lifting lemmas" in this file serve to lift the rules of the operational
 semantics to the program logic. *)
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.prelude Require Import options.
 From clutch.clutch Require Import weakestpre.
 

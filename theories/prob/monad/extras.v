@@ -1,14 +1,15 @@
 (** Misc shared results *)
-From mathcomp Require Import all_ssreflect all_algebra finmap.
-From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
-From mathcomp Require Import cardinality fsbigop.
+#[warning="-notation-incompatible-prefix -hiding-delimiting-key"]
+From mathcomp Require Import all_boot all_algebra finmap.
+#[warning="-notation-incompatible-prefix"] From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
+From mathcomp Require Import cardinality fsbigop reals interval_inference.
 From mathcomp.analysis Require Import normedtype.
-From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
+From mathcomp.analysis Require Import ereal normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
 From clutch.prob.monad Require Export types.
 
-Import Coq.Logic.FunctionalExtensionality.
+From Stdlib.Logic Require Import FunctionalExtensionality.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

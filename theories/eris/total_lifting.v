@@ -1,6 +1,6 @@
 (** Total lifting lemmas for the ub logic*)
 From clutch.eris Require Import total_weakestpre.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import NNRbar.
 
 Section total_lifting.

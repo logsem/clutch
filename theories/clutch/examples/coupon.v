@@ -245,9 +245,10 @@ Qed.
     rename k' into k.
     assert (k<=n) as Hk.
     { rewrite <- H2.
-      erewrite <- size_set_seq.
-      apply subseteq_size.
-      intro. apply H3.
+      etrans. 
+      - apply subseteq_size.
+        intro. apply H3.
+      - rewrite size_set_seq //.
     }
     pose (f' := λ x: fin n,
             let x' := fin_to_nat x in
@@ -414,11 +415,9 @@ Qed.
       rewrite list_find_Some in H5. destruct H5 as [?[??]].
       subst.
       rewrite <- elem_of_elements.
-      eapply elem_of_list_lookup_2. done.
+      eapply list_elem_of_lookup_2. done.
     - apply finite_inj_surj; try done.
     - done. 
-      Unshelve.
-      all: apply _.
 Qed.
 
     
@@ -764,9 +763,8 @@ Qed.
     rename k' into k.
     assert (k<=n) as Hk.
     { rewrite <- H2.
-      erewrite <- size_set_seq.
-      apply subseteq_size.
-      intro. apply H3.
+      etrans; [apply subseteq_size => ?; apply H3|].
+      rewrite size_set_seq //.
     }
     pose (f' := λ x: fin n,
             let x' := fin_to_nat x in
@@ -805,7 +803,7 @@ Qed.
         case_decide; try done.
         exfalso.
         assert (elements s' !!! (x-k) ∈ elements s').
-        { apply elem_of_list_lookup_total_2. replace (length(elements _)) with (size s') by done.
+        { apply list_elem_of_lookup_total_2. replace (length(elements _)) with (size s') by done.
           rewrite H. pose proof (fin_to_nat_lt x). lia.
         }
         rewrite elem_of_elements in H6.
@@ -839,11 +837,11 @@ Qed.
            apply fin_to_nat_inj. done.
         -- (*contradiction *) exfalso.
            assert (elements s !!! fin_to_nat x ∈ elements s).
-           { apply elem_of_list_lookup_total_2. replace (length _) with (size s) by done.
+           { apply list_elem_of_lookup_total_2. replace (length _) with (size s) by done.
              lia.
            }
            assert (elements s' !!! (y-k) ∈ elements s').
-           { apply elem_of_list_lookup_total_2. replace (length _) with (size s') by done.
+           { apply list_elem_of_lookup_total_2. replace (length _) with (size s') by done.
              rewrite H.
              pose proof (fin_to_nat_lt y). lia.
            }
@@ -855,11 +853,11 @@ Qed.
         -- (* contradiction *)
            exfalso.
            assert (elements s' !!! (fin_to_nat (x) -k) ∈ elements s').
-           { apply elem_of_list_lookup_total_2. replace (length _) with (size s') by done.
+           { apply list_elem_of_lookup_total_2. replace (length _) with (size s') by done.
              rewrite H. pose proof (fin_to_nat_lt x). lia.
            }
            assert (elements s !!! fin_to_nat y ∈ elements s).
-           { apply elem_of_list_lookup_total_2. replace (length _) with (size s) by done.
+           { apply list_elem_of_lookup_total_2. replace (length _) with (size s) by done.
              lia.
            }
            rewrite elem_of_elements in H7. rewrite elem_of_elements in H8.
@@ -887,7 +885,6 @@ Qed.
            apply fin_to_nat_inj. lia. 
       + split; try done.
         apply finite_inj_surj; try done.
-        Unshelve. all: apply _.
   Qed.
 
   Lemma spec_refines_coupon_collection_helper n lm (k:Z) cnt cnt':

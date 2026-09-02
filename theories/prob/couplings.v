@@ -1,5 +1,5 @@
 (** Exact couplings  *)
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements.
 From stdpp Require Export countable.
 

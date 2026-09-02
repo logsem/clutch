@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import notation tactics metatheory.
 From clutch.prob_lang Require Export lang.
@@ -31,8 +31,9 @@ Fixpoint is_pure (e : expr) :=
   | InjL e' => is_pure e'
   | InjR e' => is_pure e'
   | Case e1 e2 e3 => is_pure e1 && is_pure e2 && is_pure e3
-  | Rand e' (LitV (LitUnit))=> is_pure e'
-  | AllocN _ _ | Load _ | Store _ _ | AllocTape _ | Rand _ _ => false
+  | Rand e' (LitV (LitUnit)) => is_pure e'
+  | Laplace e1 e2 e3 (LitV (LitUnit)) => is_pure e1 && is_pure e2 && is_pure e3
+  | AllocN _ _ | Load _ | Store _ _ | AllocTape _ | AllocTapeLaplace _ _ _ | Rand _ _ | Laplace _ _ _ _ => false
   | Val v => is_pureV v
   | Var _ => true
   | Tick e => is_pure e
@@ -89,6 +90,11 @@ Inductive isPure : expr → Prop :=
   | isPure_Rand_Unit : ∀ op,
       isPure op ->
       isPure (Rand op (LitV LitUnit))
+| isPure_Laplace_Unit : ∀ e1 e2 e3,
+    isPure e1 →
+    isPure e2 →
+    isPure e3 →
+    isPure (Laplace e1 e2 e3 (LitV LitUnit))
   | isPure_Val : ∀ v,
       isPureV v →
       isPure (Val v)
@@ -133,8 +139,12 @@ Proof.
   - intros. clear is_pure_isPure.
     induction e; try repeat (apply andb_prop in H as [H ?]);
     inversion H; try econstructor; eauto.
-    destruct e2; inversion H1. destruct v; inversion H1.
-    destruct l; inversion H1. econstructor. by apply IHe1.
+    + destruct e2; inversion H1. destruct v; inversion H1.
+      destruct l; inversion H1. econstructor. by apply IHe1.
+    + destruct e4; inversion H1. destruct v; inversion H1.
+      destruct l; inversion H1.
+      try repeat (apply andb_prop in H1 as [H1 ?]).
+      econstructor ; intuition auto.
   - intros. clear is_pureV_isPureV. 
     induction v; simpl in H; try repeat (apply andb_prop in H as [H ?]);
     econstructor; eauto.
@@ -154,14 +164,28 @@ Proof.
   induction e; simpl; auto; 
   try (case_decide; auto); simpl in H;
   try repeat (apply andb_prop in H as [H ?]);
-  subst; try (rewrite IHe1; auto); try(rewrite IHe2; auto).
+  subst; try (rewrite IHe1; auto); try(rewrite IHe2; auto); try(rewrite IHe3; auto); try(rewrite IHe4; auto).
   {  
     destruct e2; try by inversion H; simpl. 
     destruct v0; inversion H. 
     destruct l; inversion H. simpl. auto. 
     }
-  destruct e2; inversion H. rewrite H2. simpl. auto.
-  destruct v0; inversion H. destruct l; inversion H. auto.
+  - destruct e2; inversion H. rewrite H2. simpl. auto.
+    destruct v0; inversion H. destruct l; inversion H. auto.
+  - destruct e4; inversion H. rewrite H2. simpl. auto.
+    destruct v0; inversion H. destruct l; inversion H. auto.
+  - destruct e4; inversion H. rewrite H2. simpl. auto.
+    destruct v0; inversion H. destruct l; inversion H. auto.
+    rewrite H2.
+    try repeat (apply andb_prop in H as [H ?]). done.
+  - destruct e4; inversion H. rewrite H2. simpl. auto.
+    destruct v0; inversion H. destruct l; inversion H. auto.
+    rewrite H2.
+    try repeat (apply andb_prop in H as [H ?]). done.
+  - destruct e4; inversion H. rewrite H2. simpl. auto.
+    destruct v0; inversion H. destruct l; inversion H. auto.
+    rewrite H2.
+    try repeat (apply andb_prop in H as [H ?]). done.
 Qed.
 
 Lemma pure_head_step_inv (e e' : expr) (σ : state):
@@ -205,8 +229,13 @@ Definition is_pure_ectx (Ki : ectx_item) : bool :=
   | CaseCtx e1 e2 => is_pure e1 && is_pure e2
   | RandRCtx e => false
   | RandLCtx (LitV (LitUnit)) => true
+  | LaplaceNumCtx v2 v3 (LitV (LitUnit)) => is_pureV v2 && is_pureV v3
+  | LaplaceDenCtx e1 v3 (LitV (LitUnit)) => is_pure e1 && is_pureV v3
+  | LaplaceMeanCtx e1 e2 (LitV (LitUnit)) => is_pure e1 && is_pure e2
+  | LaplaceTapeCtx e1 e2 e3 => false
   | AllocNLCtx _ | AllocNRCtx _ | LoadCtx | StoreLCtx _ | StoreRCtx _ 
-  | AllocTapeCtx | RandLCtx _ => false
+  | AllocTapeCtx | AllocTapeLaplaceNumCtx _ _  | AllocTapeLaplaceDenCtx _ _  | AllocTapeLaplaceMeanCtx _ _
+  | RandLCtx _ | LaplaceDenCtx _ _ _ | LaplaceNumCtx _ _ _ | LaplaceMeanCtx _ _ _  => false
   | TickCtx => true
   end.
 
@@ -217,8 +246,10 @@ Lemma is_pure_fill_item e Ki :
 Proof.
   intros.
   destruct Ki; inversion H0; 
-  destruct e; inversion H; simpl; 
-  try (rewrite H2); auto; try (rewrite H3); auto.
+  destruct e; inversion H; simpl ;
+  try repeat (apply andb_prop in H2 as [H2 ?]) ;
+  try (rewrite H3); auto; try (rewrite H4); auto.
+  all: repeat rewrite andb_true_r. all: try by rewrite H2.
 Qed.
 
 Lemma is_pure_fill e Ki:
@@ -245,6 +276,8 @@ Proof.
   - inversion H2; subst; inversion H0; auto. inversion H1; subst; inversion H0; auto.
   - destruct e0; inversion H0; subst; auto.
     destruct e1; inversion H0; subst; auto.
+  - inversion H3; subst; auto; inversion H2; subst; inversion H1; subst; auto ; inversion H0.
+    all: auto.
 Qed.
 
 
@@ -271,7 +304,7 @@ Proof.
   inversion Hde. subst.
   assert (n = length l0).
   { 
-    rewrite app_length in Heqn. 
+    rewrite length_app in Heqn. 
     rewrite Nat.add_1_r in Heqn. auto.
   }
   apply (IHn _ _ _ Hde2 H0).
@@ -326,10 +359,18 @@ Proof.
       destruct e4; try by inversion H1. destruct v; try by inversion H1.
       destruct l; try by inversion H1. destruct e3; try by inversion H2.
     }
+    {
+      destruct e6; try inversion H2; subst; simpl in *; auto; bool_solve.
+      destruct v; try inversion H1; subst; simpl in *; auto; bool_solve.
+      destruct l; try inversion H1; subst; simpl in *; auto; bool_solve. simpl.
+      destruct e5 ; simplify_eq ; cbn ; try by (apply andb_true_intro ; split).
+      all: destruct e4 ; simplify_eq ; cbn ; try by (apply andb_true_intro ; split).
+      all: destruct e3 ; simplify_eq ; cbn ; try by (apply andb_true_intro ; split).
+    }
   }
   eapply IHn.
   - apply Hde2.
-  - rewrite app_length Nat.add_1_r in Heqn. by inversion Heqn.
+  - rewrite length_app Nat.add_1_r in Heqn. by inversion Heqn.
   - by eapply is_pure_head.
 Qed.
     
@@ -403,11 +444,23 @@ Proof.
   destruct e0; inv_head_step; 
   try (rewrite dmap_dzero; by rewrite !dzero_0);
   try (rewrite !dmap_dret /fill_lift; apply (dret_cfg_eq _ e' σ1 σ2)). 
+  {  erewrite !dmap_comp.
+     rewrite /fill_lift. simpl.
+     replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : fin (S (Z.to_nat n)), (_, σ1)) with (λ n0 : fin (S (Z.to_nat n)), (fill l #n0, σ1)).
+     2: by apply functional_extensionality.
+     replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : fin (S (Z.to_nat n)), (_, σ2)) with (λ n0 : fin (S (Z.to_nat n)), (fill l #n0, σ2)).
+     2: by apply functional_extensionality.
+     rewrite !dmap_unfold_pmf.
+     apply SeriesC_ext.
+     intros. case_bool_decide; case_bool_decide; auto.
+     - inversion H. subst e'. contradiction.
+     - inversion H0. subst e'. contradiction.
+  }
   erewrite !dmap_comp.
   rewrite /fill_lift. simpl.
-  replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : fin (S (Z.to_nat n)), (_, σ1)) with (λ n0 : fin (S (Z.to_nat n)), (fill l #n0, σ1)).
+  replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : Z, (_, σ1)) with (λ n0 : Z, (fill l #n0, σ1)).
   2: by apply functional_extensionality.
-  replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : fin (S (Z.to_nat n)), (_, σ2)) with (λ n0 : fin (S (Z.to_nat n)), (fill l #n0, σ2)).
+  replace ((λ '(e0, σ), (fill l e0, σ)) ∘ λ n0 : Z, (_, σ2)) with (λ n0 : Z, (fill l #n0, σ2)).
   2: by apply functional_extensionality.
   rewrite !dmap_unfold_pmf.
   apply SeriesC_ext.
@@ -428,6 +481,49 @@ Proof.
   subst. 
   erewrite pure_step_state; auto.
   apply Hs.
+Qed.
+
+Lemma pure_exec_state n e σ σ':
+  is_pure e = true -> 
+  exec n (e, σ) = exec n (e, σ').
+Proof.
+  revert e.
+  induction n; auto.
+  intros. simpl.
+  destruct (to_val e); auto.
+  apply distr_ext => v //=.
+  rewrite !dbind_unfold_pmf.
+  rewrite fubini_pos_seriesC_prod_lr; try real_solver.
+  2 : { apply pmf_ex_seriesC_mult_fn. by exists 1. }
+  rewrite fubini_pos_seriesC_prod_lr. 
+  2 : real_solver.
+  2 : { apply pmf_ex_seriesC_mult_fn. by exists 1. }
+  apply SeriesC_ext => e' //=.
+  erewrite <- (SeriesC_ext (λ b, if bool_decide (b = σ) then (if bool_decide (0 < step (e, σ) (e', σ)) then step (e, σ) (e', σ) * exec n (e', σ) v else 0) else 0)). 2 : {
+    intros. case_bool_decide; subst.
+    - case_bool_decide; try real_solver. 
+      symmetry. apply Rmult_eq_0_compat_r. simpl in *.
+      apply Rle_antisym; real_solver.
+    - symmetry. apply Rmult_eq_0_compat_r.
+      apply Rle_antisym; try real_solver.
+      destruct (decide (0 < step (e, σ) (e', n0))); try by simpl in *; real_solver.
+      by apply pure_state_step in r. 
+  }
+  rewrite SeriesC_singleton. 
+  erewrite <- (SeriesC_ext (λ b, if bool_decide (b = σ') then (if bool_decide (0 < step (e, σ') (e', σ')) then step (e, σ') (e', σ') * exec n (e', σ') v else 0) else 0)). 2 : {
+    intros. case_bool_decide; subst.
+    - case_bool_decide; try real_solver. 
+      symmetry. apply Rmult_eq_0_compat_r. simpl in *.
+      apply Rle_antisym; real_solver.
+    - symmetry. apply Rmult_eq_0_compat_r.
+      apply Rle_antisym; try real_solver.
+      destruct (decide (0 < step (e, σ') (e', n0))); try by simpl in *; real_solver.
+      by apply pure_state_step in r. 
+  } 
+  rewrite !SeriesC_singleton (pure_step_state e e' σ σ'); auto.
+  do 2 case_bool_decide; try real_solver.
+  rewrite IHn; auto.
+  by eapply pure_step_inv.
 Qed.
 
 Lemma pure_pterm n (e : expr) (σ σ' : state) :

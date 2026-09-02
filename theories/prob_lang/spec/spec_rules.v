@@ -106,8 +106,6 @@ Section rules.
     ⤇ fill K (rand(#lbl:l) #z) ∗ l ↪ₛ (N; n :: ns)
       ⊢ spec_update E (⤇ fill K #n ∗ l ↪ₛ (N; ns)).
   Proof.
-    Unset Printing Notations.
-    
     iIntros (->) "[HK Hl]". rewrite spec_update_unseal.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_auth_prog_agree with "[$][$]") as "->".
@@ -160,5 +158,74 @@ Section rules.
     by apply dret_1.
   Qed.
 
+  (** AllocTapeLaplace and Laplace (non-empty tape)  *)
+  Lemma step_alloctape_laplace E K (num den mean : Z) :
+    ⤇ fill K (AllocTapeLaplace #num #den #mean) ⊢ spec_update E (∃ l, ⤇ fill K (#lbl:l) ∗ l ↪Lₛ Tape_Laplace num den mean []).
+  Proof.
+    iIntros "HK". rewrite spec_update_unseal.
+    iIntros ([? σ]) "Hs".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "->".
+    iMod (spec_update_prog (fill K #(LitLbl (fresh_loc σ.(tapes_laplace)))) with "[$] [$]") as "[Hauth Hj]".
+    iMod (spec_auth_tape_laplace_alloc with "Hauth") as "[Hauth Hl]".
+    iModIntro. iExists _, 1. iFrame.
+    iPureIntro.
+    eapply stepN_det_step_ctx; [apply _| |]; last first.
+    { by apply dret_1_1. }
+    solve_step.
+  Qed.
+
+  Lemma step_laplace E K l (num den mean num' den' mean' : Z) n ns :
+    TCEq num num' →
+    TCEq den den' →
+    TCEq mean mean' →
+    ⤇ fill K (Laplace #num #den #mean (#lbl:l)) ∗ l ↪Lₛ Tape_Laplace num' den' mean' (n :: ns)
+      ⊢ spec_update E (⤇ fill K #n ∗ l ↪Lₛ Tape_Laplace num' den' mean' ns).
+  Proof.
+    iIntros (->->->) "[HK Hl]". rewrite spec_update_unseal.
+    iIntros ([? σ]) "Hs".
+    iDestruct (spec_auth_prog_agree with "[$][$]") as "->".
+    iMod (spec_update_prog (fill K #n) with "[$] [$]") as "[Hauth Hj]".
+    iDestruct (spec_auth_lookup_tape_laplace with "Hauth Hl") as %?.
+    iMod (spec_auth_update_tape_laplace with "Hauth Hl") as "[Hauth $]".
+    iModIntro. iExists (fill K #n, (state_upd_tapes_laplace <[l:=_]> σ)), 1.
+    iFrame.
+    iPureIntro.
+    eapply stepN_det_step_ctx; [apply _| |]; last first.
+    { by apply dret_1_1. }
+    solve_step. case_bool_decide; [|lia]. by apply dret_1_1.
+  Qed.
 
 End rules.
+
+
+From clutch.prob_lang.gwp Require Import gen_weakestpre.
+
+Notation spec_wp :=
+  (λ E e Ψ, ∀ K,
+      ⤇ fill K e -∗ spec_update E (∃ (v : val), ⤇ fill K v ∗ Ψ v))%I.
+
+Lemma gwp_mixin_spec `{!specG_prob_lang Σ, invGS_gen hasLc Σ} :
+  GenWpMixin false spec_wp (λ l dq v, l ↦ₛ{dq} v)%I.
+Proof.
+  constructor; intros.
+  - apply _.
+  - by iIntros "H" (?) "$".
+  - iIntros "H" (?) "Hs". by iMod ("H" with "[$Hs //]") as (?) "[$ >$]".
+  - iIntros "H" (?) "Hs". rewrite fill_comp.
+    iMod ("H" with "[$Hs //]") as (?) "[Hs Hcnt]". rewrite -fill_comp.
+    by iMod ("Hcnt" with "[$Hs //]").
+  - iIntros "H" (?) "Hs".
+    iMod (step_pure with "Hs") as "Hs"; [done|].
+    by iMod ("H" with "[$Hs //]").
+  - iIntros "H" (?) "Hs".
+    iMod (step_alloc with "Hs") as (l) "($ & Hl)".
+    by iApply "H".
+  - iIntros "Hl H" (?) "Hs".
+    iMod (step_load with "[$Hl $Hs]") as "($ & Hl)".
+    by iApply "H".
+  - iIntros "Hl H" (?) "Hs".
+    iMod (step_store with "[$Hl $Hs]") as "($ & Hl)".
+    by iApply "H".
+Qed.
+
+Canonical Structure gwp_spec `{!specG_prob_lang Σ, invGS_gen hasLc Σ} := Build_GenWp gwp_mixin_spec.

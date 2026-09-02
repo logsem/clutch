@@ -1,6 +1,6 @@
 From Coquelicot Require Import Lub Rbar Lim_seq.
 From clutch.con_prob_lang Require Import erasure notation.
-Require Import Reals.
+From Stdlib Require Import Reals.
 
 Set Default Proof Using "Type*".
 
@@ -84,7 +84,7 @@ Proof.
       rewrite /termination_n_prob/termination_prob.
       apply SeriesC_le; last done.
       intros; split; first done.
-      rewrite sch_lim_exec_unfold.
+      erewrite sch_lim_exec_unfold.
       apply Coquelicot_ext.rbar_le_finite.
       { eapply (is_finite_bounded 0 1).
       - eapply Sup_seq_minor_le. apply pmf_pos.
@@ -114,7 +114,7 @@ Proof.
     rewrite /lub_termination_n_prob.
     pose proof Lub_Rbar_correct (termination_n_prob' 0 e σ) as [H ?].
     etrans; last apply H; last first.
-    + rewrite /termination_n_prob'. by eexists (_;(_,(_;(_;(_;_))))).
+    + rewrite /termination_n_prob'. by eexists. 
     + simpl. rewrite /termination_n_prob. apply pmf_SeriesC_ge_0.
   - apply upper_bound_ge_sup.
     intros.
@@ -126,8 +126,9 @@ Proof.
     simpl. rewrite /termination_n_prob.
     apply pmf_SeriesC.
     Unshelve.
-    { apply unit. }
-    all: try apply _; try done.
-    + apply  {| scheduler_f := inhabitant |}.
-    + done. 
+    rewrite /termination_prob_type. 
+    eexists unit. constructor; [constructor|].
+    do 2 econstructor.
+    eexists  {| scheduler_f := inhabitant |}.
+    done. 
 Qed. 

@@ -188,12 +188,12 @@ Module LR_prf.
   Ltac2 prf_val typ k :=
     (* printf "entering prf_val, typ: %t" typ ; *)
     lazy_match! typ with
-    | (lrel_car lrel_input ?v1 ?v2) =>
+    | (lrel_car lrel_input _ _) =>
         (* printf "found `lrel_input %t %t`, unfolding" v1 v2 ; *)
         (* ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed *)
         let typ := eval unfold lrel_input in $typ in
           k typ
-    | (lrel_car lrel_output ?v1 ?v2) =>
+    | (lrel_car lrel_output _ _) =>
         (* printf "found `lrel_output %t %t`, unfolding" v1 v2 ; *)
         (* ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed *)
         let typ := eval unfold lrel_output in $typ in

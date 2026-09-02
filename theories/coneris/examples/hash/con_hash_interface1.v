@@ -138,7 +138,7 @@ Section test.
       + iFrame. iModIntro.
         iIntros. 
         iMod (hash_auth_insert with "[][$]") as "H"; first done; last first.
-        * iDestruct (hash_auth_duplicate with "[$]") as "#$"; first by rewrite lookup_insert.
+        * iDestruct (hash_auth_duplicate with "[$]") as "#$"; first by rewrite lookup_insert_eq.
           iFrame. iIntros. iFrame. by done.
         * rewrite big_sepL_cons. iDestruct "Hfrag" as "[$ ?]".        
     - iNext. iIntros (res) "[[??]|(%&->&->&#?&?)]".

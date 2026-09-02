@@ -1,9 +1,9 @@
 (** This file implements error credits *)
-From Coq Require Import Reals RIneq Psatz.
+From Stdlib Require Import Reals RIneq Psatz.
 From Coquelicot Require Import Lim_seq.
 From clutch.prelude Require Export base classical Reals_ext NNRbar.
 From iris.prelude Require Import options.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.algebra Require Export auth numbers.
 From iris.base_logic.lib Require Import iprop own.
 Import uPred.
@@ -36,7 +36,7 @@ Section nonnegreal.
     - destruct x, y => /=.
       destruct H as ((z & Hz) & H).
       rewrite nonnegreal_op /nnreal_plus in H.
-      simplify_eq. lra.
+      inversion H. lra.
     - destruct x as (x & Hx), y as (y & Hy).
       simpl in H.
       eexists ({| nonneg := y - x ; cond_nonneg := Rle_0_le_minus x y H |}).

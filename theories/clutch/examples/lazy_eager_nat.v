@@ -37,7 +37,7 @@ Section logical_ref.
 
   Definition coinN := nroot.@"coins".
 
-  (** lazy << lazy_with_tape << eager *)
+  (* lazy << lazy_with_tape << eager *)
   Lemma lazy_lazy_with_tape_rel :
     ⊢ REL lazy << lazy_with_tape : lrel_nat → () → lrel_nat.
   Proof.
@@ -116,7 +116,7 @@ Section logical_ref.
       iModIntro. iRight. iFrame.
   Qed.
 
-  (** eager << lazy_with_tape << lazy *)
+  (* eager << lazy_with_tape << lazy *)
   Lemma eager_lazy_with_tape_rel :
     ⊢ REL eager << lazy_with_tape : lrel_nat → () → lrel_nat.
   Proof.

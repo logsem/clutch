@@ -1,7 +1,7 @@
 (** * Higher order specification for incremental sampling algorithms *)
 From clutch.eris Require Export eris error_rules.
 From Coquelicot Require Import Series.
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 Set Default Proof Using "Type*".
 
@@ -49,7 +49,7 @@ Section finSeries.
     do 2 (rewrite foldr_app; simpl).
     apply IH; intros; apply Hf, elem_of_app.
     - by left.
-    - right; apply elem_of_list_here.
+    - right; apply list_elem_of_here.
   Qed.
 
   Lemma reindex_fin_series M z K (Hnm : (z < M)%nat):

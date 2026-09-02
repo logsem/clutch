@@ -141,7 +141,7 @@ Section rwp.
         apply not_elem_of_singleton_2.
         intros H2.
         apply loc_add_inj in H2.
-        rewrite replicate_length in H1.
+        rewrite length_replicate in H1.
         lia.
   Qed.
 
@@ -394,7 +394,7 @@ Section coupl.
     iIntros "Hclose".
     iApply (rwp_coupl_state_steps _ [α]).
     { done. }
-    { rewrite /= /get_active. intros ? ->%elem_of_list_singleton.
+    { rewrite /= /get_active. intros ? ->%list_elem_of_singleton.
       apply elem_of_elements, elem_of_dom; auto. }
     { rewrite /= dret_id_right. by apply Hcpl. }
     iIntros (σ2 m2 (n & ? & ->)).
@@ -440,7 +440,7 @@ Section coupl.
     { done. }
     { rewrite /= /get_active => α Hα. apply elem_of_elements, elem_of_dom.
       apply elem_of_cons in Hα as [-> |Hα]; [auto|].
-      apply elem_of_list_singleton in Hα as ->; auto. }
+      apply list_elem_of_singleton in Hα as ->; auto. }
     { rewrite /= dbind_assoc dret_id_right. by apply Hcpl. }
     iIntros (σ2 m2 (n1 & n2 & ? & ->)).
     iMod (spec_auth_update m2 with "Hm1A Hm1F") as "[HmA HmF]".

@@ -1,5 +1,5 @@
-From Coq Require Import Reals Psatz.
-From Coq.ssr Require Import ssreflect.
+From Stdlib Require Import Reals Psatz Classical.
+From Stdlib.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable finite.
 From clutch.prelude Require Export base stdpp_ext Reals_ext Coquelicot_ext Series_ext classical uniform_list.
@@ -120,7 +120,14 @@ Section distributions.
     f_equal; apply proof_irrelevance.
   Qed.
 
-
+  Lemma is_finite_Sup_seq_distr (f: nat -> distr A) (a:A):
+    is_finite (Sup_seq (λ n, f n a)).
+  Proof.
+    apply (Rbar_le_sandwich 0 1).
+    * by (apply (Sup_seq_minor_le _ _ 0%nat); simpl). 
+    * by (apply upper_bound_ge_sup; simpl).
+  Qed.
+  
   Lemma distr_ext_pmf (d1 d2 : distr A) :
     d1.(pmf)  = d2.(pmf) → d1 = d2.
   Proof.
@@ -755,6 +762,41 @@ Section monadic.
         real_solver.
   Qed.
 
+  
+  Lemma dbind_Sup_seq (f: nat -> A -> distr B) (f': A -> distr B) (μ:distr A) (b:B):
+    (∀ a, is_sup_seq (λ n, f n a b) (f' a b)) ->
+    (∀ n a, f n a b <= f (S n) a b) ->
+    (μ ≫= f') b = Sup_seq (λ n, (μ≫= λ a, f n a) b).
+  Proof.
+    intros H1 H2.
+    rewrite {1}/dbind{1}/dbind_pmf{1}/pmf.
+    trans (SeriesC (λ a, μ a * Sup_seq (λ n, f n a b))).
+    { apply SeriesC_ext.
+      intros a. f_equal.
+      pose proof H1 a.
+      symmetry.
+      apply eq_rbar_finite'.
+      by apply: is_sup_seq_unique.
+    }
+    trans (SeriesC (λ a, Sup_seq (λ n, μ a *  f n a b))).
+    { apply SeriesC_ext.
+      intros a.
+      apply eq_rbar_finite.
+      rewrite rmult_finite.
+      rewrite rbar_finite_real_eq; last apply is_finite_Sup_seq_distr.
+      by rewrite -Sup_seq_scal_l.
+    }
+    eapply MCT_seriesC.
+    - real_solver.
+    - intros. apply Rmult_le_compat_l; naive_solver.
+    - intros. exists 1. real_solver.
+    - intros. apply SeriesC_correct.
+      apply pmf_ex_seriesC_mult_fn.
+      naive_solver.
+    - rewrite rbar_finite_real_eq; first apply: Sup_seq_correct.
+      apply is_finite_Sup_seq_distr.
+  Qed.
+  
 End monadic.
 
 Section probabilities.
@@ -844,6 +886,41 @@ Section probability_lemmas.
     - by apply ex_seriesC_filter_bool_pos.
     - by apply ex_seriesC_filter_bool_pos.
   Qed.
+
+  Lemma prob_Sup_seq (μ: distr A) (μ': nat -> distr A) ϕ:
+    (∀ a, is_sup_seq (λ n, μ' n a) (μ a)) ->
+    (∀ n a, μ' n a <= μ' (S n) a) ->
+    prob μ ϕ = Sup_seq (λ n, prob (μ' n) ϕ).
+  Proof.
+    rewrite /prob.
+    intros H1 H2.
+    trans (SeriesC (λ a, Sup_seq (λ n, if ϕ a then μ' n a else 0))).
+    { apply SeriesC_ext.
+      intros a.
+      case_match.
+      - apply eq_rbar_finite.
+        symmetry.
+        by apply is_sup_seq_unique.
+      - by rewrite sup_seq_const.
+    }
+    eapply MCT_seriesC.
+    - intros. by case_match.
+    - intros. case_match; naive_solver.
+    - intros. exists 1. intros. case_match; [naive_solver|lra].
+    - intros.
+      apply SeriesC_correct.
+      by apply ex_seriesC_filter_bool_pos.
+    - rewrite rbar_finite_real_eq; first apply Sup_seq_correct.
+      apply (Rbar_le_sandwich 0 1).
+      + (apply (Sup_seq_minor_le _ _ 0%nat); simpl).
+        apply SeriesC_ge_0'. intros. by case_match.
+      + (apply upper_bound_ge_sup; simpl).
+        intros.
+        trans (SeriesC (μ' n)); last done.
+        apply SeriesC_le; last done.
+        intros.
+        by case_match.
+  Qed.    
 
 End probability_lemmas.
 
@@ -1099,6 +1176,16 @@ Section exp_val_prop.
     apply ex_seriesC_singleton.
   Qed.
 
+  Lemma Expval_support μ f c:
+    Expval μ f = Expval μ (λ a, if bool_decide (μ a > 0)%R then f a else c).
+  Proof.
+    rewrite /Expval.
+    apply SeriesC_ext.
+    intros. case_bool_decide; first lra.
+    pose proof pmf_pos μ n.
+    assert (μ n = 0) as ->; lra.
+  Qed. 
+
   Lemma Expval_dret f a :
     Expval (dret a) f = f a.
   Proof.
@@ -1132,6 +1219,20 @@ Section exp_val_prop.
     intros Hleq Hex.
     apply (ex_seriesC_le _ (λ x, μ x * g x)); auto.
     intro x; specialize (Hleq x); real_solver.
+  Qed.
+
+  
+  Lemma ex_expval_unit (μ : distr A) (f : A -> R):
+    (∀ a, 0 <= f a <= 1) ->
+    ex_expval μ f.
+  Proof.
+    intros H1.
+    eapply ex_expval_le.
+    - exact H1.
+    - unfold ex_expval. 
+      eapply ex_seriesC_ext.
+      { intros. by rewrite Rmult_1_r. }
+      done.
   Qed.
 
 
@@ -1506,7 +1607,7 @@ Section dmap.
     - rewrite prob_dret_false; auto.
       real_solver.
   Qed.
-    
+
 End dmap.
 
 Lemma dbind_dmap_inj_rearrange `{Countable A}`{Countable B} {C:Type} `{Countable C} `{Countable D} (μ : distr A) (μ' : distr C) (f : A -> B) (g: (B*C) -> D) :
@@ -1917,6 +2018,20 @@ Section dzero.
   Lemma dbind_dzero `{Countable B} (f : A → distr B) :
     (a ← dzero; f a) = dzero.
   Proof. apply distr_ext, dbind_dzero_pmf. Qed.
+
+  Lemma dbind_dzero_strong `{Countable B} (μ : distr A) (f : A → distr B):
+    (∀ a, μ a > 0 -> f a = dzero) ->
+    (a ← μ; f a) = dzero.
+  Proof.
+    intros H1.
+    apply distr_ext.
+    intros.
+    rewrite {2}/pmf/=.
+    apply: SeriesC_0 => x.
+    destruct (pmf_pos μ x) as [|<-]; last lra.
+    rewrite H1; last lra.
+    rewrite /dzero{2}/pmf. lra.
+  Qed. 
 
   Lemma dmap_dzero `{Countable B} (f : A → B):
     dmap f dzero = dzero.
@@ -2436,7 +2551,7 @@ Section uniform.
       + rewrite SeriesC_scal_l.
         rewrite SeriesC_fin_in_set.
         * rewrite size_list_to_set.
-          -- rewrite fmap_length.
+          -- rewrite length_fmap.
              rewrite fin.length_enum_fin. rewrite Rinv_l; first lra.
              replace 0 with (INR 0) by done.
              move => /INR_eq. lia.
@@ -2444,14 +2559,14 @@ Section uniform.
              ++ eapply compose_inj; last done. apply fin_to_nat_inj.
              ++ replace (fin_enum _) with (enum (fin (S M))); last done.
                 apply NoDup_enum.
-        * intros ?. rewrite elem_of_list_to_set elem_of_list_fmap.
+        * intros ?. rewrite elem_of_list_to_set list_elem_of_fmap.
           intros [?[]]. subst.
           simpl. apply Hbound. apply fin_to_nat_lt.
       + intros n'.
         case_bool_decide as H'.
         * destruct H' as [m' H'].
           rewrite bool_decide_eq_true_2; last first.
-          { rewrite elem_of_list_to_set elem_of_list_fmap.
+          { rewrite elem_of_list_to_set list_elem_of_fmap.
             eexists m'. split; first naive_solver.
             replace (fin_enum _) with (enum (fin (S M))); last done.
             apply elem_of_enum.
@@ -2478,7 +2593,7 @@ Section uniform.
         * rewrite dret_0; last first.
           { intro H''. apply H'. subst. naive_solver. }
           rewrite bool_decide_eq_false_2; first lra.
-          rewrite elem_of_list_to_set elem_of_list_fmap.
+          rewrite elem_of_list_to_set list_elem_of_fmap.
           intros [?[]].
           apply H'. naive_solver.
     - erewrite (SeriesC_ext _ (dret n)); first apply dret_mass.
@@ -2500,6 +2615,114 @@ Section uniform.
   Qed.
   
 End uniform.
+
+(** Uniform from a gset *)
+Section uniform_set.
+  Context `{Countable A}.
+  Program Definition unif_set (s:gset A) : distr (A) :=
+    MkDistr (λ x, if bool_decide (x ∈ s) then / size (s) else 0) _ _ _.
+  Next Obligation.
+    intros. simpl.
+    case_bool_decide; last lra.
+    destruct (size _); first (cbv; rewrite Rinv_0; lra).
+    left.
+    apply RinvN_pos'.
+  Qed.
+  Next Obligation.
+    intros.
+    eapply (ex_seriesC_ext (λ x, if bool_decide (x∈elements s) then _ else _)).
+    { intros.
+      case_bool_decide as H1; rewrite elem_of_elements in H1.
+      - by rewrite bool_decide_eq_true_2.
+      - by rewrite bool_decide_eq_false_2.
+    }
+    apply ex_seriesC_list.
+  Qed. 
+  Next Obligation.
+    intros s.
+    erewrite (SeriesC_ext _ (λ x, if bool_decide (x∈elements s) then _ else _)); last first. 
+    { intros.
+      symmetry. 
+      case_bool_decide as H1; rewrite elem_of_elements in H1.
+      - by rewrite bool_decide_eq_true_2.
+      - by rewrite bool_decide_eq_false_2.
+    }
+    rewrite SeriesC_list_2; last apply NoDup_elements.
+    replace (length _) with (size s) by done.
+    destruct (size _) eqn :?.
+    - cbv. rewrite Rinv_0; lra.
+    - replace (_*_) with (S n / S n) by lra.
+      right.
+      apply Rdiv_diag.
+      apply not_0_INR.
+      lia.
+  Qed.
+
+  Lemma unif_set_mass s:
+    s ≠ ∅ -> SeriesC (unif_set s) = 1.
+  Proof.
+    intros Hs.
+    rewrite /unif_set/pmf.
+    erewrite (SeriesC_ext _ (λ x, if bool_decide (x∈elements s) then _ else _)); last first. 
+    { intros.
+      symmetry. 
+      case_bool_decide as H1; rewrite elem_of_elements in H1.
+      - by rewrite bool_decide_eq_true_2.
+      - by rewrite bool_decide_eq_false_2.
+    }
+    rewrite SeriesC_list_2; last apply NoDup_elements.
+    replace (length _) with (size s) by done.
+    destruct (size _) eqn :Hsize.
+    - exfalso. apply Hs.
+      apply size_empty_inv in Hsize.
+      set_solver.
+    - replace (_*_) with (S n / S n) by lra.
+      apply Rdiv_diag.
+      apply not_0_INR.
+      lia.
+  Qed.
+
+  Lemma unif_set_pos s x:
+    unif_set s x > 0 <-> s≠∅ /\ x ∈ s.
+  Proof.
+    split.
+    - rewrite /unif_set/pmf.
+      case_bool_decide; last lra.
+      intros.
+      split; last done.
+      intros ->.
+      set_solver.
+    - intros [H1 H2].
+      rewrite /unif_set/pmf.
+      rewrite bool_decide_eq_true_2; last done.
+      destruct (size _) eqn :Hsize.
+      + exfalso.
+        apply H1.
+        apply size_empty_iff in Hsize. set_solver.
+      + apply Rlt_gt.
+        apply RinvN_pos'.
+  Qed.
+
+  Lemma unif_set_compute s x:
+    x ∈ s ->
+    unif_set s x = /size s.
+  Proof.
+    intros.
+    rewrite /unif_set/pmf.
+    by rewrite bool_decide_eq_true_2.
+  Qed.
+
+  
+  Lemma unif_set_compute' s x:
+    x ∉ s ->
+    unif_set s x = 0.
+  Proof.
+    intros.
+    rewrite /unif_set/pmf.
+    by rewrite bool_decide_eq_false_2.
+  Qed. 
+    
+End uniform_set.
 
 (** Uniform fin lists *)
 Section uniform_fin_lists.
@@ -2659,7 +2882,7 @@ Section laplace.
   Program Definition laplace' ε : distr (Z) :=
     MkDistr (λ z, laplace_f ε z / SeriesC (λ z, laplace_f ε z)) _ _ _.
   Next Obligation.
-    intros. rewrite /laplace_f.
+    intros.
     apply Rdiv_le_0_compat.
     - left. apply exp_pos.
     - eapply Rlt_le_trans; last eapply (SeriesC_ge_elem _ 0%Z).
@@ -2733,7 +2956,118 @@ Section laplace.
       erewrite (SeriesC_ext _ (λ b, if bool_decide (b=n-m)%Z then laplace' ε b else 0)); first by rewrite SeriesC_singleton_dependent.
       intros. repeat case_bool_decide; try lia; done.
   Qed.
+
+  Lemma laplace_mass ε loc :
+    SeriesC (laplace ε loc) = 1.
+  Proof.
+    rewrite /laplace/pmf/laplace'.
+    rewrite SeriesC_scal_r.
+    cut (SeriesC (λ z0 : Z, laplace_f ε (z0 - loc)) = SeriesC (λ z1 : Z, laplace_f ε z1)).
+    { intros ->. apply Rdiv_diag.
+      cut (0 < SeriesC (λ z0 : Z, laplace_f ε z0)) ; [lra|].
+      opose proof (ex_seriesC_laplace_f ε).
+      rewrite /laplace_f/laplace_f_nat.
+      rewrite -(@dzero_mass Z _ _).
+      apply SeriesC_lt.
+      -- intros. split.
+         ++ rewrite dzero_0. done.
+         ++ rewrite dzero_0. left. apply exp_pos.
+      -- simpl. exists 0%Z. rewrite dzero_0. apply exp_pos.
+      -- done.
+    }
+    apply SeriesC_translate.
+    { intros. rewrite /laplace_f/laplace_f_nat. left. apply exp_pos. }
+    apply ex_seriesC_laplace_f.
+  Qed.
+
+  Definition laplace_rat (num den loc : Z) : distr Z
+    :=
+    match decide (0 < IZR num / IZR den)%R with
+    | left εpos => laplace (mkposreal (IZR num / IZR den) εpos) loc
+    | right nεpos => dret loc
+    end.
+
+  Lemma laplace_rat_pos (num den loc : Z) z :
+    (0 < IZR num / IZR den ∨ loc = z) →
+    laplace_rat num den loc z > 0.
+  Proof.
+    rewrite /laplace_rat.
+    case_decide => //.
+    {
+    intros.
+    rewrite /laplace. rewrite /pmf. rewrite /laplace'.
+    apply Rdiv_lt_0_compat.
+    - rewrite /laplace_f/laplace_f_nat. apply exp_pos.
+    - epose proof (ex_seriesC_laplace_f {| cond_pos := _ |}).
+      rewrite /laplace_f/laplace_f_nat.
+      rewrite -(@dzero_mass Z _ _). apply SeriesC_lt.
+      + intros. split.
+        * rewrite dzero_0. done.
+        * rewrite dzero_0. left. apply exp_pos.
+      + simpl. exists 0%Z. rewrite dzero_0. apply exp_pos.
+      + eassumption.
+    }
+    intros [] => //. simplify_eq. apply Rlt_gt. rewrite ((iffLR (dret_1 z z))) => //. lra.
+  Qed.
+
+  Corollary laplace_rat_mass num den loc :
+    SeriesC (laplace_rat num den loc) = 1.
+  Proof.
+    rewrite /laplace_rat. case_decide.
+    - apply laplace_mass.
+    - apply dret_mass.
+  Qed.
+
 End laplace.
+
+Section proj_Some.
+  Context `{Countable A}.
+  Definition d_proj_Some (x:option A) :=
+    match x with
+    | Some a => dret a
+    | None => dzero
+    end.
+
+  Lemma d_proj_Some_pos x y:
+    d_proj_Some x y > 0 <-> x = Some y.
+  Proof.
+    rewrite /d_proj_Some.
+    case_match; subst.
+    - split.
+      + intros ?%dret_pos. by subst.
+      + intros. simplify_eq.
+        rewrite dret_1_1; [lra|done].
+    - rewrite dzero_0; split; [lra|done].
+  Qed.
+
+  Lemma d_proj_Some_None :
+    d_proj_Some None = dzero.
+  Proof.
+    done.
+  Qed.
+
+End proj_Some.
+
+Section proj_Some_lemmas.
+  Lemma d_proj_Some_bind `{Countable A} `{Countable B} (x : option A) (f : A -> option B):
+    d_proj_Some (mbind f x) =
+    dbind (λ x', d_proj_Some (f x')) (d_proj_Some x).
+  Proof.
+    destruct x; simpl.
+    - by rewrite dret_id_left'.
+    - by rewrite dbind_dzero.
+  Qed.
+  
+  Lemma d_proj_Some_fmap `{Countable A} `{Countable B} (x : option A) (f : A -> B):
+    d_proj_Some (f <$> x) =
+    dbind (λ x', dret (f x')) (d_proj_Some x).
+  Proof.
+    destruct x; simpl.
+    - by rewrite dret_id_left'.
+    - by rewrite dbind_dzero.
+  Qed.
+  
+End proj_Some_lemmas.
 
 Ltac inv_distr :=
   repeat
@@ -2742,6 +3076,10 @@ Ltac inv_distr :=
     | H : (dret _).(pmf) _ > 0 |- _ => apply dret_pos in H; simplify_eq
     | H : (dbind _ _).(pmf) _ > 0 |- _ => apply dbind_pos in H as (?&?&?)
     | H : (dmap _ _).(pmf) _ > 0 |- _ => apply dmap_pos in H as (?&?&?); simplify_eq
+    | H:  (d_proj_Some _).(pmf) _ > 0 |- _ => apply d_proj_Some_pos in H
+    | H : ((laplace_rat ?num ?den _).(pmf) _) > 0 |- _
+      => rewrite /laplace_rat in H ;
+         destruct (decide (0 < IZR num / IZR den)) ; [|inv_distr]
     end.
 
 Ltac solve_distr :=
@@ -2754,6 +3092,9 @@ Ltac solve_distr :=
         apply dmap_pos; eexists; (split; [done|]); try done
     | |- (dunifP _).(pmf) _ > 0 => apply dunifP_pos
     | |- (dunifv _ _).(pmf) _ > 0 => apply dunifv_pos
+    | |- (unif_set _).(pmf) _ > 0 => apply unif_set_pos
+    | |- (laplace_rat _ _ _).(pmf) _ > 0 => apply laplace_rat_pos
+    | |- (d_proj_Some _).(pmf) _ > 0 => rewrite d_proj_Some_pos
     end.
 
 Ltac solve_distr_mass :=
@@ -2764,6 +3105,8 @@ Ltac solve_distr_mass :=
   | |- SeriesC (dunif _).(pmf) = 1 => rewrite dunif_mass //
   | |- SeriesC (dunifP _).(pmf) = 1 => rewrite dunifP_mass //
   | |- SeriesC (dunifv _ _).(pmf) = 1 => rewrite dunifv_mass //
+  | |- SeriesC (unif_set _).(pmf) = 1 => rewrite unif_set_mass //
+  | |- SeriesC (laplace_rat _ _ _).(pmf) = 1 => rewrite laplace_rat_mass //
   end .
 
 Ltac inv_dzero :=
@@ -2773,3 +3116,274 @@ Ltac inv_dzero :=
     | H : dmap _ _ = dzero |- _ => apply dmap_dzero_inv in H
     | H : dunifP _ = dzero |- _ => by apply dunifP_not_dzero in H
     end.
+
+(** * Staircase / layer-integral approximation *)
+
+Lemma Rinv_0_le (r : R) : 0 <= r -> 0 <= / r.
+Proof.
+  intros Hr.
+  destruct (decide (r = 0)) as [->|Hne].
+  - rewrite Rinv_0. lra.
+  - left. apply Rinv_pos. lra.
+Qed.
+
+Lemma SeriesC_indicator_le `{Countable A} (μ : distr A) (P Q : A -> Prop) :
+  (∀ a, P a -> Q a) ->
+  SeriesC (λ a, if @bool_decide (P a) (make_decision _) then μ a else 0) <=
+    SeriesC (λ a, if @bool_decide (Q a) (make_decision _) then μ a else 0).
+Proof.
+  intros HPQ. apply SeriesC_le.
+  - intro a. split.
+    + destruct (bool_decide (P a)); [apply pmf_pos | lra].
+    + case_bool_decide as HP; case_bool_decide as HQ; try lra.
+      * exfalso. exact (HQ (HPQ a HP)).
+      * apply pmf_pos.
+  - eapply ex_seriesC_le. 2: apply pmf_ex_seriesC.
+    intro a. case_bool_decide; real_solver.
+Qed.
+
+(** [step_approx n u a] is the [1/n]-grid staircase approximation of [u a] from below:
+      step_approx n u a = (1/n) * #{k ∈ {0,...,n−1} | (k+1)/n <= u a}. *)
+Definition step_approx `{Countable A} (n : nat) (u : A -> R) : A -> R :=
+  λ a,
+    / INR n *
+      sum_f_R0 (λ k, if @bool_decide (INR (S k) / INR n <= u a) (make_decision _) then 1 else 0) (pred n).
+
+Lemma ex_seriesC_sum_f_R0 `{Countable A} (F : nat -> A -> R) n :
+  (∀ k, (k <= n)%nat -> ex_seriesC (F k)) ->
+  ex_seriesC (λ a, sum_f_R0 (λ k, F k a) n).
+Proof.
+  intros HF. induction n as [|n IHn].
+  - simpl. replace (λ a : A, F 0%nat a) with (F 0%nat) by done.
+    exact (HF 0%nat (Nat.le_refl _)).
+  - setoid_rewrite tech5.
+    eapply ex_seriesC_ext.
+    2: apply ex_seriesC_plus.
+    + intros a. done.
+    + apply IHn. intros k Hk. apply HF. lia.
+    + replace (λ a : A, F (S n) a) with (F (S n)) by done. apply HF. lia.
+Qed.
+
+Lemma SeriesC_sum_f_R0 `{Countable A} (F : nat -> A -> R) n :
+  (∀ k, (k <= n)%nat -> ex_seriesC (F k)) ->
+  SeriesC (λ a, sum_f_R0 (λ k, F k a) n) = sum_f_R0 (λ k, SeriesC (F k)) n.
+Proof.
+  intros HF. induction n as [|n IHn].
+  - simpl. replace (λ a : A, F 0%nat a) with (F 0%nat) by done. done.
+  - rewrite tech5 SeriesC_plus.
+    + rewrite IHn //. intros k Hk. apply HF. lia.
+    + apply ex_seriesC_sum_f_R0. intros k Hk. apply HF. lia.
+    + apply HF. lia.
+Qed.
+
+Lemma SeriesC_step_approx `{Countable A} (μ : distr A) (n : nat) (u : A -> R) :
+  (0 < n)%nat ->
+  SeriesC (λ a, μ a * step_approx n u a) =
+  / INR n *
+    sum_f_R0 (λ k, SeriesC (λ a, if @bool_decide (INR (S k) / INR n <= u a) (make_decision _) then μ a else 0))
+      (pred n).
+Proof.
+  intro Hn. rewrite /step_approx.
+  trans (SeriesC
+           (λ a, / INR n * (μ a * sum_f_R0 (λ k, if @bool_decide (INR (S k) / INR n <= u a) (make_decision _) then 1 else 0) (pred n)))).
+  { apply SeriesC_ext. intros. lra. }
+  rewrite SeriesC_scal_l. f_equal.
+  set (F := λ k a, if @bool_decide (INR (S k) / INR n <= u a) (make_decision _) then μ a else 0).
+  rewrite -(SeriesC_sum_f_R0 F (pred n)).
+  2:{ intros k _. eapply ex_seriesC_le. 2: apply pmf_ex_seriesC.
+      intro a. rewrite /F. case_bool_decide; real_solver. }
+  apply SeriesC_ext. intro a. rewrite /F scal_sum.
+  apply sum_eq. intros k.
+  destruct (@bool_decide (INR (S k) / INR n <= u a) (make_decision _)); simpl; lra.
+Qed.
+
+Lemma step_approx_le `{Countable A} (n : nat) (u v : A -> R) :
+  (∀ a, u a <= v a) -> ∀ a, step_approx n u a <= step_approx n v a.
+Proof.
+  intros Huv a. rewrite /step_approx.
+  apply Rmult_le_compat_l. { apply Rinv_0_le. apply pos_INR. }
+  apply sum_growing. intro k.
+  destruct (bool_decide (INR (S k) / INR n <= u a)) eqn:Hu;
+  destruct (bool_decide (INR (S k) / INR n <= v a)) eqn:Hv; simpl; try lra.
+  exfalso. apply bool_decide_eq_true_1 in Hu. apply bool_decide_eq_false_1 in Hv.
+  apply Hv. etrans ; [eassumption | apply Huv].
+Qed.
+
+(** [threshold_count n x] = #{k ∈ {0,...,n-1} | (k+1)/n <= x}. *)
+Definition threshold_count (n : nat) (x : R) : R :=
+  sum_f_R0 (λ k, if @bool_decide (INR (S k) / INR n <= x) (make_decision _) then 1 else 0) (pred n).
+
+Lemma threshold_bool_iff (n k : nat) (x : R) :
+  (0 < n)%nat -> 0 <= x <= 1 -> (k <= pred n)%nat ->
+  (INR (S k) / INR n <= x <-> (Z.of_nat (S k) <= up (INR n * x) - 1)%Z).
+Proof.
+  intros Hn Hx Hk.
+  set (r := INR n * x).
+  assert (HnR : 0 < INR n) by (apply lt_0_INR; lia).
+  destruct (archimed r) as [Hup_gt Hup_gap].
+  split.
+  - intros Hthr.
+    assert (Hmul : INR (S k) <= r).
+    { rewrite /r. apply (Rmult_le_reg_l (INR n)). 1: lra.
+      apply Rmult_le_compat_l. 1: lra.
+      rewrite Rmult_comm. apply Rle_div_l. 1: lra. done. }
+    assert (Hlt : INR (S k) < IZR (up r)) by lra.
+    rewrite INR_IZR_INZ in Hlt. apply lt_IZR in Hlt.
+    lia.
+  - intros Hz.
+    assert (Hle : IZR (Z.of_nat (S k)) <= IZR (up r - 1)) by (apply IZR_le; exact Hz).
+    assert (Hmul : INR (S k) <= r).
+    { rewrite INR_IZR_INZ. etrans. 1: exact Hle. rewrite minus_IZR. lra. }
+    rewrite /r in Hmul. apply (Rmult_le_reg_l (INR n)). 1: lra.
+    apply Rmult_le_compat_l. 1: lra.
+    apply Rle_div_l. 1: lra. lra.
+Qed.
+
+Lemma sum_prefix_ones (m N : nat) :
+  (m <= S N)%nat ->
+  sum_f_R0 (λ k, if @bool_decide (S k <= m)%nat (make_decision _) then 1 else 0) N = INR m.
+Proof.
+  intros Hm. induction N as [|N IHN].
+  - destruct m; simpl in *. { case_bool_decide ; auto ; lia. }
+    destruct m; case_bool_decide ; intuition lia.
+  - rewrite tech5.
+    destruct (decide (S (S N) <= m)%nat) as [Hlast|Hlast].
+    + assert (m = S (S N)) by lia. subst.
+      rewrite bool_decide_eq_true_2. 2: lia.
+      trans (sum_f_R0 (λ _ : nat, 1) N + 1).
+      { f_equal. apply sum_eq. intros k Hk. rewrite bool_decide_eq_true_2 //. lia. }
+      rewrite sum_cte. real_solver.
+    + rewrite IHN. 2: lia.
+      rewrite bool_decide_eq_false_2. 2: lia. lra.
+Qed.
+
+(** [threshold_count n x = up(n*x) - 1] for [x ∈ [0,1]]. *)
+Lemma threshold_count_closed (n : nat) (x : R) :
+  (0 < n)%nat -> 0 <= x <= 1 ->
+  threshold_count n x = IZR (up (INR n * x) - 1).
+Proof.
+  intros Hn Hx. rewrite /threshold_count.
+  set (m := Z.to_nat (up (INR n * x) - 1)).
+  assert (Hm_nonneg : (0 <= up (INR n * x) - 1)%Z).
+  { destruct (archimed (INR n * x)) as [Hgt _].
+    apply Z.sub_nonneg.
+    destruct (Z_lt_ge_dec (up (INR n * x)) 1) as [Hz|Hz].
+    - exfalso. assert (IZR (up (INR n * x)) <= 0) as Hle by (apply IZR_le; lia).
+      assert (Hnx : (0 <= INR n * x)%R) by real_solver. lra.
+    - lia. }
+  rewrite (sum_eq _ (λ k, if @bool_decide (S k <= m)%nat (make_decision _) then 1 else 0) (pred n)).
+  2:{ intros k Hk.
+      destruct (@bool_decide (INR (S k) / INR n <= x) (make_decision _)) eqn:H1;
+        destruct (@bool_decide (S k <= m)%nat (make_decision _)) eqn:H2; try done; exfalso.
+      - apply bool_decide_eq_true_1 in H1. apply bool_decide_eq_false_1 in H2. apply H2.
+        apply Nat2Z.inj_le. rewrite Z2Nat.id //.
+        exact (proj1 (threshold_bool_iff n k x Hn Hx Hk) H1).
+      - apply bool_decide_eq_false_1 in H1. apply bool_decide_eq_true_1 in H2. apply H1.
+        apply (threshold_bool_iff n k x Hn Hx Hk).
+        rewrite Nat2Z.inj_le Z2Nat.id // in H2. }
+  assert (Hm_le_n : (m <= n)%nat).
+  { apply Nat2Z.inj_le. rewrite Z2Nat.id //.
+    destruct (archimed (INR n * x)) as [_ Hgap].
+    assert (INR n * x <= INR n) as Hnx by real_solver.
+    assert ((up (INR n * x) <= Z.of_nat n + 1)%Z) as Hup_leZ.
+    { destruct (Z_le_gt_dec (up (INR n * x)) (Z.of_nat n + 1)) as [Hz|Hz]. { done. }
+      exfalso.
+      assert (IZR (Z.of_nat n + 1) < IZR (up (INR n * x)))%R.
+      { apply IZR_lt. lia. }
+      revert H.
+      assert (IZR (Z.of_nat n + 1) = INR n + 1)%R as ->. 2: lra.
+      rewrite plus_IZR. rewrite INR_IZR_INZ. lra.
+    }
+    lia.
+  }
+  rewrite (sum_prefix_ones m (pred n)).
+  2: { destruct n; simpl in *; lia. }
+  rewrite /m INR_IZR_INZ Z2Nat.id //.
+Qed.
+
+(** Sandwich bound: [x - 1/n ≤ (1/n) * threshold_count n x <= x]. *)
+Lemma threshold_count_sandwich (n : nat) (x : R) :
+  (0 < n)%nat -> 0 <= x <= 1 ->
+  let m := threshold_count n x in
+  x - / INR n <= / INR n * m <= x.
+Proof.
+  intros Hn Hx. rewrite threshold_count_closed //.
+  destruct (archimed (INR n * x)) as [Hgt Hgap].
+  assert (INR n > 0) as HnR by (apply lt_0_INR; lia).
+  assert (INR n <> 0) as Hne by lra.
+  split.
+  - apply (Rmult_le_reg_l (INR n)). 1: lra.
+    rewrite Rmult_minus_distr_l -Rmult_assoc Rinv_r // Rmult_1_l minus_IZR. lra.
+  - apply (Rmult_le_reg_l (INR n)). 1: lra.
+    rewrite -Rmult_assoc Rinv_r // Rmult_1_l minus_IZR. lra.
+Qed.
+
+Lemma step_approx_bounds_strong `{Countable A} (n : nat) (u : A -> R) :
+  (0 < n)%nat -> (∀ a, 0 <= u a <= 1) -> ∀ a, u a - / INR n <= step_approx n u a <= u a.
+Proof.
+  intros Hn Hu a. exact (threshold_count_sandwich n (u a) Hn (Hu a)).
+Qed.
+
+Lemma step_approx_bounds `{Countable A} (n : nat) (u : A -> R) :
+  (0 < n)%nat -> (∀ a, 0 <= u a <= 1) -> ∀ a, 0 <= step_approx n u a <= u a.
+Proof.
+  intros Hn Hu a. split.
+  - rewrite /step_approx. apply Rmult_le_pos. { apply Rinv_0_le. apply pos_INR. }
+    apply cond_pos_sum. intros k. case_bool_decide; lra.
+  - exact (step_approx_bounds_strong n u Hn Hu a).2.
+Qed.
+
+Lemma SeriesC_step_approx_upper `{Countable A} (μ : distr A) (n : nat) (u : A -> R) :
+  (0 < n)%nat -> (∀ a, 0 <= u a <= 1) ->
+  SeriesC (λ a, μ a * step_approx n u a) <= SeriesC (λ a, μ a * u a).
+Proof.
+  intros Hn Hu. apply SeriesC_le.
+  - intro a.
+    destruct (step_approx_bounds_strong n u Hn Hu a) as [? Hub].
+    split.
+    + apply Rmult_le_pos. { apply pmf_pos. }
+      apply (step_approx_bounds n u Hn Hu a).
+    + exact (Rmult_le_compat_l _ _ _ (pmf_pos μ a) Hub).
+  - eapply ex_seriesC_le. 2: apply (pmf_ex_seriesC μ).
+    intro a.
+    destruct (step_approx_bounds_strong n u Hn Hu a) as [? Hub]. real_solver.
+Qed.
+
+Lemma SeriesC_step_approx_lower `{Countable A} (μ : distr A) (n : nat) (u : A -> R) :
+  (0 < n)%nat -> (∀ a, 0 <= u a <= 1) ->
+  SeriesC (λ a, μ a * u a) - / INR n <= SeriesC (λ a, μ a * step_approx n u a).
+Proof.
+  intros Hn Hu.
+  assert (0 <= / INR n <= 1) as Hc.
+  { split.
+    - apply Rinv_0_le. apply pos_INR.
+    - apply Rmult_le_reg_l with (r := INR n). { apply lt_0_INR. lia. }
+      rewrite Rmult_1_r Rinv_r. 2: apply not_0_INR; lia.
+      rewrite INR_IZR_INZ. apply IZR_le. lia. }
+  assert (ex_seriesC (λ a, μ a * u a)) as Hex_u.
+  { apply pmf_ex_seriesC_mult_fn. exists 1. exact Hu. }
+  assert (ex_seriesC (λ a, μ a * / INR n)) as Hex_c.
+  { apply (ex_seriesC_scal_r _ (/ INR n)). apply pmf_ex_seriesC. }
+  assert (ex_seriesC (λ a, μ a * step_approx n u a)) as Hex_step.
+  {
+    pose proof (pmf_ex_seriesC μ) as Hex.
+    eapply ex_seriesC_le. 2: exact Hex.
+    intros a. pose proof (step_approx_bounds n u Hn Hu a) as [Hlo Hhi].
+    split.
+    - apply Rmult_le_pos; [apply pmf_pos|exact Hlo].
+    - replace (μ a) with (μ a * 1) at 2 by lra. apply Rmult_le_compat_l. 1: real_solver.
+      etrans. 1: eassumption. apply Hu.
+  }
+  assert (SeriesC (λ a, μ a * u a) <= SeriesC (λ a, μ a * step_approx n u a + μ a * / INR n)) as Hsum.
+  { apply SeriesC_le.
+    2: apply ex_seriesC_plus; assumption.
+    intro a.
+    destruct (step_approx_bounds_strong n u Hn Hu a) as [Hlo ?].
+    split; [real_solver | rewrite -Rmult_plus_distr_l; real_solver]. }
+  rewrite SeriesC_plus // in Hsum.
+  assert (SeriesC (λ a, μ a * / INR n) <= / INR n) as Hmass.
+  2: lra.
+  rewrite SeriesC_scal_r. etrans.
+  2: right ; apply Rmult_1_l.
+  apply Rmult_le_compat_r. 2: series. apply Hc.
+Qed.

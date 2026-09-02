@@ -1,10 +1,10 @@
 From stdpp Require Import tactics.
 From discprob.basic Require Import base order nify.
-Require Import Ranalysis5.
-Require Import Reals Fourier FunctionalExtensionality.
+From Stdlib Require Import Ranalysis5.
+From Stdlib Require Import Reals Fourier FunctionalExtensionality.
 From Coquelicot Require Export Rcomplements Rbar Series Lim_seq Hierarchy Markov Continuity ElemFct.
-Require Import List.
-Require Import Psatz Lia.
+From Stdlib Require Import List.
+From Stdlib Require Import Psatz Lia.
 
 
 Local Notation "x ≤ y" := (Rle x y) (at level 70, no associativity).
@@ -149,11 +149,11 @@ Proof.
   exists m.
   split; first split; auto.
   *  rewrite INR_IZR_INZ.
-     rewrite Z2Nat.id //=. apply (Rmult_lt_reg_r (INR m)); auto.
+     rewrite Znat.Z2Nat.id //=. apply (Rmult_lt_reg_r (INR m)); auto.
      rewrite /Rdiv Rmult_assoc. rewrite Rinv_l; last by nra.
      rewrite Rmult_1_r. done.
   *  rewrite INR_IZR_INZ.
-     rewrite Z2Nat.id //=. apply (Rmult_lt_reg_r (INR m)); auto.
+     rewrite Znat.Z2Nat.id //=. apply (Rmult_lt_reg_r (INR m)); auto.
      rewrite /Rdiv Rmult_assoc. rewrite Rinv_l; last by nra.
      rewrite Rmult_1_r. rewrite Rmult_plus_distr_r.
      apply (Rle_lt_trans _ (r * INR m + 1)); first by nra.
@@ -259,13 +259,13 @@ Proof.
   intros Hpos. exists (Z.to_nat (up r - 1)).
   cut (INR (Z.to_nat (up r - 1)) = IZR (up r)- 1).
   { rewrite S_INR => ->. specialize (archimed r). nra. }
-  rewrite Z2Nat.inj_sub; last lia.
+  rewrite Znat.Z2Nat.inj_sub; last lia.
   rewrite minus_INR.
   * rewrite //=. f_equal.
     rewrite INR_IZR_INZ.  f_equal.
-    apply Z2Nat.id.
+    apply Znat.Z2Nat.id.
     apply le_IZR. specialize (archimed r); nra.
-  * apply Z2Nat.inj_le; try lia.
+  * apply Znat.Z2Nat.inj_le; try lia.
     ** apply le_IZR. specialize (archimed r); nra.
     ** apply le_IZR. specialize (archimed r). intros (Hgt&?).
        assert (0 < up r)%Z.

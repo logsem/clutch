@@ -1,9 +1,9 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From stdpp Require Import fin_maps.
 From iris.proofmode Require Import environments proofmode.
 From clutch.meas_lang Require Import lang ectx_language.
 From iris.prelude Require Import options.
-Import meas_lang.
+(* Import meas_lang. *)
 
 (*
 (** The tactic [reshape_expr e tac] decomposes the expression [e] into an

@@ -146,7 +146,7 @@ Section list.
     rewrite /in_list. iInduction vs as [| v' vs] "IH" forall (l).
     - exfalso. set_solver.
     - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
-      tp_load. inversion Hcompare; subst. tp_pures; first solve_vals_compare_safe.
+      tp_load. inversion Hcompare; subst. tp_pures.
       case_bool_decide as Hcase.
       { tp_pures. inversion Hcase. by iFrame. }
       { tp_pure.
@@ -246,7 +246,7 @@ Section list.
     rewrite /get_list_idx. iInduction vs as [| v' vs] "IH" forall (l k).
     - tp_pures. rewrite /linked_list. tp_load. tp_pures. iModIntro. iFrame.
     - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
-      tp_load. tp_pures; first solve_vals_compare_safe. case_bool_decide as Hcase.
+      tp_load. tp_pures. case_bool_decide as Hcase.
       { tp_pures. inversion Hcase. destruct k; try lia; [].
         iModIntro. iFrame "Hr". iExists _; iFrame; eauto. }
       { tp_pure. tp_pure. destruct k.
@@ -277,7 +277,7 @@ Section list.
     rewrite /del_list_idx. iInduction vs as [| v' vs] "IH" forall (l k).
     - tp_pures. rewrite /linked_list. tp_load. tp_pures. iModIntro. iFrame.
     - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
-      tp_load. tp_pures; first solve_vals_compare_safe. case_bool_decide as Hcase.
+      tp_load. tp_pures. case_bool_decide as Hcase.
       { tp_pures. inversion Hcase. destruct k; try lia; [].
         simpl. destruct vs.
         * simpl. tp_load. tp_store. iModIntro. by iFrame.

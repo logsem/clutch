@@ -64,7 +64,10 @@ Section race.
     - wp_apply (lazy_rand_alloc_tape _ _ with "[//]").
       iIntros (α) "Ht".
       replace #0 with (# (Z.of_nat 0)) by done.
-      wp_apply (lazy_rand_spec _ _ _ _ _ _ (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I with "[-]").
+      wp_apply (lazy_rand_spec _ _ (λ x : option (nat * nat),
+                                      ⌜x = None⌝ ∗ own γ (◯E false)
+                                                   ∨ ∃ x1 : nat, ⌜x = Some (x1, x1)⌝ ∗ own γ (◯E true))%I
+                  _ _ _ (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I with "[-]").
       + iSplit; first done.
         simpl. iIntros (n) "H1 Hauth".
         iApply (state_update_inv_acc with "Hinv2"); first done.
@@ -99,7 +102,11 @@ Section race.
     - wp_apply (lazy_rand_alloc_tape _ _ ); first done.
       iIntros (α) "Ht".
       replace #1 with (# (Z.of_nat 1)) by done.
-      wp_apply (lazy_rand_spec _ _ _ _ _ _ (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I with "[-]").
+      wp_apply (lazy_rand_spec _ _
+                  (λ x : option (nat * nat),
+                     ⌜x = None⌝ ∗ own γ (◯E false)
+                                  ∨ ∃ x1 : nat, ⌜x = Some (x1, x1)⌝ ∗ own γ (◯E true))%I
+                  _ _ _ (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I (λ x y, ⌜x=y⌝ ∗ rand_frag x x _)%I with "[-]").
       + iSplit; first done.
         simpl. iIntros (n) "H1 Hauth".
         iApply (state_update_inv_acc with "Hinv2"); first done.

@@ -169,7 +169,7 @@ Lemma spec_init_list E K :
     rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l).
     - tp_pures. rewrite /assoc_list. tp_load. tp_pures. iModIntro. iFrame.
     - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
-      tp_load. tp_pures; first solve_vals_compare_safe. case_bool_decide as Hcase.
+      tp_load. tp_pures. case_bool_decide as Hcase.
       { tp_pures. simpl. rewrite bool_decide_true //; last first.
         { inversion Hcase; auto. lia. }
         iModIntro. iFrame "Hr". iExists _; iFrame; eauto. }
@@ -190,7 +190,7 @@ Lemma spec_init_list E K :
     - tp_pures. rewrite /assoc_list. tp_load. tp_pures. iModIntro. iFrame.
       rewrite /=. iFrame. destruct (bool_decide _) => //=.
     - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
-      tp_load. tp_pures; first solve_vals_compare_safe.
+      tp_load. tp_pures.
       destruct (bool_decide (#k' = #z)) eqn:Hbool.
       { apply bool_decide_eq_true_1 in Hbool.
         tp_pures. simpl. inversion Hbool. subst.
@@ -263,7 +263,7 @@ Lemma spec_init_list E K :
     - rewrite /=. simpl in Heq. subst; auto.
     - rewrite list_to_map_cons in Heq. subst.
       destruct (decide (k = n)).
-      { subst. rewrite lookup_insert /= bool_decide_true //. }
+      { subst. rewrite lookup_insert_eq /= bool_decide_true //. }
       rewrite lookup_insert_ne //= bool_decide_false //. eauto.
   Qed.
 

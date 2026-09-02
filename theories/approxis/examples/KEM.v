@@ -22,6 +22,7 @@ Record typ := { carrier `{!approxisRGS Σ} : lrel Σ
 End KEM.
 
 Module aux.
+  #[warning="-uniform-inheritance"]
   #[global] Coercion lrel_of_typ `{!approxisRGS Σ} (τ : typ) := carrier τ.
   #[global] Arguments lrel_of_typ {_ _} _.
 End aux.

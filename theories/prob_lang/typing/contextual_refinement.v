@@ -1,5 +1,5 @@
 (** Notion of contextual refinement & proof that it is a precongruence wrt the logical relation *)
-From Coq Require Import Reals.
+From Stdlib Require Import Reals.
 From clutch.prob Require Import markov. 
 From clutch.prob_lang Require Export lang notation.
 From iris.proofmode Require Import proofmode.

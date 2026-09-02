@@ -2,7 +2,8 @@ From discprob.basic Require Import base nify order seq_ext.
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype choice fintype bigop seq.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
 From HB Require Import structures.
-Require Import Reals Psatz Lia.
+From Stdlib Require Import Reals Psatz Lia.
+Import Monoid.
 
 (* Coquelicot defines some of its own algebraic hierarchy and
    functions for indexed sums: sum_n_m. But, ssreflect has its own
@@ -12,7 +13,7 @@ Require Import Reals Psatz Lia.
    ssreflect. *)
 
 Section RAddLaw.
-Import Monoid.
+
 
 Lemma Rplus_associative: associative  Rplus.
 Proof. intros ???; apply: Hierarchy.plus_assoc. Qed.
@@ -303,12 +304,12 @@ Proof.
       rewrite big_mkord big_ord_recl big_ord0 //=. nra.
     * rewrite sum_n_m_zero; last by lia.
       rewrite big_geq; try (nify; lia). done.
-  - destruct (le_dec n (S m)) as [Hle|Hgt].
+  - destruct (Compare_dec.le_dec n (S m)) as [Hle|Hgt].
     * rewrite sum_n_Sm //=.
       assert (ssrnat.leq (S m) (S (S m))) as Hrange by (nify; lia).
-      rewrite (big_cat_nat _ _ _ _ Hrange); last by (nify; lia).
-      rewrite IHm big_nat1 /plus//=.
-    * rewrite sum_n_m_zero; last by lia.
+      rewrite (bigop.big_cat_nat _ Hrange); last by (nify; lia).
+      rewrite IHm big_nat1 /plus//=.      
+    * rewrite sum_n_m_zero; [|lia].
       rewrite big_geq; try (nify; lia). done.
 Qed.
 
@@ -463,7 +464,7 @@ Lemma sum_index_ordinal_P {A} (f: A → R) (l: seq (A)) r (P: 'I_(size l) → bo
   \big[Rplus/0%R]_(a<-l | P' a) (f a).
 Proof.
   set (P'' := λ (n: nat),
-              match lt_dec n (size l) with
+              match Compare_dec.lt_dec n (size l) with
                 | left Pf => P (Ordinal ((introT ltP Pf)))
                 | _ => true
               end).
@@ -471,14 +472,14 @@ Proof.
   rewrite -(sum_index_ordinal_P_aux f l r P''); last first.
   {
     intros i Hlt. rewrite /P'' //=.
-    destruct lt_dec as [?|n] => //= ; eauto.
+    destruct Compare_dec.lt_dec as [?|n] => //= ; eauto.
     exfalso; apply n. apply /ltP. done.
   }
   rewrite /P'' //=.
   rewrite big_mkcond.
   rewrite big_mkcond [a in _ = a]big_mkcond.
   apply eq_bigr => i ?.
-  destruct (lt_dec i (size l)) as [Hlt|Hn].
+  destruct (Compare_dec.lt_dec i (size l)) as [Hlt|Hn].
   - rewrite //=.
     assert (i = Ordinal (m := i) (introT ltP Hlt)) as <-.
     { apply ord_inj => //=. }

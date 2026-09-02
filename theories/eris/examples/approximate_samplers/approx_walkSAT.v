@@ -3,7 +3,7 @@ From clutch.eris Require Export eris error_rules.
 From clutch.eris Require Export eris error_rules adequacy total_adequacy.
 From clutch.eris Require Export examples.approximate_samplers.approx_higherorder_incremental.
 From Coquelicot Require Import Series.
-Require Import Lra.
+From Stdlib Require Import Lra.
 
 Set Default Proof Using "Type*".
 
@@ -56,7 +56,7 @@ Section higherorder_walkSAT.
       iModIntro; iExists ((bool_decide (#b = #1)) :: m').
       iPureIntro; split.
       + by apply inv_cons.
-      + rewrite cons_length Hm'_len /=; lia.
+      + rewrite length_cons Hm'_len /=; lia.
   Qed.
 
   (* Evaluates a value-level assignment *)
@@ -98,7 +98,7 @@ Section higherorder_walkSAT.
         wp_apply (tgl_wp_wand with "[IH]").
         { iApply "IH".
           iPureIntro.
-          rewrite cons_length in Hlen.
+          rewrite length_cons in Hlen.
           apply (Nat.le_lt_add_lt 1%nat 1%nat); try lia. }
         iIntros (v) "%Hv"; iPureIntro.
         rewrite lookup_total_cons_ne_0; try eauto.
@@ -151,7 +151,7 @@ Section higherorder_walkSAT.
         wp_apply (tgl_wp_wand with "[IH]").
         { iApply "IH".
           iPureIntro.
-          rewrite cons_length in Hlen.
+          rewrite length_cons in Hlen.
           apply (Nat.le_lt_add_lt 1%nat 1%nat); try lia.
           rewrite Nat.sub_add; [lia|].
           destruct n'; [|lia].
@@ -327,7 +327,7 @@ Section higherorder_walkSAT.
       f_equal.
       + apply eqb_eq. destruct (eqb m0 s0); [done|discriminate].
       + apply IH.
-        * do 2 rewrite cons_length in Hl; by inversion Hl.
+        * do 2 rewrite length_cons in Hl; by inversion Hl.
         * by rewrite /progress_measure.
   Qed.
 
@@ -364,12 +364,12 @@ Section higherorder_walkSAT.
     { intros.
       destruct (drop n m) as [| d0 ds] eqn:Hdrop.
       { exfalso.
-        assert (HK : length (drop n m) = (length m - n)%nat) by apply drop_length.
+        assert (HK : length (drop n m) = (length m - n)%nat) by apply length_drop.
         rewrite Hdrop /= in HK.
         lia.
       }
       eexists (take n m), d0, ds.
-      split; last (apply take_length_le; lia).
+      split; last (apply length_take_le; lia).
       rewrite -{1}(take_drop n m).
       apply app_inv_head_iff.
       done.
@@ -612,7 +612,7 @@ Section higherorder_walkSAT.
     wp_pures.
     wp_bind (rand _)%E.
     replace (length m) with N in Hp; [|by destruct Hinv].
-    wp_apply (twp_couple_rand_adv_comp1 _ _ _ _ (εDistr_resampler _ _ _ target) with "Hε").
+    wp_apply (twp_rand_exp_fin1 _ _ _ _ (εDistr_resampler _ _ _ target) with "Hε").
     { intros; apply cond_nonneg. }
     {
       rewrite εDistr_mean.
@@ -651,7 +651,7 @@ Section higherorder_walkSAT.
       iFrame.
       iSplitR.
       { iPureIntro; split; [|eapply Hinv'].
-        rewrite insert_length.
+        rewrite length_insert.
         by destruct Hinv.  }
       iLeft.
       iSplitL "Hcr".
@@ -707,7 +707,7 @@ Section higherorder_walkSAT.
         rewrite /εDistr_resampler /εDistr.
         rewrite bool_decide_false; eauto.
         iSplitR.
-        { iPureIntro. split; last eapply Hinv'. rewrite insert_length. by destruct Hinv. }
+        { iPureIntro. split; last eapply Hinv'. rewrite length_insert. by destruct Hinv. }
         iRight.
         iApply (ec_eq with "Hcr").
         rewrite /εAmplified.
@@ -875,7 +875,7 @@ Section higherorder_walkSAT.
         + simplify_eq.
           destruct (proj_clause_value c target).
           destruct Hasn'.
-          rewrite /= insert_length in H.
+          rewrite /= length_insert in H.
           simpl.
           lia.
         + simplify_eq.
@@ -1129,7 +1129,7 @@ Section higherorder_walkSAT.
            clear.
            rewrite /e1.
            simpl.
-           lra.
+           rewrite -Rdiv_1_l //.
       }
       1: { iPureIntro. lia. }
     }

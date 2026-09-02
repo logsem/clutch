@@ -15,7 +15,7 @@ invoking `iredl` will introduce `c : loc` and `"c" : c ↦ #42`. If `e` occurs a
 part of the spec, i.e. on the right, the names are instead sub-scripted with
 "ₛ", and we get `cₛ : loc` and `"cₛ" : cₛ ↦ₛ #42`. *)
 
-From Coq Require Import ZArith String.
+From Stdlib Require Import ZArith String.
 
 From clutch.prelude Require Import stdpp_ext.
 From clutch.prob_lang Require Import lang notation.
@@ -159,13 +159,13 @@ Ltac2 i_eval_at_redex fpure falloc fload fstore falloctape frand fforeign tm :=
   in
   f None tm constr:(@nil ectx_item).
 
-Ltac2 foreign_unfold tm k name :=
+Ltac2 foreign_unfold tm _ _ :=
   let rec app_head e := lazy_match! e with ?e _ => app_head e | _ => e end in
 
   let unfold_it tm := ltac1:(tm |- unfold tm at 1) (Ltac1.of_constr tm) in
   let tm := app_head tm in
   match Constr.Unsafe.kind tm with
-  | Constr.Unsafe.Var i  =>
+  | Constr.Unsafe.Var _  =>
       (* printf "Var" ; *)
       (* Std.unfold [(Std.VarRef i , Std.AllOccurrences)] *)
       (*   ({Std.on_hyps := None ; Std.on_concl := (Std.OnlyOccurrences [1])}) *)
@@ -180,7 +180,7 @@ Ltac2 Type side := [ L | R ].
 
 Ltac2 rec ired side fpure falloc fload fstore falloctape frand fforeign :=
   lazy_match! goal with
-  | [ |- context[⊢ (refines _ ?lhs ?rhs _)] ] =>
+  | [ |- context[⊢ (refines _ _ _ _)] ] =>
       ltac1:(iStartProof) ; ired side fpure falloc fload fstore falloctape frand fforeign
   | [ |- context[environments.envs_entails _ (refines _ ?lhs ?rhs _)] ] =>
       match side with
@@ -251,7 +251,7 @@ Ltac2 rel_alloctape_r tm k name :=
                                 | let cs' := iFresh in rel_alloctape_r i as cs' at ef in kf ]
                        ) i cs ef kf).
 
-Ltac2 rel_randT_empty_l tm k name :=
+Ltac2 rel_randT_empty_l _ k name :=
   let kf := Ltac1.of_constr k in
   ltac1:(kf |- rel_apply_l (refines_randT_empty_l kf) ; iFrame ) kf ;
   rel_named_l name (fun () => ltac1:(iIntros "!>" (?) "?"))
@@ -260,7 +260,7 @@ Ltac2 rel_randT_empty_l tm k name :=
                                 | let cs' := iFresh in iIntros "!>" (i) cs' ]
                        ) i cs).
 
-Ltac2 rel_randT_empty_r tm k name :=
+Ltac2 rel_randT_empty_r _ k name :=
   let kf := Ltac1.of_constr k in
   ltac1:(kf |- rel_apply_r (refines_randT_empty_r kf) ; [reflexivity|iFrame] ) kf ;
   rel_named_r name (fun () => ltac1:(iIntros (?) "?"))
@@ -269,25 +269,25 @@ Ltac2 rel_randT_empty_r tm k name :=
                                 | let cs' := iFresh in iIntros (i) cs' ]
                        ) i cs).
 
-Ltac2 rel_randU_l tm k name :=
+Ltac2 rel_randU_l _ k name :=
   let kf := Ltac1.of_constr k in
   ltac1:( kf |- rel_apply_l (refines_randU_l _ _) ; iFrame ) kf ;
   rel_named_l name (fun () => ltac1:(iIntros (?)))
     (fun i _ => ltac1:(i |- iIntros (i)) i).
 
-Ltac2 rel_randU_r tm k name :=
+Ltac2 rel_randU_r _ k name :=
   let kf := Ltac1.of_constr k in
   ltac1:( kf |- rel_apply_r refines_randU_r ; [reflexivity|iFrame] ) kf ;
   rel_named_r name (fun () => ltac1:(iIntros (?)))
     (fun i _ => ltac1:(i |- iIntros (i)) i).
 
-Ltac2 rel_randT_l tm k name :=
+Ltac2 rel_randT_l tm k _ :=
   lazy_match! tm with
   | Rand _ (Val (LitV (LitLbl _))) =>
       ltac1:(ef kf |- rel_rand_l ef in kf ) (Ltac1.of_constr tm) (Ltac1.of_constr k)
   | _ => () end.
 
-Ltac2 rel_randT_r tm k name :=
+Ltac2 rel_randT_r tm k _ :=
   lazy_match! tm with
   | Rand _ (Val (LitV (LitLbl _))) =>
       ltac1:(ef kf |- rel_rand_r ef in kf ) (Ltac1.of_constr tm) (Ltac1.of_constr k)
@@ -342,7 +342,7 @@ Ltac rel_randT_empty_r := ltac2:(ired_rand_r rel_randT_empty_r).
 Ltac rel_randU_l := ltac2:(ired_rand_l rel_randU_l).
 Ltac rel_randU_r := ltac2:(ired_rand_r rel_randU_r).
 
-Ltac2 rel_couple_TT bij tapes tm k name :=
+Ltac2 rel_couple_TT bij tapes _ k name :=
   let kf := Ltac1.of_constr k in
   let tps := Ltac1.of_constr tapes in
   let tpsi := constr:(String.append "[ " (String.append $tapes " ]")) in
@@ -353,7 +353,7 @@ Ltac2 rel_couple_TT bij tapes tm k name :=
       ltac1:(bij tps kf |- rel_apply (refines_couple_TT _ bij) ; [reflexivity|] ; iFrame tps) bij tps kf
   end ;
   rel_named_l name (fun () => ltac1:(iIntros (?) "[??]"))
-    (fun i cs => ltac1:(i tpsi |- iIntros (i) tpsi) i tpsi).
+    (fun i _ => ltac1:(i tpsi |- iIntros (i) tpsi) i tpsi).
 
 Tactic Notation "rel_couple_TT" constr(tapes) open_constr(bij) :=
   let f :=
@@ -367,21 +367,21 @@ Tactic Notation "rel_couple_TT" constr(tapes) :=
                              (rel_couple_TT None (Option.get (Ltac1.to_constr tapes))))
   in f tapes.
 
-Ltac2 rel_couple_UU bij tm k name :=
+Ltac2 rel_couple_UU bij _ k name :=
   let kf := Ltac1.of_constr k in
   match bij with
   | None => ltac1:(kf |- rel_apply (refines_couple_UU _ _ kf)) kf
   | Some bij => ltac1:(bij kf |- rel_apply (refines_couple_UU _ bij kf)) bij kf
   end ;
   rel_named_l name (fun () => ltac1:(iIntros "!>" (?)))
-    (fun i cs => ltac1:(i |- iIntros "!>" (i)) i).
+    (fun i _ => ltac1:(i |- iIntros "!>" (i)) i).
 
 Tactic Notation "rel_couple_UU" open_constr(bij) :=
   let f := ltac2:(bij |- ired_rand_l (rel_couple_UU (Some bij))) in f bij.
 
 Tactic Notation "rel_couple_UU" := ltac2:(|- ired_rand_l (rel_couple_UU None)).
 
-Ltac2 rel_couple_UT bij tapes tm k name :=
+Ltac2 rel_couple_UT bij tapes _ k name :=
   let kf := Ltac1.of_constr k in
   let tpsf := constr:(String.append "[ -$" (String.append $tapes " ]")) in
   let tpsf := Ltac1.of_constr (eval vm_compute in $tpsf) in
@@ -404,7 +404,7 @@ Tactic Notation "rel_couple_UT" constr(tapes) open_constr(bij) :=
   let f := ltac2:(bij tapes |- ired_rand_l (rel_couple_UT (Some bij) (Option.get (Ltac1.to_constr tapes))))
   in f bij tapes.
 
-Ltac2 rel_couple_TU bij tapes tm k name :=
+Ltac2 rel_couple_TU bij tapes _ k name :=
   let kf := Ltac1.of_constr k in
   let tpsf := constr:(String.append "[ -$" (String.append $tapes " ]")) in
   let tpsf := Ltac1.of_constr (eval vm_compute in $tpsf) in

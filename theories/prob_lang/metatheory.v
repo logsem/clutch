@@ -1,7 +1,8 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
-From clutch.prob Require Import distribution couplings couplings_app.
+From clutch.prob Require Import distribution couplings couplings_app
+  couplings_exp differential_privacy couplings_dp.
 From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import tactics notation.
 From clutch.prob_lang Require Export lang.
@@ -31,6 +32,8 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | If e0 e1 e2 | Case e0 e1 e2 =>
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
   | AllocTape e => is_closed_expr X e
+  | AllocTapeLaplace e1 e2 e3 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3
+  | Laplace e1 e2 e3 e4 => is_closed_expr X e1 && is_closed_expr X e2 && is_closed_expr X e3 && is_closed_expr X e4
   | Tick e => is_closed_expr X e
   end
 with is_closed_val (v : val) : bool :=
@@ -61,7 +64,9 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | Load e => Load (subst_map vs e)
   | Store e1 e2 => Store (subst_map vs e1) (subst_map vs e2)
   | AllocTape e => AllocTape (subst_map vs e)
+  | AllocTapeLaplace e1 e2 e3 => AllocTapeLaplace (subst_map vs e1) (subst_map vs e2) (subst_map vs e3)
   | Rand e1 e2 => Rand (subst_map vs e1) (subst_map vs e2)
+  | Laplace e1 e2 e3 e4 => Laplace (subst_map vs e1) (subst_map vs e2) (subst_map vs e3) (subst_map vs e4)
   | Tick e => Tick (subst_map vs e)
   end.
 
@@ -158,9 +163,9 @@ Proof.
     apply map_Forall_insert_2; auto.
     apply lookup_union_Some in Hix; last first.
     { eapply heap_array_map_disjoint;
-        rewrite replicate_length Z2Nat.id; auto with lia. }
+        rewrite length_replicate Z2Nat.id; auto with lia. }
     destruct Hix as [(?&?&?&[-> Hlt%inj_lt]%lookup_replicate_1)%heap_array_lookup|
-                      [j Hj]%elem_of_map_to_list%elem_of_list_lookup_1].
+                      [j Hj]%elem_of_map_to_list%list_elem_of_lookup_1].
     + simplify_eq/=. rewrite !Z2Nat.id in Hlt; eauto with lia.
     + apply map_Forall_to_list in Hσ.
       by eapply Forall_lookup in Hσ; eauto; simpl in *.
@@ -184,9 +189,9 @@ Proof.
     end. by case (vs !! _); simplify_option_eq.
   - destruct (decide _) as [[??]|[<-%dec_stable|[<-%dec_stable ?]]%not_and_l_alt].
     + rewrite !binder_delete_insert // !binder_delete_delete; eauto with f_equal.
-    + by rewrite /= delete_insert_delete delete_idemp.
-    + by rewrite /= binder_delete_insert // delete_insert_delete
-        !binder_delete_delete delete_idemp.
+    + by rewrite /= delete_insert_eq delete_delete_eq.
+    + by rewrite /= binder_delete_insert // delete_insert_eq
+        !binder_delete_delete delete_delete_eq.
 Qed.
 Lemma subst_map_singleton x v e :
   subst_map {[x:=v]} e = subst x v e.
@@ -206,7 +211,7 @@ Lemma subst_map_binder_insert_2 b1 v1 b2 v2 vs e :
 Proof.
   destruct b1 as [|s1], b2 as [|s2]=> /=; auto using subst_map_insert.
   rewrite subst_map_insert. destruct (decide (s1 = s2)) as [->|].
-  - by rewrite delete_idemp subst_subst delete_insert_delete.
+  - by rewrite delete_delete_eq subst_subst delete_insert_eq.
   - by rewrite delete_insert_ne // subst_map_insert subst_subst_ne.
 Qed.
 Lemma subst_map_binder_insert_2_empty b1 v1 b2 v2 e :
@@ -753,6 +758,115 @@ Proof.
   naive_solver.
 Qed.
 
+Lemma DPcoupl_laplace_primstep
+  (loc loc' k k' : Z)
+  (Hdist : (Z.abs (k + loc - loc') <= k')%Z)
+  (num den : Z) ε ε' σ1 σ1' :
+  (IZR num / IZR den)%R = ε →
+  (0 < IZR num / IZR den)%R →
+  ε' = (IZR k' * ε)%R →
+  DPcoupl (language.prim_step (Laplace #num #den #loc #()) σ1)
+    (prim_step (Laplace #num #den #loc' #()) σ1')
+    (λ ρ2 ρ2', ∃ (z : Z),
+        ρ2 = (Val #z, σ1) ∧ ρ2' = (Val #(z+k), σ1'))
+    ε' 0.
+Proof.
+  intros Hε ? Hε'. simpl. fold cfg.
+  rewrite !head_prim_step_eq /= ; try by exact 0%Z.
+  rewrite /dmap.
+  replace 0%R with (0 + 0)%R by lra.
+  replace ε' with (ε' + 0)%R by lra.
+  eapply DPcoupl_dbind => //.
+  2:{ rewrite /laplace_rat.
+      case_decide ; [|done].
+      rewrite Hε' -Hε.
+      apply Mcoupl_to_DPcoupl.
+      eapply (Mcoupl_laplace).
+      done.
+  }
+  simpl.
+  intros z1 z2 Hres.
+  apply DPcoupl_dret; [done|done|]. subst.
+  exists z1. done.
+Qed.
+
+Lemma DPcoupl_laplace_primstep_exact
+  (loc : Z)
+  (num den : Z) σ1 σ1' :
+  DPcoupl (language.prim_step (Laplace #num #den #loc #()) σ1)
+    (prim_step (Laplace #num #den #loc #()) σ1')
+    (λ ρ2 ρ2', ∃ (z : Z),
+        ρ2 = (Val #z, σ1) ∧ ρ2' = (Val #z, σ1'))
+    0 0.
+Proof.
+  simpl. fold cfg.
+  repeat erewrite head_prim_step_eq. 2,3: shelve.
+  simpl.
+  rewrite /dmap.
+  replace 0%R with (0 + 0)%R by lra.
+  assert (0 = (0 + 0))%R as h by lra.
+  (* rewrite {9}h. *)
+  eapply DPcoupl_dbind' => //.
+  2:{ rewrite /laplace_rat.
+      case_decide. 2: apply (DPcoupl_dret _ _ eq) => //.
+      apply Mcoupl_to_DPcoupl.
+      assert (IZR 0 * pos {| pos := IZR num / IZR den; cond_pos := H |} = 0)%R as <-. 1: simpl ; lra.
+      opose proof (Mcoupl_laplace _ loc loc 0 0 _) as hh.
+      1: lia.
+      eapply Mcoupl_mono ; last first. 1: apply hh.
+      1: by right. all: try done. simpl. intros. lia.
+  }
+  intros z z' <-.
+  apply DPcoupl_dret; [done|done|]. subst.
+  exists z. intuition auto.
+  Unshelve.
+  - eexists (of_val #loc, σ1'). simpl. eapply dmap_pos.
+    eexists loc. split => //. apply laplace_rat_pos. right. done.
+  - eexists (of_val #loc, σ1). simpl. eapply dmap_pos.
+    eexists loc. split => //. apply laplace_rat_pos. right. done.
+Qed.
+
+(* The Laplace version of Rcoupl_state_state. *)
+Lemma DPcoupl_laplace_statestep
+        α α'
+  (mean mean' k k' : Z)
+  (Hdist : (Z.abs (k + mean - mean') <= k')%Z)
+  (num den : Z) ε ε' σ1 σ1' xs ys :
+  (IZR num / IZR den)%R = ε →
+  (0 < IZR num / IZR den)%R →
+  ε' = (IZR k' * ε)%R →
+  σ1.(tapes_laplace) !! α = Some (Tape_Laplace num den mean xs) →
+  σ1'.(tapes_laplace) !! α' = Some (Tape_Laplace num den mean' ys) →
+  DPcoupl (state_step_laplace σ1 α)
+    (state_step_laplace σ1' α')
+    (λ σ2 σ2', ∃ (z : Z),
+        σ2 = state_upd_tapes_laplace <[α := (Tape_Laplace num den mean (xs ++ [z]))]> σ1 ∧
+        σ2' = state_upd_tapes_laplace <[α' := (Tape_Laplace num den mean' (ys ++ [z+k]%Z))]> σ1')
+    ε' 0.
+Proof.
+  intros Hε ? Hε' hα hα'. simpl. fold cfg.
+  rewrite /state_step_laplace.
+  do 2 (rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2]).
+  rewrite (lookup_total_correct _ _ _ hα).
+  rewrite (lookup_total_correct _ _ _ hα').
+  rewrite /dmap.
+  replace 0%R with (0 + 0)%R by lra.
+  replace ε' with (ε' + 0)%R by lra.
+  eapply DPcoupl_dbind => //.
+  2:{ rewrite /laplace_rat.
+      case_decide ; [|done].
+      rewrite Hε' -Hε.
+      apply Mcoupl_to_DPcoupl.
+      eapply (Mcoupl_laplace).
+      done.
+  }
+  simpl.
+  intros z1 z2 Hres.
+  apply DPcoupl_dret; [done|done|]. subst.
+  exists z1. done.
+Qed.
+
+
 (** * state_step ~ fair_coin  *)
 Lemma state_step_fair_coin_coupl σ α bs :
   σ.(tapes) !! α = Some ((1%nat; bs) : tape) →
@@ -804,7 +918,7 @@ Proof.
   { rewrite lookup_insert_ne //. }
   intros σ' b2 ->.
   eapply Rcoupl_dret.
-  rewrite /state_upd_tapes insert_commute //.
+  rewrite /state_upd_tapes insert_insert_ne //.
 Qed.
 
 Lemma Rcoupl_state_1_3 σ σₛ α1 α2 αₛ (xs ys:list(fin (2))) (zs:list(fin (4))):
@@ -876,7 +990,7 @@ Proof.
                                          else 0)); first rewrite SeriesC_list/=.
               - by rewrite !SeriesC_finite_foldr/dret_pmf/=. 
               - repeat constructor; last (set_unfold; naive_solver).
-                rewrite elem_of_list_singleton. move /state_upd_tapes_same'. done.
+                rewrite list_elem_of_singleton. move /state_upd_tapes_same'. done.
               - intros [??].
                 case_bool_decide; first done.
                 apply Rmult_eq_0_compat_r.
@@ -901,13 +1015,13 @@ Proof.
             { repeat rewrite bool_decide_eq_false_2.
               - lra.
               - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
-                specialize (K α2). rewrite !lookup_insert in K. simplify_eq.
+                specialize (K α2). rewrite !lookup_insert_eq in K. simplify_eq.
               - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
                 specialize (K α1). rewrite lookup_insert_ne in K; last done.
                 rewrite (lookup_insert_ne (<[_:=_]> _ )) in K; last done.
-                rewrite !lookup_insert in K. simplify_eq.
+                rewrite !lookup_insert_eq in K. simplify_eq.
               - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
-                specialize (K α2). rewrite !lookup_insert in K. simplify_eq.
+                specialize (K α2). rewrite !lookup_insert_eq in K. simplify_eq.
             }
             case_bool_decide.
             { repeat rewrite bool_decide_eq_false_2.
@@ -915,15 +1029,15 @@ Proof.
               - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
                 specialize (K α1). rewrite lookup_insert_ne in K; last done.
                 rewrite (lookup_insert_ne (<[_:=_]> _ )) in K; last done.
-                rewrite !lookup_insert in K. simplify_eq.
+                rewrite !lookup_insert_eq in K. simplify_eq.
               - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
-                specialize (K α2). rewrite !lookup_insert in K. simplify_eq.
+                specialize (K α2). rewrite !lookup_insert_eq in K. simplify_eq.
             }
             case_bool_decide.
             { repeat rewrite bool_decide_eq_false_2.
               - lra.
               - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
-                specialize (K α2). rewrite !lookup_insert in K. simplify_eq.
+                specialize (K α2). rewrite !lookup_insert_eq in K. simplify_eq.
             }
             lra.
       -- rewrite /rmarg dmap_comp.
@@ -989,7 +1103,7 @@ Proof.
     rewrite /dbind/dbind_pmf{1}/pmf/=.
     rewrite (SeriesC_subset (λ a, a = state_upd_tapes <[α := (N; xs ++ take p' v)]> σ)).
     + rewrite SeriesC_singleton_dependent. erewrite state_step_unfold; last first.
-      { simpl. rewrite lookup_insert. done. }
+      { simpl. rewrite lookup_insert_eq. done. }
       rewrite !dmap_unfold_pmf.
       rewrite (SeriesC_subset (λ a, a = take p' v)); last first.
       { intros. rewrite bool_decide_eq_false_2; first lra.
@@ -1034,13 +1148,13 @@ Proof.
       destruct H1 as [v' [-> H1]].
       apply Hσ. repeat f_equal.
       erewrite state_step_unfold in H2; last first.
-      { simpl. apply lookup_insert. }
+      { simpl. apply lookup_insert_eq. }
       apply dmap_pos in H2.
       destruct H2 as [a [H2?]].
       rewrite state_upd_tapes_twice in H2.
       apply state_upd_tapes_same in H2. rewrite -app_assoc in H2. simplify_eq.
       rewrite take_app_length'; first done.
-      rewrite app_length in Hlen. simpl in *; lia.
+      rewrite length_app in Hlen. simpl in *; lia.
   - (* σ' is not reachable, i.e. both sides are zero *)
     rewrite SeriesC_0; last first.
     { intros x.
@@ -1075,12 +1189,12 @@ Proof.
     apply dret_pos in H; subst.
     case_bool_decide; last lra.
     erewrite state_step_unfold in H2; last first.
-    { simpl. rewrite lookup_insert. done. }
+    { simpl. rewrite lookup_insert_eq. done. }
     exfalso.
     apply K. rewrite dmap_pos in H2. destruct H2 as [x[-> H2]]. subst.
     setoid_rewrite state_upd_tapes_twice.
     rewrite -app_assoc.
-    exists (v++[x]); rewrite app_length; simpl; split; first lia. done.
+    exists (v++[x]); rewrite length_app; simpl; split; first lia. done.
     Unshelve.
     simpl.
     intros. case_bool_decide; last real_solver.
@@ -1144,12 +1258,12 @@ Proof.
           + intros v1 v2 Hf.
             apply vec_to_list_inj2.
             apply Hinj; last done.
-            * by rewrite vec_to_list_length.
-            * by rewrite vec_to_list_length.
+            * by rewrite length_vec_to_list.
+            * by rewrite length_vec_to_list.
         - pose proof K a as [v K'].
           subst.
           exists (vec_to_list v). split; last done.
-          apply vec_to_list_length.
+          apply length_vec_to_list.
       }
       rewrite (SeriesC_subset (λ x', x' = x)).
       * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf.
@@ -1247,7 +1361,7 @@ Proof.
                                   else 0)).
         -- erewrite (SeriesC_ext _ (λ x : fin (S N), / S M * if bool_decide (x∈f<$> enum (fin (S M))) then 1 else 0)).
            { rewrite SeriesC_scal_l. rewrite SeriesC_list_1.
-             - rewrite fmap_length. rewrite length_enum_fin. rewrite Rinv_l; first lra.
+             - rewrite length_fmap. rewrite length_enum_fin. rewrite Rinv_l; first lra.
                replace 0 with (INR 0) by done.
                move => /INR_eq. lia.
              - apply NoDup_fmap_2; try done.
@@ -1257,11 +1371,11 @@ Proof.
            case_bool_decide as H.
            ++ rewrite bool_decide_eq_true_2; first lra.
               destruct H as [?<-].
-              apply elem_of_list_fmap_1.
+              apply list_elem_of_fmap_2.
               apply elem_of_enum.
            ++ rewrite bool_decide_eq_false_2; first lra.
               intros H0. apply H.
-              apply elem_of_list_fmap_2 in H0 as [?[->?]].
+              apply list_elem_of_fmap_1 in H0 as [?[->?]].
               naive_solver.
         -- intros.
            erewrite (SeriesC_ext _ (λ x, if (bool_decide (x=n)) then 1 else 0)).
@@ -1452,6 +1566,8 @@ Inductive prob_head_step_pred : expr -> state -> Prop :=
 | AllocTapePSP σ N z :
   N = Z.to_nat z →
   prob_head_step_pred (alloc #z) σ
+| AllocTapeLaplacePSP σ (num den mean : Z) :
+  prob_head_step_pred (AllocTapeLaplace #num #den #mean) σ
 | RandTapePSP α σ N n ns z :
   N = Z.to_nat z →
   σ.(tapes) !! α = Some ((N; n :: ns) : tape) →
@@ -1467,7 +1583,23 @@ Inductive prob_head_step_pred : expr -> state -> Prop :=
   prob_head_step_pred (rand(#lbl:α) #z) σ
 | RandNoTapePSP (N : nat) σ z :
   N = Z.to_nat z →
-  prob_head_step_pred (rand #z) σ.
+  prob_head_step_pred (rand #z) σ
+| LaplaceNoTapePSP (num den mean : Z) σ :
+  prob_head_step_pred (Laplace #num #den #mean #()) σ
+
+| LaplaceTapeConsPSP num den mean lbl x xs σ :
+  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num den mean (x :: xs)) →
+  prob_head_step_pred (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+
+| LaplaceTapeEmptyPSP num den mean lbl σ :
+  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num den mean []) →
+  prob_head_step_pred (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+
+| LaplaceTapeOtherPSP num den mean lbl num' den' mean' xs σ :
+  σ.(tapes_laplace) !! lbl = Some (Tape_Laplace num' den' mean' xs) →
+  (not ((num = num') ∧ (den = den') ∧ (mean = mean'))) →
+  prob_head_step_pred (Laplace (Val $ LitV $ LitInt num) (Val $ LitV $ LitInt den) (Val $ LitV $ LitInt mean) (Val (LitV (LitLbl lbl)))) σ
+.
 
 Definition head_step_pred e1 σ1 :=
   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.
@@ -1535,7 +1667,10 @@ Proof.
   split.
   - intros [Hdet | Hdet];
       inversion Hdet; simplify_eq; do 2 eexists; try (by econstructor).
-    Unshelve. all : apply 0%fin.
+    + apply LaplaceNoTapeS. by right.
+    + eapply LaplaceTapeEmptyS => // ; by right.
+    + eapply LaplaceTapeOtherS => // ; by right.
+      Unshelve. all: apply 0%fin.
   - intros (?&?& H). inversion H; simplify_eq;
       (try by (left; econstructor));
       (try by (right; econstructor)).
@@ -1600,11 +1735,14 @@ Proof.
       by apply not_elem_of_dom_2 in H5.
     + rewrite lookup_insert_ne // in H6.
       rewrite H5 in H6. done.
+  - rewrite Hz. apply dmap_dzero.
+  - rewrite Hz. apply dmap_dzero.
+  - rewrite Hz. apply dmap_dzero.
 Qed.
 
 Lemma det_head_step_upd_tapes N e1 σ1 e2 σ2 α z zs :
   det_head_step_rel e1 σ1 e2 σ2 →
-  tapes σ1 !! α = Some (N; zs) →
+  tapes σ1 !! α = Some ((N; zs) : tape) →
   det_head_step_rel
     e1 (state_upd_tapes <[α := (N; zs ++ [z])]> σ1)
     e2 (state_upd_tapes <[α := (N; zs ++ [z])]> σ2).
@@ -1615,10 +1753,10 @@ Proof.
 Qed.
 
 Lemma upd_tape_some σ α N n ns :
-  tapes σ !! α = Some (N; ns) →
+  tapes σ !! α = Some ((N; ns) : tape) →
   tapes (state_upd_tapes <[α:= (N; ns ++ [n])]> σ) !! α = Some (N; ns ++ [n]).
 Proof.
-  intros H. rewrite /state_upd_tapes /=. rewrite lookup_insert //.
+  intros H. rewrite /state_upd_tapes /=. rewrite lookup_insert_eq //.
 Qed.
 
 Lemma upd_tape_some_trivial σ α bs:
@@ -1637,7 +1775,7 @@ Lemma upd_diff_tape_comm σ α β bs bs':
   state_upd_tapes <[β:= bs]> (state_upd_tapes <[α := bs']> σ) =
     state_upd_tapes <[α:= bs']> (state_upd_tapes <[β := bs]> σ).
 Proof.
-  intros. rewrite /state_upd_tapes /=. rewrite insert_commute //.
+  intros. rewrite /state_upd_tapes /=. rewrite insert_insert_ne //.
 Qed.
 
 Lemma upd_diff_tape_tot σ α β bs:
@@ -1647,11 +1785,20 @@ Proof. symmetry ; by rewrite lookup_total_insert_ne. Qed.
 
 Lemma upd_tape_twice σ β bs bs' :
   state_upd_tapes <[β:= bs]> (state_upd_tapes <[β:= bs']> σ) = state_upd_tapes <[β:= bs]> σ.
-Proof. rewrite /state_upd_tapes insert_insert //. Qed.
+Proof. rewrite /state_upd_tapes insert_insert_eq //. Qed.
 
 Lemma fresh_loc_upd_some σ α bs bs' :
   (tapes σ) !! α = Some bs →
   fresh_loc (tapes σ) = (fresh_loc (<[α:= bs']> (tapes σ))).
+Proof.
+  intros Hα.
+  apply fresh_loc_eq_dom.
+  by rewrite dom_insert_lookup_L.
+Qed.
+
+Lemma fresh_loc_upd_some_laplace σ α bs bs' :
+  (tapes_laplace σ) !! α = Some bs →
+  fresh_loc (tapes_laplace σ) = (fresh_loc (<[α:= bs']> (tapes_laplace σ))).
 Proof.
   intros Hα.
   apply fresh_loc_eq_dom.
@@ -1675,7 +1822,18 @@ Proof.
   intros H.
   apply elem_fresh_ne in H.
   unfold state_upd_tapes.
-  by rewrite insert_commute.
+  by rewrite insert_insert_ne.
+Qed.
+
+Lemma fresh_loc_upd_swap_laplace σ α bs bs' bs'' :
+  (tapes σ) !! α = Some bs →
+  state_upd_tapes_laplace <[fresh_loc (tapes_laplace σ):=bs']> (state_upd_tapes <[α:=bs'']> σ)
+  = state_upd_tapes <[α:=bs'']> (state_upd_tapes_laplace <[fresh_loc (tapes_laplace σ):=bs']> σ).
+Proof.
+  intros H.
+  apply elem_fresh_ne in H.
+  unfold state_upd_tapes.
+  simpl. reflexivity.
 Qed.
 
 Lemma fresh_loc_lookup σ α bs bs' :
@@ -1688,7 +1846,8 @@ Proof.
 Qed.
 
 Lemma prim_step_empty_tape σ α (z:Z) K N :
-  (tapes σ) !! α = Some (N; []) -> prim_step (fill K (rand(#lbl:α) #z)) σ = prim_step (fill K (rand #z)) σ.
+  (tapes σ) !! α = Some ((N; []) : tape) ->
+  prim_step (fill K (rand(#lbl:α) #z)) σ = prim_step (fill K (rand #z)) σ.
 Proof.
   intros H.
   rewrite !fill_dmap; [|done|done].
@@ -1720,4 +1879,3 @@ Proof.
   Unshelve.
   all: exact (0%fin).
 Qed.
-  

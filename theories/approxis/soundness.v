@@ -1,5 +1,5 @@
 (** Logical relation is sound w.r.t. the contextual refinement. *)
-From Coq Require Export Reals.
+From Stdlib Require Export Reals.
 From iris.proofmode Require Import proofmode.
 From clutch.prob_lang Require Import notation metatheory lang.
 From clutch.approxis Require Export primitive_laws model adequacy_rel interp fundamental.

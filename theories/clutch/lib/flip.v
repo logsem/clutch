@@ -258,7 +258,7 @@ Section specs.
       iApply ("Hwp" $! (_ ++ [_])).
       rewrite 2!app_assoc. iFrame.
       iPureIntro.
-      rewrite app_length Hlen /=.
+      rewrite length_app Hlen /=.
       lia.
   Qed.
 

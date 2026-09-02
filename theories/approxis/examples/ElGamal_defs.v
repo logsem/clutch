@@ -19,13 +19,13 @@ Context {cgg : @clutch_group_generator vg cg vgg}. (* g is well-typed *)
 (* ElGamal public key encryption *)
 Definition keygen : val :=
   λ:<>, let: "sk" := rand #n in
-    let: "pk" := g^"sk" in
+    let: "pk" := vgval g ^ "sk" in
     ("sk", "pk").
 
 Definition enc : val :=
   λ: "pk", λ: "msg",
     let: "b" := rand #n in
-    let: "B" := g^"b" in
+    let: "B" :=  vgval g ^ "b" in
     let: "X" := "msg" · ("pk"^"b") in
     ("B", "X").
 
@@ -38,7 +38,7 @@ Definition rand_cipher : val :=
   λ:"msg",
     let: "b" := rand #n in
     let: "x" := rand #n in
-    let, ("B", "X") := (g^"b", g^"x") in
+    let, ("B", "X") := (vgval g ^ "b", vgval g ^ "x") in
     ("B", "X").
 
 (* The syntactic type of the ElGamal game(s). *)
@@ -78,7 +78,11 @@ Proof with rel_red.
   rewrite /keygen.
   rel_arrow_val ; iIntros (??) "_"...
   rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
-  iIntros "!> %sk %le_sk_n"...
+  iIntros "!> %sk %le_sk_n".
+  rel_pures_l.
+  rel_apply_l refines_exp_l; rel_pures_l.
+  rel_pures_r. 
+  rel_apply_r refines_exp_r; rel_pures_r.  
   rel_vals.
 Qed.
 
@@ -90,6 +94,17 @@ Proof with rel_red.
   rel_arrow_val ; iIntros (??) "(%&->&->)"...
   rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
   iIntros "!> %b %le_b_n"...
+  rel_pures_l.
+  rel_apply_l refines_exp_l; rel_pures_l.
+  rel_apply_l refines_exp_l; rel_pures_l.
+  rel_apply_l refines_mult_l; rel_pures_l. 
+  
+  rel_pures_r. 
+  rel_apply_r refines_exp_r; rel_pures_r.
+  rel_apply_r refines_exp_r; rel_pures_r.
+  rel_apply_r refines_mult_r; rel_pures_r. 
+  rel_pures_r.
+  
   rel_vals.
 Qed.
 
@@ -102,6 +117,13 @@ Proof with rel_red.
   iIntros "!> %b %le_b_n"...
   rel_apply (refines_couple_UU n). 1: intuition auto ; lia.
   iIntros "!> %x %le_x_n"...
+  rel_pures_l.
+  rel_apply_l refines_exp_l; rel_pures_l.
+  rel_apply_l refines_exp_l; rel_pures_l.  
+  rel_pures_r. 
+  rel_apply_r refines_exp_r; rel_pures_r.
+  rel_apply_r refines_exp_r; rel_pures_r.    
+  
   rel_vals.
 Qed.
 

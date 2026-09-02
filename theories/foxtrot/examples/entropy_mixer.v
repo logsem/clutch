@@ -1,4 +1,4 @@
-Require Import Arith.
+From Stdlib Require Import Arith.
 From clutch.foxtrot Require Import foxtrot.
 
 Definition mixer_prog : expr :=
@@ -43,15 +43,14 @@ Proof.
     iModIntro.
     wp_pures.
     wp_apply (wp_couple_rand_rand _ (λ x, if bool_decide (x<=1)%nat then 1-x else x) with "[$]").
-    { intros. rewrite bool_decide_eq_true_2; last lia.
-      lia. 
-    }
+    { intros. case_bool_decide; lia. }
     iIntros (?) "[% Hspec]".
     wp_pures.
     iFrame. iPureIntro.
     simpl.
     eexists _; split; last done.
-    rewrite bool_decide_eq_true_2; last lia.
+    
+    erewrite bool_decide_eq_true_2; last lia.
     destruct n as [|[|]]; try lia; repeat f_equal.
     Unshelve.
     + apply le_dec.

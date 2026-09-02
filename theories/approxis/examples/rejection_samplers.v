@@ -3,7 +3,7 @@ From clutch.approxis Require Export approxis.
 
 
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
-From iris.proofmode Require Export tactics.
+From iris.proofmode Require Export proofmode.
 
 Set Default Proof Using "Type*".
 Open Scope R.
@@ -242,7 +242,8 @@ Proof.
     do 3 tp_pure.
     wp_pures.
     iRevert "Hα Hαₛ Hspec".
-    iApply (ec_ind_amp _ (S N / (S N - S M)) with "[] Hε"); [done|real_solver|].
+    iApply (ec_ind_amp _ (S N / (S N - S M)) with "[] Hε"); [done| |].
+    { apply NM1. }
     iIntros "!#" (??) "#IH ????".
     iApply (wp_simpl_rejection_ind_aux with "[$][$][$][$]"); [done|].
     iIntros (? H1) "? Hε ? ?". subst.

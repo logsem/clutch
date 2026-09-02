@@ -1,9 +1,10 @@
 From discprob.basic Require Import base order nify.
 From discprob.basic Require Export Reals_ext.
-Require Import Ranalysis5.
-Require Import Reals Fourier FunctionalExtensionality.
-Require Import List.
-Require Import Psatz.
+From Stdlib.Reals Require Import Ranalysis5.
+From Stdlib.Logic Require Import FunctionalExtensionality.
+From Stdlib.Reals Require Import Reals.
+From Stdlib Require Import List.
+From Stdlib.micromega Require Import Fourier Psatz.
 
 Lemma exp_le_embedding x y:
   exp x <= exp y → x <= y.

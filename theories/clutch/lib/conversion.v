@@ -29,7 +29,7 @@ Section specs.
   Proof.
     rewrite /bool_to_int.
     iIntros "HK".
-    tp_pures; [solve_vals_compare_safe|].
+    tp_pures.
     destruct b; case_bool_decide as Heq; try congruence; tp_pures; by iModIntro.
   Qed.
 
@@ -52,7 +52,7 @@ Section specs.
   Proof. 
     rewrite /int_to_bool.
     iIntros "HK".
-    tp_pures; [solve_vals_compare_safe|].
+    tp_pures.
     case_bool_decide as Heq; simplify_eq; tp_pures. 
     - by iModIntro. 
     - iModIntro. by rewrite Z_to_bool_neq_0; [|by intros ->].

@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From Coquelicot Require Import Series Hierarchy Lim_seq Rbar Lub.
 From stdpp Require Import option.
 From stdpp Require Export countable finite gmap fin_sets.
@@ -482,7 +482,7 @@ Section filter.
     + apply SeriesC_singleton.
     + intro a'; rewrite (bool_decide_ext (a = a') (a' = a)); done.
   Qed.
-
+ 
   Lemma ex_seriesC_list (l : list A) (f : A -> R):
     ex_seriesC (λ (a : A), if bool_decide(a ∈ l) then f a else 0).
   Proof.
@@ -565,6 +565,120 @@ Section filter.
     { exfalso. apply H1. apply Hl. done. }
     done.
   Qed.
+
+  Lemma ex_seriesC_from_option h f:
+    (∀ n, 0 <= f n) ->
+    (∀ (n1 n2:B) (m : A), h n1 = Some m → h n2 = Some m → n1 = n2) ->
+    ex_seriesC f → ex_seriesC (λ a : B, from_option f 0 (h a)).
+  Proof.
+    intros Hpos Hinj H1.
+    apply ex_seriesC_ex_series.
+    apply ex_pos_bounded_series.
+    { intros n.
+      rewrite /countable_sum.
+      rewrite /from_option.
+      repeat case_match; real_solver. }
+    exists (SeriesC f).
+    intros n.
+    assert (∃ l : list _,
+               (∀ m, m∈l->(∃ k a, (k<=n)%nat /\ (@encode_inv_nat B _ _ k%nat) = Some a /\
+                                              h a = Some m)) /\
+                   sum_n (countable_sum (λ a : B, from_option f 0 (h a))) n <=
+                    SeriesC (λ a, if bool_decide(a ∈ l) then f a else 0)
+           ) as H'; last first.
+    { destruct H' as [?[??]].
+        etrans; first exact.
+        apply SeriesC_le'; try done.
+        - intros. case_bool_decide; naive_solver.
+        - apply ex_seriesC_list.
+      }
+    induction n.
+      + destruct (@encode_inv_nat B _ _ 0%nat) as [a|]eqn:Ha.
+        * destruct (h a) as [b|] eqn : Hb.
+          -- exists [b]. split.
+             ++ intros. exists 0%nat, a.
+                repeat split; try lia; try done.
+                rewrite Hb. f_equal. set_solver.
+             ++ rewrite sum_O. rewrite /countable_sum.
+                rewrite Ha. simpl. rewrite Hb. simpl.
+                erewrite SeriesC_ext.
+                ** erewrite SeriesC_singleton_dependent. done.
+                ** intro. simpl.
+                   repeat case_bool_decide; set_solver.
+          -- exists []. split.
+             ++ intros; set_solver.
+             ++ rewrite sum_O. rewrite /countable_sum.
+                rewrite Ha. simpl. rewrite Hb. simpl.
+                rewrite SeriesC_0; intros; lra.
+        * exists []. split.
+          ++ intros; set_solver.
+          ++ rewrite sum_O. rewrite /countable_sum.
+             rewrite Ha. simpl.
+             rewrite SeriesC_0; intros; lra.
+      + assert (0<=n)%nat as Hge0.
+        * lia.
+        * destruct IHn as [l[H2 H3]].
+          destruct (@encode_inv_nat B _ _ (S n)%nat) as [a|] eqn:Ha.
+          -- destruct (h a) as [b|] eqn : Hb.
+             ++ exists (b::l). split.
+                ** intros. set_unfold.
+                   destruct H4; subst.
+                   --- exists (S n), a. split; try lia. split; done.
+                   --- specialize (H2 m H4).
+                       destruct H2 as [?[?[?[??]]]].
+                       exists x, x0. split; try lia. by split.
+                ** rewrite sum_Sn. rewrite {2}/countable_sum.
+                   rewrite Ha. simpl. rewrite Hb. simpl.
+                   rewrite (SeriesC_ext _ (λ x, (if bool_decide (x=b) then f b else 0) +
+                                                  if bool_decide (x∈l) then f x else 0
+                           )); last first.
+                   { intros.
+                     case_bool_decide.
+                     - set_unfold. destruct H4.
+                       + case_bool_decide; last done.
+                         case_bool_decide.
+                         * subst. specialize (H2 b H6).
+                           destruct H2 as [?[?[?[??]]]].
+                           rewrite -H7 in Hb.
+                           assert (a = x0).
+                           { eapply Hinj; try done. rewrite Hb. done. }
+                           subst. exfalso.
+                           rewrite -H4 in Ha. assert (x≠ (S n)) by lia.
+                           apply H8. by eapply encode_inv_nat_some_inj.
+                         * subst. lra.
+                       + case_bool_decide.
+                         { subst. specialize (H2 b H4) as [?[?[?[??]]]].
+                           assert (x ≠ S n) by lia.
+                           exfalso. apply H7. eapply encode_inv_nat_some_inj; try done.
+                           rewrite Ha H5. f_equal.
+                           by eapply Hinj.
+                         }
+                         case_bool_decide; try done. lra.
+                     - repeat case_bool_decide.
+                       + set_solver.
+                       + set_solver.
+                       + set_solver.
+                       + lra.
+                   }
+                   rewrite SeriesC_plus; last first.
+                   { by apply ex_seriesC_list. }
+                   { by apply ex_seriesC_singleton. }
+                   rewrite Rplus_comm. rewrite SeriesC_singleton.
+                   trans ((sum_n (countable_sum (λ a0 : B, from_option f 0 (h a0))) n) + f b); try lra.
+                   done.
+             ++ exists l. split.
+                ** intros. specialize (H2 _ H4) as [?[?[?[??]]]].
+                   exists x, x0. repeat split; try done. lia.
+                ** rewrite sum_Sn. rewrite {2}/countable_sum. rewrite Ha. simpl.
+                   rewrite Hb. simpl. etrans; last exact.
+                   by rewrite plus_zero_r.
+          -- exists l. split.
+             ++ intros. specialize (H2 _ H4) as [?[?[?[??]]]].
+                exists x, x0. repeat split; try done. lia.
+             ++ rewrite sum_Sn. rewrite {2}/countable_sum. rewrite Ha. simpl.
+                etrans; last exact.
+                by rewrite plus_zero_r.
+  Qed. 
 
   Lemma is_seriesC_filter_pos f v P `{∀ x, Decision (P x)} :
     (∀ n, 0 <= f n) →
@@ -781,6 +895,26 @@ Proof.
     + intros; do 3 case_bool_decide; simplify_eq; try lia; try lra.
 Qed.
 
+
+Lemma ex_seriesC_nat_bounded_Zle (f : nat -> R) (z : Z) :
+  ex_seriesC (λ (n : nat), if bool_decide (Z.of_nat n <= z)%Z then f n else 0).
+Proof.
+  destruct (Z_lt_ge_dec z 0) as [H|H].
+  - eapply ex_seriesC_ext; [ | apply ex_seriesC_0].
+    intro n.
+    rewrite bool_decide_eq_false_2; auto.
+    lia.
+  - eapply ex_seriesC_ext; [ | apply (ex_seriesC_nat_bounded f (Z.to_nat z))].
+    intro n.
+    case_bool_decide.
+    + rewrite bool_decide_eq_true_2; auto.
+      zify.
+      lia.
+    + rewrite bool_decide_eq_false_2; auto.
+      zify.
+      lia.
+Qed.
+
 Lemma ex_seriesC_nat_bounded_Rle (f : nat -> R) (N : nat) :
   ex_seriesC (λ (n : nat), if bool_decide (n <= N) then f n else 0).
 Proof.
@@ -793,6 +927,19 @@ Proof.
     apply Nat.lt_nge.
     apply INR_lt.
     lra.
+Qed.
+
+Lemma ex_seriesC_nat_eventually_zero (f : nat -> R) (N : nat) (M : nat) :
+  (forall n : nat, M <= n -> f n = 0) ->
+  ex_seriesC f.
+Proof.
+  intros H.
+  eapply ex_seriesC_ext; last first.
+  { eapply (ex_seriesC_nat_bounded_Rle f M). }
+  intros n.
+  simpl; case_bool_decide; auto.
+  rewrite H //.
+  lra.
 Qed.
 
 
@@ -823,6 +970,25 @@ Proof.
       do 3 case_bool_decide; simplify_eq; try lia; try lra.
     + apply ex_seriesC_nat_bounded.
     + apply ex_seriesC_singleton.
+Qed.
+
+
+Lemma SeriesC_split_first (f : nat -> R) :
+  (∀ n, 0 <= f n) →           (* TODO: this requirements should not be necessary? *)
+  ex_seriesC f →
+  SeriesC f = (f 0%nat) + SeriesC (λ n, f (S n)).
+Proof.
+  intros Hle Hex.
+  rewrite (SeriesC_split_elem f 0%nat); auto.
+  rewrite SeriesC_singleton_dependent.
+  f_equal; auto.
+  rewrite SeriesC_nat.
+  rewrite SeriesC_nat.
+  rewrite Series_incr_1_aux.
+  - apply Series_ext.
+    intro n.
+    rewrite bool_decide_eq_true_2; [done|lia].
+  - rewrite bool_decide_eq_false_2; [done|lia].
 Qed.
 
 
@@ -953,6 +1119,44 @@ Section finite.
     apply ex_seriesC_finite.
   Qed.
 
+#[local] Fixpoint Rmax_seq (f : nat -> R) n :=
+  match n with
+  | 0 => f 0%nat
+  | S m => Rmax (f (S m)) (Rmax_seq f m)
+  end.
+
+#[local] Lemma le_Rmax_seq (f : nat -> R) n m :
+  (m ≤ n) ->
+  (f m <= Rmax_seq f n)%R.
+Proof.
+  intros Hleq.
+  induction Hleq.
+  - destruct m; simpl; [lra|].
+    apply Rmax_l.
+  - simpl.
+    etrans; eauto.
+    apply Rmax_r.
+Qed.
+
+Lemma fin_function_bounded (N : nat) (f : fin N -> R) :
+  exists r, forall n, (f n <= r)%R.
+Proof.
+  induction N as [|M].
+  - exists 0.
+    intros.
+    by apply Fin.case0.
+  - set (g := (λ (n : nat), f (fin.fin_force _ n))).
+    exists (Rmax_seq g M).
+    intros n.
+    pose proof (fin_to_nat_lt n).
+    transitivity (g n).
+    + rewrite /g /=.
+      right.
+      f_equal.
+      apply fin_to_nat_inj.
+      rewrite fin.fin_force_to_nat_le; lia.
+    + apply le_Rmax_seq; lia.
+Qed.
 
 End finite.
 
@@ -1027,11 +1231,34 @@ End finite.
   Qed.
 
   
-  Lemma SeriesC_nat_bounded' (f : nat -> R) (N : nat) :
+  Lemma SeriesC_nat_bounded_to_foldr (f : nat -> R) (N : nat) :
     SeriesC (λ (n : nat), if bool_decide ((n <= N)%nat) then f n else 0) = foldr (Rplus ∘ f ∘ fin_to_nat) 0%R (enum (fin (S N))).
   Proof.
     rewrite SeriesC_nat_bounded_fin.
     by rewrite SeriesC_finite_foldr.
+  Qed.
+
+
+  Lemma SeriesC_nat_bounded_to_foldr' (f : nat -> R) (N : nat) :
+    SeriesC (λ (n : nat), if bool_decide ((n <= N)%nat) then f n else 0) = foldr Rplus 0%R ( f <$> seq 0 (S N)).
+  Proof.
+    rewrite SeriesC_nat_bounded_fin.
+    rewrite -enum_fin_seq.
+    rewrite SeriesC_finite_foldr.
+    assert (forall {A B} (l : list A) (h2 : B -> R) (h1 : A -> B),
+               foldr (Rplus ∘ h2 ∘ h1 ) 0 l = foldr (Rplus ∘ h2) 0 (h1 <$> l)) as Haux.
+    {
+      induction l.
+      - intros l.
+        simpl. done.
+      - intros h1 h2.
+        simpl.
+        f_equal.
+        auto.
+    }
+    rewrite -Haux.
+    rewrite -Haux.
+    apply foldr_ext; auto.
   Qed.
 
 (** Results about positive (non-negative) series *)
@@ -1978,6 +2205,20 @@ Section inj.
 
 End inj.
 
+Lemma SeriesC_translate f loc (fpos : ∀ z, 0 <= f z) (fex : ex_seriesC f) :
+  (SeriesC (λ z : Z, f (z + loc)) = SeriesC f)%Z.
+Proof.
+  opose proof (SeriesC_le_inj f (λ z, Some (z + loc))%Z _ _ _) as lb => //.
+  { intros ??? h h'. inversion h ; inversion h'. lia. }
+  simpl in lb.
+  opose proof (SeriesC_le_inj (λ z, f (z + loc))%Z (λ z, Some (z - loc))%Z _ _ _) as ub => //.
+  { intros ??? h h'. inversion h ; inversion h'. lia. }
+  1: apply ex_seriesC_inj => //.
+  { intros ?? h. inversion h. lia. }
+  simpl in ub.
+  setoid_rewrite Z.sub_simpl_r in ub. apply Rle_antisym => //.
+Qed.
+
 
 Section Inj_finite.
 
@@ -1993,8 +2234,8 @@ Section Inj_finite.
         instantiate (2:= h <$> enum (fin M)).
         intros. case_bool_decide as H1; case_bool_decide as H2; try done.
         - exfalso.
-          apply H2. destruct H1. subst. apply elem_of_list_fmap_1, elem_of_enum.
-        - exfalso. apply H1. rewrite elem_of_list_fmap in H2. destruct H2 as [y[??]].
+          apply H2. destruct H1. subst. apply list_elem_of_fmap_2, elem_of_enum.
+        - exfalso. apply H1. rewrite list_elem_of_fmap in H2. destruct H2 as [y[??]].
           naive_solver.           
     }
     intros n.
@@ -2045,7 +2286,7 @@ Section Inj_finite.
              ++ subst. rewrite H1 in H4. naive_solver.
           -- intros [?[??]]. subst.
              rewrite Nat.le_succ_r in H5. destruct H5.
-             ++ apply elem_of_list_further. rewrite H1.
+             ++ apply list_elem_of_further. rewrite H1.
                 eexists _; by split.
              ++ apply encode_inv_Some_nat in H3. rewrite -H3 in H0. apply encode_nat_inj in H0.
                 apply Hinj in H0. set_solver.
@@ -2236,6 +2477,121 @@ Section Inj_finite.
   Qed. 
 
 End Inj_finite.
+
+
+Section gmap.
+  (* very specialized lemmas for elton *)
+  Lemma ex_seriesC_gmap_insert `{Countable X} `{Countable Y} l g f:
+    (∀ x, 0<= f x) -> (∀ x, 0 <= g x) ->
+    ex_seriesC f ->
+    ex_seriesC g ->
+    ex_seriesC (λ (m : gmap X Y), match m!!l with
+                     | Some z => f (delete l m) * g z
+                     | None => 0
+                     end
+      ).
+  Proof.
+    intros H1 H2 H3 H4.
+    pose (f' := (λ '(m, z),
+                   match z with
+                   | Some z => f m * g z
+                   | None => 0
+                   end
+         )).
+    pose (g' := (λ (m:gmap X Y), (delete l m, m!!l))).
+    apply (ex_seriesC_ext (λ m, f' (g' m))); first done.
+    apply ex_seriesC_inj.
+    { intros ??.
+      rewrite /g'.
+      intros. simplify_eq.
+      apply map_eq.
+      intros i.
+      destruct (decide (i=l)); subst; simplify_map_eq; first done.
+      erewrite <-lookup_delete_ne; last done.
+      erewrite <-(lookup_delete_ne y); last done.
+      by f_equal.
+    }
+    { intros.
+      rewrite /f'.
+      case_match.
+      subst.
+      case_match; real_solver. 
+    }
+    rewrite /f'.
+    apply ex_seriesC_prod.
+    - intros. case_match; real_solver.
+    - intros a.
+      apply (ex_seriesC_le _ (λ b, f a * from_option g 0 b)).
+      { intros. case_match; real_solver. }
+      apply ex_seriesC_scal_l.
+      apply ex_seriesC_from_option; naive_solver.
+    - apply (ex_seriesC_le _ (λ a, SeriesC (λ b, f a * from_option g 0 b))).
+      { intros. split.
+        - apply SeriesC_ge_0'. real_solver.
+        - right.
+          apply SeriesC_ext.
+          intros. case_match; real_solver.
+      }
+      setoid_rewrite SeriesC_scal_l.
+      by apply ex_seriesC_scal_r.
+  Qed.
+
+  Lemma SeriesC_gmap_insert_le_1 `{Countable X} `{Countable Y} f g l:
+    (∀ x, 0<= f x) -> (∀ x, 0 <= g x) ->
+    ex_seriesC f ->
+    ex_seriesC g ->
+    SeriesC f<=1 ->
+    SeriesC (g) <=1 ->
+    SeriesC (λ (m : gmap X Y), match m!!l with
+                     | Some z => f (delete l m) * g z
+                     | None => 0
+                     end
+      ) <= 1.
+  Proof.
+    intros H1 H2 H3 H4 H5 H6.
+    pose (f' := (λ '(m, z),f m * g z
+         )).
+    pose (g' := (λ (m:gmap X Y), match m!!l with
+                                 | Some z => Some (delete l m, z)
+                                 | None => None
+                                 end
+         )).
+    erewrite (SeriesC_ext _ (λ m, from_option f' 0 (g' m))); last first.
+    { intros. rewrite /g'/f'. by case_match. }
+    etrans; first apply SeriesC_le_inj.
+    - intros. rewrite /f'.
+      case_match.
+      real_solver.
+    - rewrite /g'.
+      intros. repeat case_match; simplify_eq.
+      apply map_eq.
+      intros i.
+      destruct (decide (i=l)); subst; simplify_map_eq; first done.
+      erewrite <-lookup_delete_ne; last done.
+      erewrite <-(lookup_delete_ne n2); last done.
+      by f_equal.
+    - rewrite /f'.
+      apply ex_seriesC_prod.
+      + real_solver.
+      + intros.
+        by apply ex_seriesC_scal_l.
+      + setoid_rewrite SeriesC_scal_l.
+        by apply ex_seriesC_scal_r.
+    - rewrite /f'.
+      rewrite fubini_pos_seriesC_prod_lr; last first.
+      + apply ex_seriesC_prod.
+        * real_solver.
+        * intros. by apply ex_seriesC_scal_l.
+        * setoid_rewrite SeriesC_scal_l.
+          by apply ex_seriesC_scal_r.
+      + real_solver.
+      + setoid_rewrite (SeriesC_scal_l _ (f _)).
+        setoid_rewrite (SeriesC_scal_r).
+        replace (1) with (1*1) by lra.
+        apply Rmult_le_compat; try done; by apply SeriesC_ge_0'.
+  Qed.
+  
+End gmap.
 
 
 Ltac series_solver_partial :=

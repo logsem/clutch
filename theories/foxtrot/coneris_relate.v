@@ -1,7 +1,7 @@
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates.
-From iris.bi Require Export fixpoint big_op.
+From iris.bi Require Export lib.fixpoint_mono big_op.
 From iris.prelude Require Import options.
 
 From clutch.bi Require Export weakestpre.
@@ -26,14 +26,15 @@ Section relate.
   Definition foxtrot_wp := wp (Wp :=wp').
   Definition coneris_wp := wp (Wp:=pgl_wp').
 
-  
   Lemma state_step_coupl_implies_spec_coupl σ ρ ε Φ1 Φ2:
     □(∀ σ' ε', spec_interp ρ -∗ Φ1 σ' ε' -∗ Φ2 σ' ρ ε') -∗
      state_step_coupl σ ε Φ1 -∗ spec_interp ρ -∗ spec_coupl σ ρ ε Φ2.
   Proof.
     iIntros "#H H'".
     rewrite /state_step_coupl/state_step_coupl'.
-    iApply (least_fixpoint_ind _ (λ '(σ, ε), spec_interp ρ -∗ spec_coupl σ ρ ε Φ2)%I with "[][$H']").
+    opose proof (least_fixpoint_ind _ (λ '(σ, ε), spec_interp ρ -∗ spec_coupl σ ρ ε Φ2)%I) as h.
+    1,2: shelve.
+    iApply (h with "[][$H']").
     iModIntro.
     iIntros ([σ1 ε1]).
     iIntros "[%H'| [H'|[H'|H']]] Hspec".
@@ -72,8 +73,8 @@ Section relate.
     spec_interp ρ -∗ 
     prog_coupl e σ ρ ε Φ2 .
   Proof.
-    iIntros "#? H Hprog Hspec".
-    iDestruct (prog_coupl_equiv1 with "[$][$]") as "H'".
+    iIntros "#foo H Hprog Hspec".
+    iDestruct (prog_coupl_equiv1 with "[$foo][$Hprog]") as "H'".
     iDestruct "H'" as "(%R2&%ε1&%ε2&%&% & %Hineq & %Hpgl & H')".
     iApply prog_coupl_step_l_dret_adv; try done.
     iIntros.

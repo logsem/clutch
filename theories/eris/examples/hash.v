@@ -123,7 +123,7 @@ Section simple_bit_hash.
     destruct (decide (n = k1)).
     - destruct (decide (n = k2)); simplify_eq; auto.
       destruct Hk2 as [|Hk2]; auto.
-      rewrite lookup_total_insert in Heq.
+      rewrite lookup_total_insert_eq in Heq.
       rewrite lookup_total_insert_ne // in Heq.
       apply lookup_lookup_total in Hk2.
       rewrite -Heq in Hk2.
@@ -135,7 +135,7 @@ Section simple_bit_hash.
     - destruct (decide (n = k2)); simplify_eq; auto.
       {
         destruct Hk1 as [|Hk1]; auto.
-        rewrite lookup_total_insert in Heq.
+        rewrite lookup_total_insert_eq in Heq.
         rewrite lookup_total_insert_ne // in Heq.
         apply lookup_lookup_total in Hk1.
         rewrite Heq in Hk1.
@@ -202,10 +202,10 @@ Section simple_bit_hash.
     rewrite lookup_fmap Hlookup /=. wp_pures.
     wp_bind (rand _)%E.
     wp_apply (wp_rand_err_list_nat _ val_size (map (λ p, snd p) (map_to_list m))); auto.
-    rewrite map_length.
+    rewrite length_map.
     rewrite plus_INR INR_1.
     iFrame.
-    iIntros "%x %HForall".
+    iIntros "%x [%Hx %HForall]".
     wp_pures.
     wp_apply (wp_set with "Hhash").
     iIntros "Hlist".
@@ -220,10 +220,7 @@ Section simple_bit_hash.
       + rewrite fmap_insert //.
       + iPureIntro.
         apply map_Forall_insert_2; last done.
-        split.
-        * lia.
-        * pose proof (fin_to_nat_lt x).
-          lia.
+        split; lia.
     - iPureIntro.
       apply coll_free_insert; auto.
       apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
@@ -445,7 +442,7 @@ Section amortized_hash.
         rewrite -Rmult_plus_distr_l.
         f_equal.
     - wp_apply (wp_insert_no_coll with "[H Hε]"); [done|..].
-      + rewrite map_to_list_length. iFrame. done.
+      + rewrite length_map_to_list. iFrame. done.
       + iIntros (v) "[H %]".
         iApply "HΦ".
         iSplitL; last done.

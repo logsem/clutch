@@ -153,8 +153,8 @@ Section prp_prf.
         eexists _.
         repeat split; try done.
         - rewrite cons_seq. apply NoDup_seq. 
-        - rewrite cons_seq. by rewrite seq_length.
-        - rewrite cons_seq. by rewrite seq_length.
+        - rewrite cons_seq. by rewrite length_seq.
+        - rewrite cons_seq. by rewrite length_seq.
         - intros ?. rewrite cons_seq. rewrite elem_of_seq. lia.         
       }
       iIntros "#Hinv".
@@ -290,12 +290,12 @@ Section prp_prf.
         done.
       - done.
       - rewrite map_size_insert_None.
-        + rewrite app_length.
-          rewrite app_length cons_length in Hlen. lia.
+        + rewrite length_app.
+          rewrite length_app length_cons in Hlen. lia.
         + rewrite lookup_fmap in Hres.
           rewrite fmap_None in Hres. done.
-      - rewrite app_length.
-        rewrite app_length cons_length in Hlen. lia.
+      - rewrite length_app.
+        rewrite length_app length_cons in Hlen. lia.
       - intros ?. rewrite elem_of_map_img.
         intros [? K].
         rewrite lookup_insert_Some in K.
@@ -303,7 +303,7 @@ Section prp_prf.
         + apply Nat2Z.inj' in K'. subst.
           rewrite NoDup_ListNoDup in HNoDup.
           apply NoDup_remove_2 in HNoDup.
-          rewrite elem_of_list_In. done.
+          rewrite list_elem_of_In. done.
         + intros ?. set_unfold.
           eapply Hdisjoint.
           * rewrite elem_of_map_img. naive_solver.
@@ -387,8 +387,8 @@ Section prp_prf.
         eexists _.
         repeat split; try done.
         - rewrite cons_seq. apply NoDup_seq. 
-        - rewrite cons_seq. by rewrite seq_length.
-        - rewrite cons_seq. by rewrite seq_length.
+        - rewrite cons_seq. by rewrite length_seq.
+        - rewrite cons_seq. by rewrite length_seq.
         - intros ?. rewrite cons_seq. rewrite elem_of_seq. lia.         
       }
       iIntros "#Hinv".
@@ -524,12 +524,12 @@ Section prp_prf.
         done.
       - done.
       - rewrite map_size_insert_None.
-        + rewrite app_length.
-          rewrite app_length cons_length in Hlen. lia.
+        + rewrite length_app.
+          rewrite length_app length_cons in Hlen. lia.
         + rewrite lookup_fmap in Hres.
           rewrite fmap_None in Hres. done.
-      - rewrite app_length.
-        rewrite app_length cons_length in Hlen. lia.
+      - rewrite length_app.
+        rewrite length_app length_cons in Hlen. lia.
       - intros ?. rewrite elem_of_map_img.
         intros [? K].
         rewrite lookup_insert_Some in K.
@@ -537,7 +537,7 @@ Section prp_prf.
         + apply Nat2Z.inj' in K'. subst.
           rewrite NoDup_ListNoDup in HNoDup.
           apply NoDup_remove_2 in HNoDup.
-          rewrite elem_of_list_In. done.
+          rewrite list_elem_of_In. done.
         + intros ?. set_unfold.
           eapply Hdisjoint.
           * rewrite elem_of_map_img. naive_solver.

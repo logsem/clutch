@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Export weakestpre.

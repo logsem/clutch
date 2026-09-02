@@ -431,6 +431,7 @@ Proof.
   iApply fupd_wand_r. iSplitL.
   - iApply H1. iFrame. by iApply Hwp.
   - iIntros "%". done.
+    Unshelve. apply _.
 Qed.
 
 Theorem twp_mass_lim_exec Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :

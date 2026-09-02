@@ -70,7 +70,7 @@ Section hash_view_impl.
     rewrite -core_id_extract; last first.
     { apply bij_view_included. rewrite elem_of_map_to_set.
       eexists _, _; split; last done.
-      apply lookup_insert.
+      apply lookup_insert_eq.
     }
     etrans; first apply gset_bij_auth_extend; last by rewrite map_to_set_insert_L.
     - intros b. rewrite elem_of_map_to_set; intros (?&?&?&?).

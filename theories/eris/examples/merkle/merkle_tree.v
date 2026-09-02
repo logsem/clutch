@@ -450,7 +450,6 @@ Section merkle_tree.
              lia.
              Unshelve.
              ++ done.
-             ++ done.
              ++ by inversion H22.
              ++ by inversion Hpossible.
           --  iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
@@ -856,7 +855,7 @@ Section merkle_tree.
     revert tree lis.
     induction n; intros tree lis Hlist.
     - inversion Hlist. by simpl.
-    - inversion Hlist; subst. rewrite app_length. simpl. erewrite !IHn; try done.
+    - inversion Hlist; subst. rewrite length_app. simpl. erewrite !IHn; try done.
       lia.
   Qed.
 

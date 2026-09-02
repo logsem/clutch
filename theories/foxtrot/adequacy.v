@@ -1,11 +1,11 @@
 From Coquelicot Require Import Lub Rbar Lim_seq.
 From iris.proofmode Require Import base proofmode.
-From iris.bi Require Export weakestpre fixpoint big_op.
+From iris.bi Require Export lib.fixpoint_mono big_op.
 From iris.base_logic.lib Require Import ghost_map invariants fancy_updates.
 
 From clutch.prelude Require Import stdpp_ext iris_ext Coquelicot_ext.
 From clutch.base_logic Require Import error_credits.
-From clutch.con_prob_lang Require Import erasure notation lub_termination.
+From clutch.con_prob_lang Require Import erasure lub_termination.
 From clutch.foxtrot Require Import weakestpre primitive_laws oscheduler full_info.
 From clutch.prob Require Import distribution couplings_app.
 Import uPred.
@@ -94,12 +94,8 @@ Section adequacy.
       iAssert (|={∅}=> ∀ p, ∃ fp, P p (fp))%I with "[H]" as "H".
       {
         rewrite /P.
-        iApply fupd_plain_forall; [|done|].
-        - intros x. apply exist_plain.
-          intros.
-          destruct  (projT1 x). case_match.
-          apply pure_plain.
-        - iIntros ([([??]&?&?)?]).
+        iApply fupd_plain_forall; [done|].
+        iIntros ([([??]&?&?)?]).
           iMod ("H" with "[//]") as "[H _]".
           iMod ("H" with "[//]") as "[%osch' %Hcoupl']".
           iExists osch'. done.
@@ -267,18 +263,14 @@ Section adequacy.
       {
         rewrite /P.
         iApply fupd_step_fupdN_plain_forall.
-        - intros x. apply exist_plain.
-          intros.
-          destruct  (projT1 x). case_match.
-          apply pure_plain.
-        - iIntros ([([??]&?&?)?]).
-          iMod ("H" with "[//]") as "[H _]".
-          iDestruct ("H" with "[//]") as "H".
-          iMod ("H" with "[$]").
-          iModIntro.
-          iApply (step_fupdN_mono with "[$]").
-          iPureIntro.
-          intros (osch' & Hcoupl'). naive_solver.
+        iIntros ([([??]&?&?)?]).
+        iMod ("H" with "[//]") as "[H _]".
+        iDestruct ("H" with "[//]") as "H".
+        iMod ("H" with "[$]").
+        iModIntro.
+        iApply (step_fupdN_mono with "[$]").
+        iPureIntro.
+        intros (osch' & Hcoupl'). naive_solver.
       }
       iMod "H".
       iModIntro.
@@ -452,18 +444,14 @@ Section adequacy.
       {
         rewrite /P.
         iApply fupd_step_fupdN_plain_forall.
-        - intros x. apply exist_plain.
-          intros.
-          destruct  (projT1 x). case_match.
-          apply pure_plain.
-        - iIntros ([([??]&?&?)?]).
-          iMod ("H" with "[//]") as "[H _]".
-          iDestruct ("H" with "[//]") as "H".
-          iMod ("H" with "[//][//][//][$]").
-          iModIntro.
-          iApply (step_fupdN_mono with "[$]").
-          iPureIntro.
-          intros (osch' & Hcoupl'). naive_solver.
+        iIntros ([([??]&?&?)?]).
+        iMod ("H" with "[//]") as "[H _]".
+        iDestruct ("H" with "[//]") as "H".
+        iMod ("H" with "[//][//][//][$]").
+        iModIntro.
+        iApply (step_fupdN_mono with "[$]").
+        iPureIntro.
+        intros (osch' & Hcoupl'). naive_solver.
       }
       iMod "H".
       iModIntro.
@@ -594,20 +582,16 @@ Section adequacy.
     {
       rewrite /P.
       iApply fupd_step_fupdN_plain_forall.
-      - intros x. apply exist_plain.
-        intros.
-        destruct  (projT1 x). do 3 case_match.
-        apply pure_plain.
-      - rewrite /S'.
-        iIntros ([([[[??]?]?]&?&?)?]).
-        iMod ("H" with "[//]") as "H".
-        iMod ("H'" with "[$]").
-        iModIntro.
-        iApply (step_fupdN_mono with "[$]").
-        iPureIntro.
-        simpl.
-        intros K.
-        apply K in Hε' as (osch' & Hcoupl'). naive_solver.
+      rewrite /S'.
+      iIntros ([([[[??]?]?]&?&?)?]).
+      iMod ("H" with "[//]") as "H".
+      iMod ("H'" with "[$]").
+      iModIntro.
+      iApply (step_fupdN_mono with "[$]").
+      iPureIntro.
+      simpl.
+      intros K.
+      apply K in Hε' as (osch' & Hcoupl'). naive_solver.
     }
     iMod "H".
     iModIntro.
@@ -765,7 +749,7 @@ Section adequacy.
       rewrite full_info_cons_osch_lim_exec/dmap -!dbind_assoc.
       replace (_+_) with (0+(ε+ε')); last (simpl; lra).
       eapply ARcoupl_dbind; [done|apply Rplus_le_le_0_compat; [apply cond_nonneg|lra]| |apply ARcoupl_pos_R, ARcoupl_eq].
-      Local Opaque full_info_lift_osch step' step.
+      Local Opaque full_info_lift_osch step' step decode_nat.
       simpl.
       intros [s ac][s' ac'](?&?&?). simplify_eq.
       rewrite dret_id_left.
@@ -883,7 +867,7 @@ Section adequacy.
       { iFrame. }
       done.
     - simpl in Hlookup.
-      apply elem_of_list_split_length in Hlookup as (l1 & l2 & -> & ->).
+      apply list_elem_of_split_length in Hlookup as (l1 & l2 & -> & ->).
       iDestruct "Hwps" as "[Hl1 [Hwp' Hl2]]".
       rewrite (wp_unfold _ chosen_e)/wp_pre.
       iSimpl in "Hwp'".
@@ -948,7 +932,10 @@ Proof.
   - set ε_nonneg := mknonnegreal _ Heps.
     iMod (ec_alloc ε_nonneg) as (?) "[HE He]"; [done|].
     set (HfoxtrotGS := HeapG Σ _ _ _ γH γT HspecGS _).
-    iApply (wp_adequacy_step_fupdN _ _ _ _ ε_nonneg); first lra.
+    iPoseProof (wp_adequacy_step_fupdN _ _ _ _ ε_nonneg _ _ _ _ _ ε') as "h" ; first lra.
+    iApply "h".
+    (* Iris regression: this used to work with iApply directly *)
+    (* iApply (wp_adequacy_step_fupdN _ _ _ _ ε_nonneg); first lra. *)
     iFrame.
     simpl.
     iApply (Hwp with "[He][-]").
@@ -960,6 +947,7 @@ Proof.
     iPureIntro. eexists full_info_inhabitant.
     apply ARcoupl_1.
     simpl in *. lra.
+    Unshelve. apply _.
 Qed.
 
 
@@ -980,7 +968,7 @@ Proof.
   iSplit; last done.
   iApply (Hwp with "[$]").
   iApply big_sepM_lookup; last iFrame.
-  simpl. apply lookup_insert.
+  simpl. apply lookup_insert_eq.
 Qed.
 
 Lemma foxtrot_adequacy_intermediate Σ `{foxtrotGpreS Σ} (ε:R) ϕ n e e' :

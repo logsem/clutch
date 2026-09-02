@@ -117,7 +117,7 @@ Section simple_bit_hash.
     rewrite -core_id_extract; last first.
     { apply bij_view_included. rewrite elem_of_map_to_set.
       eexists _, _; split; last done.
-      apply lookup_insert.
+      apply lookup_insert_eq.
     }
     etrans; first apply gset_bij_auth_extend; last by rewrite map_to_set_insert_L.
     - intros b. rewrite elem_of_map_to_set; intros (?&?&?&?).
@@ -221,7 +221,7 @@ Section simple_bit_hash.
     destruct (decide (n = k1)).
     - destruct (decide (n = k2)); simplify_eq; auto.
       destruct Hk2 as [|Hk2]; auto.
-      rewrite lookup_total_insert in Heq.
+      rewrite lookup_total_insert_eq in Heq.
       rewrite lookup_total_insert_ne // in Heq.
       apply lookup_lookup_total in Hk2.
       rewrite -Heq in Hk2.
@@ -233,7 +233,7 @@ Section simple_bit_hash.
     - destruct (decide (n = k2)); simplify_eq; auto.
       {
         destruct Hk1 as [|Hk1]; auto.
-        rewrite lookup_total_insert in Heq.
+        rewrite lookup_total_insert_eq in Heq.
         rewrite lookup_total_insert_ne // in Heq.
         apply lookup_lookup_total in Hk1.
         rewrite Heq in Hk1.
@@ -313,7 +313,7 @@ Section simple_bit_hash.
     rewrite lookup_fmap Hlookup /=. wp_pures.
     wp_bind (rand _)%E.
     wp_apply (wp_rand_err_list_nat _ val_size (map (λ p, snd p) (map_to_list m))); auto.
-    rewrite map_length.
+    rewrite length_map.
     rewrite plus_INR INR_1.
     iFrame.
     iIntros "%x %HForall".
@@ -696,7 +696,7 @@ Section amortized_hash.
         rewrite -Rmult_plus_distr_l.
         f_equal.
     - wp_apply (wp_insert_no_coll with "[H Hε Hview]"); [done|..].
-      + rewrite map_to_list_length. iFrame. 
+      + rewrite length_map_to_list. iFrame. 
       + iIntros (v) "[[??] ?]".
         iApply "HΦ".
         iCombine "Hfrag Htoken" as "Hfrag".

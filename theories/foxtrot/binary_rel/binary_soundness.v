@@ -1,5 +1,5 @@
 (** Logical relation is sound w.r.t. the contextual refinement. *)
-From Coq Require Export Reals.
+From Stdlib Require Export Reals.
 From iris.proofmode Require Import proofmode.
 From Coquelicot Require Import Rbar Lub.
 From clutch.con_prob_lang Require Import notation metatheory lang lub_termination.

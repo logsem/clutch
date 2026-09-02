@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From clutch.prob_lang Require Import lang notation.
 From clutch.caliper Require Import primitive_laws proofmode adequacy.
 From clutch.caliper.examples Require Import lazy_real.
@@ -397,7 +397,7 @@ Section runner_spec.
 
 End runner_spec.
 
-Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
+Notation σ₀ := {| heap := ∅; tapes := ∅; tapes_laplace := ∅ |}.
 Notation almost_surely_terminates ρ := (SeriesC (lim_exec ρ) = 1%R).
 
 Theorem runner_terminates :

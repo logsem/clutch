@@ -1,14 +1,15 @@
 (** uniform spaces on finite types *)
-
-From mathcomp Require Import all_ssreflect all_algebra finmap.
-From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
+#[warning="-notation-incompatible-prefix -hiding-delimiting-key"]
+  From mathcomp Require Import all_boot all_algebra finmap.
+#[warning="-notation-incompatible-prefix"]
+From mathcomp Require Import mathcomp_extra boolp classical_sets functions reals interval_inference.
 From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
+From mathcomp.analysis Require Import ereal normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
 From clutch.prob.monad Require Export types eval compose integrate.
 
-Import Coq.Logic.FunctionalExtensionality.
+From Stdlib.Logic Require Import FunctionalExtensionality.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -25,6 +26,7 @@ Section unif_fin_space.
   (* The finite type of > 0 elements is inhabited *)
   Program Definition Ism_inhabitant : 'I_(S m). eapply (@Ordinal _), leqnn. Defined.
 
+  #[warning="-HB.no-new-instance"]
   HB.instance Definition _ := gen_eqMixin ('I_m).
   HB.instance Definition _ := gen_choiceMixin ('I_m).
   HB.instance Definition _ N := isPointed.Build ('I_(S m)) Ism_inhabitant.

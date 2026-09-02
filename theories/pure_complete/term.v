@@ -1,4 +1,4 @@
-From Coq Require Import Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import notation tactics metatheory.
 From clutch.prob_lang Require Export lang.

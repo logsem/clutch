@@ -227,7 +227,7 @@ Section client.
         iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
         iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
         rewrite /con_prog_inv.
-        destruct n1, n2 as [|]; [simpl|simpl; iModIntro; iFrame; iSplitL "Herr"; iModIntro; try (iPureIntro; lia); done..]; last first.
+        destruct n1, n2 as [|]; [simpl|simpl; iModIntro; iFrame; iModIntro; try (iPureIntro; lia); done..]; last first.
         rewrite /one_positive. rewrite bool_decide_eq_false_2; last first.
         { intros (?&?&[|]); simpl in *; simplify_eq; lia. }
         iDestruct "Herr" as "(%&Herr&->)".

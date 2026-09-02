@@ -4,9 +4,9 @@ From clutch.tachis Require Export expected_time_credits ert_weakestpre problang_
   derived_laws cost_models ert_rules.
 From clutch.prob_lang Require Import notation tactics metatheory lang.
 From iris.proofmode Require Export proofmode.
-From Coq Require Export Reals Psatz.
+From Stdlib Require Export Reals Psatz.
 From Coquelicot Require Export Hierarchy.
-Require Import Lra.
+From Stdlib Require Import Lra.
 From clutch.tachis.examples.hashmap Require Export map hash linkedlist.
 
 Set Default Proof Using "Type*".
@@ -129,7 +129,7 @@ Section hashmap.
     iSplit; first done.
     iFrame "Ha". 
     iSplit.
-    { iPureIntro. rewrite insert_length. done. } 
+    { iPureIntro. rewrite length_insert. done. } 
     rewrite (seq_split (fin_to_nat v') (S _)); last first.
     { split; auto; lia. }
     rewrite big_sepL_app big_sepL_cons.
@@ -139,14 +139,14 @@ Section hashmap.
       iExists _, _. iFrame.
       iPureIntro. split.
       - eapply list_lookup_insert_Some; right; split; try done.
-        intros <-. apply elem_of_list_lookup_2 in H'. rewrite elem_of_seq in H'. lia.
+        intros <-. apply list_elem_of_lookup_2 in H'. rewrite elem_of_seq in H'. lia.
       - split; last done. eapply lookup_insert_Some; right; split; try done.
-        intros <-. apply elem_of_list_lookup_2 in H'. rewrite elem_of_seq in H'. lia.
+        intros <-. apply list_elem_of_lookup_2 in H'. rewrite elem_of_seq in H'. lia.
     }
     iSplitL "Hl".
     { iExists _, _. iFrame. iPureIntro. split.
-      - apply list_lookup_insert. by rewrite Hlen.
-      - rewrite lookup_insert. f_equal. split; first (repeat f_equal; by apply lookup_total_correct).
+      - apply list_lookup_insert_eq. by rewrite Hlen.
+      - rewrite lookup_insert_eq. f_equal. split; first (repeat f_equal; by apply lookup_total_correct).
         rewrite NoDup_app. split; first set_solver. split; last apply NoDup_singleton.
         intros ???. assert (x=n) as -> by set_solver. eapply H in H2; last done.
         apply Hnotin. rewrite elem_of_dom. naive_solver.
@@ -156,9 +156,9 @@ Section hashmap.
     iExists _, _. iFrame.
     iPureIntro. split.
     - eapply list_lookup_insert_Some; right; split; try done.
-      intros <-. apply elem_of_list_lookup_2 in H'. rewrite elem_of_seq in H'. lia.
+      intros <-. apply list_elem_of_lookup_2 in H'. rewrite elem_of_seq in H'. lia.
     - split; last done. eapply lookup_insert_Some; right; split; try done.
-      intros <-. apply elem_of_list_lookup_2 in H'. rewrite elem_of_seq in H'. lia.
+      intros <-. apply list_elem_of_lookup_2 in H'. rewrite elem_of_seq in H'. lia.
   Qed.
 
   
@@ -276,12 +276,12 @@ Section hashmap.
       rewrite H. rewrite /hashmap_size. rewrite -SeriesC_plus; try apply ex_seriesC_finite.
       apply SeriesC_ext. intros.
       case_match eqn: H1; case_bool_decide as H2; subst.
-      + rewrite lookup_insert. rewrite app_length. simpl. erewrite lookup_total_correct; last done.
+      + rewrite lookup_insert_eq. rewrite length_app. simpl. erewrite lookup_total_correct; last done.
         rewrite plus_INR. done.
       + rewrite lookup_insert_ne; last first.
         { intros K. apply fin_to_nat_inj in K. done. }
         rewrite H1. lra.
-      + rewrite lookup_insert. rewrite app_length. simpl. erewrite lookup_total_correct_2; last done.
+      + rewrite lookup_insert_eq. rewrite length_app. simpl. erewrite lookup_total_correct_2; last done.
         rewrite plus_INR. done.
       + rewrite lookup_insert_ne; last first.
         { intros K. apply fin_to_nat_inj in K. done. }

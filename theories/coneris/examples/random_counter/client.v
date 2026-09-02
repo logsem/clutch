@@ -241,7 +241,7 @@ Section client.
         iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
         iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
         rewrite /con_prog_inv.
-        destruct n1, n2 as [|]; [simpl|simpl; iModIntro; iFrame; iSplitL "Herr"; iModIntro; try (iPureIntro; lia); done..]; last first.
+        destruct n1, n2 as [|]; [simpl|simpl; iModIntro; iFrame; iModIntro; try (iPureIntro; lia); done..]; last first.
         case_match eqn:H.
         { rewrite /one_positive in H. apply bool_decide_eq_true_1 in H.
           destruct H as (?&?&[|]); simpl in *; simplify_eq; lia.

@@ -1,5 +1,5 @@
 From iris.proofmode Require Import base proofmode.
-From iris.bi Require Export weakestpre fixpoint big_op.
+From iris.bi Require Export lib.fixpoint_mono big_op.
 From iris.base_logic.lib Require Import ghost_map invariants fancy_updates.
 From iris.algebra Require Import excl.
 From iris.prelude Require Import options.
@@ -44,11 +44,16 @@ Section adequacy.
     iIntros (Hnone).
     rewrite exec_Sn.
     rewrite /step_or_final /= Hnone.
-    iIntros "(%R & %k & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) Hcoupl /=".
+    rewrite /prog_coupl.
+    iIntros "(%k & %μ1' & %X2 & % & [% %] & % & % & Hcnt) Hcoupl /=".
     iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-    { iPureIntro. intros. eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. }
-    iIntros (e2 σ2 e2' σ2' ε2).
-    iMod ("Hcnt" with "[//]") as "Hcnt".
+    { iPureIntro. intros.
+      eapply (ARcoupl_erasure_erasable_exp_lhs_kanto _ X2); [..|done]; eauto.
+      intros; simpl.
+      real_solver.
+    }
+    iIntros (e2 σ2 e2' σ2').
+    iMod ("Hcnt" $! _ _ _ _).
     by iApply "Hcoupl".
   Qed.
 
@@ -115,12 +120,13 @@ Proof.
   - set ε' := mknonnegreal _ Heps.
     iMod (ec_alloc ε') as (?) "[HE He]"; [done|].
     set (HapproxisGS := HeapG Σ _ _ _ γH γT HspecGS _).
-    iApply (wp_adequacy_step_fupdN ε').
+    pose proof (wp_adequacy_step_fupdN ε') as h. iApply h.
     iFrame "Hh Ht Hs HE".
     by iApply (Hwp with "[Hj] [He]").
   - iApply fupd_mask_intro; [done|]; iIntros "_".
     iApply step_fupdN_intro; [done|]; iModIntro.
     iPureIntro. by apply ARcoupl_1.
+    Unshelve. apply _.
 Qed.
 
 Theorem wp_adequacy Σ `{approxisGpreS Σ} (e e' : expr) (σ σ' : state) (ε : R) φ :
