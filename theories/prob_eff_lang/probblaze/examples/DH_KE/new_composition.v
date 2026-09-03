@@ -9,7 +9,7 @@ From clutch.prob_eff_lang.probblaze Require Import
   sem_types sem_row sem_sig sem_judgement.
 From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import
-  dhke_common sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_lazy_authchan
+  dhke_common sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_authchan_new
   new_composition_defs new_composition_closed new_composition_typing.
  
 Import fingroup.
@@ -24,7 +24,7 @@ Import valgroup_tactics.
 
 Section new_comp_verification.
   Context `{probblazeRGS Σ}.
-  Context (channel leaksec getKey1 getKey2 leakauth1 leakauth2 keyleak1 keyleak2 schannel1 schannel2 l1 l2 l2': label).
+  (* Context (channel leaksec getKey1 getKey2 leakauth1 leakauth2 keyleak1 keyleak2 schannel1 schannel2 l1 l2 l2': label). *)
   Context {vg: val_group}.
   Context {cg: clutch_group_struct}.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
@@ -98,9 +98,9 @@ Section new_comp_verification.
       iMod dfrac_alloc as (γfraca) "Hfraca".
       iMod dfrac_alloc as (γfracb) "Hfracb".
       iModIntro.
-      iApply (F_AUTH_F_AUTH _ _
-                γtoka γtokb γfraca γfracb γautha γauthb (sem_row_union θ₁ θ__L)
-                with "Hfraca Hfracb [-]").
+      set (P := dhke_channel_lazy_sim_one.P).
+      set (chan_row := chan_new_row (P γautha) (P γauthb)).
+      iApply (F_AUTH_F_AUTH_new _ _ _ _ _ _ (dhke_channel_lazy_sim_one.P γautha) (dhke_channel_lazy_sim_one.P γauthb)  with "Hfraca Hfracb [-]").
       rewrite /C_lazy. brel_pures'. iModIntro. iIntros (send1 send2 recv1 recv2). brel_pures'.
       iDestruct ("HDH" $! #()%V #()%V with "[]") as "Hdh"; [by iPureIntro|].
       iApply (brel_bind [AppRCtx _] [AppRCtx _] _ []);
@@ -150,7 +150,7 @@ Section new_comp_verification.
         - iSplit; first (iPureIntro; right; split; done); iModIntro; iSplitL; last iIntros (key); brel_pures'; iApply brel_value; iIntros "$ !>";
             iExists _,_; [iLeft; by iPureIntro| iRight; iPureIntro; repeat (split; first done); by eexists]. }
       unfold sem_val_typed. simpl. iDestruct "Hgg" as "#Hgg".
-      set (ac := chan_row send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb).
+      eset (ac := chan_row γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2).
       iAssert (BREL (F_OAUTH (λ: "h₂", v1 "h₂" (λ: "party", do: gk1 "party")%V)%V r1)
                   ≤ (F_OAUTH (λ: "h₂", v2 "h₂" (λ: "party", do: gk2 "party")%V)%V r2)
                   <| iLblSig_to_iLblThy (sem_row_union (θ gk1 gk2) (sem_row_union θ₁ θ__L)) |>

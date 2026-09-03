@@ -4,7 +4,7 @@ From clutch.prob_eff_lang.probblaze Require Import advantage.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_judgement sem_row syntax semantics proofmode mode.
 From clutch.prob_eff_lang.probblaze Require Import 
   dhke_channel_lazy_results
-  dhke_channel_lazy_authchan
+  dhke_channel_authchan_new
   dhke_common adequacy.
 
 Section adv_dhke.
@@ -163,9 +163,7 @@ Section adv_dhke.
     iMod dfrac_alloc as (γfraca) "Hfraca".
     iMod dfrac_alloc as (γfracb) "Hfracb".
     iModIntro.
-    iApply (F_AUTH_F_AUTH  (C_lazy DH1 f1) (C_lazy DH2 f2)
-              γtoka γtokb γfraca γfracb γautha γauthb θ__L
-              with "Hfraca Hfracb [-]").
+    iApply (F_AUTH_F_AUTH_new _ _ _ _ _ _ (dhke_channel_lazy_sim_one.P γautha) (dhke_channel_lazy_sim_one.P γauthb)  with "Hfraca Hfracb [-]").
     (* Remaining: the [C_lazy] self-refinement (the [F_AUTH_F_AUTH] C-part).
        Reduce [C_lazy], call [DH #()] once (relating the two group triples via
        [HDH]), allocate the two [lc] refs under an invariant tying them, then
@@ -222,7 +220,9 @@ Section adv_dhke.
           iExists _,_; [iLeft; by iPureIntro| iRight; iPureIntro; repeat (split; first done); by eexists]. }
     unfold sem_val_typed. simpl. iDestruct "Hgg" as "#Hgg".
     iSpecialize ("Hf" with "Hgg").
-    eset (ac := chan_row send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb).
+    set (P γauth (m : vgG) := (own γauth (to_dfrac_agree DfracDiscarded (vgval m)%V))).
+    set (chan γautha γauthb := chan_new_row (P γautha) (P γauthb)).
+    set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2).
     iApply brel_new_theory.
     iApply (brel_add_label_l with "Hgk1").
     iApply (brel_add_label_r with "Hgk2").

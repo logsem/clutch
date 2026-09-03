@@ -266,78 +266,23 @@ Section theories.
 
   (* Theories for the implementations *)
   (*------------------------------------------------------------*)
-  
-  Program Definition SendBobImpl c1 c2 γtok γfrac γauth ι : iThy Σ :=
+
+ Program Definition Send dst c1 c2 γtok γfrac ι P : iThy Σ :=
     λ e1 e2, (λne Q,
-                ∃ m m': vgG, ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (vgval m)) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
-                              (⌜ e1 = do: c1 (m, alice)%V ⌝%E ∗
-                               ⌜ e2 = do: c2 (m', alice)%V ⌝%E)  ∗ 
+                ∃ m m': vgG, ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ (□ (P m)) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
+                              (⌜ e1 = do: c1 (m, dst)%V ⌝%E ∗
+                               ⌜ e2 = do: c2 (m', dst)%V ⌝%E)  ∗ 
                               □ (Q (Val #()%V) (Val #()%V)))
              )%I.
   Next Obligation. solve_proper. Qed.
 
-  Program Definition RecvAliceImplL c1 c2 γauth : iThy Σ :=
+  Program Definition Recv from c1 c2 P : iThy Σ :=
     λ e1 e2, (λne Q,
-                ⌜ e1 = do: c1 alice ⌝%E ∗
-                ⌜ e2 = do: c2 alice ⌝%E ∗
-                □ (Q NONEV NONEV ∗ (∀ (l : loc) (m : nat), (own γauth (to_dfrac_agree DfracDiscarded (#l, #m)%V) ∗ l ↦□ SOMEV #m) -∗ Q (SOMEV (vgval (g ^+ m)%g)) (SOMEV (vgval (g ^+ m)%g))))
+                ⌜ e1 = do: c1 from ⌝%E ∗
+                ⌜ e2 = do: c2 from ⌝%E ∗
+                □ (Q NONEV NONEV ∗ (∀ m : vgG, (P m) -∗ Q (SOMEV (vgval m)) (SOMEV (vgval m))))
              )%I.
   Next Obligation. solve_proper. Qed.
-
-  Program Definition RecvAliceImplR c1 c2 γauth : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: c1 alice ⌝%E ∗
-                ⌜ e2 = do: c2 alice ⌝%E ∗
-                □ (Q NONEV NONEV ∗ (∀ (l : loc) (m : nat), (own γauth (to_dfrac_agree DfracDiscarded (#l, #m)%V) ∗ l ↦ₛ□ SOMEV #m) -∗ Q (SOMEV (vgval (g ^+ m)%g)) (SOMEV (vgval (g ^+ m)%g))))
-             )%I.
-  Next Obligation. solve_proper. Qed.
-
-  Program Definition RecvAliceImpl c1 c2 γauth : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: c1 alice ⌝%E ∗
-                ⌜ e2 = do: c2 alice ⌝%E ∗
-                □ (Q NONEV NONEV ∗ (∀ m, (own γauth (to_dfrac_agree DfracDiscarded m)) -∗ Q (SOMEV m) (SOMEV m)))
-             )%I.
-  Next Obligation. solve_proper. Qed.
-
-  Program Definition SendAliceImplL c1 c2 γtok γfrac γauth ι : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ∃ (l : loc) (m m' : nat), ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (#l, #m)%V)
-                                                                                                            ∗ l ↦□ SOMEV #m ∗ ⌜(g ^+ m)%g = (g ^+ m')%g⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
-                                           (⌜ e1 = do: c1 (vgval (g ^+ m)%g, bob)%V ⌝%E ∗
-                                            ⌜ e2 = do: c2 (vgval (g ^+ m')%g, bob)%V ⌝%E)  ∗ 
-                                           □ (Q (Val #()%V) (Val #()%V)))
-             )%I.
-  Next Obligation. solve_proper. Qed.
-
-  (* Changes the pointer and which message that is stored -- could probably be generalized to any persistent knowledge, but you would need to change the definition of the theories, to define SendAliceImplL and RecvAliceImplL at the same time, and then quantify over the persistent predicate *)
-  Program Definition SendAliceImplR c1 c2 γtok γfrac γauth ι : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ∃ (l : loc) (m m' : nat), ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (#l, #m)%V)
-                                                                                                            ∗ l ↦ₛ□ SOMEV #m ∗ ⌜(g ^+ m)%g = (g ^+ m')%g⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
-                                           (⌜ e1 = do: c1 (vgval (g ^+ m)%g, bob)%V ⌝%E ∗
-                                            ⌜ e2 = do: c2 (vgval (g ^+ m')%g, bob)%V ⌝%E)  ∗ 
-                                           □ (Q (Val #()%V) (Val #()%V)))
-             )%I.
-  Next Obligation. solve_proper. Qed.
-
-  Program Definition SendAliceImpl c1 c2 γtok γfrac γauth ι : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ∃ (m m' : vgG), ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ own γauth (to_dfrac_agree DfracDiscarded (vgval m%g)) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
-                                 (⌜ e1 = do: c1 (m, bob)%V ⌝%E ∗
-                                  ⌜ e2 = do: c2 (m', bob)%V ⌝%E)  ∗ 
-                                 □ (Q (Val #()%V) (Val #()%V)))
-             )%I.
-  Next Obligation. solve_proper. Qed.
-
-
-  Program Definition RecvBobImpl c1 c2 γauth : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: c1 bob ⌝%E ∗
-                ⌜ e2 = do: c2 bob ⌝%E ∗
-                □ (Q NONEV NONEV ∗ (∀ m, own γauth (to_dfrac_agree DfracDiscarded m) -∗ Q (SOMEV m) (SOMEV m)))
-             )%I.
-  Next Obligation. solve_proper. Qed. 
 
   (* semantic types *)
   (*------------------------------------------------------------*)
@@ -374,9 +319,9 @@ Section theories.
     iExists _,_,_,_,_. 
     repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
   Qed. 
-  
-  Program Definition send_mono send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb :=
-    {| pmono_prot_car := iThySum (SendAliceImpl send1 send2 γtoka γfraca γautha atokN) (SendBobImpl send1 send2 γtokb γfracb γauthb btokN); pmono_prot_prop := _|}.
+
+ Program Definition send_new_mono send1 send2 γtoka atokN γtokb btokN γfraca γfracb P P' :=
+    {| pmono_prot_car := iThySum (Send bob send1 send2 γtoka γfraca atokN P) (Send alice send1 send2 γtokb γfracb btokN P'); pmono_prot_prop := _|}.
   Next Obligation.
     intros ??????????. 
     iIntros (????) "#HΦ [H|H]".
@@ -384,127 +329,23 @@ Section theories.
     all : iDestruct "H" as (??) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
   Qed.   
 
-  Program Definition send_monoL send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb :=
-    {| pmono_prot_car := iThySum (SendAliceImplL send1 send2 γtoka γfraca γautha atokN) (SendBobImpl send1 send2 γtokb γfracb γauthb btokN); pmono_prot_prop := _|}.
-  Next Obligation.
-    intros ??????????. 
-    iIntros (????) "#HΦ [H|H]".
-    - iLeft; iDestruct "H" as (???) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
-    - iRight; iDestruct "H" as (??) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
-  Qed.   
-
-  Program Definition send_monoR send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb :=
-    {| pmono_prot_car := iThySum (SendAliceImplR send1 send2 γtoka γfraca γautha atokN) (SendBobImpl send1 send2 γtokb γfracb γauthb btokN); pmono_prot_prop := _|}.
-  Next Obligation.
-    intros ??????????. 
-    iIntros (????) "#HΦ [H|H]".
-    - iLeft; iDestruct "H" as (???) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
-    - iRight; iDestruct "H" as (??) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
-  Qed.   
-
-  Program Definition recv_mono recv1 recv2 γautha γauthb :=
-    {| pmono_prot_car := iThySum (RecvAliceImpl recv1 recv2 γautha) (RecvBobImpl recv1 recv2 γauthb); pmono_prot_prop := _|}.
+  Program Definition recv_new_mono recv1 recv2 P P' :=
+    {| pmono_prot_car := iThySum (Recv alice recv1 recv2 P) (Recv bob recv1 recv2 P'); pmono_prot_prop := _|}.
   Next Obligation.
     intros ????. 
     iIntros (????) "#HΦ [H|H]".
     1 : iLeft. 2: iRight.
-    all : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (m) "#H"); iApply "HΦ"; try iApply ("H2" $! m); done.
+    all : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (m) "H"); iApply "HΦ"; try iApply ("H2" $! m); done.
   Qed.   
 
-  Program Definition recv_monoL recv1 recv2 γautha γauthb :=
-    {| pmono_prot_car := iThySum (RecvAliceImplL recv1 recv2 γautha) (RecvBobImpl recv1 recv2 γauthb); pmono_prot_prop := _|}.
-  Next Obligation.
-    intros ????. 
-    iIntros (????) "#HΦ [H|H]".
-    - iLeft; iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (l m) "#H"); iApply "HΦ"; try iApply ("H2" $! l m); done.
-    - iRight; iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (m) "#H"); iApply "HΦ"; try iApply ("H2" $! m); done.
-  Qed.   
+  Definition send_new_sig  (send1 send2 : label) γtoka atokN γtokb btokN γfraca γfracb P P' := 
+    @SemSig Σ (send_new_mono send1 send2 γtoka atokN γtokb btokN γfraca γfracb P P') (send1, send2).
+  Definition recv_new_sig  (recv1 recv2 : label) P P' := @SemSig Σ (recv_new_mono recv1 recv2 P P') (recv1, recv2).
 
-  Program Definition recv_monoR recv1 recv2 γautha γauthb :=
-    {| pmono_prot_car := iThySum (RecvAliceImplR recv1 recv2 γautha) (RecvBobImpl recv1 recv2 γauthb); pmono_prot_prop := _|}.
-  Next Obligation.
-    intros ????. 
-    iIntros (????) "#HΦ [H|H]".
-    - iLeft; iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (l m) "#H"); iApply "HΦ"; try iApply ("H2" $! l m); done.
-    - iRight; iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (m) "#H"); iApply "HΦ"; try iApply ("H2" $! m); done.
-  Qed.   
-
-  Program Definition authchan_mono send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
-    {| pmono_prot_car := (iThySum (iThySum (SendAliceImpl send1 send2 γtoka γfraca γautha atokN) (RecvBobImpl recv1 recv2 γauthb))
-                            (iThySum (SendBobImpl send1 send2 γtokb γfracb γauthb btokN) (RecvAliceImpl recv1 recv2 γautha))); pmono_prot_prop := _|}.
-  Next Obligation.
-    intros ????????????. 
-    iIntros (????) "#HΦ [[H| H]|[H|H]]".
-    1 : iLeft;iLeft. 2: iLeft; iRight.
-    3 : iRight;iLeft. 4: iRight;iRight.
-    1,3 : iDestruct "H" as (??) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
-    all : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (m) "#H"); iApply "HΦ"; try iApply ("H2" $! m); done.
-  Qed.   
-
-  Program Definition authchan_monoL send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
-    {| pmono_prot_car := (iThySum (iThySum (SendAliceImplL send1 send2 γtoka γfraca γautha atokN) (RecvBobImpl recv1 recv2 γauthb))
-                            (iThySum (SendBobImpl send1 send2 γtokb γfracb γauthb btokN) (RecvAliceImplL recv1 recv2 γautha))); pmono_prot_prop := _|}.
-  Next Obligation.
-    intros ????????????. 
-    iIntros (????) "#HΦ [[H| H]|[H|H]]".
-    1 : iLeft;iLeft. 2: iLeft; iRight.
-    3 : iRight;iLeft. 4: iRight;iRight.
-    1 : iDestruct "H" as (???) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
-    2 : iDestruct "H" as (??) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
-    1 : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (m) "#H"); iApply "HΦ"; try iApply ("H2" $! m); done.
-    1 : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (l m) "#H"); iApply "HΦ"; try iApply ("H2" $! l m); done.
-  Qed.   
-
-  Program Definition authchan_monoR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
-    {| pmono_prot_car := (iThySum (iThySum (SendAliceImplR send1 send2 γtoka γfraca γautha atokN) (RecvBobImpl recv1 recv2 γauthb))
-                            (iThySum (SendBobImpl send1 send2 γtokb γfracb γauthb btokN) (RecvAliceImplR recv1 recv2 γautha))); pmono_prot_prop := _|}.
-  Next Obligation.
-    intros ????????????. 
-    iIntros (????) "#HΦ [[H| H]|[H|H]]".
-    1 : iLeft;iLeft. 2: iLeft; iRight.
-    3 : iRight;iLeft. 4: iRight;iRight.
-    1 : iDestruct "H" as (???) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
-    2 : iDestruct "H" as (??) "(Himpl&%&#H)"; iExists _,_; iFrame; iSplit; first done; iModIntro; by iApply "HΦ".
-    1 : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (m) "#H"); iApply "HΦ"; try iApply ("H2" $! m); done.
-    1 : iDestruct "H" as "($&$&#(H1&H2))"; iModIntro; iSplitL; try (iIntros (l m) "#H"); iApply "HΦ"; try iApply ("H2" $! l m); done.
-  Qed. 
-
-  Definition sendsig  (send1 send2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
-    @SemSig Σ (send_mono send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (send1, send2).
-  Definition recvsig  (recv1 recv2 : label) γautha γauthb := @SemSig Σ (recv_mono recv1 recv2 γautha γauthb) (recv1, recv2).
-  Definition sendsigL  (send1 send2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
-    @SemSig Σ (send_monoL send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (send1, send2).
-  Definition recvsigL  (recv1 recv2 : label) γautha γauthb := @SemSig Σ (recv_monoL recv1 recv2 γautha γauthb) (recv1, recv2).
-  Definition sendsigR  (send1 send2 : label) γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
-    @SemSig Σ (send_monoR send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb) (send1, send2).
-  Definition recvsigR  (recv1 recv2 : label) γautha γauthb := @SemSig Σ (recv_monoR recv1 recv2 γautha γauthb) (recv1, recv2).
-
-  Program Definition chan_row send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
+ Program Definition chan_new_row P P' γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 := 
     SemRow [
-        ([recv1],[recv2],recvsig recv1 recv2 γautha γauthb);
-        ([send1],[send2], sendsig send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
-  Next Obligation.
-    intros ????????????.
-    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_. 
-    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
-  Qed. 
-
-  Program Definition chan_rowL send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
-    SemRow [
-        ([recv1],[recv2], recvsigL recv1 recv2 γautha γauthb);
-        ([send1],[send2], sendsigL send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
-  Next Obligation.
-    intros ????????????.
-    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_. 
-    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
-  Qed. 
-
-  Program Definition chan_rowR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb := 
-    SemRow [
-        ([recv1],[recv2],recvsigR recv1 recv2 γautha γauthb);
-        ([send1],[send2], sendsigR send1 send2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)] _.
+        ([recv1],[recv2],recv_new_sig recv1 recv2 P P');
+        ([send1],[send2], send_new_sig send1 send2 γtoka atokN γtokb btokN γfraca γfracb P P')] _.
   Next Obligation.
     intros ????????????.
     iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".

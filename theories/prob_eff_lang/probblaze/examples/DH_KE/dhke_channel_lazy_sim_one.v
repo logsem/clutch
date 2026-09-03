@@ -19,6 +19,9 @@ Section handlee_verification.
   Import valgroup_notation.
   Local Notation gkleakl := (gkleakl (Σ:=Σ) (vg:=vg)).
 
+  Definition P γauth (m : vgG) : iProp Σ := (own γauth (to_dfrac_agree DfracDiscarded (vgval m)%V)).
+  Definition chan γautha γauthb := chan_new_row (P γautha) (P γauthb).
+
   Lemma DH_SIM_F_KE_C_DH_rand (f1 f2 : val) γtoka γtokb γfraca γfracb γautha γauthb L :
     token γtoka -∗
     token γtokb -∗
@@ -26,7 +29,7 @@ Section handlee_verification.
     own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) -∗
     (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T f1 f2 -∗
     BREL DH_SIM (F_KE_lazy_alice f1) ≤ C_lazy DH_rand f2 <|⊥|> 
-      {{ λ v1 v2, ∀ send1 send2 recv1 recv2 : label, let ac := chan_row send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
+      {{ λ v1 v2, ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
                                    BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
                                      v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V 
                                      <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }}.
@@ -35,7 +38,7 @@ Section handlee_verification.
     unfold DH_SIM, F_KE_lazy_alice, C_lazy, DH_rand...
     iModIntro. 
     iIntros (send1 send2 recv1 recv2). 
-    set (ac := chan_row send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb).
+    set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2).
     brel_pures'.
     
     brel_alloctape_l α as "Hα"...

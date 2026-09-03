@@ -18,6 +18,11 @@ Section handlee_verification.
   #[local] Notation n := (S n'').
   Local Notation θ := (θ (Σ:=Σ) (vg:=vg)).
 
+  Definition P γauth (m : vgG) : iProp Σ := ∃ l : loc, let a := g_log m  in (own γauth (to_dfrac_agree DfracDiscarded (#l, #a)%V) ∗ l ↦ₛ□ SOMEV #a)%I. 
+  Definition P' γauth (m : vgG) : iProp Σ := (own γauth (to_dfrac_agree DfracDiscarded (vgval m)%V)).
+  Definition chan γautha γauthb := chan_new_row (P γautha) (P' γauthb).
+
+
   Lemma C_DH_real_DH_KE (f1 f2 : val) γtoka γtokb γfraca γfracb γautha γauthb L :
     token γtoka -∗
     token γtokb -∗
@@ -26,7 +31,7 @@ Section handlee_verification.
     (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T f1 f2 -∗
 
     BREL C_lazy DH_real f1 ≤ DH_KE f2 <|⊥|> {{ λ v1 v2, 
-                                                 ∀ send1 send2 recv1 recv2 : label, let ac := chan_rowR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
+                                                 ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
                                                                   BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
                                                                     v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V 
                                                                     <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }}.
@@ -35,8 +40,8 @@ Section handlee_verification.
     unfold DH_KE, C_lazy...
     iModIntro. 
     iIntros (send1 send2 recv1 recv2). 
-    set (ac := chan_rowR send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)...
-    
+    set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2)...
+
     brel_alloctape_r α as "Hα"...
     brel_alloctape_r β as "Hβ"...
     brel_alloc_r la as "Hla"...
@@ -126,8 +131,8 @@ Section handlee_verification.
       iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
       iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
       iLeft. 
-      iExists _,_,_.
-      iSplitL; first (iApply send_upd; by iFrame "#").
+      iExists (g ^+ a)%g,(g ^+ a)%g.
+      iSplitL; first (iApply send_upd; rewrite /P id_g_log_nat; last lia; by iFrame "#").
       iSplit; first ( do 2 (iSplit; try (iPureIntro; done))).
       iModIntro.
       iApply brel_value. iIntros "$ !>"...
@@ -172,9 +177,9 @@ Section handlee_verification.
         iDestruct ("Hcont" with "Hnone") as "Hkk".
         iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|].
         iApply "IH". }
-      iIntros (la' m) "(#Hb'&#Hla')".
+      iIntros (m) "(%&#Hb'&#Hla')".
       iDestruct (auth_agree with "[$Ha] [$Hb']") as "%Heq".
-      inversion Heq as [(Heq1&Heq2)]. subst. rewrite Heq2.
+      inversion Heq as [(Heq1&Heq2)]. rewrite -(g_log_id m) -(Nat2Z.inj _ _ Heq2) //=.  
       iApply brel_value. iIntros "$ !>"...
       
       iApply (brel_na_inv _ _ betaN ); [set_solver|].
@@ -196,7 +201,7 @@ Section handlee_verification.
       iSplit; first ( do 2 (iSplit; try (iPureIntro; done))).
       iModIntro.
       iApply brel_value. iIntros "$ !>"...
-      rewrite -expgM. rewrite -ssrnat.multE.
+      rewrite -expgM  -ssrnat.multE.
 
       iApply (brel_na_inv _ _ alphaN); first set_solver.
       iFrame "Hinva".

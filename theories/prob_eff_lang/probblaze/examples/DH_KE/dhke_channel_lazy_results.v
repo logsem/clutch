@@ -15,11 +15,11 @@ Import fingroup.fingroup.
 Import valgroup_tactics.
 Import valgroup_notation.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import
-  dhke_channel_lazy_authchan
   dhke_channel_lazy_real_one
   dhke_channel_lazy_real_other
   dhke_channel_lazy_sim_one
-  dhke_channel_lazy_sim_other.
+  dhke_channel_lazy_sim_other
+  dhke_channel_authchan_new.
 
 Section handlee_verification.
   Context `{!probblazeRGS Σ}.
@@ -54,8 +54,9 @@ Section handlee_verification.
        iModIntro. simpl.
        assert (to_iThyIfMono OS [] = []) as <- by done.
        iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
-       - iApply (F_AUTH_F_AUTHL with "[$][$]").
-         by iApply (DH_KE_C_DH_real with "[$Htoka][$Htokb][$Hautha][$Hauthb]").
+       - iApply (F_AUTH_F_AUTH_new with "[$][$]"); 
+         last by iApply (DH_KE_C_DH_real with "[$Htoka][$Htokb][$Hautha][$Hauthb]").
+         all : apply _. 
        - iIntros (??) "$". 
   Qed.
 
@@ -79,12 +80,11 @@ Section handlee_verification.
     iModIntro. simpl.
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
-    - iApply (F_AUTH_F_AUTHR with "[$][$]").
-      by iApply (C_DH_real_DH_KE with "[$][$][$][$]").
+    - iApply (F_AUTH_F_AUTH_new with "[$][$]"); 
+      last by iApply (C_DH_real_DH_KE with "[$][$][$][$]").
+      all : apply _.
     - iIntros (??) "$".
   Qed.
-
-
   
   
   (* Verification of F_AUTH[DH_SIM[F_KE]] ≤ F_AUTH[C[DH_rand]] *)
@@ -106,8 +106,9 @@ Section handlee_verification.
     iModIntro. simpl.
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
-    - iApply (F_AUTH_F_AUTH with "[$][$]").
-      by iApply (DH_SIM_F_KE_C_DH_rand with "[$][$][$][$]").
+    - iApply (F_AUTH_F_AUTH_new with "[$][$]");
+      last by iApply (DH_SIM_F_KE_C_DH_rand with "[$][$][$][$]").
+      all : apply _.
     - iIntros (??) "$". 
   Qed.
 
@@ -131,8 +132,9 @@ Section handlee_verification.
     iModIntro. simpl.
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
-    - iApply (F_AUTH_F_AUTH with "[$][$]").
-      by iApply (C_DH_rand_DH_SIM_F_KE with "[$][$][$][$]").
+    - iApply (F_AUTH_F_AUTH_new with "[$][$]"); 
+      last by iApply (C_DH_rand_DH_SIM_F_KE with "[$][$][$][$]").
+      all : apply _.
     - iIntros (??) "$". 
   Qed.
   

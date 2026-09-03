@@ -528,6 +528,7 @@ Proof.
   intros. unfold g_log.
   by destruct (log_g x) as [k Hk]. 
 Qed. 
+
 Global Instance log_g_bij : Bij g_log. 
 Proof. 
   split.
@@ -546,6 +547,25 @@ Proof.
     apply: (inj fin_to_nat).
     by rewrite (eqP Heq).
 Qed. 
+
+Lemma id_g_log : ∀ n : fin (S (S n'')), g_log (g ^+ n) = n.
+Proof.
+  intros n. destruct (surj g_log n) as [x <-]. by rewrite g_log_id.
+Qed.
+
+(* [id_g_log] for an exponent that is a [nat] carrying its bound separately
+   rather than a [fin].  The [fin] case is the instance [Hm := fin_to_nat_lt n]. *)
+Lemma id_g_log_nat (m : nat) (Hm : (m < S (S n''))%nat) :
+  fin_to_nat (g_log (g ^+ m)) = m.
+Proof. by rewrite -(fin_to_nat_to_fin _ _ Hm) id_g_log. Qed.
+
+(* The same fact with a [fin]-valued conclusion, so that [g_log (g ^+ m)] itself
+   can be rewritten.  Note [nat_to_fin Hm] then appears in the goal. *)
+Lemma id_g_log_bounded (m : nat) (Hm : (m < S (S n''))%nat) :
+  g_log (g ^+ m) = nat_to_fin Hm.
+Proof.
+  apply (inj fin_to_nat). by rewrite fin_to_nat_to_fin (id_g_log_nat _ Hm).
+Qed.
 
 Lemma int_of_vg_sem_inj (a b : vgG) : int_of_vg_sem a = int_of_vg_sem b → a = b.
 Proof.

@@ -1,19 +1,6 @@
-From iris.proofmode Require Import base proofmode classes.
-From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import agree excl auth frac excl_auth.
-From iris.algebra.lib Require Import dfrac_agree.
-From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import
-  logic primitive_laws proofmode
-  spec_rules spec_ra class_instances tactics notation valgroup metatheory
-  sem_types sem_row sem_sig sem_judgement sem_def
-  def_dhke sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_lazy_authchan.
-From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
+From clutch.prob_eff_lang.probblaze Require Import logic sem_types sem_def sem_row.
+From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import valgroup def_dhke sec_channel_def sec_channel_prf xor.
 
-Import fingroup.
-Import fingroup.fingroup.
-
-Import valgroup_tactics.
 
 (* The programs (functionality composites) verified in [new_composition.v],
    together with the top-level target type [τ].  Split out so the slow
@@ -22,7 +9,6 @@ Import valgroup_tactics.
 
 Section new_comp_verification.
   Context `{probblazeRGS Σ}.
-  Context (channel leaksec channel1 channel2 getKey1 getKey2 leakauth1 leakauth2 keyleak1 keyleak2 schannel1 schannel2 l1 l2 l2': label).
   Context {vg: val_group}.
   Context {cg: clutch_group_struct}.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.

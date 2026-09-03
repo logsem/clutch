@@ -23,7 +23,10 @@ Section handlee_verification.
 
   (* Verification of DH_KE ≤ C[DH_real] *)
   (*------------------------------------------------------------*)
-
+  
+  Definition P γauth (m : vgG) : iProp Σ := ∃ l : loc, let a := g_log m  in (own γauth (to_dfrac_agree DfracDiscarded (#l, #a)%V) ∗ l ↦□ SOMEV #a)%I. 
+  Definition P' γauth (m : vgG) : iProp Σ := (own γauth (to_dfrac_agree DfracDiscarded (vgval m)%V)).
+  Definition chan γautha γauthb := chan_new_row (P γautha) (P' γauthb).
  
   
   Lemma DH_KE_C_DH_real (f1 f2 : val) γtoka γtokb γfraca γfracb γautha γauthb (L : sem_row Σ):
@@ -34,7 +37,7 @@ Section handlee_verification.
     (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T f1 f2 -∗
 
     BREL DH_KE f1 ≤ C_lazy DH_real f2 <|⊥|> {{ λ v1 v2, 
-                                                 ∀ send1 send2 recv1 recv2 : label, let ac := chan_rowL send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb in
+                                                 ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
                                                                   BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
                                                                     v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V 
                                                                     <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }}.
@@ -43,7 +46,7 @@ Section handlee_verification.
     unfold DH_KE, C_lazy...
     iModIntro. 
     iIntros (send1 send2 recv1 recv2). 
-    set (ac := chan_rowL send1 send2 recv1 recv2 γtoka atokN γtokb btokN γfraca γfracb γautha γauthb)...
+    set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2)...
     unfold DH_real...
     brel_alloctape_l α as "Hα"...
     brel_alloctape_l β as "Hβ"...
@@ -62,7 +65,6 @@ Section handlee_verification.
         
     brel_effect_l gk1 as "Hgk1".
     brel_effect_r gk2 as "Hgk2"...
-
 
     iAssert (sem_val_typed (λ: "party", do: gk1 "party")%V (λ: "party", do: gk2 "party")%V ((𝟙 + 𝟙)%T -{ θ gk1 gk2 }-> (Option 𝔾))%T) as "Hgg".
     (* TODO: refactor this goal into a better proof script *)
@@ -152,8 +154,8 @@ Section handlee_verification.
       iApply (brel_introduction' [send1] [send2]); [repeat constructor|].
       iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
       iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-      iLeft. iExists _,_,_.
-      iSplitL; first (iApply send_upd; by iFrame "#").
+      iLeft. iExists (g ^+ a)%g,(g ^+ a)%g.
+      iSplitL; first (iApply send_upd; rewrite /P id_g_log; by iFrame "#").
       iSplit; first ( do 2 (iSplit; try (iPureIntro; done))).
       (* returned from send *)
       iModIntro. iApply brel_value. iIntros "$ !>"...
@@ -176,11 +178,10 @@ Section handlee_verification.
         iApply "IH".
         
       (* Recv bob = Some gB *)
-      + iIntros (m) "Hb'".
+      + iIntros (m) "Hb'". 
         iDestruct (auth_agree with "[$Hb] [$Hb']") as "<-". 
         iApply brel_value. iIntros "$ !>"...
-        rewrite -expgM. rewrite -ssrnat.multE.
-        rewrite -Nat.mul_comm.
+        rewrite -expgM -ssrnat.multE -Nat.mul_comm.
         iDestruct ("Hcont" with "Hsome") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [done|done|].
         iApply "IH". }
@@ -208,12 +209,11 @@ Section handlee_verification.
         iApply "IH". }
       
       (* Recv alice = Some gA *)
-      iIntros (la' m) "(#Hb'&#Hla')".
+      iIntros (m) "(%&#Hb'&#Hla')".
       iDestruct (auth_agree with "[$Ha] [$Hb']") as "%Heq".
-      inversion Heq as [(Hla&Ha)]. rewrite Ha //=.
+      inversion Heq as [(Hla&Ha)]. rewrite -(g_log_id m) -(Nat2Z.inj _ _ Ha) //=.  
       iApply brel_value. iIntros "$ !>"...
       (* sample_or_read returns b *)
-
       iApply (brel_na_inv _ _ betaN ); [set_solver|].
       iFrame "Hinvb". 
       iIntros "(>H & Hclose)".
