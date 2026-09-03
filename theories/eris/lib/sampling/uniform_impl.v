@@ -14,7 +14,7 @@ Proof.
   - iIntros (Σ erisGS0 D ε L ε_ge_0 D_bounds D_sum Φ) "Herr HΦ".
     wp_pures.
     set (D' (k : fin (S N)) := D #k).
-    wp_apply (twp_couple_rand_adv_comp _ _ _ _ D' with "Herr [HΦ]").
+    wp_apply (twp_rand_exp_fin _ _ _ _ D' with "Herr [HΦ]").
     { move=>k. apply D_bounds. }
     { rewrite (dmap_expected_value _ _ _ L) in D_sum;
         last (move=>a; apply D_bounds).

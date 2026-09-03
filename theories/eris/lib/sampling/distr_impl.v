@@ -90,7 +90,7 @@ Section DistributionImplem.
                e_not_val range_possible suf_bounds
                suf_fin)
       "(Htape & Hnext)".
-    iApply twp_rand_err_pos; auto.
+    iApply twp_err_pos; auto.
     iIntros (ε ε_pos) "Herr".
     set (ψ (l : list val) := (own_tape Δ l ∗ ∃ εf, (⌜0 < εf⌝%R ∗ ↯ εf))%I).
     destruct (pmf_ex_seriesC μ) as [μ_m is_seriesC_μ].

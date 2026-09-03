@@ -98,7 +98,7 @@ iApply "Hnext".
       { pose proof (proj2 (HD 0%nat)) as HD0U.
         pose proof (proj1 (HD 0%nat)) as HD0. lra. }
       iIntros "(Htrans & Hrej & Hα & Herr & Hnext)".
-      iApply twp_rand_err_pos; auto.
+      iApply twp_err_pos; auto.
       iIntros (εterm Hεterm) "Hterm".
       iRevert (rej D ε HD HSum) "Htrans Hrej Hα Herr Hnext".
       iApply (ec_ind_amp _ (/ r) with "[] Hterm"); try done.

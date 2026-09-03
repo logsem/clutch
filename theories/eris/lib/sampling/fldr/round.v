@@ -262,7 +262,7 @@ Section AdvComp.
       pose proof Hrows as Hrest_list.
       rewrite /fldr_walk. wp_rec. wp_pures.
       set ε2 := (fun b : fin 2 => walk_branch_eps row rest c b N D).
-      wp_apply (twp_couple_rand_adv_comp 1 1 E ε ε2 with "Herr") as (b) "Herr".
+      wp_apply (twp_rand_exp_fin 1 1 E ε ε2 with "Herr") as (b) "Herr".
       { intros n. unfold ε2. apply walk_branch_eps_nonneg.
         - intros i. exact (proj1 (HD i)).
         - intros i Hi. apply walk_branch_term_nonneg. intros j. exact (proj1 (HD j)). }

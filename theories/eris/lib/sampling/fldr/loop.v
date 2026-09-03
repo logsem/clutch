@@ -203,7 +203,7 @@ Proof.
  assert (HL0 : (0 <= L)%R).
  { pose proof (proj2 (HD 0%nat)) as HD0U. pose proof (proj1 (HD 0%nat)) as HD0. lra. }
  iIntros (Φ) "[Hlist Herr] HΦ".
- iApply twp_rand_err_pos; auto.
+ iApply twp_err_pos; auto.
  iIntros (εterm Hεterm) "Hterm".
  iRevert (D ε HD HSum) "Herr HΦ Hlist".
  iApply (ec_ind_amp _ (/ r) with "[] Hterm"); try done.

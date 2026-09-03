@@ -399,7 +399,7 @@ Section Planner.
       destruct (decide (n < length suf)%nat) as [n_lt_len | n_ge_len].
       - apply lookup_lt_is_Some_2 in n_lt_len as [p eq_p].
         rewrite eq_p /=.
-        apply elem_of_list_lookup_2 in eq_p.
+        apply list_elem_of_lookup_2 in eq_p.
         auto.
       - rewrite lookup_ge_None_2 /=; last lia.
         lra.
@@ -530,7 +530,7 @@ Section Planner.
                               θ i * (μ c * ((μ_m - μ c) / (1 - μ c)))))%R).
       
       specialize (μ_lt_1 c) as μ_c_lt_1.
-      apply elem_of_list_lookup_2 in lookup_suf_i as c_elem_suf.
+      apply list_elem_of_lookup_2 in lookup_suf_i as c_elem_suf.
       specialize (μ_gt_0 c c_elem_suf) as μ_c_gt_0.
       pose proof (θ_bounds i i_lt_len) as [??].
       
@@ -890,7 +890,7 @@ Section Planner.
       s ∈ suffixes_of_length len → (∀ (a : A), a ∈ s → a ∈ range).
     Proof.
       elim=>[|len IH] /= s s_elem a a_in_s.
-      { apply elem_of_list_singleton in s_elem as ->.
+      { apply list_elem_of_singleton in s_elem as ->.
         contradict a_in_s.
         apply not_elem_of_nil. }
       destruct s as [| h t].
@@ -962,7 +962,7 @@ Section Planner.
         etransitivity; last apply IH.
         + apply Rmin_r.
         + move=>x x_in_t.
-          apply from_range, elem_of_list_further, x_in_t.
+          apply from_range, list_elem_of_further, x_in_t.
         + assumption.
     Qed.
 
