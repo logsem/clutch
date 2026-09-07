@@ -545,7 +545,6 @@ Section schan_security.
         solve_submseteq.
       + unfold L'. unfold cltheory. simpl. iApply "Hrelf1f2". }
     iLöb as "IH".
-    (*unfold kl1.*)
     iSplit; [iIntros (v1 v2) "%Hv1v2"; iModIntro; brel_pures; iModIntro; done |].
     iIntros (?????) "!# %Hk1 %Hk2 HXQ #Hrel".
     iDestruct "HXQ" as "[HSendAlice | HRecvBob]".
@@ -692,24 +691,17 @@ Section schan_security.
                 unfold distinct_l, distinct_r in *.
                 unfold labels_l, labels_r in *.
                 destruct Hdist' as [Hl Hr].
-                split.
-                ++
-                  set (l1 := (concat  (([crecv'; getKey'], [lrecv'], iThyBot) :: iLblSig_to_iLblThy autheff).*1.*1)).
-                  eapply (submseteq_NoDup l1 _); try eapply Hl.
-                  unfold l1. simpl. eapply submseteq_cons. do 2 eapply submseteq_skip.
-                  repeat (rewrite -> iLblSig_to_iLblThy_proj;
-                          rewrite -> iLblSig_to_iLblThy_app).
-                  repeat (rewrite -> fmap_app). simpl. do 2 apply submseteq_cons.
-                  eapply concat_submseteq. simpl. solve_submseteq.
-                ++ set (l2 := (concat (([crecv'; getKey'], [lrecv'], iThyBot)
+                set (l1 := (concat  (([crecv'; getKey'], [lrecv'], iThyBot) :: iLblSig_to_iLblThy autheff).*1.*1)).
+                set (l2 := (concat (([crecv'; getKey'], [lrecv'], iThyBot)
                                          :: iLblSig_to_iLblThy autheff).*1.*2)).
-                   eapply (submseteq_NoDup l2 _); try eapply Hr.
-                   unfold l2. simpl. eapply submseteq_skip. do 3 eapply submseteq_cons.
+                split; [ eapply  (submseteq_NoDup l1 _); try eapply Hl; simpl;
+                         unfold l1; simpl; eapply submseteq_cons;
+                         repeat (eapply submseteq_skip)
+                       | eapply (submseteq_NoDup l2 _); try eapply Hr; unfold l2; simpl; eapply submseteq_skip; repeat eapply submseteq_cons ];
                    repeat (rewrite -> iLblSig_to_iLblThy_proj;
-                           rewrite -> iLblSig_to_iLblThy_app).
-                   repeat (rewrite -> fmap_app). simpl.
-                   eapply concat_submseteq. simpl. solve_submseteq.
-            }
+                           rewrite -> iLblSig_to_iLblThy_app);
+                  repeat (rewrite -> fmap_app); repeat (eapply submseteq_cons);
+                  try (eapply concat_submseteq); try solve_submseteq. }
             { simpl. unfold N. iApply to_iThy_le_intro'.
               unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
               solve_submseteq. }
@@ -774,11 +766,8 @@ Section schan_security.
       set (M := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)]).
       set (N := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
                   iLblSig_to_iLblThy (sem_row_union keyeff (sem_row_union autheff L)))...
-     
       iApply (brel_bind'' _ _  (iLblSig_to_iLblThy (keyeff))  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] (([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], iThyBot)
                                                                                                                                             :: iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)); [set_solver | set_solver | | ]...
-     (* { set_solver. }
-      { set_solver. }*)
       { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
       iApply brel_wand.
       {  iDestruct "Hkeyrcv" as "#Hkeyrcv".
@@ -795,14 +784,9 @@ Section schan_security.
       iApply (brel_exhaustion (fill k1' _) (fill k2' _)); [set_solver|done|iApply "Hrel"; iDestruct "HmQ" as "(_&$)"|iApply "IH"].
     (*key receive returned successfully*)
     - iDestruct "Hsome" as "(->&->&->&->)"...
-      (*set (rightapp := ( match: "rla" with
-                           InjL <> => kont0 (InjLV #()%V)
-                         | InjR "x" => kont0 ! #l_sim
-                         end)%E).*)
       iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keyeff)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
                                                                                                                                          iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)); [set_solver | set_unfold; tauto | |].
-      (*{ set_solver. }
-      { set_unfold; tauto. }*)
+     
       { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
       iApply brel_wand.
       { iDestruct "Hkeysnd" as "#Hkeysnd".
@@ -1198,7 +1182,7 @@ Section schan_security.
             iApply brel_na_close. iFrame "Hclose".
             iSplitL...
             { iModIntro. iRight. iLeft. iFrame "Hγ Hl_m'sim' Hl_sim Hl_auth Hl_fchan' Hl_rchan' Hl_key'". }
-            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)); [auto|set_unfold; tauto|iApply "Hrel";iApply "HmQ"|iApply "IH"].
+            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)); [auto|set_unfold; tauto | iApply "Hrel";iApply "HmQ" | iApply "IH"].
           - iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))". 
             iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ;CaseCtx _ _] with "Hl_auth").                                          
             iIntros "Hl_auth"...
@@ -1230,24 +1214,16 @@ Section schan_security.
                 unfold distinct_l, distinct_r in *.
                 unfold labels_l, labels_r in *.
                 destruct Hdist' as [Hl Hr].
-                split.
-                ++ set (l1 := (concat  (([lrecv'], [crecv'; getKey'], iThyBot) :: iLblSig_to_iLblThy autheff).*1.*1)).
-                   eapply (submseteq_NoDup l1 _); try eapply Hl.
-                   simpl. eapply submseteq_skip. 
-                   repeat (rewrite -> iLblSig_to_iLblThy_proj;
-                           rewrite -> iLblSig_to_iLblThy_app). 
-                   repeat (rewrite -> fmap_app). do 3 eapply submseteq_cons. 
-                   eapply concat_submseteq. solve_submseteq.
-                ++ set (l2 := (concat (([lrecv'], [crecv'; getKey'], iThyBot)
+                set (l1 := (concat  (([lrecv'], [crecv'; getKey'], iThyBot) :: iLblSig_to_iLblThy autheff).*1.*1)).
+                set (l2 := (concat (([lrecv'], [crecv'; getKey'], iThyBot)
                                          :: iLblSig_to_iLblThy autheff).*1.*2)).
-                   eapply (submseteq_NoDup l2 _); try eapply Hr.
-                   unfold l2. simpl. 
-                   eapply submseteq_cons. do 2 eapply submseteq_skip.
+                split; [ eapply  (submseteq_NoDup l1 _); try eapply Hl; simpl;
+                         eapply submseteq_skip
+                       | eapply (submseteq_NoDup l2 _); try eapply Hr; unfold l2; simpl; eapply submseteq_cons; do 2 eapply submseteq_skip ];
                    repeat (rewrite -> iLblSig_to_iLblThy_proj;
-                           rewrite -> iLblSig_to_iLblThy_app). 
-                   repeat (rewrite -> fmap_app). do 2 eapply submseteq_cons.
-                   eapply concat_submseteq. solve_submseteq.
-            }
+                           rewrite -> iLblSig_to_iLblThy_app);
+                  repeat (rewrite -> fmap_app); repeat (eapply submseteq_cons);
+                  try (eapply concat_submseteq); try solve_submseteq. }
             { unfold N. iApply to_iThy_le_intro'. 
               unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
               solve_submseteq. }
@@ -1309,12 +1285,12 @@ Section schan_security.
           { eapply NoDup_cons_1_1.
             eapply (submseteq_NoDup _ [lrecv'; lsend'; srecv_l; ssend_l]); [solve_submseteq | done]. }
         + simpl. rewrite !NoDup_cons in Hnd_l, Hnd_r; (set_unfold; tauto). }
-      set (M := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)]).
-      set (N := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
+          set (M := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)]).
+          set (N := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
                   iLblSig_to_iLblThy (sem_row_union keyeff (sem_row_union autheff L)))...
-      iApply (brel_bind'' _ _  (iLblSig_to_iLblThy keyeff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] (([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], iThyBot)
+          iApply (brel_bind'' _ _  (iLblSig_to_iLblThy keyeff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] (([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], iThyBot)
                                                                                                                                             :: iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)); [set_unfold; tauto | set_unfold; tauto | |].
-      { iApply to_iThy_le_intro'. unfold M. unfold N. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
+         { iApply to_iThy_le_intro'. unfold M. unfold N. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
       iApply brel_wand.
       {  iDestruct "Hkeyrcv" as "#Hkeyrcv".
          iSpecialize ("Hkeyrcv" $! alice alice).
