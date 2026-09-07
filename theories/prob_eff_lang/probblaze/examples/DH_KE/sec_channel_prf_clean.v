@@ -795,10 +795,10 @@ Section schan_security.
       iApply (brel_exhaustion (fill k1' _) (fill k2' _)); [set_solver|done|iApply "Hrel"; iDestruct "HmQ" as "(_&$)"|iApply "IH"].
     (*key receive returned successfully*)
     - iDestruct "Hsome" as "(->&->&->&->)"...
-      set (rightapp := ( match: "rla" with
+      (*set (rightapp := ( match: "rla" with
                            InjL <> => kont0 (InjLV #()%V)
                          | InjR "x" => kont0 ! #l_sim
-                         end)%E).
+                         end)%E).*)
       iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keyeff)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
                                                                                                                                          iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)); [set_solver | set_unfold; tauto | |].
       (*{ set_solver. }
@@ -956,7 +956,35 @@ Section schan_security.
          { iApply "IH". }
   Qed.
 
+  Definition f_bij_nat (m : vgG) := λ (x : nat),
+                                      match (decide (x < S (S n'')))%nat with
+                                      | left H => fin_to_nat (sc_coupling m (nat_to_fin H))
+                                      | right _ => x
+                                      end.
 
+  Lemma f_nat_bijection : ∀ m : vgG, @Bij nat nat (f_bij_nat m).
+  Proof using G H XOR_spec0 cg vg vgg xor_struct Σ.
+    intro m. split. 
+      - intros x y Hxy. unfold f_bij_nat in Hxy.
+        case_decide as Hx; case_decide as Hy. 
+        + apply fin_to_nat_inj in Hxy.
+          apply (inj _) in Hxy. apply (f_equal fin_to_nat) in Hxy. 
+          by rewrite !fin_to_nat_to_fin in Hxy. 
+        + pose proof (fin_to_nat_lt (sc_coupling m (nat_to_fin Hx))) as Hlt.
+          rewrite Hxy in Hlt. lia. 
+        + pose proof (fin_to_nat_lt (sc_coupling m (nat_to_fin Hy))) as Hlt.
+          rewrite -Hxy in Hlt. lia.
+        + done.
+      - intros z. unfold f_bij_nat.
+        destruct (decide (z < S (S n''))%nat) as [Hz | Hz].
+        + destruct (surj (sc_coupling m) (nat_to_fin Hz)) as [i Hi].
+          exists (fin_to_nat i).
+          case_decide as Hi'; [| pose proof (fin_to_nat_lt i); lia].
+          rewrite -(fin_to_nat_to_fin _ _ Hz).
+          rewrite -Hi. by rewrite nat_to_fin_to_nat.
+        + exists z. case_decide; [lia | reflexivity].
+ Qed.    
+  
   Lemma SEM_R_CHAN_SIM_rev (f1 f2 : val) (L : sem_row Σ) :
     (∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙))%T
       f1 f2 -∗
@@ -1005,38 +1033,12 @@ Section schan_security.
     unfold sem_val_typed. simpl.
     iDestruct "Hschn" as "#Hschn".
     iSpecialize ("Hrelf1f2" with "Hschn"). simpl.
-    set (f m := (fun (x : nat) =>
-                   match (decide (x < S (S n'')))%nat with
-                   | left H => fin_to_nat (sc_coupling m (nat_to_fin H))
-                   | right _ => x
-                   end )).
-    assert (Hf : ∀ m : vgG, @Bij nat nat (f m)).
-    { intro m. split. 
-      - intros x y Hxy. unfold f in Hxy.
-        case_decide as Hx; case_decide as Hy. 
-        + apply fin_to_nat_inj in Hxy.
-          apply (inj _) in Hxy. apply (f_equal fin_to_nat) in Hxy. 
-          by rewrite !fin_to_nat_to_fin in Hxy. 
-        + pose proof (fin_to_nat_lt (sc_coupling m (nat_to_fin Hx))) as Hlt.
-          rewrite Hxy in Hlt. lia. 
-        + pose proof (fin_to_nat_lt (sc_coupling m (nat_to_fin Hy))) as Hlt.
-          rewrite -Hxy in Hlt. lia.
-        + done.
-      - intros z. unfold f.
-        destruct (decide (z < S (S n''))%nat) as [Hz | Hz].
-        + destruct (surj (sc_coupling m) (nat_to_fin Hz)) as [i Hi].
-          exists (fin_to_nat i).
-          case_decide as Hi'; [| pose proof (fin_to_nat_lt i); lia].
-          rewrite -(fin_to_nat_to_fin _ _ Hz).
-          rewrite -Hi. by rewrite nat_to_fin_to_nat.
-        + exists z. case_decide; [lia | reflexivity].
-    }
     set (d1 := (γ ↪ₛN (S n''; []) ∗ l_m'sim ↦ NONEV ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦ NONEV ∗ l_rchan ↦ₛ NONEV ∗  l_key ↦ₛ NONEV)%I).
-    set (d2 := ((∃ m : vgG, ∃ n : nat, ∃ Hfm : (f m n < S (S n''))%nat, γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #n ∗ l_sim ↦□ SOMEV #n ∗
+    set (d2 := ((∃ m : vgG, ∃ n : nat, ∃ Hfm : (f_bij_nat m n < S (S n''))%nat, γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #n ∗ l_sim ↦□ SOMEV #n ∗
                                                                         l_auth ↦ₛ□ SOMEV (vgval
-                                                                                            ((g ^+(sc_coupling m (nat_to_fin Hfm)))%g))%V ∗  l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(f m n)))%I).
+                                                                                            ((g ^+(sc_coupling m (nat_to_fin Hfm)))%g))%V ∗  l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(f_bij_nat m n)))%I).
 
-    set (d3 := (∃ m : vgG, ∃ n : nat, γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #n ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(f m n))%I). 
+    set (d3 := (∃ m : vgG, ∃ n : nat, γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #n ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(f_bij_nat m n))%I). 
     iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
     iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; rewrite Nat2Z.id; iFrame|].
     { iPureIntro. auto. }
@@ -1087,7 +1089,7 @@ Section schan_security.
         apply (submseteq_skips_l cltheory (iLblSig_to_iLblThy L) (iLblSig_to_iLblThy ρ__c)).
         unfold ρ__c. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
         solve_submseteq.
-      + unfold L'. unfold cltheory. simpl. iApply "Hrelf1f2". } 
+      + unfold L'. unfold cltheory. simpl. iApply "Hrelf1f2". }
     iLöb as "IH".
     iSplit; [iIntros (v1 v2) "%Hv1v2 !>"; brel_pures'; iModIntro; done |].  
     iIntros (?????) "!# %Hk1 %Hk2 [HSendAlice | HRecvBob] #Hrel".  
@@ -1126,9 +1128,10 @@ Section schan_security.
         brel_load_r...
         brel_load_l...
         iDestruct "Hγ" as (ms) "(%Hf' & Hγ)". apply map_eq_nil in Hf'. simplify_eq.
-        iApply (brel_couple_UT _ _ (f m) [HandleCtx _ _ _ _ _ ; AppRCtx _; AppRCtx _] _ _ _ _ _ _).
+        set (Hf := f_nat_bijection m).
+        iApply (brel_couple_UT _ _ (f_bij_nat m) [HandleCtx _ _ _ _ _ ; AppRCtx _; AppRCtx _] _ _ _ _ _ _).
         1: auto.
-        { intros. unfold f. case_decide as Hn.
+        { intros. unfold f_bij_nat. case_decide as Hn.
           + apply fin_to_nat_lt.
           + contradiction. }
         iFrame "Hγ". simpl. iSplit => //. iIntros (c ?) "!> Hγ"...
@@ -1161,12 +1164,8 @@ Section schan_security.
             { unfold sem_ty_sum, sem_ty_unit. unfold bob. iExists #()%V, #()%V.
               iLeft. repeat (iSplit); try (iPureIntro); try reflexivity. } }
           iModIntro. iIntros (v1 v2) "#HRv1v2"...
-          iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keyeff) M N 𝟙%T (kyrcv_l bob) (kyrcv_r bob)).
-          { set_unfold; tauto. }
-          { simpl. apply list_subseteq_nil. }
-          { simpl. unfold M. unfold N. iApply to_iThy_le_intro'.
-            unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
-            solve_submseteq. }
+          iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keyeff) M N 𝟙%T (kyrcv_l bob) (kyrcv_r bob)); [ set_unfold; tauto | simpl; apply list_subseteq_nil                                         | unfold M; unfold N; iApply to_iThy_le_intro'; unfold sem_row_union;
+            repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app) ; solve_submseteq | ].
           iApply brel_wand.
           { iDestruct "Hkeyrcv" as "#Hkeyrcv".
             iSpecialize ("Hkeyrcv" $! bob bob).
@@ -1260,7 +1259,7 @@ Section schan_security.
                   simpl. unfold sem_ty_prod.
                   iExists (vgval (valgroup.g ^+ c)), _, bob, bob.
                   repeat (iSplit); try (iPureIntro); try reflexivity.
-                  + auto. unfold f in *. 
+                  + auto. unfold f_bij_nat in *. 
                     eexists; split; first done.
                     apply Nat.lt_succ_r in H0.
                     destruct (decide (c < S (S n''))%nat) as [H1 | H1]; last lia.
@@ -1292,7 +1291,8 @@ Section schan_security.
          
     + iDestruct "HRecvBob" as "[-> [-> #HmQ]]"...
       { split.
-        + apply -> NeutralEctx_ectx_labels_singleton.
+        +
+          apply -> NeutralEctx_ectx_labels_singleton.
           do 3 (eapply NeutralEctx_label_cons_inv_2 in Hk2).
           eapply NeutralEctx_label_cons_inv_1 in Hk2.
           eapply HandleCtx_NeutralEctx; last eapply Hk2.
@@ -1309,15 +1309,11 @@ Section schan_security.
           { eapply NoDup_cons_1_1.
             eapply (submseteq_NoDup _ [lrecv'; lsend'; srecv_l; ssend_l]); [solve_submseteq | done]. }
         + simpl. rewrite !NoDup_cons in Hnd_l, Hnd_r; (set_unfold; tauto). }
-     (* set (keytheory := keyeff).
-      set (leaktheory := autheff).*)
       set (M := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)]).
       set (N := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
                   iLblSig_to_iLblThy (sem_row_union keyeff (sem_row_union autheff L)))...
-      iApply (brel_bind'' _ _  (iLblSig_to_iLblThy (keyeff))  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] (([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], iThyBot)
+      iApply (brel_bind'' _ _  (iLblSig_to_iLblThy keyeff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] (([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], iThyBot)
                                                                                                                                             :: iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)); [set_unfold; tauto | set_unfold; tauto | |].
-     (* { set_unfold; tauto. }
-      { set_unfold; tauto. }*)
       { iApply to_iThy_le_intro'. unfold M. unfold N. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
       iApply brel_wand.
       {  iDestruct "Hkeyrcv" as "#Hkeyrcv".
@@ -1332,12 +1328,7 @@ Section schan_security.
       { iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone".  }
       { iApply "IH". }
     (*key receive returned successfully*)
-    - set (rightapp := ( match: "rla" with
-                           InjL <> => kont0 (InjLV #()%V)
-                         | InjR "x" => kont0 ! #l_sim
-                         end)%E).
-      iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keyeff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ([([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
-                                                                                                                                         iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)).
+    - iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keyeff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ([([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++ iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)).
       1,2: set_unfold; tauto. 
       { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. } 
       iApply brel_wand.
@@ -1346,7 +1337,7 @@ Section schan_security.
         iApply "Hkeysnd".
         iExists #()%V, #()%V. unfold alice.
         iRight. repeat (iSplit); try (iPureIntro); try reflexivity. }
-      iIntros "!>" (v0 v3) "(->&->)"...
+        iIntros "!>" (v0 v3) "(->&->)"...
       iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto). 
       iFrame "Hinvα".
       iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
@@ -1357,8 +1348,7 @@ Section schan_security.
          iApply brel_na_close. iFrame.
          iSplitL.
          { iModIntro. iLeft. iFrame. }
-         
-         iApply (brel_exhaustion (fill k1'(InjLV #()%V)) (fill k2' (InjLV #()%V))); [auto|set_unfold; tauto| |].
+          iApply (brel_exhaustion (fill k1'(InjLV #()%V)) (fill k2' (InjLV #()%V))); [auto|set_unfold; tauto| | ]. 
          { iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone".  }
          { iApply "IH". }
       (* a message has been sent by both the secure channel and the authenticated channel *)
@@ -1402,7 +1392,7 @@ Section schan_security.
            iDestruct "Hl_fchan" as "#Hl_fchan".
            iApply G_XOR_CORRECT_r...
            brel_load_l...
-           rewrite (g_log_exp_bounded (f m n) Hfm).
+           rewrite (g_log_exp_bounded (f_bij_nat m n) Hfm).
            set (g_enc := (g ^+ sc_coupling (g ^+ sc_coupling m (fin.nat_to_fin Hfm))
                                            (fin.nat_to_fin Hfm))%g).
            iApply (brel_exhaustion (fill k1'((InjRV (vgval m))%V)) (fill k2' ((InjRV (vgval g_enc)))%V)); [set_solver|set_unfold;tauto| |].
@@ -1440,7 +1430,7 @@ Section schan_security.
          (* leakauth doesnt return successfully *)
          +++ iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))); [set_solver|set_unfold;tauto| |].
              { iApply "Hrel".  iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone". }
-             {iApply "IH". }
+             { iApply "IH". }
          (* leakauth returns successfully with a value *)
          +++ (*another case analysis by opening the invariant again, since we need access to the pointers l_sim and l_auth *)
              iApply (brel_na_inv _ _ alphaN); first (set_unfold; tauto). 
@@ -1470,15 +1460,15 @@ Section schan_security.
          iCombine "Hl_fchan Hl_fchan'" gives %[Hval Hval2].
          inversion Hval2. apply vgval_inj in H1. rewrite -> H1.
          iCombine "Hl_m'sim Hl_m'sim'" gives %[Hsim Hsim2]. clear Hval Hsim.
-         inversion Hsim2. specialize (Hf m0). destruct Hf as [Hfinj Hfsurj].
+         inversion Hsim2. specialize (f_nat_bijection m0) as Hf. destruct Hf as [Hfinj Hfsurj].
          apply Nat2Z.inj in H2.
          rewrite -> H2.
          iApply G_XOR_CORRECT_r...
          brel_load_l...
-         rewrite (g_log_exp_bounded (f m0 n0) Hfm).
+         rewrite (g_log_exp_bounded (f_bij_nat m0 n0) Hfm).
          set (g_enc := (g ^+ sc_coupling (g ^+ sc_coupling m0 (fin.nat_to_fin Hfm))
                                          (fin.nat_to_fin Hfm))%g).
-         iApply (brel_exhaustion (fill k1'((InjRV (vgval m0))%V)) (fill k2' ((InjRV (vgval g_enc)))%V)); [set_solver|set_unfold;tauto| |].
+         iApply (brel_exhaustion (fill k1'((InjRV (vgval m0))%V)) (fill k2' ((InjRV (vgval g_enc)))%V)); [set_solver | set_unfold;tauto | |].
          { iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]".
            rewrite /g_enc sc_coupling_invol. iApply "Hsome". }
          { iApply "IH". }
