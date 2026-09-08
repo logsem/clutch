@@ -47,7 +47,7 @@ Definition tapes_auth `{approxisGS Σ} :=
 
 Global Instance approxisGS_irisGS `{!approxisGS Σ} : approxisWpGS prob_lang Σ := {
   approxisWpGS_invGS := approxisGS_invG;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+  state_interp σ := (heap_auth (DfracOwn 1) σ.(heap) ∗ tapes_auth (DfracOwn 1) σ.(tapes))%I;
   err_interp := ec_supply;
 }.
 

@@ -167,8 +167,8 @@ Section encr.
       rewrite /coupling_f. rewrite bool_decide_eq_true_2; last done.
       iMod (ghost_var_alloc false) as "(%γ1 & [Hγ1 Hγ1'])".
       iMod (ghost_var_alloc false) as "(%γ2 & [Hγ2 Hγ2'])".
-      iMod (inv_alloc nroot _ (∃ (b1 b2:bool), ghost_var γ1 (1/2) b1 ∗ ghost_var γ2 (1/2) b2 ∗ l ↦ # ((if b1 then n else 0)+(if b2 then n' else 0)))%I with "[$]") as "#Hinv".
-      wp_apply (wp_par (λ _, ghost_var γ1 (1/2) true)(λ _, ghost_var γ2 (1/2) true) with "[Hα Hγ1][Hα' Hγ2]").
+      iMod (inv_alloc nroot _ (∃ (b1 b2:bool), ghost_var γ1 (DfracOwn (1/2)) b1 ∗ ghost_var γ2 (DfracOwn (1/2)) b2 ∗ l ↦ # ((if b1 then n else 0)+(if b2 then n' else 0)))%I with "[$]") as "#Hinv".
+      wp_apply (wp_par (λ _, ghost_var γ1 (DfracOwn (1/2)) true)(λ _, ghost_var γ2 (DfracOwn (1/2)) true) with "[Hα Hγ1][Hα' Hγ2]").
       - wp_apply (wp_rand_tape with "[$]").
         iIntros "(_&%)".
         wp_pures.

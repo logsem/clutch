@@ -117,7 +117,7 @@ Section impl1.
   (* (** Instantiate rand *) *)
   Local Definition rand_inv_pred1  (γ:gname*gname) : iProp Σ:=
     (∃ (m:gmap val (list nat)),
-        (ghost_map_auth γ.1 1 ((λ _, ())<$>m)) ∗
+        (ghost_map_auth γ.1 (DfracOwn 1) ((λ _, ())<$>m)) ∗
         ● ((λ x, (tb, x))<$>m)@ γ.2 ∗
         [∗ map] α ↦ns∈m, (∃ α', ⌜α = #lbl:α'⌝ ∗ (α' ↪N (tb; ns) ))
     )%I.
@@ -241,7 +241,7 @@ Section impl2.
   (** simulating a rand 3 with two flips *)
   Local Definition rand_inv_pred2  (γ:gname*gname) : iProp Σ:=
     (∃ (m:gmap val (list nat)),
-        (ghost_map_auth γ.1 1 ((λ _, ())<$>m)) ∗
+        (ghost_map_auth γ.1 (DfracOwn 1) ((λ _, ())<$>m)) ∗
         ● ((λ x, (1, x))<$>m)@ γ.2 ∗
         [∗ map] α ↦ns∈m, (∃ α', ⌜α = #lbl:α'⌝ ∗ (α' ↪N (1; ns) ))
     )%I.
@@ -442,7 +442,7 @@ Section impl3.
   (* (** Instantiate rand *) *)
   Local Definition rand_inv_pred3  (γ:gname*gname) : iProp Σ:=
     (∃ (m:gmap val (list nat)),
-        (ghost_map_auth γ.1 1 ((λ _, ())<$>m)) ∗
+        (ghost_map_auth γ.1 (DfracOwn 1) ((λ _, ())<$>m)) ∗
         ● ((λ x, (S tb, x))<$>m)@ γ.2 ∗
         [∗ map] α ↦ns∈m, (∃ α', ⌜α = #lbl:α'⌝ ∗ (α' ↪N (S tb; ns) ))
     )%I.

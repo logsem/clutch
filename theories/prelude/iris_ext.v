@@ -26,6 +26,15 @@ Section fupd.
       /fancy_updates.uPred_fupd_def -assoc /=.
     by iApply ("HP" with "HwE").
   Qed.
+
+  Lemma step_fupdN_soundness_no_lc `{!invGpreS Σ} (P : iProp Σ) `{!Plain P} n m :
+    (∀ `{Hinv : !invGS_gen HasNoLc Σ}, £ m ={⊤,∅}=∗ |={∅}▷=>^n P) → ⊢ P.
+  Proof. intros HP. by apply (step_fupdN_soundness HasNoLc n m P). Qed.
+
+  Lemma step_fupdN_soundness_lc `{!invGpreS Σ} (P : iProp Σ) `{!Plain P} n m :
+    (∀ `{Hinv : !invGS_gen HasLc Σ}, £ m ={⊤,∅}=∗ |={∅}▷=>^n P) → ⊢ P.
+  Proof. intros HP. by apply (step_fupdN_soundness HasLc n m P). Qed.
+
 End fupd.
 
 (* TODO: upstream? *)

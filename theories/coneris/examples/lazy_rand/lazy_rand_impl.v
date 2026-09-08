@@ -69,7 +69,7 @@ Section impl.
     end.
   
   Definition rand_auth (n:option (nat*nat)) γ :=
-    (ghost_map_auth γ 1 (option_to_gmap n) ∗
+    (ghost_map_auth γ (DfracOwn 1) (option_to_gmap n) ∗
      option_duplicate n γ ∗
      ⌜option_valid n⌝)%I.
 
