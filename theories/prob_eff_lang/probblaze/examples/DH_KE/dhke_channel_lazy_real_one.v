@@ -138,8 +138,7 @@ Section handlee_verification.
     iIntros (?????) "!# %Hk1 %Hk2 ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) #Hcont".
     
     (* getKey Alice *)
-    1 : {
-      brel_pures'; [apply Hk2; set_solver|apply Hk1; set_solver|]...
+    - brel_pures'; [apply Hk2; set_solver|apply Hk1; set_solver|]...
       (* sample_or_read always returns a *)
       iApply (brel_na_inv _ _ alphaN ); [set_solver|].
       iFrame "Hinva". 
@@ -184,11 +183,10 @@ Section handlee_verification.
         rewrite -expgM -ssrnat.multE -Nat.mul_comm.
         iDestruct ("Hcont" with "Hsome") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [done|done|].
-        iApply "IH". }
+        iApply "IH". 
    
     (* getKey Bob *)
-    1 : {
-      brel_pures'; [apply Hk2; set_solver|apply Hk1; set_solver|]...
+    - brel_pures'; [apply Hk2; set_solver|apply Hk1; set_solver|]...
       
       (* recv *)
       iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
@@ -249,7 +247,7 @@ Section handlee_verification.
       iDestruct ("Hcont" with "Hsome") as "Hkk". 
       apply Nat2Z.inj in Ha as ->.
       iApply (brel_exhaustion with "[$]"); [done|done|subst].
-      iApply "IH". }
+      iApply "IH". 
   Qed.
 
 End handlee_verification.
