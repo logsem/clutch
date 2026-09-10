@@ -97,47 +97,6 @@ Section adv_dhke.
      [τG_lrel], …) resolve it. *)
   #[local] Instance clutch_group_inst `{!probblazeRGS Σ} : clutch_group := G _ _.
 
-  (* [DH_real]/[DH_rand] self-refine at [𝟙 ⊸ 𝔾×𝔾×𝔾]: the two runs draw the
-     same exponents (coupled [rand]s), so the deterministic [g^_] outputs agree
-     and form a group-triple.  A syntactic-typing + fundamental-lemma route is
-     ALSO available now (see [DH_real_self_ftlr]/[DH_rand_self_ftlr] below): the
-     type system gained [ℕ⪯ℤ] subtyping, [ℤ]-bound [rand], binop rules,
-     [vexp_typed], and the [vgval_typed] group-element field, so [g^(a*b)] is
-     typeable.  We keep this direct relational proof as well. *)
-  Lemma DH_real_self `{!probblazeRGS Σ} :
-    ⊢ sem_val_typed DH_real DH_real (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
-  Proof using All.
-    rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang /=.
-    iModIntro. iIntros (w1 w2) "(->&->)".
-    rewrite /DH_real. brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (a Ha). brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (b Hb). brel_pures'.
-    rewrite -!Nat2Z.inj_mul. do 3 brel_exp_l. do 3 brel_exp_r.
-    brel_pures'. iModIntro.
-    iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
-    { iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
-      - iExists _. by iSplit.
-      - iExists _. by iSplit. }
-    { iExists _. by iSplit. }
-  Qed.
-
-  Lemma DH_rand_self `{!probblazeRGS Σ} :
-    ⊢ sem_val_typed DH_rand DH_rand (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
-  Proof using All.
-    rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang /=.
-    iModIntro. iIntros (w1 w2) "(->&->)".
-    rewrite /DH_rand. brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (a Ha). brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (b Hb). brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (c Hc). brel_pures'.
-    iModIntro.
-    iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
-    { iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
-      - iExists _. by iSplit.
-      - iExists _. by iSplit. }
-    { iExists _. by iSplit. }
-  Qed.
-
   (* The reduction [red = λ DH f, F_AUTH (C_lazy DH f)] self-refines at
      [(𝟙 ⊸ 𝔾×𝔾×𝔾) → τ_DH]: a [C_lazy] self-refinement (symbolic execution of
      the [getKey] handler, with an invariant tying the two [lc] refs) composed

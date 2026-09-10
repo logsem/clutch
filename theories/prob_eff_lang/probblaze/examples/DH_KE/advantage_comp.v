@@ -1,9 +1,7 @@
 From clutch.prob_eff_lang.probblaze Require Import advantage.
-From iris.algebra Require Import excl.
-From iris.algebra.lib Require Import dfrac_agree.
 From clutch.prob_eff_lang.probblaze.typing Require Import types fundamental interp.
-From clutch.prob_eff_lang.probblaze Require Import p_composition sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy mode.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import new_composition xor def_dhke sec_channel_def new_composition_defs.
+From clutch.prob_eff_lang.probblaze Require Import p_composition sem_row syntax semantics proofmode valgroup adequacy mode.
+From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import new_composition xor sec_channel_def new_composition_defs dhke_common.
 
 Import fingroup.
 Import fingroup.fingroup.

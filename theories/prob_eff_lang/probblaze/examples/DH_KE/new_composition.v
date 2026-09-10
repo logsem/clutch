@@ -1,12 +1,10 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import na_invariants.
-From iris.algebra Require Import agree excl auth frac excl_auth.
-From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import
   primitive_laws proofmode
   spec_rules spec_ra class_instances tactics notation metatheory
-  sem_types sem_row sem_sig sem_judgement.
+  sem_row sem_sig.
 From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import
   dhke_common sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_authchan_new
@@ -277,40 +275,6 @@ Section new_comp_verification.
     iApply (brel_introduction_mono (iLblSig_to_iLblThy θ2 ++ iLblSig_to_iLblThy θ₁ ++ iLblSig_to_iLblThy θ__L)).
     { iApply to_iThy_le_intro'; solve_submseteq. }
     iApply "Hu".
-  Qed.
-
-  (* Inline DH_real/DH_rand self-refinements (couple the samples, then [g^_]
-     is deterministic).  [DH_real] draws 2 exponents + product; [DH_rand] 3. *)
-  Lemma DH_real_self : ⊢ sem_val_typed DH_real DH_real (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
-  Proof using All.
-    rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang /=.
-    iModIntro. iIntros (w1 w2) "(->&->)".
-    rewrite /DH_real. brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (a Ha). brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (b Hb). brel_pures'.
-    rewrite -!Nat2Z.inj_mul. do 3 brel_exp_l. do 3 brel_exp_r.
-    brel_pures'. iModIntro.
-    iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
-    { iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
-      - iExists _. by iSplit.
-      - iExists _. by iSplit. }
-    { iExists _. by iSplit. }
-  Qed.
-
-  Lemma DH_rand_self : ⊢ sem_val_typed DH_rand DH_rand (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
-  Proof using All.
-    rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang /=.
-    iModIntro. iIntros (w1 w2) "(->&->)".
-    rewrite /DH_rand. brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (a Ha). brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (b Hb). brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (c Hc). brel_pures'.
-    iModIntro.
-    iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
-    { iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
-      - iExists _. by iSplit.
-      - iExists _. by iSplit. }
-    { iExists _. by iSplit. }
   Qed.
 
   Lemma REAL_DHKE_DH_RED_REAL :

@@ -2,7 +2,7 @@ From iris.proofmode Require Import base.
 From iris.base_logic.lib Require Import  na_invariants.
 From iris.algebra Require Export agree excl auth frac excl_auth.
 From iris.algebra.lib Require Export dfrac_agree.
-From clutch.prob_eff_lang.probblaze Require Export logic notation sem_def tactics.
+From clutch.prob_eff_lang.probblaze Require Export logic notation sem_def tactics sem_types sem_judgement.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Export valgroup def_dhke.
 
 Export fingroup.fingroup.
@@ -355,7 +355,51 @@ Section theories.
 
 End theories.
 
+Section typing.
+  Context `{probblazeRGS Σ}.
+  Context {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg}.
+  Context {G : clutch_group (vg:=vg) (cg:=cg)}.
+
+ Lemma DH_real_self :
+    ⊢ sem_val_typed DH_real DH_real (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
+  Proof using All.
+    rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang /=.
+    iModIntro. iIntros (w1 w2) "(->&->)".
+    rewrite /DH_real. brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (a Ha). 
+    iApply brel_couple_rand_rand; first done. iIntros (b Hb). 
+    brel_pures'.
+    rewrite -!Nat2Z.inj_mul. 
+    brel_pures'.
+    iModIntro.
+    iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
+    { iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
+      - iExists _. by iSplit.
+      - iExists _. by iSplit. }
+    { iExists _. by iSplit. }
+  Qed.
+
+  Lemma DH_rand_self :
+    ⊢ sem_val_typed DH_rand DH_rand (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
+  Proof using All.
+    rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang /=.
+    iModIntro. iIntros (w1 w2) "(->&->)".
+    rewrite /DH_rand. brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (a Ha). brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (b Hb). brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (c Hc). brel_pures'.
+    iModIntro.
+    iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
+    { iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. iSplit.
+      - iExists _. by iSplit.
+      - iExists _. by iSplit. }
+    { iExists _. by iSplit. }
+  Qed.
+
+End typing.
+
 Ltac label_not_in_singleton Hdl := 
   apply NoDup_cons_1_1;
   eapply submseteq_NoDup; last exact Hdl;
   solve_submseteq. 
+
