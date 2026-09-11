@@ -23,6 +23,6 @@ Class Mask_struc `{!probblazeRGS Σ} `{Mask} :=
       -∗ BREL e ≤ (fill K (mask (dval k) (dval m))) @ E <|X|> {{R}}
   ; MASK_correct_l : MASK_CORRECT_L
   ; MASK_correct_r : MASK_CORRECT_R
-  ; mask_bij (k : car) : Bij (mask_sem k)
+  ; mask_bij (k : car) :: Bij (λ m, mask_sem m k)
   ; mask_masklutive (k : car) : Involutive eq (mask_sem k)
   }.
