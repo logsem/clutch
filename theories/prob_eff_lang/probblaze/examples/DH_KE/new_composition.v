@@ -90,10 +90,10 @@ Section new_comp_verification.
     { brel_pures'.
       iMod token_alloc as (γtoka) "Htoka".
       iMod token_alloc as (γtokb) "Htokb".
-      iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
-      iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
-      iMod dfrac_alloc as (γfraca) "Hfraca".
-      iMod dfrac_alloc as (γfracb) "Hfracb".
+      iMod message_alloc as (γautha) "Hautha".
+      iMod message_alloc as (γauthb) "Hauthb".
+      iMod all_receipts_alloc as (γfraca) "Hfraca".
+      iMod all_receipts_alloc as (γfracb) "Hfracb".
       set (P := dhke_channel_lazy_sim_one.P).
       set (chan_row := chan_new_row (P γautha) (P γauthb)).
       iApply (F_AUTH_F_AUTH_new _ _ _ _ _ _ (dhke_channel_lazy_sim_one.P γautha) (dhke_channel_lazy_sim_one.P γauthb)  with "Hfraca Hfracb [-]").
@@ -109,13 +109,11 @@ Section new_comp_verification.
       iDestruct "Hga" as (A) "(->&->)". iDestruct "Hgb" as (B) "(->&->)".
       iDestruct "Hgc" as (C) "(->&->)".
       brel_pures'.
-      iMod (auth_upd (vgval A) with "Hautha") as "Hautha".
-      iMod (auth_upd (vgval B) with "Hauthb") as "Hauthb".
-      iMod (auth_persist with "Hautha") as "#Hautha".
-      iMod (auth_persist with "Hauthb") as "#Hauthb".
-      iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
+      iMod (store_message (vgval A) with "Hautha") as "#Hautha".
+      iMod (store_message (vgval B) with "Hauthb") as "#Hauthb".
+      iMod (inv_alloc atokN _ (token γtoka ∨ receipt γfraca)%I with "[Htoka]") as "#Hinvta".
       { iNext; iLeft; iFrame. }
-      iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
+      iMod (inv_alloc btokN _ (token γtokb ∨ receipt γfracb)%I with "[Htokb]") as "#Hinvtb".
       { iNext; iLeft; iFrame. }
       iApply brel_alloc_l. iIntros (loc1) "!> Hl1". brel_pures_l.
       iApply brel_alloc_r. iIntros (loc2) "Hl2". brel_pures_r.
@@ -204,7 +202,7 @@ Section new_comp_verification.
           iRight. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
           { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
             iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
-          iIntros (m) "Ha'". iDestruct (auth_agree with "[$Hauthb] [$Ha']") as "<-".
+          iIntros (m) "Ha'". iDestruct (message_unique with "[$Hauthb] [$Ha']") as "<-".
           iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hsome") as "Hkk".
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
         - iApply (brel_load_l _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl1"). iIntros "!> _". brel_pures_l.
@@ -228,7 +226,7 @@ Section new_comp_verification.
           iRight. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
           { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
             iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
-          iIntros (m) "Ha'". iDestruct (auth_agree with "[$Hauthb] [$Ha']") as "<-".
+          iIntros (m) "Ha'". iDestruct (message_unique with "[$Hauthb] [$Ha']") as "<-".
           iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hsome") as "Hkk".
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
       + brel_pures; [apply Hk1; set_solver | apply Hk2; set_solver |].
@@ -240,7 +238,7 @@ Section new_comp_verification.
         iLeft. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
         { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
-        iIntros (m) "Ha'". iDestruct (auth_agree with "[$Hautha] [$Ha']") as "<-".
+        iIntros (m) "Ha'". iDestruct (message_unique with "[$Hautha] [$Ha']") as "<-".
         iApply brel_value. iIntros "$ !>". brel_pures'.
         iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
         iApply (brel_introduction' [send1] [send2]). { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }

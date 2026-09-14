@@ -18,16 +18,16 @@ Section handlee_verification.
   #[local] Notation n := (S n'').
   Local Notation θ := (θ (Σ:=Σ) (vg:=vg)).
 
-  Definition P γauth (m : vgG) : iProp Σ := ∃ l : loc, let a := g_log m  in (own γauth (to_dfrac_agree DfracDiscarded (#l, #a)%V) ∗ l ↦ₛ□ SOMEV #a)%I. 
-  Definition P' γauth (m : vgG) : iProp Σ := (own γauth (to_dfrac_agree DfracDiscarded (vgval m)%V)).
+  Definition P γauth (m : vgG) : iProp Σ := ∃ l : loc, let a := g_log m  in (message γauth (#l, #a)%V ∗ l ↦ₛ□ SOMEV #a)%I. 
+  Definition P' γauth (m : vgG) : iProp Σ := (message γauth (vgval m)%V).
   Definition chan γautha γauthb := chan_new_row (P γautha) (P' γauthb).
 
 
   Lemma C_DH_real_DH_KE (f1 f2 : val) γtoka γtokb γfraca γfracb γautha γauthb L :
     token γtoka -∗
     token γtokb -∗
-    own γautha (to_dfrac_agree (DfracOwn 1) #()%V) -∗
-    own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) -∗
+    empty_message γautha -∗
+    empty_message γauthb -∗
     (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T f1 f2 -∗
 
     BREL C_lazy DH_real f1 ≤ DH_KE f2 <|⊥|> {{ λ v1 v2, 
@@ -53,13 +53,12 @@ Section handlee_verification.
     rewrite -Nat2Z.inj_mul...    
     brel_alloc_l lc as "Hlc"...
     
-    iMod (auth_upd (#la, #a)%V with "Ha") as "Ha".
-    iMod (auth_upd (vgval $ g ^+ b)%g with "Hb") as "Hb".
-    iMod (auth_persist with "Ha") as "#Ha".
-    iMod (auth_persist with "Hb") as "#Hb".
-    iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
+    iMod (store_message (#la, #a)%V with "Ha") as "#Ha".
+    iMod (store_message (vgval $ g ^+ b)%g with "Hb") as "#Hb".
+
+    iMod (inv_alloc atokN _ (token γtoka ∨ receipt γfraca)%I with "[Htoka]") as "#Hinvta".
     { iNext; iLeft;iFrame. }
-    iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
+    iMod (inv_alloc btokN _ (token γtokb ∨ receipt γfracb)%I with "[Htokb]") as "#Hinvtb".
     { iNext; iFrame. }
 
     iApply (brel_na_alloc
@@ -151,7 +150,7 @@ Section handlee_verification.
         
       (* Recv bob = Some gB *)
       + iIntros (m) "Ha'".
-        iDestruct (auth_agree with "[$Hb] [$Ha']") as "<-".
+        iDestruct (message_unique with "[$Hb] [$Ha']") as "<-".
         iApply brel_value. iIntros "$ !>"...
         rewrite -expgM. rewrite -ssrnat.multE.
         rewrite -Nat.mul_comm.
@@ -174,7 +173,7 @@ Section handlee_verification.
         iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|].
         iApply "IH". }
       iIntros (m) "(%&#Hb'&#Hla')".
-      iDestruct (auth_agree with "[$Ha] [$Hb']") as "%Heq".
+      iDestruct (message_unique with "[$Ha] [$Hb']") as "%Heq".
       inversion Heq as [(Heq1&Heq2)]. rewrite -(g_log_id m) -(Nat2Z.inj _ _ Heq2) //=.  
       iApply brel_value. iIntros "$ !>"...
       

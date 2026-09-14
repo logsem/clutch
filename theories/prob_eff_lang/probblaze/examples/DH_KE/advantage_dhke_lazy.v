@@ -116,10 +116,10 @@ Section adv_dhke.
     iIntros (θ__L). iIntros (f1 f2) "Hf". brel_pures'.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
-    iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
-    iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
-    iMod dfrac_alloc as (γfraca) "Hfraca".
-    iMod dfrac_alloc as (γfracb) "Hfracb".
+    iMod message_alloc as (γautha) "Hautha".
+    iMod message_alloc as (γauthb) "Hauthb".
+    iMod all_receipts_alloc as (γfraca) "Hfraca".
+    iMod all_receipts_alloc as (γfracb) "Hfracb".
     iApply (F_AUTH_F_AUTH_new _ _ _ _ _ _ (dhke_channel_lazy_sim_one.P γautha) (dhke_channel_lazy_sim_one.P γauthb)  with "Hfraca Hfracb [-]").
     (* Remaining: the [C_lazy] self-refinement (the [F_AUTH_F_AUTH] C-part).
        Reduce [C_lazy], call [DH #()] once (relating the two group triples via
@@ -140,13 +140,11 @@ Section adv_dhke.
     (* Record the two sent group elements in the authchan ghost state
        ([γautha := A] Alice's message, [γauthb := B] Bob's) and open the
        token/frac invariants ([atokN]/[btokN]) that the Send protocol uses. *)
-    iMod (auth_upd (vgval A) with "Hautha") as "Hautha".
-    iMod (auth_upd (vgval B) with "Hauthb") as "Hauthb".
-    iMod (auth_persist with "Hautha") as "#Hautha".
-    iMod (auth_persist with "Hauthb") as "#Hauthb".
-    iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
+    iMod (store_message (vgval A) with "Hautha") as "#Hautha".
+    iMod (store_message (vgval B) with "Hauthb") as "#Hauthb".
+    iMod (inv_alloc atokN _ (token γtoka ∨ receipt γfraca)%I with "[Htoka]") as "#Hinvta".
     { iNext; iLeft; iFrame. }
-    iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
+    iMod (inv_alloc btokN _ (token γtokb ∨ receipt γfracb)%I with "[Htokb]") as "#Hinvtb".
     { iNext; iLeft; iFrame. }
     iApply brel_alloc_l. iIntros (l1) "!> Hl1". brel_pures_l.
     iApply brel_alloc_r. iIntros (l2) "Hl2". brel_pures_r.
@@ -175,7 +173,7 @@ Section adv_dhke.
           iExists _,_; [iLeft; by iPureIntro| iRight; iPureIntro; repeat (split; first done); by eexists]. }
     unfold sem_val_typed. simpl. iDestruct "Hgg" as "#Hgg".
     iSpecialize ("Hf" with "Hgg").
-    set (P γauth (m : vgG) := (own γauth (to_dfrac_agree DfracDiscarded (vgval m)%V))).
+    set (P γauth (m : vgG) := (message γauth (vgval m)%V)).
     set (chan γautha γauthb := chan_new_row (P γautha) (P γauthb)).
     set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2).
     iApply brel_new_theory.
@@ -221,7 +219,7 @@ Section adv_dhke.
         iRight. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
         { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
-        iIntros (m) "Ha'". iDestruct (auth_agree with "[$Hauthb] [$Ha']") as "<-".
+        iIntros (m) "Ha'". iDestruct (message_unique with "[$Hauthb] [$Ha']") as "<-".
         iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hsome") as "Hkk".
         iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
       - iApply (brel_load_l _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl1"). iIntros "!> _". brel_pures_l.
@@ -245,7 +243,7 @@ Section adv_dhke.
         iRight. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
         { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
-        iIntros (m) "Ha'". iDestruct (auth_agree with "[$Hauthb] [$Ha']") as "<-".
+        iIntros (m) "Ha'". iDestruct (message_unique with "[$Hauthb] [$Ha']") as "<-".
         iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hsome") as "Hkk".
         iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
     + (* doRecv alice [RecvAliceImpl]; on Some, doSend (B,alice) [SendBobImpl];;
@@ -259,7 +257,7 @@ Section adv_dhke.
       iLeft. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
       { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
         iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
-      iIntros (m) "Ha'". iDestruct (auth_agree with "[$Hautha] [$Ha']") as "<-".
+      iIntros (m) "Ha'". iDestruct (message_unique with "[$Hautha] [$Ha']") as "<-".
       iApply brel_value. iIntros "$ !>". brel_pures'.
       iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
       iApply (brel_introduction' [send1] [send2]). { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }

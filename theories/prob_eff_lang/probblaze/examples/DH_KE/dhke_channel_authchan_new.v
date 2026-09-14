@@ -55,8 +55,8 @@ Section handlee_verification.
   Lemma F_AUTH_F_AUTH_new (f1 f2 : expr) γtoka γtokb γfraca γfracb
     (P P' : vgG → iProp Σ)
     `{!∀ m : vgG, Timeless (P m), !∀ m : vgG, Timeless (P' m)} (L : sem_row Σ) :
-    own γfraca (DfracOwn 1) -∗
-    own γfracb (DfracOwn 1) -∗
+    all_receipts γfraca -∗
+    all_receipts γfracb -∗
     BREL f1 ≤ f2 <|⊥|> {{λ v1 v2,
                            ∀ send1 send2 recv1 recv2 : label, let ac := chan_new_row P P' γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
                                             BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
@@ -82,18 +82,18 @@ Section handlee_verification.
 
     (* Alice's message: written by [Send bob], read by [Recv alice], carries [P]. *)
     iApply (brel_na_alloc
-              ((l1 ↦ NONEV ∗ l1'  ↦ₛ NONEV ∗ own γfraca (DfracOwn 1))
+              ((l1 ↦ NONEV ∗ l1'  ↦ₛ NONEV ∗ all_receipts γfraca)
                ∨ (∃ mA : vgG, l1 ↦□ SOMEV mA ∗ l1' ↦ₛ□ SOMEV mA ∗ token γtoka
-                         ∗ own γfraca DfracDiscarded
+                         ∗ receipt γfraca
                          ∗ □ (P mA))) alphaN).
     iSplitL "Hl1 Hl1s Hfraca"; [iNext; iLeft; iFrame|].
     iIntros "#Hinva".
 
     (* Bob's message: written by [Send alice], read by [Recv bob], carries [P']. *)
     iApply (brel_na_alloc
-              ((l2 ↦ NONEV ∗ l2'  ↦ₛ NONEV ∗ own γfracb (DfracOwn 1))
+              ((l2 ↦ NONEV ∗ l2'  ↦ₛ NONEV ∗ all_receipts γfracb)
                ∨ (∃ mB : vgG, l2 ↦□ SOMEV mB ∗ l2' ↦ₛ□ SOMEV mB ∗ token γtokb
-                         ∗ own γfracb DfracDiscarded
+                         ∗ receipt γfracb
                          ∗ □ (P' mB))) betaN).
     iSplitL "Hl2 Hl2s Hfracb"; [iNext; iLeft; iFrame|].
     iIntros "#Hinvb".
@@ -137,8 +137,8 @@ Section handlee_verification.
             iFrame "Hinva".
             iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%mA & #Hl1 & #Hl1s & Htoka & #Hfraca & #HPa)] & Hclose)".
             - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
-              2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
-              iMod (dfrac_persist with "Hfraca") as "#Hfraca".
+              2 : { by iDestruct (all_receipts_unique with "[Hupd][$]") as "Hcontra". }
+              iMod (all_receipts_to_receipt with "Hfraca") as "#Hfraca".
               iMod ("Hupd" with "Hfraca") as "(Htok & HP & <-)".
               iModIntro. 
               
@@ -171,7 +171,7 @@ Section handlee_verification.
               iApply (brel_exhaustion with "[$]"); [done|done|]. iApply "IHsend".
 
             - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
-              1 : { iMod ("Hupd" with "Hfraca") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
+              1 : { iMod ("Hupd" with "Hfraca") as "(Hcontra & _)". by iDestruct (token_unique with "[$][$]") as "Hcontra". }
               iApply brel_na_close. iFrame.
               iSplitL "Htoka"; [iNext; iRight; iExists mA; iFrame; iFrame "#"|].
               brel_load_l...
@@ -184,8 +184,8 @@ Section handlee_verification.
       iFrame "Hinvb".
       iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%mB & #Hl2 & #Hl2s & Htokb & #Hfracb & #HPb)] & Hclose)".
       - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
-        2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
-        iMod (dfrac_persist with "Hfracb") as "#Hfracb".
+        2 : { by iDestruct (all_receipts_unique with "[Hupd][$]") as "Hcontra". }
+        iMod (all_receipts_to_receipt with "Hfracb") as "#Hfracb".
         iMod ("Hupd" with "Hfracb") as "(Htok & HP & <-)".
         iModIntro.
         brel_pures'; [apply Hk2|apply Hk1|]; try (set_unfold; tauto).
@@ -217,7 +217,7 @@ Section handlee_verification.
         iApply (brel_exhaustion with "[$]"); [done|done|]. iApply "IHsend".
 
       - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
-        1 : { iMod ("Hupd" with "Hfracb") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
+        1 : { iMod ("Hupd" with "Hfracb") as "(Hcontra & _)". by iDestruct (token_unique with "[$][$]") as "Hcontra". }
         iApply brel_na_close. iFrame.
         iSplitL "Htokb"; [iNext; iRight; iExists mB; iFrame; iFrame "#"|].
         brel_pures'; [apply Hk2| apply Hk1|]; try (set_unfold; tauto).

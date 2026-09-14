@@ -19,14 +19,14 @@ Section handlee_verification.
   Import valgroup_notation.
   Local Notation gkleakl := (gkleakl (Σ:=Σ) (vg:=vg)).
 
-  Definition P γauth (m : vgG) : iProp Σ := (own γauth (to_dfrac_agree DfracDiscarded (vgval m)%V)).
+  Definition P γauth (m : vgG) : iProp Σ := message γauth (vgval m).
   Definition chan γautha γauthb := chan_new_row (P γautha) (P γauthb).
 
   Lemma DH_SIM_F_KE_C_DH_rand (f1 f2 : val) γtoka γtokb γfraca γfracb γautha γauthb L :
     token γtoka -∗
     token γtokb -∗
-    own γautha (to_dfrac_agree (DfracOwn 1) #()%V) -∗
-    own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) -∗
+    empty_message γautha -∗
+    empty_message γauthb -∗
     (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T f1 f2 -∗
     BREL DH_SIM (F_KE_lazy_alice f1) ≤ C_lazy DH_rand f2 <|⊥|> 
       {{ λ v1 v2, ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
@@ -61,15 +61,13 @@ Section handlee_verification.
     brel_alloc_r lcs as "Hlcs"...
     brel_effect_l gk1 as "Hgk1"...
     brel_effect_r gk2 as "Hgk2"...
-    
-    iMod (auth_upd (vgval (g ^+ a)%g) with "Ha") as "Ha".
-    iMod (auth_upd (vgval $ g ^+ b)%g with "Hb") as "Hb".
-    iMod (auth_persist with "Ha") as "#Ha".
-    iMod (auth_persist with "Hb") as "#Hb".
 
-    iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
+    iMod (store_message (vgval (g ^+ a)%g) with "Ha") as "#Ha".
+    iMod (store_message (vgval $ g ^+ b)%g with "Hb") as "#Hb".
+
+    iMod (inv_alloc atokN _ (token γtoka ∨ receipt γfraca)%I with "[Htoka]") as "#Hinvta".
     { iNext; iLeft;iFrame. }
-    iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
+    iMod (inv_alloc btokN _ (token γtokb ∨ receipt γfracb)%I with "[Htokb]") as "#Hinvtb".
     { iNext; iFrame. }
     
     iApply (brel_na_alloc
@@ -173,7 +171,7 @@ Section handlee_verification.
           
         (* Recv bob = Some gB *)
         + iIntros (m) "Ha'".
-          iDestruct (auth_agree with "[$Hb] [$Ha']") as "<-".
+          iDestruct (message_unique with "[$Hb] [$Ha']") as "<-".
           brel_pures'.
           iDestruct ("Hcont" with "Hsome") as "Hkk".
           
@@ -196,7 +194,7 @@ Section handlee_verification.
         iDestruct ("Hcont" with "Hnone") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [set_solver|done|iApply "IH"].
       - iIntros (m) "Ha'".
-        iDestruct (auth_agree with "[$Ha] [$Ha']") as "<-".
+        iDestruct (message_unique with "[$Ha] [$Ha']") as "<-".
         iApply brel_value. iIntros "$ !>".
         brel_pures';[set_solver|]...
 
@@ -225,14 +223,14 @@ Section handlee_verification.
         iFrame "Hinva". 
         iIntros "(>(Hα&[(Hγ&Hlc&Hlcs)|#(Hγ&Hlc&Hlcs)]) & Hclose)".
         
-        * iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; CaseCtx _ _] with "[$]"). iIntros "!> Hlc"... 
+        * brel_load_l...
           brel_load_r...
           iApply brel_na_close. iFrame. iSplitL; [iLeft; iFrame|].
 
           iDestruct ("Hcont" with "Hnone") as "Hkk".
           iApply (brel_exhaustion with "[$]"); [set_solver|done|iApply "IH"].
           
-        * iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _; CaseCtx _ _] with "[$]"). iIntros "!> _"... 
+        * brel_load_l...
           brel_load_r...
           iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
           

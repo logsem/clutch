@@ -24,16 +24,16 @@ Section handlee_verification.
   (* Verification of DH_KE ≤ C[DH_real] *)
   (*------------------------------------------------------------*)
   
-  Definition P γauth (m : vgG) : iProp Σ := ∃ l : loc, let a := g_log m  in (own γauth (to_dfrac_agree DfracDiscarded (#l, #a)%V) ∗ l ↦□ SOMEV #a)%I. 
-  Definition P' γauth (m : vgG) : iProp Σ := (own γauth (to_dfrac_agree DfracDiscarded (vgval m)%V)).
+  Definition P γauth (m : vgG) : iProp Σ := ∃ l : loc, let a := g_log m  in (message γauth (#l, #a)%V ∗ l ↦□ SOMEV #a)%I. 
+  Definition P' γauth (m : vgG) : iProp Σ := message γauth (vgval m). 
   Definition chan γautha γauthb := chan_new_row (P γautha) (P' γauthb).
  
   
   Lemma DH_KE_C_DH_real (f1 f2 : val) γtoka γtokb γfraca γfracb γautha γauthb (L : sem_row Σ):
     token γtoka -∗
     token γtokb -∗
-    own γautha (to_dfrac_agree (DfracOwn 1) #()%V) -∗
-    own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) -∗ (* changed to a circ *)
+    empty_message γautha -∗
+    empty_message γauthb -∗
     (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T f1 f2 -∗
 
     BREL DH_KE f1 ≤ C_lazy DH_real f2 <|⊥|> {{ λ v1 v2, 
@@ -83,16 +83,13 @@ Section handlee_verification.
     rewrite /sem_val_typed //=. 
     iSpecialize ("Hff" with "Hgg"). 
     
+    iMod (store_message ((#la, #a)%V) with "Ha") as "#Ha".
+    iMod (store_message (vgval $ g ^+ b)%g with "Hb") as "#Hb".
 
-    iMod (auth_upd ((#la, #a)%V) with "Ha") as "Ha".
-    iMod (auth_upd (vgval $ g ^+ b)%g with "Hb") as "Hb".
-    iMod (auth_persist with "Ha") as "#Ha".
-    iMod (auth_persist with "Hb") as "#Hb".
-    
     (* Store resources before induction *)
-    iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
+    iMod (inv_alloc atokN _ (token γtoka ∨ receipt γfraca)%I with "[Htoka]") as "#Hinvta".
     { iNext; iLeft;iFrame. }
-    iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
+    iMod (inv_alloc btokN _ (token γtokb ∨ receipt γfracb)%I with "[Htokb]") as "#Hinvtb".
     { iNext; iFrame. }
 
     
@@ -140,7 +137,6 @@ Section handlee_verification.
       (* sample_or_read always returns a *)
       iApply (brel_na_inv _ _ alphaN ); [set_solver|].
       iFrame "Hinva". 
-      Print Instances IsExcept0.
       iIntros "(>H & Hclose)".
       iApply (sample_or_read_store _ _ _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "[$]").
       iIntros "#Hla #Hα #Hlcs"...
@@ -177,7 +173,7 @@ Section handlee_verification.
         
       (* Recv bob = Some gB *)
       + iIntros (m) "Hb'". 
-        iDestruct (auth_agree with "[$Hb] [$Hb']") as "<-". 
+        iDestruct (message_unique with "[$Hb] [$Hb']") as "<-". 
         iApply brel_value. iIntros "$ !>"...
         rewrite -expgM -ssrnat.multE -Nat.mul_comm.
         iDestruct ("Hcont" with "Hsome") as "Hkk".
@@ -207,7 +203,7 @@ Section handlee_verification.
       
       (* Recv alice = Some gA *)
       iIntros (m) "(%&#Hb'&#Hla')".
-      iDestruct (auth_agree with "[$Ha] [$Hb']") as "%Heq".
+      iDestruct (message_unique with "[$Ha] [$Hb']") as "%Heq".
       inversion Heq as [(Hla&Ha)]. rewrite -(g_log_id m) -(Nat2Z.inj _ _ Ha) //=.  
       iApply brel_value. iIntros "$ !>"...
       (* sample_or_read returns b *)

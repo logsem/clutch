@@ -13,6 +13,10 @@ Section resources.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
 
   Definition token γ := own γ (Excl ()).
+  Definition receipt γ := own γ DfracDiscarded.
+  Definition all_receipts γ := own γ (DfracOwn 1).
+  Definition empty_message γ := own γ (to_dfrac_agree (DfracOwn 1) #()%V).
+  Definition message γ v := own γ (to_dfrac_agree DfracDiscarded v).
   
   (* Names and resources used in the theories *)
   (*------------------------------------------------------------*)
@@ -29,28 +33,28 @@ Section resources.
     constructor.
   Qed.
 
-  Lemma token_agree γ : ⊢ token γ -∗ token γ -∗ False.
+  Lemma token_unique γ : ⊢ token γ -∗ token γ -∗ False.
   Proof.
     iIntros "Ha Hb". 
     iDestruct (own_valid_2 with "Ha Hb") as "%Hvalid".
     done.
   Qed.
 
-  Lemma auth_alloc v : ⊢ |==> ∃ γ, own γ (to_dfrac_agree (DfracOwn 1) v).
+  Lemma message_alloc : ⊢ |==> ∃ γ, empty_message γ.
   Proof.
     iApply own_alloc.
     constructor; done.
   Qed.
   
-  Lemma auth_upd v' γ v : ⊢ own γ (to_dfrac_agree (DfracOwn 1) v) -∗ |==>  own γ (to_dfrac_agree (DfracOwn 1) v').
+  Lemma store_message {γ} v : ⊢ empty_message γ -∗ |==> message γ v.
   Proof.
     iApply own_update.
     apply cmra_update_exclusive.
     constructor; done.
   Qed.
 
-  Lemma auth_agree γ q q' v v' :
-    ⊢ own γ (to_dfrac_agree q v) -∗ own γ (to_dfrac_agree q' v') -∗ ⌜ v = v' ⌝.
+  Lemma message_unique γ v v' :
+    ⊢ message γ v -∗ message γ v' -∗ ⌜ v = v' ⌝.
   Proof.
     iIntros "H1 H2".
     iDestruct (own_op with "[$H1 $H2]") as "H".
@@ -59,25 +63,25 @@ Section resources.
     by apply dfrac_agree_op_valid in H as (?&H). 
   Qed.
 
-  Lemma auth_persist γ q v : ⊢ own γ (to_dfrac_agree q v) -∗ |==> own γ (to_dfrac_agree DfracDiscarded v).
+  (* depricated *)
+  Lemma mutable_message_to_message γ q v : ⊢ own γ (to_dfrac_agree q v) -∗ |==> message γ v.
   Proof.
     iApply own_update.
     by apply dfrac_agree_persist.
   Qed.
 
-  Lemma dfrac_alloc : ⊢ |==> ∃ γ, own γ (DfracOwn 1).
+  Lemma all_receipts_alloc : ⊢ |==> ∃ γ, all_receipts γ.
   Proof.
-    iApply own_alloc.
-    done.
+    by iApply own_alloc.
   Qed.                               
   
-  Lemma dfrac_persist γ (q : dfrac) : ⊢ own γ q -∗ |==> own γ DfracDiscarded.
+  Lemma all_receipts_to_receipt γ (q : dfrac) : ⊢ own γ q -∗ |==> receipt γ.
   Proof.
     iApply own_update.
     apply dfrac_discard_update.
   Qed.
 
-  Lemma dfrac_contra γ (q : dfrac) : ⊢ own γ q -∗ own γ (DfracOwn 1) -∗ False.
+  Lemma all_receipts_unique γ (q : dfrac) : ⊢ own γ q -∗ all_receipts γ -∗ False.
   Proof.
     iIntros "H1 H2".
     iDestruct (own_op with "[$H1 $H2]") as "H".
@@ -99,10 +103,10 @@ Section lemmas.
 
   Lemma send_upd P n γtok γfrac :
     P ∗
-    invariants.inv n (token γtok ∨ own γfrac DfracDiscarded) ⊢
+    invariants.inv n (token γtok ∨ receipt γfrac) ⊢
     (|={⊤,⊤ ∖ ↑n}=>
-       (own γfrac DfracDiscarded ={⊤ ∖ ↑n,⊤}=∗ token γtok ∗ P)
-        ∨ (|={⊤ ∖ ↑n,⊤}=> own γfrac DfracDiscarded)).
+       (receipt γfrac ={⊤ ∖ ↑n,⊤}=∗ token γtok ∗ P)
+        ∨ (|={⊤ ∖ ↑n,⊤}=> receipt γfrac)).
   Proof. 
     iIntros "(HP&#Hinv)".
     iMod (inv_acc with "Hinv") as "([>Htok | >#Hfrac] & Hclose)"; try done.
@@ -261,7 +265,7 @@ Section theories.
 
  Program Definition Send dst c1 c2 γtok γfrac ι P : iThy Σ :=
     λ e1 e2, (λne Q,
-                ∃ m m': vgG, ((|={⊤, ⊤ ∖ ↑ι }=> ((own γfrac DfracDiscarded -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ (□ (P m)) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> own γfrac DfracDiscarded)) ∗  
+                ∃ m m': vgG, ((|={⊤, ⊤ ∖ ↑ι }=> ((receipt γfrac -∗ (|={⊤ ∖ ↑ι, ⊤}=> token γtok ∗ (□ (P m)) ∗ ⌜m = m'⌝)) ∨ |={⊤ ∖ ↑ι , ⊤}=> receipt γfrac)) ∗  
                               (⌜ e1 = do: c1 (m, dst)%V ⌝%E ∗
                                ⌜ e2 = do: c2 (m', dst)%V ⌝%E)  ∗ 
                               □ (Q (Val #()%V) (Val #()%V)))
