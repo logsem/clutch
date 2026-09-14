@@ -545,6 +545,8 @@ Section rel.
     apply kwp_ne; auto using equiv_dist.
   Qed.
 
+
+
 End rel.
 
 
@@ -614,15 +616,6 @@ Section baze_rules.
     iIntros "HR" (k1 k2 S) "[Hvalue _]".
     by iApply "Hvalue".
   Qed.
-  
-  (* Lemma fupd_obs_refines E1 E2 e1 e2 R :
-       (|={E1, E2}=> obs_refines E2 e1 e2 R) ⊢ obs_refines E1 e1 e2 R.
-     Proof.
-       rewrite obs_refines_eq /obs_refines_def.
-       iIntros "H" (k) "Hj". iMod "H" as "H".
-       by iApply ("H" with "Hj").
-     Qed. *)
-
 
   Lemma fupd_obs_refines E e1 e2 R :
     (|={⊤}=> obs_refines E e1 e2 R) ⊢ obs_refines E e1 e2 R.
@@ -632,8 +625,7 @@ Section baze_rules.
     iMod "H" as "H". iApply ("H" with "HK").
   Qed.
 
-
-  Global Instance elim_fupd_refines p E e t P A :
+  Global Instance elim_fupd_obs_refines p E e t P A :
    ElimModal True p false (|={⊤}=> P) P
      (obs_refines E e t A) (obs_refines E e t A).
   Proof.
@@ -643,55 +635,53 @@ Section baze_rules.
     iMod "HP"; iModIntro; by iApply "HI".
   Qed.
 
-  Global Instance elim_bupd_logrel p E e t P A :
+  Global Instance elim_bupd_obs_refines p E e t P A :
     ElimModal True p false (|==> P) P
       (obs_refines E e t A) (obs_refines E e t A).
   Proof.
-    rewrite /ElimModal (bupd_fupd ⊤). apply: elim_fupd_refines.
+    rewrite /ElimModal (bupd_fupd ⊤). apply: elim_fupd_obs_refines.
   Qed.
-    
-  (* Lemma fupd_rel' E1 E2 e1 e2 X R :
-       (|={E1, E2}=> REL e1 ≤ e2 @ E2 <|X|> {{R}}) ⊢ REL e1 ≤ e2 @ E1 <|X|> {{R}}.
-     Proof.
-       rewrite !rel_unfold /rel_pre.
-       iIntros "Hrel" (k1 k2 S) "Hkwp".
-       rewrite obs_refines_eq /obs_refines_def.
-       iIntros (k) "Hj".
-       iMod "Hrel" as "Hrel".
-       by iSpecialize ("Hrel" with "Hkwp Hj").
-     Qed. *)
 
-  Lemma fupd_rel e1 e2 E X R : (|={⊤}=> REL e1 ≤ e2 @ E <|X|> {{R}}) ⊢ REL e1 ≤ e2 @ E <|X|> {{R}}.
+  Lemma fupd_rel e1 e2 E' E X R : (|={E'}=> REL e1 ≤ e2 @ E <|X|> {{R}}) ⊢ REL e1 ≤ e2 @ E <|X|> {{R}}.
   Proof.
     rewrite !rel_unfold /rel_pre.
     iIntros "Hrel" (k1 k2 S) "Hkwp".
-    iApply fupd_obs_refines. iMod "Hrel".
+    iApply fupd_obs_refines. 
+    iMod (fupd_mask_subseteq E') as "Hclose"; first done.
+    iMod "Hrel".
+    iMod "Hclose" as "_".
     iModIntro.
     by iApply "Hrel".
   Qed.
+
+  Global Instance elim_fupd_rel p E' E e e' P X R :
+   ElimModal True p false (|={E'}=> P) P
+     (rel E e e' X R) (rel E e e' X R).
+  Proof.
+    rewrite /ElimModal. intros _.
+    iIntros "[HP HI]". iApply fupd_rel.
+    destruct p; simpl; rewrite ?bi.intuitionistically_elim;
+    iMod "HP"; iModIntro; by iApply "HI".
+  Qed.
+
+  Global Instance elim_bupd_rel p E e e' P X R :
+    ElimModal True p false (|==> P) P
+      (rel E e e' X R) (rel E e e' X R).
+  Proof.
+    rewrite /ElimModal (bupd_fupd ⊤). apply: elim_fupd_rel.
+  Qed.
     
   (* This is useful for stripping off laters of timeless propositions. *)
-  Global Instance is_except_0_logrel E e t X R :
+  Global Instance is_except_0_rel E e t X R :
     IsExcept0 (rel E e t X R).
   Proof.
     rewrite /IsExcept0. iIntros "HL".
-    iApply fupd_rel. by iMod "HL".
+    iApply (fupd_rel _ _ ⊤). by iMod "HL".
   Qed.
 
-  (* Lemma rel_introduction_mask E e1 e2 Q X R :
-       X e1 e2 Q -∗
-       □ ▷ (∀ s1 s2, Q s1 s2 -∗ REL s1 ≤ s2 <|X|> {{R}}) -∗
-       REL e1 ≤ e2 @ E <|X|> {{R}}.
-     Proof.
-       rewrite !rel_unfold /rel_pre.
-       iIntros "HX #HQ" (k1 k2 S). iIntros "[_ Hprot]".
-       iDestruct ("Hprot" with "HX HQ") as "Hprot".
-       rewrite obs_refines_eq /obs_refines_def.
-       iIntros (k ε) "Hj Hna Herr Hpos".
-       iApply ("Hprot" with "[$][Hna][$][$]").
-       by iDestruct ((na_own_acc E) with "Hna") as "(HE & _)". 
-       by iApply ("Hprot" with "HX"). *)
-
+  Global Instance add_modal_fupd_rel E e e' X P Φ :
+    AddModal (|={E}=> P) P (REL e ≤ e' @ E <|X|> {{ Φ }}).
+  Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_rel. Qed.
 
   Lemma rel_introduction e1 e2 Q X R :
     X e1 e2 Q -∗
@@ -751,29 +741,6 @@ Section baze_rules.
     by iApply "Hlog".
   Qed.
 
-  (* Lemma rel_atomic_l (E : coPset) K e1 e2 X R
-           (Hatomic : Atomic StronglyAtomic e1) :
-      (|={⊤,E}=> WP e1 @ E {{ v,
-        REL fill K (of_val v) ≤ e2 @ E <|X|> {{R}} }})%I -∗
-      REL fill K e1 ≤ e2 <|X|> {{R}}.
-     Proof.
-       rewrite !rel_unfold /rel_pre.
-       rewrite obs_refines_eq /obs_refines_def.
-       iIntros "Hlog".
-       iIntros (k1 k2 S) "Hkwp".
-       iIntros (k) "Hj /=". (* iModIntro. *)
-       rewrite -!fill_app.
-       iApply wp_bind. iApply wp_atomic; auto.
-       iMod "Hlog" as "He". iModIntro.
-       iApply (wp_wand with "He").
-       iIntros (v) "Hlog".
-       rewrite !rel_unfold /rel_pre.
-       rewrite obs_refines_eq /obs_refines_def.
-       rewrite !fill_app. 
-       by iSpecialize ("Hlog" with "Hkwp Hj").
-     Qed. *)
-
-
 
   Lemma rel_inv_close E N P e1 e2 X R :
    ⊢ na_closeP P N E -∗
@@ -791,21 +758,6 @@ Section baze_rules.
     by iApply ("Hrel" with "Hkwp Hj own_F Herr").  
   Qed.
     
-  (*
-      Definition closeInv N P : iProp Σ := ▷ P ={⊤ ∖ ↑N, ⊤}=∗ True.     
-Lemma rel_inv_restore N P e1 e2 X R : 
-      closeInv N P -∗
-      ▷ P -∗
-      REL e1 ≤ e2 <|X|> {{R}} -∗
-      REL e1 ≤ e2 @ (⊤ ∖ ↑N) <|X|> {{R}}.
-     Proof.
-       iIntros "Hclose HP Hrel".
-       iSpecialize ("Hclose" with "HP").
-       iApply (fupd_rel' (⊤ ∖ ↑N) ⊤).
-       iMod "Hclose" as "Hclose".
-       by iModIntro.
-     Qed. *)
-
   Lemma rel_inv_alloc N P e1 e2 X R :
    ▷ P -∗
    (inv N P -∗ REL e1 ≤ e2 <|X|> {{R}}) -∗
@@ -822,7 +774,7 @@ Lemma rel_inv_restore N P e1 e2 X R :
     (▷ P ∗ (na_invP N P -∗ REL e1 ≤ e2 @ E <|X|> {{R}}))
     ⊢ REL e1 ≤ e2 @ E <|X|> {{R}}.
   Proof.
-    iIntros "[HP Hcont]". iApply fupd_rel.
+    iIntros "[HP Hcont]". iApply (fupd_rel _ _ ⊤).
     iMod (na_inv_alloc with "HP"). iModIntro.
     iApply ("Hcont" with "[$]").
   Qed.
@@ -2879,12 +2831,41 @@ Section blaze_rules.
     by iApply (brel_introduction _ _ _ Q with "HX"); last auto.
   Qed.
 
-  Lemma fupd_brel E e1 e2 L R :
-    (|={⊤}=> BREL e1 ≤ e2 @ E <|L|> {{R}}) ⊢ BREL e1 ≤ e2 @ E <|L|> {{R}}.
+  Lemma fupd_brel E' E e1 e2 L R :
+    (|={E'}=> BREL e1 ≤ e2 @ E <|L|> {{R}}) ⊢ BREL e1 ≤ e2 @ E <|L|> {{R}}.
   Proof.
     iIntros "H #Hvalid %Hdistinct". iApply fupd_rel.
     iMod "H". iApply ("H" with "Hvalid [//]").
   Qed.
+
+  Global Instance elim_fupd_brel p E' E e e' P X R :
+    ElimModal True p false (|={E'}=> P) P
+      (brel E e e' X R) (brel E e e' X R).
+  Proof.
+    rewrite /ElimModal. intros _.
+    iIntros "[HP HI]". iApply fupd_brel.
+    destruct p; simpl; rewrite ?bi.intuitionistically_elim;
+      iMod "HP"; iModIntro; by iApply "HI".
+  Qed.
+
+  Global Instance elim_bupd_brel p E e e' P X R :
+    ElimModal True p false (|==> P) P
+      (brel E e e' X R) (brel E e e' X R).
+  Proof.
+    rewrite /ElimModal (bupd_fupd ⊤). apply: elim_fupd_brel.
+  Qed.
+  
+  (* This is useful for stripping off laters of timeless propositions. *)
+  Global Instance is_except_0_brel E e t X R :
+    IsExcept0 (brel E e t X R).
+  Proof.
+    rewrite /IsExcept0. iIntros "HL".
+    iApply (fupd_brel ⊤); by iMod "HL". 
+  Qed.
+
+  Global Instance add_modal_fupd_brel E e e' X P Φ :
+    AddModal (|={E}=> P) P (BREL e ≤ e' @ E <|X|> {{ Φ }}).
+  Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_brel. Qed.
 
   (* from approxis *)
   Lemma brel_atomic_l (E' : coPset) K e1 t X R
@@ -3058,7 +3039,7 @@ Section brel_effect_rules.
       [#Hvalid_l1s #Hvalid_l2s]
       [%Hdistinct_l1s %Hdistinct_l2s]".
     iDestruct (distinct_l_cons with "[$] [$] [//]") as %Hdistinct_cons_l1s.
-    iApply fupd_rel.
+    iApply (fupd_rel _ _ ⊤).
     iMod (is_label_persist with "Hl1") as "#Hl1". iModIntro.
     iSpecialize ("Hbrel" with "[] []").
     { iSplit; [|done]. rewrite !/valid_l !labels_l_cons //=. by iSplit. }
@@ -3078,7 +3059,7 @@ Section brel_effect_rules.
       [#Hvalid_l1s #Hvalid_l2s]
       [%Hdistinct_l1s %Hdistinct_l2s]".
     iDestruct (distinct_r_cons with "[$] [$] [//]") as %Hdistinct_cons_l2s.
-    iApply fupd_rel.
+    iApply (fupd_rel _ _ ⊤).
     iMod (spec_label_persist with "Hl2") as "#Hl2". iModIntro.
     iSpecialize ("Hbrel" with "[] []").
     { iSplit; [done|]. rewrite !/valid_r !labels_r_cons //=. by iSplit. }
@@ -3658,4 +3639,3 @@ Section brel_invariant_rules.
   Qed.
 
 End brel_invariant_rules.
-  
