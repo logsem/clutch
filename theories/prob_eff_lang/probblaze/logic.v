@@ -2867,6 +2867,12 @@ Section blaze_rules.
     AddModal (|={E}=> P) P (BREL e ≤ e' @ E <|X|> {{ Φ }}).
   Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_brel. Qed.
 
+  Global Instance elim_modal_timeless_brel p P P' E e1 e2 L R :
+    IntoExcept0 P P' →
+    ElimModal True p p P P' (brel E e1 e2 L R) (brel E e1 e2 L R) | 0.
+  Proof. intros. apply class_instances_later.elim_modal_timeless; first done. 
+         apply is_except_0_brel. Qed. 
+
   (* from approxis *)
   Lemma brel_atomic_l (E' : coPset) K e1 t X R
     (Hatomic : Atomic StronglyAtomic e1) :

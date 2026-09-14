@@ -140,8 +140,9 @@ Section handlee_verification.
       (* sample_or_read always returns a *)
       iApply (brel_na_inv _ _ alphaN ); [set_solver|].
       iFrame "Hinva". 
+      Print Instances IsExcept0.
       iIntros "(>H & Hclose)".
-      iApply (sample_or_read_store (⊤ ∖ ↑alphaN) _ _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "[H]"); first done.
+      iApply (sample_or_read_store _ _ _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "[$]").
       iIntros "#Hla #Hα #Hlcs"...
       iApply brel_na_close. iFrame.
       iSplitL; [iNext; iFrame "#"|]...

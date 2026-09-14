@@ -571,8 +571,7 @@ Section schan_security.
       iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
       (* First message to be sent by the secure channel*)
       ++
-        iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
-        iIntros "Hl_fchan".
+        brel_load_r...
         brel_load_l...
         brel_store_r... 1 : rewrite !NoDup_cons in Hnd_l, Hnd_r; (set_unfold; tauto). 
         brel_store_l...
@@ -646,8 +645,7 @@ Section schan_security.
             congruence.
           - unfold d2.
             iDestruct "Hd2" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))".
-            iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ;CaseCtx _ _] with "Hl_auth").
-            iIntros "!> Hl_auth"...
+            brel_load_l...
             brel_load_r...
 
             iApply brel_na_close. iFrame "Hclose".
@@ -657,8 +655,7 @@ Section schan_security.
             iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)); [ (set_unfold; tauto) | done | iApply "Hrel"; iApply "HmQ" | iApply "IH"].
            
           - iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))".
-            iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ;CaseCtx _ _] with "Hl_auth").
-            iIntros "!> Hl_auth"...
+            brel_load_l...
             brel_load_r...
             brel_store_r...
             brel_store_l...
@@ -718,16 +715,14 @@ Section schan_security.
 
       (* A message has already been sent by the secure channel *)
       ++ iDestruct "Hd2" as (?m ?n) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (#Hl_rchan & Hl_key))))))".
-         iApply (brel_load_l _ _ _  [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_rchan").
-         iIntros "!> Hl_rchan'"...
+         brel_load_l...
          brel_load_r...
          iApply brel_na_close. iFrame.
          iSplitL.
-         { iModIntro. iRight. iLeft. iFrame. }
+         { iModIntro. iRight. iLeft. by iFrame. }
          iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)); [set_solver|done|iApply "Hrel";iApply"HmQ"|iApply "IH"].
       ++ iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (Hl_rchan & Hl_key))))))".                
-         iApply (brel_load_l _ _ _  [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_rchan").
-         iIntros "!> Hl_rchan'"...
+         brel_load_l...
          brel_load_r...
          iApply brel_na_close. iFrame.
          iSplitL.
@@ -794,8 +789,7 @@ Section schan_security.
       iFrame "Hinvα".
       iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
       (* no message has been sent yet by the secure channel*)
-      ++ iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
-         iIntros "!> Hl_key"... 
+      ++ brel_load_l...
          brel_load_r...
          iApply brel_na_close. iFrame.
          iSplitL.
@@ -803,8 +797,7 @@ Section schan_security.
          iApply (brel_exhaustion (fill k1' _) (fill k2' _)); [set_solver|done|iApply "Hrel"; iDestruct "HmQ" as "(_&$)"|iApply "IH"].
       (* a message has been sent by both the secure channel and the authenticated channel *)
       ++ iDestruct "Hd2" as (?m ?n) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (Hl_rchan & Hl_key))))))".
-         iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
-         iIntros "!> Hl_key"...
+         brel_load_l...
          { eapply NoDup_cons_1_1.
            eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | exact Hnd_l]. }
          brel_load_r...
@@ -846,8 +839,7 @@ Section schan_security.
            { iApply "IH". }
       (* a message has been sent by the secure channel but not the authenticated channel*)
       ++ iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (Hl_rchan & Hl_key))))))"...
-         iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl_key").
-         iIntros "!> Hl_key"...
+         brel_load_l...
          { eapply NoDup_cons_1_1.
            eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | exact Hnd_l]. }
          brel_load_r...
@@ -886,8 +878,7 @@ Section schan_security.
          congruence.
       (*the next two brances will move the proof forward with a case analysis on l_auth and l_sim having been set or not *)
       -- iDestruct "Hd2" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))".
-         iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hl_sim").
-         iIntros "Hl_sim".
+         brel_load_r...
          brel_load_l.
          iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
          iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
@@ -911,8 +902,7 @@ Section schan_security.
          { iApply "Hrel". by iDestruct "HmQ" as "[Hsome Hnone]". }
          { iApply "IH". }
       -- iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))".
-         iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hl_sim").
-         iIntros "Hl_sim".
+         brel_load_r...
          brel_load_l. 
          iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
          iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
@@ -1087,9 +1077,7 @@ Section schan_security.
       iFrame "Hinvα".
       iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
       (* First message to be sent by the secure channel*)
-      ++ 
-        iApply (brel_load_l _ _ _ [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_fchan").
-        iIntros "!>Hl_fchan".
+      ++ brel_load_l...
         brel_load_r...
         brel_store_l...
         { simpl. rewrite !NoDup_cons in Hnd_l, Hnd_r; set_unfold; tauto. }
@@ -1160,16 +1148,14 @@ Section schan_security.
                         with "Hl_fchan Hl_fchan'") as %Heq.
             congruence.
           - iDestruct "Hd2" as (?m ?n ?Hfm) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))". 
-            iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ;CaseCtx _ _] with "Hl_auth").                                          
-            iIntros "Hl_auth"...
+            brel_load_r...
             brel_load_l...
             iApply brel_na_close. iFrame "Hclose".
             iSplitL...
             { iModIntro. iRight. iLeft. iFrame "Hγ Hl_m'sim' Hl_sim Hl_auth Hl_fchan' Hl_rchan' Hl_key'". }
             iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)); [auto|set_unfold; tauto | iApply "Hrel";iApply "HmQ" | iApply "IH"].
           - iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))". 
-            iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ;CaseCtx _ _] with "Hl_auth").                                          
-            iIntros "Hl_auth"...
+            brel_load_r...
             brel_load_l...
             brel_store_l...
             brel_store_r...
@@ -1231,20 +1217,18 @@ Section schan_security.
       (* A message has already been sent by the secure channel *)     
       ++ iDestruct "Hd2" as (?m ?n ?Hfm) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (Hl_rchan & Hl_key))))))".
          iDestruct "Hl_rchan" as "#Hl_rchan".
-         iApply (brel_load_r _ _ _ _  [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_rchan").
-         iIntros "Hl_rchan'"...
+         brel_load_r...
          brel_load_l...
          iApply brel_na_close. iFrame.
          iSplitL.
-         { iModIntro. iRight. iLeft. iFrame. }
+         { iModIntro. iRight. iLeft. by iFrame. }
          iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)); [auto|set_unfold;tauto|iApply "Hrel";iApply "HmQ"|iApply "IH"].
       ++ iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (Hl_rchan & Hl_key))))))".
-         iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ; CaseCtx _ _] with "Hl_rchan").
-         iIntros "Hl_rchan'"...
+         brel_load_r...
          brel_load_l...
          iApply brel_na_close. iFrame.
          iSplitL.
-         { iModIntro. iRight. iRight. iFrame. }
+         { iModIntro. iRight. iRight. by iFrame. }
          iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)); [auto|set_unfold;tauto|iApply "Hrel";iApply "HmQ"|iApply "IH"].
          
     + iDestruct "HRecvBob" as "[-> [-> #HmQ]]"...
@@ -1300,8 +1284,7 @@ Section schan_security.
       iFrame "Hinvα".
       iIntros "([(>Hγ & >Hl_m'sim & >Hl_sim & >Hl_auth & >Hl_fchan & >Hl_rchan & >Hl_key) | [>Hd2 | >Hd3 ]] & Hclose)".
       (* no message has been sent yet by the secure channel*)
-      ++ iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_key").
-         iIntros "Hl_key"...
+      ++ brel_load_r...
          brel_load_l...
          iApply brel_na_close. iFrame.
          iSplitL.
@@ -1311,8 +1294,7 @@ Section schan_security.
          { iApply "IH". }
       (* a message has been sent by both the secure channel and the authenticated channel *)
       ++ iDestruct "Hd2" as (?m ?n ?Hfm) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (Hl_rchan & Hl_key))))))".
-         iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_key").
-         iIntros "Hl_key"...
+         brel_load_r...
          { simpl. eapply NoDup_cons_1_1.
            eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_r; ssend_r]); [solve_submseteq | done]. }
          brel_load_l...
@@ -1356,8 +1338,7 @@ Section schan_security.
            { iApply "IH". }
       (* a message has been sent by the secure channel but not the authenticated channel*)
       ++ iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim & (Hl_sim & (Hl_auth & (Hl_fchan & (Hl_rchan & Hl_key))))))". 
-         iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl_key").
-         iIntros "Hl_key"... 
+         brel_load_r...
          { simpl. eapply NoDup_cons_1_1.
            eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_r; ssend_r]); [solve_submseteq | done]. }
          brel_load_l...
@@ -1396,8 +1377,7 @@ Section schan_security.
          congruence.
       (*the next two brances will move the proof forward with a case analysis on l_auth and l_sim having been set or not *)
       -- iDestruct "Hd2" as (?m ?n Hfm) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))".
-         iApply (brel_load_l _ _ _ [AppRCtx _] with "Hl_sim").
-         iIntros "!> Hl_sim".
+         brel_load_l...
          brel_load_r... 
          iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
          iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
@@ -1425,8 +1405,7 @@ Section schan_security.
            rewrite /g_enc sc_coupling_invol. iApply "Hsome". }
          { iApply "IH". }
       -- iDestruct "Hd3" as (?m ?n) "(Hγ & (Hl_m'sim' & (Hl_sim & (Hl_auth & (Hl_fchan' & (Hl_rchan' & Hl_key'))))))".
-         iApply (brel_load_l _ _ _ [AppRCtx _] with "Hl_sim").
-         iIntros "!> Hl_sim".
+         brel_load_l...
          brel_load_r...
          iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
          iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
