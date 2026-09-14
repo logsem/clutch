@@ -1857,14 +1857,12 @@ Section new_comp_verification.
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][HDH Hvv Hoaleak]"); [iApply to_iThy_le_refl| | ].
     { brel_pures'.
-      iApply fupd_brel.
       iMod token_alloc as (γtoka) "Htoka".
       iMod token_alloc as (γtokb) "Htokb".
       iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
       iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
       iMod dfrac_alloc as (γfraca) "Hfraca".
       iMod dfrac_alloc as (γfracb) "Hfracb".
-      iModIntro.
       set (P := dhke_channel_lazy_sim_one.P).
       set (chan_row := chan_new_row (P γautha) (P γauthb)).
       iApply (F_AUTH_F_AUTH_new _ _ _ _ _ _ (dhke_channel_lazy_sim_one.P γautha) (dhke_channel_lazy_sim_one.P γauthb)  with "Hfraca Hfracb [-]").
@@ -1881,7 +1879,6 @@ Section new_comp_verification.
       iDestruct "Hga" as (A) "(->&->)". iDestruct "Hgb" as (B) "(->&->)".
       iDestruct "Hgc" as (C) "(->&->)".
       brel_pures'.
-      iApply fupd_brel.
       iMod (auth_upd (vgval A) with "Hautha") as "Hautha".
       iMod (auth_upd (vgval B) with "Hauthb") as "Hauthb".
       iMod (auth_persist with "Hautha") as "#Hautha".
@@ -1890,7 +1887,6 @@ Section new_comp_verification.
       { iNext; iLeft; iFrame. }
       iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
       { iNext; iLeft; iFrame. }
-      iModIntro.
       iApply brel_alloc_l. iIntros (loc1) "!> Hl1". brel_pures_l.
       iApply brel_alloc_r. iIntros (loc2) "Hl2". brel_pures_r.
       iApply (brel_na_alloc
@@ -1956,10 +1952,8 @@ Section new_comp_verification.
           iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1". brel_pures_l.
           iApply (brel_load_r _ _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl2"). iIntros "Hl2". brel_pures_r.
           iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl2"). iIntros "Hl2". brel_pures_r.
-          iApply fupd_brel.
           iMod (ghost_map_elem_persist with "Hl1") as "#Hl1c".
           iMod (ghost_map_elem_persist with "Hl2") as "#Hl2c".
-          iModIntro.
           iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb"; [iNext; iRight; iFrame "#"|].
           iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
           iApply (brel_introduction' [send1] [send2]). { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }

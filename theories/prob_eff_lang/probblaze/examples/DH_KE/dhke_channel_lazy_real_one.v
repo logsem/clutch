@@ -83,20 +83,18 @@ Section handlee_verification.
     rewrite /sem_val_typed //=. 
     iSpecialize ("Hff" with "Hgg"). 
     
-    iApply fupd_brel.
+
     iMod (auth_upd ((#la, #a)%V) with "Ha") as "Ha".
     iMod (auth_upd (vgval $ g ^+ b)%g with "Hb") as "Hb".
     iMod (auth_persist with "Ha") as "#Ha".
     iMod (auth_persist with "Hb") as "#Hb".
-    iModIntro.
     
     (* Store resources before induction *)
-    iApply fupd_brel.
     iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
     { iNext; iLeft;iFrame. }
     iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
     { iNext; iFrame. }
-    iModIntro.
+
     
     iApply (brel_na_alloc
               ((β ↪ (n; [b]) ∗ lb ↦ NONEV)

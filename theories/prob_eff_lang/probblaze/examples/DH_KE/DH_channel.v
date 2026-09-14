@@ -254,21 +254,17 @@ Section handlee_verification.
     brel_pures_l.
     rewrite subst_is_closed_empty; last done.
 
-    iApply fupd_brel.
     set (ga := (g ^+ a)%g).
     iMod (auth_upd (vgval (g ^+ a)%g) with "Ha") as "Ha".
     iMod (auth_upd (vgval $ g ^+ b)%g with "Hb") as "Hb".
     iMod (auth_persist with "Ha") as "#Ha".
     iMod (auth_persist with "Hb") as "#Hb".
-    iModIntro.
 
     (* Store resources before induction *)
-    iApply fupd_brel.
     iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
     { iNext; iLeft;iFrame. }
     iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
     { iNext; iFrame. }
-    iModIntro.
     
     iApply (brel_na_alloc
               ((β ↪ (n; [b]) ∗ lb ↦ NONEV)
@@ -316,11 +312,10 @@ Section handlee_verification.
         iIntros "!> Hla". brel_pures_l.
         iApply (brel_exp_l [AppRCtx _]). brel_pures_l.
 
-        iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hla") as "#Hla".
         iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
         iMod (ghost_map_elem_persist with "Hα") as "#Hα".
-        iModIntro.
+
         iApply brel_na_close. iFrame.
         iSplitL; [iNext; iRight; iFrame "#"|].
 
@@ -459,11 +454,9 @@ Section handlee_verification.
         iIntros "!> Hlb".
         brel_pures. iApply (brel_exp_l [AppRCtx _]). brel_pures.
 
-        iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hlb") as "#Hlb".
         iDestruct "Hβ" as (ns) "(%Hf & Hβ)". apply map_eq_nil in Hf. simplify_eq.
         iMod (ghost_map_elem_persist with "Hβ") as "#Hβ".
-        iModIntro.
         iApply brel_na_close. iFrame.
         iSplitL; [iRight; iFrame "#"|].
 
@@ -550,20 +543,17 @@ Section handlee_verification.
     brel_pures_l.
     do 3 rewrite subst_is_closed_empty; try done.
         
-    iApply fupd_brel.
     set (ga := (g ^+ a)%g).
     iMod (auth_upd (vgval (g ^+ a)%g) with "Ha") as "Ha".
     iMod (auth_upd (vgval $ g ^+ b)%g with "Hb") as "Hb".
     iMod (auth_persist with "Ha") as "#Ha".
     iMod (auth_persist with "Hb") as "#Hb".
-    iModIntro.
   
-    iApply fupd_brel.
     iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
     { iNext; iLeft;iFrame. }
     iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
     { iNext; iFrame. }
-    iModIntro.    
+
     iApply (brel_na_alloc
               ((β ↪ₛN (n; [b]) ∗ lb ↦ₛ NONEV)
                ∨ (β ↪ₛ□ (n; [])
@@ -608,11 +598,9 @@ Section handlee_verification.
          brel_pures_r. 
          iApply (brel_exp_r [AppRCtx _]). brel_pures_r.
      
-         iApply fupd_brel.
          iMod (ghost_map_elem_persist with "Hla") as "#Hla".
          iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
          iMod (ghost_map_elem_persist with "Hα") as "#Hα".
-         iModIntro.
          iApply brel_na_close. iFrame.
          iSplitL; [iNext; iRight; iFrame "#"|].
          
@@ -752,11 +740,11 @@ Section handlee_verification.
          iIntros "Hlb".
          brel_pures_r. 
          iApply (brel_exp_r [AppRCtx _]). brel_pures_r.
-         iApply fupd_brel.
+
          iMod (ghost_map_elem_persist with "Hlb") as "#Hlb".
          iDestruct "Hβ" as (ns) "(%Hf & Hβ)". apply map_eq_nil in Hf. simplify_eq.
          iMod (ghost_map_elem_persist with "Hβ") as "#Hβ".
-         iModIntro.
+
          iApply brel_na_close. iFrame.
          iSplitL; [iNext; iRight; iFrame "#"|].
 
@@ -1041,14 +1029,12 @@ Section handlee_verification.
   Proof using G inG0 inG1 inG2.
     iIntros (Hf1closed Hf2closed) "Hff".
     
-    iApply fupd_brel.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
     iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
     iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
     iMod dfrac_alloc as (γfraca) "Hfraca".
     iMod dfrac_alloc as (γfracb) "Hfracb".                         
-    iModIntro.
 
     iApply (F_AUTH_F_AUTH with "[$][$]"); [| |].
     1,2 : simpl; repeat (rewrite andb_True; split); try set_solver; eauto using vunit_closed, vmult_closed, g_closed;
@@ -1066,14 +1052,12 @@ Section handlee_verification.
   Proof using G inG0 inG1 inG2.
     iIntros (Hf1closed Hf2closed) "Hff".
     
-    iApply fupd_brel.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
     iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
     iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
     iMod dfrac_alloc as (γfraca) "Hfraca".
     iMod dfrac_alloc as (γfracb) "Hfracb".                         
-    iModIntro.
     
     iApply (F_AUTH_F_AUTH with "[$][$]"); [| |].
     
@@ -1727,14 +1711,12 @@ Section handlee_verification.
   Proof using G inG0 inG1 inG2.
     iIntros (Hf1closed Hf2closed) "Hff".
     
-    iApply fupd_brel.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
     iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
     iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
     iMod dfrac_alloc as (γfraca) "Hfraca".
     iMod dfrac_alloc as (γfracb) "Hfracb".                         
-    iModIntro.
 
     iApply (F_AUTH_F_AUTH with "[$][$]"); [| |].
     1,2 : simpl; repeat (rewrite andb_True; split); try set_solver; eauto using vunit_closed, vmult_closed, g_closed;
@@ -1752,14 +1734,12 @@ Section handlee_verification.
   Proof using G inG0 inG1 inG2.
     iIntros (Hf1closed Hf2closed) "Hff".
     
-    iApply fupd_brel.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
     iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
     iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
     iMod dfrac_alloc as (γfraca) "Hfraca".
     iMod dfrac_alloc as (γfracb) "Hfracb".                         
-    iModIntro.
 
     iApply (F_AUTH_F_AUTH with "[$][$]"); [| |].
 

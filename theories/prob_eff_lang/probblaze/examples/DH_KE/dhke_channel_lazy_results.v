@@ -44,14 +44,13 @@ Section handlee_verification.
     iModIntro. iIntros (L).
        iIntros (f1 f2) "Hff".
        brel_pures'.
-       iApply fupd_brel.
        iMod token_alloc as (γtoka) "Htoka".
        iMod token_alloc as (γtokb) "Htokb".
        iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
        iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
        iMod dfrac_alloc as (γfraca) "Hfraca".
        iMod dfrac_alloc as (γfracb) "Hfracb".                         
-       iModIntro. simpl.
+       simpl.
        assert (to_iThyIfMono OS [] = []) as <- by done.
        iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
        - iApply (F_AUTH_F_AUTH_new with "[$][$]"); 
@@ -70,14 +69,13 @@ Section handlee_verification.
     iModIntro. iIntros (L).
     iIntros (f1 f2) "Hff".
     brel_pures'.
-    iApply fupd_brel.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
     iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
     iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
     iMod dfrac_alloc as (γfraca) "Hfraca".
     iMod dfrac_alloc as (γfracb) "Hfracb".                         
-    iModIntro. simpl.
+    simpl. 
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
     - iApply (F_AUTH_F_AUTH_new with "[$][$]"); 
@@ -96,14 +94,13 @@ Section handlee_verification.
     iModIntro. iIntros (L).
     iIntros (f1 f2) "Hff".
     brel_pures'.
-    iApply fupd_brel.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
     iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
     iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
     iMod dfrac_alloc as (γfraca) "Hfraca".
     iMod dfrac_alloc as (γfracb) "Hfracb".                         
-    iModIntro. simpl.
+    simpl.
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
     - iApply (F_AUTH_F_AUTH_new with "[$][$]");
@@ -122,14 +119,13 @@ Section handlee_verification.
     iModIntro. iIntros (L).
     iIntros (f1 f2) "Hff".
     brel_pures'.
-    iApply fupd_brel.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
     iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
     iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
     iMod dfrac_alloc as (γfraca) "Hfraca".
     iMod dfrac_alloc as (γfracb) "Hfracb".                         
-    iModIntro. simpl.
+    simpl.
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
     - iApply (F_AUTH_F_AUTH_new with "[$][$]"); 

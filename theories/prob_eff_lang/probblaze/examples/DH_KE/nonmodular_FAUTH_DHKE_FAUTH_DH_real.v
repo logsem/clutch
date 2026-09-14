@@ -173,13 +173,11 @@ Section verification.
       iApply (rel_bind_mask (⊤ ∖ ↑alphaN) [AppRCtx _] [AppRCtx _]);
         [by iApply traversable_iThyTraverse|iApply iThy_le_refl|].
       
-      iApply fupd_rel.
       iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
       iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
       iMod (ghost_map_elem_persist with "Hla") as "#Hla".
       iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
       iMod (ghost_map_elem_persist with "Hα") as "#Hα".
-      iModIntro.
       iApply rel_na_close. iFrame.
       iSplitL; [iRight; iFrame "#"|]. fold Y.
       
@@ -344,13 +342,11 @@ Section verification.
             iApply (rel_bind_mask _ [AppRCtx _] [AppRCtx _]);
               [by iApply traversable_iThyTraverse|iApply iThy_le_refl |].
             
-            iApply fupd_rel.
             iMod (ghost_map_elem_persist with "Hl1'") as "#Hl1'".
             iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
             iMod (ghost_map_elem_persist with "Hlb") as "#Hlb".
             iDestruct "Hβ" as (ns) "(%Hf & Hβ)". apply map_eq_nil in Hf. simplify_eq.
             iMod (ghost_map_elem_persist with "Hβ") as "#Hβ".
-            iModIntro.
             iApply rel_na_close. iFrame.
             iSplitL; [iRight; iFrame "#"|]. 
             

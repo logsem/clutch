@@ -354,7 +354,7 @@ Global Hint Extern 0 (FinalizeBREL _ _ _ (λ _ _, |==> _)%I _) =>
 Global Instance finalize_brel_value_upd `{!probblazeRGS Σ} L R e1 e2 v1 v2 :
   IntoVal e1 v1 → IntoVal e2 v2 →
   FinalizeBREL ⊤ e1 e2 L R (|==> R v1 v2) | 1.
-Proof. intros <- <-. constructor. rewrite -fupd_brel -brel_value. iIntros "?". by iIntros "!> $". Qed.
+Proof. intros <- <-. constructor. rewrite -(fupd_brel ⊤) -brel_value. iIntros "?". by iIntros "!> $". Qed.
 
 (** Finally, if the expressions aren't both a value,
     we simplify them both. *)
@@ -577,7 +577,7 @@ Global Hint Extern 0 (FinalizeREL _ _ _ (λ _ _, |==> _)%I _) =>
 Global Instance finalize_rel_value_upd `{!probblazeRGS Σ} X R e1 e2 v1 v2 :
   IntoVal e1 v1 → IntoVal e2 v2 →
   FinalizeREL ⊤ e1 e2 X R (|==> R v1 v2)%I | 1.
-Proof. intros <- <-. constructor. rewrite -fupd_rel -rel_value. by iIntros "?". Qed.
+Proof. intros <- <-. constructor. rewrite -(fupd_rel _ _ ⊤) -rel_value. by iIntros "?". Qed.
 
 (** Finally, if the expressions aren't both a value,
     we simplify them both. *)

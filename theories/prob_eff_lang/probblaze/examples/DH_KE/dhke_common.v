@@ -136,13 +136,11 @@ Section lemmas.
       brel_load_r...
       brel_store_r...
       
-      iApply fupd_brel.
       iMod (ghost_map_elem_persist with "Hla") as "#Hla".
       (* TAPES : stems from the fact that some lemmas uses fin-tapes other nat-tapes -- should be unified *)
       iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
       iMod (ghost_map_elem_persist with "Hα") as "#Hα".
       iMod (ghost_map_elem_persist with "Hlcs") as "#Hlcs".
-      iModIntro.
       by iApply "Hkont".
     - brel_load_l...
       rewrite decide_True; last done...
@@ -169,13 +167,11 @@ Section lemmas.
       brel_load_l...
       brel_store_l...
       
-      iApply fupd_brel.
       iMod (ghost_map_elem_persist with "Hla") as "#Hla".
       (* TAPES : stems from the fact that some lemmas uses fin-tapes other nat-tapes -- should be unified *)
       iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
       iMod (ghost_map_elem_persist with "Hα") as "#Hα".
       iMod (ghost_map_elem_persist with "Hlcs") as "#Hlcs".
-      iModIntro.
       by iApply "Hkont".
     - brel_load_r...
       rewrite decide_True; last done...
@@ -201,12 +197,10 @@ Section lemmas.
       rewrite decide_True; last done...
       brel_store_l...
 
-      iApply fupd_brel.
       iMod (ghost_map_elem_persist with "Hlb") as "#Hlb".
       (* TAPES : stems from the fact that some lemmas uses fin-tapes other nat-tapes -- should be unified *)
       iDestruct "Hβ" as (ns) "(%Hf & Hβ)". apply map_eq_nil in Hf. simplify_eq.
       iMod (ghost_map_elem_persist with "Hβ") as "#Hβ".
-      iModIntro.
       by iApply "Hkont".
     - brel_load_l...
       rewrite decide_True; last done...
@@ -228,12 +222,10 @@ Section lemmas.
       rewrite decide_True; last done...
       brel_store_r...
 
-      iApply fupd_brel.
       iMod (ghost_map_elem_persist with "Hlb") as "#Hlb".
       (* TAPES : stems from the fact that some lemmas uses fin-tapes other nat-tapes -- should be unified *)
       iDestruct "Hβ" as (ns) "(%Hf & Hβ)". apply map_eq_nil in Hf. simplify_eq.
       iMod (ghost_map_elem_persist with "Hβ") as "#Hβ".
-      iModIntro.
       by iApply "Hkont".
     - brel_load_r...
       rewrite decide_True; last done...
@@ -402,4 +394,5 @@ Ltac label_not_in_singleton Hdl :=
   apply NoDup_cons_1_1;
   eapply submseteq_NoDup; last exact Hdl;
   solve_submseteq. 
+
 

@@ -151,10 +151,8 @@ Section handlee_verification.
               { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
                 by apply submseteq_inserts_r. }
 
-              iApply fupd_brel.
               iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
               iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
-              iModIntro.
               iApply brel_na_close. iFrame.
               iSplitL "Htok HP"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
 
@@ -200,10 +198,8 @@ Section handlee_verification.
           rewrite iLblSig_to_iLblThy_app.
           by apply submseteq_inserts_r. }
 
-        iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hl2s") as "#Hl2s".
         iMod (ghost_map_elem_persist with "Hl2") as "#Hl2".
-        iModIntro.
         iApply brel_na_close. iFrame.
         iSplitL "Htok HP"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
 

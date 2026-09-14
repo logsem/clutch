@@ -114,14 +114,12 @@ Section adv_dhke.
     iModIntro. iIntros (DH1 DH2) "HDH".
     brel_pures'. iModIntro.
     iIntros (θ__L). iIntros (f1 f2) "Hf". brel_pures'.
-    iApply fupd_brel.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
     iMod (auth_alloc (#()%V)) as (γautha) "Hautha".
     iMod (auth_alloc (#()%V)) as (γauthb) "Hauthb".
     iMod dfrac_alloc as (γfraca) "Hfraca".
     iMod dfrac_alloc as (γfracb) "Hfracb".
-    iModIntro.
     iApply (F_AUTH_F_AUTH_new _ _ _ _ _ _ (dhke_channel_lazy_sim_one.P γautha) (dhke_channel_lazy_sim_one.P γauthb)  with "Hfraca Hfracb [-]").
     (* Remaining: the [C_lazy] self-refinement (the [F_AUTH_F_AUTH] C-part).
        Reduce [C_lazy], call [DH #()] once (relating the two group triples via
@@ -142,7 +140,6 @@ Section adv_dhke.
     (* Record the two sent group elements in the authchan ghost state
        ([γautha := A] Alice's message, [γauthb := B] Bob's) and open the
        token/frac invariants ([atokN]/[btokN]) that the Send protocol uses. *)
-    iApply fupd_brel.
     iMod (auth_upd (vgval A) with "Hautha") as "Hautha".
     iMod (auth_upd (vgval B) with "Hauthb") as "Hauthb".
     iMod (auth_persist with "Hautha") as "#Hautha".
@@ -151,7 +148,6 @@ Section adv_dhke.
     { iNext; iLeft; iFrame. }
     iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
     { iNext; iLeft; iFrame. }
-    iModIntro.
     iApply brel_alloc_l. iIntros (l1) "!> Hl1". brel_pures_l.
     iApply brel_alloc_r. iIntros (l2) "Hl2". brel_pures_r.
     iApply (brel_na_alloc
@@ -204,10 +200,8 @@ Section adv_dhke.
         iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1". brel_pures_l.
         iApply (brel_load_r _ _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl2"). iIntros "Hl2". brel_pures_r.
         iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl2"). iIntros "Hl2". brel_pures_r.
-        iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hl1") as "#Hl1c".
         iMod (ghost_map_elem_persist with "Hl2") as "#Hl2c".
-        iModIntro.
         iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb"; [iNext; iRight; iFrame "#"|].
         iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
         iApply (brel_introduction' [send1] [send2]). { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }

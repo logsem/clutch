@@ -283,10 +283,8 @@ Section handlee_verification.
     rewrite !expg_mod.
     2,3: rewrite -g_nontriv; apply expg_order.
     
-    iApply fupd_brel.
     iMod (auth_upd (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V with "Hcrs") as "Hcrs".
     iMod (auth_persist with "Hcrs") as "#Hcrs".
-    iModIntro.
 
     unfold F_OT. brel_pures.
     iApply brel_alloc_r. iIntros (lm0) "Hlm0". brel_pures_r.
@@ -295,10 +293,8 @@ Section handlee_verification.
     unfold D_Sender. brel_pures_r.
     repeat (rewrite (subst_is_closed_empty f2); last done).
 
-    iApply fupd_brel.
     iMod (inv_alloc btokN _ (token γtokb ∗ own γauthb (to_dfrac_agree (DfracOwn 1) #()%V) ∨ own γfracb DfracDiscarded)%I with "[Htokb Hauthb]") as "#Hinvtb".
     { iNext; iLeft;iFrame. }
-    iModIntro.
 
     iApply brel_introduction_mono. 
     1 : iApply (to_iThy_le_to_iThyIfMono_idemp ((([CRS],[CRS], iThyBot) :: ([Sender],[Sender; Leak],iThyBot) :: AuthChannel ++ L)) OS).

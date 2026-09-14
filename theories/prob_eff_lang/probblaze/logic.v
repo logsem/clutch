@@ -2838,8 +2838,8 @@ Section blaze_rules.
     iMod "H". iApply ("H" with "Hvalid [//]").
   Qed.
 
-  Global Instance elim_fupd_brel p E' E e e' P X R :
-    ElimModal True p false (|={E'}=> P) P
+  Global Instance elim_fupd_brel p E e e' P X R :
+    ElimModal True p false (|={E}=> P) P
       (brel E e e' X R) (brel E e e' X R).
   Proof.
     rewrite /ElimModal. intros _.
@@ -2852,7 +2852,7 @@ Section blaze_rules.
     ElimModal True p false (|==> P) P
       (brel E e e' X R) (brel E e e' X R).
   Proof.
-    rewrite /ElimModal (bupd_fupd ⊤). apply: elim_fupd_brel.
+    rewrite /ElimModal (bupd_fupd E). apply: elim_fupd_brel.
   Qed.
   
   (* This is useful for stripping off laters of timeless propositions. *)

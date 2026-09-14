@@ -62,19 +62,15 @@ Section handlee_verification.
     brel_effect_l gk1 as "Hgk1"...
     brel_effect_r gk2 as "Hgk2"...
     
-    iApply fupd_brel.
     iMod (auth_upd (vgval (g ^+ a)%g) with "Ha") as "Ha".
     iMod (auth_upd (vgval $ g ^+ b)%g with "Hb") as "Hb".
     iMod (auth_persist with "Ha") as "#Ha".
     iMod (auth_persist with "Hb") as "#Hb".
-    iModIntro.
-    
-    iApply fupd_brel.
+
     iMod (inv_alloc atokN _ (token γtoka ∨ own γfraca DfracDiscarded)%I with "[Htoka]") as "#Hinvta".
     { iNext; iLeft;iFrame. }
     iMod (inv_alloc btokN _ (token γtokb ∨ own γfracb DfracDiscarded)%I with "[Htokb]") as "#Hinvtb".
     { iNext; iFrame. }
-    iModIntro.
     
     iApply (brel_na_alloc
               ((β ↪ (n; [b]) ∗ lb ↦ NONEV)

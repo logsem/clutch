@@ -284,12 +284,14 @@ Section verification.
       iApply (brel_na_inv _ _ betaN ); [set_solver|].
       iFrame "Hinvb". 
       iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%gB & #Hl2 & #Hl2s & Htokb & #Hfracb & #Hauthb)] & Hclose)".
-      - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
+      - iApply fupd_brel.
+        iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
         2 : { by iDestruct (dfrac_contra with "[Hupd][$]") as "Hcontra". }
         iMod (dfrac_persist with "Hfracb") as "#Hfracb".
         iMod ("Hupd" with "Hfracb") as "(Htok & Hauth & <-)".
-        iModIntro.
+        
         iApply (brel_handle_os_l []); [apply Hk1;set_solver|].
+        iModIntro.
         iIntros (rl) "!> Hrl".
         iApply (brel_handle_os_r []); [apply Hk2;set_solver|].
         iIntros (rr) "Hrr". 
@@ -303,10 +305,8 @@ Section verification.
         brel_pures.
         iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
         
-        iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hl2s") as "#Hl2s".
         iMod (ghost_map_elem_persist with "Hl2") as "#Hl2".
-        iModIntro.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists m; iFrame "#"; iFrame|].
         
@@ -407,8 +407,8 @@ Section verification.
         iMod (dfrac_persist with "Hfraca") as "#Hfraca".
         iMod ("Hupd" with "Hfraca") as "(Htok & Hauth & %Heq)".
         inversion Heq.
-        iModIntro.
         iApply (brel_handle_os_l []); [apply Hk1;set_solver|].
+        iModIntro.
         iIntros (rl) "!> Hrl".
         iApply (brel_handle_os_r []); [apply Hk2;set_solver|].
         iIntros (rr) "Hrr". 
@@ -422,10 +422,8 @@ Section verification.
         brel_pures.
         iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| iApply to_iThy_le_refl|].
         
-        iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hl1s") as "#Hl1s".
         iMod (ghost_map_elem_persist with "Hl1") as "#Hl1".
-        iModIntro.
         iApply brel_na_close. iFrame.
         iSplitL "Htok Hauth"; [iNext; iRight; iExists v1', v2'; iFrame "#"; iFrame|].
         
@@ -444,9 +442,10 @@ Section verification.
         iDestruct ("Hkont" with "HQ") as "Hbrel".
         iApply (brel_exhaustion' OS _ _  [_] [_] with "[$]"); [done|done|]. iApply "IH".
      
-      - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"; iModIntro].
+      - iApply fupd_brel. iMod "Hupd" as "[Hupd | Hupd]"; [|iMod "Hupd"].
         1 : { iMod ("Hupd" with "Hfraca") as "(Hcontra & _)". by iDestruct (token_agree with "[$][$]") as "Hcontra". }
         iApply brel_na_close. iFrame.
+        iModIntro.
         iSplitL "Htoka"; [iNext; iRight; iExists _,_; iFrame; iFrame "#"|].
         iApply (brel_handle_os_l []); [apply Hk1;set_solver|].
         iIntros (rl) "!> Hrl".

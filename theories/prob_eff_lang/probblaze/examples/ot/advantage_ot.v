@@ -130,11 +130,9 @@ Section adv_sc_typing.
     iDestruct "H2'" as "(%gc&->&->)".
     iDestruct "H2" as "(%gd&->&->)".
     brel_pures'.
-    iApply fupd_brel.
     iDestruct (auth_upd (vgval ga, vgval gb, vgval gc, vgval gd)%V with "Hcrs") as ">Hcrs".
     iDestruct (auth_persist with "Hcrs") as ">Hcrs".
     iDestruct "Hcrs" as "#Hcrs".
-    iModIntro.
     iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
     iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>".
     brel_pures'.
@@ -187,9 +185,7 @@ Section adv_sc_typing.
     iApply (brel_bind' [AppLCtx _] [AppLCtx _]).
     { iApply traversable_to_iThy. }
     iApply brel_introduction_mono; [iApply to_iThy_le_bot|].
-    iApply fupd_brel.
     iDestruct auth_alloc as ">(%γcrs&Hcrs)".
-    iModIntro.
     assert (to_iThyIfMono OS [] = ⊥) as <-; first done.
     iApply (brel_mono OS with "[][Hcrs HDH]"); [iApply to_iThy_le_refl|iApply (reduction_self with "Hcrs HDH")|simpl].
     iIntros (g1 g2) "Hgg /=".

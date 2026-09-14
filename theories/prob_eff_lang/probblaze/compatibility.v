@@ -1195,13 +1195,11 @@ Section compatibility.
     iIntros "!# % % (Hτ & HΓ2) /=".
     iApply brel_alloc_l. iIntros (l1) "!> Hl1".
     iApply brel_alloc_r. iIntros (l2) "Hl2".
-    iApply fupd_brel.
-    iMod (inv_alloc (tyN.@(l1,l2)) _
-            (∃ w1 w2, l1 ↦ w1 ∗ l2 ↦ₛ w2 ∗ τ w1 w2)%I with "[Hl1 Hl2 Hτ]") as "#Hinv".
-    { iExists _,_. by iFrame. }
-    iModIntro.
-    iApply brel_value.
-    iIntros. iFrame. iExists l1, l2.
+    iIntros "Hd Hl".
+    iApply (rel_inv_alloc (tyN.@(l1,l2)) (∃ w1 w2, l1 ↦ w1 ∗ l2 ↦ₛ w2 ∗ τ w1 w2)%I with "[Hl1 Hl2 Hτ]"); [iFrame|].
+    iIntros "#Hinv".
+    iApply rel_value.
+    iFrame. iExists l1, l2.
     by auto.
   Qed. 
 
@@ -1216,8 +1214,8 @@ Section compatibility.
     iApply (brel_atomic_l _ []).
     iIntros (K') "Hj".
     iMod (inv_acc _ (tyN.@(l1,l2)) with "Hinv") as "[(%&%&>Hl1&>Hl2&#Hτ) Hclose]"; first done.
-    iModIntro. iApply spec_update_wp.
-    iMod (step_load with "[$Hj $Hl2]") as "[Hj Hl2]". iModIntro.
+    iModIntro. 
+    iMod (step_load with "[$Hj $Hl2]") as "[Hj Hl2]". 
     iApply (wp_load with "Hl1"). iIntros "!> Hl1".
     iMod ("Hclose" with "[Hl1 Hl2]") as "_"; [iExists _,_; by iFrame|].
     iModIntro. iExists _. iFrame. simpl.
@@ -1252,12 +1250,11 @@ Section compatibility.
     iIntros "!# % % ((%z & -> & ->) & HΓ2) //=".
     iApply (brel_alloctape_l _ (Z.to_nat z)). iIntros "!> %α1 Hα1".
     iApply (brel_alloctape_r _ (Z.to_nat z)). iIntros "%α2 Hα2".
-    iApply fupd_brel.
     iDestruct (tapeN_to_empty with "Hα1") as "Hα1".
-    iMod (inv_alloc (logN.@(α1,α2)) _
+    unshelve iMod (inv_alloc (logN.@(α1,α2)) _
             (α1 ↪ (Z.to_nat z; []) ∗ α2 ↪ₛ (Z.to_nat z; []))%I with "[Hα1 Hα2]") as "#Hinv".
     { iFrame. }
-    iModIntro. iApply brel_value. iIntros. iFrame.
+    iApply brel_value. iIntros. iFrame.
     iExists α1, α2, (Z.to_nat z). by iFrame "Hinv".
   Qed.
 
@@ -1410,8 +1407,7 @@ Section compatibility.
       [#Hvalid_l1s #Hvalid_l2s]
       [%Hdistinct_l1s %Hdistinct_l2s]".
     iDestruct (distinct_l_cons with "[$] [$] [//]") as %Hdistinct_cons_l1s.
-    iApply fupd_rel.
-    iMod (is_label_persist with "Hl1") as "#Hl1". iModIntro.
+    iMod (is_label_persist with "Hl1") as "#Hl1". 
     iSpecialize ("Hbrel" with "[] []").
     { iSplit; [|done]. rewrite !/valid_l !labels_l_cons //=. by iSplit. }
     { by iSplit. }
@@ -1433,8 +1429,7 @@ Section compatibility.
       [#Hvalid_l1s #Hvalid_l2s]
       [%Hdistinct_l1s %Hdistinct_l2s]".
     iDestruct (distinct_r_cons with "[$] [$] [//]") as %Hdistinct_cons_l2s.
-    iApply fupd_rel.
-    iMod (spec_label_persist with "Hl2") as "#Hl2". iModIntro.
+    iMod (spec_label_persist with "Hl2") as "#Hl2". 
     iSpecialize ("Hbrel" with "[] []").
     { iSplit; [done|]. rewrite !/valid_r !labels_r_cons //=. by iSplit. }
     { by iSplit. }

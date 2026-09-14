@@ -379,12 +379,11 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        iApply (brel_add_label_l with "Hcrsl").
        iApply (brel_add_label_r with "Hcrsr").
    
-       iApply fupd_brel.
        iDestruct auth_alloc as ">(%γcrs&Hcrs)".
        iDestruct (auth_upd (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V with "Hcrs") as ">Hcrs".
        iDestruct (auth_persist with "Hcrs") as ">Hcrs". 
        iDestruct "Hcrs" as "#Hcrs". 
-       iModIntro.
+
        set θCRS := crsrow CRSl CRSr γcrs.
        set θSENDER := senderrow IDEALl IDEALr LEAK.
        
@@ -827,12 +826,11 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     iApply (brel_add_label_l with "Hcrsl").
     iApply (brel_add_label_r with "Hcrsr").
 
-    iApply fupd_brel.
     iDestruct auth_alloc as ">(%γcrs&Hcrs)".
     iDestruct (auth_upd (vgval (g ^+ ssrnat.muln g1 t1), vgval (g ^+ ssrnat.muln g0 t0), vgval (g ^+ g1), vgval (g ^+ g0))%V with "Hcrs") as ">Hcrs".
     iDestruct (auth_persist with "Hcrs") as ">Hcrs". 
     iDestruct "Hcrs" as "#Hcrs". 
-    iModIntro.
+
     set θCRS := crsrow CRSl CRSr γcrs.
     set θSENDER := senderrowl IDEALl IDEALr LEAK.
 

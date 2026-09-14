@@ -318,11 +318,9 @@ Section handlee_verification.
     clear h'.
     iIntros (c Hc)...
 
-    iApply fupd_brel.
     iDestruct (auth_upd (vgval (g ^+ c), vgval (g ^+ b), vgval (g ^+ a), vgval (g ^+ t))%V with "Hcrs") as ">Hcrs".
     iDestruct (auth_persist with "Hcrs") as ">Hcrs". 
     iDestruct "Hcrs" as "#Hcrs". 
-    iModIntro.
     
     brel_effect_l CRSl as "Hcrsl".
     brel_effect_r CRSr as "Hcrsr"...
@@ -791,9 +789,7 @@ Section handlee_verification.
     iApply (brel_bind' [AppLCtx _] [AppLCtx _]).
     { iApply traversable_to_iThy. }
     iApply brel_introduction_mono; [iApply to_iThy_le_bot|].
-    iApply fupd_brel.
     iDestruct auth_alloc as ">(%γcrs&Hcrs)".
-    iModIntro.
     assert (to_iThyIfMono OS [] = ⊥) as <-; first done.
     iApply (brel_mono OS with "[][Herr Hcrs]"); [iApply to_iThy_le_refl|iApply (fcrs_dh_ideal with "[$][$]")|simpl].
     iIntros (g1 g2) "Hgg /=".
@@ -834,12 +830,10 @@ Section handlee_verification.
     iApply brel_effect_r. iIntros (LEAK) "Hleakr !>".
     brel_pures'.
 
-    iApply fupd_brel.
     iDestruct auth_alloc as ">(%γcrs&Hcrs)".
     iDestruct (auth_upd  (vgval (g ^+ t ^+ y ^+ x), vgval (g ^+ t ^+ x), vgval (g ^+ t ^+ y), vgval (g ^+ t))%V with "Hcrs") as ">Hcrs".
     iDestruct (auth_persist with "Hcrs") as ">Hcrs". 
     iDestruct "Hcrs" as "#Hcrs". 
-    iModIntro.
 
     iApply brel_new_theory.
     iApply (brel_add_label_l with "Hcrsl").
@@ -1497,12 +1491,10 @@ Section handlee_verification.
     iApply brel_effect_r. iIntros (IDEALr) "Hidealr !>".
     brel_pures'.
 
-    iApply fupd_brel.
     iDestruct auth_alloc as ">(%γcrs&Hcrs)".
     iDestruct (auth_upd  (vgval (g ^+ t ^+ y ^+ x), vgval (g ^+ t ^+ x), vgval (g ^+ t ^+ y), vgval (g ^+ t))%V with "Hcrs") as ">Hcrs".
     iDestruct (auth_persist with "Hcrs") as ">Hcrs".
     iDestruct "Hcrs" as "#Hcrs".
-    iModIntro.
 
     iApply brel_new_theory.
     iApply (brel_add_label_l with "Hcrsl").
@@ -2174,11 +2166,9 @@ iDestruct ("Hkont" with "HQNone") as "Hfill".
     { unshelve eapply h_fin_cancel; first done. apply Rcomplements.SSR_leq. lia. }
     rewrite !expg_mod; try (rewrite -g_nontriv; apply expg_order).
 
-    iApply fupd_brel.
     iDestruct (auth_upd (vgval (g ^+ ssrnat.muln t c), vgval (g ^+ ssrnat.muln t b), vgval (g ^+ ssrnat.muln t a), vgval (g ^+ t))%V with "Hcrs") as ">Hcrs".
     iDestruct (auth_persist with "Hcrs") as ">Hcrs".
     iDestruct "Hcrs" as "#Hcrs".
-    iModIntro.
 
     iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
     iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>".
@@ -2237,9 +2227,7 @@ iDestruct ("Hkont" with "HQNone") as "Hfill".
       iApply (brel_bind' [AppLCtx _] [AppLCtx _]).
       { iApply traversable_to_iThy. }
       iApply brel_introduction_mono; [iApply to_iThy_le_bot|].
-      iApply fupd_brel.
       iDestruct auth_alloc as ">(%γcrs&Hcrs)".
-      iModIntro.
       assert (to_iThyIfMono OS [] = ⊥) as <-; first done.
       iApply (brel_mono OS with "[][Herr Hcrs]"); [iApply to_iThy_le_refl|iApply (dh_ideal_fcrs with "[$][$]")|simpl].
       iIntros (g1 g2) "Hgg /=".

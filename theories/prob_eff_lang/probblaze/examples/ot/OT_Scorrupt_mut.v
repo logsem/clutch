@@ -235,11 +235,10 @@ Section handlee_verification.
     iIntros (c Hc). brel_pures.
 
     repeat brel_exp_r. 
-    iApply fupd_brel.
     iDestruct (auth_upd (vgval (g ^+ c), vgval (g ^+ b), vgval (g ^+ a), vgval (g ^+ t))%V with "Hcrs") as ">Hcrs".
     iDestruct (auth_persist with "Hcrs") as ">Hcrs". 
     iDestruct "Hcrs" as "#Hcrs". 
-    iModIntro.
+
     
     brel_pures.
     iApply (brel_exhaustion (f1 #()%V) (f2 #()%V) with "Hff"); [done|done|].
@@ -328,16 +327,12 @@ Qed.
     brel_pures'.
     rewrite expgnA.
 
-    iApply fupd_brel.
     iDestruct (auth_upd  (vgval (g ^+ t ^+ y ^+ x), vgval (g ^+ t ^+ x), vgval (g ^+ t ^+ y), vgval (g ^+ t))%V with "Hcrs") as ">Hcrs".
     iDestruct (auth_persist with "Hcrs") as ">Hcrs". 
     iDestruct "Hcrs" as "#Hcrs". 
-    iModIntro.
 
-    iApply fupd_brel.
     iMod (inv_alloc atokN _ (token γtoka ∗ own γautha (to_dfrac_agree (DfracOwn 1) #()%V) ∨ own γfraca DfracDiscarded)%I with "[Htok Hauth]") as "#Hinvt".
     { iNext; iLeft;iFrame. }
-    iModIntro.
     
     (* CRS *)
     iApply (brel_exhaustion _ _ [_] [_] (iThyMono (iThySum CRSThy CRSThyL)) with "[Hff Hlm0 Hlm1]"); [done|done| |].

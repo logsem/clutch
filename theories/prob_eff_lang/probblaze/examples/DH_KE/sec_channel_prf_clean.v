@@ -590,12 +590,10 @@ Section schan_security.
         brel_store_l...
         brel_store_r...
 
-        iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hl_fchan") as "#Hl_fchan".
         iMod (ghost_map_elem_persist with "Hl_rchan") as "#Hl_rchan".
         iMod (ghost_map_elem_persist with "Hl_key") as "#Hl_key".
         iMod (ghost_map_elem_persist with "Hl_m'sim") as "#Hl_m'sim".
-        iModIntro.
         iApply brel_na_close. iFrame.
         iSplitL.
         { iModIntro. iRight. iRight. unfold d3.  iExists m, c.
@@ -652,8 +650,6 @@ Section schan_security.
             iIntros "!> Hl_auth"...
             brel_load_r...
 
-            iApply fupd_brel.
-            iModIntro.
             iApply brel_na_close. iFrame "Hclose".
             iSplitL...
             { iModIntro. iRight. iLeft. iFrame. }
@@ -667,12 +663,11 @@ Section schan_security.
             brel_store_r...
             brel_store_l...
 
-            iApply fupd_brel.
             iMod (ghost_map_elem_persist with "Hl_sim") as "#Hl_sim".
             iMod (ghost_map_elem_persist with "Hl_auth") as "#Hl_auth".
             iDestruct "Hγ" as (ns) "(%Hfγ & Hγ)".
             apply map_eq_nil in Hfγ. simplify_eq.
-            iModIntro.
+
             iApply brel_na_close. iFrame.
             iSplitL; [iModIntro; iRight; iLeft; rewrite g_log_exp; iFrame "#" |]; try auto...
             set (g_sem := (g ^+ sc_coupling m c)%g).
@@ -814,14 +809,12 @@ Section schan_security.
            eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | exact Hnd_l]. }
          brel_load_r...
 
-         iApply fupd_brel.
          iMod (ghost_map_elem_persist with "Hl_fchan") as "#Hl_fchan".
          iMod (ghost_map_elem_persist with "Hl_rchan") as "#Hl_rchan".
          iMod (ghost_map_elem_persist with "Hl_key") as "#Hl_key".
          iMod (ghost_map_elem_persist with "Hl_m'sim") as "#Hl_m'sim".
          iMod (ghost_map_elem_persist with "Hl_auth") as "#Hl_auth".
          iMod (ghost_map_elem_persist with "Hl_sim") as "#Hl_sim".
-         iModIntro.
 
          iApply brel_na_close. iFrame.
          iSplitL.
@@ -859,12 +852,10 @@ Section schan_security.
            eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_l; ssend_l]); [solve_submseteq | exact Hnd_l]. }
          brel_load_r...
 
-         iApply fupd_brel.
          iMod (ghost_map_elem_persist with "Hl_fchan") as "#Hl_fchan".
          iMod (ghost_map_elem_persist with "Hl_rchan") as "#Hl_rchan".
          iMod (ghost_map_elem_persist with "Hl_key") as "#Hl_key".
          iMod (ghost_map_elem_persist with "Hl_m'sim") as "#Hl_m'sim".
-         iModIntro.
 
          iApply brel_na_close. iFrame.
          iSplitL.
@@ -898,14 +889,12 @@ Section schan_security.
          iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hl_sim").
          iIntros "Hl_sim".
          brel_load_l.
-         iApply fupd_brel.
          iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
          iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
          iMod (ghost_map_elem_persist with "Hl_key'") as "#Hl_key'".
          iMod (ghost_map_elem_persist with "Hl_m'sim'") as "#Hl_m'sim'".
          iMod (ghost_map_elem_persist with "Hl_auth") as "#Hl_auth".
          iMod (ghost_map_elem_persist with "Hl_sim") as "#Hl_sim".
-         iModIntro.
 
          iApply brel_na_close. iFrame.
          iSplitL...
@@ -925,12 +914,10 @@ Section schan_security.
          iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hl_sim").
          iIntros "Hl_sim".
          brel_load_l. 
-         iApply fupd_brel.
          iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
          iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
          iMod (ghost_map_elem_persist with "Hl_key'") as "#Hl_key'".
          iMod (ghost_map_elem_persist with "Hl_m'sim'") as "#Hl_m'sim'".
-         iModIntro.
 
          iApply brel_na_close. iFrame.
          iSplitL...
@@ -1123,12 +1110,11 @@ Section schan_security.
         brel_rand_r as "%Hc"...
         brel_store_r...
         
-        iApply fupd_brel.
         iMod (ghost_map_elem_persist with "Hl_fchan") as "#Hl_fchan".
         iMod (ghost_map_elem_persist with "Hl_rchan") as "#Hl_rchan".
         iMod (ghost_map_elem_persist with "Hl_key") as "#Hl_key".
         iMod (ghost_map_elem_persist with "Hl_m'sim") as "#Hl_m'sim".
-        iModIntro.
+        
         iApply brel_na_close. iFrame.
         iSplitL.
         { iModIntro. iRight. iRight. unfold d3.  iExists m, c.
@@ -1177,8 +1163,6 @@ Section schan_security.
             iApply (brel_load_r _ _ _ _ [HandleCtx _ _ _ _ _ ; HandleCtx _ _ _ _ _ ;CaseCtx _ _] with "Hl_auth").                                          
             iIntros "Hl_auth"...
             brel_load_l...
-            iApply fupd_brel.
-            iModIntro.
             iApply brel_na_close. iFrame "Hclose".
             iSplitL...
             { iModIntro. iRight. iLeft. iFrame "Hγ Hl_m'sim' Hl_sim Hl_auth Hl_fchan' Hl_rchan' Hl_key'". }
@@ -1189,12 +1173,10 @@ Section schan_security.
             brel_load_l...
             brel_store_l...
             brel_store_r...
-            iApply fupd_brel.
             iMod (ghost_map_elem_persist with "Hl_sim") as "#Hl_sim".
             iMod (ghost_map_elem_persist with "Hl_auth") as "#Hl_auth".
             iDestruct "Hγ" as (ns) "(%Hfγ & Hγ)".
             apply map_eq_nil in Hfγ. simplify_eq. 
-            iModIntro.
             iApply brel_na_close. iFrame.
             iSplitL...
             { iModIntro. iRight. iLeft. 
@@ -1334,14 +1316,12 @@ Section schan_security.
          { simpl. eapply NoDup_cons_1_1.
            eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_r; ssend_r]); [solve_submseteq | done]. }
          brel_load_l...
-         iApply fupd_brel.
          iMod (ghost_map_elem_persist with "Hl_fchan") as "#Hl_fchan".
          iMod (ghost_map_elem_persist with "Hl_rchan") as "#Hl_rchan".
          iMod (ghost_map_elem_persist with "Hl_key") as "#Hl_key".
          iMod (ghost_map_elem_persist with "Hl_m'sim") as "#Hl_m'sim".
          iMod (ghost_map_elem_persist with "Hl_auth") as "#Hl_auth".
          iMod (ghost_map_elem_persist with "Hl_sim") as "#Hl_sim".
-         iModIntro.
          
          iApply brel_na_close. iFrame.
          iSplitL.
@@ -1381,12 +1361,10 @@ Section schan_security.
          { simpl. eapply NoDup_cons_1_1.
            eapply (submseteq_NoDup _ [csend'; crecv'; getKey'; srecv_r; ssend_r]); [solve_submseteq | done]. }
          brel_load_l...
-         iApply fupd_brel.
          iMod (ghost_map_elem_persist with "Hl_fchan") as "#Hl_fchan".
          iMod (ghost_map_elem_persist with "Hl_rchan") as "#Hl_rchan".
          iMod (ghost_map_elem_persist with "Hl_key") as "#Hl_key".
          iMod (ghost_map_elem_persist with "Hl_m'sim") as "#Hl_m'sim".
-         iModIntro.
          
          iApply brel_na_close. iFrame.
          iSplitL.
@@ -1421,14 +1399,12 @@ Section schan_security.
          iApply (brel_load_l _ _ _ [AppRCtx _] with "Hl_sim").
          iIntros "!> Hl_sim".
          brel_load_r... 
-         iApply fupd_brel.
          iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
          iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
          iMod (ghost_map_elem_persist with "Hl_key'") as "#Hl_key'".
          iMod (ghost_map_elem_persist with "Hl_m'sim'") as "#Hl_m'sim'".
          iMod (ghost_map_elem_persist with "Hl_auth") as "#Hl_auth".
          iMod (ghost_map_elem_persist with "Hl_sim") as "#Hl_sim".
-         iModIntro.
          
          iApply brel_na_close. iFrame.
          iSplitL...
@@ -1452,12 +1428,10 @@ Section schan_security.
          iApply (brel_load_l _ _ _ [AppRCtx _] with "Hl_sim").
          iIntros "!> Hl_sim".
          brel_load_r...
-         iApply fupd_brel.
          iMod (ghost_map_elem_persist with "Hl_fchan'") as "#Hl_fchan'".
          iMod (ghost_map_elem_persist with "Hl_rchan'") as "#Hl_rchan'".
          iMod (ghost_map_elem_persist with "Hl_key'") as "#Hl_key'".
          iMod (ghost_map_elem_persist with "Hl_m'sim'") as "#Hl_m'sim'".
-         iModIntro.
          
          iApply brel_na_close. iFrame.
          iSplitL...
