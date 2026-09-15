@@ -2775,26 +2775,26 @@ Section blaze_rules.
   Lemma brel_value E (v1 v2 : val) L R : (na_ownP E ={⊤}=∗ na_ownP ⊤ ∗ R v1 v2) ⊢ BREL v1 ≤ v2 @ E <|L|> {{R}}.
   Proof. iIntros "HR _ _". by iApply rel_value_mask. Qed.
 
-  Lemma brel_wand e1 e2 L R S :
-    BREL e1 ≤ e2 <|L|> {{R}} -∗ □ (∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
-    BREL e1 ≤ e2 <|L|> {{S}}.
+  Lemma brel_wand e1 e2 L R S E :
+    BREL e1 ≤ e2 @ E <|L|> {{R}} -∗ □ (∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
+    BREL e1 ≤ e2 @ E <|L|> {{S}}.
   Proof.
     iIntros "Hbrel #HR #Hvalid #Hdistinct".
     iApply (rel_wand with "[Hbrel] HR").
     by iApply "Hbrel".
   Qed.
 
-  Lemma brel_wand' e1 e2 L R S :
+  Lemma brel_wand' e1 e2 L R S E :
     □ (∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
-    BREL e1 ≤ e2 <|L|> {{R}} -∗
-    BREL e1 ≤ e2 <|L|> {{S}}.
+    BREL e1 ≤ e2 @ E <|L|> {{R}} -∗
+    BREL e1 ≤ e2 @ E <|L|> {{S}}.
   Proof. by iIntros "#HR Hbrel"; iApply (brel_wand with "Hbrel HR"). Qed.
 
-  Lemma brel_mono (m : mode) e1 e2 L M R S :
+  Lemma brel_mono (m : mode) e1 e2 L M R S E :
     to_iThy_le L M -∗
-    BREL e1 ≤ e2 <|L|> {{R}} -∗
+    BREL e1 ≤ e2 @ E <|L|> {{R}} -∗
     □?m (∀ v1 v2, R v1 v2 -∗ S v1 v2) -∗
-    BREL e1 ≤ e2 <|to_iThyIfMono m M|> {{S}}.
+    BREL e1 ≤ e2 @ E <|to_iThyIfMono m M|> {{S}}.
   Proof.
     iIntros "(#Hle & #Hvalid_le & #Hdistinct_le) Hbrel HS #Hvalid %Hdistinct".
     iApply (rel_introduction_mono with "[Hbrel HS]"); last iApply iThy_le_to_iThy_to_iThyIfMono.

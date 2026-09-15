@@ -369,18 +369,18 @@ Proof. intros ->%TCSimplExpr_eq ->%TCSimplExpr_eq. by constructor. Qed.
 
     Note that [normalize_brel_step] only performs pure steps without side-conditions,
     so in some situations it's still needed to first perform the pure steps using [brel_pures]. *)
-Class NormalizeBREL `{!probblazeRGS Σ} (P : iProp Σ) (K1 K2 : ectx) (e1 e2 : expr) (L : iLblThy Σ) (R : val -d> val -d> iProp Σ) :=
-  { normalize_brel : BREL fill K1 e1 ≤ fill K2 e2 <|L|> {{R}} ⊢ P }.
-Global Hint Mode NormalizeBREL + + ! - - - - - - : typeclass_instances.
+Class NormalizeBREL `{!probblazeRGS Σ} (E : coPset) (P : iProp Σ) (K1 K2 : ectx) (e1 e2 : expr) (L : iLblThy Σ) (R : val -d> val -d> iProp Σ) :=
+  { normalize_brel : BREL fill K1 e1 ≤ fill K2 e2 @ E <|L|> {{R}} ⊢ P }.
+Global Hint Mode NormalizeBREL + + + ! - - - - - - : typeclass_instances.
 
-Global Instance normalize_brel_here `{!probblazeRGS Σ} e1 e2 L R :
-  NormalizeBREL (brel ⊤ e1 e2 L R) [] [] e1 e2 L R | 0.
+Global Instance normalize_brel_here `{!probblazeRGS Σ} E e1 e2 L R :
+  NormalizeBREL E (brel E e1 e2 L R) [] [] e1 e2 L R | 0.
 Proof. by split. Qed.
 
-Global Instance normalize_brel_value `{!probblazeRGS Σ} v1 v2 K1 K2 e1 e2 e1' e2' L R R' :
+Global Instance normalize_brel_value `{!probblazeRGS Σ} E v1 v2 K1 K2 e1 e2 e1' e2' L R R' :
   IntoVal e1' v1 → IntoVal e2' v2 →
-  NormalizeBREL (R v1 v2) K1 K2 e1 e2 L R' →
-  NormalizeBREL (brel ⊤ e1' e2' L R) K1 K2 e1 e2 L R' | 1.
+  NormalizeBREL E (R v1 v2) K1 K2 e1 e2 L R' →
+  NormalizeBREL E (brel ⊤ e1' e2' L R) K1 K2 e1 e2 L R' | 1.
 Proof.
   intros Hₜ Hₛ [HR]. split. rewrite HR -Hₜ -Hₛ.
   iIntros "HR". iApply brel_value. by iIntros "$ !>".
@@ -389,10 +389,10 @@ Qed.
 (** We only perform pure steps without a side-condition here. We could let [NormalizeBREL]
     also generate side-conditions, but [IntoWand]/[FromAssumption] currently lack the ability
     to handle pure side-conditions. *)
-Global Instance normalize_brel_step `{!probblazeRGS Σ} n1 n2 e1 e1' e2 e2' K1 K2 L R :
+Global Instance normalize_brel_step `{!probblazeRGS Σ} E n1 n2 e1 e1' e2 e2' K1 K2 L R :
   DoPureStepsIntoCtx True e1 (TCEq e1') n1 K1 →
   DoPureStepsIntoCtx True e2 (TCEq e2') n2 K2 →
-  NormalizeBREL (brel ⊤ e1 e2 L R) K1 K2 e1' e2' L R | 10.
+  NormalizeBREL E (brel E e1 e2 L R) K1 K2 e1' e2' L R | 10.
 Proof.
   intros [? H1 [? -> <-]] [? H2 [? -> <-]]. split.
   assert (PureExec True n1 e1 (fill K1 e1')).
@@ -403,18 +403,18 @@ Proof.
   rewrite -bi.laterN_intro. done.
 Qed.
 
-Global Instance from_assumption_brel `{!probblazeRGS Σ} p K1 K2 e1 e2 e1' e2' L R R' :
-  NormalizeBREL (brel ⊤ e1 e2 L R) K1 K2 e1' e2' L R' →
-  FromAssumption p (brel ⊤ (fill K1 e1') (fill K2 e2') L R') (brel ⊤ e1 e2 L R) | 2.
+Global Instance from_assumption_brel `{!probblazeRGS Σ} E p K1 K2 e1 e2 e1' e2' L R R' :
+  NormalizeBREL E (brel E e1 e2 L R) K1 K2 e1' e2' L R' →
+  FromAssumption p (brel E (fill K1 e1') (fill K2 e2') L R') (brel E e1 e2 L R) | 2.
 Proof.
   intros [HR].
   rewrite /FromAssumption bi.intuitionistically_if_elim. by rewrite HR.
 Qed.
 
-Global Instance into_wand_brel `{!probblazeRGS Σ} p e1 e2 K1 K2 e1' e2' L R R' S Q :
-  NormalizeBREL (brel ⊤ e1 e2 L R) K1 K2 e1' e2' L R' →
+Global Instance into_wand_brel `{!probblazeRGS Σ} E p e1 e2 K1 K2 e1' e2' L R R' S Q :
+  NormalizeBREL E (brel E e1 e2 L R) K1 K2 e1' e2' L R' →
   TCSimpl (□ (∀ v1 v2, S v1 v2 -∗ R' v1 v2))%I Q →
-  IntoWand p false (brel ⊤ (fill K1 e1') (fill K2 e2') L S) Q (brel ⊤ e1 e2 L R) | 1.
+  IntoWand p false (brel E (fill K1 e1') (fill K2 e2') L S) Q (brel E e1 e2 L R) | 1.
 Proof.
   intros [Hbrel] <-%TCSimpl_eq.
   rewrite /IntoWand /= bi.intuitionistically_if_elim.
@@ -424,11 +424,11 @@ Qed.
 
 (** This instance should not be needed, but is a workaround for
 https://gitlab.mpi-sws.org/iris/iris/-/issues/458 *)
-Global Instance into_wand_wand_brel `{!probblazeRGS Σ} p q e1 e2 K1 K2 e1' e2' P P' Q L R R' :
-  NormalizeBREL (brel ⊤ e1 e2 L R) K1 K2 e1' e2' L R' →
+Global Instance into_wand_wand_brel `{!probblazeRGS Σ} E p q e1 e2 K1 K2 e1' e2' P P' Q L R R' :
+  NormalizeBREL E (brel E e1 e2 L R) K1 K2 e1' e2' L R' →
   FromAssumption q P P' →
   TCSimpl P Q →
-  IntoWand p q (P' -∗ BREL fill K1 e1' ≤ fill K2 e2' <|L|> {{R'}}) Q (brel ⊤ e1 e2 L R).
+  IntoWand p q (P' -∗ BREL fill K1 e1' ≤ fill K2 e2' @ E <|L|> {{R'}}) Q (brel E e1 e2 L R).
 Proof.
   rewrite /FromAssumption /IntoWand.
   intros [Hbrel] ? <-%TCSimpl_eq.
@@ -592,18 +592,18 @@ Proof. intros ->%TCSimplExpr_eq ->%TCSimplExpr_eq. by constructor. Qed.
 
     Note that [normalize_rel_step] only performs pure steps without side-conditions,
     so in some situations it's still needed to first perform the pure steps using [rel_pures]. *)
-Class NormalizeREL `{!probblazeRGS Σ} (P : iProp Σ) (K1 K2 : ectx) (e1 e2 : expr) (X : iThy Σ) (R : val -d> val -d> iProp Σ) :=
-  { normalize_rel : REL fill K1 e1 ≤ fill K2 e2 <|X|> {{R}} ⊢ P }.
-Global Hint Mode NormalizeREL + + ! - - - - - - : typeclass_instances.
+Class NormalizeREL `{!probblazeRGS Σ} E (P : iProp Σ) (K1 K2 : ectx) (e1 e2 : expr) (X : iThy Σ) (R : val -d> val -d> iProp Σ) :=
+  { normalize_rel : REL fill K1 e1 ≤ fill K2 e2 @ E <|X|> {{R}} ⊢ P }.
+Global Hint Mode NormalizeREL + + + ! - - - - - - : typeclass_instances.
 
-Global Instance normalize_rel_here `{!probblazeRGS Σ} e1 e2 X R :
-  NormalizeREL (rel ⊤ e1 e2 X R) [] [] e1 e2 X R | 0.
+Global Instance normalize_rel_here `{!probblazeRGS Σ} E e1 e2 X R :
+  NormalizeREL E (rel E e1 e2 X R) [] [] e1 e2 X R | 0.
 Proof. by split. Qed.
 
-Global Instance normalize_rel_value `{!probblazeRGS Σ} v1 v2 K1 K2 e1 e2 e1' e2' X R R' :
+Global Instance normalize_rel_value `{!probblazeRGS Σ} E v1 v2 K1 K2 e1 e2 e1' e2' X R R' :
   IntoVal e1' v1 → IntoVal e2' v2 →
-  NormalizeREL (R v1 v2) K1 K2 e1 e2 X R' →
-  NormalizeREL (rel ⊤ e1' e2' X R) K1 K2 e1 e2 X R' | 1.
+  NormalizeREL E (R v1 v2) K1 K2 e1 e2 X R' →
+  NormalizeREL E (rel ⊤ e1' e2' X R) K1 K2 e1 e2 X R' | 1.
 Proof.
   intros Hₜ Hₛ [HR]. split. by rewrite HR -Hₜ -Hₛ -rel_value.
 Qed.
@@ -611,32 +611,32 @@ Qed.
 (** We only perform pure steps without a side-condition here. We could let [NormalizeREL]
     also generate side-conditions, but [IntoWand]/[FromAssumption] currently lack the ability
     to handle pure side-conditions. *)
-Global Instance normalize_rel_step `{!probblazeRGS Σ} n1 n2 e1 e1' e2 e2' K1 K2 X R :
+Global Instance normalize_rel_step `{!probblazeRGS Σ} E n1 n2 e1 e1' e2 e2' K1 K2 X R :
   DoPureStepsIntoCtx True e1 (TCEq e1') n1 K1 →
   DoPureStepsIntoCtx True e2 (TCEq e2') n2 K2 →
-  NormalizeREL (rel ⊤ e1 e2 X R) K1 K2 e1' e2' X R | 10.
+  NormalizeREL E (rel E e1 e2 X R) K1 K2 e1' e2' X R | 10.
 Proof.
   intros [? H1 [? -> <-]] [? H2 [? -> <-]]. split.
   assert (PureExec True n1 e1 (fill K1 e1')).
   { intros _. by apply H1. }
   assert (PureExec True n2 e2 (fill K2 e2')).
   { intros _. by apply H2. }
-  rewrite -rel_pure_step_l' // -rel_pure_step_r' //.
+  rewrite -rel_pure_step_l' // -rel_pure_step_r_with_mask //.
   by rewrite -bi.laterN_intro. 
 Qed.
 
-Global Instance from_assumption_rel `{!probblazeRGS Σ} p K1 K2 e1 e2 e1' e2' X R R' :
-  NormalizeREL (rel ⊤ e1 e2 X R) K1 K2 e1' e2' X R' →
-  FromAssumption p (rel ⊤ (fill K1 e1') (fill K2 e2') X R') (rel ⊤ e1 e2 X R) | 2.
+Global Instance from_assumption_rel `{!probblazeRGS Σ} E p K1 K2 e1 e2 e1' e2' X R R' :
+  NormalizeREL E (rel E e1 e2 X R) K1 K2 e1' e2' X R' →
+  FromAssumption p (rel E (fill K1 e1') (fill K2 e2') X R') (rel E e1 e2 X R) | 2.
 Proof.
   intros [HR].
   rewrite /FromAssumption bi.intuitionistically_if_elim. by rewrite HR.
 Qed.
 
-Global Instance into_wand_rel `{!probblazeRGS Σ} p e1 e2 K1 K2 e1' e2' X R R' S Q :
-  NormalizeREL (rel ⊤ e1 e2 X R) K1 K2 e1' e2' X R' →
+Global Instance into_wand_rel `{!probblazeRGS Σ} E p e1 e2 K1 K2 e1' e2' X R R' S Q :
+  NormalizeREL E (rel E e1 e2 X R) K1 K2 e1' e2' X R' →
   TCSimpl (□ (∀ v1 v2, S v1 v2 -∗ R' v1 v2))%I Q →
-  IntoWand p false (rel ⊤ (fill K1 e1') (fill K2 e2') X S) Q (rel ⊤ e1 e2 X R) | 1.
+  IntoWand p false (rel E (fill K1 e1') (fill K2 e2') X S) Q (rel E e1 e2 X R) | 1.
 Proof.
   intros [Hrel] <-%TCSimpl_eq.
   rewrite /IntoWand /= bi.intuitionistically_if_elim.
@@ -646,11 +646,11 @@ Qed.
 
 (** This instance should not be needed, but is a workaround for
 https://gitlab.mpi-sws.org/iris/iris/-/issues/458 *)
-Global Instance into_wand_wand_rel `{!probblazeRGS Σ} p q e1 e2 K1 K2 e1' e2' P P' Q X R R' :
-  NormalizeREL (rel ⊤ e1 e2 X R) K1 K2 e1' e2' X R' →
+Global Instance into_wand_wand_rel `{!probblazeRGS Σ} E p q e1 e2 K1 K2 e1' e2' P P' Q X R R' :
+  NormalizeREL E (rel E e1 e2 X R) K1 K2 e1' e2' X R' →
   FromAssumption q P P' →
   TCSimpl P Q →
-  IntoWand p q (P' -∗ REL fill K1 e1' ≤ fill K2 e2' <|X|> {{R'}}) Q (rel ⊤ e1 e2 X R).
+  IntoWand p q (P' -∗ REL fill K1 e1' ≤ fill K2 e2' @ E <|X|> {{R'}}) Q (rel E e1 e2 X R).
 Proof.
   rewrite /FromAssumption /IntoWand.
   intros [Hrel] ? <-%TCSimpl_eq.
