@@ -31,8 +31,6 @@ Section handlee_verification.
 
   #[local] Notation n := (S n'').
 
-  Definition τ_DH := (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union θₗ θ__L }-∘ 𝟙)))%T.
-
   (* Verification of F_AUTH[DH_KE] ≤ F_AUTH[C[DH_real]] *)
   (*------------------------------------------------------------*)
 
