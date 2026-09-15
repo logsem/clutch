@@ -1019,18 +1019,18 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       3, 4 : rewrite Rcomplements.SSR_leq; lia.
       2 : {
         apply: (enc_nondeg_other_mirror (n_prime := n_prime) g1 ku kv t0 t1).
-            { by apply Fp_of_fin_ne_zero_2. }
-            { apply Fp_of_fin_ne_zero_2 => Hc0.
+            - by apply Fp_of_fin_ne_zero_2.
+            - apply Fp_of_fin_ne_zero_2 => Hc0.
               move: Heq => /bool_decide_eq_false_1 Hne0.
-              apply: Hne0. by rewrite Hc0 fin_to_nat_to_fin expg0. }
-            { apply bool_decide_eq_true_1 in Heq1.
+              apply: Hne0. by rewrite Hc0 fin_to_nat_to_fin expg0.
+            - apply bool_decide_eq_true_1 in Heq1.
               rewrite -expgM in Heq1.
               move/eqtype.eqP: Heq1. rewrite cyclic.eq_expg_mod_order g_nontriv.
-              by move/eqtype.eqP. }
-            { apply not_elem_of_cons in Hneq as [Hne' _].
+              by move/eqtype.eqP. 
+            - apply not_elem_of_cons in Hneq as [Hne' _].
               move=> Hc. apply: Hne'. apply: fin_to_nat_inj. rewrite fin_to_nat_to_fin.
               move: Hc. rewrite !div.modn_small; try (apply/ssrnat.ltP; lia); first by symmetry.
-              rewrite Rcomplements.SSR_leq. apply fin_to_nat_lt. } }
+              rewrite Rcomplements.SSR_leq. apply fin_to_nat_lt. }
       rewrite !expg_mod.
       2,3 : rewrite -g_nontriv; apply expg_order...
 
@@ -1090,14 +1090,14 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       3, 4 : rewrite Rcomplements.SSR_leq; lia.
       2 : {
         apply: (enc_nondeg_self_mirror (n_prime := n_prime) g0 ku kv t0).
-            { by apply Fp_of_fin_ne_zero_2. }
-            { apply Fp_of_fin_ne_zero_2 => Hc0.
+            - by apply Fp_of_fin_ne_zero_2.
+            - apply Fp_of_fin_ne_zero_2 => Hc0.
               move: Heq => /bool_decide_eq_false_1 Hne0.
-              apply: Hne0. by rewrite Hc0 fin_to_nat_to_fin expg0. }
-            { apply bool_decide_eq_false_1 in Heq1.
+              apply: Hne0. by rewrite Hc0 fin_to_nat_to_fin expg0.
+            - apply bool_decide_eq_false_1 in Heq1.
               rewrite -expgM in Heq1.
               move/eqtype.eqP: Heq1. rewrite cyclic.eq_expg_mod_order g_nontriv.
-              by move/eqtype.eqP. } } 
+              by move/eqtype.eqP. } 
       rewrite !expg_mod.
       2,3 : rewrite -g_nontriv; apply expg_order...
       
