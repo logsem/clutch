@@ -114,7 +114,7 @@ Section handlee_verification.
       iApply (brel_na_inv _ _ alphaN ); [set_solver|].
       iFrame "Hinva". 
       iIntros "(>H & Hclose)".
-      iApply (sample_or_read_store_spec (⊤ ∖ ↑alphaN) _ _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "[H]"); first done.
+      iApply (sample_or_read_store_spec with "[$]").
       iIntros "#Hla #Hα #Hlcs"...
       iApply brel_na_close. iFrame.
       iSplitL; [iNext; iFrame "#"|]...
@@ -170,7 +170,7 @@ Section handlee_verification.
       iSplitL.
       { iApply brel_value. iIntros "$ !>"...
         iDestruct ("Hcont" with "Hnone") as "Hkk".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$]"); [done|done|].
+        iApply (brel_exhaustion with "[$]"); [done|done|].
         iApply "IH". }
       iIntros (m) "(%&#Hb'&#Hla')".
       iDestruct (message_unique with "[$Ha] [$Hb']") as "%Heq".
@@ -180,7 +180,7 @@ Section handlee_verification.
       iApply (brel_na_inv _ _ betaN ); [set_solver|].
       iFrame "Hinvb". 
       iIntros "(>H & Hclose)".
-      iApply (sample_or_read_spec _ _ _ _ _ [AppRCtx _] with "[H]"); first done.
+      iApply (sample_or_read_spec with "[$]").
       iIntros "#Hlb #Hβ"...
       iApply brel_na_close. iFrame.
       iSplitL; [iNext; iFrame "#"|]...      

@@ -134,9 +134,9 @@ Section handlee_verification.
       iApply (brel_na_inv _ _ alphaN ); [set_solver|].
       iFrame "Hinva". 
       iIntros "(>(Hα&H) & Hclose)".
-      iApply (sample_or_read_store_spec (⊤ ∖ ↑alphaN) _ _ _ _ _ _  [AppRCtx _] [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _] with "[H]"); first done.
+      iApply (sample_or_read_store_spec with "[H]"); first done.
       iIntros "#Hlc #Hγ #Hlcs"... 1 : set_solver.
-      iApply (sample_or_read_spec _ _ _ _ _ [HandleCtx _ _ _ _ _; AppRCtx _] with "[Hα]"); first done.
+      iApply (sample_or_read_spec with "[Hα]"); first done.
       iIntros "#Hlb #Hβ"...
       iApply brel_na_close. iFrame.
       iSplitL; [iNext; iSplitL; iFrame "#"|].
@@ -213,7 +213,7 @@ Section handlee_verification.
         iApply (brel_na_inv _ _ betaN); [set_solver|].
         iFrame "Hinvb".
         iIntros "(>H & Hclose)".
-        iApply (sample_or_read_spec _ _ _ _ _ [HandleCtx _ _ _ _ _; AppRCtx _] with "[$]").
+        iApply (sample_or_read_spec with "[$]").
         iIntros "#Hlb #Hβ"...
         iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
           
