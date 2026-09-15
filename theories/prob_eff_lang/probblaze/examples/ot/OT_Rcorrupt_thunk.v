@@ -6,7 +6,8 @@ From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
   spec_rules spec_ra 
   class_instances sem_types
-  sem_def sem_row.
+  sem_def sem_row
+  tactics.
 From clutch.prob_eff_lang.probblaze.examples.ot Require Import definition_thunk_receiver_corrupt ot_bijection.
 From mathcomp Require Import ssrbool.
 Import fingroup.
@@ -306,36 +307,33 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
             -{ ¡[OS] θ}-∘ 𝟙)%T 
       (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Receiver_Corrupted "f" ("effs", "doCRS"))%E)%V
       OT_SIM_FOT_thunk.
-  Proof using G cg inG2 n_prime probblazeRGS0 vg vgg Σ.
+  Proof with (repeat foldkont; brel_pures') using G cg inG2 n_prime probblazeRGS0 vg vgg Σ.
      iIntros "Herr %θ %f1 %f2 Hff".
        rewrite /OT_Real_Receiver_Corrupted /OT_SIM_FOT_thunk /F_CRS. brel_pures'. 
        iModIntro.
-       iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
-       brel_pures'.
+       iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)"...
        
        set H0fin :=  Fin.of_nat_lt (Nat.lt_0_succ (S n'')).
        iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
        assert ((3/n) = 1/n + 1/n + 1/n) as -> by lra.
        iDestruct (ec_split with "Herr") as "(Herr & Herr')"; [apply Rplus_le_le_0_compat; apply Rdiv_INR_ge_0|apply Rdiv_INR_ge_0|].
        iFrame. iIntros (g0 Hg0) "!>".
-       apply not_elem_of_cons in Hg0 as [Hg0 _].
+       apply not_elem_of_cons in Hg0 as [Hg0 _]...
        
-       brel_pures'. 
        iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
        iDestruct (ec_split with "Herr") as "(Herr & Herr')".
        1,2 : destruct n''; first lra; rewrite -!(plus_INR _ 1); apply Rdiv_INR_ge_0.
        iFrame.
        iIntros (g1 Hg1) "!>".
-       apply not_elem_of_cons in Hg1 as [Hg1 _].
-   
-       brel_pures'.
+       apply not_elem_of_cons in Hg1 as [Hg1 _]...
+
        epose proof brel_couple_rand_rand as h'.
        iApply (h' _ _ (f_ring (Fp_of_fin g0))).
        { unshelve eapply f_bij_ring; first done.  by apply Fp_of_fin_ne_zero_2. }
        { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
              by apply Rcomplements.SSR_leq. }
        clear h'.
-       iIntros (t0 Ht0). brel_pures'. brel_pures.
+       iIntros (t0 Ht0)...
        assert ((h_ring (Fp_of_fin g1) (f_ring (Fp_of_fin g0) t0)) < n)%nat as Ht0'.
        { apply Rcomplements.SSR_leq. unshelve eapply h_lt_ring; first done. 
          unshelve eapply f_lt_ring; first done. apply Rcomplements.SSR_leq. lia. }
@@ -346,8 +344,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
              by apply Rcomplements.SSR_leq. }
        Unshelve.
        2 : (unshelve eapply f_bij_ring; [done|by apply Fp_of_fin_ne_zero_2]).
-       iFrame. iIntros (t1 Hneq) "!>".
-       brel_pures'. 
+       iFrame. iIntros (t1 Hneq) "!>"...
+
        rewrite -!expgM. rewrite -(@expg_mod _ n (ssrnat.muln g0 (f_ring (Fp_of_fin g0) t0))).
        2 : rewrite -g_nontriv; apply expg_order.
        rewrite crs_fin_cancel //; [|by apply Fp_of_fin_ne_zero_2|apply Rcomplements.SSR_leq; lia].
@@ -356,19 +354,15 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        assert (t1 < n)%nat as Ht1' by apply fin_to_nat_lt.
        rewrite crs_fin_cancel //; [|by apply Fp_of_fin_ne_zero_2|apply Rcomplements.SSR_leq; lia].
        rewrite !expg_mod.
-       2,3: rewrite -g_nontriv; apply expg_order.
-       iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
-       iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>".
-       rewrite /mut_handler /simhandler.
-       brel_pures_l. brel_pures_r.
-       iApply brel_alloc_r. iIntros (l0) "Hl0".
-       iApply brel_alloc_r. iIntros (l1) "Hl1".
-       brel_pures'.
-   
-       iApply brel_effect_l. iIntros (IDEALl) "!> Hideall !>".
-       iApply brel_effect_r. iIntros (IDEALr) "Hidealr !>".
-       iApply brel_effect_r. iIntros (LEAK) "Hleak !>".
-       brel_pures_l. brel_pures_r.
+       2,3: rewrite -g_nontriv; apply expg_order...
+       brel_effect_l CRSl as "Hcrsl"...
+       brel_effect_r CRSr as "Hcrsr"...
+       rewrite /mut_handler /simhandler...
+       brel_alloc_r l0 as "Hl0"...
+       brel_alloc_r l1 as "Hl1"...
+       brel_effect_l IDEALl as "Hideall"...
+       brel_effect_r IDEALr as "Hidealr"...
+       brel_effect_r LEAK as "Hleak"...
        
        iApply brel_new_theory.
        iApply (brel_add_label_l with "Hideall").
@@ -391,14 +385,14 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
                    (λ: <>, do: CRSl #(), λ: "mm", do: IDEALl "mm")%V   
                    (λ: <>, do: CRSr #(), λ: "mm", do: IDEALr InjR "mm")%V) as "Hgg".
        { iExists _,_,_,_. repeat (iSplit; try done); rewrite /sem_ty_mbang //=.
-         - iIntros (??) "!# (->&->)". brel_pures'.
+         - iIntros (??) "!# (->&->)"...
            iApply brel_introduction'; first constructor.
            iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
            do 2 (iSplit; [by iPureIntro|]). iIntros (crs) "Hcrs'". iDestruct (auth_agree with "[$][$]") as "->". 
            iApply brel_value. iIntros "$ !>". 
            do 3 (iExists _,_,_,_; do 2 (iSplit; [by iPureIntro|]);
                                iSplit; last (iExists _; done)). iExists _; done.
-         - iIntros (??) "!# (%&%&%&%&->&->&(%h1&->&->)&(%h2&->&->))". brel_pures'.
+         - iIntros (??) "!# (%&%&%&%&->&->&(%h1&->&->)&(%h2&->&->))"...
            iApply brel_introduction'; first constructor.
            iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
            iExists _,_,_,_. do 2 (iSplit; first by iExists _).
@@ -448,10 +442,9 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
              - iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
                iIntros (rl) "!> Hrl".
                iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
-               iIntros (rr) "Hrr".
-               brel_pures.
+               iIntros (rr) "Hrr"...
                iApply (brel_cont_l with "[$]"). iModIntro.
-               iApply (brel_cont_r with "[$]").
+               iApply (brel_cont_r with "[$]")...
                iSpecialize ("HQ" $! (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
                iDestruct ("HQ" with "Hcrs") as "HQ'".
                iDestruct ("HQQ" with "HQ'") as "HQ".
@@ -460,7 +453,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
                          ((([IDEALl], [IDEALr;LEAK], _) :: _))
                         with "[H]"); [done|done|done|done].
              - iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
-               iIntros (rl) "!> Hrl". brel_pures.
+               iIntros (rl) "!> Hrl"...
                iApply (brel_cont_l with "[$]"). iModIntro.
                iSpecialize ("HQ" $! (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
                iDestruct ("HQ" with "Hcrs") as "HQ'".
@@ -486,54 +479,46 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          apply distinct_to_iThy_bot. by apply distinct_to_iThy_bot in Hdistinct. }
        
        iApply (brel_exhaustion' OS (f1 _) (f2 _) with "[$Hff]"); [done|set_solver|].
-       iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
+       iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
        iIntros (k1' k2' ??? Hnk1 Hnk2)
          "(%&%&%&%&(%m0z&->&->)&(%m1z&->&->)&->&->&HQ) Hkont".
        iApply brel_handle_os_l; [apply neutral_ectx;set_solver|].
        iIntros (cl) "!> Hcl".
        iApply brel_handle_os_r; [apply neutral_ectx;set_solver|].
-       iIntros (cr) "Hcr".
-       brel_pures_l. brel_pures_r.
+       iIntros (cr) "Hcr"...
 
        (* Deserialize a group element from m0 *)
        destruct (vg_of_int_sem m0z) as [m0|] eqn:Hm0z.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
-         iApply brel_vg_of_int_none_r; first done.
-         brel_pures_l. brel_pures_r.
+         iApply brel_vg_of_int_none_r; first done...
 
          (* Protocol done loop *)
          protocol_done. }
 
        iApply brel_vg_of_int_correct_l; first done.
-       iApply brel_vg_of_int_correct_r; first done.
-       brel_pures_l. brel_pures_r.
-
+       iApply brel_vg_of_int_correct_r; first done...
 
        (* Deserialize a group element from m1 *)
        destruct (vg_of_int_sem m1z) as [m1|] eqn:Hm1z.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
-         iApply brel_vg_of_int_none_r; first done.
-         brel_pures_l. brel_pures_r.
+         iApply brel_vg_of_int_none_r; first done...
 
          (* Protocol done loop *)
          protocol_done. }
 
        iApply brel_vg_of_int_correct_l; first done.
-       iApply brel_vg_of_int_correct_r; first done.
-       brel_pures_l. brel_pures_r.
+       iApply brel_vg_of_int_correct_r; first done...
        
-       unfold store_if_none. brel_pures_r.
-       iApply (brel_load_r with "Hl0"). iIntros "Hl0".
-       iApply (brel_store_r with "Hl0"). iIntros "Hl0".
-       brel_pures'.
-       iApply (brel_load_r with "Hl1"). iIntros "Hl1".
-       iApply (brel_store_r with "Hl1"). iIntros "Hl1".
-       brel_pures'.
+       unfold store_if_none...
+       brel_load_r...
+       brel_store_r...
+       brel_load_r...
+       brel_store_r...
        
        iApply (brel_handle_os_r _ [AppRCtx _]); [set_solver|].
-       iIntros (rLeak) "HrLeak". brel_pures'.
+       iIntros (rLeak) "HrLeak"... 
    
        iApply brel_learn. iIntros (Hdistinct) "_".
        
@@ -549,10 +534,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        iExists _.
        iSplitL; last (iIntros (??) "!> H"; iApply "H").
        iLeft. do 2 (iSplit; [done|]). iIntros (?) "Hcrs'".
-       iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'".
-       brel_pures_l. brel_pures_r.
-   
-       
+       iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'"...
        
        iApply (brel_bind [_] [_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
        { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
@@ -564,58 +546,49 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
         (* Protocol done loop *)
        { protocol_done pop_r. }
    
-       iDestruct "H" as (????) "(->&->&(%uz&->&->)&(%vz&->&->))".
-       brel_pures_l.
-       brel_pures_r.
+       iDestruct "H" as (????) "(->&->&(%uz&->&->)&(%vz&->&->))"...
 
        (* Deserialize a group element from u *)
        destruct (vg_of_int_sem uz) as [u|] eqn:Huz.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
-         iApply brel_vg_of_int_none_r; first done.
-         brel_pures_l. brel_pures_r.
+         iApply brel_vg_of_int_none_r; first done...
 
          (* Protocol done loop *)
          protocol_done pop_r. }
 
        iApply brel_vg_of_int_correct_l; first done.
-       iApply brel_vg_of_int_correct_r; first done.
-       brel_pures_l. brel_pures_r.
+       iApply brel_vg_of_int_correct_r; first done...
 
        (* Deserialize a group element from v *)
        destruct (vg_of_int_sem vz) as [v|] eqn:Hvz.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
-         iApply brel_vg_of_int_none_r; first done.
-         brel_pures_l. brel_pures_r.
+         iApply brel_vg_of_int_none_r; first done...
 
          (* Protocol done loop *)
          protocol_done pop_r. }
 
        iApply brel_vg_of_int_correct_l; first done.
        iApply brel_vg_of_int_correct_r; first done.
-       rewrite is_unit.
-       brel_pures'.
+       rewrite is_unit...
 
-       destruct (bool_decide (u = 1%g)) eqn:Heq.
+       destruct (bool_decide (u = 1%g)) eqn:Heq...
    
     (* Protocol done loop *)
        { protocol_done pop_r. }
        
-       brel_pures'.
-       destruct (bool_decide (v = (u ^+ (f_ring (Fp_of_fin g0) t0))%g)) eqn:Heq1; brel_pures'.
+       destruct (bool_decide (v = (u ^+ (f_ring (Fp_of_fin g0) t0))%g)) eqn:Heq1...
    
    (* (e1, e2) = (enc(m0), enc(g)) - couple enc(m1) to enc(g) *)
        + iApply (brel_handle_os_r [_] [AppRCtx _]); [set_solver|].
-         iIntros (rRecv) "Hr". brel_pures'.
+         iIntros (rRecv) "Hr"...
          
          iApply (brel_handle_os_r [] [AppRCtx _]); [set_solver|].
-         iIntros (rAlice) "HAlice". brel_pures.
-         iApply (brel_cont_r with "[$]").
-         brel_pures'.
-         iApply (brel_load_r with "[$Hl0]"). iIntros "Hl0". 
-         iApply (brel_cont_r with "[$]").
-         brel_pures'. 
+         iIntros (rAlice) "HAlice"...
+         iApply (brel_cont_r with "[$]")...
+         brel_load_r...
+         iApply (brel_cont_r with "[$]")...
          destruct (log_g m1) as (km & ->).
          destruct (log_g u) as (ku & ->).
          destruct (log_g v) as (kv & ->).
@@ -629,14 +602,14 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          set g' := plus_ring c2.
          iApply (brel_couple_rand_rand _ _ g' (H:=plus_bij_ring c2)).
          { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-         iIntros (s1 Hs1). brel_pures_l. brel_pures_r.
+         iIntros (s1 Hs1)...
    
          iApply (brel_couple_rand_rand _ _ f' (H:=minus_ring_bij c1)).
          { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-         iIntros (r1 Hr1). brel_pures_l. brel_pures_r.
+         iIntros (r1 Hr1)...
          
          iApply brel_couple_rand_rand; [done|]. iIntros (s0 Hs0). 
-         iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures'.
+         iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0)...
          rewrite -!expgM.
          rewrite -!expgnDr.
          rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln t1 s1))).
@@ -663,8 +636,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
                  move=> Hc. apply: Hne'. apply: fin_to_nat_inj.
                  by rewrite fin_to_nat_to_fin. } }
          rewrite !expg_mod.
-         2,3 : rewrite -g_nontriv; apply expg_order.
-         brel_pures'.
+         2,3 : rewrite -g_nontriv; apply expg_order...
          
          iApply (brel_bind [_] [_;_;_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
          { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
@@ -676,25 +648,21 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
                                  iSplit; iExists _; try done.
            by rewrite ssrnat.addnA.
          }
-         iIntros (??) "(->&->)".
-         brel_pures'.
+         iIntros (??) "(->&->)"...
    
          (* Protocol done loop *)
        { protocol_done pop_r. }
    
        + iApply (brel_handle_os_r [_] [AppRCtx _]); [set_solver|].
-         iIntros (rRecv) "Hr". brel_pures.
+         iIntros (rRecv) "Hr"...
          
          iApply (brel_handle_os_r [] [AppRCtx _]); [set_solver|].
-         iIntros (rAlice) "HAlice". brel_pures.
-         iApply (brel_cont_r with "[$]").
-         brel_pures.
-         iApply (brel_load_r with "[$Hl1]"). iIntros "Hl1". 
-         iApply (brel_cont_r with "[$]").
-         brel_pures. brel_exp_r. brel_pures'.
-         iApply brel_couple_rand_rand; [done|]. iIntros (s1 Hs1). brel_pures.
-         iApply brel_couple_rand_rand; [done|]. iIntros (r1 Hr1). brel_pures.
-         brel_pures'.
+         iIntros (rAlice) "HAlice"...
+         iApply (brel_cont_r with "[$]")...
+         brel_load_r...
+         iApply (brel_cont_r with "[$]")...
+         iApply brel_couple_rand_rand; [done|]. iIntros (s1 Hs1)...
+         iApply brel_couple_rand_rand; [done|]. iIntros (r1 Hr1)...
          destruct (log_g m0) as (km & ->).
          destruct (log_g u) as (ku & ->).
          destruct (log_g v) as (kv & ->).
@@ -709,11 +677,11 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          
          iApply (brel_couple_rand_rand _ _ g' (H:=plus_bij_ring c2)).
          { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-         iIntros (s0 Hs0). brel_pures'.
+         iIntros (s0 Hs0)...
    
          iApply (brel_couple_rand_rand _ _ f' (H:=minus_ring_bij c1)).
          { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-         iIntros (r0 Hr0). brel_pures'. 
+         iIntros (r0 Hr0)...
          rewrite -!expgM.
          rewrite -!expgnDr.
          rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g0 r0) (ssrnat.muln t0 s0))).
@@ -734,8 +702,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
                          -(expg_mod_order g (fin.fin_to_nat ku * f_ring (Fp_of_fin g0) t0)).
                  by rewrite !g_nontriv Hc. } }
          rewrite !expg_mod.
-         2,3 : rewrite -g_nontriv; apply expg_order.
-         brel_pures'.
+         2,3 : rewrite -g_nontriv; apply expg_order...
          
          iApply (brel_bind [_] [_;_;_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
          { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
@@ -747,8 +714,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
                                  iSplit; iExists _; try done.
            by rewrite ssrnat.addnA.
          }
-         iIntros (??) "(->&->)".
-         brel_pures'.
+         iIntros (??) "(->&->)"...
    
          (* Protocol done loop *)
        { protocol_done pop_r. }
@@ -762,36 +728,33 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
             -{ ¡[OS] θ}-∘ 𝟙)%T 
       OT_SIM_FOT_thunk
       (λ: "f" "effs", F_CRS (λ: "doCRS", OT_Real_Receiver_Corrupted "f" ("effs", "doCRS"))%E)%V.
-  Proof using G cg inG2 n_prime probblazeRGS0 vg vgg Σ.
+  Proof with (repeat foldkont; brel_pures') using G cg inG2 n_prime probblazeRGS0 vg vgg Σ.
     iIntros "Herr %θ %f1 %f2 Hff".
-    rewrite /OT_Real_Receiver_Corrupted /OT_SIM_FOT_thunk /F_CRS. brel_pures'. 
+    rewrite /OT_Real_Receiver_Corrupted /OT_SIM_FOT_thunk /F_CRS...
     iModIntro.
-    iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
-    brel_pures'.
+    iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)"...
     
     set H0fin :=  Fin.of_nat_lt (Nat.lt_0_succ (S n'')).
     iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
     assert ((3/n) = 1/n + 1/n + 1/n) as -> by lra.
     iDestruct (ec_split with "Herr") as "(Herr & Herr')"; [apply Rplus_le_le_0_compat; apply Rdiv_INR_ge_0|apply Rdiv_INR_ge_0|].
     iFrame. iIntros (g0 Hg0) "!>".
-    apply not_elem_of_cons in Hg0 as [Hg0 _].
+    apply not_elem_of_cons in Hg0 as [Hg0 _]...
     
-    brel_pures'. 
     iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
     iDestruct (ec_split with "Herr") as "(Herr & Herr')".
     1,2 : destruct n''; first lra; rewrite -!(plus_INR _ 1); apply Rdiv_INR_ge_0.
     iFrame.
     iIntros (g1 Hg1) "!>".
-    apply not_elem_of_cons in Hg1 as [Hg1 _].
+    apply not_elem_of_cons in Hg1 as [Hg1 _]...
 
-    brel_pures'.
     epose proof brel_couple_rand_rand as h'.
     iApply (h' _ _ (h_ring (Fp_of_fin g0))).
     { unshelve eapply h_bij_ring; first done.  by apply Fp_of_fin_ne_zero_2. }
     { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply h_lt_ring; first done.
           by apply Rcomplements.SSR_leq. }
     clear h'.
-    iIntros (t0 Ht0). brel_pures'. 
+    iIntros (t0 Ht0)...
     (* consider which number to avoid should be t0*)
     assert (t0 < n)%nat as Ht0' by lia.
     epose proof (brel_couple_couple_avoid _ _ [Fin.of_nat_lt Ht0'] (h_ring (Fp_of_fin g1)) ) as h'.
@@ -800,22 +763,17 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
           by apply Rcomplements.SSR_leq. }
     Unshelve.
     2 : (unshelve eapply h_bij_ring; [done|by apply Fp_of_fin_ne_zero_2]).
-    iFrame. iIntros (t1 Hneq) "!>".
-    brel_pures'. 
+    iFrame. iIntros (t1 Hneq) "!>"...
     rewrite -!expgM. 
 
-    iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
-    iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>".
-    rewrite /mut_handler /simhandler.
-    brel_pures'.
-    iApply brel_alloc_l. iIntros (l0) "!>Hl0".
-    iApply brel_alloc_l. iIntros (l1) "!>Hl1".
-    brel_pures'.
-
-    iApply brel_effect_l. iIntros (IDEALl) "!> Hideall !>".
-    iApply brel_effect_l. iIntros (LEAK) "!> Hleak !>".
-    iApply brel_effect_r. iIntros (IDEALr) "Hidealr !>".
-    brel_pures'.
+    brel_effect_l CRSl as "Hcrsl"...
+    brel_effect_r CRSr as "Hcrsr"...
+    rewrite /mut_handler /simhandler...
+    brel_alloc_l l0 as "Hl0"...
+    brel_alloc_l l1 as "Hl1"...
+    brel_effect_l IDEALl as "Hideall"...
+    brel_effect_l LEAK as "Hleak"...
+    brel_effect_r IDEALr as "Hidealr"...
     
     iApply brel_new_theory.
     iApply (brel_add_label_l with "Hleak").
@@ -838,14 +796,14 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
                 (λ: <>, do: CRSl #(), λ: "mm", do: IDEALl InjR "mm")%V   
                 (λ: <>, do: CRSr #(), λ: "mm", do: IDEALr "mm")%V) as "Hgg".
     { iExists _,_,_,_. repeat (iSplit; try done); rewrite /sem_ty_mbang //=.
-      - iIntros (??) "!# (->&->)". brel_pures'.
+      - iIntros (??) "!# (->&->)"...
         iApply brel_introduction'; first constructor.
         iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
         do 2 (iSplit; [by iPureIntro|]). iIntros (crs) "Hcrs'". iDestruct (auth_agree with "[$][$]") as "->". 
         iApply brel_value. iIntros "$ !>". 
         do 3 (iExists _,_,_,_; do 2 (iSplit; [by iPureIntro|]);
                             iSplit; last (iExists _; done)). iExists _; done.
-      - iIntros (??) "!# (%&%&%&%&->&->&(%h1&->&->)&(%h2&->&->))". brel_pures'.
+      - iIntros (??) "!# (%&%&%&%&->&->&(%h1&->&->)&(%h2&->&->))"...
         iApply brel_introduction'; first constructor.
         iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
         iExists _,_,_,_. do 2 (iSplit; first by iExists _).
@@ -894,8 +852,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
           iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
           iIntros (rl) "!> Hrl".
           iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
-          iIntros (rr) "Hrr".
-          brel_pures'.
+          iIntros (rr) "Hrr"...
           iApply (brel_cont_l with "[$]"). iModIntro.
           iApply (brel_cont_r with "[$]").
           iSpecialize ("HQ" $! (vgval (g ^+ ssrnat.muln g1 t1), vgval (g ^+ ssrnat.muln g0 t0), vgval (g ^+ g1), vgval (g ^+ g0))%V).
@@ -924,48 +881,39 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     iApply brel_handle_os_r; [apply neutral_ectx;set_solver|].
     iIntros (cr) "Hcr".
     iApply brel_handle_os_l; [apply neutral_ectx;set_solver|].
-    iIntros (cl) "!> Hcl".
-    brel_pures_l. brel_pures_r.
-
+    iIntros (cl) "!> Hcl"...
 
        (* Deserialize a group element from m0 *)
        destruct (vg_of_int_sem m0z) as [m0|] eqn:Hm0z.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
-         iApply brel_vg_of_int_none_r; first done.
-         brel_pures_l. brel_pures_r.
+         iApply brel_vg_of_int_none_r; first done...
 
          (* Protocol done loop *)
          protocol_done. }
 
        iApply brel_vg_of_int_correct_l; first done.
-       iApply brel_vg_of_int_correct_r; first done.
-       brel_pures_l. brel_pures_r.
-
+       iApply brel_vg_of_int_correct_r; first done...
 
        (* Deserialize a group element from m1 *)
        destruct (vg_of_int_sem m1z) as [m1|] eqn:Hm1z.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
-         iApply brel_vg_of_int_none_r; first done.
-         brel_pures_l. brel_pures_r.
+         iApply brel_vg_of_int_none_r; first done...
 
          (* Protocol done loop *)
          protocol_done. }
 
        iApply brel_vg_of_int_correct_l; first done.
-       iApply brel_vg_of_int_correct_r; first done.
-       brel_pures_l. brel_pures_r.
+       iApply brel_vg_of_int_correct_r; first done...
 
-    unfold store_if_none. brel_pures_l.
-    iApply (brel_load_l with "Hl0"). iIntros "!> Hl0".
-    iApply (brel_store_l with "Hl0"). iIntros "!> Hl0".
-    brel_pures'.
-    iApply (brel_load_l with "Hl1"). iIntros "!> Hl1".
-    iApply (brel_store_l with "Hl1"). iIntros "!> Hl1".
-    brel_pures'.    
+    unfold store_if_none...
+    brel_load_l...
+    brel_store_l...
+    brel_load_l...
+    brel_store_l...
     iApply (brel_handle_os_l _ [AppRCtx _]); [set_solver|].
-    iIntros (rLeak) "!> HrLeak". brel_pures'.
+    iIntros (rLeak) "!> HrLeak"...
 
     iApply brel_learn. iIntros (Hdistinct) "_".
 
@@ -982,8 +930,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     iExists _.
     iSplitL; last (iIntros (??) "!> H"; iApply "H").
     do 2 (iSplit; [done|]). iIntros (?) "Hcrs'".
-    iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'".
-    brel_pures_l. brel_pures_r.
+    iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'"...
     
     iApply (brel_bind [_;_;_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
     { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
@@ -995,59 +942,48 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     (* Protocol done loop *)
     { protocol_done pop_l. }
 
-    iDestruct "H" as (????) "(->&->&(%uz&->&->)&(%vz&->&->))".
-    brel_pures_l.
-    brel_pures_r.
+    iDestruct "H" as (????) "(->&->&(%uz&->&->)&(%vz&->&->))"...
 
-(* Deserialize a group element from u *)
-       destruct (vg_of_int_sem uz) as [u|] eqn:Huz.
-       2 : {
-         iApply brel_vg_of_int_none_l; first done.
-         iApply brel_vg_of_int_none_r; first done.
-         brel_pures_l. brel_pures_r.
+    (* Deserialize a group element from u *)
+    destruct (vg_of_int_sem uz) as [u|] eqn:Huz.
+    2 : {
+      iApply brel_vg_of_int_none_l; first done.
+      iApply brel_vg_of_int_none_r; first done...
 
-         (* Protocol done loop *)
-         protocol_done pop_l. }
+      (* Protocol done loop *)
+      protocol_done pop_l. }
 
-       iApply brel_vg_of_int_correct_l; first done.
-       iApply brel_vg_of_int_correct_r; first done.
-       brel_pures_l. brel_pures_r.
+    iApply brel_vg_of_int_correct_l; first done.
+    iApply brel_vg_of_int_correct_r; first done...
 
-       (* Deserialize a group element from u *)
-       destruct (vg_of_int_sem vz) as [v|] eqn:Hvz.
-       2 : {
-         iApply brel_vg_of_int_none_l; first done.
-         iApply brel_vg_of_int_none_r; first done.
-         brel_pures_l. brel_pures_r.
+    (* Deserialize a group element from u *)
+    destruct (vg_of_int_sem vz) as [v|] eqn:Hvz.
+    2 : {
+      iApply brel_vg_of_int_none_l; first done.
+      iApply brel_vg_of_int_none_r; first done...
 
-         (* Protocol done loop *)
-         protocol_done pop_l. }
+      (* Protocol done loop *)
+      protocol_done pop_l. }
 
-       iApply brel_vg_of_int_correct_l; first done.
-       iApply brel_vg_of_int_correct_r; first done.
-
-       
-       rewrite is_unit.
-       brel_pures'.
-       destruct (bool_decide (u = 1%g)) eqn:Heq.
-       
+    iApply brel_vg_of_int_correct_l; first done.
+    iApply brel_vg_of_int_correct_r; first done...
+    rewrite is_unit...
+    destruct (bool_decide (u = 1%g)) eqn:Heq...
+    
     (* Protocol done loop *)
     { protocol_done pop_l. }
     
-    brel_pures'.
-    destruct (bool_decide (v = (u ^+ t0)%g)) eqn:Heq1; brel_pures'.
+    destruct (bool_decide (v = (u ^+ t0)%g)) eqn:Heq1...
 
     (* (e1, e2) = (enc(m0), enc(g)) - couple enc(m1) to enc(g) *)
     + iApply (brel_handle_os_l [_] [AppRCtx _]); [set_solver|].
-      iIntros (rRecv) "!> Hr". brel_pures'.
+      iIntros (rRecv) "!> Hr"...
       
       iApply (brel_handle_os_l [] [AppRCtx _]); [set_solver|].
-      iIntros (rAlice) "!> HAlice". brel_pures_l.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      brel_pures'.
-      iApply (brel_load_l with "[$Hl0]"). iIntros "!> Hl0". 
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      brel_pures'. 
+      iIntros (rAlice) "!> HAlice"...
+      iApply (brel_cont_l with "[$]"). iModIntro...
+      brel_load_l...
+      iApply (brel_cont_l with "[$]"). iModIntro...
       destruct (log_g m1) as (km & ->).
       destruct (log_g u) as (ku & ->).
       destruct (log_g v) as (kv & ->).
@@ -1061,14 +997,14 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       set g' := minus_ring c2.
       iApply (brel_couple_rand_rand _ _ g' (H:=minus_ring_bij c2)).
       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply minus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-      iIntros (s1 Hs1). brel_pures_l. brel_pures_r.
+      iIntros (s1 Hs1)...
       
       iApply (brel_couple_rand_rand _ _ f' (H:=plus_bij_ring c1)).
       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-      iIntros (r1 Hr1). brel_pures_l. brel_pures_r.
+      iIntros (r1 Hr1)...
 
       iApply brel_couple_rand_rand; [done|]. iIntros (s0 Hs0). 
-      iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0). brel_pures'.
+      iApply brel_couple_rand_rand; [done|]. iIntros (r0 Hr0)...
       rewrite -!expgM.
       rewrite -!expgnDr.
       (* rewrite -(expg_mod (p:=n) (ssrnat.addn (ssrnat.muln g1 r1) (ssrnat.muln t1 s1))). *)
@@ -1096,8 +1032,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
               move: Hc. rewrite !div.modn_small; try (apply/ssrnat.ltP; lia); first by symmetry.
               rewrite Rcomplements.SSR_leq. apply fin_to_nat_lt. } }
       rewrite !expg_mod.
-      2,3 : rewrite -g_nontriv; apply expg_order.
-      brel_pures'.
+      2,3 : rewrite -g_nontriv; apply expg_order...
 
       iApply (brel_bind [_;_;_;_;_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
       { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
@@ -1108,24 +1043,21 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
         iSplit; iExists _,_,_,_; try (do 2 (iSplit; try done));
                               iSplit; iExists _; try done.
       }
-      iIntros (??) "(->&->)".
-      brel_pures'.
+      iIntros (??) "(->&->)"...
 
       (* Protocol done loop *)
       { protocol_done pop_l. }
 
     + iApply (brel_handle_os_l [_] [AppRCtx _]); [set_solver|].
-      iIntros (rRecv) "!> Hr". brel_pures.
+      iIntros (rRecv) "!> Hr"...
       
       iApply (brel_handle_os_l [] [AppRCtx _]); [set_solver|].
-      iIntros (rAlice) "!> HAlice". brel_pures.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      brel_pures'.
-      iApply (brel_load_l with "[$Hl1]"). iIntros "!> Hl1". 
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      brel_pures'. 
-      iApply brel_couple_rand_rand; [done|]. iIntros (s1 Hs1). brel_pures'.
-      iApply brel_couple_rand_rand; [done|]. iIntros (r1 Hr1). brel_pures'.
+      iIntros (rAlice) "!> HAlice"...
+      iApply (brel_cont_l with "[$]"). iModIntro...
+      brel_load_l...
+      iApply (brel_cont_l with "[$]"). iModIntro...
+      iApply brel_couple_rand_rand; [done|]. iIntros (s1 Hs1)...
+      iApply brel_couple_rand_rand; [done|]. iIntros (r1 Hr1)...
       destruct (log_g m0) as (km & ->).
       destruct (log_g u) as (ku & ->).
       destruct (log_g v) as (kv & ->).
@@ -1139,11 +1071,11 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       set g' := minus_ring c2.
       iApply (brel_couple_rand_rand _ _ g' (H:=minus_ring_bij c2)).
       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-      iIntros (s0 Hs0). brel_pures'.
+      iIntros (s0 Hs0)...
 
       iApply (brel_couple_rand_rand _ _ f' (H:=plus_bij_ring c1)).
       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply plus_ring_lt; first done. apply Rcomplements.SSR_leq. lia. }
-      iIntros (r0 Hr0). brel_pures'.
+      iIntros (r0 Hr0)...
 
       rewrite -!expgM.
       rewrite -!expgnDr.
@@ -1167,8 +1099,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
               move/eqtype.eqP: Heq1. rewrite cyclic.eq_expg_mod_order g_nontriv.
               by move/eqtype.eqP. } } 
       rewrite !expg_mod.
-      2,3 : rewrite -g_nontriv; apply expg_order.
-      brel_pures'.
+      2,3 : rewrite -g_nontriv; apply expg_order...
       
       iApply (brel_bind [_;_;_;_;_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
       { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
@@ -1179,9 +1110,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
         iSplit; iExists _,_,_,_; try (do 2 (iSplit; try done));
                               iSplit; iExists _; done.
       }
-      iIntros (??) "(->&->)".
-      brel_pures'.
-
+      iIntros (??) "(->&->)"...
 
       (* Protocol done loop *)
       { protocol_done pop_l. }
