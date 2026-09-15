@@ -21,6 +21,7 @@ Import valgroup_tactics.
 
 
 Section schan_security.
+  (*Context {Σ : gFunctors}. *)
   Context `{probblazeRGS Σ}.
   (* Context (lka1 lka2 klk1 klk2 : label). *)
   Context {vg: val_group}.
@@ -41,118 +42,66 @@ Section schan_security.
 
   Definition alphaN : namespace := nroot .@ "alpha".
   Definition betaN : namespace := nroot .@ "beta".
-
+ 
   (*Theories for the interaction of the secure channel with the environment*)
   (*-------------------------------------------------------------*)
 
   (* Theories for the authenticated channel leaks *)
   (*-------------------------------------------------------------*)
+  Program Definition LASend (l1 l2 : label) dst : iThy Σ :=
+    λ e1 e2, (λne Q,
+                ∃ m1 m2 : val,
+                  ⌜e1 = (do: l1 (SendV (m1, dst)))⌝%E ∗
+                  ⌜e2 = (do: l2 (SendV (m2, dst)))⌝%E ∗
+                  □ Q (Val #()%V) (Val #()%V))%I.
+  Next Obligation. solve_proper. Qed.
   (* Sent BY Bob TO Alice*)
-  Program Definition LASendBob (leakauth1 leakauth2 : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ∃ m1 m2 : val,
-                  ⌜e1 = (do: leakauth1 (SendV (m1, alice)))⌝%E ∗
-                  ⌜ e2 = do: leakauth2 (SendV (m2, alice)) ⌝%E ∗
-                  □ Q (Val #()%V) (Val #()%V))%I.
-  Next Obligation. solve_proper. Qed.
+  Definition LASendBob (la1 la2 : label) : iThy Σ := LASend la1 la2 alice.
   (* Sent BY Alice TO Bob*)
-  Program Definition LASendAlice (leakauth1 leakauth2 : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ∃ m1 m2 : val,
-                  ⌜e1 = (do: leakauth1 (SendV (m1, bob)))⌝%E ∗
-                  ⌜ e2 = do: leakauth2 (SendV (m2, bob)) ⌝%E ∗
-                  □ Q (Val #()%V) (Val #()%V))%I.
-  Next Obligation. solve_proper. Qed.
-  (*Recv FROM bob*)
-  Program Definition LARecvBob (leakauth1 leakauth2 : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: leakauth1 (RecvV bob) ⌝%E ∗
-                ⌜ e2 = do: leakauth2 (RecvV bob) ⌝%E ∗
-                □ ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
-             )%I.
-  Next Obligation. solve_proper. Qed.
-  (* Recv FROM Alice *)
-  Program Definition LARecvAlice (leakauth1 leakauth2 : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: leakauth1 (RecvV alice) ⌝%E ∗
-                ⌜ e2 = do: leakauth2 (RecvV alice) ⌝%E ∗
+  Definition LASendAlice (la1 la2 : label) : iThy Σ := LASend la1 la2 bob.
+
+  Program Definition LARecv (l1 l2 : label) from : iThy Σ :=
+     λ e1 e2, (λne Q,
+                ⌜ e1 = do: l1 (RecvV from) ⌝%E ∗
+                ⌜ e2 = do: l2 (RecvV from) ⌝%E ∗
                 □ ((∀ b1 b2 : nat, Q (SOMEV #b1) (SOMEV #b2)) ∧ Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed.
 
-
+  (*Recv FROM Bob *)
+  Definition LARecvBob (la1 la2 : label) : iThy Σ :=
+    LARecv la1 la2 bob.
+  (*Recv FROM Alice*)
+  Definition LARecvAlice (la1 la2 : label) : iThy Σ :=
+    LARecv la1 la2 alice.
+  
   (* Theories for the key exchange leaks*)
   (*---------------------------------------------------------*)
+
+  Program Definition KLeakSend (l1 l2 : label) dst : iThy Σ :=
+     λ e1 e2, (λne Q,
+                ⌜ e1 = do: l1 (SendV dst) ⌝%E ∗
+                ⌜ e2 = do: l2 (SendV dst) ⌝%E ∗
+                □ Q (Val #()%V) (Val #()%V))%I.
+  Next Obligation. solve_proper. Qed.
   (*Send TO Alice*)
-  Program Definition KLeakSendAlice (keyleak1 keyleak2 : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: keyleak1 (SendV alice) ⌝%E ∗
-                ⌜ e2 = do: keyleak2 (SendV alice) ⌝%E ∗
-                □ Q (Val #()%V) (Val #()%V))%I.
+  Definition KLeakSendAlice (kl1 kl2 : label) : iThy Σ :=
+    KLeakSend kl1 kl2 alice.
+  (*Send TO Bob *)
+  Definition KLeakSendBob (kl1 kl2 : label) : iThy Σ :=
+    KLeakSend kl1 kl2 bob.
+  
+  Program Definition KLeakRecv (kl1 kl2 : label) from : iThy Σ :=
+     λ e1 e2, (λne Q,
+                ⌜ e1 = do: kl1 (RecvV from) ⌝%E ∗
+                ⌜ e2 = do: kl2 (RecvV from) ⌝%E ∗
+                □ (Q NONEV NONEV ∗ Q (SOMEV #0) (SOMEV #0)))%I.
   Next Obligation. solve_proper. Qed.
-  (* Send TO Bob *)
-  Program Definition KLeakSendBob (keyleak1 keyleak2 : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: keyleak1 (SendV bob) ⌝%E ∗
-                ⌜ e2 = do: keyleak2 (SendV bob) ⌝%E ∗
-                □ Q (Val #()%V) (Val #()%V))%I.
-  Next Obligation. solve_proper. Qed.
-
-
-  (*Program Definition KLeakRecvAlice : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: keyleak1 (RecvV alice) ⌝%E ∗
-                           ⌜ e2 = do: keyleak2 (RecvV alice) ⌝%E ∗
-                                      □ Q (Val #()%V) (Val #()%V))%I.
-  Next Obligation. solve_proper. Qed.*)
   (* Recv FROM Alice *)
-  Program Definition KLeakRecvAlice (keyleak1 keyleak2 : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: keyleak1 (RecvV alice) ⌝%E ∗
-                ⌜ e2 = do: keyleak2 (RecvV alice) ⌝%E ∗
-                □ (Q NONEV NONEV ∗ Q (SOMEV #0) (SOMEV #0)))%I.
-  Next Obligation. solve_proper. Qed.
+  Definition KLeakRecvAlice (kl1 kl2 : label) : iThy Σ := KLeakRecv kl1 kl2 alice.
   (* Recv FROM Bob *)
-  Program Definition KLeakRecvBob (keyleak1 keyleak2 : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ⌜ e1 = do: keyleak1 (RecvV bob) ⌝%E ∗
-                ⌜ e2 = do: keyleak2 (RecvV bob) ⌝%E ∗
-                □ (Q NONEV NONEV ∗ Q (SOMEV #0) (SOMEV #0)))%I.
-  Next Obligation. solve_proper. Qed.
-
-  (* Theories relating the authenticated channel with the secure channel leak*)
-  (*-----------------------------------------------------------------------------*)
-  (* STALE: these four are dead code -- nothing in the development references
-     them -- and they describe [F_OAUTH]'s OLD single tagged [channel] effect
-     ([do: channel (SendV ...)]), which has been split into untagged
-     [send]/[recv].  They were left unported; delete them, or re-derive them
-     against [csend]/[crecv] if a use ever appears. *)
-  Program Definition SendALSAlice (channel leaksec : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ∃ m : val,
-                  (⌜ e1 = do: channel (SendV (m, alice)) ⌝%E ∗
-                   ⌜  e2 = do: leaksec (SendV alice)⌝%E) ∗ □ (Q (Val #()%V) (Val #()%V)))%I.
-  Next Obligation. solve_proper. Qed.
-
-  Program Definition SendALSBob (channel leaksec : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                ∃ m : val,
-                  (⌜ e1 = do: channel (SendV (m, bob)) ⌝%E ∗
-                   ⌜  e2 = do: leaksec (SendV bob)⌝%E) ∗ □ (Q (Val #()%V) (Val #()%V)))%I.
-  Next Obligation. solve_proper. Qed.
-
-  Program Definition RecvALSAlice (channel leaksec : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                (⌜ e1 = do: channel (RecvV alice) ⌝%E ∗
-                 ⌜  e2 = do: leaksec (RecvV alice)⌝%E) ∗ □ (Q (Val #()%V) (Val #()%V)))%I.
-  Next Obligation. solve_proper. Qed.
-
-  Program Definition RecvALSBob (channel leaksec : label) : iThy Σ :=
-    λ e1 e2, (λne Q,
-                (⌜ e1 = do: channel (RecvV bob) ⌝%E ∗
-                 ⌜  e2 = do: leaksec (RecvV bob)⌝%E) ∗ □ (Q (Val #()%V) (Val #()%V)))%I.
-  Next Obligation. solve_proper. Qed.
-
+  Definition KLeakRecvBob (kl1 kl2 : label) : iThy Σ := KLeakRecv kl1 kl2 bob.
+  
 
   (*Theories relating the secure channel effects for the client*)
   (*---------------------------------------------------------*)
@@ -308,7 +257,6 @@ Section schan_security.
   Definition REAL_CHAN : val :=
     λ: "f",
       (F_OAUTH ||ₗ F_KE_lazy_alice) (CHAN xor "f").
-  About CHAN.
 
   (* we have assumed that the secure channel only provides a fixed direction message passing from Alice to Bob, so this needs to reflect in the types of the thunks given to the secure channel client to raise the secure channel effect*)
   (* The client's two thunks are typed against ANY single-entry row whose theory
@@ -756,8 +704,9 @@ Section schan_security.
       set (M := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)]).
       set (N := [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
                   iLblSig_to_iLblThy (sem_row_union keyeff (sem_row_union autheff L)))...
-      iApply (brel_bind'' _ _  (iLblSig_to_iLblThy (keyeff))  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] (([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], iThyBot)
-                                                                                                                                            :: iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)); [set_solver | set_solver | | ]...
+      iApply (brel_bind'' _ _  (iLblSig_to_iLblThy (keyeff))  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)]
+      (([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], iThyBot)
+      :: iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)); [set_solver | set_solver | | ]...
       { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
       iApply brel_wand.
       {  iDestruct "Hkeyrcv" as "#Hkeyrcv".
@@ -774,8 +723,9 @@ Section schan_security.
       iApply (brel_exhaustion (fill k1' _) (fill k2' _)); [set_solver|done|iApply "Hrel"; iDestruct "HmQ" as "(_&$)"|iApply "IH"].
     (*key receive returned successfully*)
     - iDestruct "Hsome" as "(->&->&->&->)"...
-      iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keyeff)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
-                                                                                                                                         iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)); [set_solver | set_unfold; tauto | |].
+      iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keyeff)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)]
+      ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
+      iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)); [set_solver | set_unfold; tauto | |].
      
       { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
       iApply brel_wand.
@@ -812,8 +762,9 @@ Section schan_security.
          iApply brel_na_close. iFrame.
          iSplitL.
          { iModIntro. iRight. iLeft. iFrame "#". }
-         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy autheff)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
-                                                                                                                                              iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (arcv_l bob) (arcv_r bob)); [set_unfold; tauto | set_unfold; tauto | |].
+         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy autheff)  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)]
+         ([([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], @iThyBot Σ)] ++
+         iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (arcv_l bob) (arcv_r bob)); [set_unfold; tauto | set_unfold; tauto | |].
          { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
 
          iApply brel_wand.
@@ -989,7 +940,8 @@ Section schan_security.
     set (θ := client_row' csend' crecv' lsend' lrecv' getKey' ssend_l srecv_l ssend_r srecv_r).
     iSpecialize ("Hrelf1f2" $! θ).
     unfold sem_ty_arr, sem_ty_mbang. simpl.
-    iAssert (sem_val_typed  ((λ: "m", do: ssend_l "m"), (λ: <>, do: srecv_l bob))%V ((λ: "m", do: ssend_r "m") , (λ: <>, do: srecv_r bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)) as "Hschn".
+    iAssert (sem_val_typed  ((λ: "m", do: ssend_l "m"), (λ: <>, do: srecv_l bob))%V ((λ: "m", do: ssend_r "m") , (λ: <>, do: srecv_r bob))%V
+    (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option 𝔾)))%T)) as "Hschn".
     { iApply SEM_TYPED_EFF. }
     unfold sem_val_typed. simpl.
     iDestruct "Hschn" as "#Hschn".
@@ -997,9 +949,11 @@ Section schan_security.
     set (d1 := (γ ↪ₛN (S n''; []) ∗ l_m'sim ↦ NONEV ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦ NONEV ∗ l_rchan ↦ₛ NONEV ∗  l_key ↦ₛ NONEV)%I).
     set (d2 := ((∃ m : vgG, ∃ n : nat, ∃ Hfm : (f_bij_nat m n < S (S n''))%nat, γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #n ∗ l_sim ↦□ SOMEV #n ∗
                                                                         l_auth ↦ₛ□ SOMEV (vgval
-                                                                                            ((g ^+(sc_coupling m (nat_to_fin Hfm)))%g))%V ∗  l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(f_bij_nat m n)))%I).
+                                                                                            ((g ^+(sc_coupling m (nat_to_fin Hfm)))%g))%V ∗
+                                                                        l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(f_bij_nat m n)))%I).
 
-    set (d3 := (∃ m : vgG, ∃ n : nat, γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #n ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(f_bij_nat m n))%I). 
+    set (d3 := (∃ m : vgG, ∃ n : nat, γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #n ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦□ SOMEV (vgval m) ∗
+                                    l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(f_bij_nat m n))%I). 
     iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
     iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; rewrite Nat2Z.id; iFrame|].
     { iPureIntro. auto. }
@@ -1036,7 +990,8 @@ Section schan_security.
       repeat (rewrite -> labels_r_cons in Hd').
       try (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]).
       eapply (submseteq_NoDup [csend'; crecv'; getKey'; srecv_r; ssend_r] _) in Hd'; [|solve_submseteq]. exact Hd'. }
-    iApply ((brel_exhaustion (f1 ((λ: "m", do: ssend_l "m"),(λ: <>, do: srecv_l bob))%V) (f2 ((λ: "m", do: ssend_r "m"),(λ: <>, do: srecv_r bob))%V) _ _ X' _ _ R _ _ _) with "[Hrelf1f2]"); [set_unfold; tauto | set_unfold; tauto | | ].
+    iApply ((brel_exhaustion (f1 ((λ: "m", do: ssend_l "m"),(λ: <>, do: srecv_l bob))%V) (f2 ((λ: "m", do: ssend_r "m"),(λ: <>, do: srecv_r bob))%V) _ _ X' _ _ R _ _ _)
+             with "[Hrelf1f2]"); [set_unfold; tauto | set_unfold; tauto | | ].
     {
       set clt := ([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], X').
       set cltheory := iLblSig_to_iLblThy [([lrecv'; lsend'; srecv_l; ssend_l] , [csend'; crecv'; getKey'; srecv_r; ssend_r] , X')].
@@ -1108,9 +1063,11 @@ Section schan_security.
         { iModIntro. iRight. iRight. unfold d3.  iExists m, c.
           iFrame "Hγ Hl_m'sim Hl_sim Hl_auth Hl_fchan Hl_rchan Hl_key". }
         set (M := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union autheff L))).
-        set (N := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++ (iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L)))).
+        set (N := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
+                   (iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L)))).
         brel_pures'.
-        iApply (brel_bind'' [ HandleCtx _ _ _ _ _ ; AppRCtx _] [AppRCtx _] (iLblSig_to_iLblThy keyeff) M N (𝟙%T) (kysnd_l bob) (kysnd_r bob)) ; [set_unfold ; tauto | set_unfold; tauto | |].
+        iApply (brel_bind'' [ HandleCtx _ _ _ _ _ ; AppRCtx _] [AppRCtx _] (iLblSig_to_iLblThy keyeff) M N (𝟙%T) (kysnd_l bob) (kysnd_r bob)) ;
+        [set_unfold ; tauto | set_unfold; tauto | |].
         { simpl. unfold M. unfold N. iApply to_iThy_le_intro'. 
           unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
           solve_submseteq. }
@@ -1254,8 +1211,9 @@ Section schan_security.
           set (M := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)]).
           set (N := [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
                   iLblSig_to_iLblThy (sem_row_union keyeff (sem_row_union autheff L)))...
-          iApply (brel_bind'' _ _  (iLblSig_to_iLblThy keyeff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] (([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], iThyBot)
-                                                                                                                                            :: iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)); [set_unfold; tauto | set_unfold; tauto | |].
+          iApply (brel_bind'' _ _  (iLblSig_to_iLblThy keyeff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)]
+                 (([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], iThyBot)
+                 :: iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) (𝟙%T) (kyrcv_l alice) (kyrcv_r alice)); [set_unfold; tauto | set_unfold; tauto | |].
          { iApply to_iThy_le_intro'. unfold M. unfold N. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
       iApply brel_wand.
       {  iDestruct "Hkeyrcv" as "#Hkeyrcv".
@@ -1270,7 +1228,9 @@ Section schan_security.
       { iApply "Hrel". iDestruct "HmQ" as "[Hsome Hnone]". iApply "Hnone".  }
       { iApply "IH". }
     (*key receive returned successfully*)
-    - iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keyeff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ([([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++ iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)).
+    - iApply (brel_bind'' _ _ (iLblSig_to_iLblThy keyeff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)]
+                ([([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
+                 iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (kysnd_l alice) (kysnd_r alice)).
       1,2: set_unfold; tauto. 
       { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. } 
       iApply brel_wand.
@@ -1308,8 +1268,9 @@ Section schan_security.
          iApply brel_na_close. iFrame.
          iSplitL.
          { iModIntro. iRight. iLeft. iFrame "#". }
-         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy autheff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ([([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
-                                                                                                                                              iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
+         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy autheff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)]
+                ([([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
+                iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
          1,2: set_unfold; tauto.
          { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
          
@@ -1350,8 +1311,9 @@ Section schan_security.
          iApply brel_na_close. iFrame.
          iSplitL.
          { iModIntro. iRight. iRight. iFrame "#". iFrame. }
-         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy autheff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ([([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
-                                                                                                                                              iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
+         iApply (brel_bind'' _ _  (iLblSig_to_iLblThy autheff)  [([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)]
+                ([([lrecv'; lsend'; srecv_l; ssend_l], [csend'; crecv'; getKey'; srecv_r; ssend_r], @iThyBot Σ)] ++
+                iLblSig_to_iLblThy (sem_row_union autheff (sem_row_union keyeff L))) 𝟙%T (arcv_l bob) (arcv_r bob)).
          1,2 : set_unfold; tauto.
          { iApply to_iThy_le_intro'. unfold sem_row_union. repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app). solve_submseteq. }
          
