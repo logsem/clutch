@@ -327,7 +327,6 @@ Proof.
   apply tc_eq_fill in H0. rewrite <- H0. rewrite -> H3 in H4.
   rewrite envs_simple_replace_sound //; simpl.
   iDestruct "Hi" as "[Hl Hclose]".
-  About brel_store_r.
   iApply (brel_store_r E L R eₛ K l v' v with "Hl").
   iIntros "Hl". iApply H4. iApply "Hclose". auto.
 Qed.
@@ -389,8 +388,7 @@ Tactic Notation "brel_alloc_l" simple_intropattern(l) "as" constr(Hl) :=
   lazymatch goal with
   | |- envs_entails _ (brel _ _ _ _ _ ) =>
       eapply tac_brel_alloc_l;
-      [ match goal with |- IntoCtx ?e _ _ => idtac "eₛ is:" e end;
-        tc_solve || fail "no reference allocation found in the goal"
+      [ tc_solve || fail "no reference allocation found in the goal"
       | tc_solve (*later envs *)
       | simpl; iIntros (l) Hl (* new goal *)
       ]
@@ -476,34 +474,32 @@ Tactic Notation "brel_effect_r" simple_intropattern(l) "as" constr(Hl) :=
 
 
 (*tape allocation requires all invariant namespaces to be closed*)
-Lemma tac_brel_alloctape_l `{!probblazeRGS Σ} K Δ Δ' eₛ eₜ N z L R:
+Lemma tac_brel_alloctape_l `{!probblazeRGS Σ} E K Δ Δ' eₛ eₜ N z L R:
   TCEq N (Z.to_nat z) ->
   IntoCtx eₛ (TCEq (AllocTape #z)) K ->
   MaybeIntoLaterNEnvs 1 Δ Δ' ->
   (envs_entails Δ' (∀ (α : loc),
-      (α ↪N (N; []) -∗ brel ⊤ (fill K (of_val #lbl:α)) eₜ L R))) ->
-  envs_entails Δ (brel ⊤ eₛ eₜ L R).
+      (α ↪N (N; []) -∗ brel E (fill K (of_val #lbl:α)) eₜ L R))) ->
+  envs_entails Δ (brel E eₛ eₜ L R).
 Proof.
   rewrite envs_entails_unseal.
   iIntros (????) "Hi".
   rewrite into_laterN_env_sound /=.
   apply tc_eq_fill in H0. rewrite <- H0.
-  About brel_alloctape_l.
   iApply (brel_alloctape_l K N z eₜ L R).
   iModIntro. iApply H2. auto.
 Qed.
 
-Lemma tac_brel_alloctape_r `{!probblazeRGS Σ} K Δ eₛ eₜ N z L R:
+Lemma tac_brel_alloctape_r `{!probblazeRGS Σ} E K Δ eₛ eₜ N z L R:
   TCEq N (Z.to_nat z) ->
   IntoCtx eₜ (TCEq (AllocTape #z)) K ->
   (envs_entails Δ (∀ (α : loc),
-    α ↪ₛ (N; []) -∗ brel ⊤ eₛ (fill K (of_val #lbl:α)) L R)) ->
-  envs_entails Δ (brel ⊤ eₛ eₜ L R).
+    α ↪ₛ (N; []) -∗ brel E eₛ (fill K (of_val #lbl:α)) L R)) ->
+  envs_entails Δ (brel E eₛ eₜ L R).
 Proof.
   rewrite envs_entails_unseal.
   iIntros (???) "Hi".
   apply tc_eq_fill in H0. rewrite <- H0.
-  About brel_alloctape_r.
   iApply (brel_alloctape_r K N z eₛ L R).
   iApply H1. auto.
 Qed.
@@ -573,7 +569,6 @@ Proof.
   rewrite <- H0. rewrite -> H4 in H5.
   rewrite envs_simple_replace_sound //; simpl.
   iDestruct "Hi" as "[Hl Hclose]".
-  About brel_rand_r.
   iApply (brel_rand_r E K α N z n ns eₛ L R with "Hl").
   iIntros "Hα". iApply H5. iApply "Hclose". auto.
 Qed.

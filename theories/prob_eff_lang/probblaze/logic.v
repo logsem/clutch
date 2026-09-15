@@ -3409,10 +3409,10 @@ End brel_effect_rules.
 Section brel_probabilistic_rules.
   Context `{!probblazeRGS Σ}.
 
-  Lemma brel_alloctape_r K N z t X R :
+  Lemma brel_alloctape_r K N z t X R E :
     TCEq N (Z.to_nat z) →
-    (∀ α : loc, α ↪ₛ (N; []) -∗ BREL t ≤ fill K (of_val #lbl:α) <|X|> {{R}})%I
-    ⊢ BREL t ≤ fill K (alloc #z) <|X|> {{R}}.
+    (∀ α : loc, α ↪ₛ (N; []) -∗ BREL t ≤ fill K (of_val #lbl:α) @ E <|X|> {{R}})%I
+    ⊢ BREL t ≤ fill K (alloc #z) @ E <|X|> {{R}}.
   Proof.
     iIntros (?) "Hrel #Hvalid Hdistinct".
     iApply rel_alloctape_r. 
@@ -3420,10 +3420,10 @@ Section brel_probabilistic_rules.
     by iApply ("Hrel" with "[$][$]").
   Qed.    
 
-  Lemma brel_alloctape_l K N z t X R :
+  Lemma brel_alloctape_l K N z t X R E :
     TCEq N (Z.to_nat z) →
-    (▷ (∀ α : loc, α ↪N (N; []) -∗ BREL fill K (of_val #lbl:α) ≤ t <|X|> {{R}}))%I
-    ⊢ BREL fill K (alloc #z) ≤ t <|X|> {{R}}.
+    (▷ (∀ α : loc, α ↪N (N; []) -∗ BREL fill K (of_val #lbl:α) ≤ t @ E <|X|> {{R}}))%I
+    ⊢ BREL fill K (alloc #z) ≤ t @ E <|X|> {{R}}.
   Proof.
     iIntros (?) "Hrel #Hvalid Hdistinct".
     iApply rel_alloctape_l. 
