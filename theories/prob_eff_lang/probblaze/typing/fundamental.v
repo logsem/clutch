@@ -4,8 +4,8 @@ From clutch.prelude Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import metatheory notation syntax semantics sem_judgement sem_def sem_operators.
 From clutch.prob_eff_lang.probblaze Require Import primitive_laws compatibility.
 From clutch.prob_eff_lang.probblaze Require Import sem_env.
-From clutch.prob_eff_lang.probblaze Require Import types.
-From clutch.prob_eff_lang.probblaze Require Import interp logic.
+From clutch.prob_eff_lang.probblaze Require Import logic.
+From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental_subtyping.
 
 Section fundamental.
   Context `{!probblazeRGS Σ}.
@@ -182,7 +182,7 @@ Proof.
          argument of [sem_typed_pair_gen] via [row_type_sub_sound]. *)
       push_lr.
       iApply sem_typed_pair_gen;
-        [by eapply interp.row_type_sub_sound|apply fundamental in Ht1 as Ht|apply fundamental in Ht2 as Ht];
+        [by eapply row_type_sub_sound|apply fundamental in Ht1 as Ht|apply fundamental in Ht2 as Ht];
         iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ Hδ).
     + (* Fst_typed *) push_lr. iApply sem_typed_fst_expr. apply fundamental in Ht.
       iPoseProof Ht as "Ht". by iApply "Ht". 
@@ -240,8 +240,10 @@ Proof.
       iApply (sem_typed_app_gen (interp._ty η μ δ τ ξ') (interp._row η μ δ ρ' ξ') (interp._row η μ δ ρ ξ') (interp._row η μ δ ρ'' ξ') ).
       { by eapply row_type_sub_sound in H1. }
       { by eapply row_env_sub_sound in H2. }
-      { eapply row_le_sound in H. by iApply H. }
-      { eapply row_le_sound in H0. by iApply H0. }
+      { iPoseProof (fundamental_row _ _ _ b _) as "Hrow".
+        iDestruct ("Hrow" with "HD") as "(_&$)". }
+      { iPoseProof (fundamental_row _ _ _ b _) as "Hrow".
+        iDestruct ("Hrow" with "HD") as "(_&$)". }
       { apply fundamental in Ht2.
         iPoseProof Ht2 as "Ht2".
         by iApply "Ht2". }
@@ -423,7 +425,7 @@ Proof.
       rewrite !resolve_map_lookup H0 /=.
       iApply (sem_typed_type_cong _ _ _ _ _ _ _
                 (interp.ty_subst_single η μ δ ξ' κ τ)).
-      pose proof (interp.mode_env_sound m Γ2 H η μ δ ξ') as Hms.
+      pose proof (mode_env_sound m Γ2 H η μ δ ξ') as Hms.
       iApply (@sem_typed_do _ _ (interp._mode μ m) (interp._ty η μ δ τ ξ')
                 _ (δ !!! s)
                 (λ α, interp._ty (α :: η) μ δ ι ξ')
@@ -510,7 +512,7 @@ Proof.
                         ]-> Autosubst_Classes.subst
                               (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ')
                        ξ')
-                    ≡ sem_types.sem_ty_mbang OS
+                    ≡ sem_types.sem_ty_mbang syntax.OS
                 (sem_types.sem_ty_arr
                    (sem_row.sem_row_cons (interp._eff_sig η μ δ σ ξ')
                       (interp._row η μ δ ρ0 ξ'))
@@ -520,7 +522,7 @@ Proof.
                         ]-> Autosubst_Classes.subst
                               (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ')
                        ξ')
-              with (sem_types.sem_ty_mbang OS
+              with (sem_types.sem_ty_mbang syntax.OS
                 (sem_types.sem_ty_arr
                    (interp._row (α :: η) μ δ
                       (rename_type_row (Autosubst_Basics.lift 1%nat) ρ) ξ')
@@ -540,7 +542,7 @@ Proof.
           iEval (cbn [ctx_insert ctx_append fmap list_fmap]) in "Ht".
           destruct y as [|sy]; simpl; rewrite -fmap_app; iApply "Ht". }
         Unshelve.
-        all: repeat case_match; simpl in *;
+        all: try done; repeat case_match; simpl in *;
           first [ exact I | congruence | apply ctx_dom_env_dom; assumption ].
       * (* DeepHandle MS *)
         rewrite !lbl_resolve_handle_name.
@@ -554,7 +556,7 @@ Proof.
         iApply (sem_typed_deep_handler_MS (δ !!! s)
                   (λ α, interp._ty (α :: η) μ δ ι ξ')
                   (λ α, interp._ty (α :: η) μ δ κ ξ')
-                  MS
+                  syntax.MS
                   (interp._ty η μ δ τ ξ')
                   (interp._ty η μ δ τ' ξ')
                   (interp._eff_sig η μ δ σ ξ')
@@ -584,7 +586,7 @@ Proof.
                         ]-> Autosubst_Classes.subst
                               (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ')
                        ξ')
-                    ≡ sem_types.sem_ty_mbang MS
+                    ≡ sem_types.sem_ty_mbang syntax.MS
                 (sem_types.sem_ty_arr
                    (sem_row.sem_row_cons (interp._eff_sig η μ δ σ ξ')
                       (interp._row η μ δ ρ0 ξ'))
@@ -594,7 +596,7 @@ Proof.
                         ]-> Autosubst_Classes.subst
                               (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ')
                        ξ')
-              with (sem_types.sem_ty_mbang MS
+              with (sem_types.sem_ty_mbang syntax.MS
                 (sem_types.sem_ty_arr
                    (interp._row (α :: η) μ δ
                       (rename_type_row (Autosubst_Basics.lift 1%nat) ρ) ξ')
@@ -670,10 +672,10 @@ Proof.
                         ]-> Autosubst_Classes.subst
                               (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ)
                        ξ')
-                    ≡ sem_types.sem_ty_mbang OS
+                    ≡ sem_types.sem_ty_mbang syntax.OS
                 (sem_types.sem_ty_arr
                    (sem_row.sem_row_cons
-                      (sem_sig.sem_sig_flip_mbang OS
+                      (sem_sig.sem_sig_flip_mbang syntax.OS
                          (sem_sig.sem_sig_eff (δ !!! s).1 (δ !!! s).2
                             (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ ι ξ')
                             (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ κ ξ')))
@@ -684,7 +686,7 @@ Proof.
                         ]-> Autosubst_Classes.subst
                               (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ)
                        ξ')
-              with (sem_types.sem_ty_mbang OS
+              with (sem_types.sem_ty_mbang syntax.OS
                 (sem_types.sem_ty_arr
                    (interp._row (α :: η) μ δ
                       (rename_type_row (Autosubst_Basics.lift 1%nat) ρ') ξ')
@@ -718,7 +720,7 @@ Proof.
         iApply (sem_typed_shallow_handler_MS (δ !!! s)
                   (λ α, interp._ty (α :: η) μ δ ι ξ')
                   (λ α, interp._ty (α :: η) μ δ κ ξ')
-                  MS
+                  syntax.MS
                   (interp._ty η μ δ τ ξ')
                   (interp._ty η μ δ τ' ξ')
                   (interp._eff_sig η μ δ σ ξ')
@@ -748,10 +750,10 @@ Proof.
                         ]-> Autosubst_Classes.subst
                               (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ)
                        ξ')
-                    ≡ sem_types.sem_ty_mbang MS
+                    ≡ sem_types.sem_ty_mbang syntax.MS
                 (sem_types.sem_ty_arr
                    (sem_row.sem_row_cons
-                      (sem_sig.sem_sig_flip_mbang MS
+                      (sem_sig.sem_sig_flip_mbang syntax.MS
                          (sem_sig.sem_sig_eff (δ !!! s).1 (δ !!! s).2
                             (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ ι ξ')
                             (λ α0 : sem_ty Σ, interp._ty (α0 :: η) μ δ κ ξ')))
@@ -762,7 +764,7 @@ Proof.
                         ]-> Autosubst_Classes.subst
                               (Autosubst_Classes.ren (Autosubst_Basics.lift 1%nat)) τ)
                        ξ')
-              with (sem_types.sem_ty_mbang MS
+              with (sem_types.sem_ty_mbang syntax.MS
                 (sem_types.sem_ty_arr
                    (interp._row (α :: η) μ δ
                       (rename_type_row (Autosubst_Basics.lift 1%nat) ρ') ξ')
@@ -803,8 +805,8 @@ Proof.
                 (interp._ty η μ δ τ ξ') (interp._ty η μ δ τ' ξ')).
       * iApply (ctx_le_sound _ _ _ H with "HD").
       * iApply (ctx_le_sound _ _ _ H0 with "HD").
-      * iApply (row_le_sound _ _ _ _ _ _ _ _ H1 with "HD").
-      * iApply (ty_le_sound _ _ _ _ _ _ _ H2 with "HD").
+      * iPoseProof (fundamental_row _ _ _ b _ with "HD") as "(_&$)".
+      * by iApply (fundamental_type with "HD").
       * apply fundamental in Ht. iPoseProof Ht as "Ht".
         iApply ("Ht" $! η μ δ ξ' Hδ).
     + (* Contraction_typed *)
@@ -855,11 +857,11 @@ Proof.
          ::? []] matches the body shape of [sem_oval_typed_ufun_rec]. *)
       rewrite /sem_val_typed /=.
       iAssert (sem_oval_typed [] (rec: f x := e) (rec: f x := e)
-        (sem_types.sem_ty_mbang MS (sem_types.sem_ty_arr
+        (sem_types.sem_ty_mbang syntax.MS (sem_types.sem_ty_arr
            (interp._row η μ δ ρ ξ) (interp._ty η μ δ τ1 ξ)
            (interp._ty η μ δ τ2 ξ)))) as "#Hov".
       { iApply (@sem_oval_typed_ufun_rec _ _ (interp._ty η μ δ τ1 ξ)
-                  (interp._row η μ δ ρ ξ) (interp._ty η μ δ τ2 ξ) MS [] f x
+                  (interp._row η μ δ ρ ξ) (interp._ty η μ δ τ2 ξ) syntax.MS [] f x
                   e e _).
         { destruct x as [|s];
             [intros []|rewrite env_dom_nil; apply not_elem_of_nil]. }
@@ -976,6 +978,9 @@ Proof.
       rewrite /sem_oval_typed /tc_opaque.
       iModIntro. iIntros (vs) "Henv".
       iApply "H"; first done. by rewrite interp.ctx_mweaken.
+      Unshelve.
+      done.
 Qed.
 
 End fundamental.
+
