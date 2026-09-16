@@ -4,9 +4,9 @@ From clutch.prob_eff_lang.probblaze Require Import logic sem_types sem_sig sem_r
 Section aux_lemma.
   Context `{!probblazeRGS Σ}.
  Lemma arr_extend_D ρ' D η μ δ ξ : 
-     erase_ctx η μ δ ξ D -∗ distinct' (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)) -∗
+     erase_ctx δ ξ D -∗ distinct' (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)) -∗
      logic.valid (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)) -∗
-     erase_ctx η μ δ ξ (le.update_disj_ctx ρ' D).
+     erase_ctx δ ξ (le.update_disj_ctx ρ' D).
   Proof.
     iIntros "#HD #Hd #Hv".
     iDestruct (erase_ctx_row_to_disj_ctx η μ δ ξ ρ' with "[$Hv $Hd]")
@@ -30,8 +30,6 @@ Section aux_lemma.
     { iIntros (ρa Hca Haa).
       iDestruct ("Hrow" $! s ss1 js1 ρa with "[//] [//] [//]")
         as "(_ & _ & %Hfl & %Hfr)".
-      rewrite (labels_l_interp_row ρa η μ δ ξ) in Hfl.
-      rewrite (labels_r_interp_row ρa η μ δ ξ) in Hfr.
       iPureIntro; split; assumption. }
     iAssert (⌜∀ ρa, le.conc_sigs ρa ⊆ ss2 → le.abst_sigs ρa ⊆ js2 →
       (δ !!! s).1 ∉ row_labels_l ρa ξ δ
@@ -39,8 +37,6 @@ Section aux_lemma.
     { iIntros (ρa Hca Haa).
       iDestruct ("HD" $! s ss2 js2 ρa with "[//] [//] [//]")
         as "(_ & _ & %Hfl & %Hfr)".
-      rewrite (labels_l_interp_row ρa η μ δ ξ) in Hfl.
-      rewrite (labels_r_interp_row ρa η μ δ ξ) in Hfr.
       iPureIntro; split; assumption. }
     (* Ownership does not depend on [ρ0]; read it off [D] at the empty row. *)
     assert (Hc0 : le.conc_sigs RNil ⊆ ss2)
@@ -53,7 +49,6 @@ Section aux_lemma.
     iSplit; [iApply "Hown2"|].
     iSplit.
     - iPureIntro.
-      rewrite (labels_l_interp_row ρ0 η μ δ ξ).
       intros Hin. rewrite row_labels_l_split elem_of_app in Hin.
       destruct Hin as [Hn | Hvr].
       + rewrite /name_labels_l list_elem_of_fmap in Hn.
@@ -92,7 +87,6 @@ Section aux_lemma.
           destruct (Hm2 _ Hp1 Hp2) as [Hnl _].
           apply Hnl. cbn [row_labels_l]. exact Hl.
     - iPureIntro.
-      rewrite (labels_r_interp_row ρ0 η μ δ ξ).
       intros Hin. rewrite row_labels_r_split elem_of_app in Hin.
       destruct Hin as [Hn | Hvr].
       + rewrite /name_labels_r list_elem_of_fmap in Hn.
@@ -141,8 +135,7 @@ Section compatiblity.
    sem_ty_le D α α' -∗ sem_ty_le D β' β -∗ sem_sig_le D (SSig s α β) (SSig s α' β').
   Proof. 
     iIntros "#Hα #Hβ !# %%%% #HD".
-    iApply sig_le_eff; iIntros (αs) "!#"; [iApply "Hα"|iApply "Hβ"]; 
-      by iApply erase_ctx_extend_ty.
+    iApply sig_le_eff; iIntros (αs) "!#"; [by iApply "Hα"|by iApply "Hβ"].
   Qed. 
   
   Lemma row_le_RNil D b :
@@ -182,9 +175,9 @@ Section compatiblity.
     sem_row_le D b (RCons σ ρ) (RCons σ' ρ').
   Proof. 
     iIntros "#Hsig #Hrow %%%% !# #HD".
-    iDestruct ("Hsig" with "HD") as "(%Hsig&_)".
+    unshelve iDestruct ("Hsig" with "HD") as "(%Hsig&_)"; [done|done|].
     rewrite !sig_labels_eff_name in Hsig. 
-    iDestruct ("Hrow" with "HD") as "(%Hlabel&Hrow')".
+    unshelve iDestruct ("Hrow" with "HD") as "(%Hlabel&Hrow')"; [done|done|].
     destruct Hlabel as [Hll Hlr].
     iSplit.
     - iPureIntro; destruct b; try done; split.
@@ -203,9 +196,9 @@ Section compatiblity.
       sem_row_le D b (ρ1 ∪ᵣ ρ2)%ty (ρ1' ∪ᵣ ρ2')%ty.
   Proof. 
     iIntros "#Hrow1 #Hrow2 %%%% !# #HD".
-    iDestruct ("Hrow1" with "HD") as "(%Hl1&Hrow1')".
+    unshelve iDestruct ("Hrow1" with "HD") as "(%Hl1&Hrow1')"; [done|done|].
     destruct Hl1 as [Hll1 Hlr1].
-    iDestruct ("Hrow2" with "HD") as "(%Hl2&Hrow2')".
+    unshelve iDestruct ("Hrow2" with "HD") as "(%Hl2&Hrow2')"; [done|done|].
     destruct Hl2 as [Hll2 Hlr2].
     iSplit.
     - iPureIntro; destruct b; try done.
@@ -229,7 +222,7 @@ Section compatiblity.
     iSplit; first done.
     iDestruct ("HD" $! s ss js ρ with "[//] [//] [//]")
       as "(Hl1 & Hl2 & %Hnl & %Hnr)".
-    by iApply row_le_erase.
+    iApply row_le_erase; by rewrite ?labels_l_interp_row ?labels_r_interp_row.
   Qed. 
 
   Lemma row_le_RTrans D b ρ1 ρ2 ρ3 :
@@ -238,8 +231,8 @@ Section compatiblity.
     sem_row_le D b ρ1 ρ3.
   Proof. 
     iIntros "#Hrow1 #Hrow2 %%%% !# #HD".
-    iDestruct ("Hrow1" with "HD") as "(%Hl1&Hrow1')".
-    iDestruct ("Hrow2" with "HD") as "(%Hl2&Hrow2')".
+    unshelve iDestruct ("Hrow1" with "HD") as "(%Hl1&Hrow1')"; [done|done|].
+    unshelve iDestruct ("Hrow2" with "HD") as "(%Hl2&Hrow2')"; [done|done|].
     iSplit.
     - iPureIntro; destruct b; first done.
       destruct Hl1 as [Hll1 Hlr1].
@@ -310,7 +303,7 @@ Section compatiblity.
     sem_row_le D b (¡[ m'] ρ') (¡[ m] ρ).
   Proof. 
     iIntros "#Hmode #Hrow %%%% !# #HD".
-    iDestruct ("Hrow" with "HD") as "(%Hl&Hrow')".
+    unshelve iDestruct ("Hrow" with "HD") as "(%Hl&Hrow')"; [done|done|].
     iSplit.
     - iPureIntro; destruct b; first done.
       destruct Hl as [Hll Hlr].
@@ -343,14 +336,14 @@ Section compatiblity.
     sem_ty_le D α β -∗
     sem_ty_le D (∀T: α) (∀T: β).
   Proof. 
-    iIntros "#Hty %%%% !# #HD"; iApply ty_le_type_forall; iIntros (α'); iApply "Hty"; by iApply erase_ctx_extend_ty.
+    iIntros "#Hty %%%% !# #HD"; iApply ty_le_type_forall; iIntros (α'); by iApply "Hty".
   Qed. 
 
   Lemma ty_le_MForall D α β :
     sem_ty_le D α β -∗
     sem_ty_le D (∀M: α) (∀M: β).
   Proof. 
-    iIntros "#Hty %%%% !# #HD"; iApply ty_le_mode_forall; iIntros (m); iApply "Hty"; by iApply erase_ctx_extend_mode.
+    iIntros "#Hty %%%% !# #HD"; iApply ty_le_mode_forall; iIntros (m); by iApply "Hty".
   Qed. 
 
   Lemma ty_le_TBangNat D m :

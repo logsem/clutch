@@ -1307,7 +1307,7 @@ Section erase_ctx.
      fresh for [ρ0].  This is precisely the premise bundle of
      [sem_row.row_le_erase] applied at [(δ!!!s).1]/[(δ!!!s).2]/[ρ0],
      uniformly over all interpretation environments [η μ ξ]. *)
-  Definition erase_ctx η μ δ ξ (D : le.disj_ctx) : iProp Σ :=
+  Definition erase_ctx δ ξ (D : le.disj_ctx) : iProp Σ :=
     □ (∀ (s : eff_name) (ss : gmultiset eff_name) (js : gset nat)
          (ρ0 : row),
           ⌜ D !! s = Some (ss, js) ⌝ -∗
@@ -1316,14 +1316,14 @@ Section erase_ctx.
           is_label (δ !!! s).1 DfracDiscarded ∗
           spec_labels_frag (δ !!! s).2 DfracDiscarded ∗
           ⌜ (δ !!! s).1
-              ∉ labels_l (iLblSig_to_iLblThy (interp._row η μ δ ρ0 ξ)) ⌝ ∗
+              ∉ row_labels_l ρ0 ξ δ ⌝ ∗
           ⌜ (δ !!! s).2
-              ∉ labels_r (iLblSig_to_iLblThy (interp._row η μ δ ρ0 ξ)) ⌝)%I.
+              ∉ @row_labels_r Σ ρ0 ξ δ ⌝)%I.
 
-  Global Instance erase_ctx_persistent D η μ δ ξ : Persistent (erase_ctx η μ δ ξ D).
+  Global Instance erase_ctx_persistent D δ ξ : Persistent (erase_ctx δ ξ D).
   Proof. apply _. Qed.
 
-  Lemma erase_ctx_empty η μ δ ξ : ⊢ erase_ctx η μ δ ξ ∅.
+  Lemma erase_ctx_empty δ ξ : ⊢ erase_ctx δ ξ ∅.
   Proof.
     rewrite /erase_ctx. iIntros "!#" (s ss js ρ0 Hlk).
     rewrite lookup_empty in Hlk. done.
@@ -1331,26 +1331,26 @@ Section erase_ctx.
 
 
   (* NOTE: used to prove TForallT *)
-  Lemma erase_ctx_extend_ty η μ δ ξ D α :
-    ⊢ erase_ctx η μ δ ξ D -∗ erase_ctx (α :: η) μ δ ξ D.
-  Proof.
-    iIntros "#HD !# % % % % % % %".
-    iSpecialize ("HD" $! _ _ _ _).
-    rewrite !labels_r_interp_row.
-    rewrite !labels_l_interp_row.
-    by iApply "HD".
-  Qed. 
-
-  (* NOTE: used to prove TForallM *)
-  Lemma erase_ctx_extend_mode η μ δ ξ D m :
-    ⊢ erase_ctx η μ δ ξ D -∗ erase_ctx η (m :: μ) δ ξ D.
-  Proof.
-    iIntros "#HD !# % % % % % % %".
-    iSpecialize ("HD" $! _ _ _ _).
-    rewrite !labels_r_interp_row.
-    rewrite !labels_l_interp_row.
-    by iApply "HD".
-  Qed. 
+  (* Lemma erase_ctx_extend_ty η μ δ ξ D α :
+       ⊢ erase_ctx η μ δ ξ D -∗ erase_ctx (α :: η) μ δ ξ D.
+     Proof.
+       iIntros "#HD !# % % % % % % %".
+       iSpecialize ("HD" $! _ _ _ _).
+       rewrite !labels_r_interp_row.
+       rewrite !labels_l_interp_row.
+       by iApply "HD".
+     Qed. 
+     
+     (* NOTE: used to prove TForallM *)
+     Lemma erase_ctx_extend_mode η μ δ ξ D m :
+       ⊢ erase_ctx η μ δ ξ D -∗ erase_ctx η (m :: μ) δ ξ D.
+     Proof.
+       iIntros "#HD !# % % % % % % %".
+       iSpecialize ("HD" $! _ _ _ _).
+       rewrite !labels_r_interp_row.
+       rewrite !labels_l_interp_row.
+       by iApply "HD".
+     Qed.  *)
 
   (* ------------------------------------------------------------------ *)
   (* THE PHASE-1 LEMMA: discharge [erase_ctx (row_to_disj_ctx ρ)] from
@@ -1360,7 +1360,7 @@ Section erase_ctx.
   Lemma erase_ctx_row_to_disj_ctx η μ δ ξ (ρ : row) :
     (logic.valid (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ))
      ∗ ⌜ logic.distinct (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ)) ⌝)
-    -∗ erase_ctx η μ δ ξ (le.row_to_disj_ctx ρ).
+    -∗ erase_ctx δ ξ (le.row_to_disj_ctx ρ).
   Proof.
     iIntros "#Hvd". rewrite /erase_ctx.
     iIntros "!#" (s ss js ρ0 Hlk Hc Ha).
@@ -1379,10 +1379,8 @@ Section erase_ctx.
       by apply elem_of_row_labels_r_conc.
     - (* FRESHNESS, both sides, via [fresh_left]/[fresh_right] *)
       iPureIntro. split.
-      + rewrite (labels_l_interp_row ρ0 η μ δ ξ).
-        by eapply (fresh_left ρ ρ0 ξ δ s).
-      + rewrite (labels_r_interp_row ρ0 η μ δ ξ).
-        by eapply (fresh_right ρ ρ0 ξ δ s).
+      + by eapply (fresh_left ρ ρ0 ξ δ s).
+      + by eapply (fresh_right ρ ρ0 ξ δ s).
   Qed.
 
 End erase_ctx.
@@ -1395,17 +1393,16 @@ Section semantic_subtyping.
 
  Definition label_mono_row (b : bool) ρ ρ' δ ξ := if b then True else @row_labels_l Σ ρ ξ δ ⊆+ row_labels_l ρ' ξ δ ∧ row_labels_r ρ ξ δ ⊆+ row_labels_r ρ' ξ δ.
  Definition sem_sig_le D σ σ' : iProp Σ :=
-   □ (∀ η μ δ ξ, erase_ctx η μ δ ξ D -∗
+   □ (∀ η μ δ ξ, erase_ctx δ ξ D -∗
                  interp._eff_sig η μ δ σ ξ ≤ₛ interp._eff_sig η μ δ σ' ξ).
- (* Why is the boolean not used? *)
  Definition sem_row_le D (b : bool) ρ ρ' : iProp Σ :=
-   □ (∀ η μ δ ξ, erase_ctx η μ δ ξ D -∗
+   □ (∀ η μ δ ξ, erase_ctx δ ξ D -∗
                  ⌜ label_mono_row b ρ ρ' δ ξ ⌝ ∗ 
                  (interp._row η μ δ ρ ξ ≤ᵣ interp._row η μ δ ρ' ξ)).
  Definition sem_ty_le D α β : iProp Σ :=
-   □ (∀ η μ δ ξ, erase_ctx η μ δ ξ D -∗
+   □ (∀ η μ δ ξ, erase_ctx δ ξ D -∗
                  interp._ty η μ δ α ξ ≤ₜ interp._ty η μ δ β ξ).
  Definition sem_env_le D Γ Γ' : iProp Σ :=
-   □ (∀ η μ δ ξ, erase_ctx η μ δ ξ D -∗
+   □ (∀ η μ δ ξ, erase_ctx δ ξ D -∗
                  interp._env η μ δ ξ Γ ≤ₑ interp._env η μ δ ξ Γ').
 End semantic_subtyping.
