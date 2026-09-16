@@ -119,7 +119,7 @@ Proof.
 Qed.
 
 Lemma disjointness_ctx_sem_jugdment Γ1 e e' η μ δ ρ ξ τ Γ2 :
- □(erase_ctx η μ δ ξ (le.row_to_disj_ctx ρ) -∗ sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2) -∗
+ □(erase_ctx δ ξ (le.row_to_disj_ctx ρ) -∗ sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2) -∗
   sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2.
 Proof.
   iIntros "#H".
