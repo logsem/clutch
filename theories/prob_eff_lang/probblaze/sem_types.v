@@ -272,39 +272,32 @@ Section types_properties.
   Global Instance sem_ty_ref_cpy_proper : Proper ((≡) ==> (≡)) (@sem_ty_ref_cpy Σ _).
   Proof. apply ne_proper. apply _. Qed.
 
-  (* Global Instance sem_ty_type_forall_proper :
-       Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_type_forall Σ).
-     Proof. 
-       intros ?????. unfold sem_ty_type_forall; repeat f_equiv. 
-       by do 3 apply non_dep_fun_equiv. 
-     Qed.
-     
-     Global Instance sem_ty_row_forall_proper :
-       Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_row_forall Σ).
-     Proof. 
-       intros ?????. unfold sem_ty_row_forall; repeat f_equiv. 
-       by do 3 apply non_dep_fun_equiv. 
-     Qed.
-     
-     Global Instance sem_ty_mode_forall_proper :
-       Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_mode_forall Σ).
-     Proof. 
-       intros ?????. unfold sem_ty_mode_forall; repeat f_equiv. 
-       by do 3 apply non_dep_fun_equiv. 
-     Qed. *)
+  Global Instance sem_ty_mode_forall_proper :
+    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_mode_forall Σ _).
+  Proof.
+    intros C C' HC. apply equiv_dist=> n.
+    apply sem_ty_type_forall_mode_ne=> m. by apply equiv_dist.
+  Qed.
+  Global Instance sem_ty_type_forall_proper :
+    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_type_forall Σ _).
+  Proof.
+    intros C C' HC. apply equiv_dist=> n.
+    apply sem_ty_type_forall_ne=> τ'. by apply equiv_dist.
+  Qed.
+  Global Instance sem_ty_row_forall_proper :
+    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_row_forall Σ _).
+  Proof.
+    intros C C' HC. apply equiv_dist=> n.
+    apply sem_ty_type_forall_row_ne=> ρ. by apply equiv_dist.
+  Qed.
+  Global Instance sem_ty_rec_proper : Proper ((≡) ==> (≡)) (@sem_ty_rec Σ).
+  Proof. apply ne_proper. apply _. Qed.
 
   Global Instance sem_ty_exist_proper :
     Proper (pointwise_relation _ (≡) ==>(≡)) sem_ty_exists.
   Proof. 
     intros ?????. unfold sem_ty_exists; repeat f_equiv.
     by do 3 apply non_dep_fun_equiv.
-  Qed.
-
-  Global Instance sem_ty_rec_proper :
-    Proper (pointwise_relation _ (≡) ==>(≡)) (@sem_ty_rec Σ).
-  Proof.
-    intros C1 C2 HA. apply equiv_dist=> n.
-    apply sem_ty_rec_ne=> A. by apply equiv_dist.
   Qed.
 
   Global Instance sem_ty_mbang_persistent τ :

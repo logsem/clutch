@@ -247,36 +247,6 @@ Section interp_subst.
   (* available; we package the [≡] versions here (via [equiv_dist]) so    *)
   (* that [f_equiv] can drive the congruence steps below.                 *)
 
-  Local Instance mode_forall_proper :
-    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_mode_forall Σ _).
-  Proof.
-    intros C C' HC. apply equiv_dist=> n.
-    apply sem_ty_type_forall_mode_ne=> m. by apply equiv_dist.
-  Qed.
-  Local Instance type_forall_proper :
-    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_type_forall Σ _).
-  Proof.
-    intros C C' HC. apply equiv_dist=> n.
-    apply sem_ty_type_forall_ne=> τ'. by apply equiv_dist.
-  Qed.
-  Local Instance row_forall_proper :
-    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_row_forall Σ _).
-  Proof.
-    intros C C' HC. apply equiv_dist=> n.
-    apply sem_ty_type_forall_row_ne=> ρ. by apply equiv_dist.
-  Qed.
-  Local Instance rec_proper : Proper ((≡) ==> (≡)) (@sem_ty_rec Σ).
-  Proof. apply ne_proper. apply _. Qed.
-  Local Instance row_union_proper :
-    Proper ((≡) ==> (≡) ==> (≡)) (@sem_row_union Σ).
-  Proof. apply ne_proper_2. solve_proper. Qed.
-  Local Instance sig_eff_proper op1 op2 :
-    Proper (pointwise_relation _ (≡) ==> pointwise_relation _ (≡) ==> (≡))
-      (@sem_sig_eff Σ op1 op2).
-  Proof.
-    intros A A' HA B B' HB. apply equiv_dist=> n.
-    apply sem_sig_eff_ne; intros τ'; by apply equiv_dist.
-  Qed.
 
   (* Extending the type-env [η] on both sides by the same [τ'] turns a    *)
   (* reindexing [f] into [upren f].                                       *)

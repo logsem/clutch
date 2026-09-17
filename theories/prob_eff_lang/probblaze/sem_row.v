@@ -764,6 +764,11 @@ Section sem_row_union.
     - exact Heq2.
   Qed.
 
+  Global Instance sem_ty_row_union_proper :
+    Proper ((≡) ==> (≡) ==> (≡)) (sem_row_union).
+  Proof. apply ne_proper_2. solve_proper. Qed.
+
+
   (* [valid]/[distinct] decompose over [iLblThy] append. *)
   Lemma valid_app (L M : iLblThy Σ) :
     logic.valid (L ++ M) ⊣⊢ logic.valid L ∗ logic.valid M.
@@ -843,3 +848,4 @@ Section sem_row_union.
   Qed.
 
 End sem_row_union.
+

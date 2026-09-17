@@ -25,6 +25,7 @@ Next Obligation.
   iIntros "H". iApply "HΦ". by iApply "HB".
 Qed.
 
+
 Global Instance sem_sig_bottom {Σ} op1 op2 : Bottom (sem_sig Σ) := @sem_sig_eff Σ op1 op2 (λ _, (λ v1 v2, False)%I) (λ _, (λ v1 v2, True)%I).
 
 (* Flip-Bang Signature *)
@@ -110,6 +111,15 @@ Qed.
 Global Instance sem_sig_eff_alt_ne {Σ}:
   NonExpansive (@sem_sig_eff Σ).
 Proof. iIntros (???????). by f_equiv. Qed.
+
+Global Instance sem_sig_eff_proper {Σ} op1 op2 :
+  Proper (pointwise_relation _ (≡) ==> pointwise_relation _ (≡) ==> (≡))
+    (@sem_sig_eff Σ op1 op2).
+Proof.
+  intros A A' HA B B' HB. apply equiv_dist=> n.
+  apply sem_sig_eff_ne; intros τ'; by apply equiv_dist.
+Qed.
+
 
 (* Global Instance sem_sig_eff_pers_mono_prot {Σ} {αs : sem_ty Σ} A B :
      PersMonoProt (@sem_sig_eff Σ αs A B).
