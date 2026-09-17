@@ -1,11 +1,16 @@
-From iris.base_logic Require Export invariants.
+From iris.base_logic Require Export invariants. 
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext. 
 From clutch.prob_eff_lang.probblaze Require Import metatheory notation syntax semantics sem_judgement sem_def sem_operators.
 From clutch.prob_eff_lang.probblaze Require Import primitive_laws compatibility.
 From clutch.prob_eff_lang.probblaze Require Import sem_env.
+<<<<<<< HEAD
 From clutch.prob_eff_lang.probblaze Require Import logic.
 From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental_subtyping.
+=======
+From clutch.prob_eff_lang.probblaze Require Import types.
+From clutch.prob_eff_lang.probblaze Require Import interp logic compatibility_interp.
+>>>>>>> 8e817f47 (WIP: refactoring the fundamental lemma)
 
 Section fundamental.
   Context `{!probblazeRGS Σ}.
@@ -143,19 +148,6 @@ Proof.
   iEval (rewrite /sem_val_typed /tc_opaque) in "H'". iApply "H'".
 Qed.
 
-Lemma syn_typed_binop_typed_binop op ι κ τ η μ δ ξ:
-  syn_typed_bin_op op ι κ τ → typed_bin_op op (interp._ty η μ δ ι ξ) (interp._ty η μ δ κ ξ) (interp._ty η μ δ τ ξ).
-Proof.
-  intros []; constructor.
-Qed.
-
-Lemma syn_typed_unop_typed_unop op κ τ η μ δ ξ:
-  syn_typed_un_op op κ τ → typed_un_op op (interp._ty η μ δ κ ξ) (interp._ty η μ δ τ ξ).
-Proof.
-  intros []; constructor.
-Qed.
-
-
 Theorem fundamental Δ Γ1 e ρ τ Γ2 :
   Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2 → ⊢ 〈Δ;Γ1〉 ⊨ₜ e ≤log≤ e : ρ : τ ⫤ Γ2
   with fundamental_val v τ :
@@ -164,33 +156,33 @@ Theorem fundamental Δ Γ1 e ρ τ Γ2 :
     Δ ..| Γ ⊢ₚ e : τ → ⊢ bin_log_pure_related Δ Γ e e τ.
 Proof.
   - intros Ht. destruct Ht; iIntros (η μ δ ξ' Hδ).
-    + (* Var_typed *) rewrite !lbl_resolve_var. iApply sem_typed_var. 
-    + (* BinOp *) rewrite !lbl_resolve_binop. iApply sem_typed_bin_op; [by apply syn_typed_binop_typed_binop| |].
+    + (* Var_typed *) iApply interp_c_var. 
+    + (* BinOp *)
+      iApply interp_c_binop; [eapply H | |].
       1 : apply fundamental in Ht1; iPoseProof Ht1 as "Ht".
       2 : apply fundamental in Ht2; iPoseProof Ht2 as "Ht".
       all : try by iApply "Ht". 
-    + rewrite !lbl_resolve_unop. iApply sem_typed_un_op; [by apply syn_typed_unop_typed_unop|].
+    + iApply interp_c_unop;[eapply H |].
        apply fundamental in Ht; iPoseProof Ht as "Ht".
        by iApply "Ht". 
-    + (* Val_typed *) rewrite !lbl_resolve_val.
-      iApply sem_typed_val; by iApply fundamental_val.
+    + (* Val_typed *)
+      iApply interp_c_val. by iApply fundamental_val.
     + (* Pure_typed *)
       rewrite fmap_app. iApply sem_typed_oval.
       by iApply fundamental_pure.
     + (* Pair_typed *)
       (* The new [ρ R⪯T τ2] premise supplies the [RowTypeSub] typeclass
          argument of [sem_typed_pair_gen] via [row_type_sub_sound]. *)
-      push_lr.
-      iApply sem_typed_pair_gen;
-        [by eapply row_type_sub_sound|apply fundamental in Ht1 as Ht|apply fundamental in Ht2 as Ht];
-        iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ Hδ).
-    + (* Fst_typed *) push_lr. iApply sem_typed_fst_expr. apply fundamental in Ht.
+      iApply interp_c_pair ; [ by eapply interp.row_type_sub_sound |
+                               apply fundamental in Ht1 as Ht; iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ Hδ)
+                             |apply fundamental in Ht2 as Ht; iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ Hδ)].
+    + (* Fst_typed *) iApply interp_c_fst. apply fundamental in Ht.
       iPoseProof Ht as "Ht". by iApply "Ht". 
-    + (* Snd_typed *) push_lr. iApply sem_typed_snd_expr. apply fundamental in Ht.
+    + (* Snd_typed *)  iApply interp_c_snd. apply fundamental in Ht.
       iPoseProof Ht as "Ht". by iApply "Ht". 
-    + (* InjL_typed *) push_lr. iApply sem_typed_left_inj. apply fundamental in Ht.
+    + (* InjL_typed *) iApply interp_c_left_inj. apply fundamental in Ht.
       iPoseProof Ht as "Ht". by iApply "Ht". 
-    + (* InjR_typed *) push_lr. iApply sem_typed_right_inj. apply fundamental in Ht.
+    + (* InjR_typed *) iApply interp_c_right_inj. apply fundamental in Ht.
       iPoseProof Ht as "Ht". by iApply "Ht". 
     + (* Match_typed *) push_lr. iApply sem_typed_match;
         [ destruct x; [|eapply ctx_dom_env_dom]; apply H
