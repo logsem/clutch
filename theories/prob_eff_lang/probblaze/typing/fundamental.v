@@ -4,8 +4,8 @@ From clutch.prelude Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import metatheory notation syntax semantics sem_judgement sem_def sem_operators.
 From clutch.prob_eff_lang.probblaze Require Import primitive_laws compatibility.
 From clutch.prob_eff_lang.probblaze Require Import sem_env.
-From clutch.prob_eff_lang.probblaze Require Import types.
-From clutch.prob_eff_lang.probblaze Require Import interp logic compatibility_interp.
+From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental_subtyping compatibility_interp.
+From clutch.prob_eff_lang.probblaze Require Import logic.
 
 Section fundamental.
   Context `{!probblazeRGS Σ}.
@@ -168,7 +168,7 @@ Proof.
     + (* Pair_typed *)
       (* The new [ρ R⪯T τ2] premise supplies the [RowTypeSub] typeclass
          argument of [sem_typed_pair_gen] via [row_type_sub_sound]. *)
-      iApply interp_c_pair ; [ by eapply interp.row_type_sub_sound |
+      iApply interp_c_pair ; [ by eapply row_type_sub_sound |
                                apply fundamental in Ht1 as Ht; iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ Hδ)
                              |apply fundamental in Ht2 as Ht; iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ Hδ)].
     + (* Fst_typed *) iApply interp_c_fst. apply fundamental in Ht.
