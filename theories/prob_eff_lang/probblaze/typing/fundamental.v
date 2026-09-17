@@ -4,13 +4,8 @@ From clutch.prelude Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import metatheory notation syntax semantics sem_judgement sem_def sem_operators.
 From clutch.prob_eff_lang.probblaze Require Import primitive_laws compatibility.
 From clutch.prob_eff_lang.probblaze Require Import sem_env.
-<<<<<<< HEAD
-From clutch.prob_eff_lang.probblaze Require Import logic.
-From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental_subtyping.
-=======
 From clutch.prob_eff_lang.probblaze Require Import types.
 From clutch.prob_eff_lang.probblaze Require Import interp logic compatibility_interp.
->>>>>>> 8e817f47 (WIP: refactoring the fundamental lemma)
 
 Section fundamental.
   Context `{!probblazeRGS Σ}.
