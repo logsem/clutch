@@ -120,13 +120,13 @@ Section implementation.
       | InjL "b" => ("doLeak" alice) ;; "k" (if: "b" then !"l0" else !"l1")
       | InjR "mm" => let, ("m0", "m1") := "mm" in
                      match: vg_of_int "m0" with
-                     | NONE => "k" #()%V
+                     | NONE => "k" NONE
                      | SOME "m0" => 
                          match: vg_of_int "m1" with
-                         | NONE => "k" #()%V
+                         | NONE => "k" NONE
                          | SOME "m1" =>
                              (store_if_none "l0" "m0");; (store_if_none "l1" "m1");; 
-                             ("doLeak" bob);; "k" #()%V
+                             ("doLeak" bob);; "k" NONE
                          end
                      end
       end.
@@ -134,7 +134,7 @@ Section implementation.
   Definition simhandler : val :=
     λ: "y" "doCRS" "doSend" "doRecv" "doSender" "x" "k",
       match: "x" with
-      | InjL <> => "k" NONEV
+      | InjL <> => "k" #()%V
       | InjR <> => 
           let, ("h1", "h0", "g1", "g0") := "doCRS" #()%V in
           let: "α1" := sample #()%V in
@@ -143,22 +143,22 @@ Section implementation.
           ("doSend" ("uv"));; 
           let: "r" := ("doRecv" #()%V) in
           match: "r" with 
-          | NONE => "k" NONEV
+          | NONE => "k" #()%V
           | SOME "mm" => 
               let, ("cd0","cd1") := "mm" in
               let, ("c0", "d0") := "cd0" in 
               let, ("c1", "d1") := "cd1" in
                match: vg_of_int "c0" with
-                | NONE => "k" NONE
+                | NONE => "k" #()%V
                 | SOME "c0" =>
                     match: vg_of_int "d0" with
-                    | NONE => "k" NONE
+                    | NONE => "k" #()%V
                     | SOME "d0" =>
                         match: vg_of_int "c1" with
-                        | NONE => "k" NONE
+                        | NONE => "k" #()%V
                         | SOME "c1" =>
                             match: vg_of_int "d1" with
-                            | NONE => "k" NONE
+                            | NONE => "k" #()%V
                             | SOME "d1" =>
                                 let, ("m0", "m1") := ("d0" · ("c0"^- "α0"),"d1" · ("c1"^- "α1")) in
                                 ("doSender" (int_of_vg "m0",int_of_vg "m1"));;

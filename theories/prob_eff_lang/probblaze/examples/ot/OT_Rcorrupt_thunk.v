@@ -35,22 +35,6 @@ Section handlee_verification.
   Definition atokN : namespace := nroot .@ "atokN".
   Definition btokN : namespace := nroot .@ "btokN".
 
-  Definition token γ := own γ (Excl ()).
-
-  
-  Lemma token_alloc : ⊢ |==> ∃ γ, token γ.
-  Proof.
-    iApply own_alloc. 
-    constructor.
-  Qed.
-
-  Lemma token_agree γ : ⊢ token γ -∗ token γ -∗ False.
-  Proof.
-    iIntros "Ha Hb". 
-    iDestruct (own_valid_2 with "Ha Hb") as "%Hvalid".
-    done.
-  Qed.
-
   Lemma auth_alloc v : ⊢ |==> ∃ γ, own γ (to_dfrac_agree (DfracOwn 1) v).
   Proof.
     iApply own_alloc.
@@ -79,31 +63,7 @@ Section handlee_verification.
     iApply own_update.
     by apply dfrac_agree_persist.
   Qed.
-
-  Lemma dfrac_alloc : ⊢ |==> ∃ γ, own γ (DfracOwn 1).
-  Proof.
-    iApply own_alloc.
-    done.
-  Qed.                               
-  
-  Lemma dfrac_persist γ (q : dfrac) : ⊢ own γ q -∗ |==> own γ DfracDiscarded.
-  Proof.
-    iApply own_update.
-    apply dfrac_discard_update.
-  Qed.
-
-  Lemma dfrac_contra γ (q : dfrac) : ⊢ own γ q -∗ own γ (DfracOwn 1) -∗ False.
-  Proof.
-    iIntros "H1 H2".
-    iDestruct (own_op with "[$H1 $H2]") as "H".
-    iDestruct (own_valid with "H") as "%H".
-    iPureIntro.
-    eapply exclusive_r; eauto using dfrac_full_exclusive.
-  Qed.
-
-
-
-
+ 
   (* Theories for the implementations *)
   (*------------------------------------------------------------*)
   
