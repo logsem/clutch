@@ -16,7 +16,7 @@ Import fingroup.
 Import fingroup.fingroup.
 Import finset cyclic.
 
-(* Import valgroup_notation. *)
+Import valgroup_notation.
 Import valgroup_tactics.
 
 Section handlee_verification.
@@ -37,22 +37,7 @@ Section handlee_verification.
   Definition atokN : namespace := nroot .@ "atokN".
   Definition btokN : namespace := nroot .@ "btokN".
 
-  Definition token γ := own γ (Excl ()).
-
   
-  Lemma token_alloc : ⊢ |==> ∃ γ, token γ.
-  Proof.
-    iApply own_alloc. 
-    constructor.
-  Qed.
-
-  Lemma token_agree γ : ⊢ token γ -∗ token γ -∗ False.
-  Proof.
-    iIntros "Ha Hb". 
-    iDestruct (own_valid_2 with "Ha Hb") as "%Hvalid".
-    done.
-  Qed.
-
   Lemma auth_alloc v : ⊢ |==> ∃ γ, own γ (to_dfrac_agree (DfracOwn 1) v).
   Proof.
     iApply own_alloc.
@@ -80,27 +65,6 @@ Section handlee_verification.
   Proof.
     iApply own_update.
     by apply dfrac_agree_persist.
-  Qed.
-
-  Lemma dfrac_alloc : ⊢ |==> ∃ γ, own γ (DfracOwn 1).
-  Proof.
-    iApply own_alloc.
-    done.
-  Qed.                               
-  
-  Lemma dfrac_persist γ (q : dfrac) : ⊢ own γ q -∗ |==> own γ DfracDiscarded.
-  Proof.
-    iApply own_update.
-    apply dfrac_discard_update.
-  Qed.
-
-  Lemma dfrac_contra γ (q : dfrac) : ⊢ own γ q -∗ own γ (DfracOwn 1) -∗ False.
-  Proof.
-    iIntros "H1 H2".
-    iDestruct (own_op with "[$H1 $H2]") as "H".
-    iDestruct (own_valid with "H") as "%H".
-    iPureIntro.
-    eapply exclusive_r; eauto using dfrac_full_exclusive.
   Qed.
 
 
@@ -285,7 +249,7 @@ Section handlee_verification.
     (* BREL f1 #()%V ≤ f2 #()%V <| ([CRS],[CRS], @CRSThy γcrs) :: L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }} -∗ *)
     (* BREL F_CRS f1 ≤ (reduction DH_rand) f2 <| ([CRS],[CRS],iThyBot) :: L |> {{ (λ v1 v2, ⌜ v1 = v2 ⌝) }}. *)
     BREL F_CRS ≤ (reduction DH_rand) <|⊥|> {{ λ v1 v2, (∀ᵣ θ__L, (∀ᵣ θ__CRS, ((𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾))) -{ sem_row_union (¡ θ__CRS) θ__L}-∘ 𝟙) -{ θ__L }-∘ 𝟙)%T v1 v2}}.
-  Proof with brel_pures' using n_prime G. 
+  Proof with (repeat foldkont; brel_pures') using n_prime G. 
     iIntros "Herr Hcrs".
     
     unfold F_CRS, reduction, DH_rand...
@@ -368,6 +332,88 @@ Section handlee_verification.
 
   Definition τC θ := (∀ᵣ θ__RECV, ∀ᵣ θ__CRS, ((𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾)) × (𝔹 -{ θ__RECV }-> (Option 𝔾))) 
                                          -{ sem_row_union θ__RECV (sem_row_union θ__CRS θ) }-∘ 𝟙)%T.
+
+  (* ------------------------------------------------------------------- *)
+  (* The protocol-done loop.                                             *)
+  (*                                                                     *)
+  (* Once the protocol has run to completion, [Protocol_Done] is a       *)
+  (* *constant-answer* handler: it swallows every further client         *)
+  (* operation and resumes the continuation with a fixed value ([NONE]   *)
+  (* on this, sender-corrupt, side).  Löb induction over the (neutral)   *)
+  (* continuation contexts then closes the goal.                         *)
+  (*                                                                     *)
+  (* There are two loop bodies rather than one mode-parameterised body   *)
+  (* because [brel_exhaustion' MS] is only *propositionally* equal to    *)
+  (* [brel_exhaustion] ([to_iThyIfMonoMS] is proved by list induction),  *)
+  (* so the mode cannot be passed as an argument.  The MS body also      *)
+  (* carries the [!#] / [#Hkont] persistence markers.                    *)
+  (*                                                                     *)
+  (* The loop bodies name no run-time binder in a [constr] argument (all *)
+  (* the [fill]/ectx positions are [_]); an [Ltac] body resolves those   *)
+  (* at definition time, so spelling e.g. [k2''] here would not even     *)
+  (* parse.                                                              *)
+  (* ------------------------------------------------------------------- *)
+
+  Local Ltac protocol_done_loop_ms :=
+    iLöb as "IH";
+    iSplit; [iIntros (v1 v2) "!# (->&->)";by brel_pures'|];
+    iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont";
+    iApply brel_handle_os_l; [apply neutral_ectx; set_solver|];
+    iIntros (rl) "!> Hrl";
+    iApply (brel_handle_os_r _ _); [apply neutral_ectx; set_solver|];
+    iIntros (rr) "Hrr"; brel_pures';
+    iApply (brel_cont_l with "[$]"); iModIntro;
+    iApply (brel_cont_r with "[$]");
+    iDestruct ("Hkont" with "HQNone") as "Hfill";
+    iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill");
+      [set_solver|set_solver|by iApply "IH"].
+
+  Local Ltac protocol_done_loop :=
+    iLöb as "IH";
+    iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|];
+    iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont";
+    iApply brel_handle_os_l; [apply neutral_ectx; set_solver|];
+    iIntros (rl) "!> Hrl";
+    iApply (brel_handle_os_r _ _); [apply neutral_ectx; set_solver|];
+    iIntros (rr) "Hrr"; brel_pures';
+    iApply (brel_cont_l with "[$]"); iModIntro;
+    iApply (brel_cont_r with "[$]");
+    iDestruct ("Hkont" with "HQNone") as "Hfill";
+    iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill");
+      [set_solver|set_solver|];
+    by iApply "IH".
+
+  Local Tactic Notation "protocol_done" "ms" :=
+    iDestruct ("Hreturn" with "HQNone") as "Hfill";
+    iApply (brel_cont_l with "[$]"); iModIntro;
+    iApply (brel_cont_r with "[$]"); brel_pures';
+    iClear "HQSome";
+    iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill");
+      [set_solver|set_solver|];
+    protocol_done_loop_ms.
+ 
+  Local Tactic Notation "protocol_done" "cache_r" :=
+    iDestruct ("Hkont" with "HQNone") as "Hfill";
+    iApply (brel_cont_l with "[$]"); iModIntro;
+    iApply (brel_cont_r with "[$]"); brel_pures';
+    brel_load_r; brel_pures';
+    iApply (brel_cont_r with "[$]");
+    iClear "Hl0 Hl1 HQSome";
+    iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill");
+      [set_solver|set_solver|];
+    protocol_done_loop.
+
+  Local Tactic Notation "protocol_done" "cache_l" :=
+    iDestruct ("Hkont" with "HQNone") as "Hfill";
+    iApply (brel_cont_r with "[$]");
+    iApply (brel_cont_l with "[$]"); iModIntro; repeat foldkont; brel_pures';
+    brel_load_l; brel_pures';
+    iApply (brel_cont_l with "[$]"); iModIntro;
+    iClear "Hl0 Hl1 HQSome";
+    iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill");
+      [set_solver|set_solver|];
+    protocol_done_loop.
+
 
   (* OT_Real_Sender_corrupt is related to itself, given related effect
      implementations and a related adversary. This is the part shared by
@@ -462,22 +508,7 @@ Section handlee_verification.
         iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].        
         { rewrite /sem_ty_arr /sem_ty_mbang /=. by iApply "Hrecv". }
         iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])"...
-        { iDestruct ("Hreturn" with "HQNone") as "Hfill".
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]")...
-          iClear "HQSome".
-          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-          iLöb as "IH". 
-          iSplit; [by iIntros (v1 v2) "!# (->&->)"; brel_pures'|].
-          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-          iIntros (rl) "!> Hrl". 
-          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-          iIntros (rr) "Hrr"...
-          iApply (brel_cont_l with "[$]"). iModIntro. 
-          iApply (brel_cont_r with "[$]").
-          iDestruct ("Hkont" with "HQNone") as "Hfill".
-          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|by iApply "IH"]. }
+        { protocol_done ms. }
 
         iDestruct "H" as "(%&%&%&%&->&->&H1&H2)".
         iDestruct "H1" as "(%&%&%&%&(->&->&(%c0z&->&->)&(%d0z&->&->)))".
@@ -490,23 +521,7 @@ Section handlee_verification.
           iApply brel_vg_of_int_none_r; first done...
 
           (* Protocol done loop *)
-          iDestruct ("Hreturn" with "HQNone") as "Hfill".
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]")...
-          iClear "HQSome".
-          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-          iLöb as "IH". 
-          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-          iIntros (rl) "!> Hrl". 
-          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-          iIntros (rr) "Hrr"...
-          iApply (brel_cont_l with "[$]"). iModIntro. 
-          iApply (brel_cont_r with "[$]").
-          iDestruct ("Hkont" with "HQNone") as "Hfill".
-          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); 
-            [set_solver|set_solver|by iApply "IH"]. }
+          protocol_done ms. }
 
         iApply brel_vg_of_int_correct_l; first done.
         iApply brel_vg_of_int_correct_r; first done...
@@ -518,23 +533,7 @@ Section handlee_verification.
           iApply brel_vg_of_int_none_r; first done...
 
           (* Protocol done loop *)
-          iDestruct ("Hreturn" with "HQNone") as "Hfill".
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]")...
-          iClear "HQSome".
-          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-          iLöb as "IH". 
-          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-          iIntros (rl) "!> Hrl". 
-          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-          iIntros (rr) "Hrr"...
-          iApply (brel_cont_l with "[$]"). iModIntro. 
-          iApply (brel_cont_r with "[$]").
-          iDestruct ("Hkont" with "HQNone") as "Hfill".
-          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); 
-            [set_solver|set_solver|by iApply "IH"]. }
+          protocol_done ms. }
 
         iApply brel_vg_of_int_correct_l; first done.
         iApply brel_vg_of_int_correct_r; first done...
@@ -546,23 +545,7 @@ Section handlee_verification.
           iApply brel_vg_of_int_none_r; first done...
 
           (* Protocol done loop *)
-          iDestruct ("Hreturn" with "HQNone") as "Hfill".
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]")...
-          iClear "HQSome".
-          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-          iLöb as "IH". 
-          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-          iIntros (rl) "!> Hrl". 
-          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-          iIntros (rr) "Hrr"...
-          iApply (brel_cont_l with "[$]"). iModIntro. 
-          iApply (brel_cont_r with "[$]").
-          iDestruct ("Hkont" with "HQNone") as "Hfill".
-          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); 
-            [set_solver|set_solver|by iApply "IH"]. }
+          protocol_done ms. }
 
         iApply brel_vg_of_int_correct_l; first done.
         iApply brel_vg_of_int_correct_r; first done...
@@ -574,43 +557,18 @@ Section handlee_verification.
           iApply brel_vg_of_int_none_r; first done...
 
           (* Protocol done loop *)
-          iDestruct ("Hreturn" with "HQNone") as "Hfill".
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]")...
-          iClear "HQSome".
-          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-          iLöb as "IH". 
-          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-          iIntros (rl) "!> Hrl". 
-          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-          iIntros (rr) "Hrr"...
-          iApply (brel_cont_l with "[$]"). iModIntro. 
-          iApply (brel_cont_r with "[$]").
-          iDestruct ("Hkont" with "HQNone") as "Hfill".
-          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); 
-            [set_solver|set_solver|by iApply "IH"]. }
+          protocol_done ms. }
 
         iApply brel_vg_of_int_correct_l; first done.
         iApply brel_vg_of_int_correct_r; first done...
 
-        iDestruct ("Hreturn" with "HQSome") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]")...
-        iClear "HQNone".
-        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr"...
-        iApply (brel_cont_l with "[$]"). iModIntro. 
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|by iApply "IH"]. 
+        iDestruct ("Hreturn" with "HQSome") as "Hfill";
+          iApply (brel_cont_l with "[$]"); iModIntro;
+          iApply (brel_cont_r with "[$]")...
+        iClear "HQNone";
+          iApply (brel_exhaustion (fill _ _) (fill _ _) with "Hfill");
+          [set_solver|set_solver|];
+          protocol_done_loop_ms.
       - iApply (brel_bind [_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))); [iApply traversable_to_iThy|iApply to_iThy_le_intro'; solve_submseteq|].
         iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].  
         { rewrite /sem_ty_arr /sem_ty_mbang /=. iApply "Hsend".
@@ -621,22 +579,7 @@ Section handlee_verification.
         iApply (brel_mono OS); [iApply to_iThy_le_refl| |simpl].  
         { rewrite /sem_ty_arr /sem_ty_mbang /=. by iApply "Hrecv". }
         iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])"...
-        { iDestruct ("Hreturn" with "HQNone") as "Hfill".
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]")...
-          iClear "HQSome".
-          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-          iLöb as "IH". 
-          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-          iIntros (rl) "!> Hrl". 
-          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-          iIntros (rr) "Hrr"...
-          iApply (brel_cont_l with "[$]"). iModIntro. 
-          iApply (brel_cont_r with "[$]").
-          iDestruct ("Hkont" with "HQNone") as "Hfill".
-          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|by iApply "IH"]. }
+        { protocol_done ms. }
 
         iDestruct "H" as "(%&%&%&%&->&->&H1&H2)".
         iDestruct "H1" as "(%&%&%&%&(->&->&(%c0z&->&->)&(%d0z&->&->)))".
@@ -649,23 +592,7 @@ Section handlee_verification.
           iApply brel_vg_of_int_none_r; first done...
 
           (* Protocol done loop *)
-          iDestruct ("Hreturn" with "HQNone") as "Hfill".
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]")...
-          iClear "HQSome".
-          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-          iLöb as "IH". 
-          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-          iIntros (rl) "!> Hrl". 
-          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-          iIntros (rr) "Hrr"...
-          iApply (brel_cont_l with "[$]"). iModIntro. 
-          iApply (brel_cont_r with "[$]").
-          iDestruct ("Hkont" with "HQNone") as "Hfill".
-          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); 
-            [set_solver|set_solver|by iApply "IH"]. }
+          protocol_done ms. }
 
         iApply brel_vg_of_int_correct_l; first done.
         iApply brel_vg_of_int_correct_r; first done...
@@ -677,23 +604,7 @@ Section handlee_verification.
           iApply brel_vg_of_int_none_r; first done...
 
           (* Protocol done loop *)
-          iDestruct ("Hreturn" with "HQNone") as "Hfill".
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]")...
-          iClear "HQSome".
-          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-          iLöb as "IH". 
-          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-          iIntros (rl) "!> Hrl". 
-          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-          iIntros (rr) "Hrr"...
-          iApply (brel_cont_l with "[$]"). iModIntro. 
-          iApply (brel_cont_r with "[$]").
-          iDestruct ("Hkont" with "HQNone") as "Hfill".
-          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); 
-            [set_solver|set_solver|by iApply "IH"]. }
+          protocol_done ms. }
 
         iApply brel_vg_of_int_correct_l; first done.
         iApply brel_vg_of_int_correct_r; first done...
@@ -705,23 +616,7 @@ Section handlee_verification.
           iApply brel_vg_of_int_none_r; first done...
 
           (* Protocol done loop *)
-          iDestruct ("Hreturn" with "HQNone") as "Hfill".
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]")...
-          iClear "HQSome".
-          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-          iLöb as "IH". 
-          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-          iIntros (rl) "!> Hrl". 
-          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-          iIntros (rr) "Hrr"...
-          iApply (brel_cont_l with "[$]"). iModIntro. 
-          iApply (brel_cont_r with "[$]").
-          iDestruct ("Hkont" with "HQNone") as "Hfill".
-          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); 
-            [set_solver|set_solver|by iApply "IH"]. }
+          protocol_done ms. }
 
         iApply brel_vg_of_int_correct_l; first done.
         iApply brel_vg_of_int_correct_r; first done...
@@ -733,43 +628,18 @@ Section handlee_verification.
           iApply brel_vg_of_int_none_r; first done...
 
           (* Protocol done loop *)
-          iDestruct ("Hreturn" with "HQNone") as "Hfill".
-          iApply (brel_cont_l with "[$]"). iModIntro.
-          iApply (brel_cont_r with "[$]")...
-          iClear "HQSome".
-          iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-          iLöb as "IH". 
-          iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-          iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-          iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-          iIntros (rl) "!> Hrl". 
-          iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-          iIntros (rr) "Hrr"...
-          iApply (brel_cont_l with "[$]"). iModIntro. 
-          iApply (brel_cont_r with "[$]").
-          iDestruct ("Hkont" with "HQNone") as "Hfill".
-          iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); 
-            [set_solver|set_solver|by iApply "IH"]. }
+          protocol_done ms. }
 
         iApply brel_vg_of_int_correct_l; first done.
         iApply brel_vg_of_int_correct_r; first done...
 
-        iDestruct ("Hreturn" with "HQSome") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]")...
-        iClear "HQNone".
-        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "!# (%&->&->&(HQNone & HQSome)) #Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr"...
-        iApply (brel_cont_l with "[$]"). iModIntro. 
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|by iApply "IH"]. 
+        iDestruct ("Hreturn" with "HQSome") as "Hfill";
+          iApply (brel_cont_l with "[$]"); iModIntro;
+          iApply (brel_cont_r with "[$]")...
+          iClear "HQNone";
+          iApply (brel_exhaustion (fill _ _) (fill _ _) with "Hfill");
+          [set_solver|set_solver|];
+          protocol_done_loop_ms.
     Qed.
 
   Definition τ_sc := (∀ᵣ θ, τC θ ⊸ (((𝔾 × 𝔾) -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option ((ℕ × ℕ) × (ℕ × ℕ))))
@@ -800,35 +670,29 @@ Section handlee_verification.
   Lemma DH_OT_sim :
     ⊢ ↯ (1 / n) -∗
     BREL OT_REDUCTION DH_real ≤ OT_SIM_FOT_thunk <| ⊥ |> {{ τ_sc }}.
-  Proof using G n_prime inG2. 
-    iIntros "Herr". unfold OT_REDUCTION. brel_pures'.
+  Proof with (repeat foldkont; brel_pures') using G n_prime inG2. 
+    iIntros "Herr". unfold OT_REDUCTION...
     iIntros "!> %θ %f1 %f2 Hff".
-    rewrite /reduction /DH_real /OT_Real_Sender_corrupt /OT_SIM_FOT_thunk.
-    brel_pures'. iModIntro.
-    iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
-    brel_pures'.
+    rewrite /reduction /DH_real /OT_Real_Sender_corrupt /OT_SIM_FOT_thunk...
+    iIntros "!#" (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)"...
 
-    iApply brel_couple_rand_rand; first done. iIntros (t Ht). brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (t Ht)...
     set H0fin :=  Fin.of_nat_lt (Nat.lt_0_succ (S n'')).
     iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
-    iFrame. iIntros (y Hy) "!>".
-    apply not_elem_of_cons in Hy as [Hy _]. brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (x Hx). brel_pures'.
-    rewrite -Nat2Z.inj_mul. brel_pures'.
+    iFrame. iIntros (y Hy) "!>"...
+    apply not_elem_of_cons in Hy as [Hy _]. 
+    iApply brel_couple_rand_rand; first done. iIntros (x Hx)...
+    rewrite -Nat2Z.inj_mul...
     rewrite expgnA.
 
-    iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
-    iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>". 
-    unfold mut_handler, simhandler, idealhandler.
-    brel_pures'. 
-
-    iApply brel_alloc_r. iIntros (l0) "Hl0". brel_pures'.
-    iApply brel_alloc_r. iIntros (l1) "Hl1". brel_pures'.
-    
-    iApply brel_effect_l. iIntros (IDEALl) "!> Hideall !>".
-    iApply brel_effect_r. iIntros (IDEALr) "Hidealr !>".
-    iApply brel_effect_r. iIntros (LEAK) "Hleakr !>".
-    brel_pures'.
+    unfold mut_handler, simhandler, idealhandler...
+    brel_effect_l CRSl as "Hcrsl"...
+    brel_effect_r CRSr as "Hcrsr"...
+    brel_alloc_r l0 as "Hl0"...
+    brel_alloc_r l1 as "Hl1"...
+    brel_effect_l IDEALl as "Hideall"...
+    brel_effect_r IDEALr as "Hidealr"...
+    brel_effect_r LEAK as "Hleakr"...
 
     iDestruct auth_alloc as ">(%γcrs&Hcrs)".
     iDestruct (auth_upd  (vgval (g ^+ t ^+ y ^+ x), vgval (g ^+ t ^+ x), vgval (g ^+ t ^+ y), vgval (g ^+ t))%V with "Hcrs") as ">Hcrs".
@@ -848,8 +712,7 @@ Section handlee_verification.
           - iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
             iIntros (rl) "!> Hrl".
             iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
-            iIntros (rr) "Hrr".
-            brel_pures'.
+            iIntros (rr) "Hrr"...
             iApply (brel_cont_l with "[$]"). iModIntro.
             iApply (brel_cont_r with "[$]").
             iDestruct ("HQ" with "Hcrs") as "HQ'".
@@ -857,7 +720,7 @@ Section handlee_verification.
             iDestruct ("Hkont" with "HQ") as "H".
             iApply (brel_exhaustion _ _ [_] [_] (iThyMono (iThySum  (CRSThy_to_sig CRSl CRSr) (CRSThyL_to_sig CRSl))) with "[H]"); done.
           - iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
-            iIntros (rl) "!> Hrl". brel_pures'.
+            iIntros (rl) "!> Hrl"...
             iApply (brel_cont_l with "[$]"). iModIntro.
             iDestruct ("HQ" with "Hcrs") as "HQ'".
             iDestruct ("HQQ" with "HQ'") as "HQ".
@@ -866,7 +729,6 @@ Section handlee_verification.
 
     set recv := recvrow IDEALl IDEALr LEAK.
     set crs := crsrow CRSl CRSr γcrs.
-    iSpecialize ("Hff" $! recv crs).
     iAssert ((((𝟙 -{ crs }-> ((𝔾 × 𝔾) × 𝔾) × 𝔾)) × (𝔹 -{ recv }-> Option 𝔾))%T
                (λ: <>, do: CRSl #(), λ: "b", do: IDEALl InjL "b")%V
                (λ: <>, do: CRSr #(), λ: "b", do: IDEALr InjL "b")%V) as "Hgg".
@@ -921,15 +783,12 @@ Section handlee_verification.
     iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
     iIntros (k1' k2' e1' e2' Q Hk1' Hk2') "(%&->&->&(HQNone & HQSome)) Hkont".
     iApply brel_handle_os_l; [apply neutral_ectx;set_solver|].
-    iIntros (cl) "!> Hcl". brel_pures'.
+    iIntros (cl) "!> Hcl"...
     iApply (brel_handle_os_r [_] (k2')). 
     { apply neutral_ectx; set_solver. }
-    
-    iIntros (cr) "Hcr".
-    brel_pures'.
+    iIntros (cr) "Hcr"...
     iApply (brel_handle_os_r [] [AppRCtx _]); [set_solver|simpl].
-    iIntros (cleak) "Hleak".
-    brel_pures'.
+    iIntros (cleak) "Hleak"...
 
     iApply brel_learn. iIntros (Hdistinct) "_".
 
@@ -943,8 +802,7 @@ Section handlee_verification.
     iSplit; last (iModIntro; iIntros (??) "H"; done).
     iExists _. iSplitL; last (iIntros (??) "!> H"; iApply "H").
     iLeft. do 2 (iSplit; [done|]). iIntros (?) "Hcrs'".
-    iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'".
-    brel_pures'.
+    iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'"...
 
      (* Should be refactored into one branch *)
     destruct b.
@@ -953,8 +811,8 @@ Section handlee_verification.
       { by apply Fp_of_fin_ne_zero_2. }
       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
         by apply Rcomplements.SSR_leq. }
-      iIntros (α Hα).
-      brel_pures'. rewrite -Nat2Z.inj_mul. brel_pures'.
+      iIntros (α Hα)...
+      rewrite -Nat2Z.inj_mul...
       rewrite -expgM. rewrite ssrnat.multE. rewrite (ssrnat.mulnC _ y).
       rewrite -!(@expg_mod _ n (ssrnat.muln y (f_ring (Fp_of_fin y) α))).
       2,3 : (try rewrite (expgnAC _ x n)); rewrite (expgnAC _ t n);
@@ -978,8 +836,7 @@ Section handlee_verification.
         do 2 (iSplit; first done).
         iSplit; iExists _; iSplit; done. }
       simpl.
-      iIntros (??) "(->&->)".
-      brel_pures'.
+      iIntros (??) "(->&->)"...
       iApply (brel_bind [_] [_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
       { iApply (traversable_ectx_labels _ _ [IDEALl] [IDEALr; LEAK] iThyBot); try set_solver. 
         eapply distinct_submseteq; last by split. 
@@ -991,202 +848,80 @@ Section handlee_verification.
       { iUnfold sem_ty_arr, sem_ty_mbang in "Hrecv". simpl. 
         by iApply "Hrecv". }
       simpl.
-      iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])". 
+      iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])"...
 
       (* Protocol done loop *)
-      { brel_pures'.
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        brel_pures'.
-        iApply (brel_load_r with "[$Hl0]"). iIntros "Hl0". brel_pures.
-        iApply (brel_cont_r with "[$]").
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr". 
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro. 
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+      { protocol_done cache_r. }
 
       iDestruct "H" as "(%&%&%&%&->&->&H1&H2)".
       iDestruct "H1" as "(%&%&%&%&(->&->&(%c0z&->&->)&(%d0z&->&->)))".
-      iDestruct "H2" as "(%&%&%&%&(->&->&(%c1z&->&->)&(%d1z&->&->)))".
-      brel_pures_r. brel_pures_l. 
+      iDestruct "H2" as "(%&%&%&%&(->&->&(%c1z&->&->)&(%d1z&->&->)))"...
       
       (* Deserialize a group element from c0 *)
       destruct (vg_of_int_sem c0z) as [c0|] eqn:Hc0z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        brel_pures'.
-        iApply (brel_load_r with "[$Hl0]"). iIntros "Hl0". brel_pures.
-        iApply (brel_cont_r with "[$]").
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr". 
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro. 
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH".  }
+        protocol_done cache_r.  }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from d0 *)
       destruct (vg_of_int_sem d0z) as [d0|] eqn:Hd0z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        brel_pures'.
-        iApply (brel_load_r with "[$Hl0]"). iIntros "Hl0". brel_pures.
-        iApply (brel_cont_r with "[$]").
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr". 
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro. 
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+        protocol_done cache_r. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from c1 *)
       destruct (vg_of_int_sem c1z) as [c1|] eqn:Hc1z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        brel_pures'.
-        iApply (brel_load_r with "[$Hl0]"). iIntros "Hl0". brel_pures.
-        iApply (brel_cont_r with "[$]").
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr". 
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro. 
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". } 
+        protocol_done cache_r. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from d1 *)
       destruct (vg_of_int_sem d1z) as [d1|] eqn:Hd1z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        brel_pures'.
-        iApply (brel_load_r with "[$Hl0]"). iIntros "Hl0". brel_pures.
-        iApply (brel_cont_r with "[$]").
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr". 
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro. 
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+        protocol_done cache_r. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
-
-      repeat (first [brel_exp_l|brel_mult_l|brel_inv_l]).
-      brel_pures_l. repeat (first [brel_exp_l|brel_mult_l|brel_inv_l]).
-      brel_pures'.
+      iApply brel_vg_of_int_correct_r; first done...
       
       iApply brel_int_of_vg_sem_correct_r.
       iApply brel_int_of_vg_sem_correct_r.
   
       iApply (brel_handle_os_r [_] [AppRCtx _]); [set_solver|].
-      iIntros (rS) "HrS". brel_pures'.
+      iIntros (rS) "HrS"...
       unfold store_if_none.
       
-      do 2 (iApply brel_vg_of_int_correct_r; first apply int_of_vg_of_int_sem; brel_pures_r).
+      do 2 (iApply brel_vg_of_int_correct_r; first apply int_of_vg_of_int_sem)...
       
-      iApply (brel_load_r with "Hl0"). iIntros "Hl0".
-      iApply (brel_store_r with "Hl0"). iIntros "Hl0".
-      brel_pures'.
-      iApply (brel_load_r with "Hl1"). iIntros "Hl1".
-      iApply (brel_store_r with "Hl1"). iIntros "Hl1".
-      brel_pures'.
+      brel_load_r...
+      brel_store_r...
+      brel_load_r...
+      brel_store_r...
       iApply (brel_handle_os_r [] [AppRCtx _]); [set_solver |].
-      iIntros (rL) "HrL". brel_pures'.
-      iApply (brel_cont_r with "[$]").
-      brel_pures'.
-      iApply (brel_cont_r with "[$]"). brel_pures'.
-      iApply (brel_cont_r with "[$]"). brel_pures'.
-      iApply (brel_load_r with "[$Hl0]"). iIntros "Hl0". 
-      iApply (brel_cont_r with "[$]").
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iDestruct ("Hkont" with "HQSome") as "Hkont".
+      iIntros (rL) "HrL"...
+      iApply (brel_cont_r with "[$]")...
+      iApply (brel_cont_r with "[$]")...
       rewrite -!(@expg_mod _ n (ssrnat.muln y (f_ring (Fp_of_fin y) α))).
       2 : { apply vgG_expg_n. }
       rewrite !crs_fin_cancel; try done.
@@ -1195,23 +930,18 @@ Section handlee_verification.
       rewrite expg_mod.
       2 : { apply vgG_expg_n. }
       
-      iApply (brel_exhaustion' OS (fill k1' _) (fill k2' _) with "Hkont"); [done|set_solver|].
+      (* Protocol done loop *)
+      iDestruct ("Hkont" with "HQSome") as "Hkont".
+      iApply (brel_cont_l with "[$]"); iModIntro.
+      iApply (brel_cont_r with "[$]")...
+      brel_load_r...
+      iApply (brel_cont_r with "[$]")...
+      iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hkont"); [first [done|set_solver]|set_solver|].
       iClear "HQNone Hl1 Hl0".
-      iLöb as "IH".
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-      iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl". 
-      iApply (brel_handle_os_r _ (k2'')); [apply neutral_ectx;set_solver|].
-      iIntros (rr) "Hrr". 
-      brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQNone") as "Hfill".
-      iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-      by iApply "IH".
-    - iApply brel_couple_rand_rand; first done. iIntros (α Hα).
-      brel_pures'. rewrite -Nat2Z.inj_mul. brel_pures'.
+      protocol_done_loop.
+      
+    - iApply brel_couple_rand_rand; first done. iIntros (α Hα)...
+      rewrite -Nat2Z.inj_mul...
 
       iApply (brel_bind [_] [_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
       { iApply (traversable_ectx_labels _ _ [IDEALl] [IDEALr; LEAK] iThyBot); try set_solver. 
@@ -1228,8 +958,7 @@ Section handlee_verification.
         rewrite (expgnAC _ α y). rewrite (expgnAC _ x y).
         iSplit; iExists _; iSplit; done. }
       simpl. 
-      iIntros (??) "(->&->)".
-      brel_pures'.
+      iIntros (??) "(->&->)"...
 
       iApply (brel_bind [_] [_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
       { iApply (traversable_ectx_labels _ _ [IDEALl] [IDEALr; LEAK] iThyBot); try set_solver. 
@@ -1242,218 +971,90 @@ Section handlee_verification.
       { iUnfold sem_ty_arr, sem_ty_mbang in "Hrecv". simpl. 
         by iApply "Hrecv". }
       simpl.
-      iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])".
+      iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])"...
             
       (* Protocol done loop *)
-      { brel_pures'.
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        brel_pures'.
-        iApply (brel_load_r with "[$Hl1]"). iIntros "Hl1". brel_pures.
-        iApply (brel_cont_r with "[$]").
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ (k2'')); [apply neutral_ectx; set_solver|].
-        iIntros (rr) "Hrr". 
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+      { protocol_done cache_r. }
       
       iDestruct "H" as "(%&%&%&%&->&->&H1&H2)".
       iDestruct "H1" as "(%&%&%&%&(->&->&(%c0z&->&->)&(%d0z&->&->)))".
-      iDestruct "H2" as "(%&%&%&%&(->&->&(%c1z&->&->)&(%d1z&->&->)))".
-      brel_pures_r. brel_pures_l.
+      iDestruct "H2" as "(%&%&%&%&(->&->&(%c1z&->&->)&(%d1z&->&->)))"...
 
       (* Deserialize a group element from c0 *)
       destruct (vg_of_int_sem c0z) as [c0|] eqn:Hc0z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        brel_pures'.
-        iApply (brel_load_r with "[$Hl1]"). iIntros "Hl1". brel_pures.
-        iApply (brel_cont_r with "[$]").
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ (k2'')); [apply neutral_ectx; set_solver|].
-        iIntros (rr) "Hrr". 
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH".  }
+        protocol_done cache_r.  }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from d0 *)
       destruct (vg_of_int_sem d0z) as [d0|] eqn:Hd0z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        brel_pures'.
-        iApply (brel_load_r with "[$Hl1]"). iIntros "Hl1". brel_pures.
-        iApply (brel_cont_r with "[$]").
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ (k2'')); [apply neutral_ectx; set_solver|].
-        iIntros (rr) "Hrr". 
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+        protocol_done cache_r. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from c1 *)
       destruct (vg_of_int_sem c1z) as [c1|] eqn:Hc1z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        brel_pures'.
-        iApply (brel_load_r with "[$Hl1]"). iIntros "Hl1". brel_pures.
-        iApply (brel_cont_r with "[$]").
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ (k2'')); [apply neutral_ectx; set_solver|].
-        iIntros (rr) "Hrr". 
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". } 
+        protocol_done cache_r. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from d1 *)
       destruct (vg_of_int_sem d1z) as [d1|] eqn:Hd1z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        brel_pures'.
-        iApply (brel_load_r with "[$Hl1]"). iIntros "Hl1". brel_pures.
-        iApply (brel_cont_r with "[$]").
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH". 
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl". 
-        iApply (brel_handle_os_r _ (k2'')); [apply neutral_ectx; set_solver|].
-        iIntros (rr) "Hrr". 
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+        protocol_done cache_r. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
-
-      repeat (first [brel_exp_l|brel_mult_l|brel_inv_l]).
-      brel_pures_l. repeat (first [brel_exp_l|brel_mult_l|brel_inv_l]).
-      brel_pures'.
+      iApply brel_vg_of_int_correct_r; first done...
 
       iApply brel_int_of_vg_sem_correct_r.
       iApply brel_int_of_vg_sem_correct_r.
   
       iApply (brel_handle_os_r [_] [AppRCtx _]); [set_solver|].
-      iIntros (rS) "HrS". brel_pures'.
+      iIntros (rS) "HrS"...
       unfold store_if_none.
 
-      do 2 (iApply brel_vg_of_int_correct_r; first apply int_of_vg_of_int_sem; brel_pures_r).
+      do 2 (iApply brel_vg_of_int_correct_r; first apply int_of_vg_of_int_sem)...
 
-      iApply (brel_load_r with "Hl0"). iIntros "Hl0".
-      iApply (brel_store_r with "Hl0"). iIntros "Hl0".
-      brel_pures'.
-      iApply (brel_load_r with "Hl1"). iIntros "Hl1".
-      iApply (brel_store_r with "Hl1"). iIntros "Hl1".
-      brel_pures'.
+      brel_load_r...
+      brel_store_r...
+      brel_load_r...
+      brel_store_r...
       iApply (brel_handle_os_r [] [AppRCtx _]); [set_solver|].
       iIntros (rL) "HrL". brel_pures'.
-      iApply (brel_cont_r with "[$]").
-      brel_pures'.
-      iApply (brel_cont_r with "[$]"). brel_pures'.
-      iApply (brel_cont_r with "[$]"). brel_pures'.
-      iApply (brel_load_r with "[$Hl1]"). iIntros "Hl1". 
-      iApply (brel_cont_r with "[$]").
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iDestruct ("Hkont" with "HQSome") as "Hkont".
+      iApply (brel_cont_r with "[$]")...
+      iApply (brel_cont_r with "[$]")...
   
-      iApply (brel_exhaustion' OS (fill k1' _) (fill k2' _) with "Hkont"); [done|set_solver|].
+      (* Protocol done loop *)
+      iDestruct ("Hkont" with "HQSome") as "Hkont".
+      iApply (brel_cont_l with "[$]"); iModIntro.
+      iApply (brel_cont_r with "[$]")...
+      brel_load_r...
+      iApply (brel_cont_r with "[$]")...
+      iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hkont"); [first [done|set_solver]|set_solver|].
       iClear "HQNone Hl1 Hl0".
-      iLöb as "IH".
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-      iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl". 
-      iApply (brel_handle_os_r _ (k2'')); [apply neutral_ectx;set_solver| ].
-      iIntros (rr) "Hrr". 
-      brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQNone") as "Hfill".
-      iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-      by iApply "IH". 
+      protocol_done_loop.
       Unshelve. done.
   Qed.
 
@@ -1461,35 +1062,29 @@ Section handlee_verification.
   Lemma OT_sim_DH :
     ⊢ ↯ (1 / n) -∗
     BREL OT_SIM_FOT_thunk ≤ OT_REDUCTION DH_real <| ⊥ |> {{ τ_sc }}.
-  Proof using G n_prime inG2. 
-    iIntros "Herr". unfold OT_REDUCTION. brel_pures'.
+  Proof with (repeat foldkont; brel_pures') using G n_prime inG2. 
+    iIntros "Herr". unfold OT_REDUCTION...
     iIntros "!> %θ %f1 %f2 Hff".
-    rewrite /reduction /DH_real /OT_Real_Sender_corrupt /OT_SIM_FOT_thunk.
-    brel_pures'. iModIntro.
-    iIntros (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)".
-    brel_pures'.
+    rewrite /reduction /DH_real /OT_Real_Sender_corrupt /OT_SIM_FOT_thunk...
+    iIntros "!#" (??) "(%doSend1&%doSend2&%doRecv1&%doRecv2&->&->&#Hsend&#Hrecv)"...
 
-    iApply brel_couple_rand_rand; first done. iIntros (t Ht). brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (t Ht)...
     set H0fin :=  Fin.of_nat_lt (Nat.lt_0_succ (S n'')).
     iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
     iFrame. iIntros (y Hy) "!>".
     apply not_elem_of_cons in Hy as [Hy _]. brel_pures'.
-    iApply brel_couple_rand_rand; first done. iIntros (x Hx). brel_pures'.
-    rewrite -Nat2Z.inj_mul. brel_pures'.
-    rewrite expgnA.
-
-    iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
-    iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>".
-    unfold mut_handler, simhandler, idealhandler.
-    brel_pures'.
-
-    iApply brel_alloc_l. iIntros (l0) "!> Hl0". brel_pures'.
-    iApply brel_alloc_l. iIntros (l1) "!> Hl1". brel_pures'.
-
-    iApply brel_effect_l. iIntros (IDEALl) "!> Hideall !>".
-    iApply brel_effect_l. iIntros (LEAK) "!> Hleakl !>".
-    iApply brel_effect_r. iIntros (IDEALr) "Hidealr !>".
-    brel_pures'.
+    iApply brel_couple_rand_rand; first done. iIntros (x Hx)...
+    rewrite -Nat2Z.inj_mul...
+    rewrite expgnA...
+    
+    brel_effect_l CRSl as "Hcrsl"...
+    brel_effect_r CRSr as "Hcrsr"...
+    unfold mut_handler, simhandler, idealhandler...
+    brel_alloc_l l0 as "Hl0"...
+    brel_alloc_l l1 as "Hl1"...
+    brel_effect_l IDEALl as "Hideall"...
+    brel_effect_l LEAK as "Hleakl"...
+    brel_effect_r IDEALr as "Hidealr"...
 
     iDestruct auth_alloc as ">(%γcrs&Hcrs)".
     iDestruct (auth_upd  (vgval (g ^+ t ^+ y ^+ x), vgval (g ^+ t ^+ x), vgval (g ^+ t ^+ y), vgval (g ^+ t))%V with "Hcrs") as ">Hcrs".
@@ -1508,8 +1103,7 @@ Section handlee_verification.
           iApply brel_handle_os_l; [apply neutral_ectx; set_solver|].
           iIntros (rl) "!> Hrl".
           iApply brel_handle_os_r; [apply neutral_ectx; set_solver|].
-          iIntros (rr) "Hrr".
-          brel_pures'.
+          iIntros (rr) "Hrr"...
           iApply (brel_cont_l with "[$]"). iModIntro.
           iApply (brel_cont_r with "[$]").
           iDestruct ("HQ" with "Hcrs") as "HQ'".
@@ -1519,12 +1113,11 @@ Section handlee_verification.
 
     set recv := recvrowl IDEALl IDEALr LEAK.
     set crs := crsrow CRSl CRSr γcrs.
-    iSpecialize ("Hff" $! recv crs).
     iAssert ((((𝟙 -{ crs }-> ((𝔾 × 𝔾) × 𝔾) × 𝔾)) × (𝔹 -{ recv }-> Option 𝔾))%T
                (λ: <>, do: CRSl #(), λ: "b", do: IDEALl InjL "b")%V
                (λ: <>, do: CRSr #(), λ: "b", do: IDEALr InjL "b")%V) as "Hgg".
     { repeat (iExists _,_,_,_; do 2 (iSplit; [by iPureIntro|]); iSplit); rewrite /sem_ty_mbang //=; iIntros (??) "!#".
-      - iIntros "(->&->)". brel_pures'. iApply brel_introduction'; first constructor.
+      - iIntros "(->&->)"... iApply brel_introduction'; first constructor.
         iExists _,_,[],[],_. do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]).
         iSplitL; last (iIntros (??) "!# H"; iApply "H").
         do 2 (iSplit; first by iPureIntro).
@@ -1535,7 +1128,7 @@ Section handlee_verification.
                          do 2 (iSplit; first by iPureIntro);
                          iSplit; last (iExists _; iSplit; by iPureIntro)).
         iExists _; iSplit; by iPureIntro.
-      - iIntros "(%&->&->)". brel_pures'.
+      - iIntros "(%&->&->)"...
         iApply brel_introduction'; first constructor.
         iExists _,_,[],[],_. do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]).
         iSplitL; last (iIntros (??) "!# H"; iApply "H").
@@ -1572,17 +1165,15 @@ Section handlee_verification.
     rewrite iThyIfMono_iLblSig_to_iThyIfMono //=.
 
     iApply (brel_exhaustion' OS (f1 _) (f2 _) with "[$Hfb]"); [set_solver|set_solver|].
-    iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
+    iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|].
     iIntros (k1' k2' e1' e2' Q Hk1' Hk2') "(%b&->&->&(HQNone & HQSome)) Hkont".
     iApply brel_handle_os_r; [apply neutral_ectx;set_solver|].
-    iIntros (cr) "Hcr". brel_pures'.
+    iIntros (cr) "Hcr"...
     iApply (brel_handle_os_l [_] (k1')).
     { apply neutral_ectx; set_solver. }
-    iIntros (cl) "!> Hcl".
-    brel_pures'.
+    iIntros (cl) "!> Hcl"...
     iApply (brel_handle_os_l [] [AppRCtx _]); [set_solver|simpl].
-    iIntros (cleak) "!> Hleak".
-    brel_pures'.
+    iIntros (cleak) "!> Hleak"...
 
     iApply brel_learn. iIntros (Hdistinct) "_".
 
@@ -1599,18 +1190,16 @@ Section handlee_verification.
     iSplit; last (iModIntro; iIntros (??) "H"; done).
     iExists _. iSplitL; last (iIntros (??) "!> H"; iApply "H").
     do 2 (iSplit; [done|]). iIntros (?) "Hcrs'".
-    iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'".
-    brel_pures'.
+    iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'"...
 
-     (* Should be refactored into one branch *)
     destruct b.
     - epose proof brel_couple_rand_rand as h'.
       unshelve iApply (h' _ _ (h_ring (Fp_of_fin y)) (h_bij_ring (Fp_of_fin y))); try done.
       { by apply Fp_of_fin_ne_zero_2. }
       { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply h_lt_ring; first done.
         by apply Rcomplements.SSR_leq. }
-      iIntros (α Hα).
-      brel_pures'. rewrite -Nat2Z.inj_mul. brel_pures'.
+      iIntros (α Hα)...
+      rewrite -Nat2Z.inj_mul...
       rewrite ssrnat.multE. rewrite (ssrnat.mulnC α y).
       rewrite -!(@expg_mod _ n (h_ring (Fp_of_fin y) α)).
       2,3 : (try rewrite (expgnAC _ x n)); rewrite (expgnAC _ t n);
@@ -1633,8 +1222,7 @@ Section handlee_verification.
         do 2 (iSplit; first done).
         iSplit; iExists _; iSplit; done. }
       simpl.
-      iIntros (??) "(->&->)".
-      brel_pures'.
+      iIntros (??) "(->&->)"...
       iApply (brel_bind [_;_;_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
       { iApply (traversable_ectx_labels _ _ [IDEALl; LEAK] [IDEALr] iThyBot); try set_solver.
         eapply distinct_submseteq; last by split.
@@ -1646,202 +1234,80 @@ Section handlee_verification.
       { iUnfold sem_ty_arr, sem_ty_mbang in "Hrecv". simpl.
         by iApply "Hrecv". }
       simpl.
-      iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])".
+      iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])"...
 
       (* Protocol done loop *)
-      { brel_pures'.
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_r with "[$]").
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        brel_pures'.
-        iApply (brel_load_l with "[$Hl0]"). iIntros "!> Hl0". brel_pures.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl".
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr".
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+      { protocol_done cache_l. }
 
       iDestruct "H" as "(%&%&%&%&->&->&H1&H2)".
       iDestruct "H1" as "(%&%&%&%&(->&->&(%c0z&->&->)&(%d0z&->&->)))".
-      iDestruct "H2" as "(%&%&%&%&(->&->&(%c1z&->&->)&(%d1z&->&->)))".
-      brel_pures_l. brel_pures_r.
+      iDestruct "H2" as "(%&%&%&%&(->&->&(%c1z&->&->)&(%d1z&->&->)))"...
 
       (* Deserialize a group element from c0 *)
       destruct (vg_of_int_sem c0z) as [c0|] eqn:Hc0z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_r with "[$]").
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        brel_pures'.
-        iApply (brel_load_l with "[$Hl0]"). iIntros "!> Hl0". brel_pures.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl".
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr".
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH".  }
+        protocol_done cache_l.  }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from d0 *)
       destruct (vg_of_int_sem d0z) as [d0|] eqn:Hd0z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_r with "[$]").
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        brel_pures'.
-        iApply (brel_load_l with "[$Hl0]"). iIntros "!> Hl0". brel_pures.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl".
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr".
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+        protocol_done cache_l. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from c1 *)
       destruct (vg_of_int_sem c1z) as [c1|] eqn:Hc1z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_r with "[$]").
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        brel_pures'.
-        iApply (brel_load_l with "[$Hl0]"). iIntros "!> Hl0". brel_pures.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl".
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr".
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". } 
+        protocol_done cache_l. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from d1 *)
       destruct (vg_of_int_sem d1z) as [d1|] eqn:Hd1z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_r with "[$]").
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        brel_pures'.
-        iApply (brel_load_l with "[$Hl0]"). iIntros "!> Hl0". brel_pures.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl".
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr".
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+        protocol_done cache_l. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
-
-      repeat (first [brel_exp_r|brel_mult_r|brel_inv_r]).
-      brel_pures_r. repeat (first [brel_exp_r|brel_mult_r|brel_inv_r]).
-      brel_pures'.
+      iApply brel_vg_of_int_correct_r; first done...
 
       iApply brel_int_of_vg_sem_correct_l.
       iApply brel_int_of_vg_sem_correct_l.
 
       iApply (brel_handle_os_l [_] [AppRCtx _]); [set_solver|].
-      iIntros (rS) "!> HrS". brel_pures'.
+      iIntros (rS) "!> HrS"...
       unfold store_if_none.
 
-      do 2 (iApply brel_vg_of_int_correct_l; first apply int_of_vg_of_int_sem; brel_pures_l).
+      do 2 (iApply brel_vg_of_int_correct_l; first apply int_of_vg_of_int_sem)...
 
-      iApply (brel_load_l with "Hl0"). iIntros "!> Hl0".
-      iApply (brel_store_l with "Hl0"). iIntros "!> Hl0".
-      brel_pures'.
-      iApply (brel_load_l with "Hl1"). iIntros "!> Hl1".
-      iApply (brel_store_l with "Hl1"). iIntros "!> Hl1".
-      brel_pures'.
+      brel_load_l...
+      brel_store_l...
+      brel_load_l...
+      brel_store_l...
       iApply (brel_handle_os_l [] [AppRCtx _]); [set_solver |].
       iIntros (rL) "!> HrL". brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro. brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro. brel_pures'.
-      iApply (brel_load_l with "[$Hl0]"). iIntros "!> Hl0".
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQSome") as "Hkont".
+      iApply (brel_cont_l with "[$]"). iModIntro...
+      iApply (brel_cont_l with "[$]"). iModIntro...
       rewrite -!(@expg_mod _ n (h_ring (Fp_of_fin y) α)).
       2 : { apply vgG_expg_n. }
       assert (div.modn (h_ring (Fp_of_fin y) α) n = div.modn (ssrnat.muln y α) n) as ->.
@@ -1849,23 +1315,17 @@ Section handlee_verification.
       rewrite expg_mod.
       2 : { apply vgG_expg_n. }
 
-      iApply (brel_exhaustion' OS (fill k1' _) (fill k2' _) with "Hkont"); [set_solver|set_solver|].
-      iClear "HQNone Hl1 Hl0".
-      iLöb as "IH".
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-      iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl".
-      iApply (brel_handle_os_r _ (k2'')); [apply neutral_ectx;set_solver|].
-      iIntros (rr) "Hrr".
-      brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro.
+      (* Protocol done loop *)
+      iDestruct ("Hkont" with "HQSome") as "Hkont".
       iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQNone") as "Hfill".
-      iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-      by iApply "IH".
-    - iApply brel_couple_rand_rand; first done. iIntros (α Hα).
-      brel_pures'. rewrite -Nat2Z.inj_mul. brel_pures'.
+      iApply (brel_cont_l with "[$]"); iModIntro...
+      brel_load_l...
+      iApply (brel_cont_l with "[$]"); iModIntro...
+      iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hkont"); [first [done|set_solver]|set_solver|].
+      iClear "HQNone Hl1 Hl0".
+      protocol_done_loop.
+    - iApply brel_couple_rand_rand; first done. iIntros (α Hα)...
+      rewrite -Nat2Z.inj_mul...
 
       iApply (brel_bind [_;_;_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
       { iApply (traversable_ectx_labels _ _ [IDEALl; LEAK] [IDEALr] iThyBot); try set_solver.
@@ -1882,8 +1342,7 @@ Section handlee_verification.
         rewrite (expgnAC _ α y). rewrite (expgnAC _ x y).
         iSplit; iExists _; iSplit; done. }
       simpl.
-      iIntros (??) "(->&->)".
-      brel_pures'.
+      iIntros (??) "(->&->)"...
 
       iApply (brel_bind [_;_;_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
       { iApply (traversable_ectx_labels _ _ [IDEALl; LEAK] [IDEALr] iThyBot); try set_solver.
@@ -1896,218 +1355,90 @@ Section handlee_verification.
       { iUnfold sem_ty_arr, sem_ty_mbang in "Hrecv". simpl.
         by iApply "Hrecv". }
       simpl.
-      iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])".
+      iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])"...
 
       (* Protocol done loop *)
-      { brel_pures'.
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_r with "[$]").
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        brel_pures'.
-        iApply (brel_load_l with "[$Hl1]"). iIntros "!> Hl1". brel_pures.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl".
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr".
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+      { protocol_done cache_l. }
 
       iDestruct "H" as "(%&%&%&%&->&->&H1&H2)".
       iDestruct "H1" as "(%&%&%&%&(->&->&(%c0z&->&->)&(%d0z&->&->)))".
-      iDestruct "H2" as "(%&%&%&%&(->&->&(%c1z&->&->)&(%d1z&->&->)))".
-      brel_pures_l. 
+      iDestruct "H2" as "(%&%&%&%&(->&->&(%c1z&->&->)&(%d1z&->&->)))"...
 
       (* Deserialize a group element from c0 *)
       destruct (vg_of_int_sem c0z) as [c0|] eqn:Hc0z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_r with "[$]").
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        brel_pures'.
-        iApply (brel_load_l with "[$Hl1]"). iIntros "!> Hl1". brel_pures.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl".
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr".
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+        protocol_done cache_l. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from d0 *)
       destruct (vg_of_int_sem d0z) as [d0|] eqn:Hd0z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_r with "[$]").
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        brel_pures'.
-        iApply (brel_load_l with "[$Hl1]"). iIntros "!> Hl1". brel_pures.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl".
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr".
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
-
+        protocol_done cache_l. }
+      
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from c1 *)
       destruct (vg_of_int_sem c1z) as [c1|] eqn:Hc1z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_r with "[$]").
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        brel_pures'.
-        iApply (brel_load_l with "[$Hl1]"). iIntros "!> Hl1". brel_pures.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl".
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr".
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". } 
+        protocol_done cache_l. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
+      iApply brel_vg_of_int_correct_r; first done...
 
       (* Deserialize a group element from d1 *)
       destruct (vg_of_int_sem d1z) as [d1|] eqn:Hd1z.
       2 : {
         iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures_l. brel_pures_r.
+        iApply brel_vg_of_int_none_r; first done...
 
         (* Protocol done loop *)
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_cont_r with "[$]").
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        brel_pures'.
-        iApply (brel_load_l with "[$Hl1]"). iIntros "!> Hl1". brel_pures.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iClear "Hl0 Hl1 HQSome".
-        iApply (brel_exhaustion' OS (fill _ (InjLV #()%V)) (fill _ (InjLV #()%V)) with "Hfill"); [set_solver|set_solver|].
-        iLöb as "IH".
-        iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-        iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-        iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-        iIntros (rl) "!> Hrl".
-        iApply (brel_handle_os_r _ k2''); [apply neutral_ectx;set_solver|].
-        iIntros (rr) "Hrr".
-        brel_pures'.
-        iApply (brel_cont_l with "[$]"). iModIntro.
-        iApply (brel_cont_r with "[$]").
-        iDestruct ("Hkont" with "HQNone") as "Hfill".
-        iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-        by iApply "IH". }
+        protocol_done cache_l. }
 
       iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures_l. brel_pures_r.
-
-      repeat (first [brel_exp_r|brel_mult_r|brel_inv_r]).
-      brel_pures_r. repeat (first [brel_exp_r|brel_mult_r|brel_inv_r]).
-      brel_pures'.
+      iApply brel_vg_of_int_correct_r; first done...
 
       iApply brel_int_of_vg_sem_correct_l.
       iApply brel_int_of_vg_sem_correct_l.
 
       iApply (brel_handle_os_l [_] [AppRCtx _]); [set_solver|].
-      iIntros (rS) "!> HrS". brel_pures'.
+      iIntros (rS) "!> HrS"...
       unfold store_if_none.
 
-      do 2 (iApply brel_vg_of_int_correct_l; first apply int_of_vg_of_int_sem; brel_pures_l).
+      do 2 (iApply brel_vg_of_int_correct_l; first apply int_of_vg_of_int_sem)...
 
-      iApply (brel_load_l with "Hl0"). iIntros "!> Hl0".
-      iApply (brel_store_l with "Hl0"). iIntros "!> Hl0".
-      brel_pures'.
-      iApply (brel_load_l with "Hl1"). iIntros "!> Hl1".
-      iApply (brel_store_l with "Hl1"). iIntros "!> Hl1".
-      brel_pures'.
+      brel_load_l...
+      brel_store_l...
+      brel_load_l...
+      brel_store_l...
       iApply (brel_handle_os_l [] [AppRCtx _]); [set_solver|].
-      iIntros (rL) "!> HrL". brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro. brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro. brel_pures'.
-      iApply (brel_load_l with "[$Hl1]"). iIntros "!> Hl1".
-      iApply (brel_cont_l with "[$]"). iModIntro.
-      iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQSome") as "Hkont".
+      iIntros (rL) "!> HrL"...
+      iApply (brel_cont_l with "[$]"). iModIntro...
+      iApply (brel_cont_l with "[$]"). iModIntro...
 
-      iApply (brel_exhaustion' OS (fill k1' _) (fill k2' _) with "Hkont"); [set_solver|set_solver|].
-      iClear "HQNone Hl1 Hl0".
-      iLöb as "IH".
-      iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures|].
-      iIntros (k1'' k2'' ?????) "(%&->&->&(HQNone & HQSome)) Hkont".
-      iApply brel_handle_os_l; [apply neutral_ectx;set_solver| ].
-      iIntros (rl) "!> Hrl".
-      iApply (brel_handle_os_r _ (k2'')); [apply neutral_ectx;set_solver| ].
-      iIntros (rr) "Hrr".
-      brel_pures'.
-      iApply (brel_cont_l with "[$]"). iModIntro.
+      (* Protocol done loop *)
+      iDestruct ("Hkont" with "HQSome") as "Hkont".
       iApply (brel_cont_r with "[$]").
-      iDestruct ("Hkont" with "HQNone") as "Hfill".
-      iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hfill"); [set_solver|set_solver|].
-      by iApply "IH".
+      iApply (brel_cont_l with "[$]"); iModIntro...
+      brel_load_l...
+      iApply (brel_cont_l with "[$]"); iModIntro...
+      iApply (brel_exhaustion' OS (fill _ _) (fill _ _) with "Hkont"); [first [done|set_solver]|set_solver|].
+      iClear "HQNone Hl1 Hl0".
+      protocol_done_loop.
       Unshelve.
       { exact #()%V. }
       { exact []. }
@@ -2117,40 +1448,36 @@ iDestruct ("Hkont" with "HQNone") as "Hfill".
     ↯ (1 / n) -∗
     own γcrs (to_dfrac_agree (DfracOwn 1) #()%V) -∗
     BREL (reduction DH_rand) ≤ F_CRS <|⊥|> {{ λ v1 v2, (∀ᵣ θ__L, (∀ᵣ θ__CRS, ((𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾))) -{ sem_row_union (¡ θ__CRS) θ__L}-∘ 𝟙) -{ θ__L }-∘ 𝟙)%T v1 v2}}.
-  Proof using n_prime G. 
+  Proof with (repeat foldkont; brel_pures') using n_prime G. 
     iIntros "Herr Hcrs".
-
-    unfold F_CRS, reduction, DH_rand. brel_pures.
-    iModIntro.
-    iIntros (L f1 f2) "Hff". brel_pures'.
+    unfold F_CRS, reduction, DH_rand...
+    iIntros "!#" (L f1 f2) "Hff"...
 
     set H0fin :=  Fin.of_nat_lt (Nat.lt_0_succ (S n'')).
     iApply (brel_couple_couple_avoid _ _ [H0fin]); [apply NoDup_singleton|done|].
     iFrame. iIntros (t Ht) "!>".
-    apply not_elem_of_cons in Ht as [Ht _].
-    brel_exp_l. brel_exp_r.
-    brel_pures.
+    apply not_elem_of_cons in Ht as [Ht _]...
     epose proof brel_couple_rand_rand as h'.
     iApply (h' _ _ (h_ring (Fp_of_fin t))).
     1 : { unshelve eapply h_bij_ring; first done. by apply Fp_of_fin_ne_zero_2. }
     1 : { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply h_lt_ring; first done.
           by apply Rcomplements.SSR_leq. }
     clear h'.
-    iIntros (a Ha). brel_pures.
+    iIntros (a Ha)...
     epose proof brel_couple_rand_rand as h'.
     iApply (h' _ _ (h_ring (Fp_of_fin t))).
     1 : { unshelve eapply h_bij_ring; first done. by apply Fp_of_fin_ne_zero_2. }
     1 : { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply h_lt_ring; first done.
           by apply Rcomplements.SSR_leq. }
     clear h'.
-    iIntros (b Hb). brel_pures.
+    iIntros (b Hb)...
     epose proof brel_couple_rand_rand as h'.
     iApply (h' _ _ (h_ring (Fp_of_fin t))).
     1 : { unshelve eapply h_bij_ring; first done. by apply Fp_of_fin_ne_zero_2. }
     1 : { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply h_lt_ring; first done.
           by apply Rcomplements.SSR_leq. }
     clear h'.
-    iIntros (c Hc). brel_pures'.
+    iIntros (c Hc)...
 
     (* Normalize both sides' CRS to the common form
        (g^(t·c), g^(t·b), g^(t·a), g^t) using the inverse bijection h. *)
@@ -2170,9 +1497,8 @@ iDestruct ("Hkont" with "HQNone") as "Hfill".
     iDestruct (auth_persist with "Hcrs") as ">Hcrs".
     iDestruct "Hcrs" as "#Hcrs".
 
-    iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
-    iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>".
-    brel_pures'.
+    brel_effect_l CRSl as "Hcrsl"...
+    brel_effect_r CRSr as "Hcrsr"...
 
     iApply brel_new_theory.
     iApply (brel_add_label_l with "Hcrsl").
@@ -2197,11 +1523,10 @@ iDestruct ("Hkont" with "HQNone") as "Hfill".
 
     iApply (brel_exhaustion (f1 _) (f2 _) with "Hff"); [done|done|].
     iLöb as "IH".
-    iSplit; [iIntros (??) "!# (->&->)"; by brel_pures|].
+    iSplit; [iIntros (??) "!# (->&->)"; by brel_pures'|].
     iIntros (?????) "!# %Hk1' %Hk2 (%&(->&->&HQ)&HQ'Q) #HQkont".
     iApply brel_handle_os_l; [apply neutral_ectx;constructor|]. iIntros (ul) "!> Hul".
-    iApply brel_handle_os_r; [apply neutral_ectx;constructor|]. iIntros (ur) "Hur".
-    brel_pures.
+    iApply brel_handle_os_r; [apply neutral_ectx;constructor|]. iIntros (ur) "Hur"...
     iApply (brel_cont_l with "[$]"). iModIntro.
     iApply (brel_cont_r with "[$]").
 
@@ -2234,8 +1559,6 @@ iDestruct ("Hkont" with "HQNone") as "Hfill".
       iApply "Hgg".
       iApply (OT_Real_Sender_corrupt_self with "Hsend Hrecv Hff").
     Qed.
-
-
 
 End handlee_verification.    
     
