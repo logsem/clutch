@@ -1,6 +1,5 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import  na_invariants.
-From iris.algebra Require Import agree excl auth frac excl_auth.
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
@@ -8,7 +7,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   class_instances sem_types
   sem_def sem_row
   tactics.
-From clutch.prob_eff_lang.probblaze.examples.ot Require Import definition_thunk_receiver_corrupt ot_bijection.
+From clutch.prob_eff_lang.probblaze.examples.ot Require Import definition_thunk_receiver_corrupt ot_bijection ot_common.
 From mathcomp Require Import ssrbool.
 Import fingroup.
 Import fingroup.fingroup.
@@ -27,239 +26,11 @@ Section handlee_verification.
 
   #[local] Notation n := (S (S n'')).
   Context `{n_prime : is_true (prime.prime n)}.
-
-    (* Names and resources used in the theories *)
-  (*------------------------------------------------------------*)
-  Definition alphaN : namespace := nroot .@ "alpha".
-  Definition betaN : namespace := nroot .@ "beta".
-  Definition atokN : namespace := nroot .@ "atokN".
-  Definition btokN : namespace := nroot .@ "btokN".
-
-  Lemma auth_alloc v : ⊢ |==> ∃ γ, own γ (to_dfrac_agree (DfracOwn 1) v).
-  Proof.
-    iApply own_alloc.
-    constructor; done.
-  Qed.
-  
-  Lemma auth_upd v' γ v : ⊢ own γ (to_dfrac_agree (DfracOwn 1) v) -∗ |==>  own γ (to_dfrac_agree (DfracOwn 1) v').
-  Proof.
-    iApply own_update.
-    apply cmra_update_exclusive.
-    constructor; done.
-  Qed.
-
-  Lemma auth_agree γ q q' v v' :
-    ⊢ own γ (to_dfrac_agree q v) -∗ own γ (to_dfrac_agree q' v') -∗ ⌜ v = v' ⌝.
-  Proof.
-    iIntros "H1 H2".
-    iDestruct (own_op with "[$H1 $H2]") as "H".
-    iDestruct (own_valid with "H") as "%H".
-    iPureIntro.
-    by apply dfrac_agree_op_valid in H as (?&H). 
-  Qed.
-
-  Lemma auth_persist γ q v : ⊢ own γ (to_dfrac_agree q v) -∗ |==> own γ (to_dfrac_agree DfracDiscarded v).
-  Proof.
-    iApply own_update.
-    by apply dfrac_agree_persist.
-  Qed.
- 
-  (* Theories for the implementations *)
-  (*------------------------------------------------------------*)
-  
   Import valgroup_notation.
-  
-  Program Definition SenderTheoryR (SENDERl SENDERr : label) : iThy Σ :=
-    λ e1 e2, (λne Q, ∃ g1 g2 g1' g2', ℕ%T g1 g2 ∗ ℕ%T g1' g2' ∗
-                 ⌜ e1 = do: SENDERl (g1,g1')%V ⌝%E ∗
-                 ⌜ e2 = do: SENDERr (InjRV (g2, g2')) ⌝%E ∗
-                 Q #()%V #()%V
-             )%I.
-  Next Obligation. solve_proper. Qed.
-
-  Program Definition sendermono (SENDERl SENDERr : label) :=  {| pmono_prot_car := @SenderTheoryR SENDERl SENDERr; pmono_prot_prop := _ |}. 
-  Next Obligation.
-    intros ??. 
-    iIntros (????) "#HΦ (%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ)"; iExists _,_,_,_; repeat iSplit; try done.
-    1,2 : by iExists _.
-    by iApply "HΦ".
-  Qed. 
-
-  Definition sender (SENDERl SENDERr : label) := @SemSig Σ (sendermono SENDERl SENDERr) (SENDERl,SENDERr).
-  
-  Program Definition senderrow SENDERl SENDERr LEAK := SemRow [([SENDERl],[SENDERr;LEAK],sender SENDERl SENDERr)] _.
-  Next Obligation.
-    intros ???.
-    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_. 
-    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
-  Qed. 
-
-  Program Definition senderrow2 SENDERl SENDERr := SemRow [([SENDERl],[SENDERr],sender SENDERl SENDERr)] _.
-  Next Obligation.
-    intros ??.
-    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_. 
-    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
-  Qed.
-
-  Program Definition SenderTheoryL (SENDERl SENDERr : label) : iThy Σ :=
-    λ e1 e2, (λne Q, ∃ g1 g2 g1' g2', ℕ%T g1 g2 ∗ ℕ%T g1' g2' ∗
-                 ⌜ e1 = do: SENDERl (InjRV (g1,g1')) ⌝%E ∗
-                 ⌜ e2 = do: SENDERr (g2, g2')%V ⌝%E ∗
-                 Q #()%V #()%V
-             )%I.
-  Next Obligation. solve_proper. Qed.
-
- Program Definition sendermonol (SENDERl SENDERr : label) :=  {| pmono_prot_car := @SenderTheoryL SENDERl SENDERr; pmono_prot_prop := _ |}. 
-  Next Obligation.
-    intros ??. 
-    iIntros (????) "#HΦ (%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ)"; iExists _,_,_,_; repeat iSplit; try done.
-    1,2 : by iExists _.
-    by iApply "HΦ".
-  Qed. 
-
-  Definition senderl (SENDERl SENDERr : label) := @SemSig Σ (sendermonol SENDERl SENDERr) (SENDERl,SENDERr).
-  
-  Program Definition senderrowl SENDERl SENDERr LEAK := SemRow [([SENDERl;LEAK],[SENDERr],senderl SENDERl SENDERr)] _.
-  Next Obligation.
-    intros ???.
-    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_. 
-    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
-  Qed. 
-
-  Program Definition senderrowl2 SENDERl SENDERr := SemRow [([SENDERl],[SENDERr],senderl SENDERl SENDERr)] _.
-  Next Obligation.
-    intros ??.
-    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_. 
-    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
-  Qed.
-
-  Program Definition CRSThy (CRSl CRSr : label) {γcrs}: iThy Σ :=
-    λ e1 e2, (λne Q,            (* this resource we need to keep as a proof tool *)
-                (⌜ e1 = do: CRSl #()%V ⌝%E ∗ ⌜ e2 = do: CRSr #()%V ⌝%E ∗ (∀ crs, own γcrs (to_dfrac_agree DfracDiscarded crs) -∗ Q (Val crs) (Val crs))))%I.
-  Next Obligation. solve_proper. Qed.
-
-  Program Definition crsmono (CRSl CRSr : label) γcrs :=  {| pmono_prot_car := @CRSThy CRSl CRSr γcrs; pmono_prot_prop := _ |}. 
-  Next Obligation.
-    intros ???. 
-    iIntros (????) "#HΦ (->&->&H)"; repeat iSplit; try done; iIntros (?) "Hcrs"; iApply "HΦ"; by iApply "H".
-  Qed. 
-
-  Definition crs (CRSl CRSr : label) γcrs := @SemSig Σ (crsmono CRSl CRSr γcrs) (CRSl,CRSr).
-  
-  Program Definition crsrow CRSl CRSr γcrs := SemRow [([CRSl],[CRSr],crs CRSl CRSr γcrs)] _.
-  Next Obligation.
-    intros ???.
-    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_. 
-    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H". 
-  Qed. 
-
-  (* allows the real protocol (LHS) to throw additional CRS operations *)
-  Program Definition CRSThyL crs1 {γcrs} : iThy Σ :=
-    λ e1 e2, (λne Q, 
-                (⌜ e1 = do: crs1 #()%V ⌝%E ∗ (∀ crs, own γcrs (to_dfrac_agree DfracDiscarded crs) -∗ Q (Val crs) e2)))%I.
-  Next Obligation. solve_proper. Qed.
-
-Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
-    λ e1 e2, (λne Q, 
-                (⌜ e2 = do: crs1 #()%V ⌝%E ∗ (∀ crs, own γcrs (to_dfrac_agree DfracDiscarded crs) -∗ ▷ Q e1 (Val crs))))%I.
-  Next Obligation. solve_proper. Qed.
-
- 
-  (* TODO: move all of the above to a common authenticated channel file. *)
-
-  Lemma fin_not_0 (x : fin n) : x ∉ [0%fin] → (0 < x)%nat.
-  Proof using G n_prime.
-    intros Hin. apply Nat.neq_0_le_1. intros Hcontra.
-    apply Hin. set_unfold. left. apply fin_to_nat_inj. done.
-  Qed. 
-  
-  Lemma f_cancel_g (x : fin n) y :
-     x ∉ [0%fin] →
-    (y < n)%nat →
-    (g ^+ x ^+ f n'' x y = g ^+ y)%g.
-  Proof using G n_prime.
-    intros Hxin Hlt.
-    rewrite -expgM. unfold f.
-    apply Nat.ltb_lt in Hlt. erewrite Hlt.
-    rewrite -(@expg_mod _ n (ssrnat.muln x (div.modn (ssrnat.muln y (ssrnat.expn x n'')) n))).
-    2 : rewrite -g_nontriv; apply expg_order.
-    rewrite crs_bij_cancel; [|done | |].
-    3 : pose proof (fin_to_nat_lt x) as Hg0le; apply Rcomplements.SSR_leq; lia.
-    2 : { apply Rcomplements.SSR_leq. by apply fin_not_0. }
-    rewrite expg_mod; [done|].
-    rewrite -g_nontriv; apply expg_order.
-  Qed.
-
- Lemma Fp_of_fin_ne_zero_2 (t : fin n) :
-      t ≠ nat_to_fin (Nat.lt_0_succ (S n'')) → ~~ (@eqtype.eq_op (fintype.fintype_ordinal__canonical__eqtype_Equality (S (S (zmodp.Zp_trunc (prime.pdiv (S (S (@n'' vg vgg)))))))) (Fp_of_fin t) (@nmodule.Algebra.zero (zmodp.fintype_ordinal__canonical__Algebra_BaseAddUMagma (S (zmodp.Zp_trunc (prime.pdiv (S (S (@n'' vg vgg))))))))) = true.
-  Proof using n_prime.
-    intros Ht. 
-    eapply eqtype.contraNneq.
-    2 : { apply negb_true_iff. done. }
-    intros. unfold Fp_of_fin in H.  
-    have Hnat := f_equal (@fintype.nat_of_ord _) H.
-    rewrite /= zmodp.Zp_nat /= in Hnat.
-    have Hfp : S (S (zmodp.Zp_trunc (prime.pdiv n))) = n. { rewrite zmodp.Fp_cast; done. }
-    rewrite Hfp in Hnat.
-    have Hlt := fin_to_nat_lt t.
-    rewrite div.modn_small in Hnat. 2: apply Rcomplements.SSR_leq; exact Hlt.
-    exfalso. apply Ht.
-    apply fin_to_nat_inj. rewrite Hnat fin_to_nat_to_fin //.
-    Qed.
 
  Definition τC θ := (∀ᵣ θ__SENDER, ∀ᵣ θ__CRS, ((𝟙 -{ θ__CRS }-> (𝔾 × 𝔾 × 𝔾 × 𝔾)) × ((ℕ × ℕ) -{ θ__SENDER }-> 𝟙)) 
                                          -{ sem_row_union θ__SENDER (sem_row_union θ__CRS θ) }-∘ 𝟙)%T.
 
-
-  (* ------------------------------------------------------------------ *)
-  (* Once the protocol has run to completion, the only effects the       *)
-  (* client can still perform are SENDER calls, which both handlers      *)
-  (* forward unchanged.  Löb induction over the (neutral) continuation   *)
-  (* contexts closes the goal.  Expects the binders introduced by the    *)
-  (* effect case of [brel_exhaustion'] to be named [k1'], [k2'], [Hnk1], *)
-  (* [Hnk2], and the client's continuation to be [Hkont] applied to the  *)
-  (* theory witness [HQ].                                                *)
-  (* ------------------------------------------------------------------ *)
-  Local Ltac sender_forward_loop :=
-    iClear "Hl0 Hl1";
-    iRevert (k1' k2' Hnk1 Hnk2) "Hfill";
-    iLöb as "IH"; iIntros (????) "Hfill";
-    iApply (brel_exhaustion' OS (fill _ #()%V) (fill _ #()%V) with "Hfill");
-      [set_solver|set_solver|];
-    iSplit; [iIntros (v1 v2) "(->&->)"; by brel_pures'|];
-    iIntros (???????) "(%&%&%&%&(%&->&->)&(%&->&->)&->&->&HQ) Hkont";
-    iApply brel_handle_os_l; [apply neutral_ectx; set_solver|];
-    iIntros (rl) "!> Hrl";
-    iApply brel_handle_os_r; [apply neutral_ectx; set_solver|];
-    iIntros (rr) "Hrr";
-    brel_pures';
-    iApply (brel_cont_l with "[$]"); iModIntro;
-    iApply (brel_cont_r with "[$]");
-    iDestruct ("Hkont" with "HQ") as "Hfill";
-    by iApply "IH".
-
-  (* Feed the client's result to its continuation and resume both sides. *)
-  Local Ltac protocol_done_pre :=
-    brel_pures';
-    iDestruct ("Hkont" with "HQ") as "Hfill";
-    iApply (brel_cont_l with "[$]"); iModIntro;
-    iApply (brel_cont_r with "[$]");
-    brel_pures'.
-
-  (* [pop_r] / [pop_l] additionally pop the pending LEAK continuation:
-     on the right in OT_real_ideal, on the left in OT_ideal_real. *)
-  Local Tactic Notation "protocol_done" :=
-    protocol_done_pre; sender_forward_loop.
-  Local Tactic Notation "protocol_done" "pop_r" :=
-    protocol_done_pre; iApply (brel_cont_r with "[$]"); sender_forward_loop.
-  Local Tactic Notation "protocol_done" "pop_l" :=
-    protocol_done_pre; iApply (brel_cont_l with "[$]"); iModIntro;
-    sender_forward_loop.
 
   Lemma OT_real_ideal : 
     ⊢ ↯ (3 / n) -∗
@@ -289,7 +60,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
 
        epose proof brel_couple_rand_rand as h'.
        iApply (h' _ _ (f_ring (Fp_of_fin g0))).
-       { unshelve eapply f_bij_ring; first done.  by apply Fp_of_fin_ne_zero_2. }
+       { unshelve eapply f_bij_ring; first done.  by unshelve eapply Fp_of_fin_ne_zero_2. }
        { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
              by apply Rcomplements.SSR_leq. }
        clear h'.
@@ -303,16 +74,16 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply f_lt_ring; first done.
              by apply Rcomplements.SSR_leq. }
        Unshelve.
-       2 : (unshelve eapply f_bij_ring; [done|by apply Fp_of_fin_ne_zero_2]).
+       2 : (unshelve eapply f_bij_ring; [done|by unshelve eapply Fp_of_fin_ne_zero_2]).
        iFrame. iIntros (t1 Hneq) "!>"...
 
        rewrite -!expgM. rewrite -(@expg_mod _ n (ssrnat.muln g0 (f_ring (Fp_of_fin g0) t0))).
        2 : rewrite -g_nontriv; apply expg_order.
-       rewrite crs_fin_cancel //; [|by apply Fp_of_fin_ne_zero_2|apply Rcomplements.SSR_leq; lia].
+       rewrite crs_fin_cancel //; [|by unshelve eapply Fp_of_fin_ne_zero_2| apply Rcomplements.SSR_leq; lia].
        rewrite -(@expg_mod _ n (ssrnat.muln g1 (f_ring (Fp_of_fin g1) t1))).
        2 : rewrite -g_nontriv; apply expg_order.
        assert (t1 < n)%nat as Ht1' by apply fin_to_nat_lt.
-       rewrite crs_fin_cancel //; [|by apply Fp_of_fin_ne_zero_2|apply Rcomplements.SSR_leq; lia].
+       rewrite crs_fin_cancel //; [|by unshelve eapply Fp_of_fin_ne_zero_2|apply Rcomplements.SSR_leq; lia].
        rewrite !expg_mod.
        2,3: rewrite -g_nontriv; apply expg_order...
        brel_effect_l CRSl as "Hcrsl"...
@@ -333,13 +104,11 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        iApply (brel_add_label_l with "Hcrsl").
        iApply (brel_add_label_r with "Hcrsr").
    
-       iDestruct auth_alloc as ">(%γcrs&Hcrs)".
-       iDestruct (auth_upd (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V with "Hcrs") as ">Hcrs".
-       iDestruct (auth_persist with "Hcrs") as ">Hcrs". 
-       iDestruct "Hcrs" as "#Hcrs". 
+       iDestruct crs_alloc as ">(%γcrs&Hcrs)".
+       iDestruct (crs_upd γcrs (vgval (g ^+ t1), vgval (g ^+ t0), vgval (g ^+ g1), vgval (g ^+ g0))%V with "Hcrs") as ">#Hcrs".
 
        set θCRS := crsrow CRSl CRSr γcrs.
-       set θSENDER := senderrow IDEALl IDEALr LEAK.
+       eset (θSENDER := senderrow IDEALl IDEALr LEAK).
        
        iAssert (((𝟙 -{ θCRS }-> ((𝔾 × 𝔾) × 𝔾) × 𝔾) × (ℕ × ℕ) -{ θSENDER }-> 𝟙)%T
                    (λ: <>, do: CRSl #(), λ: "mm", do: IDEALl "mm")%V   
@@ -348,7 +117,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          - iIntros (??) "!# (->&->)"...
            iApply brel_introduction'; first constructor.
            iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
-           do 2 (iSplit; [by iPureIntro|]). iIntros (crs) "Hcrs'". iDestruct (auth_agree with "[$][$]") as "->". 
+           do 2 (iSplit; [by iPureIntro|]). iIntros (crs) "Hcrs'". iDestruct (crs_agree with "[$][$]") as "->". 
            iApply brel_value. iIntros "$ !>". 
            do 3 (iExists _,_,_,_; do 2 (iSplit; [by iPureIntro|]);
                                iSplit; last (iExists _; done)). iExists _; done.
@@ -494,7 +263,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
        iExists _.
        iSplitL; last (iIntros (??) "!> H"; iApply "H").
        iLeft. do 2 (iSplit; [done|]). iIntros (?) "Hcrs'".
-       iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'"...
+       iDestruct (crs_agree with "[$][$]") as "->". iClear "Hcrs'"...
        
        iApply (brel_bind [_] [_;_;_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
        { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
@@ -584,8 +353,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          2 : { apply: (enc_nondeg_other (n_prime := n_prime) g0 g1 ku kv t0 t1).
                { apply Rcomplements.SSR_leq; lia. }
                { apply Rcomplements.SSR_leq; lia. }
-               { by apply Fp_of_fin_ne_zero_2. }
-               { apply Fp_of_fin_ne_zero_2 => Hc0.
+               { by unshelve eapply Fp_of_fin_ne_zero_2. }
+               { eapply Fp_of_fin_ne_zero_2 => Hc0.
                  move: Heq => /bool_decide_eq_false_1 Hne0.
                  apply: Hne0. by rewrite Hc0 fin_to_nat_to_fin expg0. }
                { apply bool_decide_eq_true_1 in Heq1.
@@ -655,7 +424,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
          3, 4 : rewrite Rcomplements.SSR_leq; lia.
          2 : { apply: (enc_nondeg_self (n_prime := n_prime) g0 ku kv t0).
                { apply Rcomplements.SSR_leq; lia. }
-               { by apply Fp_of_fin_ne_zero_2. }
+               { by unshelve eapply Fp_of_fin_ne_zero_2. }
                { rewrite -expgM in Heq1. apply bool_decide_eq_false_1 in Heq1.
                  move=> Hc. apply: Heq1.
                  rewrite -(expg_mod_order g (fin.fin_to_nat kv))
@@ -710,7 +479,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
 
     epose proof brel_couple_rand_rand as h'.
     iApply (h' _ _ (h_ring (Fp_of_fin g0))).
-    { unshelve eapply h_bij_ring; first done.  by apply Fp_of_fin_ne_zero_2. }
+    { unshelve eapply h_bij_ring; first done.  by unshelve eapply Fp_of_fin_ne_zero_2. }
     { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply h_lt_ring; first done.
           by apply Rcomplements.SSR_leq. }
     clear h'.
@@ -722,7 +491,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     { intros n Hlt. apply Rcomplements.SSR_leq. unshelve eapply h_lt_ring; first done.
           by apply Rcomplements.SSR_leq. }
     Unshelve.
-    2 : (unshelve eapply h_bij_ring; [done|by apply Fp_of_fin_ne_zero_2]).
+    2 : (unshelve eapply h_bij_ring; [done|by unshelve eapply Fp_of_fin_ne_zero_2]).
     iFrame. iIntros (t1 Hneq) "!>"...
     rewrite -!expgM. 
 
@@ -744,13 +513,11 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     iApply (brel_add_label_l with "Hcrsl").
     iApply (brel_add_label_r with "Hcrsr").
 
-    iDestruct auth_alloc as ">(%γcrs&Hcrs)".
-    iDestruct (auth_upd (vgval (g ^+ ssrnat.muln g1 t1), vgval (g ^+ ssrnat.muln g0 t0), vgval (g ^+ g1), vgval (g ^+ g0))%V with "Hcrs") as ">Hcrs".
-    iDestruct (auth_persist with "Hcrs") as ">Hcrs". 
-    iDestruct "Hcrs" as "#Hcrs". 
+    iDestruct crs_alloc as ">(%γcrs&Hcrs)".
+    iDestruct (crs_upd γcrs (vgval (g ^+ ssrnat.muln g1 t1), vgval (g ^+ ssrnat.muln g0 t0), vgval (g ^+ g1), vgval (g ^+ g0))%V with "Hcrs") as ">#Hcrs".
 
     set θCRS := crsrow CRSl CRSr γcrs.
-    set θSENDER := senderrowl IDEALl IDEALr LEAK.
+    eset (θSENDER := senderrowl IDEALl IDEALr LEAK).
 
     iAssert (((𝟙 -{ θCRS }-> ((𝔾 × 𝔾) × 𝔾) × 𝔾) × (ℕ × ℕ) -{ θSENDER }-> 𝟙)%T
                 (λ: <>, do: CRSl #(), λ: "mm", do: IDEALl InjR "mm")%V   
@@ -759,7 +526,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       - iIntros (??) "!# (->&->)"...
         iApply brel_introduction'; first constructor.
         iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
-        do 2 (iSplit; [by iPureIntro|]). iIntros (crs) "Hcrs'". iDestruct (auth_agree with "[$][$]") as "->". 
+        do 2 (iSplit; [by iPureIntro|]). iIntros (crs) "Hcrs'". iDestruct (crs_agree with "[$][$]") as "->". 
         iApply brel_value. iIntros "$ !>". 
         do 3 (iExists _,_,_,_; do 2 (iSplit; [by iPureIntro|]);
                             iSplit; last (iExists _; done)). iExists _; done.
@@ -890,7 +657,7 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
     iExists _.
     iSplitL; last (iIntros (??) "!> H"; iApply "H").
     do 2 (iSplit; [done|]). iIntros (?) "Hcrs'".
-    iDestruct (auth_agree with "[$][$]") as "->". iClear "Hcrs'"...
+    iDestruct (crs_agree with "[$][$]") as "->". iClear "Hcrs'"...
     
     iApply (brel_bind [_;_;_] [_] _ (to_iThyIfMono OS (iLblSig_to_iLblThy θ))).
     { iApply traversable_ectx_labels; last first; [eapply distinct_submseteq; [|apply Hdistinct]; solve_submseteq|set_solver|set_solver]. }
@@ -979,8 +746,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       3, 4 : rewrite Rcomplements.SSR_leq; lia.
       2 : {
         apply: (enc_nondeg_other_mirror (n_prime := n_prime) g1 ku kv t0 t1).
-            - by apply Fp_of_fin_ne_zero_2.
-            - apply Fp_of_fin_ne_zero_2 => Hc0.
+            - by unshelve eapply Fp_of_fin_ne_zero_2.
+            - eapply Fp_of_fin_ne_zero_2 => Hc0.
               move: Heq => /bool_decide_eq_false_1 Hne0.
               apply: Hne0. by rewrite Hc0 fin_to_nat_to_fin expg0.
             - apply bool_decide_eq_true_1 in Heq1.
@@ -1050,8 +817,8 @@ Program Definition CRSThyR crs1 {γcrs} : iThy Σ :=
       3, 4 : rewrite Rcomplements.SSR_leq; lia.
       2 : {
         apply: (enc_nondeg_self_mirror (n_prime := n_prime) g0 ku kv t0).
-            - by apply Fp_of_fin_ne_zero_2.
-            - apply Fp_of_fin_ne_zero_2 => Hc0.
+            - by unshelve eapply Fp_of_fin_ne_zero_2.
+            - eapply Fp_of_fin_ne_zero_2 => Hc0.
               move: Heq => /bool_decide_eq_false_1 Hne0.
               apply: Hne0. by rewrite Hc0 fin_to_nat_to_fin expg0.
             - apply bool_decide_eq_false_1 in Heq1.
