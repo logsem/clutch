@@ -11,6 +11,7 @@ Section compatiblity.
     iApply sig_le_eff; iIntros (αs) "!#"; [by iApply "Hα"|by iApply "Hβ"].
   Qed. 
   
+  
   Lemma row_le_RNil D b :
     ⊢ sem_row_le D b RNil RNil.
   Proof. 
@@ -219,6 +220,16 @@ Section compatiblity.
     iIntros "#Hty %%%% !# #HD"; iApply ty_le_mode_forall; iIntros (m); by iApply "Hty".
   Qed. 
 
+  Lemma ty_le_RForall D τ κ :
+    sem_ty_le (le.shift_disj_ctx D) τ κ -∗ sem_ty_le D (∀R: τ) (∀R: κ).
+  Proof. 
+    iIntros "#Hle !# %%%% #HD /=".
+    iApply ty_le_row_forall.
+    iIntros (?). iApply "Hle".
+    by iApply erase_ctx_shift.
+  Qed. 
+  
+
   Lemma ty_le_TBangNat D m :
      ⊢ sem_ty_le D ℕ (![ m] ℕ).
   Proof. 
@@ -298,6 +309,7 @@ Section fundamental_subtyping.
       + by iApply ty_le_TArrow; last by iApply fundamental_row. 
       + iIntros (????) "!# #HD"; iApply ty_le_ref; by iApply fundamental_type.
       + by iApply ty_le_TForall.
+      + by iApply ty_le_RForall.
       + by iApply ty_le_MForall.
       + iIntros (????) "!# #HD"; iApply ty_le_prod; by iApply fundamental_type.
       + iIntros (????) "!# #HD"; iApply ty_le_sum; by iApply fundamental_type.

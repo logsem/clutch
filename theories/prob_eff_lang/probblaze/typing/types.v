@@ -1041,6 +1041,18 @@ Module le.
   Definition merge_ctx : disj_ctx → disj_ctx → disj_ctx :=
     union_with (λ '(ss, js) '(rs, ks), Some ((ss ∪ rs), (js ∪ ks))).
 
+  (* shift row variables in disj_ctx *)
+  Definition shift_disj_ctx (D : le.disj_ctx) : le.disj_ctx := (λ '(ss, js), (ss, set_map (λ k, k + 1) js)) <$> D.
+
+  Lemma shift_disj_ctx_lookup D s ss js : shift_disj_ctx D !! s = Some (ss, js) → ∃ js', D !! s = Some (ss, js') ∧ js = set_map (λ k, k + 1) js'.
+  Proof. 
+    intros Hin. unfold shift_disj_ctx in Hin. 
+    apply lookup_fmap_Some in Hin as ((ss', js')&Hp&Hin).
+    exists js'. inversion Hp. subst.
+    split; eauto.
+  Qed. 
+  
+
   (* [disj_ctx_included D D'] holds if [D] stores less disjointness
      information than [D']. More precisely, for every set of effect names [ss],
      set of row variables [js], and effect name [s], if [D] associates [s] to
@@ -1079,6 +1091,54 @@ Module le.
          (* | RRec ρ => abst_sigs ρ *)
          | RUnion ρ1 ρ2 => abst_sigs ρ1 ∪ abst_sigs ρ2
          end. 
+
+  (* Shifting variables doesn't changes the concrete effect names of a row *)
+  Lemma shift_row_conc_sigs ρ ξ ss : le.conc_sigs ρ ⊆ ss → le.conc_sigs ρ.[ren ξ] ⊆ ss.
+  Proof. 
+    revert ss; induction ρ; intros ss Hsub; try done.
+    - simpl in *.
+      assert (le.conc_sigs ρ ⊆ le.conc_sigs ρ) as H; first done.
+      apply IHρ in H.
+      etransitivity; last exact Hsub.
+      apply gmultiset_disj_union_mono; last done.
+      eapply gmultiset_singleton_subseteq. 
+      clear Hsub. induction e; done.
+    - by apply IHρ.
+    - simpl in *. 
+      assert (le.conc_sigs ρ1 ⊆ le.conc_sigs ρ1) as H1; first done.
+      apply IHρ1 in H1.
+      assert (le.conc_sigs ρ2 ⊆ le.conc_sigs ρ2) as H2; first done.
+      apply IHρ2 in H2.
+      etransitivity; last exact Hsub. 
+      by apply gmultiset_disj_union_mono.
+  Qed. 
+
+  (* If all variables in a row are greater than 0 then they can be shifted downn *)
+  Lemma shift_row_abst_sigs ρ js : set_Forall (λ s, s > 0) (le.abst_sigs ρ) → le.abst_sigs ρ ⊆ (set_map (λ k, k + 1) js) → le.abst_sigs ρ.[ren (λ s, s - 1)] ⊆ js.
+  Proof. 
+    induction ρ; try done; intros Hall Hsub; simpl in *.
+    - apply singleton_subseteq_l in Hsub.
+      apply elem_of_map in Hsub as (x&->&Hin).
+      rewrite Nat.add_sub. by apply singleton_subseteq_l.
+    - apply union_subseteq in Hsub as (Hρ1 & Hρ2).
+      eapply set_Forall_union_inv_1 in Hall as Hall1.
+      eapply set_Forall_union_inv_2 in Hall as Hall2.
+      apply union_subseteq; split; eauto.
+  Qed. 
+
+  (* If a row is in a shifted disj_ctx its variables are greater than 0 *)
+  Lemma shift_disj_ctx_abst_sigs D s ρ ss js : shift_disj_ctx D !! s = Some (ss, js) → le.abst_sigs ρ ⊆ js → set_Forall (λ s, s > 0) (le.abst_sigs ρ).
+  Proof using All. 
+    induction ρ; try done; intros Hin Hsub; simpl in *.
+    - apply shift_disj_ctx_lookup in Hin as (js'&Hin&->).
+      apply singleton_subseteq_l in Hsub.
+      apply elem_of_map in Hsub as (x&->&Hin').
+      apply set_Forall_singleton; lia.
+    - eapply union_subseteq in Hsub as (H1&H2).
+      apply set_Forall_union; eauto.
+  Qed. 
+
+
 
   (* The function [row_to_disj_ctx ρ'] builds a disjointness context by
      exploiting the assumption that there is no aliasing among the dynamic
@@ -1172,9 +1232,8 @@ Module le.
     _type D α β → _type D (TRef α) (TRef β)
   | TForallT_le D α β : 
     _type D α β → _type D (TForallT α) (TForallT β)
-  (* Unsure if it is sound *)
-  (* | TForallR_le D α β :
-       _type D α β → _type D (TForallR α) (TForallR β) *)
+    | TForallR_le D α β :
+    _type (le.shift_disj_ctx D) α β → _type D (TForallR α) (TForallR β)
   | TForallM_le D α β :
     _type D α β → _type D (TForallM α) (TForallM β)
   (* | TRec_le D α β : _type D α β → _type D (TRec α) (TRec β) *)

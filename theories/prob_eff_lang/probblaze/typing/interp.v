@@ -1045,6 +1045,37 @@ Section labels.
                elem_of_name_labels_r elem_of_var_labels_r.
   Qed.
 
+  (* if all variables are greater than 0 the first element of the context can be ignored *)
+  Lemma shift_row_labels_l ρ θ ξ δ : set_Forall (λ s, s > 0) (le.abst_sigs ρ) → row_labels_l ρ (θ :: ξ) δ = row_labels_l ρ.[ren (λ s, s - 1)] ξ δ.
+  Proof.
+    intros Hall; induction ρ; first done; simpl.
+    - f_equiv.
+      + induction e; first done. simpl.
+        by apply IHe.
+      + by apply IHρ. 
+    - do 3 f_equiv. simpl in Hall. 
+      rewrite Nat.sub_1_r.
+      apply lookup_total_cons_ne_0. apply set_Forall_singleton in Hall.
+      lia.
+    - by apply IHρ.
+    - f_equiv; [apply IHρ1;eapply set_Forall_union_inv_1|apply IHρ2;eapply set_Forall_union_inv_2]; done.
+  Qed. 
+
+  Lemma shift_row_labels_r ρ θ ξ δ : set_Forall (λ s, s > 0) (le.abst_sigs ρ) → row_labels_r ρ (θ :: ξ) δ = row_labels_r ρ.[ren (λ s, s - 1)] ξ δ.
+  Proof. 
+    intros Hall; induction ρ; first done; simpl.
+    - f_equiv.
+      + induction e; first done. simpl.
+        by apply IHe.
+      + by apply IHρ. 
+    - do 3 f_equiv. simpl in Hall. 
+      rewrite Nat.sub_1_r.
+      apply lookup_total_cons_ne_0. apply set_Forall_singleton in Hall.
+      lia.
+    - by apply IHρ.
+    - f_equiv; [apply IHρ1;eapply set_Forall_union_inv_1|apply IHρ2;eapply set_Forall_union_inv_2]; done.
+  Qed. 
+
   (* ------------------------------------------------------------------ *)
   (* Characterise lookups in [row_to_disj_ctx ρ]. *)
   (* NOTE: only used to prove erase_ctx_row_to_disj_ctx *)
@@ -1097,28 +1128,20 @@ Section erase_ctx.
     rewrite lookup_empty in Hlk. done.
   Qed.
 
-
-  (* NOTE: used to prove TForallT *)
-  (* Lemma erase_ctx_extend_ty η μ δ ξ D α :
-       ⊢ erase_ctx η μ δ ξ D -∗ erase_ctx (α :: η) μ δ ξ D.
-     Proof.
-       iIntros "#HD !# % % % % % % %".
-       iSpecialize ("HD" $! _ _ _ _).
-       rewrite !labels_r_interp_row.
-       rewrite !labels_l_interp_row.
-       by iApply "HD".
-     Qed.
-
-     (* NOTE: used to prove TForallM *)
-     Lemma erase_ctx_extend_mode η μ δ ξ D m :
-       ⊢ erase_ctx η μ δ ξ D -∗ erase_ctx η (m :: μ) δ ξ D.
-     Proof.
-       iIntros "#HD !# % % % % % % %".
-       iSpecialize ("HD" $! _ _ _ _).
-       rewrite !labels_r_interp_row.
-       rewrite !labels_l_interp_row.
-       by iApply "HD".
-     Qed.  *)
+  Lemma erase_ctx_shift δ θ ξ D :
+    ⊢ erase_ctx δ ξ D -∗ erase_ctx δ (θ :: ξ) (le.shift_disj_ctx D).
+  Proof. 
+    iIntros "#HD %%%% %Hin %Hc %Ha !#".
+    eapply le.shift_disj_ctx_abst_sigs in Ha as Hall; last done.
+    eapply shift_row_labels_l in Hall as Heq1.
+    eapply shift_row_labels_r in Hall as Heq2.
+    apply le.shift_disj_ctx_lookup in Hin as (js' & Hin & Heq).
+    rewrite Heq1 Heq2. rewrite Heq in Ha.
+    apply (le.shift_row_abst_sigs ρ0 js' Hall) in Ha.
+    eapply le.shift_row_conc_sigs in Hc.
+    iDestruct ("HD" $! _ _ _ _ Hin Hc Ha) as "$".
+    Unshelve. all: done.
+ Qed. 
 
   (* ------------------------------------------------------------------ *)
   (* ATOM-LEVEL CONSEQUENCES OF [erase_ctx].                             *)
