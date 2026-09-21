@@ -70,7 +70,7 @@ Section laplace_choice.
     { apply (sig_sample_at laplace_family S (num, den, loc)). }
     assert (Hμ' : sig_sample S lidx pv' = Some μ').
     { apply (sig_sample_at laplace_family S (num, den, loc')). }
-    iApply wp_lift_step_prog_couple; [done|].
+    iApply wp_lift_prim_steps_choice; [done|].
     iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ))".
     iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -131,24 +131,24 @@ Section laplace_choice.
                    ∃ z z' : Z, ez = Val (LitV (LitInt z)) ∧ ez' = Val (LitV (LitInt z')) ∧
                                  z < T ∧ z' < T + Δ)%Z)).
     set (RR' := (λ a '(e2', σ2'), ∃ e2'', (e2', σ2') = (fill K e2'', σ2') ∧ R' a (e2'', σ2'))).
-    opose proof (prog_coupl_steps ε_now_rest x ε_now 0 ε_now
-                   δ_now 0 0 δ_now
-                   P RR RR')%NNR as pcs.
-    (* inline only the relation [set]s into [pcs] (cheap), so the per-region
-       bullets see the unfolded [∃ e2'', …] structure — a full [simpl in pcs]
-       would instead blow up on the gen canonical-structure terms. *)
-    rewrite /RR in pcs. rewrite /RR' in pcs.
-    (* Discharge the [prog_coupl_steps] side conditions explicitly: an [=> //]
-       here would run [done] on the huge [DPcoupl]/continuation subgoals, which
-       is pathologically slow on the gen canonical-structure terms. *)
-    iApply pcs; clear pcs.
-    1: exact H_ε_now.
-    1,2: apply nnreal_ext; simpl; lra.
-    1: exact Hred.
-    1: by apply reducible_fill.
+    iExists P, RR, RR', x, ε_now_rest, 0%NNR, ε_now, 0%NNR, δ_now, 0%NNR.
+    (* inline only the relation [set]s (cheap), so the per-region bullets see the
+       unfolded [∃ e2'', …] structure — a full [simpl] would instead blow up on
+       the gen canonical-structure terms. *)
+    rewrite /RR /RR'.
+    (* Discharge the [wp_lift_prim_steps_choice] side conditions explicitly: an
+       [=> //] here would run [done] on the huge [DPcoupl]/continuation subgoals,
+       which is pathologically slow on the gen canonical-structure terms. *)
+    repeat iSplit.
+    - iPureIntro. exact H_ε_now.
+    - iPureIntro. apply nnreal_ext; simpl; lra.
+    - iPureIntro. apply nnreal_ext; simpl; lra.
+    - iPureIntro. exact Hred.
+    - iPureIntro. by apply reducible_fill.
 
     (* disjointness of R / R' under P *)
-    - intros [? ?] [? ?] [? ?]. intros P_ρ nP_ρ'. subst R R' P; cbn in *. intros [h h'].
+    - iPureIntro.
+      intros [? ?] [? ?] [? ?]. intros P_ρ nP_ρ'. subst R R' P; cbn in *. intros [h h'].
       destruct h as (e1'' & eq'' & R_ρρ').
       destruct h' as (? & eq''' & R'_ρρ').
       apply R_ρρ' in P_ρ. apply R'_ρρ' in nP_ρ'.
@@ -156,7 +156,8 @@ Section laplace_choice.
       subst. simplify_eq. lia.
 
     (* above threshold: shift the spec by [Δ], distance |Δ + loc - loc'| ≤ 2Δ *)
-    - intros. replace 0%R with (nonneg 0%NNR) => //.
+    - iPureIntro.
+      intros. replace 0%R with (nonneg 0%NNR) => //.
       apply DPcoupl_steps_ctx_bind_r => //.
       eapply DPcoupl_mono; last first.
       1: eapply (Hprimcpl Δ (Z.abs (Δ + loc - loc')) ltac:(lia)).
@@ -169,7 +170,8 @@ Section laplace_choice.
         exists z, (z + Δ)%Z. repeat split; simplify_eq => //. lia.
 
     (* below threshold: exact coupling (shift by [loc'-loc]), zero error *)
-    - intros. replace 0%R with (nonneg 0%NNR) => //. apply DPcoupl_steps_ctx_bind_r => //.
+    - iPureIntro.
+      intros. replace 0%R with (nonneg 0%NNR) => //. apply DPcoupl_steps_ctx_bind_r => //.
       eapply DPcoupl_mono; last first.
       1: eapply (Hprimcpl (loc' - loc)%Z (Z.abs ((loc' - loc) + loc - loc')) ltac:(lia)).
       all: try by intuition eauto.
