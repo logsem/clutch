@@ -145,7 +145,7 @@ Section rules.
     {{{ (v v' : val), RET v; ⤇ fill K (Val v') ∗ ⌜R' v v'⌝ }}}.
   Proof.
     iIntros (Hμ Hμ' Hcpl Φ) "(Hr & Hε) HΦ".
-    iApply wp_lift_step_prog_couple; [done|].
+    iApply wp_lift_prim_steps_coupl; [done|].
     iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ))".
     iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -160,13 +160,15 @@ Section rules.
       { destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
         eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS. }
       simpl. rewrite Hμ'. done. }
-    iApply (prog_coupl_steps_simple ε_now_rest ε'' ε_now δ_now 0%NNR);
-      [done | apply nnreal_ext; simpl; lra | | | | ].
-    - apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
+    iExists _, ε'', ε_now_rest, 0%NNR, δ_now.
+    repeat iSplit.
+    - iPureIntro. exact foo.
+    - iPureIntro. apply nnreal_ext; simpl; lra.
+    - iPureIntro. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
       eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS.
-    - apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
+    - iPureIntro. apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
       eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS.
-    - apply (DPcoupl_steps_ctx_bind_r _ _ _
+    - iPureIntro. apply (DPcoupl_steps_ctx_bind_r _ _ _
               (λ ρ ρ' : cfg, ∃ v v', R' v v' ∧ ρ = (Val v, σ1) ∧ ρ' = (Val v', σ1'))); [done|].
       rewrite Hps1 Hps1' /dmap.
       eapply (DPcoupl_dbind' ε'' 0 ε'' 0 0 0); [lra|done|done|lra| |rewrite Hε''; exact Hcpl].
@@ -202,7 +204,7 @@ Section rules.
     {{{ (v v' : val), RET v; ⤇ fill K (Val v') ∗ ⌜R' v v'⌝ }}}.
   Proof.
     iIntros (Hδ'pos Hμ Hμ' Hcpl Φ) "(Hr & Hε & Hδc) HΦ".
-    iApply wp_lift_step_prog_couple; [done|].
+    iApply wp_lift_prim_steps_coupl; [done|].
     iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ))".
     iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -218,13 +220,15 @@ Section rules.
       { destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
         eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS. }
       simpl. rewrite Hμ'. done. }
-    iApply (prog_coupl_steps_simple ε_now_rest ε'' ε_now δ_now_rest δ'' δ_now);
-      [done | exact foo_δ | | | | ].
-    - apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
+    iExists _, ε'', ε_now_rest, δ'', δ_now_rest.
+    repeat iSplit.
+    - iPureIntro. exact foo.
+    - iPureIntro. exact foo_δ.
+    - iPureIntro. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
       eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS.
-    - apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
+    - iPureIntro. apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
       eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS.
-    - apply (DPcoupl_steps_ctx_bind_r _ _ _
+    - iPureIntro. apply (DPcoupl_steps_ctx_bind_r _ _ _
               (λ ρ ρ' : cfg, ∃ v v', R' v v' ∧ ρ = (Val v, σ1) ∧ ρ' = (Val v', σ1'))); [done|].
       rewrite Hps1 Hps1' /dmap.
       eapply (DPcoupl_dbind' ε'' 0 ε'' δ'' 0 δ''); [lra|lra|done|lra| |rewrite Hε'' Hδ''; exact Hcpl].
@@ -266,7 +270,7 @@ Section rules.
         ⤇ fill K (Val v') ∗ α ↪ (i1, pv1, []) ∗ α' ↪ₛ (i1', pv1', []) ∗ ⌜R' v v'⌝ }}}.
   Proof.
     iIntros (Hμ Hμ' Hcpl Φ) "(Hr & Hα & Hα' & Hε) HΦ".
-    iApply wp_lift_step_prog_couple; [done|].
+    iApply wp_lift_prim_steps_coupl; [done|].
     iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ))".
     iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -289,17 +293,19 @@ Section rules.
         - destruct Hd as [-> ->]. eapply SampleTapeEmptyS; [exact Hβ' | exact Hμ' | exact Hw].
         - eapply SampleTapeOtherS; [exact Hβ' | exact Hd | exact Hμ' | exact Hw]. }
       simpl. rewrite Hβ'. case_bool_decide as Hd; rewrite Hμ' //. }
-    iApply (prog_coupl_steps_simple ε_now_rest ε'' ε_now δ_now 0%NNR);
-      [done | apply nnreal_ext; simpl; lra | | | | ].
-    - apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
+    iExists _, ε'', ε_now_rest, 0%NNR, δ_now.
+    repeat iSplit.
+    - iPureIntro. exact foo.
+    - iPureIntro. apply nnreal_ext; simpl; lra.
+    - iPureIntro. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
       eexists (_,_). apply head_step_support_equiv_rel.
       destruct (decide (i = i1 ∧ pv = pv1)) as [Hd|Hd];
         [destruct Hd as [-> ->]; eapply SampleTapeEmptyS | eapply SampleTapeOtherS]; eauto.
-    - apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
+    - iPureIntro. apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
       eexists (_,_). apply head_step_support_equiv_rel.
       destruct (decide (i = i1' ∧ pv' = pv1')) as [Hd|Hd];
         [destruct Hd as [-> ->]; eapply SampleTapeEmptyS | eapply SampleTapeOtherS]; eauto.
-    - apply (DPcoupl_steps_ctx_bind_r _ _ _
+    - iPureIntro. apply (DPcoupl_steps_ctx_bind_r _ _ _
               (λ ρ ρ' : cfg, ∃ v v', R' v v' ∧ ρ = (Val v, σ1) ∧ ρ' = (Val v', σ1'))); [done|].
       rewrite Hps1 Hps1' /dmap.
       eapply (DPcoupl_dbind' ε'' 0 ε'' 0 0 0); [lra|done|done|lra| |rewrite Hε''; exact Hcpl].
@@ -336,7 +342,7 @@ Section rules.
         ⤇ fill K (Val v') ∗ α ↪ (i1, pv1, []) ∗ ⌜R' v v'⌝ }}}.
   Proof.
     iIntros (Hμ Hμ' Hcpl Φ) "(Hr & Hα & Hε) HΦ".
-    iApply wp_lift_step_prog_couple; [done|].
+    iApply wp_lift_prim_steps_coupl; [done|].
     iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ))".
     iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -355,15 +361,17 @@ Section rules.
       { destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
         eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS. }
       simpl. rewrite Hμ'. done. }
-    iApply (prog_coupl_steps_simple ε_now_rest ε'' ε_now δ_now 0%NNR);
-      [done | apply nnreal_ext; simpl; lra | | | | ].
-    - apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
+    iExists _, ε'', ε_now_rest, 0%NNR, δ_now.
+    repeat iSplit.
+    - iPureIntro. exact foo.
+    - iPureIntro. apply nnreal_ext; simpl; lra.
+    - iPureIntro. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
       eexists (_,_). apply head_step_support_equiv_rel.
       destruct (decide (i = i1 ∧ pv = pv1)) as [Hd|Hd];
         [destruct Hd as [-> ->]; eapply SampleTapeEmptyS | eapply SampleTapeOtherS]; eauto.
-    - apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
+    - iPureIntro. apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
       eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS.
-    - apply (DPcoupl_steps_ctx_bind_r _ _ _
+    - iPureIntro. apply (DPcoupl_steps_ctx_bind_r _ _ _
               (λ ρ ρ' : cfg, ∃ v v', R' v v' ∧ ρ = (Val v, σ1) ∧ ρ' = (Val v', σ1'))); [done|].
       rewrite Hps1 Hps1' /dmap.
       eapply (DPcoupl_dbind' ε'' 0 ε'' 0 0 0); [lra|done|done|lra| |rewrite Hε''; exact Hcpl].
@@ -397,7 +405,7 @@ Section rules.
         ⤇ fill K (Val v') ∗ α' ↪ₛ (i1', pv1', []) ∗ ⌜R' v v'⌝ }}}.
   Proof.
     iIntros (Hμ Hμ' Hcpl Φ) "(Hr & Hα' & Hε) HΦ".
-    iApply wp_lift_step_prog_couple; [done|].
+    iApply wp_lift_prim_steps_coupl; [done|].
     iIntros (σ1 e1' σ1' ε_now δ_now) "((Hh1 & Ht1) & Hauth2 & (Hε2 & Hδ))".
     iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -416,15 +424,17 @@ Section rules.
         - destruct Hd as [-> ->]. eapply SampleTapeEmptyS; [exact Hβ' | exact Hμ' | exact Hw].
         - eapply SampleTapeOtherS; [exact Hβ' | exact Hd | exact Hμ' | exact Hw]. }
       simpl. rewrite Hβ'. case_bool_decide as Hd; rewrite Hμ' //. }
-    iApply (prog_coupl_steps_simple ε_now_rest ε'' ε_now δ_now 0%NNR);
-      [done | apply nnreal_ext; simpl; lra | | | | ].
-    - apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
+    iExists _, ε'', ε_now_rest, 0%NNR, δ_now.
+    repeat iSplit.
+    - iPureIntro. exact foo.
+    - iPureIntro. apply nnreal_ext; simpl; lra.
+    - iPureIntro. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ (pmf_pos μ)) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ); lra|].
       eexists (_,_). apply head_step_support_equiv_rel. by eapply SampleNoTapeS.
-    - apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
+    - iPureIntro. apply reducible_fill. apply head_prim_reducible. destruct (SeriesC_gtz_ex μ' (pmf_pos μ')) as [w Hw]; [rewrite (sig_sample_mass _ _ _ _ Hμ'); lra|].
       eexists (_,_). apply head_step_support_equiv_rel.
       destruct (decide (i = i1' ∧ pv' = pv1')) as [Hd|Hd];
         [destruct Hd as [-> ->]; eapply SampleTapeEmptyS | eapply SampleTapeOtherS]; eauto.
-    - apply (DPcoupl_steps_ctx_bind_r _ _ _
+    - iPureIntro. apply (DPcoupl_steps_ctx_bind_r _ _ _
               (λ ρ ρ' : cfg, ∃ v v', R' v v' ∧ ρ = (Val v, σ1) ∧ ρ' = (Val v', σ1'))); [done|].
       rewrite Hps1 Hps1' /dmap.
       eapply (DPcoupl_dbind' ε'' 0 ε'' 0 0 0); [lra|done|done|lra| |rewrite Hε''; exact Hcpl].
