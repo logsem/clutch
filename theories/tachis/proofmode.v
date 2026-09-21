@@ -117,6 +117,74 @@ Section proofmode.
     rewrite cost_fill // Hcost.
     iFrame.
   Qed.
+End proofmode.
+
+Section proofmode.
+  Context `{!tachisGS Σ c}.
+
+  Lemma tac_wp_alloc_no_cost Δ Δ' E j K `{!CostLanguageCtx c (fill K)} v Φ a :
+    MaybeIntoLaterNEnvs 1 Δ Δ' →
+    cost (Alloc (Val v)) = 0 →
+    (∀ (l : loc),
+        match envs_app false (Esnoc Enil j (l ↦{#1} v)) Δ' with
+        | Some Δ'' =>
+            envs_entails Δ'' (WP fill K (Val $ LitV $ LitLoc l) @ a ; E {{ Φ }})
+        | None => False
+        end) →
+    envs_entails Δ (WP fill K (Alloc (Val v)) @ a; E {{ Φ }}).
+  Proof.
+    rewrite envs_entails_unseal=> ?? HΔ.
+    rewrite -ert_wp_bind.
+    eapply bi.wand_apply.
+    { apply bi.wand_entails, wp_alloc. done. }
+    rewrite bool_decide_eq_true_2 // left_id.
+    rewrite into_laterN_env_sound.
+    apply bi.later_mono, bi.forall_intro=> l.
+    specialize (HΔ l).
+    destruct (envs_app _ _ _) as [Δ''|] eqn:HΔ'; [| contradiction].
+    rewrite envs_app_sound //; simpl.
+    apply bi.wand_intro_l.
+    rewrite right_id.
+    rewrite bi.wand_elim_r //.
+  Qed.
+
+  Lemma tac_wp_load_no_cost  Δ Δ' E i K `{!CostLanguageCtx c (fill K)} b (l : loc) dq v Φ a  :
+    MaybeIntoLaterNEnvs 1 Δ Δ' →
+    cost (Load #l) = 0 →
+    envs_lookup i Δ' = Some (b, l ↦{dq} v)%I →
+    envs_entails Δ' (WP fill K (Val v) @ a; E {{ Φ }}) →
+    envs_entails Δ (WP fill K (Load (Val $ LitV $ LitLoc l)) @ a; E {{ Φ }}).
+  Proof.
+    rewrite envs_entails_unseal=> ??? Hi.
+    rewrite -ert_wp_bind. eapply bi.wand_apply; first by apply bi.wand_entails, wp_load.
+    rewrite into_laterN_env_sound.
+    rewrite bool_decide_eq_true_2 // left_id -bi.later_sep.
+    rewrite envs_lookup_split //; simpl.
+    apply bi.later_mono.
+    destruct b; simpl.
+    - iIntros "[#$ He]". iIntros "_". iApply Hi. iApply "He". iFrame "#".
+    - by apply bi.sep_mono_r, bi.wand_mono.
+  Qed.
+
+  Lemma tac_wp_store_no_cost Δ Δ' E i K `{!CostLanguageCtx c (fill K)} (l : loc) (v v' : val) Φ a :
+    MaybeIntoLaterNEnvs 1 Δ Δ' →
+    cost (Store #l v') = 0 →
+    envs_lookup i Δ' = Some (false, l ↦{#1} v)%I →
+    match envs_simple_replace i false (Esnoc Enil i (l ↦{#1} v')) Δ' with
+    | Some Δ'' => envs_entails Δ'' (WP fill K (Val $ LitV LitUnit) @ a; E {{ Φ }})
+    | None => False
+    end →
+    envs_entails Δ (WP fill K (Store (Val $ LitV $ LitLoc l) (Val v')) @ a; E {{ Φ }}).
+  Proof.
+    rewrite envs_entails_unseal=> ??? Hcnt.
+    destruct (envs_simple_replace _ _ _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
+    rewrite -ert_wp_bind. eapply bi.wand_apply.
+    { eapply bi.wand_entails, wp_store. done. }
+    rewrite into_laterN_env_sound.
+    rewrite bool_decide_eq_true_2 // left_id.
+    rewrite -bi.later_sep envs_simple_replace_sound //; simpl.
+    rewrite right_id. by apply bi.later_mono, bi.sep_mono_r, bi.wand_mono.
+  Qed.
 
 End proofmode.
 
@@ -328,6 +396,7 @@ Tactic Notation "wp_alloc" ident(l) :=
 Tactic Notation "wp_alloc" :=
   let l := fresh in wp_alloc l as "?".
 
+(** This tactic may fail if there are more than one points-to in the context...  *)
 Tactic Notation "wp_store" :=
   let Htmp := iFresh in
   iPoseProof wp_store as Htmp;
@@ -341,6 +410,25 @@ Tactic Notation "wp_store" :=
   wp_apply (Htmp with "[$]");
   iClear Htmp.
 
+Tactic Notation "wp_store_no_cost" :=
+  let solve_pointsto _ :=
+    let l := match goal with |- _ = Some (_, (?l ↦{_} _)%I) => l end in
+    iAssumptionCore || fail "wp_store: cannot find" l "↦ ?" in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_store_no_cost _ _ _ _ K))
+      |fail 1 "wp_store: cannot find 'Store' in" e];
+    [tc_solve
+    | (reflexivity || fail 1 "wp_store: 'Store' not cost free")
+    |solve_pointsto ()
+    |pm_reduce; first [wp_seq|wp_finish]]
+  | _ => fail "wp_store: not a 'wp'"
+  end.
+
+
+(** This tactic may fail if there are more than one points-to in the context...  *)
 Tactic Notation "wp_load" :=
   let Htmp := iFresh in
   iPoseProof wp_load as Htmp;
@@ -353,6 +441,23 @@ Tactic Notation "wp_load" :=
   end;
   wp_apply (Htmp with "[$]");
   iClear Htmp.
+
+Tactic Notation "wp_load_no_cost" :=
+  let solve_pointsto _ :=
+    let l := match goal with |- _ = Some (_, (?l ↦{_} _)%I) => l end in
+    iAssumptionCore || fail "wp_load: cannot find" l "↦ ?" in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_load_no_cost _ _ _ _ K))
+      |fail 1 "wp_load: cannot find 'Load' in" e];
+      [tc_solve
+      | (reflexivity || fail 1 "wp_load: 'Load' not cost free")
+      |solve_pointsto ()
+    |wp_finish]
+  | _ => fail "wp_load: not a 'wp'"
+  end.
 
 Section tests.
   Context `{!tachisGS Σ Cost1}.
@@ -409,8 +514,10 @@ Section tests.
     iIntros (?) "Hc H".
     wp_alloc l.
     wp_pures.
+    Fail wp_store_no_cost.
     wp_store; iIntros "Hl".
     wp_pures.
+    Fail wp_load_no_cost.
     wp_load; iIntros "Hl".
     by iApply "H".
   Qed.
@@ -443,9 +550,9 @@ Section testsapp.
     iIntros (?) "Hx Hp".
     wp_alloc l as "Hl".
     wp_pures.
-    wp_store; iIntros "Hl".
+    wp_store_no_cost.
     wp_pures.
-    wp_load; iIntros "Hl".
+    wp_load_no_cost.
     wp_pures.
     assert (3 - 1 - 1 - 1 = 0)%R as -> by lra.
     by iApply "Hp".
