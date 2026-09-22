@@ -1,270 +1,237 @@
-From clutch.prob_eff_lang.probblaze Require Export notation valgroup p_composition.
-From clutch.prob_eff_lang.probblaze Require Export def_dhke.
+From clutch.prob_eff_lang.probblaze Require Export def_dhke notation valgroup p_composition mask.
 
 Import fingroup.
 
-Import fingroup.fingroup.
-
 Import valgroup_notation.
-Import valgroup_tactics.
 
 Section schannel.
   Context {vg : val_group}.
   Context {cg : clutch_group_struct}.
   Context {vgg : @val_group_generator vg}. 
-  (*Context (channel leaksec getKey1 getKey2 leakauth1 leakauth2 schannel1 schannel2 : label).*)
-  Variable xor_sem : val -> val -> val.
-  Variable xor : val.
+  Context {msk : @Mask (@vgG vg) vgval}.
   #[local] Notation n := (S n'').
 
-
-   Definition F_OAUTH : val :=
-     λ: "f" "LeakOp",
+  Definition F_OAUTH : val :=
+    λ: "f" "LeakOp",
       let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
       let: "message" := ref NONEV in
       effect "send"
-      effect "recv"
-      let: "doSend" := (λ: "m", do: "send" "m") in
-      let: "doRecv" := (λ: "m", do: "recv" "m") in
-      handle: handle: "f" ("doSend", "doRecv") with
-      (*Send Auth*)
-      | effect "send" "payload", rec "k" as multi =>
-          let, ("m", "dst") := "payload" in
-          match: !"message" with
-          | NONE => "message" <- SOME "m" ;;
-                   ("doLeakSend" ("m", "dst"));; "k" #()%V
-          | SOME "message" => "k" #()%V
-          end
-     | return "y" => "y" end with
-      (* Receive Auth *)
-      | effect "recv" "from", rec "k" as multi =>
-          let: "r" := ("doLeakRecv" "from") in
-          match: "r" with
-          | NONE => "k" NONEV
-          | SOME "x" => "k" !"message"                         
-          end
-     | return "y" => "y"
+        effect "recv"
+        let: "doSend" := (λ: "m", do: "send" "m") in
+        let: "doRecv" := (λ: "m", do: "recv" "m") in
+        handle: handle: "f" ("doSend", "doRecv") with
+    (*Send Auth*)
+    | effect "send" "payload", rec "k" as multi =>
+        let, ("m", "dst") := "payload" in
+        match: !"message" with
+        | NONE => "message" <- SOME "m" ;;
+                  ("doLeakSend" ("m", "dst"));; "k" #()%V
+        | SOME "message" => "k" #()%V
+        end
+    | return "y" => "y" end with
+(* Receive Auth *)
+| effect "recv" "from", rec "k" as multi =>
+    let: "r" := ("doLeakRecv" "from") in
+    match: "r" with
+    | NONE => "k" NONEV
+    | SOME "x" => "k" !"message"                         
+    end
+| return "y" => "y"
   end.
 
 
-   Definition G_XOR : val :=
-    λ: "a" "b",
-      vg_of_int (xor (int_of_vg "a") (int_of_vg "b")).
-
-   (* Assumes a fixed direction from Alice to Bob, so the leak raised by CHAN doesnt need to send a destination with the argument Bob*)
-   (* InjL arg represents the message being sent by Alice, and InjR <>, just represents that Bob is requesting a receive , so "doSecRecv" is now a genuine thunk, because it doesnt need any argument anymore*)
-    Definition CHAN : val :=
-     λ: "f" "ChanOp" "doGK",
+  (* Assumes a fixed direction from Alice to Bob, so the leak raised by CHAN doesnt need to send a destination with the argument Bob*)
+  (* InjL arg represents the message being sent by Alice, and InjR <>, just represents that Bob is requesting a receive , so "doSecRecv" is now a genuine thunk, because it doesnt need any argument anymore*)
+  Definition CHAN : val :=
+    λ: "f" "ChanOp" "doGK",
       let, ("doSend", "doRecv") := "ChanOp" in
       let: "message" := ref NONEV in
       effect "ssend"
-      effect "srecv"
-      let: "doSecSend" := (λ: "m", do: "ssend" "m") in
-      let: "doSecRecv" := (λ: <>, do: "srecv" bob) in
-      handle: handle: "f" ("doSecSend", "doSecRecv") with
-          (*SendSecure*)
-      | effect "ssend" "m", rec "k" as multi =>
-            match: vg_of_int "m" with
-            | NONE => "k" #()%V
-            | SOME "m" => 
-                match: !"message" with
-                | NONE => "message" <- SOME "m";;
-                          let: "key" := "doGK" (bob) in
-                          match: "key" with
-                          | NONE => "k" #()%V
-                          | SOME "x" =>
-                              match: G_XOR "m" "x" with
-                              | SOME "mg" =>
-                                  ("doSend" ("mg" , bob));;
-                                  "k" #()%V
-                              | NONE => "k" #()%V
-                              end
-                          end
-                | SOME "m" => "k" #()%V
-                end
-            end 
-      | return "y" => "y" end with
-          (*RecvSecure*)
-      | effect "srecv" "payload", rec "k" as multi =>
-            let: "key" := "doGK" (alice) in
-                            match: "key" with
-                            | NONE => "k" NONEV
-                            | SOME "key" =>
-                                let: "r" := ("doRecv" bob) in
-                                match: "r" with
-                                | NONE => "k" NONEV
-                                | SOME "x" =>
-                                    match: G_XOR "x" "key" with
-                                    | SOME "mg" => "k" (SOME "mg")
-                                    | NONE => "k" NONE
-                                    end                           
-                                end       
-                            end                              
-      | return "y" => "y"
+        effect "srecv"
+        let: "doSecSend" := (λ: "m", do: "ssend" "m") in
+        let: "doSecRecv" := (λ: <>, do: "srecv" bob) in
+        handle: handle: "f" ("doSecSend", "doSecRecv") with
+    (*SendSecure*)
+    | effect "ssend" "m", rec "k" as multi =>
+        match: vg_of_int "m" with
+        | NONE => "k" #()%V
+        | SOME "m" => 
+            match: !"message" with
+            | NONE => "message" <- SOME "m";;
+                      let: "key" := "doGK" (bob) in
+                      match: "key" with
+                      | NONE => "k" #()%V
+                      | SOME "key" =>
+                          let: "mg" := mask "key" "m" in ("doSend" ("mg", bob));; "k" #()%V
+                      end
+            | SOME "m" => "k" #()%V
+            end
+        end 
+    | return "y" => "y" end with
+(*RecvSecure*)
+| effect "srecv" "payload", rec "k" as multi =>
+    let: "key" := "doGK" (alice) in
+    match: "key" with
+    | NONE => "k" NONEV
+    | SOME "key" =>
+        let: "r" := ("doRecv" bob) in
+        match: "r" with
+        | NONE => "k" NONEV
+        | SOME "m" =>
+            "k" (SOME (mask "key" "m"))   
+        end       
+    end                              
+| return "y" => "y"
   end.
   
- (*reflecting the same change here as in the real functionality*)
-   (* Ideal functionality of the ONE-SHOT secure channel *)
-   Definition F_CHAN : val :=
-     λ: "f" "LeakOp",
+  (*reflecting the same change here as in the real functionality*)
+  (* Ideal functionality of the ONE-MESSAGE secure channel *)
+  Definition F_CHAN : val :=
+    λ: "f" "LeakOp",
       let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
       let: "message" := ref NONEV in
       effect "ssend"
-      effect "srecv"
-      let: "doSecSend" := (λ: "m", do: "ssend" "m")  in
-      let: "doSecRecv" := (λ: <>, do: "srecv" bob) in
-      handle: handle: "f" ("doSecSend" ,"doSecRecv") with
-          (*SendSecure*)
-       | effect "ssend" "m", rec "k" as multi =>
-             match: vg_of_int "m" with
-             | NONE => "k" #()%V
-             | SOME "m" => 
-                 match: !"message" with
-                 | NONE => "message" <- SOME "m";;
-                           ("doLeakSend" alice);;
-                           "k" #()%V 
-                 | SOME "x" => "k" #()%V
-                 end
-             end
-       | return "y" => "y" end with
-          (*ReceiveSecure*)
-       | effect "srecv" "payload", rec "k" as multi =>
-            let: "r" := ("doLeakRecv" bob) in
-            match: "r" with
-            | NONE => "k" NONEV
-            | SOME "x" => "k" (!"message")
-            end              
-       | return "y" => "y"
+        effect "srecv"
+        let: "doSecSend" := (λ: "m", do: "ssend" "m")  in
+        let: "doSecRecv" := (λ: <>, do: "srecv" bob) in
+        handle: handle: "f" ("doSecSend" ,"doSecRecv") with
+    (*SendSecure*)
+    | effect "ssend" "m", rec "k" as multi =>
+        match: vg_of_int "m" with
+        | NONE => "k" #()%V
+        | SOME "m" => 
+            match: !"message" with
+            | NONE => "message" <- SOME "m";;
+                      ("doLeakSend" alice);;
+                      "k" #()%V 
+            | SOME "x" => "k" #()%V
+            end
+        end
+    | return "y" => "y" end with
+(*ReceiveSecure*)
+| effect "srecv" "payload", rec "k" as multi =>
+    let: "r" := ("doLeakRecv" bob) in
+    match: "r" with
+    | NONE => "k" NONEV
+    | SOME "x" => "k" (!"message")
+    end              
+| return "y" => "y"
   end.
 
 
-  (*a function for requesting messages from the other party *)
-  Definition ASK_KEY : val :=
-    λ: "party",
-      match: "party" with
-      | InjL <> => InjR #()%V
-      | InjR <> => InjL #()%V
-      end.
-
-   (*Simulator for the one message secure channel *)      
+  (*Simulator for the one message secure channel *)      
   Definition CHAN_SIM : val :=
     λ: "f" "LeakAOp" "doKeyLeak",
-    let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
-    let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in  
-    (*let: "α" := alloc #n in*)
-    let: "message" := ref NONEV in
-    effect "leaksec"
-    let: "doLeakSecSend" := (λ: "m", do: (EffName "leaksec") (Send "m")) in
-    let: "doLeakSecRecv" := (λ: "m", do: (EffName "leaksec") (Recv "m")) in
-    handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
+      let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
+      let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in  
+      (*let: "α" := alloc #n in*)
+      let: "message" := ref NONEV in
+      effect "leaksec"
+        let: "doLeakSecSend" := (λ: "m", do: (EffName "leaksec") (Send "m")) in
+        let: "doLeakSecRecv" := (λ: "m", do: (EffName "leaksec") (Recv "m")) in
+        handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
     | effect (EffName "leaksec") "payload", rec "k" as multi =>
         match: "payload" with
-          (*Broadcast a message*)
+        (*Broadcast a message*)
         | InjL <> =>
-            (* assuming "dst" is alice for now *)
-            (*let, ("m", "dst") := "payload" in*)
-            (*("doKeyLeak" (Send("payload")));;*)
             ("doKeyLeakSnd" (bob));;
             let: "r" := "doKeyLeakRecv" (bob) in
-                          match: "r" with
-                          | NONE =>
-                              "k" NONEV
-                          | SOME "x" =>
-                              match: !"message" with
-                              | NONE =>
-                                  let: "m'" := (sample #()%V) in
-                                  let: "mA" := g^"m'" in
-                                  "message" <- SOME "m'";;
-                                  ("doLeakASend" ("mA", bob));;
-                                  "k" #()%V
-                              | SOME "m" => "k" #()%V
-                              end    
-                          end                           
-       | InjR <> =>
-                            (*("doKeyLeakRecv" (alice));;*)
-                            let: "r" := "doKeyLeakRecv" (alice) in
-                            match: "r" with
-                             | NONE =>
-                               (*(do: leakauth ("from"));;*)
-                               "k" NONEV
-                             | SOME "x" =>
-                               ("doKeyLeakSnd" alice);;
-                               let: "rla" := ("doLeakARecv" bob) in
-                               match: "rla" with
-                               | NONE => "k" NONEV
-                               | SOME "x" => "k" !"message"
-                               end
-                                 
-                           end                             
+            match: "r" with
+            | NONE =>
+                "k" NONEV
+            | SOME "x" =>
+                match: !"message" with
+                | NONE =>
+                    let: "m'" := (sample #()%V) in
+                    let: "mA" := g^"m'" in
+                    "message" <- SOME "m'";;
+                    ("doLeakASend" ("mA", bob));;
+                    "k" #()%V
+                | SOME "m" => "k" #()%V
+                end    
+            end                           
+        | InjR <> =>
+            (*("doKeyLeakRecv" (alice));;*)
+            let: "r" := "doKeyLeakRecv" (alice) in
+            match: "r" with
+            | NONE =>
+                (*(do: leakauth ("from"));;*)
+                "k" NONEV
+            | SOME "x" =>
+                ("doKeyLeakSnd" alice);;
+                let: "rla" := ("doLeakARecv" bob) in
+                match: "rla" with
+                | NONE => "k" NONEV
+                | SOME "x" => "k" !"message"
+                end
+                  
+            end                             
         end
     | return "y" => "y" end.
 
 
-   (*Simulator for the one message secure channel *)
+  (*Simulator for the one message secure channel *)
   Definition CHAN_SIM_lazy : val :=
     λ: "f" "LeakAOp" "doKeyLeak",
-    let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
-    let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in
-    let: "message" := ref NONEV in
-    let: "m'_opt" := ref NONEV in
-    let: "sample_or_load" :=
-      λ:<>, match: !"m'_opt" with
-        | NONE =>
-            let: "m'" := (sample #()%V) in
-            "m'_opt" <- SOME "m'" ;;
-            "m'"
-        | SOME "m'" => "m'"
-        end
-    in
-    effect "lsend"
-    effect "lrecv"
-    let: "doLeakSecSend" := (λ: "m", do: "lsend" "m") in
-    let: "doLeakSecRecv" := (λ: "m", do: "lrecv" "m") in
-    handle: handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
-          (*Broadcast a message*)
+      let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
+      let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in
+      let: "message" := ref NONEV in
+      let: "m'_opt" := ref NONEV in
+      let: "sample_or_load" :=
+        λ:<>, match: !"m'_opt" with
+          | NONE =>
+              let: "m'" := (sample #()%V) in
+              "m'_opt" <- SOME "m'" ;;
+              "m'"
+          | SOME "m'" => "m'"
+          end
+      in
+      effect "lsend"
+        effect "lrecv"
+        let: "doLeakSecSend" := (λ: "m", do: "lsend" "m") in
+        let: "doLeakSecRecv" := (λ: "m", do: "lrecv" "m") in
+        handle: handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
+    (*Broadcast a message*)
     | effect "lsend" "payload", rec "k" as multi =>
-            (* assuming "dst" is alice for now *)
-            (*let, ("m", "dst") := "payload" in*)
-            (*("doKeyLeak" (Send("payload")));;*)
-            let: "m'" := "sample_or_load" #()%V in
-            ("doKeyLeakSnd" (bob));;
-            let: "r" := "doKeyLeakRecv" (bob) in
-                          match: "r" with
-                          | NONE =>
-                              "k" NONEV
-                          | SOME "x" =>
-                              match: !"message" with
-                              | NONE =>
-                                  (* let: "m'" := (sample #()%V) in *)
-                                  let: "mA" := g^"m'" in
-                                  "message" <- SOME "m'";;
-                                  ("doLeakASend" ("mA", bob));;
-                                  "k" #()%V
-                              | SOME "m" => "k" #()%V
-                              end
-                          end
+        let: "m'" := "sample_or_load" #()%V in
+        ("doKeyLeakSnd" (bob));;
+        let: "r" := "doKeyLeakRecv" (bob) in
+        match: "r" with
+        | NONE =>
+            "k" NONEV
+        | SOME "x" =>
+            match: !"message" with
+            | NONE =>
+                (* let: "m'" := (sample #()%V) in *)
+                let: "mA" := g^"m'" in
+                "message" <- SOME "m'";;
+                ("doLeakASend" ("mA", bob));;
+                "k" #()%V
+            | SOME "m" => "k" #()%V
+            end
+        end
     | return "y" => "y" end with
-       | effect "lrecv" "payload", rec "k" as multi =>
-                            (*("doKeyLeakRecv" (alice));;*)
-                            let: "r" := "doKeyLeakRecv" (alice) in
-                            match: "r" with
-                             | NONE =>
-                               (*(do: leakauth ("from"));;*)
-                               "k" NONEV
-                             | SOME "x" =>
-                                 ("doKeyLeakSnd" alice);;
-                               match: !"m'_opt" with
-                              (* match: !"message" with*)
-                               | NONE => "k" NONEV
-                               | SOME "_" =>
-                                   let: "rla" := ("doLeakARecv" bob) in
-                                   match: "rla" with
-                                   | NONE => "k" NONEV
-                                   | SOME "x" => "k" !"message"
-                                   end
-                               end
+| effect "lrecv" "payload", rec "k" as multi =>
+    (*("doKeyLeakRecv" (alice));;*)
+    let: "r" := "doKeyLeakRecv" (alice) in
+    match: "r" with
+    | NONE =>
+        (*(do: leakauth ("from"));;*)
+        "k" NONEV
+    | SOME "x" =>
+        ("doKeyLeakSnd" alice);;
+        match: !"m'_opt" with
+        (* match: !"message" with*)
+        | NONE => "k" NONEV
+        | SOME "_" =>
+            let: "rla" := ("doLeakARecv" bob) in
+            match: "rla" with
+            | NONE => "k" NONEV
+            | SOME "x" => "k" !"message"
+            end
+        end
 
-                           end
-    | return "y" => "y" end.
+    end
+| return "y" => "y" end.
 
 End schannel.

@@ -1,7 +1,7 @@
 From clutch.prob_eff_lang.probblaze Require Import advantage.
 From clutch.prob_eff_lang.probblaze.typing Require Import types fundamental interp.
 From clutch.prob_eff_lang.probblaze Require Import p_composition sem_row syntax semantics proofmode valgroup adequacy mode.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import new_composition xor sec_channel_def new_composition_defs dhke_common.
+From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import new_composition mask sec_channel_def new_composition_defs dhke_common.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -11,10 +11,8 @@ Section adv_comp.
   Context {G : ∀ `{!probblazeRGS Σ}, clutch_group}.  
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
   Context `{Hpre :probblazeRGpreS Σ}.
-  Let Key := (S n'').
-  Let Support := (S n'').
-  Context {xor_struct : XOR (Key := Key) (Support := Support)}.
-  Context `{X : ∀ `{!probblazeRGS Σ}, XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
+  Context {msk : @Mask (@vgG vg) vgval}.
+  Context {M : ∀ `{probblazeRGS Σ}, Mask_struc}.
 
   Theorem adv_composition A :
      (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ → 𝔹)%T) →

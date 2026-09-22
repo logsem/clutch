@@ -2,11 +2,10 @@ From clutch Require Import base.
 From clutch.prob_eff_lang.probblaze Require Import logic proofmode. 
 From clutch.prob_eff_lang.probblaze.typing Require Import types.
 
-Class Mask {car : Type} :=
+Class Mask (car : Type) (dval : car → val) :=
   { mask : val
   ; τmask : type
   ; mask_typed : ⊢ᵥ mask : (τmask ⇾ τmask ⇾ τmask)%ty
-  ; dval : car → val
   ; dval_inj : Inj eq eq dval
   ; mask_sem : car → car → car
   ; mask_closed : is_closed_val mask
@@ -21,8 +20,8 @@ Class Mask_struc `{!probblazeRGS Σ} `{Mask} :=
   ; MASK_CORRECT_R := ∀ E K (k m : car) e X R,
       (BREL e ≤ (fill K (of_val (dval (mask_sem k m)))) @ E <|X|> {{R}})
       -∗ BREL e ≤ (fill K (mask (dval k) (dval m))) @ E <|X|> {{R}}
-  ; MASK_correct_l : MASK_CORRECT_L
-  ; MASK_correct_r : MASK_CORRECT_R
-  ; mask_bij (k : car) :: Bij (λ m, mask_sem m k)
-  ; mask_masklutive (k : car) : Involutive eq (mask_sem k)
+  ; mask_correct_l : MASK_CORRECT_L
+  ; mask_correct_r : MASK_CORRECT_R
+  ; mask_bij (m : car) :: Bij (λ k, mask_sem k m)
+  ; mask_involutive (k : car) : Involutive eq (mask_sem k)
   }.

@@ -28,10 +28,8 @@ Section new_comp_verification.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg: @val_group_generator vg}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
-  Let Key := (S n'').
-  Let Support := (S n'').
-  Context {xor_struct : XOR (Key := Key) (Support := Support)}.
-  Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
+  Context {msk : @Mask (@vgG vg) vgval}.
+  Context `{!Mask_struc}.
 
   (* F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] ≤ F_OAUTH[ F_AUTH [C[DH_real][CHAN []]]] *)
   (*---------------------------------------------------------------------------*)

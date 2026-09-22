@@ -3,7 +3,7 @@ From iris.algebra Require Import excl.
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy mode.
 From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental.
-From clutch.prob_eff_lang.probblaze Require Import xor sec_channel_def sec_channel_prf.
+From clutch.prob_eff_lang.probblaze Require Import sec_channel_def sec_channel_prf mask.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -13,11 +13,8 @@ Section adv_schan.
   Context {G : ∀ `{!probblazeRGS Σ}, clutch_group}.
   Context `{probblazeRGpreS Σ}.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
-  (* Context (lka1 lka2 klk1 klk2 : label). *)
-  Let Key := (S n'').
-  Let Support := (S n'').
-  Context {xor_struct : XOR (Key := Key) (Support := Support)}.
-  Context `{X : ∀ `{!probblazeRGS Σ}, XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
+  Context {msk : Mask vgG vgval}.
+  Context {M : ∀ `{probblazeRGS Σ}, Mask_struc}.
 
   Import valgroup_notation.
 
@@ -64,7 +61,7 @@ Section adv_schan.
   Lemma adv_SCHAN A :
     (∀ `{!probblazeRGS Σ}, 
        ⊢ sem_val_typed A A (τ_CHAN → 𝔹)%T) →
-    nonneg (advantage A (R_CHAN xor_struct) (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V #true) = 0%R.
+    nonneg (advantage A R_CHAN (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V #true) = 0%R.
   Proof using All.
     intros. eapply sem_typed_advantage; eauto. split.
     - intros Hrgs. by unshelve eapply R_I_SCHAN.
@@ -73,7 +70,7 @@ Section adv_schan.
 
   Lemma adv_SCHAN_typed A :
    ⊢ᵥ A : (T_CHAN ⇾ TBool) →
-   nonneg (advantage A (R_CHAN xor_struct) (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V #true) = 0%R.
+   nonneg (advantage A R_CHAN (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V #true) = 0%R.
   Proof using All.
     intros HAtyped. apply adv_SCHAN. 
     intros HRGS.

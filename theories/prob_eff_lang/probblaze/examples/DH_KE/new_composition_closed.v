@@ -1,7 +1,8 @@
 From clutch.prob_eff_lang.probblaze Require Import logic.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import valgroup def_dhke sec_channel_def sec_channel_prf xor.
+From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import valgroup def_dhke sec_channel_def sec_channel_prf mask.
 (* Syntactic closedness of the composite programs.  These [is_closed]
    proofs are slow, so they live in their own file. *)
+Import fingroup.
 
 Section new_comp_verification.
   Context `{probblazeRGS Σ}.
@@ -9,14 +10,12 @@ Section new_comp_verification.
   Context {cg: clutch_group_struct}.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg: @val_group_generator vg}.
-  Let Key := (S n'').
-  Let Support := (S n'').
-  Variable xor_struct : XOR (Key := Key) (Support := Support).
-  Context `{!XOR_spec (Key := Key) (Support := Support) (H := xor_struct)}.
+  Context {msk : Mask vgG vgval}.
+  Context `{!Mask_struc}.
 
   (* [is_closed] discharges its leaves with [auto]; make the XOR operation's
      closedness (a field of the [XOR] class) available to it. *)
-  #[local] Hint Resolve xor_closed : core.
+  #[local] Hint Resolve mask_closed : core.
 
   Lemma F_AUTH_DHKE_closed : is_closed_expr ∅ ((λ: "f", F_AUTH (DH_KE "f"))%V ||ᵣ F_OAUTH).
   Proof. is_closed. Qed.
@@ -40,7 +39,7 @@ Section new_comp_verification.
   Lemma F_KE_lazy_alice_F_OAUTH_closed : is_closed_expr ∅ (F_KE_lazy_alice ||ᵣ F_OAUTH).
   Proof. is_closed. Qed.
 
-  Lemma R_CHAN_closed : is_closed_expr ∅ (R_CHAN xor_struct).
+  Lemma R_CHAN_closed : is_closed_expr ∅ R_CHAN.
   Proof. is_closed. Qed.
 
   Lemma CHAN_SIM_lazy_F_CHAN_closed : is_closed_expr ∅ (CHAN_SIM_lazy ∘f F_CHAN).
