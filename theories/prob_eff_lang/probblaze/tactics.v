@@ -538,6 +538,70 @@ Tactic Notation "brel_handle_os_r" simple_intropattern(l) "as" constr(Hl) :=
   end.
 
 
+Lemma tac_brel_cont_l `{!probblazeRGS Σ} E K K' Δ Δ' Δ'' i1 (l: loc) (v : val) eₛ eₛ' eₜ L R :
+  IntoCtx eₛ (TCEq (ContV l K' v)) K →
+  MaybeIntoLaterNEnvs 1 Δ Δ' ->
+  envs_lookup_delete false i1 Δ' = Some (false, unshot l, Δ'')%I ->
+  eₛ' = fill K (fill K' v) ->
+  envs_entails Δ'' (brel E eₛ' eₜ L R) ->
+  envs_entails Δ (brel E eₛ eₜ L R).
+Proof.
+  rewrite envs_entails_unseal. 
+  iIntros (Heq Hlater Hlookup -> Hstep) "Hi".
+  apply tc_eq_fill in Heq. rewrite <- Heq. (* rewrite -> H3 in H4. *)
+  rewrite into_laterN_env_sound envs_lookup_delete_sound //; simpl.
+  rewrite bi.later_sep.
+  iDestruct "Hi" as "[Hl Hclose]".
+  iApply (brel_cont_l K K' v l eₜ E L R with "Hl"). 
+  iModIntro. by iApply Hstep.
+Qed.
+
+Tactic Notation "brel_cont_l" :=
+  iStartProof;
+  lazymatch goal with
+  | |- environments.envs_entails _ (brel _ _ _ _ _) =>
+      eapply tac_brel_cont_l;
+      [ tc_solve || fail "cannot find a one-shot continuation" (* the first IntoCtx that looks for a load in a context*)
+      | tc_solve (*maybelaterenvs *)
+      | let l := match goal with
+                 | |- _ = Some (_, (unshot ?l)%I, _) => l end in
+        iAssumptionCore || fail "brel_cont_l: cannot find unshot" l"" (* look up the value that l points to*)
+      | reflexivity || fail "eₛ' already set" (*the second IntoCtx *)
+      | simpl (*new goal*) ]
+  | |- _ => fail "brel_cont_l: goal not a brel"
+  end.
+
+Lemma tac_brel_cont_r `{probblazeRGS Σ} E K K' Δ Δ' i1 (l: loc) (v : val) eₛ eₜ eₜ' L R :
+  IntoCtx eₜ (TCEq (ContV l K' v)) K ->
+  envs_lookup_delete false i1 Δ = Some (false, unshotₛ l, Δ')%I ->
+  eₜ' = fill K (fill K' v) ->
+  envs_entails Δ' (brel E eₛ eₜ' L R) ->
+  envs_entails Δ (brel E eₛ eₜ L R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Heq Hlookup -> Hstep) "Hi".
+  apply tc_eq_fill in Heq as <-. 
+  rewrite envs_lookup_delete_sound // /=.
+  iDestruct "Hi" as "[Hl Hclose]".
+  iApply (brel_cont_r K K' v l eₛ E L R with "[$]").
+  by iApply Hstep.
+Qed.
+
+Tactic Notation "brel_cont_r" :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (brel _ _ _ _ _ ) =>
+      eapply tac_brel_cont_r;
+      [ tc_solve || fail "failed to find a store operation"
+      | let l:= match goal with
+                | |- _ = Some (_, (unshotₛ ?l)%I, _) => l
+                end in
+        iAssumptionCore || fail "brel_cont_r: cannot find unshot" l""
+      | reflexivity
+      | simpl (* new goal *)        
+      ]
+  | |- _ => fail "brel_cont_r: goal not a brel"
+  end.
 
 (*tape allocation requires all invariant namespaces to be closed*)
 Lemma tac_brel_alloctape_l `{!probblazeRGS Σ} E K Δ Δ' eₛ eₜ N z L R:
