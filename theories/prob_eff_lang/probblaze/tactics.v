@@ -565,7 +565,7 @@ Tactic Notation "brel_cont_l" :=
       | tc_solve (*maybelaterenvs *)
       | let l := match goal with
                  | |- _ = Some (_, (unshot ?l)%I, _) => l end in
-        iAssumptionCore || fail "brel_cont_l: cannot find unshot" l"" (* look up the value that l points to*)
+        iAssumptionCore || fail "brel_cont_l: cannot find unshot" l (* look up the value that l points to*)
       | reflexivity || fail "eₛ' already set" (*the second IntoCtx *)
       | simpl (*new goal*) ]
   | |- _ => fail "brel_cont_l: goal not a brel"
@@ -596,7 +596,7 @@ Tactic Notation "brel_cont_r" :=
       | let l:= match goal with
                 | |- _ = Some (_, (unshotₛ ?l)%I, _) => l
                 end in
-        iAssumptionCore || fail "brel_cont_r: cannot find unshot" l""
+        iAssumptionCore || fail "brel_cont_r: cannot find unshot" l
       | reflexivity
       | simpl (* new goal *)        
       ]
