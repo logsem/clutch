@@ -203,61 +203,61 @@ Lemma tac_brel_bind_l `{!probblazeRGS Σ} eₗ eₗ' eᵣ K Δ E X R:
     end.
 
   Lemma tac_brel_load_l `{!probblazeRGS Σ} K Δ Δ' i1 p (l : loc) q v
-     eₛ eₜ eₛ' R E L:
-     IntoCtx eₛ (TCEq (Load (# l))) K →
-     MaybeIntoLaterNEnvs 1 Δ Δ' →
-     envs_lookup i1 Δ' = Some (p, l ↦{q} v)%I →
-     eₛ' = fill K (of_val v) →
-     envs_entails Δ' (brel E eₛ' eₜ L R) ->
-     envs_entails Δ (brel E eₛ eₜ L R).
-     Proof.
-      rewrite envs_entails_unseal.
-      iIntros (? ?? -> HΔ) "HΔ'".
-      iDestruct (into_laterN_env_sound with "HΔ'") as "HΔ'". 
-      iDestruct (envs_lookup_split with "HΔ'") as "[Hl Hclose]"; first done. 
-      rewrite HΔ.
-      apply tc_eq_fill in H.
-      rewrite <- H.
-      destruct p; simpl.
-      -
-       iDestruct "Hl" as "#Hl".
-       iApply (brel_load_l E L R K l q v); iModIntro; try done.
-       iIntros. iApply "Hclose". iApply "Hl".
-      -  iApply (brel_load_l E L R K l q v with "Hl").
-         iModIntro. iIntros "Hl". iApply "Hclose". iApply "Hl".
-    Qed.
+    eₛ eₜ eₛ' R E L:
+    IntoCtx eₛ (TCEq (Load (# l))) K →
+    MaybeIntoLaterNEnvs 1 Δ Δ' →
+    envs_lookup i1 Δ' = Some (p, l ↦{q} v)%I →
+    eₛ' = fill K (of_val v) →
+    envs_entails Δ' (brel E eₛ' eₜ L R) ->
+    envs_entails Δ (brel E eₛ eₜ L R).
+  Proof.
+    rewrite envs_entails_unseal.
+    iIntros (? ?? -> HΔ) "HΔ'".
+    iDestruct (into_laterN_env_sound with "HΔ'") as "HΔ'". 
+    iDestruct (envs_lookup_split with "HΔ'") as "[Hl Hclose]"; first done. 
+    rewrite HΔ.
+    apply tc_eq_fill in H.
+    rewrite <- H.
+    destruct p; simpl.
+    -
+      iDestruct "Hl" as "#Hl".
+      iApply (brel_load_l E L R K l q v); iModIntro; try done.
+      iIntros. iApply "Hclose". iApply "Hl".
+    -  iApply (brel_load_l E L R K l q v with "Hl").
+       iModIntro. iIntros "Hl". iApply "Hclose". iApply "Hl".
+  Qed.
 
-     Tactic Notation "brel_load_l" :=
-       iStartProof;
-       lazymatch goal with
-        | |- environments.envs_entails _ (brel _ _ _ _ _) =>
-             (*match goal with |- ?G => idtac "RAW GOAL:" G end;*)
-             eapply tac_brel_load_l;
-           [ tc_solve || fail "cannot find a Load operation"
-            (* the first IntoCtx that looks for a load in a context*)
-           | tc_solve (*maybelaterenvs *)
-           | let l := match goal with
-                       | |- _ = Some (_, (?l ↦{_} _)%I) => l end in
-             iAssumptionCore || fail "brel_load_l: cannot find" l "↦ ?"
-             (* look up the value that l points to*)
-           | reflexivity || fail "eₛ' already set" (*the second IntoCtx *)
-           | simpl (*new goal*) ]
-        | |- _ => fail "brel_load_l: goal not a brel"
-       end.
-     
-   Tactic Notation "test_brel_load_l" :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (brel _ _ _ _ _) =>
-      eapply tac_brel_load_l;
-      [ tc_solve || fail "cannot find a load"
-      | tc_solve || fail "cannot resolve laters"
-      | let l := match goal with
-                       | |- _ = Some (_, (?l ↦{_} _)%I) => l end in
-             iAssumptionCore || fail "brel_load_l: cannot find" l "↦ ?"
-      | reflexivity || fail "unable to unify with previous equality"
-      | simpl; pm_prettify]
-  end.
-   
+  Tactic Notation "brel_load_l" :=
+    iStartProof;
+    lazymatch goal with
+    | |- environments.envs_entails _ (brel _ _ _ _ _) =>
+        (*match goal with |- ?G => idtac "RAW GOAL:" G end;*)
+        eapply tac_brel_load_l;
+        [ tc_solve || fail "cannot find a Load operation"
+        (* the first IntoCtx that looks for a load in a context*)
+        | tc_solve (*maybelaterenvs *)
+        | let l := match goal with
+                   | |- _ = Some (_, (?l ↦{_} _)%I) => l end in
+          iAssumptionCore || fail "brel_load_l: cannot find" l "↦ ?"
+        (* look up the value that l points to*)
+        | reflexivity || fail "eₛ' already set" (*the second IntoCtx *)
+        | simpl (*new goal*) ]
+    | |- _ => fail "brel_load_l: goal not a brel"
+    end.
+  
+  Tactic Notation "test_brel_load_l" :=
+    lazymatch goal with
+    | |- environments.envs_entails _ (brel _ _ _ _ _) =>
+        eapply tac_brel_load_l;
+        [ tc_solve || fail "cannot find a load"
+        | tc_solve || fail "cannot resolve laters"
+        | let l := match goal with
+                   | |- _ = Some (_, (?l ↦{_} _)%I) => l end in
+          iAssumptionCore || fail "brel_load_l: cannot find" l "↦ ?"
+        | reflexivity || fail "unable to unify with previous equality"
+        | simpl; pm_prettify]
+    end.
+  
 
 Lemma tac_brel_load_r `{probblazeRGS Σ} K Δ E i1 p (l : loc) q v eₛ eₜ eₜ' L R :
      IntoCtx eₜ (TCEq (Load (# l))) K →
@@ -471,6 +471,72 @@ Tactic Notation "brel_effect_r" simple_intropattern(l) "as" constr(Hl) :=
       ]
   | |- _ => fail "brel_effect_r: goal not a brel"
   end.
+
+
+Lemma tac_brel_handle_os_l `{!probblazeRGS Σ} E K K' l hs h ret Δ Δ' eₛ eₜ v L R:
+  let c := match hs with
+           | Deep => HandleCtx hs OS l h ret :: K'
+           | Shallow => K'
+           end in
+  IntoCtx eₛ (TCEq (Handle hs OS l (fill K' (do: l (of_val v))) h ret)) K ->
+  l ∉ ectx_labels K' ->
+  MaybeIntoLaterNEnvs 1 Δ Δ' ->
+  (envs_entails Δ' (∀ (r : loc),
+                      (unshot r -∗ brel E (fill K (h v (ContV r c))) eₜ L R))) ->
+  envs_entails Δ (brel E eₛ eₜ L R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hc H Hlabels ? H1) "Hi".
+  rewrite into_laterN_env_sound /=.
+  apply tc_eq_fill in H. rewrite <- H.
+  iApply (brel_handle_os_l K K' hs l v h ret _ E L); first done.
+  iModIntro. iApply H1. auto.
+Qed.
+
+Tactic Notation "brel_handle_os_l" simple_intropattern(l) "as" constr(Hl) :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (brel _ _ _ _ _ ) =>
+      eapply tac_brel_handle_os_l;
+      [ tc_solve || fail "no one shot handler found in the goal"
+      | try eapply neutral_ectx; repeat constructor (* try to solve ectx_labels side condition *)
+      | tc_solve (*later envs *)
+      | simpl; iIntros (l) Hl (* new goal *)
+      ]
+  | |- _ => fail "brel_handle_os_l: goal not a brel"
+  end.
+
+
+Lemma tac_brel_handle_os_r `{!probblazeRGS Σ} E K K' l hs h ret Δ eₛ eₜ v L R :
+  let c := match hs with
+           | Deep => HandleCtx hs OS l h ret :: K'
+           | Shallow => K'
+           end in
+  IntoCtx eₜ (TCEq (Handle hs OS l (fill K' (do: l (of_val v))) h ret)) K ->
+  l ∉ ectx_labels K' ->
+  (envs_entails Δ (∀ (r: loc),
+     (unshotₛ r -∗ brel E eₛ (fill K (h v (ContV r c))) L R))) ->
+  envs_entails Δ (brel E eₛ eₜ L R).
+Proof.
+  rewrite envs_entails_unseal.
+  iIntros (Hc H Hlabels H0) "Hi".
+  apply tc_eq_fill in H. rewrite <- H.
+  iApply brel_handle_os_r; first done.
+  iApply H0. auto.
+Qed.
+
+Tactic Notation "brel_handle_os_r" simple_intropattern(l) "as" constr(Hl) :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (brel _ _ _ _ _) =>
+      eapply tac_brel_handle_os_r;
+      [ tc_solve || fail "no one shot handler found in the goal"
+      | try eapply neutral_ectx; repeat constructor (* try to solve simple ectx_labels side condition *)
+      | simpl; iIntros (l) Hl (* new goal *)
+      ]
+  | |- _ => fail "brel_handle_os_r: goal not a brel"
+  end.
+
 
 
 (*tape allocation requires all invariant namespaces to be closed*)
