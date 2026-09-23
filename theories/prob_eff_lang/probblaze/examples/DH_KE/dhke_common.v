@@ -280,7 +280,8 @@ Section theories.
     λ e1 e2, (λne Q,
                 ⌜ e1 = do: c1 from ⌝%E ∗
                 ⌜ e2 = do: c2 from ⌝%E ∗
-                (Q NONEV NONEV ∗ (∀ m : vgG, (P m) -∗ Q (SOMEV (vgval m)) (SOMEV (vgval m))))
+                (* ∧ instead of ∗ because in each branch a one-shot continuation is resumed so the resources should be used in both *)
+                (Q NONEV NONEV ∧ (∀ m : vgG, (P m) -∗ Q (SOMEV (vgval m)) (SOMEV (vgval m))))
              )%I.
   Next Obligation. solve_proper. Qed.
 
@@ -335,7 +336,9 @@ Section theories.
     intros ????. 
     iIntros (????) "#HΦ [H|H]".
     1 : iLeft. 2: iRight.
-    all : iDestruct "H" as "($&$&(H1&H2))"; iSplitL "H1"; try (iIntros (m) "H"); iApply "HΦ"; try iApply ("H2" $! m); done.
+    all : iDestruct "H" as "($&$&H)"; iSplit; try (iIntros (m) "HP"); iApply "HΦ"; try iApply ("H2" $! m).
+    1,3 : iDestruct "H" as "($&_)".
+    all : iDestruct "H" as "(_&H)"; by iApply "H".
   Qed.   
 
   Definition send_new_sig  (send1 send2 : label) γtoka atokN γtokb btokN γfraca γfracb P P' := 

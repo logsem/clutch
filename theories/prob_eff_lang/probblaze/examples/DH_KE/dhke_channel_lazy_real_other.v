@@ -109,15 +109,15 @@ Section handlee_verification.
     
     iIntros (?????) "!# %Hk1 %Hk2 ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) #Hcont".
     
-    1 : {
-      brel_pures'; [apply Hk2; set_solver|apply Hk1; set_solver|]...
+    - brel_handle_os_l (Hgkl) as "Hgkl".
+      brel_handle_os_r (Hgkr) as "Hgkr"...
       iApply (brel_na_inv _ _ alphaN ); [set_solver|].
       iFrame "Hinva". 
       iIntros "(>H & Hclose)".
       iApply (sample_or_read_store_spec with "[$]").
       iIntros "#Hla #Hα #Hlcs"...
       iApply brel_na_close. iFrame.
-      iSplitL; [iNext; iFrame "#"|]...
+      iSplitR; [iNext; iFrame "#"|]...
 
       
       (* Send (gA, bob) *)
@@ -127,9 +127,8 @@ Section handlee_verification.
       iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
       iLeft. 
       iExists (g ^+ a)%g,(g ^+ a)%g.
-      iSplitL; first (iApply send_upd; rewrite /P id_g_log_nat; last lia; by iFrame "#").
+      iSplitR; first (iApply send_upd; rewrite /P id_g_log_nat; last lia; by iFrame "#").
       iSplit; first ( do 2 (iSplit; try (iPureIntro; done))).
-      iModIntro.
       iApply brel_value. iIntros "$ !>"...
       
       (* Recv bob (either none or some) *)
@@ -139,11 +138,12 @@ Section handlee_verification.
       iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
       iRight.
       do 2 (iSplit; try (iPureIntro; done)).
-      iModIntro.
-      iSplitL.
+      iSplit.
         
       (* Recv bob = None *)
       + iApply brel_value. iIntros "$ !>"...
+        brel_cont_l.
+        brel_cont_r.
         iDestruct ("Hcont" with "Hnone") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [done|done|].
         iApply "IH".
@@ -154,21 +154,24 @@ Section handlee_verification.
         iApply brel_value. iIntros "$ !>"...
         rewrite -expgM. rewrite -ssrnat.multE.
         rewrite -Nat.mul_comm.
+        brel_cont_l.
+        brel_cont_r.
         iDestruct ("Hcont" with "Hsome") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [done|done|].
-        iApply "IH". }
+        iApply "IH".
     
-    1 : {
-      brel_pures'; [apply Hk2; set_solver|apply Hk1; set_solver|].
+    - brel_handle_os_l (Hgkl) as "Hgkl".
+      brel_handle_os_r (Hgkr) as "Hgkr"...
       iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
       iApply (brel_introduction' [recv1]); [repeat constructor|].
       iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
       iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
       iLeft.
       do 2 (iSplit; try (iPureIntro; done)).
-      iModIntro.
-      iSplitL.
+      iSplit.
       { iApply brel_value. iIntros "$ !>"...
+        brel_cont_l.
+        brel_cont_r.
         iDestruct ("Hcont" with "Hnone") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [done|done|].
         iApply "IH". }
@@ -176,14 +179,14 @@ Section handlee_verification.
       iDestruct (message_unique with "[$Ha] [$Hb']") as "%Heq".
       inversion Heq as [(Heq1&Heq2)]. rewrite -(g_log_id m) -(Nat2Z.inj _ _ Heq2) //=.  
       iApply brel_value. iIntros "$ !>"...
-      
+
       iApply (brel_na_inv _ _ betaN ); [set_solver|].
       iFrame "Hinvb". 
       iIntros "(>H & Hclose)".
       iApply (sample_or_read_spec with "[$]").
       iIntros "#Hlb #Hβ"...
       iApply brel_na_close. iFrame.
-      iSplitL; [iNext; iFrame "#"|]...      
+      iSplitR; [iNext; iFrame "#"|]...      
       
       (* Send (gB, alice) *)
       iApply (brel_bind' [_] [_]); [by iApply traversable_to_iThy|].
@@ -192,9 +195,8 @@ Section handlee_verification.
       iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
       iRight. 
       iExists _,_.
-      iSplitL; first (iApply send_upd; by iFrame "#").
+      iSplitR; first (iApply send_upd; by iFrame "#").
       iSplit; first ( do 2 (iSplit; try (iPureIntro; done))).
-      iModIntro.
       iApply brel_value. iIntros "$ !>"...
       rewrite -expgM  -ssrnat.multE.
 
@@ -203,12 +205,14 @@ Section handlee_verification.
       iIntros "(>[(Hα & Hla & Hlc) | (#Hα & #Hla & #Hlc)] & Hclose)".
       { iDestruct (ghost_map_elem_agree with "[$Hla] [$Hla']") as "%Hcontra".
         inversion Hcontra. }
-      iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
+      iApply brel_na_close. iFrame. iSplitR; [iRight; iFrame "#"|].
       brel_load_l...
+      brel_cont_l.
+      brel_cont_r.
       iDestruct ("Hcont" with "Hsome") as "Hkk". 
       apply Nat2Z.inj in Heq2 as ->.
       iApply (brel_exhaustion with "[$]"); [done|done|].
-      iApply "IH". }
+      iApply "IH".
   Qed.
 
 End handlee_verification.
