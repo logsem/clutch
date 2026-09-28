@@ -381,17 +381,19 @@ Section new_comp_verification.
       iDestruct "HSend" as (mm1 mm2 d1 d2) "(#Hm & #Hd & -> & -> & #HQ)".
       iDestruct "Hd" as (dw1 dw2) "[(-> & -> & #Hu)|(-> & -> & #Hu)]".
       + (* dst = InjL: store to l1. *)
-        brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+        brel_handle_os_l (sndl) as "Hsndl".
+        brel_handle_os_r (sndr) as "Hsndr".
+        brel_pures'.
         iApply (brel_na_inv _ _ (nroot.@"authmsg")); [set_solver|]. iFrame "Hinv".
         iIntros "((%a1 & %a2 & %b1 & %b2 & Hl1 & Hl1s & Hl2 & Hl2s & #Hoa & #Hob) & Hclose)".
-        iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "!> Hl1".
-        iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl1s"). iIntros "Hl1s".
+        brel_load_l.
+        brel_load_r.
         iDestruct "Hoa" as (w1 w2) "[(->&->&_)|(->&->&#Hgm)]".
         * (* first message on this ref: store, leak, resume. *)
-          brel_pures.
-          iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1".
-          iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl1s"). iIntros "Hl1s".
-          brel_pures.
+          brel_pures'.
+          brel_store_l. 
+          brel_store_r.
+          brel_pures'.
           iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
           { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
             by apply submseteq_inserts_r. }
@@ -404,7 +406,7 @@ Section new_comp_verification.
           { iExists mm1, mm2, (InjLV dw1), (InjLV dw2). iSplit; [done|]. iSplit; [done|].
             iFrame "Hm". iExists dw1, dw2. iLeft. iSplit; [done|]. iSplit; [done|]. iApply "Hu". }
           iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
-          iDestruct ("Hls" with "Hmm") as "Hsend1".
+          iDestruct ("Hls" with "Hmm") as "Hsend1". simpl. 
           iApply (brel_wand with "[$Hsend1]").
           iIntros (u1 u2) "!# (->&->)".
           brel_pures'.
