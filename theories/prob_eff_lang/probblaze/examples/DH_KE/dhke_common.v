@@ -524,7 +524,7 @@ Section typing.
         iLöb as "IH".
         iSplit; [iIntros (v1 v2) "!# (-> & ->)"; by brel_pures'|].
         iIntros (?????) "!# %Hk1 %Hk2 ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) #Hcont".
-        *brel_handle_os_l (ul) as "Hul". 
+        * brel_handle_os_l (ul) as "Hul". 
           brel_handle_os_r (ur) as "Hur"...
           iApply (brel_na_inv _ _ (nroot.@"lc")); [set_solver|]. iFrame "Hlcinv".
           iIntros "(>[(Hl1 & Hl2) | #(Hl1 & Hl2)] & Hclose)".
@@ -647,7 +647,8 @@ Section typing.
         iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HSend #Hkont".
         iDestruct "HSend" as (Q')"((%αs&%mv1&%mv2&-> & -> & #Hmd & #HQ) & HQQ')".
         iDestruct "Hmd" as (n1 n2 d1 d2) "(-> & -> & #Hm & #Hd)".
-        brel_pures'; [apply Hk2; set_solver | apply Hk1; set_solver |].
+        brel_handle_os_l (Hsl) as "Hsl".
+        brel_handle_os_r (Hsr) as "Hsr"...
         iAssert ((Q #()%V #()%V))%I with "[HQQ']" as "HQu".
         { iApply "HQQ'".
           iApply ("HQ" $! (Val #()%V) (Val #()%V) #()%V #()%V).
@@ -676,6 +677,8 @@ Section typing.
              rewrite iThyIfMono_iLblSig_to_iThyIfMono.
              iApply (brel_mono with "[][$Hleak]"); [iApply to_iThy_le_refl|simpl].
              iIntros (u1 u2) "(->&->)"...
+             brel_cont_l.
+             brel_cont_r.
              iDestruct ("Hkont" with "HQu") as "Hbrel".
              iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHsend".
           -- (* a message was already sent in this direction: just resume. *)
@@ -684,6 +687,8 @@ Section typing.
              { iNext. iExists (SOMEV w1), (SOMEV w2), b1, b2.
                iFrame "Hp1 Hp1s Hp2 Hp2s Hob". iExists _,_. iRight.
                do 2 (iSplit; [done|]). iApply "Hgm". }
+             brel_cont_l.
+             brel_cont_r.
              iDestruct ("Hkont" with "HQu") as "Hbrel".
              iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHsend".
         * (* dst = alice: the message goes into [m2]. *)
@@ -708,6 +713,8 @@ Section typing.
              rewrite iThyIfMono_iLblSig_to_iThyIfMono.
              iApply (brel_mono with "[][$Hleak]"); [iApply to_iThy_le_refl|simpl].
              iIntros (u1 u2) "(->&->)"...
+             brel_cont_l.
+             brel_cont_r.
              iDestruct ("Hkont" with "HQu") as "Hbrel".
              iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHsend".
           -- iApply brel_na_close. iFrame "Hclose".
@@ -715,6 +722,8 @@ Section typing.
              { iNext. iExists a1, a2, (SOMEV w1), (SOMEV w2).
                iFrame "Hp1 Hp1s Hp2 Hp2s Hoa". iExists _,_. iRight.
                do 2 (iSplit; [done|]). iApply "Hgm". }
+             brel_cont_l.
+             brel_cont_r.
              iDestruct ("Hkont" with "HQu") as "Hbrel".
              iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHsend".
     - (* ------------------ F_AUTH's [recv] handler --------------------- *)
@@ -725,7 +734,8 @@ Section typing.
       iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures'|].
       iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HRecv #Hkont".
       iDestruct "HRecv" as (Q') "((%αs&%fr1&%fr2&-> & -> & #Hfr & #HQ) & HQQ')".
-      brel_pures'; [apply Hk2; set_solver | apply Hk1; set_solver |].
+      brel_handle_os_l (hrl) as "Hrl". 
+      brel_handle_os_r (hrr) as "Hrr"...
       iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
       { iApply to_iThy_le_intro'. do 2 apply submseteq_cons.
         rewrite iLblSig_to_iLblThy_app. by apply submseteq_inserts_r. }
@@ -736,9 +746,11 @@ Section typing.
       iIntros (u1 u2) "#Hr"...
       iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
       + (* the leak reports "nothing here": forward NONE. *)
-        iAssert (Q NONEV NONEV) with "[HQQ']" as "HQNone".
+        iAssert (Q NONEV NONEV) with "[HQQ']" as "HQNone"...
         { iApply "HQQ'". iApply "HQ". do 2 (iSplit; first by iPureIntro).
           iExists _,_. by iLeft. }
+        brel_cont_l.
+        brel_cont_r.
         iDestruct ("Hkont" with "HQNone") as "Hbrel"...
         iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHrecv".
       + (* the leak reports "something": the authenticated cross-over read
@@ -751,16 +763,20 @@ Section typing.
           iSplitL "Hp1 Hp1s Hp2 Hp2s".
           { iNext. iExists a1, a2, b1, b2. iFrame "Hp1 Hp1s Hp2 Hp2s Hoa Hob". }
           iDestruct "Hob" as (og1 og2) "[(->&->&_)|(->&->&#Hgm)]".
-          -- iAssert (Q NONEV NONEV) with "[HQQ']" as "HQN".
+          -- iAssert (Q NONEV NONEV) with "[HQQ']" as "HQN"...
              { iApply "HQQ'". iApply "HQ". do 2 (iSplit; first by iPureIntro).
                iExists _,_. by iLeft. }
+             brel_cont_l.
+             brel_cont_r.
              iDestruct ("Hkont" with "HQN") as "Hbrel"...
              iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHrecv".
           -- iDestruct "Hgm" as (gg) "(->&->)".
-             iAssert (Q (SOMEV _) (SOMEV _)) with "[HQQ']" as "HQS".
+             iAssert (Q (SOMEV _) (SOMEV _)) with "[HQQ']" as "HQS"...
              { iApply "HQQ'". iApply "HQ". do 2 (iSplit; first by iPureIntro).
                iExists _,_. iRight. do 2 (iSplit; first by iPureIntro). 
                by iExists _. }
+             brel_cont_l.
+             brel_cont_r.
              iDestruct ("Hkont" with "[HQS]") as "Hbrel"; [iApply "HQS"|]...
              iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHrecv".
         * iApply (brel_na_inv _ _ (nroot.@"authmsg")); [set_solver|]. iFrame "Hminv".
@@ -770,16 +786,20 @@ Section typing.
           iSplitL "Hp1 Hp1s Hp2 Hp2s".
           { iNext. iExists a1, a2, b1, b2. iFrame "Hp1 Hp1s Hp2 Hp2s Hoa Hob". }
           iDestruct "Hoa" as (og1 og2) "[(->&->&_)|(->&->&#Hgm)]".
-          -- iAssert (Q NONEV NONEV) with "[HQQ']" as "HQN".
+          -- iAssert (Q NONEV NONEV) with "[HQQ']" as "HQN"...
              { iApply "HQQ'". iApply "HQ". do 2 (iSplit; first by iPureIntro).
                iExists _,_. by iLeft. }
+             brel_cont_l.
+             brel_cont_r.
              iDestruct ("Hkont" with "HQN") as "Hbrel"...
              iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHrecv".
           -- iDestruct "Hgm" as (gg) "(->&->)".
-             iAssert (Q (SOMEV _) (SOMEV _)) with "[HQQ']" as "HQS".
+             iAssert (Q (SOMEV _) (SOMEV _)) with "[HQQ']" as "HQS"...
              { iApply "HQQ'". iApply "HQ". do 2 (iSplit; first by iPureIntro).
                iExists _,_. iRight. do 2 (iSplit; first by iPureIntro). 
                by iExists _. }
+             brel_cont_l.
+             brel_cont_r.
              iDestruct ("Hkont" with "[HQS]") as "Hbrel"; [iApply "HQS"|]...
              iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHrecv".
     Unshelve.

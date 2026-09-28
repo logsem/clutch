@@ -20,7 +20,7 @@ Section adv_dhke.
     (∀R:
        ((∀R: (((() + ()) -{ RVar 0%nat }-> (() + τG)) -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()))
         -∘
-        (∀R: ((((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + TNat))) -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()))))%ty.
+        (∀R: ((((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + TNat))) -{ (RFlip OS (RVar 0%nat)) ∪ᵣ RVar 1%nat }-∘ ()))))%ty.
 
   Lemma T_DH_subtype `{!probblazeRGS Σ} η μ δ ξ :
     ⊢ τ_DH ≤ₜ (interp._ty η μ δ T_DH ξ).

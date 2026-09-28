@@ -131,7 +131,8 @@ Section handlee_verification.
       iIntros (?????) "!# %Hk1 %Hk2 [(%&%&Hupd&(->&->)&HQ) | (%&%&Hupd&(->&->)&HQ)] #Hkont".
 
       (* [Send bob] : Alice sends to Bob, F_AUTH stores it in l1 *)
-      + brel_pures'; [apply Hk2|apply Hk1|]; try (set_unfold; tauto).
+      + brel_handle_os_l (sl) as "Hsl".
+        brel_handle_os_r (sr) as "Hsr"...
         iApply (brel_na_inv _ _ alphaN ); [set_solver|].
         iFrame "Hinva".
         iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%mA & #Hl1 & #Hl1s & Htoka & #Hfraca & #HPa)] & Hclose)".
@@ -167,6 +168,8 @@ Section handlee_verification.
           rewrite iThyIfMono_iLblSig_to_iThyIfMono.
           iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
           iIntros (??) "(->&->)"...
+          brel_cont_l.
+          brel_cont_r.
           iDestruct ("Hkont" with "HQ") as "Hbrel".
           iApply (brel_exhaustion with "[$]"); [done|done|]. iApply "IHsend".
 
@@ -176,6 +179,8 @@ Section handlee_verification.
           iSplitL "Htoka"; [iNext; iRight; iExists mA; iFrame; iFrame "#"|].
           brel_load_l...
           brel_load_r...
+          brel_cont_l.
+          brel_cont_r.
           iDestruct ("Hkont" with "HQ") as "Hbrel".
           iApply (brel_exhaustion with "[$]"); [done| done|]. iApply "IHsend". 
 
@@ -188,7 +193,8 @@ Section handlee_verification.
           iMod (all_receipts_to_receipt with "Hfracb") as "#Hfracb".
           iMod ("Hupd" with "Hfracb") as "(Htok & HP & <-)".
           iModIntro.
-          brel_pures'; [apply Hk2|apply Hk1|]; try (set_unfold; tauto).
+          brel_handle_os_l (sl) as "Hsl".
+          brel_handle_os_r (sr) as "Hsr"...
           brel_load_l...
           brel_load_r...
           brel_store_l...
@@ -214,6 +220,8 @@ Section handlee_verification.
           rewrite iThyIfMono_iLblSig_to_iThyIfMono.
           iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
           iIntros (??) "(->&->)"...
+          brel_cont_l.
+          brel_cont_r.
           iDestruct ("Hkont" with "HQ") as "Hbrel".
           iApply (brel_exhaustion with "[$]"); [done|done|]. iApply "IHsend".
 
@@ -221,9 +229,12 @@ Section handlee_verification.
           1 : { iMod ("Hupd" with "Hfracb") as "(Hcontra & _)". by iDestruct (token_unique with "[$][$]") as "Hcontra". }
           iApply brel_na_close. iFrame.
           iSplitL "Htokb"; [iNext; iRight; iExists mB; iFrame; iFrame "#"|].
-          brel_pures'; [apply Hk2| apply Hk1|]; try (set_unfold; tauto).
+          brel_handle_os_l (sl) as "Hsl".
+          brel_handle_os_r (sr) as "Hsr"...
           brel_load_l...
           brel_load_r...
+          brel_cont_l.
+          brel_cont_r.
           iDestruct ("Hkont" with "HQ") as "Hbrel".
           iApply (brel_exhaustion with "[$]"); [done|done|]. iApply "IHsend".  
 
@@ -234,7 +245,8 @@ Section handlee_verification.
       iIntros (?????) "!# %Hk1 %Hk2 [(->&->&HQ) | (->&->&HQ)] #Hkont".
 
       (* [Recv alice] : receive from Alice, i.e. read l1 *)
-      + brel_pures'; [apply Hk2| apply Hk1|]; try (set_unfold; tauto)...
+      + brel_handle_os_l (rl) as "Hsl".
+        brel_handle_os_r (rr) as "Hsr"...
         iApply (brel_bind [_] [_]); [by iApply traversable_to_iThy| |].
         { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
           by apply submseteq_inserts_r. }
@@ -250,6 +262,8 @@ Section handlee_verification.
 
         * iDestruct "HQ" as "(HNone&_)".
           iDestruct ("Hkont" with "HNone") as "Hbrel".
+          brel_cont_l.
+          brel_cont_r.
           iApply (brel_exhaustion with "[$]"); [done|done|]. iApply "IHrecv".
 
         * iApply (brel_na_inv _ _ alphaN); [set_solver|].
@@ -257,16 +271,19 @@ Section handlee_verification.
           iIntros "(>[(Hl1 & Hl1s & Hfraca) | (%mA & #Hl1 & #Hl1s & Htoka & #Hfraca & #HPa)] & Hclose)".
           -- brel_load_l... 
              brel_load_r...
-             iApply brel_na_close. iFrame. iSplitR "HQ"; [iLeft; iFrame|].
+             iApply brel_na_close. iFrame. iSplitR "HQ Hsl Hsr"; [iLeft; iFrame|].
+             brel_cont_l.
+             brel_cont_r.
              iDestruct "HQ" as "(HNone&_)".
              iDestruct ("Hkont" with "HNone") as "Hbrel".
-
              (* First call is done. Can call getKey1 or getKey2 again. *)
              iApply (brel_exhaustion with "[$]"); [done|done|]. iApply "IHrecv".
 
-          -- iApply brel_na_close. iFrame. iSplitR "HQ"; [iRight; iFrame "#"; iFrame|].
+          -- iApply brel_na_close. iFrame. iSplitR "HQ Hsl Hsr"; [iRight; iFrame "#"; iFrame|].
              brel_load_l...
              brel_load_r...
+             brel_cont_l.
+             brel_cont_r.
              iDestruct "HQ" as "(_&HSome)".
              iDestruct ("HSome" with "HPa") as "HS".
              iDestruct ("Hkont" with "HS") as "Hbrel".
@@ -275,7 +292,8 @@ Section handlee_verification.
              iApply (brel_exhaustion with "[$]"); [done|done|]. iApply "IHrecv". 
 
       (* [Recv bob] : receive from Bob, i.e. read l2 *)
-      + brel_pures'; [apply Hk2|apply Hk1|]; try (set_unfold; tauto).
+      + brel_handle_os_l (rl) as "Hrl".
+        brel_handle_os_r (rr) as "Hrr"...
         iApply (brel_bind [_] [_]); [iApply traversable_to_iThy| |].
         { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
           by apply submseteq_inserts_r. }
@@ -289,7 +307,9 @@ Section handlee_verification.
         iApply (brel_mono with "[][$]"); [iApply to_iThy_le_refl|simpl].
         iIntros (??) "(%&%&[(->&->&->&->)|(->&->&_)])"...
 
-        * iDestruct "HQ" as "(HNone&_)".
+        * brel_cont_l.
+          brel_cont_r.
+          iDestruct "HQ" as "(HNone&_)".
           iDestruct ("Hkont" with "HNone") as "Hbrel".
           iApply (brel_exhaustion with "[$]"); [done|done|]. iApply "IHrecv".
 
@@ -298,16 +318,19 @@ Section handlee_verification.
           iIntros "(>[(Hl2 & Hl2s & Hfracb) | (%mB & #Hl2 & #Hl2s & Htokb & #Hfracb & #HPb)] & Hclose)".
           -- brel_load_l...
              brel_load_r...
-             iApply brel_na_close. iFrame. iSplitR "HQ"; [iLeft; iFrame|].
+             iApply brel_na_close. iFrame. iSplitR "HQ Hrl Hrr"; [iLeft; iFrame|].
+             brel_cont_l.
+             brel_cont_r.
              iDestruct "HQ" as "(HNone&_)".
              iDestruct ("Hkont" with "HNone") as "Hbrel".
-
              (* First call is done. Can call getKey1 or getKey2 again. *)
              iApply (brel_exhaustion with "[$]"); [done|done|]. iApply "IHrecv".
 
-          -- iApply brel_na_close. iFrame. iSplitR "HQ"; [iRight; iFrame "#"; iFrame|].
+          -- iApply brel_na_close. iFrame. iSplitR "HQ Hrl Hrr"; [iRight; iFrame "#"; iFrame|].
              brel_load_l...
              brel_load_r...
+             brel_cont_l.
+             brel_cont_r.
              iDestruct "HQ" as "(_&HSome)".
              iDestruct ("HSome" with "HPb") as "HS".
              iDestruct ("Hkont" with "HS") as "Hbrel".

@@ -1,3 +1,4 @@
+
 From clutch.approxis Require Import app_weakestpre lifting.
 From iris.proofmode Require Import coq_tactics reduction.
 From clutch.prob_eff_lang.probblaze Require Export  class_instances notation logic.
@@ -149,7 +150,6 @@ Global Instance into_handle_ctx e1 e2 e3 hs m l P K :
   IntoCtx (Handle hs m (EffLabel l) e1 e2 e3) P (HandleCtx hs m l e2 e3 :: K).
 Proof. solve_into_ctx. Qed.
 
-(* TODO : add into_ctx for rand (DONE) *)
 Global Instance into_ctx_rand_l e v P K:
   IntoCtx e P K ->
   IntoCtx (Rand e (Val v)) P (RandLCtx v :: K).

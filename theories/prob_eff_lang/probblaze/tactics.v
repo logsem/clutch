@@ -13,6 +13,8 @@ Tactic Notation "foldkont" ident(k) open_constr(kctx) :=
     match goal with
     | |- context[KontV ?kont] =>
         unify kont kctx ; set (k := KontV kont)
+    | |- context[ContV ?l ?kont] => 
+        unify kont kctx ; set (k := ContV l kont)
     end.
 
   Tactic Notation "foldkont" ident(k) := foldkont k _.

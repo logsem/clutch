@@ -37,7 +37,7 @@ Section def_implementation.
     let: "doSend" := (λ: "m", do: "send" "m") in  
     let: "doRecv" := (λ: "m", do: "recv" "m") in
     handle: handle: "f" ("doSend", "doRecv") with
-    | effect "send" "message", rec "k" as multi =>
+    | effect "send" "message", rec "k" =>
             let, ("m", "dst") := "message" in
             match: "dst" with
               (* Alice *)
@@ -53,7 +53,7 @@ Section def_implementation.
             end
     | return "y" => #()%V end with
     (* Recv *)
-    | effect "recv" "from", rec "k" as multi =>
+    | effect "recv" "from", rec "k" =>
         let: "r" := ("doLeakRecv" "from") in
         match: "r" with
           NONE => "k" NONEV

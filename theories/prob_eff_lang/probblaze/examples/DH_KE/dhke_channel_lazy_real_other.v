@@ -158,6 +158,7 @@ Section handlee_verification.
         brel_cont_r.
         iDestruct ("Hcont" with "Hsome") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [done|done|].
+        rewrite -Nat.mul_comm.
         iApply "IH".
     
     - brel_handle_os_l (Hgkl) as "Hgkl".
@@ -212,6 +213,7 @@ Section handlee_verification.
       iDestruct ("Hcont" with "Hsome") as "Hkk". 
       apply Nat2Z.inj in Heq2 as ->.
       iApply (brel_exhaustion with "[$]"); [done|done|].
+      subst.
       iApply "IH".
   Qed.
 
