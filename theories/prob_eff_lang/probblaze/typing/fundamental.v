@@ -118,7 +118,7 @@ Proof.
       f_equal. by apply (typed_lbl_resolve_id _ _ _ _ _ _ H3 rm). 
 Qed.
 
-Lemma disjointness_ctx_sem_jugdment Γ1 e e' η μ δ ρ ξ τ Γ2 :
+(*Lemma disjointness_ctx_sem_jugdment Γ1 e e' η μ δ ρ ξ τ Γ2 :
  □(erase_ctx δ ξ (le.row_to_disj_ctx ρ) -∗ sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2) -∗
   sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2.
 Proof.
@@ -133,7 +133,7 @@ Proof.
   iDestruct ("Hrel" with "Hvs") as "Hbrel".
   done.
 Qed.
-
+*)
 (* Extract the bare relational interpretation of a value from its semantic
    value-typing judgement, at a given interpretation environment. *)
 Lemma sem_val_related_interp (v : val) (τ : type) η μ δ ξ :
@@ -150,7 +150,7 @@ Theorem fundamental Δ Γ1 e ρ τ Γ2 :
   with fundamental_pure Δ Γ e τ :
     Δ ..| Γ ⊢ₚ e : τ → ⊢ bin_log_pure_related Δ Γ e e τ.
 Proof.
-  - intros Ht. destruct Ht; iIntros (η μ δ ξ' Hδ).
+  - intros Ht. destruct Ht. (*iIntros (η μ δ ξ' Hδ).*)
     + (* Var_typed *) iApply interp_c_var. 
     + (* BinOp *)
       iApply interp_c_binop; [eapply H | |].
@@ -163,14 +163,16 @@ Proof.
     + (* Val_typed *)
       iApply interp_c_val. by iApply fundamental_val.
     + (* Pure_typed *)
+      iIntros (η μ δ ξ' Hδ).
       rewrite fmap_app. iApply sem_typed_oval.
       by iApply fundamental_pure.
     + (* Pair_typed *)
       (* The new [ρ R⪯T τ2] premise supplies the [RowTypeSub] typeclass
          argument of [sem_typed_pair_gen] via [row_type_sub_sound]. *)
-      iApply interp_c_pair ; [ by eapply row_type_sub_sound |
-                               apply fundamental in Ht1 as Ht; iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ Hδ)
-                             |apply fundamental in Ht2 as Ht; iPoseProof Ht as "Ht"; iApply ("Ht" $! _ _ _ _ Hδ)].
+      iApply interp_c_pair
+      ; [ by eapply interp.row_type_sub_sound |
+                               apply fundamental in Ht1 as Ht; iPoseProof Ht as "Ht"; iApply "Ht"
+                             |apply fundamental in Ht2 as Ht; iPoseProof Ht as "Ht"; iApply "Ht"].
     + (* Fst_typed *) iApply interp_c_fst. apply fundamental in Ht.
       iPoseProof Ht as "Ht". by iApply "Ht". 
     + (* Snd_typed *)  iApply interp_c_snd. apply fundamental in Ht.

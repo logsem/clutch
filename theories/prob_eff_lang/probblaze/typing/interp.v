@@ -13,7 +13,7 @@ Module interp.
     end.
   
   Global Instance effname_lookup_total : LookupTotal eff_name (label * label) (gmap eff_name (label * label)).
-  Proof. eapply map_lookup_total. Defined.
+  Proof. apply map_lookup_total. Defined.
 
   #[refine] Fixpoint _eff_sig `{!probblazeRGS Σ}
     (η : list (sem_ty Σ))
@@ -69,10 +69,6 @@ Module interp.
     all: intros ????; simpl; f_equiv; intros ?; by f_equiv. 
   Defined.
   
-  (* The interpretation of a context [Γ] at a given interpretation env. *)
-  Definition _env `{!probblazeRGS Σ} η μ δ ξ (Γ : ctx) :=
-    ((λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ).
-
 End interp.
 
 (* -------------------------------------------------------------------------- *)
@@ -121,14 +117,14 @@ Proof.
             (lookup_total_insert_ne δ s s' lp Hne) //.
 Qed.
 
-(* (* Freshness ([s ∉ dom Δ]) makes [s] absent from the resolution map, so
-      deleting it is a no-op (used to discharge the [Effect] binder). *)
-   Lemma resolve_map_delete_fresh proj Δ δ s :
-     s ∉ dom Δ → delete s (resolve_map proj Δ δ) = resolve_map proj Δ δ.
-   Proof.
-     intros Hs. apply delete_id. rewrite resolve_map_lookup.
-     by rewrite (not_elem_of_dom_1 _ _ Hs).
-   Qed. *)
+(* Freshness ([s ∉ dom Δ]) makes [s] absent from the resolution map, so
+   deleting it is a no-op (used to discharge the [Effect] binder). *)
+Lemma resolve_map_delete_fresh proj Δ δ s :
+  s ∉ dom Δ → delete s (resolve_map proj Δ δ) = resolve_map proj Δ δ.
+Proof.
+  intros Hs. apply delete_id. rewrite resolve_map_lookup.
+  by rewrite (not_elem_of_dom_1 _ _ Hs).
+Qed.
 
 (* Keep [resolve_map] from unfolding to [map_imap] during unification: the
    semantic-typing cases only need it via the lemmas above, and unfolding it
@@ -247,6 +243,36 @@ Section interp_subst.
   (* available; we package the [≡] versions here (via [equiv_dist]) so    *)
   (* that [f_equiv] can drive the congruence steps below.                 *)
 
+  Local Instance mode_forall_proper :
+    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_mode_forall Σ _).
+  Proof.
+    intros C C' HC. apply equiv_dist=> n.
+    apply sem_ty_type_forall_mode_ne=> m. by apply equiv_dist.
+  Qed.
+  Local Instance type_forall_proper :
+    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_type_forall Σ _).
+  Proof.
+    intros C C' HC. apply equiv_dist=> n.
+    apply sem_ty_type_forall_ne=> τ'. by apply equiv_dist.
+  Qed.
+  Local Instance row_forall_proper :
+    Proper (pointwise_relation _ (≡) ==> (≡)) (@sem_ty_row_forall Σ _).
+  Proof.
+    intros C C' HC. apply equiv_dist=> n.
+    apply sem_ty_type_forall_row_ne=> ρ. by apply equiv_dist.
+  Qed.
+  Local Instance rec_proper : Proper ((≡) ==> (≡)) (@sem_ty_rec Σ).
+  Proof. apply ne_proper. apply _. Qed.
+  Local Instance row_union_proper :
+    Proper ((≡) ==> (≡) ==> (≡)) (@sem_row_union Σ).
+  Proof. apply ne_proper_2. solve_proper. Qed.
+  Local Instance sig_eff_proper op1 op2 :
+    Proper (pointwise_relation _ (≡) ==> pointwise_relation _ (≡) ==> (≡))
+      (@sem_sig_eff Σ op1 op2).
+  Proof.
+    intros A A' HA B B' HB. apply equiv_dist=> n.
+    apply sem_sig_eff_ne; intros τ'; by apply equiv_dist.
+  Qed.
 
   (* Extending the type-env [η] on both sides by the same [τ'] turns a    *)
   (* reindexing [f] into [upren f].                                       *)
@@ -278,9 +304,32 @@ Section interp_subst.
               (∀ i, η' !!! i ≡ η !!! (f i)) →
               interp._eff_sig η' μ δ e ξ ≡
                 interp._eff_sig η μ δ (rename_type_eff_sig f e) ξ);
-      intros η η' μ δ ξ f Hf; simpl; eauto.
-    all: try (by f_equiv; try intros ?τ; eauto using up_ren_env).
-    all: try (do 2 f_equiv; try intros ?τ; eauto using up_ren_env).
+      intros η η' μ δ ξ f Hf; simpl.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ2|apply IHτ1|apply IHτ3]; done.
+    - f_equiv; intros m; by apply IHτ.
+    - f_equiv; intros τ'; apply IHτ; by apply up_ren_env.
+    - f_equiv; intros ρ; by apply IHτ.
+    - f_equiv; intros τ'; apply IHτ; by apply up_ren_env.
+    - f_equiv; intros τ'; apply IHτ; by apply up_ren_env.
+    - apply Hf.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - done.
+    - f_equiv; by apply IHτ.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - f_equiv; intros τ'; [apply IHτ|apply IHτ0]; by apply up_ren_env.
+    - f_equiv; by apply IHτ.
   Qed.
 
   (** δ-IRRELEVANCE.  [interp._ty] depends on [δ] only through [δ !!! s] at
@@ -301,12 +350,31 @@ Section interp_subst.
            (P1 := λ e, ∀ η μ ξ, s ∉ vars._eff_sig vars._ty e →
               interp._eff_sig η μ (<[s:=lp]> δ) e ξ ≡
                 interp._eff_sig η μ δ e ξ);
-      intros η μ ξ Hs; simpl in *; eauto.
-    all: rewrite ?lookup_total_insert_ne; unfold vars._row, vars._row_pre, vars._eff_sig in *.
-    all: try (by f_equiv; intros x; eauto).
-    all: try (by f_equiv; eauto; set_solver).
-    - f_equiv; intros x; eauto; set_solver.
-    - set_solver.
+      intros η μ ξ Hs; simpl in *.
+    (* type ctors: TBot TTop TUnit TBool TInt TNat *)
+    - done. - done. - done. - done. - done. - done.
+    - by f_equiv; apply IHτ.                              (* TRef *)
+    - done.                                               (* TTape *)
+    - f_equiv; [apply IHτ1|apply IHτ2]; set_solver.       (* TProd *)
+    - f_equiv; [apply IHτ1|apply IHτ2]; set_solver.       (* TSum *)
+    - f_equiv; [apply IHτ2|apply IHτ1|apply IHτ3]; set_solver. (* TArrow *)
+    - f_equiv; intros m; by apply IHτ.                    (* TForallM *)
+    - f_equiv; intros τ'; by apply IHτ.                   (* TForallT *)
+    - f_equiv; intros ρ; by apply IHτ.                    (* TForallR *)
+    - f_equiv; intros τ'; by apply IHτ.                   (* TExists *)
+    - f_equiv; intros τ'; by apply IHτ.                   (* TRec *)
+    - done.                                               (* TVar *)
+    - by f_equiv; apply IHτ.                              (* TBang *)
+    (* row ctors: RNil RCons RVar RFlip RUnion *)
+    - done.
+    - f_equiv; [apply IHτ|apply IHτ0]; (unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver).
+    - done.
+    - f_equiv; apply IHτ; (unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver).
+    - f_equiv; [apply IHτ|apply IHτ0]; (unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver).
+    (* eff_sig ctors: SSig SFlip *)
+    - rewrite lookup_total_insert_ne; [|(unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver)].
+      f_equiv; intros tau; [apply IHτ|apply IHτ0]; (unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver).
+    - f_equiv; apply IHτ; (unfold vars._row, vars._row_pre, vars._eff_sig in *; set_solver).
   Qed.
 
   (* The eff_sig / row companions, by the same [type_mut] induction but
@@ -422,10 +490,32 @@ Section interp_subst.
               (∀ i, μ' !!! i = interp._mode μ (σ i)) →
               interp._eff_sig η μ' δ e ξ ≡
                 interp._eff_sig η μ δ (e.|[σ]) ξ);
-      intros η μ μ' δ ξ σ Hσ; simpl; eauto.
-    all: try (by f_equiv; eauto).
-    all: try (by f_equiv; intros x; eauto using up_mode_env).
-    all: erewrite <-?mode_subst_pt by done; by f_equiv; eauto.
+      intros η μ μ' δ ξ σ Hσ; simpl.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ2|apply IHτ1|apply IHτ3]; done.
+    - f_equiv; intros m; apply IHτ; by apply up_mode_env.
+    - f_equiv; intros τ'; by apply IHτ.
+    - f_equiv; intros ρ; by apply IHτ.
+    - f_equiv; intros τ'; by apply IHτ.
+    - f_equiv; intros τ'; by apply IHτ.
+    - done.
+    - erewrite <-mode_subst_pt by done. by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - done.
+    - erewrite <-mode_subst_pt by done. by f_equiv; apply IHτ.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - f_equiv; intros τ'; [apply IHτ|apply IHτ0]; done.
+    - erewrite <-mode_subst_pt by done. by f_equiv; apply IHτ.
   Qed.
 
   (* Extending [ξ] on both sides by the same [ρ'] turns a row reindexing
@@ -456,9 +546,32 @@ Section interp_subst.
               (∀ i, ξ' !!! i ≡ ξ !!! (f i)) →
               interp._eff_sig η μ δ e ξ' ≡
                 interp._eff_sig η μ δ (rename_row_eff_sig f e) ξ);
-      intros η μ δ ξ ξ' f Hf; simpl; eauto.
-    all: try (by f_equiv; eauto).
-    all: try (by f_equiv; intros ?x; eauto using up_ren_row_env).
+      intros η μ δ ξ ξ' f Hf; simpl.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ2|apply IHτ1|apply IHτ3]; done.
+    - f_equiv; intros m; by apply IHτ.
+    - f_equiv; intros τ'; by apply IHτ.
+    - f_equiv; intros ρ; apply IHτ; by apply up_ren_row_env.
+    - f_equiv; intros τ'; by apply IHτ.
+    - f_equiv; intros τ'; by apply IHτ.
+    - done.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - apply Hf.
+    - f_equiv; by apply IHτ.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - f_equiv; intros τ'; [apply IHτ|apply IHτ0]; done.
+    - f_equiv; by apply IHτ.
   Qed.
 
   Lemma row_ren_row (ρ : row) (η : list (sem_ty Σ)) (μ : list mode)
@@ -761,12 +874,33 @@ Section interp_subst.
            (P1 := λ e, ∀ η η' μ δ ξ n,
               (∀ i, η !!! i ≡{n}≡ η' !!! i) →
               interp._eff_sig η μ δ e ξ ≡{n}≡ interp._eff_sig η' μ δ e ξ);
-      intros η η' μ δ ξ n Hf; simpl; eauto.
-    all: try (by f_equiv; eauto).
-    all: try (by f_equiv; intros x; eauto).
-    all: try (f_equiv; intros τ'; apply IHτ; (intros [|i]; [done|apply Hf])).
-    f_equiv; intros τ';
-      [apply IHτ|apply IHτ0]; (intros [|i]; [done|apply Hf]).
+      intros η η' μ δ ξ n Hf; simpl.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - done.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ1|apply IHτ2]; done.
+    - f_equiv; [apply IHτ2|apply IHτ1|apply IHτ3]; done.
+    - by f_equiv; intros m; apply IHτ.
+    - f_equiv; intros τ'; apply IHτ; (intros [|i]; [done|apply Hf]).
+    - by f_equiv; intros ρ; apply IHτ.
+    - f_equiv; intros τ'; apply IHτ; (intros [|i]; [done|apply Hf]).
+    - f_equiv; intros τ'; apply IHτ; (intros [|i]; [done|apply Hf]).
+    - apply Hf.
+    - by f_equiv; apply IHτ.
+    - done.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - done.
+    - f_equiv; by apply IHτ.
+    - f_equiv; [apply IHτ|apply IHτ0]; done.
+    - f_equiv; intros τ';
+        [apply IHτ|apply IHτ0]; (intros [|i]; [done|apply Hf]).
+    - f_equiv; by apply IHτ.
   Qed.
 
   Global Instance interp_ty_head_ne (η : list (sem_ty Σ)) (μ : list mode)
@@ -838,15 +972,127 @@ Section interp_subst.
       do 4 f_equiv. intros v2. f_equiv.
       exact (ty_mweaken α η m μ δ ξ a v2).
   Qed.
-End interp_subst.
 
-Section labels.
-  Context `{probblazeRGS Σ}.
+  (* ===================================================================== *)
+  (** ** Soundness of the syntactic [le.MultiT] predicate                  *)
+  (*                                                                        *)
+  (*  [le.MultiT τ = ∅ ⊢ₗ τ ≤T ![MS] τ].  We show that whenever a syntactic *)
+  (*  type is [le.MultiT], its interpretation is a semantic [MultiT].       *)
+  (*  The proof factors through a STRUCTURAL "copyable shape" predicate     *)
+  (*  [MultiP], for which the semantic direction [MultiP τ → MultiT(interp)] *)
+  (*  is a full structural proof using the [sem_types.v] instances.         *)
+
+  (* Auxiliary semantic instances. *)
+  Lemma multi_ty_nat_sem : MultiT (@sem_ty_nat Σ).
+  Proof.
+    constructor. iIntros "!# %v1 %v2 (%n & -> & ->)".
+    iApply bi.intuitionistically_intuitionistically_if.
+    iIntros "!#". by iExists n.
+  Qed.
+
+  (* [![m] τ] is copyable as soon as [τ] is, for ANY (semantic) mode [m]. *)
+  Lemma multi_ty_mbang_gen (sm : mode) (τ : sem_ty Σ) `{! MultiT τ} :
+    MultiT (sem_ty_mbang sm τ).
+  Proof.
+    constructor. iIntros "!# %v1 %v2 H".
+    iAssert (□ (sem_ty_mbang sm τ v1 v2))%I with "[H]" as "#H'".
+    { rewrite /sem_ty_mbang. destruct sm; simpl.
+      - pose proof (multi_ty_persistent τ v1 v2) as Hpers.
+        iDestruct "H" as "#H". by iModIntro.
+      - iDestruct "H" as "#H". by iModIntro. }
+    iApply bi.intuitionistically_intuitionistically_if. iModIntro.
+    by iApply "H'".
+  Qed.
+
+
+
+
+  (* The vmode preorder [le._mode] is a lattice with [OS] bottom and
+     [MS] top; in particular [MS ≤M OS] is NOT derivable. *)
+  Lemma le_mode_char m1 m2 :
+    le._mode m1 m2 → m1 = OS ∨ m2 = MS ∨ m1 = m2.
+  Proof.
+    intros Hm. induction Hm.
+    - by left.
+    - by right; left.
+    - destruct IHHm1 as [E1|[E1|E1]]; destruct IHHm2 as [E2|[E2|E2]];
+        subst; first [ by left | by right; left | by right; right
+                     | discriminate ].
+    - by right; right.
+  Qed.
+
+ 
+
+  
+  
+
+  (* ===================================================================== *)
+  (** ** Soundness of syntactic subtyping ([le._eff_sig]/[le._row]/        *)
+  (*      [le._type])                                                       *)
+  (*                                                                        *)
+  (*  We show that the three mutually-defined syntactic subtyping           *)
+  (*  judgements imply the corresponding semantic ones on interpretations.  *)
+  (*  Proved by simultaneous induction with the combined scheme             *)
+  (*  [le_type_mut].                                                        *)
+  (*                                                                        *)
+  (*  The ONLY rule that is not premise-free is [RErase_le], which erases a *)
+  (*  freshly-allocated bottom signature [SAbs s] from the head of a row.   *)
+  (*  Its semantic counterpart [sem_row.row_le_erase] requires both         *)
+  (*  LABEL-OWNERSHIP ([is_label]/[spec_labels_frag] for the dynamic label  *)
+  (*  [δ !!! s]) and FRESHNESS ([δ !!! s] not among the labels of the       *)
+  (*  inner row).  Neither is available from the bare [≤ᵣ]; both come from  *)
+  (*  the disjointness context [D] (which records that [s] is concrete in   *)
+  (*  the ambient row and disjoint from the inner row).  We thread this via *)
+  (*  a persistent [erase_ctx] hypothesis bundle, defined below, which is   *)
+  (*  exactly what the erase rule consumes.                                 *)
+
+  (* Soundness of the syntactic mode order [le._mode]: it interprets to the
+     semantic mode order [≤ₘ] under any mode-env [μ].  (Used by the
+     [SFlipComp_le]/[RFlipComp_le]/[TBangComp_le] cases.) *)
+  Lemma mode_le_sound (m m' : vmode) (μ : list mode) :
+    (⊢ₗ m ≤M m') → ⊢ (interp._mode μ m) ≤ₘ@{Σ} (interp._mode μ m').
+  Proof.
+    intros Hm. induction Hm; simpl.
+    - iApply mode_le_OS.
+    - iApply mode_le_MS.
+    - iApply (mode_le_trans with "[] []"); [iApply IHHm1|iApply IHHm2].
+    - iApply mode_le_refl.
+  Qed.
+
+  (* (* The effect-name interpretation [δ] is fixed throughout (no subtyping
+        constructor binds an effect name), but the TYPE/ROW/MODE environments
+        [η]/[ξ]/[μ] are EXTENDED by the binders ([SSig]/[TForall*]), so the
+        three soundness predicates must quantify over them. *)
+     Variable (δ : gmap eff_name (label*label)). *)
+
+  (* The ownership + disjointness facts a derivation [_row D b ρ ρ'] may
+     need: for every concrete label [s] recorded in [D] together with an
+     inner row [ρ0] whose concrete/abstract signatures are dominated by the
+     disjointness data of [s], the dynamic label [δ !!! s] is owned and is
+     fresh for [ρ0].  This is precisely the premise bundle of
+     [sem_row.row_le_erase] applied at [(δ!!!s).1]/[(δ!!!s).2]/[ρ0],
+     uniformly over all interpretation environments [η μ ξ]. *)
+  Definition erase_ctx η μ δ ξ (D : le.disj_ctx) : iProp Σ :=
+    □ (∀ (s : eff_name) (ss : gmultiset eff_name) (js : gset nat)
+         (ρ0 : row),
+         ⌜ D !! s = Some (ss, js) ⌝ -∗
+         ⌜ le.conc_sigs ρ0 ⊆ ss ⌝ -∗
+         ⌜ le.abst_sigs ρ0 ⊆ js ⌝ -∗
+         is_label (δ !!! s).1 DfracDiscarded ∗
+         spec_labels_frag (δ !!! s).2 DfracDiscarded ∗
+         ⌜ (δ !!! s).1
+             ∉ labels_l (iLblSig_to_iLblThy (interp._row η μ δ ρ0 ξ)) ⌝ ∗
+         ⌜ (δ !!! s).2
+             ∉ labels_r (iLblSig_to_iLblThy (interp._row η μ δ ρ0 ξ)) ⌝)%I.
+
+  Global Instance erase_ctx_persistent D η μ δ ξ : Persistent (erase_ctx η μ δ ξ D).
+  Proof. apply _. Qed.
 
   (* ============================================================== *)
   (* PHASE 1: discharge of [erase_ctx (row_to_disj_ctx ρ)] from the *)
   (* ambient label-validity + distinctness of the interpreted row.  *)
   (* (Added: label-structure lemmas for [interp._row].)             *)
+
   Lemma sig_labels_eff_name (e : eff_sig) η μ δ ξ :
     sem_sig_labels Σ (interp._eff_sig η μ δ e ξ)
     = δ !!! le.eff_name_from_sig e.
@@ -903,8 +1149,128 @@ Section labels.
   Qed.
 
   (* ------------------------------------------------------------------ *)
+  (* LABEL MONOTONICITY of [≤R] along a [@false] derivation.
+
+     A [@false] subtyping derivation never uses [RErase_le] (that
+     constructor is [@true]-only), so it cannot DROP any concrete label;
+     every other constructor either preserves, permutes, or EXTENDS the
+     concrete-label list.  Hence the [row_labels_*] lists are related by
+     [⊆+] (sub-multiset).  This supplies the two side-conditions of
+     [sem_row.row_le_cons_comp] (the [RCons_le] case) and the
+     cross-disjointness preservation needed by the union case.
+
+     First: subtyping of signatures preserves the effect NAME, so the
+     head label [(δ !!! eff_name_from_sig _).k] matches on both sides. *)
+  Lemma sig_le_eff_name (D : le.disj_ctx) (σ σ' : eff_sig) :
+    D ⊢ₗ σ ≤S σ' → le.eff_name_from_sig σ = le.eff_name_from_sig σ'.
+  Proof.
+    induction 1; simpl; congruence.
+  Qed.
+
+  (* The generalised statement (left labels), carrying [b = false] as a
+     hypothesis so the [@true]-only [RErase_le] case is vacuous.  All
+     other cases follow by [⊆+] reasoning on the concrete label lists. *)
+  Lemma row_le_false_row_labels_l (D : le.disj_ctx) b (ρ ρ' : row) ξ δ :
+    D ⊢ₗ ρ ≤R ρ' @ b → b = false →
+    row_labels_l ρ ξ δ ⊆+ row_labels_l ρ' ξ δ.
+  Proof.
+    induction 1 as
+      [D b|D b i|D b ρ σ|D b σ σ' ρ|D b σ σ' ρ ρ' Hσ Hρ IH
+      |D b ρ1 ρ2 ρ1' ρ2' _ IH1 _ IH2|D s ρ ss js Hlk Hc Ha
+      |D b ρ1 ρ2 ρ3 _ IH1 _ IH2|D b m|D b m σ ρ|D b m ρ1 ρ2
+      |D b ρ|D b m ρ|D b m ρ|D b m ρ|D b m' m ρ' ρ Hm _ IH] in |- *;
+      intros Hbf; simpl; try done.
+    - (* RExtend_le: [ρ ⊆+ head :: ρ] *)
+      apply submseteq_cons; reflexivity.
+    - (* RSwap_le *)
+      apply submseteq_swap.
+    - (* RCons_le: heads equal via [sig_le_eff_name]; tails by IH *)
+      rewrite (sig_le_eff_name D σ σ' Hσ).
+      apply submseteq_skip, IH; reflexivity.
+    - (* RUnion_le *)
+      apply submseteq_app; [by apply IH1|by apply IH2].
+    - (* RTrans_le *)
+      etrans; [by apply IH1|by apply IH2].
+    - (* RFlipComp_le: [RFlip] is transparent for labels; tail by IH.
+         (The [@true]-only [RErase_le] and the [RFlipUnion_le] cases
+         are closed by [try done] above: [discriminate] resp. equal
+         label lists.) *)
+      by apply IH.
+  Qed.
+
+  Lemma row_le_false_row_labels_r (D : le.disj_ctx) b (ρ ρ' : row) ξ δ :
+    D ⊢ₗ ρ ≤R ρ' @ b → b = false →
+    row_labels_r ρ ξ δ ⊆+ row_labels_r ρ' ξ δ.
+  Proof.
+    induction 1 as
+      [D b|D b i|D b ρ σ|D b σ σ' ρ|D b σ σ' ρ ρ' Hσ Hρ IH
+      |D b ρ1 ρ2 ρ1' ρ2' _ IH1 _ IH2|D s ρ ss js Hlk Hc Ha
+      |D b ρ1 ρ2 ρ3 _ IH1 _ IH2|D b m|D b m σ ρ|D b m ρ1 ρ2
+      |D b ρ|D b m ρ|D b m ρ|D b m ρ|D b m' m ρ' ρ Hm _ IH] in |- *;
+      intros Hbf; simpl; try done.
+    - apply submseteq_cons; reflexivity.
+    - apply submseteq_swap.
+    - rewrite (sig_le_eff_name D σ σ' Hσ).
+      apply submseteq_skip, IH; reflexivity.
+    - apply submseteq_app; [by apply IH1|by apply IH2].
+    - etrans; [by apply IH1|by apply IH2].
+    - by apply IH.
+  Qed.
+
+  (* The interp-level corollaries: the LEFT/RIGHT label LISTS of the
+     interpreted rows are sub-multisets along a [@false] derivation. *)
+  Lemma row_le_false_labels_l (D : le.disj_ctx) (ρ ρ' : row) η μ δ ξ :
+    D ⊢ₗ ρ ≤R ρ' @ false →
+    labels_l (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ))
+      ⊆+ labels_l (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)).
+  Proof.
+    intros Hle. rewrite !labels_l_interp_row.
+    by eapply row_le_false_row_labels_l.
+  Qed.
+
+  Lemma row_le_false_labels_r (D : le.disj_ctx) (ρ ρ' : row) η μ δ ξ :
+    D ⊢ₗ ρ ≤R ρ' @ false →
+    labels_r (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ))
+      ⊆+ labels_r (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)).
+  Proof.
+    intros Hle. rewrite !labels_r_interp_row.
+    by eapply row_le_false_row_labels_r.
+  Qed.
+
+  (* ------------------------------------------------------------------ *)
+  (* MEMBERSHIP: a concrete name [s] of [ρ] contributes [(δ!!!s).1]. *)
+
+  Lemma elem_of_row_labels_l_conc (ρ : row) ξ δ s :
+    s ∈ le.conc_sigs ρ → (δ !!! s).1 ∈ row_labels_l ρ ξ δ.
+  Proof.
+    induction ρ as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl;
+      rewrite ?gmultiset_elem_of_empty ?gmultiset_elem_of_disj_union
+              ?gmultiset_elem_of_singleton.
+    - by intros [].
+    - intros [-> | Hin]; [by left | right; by apply IH].
+    - by intros [].
+    - apply IH.
+    - rewrite elem_of_app. intros [?|?]; [left; by apply IH1|right; by apply IH2].
+  Qed.
+
+  Lemma elem_of_row_labels_r_conc (ρ : row) ξ δ s :
+    s ∈ le.conc_sigs ρ → (δ !!! s).2 ∈ row_labels_r ρ ξ δ.
+  Proof.
+    induction ρ as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl;
+      rewrite ?gmultiset_elem_of_empty ?gmultiset_elem_of_disj_union
+              ?gmultiset_elem_of_singleton.
+    - by intros [].
+    - intros [-> | Hin]; [by left | right; by apply IH].
+    - by intros [].
+    - apply IH.
+    - rewrite elem_of_app. intros [?|?]; [left; by apply IH1|right; by apply IH2].
+  Qed.
+
+
+  (* ------------------------------------------------------------------ *)
   (* PERMUTATION decomposition: separate the concrete (name) labels from
      the abstract (row-variable) labels. *)
+
   Definition name_labels_l (ss : gmultiset eff_name) (δ : gmap eff_name (label*label)) : list label :=
     (λ s, (δ !!! s).1) <$> elements ss.
 
@@ -930,53 +1296,83 @@ Section labels.
       rewrite IH1 IH2. solve_Permutation.
   Qed.
 
-  (* Peel the [s]-occurrence off the front of a name-label list. *)
-  Lemma name_labels_l_remove (ss : gmultiset eff_name) δ s :
-    s ∈ ss → name_labels_l ss δ ≡ₚ (δ !!! s).1 :: name_labels_l (ss ∖ {[+ s +]}) δ.
+  Lemma elem_of_name_labels_l_mono (X Y : gmultiset eff_name) l δ :
+    X ⊆ Y → l ∈ name_labels_l X δ → l ∈ name_labels_l Y δ.
   Proof.
-    intros Hs. rewrite /name_labels_l.
-    rewrite {1}(gmultiset_disj_union_difference' s ss Hs).
-    by rewrite gmultiset_elements_disj_union gmultiset_elements_singleton fmap_app.
+    intros Hsub. rewrite /name_labels_l !list_elem_of_fmap.
+    intros (s & -> & Hs). exists s. split; [done|].
+    apply gmultiset_elem_of_elements.
+    apply gmultiset_elem_of_elements in Hs.
+    by eapply gmultiset_elem_of_subseteq.
+  Qed.
+
+  Lemma elem_of_var_labels_l_mono (ρ0 ρ : row) ξ l :
+    le.abst_sigs ρ0 ⊆ le.abst_sigs ρ →
+    l ∈ var_labels_l ρ0 ξ →
+    (∃ i, i ∈ le.abst_sigs ρ
+       ∧ l ∈ labels_l (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat))))).
+  Proof.
+    intros Hsub Hin.
+    (* extract the witness var from ρ0 via the structure of var_labels_l *)
+    assert (∃ i, i ∈ le.abst_sigs ρ0
+       ∧ l ∈ labels_l (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat)))))
+      as (i & Hi & Hl).
+    { clear Hsub. induction ρ0 as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl in *.
+      - by apply elem_of_nil in Hin.
+      - destruct (IH Hin) as (j & Hj & Hl). by exists j.
+      - exists i. split; [by apply elem_of_singleton|done].
+      - destruct (IH Hin) as (j & Hj & Hl). by exists j.
+      - apply elem_of_app in Hin as [Hin|Hin].
+        + destruct (IH1 Hin) as (j & Hj & Hl). exists j.
+          split; [by apply elem_of_union; left|done].
+        + destruct (IH2 Hin) as (j & Hj & Hl). exists j.
+          split; [by apply elem_of_union; right|done]. }
+    exists i. split; [by apply Hsub|done].
+  Qed.
+
+  (* The abstract labels of [ρ] are also among [row_labels_l ρ]. *)
+  Lemma elem_of_var_in_row_labels (ρ : row) ξ i l :
+    i ∈ le.abst_sigs ρ →
+    l ∈ labels_l (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat)))) →
+    l ∈ var_labels_l ρ ξ.
+  Proof.
+    induction ρ as [|e ρ' IH|j|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl.
+    - by intros ?%elem_of_empty.
+    - apply IH.
+    - intros ->%elem_of_singleton. done.
+    - apply IH.
+    - intros [?|?]%elem_of_union ?; apply elem_of_app;
+        [left; by apply IH1|right; by apply IH2].
   Qed.
 
   (* ------------------------------------------------------------------ *)
-  (* MEMBERSHIP.  One characterisation per label list, each an [↔].
-     These replace the former half-direction family
-     [elem_of_row_labels_l_conc] / [elem_of_name_labels_l_mono] /
-     [elem_of_var_labels_l_mono] / [elem_of_var_in_row_labels]: each of
-     those was one direction of one of these, and the monotonicity
-     statements are now the one-line consequence of transporting the
-     witness along the subset hypothesis. *)
-
-  Lemma elem_of_name_labels_l (ss : gmultiset eff_name) δ l :
-    l ∈ name_labels_l ss δ ↔ ∃ s, s ∈ ss ∧ l = (δ !!! s).1.
+  (* FRESHNESS: the crux.  Discharged from NoDup (distinct). *)
+  Lemma fresh_left (ρ ρ0 : row) ξ δ s :
+    NoDup (row_labels_l ρ ξ δ) →
+    s ∈ le.conc_sigs ρ →
+    le.conc_sigs ρ0 ⊆ le.conc_sigs ρ ∖ {[+ s +]} →
+    le.abst_sigs ρ0 ⊆ le.abst_sigs ρ →
+    (δ !!! s).1 ∉ row_labels_l ρ0 ξ δ.
   Proof.
-    rewrite /name_labels_l list_elem_of_fmap.
-    setoid_rewrite gmultiset_elem_of_elements. naive_solver.
-  Qed.
-
-  Lemma elem_of_var_labels_l (ρ : row) ξ l :
-    l ∈ var_labels_l ρ ξ
-    ↔ ∃ i, i ∈ le.abst_sigs ρ
-         ∧ l ∈ labels_l (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat)))).
-  Proof.
-    induction ρ as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl.
-    - rewrite elem_of_nil. split; [done|].
-      intros (j & Hj & _). by apply elem_of_empty in Hj.
-    - exact IH.
-    - setoid_rewrite elem_of_singleton. naive_solver.
-    - exact IH.
-    - rewrite elem_of_app IH1 IH2. setoid_rewrite elem_of_union. naive_solver.
-  Qed.
-
-  Lemma elem_of_row_labels_l (ρ : row) ξ δ l :
-    l ∈ row_labels_l ρ ξ δ
-    ↔ (∃ s, s ∈ le.conc_sigs ρ ∧ l = (δ !!! s).1)
-    ∨ (∃ i, i ∈ le.abst_sigs ρ
-          ∧ l ∈ labels_l (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat))))).
-  Proof.
-    by rewrite row_labels_l_split elem_of_app
-               elem_of_name_labels_l elem_of_var_labels_l.
+    intros Hnd Hs Hc Ha Hin.
+    (* permute [ρ]'s labels to expose the s-occurrence *)
+    rewrite (row_labels_l_split ρ) in Hnd.
+    pose proof (gmultiset_disj_union_difference' s (le.conc_sigs ρ) Hs)
+      as Hdecomp.
+    rewrite Hdecomp in Hnd.
+    rewrite /name_labels_l gmultiset_elements_disj_union fmap_app
+      gmultiset_elements_singleton /= in Hnd.
+    apply NoDup_cons in Hnd as [Hnotin _].
+    apply Hnotin. apply elem_of_app.
+    (* classify the ρ0-membership *)
+    rewrite (row_labels_l_split ρ0) in Hin.
+    apply elem_of_app in Hin as [Hin|Hin].
+    - (* concrete name of ρ0: lands in (conc_sigs ρ ∖ {[s]}) name labels *)
+      left. by eapply (elem_of_name_labels_l_mono _ _ _ _ Hc).
+    - (* abstract var of ρ0: lands in var labels of ρ *)
+      right.
+      destruct (elem_of_var_labels_l_mono ρ0 ρ ξ _ Ha Hin) as (i & Hi & Hl).
+      by eapply elem_of_var_in_row_labels.
   Qed.
 
   (* ------------------------- RIGHT-SIDE COPIES ----------------------- *)
@@ -1006,43 +1402,75 @@ Section labels.
       rewrite IH1 IH2. solve_Permutation.
   Qed.
 
-  Lemma name_labels_r_remove (ss : gmultiset eff_name) δ s :
-    s ∈ ss → name_labels_r ss δ ≡ₚ (δ !!! s).2 :: name_labels_r (ss ∖ {[+ s +]}) δ.
+  Lemma elem_of_name_labels_r_mono (X Y : gmultiset eff_name) l δ :
+    X ⊆ Y → l ∈ name_labels_r X δ → l ∈ name_labels_r Y δ.
   Proof.
-    intros Hs. rewrite /name_labels_r.
-    rewrite {1}(gmultiset_disj_union_difference' s ss Hs).
-    by rewrite gmultiset_elements_disj_union gmultiset_elements_singleton fmap_app.
+    intros Hsub. rewrite /name_labels_r !list_elem_of_fmap.
+    intros (s & -> & Hs). exists s. split; [done|].
+    apply gmultiset_elem_of_elements.
+    apply gmultiset_elem_of_elements in Hs.
+    by eapply gmultiset_elem_of_subseteq.
   Qed.
 
-  Lemma elem_of_name_labels_r (ss : gmultiset eff_name) δ l :
-    l ∈ name_labels_r ss δ ↔ ∃ s, s ∈ ss ∧ l = (δ !!! s).2.
+  Lemma elem_of_var_labels_r_mono (ρ0 ρ : row) ξ l :
+    le.abst_sigs ρ0 ⊆ le.abst_sigs ρ →
+    l ∈ var_labels_r ρ0 ξ →
+    (∃ i, i ∈ le.abst_sigs ρ
+       ∧ l ∈ labels_r (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat))))).
   Proof.
-    rewrite /name_labels_r list_elem_of_fmap.
-    setoid_rewrite gmultiset_elem_of_elements. naive_solver.
+    intros Hsub Hin.
+    assert (∃ i, i ∈ le.abst_sigs ρ0
+       ∧ l ∈ labels_r (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat)))))
+      as (i & Hi & Hl).
+    { clear Hsub. induction ρ0 as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl in *.
+      - by apply elem_of_nil in Hin.
+      - destruct (IH Hin) as (j & Hj & Hl). by exists j.
+      - exists i. split; [by apply elem_of_singleton|done].
+      - destruct (IH Hin) as (j & Hj & Hl). by exists j.
+      - apply elem_of_app in Hin as [Hin|Hin].
+        + destruct (IH1 Hin) as (j & Hj & Hl). exists j.
+          split; [by apply elem_of_union; left|done].
+        + destruct (IH2 Hin) as (j & Hj & Hl). exists j.
+          split; [by apply elem_of_union; right|done]. }
+    exists i. split; [by apply Hsub|done].
   Qed.
 
-  Lemma elem_of_var_labels_r (ρ : row) ξ l :
-    l ∈ var_labels_r ρ ξ
-    ↔ ∃ i, i ∈ le.abst_sigs ρ
-         ∧ l ∈ labels_r (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat)))).
+  Lemma elem_of_var_in_row_labels_r (ρ : row) ξ i l :
+    i ∈ le.abst_sigs ρ →
+    l ∈ labels_r (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat)))) →
+    l ∈ var_labels_r ρ ξ.
   Proof.
-    induction ρ as [|e ρ' IH|i|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl.
-    - rewrite elem_of_nil. split; [done|].
-      intros (j & Hj & _). by apply elem_of_empty in Hj.
-    - exact IH.
-    - setoid_rewrite elem_of_singleton. naive_solver.
-    - exact IH.
-    - rewrite elem_of_app IH1 IH2. setoid_rewrite elem_of_union. naive_solver.
+    induction ρ as [|e ρ' IH|j|m ρ' IH|ρ1 IH1 ρ2 IH2]; simpl.
+    - by intros ?%elem_of_empty.
+    - apply IH.
+    - intros ->%elem_of_singleton. done.
+    - apply IH.
+    - intros [?|?]%elem_of_union ?; apply elem_of_app;
+        [left; by apply IH1|right; by apply IH2].
   Qed.
 
-  Lemma elem_of_row_labels_r (ρ : row) ξ δ l :
-    l ∈ row_labels_r ρ ξ δ
-    ↔ (∃ s, s ∈ le.conc_sigs ρ ∧ l = (δ !!! s).2)
-    ∨ (∃ i, i ∈ le.abst_sigs ρ
-          ∧ l ∈ labels_r (iLblSig_to_iLblThy (sem_row_car (ξ !!! (i:nat))))).
+  Lemma fresh_right (ρ ρ0 : row) ξ δ s :
+    NoDup (row_labels_r ρ ξ δ) →
+    s ∈ le.conc_sigs ρ →
+    le.conc_sigs ρ0 ⊆ le.conc_sigs ρ ∖ {[+ s +]} →
+    le.abst_sigs ρ0 ⊆ le.abst_sigs ρ →
+    (δ !!! s).2 ∉ row_labels_r ρ0 ξ δ.
   Proof.
-    by rewrite row_labels_r_split elem_of_app
-               elem_of_name_labels_r elem_of_var_labels_r.
+    intros Hnd Hs Hc Ha Hin.
+    rewrite (row_labels_r_split ρ) in Hnd.
+    pose proof (gmultiset_disj_union_difference' s (le.conc_sigs ρ) Hs)
+      as Hdecomp.
+    rewrite Hdecomp in Hnd.
+    rewrite /name_labels_r gmultiset_elements_disj_union fmap_app
+      gmultiset_elements_singleton /= in Hnd.
+    apply NoDup_cons in Hnd as [Hnotin _].
+    apply Hnotin. apply elem_of_app.
+    rewrite (row_labels_r_split ρ0) in Hin.
+    apply elem_of_app in Hin as [Hin|Hin].
+    - left. by eapply (elem_of_name_labels_r_mono _ _ _ _ Hc).
+    - right.
+      destruct (elem_of_var_labels_r_mono ρ0 ρ ξ _ Ha Hin) as (i & Hi & Hl).
+      by eapply elem_of_var_in_row_labels_r.
   Qed.
 
   (* if all variables are greater than 0 the first element of the context can be ignored *)
@@ -1078,7 +1506,6 @@ Section labels.
 
   (* ------------------------------------------------------------------ *)
   (* Characterise lookups in [row_to_disj_ctx ρ]. *)
-  (* NOTE: only used to prove erase_ctx_row_to_disj_ctx *)
   Lemma lookup_row_to_disj_ctx (ρ : row) s ss js :
     le.row_to_disj_ctx ρ !! s = Some (ss, js) ↔
       s ∈ le.conc_sigs ρ ∧ ss = le.conc_sigs ρ ∖ {[+ s +]}
@@ -1217,16 +1644,12 @@ Section erase_ctx.
   (* ------------------------------------------------------------------ *)
   (* THE PHASE-1 LEMMA: discharge [erase_ctx (row_to_disj_ctx ρ)] from
      label-validity + distinctness of the interpreted row, AT EVERY [ξ].
-     Ownership is [ξ]-independent; freshness depends only on [ξ].
-     An occurrence of [δ !!! s] in [ρ0]'s labels is, by
-     [elem_of_row_labels_l], either a concrete name of [ρ0] -- hence one of
-     [conc_sigs ρ ∖ {[+ s +]}] -- or a row variable of [ρ0] -- hence one of
-     [ρ]; the head of the [NoDup] hypothesis rules out both, once the
-     [s]-occurrence has been peeled off with [name_labels_l_remove]. *)
+     Ownership is [ξ]/[η]/[μ]-independent; freshness depends only on [ξ].
+     The hypothesis quantifies over [ξ] because [erase_ctx] does. *)
   Lemma erase_ctx_row_to_disj_ctx η μ δ ξ (ρ : row) :
-    (logic.valid (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ))
-     ∗ ⌜ logic.distinct (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ)) ⌝)
-    -∗ erase_ctx δ ξ (le.row_to_disj_ctx ρ).
+       (logic.valid (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ))
+       ∗ ⌜ logic.distinct (iLblSig_to_iLblThy (interp._row η μ δ ρ ξ)) ⌝)
+    -∗ erase_ctx η μ δ ξ (le.row_to_disj_ctx ρ).
   Proof.
     iIntros "#Hvd". rewrite /erase_ctx.
     iIntros "!#" (s ss js ρ0 Hlk Hc Ha).
@@ -1235,43 +1658,71 @@ Section erase_ctx.
     destruct Hdist as [Hndl Hndr].
     rewrite /distinct_l (labels_l_interp_row ρ η μ δ ξ) in Hndl.
     rewrite /distinct_r (labels_r_interp_row ρ η μ δ ξ) in Hndr.
-    (* Peel the [s]-occurrence off the front of each label list. *)
-    rewrite row_labels_l_split (name_labels_l_remove _ δ s Hs) in Hndl.
-    rewrite row_labels_r_split (name_labels_r_remove _ δ s Hs) in Hndr.
-    cbn [app] in Hndl, Hndr.
-    apply NoDup_cons in Hndl as [Hnl _].
-    apply NoDup_cons in Hndr as [Hnr _].
     (* OWNERSHIP from valid (a big-sep over the label list) *)
     iSplitL "Hvl"; [|iSplitL "Hvr"].
     - rewrite /logic.valid_l (labels_l_interp_row ρ _ _ _ ξ).
       iApply (big_sepL_elem_of with "Hvl").
-      rewrite elem_of_row_labels_l. left. exists s. split; [exact Hs|reflexivity].
+      by apply elem_of_row_labels_l_conc.
     - rewrite /logic.valid_r (labels_r_interp_row ρ _ _ _ ξ).
       iApply (big_sepL_elem_of with "Hvr").
-      rewrite elem_of_row_labels_r. left. exists s. split; [exact Hs|reflexivity].
-    - iPureIntro. split.
-      + intros [(t & Ht & Heq)|(i & Hi & Hl)]%elem_of_row_labels_l.
-        * assert (Hts : t ∈ le.conc_sigs ρ ∖ {[+ s +]})
-            by (eapply gmultiset_elem_of_subseteq; eauto).
-          apply Hnl. rewrite elem_of_app. left.
-          rewrite elem_of_name_labels_l. exists t. split; [exact Hts|exact Heq].
-        * assert (Hij : i ∈ le.abst_sigs ρ) by (eapply elem_of_weaken; eauto).
-          apply Hnl. rewrite elem_of_app. right.
-          rewrite elem_of_var_labels_l. exists i. split; [exact Hij|exact Hl].
-      + intros [(t & Ht & Heq)|(i & Hi & Hl)]%elem_of_row_labels_r.
-        * assert (Hts : t ∈ le.conc_sigs ρ ∖ {[+ s +]})
-            by (eapply gmultiset_elem_of_subseteq; eauto).
-          apply Hnr. rewrite elem_of_app. left.
-          rewrite elem_of_name_labels_r. exists t. split; [exact Hts|exact Heq].
-        * assert (Hij : i ∈ le.abst_sigs ρ) by (eapply elem_of_weaken; eauto).
-          apply Hnr. rewrite elem_of_app. right.
-          rewrite elem_of_var_labels_r. exists i. split; [exact Hij|exact Hl].
+      by apply elem_of_row_labels_r_conc.
+    - (* FRESHNESS, both sides, via [fresh_left]/[fresh_right] *)
+      iPureIntro. split.
+      + rewrite (labels_l_interp_row ρ0 η μ δ ξ).
+        by eapply (fresh_left ρ ρ0 ξ δ s).
+      + rewrite (labels_r_interp_row ρ0 η μ δ ξ).
+        by eapply (fresh_right ρ ρ0 ξ δ s).
   Qed.
 
-  Lemma extend_erase_ctx ρ' D η μ δ ξ :
-    erase_ctx δ ξ D -∗ distinct' (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)) -∗
-    logic.valid (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)) -∗
-    erase_ctx δ ξ (le.update_disj_ctx ρ' D).
+  Lemma erase_ctx_extend_ty η μ δ ξ D α :
+    ⊢ erase_ctx η μ δ ξ D -∗ erase_ctx (α :: η) μ δ ξ D.
+  Proof.
+    iIntros "#HD !# % % % % % % %".
+    iSpecialize ("HD" $! _ _ _ _).
+    rewrite !labels_r_interp_row.
+    rewrite !labels_l_interp_row.
+    by iApply "HD".
+  Qed. 
+
+  Lemma erase_ctx_extend_mode η μ δ ξ D m :
+    ⊢ erase_ctx η μ δ ξ D -∗ erase_ctx η (m :: μ) δ ξ D.
+  Proof.
+    iIntros "#HD !# % % % % % % %".
+    iSpecialize ("HD" $! _ _ _ _).
+    rewrite !labels_r_interp_row.
+    rewrite !labels_l_interp_row.
+    by iApply "HD".
+  Qed. 
+
+ (* Lemma erase_ctx_extend_row η μ δ ξ D θ :
+       ⊢ erase_ctx η μ δ ξ D -∗ erase_ctx η μ δ (θ :: ξ) D.
+     Proof.
+       iIntros "#HD !# % % % % % % %".
+       iSpecialize ("HD" $! _ _ _ _).
+       rewrite !labels_r_interp_row.
+       rewrite !labels_l_interp_row.
+       iApply "HD".
+     Qed . *)
+
+  (* The three per-judgement predicates.  Each quantifies over the
+     interpretation environments [η μ ξ] (extended by binders), takes the
+     [erase_ctx] hypothesis bundle (only used by [RErase_le]), and yields
+     the corresponding semantic subtyping. *)
+  Definition sem_sig_le D σ σ' : iProp Σ :=
+    □ (∀ η μ δ ξ, erase_ctx η μ δ ξ D -∗
+     interp._eff_sig η μ δ σ ξ ≤ₛ interp._eff_sig η μ δ σ' ξ).
+  (* Why is the boolean not used? *)
+  Definition sem_row_le D (b : bool) ρ ρ' : iProp Σ :=
+    □ (∀ η μ δ ξ, erase_ctx η μ δ ξ D -∗
+     interp._row η μ δ ρ ξ ≤ᵣ interp._row η μ δ ρ' ξ).
+  Definition sem_ty_le D α β : iProp Σ :=
+    □ (∀ η μ δ ξ, erase_ctx η μ δ ξ D -∗
+     interp._ty η μ δ α ξ ≤ₜ interp._ty η μ δ β ξ).
+
+  Lemma arr_extend_D ρ' D η μ δ ξ : 
+     erase_ctx η μ δ ξ D -∗ distinct' (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)) -∗
+     logic.valid (iLblSig_to_iLblThy (interp._row η μ δ ρ' ξ)) -∗
+     erase_ctx η μ δ ξ (le.update_disj_ctx ρ' D).
   Proof.
     iIntros "#HD #Hd #Hv".
     iDestruct (erase_ctx_row_to_disj_ctx η μ δ ξ ρ' with "[$Hv $Hd]")
@@ -1283,58 +1734,476 @@ Section erase_ctx.
     1: by iApply ("Hrow" $! s ss js ρ0 with "[//] [//] [//]").
     (* [D] only: discharge directly from [HD]. *)
     1: by iApply ("HD" $! s ss js ρ0 with "[//] [//] [//]").
-    (* Both: [ss = ss1 ∪ ss2] and [js = js1 ∪ js2]. *)
+    (* Both: the merged entry has [ss = ss1 ∪ ss2], [js = js1 ∪ js2].  Every
+       concrete name / row variable of [ρ0] lands in one of the two summands,
+       so freshness of [(δ !!! s)] against [ρ0] is reconstructed element-wise
+       from the per-side facts [Hm1] ([Hrow]) and [Hm2] ([HD]). *)
     destruct Hb as ([ss1 js1] & [ss2 js2] & Hlk1 & Hlk2 & Heq).
     simpl in Heq. injection Heq as <- <-.
-    iDestruct (erase_ctx_atoms δ ξ _ s ss1 js1 Hlk1 with "Hrow")
-      as "(#Ho1 & #Ho2 & %Hat1)".
-    iDestruct (erase_ctx_atoms δ ξ _ s ss2 js2 Hlk2 with "HD")
-      as "(_ & _ & %Hat2)".
-    destruct Hat1 as [Hn1 Hv1]. destruct Hat2 as [Hn2 Hv2].
-    iFrame "Ho1 Ho2". iPureIntro. split.
-    - intros [(t & Ht & Heq)|(i & Hi & Hl)]%elem_of_row_labels_l.
-      + assert (Htu : t ∈ ss1 ∪ ss2)
+    iAssert (⌜∀ ρa, le.conc_sigs ρa ⊆ ss1 → le.abst_sigs ρa ⊆ js1 →
+      (δ !!! s).1 ∉ row_labels_l ρa ξ δ
+      ∧ (δ !!! s).2 ∉ row_labels_r ρa ξ δ⌝)%I as %Hm1.
+    { iIntros (ρa Hca Haa).
+      iDestruct ("Hrow" $! s ss1 js1 ρa with "[//] [//] [//]")
+        as "(_ & _ & %Hfl & %Hfr)".
+      rewrite (labels_l_interp_row ρa η μ δ ξ) in Hfl.
+      rewrite (labels_r_interp_row ρa η μ δ ξ) in Hfr.
+      iPureIntro; split; assumption. }
+    iAssert (⌜∀ ρa, le.conc_sigs ρa ⊆ ss2 → le.abst_sigs ρa ⊆ js2 →
+      (δ !!! s).1 ∉ row_labels_l ρa ξ δ
+      ∧ (δ !!! s).2 ∉ row_labels_r ρa ξ δ⌝)%I as %Hm2.
+    { iIntros (ρa Hca Haa).
+      iDestruct ("HD" $! s ss2 js2 ρa with "[//] [//] [//]")
+        as "(_ & _ & %Hfl & %Hfr)".
+      rewrite (labels_l_interp_row ρa η μ δ ξ) in Hfl.
+      rewrite (labels_r_interp_row ρa η μ δ ξ) in Hfr.
+      iPureIntro; split; assumption. }
+    (* Ownership does not depend on [ρ0]; read it off [D] at the empty row. *)
+    assert (Hc0 : le.conc_sigs RNil ⊆ ss2)
+      by (cbn [le.conc_sigs]; multiset_solver).
+    assert (Ha0 : le.abst_sigs RNil ⊆ js2)
+      by (cbn [le.abst_sigs]; set_solver).
+    iDestruct ("HD" $! s ss2 js2 RNil with "[//] [//] [//]")
+      as "(#Hown1 & #Hown2 & _)".
+    iSplit; [iApply "Hown1"|].
+    iSplit; [iApply "Hown2"|].
+    iSplit.
+    - iPureIntro.
+      rewrite (labels_l_interp_row ρ0 η μ δ ξ).
+      intros Hin. rewrite row_labels_l_split elem_of_app in Hin.
+      destruct Hin as [Hn | Hvr].
+      + rewrite /name_labels_l list_elem_of_fmap in Hn.
+        destruct Hn as (t & Heqt & Ht). apply gmultiset_elem_of_elements in Ht.
+        assert (Htu : t ∈ ss1 ∪ ss2)
           by (eapply gmultiset_elem_of_subseteq; eauto).
-        apply gmultiset_elem_of_union in Htu as [Ht1|Ht2].
-        * destruct (Hn1 t Ht1) as [Hne _]. by apply Hne.
-        * destruct (Hn2 t Ht2) as [Hne _]. by apply Hne.
-      + assert (Hiu : i ∈ js1 ∪ js2) by (eapply elem_of_weaken; eauto).
-        apply elem_of_union in Hiu as [Hi1|Hi2].
-        * destruct (Hv1 i Hi1) as [Hnl _]. by apply Hnl.
-        * destruct (Hv2 i Hi2) as [Hnl _]. by apply Hnl.
-    - intros [(t & Ht & Heq)|(i & Hi & Hl)]%elem_of_row_labels_r.
-      + assert (Htu : t ∈ ss1 ∪ ss2)
+        apply gmultiset_elem_of_union in Htu as [Ht1 | Ht2].
+        * assert (Hp1 : le.conc_sigs (RCons (SSig t TBot TBot) RNil) ⊆ ss1)
+            by (cbn [le.conc_sigs le.eff_name_from_sig]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RCons (SSig t TBot TBot) RNil) ⊆ js1)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm1 _ Hp1 Hp2) as [Hnl _].
+          apply Hnl. cbn [row_labels_l le.eff_name_from_sig].
+          rewrite Heqt. apply list_elem_of_here.
+        * assert (Hp1 : le.conc_sigs (RCons (SSig t TBot TBot) RNil) ⊆ ss2)
+            by (cbn [le.conc_sigs le.eff_name_from_sig]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RCons (SSig t TBot TBot) RNil) ⊆ js2)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm2 _ Hp1 Hp2) as [Hnl _].
+          apply Hnl. cbn [row_labels_l le.eff_name_from_sig].
+          rewrite Heqt. apply list_elem_of_here.
+      + destruct (elem_of_var_labels_l_mono ρ0 ρ0 ξ _ (reflexivity _) Hvr)
+          as (i & Hi & Hl).
+        assert (Hiu : i ∈ js1 ∪ js2) by (eapply elem_of_weaken; eauto).
+        apply elem_of_union in Hiu as [Hi1 | Hi2].
+        * assert (Hp1 : le.conc_sigs (RVar i) ⊆ ss1)
+            by (cbn [le.conc_sigs]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RVar i) ⊆ js1)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm1 _ Hp1 Hp2) as [Hnl _].
+          apply Hnl. cbn [row_labels_l]. exact Hl.
+        * assert (Hp1 : le.conc_sigs (RVar i) ⊆ ss2)
+            by (cbn [le.conc_sigs]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RVar i) ⊆ js2)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm2 _ Hp1 Hp2) as [Hnl _].
+          apply Hnl. cbn [row_labels_l]. exact Hl.
+    - iPureIntro.
+      rewrite (labels_r_interp_row ρ0 η μ δ ξ).
+      intros Hin. rewrite row_labels_r_split elem_of_app in Hin.
+      destruct Hin as [Hn | Hvr].
+      + rewrite /name_labels_r list_elem_of_fmap in Hn.
+        destruct Hn as (t & Heqt & Ht). apply gmultiset_elem_of_elements in Ht.
+        assert (Htu : t ∈ ss1 ∪ ss2)
           by (eapply gmultiset_elem_of_subseteq; eauto).
-        apply gmultiset_elem_of_union in Htu as [Ht1|Ht2].
-        * destruct (Hn1 t Ht1) as [_ Hne]. by apply Hne.
-        * destruct (Hn2 t Ht2) as [_ Hne]. by apply Hne.
-      + assert (Hiu : i ∈ js1 ∪ js2) by (eapply elem_of_weaken; eauto).
-        apply elem_of_union in Hiu as [Hi1|Hi2].
-        * destruct (Hv1 i Hi1) as [_ Hnr]. by apply Hnr.
-        * destruct (Hv2 i Hi2) as [_ Hnr]. by apply Hnr.
+        apply gmultiset_elem_of_union in Htu as [Ht1 | Ht2].
+        * assert (Hp1 : le.conc_sigs (RCons (SSig t TBot TBot) RNil) ⊆ ss1)
+            by (cbn [le.conc_sigs le.eff_name_from_sig]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RCons (SSig t TBot TBot) RNil) ⊆ js1)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm1 _ Hp1 Hp2) as [_ Hnr].
+          apply Hnr. cbn [row_labels_r le.eff_name_from_sig].
+          rewrite Heqt. apply list_elem_of_here.
+        * assert (Hp1 : le.conc_sigs (RCons (SSig t TBot TBot) RNil) ⊆ ss2)
+            by (cbn [le.conc_sigs le.eff_name_from_sig]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RCons (SSig t TBot TBot) RNil) ⊆ js2)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm2 _ Hp1 Hp2) as [_ Hnr].
+          apply Hnr. cbn [row_labels_r le.eff_name_from_sig].
+          rewrite Heqt. apply list_elem_of_here.
+      + destruct (elem_of_var_labels_r_mono ρ0 ρ0 ξ _ (reflexivity _) Hvr)
+          as (i & Hi & Hl).
+        assert (Hiu : i ∈ js1 ∪ js2) by (eapply elem_of_weaken; eauto).
+        apply elem_of_union in Hiu as [Hi1 | Hi2].
+        * assert (Hp1 : le.conc_sigs (RVar i) ⊆ ss1)
+            by (cbn [le.conc_sigs]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RVar i) ⊆ js1)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm1 _ Hp1 Hp2) as [_ Hnr].
+          apply Hnr. cbn [row_labels_r]. exact Hl.
+        * assert (Hp1 : le.conc_sigs (RVar i) ⊆ ss2)
+            by (cbn [le.conc_sigs]; multiset_solver).
+          assert (Hp2 : le.abst_sigs (RVar i) ⊆ js2)
+            by (cbn [le.abst_sigs]; set_solver).
+          destruct (Hm2 _ Hp1 Hp2) as [_ Hnr].
+          apply Hnr. cbn [row_labels_r]. exact Hl.
+  Qed.
+    
+    
+
+  (* Combined soundness of the three syntactic subtyping judgements, by ONE
+     simultaneous induction (combined scheme [le_subtyping_mut]).  The
+     per-case tactics and IH names are uniform.  Cases left as documented
+     [admit]s (the genuine gaps, collected here):
+     - [SFlipComp_le]/[RFlipComp_le] are now DISCHARGED: the Inductive's
+       mode premise was corrected from [m' ≤M m] to [m ≤M m'] (the typo
+       noted previously), which is exactly the direction the ANTITONE
+       semantic [sig/row_le_mfbang_comp] needs ([mode_le_sound] + the IH).
+     - [RCons_le]: now DISCHARGED.  The two LABEL submseteq side-conditions
+       of [row_le_cons_comp] follow from label-monotonicity of [≤ᵣ] along
+       the [@false] row premise, proved here as
+       [row_le_false_labels_l]/[_r] (induction on the [@false] derivation;
+       [RErase_le] is [@true]-only so no label is ever dropped).
+     - [RUnion_le]: DISCHARGED at [b = false] via [sem_row.row_le_union']
+       (a closeable variant of [row_le_union] taking the two cross-
+       disjointness label submseteq facts, supplied by
+       [row_le_false_labels_l]/[_r]).  The [b = true] sub-case still routes
+       through the upstream-admitted [row_le_union]: at [b = true]
+       [RErase_le] may drop labels, so label-monotonicity (hence the
+       cross-disjointness preservation) no longer holds structurally.
+     - [RFlipUnion_le]: DISCHARGED via [sem_row.row_le_flip_union]
+       (flip distributes over union: equal underlying theory lists,
+       [map] over [++]).
+     - [TArrow_le]: premises live at [D' = update_disj_ctx ρ' D]; the IHs
+       need [erase_ctx D'] but we only have [erase_ctx D], and
+       [erase_ctx D → erase_ctx D'] is not provable (D' has larger ss/js +
+       new entries from [ρ']; their ownership/freshness needs the ambient
+       row's [valid]).  THE central remaining gap.
+     - [TRec_le]: STILL ADMITTED.  [ty_le_rec] needs the PARAMETRIC monotone
+       premise [∀ α' β', α' ≤ₜ β' -∗ C₁ α' ≤ₜ C₂ β'] (to relate the differing
+       recursive occurrences in the Löb unfold); the combined-scheme IH
+       supplies only the DIAGONAL [∀ γ, C₁ γ ≤ₜ C₂ γ].  Bridging them needs
+       env-monotonicity of [interp._ty] in the recursion variable (fails
+       without positivity) or strengthening the whole induction to two
+       related environments (out of scope).  See the case body.
+     [RErase_le] (the linchpin) IS discharged here, via [erase_ctx] +
+     [sem_row.row_le_erase].  ([RFlipCons_le] is closed via
+     [row_le_mfbang_dist_cons], itself [Admitted] upstream.) *)
+  Lemma subtyping_sound_all :
+    (∀ D σ σ', D ⊢ₗ σ ≤S σ' → ⊢ sem_sig_le D σ σ') ∧
+    (∀ D b ρ ρ', D ⊢ₗ ρ ≤R ρ' @ b → ⊢ sem_row_le D b ρ ρ') ∧
+    (∀ D α β, D ⊢ₗ α ≤T β → ⊢ sem_ty_le D α β).
+  Proof.
+    apply le_subtyping_mut.
+    all : intros; iIntros (????) "!# #He"; simpl.
+    (* effect-signature cases *)
+    - iApply sig_le_eff; iIntros "!#" (αs);
+      [iApply H | iApply H0];
+        by iApply erase_ctx_extend_ty.
+    - iApply sig_le_mfbang_intro.
+    - iApply sig_le_mfbang_elim_ms.
+    - iApply sig_le_mfbang_idemp.
+    - iApply sig_le_mfbang_intro.
+    - iApply (sig_le_mfbang_comp with "[] []").
+      + iApply mode_le_sound; exact _m.
+      + by iApply H.
+    (* row cases *)
+    - iApply row_le_refl.
+    - iApply row_le_refl.
+    - iApply row_le_cons_extend.
+    - iApply row_le_swap_second.
+    - iApply row_le_cons_comp; last first.
+      + by iApply H0.
+      + by iApply H.
+      (* RCons_le: the two LABEL submseteq side-conditions follow from
+         label-monotonicity of [≤R] along the [@false] row premise [_r]. *)
+      + by eapply row_le_false_labels_r.
+      + by eapply row_le_false_labels_l.
+    - (* RUnion_le.  At [b = false] the cross-disjointness side-condition
+         of [row_le_union'] is supplied by label-monotonicity of [≤R]
+         ([row_le_false_labels_l]/[_r]); the [b = true] sub-case still
+         routes through the (upstream-admitted) [row_le_union], since at
+         [b = true] [RErase_le] may drop labels and label-monotonicity no
+         longer holds. *)
+      iApply (row_le_union' with "[] []");
+          [ by eapply row_le_false_labels_l
+          | by eapply row_le_false_labels_l
+          | by eapply row_le_false_labels_r
+          | by eapply row_le_false_labels_r
+          | by iApply H | by iApply H0 ].
+    - iDestruct ("He" $! s ss js ρ with "[//] [//] [//]")
+        as "(Hl1 & Hl2 & %Hnl & %Hnr)".
+      iApply (row_le_erase with "Hl1 Hl2"); done.
+    - iApply (row_le_trans with "[] []"); [by iApply H|by iApply H0].
+    - iApply row_le_mfbang_elim_nil.
+    - iApply row_le_mfbang_dist_cons.
+    - (* RFlipUnion_le: flip distributes over union; both sides have the
+         same underlying theory list ([map] over [++]). *)
+      iApply row_le_flip_union.
+    - iApply row_le_mfbang_elim_ms.
+    - iApply row_le_mfbang_intro.
+    - iApply row_le_mfbang_idemp.
+    - iApply row_le_mfbang_intro.
+    - iApply (row_le_mfbang_comp with "[] []").
+      + iApply mode_le_sound; exact _m.
+      + by iApply H.
+    (* type cases *)
+    - iApply ty_le_refl.
+    - iApply (ty_le_trans with "[] []"); [by iApply H|by iApply H0].
+    - iApply ty_le_bot.
+    - iIntros "!#" (v1 v2) "_". done.
+    - iIntros (??) "!# Hτ1 % % Hα". iApply brel_learn. iIntros "#Hd #Hv".
+      iDestruct (arr_extend_D with "[$He]") as "HD'".
+      iSpecialize ("HD'" with "Hd Hv"). 
+      iDestruct (H with "HD'") as "Hαα".
+      iDestruct ("Hαα" with "Hα") as "Hα'".
+      iDestruct ("Hτ1" with "Hα'") as "Hbrel".
+      iApply brel_introduction_mono.
+      { by iApply H0. }
+      iApply (brel_wand with "Hbrel").
+      iIntros (??) "!# Hβ". by iApply H1.
+    - iApply ty_le_ref; by iApply H.
+    - iApply ty_le_type_forall; iIntros (α'); iApply H; by iApply erase_ctx_extend_ty.
+    (* Following case was removed from the syntactic rules *)
+    (* - iApply ty_le_row_forall; iIntros (θ). iApply H. admit. *) 
+    - iApply ty_le_mode_forall; iIntros (ν); iApply H; by iApply erase_ctx_extend_mode.
+    (* - iApply ty_le_rec.
+         (* TRec_le: STILL ADMITTED.  [ty_le_rec] (sem_types.v) requires the
+            PARAMETRIC monotone premise
+              [□ (∀ α' β', α' ≤ₜ β' -∗ C₁ α' ≤ₜ C₂ β')]
+            (the Löb unfold step relates the recursive occurrences
+            [μₜ C₁] / [μₜ C₂], which DIFFER, so it must thread [α' ≤ₜ β']
+            through the body).  Here [C₁ τ' = interp._ty (τ'::η) α] and
+            [C₂ τ' = interp._ty (τ'::η) β], and the combined-scheme IH [H]
+            supplies only the DIAGONAL [∀ γ, C₁ γ ≤ₜ C₂ γ] ([H (γ::η)]).
+            Deriving the parametric form from the diagonal would need
+            environment-monotonicity of [interp._ty] in the head (de Bruijn
+            0) variable, which fails without a positivity restriction on the
+            recursion variable; equivalently it requires STRENGTHENING the
+            whole [le_subtyping_mut] induction to relate TWO pointwise-[≤ₜ]
+            environments (changing [Psig]/[Prow]/[Pty] and re-proving every
+            case).  That restructuring is out of scope (add-only); cf.
+            [TArrow_le], the other remaining gap. *)
+         admit. *)
+    - iApply (ty_le_prod with "[] []"); [by iApply H|by iApply H0].
+    - iApply (ty_le_sum with "[] []"); [by iApply H|by iApply H0].
+    - iApply ty_le_mbang_intro_bool.
+    - iApply ty_le_mbang_intro_unit.
+    - iApply ty_le_mbang_intro_int.
+    - iIntros "!#" (v1 v2) "#Hnat". rewrite /sem_ty_mbang.
+      iApply bi.intuitionistically_intuitionistically_if. by iModIntro.
+    - iApply ty_le_mbang_intro_top.
+    - iApply ty_le_mbang_intro_os.
+    - iApply ty_le_mbang_idemp.
+    - iApply ty_le_mbang_elim.
+    - iApply ty_le_mbang_elim.
+    - iApply (ty_le_mbang_comp with "[] []");
+        [iApply mode_le_sound; exact _m | by iApply H].
+    - iApply ty_le_type_forall_mbang.
+    - iApply ty_le_mbang_type_forall.
+    - iApply ty_le_row_forall_mbang.
+    - iApply ty_le_mbang_row_forall.
+    - (* TNat_le_TInt: a nat literal [#n] is the int literal [#(Z.of_nat n)]. *)
+      iIntros "!#" (v1 v2) "Hnat". iDestruct "Hnat" as (n) "[-> ->]".
+      iExists (Z.of_nat n). done.
   Qed.
 
+  (* The three named soundness lemmas, projected from [subtyping_sound_all]. *)
+  Lemma sig_le_sound_open D σ σ' :
+    D ⊢ₗ σ ≤S σ' → ⊢ sem_sig_le D σ σ'.
+  Proof. apply subtyping_sound_all. Qed.
 
-End erase_ctx.
+  Lemma row_le_sound_open D b ρ ρ' :
+    D ⊢ₗ ρ ≤R ρ' @ b → ⊢ sem_row_le D b ρ ρ'.
+  Proof. apply subtyping_sound_all. Qed.
 
-Section semantic_subtyping.
- Context `{!probblazeRGS Σ}.
+  Lemma ty_le_sound_open D α β :
+    D ⊢ₗ α ≤T β → ⊢ sem_ty_le D α β.
+  Proof. apply subtyping_sound_all. Qed.
 
- Definition sem_mode_le (m m' : vmode) : iProp Σ :=
-    □ (∀ μ, (interp._mode μ m) ≤ₘ (interp._mode μ m')).
+  (* ===================================================================== *)
+  (** ** User-facing soundness statements                                  *)
+  (*                                                                        *)
+  (*  These are the target lemmas of the subtyping-soundness goal.  They    *)
+  (*  thread the [erase_ctx D] hypothesis bundle (needed by [RErase_le];    *)
+  (*  see the module comment) and expose [η μ ξ] explicitly.  [sig]/[ty]    *)
+  (*  are premise-free in the syntactic judgement but carry [erase_ctx]     *)
+  (*  because [TArrow_le] reaches through [_row] into the erase machinery.  *)
 
- Definition label_mono_row (b : bool) ρ ρ' δ ξ := if b then True else @row_labels_l Σ ρ ξ δ ⊆+ row_labels_l ρ' ξ δ ∧ row_labels_r ρ ξ δ ⊆+ row_labels_r ρ' ξ δ.
- Definition sem_sig_le D σ σ' : iProp Σ :=
-   □ (∀ η μ δ ξ, erase_ctx δ ξ D -∗
-                 interp._eff_sig η μ δ σ ξ ≤ₛ interp._eff_sig η μ δ σ' ξ).
- Definition sem_row_le D (b : bool) ρ ρ' : iProp Σ :=
-   □ (∀ η μ δ ξ, erase_ctx δ ξ D -∗
-                 ⌜ label_mono_row b ρ ρ' δ ξ ⌝ ∗ 
-                 (interp._row η μ δ ρ ξ ≤ᵣ interp._row η μ δ ρ' ξ)).
- Definition sem_ty_le D α β : iProp Σ :=
-   □ (∀ η μ δ ξ, erase_ctx δ ξ D -∗
-                 interp._ty η μ δ α ξ ≤ₜ interp._ty η μ δ β ξ).
- Definition sem_env_le D Γ Γ' : iProp Σ :=
-   □ (∀ η μ δ ξ, erase_ctx δ ξ D -∗
-                 interp._env η μ δ ξ Γ ≤ₑ interp._env η μ δ ξ Γ').
-End semantic_subtyping.
+  Lemma sig_le_sound D σ σ' (η : list (sem_ty Σ)) (μ : list mode) δ
+    (ξ : list (sem_row Σ)) :
+    D ⊢ₗ σ ≤S σ' →
+    erase_ctx η μ δ ξ D -∗
+    interp._eff_sig η μ δ σ ξ ≤ₛ interp._eff_sig η μ δ σ' ξ.
+  Proof. intros H. iApply (sig_le_sound_open _ _ _ H). Qed.
+
+  Lemma row_le_sound D b ρ ρ' (η : list (sem_ty Σ)) (μ : list mode) δ
+    (ξ : list (sem_row Σ)) :
+    D ⊢ₗ ρ ≤R ρ' @ b →
+    erase_ctx η μ δ ξ D -∗
+    interp._row η μ δ ρ ξ ≤ᵣ interp._row η μ δ ρ' ξ.
+  Proof. intros H. iApply (row_le_sound_open _ _ _ _ H). Qed.
+
+  Lemma ty_le_sound D α β (η : list (sem_ty Σ)) (μ : list mode) δ
+    (ξ : list (sem_row Σ)) :
+    D ⊢ₗ α ≤T β →
+    erase_ctx η μ δ ξ D -∗
+    interp._ty η μ δ α ξ ≤ₜ interp._ty η μ δ β ξ.
+  Proof. intros H. iApply (ty_le_sound_open _ _ _ H). Qed.
+
+ (* [erase_ctx] holds vacuously at the EMPTY disjointness context: the    *)
+  (* [RErase_le] premise bundle quantifies over keys [s] with              *)
+  (* [∅ !! s = Some _], which is unsatisfiable.  This is what lets us run   *)
+  (* [row_le_sound] at [∅] (the context used by [le.OnceR]/[le.MultiT]).   *)
+  Lemma erase_ctx_empty η μ δ ξ : ⊢ erase_ctx η μ δ ξ ∅.
+  Proof.
+    rewrite /erase_ctx. iIntros "!#" (s ss js ρ0 Hlk).
+    rewrite lookup_empty in Hlk. done.
+  Qed.
+
+  Lemma multi_ty_sound (τ : type) :
+    le.MultiT τ → ∀ η μ δ ξ, MultiT (interp._ty η μ δ τ ξ).
+  Proof.
+    intros H ????. unfold le.MultiT in H. eapply ty_le_sound in H.
+    constructor.
+    iApply H. iApply erase_ctx_empty.
+  Qed.
+  
+  (* The interpretation of a context [Γ] at a given interpretation env. *)
+  Notation interp_env η μ δ ξ Γ :=
+    ((λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ).
+
+  (* Soundness of [le.MultiC]: a syntactically multi context interprets to
+     a semantic [MultiE].  Forall-lift of [multi_ty_sound]. *)
+  Lemma multi_env_sound (Γ : ctx) :
+    le.MultiC Γ → ∀ η μ δ ξ, MultiE (interp_env η μ δ ξ Γ).
+  Proof.
+    intros Hm η μ δ ξ. induction Γ as [|[x τ] Γ' IH]; simpl.
+    - apply multi_env_nil.
+    - apply Forall_cons in Hm as [Hτ HΓ'].
+      apply multi_env_cons; first by apply IH.
+      by apply multi_ty_sound.
+  Qed.
+
+  (* Soundness of [le._mode_type]: note [m m⪯T τ] forces [m ∈ {OS, MS}]. *)
+  Lemma mode_type_sound (m : vmode) (τ : type) :
+    m m⪯T τ → ∀ η μ δ ξ, (interp._mode μ m) ₘ⪯ₜ (interp._ty η μ δ τ ξ).
+  Proof.
+    intros Hm η μ δ ξ. inv Hm; simpl.
+    - apply mode_type_sub_os.
+    - apply mode_type_sub_multi_ty. by apply multi_ty_sound.
+  Qed.
+
+  (* Soundness of [le._mode_ctx]: a syntactic mode-context judgement
+     interprets to a semantic mode-env-subtyping. *)
+  Lemma mode_env_sound (m : vmode) (Γ : ctx) :
+    m m⪯C Γ → ∀ η μ δ ξ, (interp._mode μ m) ₘ⪯ₑ (interp_env η μ δ ξ Γ).
+  Proof.
+    intros Hm η μ δ ξ. induction Hm as [m'|m' x τ Γ' Hτ HΓ' IH]; simpl.
+    - apply mode_env_sub_nil.
+    - destruct x as [|s]; simpl.
+      + apply IH.
+      + apply mode_env_sub_cons; first apply IH.
+        by apply mode_type_sound.
+  Qed.
+
+  (* ===================================================================== *)
+  (** ** Soundness of the row-substructurality judgements                  *)
+  (*      ([le._row_type] / [le._row_ctx])                                  *)
+  (*                                                                        *)
+  (*  These are the wrappers consumed by the [Pair_typed]/[TStore]/[App]    *)
+  (*  cases of [fundamental]: they turn a syntactic [ρ R⪯T τ] / [ρ R⪯C Γ]   *)
+  (*  derivation into the semantic [RowTypeSub]/[RowEnvSub] typeclasses     *)
+  (*  expected by the compatibility lemmas [sem_typed_pair_gen] etc.        *)
+
+ 
+
+  (* Soundness of [le.OnceR].                                               *)
+  (*                                                                        *)
+  (*  The semantic [OnceR ρ] (sem_row.v) is the one-shot property           *)
+  (*  [⊢ ¡ ρ ≤ᵣ ρ] with [¡ = sem_row_flip_mbang OS].  The syntactic         *)
+  (*  [le.OnceR ρ] (types.v) is [∃ b, ∅ ⊢ₗ RFlip OS ρ ≤R ρ @ b]; under      *)
+  (*  [row_le_sound] (run at [∅] via [erase_ctx_empty]) its interpretation  *)
+  (*  is [¡[interp._mode μ OS] (interp ρ) ≤ᵣ interp ρ], and                 *)
+  (*  [interp._mode μ OS = OS] definitionally, so this is exactly the       *)
+  (*  semantic [OnceR] field [⊢ ¡ (interp ρ) ≤ᵣ interp ρ].                  *)
+  Lemma once_row_sound (ρ : row) :
+    le.OnceR ρ → ∀ η μ δ ξ, OnceR (interp._row η μ δ ρ ξ).
+  Proof.
+    intros [b0 Hle] η0 μ0 ξ0. constructor.
+    iApply (row_le_sound _ _ _ _ _ _ _ _ Hle). iApply erase_ctx_empty.
+  Qed.
+
+  (* Soundness of [le._row_type]: turns [ρ R⪯T τ] into the semantic         *)
+  (* [RowTypeSub] typeclass.  The [Multi_le] case is fully proved (via      *)
+  (* [multi_ty_sound] + the existing [row_type_sub_multi_ty] instance); the *)
+  (* [Once_le] case is sound modulo [once_row_sound] above. *)
+  Lemma row_type_sub_sound (ρ : row) (τ : type) :
+    ρ R⪯T τ → ∀ η μ δ ξ,
+      RowTypeSub (interp._row η μ δ ρ ξ) (interp._ty η μ δ τ ξ).
+  Proof.
+    intros Hsub η0 μ0 δ0 ξ0. destruct Hsub as [ρ' τ' Honce | ρ' τ' Hmulti].
+    - apply row_type_sub_once.
+      by apply (once_row_sound _ Honce).
+    - pose proof (multi_ty_sound _ Hmulti η0 μ0 δ0 ξ0) as Hm.
+      by apply row_type_sub_multi_ty.
+  Qed.
+
+  (* Soundness of [le._row_ctx]: turns [ρ R⪯C Γ] into the semantic          *)
+  (* [RowEnvSub] typeclass.  Mirrors [mode_env_sound]: induction on the     *)
+  (* derivation, [Nil] via [row_env_sub_nil], [Cons] via [row_env_sub_cons] *)
+  (* fed by [row_type_sub_sound].  The [BAnon] binder leaves [Γ] unchanged. *)
+  Lemma row_env_sub_sound (ρ : row) (Γ : ctx) :
+    ρ R⪯C Γ → ∀ η μ δ ξ,
+      RowEnvSub (interp._row η μ δ ρ ξ) (interp_env η μ δ ξ Γ).
+  Proof.
+    intros Hsub η0 μ0 δ0 ξ0.
+    induction Hsub as [ρ'|ρ' x τ Γ' Hτ HΓ' IH]; simpl.
+    - apply row_env_sub_nil.
+    - destruct x as [|s]; simpl.
+      + apply IH.
+      + apply row_env_sub_cons; first apply IH.
+        by apply (row_type_sub_sound _ _ Hτ).
+  Qed.
+
+  (* Soundness of context subtyping [le._ctx].  The syntactic [D ⊢ₗ Γ ≤C Γ']
+     interprets to an [env_le] between the pointwise-interpreted contexts.
+     [le._ctx] recurses on [Γ'], so we induct on [Γ']: the [[]] case is the
+     unconditional [env_le_nil]; the cons case uses [env_le_bring_forth] to
+     surface the matched entry [(x,t')] out of [Γ = pre ++ (x,t') :: post],
+     [env_le_cons] with [ty_le_sound] on the head and the IH on the tail
+     (both under the [erase_ctx] bundle), combined by [env_le_trans]. *)
+  Lemma ctx_le_sound (D : le.disj_ctx) (Γ Γ' : ctx) :
+    D ⊢ₗ Γ ≤C Γ' → ∀ η μ δ ξ,
+      erase_ctx η μ δ ξ D -∗
+      interp_env η μ δ ξ Γ ≤ₑ interp_env η μ δ ξ Γ'.
+  Proof.
+    revert Γ. induction Γ' as [|[x t] Γ'_tail IH]; intros Γ Hle η μ δ ξ.
+    - iIntros "#Herase". simpl. iApply env_le_nil.
+    - iIntros "#Herase". simpl in Hle.
+      destruct Hle as (t' & pre & post & -> & Ht & Htail).
+      (* [(x,t')] sits at position [length pre] in the interpreted [Γ]. *)
+      assert (Hnth : nth_error ((λ '(s, τ), (s, interp._ty η μ δ τ ξ))
+                                  <$> (pre ++ (x, t') :: post))
+                       (length pre) = Some (x, interp._ty η μ δ t' ξ)).
+      { rewrite fmap_app /=. rewrite (nth_error_app2 _ _ (n := length pre)).
+        { rewrite length_fmap Nat.sub_diag //. }
+        rewrite length_fmap //. }
+      (* Deleting it leaves the interpretation of [pre ++ post]. *)
+      assert (Hdel : list_delete (length pre)
+                       ((λ '(s, τ), (s, interp._ty η μ δ τ ξ))
+                          <$> (pre ++ (x, t') :: post))
+                     = (λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> (pre ++ post)).
+      { rewrite !fmap_app /=.
+        rewrite -(length_fmap (λ '(s, τ), (s, interp._ty η μ δ τ ξ)) pre).
+        apply delete_middle. }
+      simpl.
+      iApply (env_le_trans _ ((x, interp._ty η μ δ t' ξ)
+                :: ((λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> (pre ++ post)))).
+      + rewrite -Hdel.
+        iApply (env_le_bring_forth _ (length pre) x (interp._ty η μ δ t' ξ) Hnth).
+      + iApply env_le_cons.
+        * iApply (IH _ Htail with "Herase").
+        * iApply (ty_le_sound _ _ _ _ _ _ _ Ht with "Herase").
+  Qed.
+
+End interp_subst.

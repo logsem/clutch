@@ -2,7 +2,7 @@ From iris.proofmode Require Import base.
 From iris.base_logic.lib Require Import  na_invariants.
 From iris.algebra Require Export agree excl auth frac excl_auth.
 From iris.algebra.lib Require Export dfrac_agree.
-From clutch.prob_eff_lang.probblaze Require Export logic notation sem_def tactics sem_types sem_judgement sem_row compatibility.
+From clutch.prob_eff_lang.probblaze Require Export logic notation sem_def tactics sem_types sem_judgement sem_row. (*compatibility.*)
 (* [sem_sig_eff], the generic effect-signature former, is only Require Import-ed
    by sem_types/sem_row, so bring it into scope here -- but do not re-export it,
    to keep its notations out of this file's clients. *)
