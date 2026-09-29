@@ -169,8 +169,10 @@ Proof.
     + (* Pair_typed *)
       (* The new [ρ R⪯T τ2] premise supplies the [RowTypeSub] typeclass
          argument of [sem_typed_pair_gen] via [row_type_sub_sound]. *)
+      Locate "⊨ᵥ".
+      About row_type_sub_sound.
       iApply interp_c_pair
-      ; [ by eapply interp.row_type_sub_sound |
+      ; [ by eapply row_type_sub_sound |
                                apply fundamental in Ht1 as Ht; iPoseProof Ht as "Ht"; iApply "Ht"
                              |apply fundamental in Ht2 as Ht; iPoseProof Ht as "Ht"; iApply "Ht"].
     + (* Fst_typed *) iApply interp_c_fst. apply fundamental in Ht.
