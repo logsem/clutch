@@ -4017,4 +4017,155 @@ Proof.
   apply DPcoupl_pweq; [done..|].
   intros.
   by apply DPcoupl_map.
-Qed. 
+Qed.
+
+(** * Uniform-draw shift coupling (0 cost)
+
+    The load-bearing coupling for the uniform-sampling family: shifting a uniform
+    draw on [{0,…,N}] by [k] couples [dunifP N] to [dunifP N] exactly (cost
+    [(0,0)]), with the spec output equal to the impl output rotated by [k] mod
+    [S N].  Built from the cyclic-rotation bijection [fin_rot] on [fin (S N)]
+    (whose inverse is stdpp's [rotate_nat_sub]) and [ARcoupl_dunif], then promoted
+    to a [DPcoupl] and mapped through [n ↦ Z.of_nat (fin_to_nat n)] to land on the
+    [Z]-valued outcomes the uniform [SampleFamily] uses. *)
+
+(** Cyclic rotation of [fin (S N)] by [base]: [n ↦ (base + n) mod (S N)], via
+    stdpp's [rotate_nat_add]. *)
+Definition fin_rot (base N : nat) (n : fin (S N)) : fin (S N) :=
+  nat_to_fin (rotate_nat_add_lt base (fin_to_nat n) (S N) (Nat.lt_0_succ N)).
+
+Lemma fin_rot_to_nat base N (n : fin (S N)) :
+  fin_to_nat (fin_rot base N n) = rotate_nat_add base (fin_to_nat n) (S N).
+Proof. rewrite /fin_rot fin_to_nat_to_fin //. Qed.
+
+(** [fin_rot] is a bijection (its inverse is rotation by the complementary
+    offset, i.e. stdpp's [rotate_nat_sub]). *)
+Lemma fin_rot_bij base N : Bij (fin_rot base N).
+Proof.
+  pose proof (Nat.lt_0_succ N) as Hlen.
+  split.
+  - intros x y Hxy. apply fin_to_nat_inj.
+    pose proof (fin_to_nat_lt x). pose proof (fin_to_nat_lt y).
+    apply (f_equal fin_to_nat) in Hxy. rewrite !fin_rot_to_nat in Hxy.
+    rewrite -(rotate_nat_sub_add (base `mod` (S N)) (S N) (fin_to_nat x)); [|done].
+    rewrite -(rotate_nat_sub_add (base `mod` (S N)) (S N) (fin_to_nat y)); [|done].
+    rewrite -!(rotate_nat_add_add_mod base). by rewrite Hxy.
+  - intros m. pose proof (fin_to_nat_lt m).
+    exists (nat_to_fin (rotate_nat_sub_lt base (fin_to_nat m) (S N) Hlen)).
+    apply fin_to_nat_inj. rewrite fin_rot_to_nat fin_to_nat_to_fin.
+    by rewrite rotate_nat_add_sub.
+Qed.
+
+(** The 0-cost uniform SHIFT coupling, on the [Z]-valued outcomes
+    [Z.of_nat ∘ fin_to_nat] of [dunifP N]: drawing on the impl side gives [z] and
+    on the spec side gives exactly [(z + k) mod (S N)].  Pure (no [ε], no [δ]):
+    rotation is measure-preserving, so the shift is free.  The relation also
+    records the impl outcome's range [0 ≤ z ≤ N] (always true on [dunifP]'s
+    support), which clients of the bounded uniform sampler rely on. *)
+Lemma DPcoupl_dunifP_shift (N : nat) (k : Z) :
+  let base := Z.to_nat (k `mod` Z.of_nat (S N))%Z in
+  DPcoupl
+    (dmap (λ n : fin (S N), Z.of_nat (fin_to_nat n)) (dunifP N))
+    (dmap (λ n : fin (S N), Z.of_nat (fin_to_nat n)) (dunifP N))
+    (λ z z', z' = (z + k) `mod` Z.of_nat (S N) ∧ 0 <= z <= Z.of_nat N)%Z
+    0 0.
+Proof.
+  intros base.
+  apply (DPcoupl_map (λ n : fin (S N), Z.of_nat (fin_to_nat n))
+                     (λ n : fin (S N), Z.of_nat (fin_to_nat n))
+                     (dunifP N) (dunifP N)); [lra|lra|].
+  apply ARcoupl_to_DPcoupl. unfold dunifP.
+  eapply ARcoupl_mono;
+    [..|apply (ARcoupl_dunif (S N) (fin_rot base N) (H := fin_rot_bij base N))].
+  - intros; reflexivity.
+  - intros; reflexivity.
+  - intros x y Hxy. simpl in Hxy. subst y.
+    pose proof (fin_to_nat_lt x). split.
+    + rewrite fin_rot_to_nat.
+      unfold base, rotate_nat_add.
+      assert (0 < Z.of_nat (S N))%Z as HL by lia.
+      rewrite Z2Nat.id; [|apply Z.mod_pos_bound; lia].
+      rewrite Z2Nat.id; [|apply Z.mod_pos_bound; lia].
+      rewrite Zplus_mod_idemp_l. f_equal. lia.
+    + lia.
+  - lra.
+Qed.
+
+(** The 0-cost EXACT (identity) coupling for a [biased_coin]: the SAME biased
+    coin coupled with itself, along equality, with no [ε] and no [δ].  This is
+    the foundation for the coin family's [wp_couple_coin]: drawing the same
+    weighted coin on both impl and spec sides yields equal booleans for free
+    (the distributions are literally identical).  Obtained from the
+    self-coupling [ARcoupl_eq] of [biased_coin r P] lifted by
+    [ARcoupl_to_DPcoupl] (which contributes [ε = 0]).  The relation is stated
+    as [λ b b', b = b'] rather than the bare [eq] so the [DPcoupl] downstream
+    (used through [sf_inj = LitV ∘ LitBool]) matches the surface coupling
+    predicate. *)
+Lemma DPcoupl_biased_coin (r : R) (P : 0 <= r <= 1) :
+  DPcoupl (biased_coin r P) (biased_coin r P) (λ b b', b = b') 0 0.
+Proof.
+  apply ARcoupl_to_DPcoupl. apply ARcoupl_eq.
+Qed.
+
+(** The FLIP coupling for a [biased_coin], at multiplicative cost [ε].  The same
+    biased coin [biased_coin r] coupled with ITSELF along the NEGATION relation
+    [c' = negb c]: the impl draw [c] is matched with the spec draw [negb c].
+    This is the heart of randomised response — when the private input bit flips
+    ([x ≠ x']), the spec coin must flip too for the two XOR-released bits to
+    agree, and that flip costs the full ε.
+
+    The bound holds whenever the two cross-ratios are dominated by [exp ε]:
+    [r ≤ exp ε · (1 − r)] and [(1 − r) ≤ exp ε · r].  For the RR rate
+    [r = exp ε / (exp ε + 1)] (with [ε ≥ 0]) the first is an EQUALITY and the
+    second is [exp(−ε) ≤ exp ε]; see [DPcoupl_biased_coin_flip_rr]. *)
+Lemma DPcoupl_biased_coin_flip (r ε : R) (P : 0 <= r <= 1)
+  (Hlo : r <= exp ε * (1 - r)) (Hhi : 1 - r <= exp ε * r) :
+  DPcoupl (biased_coin r P) (biased_coin r P) (λ c c', c' = negb c) ε 0.
+Proof.
+  intros f g Hf Hg Hfg.
+  rewrite Rplus_0_r.
+  rewrite !SeriesC_bool /pmf /= /biased_coin_pmf.
+  (* [f true ≤ g false] (from [c=true ↦ c'=false]) and [f false ≤ g true]. *)
+  pose proof (Hfg true false eq_refl) as Htf.  (* f true  <= g false *)
+  pose proof (Hfg false true eq_refl) as Hff.  (* f false <= g true  *)
+  pose proof (Hf true) as [Hft0 _]. pose proof (Hf false) as [Hff0 _].
+  pose proof (Hg true) as [Hgt0 _]. pose proof (Hg false) as [Hgf0 _].
+  (* LHS ≤ r·g false + (1−r)·g true, monotone in f ≤ g (cross). *)
+  apply (Rle_trans _ (r * g false + (1 - r) * g true)).
+  { apply Rplus_le_compat; apply Rmult_le_compat_l; lra. }
+  (* exp ε·(r·g true + (1−r)·g false) = exp ε·(r·g true) + exp ε·((1−r)·g false). *)
+  rewrite Rmult_plus_distr_l.
+  (* Reorder the LHS so the [g false] and [g true] terms line up with the RHS. *)
+  rewrite Rplus_comm.
+  apply Rplus_le_compat.
+  - (* (1−r)·g true ≤ exp ε·(r·g true): coefficient bound [1−r ≤ exp ε·r]. *)
+    rewrite -Rmult_assoc. apply Rmult_le_compat_r; [lra|exact Hhi].
+  - (* r·g false ≤ exp ε·((1−r)·g false): coefficient bound [r ≤ exp ε·(1−r)]. *)
+    rewrite -Rmult_assoc. apply Rmult_le_compat_r; [lra|exact Hlo].
+Qed.
+
+(** The FLIP coupling at the randomised-response rate.  For
+    [r = exp(num/den) / (exp(num/den) + 1)] — the bias of [RR_coin] — drawing the
+    same RR coin on impl and spec, coupled along negation, costs exactly the RR
+    privacy parameter [ε = num/den] (provided [ε ≥ 0]).  Specialises
+    [DPcoupl_biased_coin_flip] by discharging the two cross-ratio bounds. *)
+Lemma DPcoupl_biased_coin_flip_rr (ε : R) (Hε : 0 <= ε)
+  (P : 0 <= exp ε / (exp ε + 1) <= 1) :
+  DPcoupl (biased_coin (exp ε / (exp ε + 1)) P)
+          (biased_coin (exp ε / (exp ε + 1)) P)
+          (λ c c', c' = negb c) ε 0.
+Proof.
+  set (E := exp ε).
+  pose proof (exp_pos ε) as HEpos. fold E in HEpos.
+  assert (HE1 : 1 <= E) by (apply exp_pos_ge_1; exact Hε).
+  assert (Hden : 0 < E + 1) by lra.
+  (* [1 − r = 1/(E+1)] and [r = E/(E+1)]; rewrite both bounds via these. *)
+  assert (Hcompl : 1 - E / (E + 1) = / (E + 1)) by (field; lra).
+  apply DPcoupl_biased_coin_flip; fold E; rewrite Hcompl.
+  - (* r ≤ exp ε · (1 − r):  E/(E+1) ≤ E·/(E+1); definitional equality. *)
+    unfold Rdiv. right. reflexivity.
+  - (* 1 − r ≤ exp ε · r:  /(E+1) ≤ E·(E/(E+1)), i.e. 1 ≤ E². *)
+    unfold Rdiv. rewrite -Rmult_assoc. rewrite -{1}(Rmult_1_l (/ (E + 1))).
+    apply Rmult_le_compat_r; [left; apply Rinv_0_lt_compat; lra|].
+    rewrite -{1}(Rmult_1_l 1). apply Rmult_le_compat; lra.
+Qed.

@@ -16,7 +16,7 @@ Lemma dp_postprocessing {A B C : Type} `{Countable B, Countable C} (dA : A -> A 
 Proof.
   intros dp_f.
   intros a a' adj PC.
-  unfold diffpriv_approx in dp_f.
+  unfold diffpriv_approx, diffpriv_approx_rel in dp_f.
   set (PB := λ b, PC (g b)).
   rewrite prob_dmap.
   specialize (dp_f a a' adj PB).
