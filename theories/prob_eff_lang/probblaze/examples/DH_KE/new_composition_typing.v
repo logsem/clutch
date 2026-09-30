@@ -6,7 +6,7 @@ From clutch.prob_eff_lang.probblaze Require Import
   spec_rules spec_ra class_instances tactics notation metatheory
   sem_types sem_row sem_sig sem_env sem_judgement
   dhke_common sec_channel_def sec_channel_prf dhke_channel_lazy_results dhke_channel_authchan_new
-  new_composition_defs mask.
+  new_composition_defs mask p_composition.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -64,9 +64,6 @@ Section new_comp_verification.
   (* the handler consuming an interface I, polymorphic over I's row *)
   Definition hdl (I : sem_row Σ -> sem_ty Σ) (θ : sem_row Σ) : sem_ty Σ :=
     (∀ᵣ θ', I θ' -{ sem_row_union θ' θ }-∘ 𝟙)%T.
-
-  Definition τ__FO τ τ' := (∀ᵣ θ, (∀ᵣ θ₁, τ' θ₁ -{ sem_row_union (¡θ₁) θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union (¡θ₂) θ }-∘ 𝟙))%T.
-  Definition testτ__FO τ τ' := (∀ᵣ θ, (∀ᵣ θ₁, τ' θ₁ -{ sem_row_union θ₁ θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union (¡θ₂) θ }-∘ 𝟙))%T.
 
   (* Atomic functionalities, as effect-handler transformers (τ__F τ τ' takes
      a τ'-consuming handler to a τ-consuming handler). *)
@@ -904,7 +901,7 @@ Section new_comp_verification.
      [Inhabited vgG] obligation when destructing under the invariant's later).
      Equal [c] ⇒ equal key ⇒ 𝔾-related value handed to the client. *)
   Lemma F_KE_lazy_alice_typed :
-    ⊢ sem_val_typed F_KE_lazy_alice F_KE_lazy_alice (testτ__FO leakI gk).
+    ⊢ sem_val_typed F_KE_lazy_alice F_KE_lazy_alice (τ__FC leakI gk).
   Proof using Type*.
     rewrite /sem_val_typed /τ__FO //=.
     iModIntro. iIntros (θ).
@@ -1552,8 +1549,6 @@ Section new_comp_verification.
             end
       | return "y" => "y"
     end)%E.
-
-  Definition τ__fO θ gk := (∀ᵣ θ2, gk θ2 -{ sem_row_union θ2 θ }-∘ 𝟙)%T.
 
   Lemma F_KE_body_typed :
     ⊢ ∀ (θ θG : sem_row Σ),
