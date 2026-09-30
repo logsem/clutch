@@ -125,7 +125,9 @@ Section handlee_verification.
       iFrame "Hinva". 
       iIntros "(>(Hα&H) & Hclose)".
       iApply (sample_or_read_store with "[$]").
-      iIntros "#Hlc #Hγ #Hlcs"... 1 : set_solver.
+      iIntros "#Hlc #Hγ #Hlcs"... 
+      iApply (brel_handle_os_l [HandleCtx _ _ _ _ _] [AppRCtx _]); [set_solver|].
+      iIntros (lk) "!> Hlk".
       iApply (sample_or_read with "[$]").
       iIntros "#Hlb #Hβ"...
       iApply brel_na_close. iFrame.
@@ -145,10 +147,11 @@ Section handlee_verification.
       iLeft.
       iExists _, _.
       iSplitR; first (iApply send_upd; by iFrame "#").
-      iSplit; first ( do 2 (iSplit; try (iPureIntro; done))).
-      
-      brel_pures'; first label_not_in_singleton Hdl.
-      
+      iSplit; first ( do 2 (iSplit; try (iPureIntro; done)))...
+      brel_cont_l...
+      iApply (brel_handle_os_l [] [HandleCtx _ _ _ _ _ ;AppRCtx _]); [label_not_in_singleton Hdl|]...
+      iIntros (lkr) "!> Hlk"...
+
       (* Recv bob (either none or some) *)
       iApply (brel_introduction' [recv1] [recv2]); [repeat constructor|].
       iExists _, _, [AppRCtx _], [AppRCtx _], _. 
@@ -164,6 +167,7 @@ Section handlee_verification.
       
       (* Recv bob = None *)
       + brel_pures'.
+        brel_cont_l...
         brel_cont_l.
         brel_cont_r.
         iDestruct ("Hcont" with "Hnone") as "Hkk".
@@ -172,6 +176,7 @@ Section handlee_verification.
       (* Recv bob = Some gB *)
       + iIntros (m) "Ha'".
         iDestruct (message_unique with "[$Hb] [$Ha']") as "<-"...
+        brel_cont_l...
         brel_cont_l.
         brel_cont_r.
         iDestruct ("Hcont" with "Hsome") as "Hkk".
@@ -181,8 +186,9 @@ Section handlee_verification.
     
     - iApply brel_learn. iIntros ((Hdl&Hdr)) "_". 
       brel_handle_os_l (Hgkl) as "Hgkl".
-      brel_handle_os_r (Hgkr) as "Hgkr".
-      brel_pures'; [label_not_in_singleton Hdl|].
+      brel_handle_os_r (Hgkr) as "Hgkr"...
+      iApply (brel_handle_os_l [] [HandleCtx _ _ _ _ _ ;AppRCtx _]); [label_not_in_singleton Hdl|]...
+      iIntros (lkr) "!> Hlk"...
       iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
       iApply (brel_introduction' [recv1] [recv2]); [repeat constructor|].
       iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
@@ -192,15 +198,17 @@ Section handlee_verification.
       iSplit.
       + iApply brel_value. iIntros "$ !>".
         brel_pures'.
+        brel_cont_l...
         brel_cont_l.
         brel_cont_r.
         iDestruct ("Hcont" with "Hnone") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [set_solver|done|iApply "IH"].
       + iIntros (m) "Ha'".
         iDestruct (message_unique with "[$Ha] [$Ha']") as "<-".
-        iApply brel_value. iIntros "$ !>".
-        brel_pures';[set_solver|]...
-
+        iApply brel_value. iIntros "$ !>"...
+        brel_cont_l...
+        iApply (brel_handle_os_l [HandleCtx _ _ _ _ _] [AppRCtx _]); [set_solver|].
+        iIntros (lk) "!> Hlk"...
         iApply (brel_na_inv _ _ betaN); [set_solver|].
         iFrame "Hinvb".
         iIntros "(>H & Hclose)".
@@ -225,7 +233,8 @@ Section handlee_verification.
         iFrame "Hinva". 
         iIntros "(>(Hα&[(Hγ&Hlc&Hlcs)|#(Hγ&Hlc&Hlcs)]) & Hclose)".
         
-        * brel_load_l...
+        * brel_cont_l...
+          brel_load_l...
           brel_load_r...
           iApply brel_na_close. iFrame. iSplitR "Hgkl Hgkr"; [iLeft; iFrame|].
           brel_cont_l.
@@ -233,7 +242,8 @@ Section handlee_verification.
           iDestruct ("Hcont" with "Hnone") as "Hkk".
           iApply (brel_exhaustion with "[$]"); [set_solver|done|iApply "IH"].
           
-        * brel_load_l...
+        * brel_cont_l...
+          brel_load_l...
           brel_load_r...
           iApply brel_na_close. iFrame. iSplitR; [iRight; iFrame "#"|].
           brel_cont_l.

@@ -137,7 +137,7 @@ Section def_implementation.
     let: "doLeakSend" := (λ: "m", do: "leakSend" "m") in
     let: "doLeakRecv" := (λ: "m", do: "leakRecv" "m") in
     handle: handle: "f" ("doLeakSend", "doLeakRecv") with
-    | effect "leakSend" "dst", rec "k" as multi =>
+    | effect "leakSend" "dst", rec "k" =>
             match: "dst" with
               InjL <> => let: "c" := 
                            (match: !"l1" with
@@ -157,7 +157,7 @@ Section def_implementation.
                          "k" #()%V
             end
    | return "y" => "y" end with
-   | effect "leakRecv" "from", rec "k" as multi => 
+   | effect "leakRecv" "from", rec "k" => 
        let: "r" := "doRecv" "from" in
        match: "r" with
          NONE => "k" NONE

@@ -517,7 +517,7 @@ Section typing.
                      (([gl],[gr], (gk gl gr : iThy Σ)) ::
                       ([sl],[sr], (σs : iThy Σ)) ::
                       ([rl],[rr], (σr : iThy Σ)) ::
-                      iLblSig_to_iLblThy (sem_row_union (¡ θₗ) θ__L)) with "[][$Hf]") as "Hf'".
+                      iLblSig_to_iLblThy (sem_row_union (¡ θₗ)%R θ__L)) with "[][$Hf]") as "Hf'".
         { iApply to_iThy_le_intro'. apply submseteq_skip. do 2 apply submseteq_cons.
           rewrite iLblSig_to_iLblThy_app. by apply submseteq_inserts_l. }
         iApply (brel_exhaustion _ _ [_] [_] _ _ _ (λ w1 w2, 𝟙%T w1 w2) with "[$Hf']"); [done|done|].
@@ -537,7 +537,7 @@ Section typing.
              iApply (brel_introduction' [sl] [sr]). { apply elem_of_cons. right. apply list_elem_of_here. }
              iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
              iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ 𝟙 v1 v2)%I. iSplit.
+             iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ 𝟙%T v1 v2)%I. iSplit.
              { iExists _, (A, bob)%V, (A, bob)%V. iSplit; [done|]. iSplit; [done|]. iSplit.
                { iExists (vgval A), (vgval A), bob, bob. iSplit; [done|]. iSplit; [done|].
                  iSplit; [iExists A; by iSplit|].
@@ -550,7 +550,7 @@ Section typing.
              { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
              iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
              iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ (Option 𝔾) v1 v2)%I. iSplit.
+             iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ (Option 𝔾)%T v1 v2)%I. iSplit.
              { iExists _, bob, bob. iSplit; [done|]. iSplit; [done|]. iSplit.
                - iExists #()%V, #()%V. iLeft. iSplit; [done|]. iSplit; [done|]. by iSplit.
                - iIntros "!>" (w1 w2 u1 u2) "(-> & -> & H)". iExists u1, u2. by iFrame. }
@@ -571,7 +571,7 @@ Section typing.
              iApply (brel_introduction' [sl] [sr]). { apply elem_of_cons. right. apply list_elem_of_here. }
              iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
              iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ 𝟙 v1 v2)%I. iSplit.
+             iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ 𝟙%T v1 v2)%I. iSplit.
              { iExists _, (A, bob)%V, (A, bob)%V. iSplit; [done|]. iSplit; [done|]. iSplit.
                { iExists (vgval A), (vgval A), bob, bob. iSplit; [done|]. iSplit; [done|].
                  iSplit; [iExists A; by iSplit|].
@@ -584,7 +584,7 @@ Section typing.
              { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
              iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
              iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ (Option 𝔾) v1 v2)%I. iSplit.
+             iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ (Option 𝔾)%T v1 v2)%I. iSplit.
              { iExists _, bob, bob. iSplit; [done|]. iSplit; [done|]. iSplit.
                - iExists #()%V, #()%V. iLeft. iSplit; [done|]. iSplit; [done|]. by iSplit.
                - iIntros "!>" (w1 w2 u1 u2) "(-> & -> & H)". iExists u1, u2. by iFrame. }
@@ -604,7 +604,7 @@ Section typing.
           { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ (Option 𝔾) v1 v2)%I. iSplit.
+          iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ (Option 𝔾)%T v1 v2)%I. iSplit.
           { iExists _, alice, alice. iSplit; [done|]. iSplit; [done|]. iSplit.
             - iExists _, _. iRight. iSplit; [done|]. iSplit; [done|]. by iSplit.
             - iIntros "!>" (w1 w2 u1 u2) "(-> & -> & H)". iExists u1, u2. by iFrame. }
@@ -618,7 +618,7 @@ Section typing.
              iApply (brel_introduction' [sl] [sr]). { apply elem_of_cons. right. apply list_elem_of_here. }
              iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
              iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-             iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ 𝟙 v1 v2)%I. iSplit.
+             iExists (λ w1 w2 : expr, ∃ (v1 v2 : val), ⌜w1 = v1⌝ ∗ ⌜w2 = v2⌝ ∗ 𝟙%T v1 v2)%I. iSplit.
              { iExists _, (B, alice)%V, (B, alice)%V. iSplit; [done|]. iSplit; [done|]. iSplit.
                { iExists _, _, _, _. iSplit; [done|]. iSplit; [done|].
                  iSplit; [iExists _; by iSplit|].
