@@ -1,12 +1,13 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import na_invariants.
 From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import
-  primitive_laws proofmode
-  spec_rules spec_ra class_instances tactics notation metatheory
-  sem_types sem_row sem_sig sem_env sem_judgement
-  dhke_common sec_channel_def sec_channel_prf dhke_channel_lazy_results dhke_channel_authchan_new
-  new_composition_defs mask p_composition.
+From clutch.prob_eff_lang.probblaze Require Import p_composition primitive_laws proofmode.
+From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
+From clutch.prob_eff_lang.probblaze Require Import notation metatheory.
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_env sem_judgement.
+From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import dhke_common sec_channel_def sec_channel_prf 
+  dhke_channel_lazy_results dhke_channel_authchan_new
+  new_composition_defs mask.
 
 Import fingroup.
 Import fingroup.fingroup.
