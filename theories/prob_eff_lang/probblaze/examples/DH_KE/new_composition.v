@@ -204,7 +204,7 @@ Section new_comp_verification.
     aleak θ2 r1' r2' -∗
     brel ⊤ (F_AUTH (C_lazy DH1 (λ: "h₁", F_OAUTH (λ: "h₂", v1 "h₂" "h₁") r1)%V) r1')
            (F_AUTH (C_lazy DH2 (λ: "h₁", F_OAUTH (λ: "h₂", v2 "h₂" "h₁") r2)%V) r2')
-           (iLblSig_to_iLblThy (sem_row_union θ₁ (sem_row_union (¡θ2) θ__L)))
+           (iLblSig_to_iLblThy (sem_row_union θ₁ (sem_row_union (¡θ2)%R θ__L)))
            (λ u1 u2 : val, 𝟙%T u1 u2).
   Proof using All.
     iIntros "HDH Hvv Hoaleak Hchan".
