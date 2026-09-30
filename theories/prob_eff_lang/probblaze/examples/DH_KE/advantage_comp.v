@@ -108,7 +108,7 @@ Section adv_comp.
    -∘ ∀R:
      (∀R:
       (((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> () + ()))
-      -∘ (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ (RVar 0%nat) }-> () + ℕ)) -{ RUnion (RVar 1%nat) (RUnion (RVar 0%nat) (RVar 2%nat)) }-∘ ())).
+      -∘ (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ (RVar 0%nat) }-> () + ℕ)) -{ RUnion (RVar 1%nat) (RUnion (RFlip OS (RVar 0%nat)) (RVar 2%nat)) }-∘ ())).
 
   Lemma T_subtype `{!probblazeRGS Σ} η μ δ ξ :
     ⊢ τ ≤ₜ interp._ty η μ δ T ξ.

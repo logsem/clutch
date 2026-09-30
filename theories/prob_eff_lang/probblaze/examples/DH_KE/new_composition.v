@@ -22,7 +22,6 @@ Import valgroup_tactics.
 
 Section new_comp_verification.
   Context `{probblazeRGS Σ}.
-  (* Context (channel leaksec getKey1 getKey2 leakauth1 leakauth2 keyleak1 keyleak2 schannel1 schannel2 l1 l2 l2': label). *)
   Context {vg: val_group}.
   Context {cg: clutch_group_struct}.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
@@ -30,6 +29,7 @@ Section new_comp_verification.
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO,!inG Σ (dfrac_agreeR valO)}.
   Context {msk : @Mask (@vgG vg) vgval}.
   Context `{!Mask_struc}.
+
 
   (* F_OAUTH[ F_AUTH [DH_KE [CHAN []]]] ≤ F_OAUTH[ F_AUTH [C[DH_real][CHAN []]]] *)
   (*---------------------------------------------------------------------------*)
@@ -40,10 +40,10 @@ Section new_comp_verification.
     - apply F_AUTH_DHKE_closed.
     - apply F_AUTH_C_DDH_real_closed.
     - iIntros (θ). iApply parallel_comp_right.
-      + unfold τ__F. unshelve iApply F_AUTH_DH_KE_FAUTH_C_DH_real; try done.
+      + iApply F_AUTH_DH_KE_FAUTH_C_DH_real.
       + iApply F_OAUTH_typed.   (* F_OAUTH well-typed *)
     - iApply CHAN_typed.        (* CHAN well-typed *)
-  Qed.
+  Qed. 
 
   Lemma C_REAL_DHKE_F_OAUTH :
      ⊢ sem_val_typed REAL_CHAN_DH_REAL REAL_CHAN_DHKE τ.
@@ -52,9 +52,136 @@ Section new_comp_verification.
     - apply F_AUTH_C_DDH_real_closed.
     - apply F_AUTH_DHKE_closed.
     - iIntros (θ). iApply parallel_comp_right.
-      + unfold τ__F. iApply F_AUTH_C_DH_real_FAUTH_DH_KE; try done.
+      + iApply F_AUTH_C_DH_real_FAUTH_DH_KE.
       + iApply F_OAUTH_typed.   (* F_OAUTH well-typed *)
     - iApply CHAN_typed.        (* CHAN well-typed *)
+  Qed. 
+
+
+
+  Lemma REAL_CHAN_DH_RAND_DHSIM_FKE_CHAN1 :
+    ⊢ sem_val_typed REAL_CHAN_DH_RAND DHSIM_FKE_CHAN1 τ.
+  Proof using All.
+    iApply func_comp_left.
+    - apply F_AUTH_C_DDH_rand_closed.
+    - apply DHSIM_FKE_CHAN1_closed.
+    - iIntros (θ). iApply parallel_comp_right.
+      + iApply F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE.
+      + iApply F_OAUTH_typed.
+    - iApply CHAN_typed.
+  Qed.
+
+  Lemma DHSIM_FKE_CHAN1_REAL_CHAN_DH_RAND :
+    ⊢ sem_val_typed DHSIM_FKE_CHAN1 REAL_CHAN_DH_RAND τ.
+  Proof using All.
+    iApply func_comp_left.
+    - apply DHSIM_FKE_CHAN1_closed.
+    - apply F_AUTH_C_DDH_rand_closed.
+    - iIntros (θ). iApply parallel_comp_right.
+      + iApply F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand.
+      + iApply F_OAUTH_typed.
+    - iApply CHAN_typed.
+  Qed.
+
+  Lemma DHSIM_FKE_CHAN1_DHSIM_FKE_CHAN2 :
+    ⊢ sem_val_typed  DHSIM_FKE_CHAN1 DHSIM_FKE_CHAN2 τ.
+  Proof using All.
+    iApply func_comp_left.
+    - apply DHSIM_FKE_CHAN1_closed.
+    - apply DHSIM_FKE_CHAN2_closed.
+    - iIntros (θ). iApply parallel_comp_right.
+      + iApply func_comp_assoc.
+        * iApply F_AUTH_typed.
+        * iApply DH_SIM_typed.
+        * iApply F_KE_lazy_alice_typed.
+      + iApply F_OAUTH_typed.
+    - iApply CHAN_typed.
+  Qed.
+
+  Lemma DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN1 :
+    ⊢ sem_val_typed DHSIM_FKE_CHAN2 DHSIM_FKE_CHAN1 τ.
+  Proof using All.
+    iApply func_comp_left.
+    - apply DHSIM_FKE_CHAN2_closed.
+    - apply DHSIM_FKE_CHAN1_closed.
+    - iIntros (θ). iApply parallel_comp_right.
+      + unfold τ__F. iApply func_comp_assoc_rev.
+        * iApply F_AUTH_typed.
+        * iApply DH_SIM_typed.
+        * iApply F_KE_lazy_alice_typed.
+      + iApply F_OAUTH_typed.
+    - iApply CHAN_typed.
+  Qed.
+
+  Lemma DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN3 :
+    ⊢ sem_val_typed DHSIM_FKE_CHAN2 DHSIM_FKE_CHAN3 τ.
+  Proof using All.
+    iApply func_comp_left.
+    - apply DHSIM_FKE_CHAN2_closed.
+    - apply DHSIM_FKE_CHAN3_closed.
+    - iIntros (θ). iApply func_comp_parallel_comp_assoc; try done.
+      + iApply F_AUTH_DH_SIM_typed_val.
+      + iApply F_KE_body_typed.
+      + iApply F_OAUTH_typed.
+    - iApply CHAN_typed.
+  Qed.
+
+  Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN2 :
+    ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN2 τ.
+  Proof using All.
+    iApply func_comp_left.
+    - apply DHSIM_FKE_CHAN3_closed.
+    - apply DHSIM_FKE_CHAN2_closed.
+    - iIntros (θ). iApply func_comp_parallel_comp_assoc_rev; try done.
+      + iApply F_AUTH_DH_SIM_typed_val.
+      + iApply F_KE_body_typed.
+      + iApply F_OAUTH_typed.
+    - iApply CHAN_typed.
+  Qed.
+
+  Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4 :
+    ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN4 τ.
+  Proof using All.
+    unfold τ.
+    iApply functionality_comp_func_comp_assoc_curried; first done ; first done ; first done.
+    - apply F_AUTH_DH_SIM_closed.
+    - apply F_KE_lazy_alice_F_OAUTH_closed.
+    - iApply F_AUTH_DH_SIM_typed.
+    - iApply F_KE_F_OAUTH_typed.
+    - iApply CHAN_body_typed.
+  Qed.
+
+  Lemma DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3 :
+    ⊢ sem_val_typed DHSIM_FKE_CHAN4 DHSIM_FKE_CHAN3 τ.
+  Proof using All.
+    iApply functionality_comp_func_comp_assoc_curried_rev; first done ; first done ; first done.
+    - apply F_AUTH_DH_SIM_closed.
+    - apply F_KE_lazy_alice_F_OAUTH_closed.
+    - iApply F_AUTH_DH_SIM_typed.
+    - iApply F_KE_F_OAUTH_typed.
+    - iApply CHAN_body_typed.
+  Qed.
+
+  Lemma DHSIM_FKE_CHAN4_SIMFCHAN :
+    ⊢ sem_val_typed DHSIM_FKE_CHAN4 SIMSIMFCHAN τ.
+  Proof using All.
+    iApply functionality_comp_cong.
+    - apply F_AUTH_DH_SIM_closed.
+    - apply R_CHAN_closed.
+    - apply CHAN_SIM_lazy_F_CHAN_closed.
+    - unshelve iApply R_I_SCHAN ; done.
+    - iApply F_AUTH_DH_SIM_typed.
+  Qed.
+
+  Lemma SIMFCHAN_DHSIM_FKE_CHAN4 :
+    ⊢ sem_val_typed SIMSIMFCHAN DHSIM_FKE_CHAN4 τ.
+  Proof using All.
+    iApply functionality_comp_cong.
+    - apply F_AUTH_DH_SIM_closed.
+    - apply CHAN_SIM_lazy_F_CHAN_closed.
+    - apply R_CHAN_closed.
+    - unshelve iApply I_R_SCHAN ; done.
+    - iApply F_AUTH_DH_SIM_typed.
   Qed.
 
   Import valgroup_notation.
@@ -77,7 +204,7 @@ Section new_comp_verification.
     aleak θ2 r1' r2' -∗
     brel ⊤ (F_AUTH (C_lazy DH1 (λ: "h₁", F_OAUTH (λ: "h₂", v1 "h₂" "h₁") r1)%V) r1')
            (F_AUTH (C_lazy DH2 (λ: "h₁", F_OAUTH (λ: "h₂", v2 "h₂" "h₁") r2)%V) r2')
-           (iLblSig_to_iLblThy (sem_row_union θ₁ (sem_row_union θ2 θ__L)))
+           (iLblSig_to_iLblThy (sem_row_union θ₁ (sem_row_union (¡θ2) θ__L)))
            (λ u1 u2 : val, 𝟙%T u1 u2).
   Proof using All.
     iIntros "HDH Hvv Hoaleak Hchan".
@@ -171,70 +298,80 @@ Section new_comp_verification.
       iLöb as "IH".
       iSplit; [iIntros (v1_ v2_) "!# (-> & ->)"; by brel_pures|].
       iIntros (?????) "!# %Hk1 %Hk2 ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) #Hcont".
-      + brel_pures; [apply Hk1; set_solver | apply Hk2; set_solver |].
+      + brel_handle_os_l (gkl) as "Hgkl".
+        brel_handle_os_r (gkr) as "Hgkr".
         brel_pures'.
         iApply (brel_na_inv _ _ (nroot.@"lc")); [set_solver|]. iFrame "Hlcinv".
         iIntros "(>[(Hl1 & Hl2) | #(Hl1 & Hl2)] & Hclose)".
-        - iApply (brel_load_l _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl1"). iIntros "!> Hl1". brel_pures_l.
-          iApply (brel_store_l _ _ _ [AppRCtx _] with "Hl1"). iIntros "!> Hl1". brel_pures_l.
-          iApply (brel_load_r _ _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl2"). iIntros "Hl2". brel_pures_r.
-          iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hl2"). iIntros "Hl2". brel_pures_r.
+        - brel_load_l.
+          brel_load_r.
+          brel_pures'.
+          brel_store_l.
+          brel_store_r.
+          brel_pures'.
           iMod (ghost_map_elem_persist with "Hl1") as "#Hl1c".
           iMod (ghost_map_elem_persist with "Hl2") as "#Hl2c".
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb"; [iNext; iRight; iFrame "#"|].
+          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb Hgkl Hgkr"; [iNext; iRight; iFrame "#"|].
           iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
           iApply (brel_introduction' [send1] [send2]). { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
           iLeft. iExists A, A.
-          iSplitL.
+          iSplitR "Hgkl Hgkr".
           { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
             - iModIntro. iLeft. iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". by iModIntro.
             - iModIntro. iRight. iFrame "#". iApply "Hclose". iNext. by iRight. }
-          iSplit; first (do 2 (iSplit; try (iPureIntro; done))). iModIntro.
+          iSplit; first (do 2 (iSplit; try (iPureIntro; done))). 
           iApply brel_value. iIntros "$ !>". brel_pures'.
           iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
           iApply (brel_introduction' [recv1] [recv2]). { apply elem_of_cons. right. apply list_elem_of_here. }
           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
+          iRight. do 2 (iSplit; try (iPureIntro; done)). iSplit.
           { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
+            brel_cont_l. brel_cont_r.
             iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
           iIntros (m) "Ha'". iDestruct (message_unique with "[$Hauthb] [$Ha']") as "<-".
           iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hsome") as "Hkk".
+          brel_cont_l. brel_cont_r.
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
-        - iApply (brel_load_l _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl1"). iIntros "!> _". brel_pures_l.
-          iApply (brel_load_r _ _ _ _ [AppRCtx _; CaseCtx _ _] with "Hl2"). iIntros "_". brel_pures_r.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb"; [iNext; iRight; iFrame "#"|].
+        - brel_load_l.
+          brel_load_r.
+          brel_pures'.
+          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb Hgkl Hgkr"; [iNext; iRight; iFrame "#"|].
           iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
           iApply (brel_introduction' [send1] [send2]). { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
           iLeft. iExists A, A.
-          iSplitL.
+          iSplitR "Hgkl Hgkr".
           { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
             - iModIntro. iLeft. iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". by iModIntro.
             - iModIntro. iRight. iFrame "#". iApply "Hclose". iNext. by iRight. }
-          iSplit; first (do 2 (iSplit; try (iPureIntro; done))). iModIntro.
+          iSplit; first (do 2 (iSplit; try (iPureIntro; done))). 
           iApply brel_value. iIntros "$ !>". brel_pures'.
           iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
           iApply (brel_introduction' [recv1] [recv2]). { apply elem_of_cons. right. apply list_elem_of_here. }
           iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
           iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
+          iRight. do 2 (iSplit; try (iPureIntro; done)). iSplit.
           { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
+            brel_cont_l. brel_cont_r.
             iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
           iIntros (m) "Ha'". iDestruct (message_unique with "[$Hauthb] [$Ha']") as "<-".
           iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hsome") as "Hkk".
+          brel_cont_l. brel_cont_r.
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
-      + brel_pures; [apply Hk1; set_solver | apply Hk2; set_solver |].
+      + brel_handle_os_l (gkl) as "Hgkl".
+        brel_handle_os_r (gkr) as "Hgkr".
         brel_pures'.
         iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
         iApply (brel_introduction' [recv1] [recv2]). { apply elem_of_cons. right. apply list_elem_of_here. }
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iLeft. do 2 (iSplit; try (iPureIntro; done)). iModIntro. iSplitL.
+        iLeft. do 2 (iSplit; try (iPureIntro; done)). iSplit.
         { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
+          brel_cont_l. brel_cont_r.
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
         iIntros (m) "Ha'". iDestruct (message_unique with "[$Hautha] [$Ha']") as "<-".
         iApply brel_value. iIntros "$ !>". brel_pures'.
@@ -243,26 +380,32 @@ Section new_comp_verification.
         iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
         iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
         iRight. iExists B, B.
-        iSplitL.
+        iSplitR "Hgkl Hgkr".
         { iMod (inv_acc with "Hinvtb") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
           - iModIntro. iLeft. iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". by iModIntro.
           - iModIntro. iRight. iFrame "#". iApply "Hclose". iNext. by iRight. }
-        iSplit; first (do 2 (iSplit; try (iPureIntro; done))). iModIntro.
+        iSplit; first (do 2 (iSplit; try (iPureIntro; done))). 
         iApply brel_value. iIntros "$ !>". brel_pures'.
         iApply (brel_na_inv _ _ (nroot.@"lc")); [set_solver|]. iFrame "Hlcinv".
         iIntros "(>[(Hl1 & Hl2) | #(Hl1 & Hl2)] & Hclose)".
-        - iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "!> Hl1". brel_pures_l.
-          iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "Hl2". brel_pures_r.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb"; [iNext; iLeft; iFrame|].
-          iDestruct ("Hcont" with "Hnone") as "Hkk". iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
-        - iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hl1"). iIntros "!> _". brel_pures_l.
-          iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hl2"). iIntros "_". brel_pures_r.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb"; [iNext; iRight; iFrame "#"|].
-          iDestruct ("Hcont" with "Hsome") as "Hkk". iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
+        - brel_load_l.
+          brel_load_r.
+          brel_pures'.
+          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb Hgkl Hgkr"; [iNext; iLeft; iFrame|].
+          iDestruct ("Hcont" with "Hnone") as "Hkk". 
+          brel_cont_l. brel_cont_r.
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
+        - brel_load_l.
+          brel_load_r.
+          brel_pures'.
+          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb Hgkl Hgkr"; [iNext; iRight; iFrame "#"|].
+          iDestruct ("Hcont" with "Hsome") as "Hkk". 
+          brel_cont_l. brel_cont_r.
+          iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
     simpl. iIntros (u1 u2) "Hu".
     iSpecialize ("Hu" $! θ2 with "Hchan").
     rewrite !iLblSig_to_iLblThy_distr.
-    iApply (brel_introduction_mono (iLblSig_to_iLblThy θ2 ++ iLblSig_to_iLblThy θ₁ ++ iLblSig_to_iLblThy θ__L)).
+    iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡θ2)%R ++ iLblSig_to_iLblThy θ₁ ++ iLblSig_to_iLblThy θ__L)).
     { iApply to_iThy_le_intro'; solve_submseteq. }
     iApply "Hu".
   Qed.
@@ -396,131 +539,6 @@ Section new_comp_verification.
   Qed.
 
   (* ************************************************************************** *)
-
-  Lemma REAL_CHAN_DH_RAND_DHSIM_FKE_CHAN1 :
-    ⊢ sem_val_typed REAL_CHAN_DH_RAND DHSIM_FKE_CHAN1 τ.
-  Proof using All.
-    iApply func_comp_left.
-    - apply F_AUTH_C_DDH_rand_closed.
-    - apply DHSIM_FKE_CHAN1_closed.
-    - iIntros (θ). iApply parallel_comp_right.
-      + iApply F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE; try done.
-      + iApply F_OAUTH_typed.
-    - iApply CHAN_typed.
-  Qed.
-
-  Lemma DHSIM_FKE_CHAN1_REAL_CHAN_DH_RAND :
-    ⊢ sem_val_typed DHSIM_FKE_CHAN1 REAL_CHAN_DH_RAND τ.
-  Proof using All.
-    iApply func_comp_left.
-    - apply DHSIM_FKE_CHAN1_closed.
-    - apply F_AUTH_C_DDH_rand_closed.
-    - iIntros (θ). iApply parallel_comp_right.
-      + iApply F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand; try done.
-      + iApply F_OAUTH_typed.
-    - iApply CHAN_typed.
-  Qed.
-
-  Lemma DHSIM_FKE_CHAN1_DHSIM_FKE_CHAN2 :
-    ⊢ sem_val_typed  DHSIM_FKE_CHAN1 DHSIM_FKE_CHAN2 τ.
-  Proof using All.
-    iApply func_comp_left.
-    - apply DHSIM_FKE_CHAN1_closed.
-    - apply DHSIM_FKE_CHAN2_closed.
-    - iIntros (θ). iApply parallel_comp_right.
-      + unfold τ__F. iApply func_comp_assoc.
-        * iApply F_AUTH_typed.
-        * iApply DH_SIM_typed.
-        * iApply F_KE_lazy_alice_typed.
-      + iApply F_OAUTH_typed.
-    - iApply CHAN_typed.
-  Qed.
-
-  Lemma DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN1 :
-    ⊢ sem_val_typed DHSIM_FKE_CHAN2 DHSIM_FKE_CHAN1 τ.
-  Proof using All.
-    iApply func_comp_left.
-    - apply DHSIM_FKE_CHAN2_closed.
-    - apply DHSIM_FKE_CHAN1_closed.
-    - iIntros (θ). iApply parallel_comp_right.
-      + unfold τ__F. iApply func_comp_assoc_rev.
-        * iApply F_AUTH_typed.
-        * iApply DH_SIM_typed.
-        * iApply F_KE_lazy_alice_typed.
-      + iApply F_OAUTH_typed.
-    - iApply CHAN_typed.
-  Qed.
-
-  Lemma DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN3 :
-    ⊢ sem_val_typed DHSIM_FKE_CHAN2 DHSIM_FKE_CHAN3 τ.
-  Proof using All.
-    iApply func_comp_left.
-    - apply DHSIM_FKE_CHAN2_closed.
-    - apply DHSIM_FKE_CHAN3_closed.
-    - iIntros (θ). iApply func_comp_parallel_comp_assoc; try done.
-      + iApply F_AUTH_DH_SIM_typed_val.
-      + iApply F_KE_body_typed.
-      + iApply F_OAUTH_typed.
-    - iApply CHAN_typed.
-  Qed.
-
-  Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN2 :
-    ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN2 τ.
-  Proof using All.
-    iApply func_comp_left.
-    - apply DHSIM_FKE_CHAN3_closed.
-    - apply DHSIM_FKE_CHAN2_closed.
-    - iIntros (θ). iApply func_comp_parallel_comp_assoc_rev; try done.
-      + iApply F_AUTH_DH_SIM_typed_val.
-      + iApply F_KE_body_typed.
-      + iApply F_OAUTH_typed.
-    - iApply CHAN_typed.
-  Qed.
-
-
-  Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4 :
-    ⊢ sem_val_typed DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN4 τ.
-  Proof using All.
-    iApply functionality_comp_func_comp_assoc_curried; first done ; first done ; first done.
-    - apply F_AUTH_DH_SIM_closed.
-    - apply F_KE_lazy_alice_F_OAUTH_closed.
-    - iApply F_AUTH_DH_SIM_typed.
-    - iApply F_KE_F_OAUTH_typed.
-    - iApply CHAN_body_typed.
-  Qed.
-
-  Lemma DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3 :
-    ⊢ sem_val_typed DHSIM_FKE_CHAN4 DHSIM_FKE_CHAN3 τ.
-  Proof using All.
-    iApply functionality_comp_func_comp_assoc_rev_curried; first done ; first done ; first done.
-    - apply F_AUTH_DH_SIM_closed.
-    - apply F_KE_lazy_alice_F_OAUTH_closed.
-    - iApply F_AUTH_DH_SIM_typed.
-    - iApply F_KE_F_OAUTH_typed.
-    - iApply CHAN_body_typed.
-  Qed.
-
-  Lemma DHSIM_FKE_CHAN4_SIMFCHAN :
-    ⊢ sem_val_typed DHSIM_FKE_CHAN4 SIMSIMFCHAN τ.
-  Proof using All.
-    iApply functionality_comp_cong.
-    - apply F_AUTH_DH_SIM_closed.
-    - apply R_CHAN_closed.
-    - apply CHAN_SIM_lazy_F_CHAN_closed.
-    - unshelve iApply R_I_SCHAN ; done.
-    - iApply F_AUTH_DH_SIM_typed.
-  Qed.
-
-  Lemma SIMFCHAN_DHSIM_FKE_CHAN4 :
-    ⊢ sem_val_typed SIMSIMFCHAN DHSIM_FKE_CHAN4 τ.
-  Proof using All.
-    iApply functionality_comp_cong.
-    - apply F_AUTH_DH_SIM_closed.
-    - apply CHAN_SIM_lazy_F_CHAN_closed.
-    - apply R_CHAN_closed.
-    - unshelve iApply I_R_SCHAN ; done.
-    - iApply F_AUTH_DH_SIM_typed.
-  Qed.
 
 End new_comp_verification.
 
