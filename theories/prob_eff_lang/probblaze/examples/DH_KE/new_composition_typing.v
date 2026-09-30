@@ -7,7 +7,6 @@ From clutch.prob_eff_lang.probblaze Require Import
   sem_types sem_row sem_sig sem_env sem_judgement
   dhke_common sec_channel_def sec_channel_prf dhke_channel_lazy_results dhke_channel_authchan_new
   new_composition_defs mask.
-From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -700,13 +699,15 @@ Section new_comp_verification.
       iDestruct "HSend" as (d1 d2) "(#Hd & -> & -> & #HQ')".
       iDestruct "Hd" as (dw1 dw2) "[(-> & -> & _)|(-> & -> & _)]".
       + (* dst = InjL: tape α / cache lca / [doSend (_, bob)]. *)
-        brel_pures'; [apply Hk2|apply Hk1|]; try set_solver.
+        brel_handle_os_l (lkl) as "Hlkl".
+        brel_handle_os_r (lkr) as "Hlkr".
+        brel_pures'.
         iApply (brel_na_inv _ _ (nroot.@"simleak")); [set_solver|]. iFrame "Hinv".
         iIntros "((Hα & Hαs & Hβ & Hβs & Hca & Hcb) & Hclose)".
         iDestruct "Hca" as "[(Hlca & Hlcas)|(%cc & Hlca & Hlcas)]".
         * (* fresh: couple the two draws, sample, cache. *)
-          iApply (brel_load_l _ _ _ [AppRCtx _; CaseCtx _ _] with "Hlca"). iIntros "!> Hlca".
-          iApply (brel_load_r _ _ _ _ [AppRCtx _; CaseCtx _ _] with "Hlcas"). iIntros "Hlcas".
+          brel_load_l.
+          brel_load_r.
           brel_pures'.
           iApply (brel_couple_TT_frag _ (S n'') (S n'') (λ x:nat, x) _ _ _ _ α αs [] []);
             [ lia | by (intros ??; lia) | ].
@@ -738,6 +739,8 @@ Section new_comp_verification.
           brel_pures'.
           iDestruct ("HQQ" with "HQ'") as "HQ".
           iDestruct ("Hkont" with "HQ") as "Hbrel".
+          brel_cont_l.
+          brel_cont_r.
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
         * (* cached: reuse exponent. *)
           brel_load_l.
@@ -761,9 +764,13 @@ Section new_comp_verification.
           brel_pures'.
           iDestruct ("HQQ" with "HQ'") as "HQ".
           iDestruct ("Hkont" with "HQ") as "Hbrel".
+          brel_cont_l.
+          brel_cont_r.
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
       + (* dst = InjR: tape β / cache lcb / [doSend (_, alice)]. *)
-        brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+        brel_handle_os_l (lkl) as "Hlkl".
+        brel_handle_os_r (lkr) as "Hlkr".
+        brel_pures'.
         iApply (brel_na_inv _ _ (nroot.@"simleak")); [set_solver|]. iFrame "Hinv".
         iIntros "((Hα & Hαs & Hβ & Hβs & Hca & Hcb) & Hclose)".
         iDestruct "Hcb" as "[(Hlcb & Hlcbs)|(%cc & Hlcb & Hlcbs)]".
@@ -800,6 +807,8 @@ Section new_comp_verification.
           brel_pures'.
           iDestruct ("HQQ" with "HQ'") as "HQ".
           iDestruct ("Hkont" with "HQ") as "Hbrel".
+          brel_cont_l.
+          brel_cont_r.
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
         * brel_load_l.
           brel_load_r. 
@@ -822,6 +831,8 @@ Section new_comp_verification.
           brel_pures'.
           iDestruct ("HQQ" with "HQ'") as "HQ".
           iDestruct ("Hkont" with "HQ") as "Hbrel".
+          brel_cont_l.
+          brel_cont_r.
           iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
     - (* Recv: the OUTER handler.  Never re-peels the send handler: [Hkont]
          already hands back a row with the send entry at [iThyBot]. *)
@@ -831,7 +842,9 @@ Section new_comp_verification.
       iDestruct "HRecv" as (Q') "(HRecv & HQ')".
       iDestruct "HRecv" as (fr1 fr2) "(#Hfr & -> & -> & #HQ)".
       iDestruct "HQ" as "(#HQN & #HQS)".
-      brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
+      brel_handle_os_l (lkl) as "Hlkl".
+      brel_handle_os_r (lkr) as "Hlkr".
+      brel_pures'.
       iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
       { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
         by apply submseteq_inserts_r. }
@@ -844,10 +857,12 @@ Section new_comp_verification.
       + brel_pures'.
         iDestruct ("HQ'" with "HQN") as "HQ".
         iDestruct ("Hkont" with "HQ") as "Hbrel".
+        brel_cont_l. brel_cont_r.
         iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
       + brel_pures'.
         iDestruct ("HQ'" with "HQS") as "HQ".
         iDestruct ("Hkont" with "HQ") as "Hbrel".
+        brel_cont_l. brel_cont_r. 
         iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
   Qed.
 
@@ -1439,7 +1454,7 @@ Section new_comp_verification.
     iApply (brel_mono OS with "[][$HFF]"); [iApply to_iThy_le_refl|simpl].
     iIntros (FK1 FK2) "Hvv".
     iSpecialize ("Hvv" $! θ2 with "Hleak").
-    iApply (brel_introduction_mono (iLblSig_to_iLblThy (sem_row_union (¡θ2) (sem_row_union θ1 θ))) with "[] Hvv").
+    iApply (brel_introduction_mono (iLblSig_to_iLblThy (sem_row_union (¡θ2)%R (sem_row_union θ1 θ))) with "[] Hvv").
     iApply to_iThy_le_intro'. unfold sem_row_union. simpl.
     rewrite !iLblSig_to_iLblThy_app. solve_submseteq.
   Qed.
@@ -1538,12 +1553,12 @@ Section new_comp_verification.
       | return "y" => "y"
     end)%E.
 
-  Definition τ__fO θ gk := ∀ᵣ θ2, gk θ2 -{ sem_row_union θ2 θ }-∘ 𝟙.
+  Definition τ__fO θ gk := (∀ᵣ θ2, gk θ2 -{ sem_row_union θ2 θ }-∘ 𝟙)%T.
 
   Lemma F_KE_body_typed :
     ⊢ ∀ (θ θG : sem_row Σ),
       sem_typed [("f", τ__fO θ gk); ("effs", leakI θG)]
-        F_KE_body F_KE_body (sem_row_union (¡ θG) θ) (𝟙)%T [].
+        F_KE_body F_KE_body (sem_row_union (¡θG)%R θ) (𝟙)%T [].
   Proof using Type*.
     iIntros (θ θ₂). iIntros (vs) "!# Henv".
     rewrite !env_sem_typed_cons env_sem_typed_empty.
@@ -2139,7 +2154,7 @@ Section new_comp_verification.
     simpl. iIntros (u1 u2) "Hu".
     iSpecialize ("Hu" $! θ2 with "Hchan").
     rewrite !iLblSig_to_iLblThy_distr.
-    iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡ θ2) ++ iLblSig_to_iLblThy θ₁ ++ iLblSig_to_iLblThy θ__L)).
+    iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡θ2)%R ++ iLblSig_to_iLblThy θ₁ ++ iLblSig_to_iLblThy θ__L)).
     { iApply to_iThy_le_intro'; solve_submseteq. }
     iApply "Hu".
   Qed.
