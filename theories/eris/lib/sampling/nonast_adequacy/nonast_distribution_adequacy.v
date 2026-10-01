@@ -26,9 +26,9 @@ Section NonASTDistributionAdequacy.
                 [[{ ↯ (1 - μ v) }]] μ_impl [[{ w, RET w; ⌜ w = v ⌝}]]
              ).
   Hypothesis (wp_μ_adv_comp :
-               ∀ `{erisGS Σ} (ε : R) (D : val → R) (L : R),
+               ∀ `{erisGS Σ} (ε : R) (D : val → R),
                 (0 <= ε)%R →
-                (∀ (v : val), 0 <= D v <= L)%R →
+                (∀ (v : val), 0 <= D v <= 1)%R →
                 SeriesC (λ (v : val), D v * μ v)%R = ε →
                 ⊢ {{{ ↯ ε }}} μ_impl {{{ v, RET v; ↯ (D v)}}}
              ).
@@ -52,7 +52,7 @@ Section NonASTDistributionAdequacy.
   Proof.
     iIntros (Σ erisGS0 v Φ) "Herr HΦ".
     set (D w := if bool_decide (v = w) then 1%R else 0%R).
-    wp_apply (wp_μ_adv_comp (μ v) D 1%R with "Herr").
+    wp_apply (wp_μ_adv_comp (μ v) D with "Herr").
     { apply pmf_pos. }
     { move=>w.
       unfold D.
