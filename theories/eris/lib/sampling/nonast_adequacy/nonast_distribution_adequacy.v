@@ -21,11 +21,9 @@ Section NonASTDistributionAdequacy.
   Context (μ_impl : expr).
   Local Definition μ_div := (1 - SeriesC μ)%R. 
   Hypothesis (twp_μ_adv_comp :
-               ∀ `{erisGS Σ} (ε : R) (D : val → R) (L : R),
-                (0 <= ε)%R →
-                (∀ (v : val), 0 <= D v <= L)%R →
-                (SeriesC (λ (v : val), D v * μ v)%R + μ_div)%R  = ε →
-                [[{ ↯ ε }]] μ_impl [[{ v, RET v; ↯ (D v)}]]
+               ∀ `{erisGS Σ},
+                ∀ v : val,
+                [[{ ↯ (1 - μ v) }]] μ_impl [[{ w, RET w; ⌜ w = v ⌝}]]
              ).
   Hypothesis (wp_μ_adv_comp :
                ∀ `{erisGS Σ} (ε : R) (D : val → R) (L : R),
@@ -40,37 +38,12 @@ Section NonASTDistributionAdequacy.
   
   Lemma twp_eq :
     ∀ `{erisGS Σ} (v : val),
-    [[{ ↯ (pmf_sum - μ v + μ_div) }]] μ_impl [[{ RET v; True }]].
+    [[{ ↯ (1 - μ v) }]] μ_impl [[{ RET v; True }]].
   Proof.
     iIntros (Σ erisGS0 v Φ) "Herr HΦ".
     iPoseProof ("HΦ" with "[$]") as "HΦ".
-    set (D w := if bool_decide (v = w) then 0%R else 1%R).
-    wp_apply (twp_μ_adv_comp (pmf_sum - μ v + μ_div) D 1%R with "Herr").
-    { apply Rplus_le_le_0_compat. 
-      - apply Rle_0_le_minus, pmf_le_SeriesC. 
-      - apply Rle_0_le_minus, pmf_SeriesC. }
-    { move=>w.
-      unfold D.
-      case_bool_decide;
-        lra.
-    }
-    { rewrite (SeriesC_ext _ (λ (w : val), μ w - if bool_decide (w = v) then μ v else 0)%R); last first.
-      { move=>w.
-        unfold D.
-        do 2 case_bool_decide;
-        subst;
-        try done;
-        lra.
-      }
-      rewrite SeriesC_minus; try done; last first.
-      { apply ex_seriesC_singleton. } 
-      f_equal. f_equal.
-      apply SeriesC_singleton.
-    }
-    unfold D.
-    iIntros (w) "Herr".
-    case_bool_decide; subst; first done.
-    iDestruct (ec_contradict with "Herr") as "[]". reflexivity.
+    wp_apply (twp_μ_adv_comp with "Herr").
+    by iIntros (?) "->".
   Qed.
 
   Lemma twp_neq :
@@ -104,15 +77,16 @@ Section NonASTDistributionAdequacy.
   Qed.
 
   Lemma μ_tgl : ∀ `{erisGpreS Σ} (σ : state) (v : val),
-    tgl (lim_exec (μ_impl, σ)) (λ w, v = w) (pmf_sum - μ v + μ_div).
+    tgl (lim_exec (μ_impl, σ)) (λ w, v = w) (1 - μ v).
   Proof.
     iIntros (Σ erisGpreS0 σ v).
     move=>[:pmf_sum_minus_pos].
     apply (@twp_tgl Σ erisGpreS0).
-    { abstract: pmf_sum_minus_pos.
-      apply Rplus_le_le_0_compat. 
-      - apply Rle_0_le_minus, pmf_le_SeriesC. 
-      - apply Rle_0_le_minus, pmf_SeriesC. }
+    { abstract: pmf_sum_minus_pos. apply Rle_0_le_minus. apply pmf_le_1. }
+    (* { abstract: pmf_sum_minus_pos.
+         apply Rplus_le_le_0_compat. 
+         - apply Rle_0_le_minus, pmf_le_SeriesC. 
+         - apply Rle_0_le_minus, pmf_SeriesC. } *)
     iIntros (erisGS0) "Herr".
     by wp_apply (twp_eq v with "Herr").
   Qed.
@@ -141,7 +115,7 @@ Section NonASTDistributionAdequacy.
     specialize (μ_pgl σ v) as μ_pgl0.
     unfold tgl in μ_tgl0.
     unfold pgl in μ_pgl0.
-    rewrite -Rplus_minus_swap pmf_sum_μ_div Rminus_plus_distr Rminus_diag Rminus_0_l Ropp_involutive in μ_tgl0.
+    rewrite Rminus_plus_distr Rminus_diag Rminus_0_l Ropp_involutive in μ_tgl0.
     rewrite (prob_ext _ _ (λ w, bool_decide (v = w))) in μ_pgl0; last first.
     { move=>w _. by do 2 case_bool_decide. }
     apply Rle_antisym; auto.
