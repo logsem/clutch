@@ -6,11 +6,16 @@ Section subsampler.
   Program Definition μ : distr val :=
     {| pmf := λ v, if bool_decide (v = #true) then (1/2)%R else 0%R|}.
   Next Obligation.
-  Admitted. 
+    intros. simpl. case_bool_decide; lra.
+  Qed. 
   Next Obligation.
-  Admitted. 
+    intros.
+    apply ex_seriesC_singleton.
+  Qed. 
   Next Obligation.
-  Admitted.
+    rewrite SeriesC_singleton.
+    lra.
+  Qed. 
   
   Definition μ_div : R := 1 - SeriesC μ.
   Definition μ_mass := SeriesC μ.
