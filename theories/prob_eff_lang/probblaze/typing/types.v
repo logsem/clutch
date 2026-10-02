@@ -1663,5 +1663,14 @@ Section derived_rules.
     generalize dependent b. revert ρ. induction ρ; intros b; repeat constructor; try done.
     apply SRefl_le.
   Qed. 
+
+  Lemma RNil_le_ctx (Γ : ctx) : RNil R⪯C Γ.
+  Proof. 
+    induction Γ as [| (s, τ) Γ]; first constructor.
+    assert ((s, τ) :: Γ = <[ s :=c τ ]> Γ) as -> by done.
+    constructor; last done.
+    constructor. exists true; apply le.RFlipNil_le.
+  Qed.     
+
         
 End derived_rules.
