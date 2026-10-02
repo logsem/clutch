@@ -1538,10 +1538,10 @@ with val_typed : val → type → Prop :=
 | InjR_val_typed v τ1 τ2 :
   ⊢ᵥ v : τ2 →
          ⊢ᵥ InjRV v : (τ1 + τ2)
-| Rec_val_typed f x e τ1 ρ τ2 :
+| Rec_val_typed f x e τ1 ρ τ2 m :
   match f with BNamed f => BNamed f ≠ x | BAnon => True end →
-  ∅ .| <[f:=c τ1 -{ ρ }-> τ2]>(<[x:=c τ1]> ∅) ⊢ₜ e : ρ : τ2 ⊣ ∅ →
-                                         ⊢ᵥ RecV f x e : (τ1 -{ ρ }-> τ2)
+  ∅ .| <[f:=c τ1 -{ ρ }-[m]-> τ2]>(<[x:=c τ1]> ∅) ⊢ₜ e : ρ : τ2 ⊣ ∅ →
+                                         ⊢ᵥ RecV f x e : (τ1 -{ ρ }-[m]-> τ2)
 | TAbs_val_typed v τ :
   ⊢ᵥ v : τ →
            ⊢ᵥ v : (∀T: τ)
@@ -1551,6 +1551,9 @@ with val_typed : val → type → Prop :=
 | MAbs_val_typed v τ :
   ⊢ᵥ v : τ →
            ⊢ᵥ v : (∀M: τ)
+| Sub_val_typed v τ κ :
+  ∅ ⊢ₗ κ ≤T τ → ⊢ᵥ v : κ → ⊢ᵥ v : τ
+
 
 where "Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2" := (typed Δ Γ1 e%E ρ τ%ty Γ2)
 and "⊢ᵥ e : τ" := (val_typed e τ%ty)
