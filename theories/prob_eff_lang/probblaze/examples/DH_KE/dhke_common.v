@@ -67,7 +67,7 @@ Section resources.
     by apply dfrac_agree_op_valid in H as (?&H). 
   Qed.
 
-  (* depricated *)
+  (* deprecated *)
   Lemma mutable_message_to_message γ q v : ⊢ own γ (to_dfrac_agree q v) -∗ |==> message γ v.
   Proof.
     iApply own_update.
