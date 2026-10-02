@@ -147,7 +147,7 @@ Section compatibility.
         by assert (s ≠ s0) by (intros ?; simplify_eq).
   Qed.
   
-  Lemma sem_typed_sub v1 v2 κ τ : 
+  Lemma sem_val_typed_sub v1 v2 κ τ : 
     ⊢ κ ≤ₜ τ -∗ ⊨ᵥ v1 ≤ v2 : κ -∗ ⊨ᵥ v1 ≤ v2 : τ.
   Proof.
     iIntros "#Hlt #Hκ !#".
