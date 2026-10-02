@@ -124,11 +124,11 @@ Section NonASTDistributionAdequacy.
     unfold pmf_sum, μ_div. lra.
   Qed. 
  
-  Lemma μ_impl_is_μ :
+  Lemma μ_impl_is_μ Σ:
     ∀ `{erisGpreS Σ} (σ : state) (v : val),
     prob (lim_exec (μ_impl, σ)) (λ w, bool_decide (v = w)) = μ v.
   Proof.
-    move=>Σ erisGpreS0 σ v.
+    move=>erisGpreS0 σ v.
     specialize (μ_tgl σ) as μ_tgl0.
     specialize (μ_pgl σ) as μ_pgl0.
     

@@ -1,9 +1,17 @@
-From clutch.eris Require Import eris.
+From clutch.eris Require Import adequacy eris .
 From clutch.eris.lib.sampling Require Import nonast_distribution_adequacy.
 
 Section subsampler. 
 
-  Definition μ : val → R := λ v, if bool_decide (v = #true) then (1/2)%R else 0%R.
+  Program Definition μ : distr val :=
+    {| pmf := λ v, if bool_decide (v = #true) then (1/2)%R else 0%R|}.
+  Next Obligation.
+  Admitted. 
+  Next Obligation.
+  Admitted. 
+  Next Obligation.
+  Admitted.
+  
   Definition μ_div : R := 1 - SeriesC μ.
   Definition μ_mass := SeriesC μ.
   Lemma μ_div_half : (μ_div = 1/2)%R.
@@ -31,9 +39,9 @@ Section subsampler.
     by iApply "HΦ".
   Qed.
   
-  Lemma wp_subsampler `{erisGS Σ} ε D :
+  Lemma wp_subsampler `{erisGS Σ} ε D L:
     (0 <= ε)%R →
-    (∀ (v : val), 0 <= D v <= 1)%R →
+    (∀ (v : val), 0 <= D v <= L)%R →
     SeriesC (λ (v : val), D v * μ v)%R = ε →
     ⊢ {{{ ↯ ε }}} subsampler {{{ v, RET v; ↯ (D v)}}}.
   Proof. 
@@ -42,7 +50,7 @@ Section subsampler.
     rewrite -Heq.
     unfold subsampler.
     set (ε2 := λ n, match n with
-                    | S 0 => (D #true)%R
+                    | S 0 => Rmin 1 (D #true)%R
                     | _ => 0%R
                     end).
     wp_apply (wp_rand_exp_nat _ _ _ ε2 with "[$]"); last first.
@@ -53,11 +61,16 @@ Section subsampler.
         iLöb as "IH".
         by wp_pures.
       + wp_pures.
-        by iApply "HΦ".
+        iApply "HΦ".
+        rewrite /ε2.
+        destruct (decide (1<=D #true))%R.
+        * rewrite Rmin_left; last done.
+          by iDestruct (ec_contradict with "[$]") as "[]".
+        * rewrite Rmin_right; [done|lra].
     - erewrite (SeriesC_ext _ (λ v, if bool_decide (v = #true) then ((1/2) * (D v))%R else 0%R)); last first.
-      + intros v. unfold μ. destruct (bool_decide (v = #true)); lra.
+      + intros v. unfold μ. rewrite /pmf. destruct (bool_decide (v = #true)); lra.
       + rewrite SeriesC_singleton_dependent.
-        erewrite (SeriesC_ext _ (λ v, if bool_decide (v = 1) then ((1/2) * (D #true))%R else 0%R)); last first.
+        erewrite (SeriesC_ext _ (λ v, if bool_decide (v = 1) then ((1/2) * (ε2 1%nat))%R else 0%R)); last first.
         * intros n. destruct (bool_decide (n ≤ Z.to_nat 1)) eqn:Hlt.
           -- apply bool_decide_eq_true_1 in Hlt. apply Nat.le_1_r in Hlt as [-> | ->].
              ++ simpl. by rewrite Rmult_0_r.
@@ -65,11 +78,34 @@ Section subsampler.
           -- apply bool_decide_eq_false_1 in Hlt.
              assert (n ≠ 1) as Hneq by lia.
              rewrite bool_decide_false; done.
-        * by rewrite SeriesC_singleton.
+        * rewrite SeriesC_singleton.
+          rewrite /ε2.
+          apply Rmult_le_compat_l; first lra.
+          apply Rmin_r.
     - destruct n; simpl.
       + simpl. lra.
       + destruct n; simpl; last lra.
-        done.
+        split; last apply Rmin_l.
+        apply Rmin_glb; try lra.
+        naive_solver. 
   Qed. 
 
+  Lemma subsampler_correct σ :
+    (lim_exec (subsampler, σ)) = μ.
+  Proof.
+    apply distr_ext.
+    intros v.
+    erewrite <- (μ_impl_is_μ μ subsampler _  _ erisΣ σ).
+    - rewrite /prob.
+      erewrite (SeriesC_ext _ (λ a : mstate_ret (lang_markov prob_lang),
+       if bool_decide (a = v)
+       then lim_exec (_, _) a
+       else 0%R)).
+      + by rewrite SeriesC_singleton_dependent.
+      + intros. do 2 case_bool_decide; naive_solver.
+        Unshelve. 
+    { iIntros. by iApply (twp_subsampler_spec with "[$]"). }
+    { iIntros. by iApply (wp_subsampler). }
+  Qed. 
+    
 End subsampler.
