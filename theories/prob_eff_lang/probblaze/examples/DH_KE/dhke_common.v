@@ -2,12 +2,10 @@ From iris.proofmode Require Import base.
 From iris.base_logic.lib Require Import  na_invariants.
 From iris.algebra Require Export agree excl auth frac excl_auth.
 From iris.algebra.lib Require Export dfrac_agree.
-From clutch.prob_eff_lang.probblaze Require Export logic notation sem_def tactics sem_types sem_judgement sem_row. (*compatibility.*)
-(* [sem_sig_eff], the generic effect-signature former, is only Require Import-ed
-   by sem_types/sem_row, so bring it into scope here -- but do not re-export it,
-   to keep its notations out of this file's clients. *)
+From clutch.prob_eff_lang.probblaze Require Export logic notation sem_def tactics sem_types sem_judgement sem_row.
 From clutch.prob_eff_lang.probblaze Require Import sem_sig.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Export valgroup def_dhke.
+From clutch.prob_eff_lang.probblaze.typing Require Import types.
 
 Export fingroup.fingroup.
 Export valgroup_tactics valgroup_notation.
@@ -65,13 +63,6 @@ Section resources.
     iDestruct (own_valid with "H") as "%H".
     iPureIntro.
     by apply dfrac_agree_op_valid in H as (?&H). 
-  Qed.
-
-  (* deprecated *)
-  Lemma mutable_message_to_message γ q v : ⊢ own γ (to_dfrac_agree q v) -∗ |==> message γ v.
-  Proof.
-    iApply own_update.
-    by apply dfrac_agree_persist.
   Qed.
 
   Lemma all_receipts_alloc : ⊢ |==> ∃ γ, all_receipts γ.
@@ -362,8 +353,114 @@ Section typing.
   Context `{probblazeRGS Σ}.
   Context {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg}.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
+  
+  Lemma sample_typed Γ :
+    ∅ .| Γ ⊢ₜ sample #()%V : RNil : ℕ ⊣ Γ.
+  Proof.     
+    econstructor; try constructor.
+    - exists true. eapply le.RFlipNil_le.
+    - apply RNil_le_ctx. 
+    - constructor.
+    - unfold sample. 
+      apply (Sub_typed _ _ Γ _ Γ _ RNil true _ (TBang OS (() -∘ TNat))); try (by constructor).
+      + apply CRefl_le.
+      + apply CRefl_le.
+      + rewrite <-(app_nil_l _) at 1.
+        eapply Rec_typed; try (by constructor); try set_solver.
+        eapply TRandU; last do 2 constructor. simpl.
+        apply Val_typed.
+        apply Int_val_typed.
+        Unshelve. exact true.
+  Qed.   
 
- Lemma DH_real_self :
+  Lemma DH_real_typed : ⊢ᵥ DH_real : (() -∘ τG * τG * τG).
+  Proof using All. 
+    eapply (Sub_val_typed _ _ (TBang OS (() -∘ τG * τG * τG)%ty)).
+    - apply le.TBangElim_le.
+    - apply Rec_val_typed; first done.
+      simpl.
+      eapply (App_typed _ ∅); try (constructor; done).
+      + constructor. eexists. eapply le.RFlipNil_le.
+      + apply sample_typed.
+      + eapply (Sub_typed _ _ ∅ _ ∅ _ RNil true _ (TBang OS (_ -∘ _))); try (by constructor).
+        rewrite <-(app_nil_r _) at 1.
+        eapply Rec_typed; try (by constructor); try set_solver.
+        { rewrite /ctx_dom //=. }
+        econstructor; try (by constructor).
+        * constructor. eexists. eapply le.RFlipNil_le.
+        * apply Weakening_typed. 
+          apply sample_typed.
+        * eapply (Sub_typed _ _ _ _ ∅ _ RNil true _ (TBang OS (_ -∘ _))); try (by constructor).
+          { apply CRefl_le. }
+          apply Contraction_typed; first constructor.
+          rewrite <-(app_nil_r _) at 1.
+          eapply Rec_typed; try (by constructor); try set_solver.
+          -- rewrite /ctx_dom //=. 
+          -- repeat constructor.
+          -- apply Weakening_typed.
+             apply Contraction_typed; first constructor. 
+             eapply (Pair_typed _ _ (<["b" :=c ℕ%ty ]> (<[ "a" :=c ℕ%ty]> ∅))).
+             ++ constructor. eexists; eapply le.RFlipNil_le.
+             ++ eapply (Pair_typed _ _ (<["a" :=c ℕ%ty]> ∅)).
+                ** constructor. eexists; eapply le.RFlipNil_le.
+                ** econstructor; try (by constructor).
+                   { constructor. eexists; eapply le.RFlipNil_le. }
+                   eapply (Sub_typed _ _ _ _ ∅ _ RNil true _ (TBang MS (ℤ -∘ _))); try (by constructor).
+                   { apply CRefl_le.}
+                   { eapply le.TTrans_le; first apply le.TBangElim_le.
+                     eapply le.TArrow_le; try constructor. }
+                   econstructor; try (by constructor).
+                   { constructor. eexists; eapply le.RFlipNil_le. }
+                   --- constructor. apply vgval_typed.
+                   --- eapply (Sub_typed _ _ _ _ ∅ _ RNil true _ (TBang MS (_ -∘ _))); try (by constructor).
+                       apply CRefl_le. 
+                ** econstructor; try (by constructor).
+                   { constructor. eexists; eapply le.RFlipNil_le. }
+                   { repeat constructor; eexists; eapply le.RFlipNil_le. }
+                   eapply (Sub_typed _ _ _ _ _ _ RNil true _ (TBang MS (ℤ -∘ _))); try (by constructor).
+                   { apply CRefl_le. }
+                   { apply CRefl_le. }
+                   { eapply le.TTrans_le; first apply le.TBangElim_le.
+                     eapply le.TArrow_le; try constructor. }
+                   eapply App_typed; try (by constructor); last first.
+                   --- eapply (Sub_typed _ _ _ _ _ _ RNil true _ (TBang MS (_ -∘ _))); try (by constructor);
+                       apply CRefl_le. 
+                   --- apply Val_typed. apply vgval_typed.
+                   --- repeat constructor. eexists; eapply le.RFlipNil_le.
+                   --- constructor. eexists; eapply le.RFlipNil_le.
+             ++ econstructor; try (by constructor).
+                ** constructor. eexists; eapply le.RFlipNil_le.                
+                ** repeat constructor; eexists; eapply le.RFlipNil_le.
+                ** econstructor; last first.
+                   --- eapply Sub_typed.
+                       1,2 : apply CRefl_le.
+                       +++ apply RRefl_le. 
+                       +++ apply le.TNat_le_TInt.
+                       +++ apply Var_typed.
+                   --- eapply Sub_typed.
+                       +++ eapply _ctx_perm_right; first apply CRefl_le.
+                           simpl. apply perm_swap.
+                       +++ apply CRefl_le.
+                       +++ constructor.
+                       +++ constructor.
+                       +++ eapply Sub_typed.
+                           1,2 : apply CRefl_le.
+                           *** apply RRefl_le. 
+                           *** apply le.TNat_le_TInt.
+                           *** apply Var_typed.
+                   --- constructor.  
+                ** eapply (Sub_typed _ _ _ _ _ _ RNil true _ (TBang MS (ℤ -∘ _))); try (by constructor).
+                   { apply CRefl_le. }
+                   { apply CRefl_le. }
+                   eapply App_typed; try (by constructor); last first.
+                   --- eapply (Sub_typed _ _ _ _ _ _ RNil true _ (TBang MS (_ -∘ _))); try (by constructor); apply CRefl_le.
+                   --- apply Val_typed. apply vgval_typed.
+                   --- repeat constructor; eexists; apply le.RFlipNil_le. 
+                   --- constructor. eexists. apply le.RFlipNil_le.
+                       Unshelve. all : exact true.
+  Qed. 
+
+  Lemma DH_real_self :
     ⊢ sem_val_typed DH_real DH_real (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T.
   Proof using All.
     rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang /=.
@@ -453,8 +550,8 @@ Section typing.
     (* The theories of the two internal effects are the generic semantic
        signatures of the very operations [C_lazy] expects of its channel:
        [doSend : 𝔾 × (𝟙+𝟙) → 𝟙] and [doRecv : (𝟙+𝟙) → Option 𝔾]. *)
-    set (σs := sem_sig_flip_mbang OS (@sem_sig_eff Σ sl sr (λ _, (𝔾 × (𝟙 + 𝟙))%T) (λ _, 𝟙%T))).
-    set (σr := sem_sig_flip_mbang OS (@sem_sig_eff Σ rl rr (λ _, (𝟙 + 𝟙)%T) (λ _, (Option 𝔾)%T))).
+    set (σs := sem_sig_flip_mbang syntax.OS (@sem_sig_eff Σ sl sr (λ _, (𝔾 × (𝟙 + 𝟙))%T) (λ _, 𝟙%T))).
+    set (σr := sem_sig_flip_mbang syntax.OS (@sem_sig_eff Σ rl rr (λ _, (𝟙 + 𝟙)%T) (λ _, (Option 𝔾)%T))).
     iApply brel_new_theory.
     iApply (brel_add_label_l with "Hsl").
     iApply (brel_add_label_r with "Hsr").
@@ -475,8 +572,8 @@ Section typing.
         iDestruct ("HDH" $! #()%V #()%V with "[]") as "Hdh"; [by iPureIntro|].
         iApply (brel_bind [AppRCtx _] [AppRCtx _] _ []);
           [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
-        assert (to_iThyIfMono OS [] = []) as <- by done.
-        iApply (brel_mono OS with "[][$Hdh]"); [iApply to_iThy_le_refl|].
+        assert (to_iThyIfMono syntax.OS [] = []) as <- by done.
+        iApply (brel_mono syntax.OS with "[][$Hdh]"); [iApply to_iThy_le_refl|].
         simpl. iIntros (t1 t2) "Ht".
         iDestruct "Ht" as (p1 p2 gc1 gc2) "(->&->&Hpp&Hgc)".
         iDestruct "Hpp" as (ga1 ga2 gb1 gb2) "(->&->&Hga&Hgb)".
