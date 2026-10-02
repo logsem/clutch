@@ -789,94 +789,6 @@ Section syntax.
 
 End syntax.
 
-
-(* Section wellformedness.
-   
-     Fixpoint wf_row (m : nat) (ρ : row) : Prop :=
-       match ρ with 
-       | RCons e ρ => wf_eff_sig e ∧ wf_row m ρ
-       | RFlip _ ρ => wf_row m ρ
-       | RVar i => (m ≤ i)
-       | RNil => True
-       | RRec ρ => wf_row (m + 1) ρ
-       | RUnion ρ1 ρ2 => wf_row m ρ1 ∧ wf_row m ρ2
-       end 
-   
-     with wf_type (τ : type) : Prop :=
-       match τ with
-       | TBot
-       | TTop
-       | TUnit
-       | TBool
-       | TInt
-       | TNat
-       | TVar _
-       | TTape => True
-       | TRef τ
-       | TRec τ 
-       | TBang _ τ 
-       | TForallT τ
-       | TForallM τ
-       | TExists τ
-       | TForallR τ => wf_type τ
-       | TSum τ κ
-       | TProd τ κ => wf_type τ ∧ wf_type κ
-       | TArrow τ ρ κ => wf_type τ ∧ wf_row 0 ρ ∧ wf_type κ
-       end
-   
-     with wf_eff_sig (σ : eff_sig) : Prop :=
-       match σ with
-       | SSig _ τ κ => wf_type τ ∧ wf_type κ
-       | SFlip _ σ => wf_eff_sig σ
-       end. 
-   
-     Lemma wf_eff_sig_SSig_1 s τ κ :
-       wf_eff_sig (SSig s τ κ) → wf_type τ.
-     Proof. intros (?&?). done. Qed.
-   
-     Lemma wf_eff_sig_SSig_2 s τ κ :
-       wf_eff_sig (SSig s τ κ) → wf_type κ.
-     Proof. intros (?&?). done. Qed.
-   
-     Lemma wf_eff_sig_SFlip m σ :
-       wf_eff_sig (SFlip m σ) → wf_eff_sig σ.
-     Proof. done. Qed.
-   
-     Lemma wf_row_RCons m σ ρ :
-       wf_row m (RCons σ ρ) → wf_row m ρ.
-     Proof. intros (?&?). done. Qed.
-   
-     Lemma wf_row_RFlip n m ρ :
-       wf_row n (RFlip m ρ) → wf_row n ρ.
-     Proof. done. Qed.
-   
-     Lemma wf_row_RRec n ρ :
-       wf_row n (RRec ρ) → wf_row (n+1) ρ. 
-     Proof. 
-       induction ρ; try done.
-     Qed. 
-   
-     Lemma wf_type_row τ ρ κ :
-       wf_type (TArrow τ ρ κ) → wf_row 0 ρ.
-     Proof. 
-       intros (?&?&?); done.
-     Qed. 
-   
-     Lemma wf_row_eff_sig m ρ e :
-       wf_row m (RCons e ρ) → wf_eff_sig e. 
-     Proof. by intros (?&?). Qed.
-   
-     Lemma wf_row_union_1 m ρ1 ρ2 : 
-       wf_row m (RUnion ρ1 ρ2) → wf_row m ρ1.
-     Proof. by intros (?&?). Qed.
-   
-     Lemma wf_row_union_2 m ρ1 ρ2 :
-       wf_row m (RUnion ρ1 ρ2) → wf_row m ρ2.
-     Proof. by intros (?&?). Qed.
-   
-   End wellformedness.  *)
-
-
 Declare Scope FType_scope.
 Delimit Scope FType_scope with ty.
 Bind Scope FType_scope with type.
@@ -887,7 +799,6 @@ Notation "'ℤ'" := TInt : FType_scope.
 Notation "'ℕ'" := TNat : FType_scope.
 Notation "'𝔹'" := TBool : FType_scope.
 
-(* Notation "# x" := (TVar x) (at level 100, x at next level): FType_scope. *)
 Infix "*" := TProd : FType_scope.
 Notation "(*)" := TProd (only parsing) : FType_scope.
 Infix "+" := TSum : FType_scope.
@@ -928,42 +839,6 @@ Notation "¡[ m ] ρ" := (RFlip m ρ) (at level 10, ρ at next level, right asso
 
 Section ctx.
 
-  (* (* A ctx is a multiset of key-value pairs restricting the value to be the same for each instance of the key *)
-     Definition ctx := gmap string (type * nat).
-     
-     (* insert sets the multiplicity to 1 *)
-     Definition ctx_insert (x : string) (t : type) (Γ : ctx) : ctx := <[ x := (t, 1) ]> Γ.
-     
-     (* duplicate a variable in the ctx *)
-     Definition ctx_contraction (x : string) (Γ : ctx) : ctx :=
-       match Γ !! x with
-       | Some (t, n) => <[ x := (t, S n) ]> Γ
-       | None => Γ
-       end. 
-     
-     Definition ctx_remove (x : string) (Γ : ctx) : ctx :=
-     match Γ !! x with
-     | Some (t, S n) => 
-         if decide (n = 0) 
-         then delete x Γ 
-         else <[ x := (t, n) ]> Γ
-     (* Not strictly necessary since we remove an instance of 0 multiplicity *)
-     | Some (t, 0) => delete x Γ
-     | _ => Γ
-     end.
-     
-     Definition ctx_lookup (x : string) (Γ : ctx) : option type := fmap fst (Γ !! x).
-     
-     (* We shouldn't merge to ctx where (x : t) ∈ Γ1 and (x : t') ∈ Γ2 s.t. t ≠ t'  *)
-     Definition merge_aux : option (type * nat) → option (type * nat) → option (type * nat) :=
-       λ a b,
-         match a, b with
-         | x, None
-         | None, x => x
-         | Some (t, n), Some (t', n') => Some (t, n + n')
-         end. 
-     Definition ctx_append (Γ1 Γ2 : ctx) : ctx := gmap_merge _ _ _ merge_aux Γ1 Γ2. *)
-
   Definition ctx := list (string * type).
   
   Definition ctx_insert (x : binder) (t : type) (Γ : ctx) := match x with 
@@ -977,26 +852,6 @@ Section ctx.
   
   Definition ctx_dom (Γ : ctx) : gset string := ⋃ ((λ '(s, _), {[s]}) <$> Γ).
 
-  (* Definition ctx := gmap string (list type).
-     
-     Definition ctx_insert (x : string) (τ : type) (Γ : ctx) :=
-       match Γ !! x with
-       | None => <[ x := [τ] ]> Γ
-       | Some ls => <[ x := τ :: ls ]> Γ
-       end.
-     
-     Definition ctx_overwrite (x : string) (τ : type) (Γ : ctx) := <[ x := [τ] ]> Γ.
-     
-     Definition merge_aux : option (list type) → option (list type) → option (list type) :=
-       λ xs ys, match xs, ys with
-                | x, None
-                | None, x => x
-                | Some x, Some y => Some (x ++ y)
-                end.
-     Definition ctx_append (Γ1 Γ2 : ctx) : ctx := gmap_merge _ _ _ merge_aux Γ1 Γ2.
-     
-     Definition ctx_dom (Γ : ctx) := dom Γ. *)
-
   Global Instance elem_binder_string : (ElemOf binder stringset) | 10 := 
     (λ b xs, match b with
                BAnon => False%type
@@ -1007,10 +862,6 @@ Section ctx.
 End ctx.
 
 Notation "'<[' x ':=c' t ']>' Γ" := (ctx_insert x t Γ).
-(* Notation "'<[' x ':=o' t ']>' Γ" := (ctx_overwrite x t Γ). *)
-(* Notation "Γ '!!c' x" := (ctx_lookup x Γ) (at level 100, x at next level). *)
-(* Notation "'<[' x ':=c + ]>' Γ" := (ctx_contraction x Γ).
-   Notation "'<[' x ':=c - ]>' Γ" := (ctx_remove x Γ). *)
 Notation "Γ1 ';;' Γ2" := (ctx_append Γ1 Γ2) (at level 100).
 
 (** * Weakening Relation. *)
@@ -1075,7 +926,6 @@ Module le.
       | RVar _ => ∅
       | RCons σ ρ => {[+ eff_name_from_sig σ +]} ⊎ conc_sigs ρ
       | RFlip _ ρ => conc_sigs ρ
-      (* | RRec ρ => conc_sigs ρ *)
       | RUnion ρ1 ρ2 => conc_sigs ρ1 ⊎ conc_sigs ρ2
       end.
 
@@ -1088,7 +938,6 @@ Module le.
          | RVar i => {[i]}
          | RCons _ ρ
          | RFlip _ ρ => abst_sigs ρ
-         (* | RRec ρ => abst_sigs ρ *)
          | RUnion ρ1 ρ2 => abst_sigs ρ1 ∪ abst_sigs ρ2
          end. 
 
@@ -1137,8 +986,6 @@ Module le.
     - eapply union_subseteq in Hsub as (H1&H2).
       apply set_Forall_union; eauto.
   Qed. 
-
-
 
   (* The function [row_to_disj_ctx ρ'] builds a disjointness context by
      exploiting the assumption that there is no aliasing among the dynamic
@@ -1194,14 +1041,9 @@ Module le.
     _row D b ρ2 ρ3 →
     _row D b ρ1 ρ3
 
-  (* | RUnfold_le D b ρ : _row D b (RRec ρ) (ρ.[RRec ρ/])
-     | RFold_le D b ρ : _row D b (ρ.[RRec ρ/]) (RRec ρ) *)
-
   | RFlipNil_le D b m : _row D b (RFlip m RNil) RNil
   | RFlipCons_le D b m σ ρ : _row D b (RFlip m (RCons σ ρ)) (RCons (SFlip m σ) (RFlip m ρ))
   | RFlipUnion_le D b m ρ1 ρ2 : _row D b (RFlip m (RUnion ρ1 ρ2)) (RUnion (RFlip m ρ1) (RFlip m ρ2))
-  (* | RFlipRec_le D b m ρ :
-       _row D b (RFlip m ρ) ρ → _row D b (RFlip m (RRec ρ)) (RRec ρ) *)
   | RFlipElim_le D b ρ : _row D b (RFlip MS ρ) ρ
   | RFlipIntro_le D b m ρ : _row D b ρ (RFlip m ρ)
   | RFlipIdemp1_le D b m ρ : _row D b (RFlip m (RFlip m ρ)) (RFlip m ρ)
@@ -1210,7 +1052,6 @@ Module le.
     _mode m m' →
     _row D b ρ' ρ →
     _row D b (RFlip m' ρ') (RFlip m ρ)
-  (* add rules for flip and union *)
          
          (* RFlipComm is derivable *)
 
@@ -1236,7 +1077,6 @@ Module le.
     _type (le.shift_disj_ctx D) α β → _type D (TForallR α) (TForallR β)
   | TForallM_le D α β :
     _type D α β → _type D (TForallM α) (TForallM β)
-  (* | TRec_le D α β : _type D α β → _type D (TRec α) (TRec β) *)
   | TProd_le D α α' β β' :
     _type D α α' → _type D β β' → _type D (TProd α β) (TProd α' β')
   | TSum_le D α α' β β' :
@@ -1247,8 +1087,6 @@ Module le.
   | TBangInt_le D m : _type D TInt (TBang m TInt)
   | TBangNat_le D m : _type D TNat (TBang m TNat)
   | TBangTop_le D m : _type D TTop (TBang m TTop)
-  (* TBangRef_le removed: it was unsound (made le.MultiT (TRef α)
-     derivable, but sem_ty_ref has no duplicable invariant). *)
   (* | TBangTape_le D m : _type D TTape (TBang m (TTape α)) *)
   | TBangOS_le D α : _type D α (TBang OS α)
   | TBangIdemp1_le D m α : _type D (TBang m α) (TBang m (TBang m α))
@@ -1266,15 +1104,7 @@ Module le.
   (* A nat is an int (nat literals ARE int literals). *)
   | TNat_le_TInt D : _type D TNat TInt.
 
-  (* Definition list_type_le D (ts rs : list type) : Prop :=
-       ∃ l, l ⊆+ rs → Forall2 (_type D) ts l.  
-     
-     Definition _ctx (D : disj_ctx) (Γ1 Γ2 : ctx) : Prop := Forall (λ (y : (string * list type)), let (x, ts) := y in
-                                                                      match Γ1 !! x with
-                                                                              | None => False 
-                                                                              | Some rs => list_type_le D rs ts
-                                                                              end) (map_to_list Γ2). *)
-  (* swappingh hte order oof the contexts *)
+
   Fixpoint _ctx (D : disj_ctx) (Γ Γ' : ctx) : Prop := 
     match Γ' with
     | [] => True
@@ -1282,20 +1112,12 @@ Module le.
         ∃ t' pre post, Γ = pre ++ (x, t') :: post ∧ _type D t' t ∧ _ctx D (pre ++ post) Γ_tail
   end.
 
-  (* Fixpoint _ctx D (Γ Γ' : ctx) : Prop := 
-       match Γ, Γ' with
-       | (x,t) :: Γ, [] => False
-       | (x,t) :: Γ, (x',t') :: Γ' => x = x' ∧ _type D t t' ∧ _ctx D Γ Γ'
-       | [], _ => True
-       end.  *)
-
   Definition MultiT (τ : type) : Prop := _type ∅ τ (![MS] τ).
 
   Definition OnceR (ρ : row) : Prop := ∃ b, _row ∅ b (RFlip OS ρ) ρ.
 
   (* Lifting Multi from types to ctx *)
   (* for multiset map *)
-  (* Definition MultiC (Γ : ctx) : Prop := Forall MultiT (fmap fst (fmap snd (map_to_list Γ))). *)
   (* for lists *)
   Definition MultiC (Γ : ctx) : Prop := Forall MultiT (snd <$> Γ).
 
@@ -1436,12 +1258,6 @@ Module vars.
   Definition _row : row → gset eff_name :=
     _row_pre _ty.
   
-  (* Definition _ctx (Γ : ctx) : gset eff_name :=
-       ⋃ ((λ '(_, (α, _)), _ty α) <$> (map_to_list Γ)). *)
-  (* Definition _ctx (Γ : ctx) : gset eff_name :=
-         ⋃ ((λ '(_, α), _ty α) <$> Γ). *)
-  (* Definition _ctx (Γ : ctx) : gset eff_name :=
-        ⋃ ((λ '(_, αs), ⋃ (_ty <$> αs)) <$> (map_to_list Γ)). *)
   Definition _ctx (Γ : ctx) : gset eff_name :=
     ⋃ ((λ '(_, α), _ty α) <$> Γ).
 
@@ -1606,8 +1422,6 @@ Inductive typed :
      Δ .| <[x:=c τ]> (⤉ Γ2)
        ⊢ₜ e2 : rename_type_row (+1) ρ : τ2.[ren (+1)] ⊣ (⤉ Γ3) →
      Δ .| Γ1 ⊢ₜ (unpack: x := e1 in e2) : ρ : τ2 ⊣ Γ3
-(* TODO: add to subsumption rules
-   | Subsume_int_nat Γ e : Γ ⊢ₜ e : TNat → Γ ⊢ₜ e : TInt *)
 
 | Effect_typed Δ Γ1 e s ρ τ Γ2 :
   let Abs_ρ := RCons (SAbs s) ρ in
