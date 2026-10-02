@@ -8,7 +8,7 @@ From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Import iprop invariants.
 
 (* Local imports *)
-From clutch.prob_eff_lang.probblaze Require Import notation class_instances proofmode  mode sem_def sem_sig sem_types sem_row sem_env logic sem_judgement sem_operators pure_weakestpre.
+From clutch.prob_eff_lang.probblaze Require Import notation class_instances proofmode  mode sem_def sem_sig sem_types sem_row sem_env logic sem_judgement sem_operators pure_weakestpre tactics.
 
 
 Open Scope stdpp_scope.
@@ -89,30 +89,72 @@ Section compatibility.
     iIntros (γ) "!# /= [%v (%Hrw & [] & _)] /=". 
   Qed.
 
-  (* Lemma sem_typed_closure τ ρ κ f x e1 e2 :
-       match f with BNamed f => BNamed f ≠ x | BAnon => True end →
-       sem_typed ((x, τ) :: (f, τ -{ ρ }-> κ) :: []) e1 e2 ρ κ [] -∗ 
-       ⊨ᵥ (rec: f x := e1) ≤ (rec: f x := e2): (τ -{ ρ }-> κ).
-     Proof.
-       iIntros (?) "#He !#". iLöb as "IH".
-       rewrite /sem_ty_arr /sem_ty_mbang /=.
-       iIntros "%v !# Hτ /=".
-       ewpw_pure_steps. destruct x as [|x]; destruct f as [|f]; simpl.
-       - rewrite - {3} [e]subst_map_empty.
-         iApply (ewpw_mono with "[He]"); first (by iApply "He").
-         iIntros "!# % [$ _] //=". 
-       - rewrite -subst_map_singleton.
-         iApply ewpw_mono; [iApply "He"; solve_env|solve_env].
-         iIntros "!# % [$ _] //=".
-       - rewrite -subst_map_singleton.
-         iApply (ewpw_mono with "[Hτ]"); [iApply "He"; solve_env|solve_env].
-         iIntros "!# % [$ _] //=".
-       - rewrite -(subst_map_singleton f) -subst_map_singleton subst_map_union.
-         iApply (ewpw_mono with "[Hτ]"); [iApply "He"|iIntros "!# % [$ _] //="].
-         rewrite -insert_union_singleton_r; [solve_env|apply lookup_singleton_ne];
-         intros ?; simplify_eq.
-     Qed. *)
+  Lemma sem_typed_closure τ ρ κ f x e1 e2 m :
+    match f with BNamed f => BNamed f ≠ x | BAnon => True end →
+    ⊢ sem_typed ((x, τ) ::? (f, τ -{ ρ }-[m]-> κ) ::? []) e1 e2 ρ κ [] -∗ 
+    ⊨ᵥ (rec: f x := e1) ≤ (rec: f x := e2): (τ -{ ρ }-[m]-> κ).
+  Proof.
+    iIntros (?) "#He !#". iLöb as "IH".
+    rewrite /sem_ty_arr /sem_ty_mbang /=.
+    destruct m; simpl; last first.
+    - iIntros "%v1 %v2 !# Hτ /=".
+      brel_pures_l. brel_pures_r.
+      destruct x; destruct f.
+      + rewrite -!subst_map_binder_insert_2_empty /sem_typed /=.
+        eassert (subst_map ∅ e1 = subst_map (fst <$> ∅) e1) as -> by done.
+        eassert (subst_map ∅ e2 = subst_map (snd <$> ∅) e2) as -> by done.
+        iApply brel_wand; [by iApply "He"|].
+        iIntros (??) "!# ($&_)".
+      + simpl. rewrite -!subst_map_singleton.
+        eassert ({[s := (rec: s <> := e1)%V]} = fst <$> {[s := ((rec: s <> := e1)%V, (rec: s <> := e2)%V)]}) as -> by (rewrite fmap_insert //=).
+        eassert ({[s := (rec: s <> := e2)%V]} = snd <$> {[s := ((rec: s <> := e1)%V, (rec: s <> := e2)%V)]}) as -> by (rewrite fmap_insert //=).
+        iApply brel_wand; [iApply "He"|iIntros (??) "!# ($&_)"].
+        solve_env.
+      + simpl. rewrite -!subst_map_singleton.
+        eassert ({[s := v1]} = fst <$> {[s := (v1, v2)]}) as -> by (rewrite fmap_insert //=).
+        eassert ({[s := v2]} = snd <$> {[s := (v1, v2)]}) as -> by (rewrite fmap_insert //=).
+        iApply (brel_wand with "[Hτ]"); [iApply "He"|iIntros (??) "!# ($&_)"].
+        solve_env.
+      + rewrite -!subst_map_binder_insert_2_empty //=.
+        eassert (<[s0 := _]> (<[s:=v1]> ∅) = fst <$> (<[s0:=(_,(rec: s0 s := e2)%V)]> (<[s:=(v1, v2)]> ∅))) as -> by (rewrite !fmap_insert //=).
+        eassert (<[s0 := _]> (<[s:=v2]> ∅) = snd <$> (<[s0:=((rec: s0 s := e1)%V,_)]> (<[s:=(v1, v2)]> ∅))) as -> by (rewrite !fmap_insert //=).
+        iApply (brel_wand with "[Hτ]"); [iApply "He"|iIntros (??) "!# ($&_)"].
+        solve_env. 
+        by assert (s ≠ s0) by (intros ?; simplify_eq).
+    - iIntros "%v1 %v2 Hτ /=".
+      brel_pures_l. brel_pures_r.
+      destruct x; destruct f.
+      + rewrite -!subst_map_binder_insert_2_empty /sem_typed /=.
+        eassert (subst_map ∅ e1 = subst_map (fst <$> ∅) e1) as -> by done.
+        eassert (subst_map ∅ e2 = subst_map (snd <$> ∅) e2) as -> by done.
+        iApply brel_wand; [by iApply "He"|].
+        iIntros (??) "!# ($&_)".
+      + simpl. rewrite -!subst_map_singleton.
+        eassert ({[s := (rec: s <> := e1)%V]} = fst <$> {[s := ((rec: s <> := e1)%V, (rec: s <> := e2)%V)]}) as -> by (rewrite fmap_insert //=).
+        eassert ({[s := (rec: s <> := e2)%V]} = snd <$> {[s := ((rec: s <> := e1)%V, (rec: s <> := e2)%V)]}) as -> by (rewrite fmap_insert //=).
+        iApply brel_wand; [iApply "He"|iIntros (??) "!# ($&_)"].
+        solve_env.
+      + simpl. rewrite -!subst_map_singleton.
+        eassert ({[s := v1]} = fst <$> {[s := (v1, v2)]}) as -> by (rewrite fmap_insert //=).
+        eassert ({[s := v2]} = snd <$> {[s := (v1, v2)]}) as -> by (rewrite fmap_insert //=).
+        iApply (brel_wand with "[Hτ]"); [iApply "He"|iIntros (??) "!# ($&_)"].
+        solve_env.
+      + rewrite -!subst_map_binder_insert_2_empty //=.
+        eassert (<[s0 := _]> (<[s:=v1]> ∅) = fst <$> (<[s0:=(_,(rec: s0 s := e2)%V)]> (<[s:=(v1, v2)]> ∅))) as -> by (rewrite !fmap_insert //=).
+        eassert (<[s0 := _]> (<[s:=v2]> ∅) = snd <$> (<[s0:=((rec: s0 s := e1)%V,_)]> (<[s:=(v1, v2)]> ∅))) as -> by (rewrite !fmap_insert //=).
+        iApply (brel_wand with "[Hτ]"); [iApply "He"|iIntros (??) "!# ($&_)"].
+        solve_env. 
+        by assert (s ≠ s0) by (intros ?; simplify_eq).
+  Qed.
   
+  Lemma sem_typed_sub v1 v2 κ τ : 
+    ⊢ κ ≤ₜ τ -∗ ⊨ᵥ v1 ≤ v2 : κ -∗ ⊨ᵥ v1 ≤ v2 : τ.
+  Proof.
+    iIntros "#Hlt #Hκ !#".
+    rewrite /sem_val_typed //=.
+    by iApply "Hlt".
+  Qed. 
+
   Lemma sem_typed_Tclosure τ v1 v2 :
     ⊢ (∀ α, ⊨ᵥ v1 ≤ v2 : τ α) -∗ 
     ⊨ᵥ v1 ≤ v2 : (∀ₜ α, τ α).
