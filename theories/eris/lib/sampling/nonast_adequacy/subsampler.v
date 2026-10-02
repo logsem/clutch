@@ -7,38 +7,30 @@ Section subsampler.
   Definition μ_div : R := 1 - SeriesC μ.
   Definition μ_mass := SeriesC μ.
   Lemma μ_div_half : (μ_div = 1/2)%R.
-  Admitted.
+    rewrite /μ_div.
+    rewrite /μ.
+    rewrite SeriesC_singleton.
+    lra.
+  Qed. 
 
   Definition subsampler : expr := if: (rand #1 = #1) then #true else (rec: "loop" <> := "loop" #()) #().
 
-  Lemma μmass_μv_μdiv v : (μ_mass - μ v + μ_div = 1 - μ v)%R.
-  Admitted. 
-
-  Lemma twp_subsampler_spec `{erisGS Σ} v :
-    [[{ ↯ (1 - μ v) }]] subsampler [[{ w, RET w; ⌜ w = v ⌝ }]].
+  Lemma twp_subsampler_spec `{erisGS Σ} :
+    [[{ ↯ μ_div }]] subsampler [[{ w, RET w; True }]].
   Proof.
-    destruct (bool_decide (v = #true)) eqn:Heq.
-    - unfold μ. 
-      rewrite Heq. simpl. 
-      assert (1 - (1 / 2) = 1 / 2)%R as -> by lra.
-      iIntros (Φ) "Herr HΦ".
-      unfold subsampler.
-      wp_apply (twp_rand_err_nat _ _ 0).      
-      iSplitL "Herr".
-      { by rewrite Rdiv_1_l. }
-      iIntros (x(Hle&Hneq)).
-      wp_pures. 
-      rewrite bool_decide_eq_true_2; last first.
-      { f_equal. apply Nat.le_1_r in Hle as [-> | ->]; done. }
-      wp_pures.
-      apply bool_decide_eq_true_1 in Heq.
-      by iApply "HΦ". 
-    - unfold μ. 
-      rewrite Heq. simpl.
-      iIntros (Φ) "Herr". 
-      by iDestruct (ec_contradict with "Herr") as "%"; first lra.
-  Qed. 
-
+    iIntros (Φ) "Herr HΦ".
+    unfold subsampler.
+    wp_apply (twp_rand_err_nat _ _ 0).      
+    iSplitL "Herr".
+    { rewrite μ_div_half. by rewrite Rdiv_1_l. }
+    iIntros (x(Hle&Hneq)).
+    wp_pures. 
+    rewrite bool_decide_eq_true_2; last first.
+    { f_equal. apply Nat.le_1_r in Hle as [-> | ->]; done. }
+    wp_pures.
+    by iApply "HΦ".
+  Qed.
+  
   Lemma wp_subsampler `{erisGS Σ} ε D :
     (0 <= ε)%R →
     (∀ (v : val), 0 <= D v <= 1)%R →
