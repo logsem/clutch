@@ -200,7 +200,7 @@ Notation "⊨ᵥ v '≤log≤' v' : τ" :=
          format "'[hv' ⊨ᵥ  '/  ' v  '/' '≤log≤'  '/  ' v'  : τ ']'").
 
 Notation "⟨ Δ ';' Γ ⟩ ⊨ₚ e '≤log≤' e' : τ" :=
-  (bin_log_pure_related e%E e'%E (τ)%ty)
+  (bin_log_pure_related Δ Γ e%E e'%E (τ)%ty)
     (at level 100,  e, e' at next level,
        τ at level 200,
          format "'[hv' ⟨ Δ ';' Γ ⟩ ⊨ₚ  '/  ' e  '/' '≤log≤'  '/  ' e'  : τ ']'").
