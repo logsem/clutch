@@ -20,7 +20,7 @@ Open Scope bi_scope.
 Section compatibility.
 
   Context `{!probblazeRGS Σ}.
-
+   
    Lemma sem_oval_typed_val τ v1 v2 : 
     ⊢ ⊨ᵥ v1 ≤ v2 : τ -∗ sem_oval_typed [] v1 v2 τ.
    Proof.
@@ -33,7 +33,7 @@ Section compatibility.
   Lemma sem_typed_oval τ Γ1 Γ2 e1 e2 :
     ⊢ (sem_oval_typed Γ1 e1 e2 τ) -∗ (sem_typed (Γ1 ++ Γ2) e1 e2 ⟨⟩ τ Γ2).
   Proof.
-    iIntros "#Hv !# %γ HΓ12 /=". 
+    iIntros "#Hv !# %γ HΓ12 /=".
     iApply prel_brel. 
     rewrite env_sem_typed_app. iDestruct "HΓ12" as "(HΓ1 & HΓ2)". 
     iDestruct ("Hv" with "HΓ1") as "Hprel".
@@ -455,7 +455,7 @@ Section compatibility.
        ⊢ sem_typed ((x, τ) ::? (f, τ -{ ρ }-> κ) ::? Γ1) e1 e2 ρ κ [] -∗
        sem_oval_typed Γ1 (rec: f x := e1) (rec: f x := e2) (τ -{ ρ }-> κ).
      Proof.
-        iIntros (???) "#He !# %γ #HΓ1 //=".
+       iIntros (???) "#He !# %γ #HΓ1 //=".
        rewrite /prel /=. iExists _,_,1%nat,1%nat.
        iSplit; first (iPureIntro; repeat split; by apply pure_recc).
        iLöb as "IH". rewrite /sem_ty_mbang /sem_ty_arr /=.
@@ -463,17 +463,19 @@ Section compatibility.
        iApply brel_pure_step_r; first done.
        iApply brel_pure_step_later; first done. iModIntro.
        destruct f; destruct x; simpl.
-       - iApply brel_wand; [by iApply "He"|iIntros (??) "!# ($&_)"].
-       - rewrite -!subst_map_insert.
+       - iApply brel_wand;
+         [by iApply "He"|iIntros (??) "!# ($&_)"].
+       - rewrite -!subst_map_insert. 
          assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (->&->) by done.
-         rewrite -!fmap_insert. simpl. 
+         rewrite -!fmap_insert. simpl.  
          iApply (brel_wand with "[Hτ]"); [iApply "He"|iIntros (??) "!# ($&_)"].
          solve_env.
        - rewrite -!subst_map_insert.
          assert ((rec: _ _ := _)%V = fst (_,(rec: s <> := subst_map (delete s (snd <$> γ)) e2)%V)) as -> by done.
          assert ((rec: s <> := subst_map _ e2)%V = snd ((rec: s <> := subst_map (delete s (fst <$> γ)) e1)%V, _)) as -> by done.
          rewrite -!fmap_insert; simpl.
-         iApply brel_wand; [iApply "He"|iIntros (??) "!# ($&_)"].
+         iApply brel_wand;
+         [iApply "He"|iIntros (??) "!# ($&_)"].
          solve_env.
        - assert (s ≠ s0) by (intros ?; simplify_eq).
          do 2 (rewrite subst_subst_ne; last done;
@@ -541,7 +543,7 @@ Section compatibility.
     destruct f as [|sf]; destruct x as [|sx]; simpl.
     - iApply env_le_refl.
     - iApply env_le_refl.
-    - iApply env_le_cons; [iApply env_le_refl|iApply ty_le_mbang_elim_MS].
+    - iApply env_le_cons; [iApply env_le_refl| iApply ty_le_mbang_elim_MS].
     - (* [(sx,τ) :: (sf, ![MS]arr) :: Γ1] ≤ₑ
          [(sf, ![m]arr) :: (sx,τ) :: Γ1].  Swap then weaken [sf]. *)
       iApply env_le_trans; [iApply env_le_swap_second|].
