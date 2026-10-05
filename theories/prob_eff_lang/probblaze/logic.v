@@ -2298,6 +2298,25 @@ Section to_iThy.
       - by apply labels_r_submseteq.
     Qed.
 
+
+    (* [valid]/[distinct] decompose over [iLblThy] append. *)
+    Lemma valid_app (L M : iLblThy Σ) :
+      valid (L ++ M) ⊣⊢ valid L ∗ valid M.
+    Proof.
+      rewrite /valid /valid_l /valid_r /labels_l /labels_r
+        !fmap_app !concat_app.
+      rewrite !big_sepL_app. iSplit; iIntros "[[$$][$$]]".
+    Qed.
+
+    Lemma distinct_app_iff (L M : iLblThy Σ) :
+      distinct (L ++ M) → distinct L ∧ distinct M.
+    Proof.
+      rewrite /distinct /distinct_l /distinct_r /labels_l /labels_r
+        !fmap_app !concat_app.
+      intros [Hl%NoDup_app Hr%NoDup_app].
+      split; split; tauto.
+    Qed.
+
     Lemma to_iThy_le_intro' (L M : iLblThy Σ) : L ⊆+ M → ⊢ to_iThy_le L M.
     Proof.
       intros Hsubmseteq. iSplit; [|iSplit].
