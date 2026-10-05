@@ -558,22 +558,6 @@ Proof.
   pose proof (fin_to_nat_lt x); apply le_INR; lia.
 Qed.
 
-(** This is just a wrapper for tp_alloctape that works with nats
-    TODO : Make into tactic *)
-(* Lemma wp_alloc_tape_r N z E e K Φ :
-     TCEq N (Z.to_nat z) →
-     ⤇ fill K (alloc #z) ∗
-       (∀ α, ⤇ fill K #lbl:α -∗ α ↪ₛN (N; []) -∗ WP e @ E {{ Φ }})
-       ⊢ WP e @ E {{ Φ }}.
-   Proof.
-     iIntros (->) "(Hj & Hwp)".
-     tp_alloctape as α "Hα".
-     iApply ("Hwp" with "Hj").
-     iFrame.
-     iPureIntro.
-     auto.
-   Qed. *)
-
 (** spec [rand(α)] with empty tape  *)
 Lemma wp_rand_empty_r N z E e K α Φ :
   TCEq N (Z.to_nat z) →
@@ -609,24 +593,6 @@ Proof.
   iPureIntro.
   pose proof (fin_to_nat_lt x); apply le_INR; lia.
 Qed.
-
-
-(** This is just a wrapper for tp_rand that works with nats
-    TODO: Make into tactic *)
-(* Lemma wp_rand_tape_r N z E e K α Φ n ns :
-     TCEq N (Z.to_nat z) →
-     ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (N; n::ns) ∗
-       ((α ↪ₛN (N; ns) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
-       ⊢ WP e @ E {{ Φ }}.
-   Proof.
-     iIntros (Heq) "(Hj & Hα & Hwp)".
-     iDestruct (read_spec_tape_head with "Hα") as (x xs) "(Hl&<-&Hret)".
-     tp_rand.
-     iDestruct ("Hret" with "Hl") as "Hret".
-     iApply ("Hwp" with "[$]").
-     iPureIntro.
-     pose proof (fin_to_nat_lt x); lia.
-   Qed. *)
 
 
   (** spec [rand(α)] with wrong tape  *)
