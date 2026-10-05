@@ -14,7 +14,6 @@ From clutch.prob_eff_lang.probblaze Require Import  notation syntax notation sem
 Import uPred.
 
 (* Taken from the blaze logic *)
-(* Omitted the iThyMono since we don't have one shots for now *)
 (* ========================================================================= *)
 (* Relational Theories. *)
 
@@ -560,19 +559,6 @@ Notation "'REL' e1 ≤ e2 @ E <| X | > {{ R } }" :=
 Notation "'REL' e1 ≤ e2 <| X | > {{ R } }" :=
   (rel ⊤ e1%E e2%E X%I R%I)
   (at level 20, e1, e2, X, R at next level, only parsing) : bi_scope.
-
-(* Notation "'REL' e1 ≤ e2 @ E  <| X | > {{ v1 ; v2 , Q } }" :=
-     (rel E e1%E e2%E X%I (λ v1 v2, Q)%I)
-     (at level 20, E, e1, e2, X, Q at next level,
-     format "'[hv' 'REL'  e1  ≤  e2 @ E  '/' <| X | >  '/' {{  '[' v1  ;  v2 ,  '/' Q  ']' } } ']'") : bi_scope. *)
-
-(* Notation "'REL' e1 ≤ e2  <| X | > {{ v1 ; v2 , Q } }" :=
-     (rel ⊤ e1%E e2%E X%I (λ v1 v2, Q)%I)
-     (at level 20, e1, e2, X, Q at next level,
-     format "'[hv' 'REL'  e1  ≤  e2   '/' <| X | >  '/' {{  '[' v1  ;  v2 ,  '/' Q  ']' } } ']'") : bi_scope. *)
-
-
-
 
 (* ------------------------------------------------------------------------- *)
 (* baze: Reasoning rules. *)
@@ -1387,26 +1373,6 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     by iApply ("Hwp" with "Hkwp Hj Hnais Herr").
   Qed.
 
-  (* Lemma rel_allocN_l X R k1 (n1 : Z) v1 e2 :
-       (0 < n1)%Z →
-       ▷ (∀ l1,
-           ([∗ list] i ∈ seq 0 (Z.to_nat n1),
-             (l1 +ₗ (i : nat))%E ↦ v1
-            ) -∗
-           REL fill k1 #l1 ≤ e2 <|X|> {{R}}) -∗
-       REL fill k1 (AllocN #n1 v1) ≤ e2 <|X|> {{R}}.
-     Proof.
-       rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
-       iIntros "%Hgt_0 Hrel %k1' %k2' %S Hkwp %j %k2'' #Hspec Hj".
-       iEval (rewrite -fill_app).
-       iApply wp_allocN; first done. iModIntro.
-       iIntros "!> %l1 Hpoints_to".
-       iSpecialize ("Hrel" with "Hpoints_to").
-       rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_eq fill_app.
-       iApply fupd_wp.
-       by iApply ("Hrel" with "Hkwp Hspec Hj").
-     Qed. *)
-
   Lemma rel_alloc_l E X R k1 v1 e2 :
     ▷ (∀ l1, l1 ↦ v1 -∗  REL fill k1 #l1 ≤ e2 @ E <|X|> {{R}}) -∗
     REL fill k1 (ref v1) ≤ e2 @ E <|X|> {{R}}.
@@ -1462,22 +1428,6 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     iApply (wp_load with "Hl"). iModIntro. iNext. iIntros "Hl !>".  iFrame.
     by iApply "Hrel".
   Qed.
-
-  (* Lemma rel_load_l_inv N P K l q e2 X R :
-       inv N P -∗
-       (▷ P -∗ na_closeP P N ⊤ -∗
-        ∃ v',
-        ▷ l ↦{q} v' ∗
-        ▷ (l ↦{q} v' -∗ (REL fill K (of_val v') ≤ e2 @ (⊤ ∖ ↑N) <|X|> {{R}}))) -∗
-       REL fill K (! #l) ≤ e2 <|X|> {{R}}.
-     Proof.
-       iIntros "Hinv Hrel".
-       iApply rel_load_l_mask.
-       iMod (inv_acc with "Hinv") as "[HP Hclose]"; auto.
-       iModIntro.
-       iDestruct ("Hrel" with "HP Hclose") as "[%v' [Hl Hrel]]".
-       iExists v'. by iFrame.
-     Qed. *)
 
   Lemma rel_load_r_with_mask E X R e1 k2 l2 dq2 v2 :
     l2 ↦ₛ{dq2} v2 -∗
@@ -2014,10 +1964,6 @@ Notation "'BREL' e1 ≤ e2 @ E <| L | > {{ R } }" :=
 Notation "'BREL' e1 ≤ e2 <| L | > {{ R } }" :=
   (brel ⊤ e1%E e2%E L%I R%I)
       (at level 20, e1, e2, L, R at next level, only parsing) : bi_scope.
-(* Notation "'BREL' e1 ≤ e2  <| L | > {{ v1 ; v2 , Q } }" :=
-     (brel e1%E e2%E L%I (λ v1 v2, Q)%I)
-     (at level 20, e1, e2, L, Q at next level,
-     format "'[hv' 'BREL'  e1  ≤  e2  '/' <| L | >  '/' {{  '[' v1  ;  v2 ,  '/' Q  ']' } } ']'") : bi_scope. *)
 
 (* ------------------------------------------------------------------------- *)
 (* Properties of [to_iThy]. *)

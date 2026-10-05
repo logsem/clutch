@@ -15,8 +15,6 @@ Implicit Types P : iProp Σ.
 Implicit Types Φ : syntax.val → iProp Σ.
 Implicit Types v : syntax.val.
 Implicit Types e : syntax.expr.
-(* Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
-   Local Hint Resolve head_stuck_stuck : core. *)
 
 Lemma wp_lift_atomic_head_step {E Φ} e1 s :
   to_val e1 = None →

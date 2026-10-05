@@ -1766,17 +1766,6 @@ Proof.
       by apply decomp_fill_frame_2.
 Qed.
 
-(* Lemma decomp_val_empty K e e':
-     decomp e = (K, e') → is_Some (to_val e) → K = [].
-   Proof.
-     generalize dependent e'. generalize dependent e.
-     induction K as [|Ki K]; [done|].
-     intros ?? (e'' & Hrei & Hre)%decomp_inv_cons Hv.
-     specialize (IHK _ _ Hre Hv). simplify_eq.
-     apply decomp_inv_nil in Hre as [? ?]; simplify_eq.
-     by apply decomp_fill_item_2 in Hrei as [_ ?%eq_None_not_Some].
-   Qed.    *)
-
 Lemma fill_dmap e1 σ1 K :
   to_eff e1 = None →
   to_val e1 = None →
@@ -1803,8 +1792,6 @@ Proof.
   extensionality ρ. destruct ρ.
   rewrite /fill_lift. done.
 Qed.
-
-
 
 Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).
 
