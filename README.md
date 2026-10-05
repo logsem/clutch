@@ -1,3 +1,5 @@
+This is a fork of the clutch project in which I will do my M1 internship work.
+
 # Clutch Project
 
 This repository contains the formal development of a number of higher-order probabilistic separation logics for proving properties of higher-order probabilistic programs.
