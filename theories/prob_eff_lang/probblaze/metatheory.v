@@ -882,14 +882,6 @@ Lemma subst_rec_ne' f y e x v :
   val_subst' x v (Rec f y e) = Rec f y (val_subst' x v e).
 Proof. intros. destruct x; simplify_option_eq; naive_solver. Qed.
 
-(* Lemma bin_op_eval_closed op v1 v2 v' :
-     is_closed_val v1 → is_closed_val v2 → bin_op_eval op v1 v2 = Some v' →
-     is_closed_val v'.
-   Proof.
-     rewrite /bin_op_eval /bin_op_eval_bool /bin_op_eval_int /bin_op_eval_loc.
-     repeat case_match; _solver.
-   Qed. *)
-
 Lemma heap_closed_alloc σ l n w :
   (0 < n)%Z →
   is_closed_val w →
