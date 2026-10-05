@@ -47,8 +47,7 @@ Section parallel_composition.
   Notation "F ∘f G" := (func_comp F G) (at level 10).
 
   Definition τ := ( ∀ᵣ θ, ∀ₜ α ,α ⊸ 𝟙)%T.
-  
-  (* changed the type of τ__f to be a function that can be applied multiple times *)
+    
   Definition τ__f θ τ1' τ2' := (∀ᵣ θ1, ∀ᵣ θ2, τ1' θ1 ⊸ τ2' θ2 -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙)%T.
   Definition τ__F τ τ' := (∀ᵣ θ, (∀ᵣ θ₁, τ' θ₁ -{ sem_row_union θ₁ θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union θ₂ θ }-∘ 𝟙))%T.
   Definition τ__FO τ τ' := (∀ᵣ θ, (∀ᵣ θ₁, τ' θ₁ -{ sem_row_union (¡θ₁) θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union (¡θ₂) θ }-∘ 𝟙))%T.
@@ -130,7 +129,6 @@ Section parallel_composition.
   Proof.
     iIntros (HF1closed HF2closed) "#HFF #HF". rewrite /sem_val_typed /sem_typed //=.
     iIntros (???) "!# Hτ'' /=".
-    (* iDestruct ("HF" $! θ ∅) as "#HFθ". *)
     iDestruct ("HF" with "Hτ''") as "HFτ".
     brel_pures'.
     erewrite !subst_is_closed; try done.
@@ -673,11 +671,6 @@ Section parallel_composition.
     sem_val_typed (F ∘F (G ∘f (λ: f x y, J)%V)) ((F ∘F G) ∘f (λ: f x y, J)%V)
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1) ⊸ (τ2 θ2) -{ sem_row_union θ1 (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T.
   Proof using All.
-    (* Mirror of [functionality_comp_func_comp_assoc_curried]: this is the
-       byte-for-byte same proof except the single [subst_is_closed] target
-       below is [G] instead of [F] (exactly as the old rev proof
-       [functionality_comp_func_comp_assoc_rev] differs from the forward one),
-       reflecting the swapped left/right programs in the statement. *)
     iIntros (Hfx Hfy Hxy HFclosed HGclosed) "#HFF #HGG #HJJ".
     rewrite /functionality_composition /func_comp //=.
     iIntros (θ f1 f2) "!# Hτ1'".
