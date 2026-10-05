@@ -9,7 +9,6 @@ From iris.base_logic Require Export iprop upred invariants.
 From clutch.prob_eff_lang.probblaze Require Import logic sem_def syntax semantics mode notation.
 
 (* Universally Quantified Effect Signature *)
-(* TODO: generalize αs to a list of types -- in affect they use a tele *)
 Program Definition sem_sig_eff {Σ} : label -d> label -d> (sem_ty Σ -d> sem_ty Σ) -d> (sem_ty Σ -d> sem_ty Σ) -d> sem_sig Σ :=
   λ op1 op2 A B,
   (@SemSig Σ (@PMonoProt Σ (λ e1 e2, λne Φ, ∃ αs v1 v2, ⌜ e1 = (do: (EffLabel op1) (Val v1))%E ⌝ ∗ ⌜ e2 = (do: (EffLabel op2) (Val v2))%E ⌝ ∗  A αs v1 v2 
@@ -49,21 +48,6 @@ Next Obligation.
   iApply pmono_prot_prop; done. 
 Qed.
 
-(* TODO: Import the rest from sem_sig *)
-
-(* (* Notations. *)
-   Notation "'∀ₛ..' tt , κ ⇒ ι" := 
-     (sem_sig_eff (λ tt, κ%T) (λ tt, ι%T))
-     (at level 80, tt binder, κ at next level, ι at next level, right associativity,
-      format "'[ ' '∀ₛ..'  tt ,  κ  ⇒  ι  ']'") : sem_sig_scope.
-   
-   Notation "'∀ₛ' x .. y , κ ⇒ ι" := 
-     (sem_sig_eff 
-     (@tele_app ((TeleS (λ x, .. (TeleS (λ y, TeleO)) ..))) (sem_ty _) (λ x, .. (λ y, κ%T) ..)) 
-     (@tele_app ((TeleS (λ x, .. (TeleS (λ y, TeleO)) ..))) (sem_ty _) (λ x, .. (λ y, ι%T) ..))) 
-     (at level 80, x binder, y binder, κ at next level, ι at next level, right associativity,
-      format "'[ ' '∀ₛ' x .. y ,  κ  ⇒  ι  ']'") : sem_sig_scope. *)
-
 Notation "⟨ op1 , op2 ⟩ : κ ⇒ ι" := 
   (@sem_sig_eff _ op1 op2 (λ _, κ%T) (λ _, ι%T))
   (at level 80, right associativity,
@@ -81,15 +65,6 @@ Notation "⟨ op1 , op2 ⟩ : '∀ₛ' α , κ '=[' m ']=>' ι" :=
   (sem_sig_flip_mbang m (sem_sig_eff op1 op2 (λ α, κ%T) (λ α, ι%T)))
   (at level 80, α binder, κ at next level, ι at next level,  right associativity,
    format "'[ ' ⟨ op1 ,  op2 ⟩  :  '∀ₛ'  α ,  κ  =[ m ]=>  ι  ']'") : sem_sig_scope.
-
-(* Notation "'∀ₛ' x .. y , κ '=[' m ']=>' ι" := 
-     (sem_sig_flip_mbang m (
-       (sem_sig_eff 
-       (@tele_app ((TeleS (λ x, .. (TeleS (λ y, TeleO)) ..))) (sem_ty _) (λ x, .. (λ y, κ%T) ..)) 
-       (@tele_app ((TeleS (λ x, .. (TeleS (λ y, TeleO)) ..))) (sem_ty _) (λ x, .. (λ y, ι%T) ..))))) 
-     (at level 80, x binder, y binder, κ at next level, ι at next level, right associativity,
-      format "'[ ' '∀ₛ' x .. y ,  κ  =[ m ]=>  ι  ']'") : sem_sig_scope. *)
-
 
 Section sig_properties.
 
@@ -120,20 +95,6 @@ Proof.
   apply sem_sig_eff_ne; intros τ'; by apply equiv_dist.
 Qed.
 
-
-(* Global Instance sem_sig_eff_pers_mono_prot {Σ} {αs : sem_ty Σ} A B :
-     PersMonoProt (@sem_sig_eff Σ αs A B).
-   Proof. constructor. iApply pmono_prot_prop. Qed. *)
-
-(* Lemma upcl_sem_sig_eff {Σ} {TT : tele} A B v Φ :
-     iEff_car (upcl MS (@sem_sig_eff Σ TT A B)) v Φ ⊣⊢
-       (∃.. αs, ∃ a, ⌜ a = v ⌝ ∗ (A αs a) ∗ □ (∀ b, (B αs b) -∗ Φ b))%I.
-   Proof.
-     assert (Hequiv: iEff_car (upcl MS (sem_sig_eff A B)) v Φ ≡ iEff_car (sem_sig_eff A B) v Φ).
-     { f_equiv. apply non_dep_fun_equiv. by rewrite pers_upcl_id. }
-     rewrite Hequiv. by apply sem_sig_eff_eq.
-   Qed. *)
-
 Global Instance sem_sig_flip_mbang_mono_prot {Σ} σ :
   MonoProt (@sem_sig_flip_mbang Σ OS σ).
 Proof.
@@ -155,12 +116,6 @@ Qed.
 
 Global Instance sem_sig_flip_mbang_proper {Σ} m : Proper ((≡) ==> (≡)) (@sem_sig_flip_mbang Σ m).
 Proof. apply ne_proper. apply _. Qed.
-
-(* Global Instance sem_sig_eff_mbang_ne2 {Σ} {TT : tele} m :
-     NonExpansive2 (λ A B, @sem_sig_flip_mbang Σ m (@sem_sig_eff Σ TT A B)).
-   Proof.
-     iIntros (???????). by repeat f_equiv.
-   Qed. *)
 
 End sig_properties.
 
@@ -187,8 +142,8 @@ Section sig_sub_typing.
     iExists v1, v2. iSplit; first done. iSplit; first done.
     iModIntro. iExists Q'. iFrame.
   Qed.
+
   (* Subtyping on Signatures *)
-  (* TODO: finish lemmas in here *)
   
   Lemma sig_le_refl {Σ} (σ : sem_sig Σ) : ⊢ σ ≤ₛ σ.
   Proof. iSplit; first done. iApply iThy_le_refl. Qed.
@@ -267,10 +222,6 @@ Section sig_sub_typing.
 
   Global Instance sig_fbang_once_sig {Σ} (σ : sem_sig Σ) : OnceS (¡ σ)%S.
   Proof. constructor. iIntros. iApply sig_le_mfbang_idemp. Qed.
-
-  (* Global Instance sig_eff_os_once {TT : tele} {Σ} (A B : tele_arg TT → sem_ty Σ) :
-       OnceS (∀ₛ.. αs , (A αs) =[ OS ]=> (B αs))%S.
-     Proof. apply _. Qed. *)
   
   Lemma sig_le_mfbang_comm {Σ} m m' (σ : sem_sig Σ) :
     ⊢ (¡[ m ] (¡[ m' ] σ)) ≤ₛ (¡[ m' ] (¡[ m ] σ)).
@@ -286,12 +237,5 @@ Section sig_sub_typing.
       iApply sig_le_mfbang_intro.
     - iApply sig_le_refl.
   Qed.
-  
-  (* Corollary sig_le_eff_mode {Σ} {TT : tele} (ι κ : tele_arg TT → sem_ty Σ) :
-       ⊢ (∀ₛ.. α , ι α =[ MS ]=> κ α) ≤ₛ (∀ₛ.. α , ι α =[ OS ]=> κ α).
-     Proof. 
-       iApply sig_le_mfbang_comp; first iApply mode_le_MS. 
-       iApply sig_le_refl. 
-     Qed. *)
 
 End sig_sub_typing.
