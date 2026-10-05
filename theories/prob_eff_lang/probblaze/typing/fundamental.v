@@ -509,11 +509,11 @@ Proof.
          ::? []] matches the body shape of [sem_oval_typed_ufun_rec]. *)
       rewrite /sem_val_typed /=.
       iAssert (sem_oval_typed [] (rec: f x := e) (rec: f x := e)
-        (sem_types.sem_ty_mbang syntax.MS (sem_types.sem_ty_arr
+        (sem_types.sem_ty_mbang (interp._mode μ m) (sem_types.sem_ty_arr
            (interp._row η μ δ ρ ξ) (interp._ty η μ δ τ1 ξ)
            (interp._ty η μ δ τ2 ξ)))) as "#Hov".
       { iApply (@sem_oval_typed_ufun_rec _ _ (interp._ty η μ δ τ1 ξ)
-                  (interp._row η μ δ ρ ξ) (interp._ty η μ δ τ2 ξ) syntax.MS [] f x
+                  (interp._row η μ δ ρ ξ) (interp._ty η μ δ τ2 ξ) (interp._mode μ m) [] f x
                   e e _).
         { destruct x as [|s];
             [intros []|rewrite env_dom_nil; apply not_elem_of_nil]. }
@@ -530,11 +530,7 @@ Proof.
         (* [Δ = ∅] here, so [resolve_l/r ∅ δ = ∅] and [lbl_resolve] is the
            identity, matching the literal body of [sem_oval_typed_ufun_rec]. *)
         iEval (rewrite !resolve_map_empty !lbl_resolve_empty) in "H".
-        destruct f as [|sf]; destruct x as [|sx]; simpl in *. (*iApply "H".*)
-        + iApply "H".
-        + iApply "H".
-        + admit.
-        + admit. }
+        destruct f as [|sf]; destruct x as [|sx]; simpl in *; iApply "H". }
       rewrite /sem_oval_typed /tc_opaque. iModIntro.
       iSpecialize ("Hov" $! ∅ with "[]"); first by rewrite env_sem_typed_empty.
       rewrite !fmap_empty !subst_map_empty /pure_weakestpre.prel /=.
@@ -550,7 +546,7 @@ Proof.
         as ->.
       pose proof (pure_weakestpre.nsteps_pure_step_det _ _ _ _ _ Hns2 Hr)
         as ->.
-      (*iApply "Hτ". *) admit.
+      iApply "Hτ".
     + (* TAbs_val_typed *) apply fundamental_val in Hv.
       rewrite /sem_val_typed /=. iModIntro. iIntros (τ0).
       iApply (sem_val_related_interp v τ (τ0 :: η) μ δ ξ Hv).
@@ -647,9 +643,12 @@ Proof.
       rewrite /sem_oval_typed /tc_opaque.
       iModIntro. iIntros (vs) "Henv".
       iApply "H"; first done. by rewrite interp.ctx_mweaken.
-      (*Unshelve.
-      done. *)
-      Admitted.
+      Set Printing All.
+      Unshelve.
+      { auto. }
+      { eapply H. }
+      { eapply H0. }
+    Qed.
 
 End fundamental.
 
