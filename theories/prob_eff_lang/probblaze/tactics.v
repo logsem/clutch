@@ -51,49 +51,18 @@ Ltac reshape_expr e tac :=
   | Rand ?e1 ?e2 => go (K ++ [RandRCtx e1]) e2
   end in go (@nil syntax.frame) e.
 
-  
- (* reshape_expr from meas_lang modified to match syntax for prob_eff_lang*) 
- Ltac reshape_expr_eff e tac :=
-    let rec go K e :=
-      match e with
-      | _ => tac K e
-      | App ?e (Val ?v) => go (AppLCtx v :: K) e
-      | App ?e1 ?e2 => go (AppRCtx e1 :: K) e2
-      | UnOp ?op ?e => go (UnOpCtx op :: K) e
-      | BinOp ?op ?e (Val ?v) => go (BinOpLCtx op v :: K) e
-      | BinOp ?op ?e1 ?e2 => go (BinOpRCtx op e1 :: K) e2
-      | If ?e0 ?e1 ?e2 => go (IfCtx e1 e2 :: K) e0
-      | Pair ?e (Val ?v) => go (PairLCtx v :: K) e
-      | Pair ?e1 ?e2 => go (PairRCtx e1 :: K) e2
-      | Fst ?e => go (FstCtx :: K) e
-      | Snd ?e => go (SndCtx :: K) e
-      | InjL ?e => go (InjLCtx :: K) e
-      | InjR ?e => go (InjRCtx :: K) e
-      | Case ?e0 ?e1 ?e2 => go (CaseCtx e1 e2 :: K) e0
-      | AllocN ?e (Val ?v) => go (AllocNLCtx v :: K) e
-      | AllocN ?e1 ?e2 => go (AllocNRCtx e1 :: K) e2
-      | Load ?e => go (LoadCtx :: K) e
-      | Store ?e (Val ?v) => go (StoreLCtx v :: K) e
-      | Store ?e1 ?e2 => go (StoreRCtx e1 :: K) e2
-      | AllocTape ?e => go (AllocTapeCtx :: K) e
-      | Rand ?e (Val ?v) => go (RandLCtx v :: K) e
-      | Rand ?e1 ?e2 => go (RandRCtx e1 :: K) e2
-      | Tick ?e => go (TickCtx :: K) e
-      | Do ?n ?e => go (DoCtx n :: K) e
-      | Handle ?hs ?m ?n ?e1 ?e2 ?e3 => go (HandleCtx hs m n e2 e3 :: K) e1
-      end in go (@ectx_item) e.
 
  (* a variant of tp_bind_helper for prob_eff_lang*)
  Ltac tp_bind_helper_eff :=
    simpl;
     lazymatch goal with
   | |- fill ?K ?e = fill _ ?efoc =>
-     reshape_expr_eff e ltac:(fun K' e' =>
+     reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
        let K'' := eval cbn[app] in (K' ++ K) in
        replace (fill K e) with (fill K'' e') by (by rewrite ?fill_app))
   | |- ?e = fill _ ?efoc =>
-     reshape_expr_eff e ltac:(fun K' e' =>
+     reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
        replace e with (fill K' e') by (by rewrite ?fill_app))
     end; reflexivity.
@@ -123,12 +92,12 @@ Ltac reshape_expr e tac :=
 Tactic Notation "tac_bind_helper" open_constr(efoc) :=
   lazymatch goal with
   | |- fill ?K ?e = fill _ _ =>
-     reshape_expr_eff e ltac:(fun K' e' =>
+     reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
        let K'' := eval cbn[app] in (K' ++ K) in
        replace (fill K e) with (fill K'' e') by (by rewrite ?fill_app))
   | |- ?e = fill _ _ =>
-     reshape_expr_eff e ltac:(fun K' e' =>
+     reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
        replace e with (fill K' e') by (by rewrite ?fill_app))
   end; reflexivity.
@@ -164,12 +133,12 @@ Lemma tac_brel_bind_l `{!probblazeRGS Σ} eₗ eₗ' eᵣ K Δ E X R:
   Tactic Notation "tac_bind_helper" open_constr(efoc) :=
   lazymatch goal with
   | |- fill ?K ?e = fill _ _ =>
-     reshape_expr_eff e ltac:(fun K' e' =>
+     reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
        let K'' := eval cbn[app] in (K' ++ K) in
        replace (fill K e) with (fill K'' e') by (by rewrite ?fill_app))
   | |- ?e = fill _ _ =>
-     reshape_expr_eff e ltac:(fun K' e' =>
+     reshape_expr e ltac:(fun K' e' =>
        unify e' efoc;
        replace e with (fill K' e') by (by rewrite ?fill_app))
   end; reflexivity.
@@ -189,19 +158,19 @@ Lemma tac_brel_bind_l `{!probblazeRGS Σ} eₗ eₗ' eᵣ K Δ E X R:
   Ltac brel_reshape_cont_l tac :=
     lazymatch goal with
     | |- envs_entails _ (brel _ (fill ?K ?e) _ _) =>
-        reshape_expr_eff e ltac:(fun K' e' =>
+        reshape_expr e ltac:(fun K' e' =>
                                    tac (K' ++ K) e')
     | |- envs_entails _ (brel _ ?e _ _) =>
-        reshape_expr_eff e ltac:(fun K' e' => tac K' e')
+        reshape_expr e ltac:(fun K' e' => tac K' e')
     end.
 
   Ltac brel_reshape_cont_r tac :=
     lazymatch goal with
     | |- envs_entails _ (brel _ _ (fill ?K ?e) _) =>
-        reshape_expr_eff e ltac:(fun K' e' =>
+        reshape_expr e ltac:(fun K' e' =>
                                    tac (K' ++ K) e')
     | |- envs_entails _ (brel _ _ ?e _) =>
-        reshape_expr_eff e ltac:(fun K' e' => tac K' e')
+        reshape_expr e ltac:(fun K' e' => tac K' e')
     end.
 
   Lemma tac_brel_load_l `{!probblazeRGS Σ} K Δ Δ' i1 p (l : loc) q v
@@ -233,11 +202,10 @@ Lemma tac_brel_bind_l `{!probblazeRGS Σ} eₗ eₗ' eᵣ K Δ E X R:
     iStartProof;
     lazymatch goal with
     | |- environments.envs_entails _ (brel _ _ _ _ _) =>
-        (*match goal with |- ?G => idtac "RAW GOAL:" G end;*)
         eapply tac_brel_load_l;
         [ tc_solve || fail "cannot find a Load operation"
         (* the first IntoCtx that looks for a load in a context*)
-        | tc_solve (*maybelaterenvs *)
+        | tc_solve (* maybelaterenvs *)
         | let l := match goal with
                    | |- _ = Some (_, (?l ↦{_} _)%I) => l end in
           iAssumptionCore || fail "brel_load_l: cannot find" l "↦ ?"
@@ -295,7 +263,6 @@ Tactic Notation "brel_load_r" :=
      (* In approxis the lemma for rel_store_l(and _r) allows the storage of an expression, provided we know that IntoVal e v holds, however the brel_store_l lemma in probblaze reuires a value to be stored*)
 Lemma tac_brel_store_l `{!probblazeRGS Σ} E K Δ Δ' Δ'' i1 (l: loc) v v' eₛ eₛ' eₜ L R :
   IntoCtx eₛ (TCEq (Store (#l) (of_val v))) K ->
-  (*IntoVal e v ->*)
   MaybeIntoLaterNEnvs 1 Δ Δ' ->
   envs_lookup i1 Δ' = Some (false, l ↦ v')%I ->
   envs_simple_replace i1 false (Esnoc Enil i1 (l ↦ v)) Δ' = Some Δ'' ->
@@ -303,7 +270,7 @@ Lemma tac_brel_store_l `{!probblazeRGS Σ} E K Δ Δ' Δ'' i1 (l: loc) v v' eₛ
   envs_entails Δ'' (brel E eₛ' eₜ L R) ->
   envs_entails Δ (brel E eₛ eₜ L R).
 Proof.
-  rewrite envs_entails_unseal. (*intros ?????? Hg.*)
+  rewrite envs_entails_unseal.
   iIntros (??????) "Hi".
   apply tc_eq_fill in H. rewrite <- H. rewrite -> H3 in H4.
   rewrite into_laterN_env_sound envs_simple_replace_sound //; simpl.
@@ -371,7 +338,6 @@ Tactic Notation "brel_store_r" :=
 Lemma tac_brel_alloc_l `{!probblazeRGS Σ} E K Δ Δ' eₛ eₜ v L R:
   IntoCtx eₛ (TCEq (Alloc (of_val v))) K ->
   MaybeIntoLaterNEnvs 1 Δ Δ' ->
-  (*eₛ' = fill K (of_val #l) ->*)
   (envs_entails Δ' (∀ (l : loc),
                       (l ↦ v -∗ brel E (fill K (of_val #l)) eₜ L R))) ->
   envs_entails Δ (brel E eₛ eₜ L R).
@@ -380,7 +346,6 @@ Proof.
   iIntros (???) "Hi".
   rewrite into_laterN_env_sound /=.
   apply tc_eq_fill in H. rewrite <- H.
-  (*rewrite -> H1 in H2.*)
   iApply (brel_alloc_l E L R K v eₜ).
   iModIntro. iApply H1. auto.
 Qed.
