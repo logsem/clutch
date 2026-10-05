@@ -56,7 +56,7 @@ Section compatibility.
     iIntros (γ) "!# /= [%v (%Hrw & Hτ & HΓ₁)] /=".
     rewrite !lookup_fmap. rewrite Hrw. simpl.
     iApply brel_value. iIntros. by iFrame.
-  Qed.
+  Qed. 
 
   Lemma sem_typed_unit Γ :
     ⊢ sem_typed Γ #()%V #()%V ⟨⟩ 𝟙 Γ.
@@ -788,7 +788,7 @@ Section compatibility.
   Qed.
 
   (* Generic Pair Rule *)
-  Lemma sem_typed_pair_gen τ ρ κ Γ1 Γ2 Γ3 e1 e2 e1' e2' `{ ρ ᵣ⪯ₜ κ }:
+  (*Lemma sem_typed_pair_gen τ ρ κ Γ1 Γ2 Γ3 e1 e2 e1' e2' `{ ρ ᵣ⪯ₜ κ }:
     ⊢ sem_typed Γ2 e1 e2 ρ τ Γ3 -∗
     sem_typed Γ1 e1' e2' ρ κ Γ2 -∗
     sem_typed Γ1 (e1,e1') (e2, e2') ρ (τ × κ) Γ3.
@@ -803,7 +803,7 @@ Section compatibility.
     iIntros "!# % % ((Hτ & HΓ3) & Hκ) /=".
     brel_pures_l. brel_pures_r.
     by iFrame.
-  Qed.
+  Qed. *)
 
   (* TODO: Add the rest of the pair rules from affect/compatibility *)
   
@@ -813,9 +813,9 @@ Section compatibility.
     iIntros "!# %γ /= (% & % & [(% & % & % & % &% & %  & Hτ & Hκ) HΓ]) //=". rewrite !lookup_fmap. rewrite H /= H0 H1.
     brel_pures_l. brel_pures_r. 
     solve_env.
-  Qed.
+  Qed. 
 
-  Lemma sem_typed_fst_expr Γ1 e1 e2 ρ τ κ Γ2 : 
+  (*Lemma sem_typed_fst_expr Γ1 e1 e2 ρ τ κ Γ2 : 
     ⊢ sem_typed Γ1 e1 e2 ρ (τ × κ) Γ2 -∗
     sem_typed Γ1 (Fst e1) (Fst e2) ρ τ Γ2.
   Proof. 
@@ -825,7 +825,7 @@ Section compatibility.
     iIntros "!# % % ((%&%&%&%&->&->&Hτ&_)&HΓ2)". 
     brel_pures_l. brel_pures_r.
     by iFrame.
-  Qed. 
+  Qed. *) 
 
   Lemma sem_typed_snd x τ κ Γ : 
     ⊢ sem_typed ((x, τ × κ) :: Γ) (Snd x) (Snd x) ⟨⟩ κ ((x, τ × ⊤) :: Γ).
@@ -836,7 +836,7 @@ Section compatibility.
     solve_env.
   Qed.
 
- Lemma sem_typed_snd_expr Γ1 e1 e2 ρ τ κ Γ2 : 
+(* Lemma sem_typed_snd_expr Γ1 e1 e2 ρ τ κ Γ2 : 
     ⊢ sem_typed Γ1 e1 e2 ρ (τ × κ) Γ2 -∗
     sem_typed Γ1 (Snd e1) (Snd e2) ρ κ Γ2.
   Proof. 
@@ -846,7 +846,7 @@ Section compatibility.
     iIntros "!# % % ((%&%&%&%&->&->&_&Hκ)&HΓ2)". 
     brel_pures_l. brel_pures_r.
     by iFrame.
-  Qed. 
+  Qed. *)
 
   Lemma sem_typed_pair_elim τ ρ κ ι Γ1 Γ2 Γ3 x1 x2 e1 e2 e1' e2' :
     x1 ∉ (env_dom Γ2) → x2 ∉ (env_dom Γ2) →
@@ -884,7 +884,7 @@ Section compatibility.
     - iIntros "!# % % ($ & HΓ3)". by do 2 (rewrite -env_sem_typed_insert; last done). 
   Qed.
 
-  Lemma sem_typed_left_inj τ ρ κ Γ1 Γ2 e1 e2 : 
+  (*Lemma sem_typed_left_inj τ ρ κ Γ1 Γ2 e1 e2 : 
     ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
     sem_typed Γ1 (InjL e1) (InjL e2) ρ (τ + κ) Γ2.
   Proof.
@@ -907,7 +907,7 @@ Section compatibility.
     iIntros "!# % % (Hκ & HΓ2) //=".
     brel_pures_l. brel_pures_r.
     iFrame. iExists _,_. iRight. by iFrame.
-  Qed.
+  Qed. 
 
   Lemma sem_typed_match τ ρ κ ι Γ1 Γ2 Γ3 e1 e1' (x y : binder) e2 e2' e3 e3' :
     let xΓ2 := match x with BNamed x => (x,τ) :: Γ2 | BAnon => Γ2 end in
@@ -955,7 +955,7 @@ Section compatibility.
         { assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (-> & ->) by done. rewrite -!fmap_insert. simpl.
           iApply "He3". solve_env. }
         iIntros "!# % % [$ HΓ3]". solve_env.
-  Qed.         
+  Qed. *)         
 
   (* Lemma sem_typed_case Γ1 Γ2 Γ3 e0 e0' e1 e1' e2 e2' ρ τ κ ι `{ρ ᵣ⪯ₜ κ} `{ρ ᵣ⪯ₜ τ} : 
        ⊢ sem_typed Γ1 e0 e0' ρ (τ + κ) Γ2 -∗
@@ -984,7 +984,7 @@ Section compatibility.
     typed_bin_op op τ κ ι → MultiT τ ∧ MultiT κ ∧ MultiT ι.
   Proof. intros []; (split; last split); apply _. Qed.
 
-  Lemma sem_typed_bin_op τ κ ι ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' op :
+ (* Lemma sem_typed_bin_op τ κ ι ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' op :
     typed_bin_op op τ κ ι →
     ⊢ sem_typed Γ2 e1 e1' ρ τ Γ3 -∗
     sem_typed Γ1 e2 e2' ρ κ Γ2 -∗
@@ -1002,9 +1002,9 @@ Section compatibility.
       iDestruct "Hκ" as "(%n1 & -> & ->)";
       iDestruct "Hτ" as "(%n2 & -> & ->)";
       brel_pures_l; brel_pures_r; iFrame; eauto.
-  Qed.
+  Qed. *)
 
-  Lemma sem_typed_un_op τ κ Γ1 Γ2 e e' ρ op : 
+(*  Lemma sem_typed_un_op τ κ Γ1 Γ2 e e' ρ op : 
     typed_un_op op τ κ →
     ⊢ sem_typed Γ1 e e' ρ τ Γ2 -∗
     sem_typed Γ1 (UnOp op e) (UnOp op e') ρ κ Γ2. 
@@ -1017,8 +1017,9 @@ Section compatibility.
       iDestruct "Hτ" as "(%n2 & -> & ->)";
       brel_pures_l; brel_pures_r; iFrame; eauto.
   Qed. 
+ *)
   
-  Lemma sem_typed_if τ ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' e3 e3' :
+ (* Lemma sem_typed_if τ ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' e3 e3' :
     ⊢ sem_typed Γ1 e1 e1' ρ 𝔹 Γ2 -∗
     sem_typed Γ2 e2 e2' ρ τ Γ3 -∗
     sem_typed Γ2 e3 e3' ρ τ Γ3 -∗
@@ -1032,7 +1033,7 @@ Section compatibility.
     iApply (brel_wand with "[HΓ1]"); first by iApply "He1".
     iIntros "!# % % (#(% & -> & ->) & HΓ2) /=".
     destruct b; brel_pures_l; brel_pures_r; [by iApply "He2"|by iApply "He3"].
-  Qed.
+  Qed. *)
 
   (* Type abstraction and application *)
   (* TODO: relies on prel_forall *)
@@ -1178,7 +1179,7 @@ Section compatibility.
 
   (* Reference rules *)
   
-  Lemma sem_typed_alloc τ ρ Γ1 Γ2 e1 e2 :
+  (*Lemma sem_typed_alloc τ ρ Γ1 Γ2 e1 e2 :
     ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
     sem_typed Γ1 (ref e1) (ref e2) ρ (Ref τ) Γ2.
   Proof.
@@ -1189,7 +1190,7 @@ Section compatibility.
     iApply brel_alloc_l. iIntros "!> % Hl1".
     iApply brel_alloc_r. iIntros "% Hl2".
     iApply brel_value. iIntros. iFrame. done.
-  Qed.
+  Qed. *)
   
   Lemma sem_typed_load τ Γ x : 
     ⊢ sem_typed ((x, Ref τ) :: Γ) (Load x) (Load x) ⟨⟩ τ  ((x, Ref ⊤) :: Γ).
@@ -1213,7 +1214,7 @@ Section compatibility.
     iApply brel_value. iFrame. solve_env.
   Qed.
 
-  Lemma sem_typed_store τ κ ι ρ Γ1 Γ2 x e1 e2 :
+ (* Lemma sem_typed_store τ κ ι ρ Γ1 Γ2 x e1 e2 :
     ⊢ sem_typed ((x, Ref τ) :: Γ1) e1 e2 ρ ι ((x, Ref κ) :: Γ2) -∗
     sem_typed ((x, Ref τ) :: Γ1) (x <- e1) (x <- e2) ρ 𝟙 ((x, Ref ι) :: Γ2).
   Proof.
@@ -1227,7 +1228,7 @@ Section compatibility.
     iApply (brel_store_r with "Hl2"). iIntros "Hl2".
     iApply brel_value.
     solve_env.
-  Qed.
+  Qed.*)
 
   Lemma sem_typed_alloc_cpy τ ρ Γ1 Γ2 e1 e2 :
     ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
@@ -1283,7 +1284,7 @@ Section compatibility.
   Qed.
 
   (* Expression-level AllocTape rule. *)
-  Lemma sem_typed_alloctape ρ Γ1 Γ2 e1 e2 :
+ (* Lemma sem_typed_alloctape ρ Γ1 Γ2 e1 e2 :
     ⊢ sem_typed Γ1 e1 e2 ρ sem_ty_int Γ2 -∗
     sem_typed Γ1 (AllocTape e1) (AllocTape e2) ρ sem_ty_tape Γ2.
   Proof.
@@ -1321,7 +1322,7 @@ Section compatibility.
     iApply (brel_couple_rand_rand _ (Z.to_nat z) (λ n : nat, n) z [] []); [done|].
     iIntros (n) "%Hle". iApply brel_value. iIntros. iFrame.
     iExists n. iModIntro. by iSplit.
-  Qed.
+  Qed. *)
 
   (* Expression-level labelled Rand rule.  The second argument is a tape
      ([sem_ty_tape]); its invariant holds two empty same-[N] tapes.  The
@@ -1331,7 +1332,7 @@ Section compatibility.
      (hence [sem_ty_nat]).  The read bound [m] (from [e1]) need not equal
      the tape bound [N]: an empty-tape read ignores the tape bound, so the
      coupling holds regardless and the (still empty) tapes are returned. *)
-  Lemma sem_typed_rand ρ Γ1 Γ2 Γ3 e1 e2 e1' e2' :
+ (* Lemma sem_typed_rand ρ Γ1 Γ2 Γ3 e1 e2 e1' e2' :
     ⊢ sem_typed Γ2 e1 e1' ρ sem_ty_int Γ3 -∗
     sem_typed Γ1 e2 e2' ρ sem_ty_tape Γ2 -∗
     sem_typed Γ1 (Rand e1 e2) (Rand e1' e2') ρ sem_ty_nat Γ3.
@@ -1357,7 +1358,7 @@ Section compatibility.
     iModIntro. iExists _. iFrame.
     iApply brel_value. iIntros. iFrame.
     iExists n. iModIntro. by iSplit.
-  Qed.
+  Qed. *)
 
   (* Generic Store (cpy) rule *)
   Lemma sem_typed_store_cpy_gen τ ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' `{ ρ ᵣ⪯ₜ τ} :
