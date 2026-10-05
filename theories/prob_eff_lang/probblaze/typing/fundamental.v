@@ -1,4 +1,4 @@
-From iris.base_logic Require Export invariants.  
+From iris.base_logic Require Export invariants.   
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext. 
 From clutch.prob_eff_lang.probblaze Require Import metatheory notation syntax semantics sem_judgement sem_def sem_operators.
@@ -189,25 +189,19 @@ Proof.
         try (iApply "Ht").
       iApply bin_log_swap_ctx_second. iApply "Ht".
     + (* App_typed *)
-       (*iApply disjointness_ctx_sem_jugdment.
-       iIntros "!# #HD". *)
+      iIntros (η μ δ ξ Hδ).
+      push_lr.
+      iApply disjointness_ctx_sem_jugdment.
+      iIntros "!# #HD".
+      (*iPoseProof (fundamental_row D ρ' ρ b _) as "Hrow".
       iApply (interp_c_app_gen Δ Γ1 Γ2 Γ3 ρ ρ' ρ'' τ κ _ _ _ _ ).
       { by  eapply row_type_sub_sound. }
       { by  eapply row_env_sub_sound. }
-      { iPoseProof (fundamental_row _ _ _ b _) as "Hrow".
-        admit. }
-      { iPoseProof (fundamental_row _ _ _ b _) as "Hrow".
-        (*iDestruct ("Hrow" with "HD") as "(_&$)" *) admit. }
-       { apply fundamental in Ht2.
-        iPoseProof Ht2 as "Ht2".
-        by iApply "Ht2". }
-      { apply fundamental in Ht1.
-        iPoseProof Ht1 as "Ht1".
-        by iApply "Ht1". }
-      (*  iDestruct ("Hrow" with "D") as "(_&$)".
-      iApply disjointness_ctx_sem_jugdment.
-      iIntros "!# #HD".
-      iApply (sem_typed_app_gen (interp._ty η μ δ τ ξ') (interp._row η μ δ ρ' ξ') (interp._row η μ δ ρ ξ') (interp._row η μ δ ρ'' ξ') ).
+      { iIntros (η μ δ ξ).
+        unfold sem_row_le.
+        iDestruct "Hrow" as "#Hrow".
+        iSpecialize ("Hrow" $! η μ δ ξ). *)
+       iApply (sem_typed_app_gen (interp._ty η μ δ τ ξ) (interp._row η μ δ ρ' ξ) (interp._row η μ δ ρ ξ) (interp._row η μ δ ρ'' ξ) ).
       { by eapply row_type_sub_sound in H1. }
       { by eapply row_env_sub_sound in H2. }
       { iPoseProof (fundamental_row _ _ _ b _) as "Hrow".
@@ -219,7 +213,7 @@ Proof.
         by iApply "Ht2". }
       { apply fundamental in Ht1.
         iPoseProof Ht1 as "Ht1".
-        by iApply "Ht1". } *)
+        by iApply "Ht1". }
     + (* TAbsElim_typed *)
       (* TODO *)
       iIntros (η μ δ ξ Hδ). push_lr.
@@ -503,7 +497,7 @@ Proof.
       rewrite /sem_val_typed /=. iModIntro. iExists v, v. iRight.
       iSplit; first done. iSplit; first done.
       iApply (sem_val_related_interp _ _ _ _ _ _ Hv).
-    + (* Rec_val_typed *)
+    + (* Rec_val_typed *) 
       (* The captured context is [∅] so [MultiE []] is trivial and no rule
          strengthening is needed (cf. [Rec_typed]/[Rec_pure_typed]).  We
          build the recursive-closure oval at the empty env with
@@ -537,8 +531,8 @@ Proof.
            identity, matching the literal body of [sem_oval_typed_ufun_rec]. *)
         iEval (rewrite !resolve_map_empty !lbl_resolve_empty) in "H".
         destruct f as [|sf]; destruct x as [|sx]; simpl in *. (*iApply "H".*)
-        + admit.
-        + admit.
+        + iApply "H".
+        + iApply "H".
         + admit.
         + admit. }
       rewrite /sem_oval_typed /tc_opaque. iModIntro.
@@ -566,7 +560,19 @@ Proof.
     + (* MAbs_val_typed *) apply fundamental_val in Hv.
       rewrite /sem_val_typed /=. iModIntro. iIntros (m).
       iApply (sem_val_related_interp v τ η (m :: μ) δ ξ Hv).
-    + (* val val typed*) (* new after subtyping *) admit.
+    + (* val val typed*) (* new after subtyping *)
+      apply fundamental_val in Hv.
+      iPoseProof (fundamental_type ∅ κ τ) as "Htype"; [exact H|].
+      iApply (sem_val_typed_sub v v
+                (interp._ty η μ δ κ ξ) (interp._ty η μ δ τ ξ)).
+      { unfold sem_ty_le.
+        iDestruct "Htype" as "#Htype".
+        iSpecialize ("Htype" $! η μ δ ξ).
+        iApply "Htype". unfold erase_ctx. iModIntro.
+        iIntros (????) "%Hfalse %%".
+        discriminate. }
+       iDestruct Hv as "#Hv".
+       iSpecialize ("Hv" $! η μ δ ξ). auto.
   - intros Hp. destruct Hp; iIntros (η μ δ ξ Hδ).
     + (* Val_pure_typed *) apply fundamental_val in H. iPoseProof H as "H".
       iSpecialize ("H" $! η μ δ ξ). iApply sem_oval_typed_val. iApply "H".
