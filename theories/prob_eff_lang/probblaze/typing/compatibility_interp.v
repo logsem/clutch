@@ -1095,18 +1095,86 @@ Qed.
             repeat (constructor; [ split; [ reflexivity
                 | first [ exact (symmetry Hhead) | reflexivity ] ] | ]);
              try exact (Htail Γ3). }
-        1:{ (*apply fundamental in Ht2. iPoseProof Ht2 as "Ht". *)
+        1:{ 
           iSpecialize ("Ht2" $! η μ δ ξ Hδ).
           iEval (cbn [ctx_insert ctx_append fmap list_fmap]) in "Ht2".
           destruct y as [|sy]; simpl; rewrite -fmap_app; iApply "Ht2". }
         Unshelve.
         all: repeat case_match; simpl in *;
           first [ exact I | congruence | apply ctx_dom_env_dom; assumption ].
-Qed.
+  Qed.
 
-(*          
-Lemma interp_c_sub
-Lemma interp_c_contraction
-Lemma interp_c_weakening *)
 
+  Lemma disjointness_ctx_sem_jugdment Γ1 e e' η μ δ ρ ξ τ Γ2 :
+   □(erase_ctx δ ξ (le.row_to_disj_ctx ρ) -∗ sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2) -∗
+   sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2.
+  Proof.
+   iIntros "#H".
+   iIntros (vs) "!# Hvs".
+   iApply brel_learn.
+   iIntros "#Hvalid #Hdistinct".
+   iPoseProof erase_ctx_row_to_disj_ctx as "#HD".
+   iCombine "Hdistinct Hvalid" as "Hvd".
+   iDestruct ("HD" with "Hvd") as "Herase".
+   iDestruct ("H" with "Herase") as "Hrel".
+   iDestruct ("Hrel" with "Hvs") as "Hbrel".
+   done.
+  Qed.
+         
+  Lemma interp_c_sub Δ Γ1 Γ1' Γ2 Γ2' e1 e2 ρ ρ' τ τ' b :
+    let D := le.row_to_disj_ctx ρ in
+     D ⊢ₗ Γ1 ≤C Γ1' ->
+     D ⊢ₗ Γ2' ≤C Γ2 ->
+     D ⊢ₗ ρ' ≤R ρ @ b ->
+     D ⊢ₗ τ' ≤T τ ->
+     ⊢ (〈Δ; Γ1'〉 ⊨ₜ e1 ≤log≤ e2 :ρ':τ'⫤Γ2') -∗
+     (〈Δ; Γ1〉 ⊨ₜ e1 ≤log≤ e2 :ρ:τ⫤Γ2).
+  Proof.
+    simpl.
+    iIntros "%HΓ1 %HΓ2 %Hρ %Hτ #Hse".
+    iIntros (η μ δ ξ Hδ).
+    iApply disjointness_ctx_sem_jugdment. iIntros "!# #HD".
+    push_lr.
+    iApply (sem_typed_sub
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ1)
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ1')
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ2)
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ2')
+                _ _
+                (interp._row η μ δ ρ ξ) (interp._row η μ δ ρ' ξ)
+                (interp._ty η μ δ τ ξ) (interp._ty η μ δ τ' ξ)).
+     * iApply (ctx_le_sound _ _ _ HΓ1 with "HD").
+     * iApply (ctx_le_sound _ _ _ HΓ2 with "HD").
+     * iPoseProof (fundamental_row _ _ _ b _ with "HD") as "(_&$)".
+     * by iApply (fundamental_type with "HD").
+     *  iApply ("Hse" $! η μ δ ξ Hδ).
+     Unshelve. auto.
+   Qed.
+
+  Lemma interp_c_contraction Δ Γ1 Γ2 κ τ ρ e1 e2 x `{le.MultiT κ}:
+        ⊢ (〈Δ; <[ x :=c κ ]> (<[ x :=c κ ]> Γ1)〉 ⊨ₜ e1 ≤log≤ e2 :ρ:τ⫤Γ2) -∗
+          (〈Δ; <[ x :=c κ ]> Γ1〉 ⊨ₜ e1 ≤log≤ e2 :ρ:τ⫤Γ2).
+  Proof.
+    iIntros "#He1e2".
+    iIntros (η μ δ ξ Hδ).
+    destruct x as [|s]; simpl;
+      [ by iApply "He1e2"|].
+    pose proof (multi_ty_sound κ H η μ δ ξ) as Hmt.
+    iApply sem_typed_sub_env; 
+      [by iApply env_le_contraction|iApply "He1e2"].
+    iPureIntro. auto.
+  Qed.
+  
+  Lemma interp_c_weakening Δ Γ1 Γ2 κ τ ρ e1 e2 x:
+    ⊢  (〈Δ; Γ1〉 ⊨ₜ e1 ≤log≤ e2 :ρ:τ⫤Γ2) -∗
+    (〈Δ; <[ x :=c κ ]> Γ1〉 ⊨ₜ e1 ≤log≤ e2 :ρ:τ⫤Γ2).
+  Proof.
+    iIntros "He1e2".
+    iIntros (η μ δ ξ Hδ).
+    destruct x; simpl.
+      *  by iApply "He1e2". 
+      * iApply sem_typed_sub_env; [iApply env_le_weaken|iApply "He1e2"].
+        iPureIntro. auto.
+  Qed.
+  
 End compatibility_interp.

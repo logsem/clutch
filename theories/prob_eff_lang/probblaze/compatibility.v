@@ -291,21 +291,21 @@ Section compatibility.
     iApply env_le_swap_env_sing.
   Qed.
 
-  Corollary sem_typed_contraction Γ1 Γ2 x e1 e2 ρ τ κ `{! MultiT τ} :
+ (* Corollary sem_typed_contraction Γ1 Γ2 x e1 e2 ρ τ κ `{! MultiT τ} :
     ⊢ sem_typed ((x, τ) :: (x, τ) :: Γ1) e1 e2 ρ κ Γ2 -∗ 
     sem_typed ((x, τ) :: Γ1) e1 e2 ρ κ Γ2.
   Proof.
     iIntros "He".
     iApply sem_typed_sub_env; 
       [by iApply env_le_contraction|iApply "He"].
-  Qed.
+  Qed.*)
 
-  Corollary sem_typed_weaken Γ1 Γ2 x e1 e2 ρ τ κ :
+ (* Corollary sem_typed_weaken Γ1 Γ2 x e1 e2 ρ τ κ :
     ⊢ (sem_typed Γ1 e1 e2 ρ κ Γ2) -∗ (sem_typed ((x, τ) :: Γ1) e1 e2 ρ κ Γ2).
   Proof.
     iIntros "He".
     iApply sem_typed_sub_env; [iApply env_le_weaken|iApply "He"].
-  Qed.
+  Qed.*)
 
   Corollary sem_typed_weaken_env Γ Γ1 Γ2 e1 e2 ρ τ :
     ⊢ (sem_typed Γ1 e1 e2 ρ τ Γ2) -∗ (sem_typed (Γ ++ Γ1) e1 e2 ρ τ Γ2).

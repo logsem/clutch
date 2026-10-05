@@ -30,16 +30,6 @@ Section fundamental.
    the form produced by the recursive [fundamental] IH.  Exactly one branch
    fires per [destruct]ed constructor; cheap (single rewrite, opaque body). *)
 
-(*Lemma ctx_dom_env_dom x Γ :
-  ∀ η μ δ ξ, x ∉ ctx_dom Γ → x ∉ env_dom ((λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ).
-Proof.
-  intros η μ δ ξ Hnin. induction Γ as [| (y, κ) Γ' IH]; simpl.
-  - rewrite env_dom_nil. apply not_elem_of_nil.
-  - rewrite env_dom_cons. apply not_elem_of_cons. split.
-    + intros ->. apply Hnin. rewrite /ctx_dom /=. set_solver.
-    + apply IH. rewrite /ctx_dom /= in Hnin. set_solver.
-Qed. *)
-
 (* In a well-typed term every free effect NAME [s] is either in [dom Δ] or
    bound by an enclosing [Effect s].  So resolving by a map [m] DISJOINT from
    [dom Δ] is the identity (the in-scope [Do (EffName s)] all have
@@ -118,22 +108,6 @@ Proof.
       f_equal. by apply (typed_lbl_resolve_id _ _ _ _ _ _ H3 rm). 
 Qed.
 
-(*Lemma disjointness_ctx_sem_jugdment Γ1 e e' η μ δ ρ ξ τ Γ2 :
- □(erase_ctx δ ξ (le.row_to_disj_ctx ρ) -∗ sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2) -∗
-  sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2.
-Proof.
-  iIntros "#H".
-  iIntros (vs) "!# Hvs".
-  iApply brel_learn.
-  iIntros "#Hvalid #Hdistinct".
-  iPoseProof erase_ctx_row_to_disj_ctx as "#HD".
-  iCombine "Hdistinct Hvalid" as "Hvd".
-  iDestruct ("HD" with "Hvd") as "Herase".
-  iDestruct ("H" with "Herase") as "Hrel".
-  iDestruct ("Hrel" with "Hvs") as "Hbrel".
-  done.
-Qed.
-*)
 (* Extract the bare relational interpretation of a value from its semantic
    value-typing judgement, at a given interpretation environment. *)
 Lemma sem_val_related_interp (v : val) (τ : type) η μ δ ξ :
@@ -488,7 +462,7 @@ Proof.
           iApply "Ht". }
         { apply fundamental in Ht1. iPoseProof Ht1 as "Ht".
           iApply "Ht". }
-    + (* Sub_typed *) admit.
+    + (* Sub_typed *) 
       (* Transport the body derivation along [sem_typed_sub] (compatibility.v),
          discharging the four subtyping premises by the soundness lemmas run
          under the [erase_ctx η μ δ ξ' (row_to_disj_ctx ρ)] bundle that
@@ -496,40 +470,21 @@ Proof.
          by [ctx_le_sound], the row premise by [row_le_sound] (which handles the
          [@ b] annotation), the type premise by [ty_le_sound], and the body by
          the IH [fundamental] on [Ht]. *)
-     (* iApply disjointness_ctx_sem_jugdment. iIntros "!# #HD".
-      iApply (sem_typed_sub
-                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ')) <$> Γ1)
-                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ')) <$> Γ1')
-                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ')) <$> Γ2)
-                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ')) <$> Γ2')
-                _ _
-                (interp._row η μ δ ρ ξ') (interp._row η μ δ ρ' ξ')
-                (interp._ty η μ δ τ ξ') (interp._ty η μ δ τ' ξ')).
-      * iApply (ctx_le_sound _ _ _ H with "HD").
-      * iApply (ctx_le_sound _ _ _ H0 with "HD").
-      * iPoseProof (fundamental_row _ _ _ b _ with "HD") as "(_&$)".
-      * by iApply (fundamental_type with "HD").
-      * apply fundamental in Ht. iPoseProof Ht as "Ht".
-        iApply ("Ht" $! η μ δ ξ' Hδ). *)
-    + (* Contraction_typed *)admit.
+      iApply interp_c_sub; try apply H; try apply H0; try apply H1; try apply H2.
+      apply fundamental in Ht. iPoseProof Ht as "Ht".
+      iApply "Ht".
+    + (* Contraction_typed *)
       (* Now sound after removing [le.TBangRef_le]: the contracted type
          [κ] is [le.MultiT], so its interpretation is a semantic [MultiT]
          (via [interp.multi_ty_sound]), which is the side condition of
          [sem_typed_contraction]. *)
-     (* destruct x as [|s]; simpl;
-        [ apply fundamental in Ht; iPoseProof Ht as "Ht";
-          by iApply "Ht"
-        | pose proof (multi_ty_sound κ H η μ δ ξ') as Hmt;
-          iApply (sem_typed_contraction _ _ _ _ _ _
-                    (interp._ty η μ δ κ ξ'));
-          apply fundamental in Ht; iPoseProof Ht as "Ht";
-          by iApply "Ht" ]. *)
-    + (* Weakening_typed *) admit.
-      (*destruct x; simpl.
-      * apply fundamental in Ht. iPoseProof Ht as "Ht".
-        by iApply "Ht". 
-      * iApply sem_typed_weaken. apply fundamental in Ht.
-        iPoseProof Ht as "Ht". by iApply "Ht".  *)
+      iApply interp_c_contraction; try assumption.
+       apply fundamental in Ht; iPoseProof Ht as "Ht";
+          by iApply "Ht".
+    + (* Weakening_typed *)
+      iApply interp_c_weakening.
+      apply fundamental in Ht.
+      iPoseProof Ht as "Ht". by iApply "Ht".
   - intros Hv. destruct Hv; iIntros (η μ δ ξ).
     + (* Unit_val_typed *) rewrite /sem_val_typed /=. iModIntro. done.
     + (* Int_val_typed *) rewrite /sem_val_typed /=. iModIntro. eauto.
