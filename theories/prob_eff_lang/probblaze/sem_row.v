@@ -1,4 +1,3 @@
-
 (* sem_row.v *)
 
 (* This file contains the definition of semantic rows. *)
@@ -13,7 +12,6 @@ From clutch.prob_eff_lang.probblaze Require Import logic notation sem_def mode s
 (* Nil Row *)
 Program Definition sem_row_nil {Σ} : sem_row Σ := @SemRow Σ ⊥ _ (* _ *). 
 Next Obligation. iIntros (?????) "?". iIntros (???) "(%Hcontra & _)". by apply elem_of_nil in Hcontra. Qed.
-(* Next Obligation. iIntros (????) "(%l1 & %l2 & %X & %Hcontra & ?)". by apply elem_of_nil in Hcontra. Qed. *)
 
 Global Instance sem_row_bottom {Σ} : Bottom (sem_row Σ) := sem_row_nil.
 
@@ -21,31 +19,12 @@ Global Instance sem_row_bottom {Σ} : Bottom (sem_row Σ) := sem_row_nil.
 Program Definition sem_row_cons {Σ} : sem_sig Σ -d> sem_row Σ -d> sem_row Σ :=
     λ σ ρ,
       (@SemRow Σ ((([(sem_sig_labels Σ σ).1], [(sem_sig_labels Σ σ).2]), σ) :: (sem_row_car ρ)) _ (* _ *) ) .
-              (* (λ e1 e2, λne Φ, ∃ (op' : label) (v1 v2 : val), 
-                              ⌜ e1 = (do: op' v1)%E ⌝ ∗ ⌜ e2 = (do: op' v2)%E ⌝ ∗
-                               if decide (op = op') then 
-                                 ▷ ((pmono_prot_car σ) v1 v2 Φ)
-                               else
-                                 (pmono_prot_car (sem_row_car ρ)) (do: op' v1)%E (do: op' v2)%E Φ)%I) _). *)
 Next Obligation.
   intros ???. iIntros (????) "#H1 % % % (%Hin & H2)". iSplit; first done.
   iDestruct "H2" as "(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)".
   iExists _,_,_,_,_. repeat (iSplit; first done).
   iIntros (??) "!# HS". iApply "H1". by iApply "Hcont".
 Qed. 
-(* Next Obligation.
-     iIntros (????????) "H". 
-     iDestruct (to_iThy_cons with "H") as "H". 
-     iDestruct "H" as "[(%&%&%&%&%&->&%&->&%&Hσ&#Hcont)|(%&%&%&%&%&%&%&%&%&->&%&->&%&Hσ&#Hcont)]".
-     - destruct σ. iDestruct sem_sig_prop as "H1". iExists _, _, op1, op2.
-       
-       iDestruct ("H1" with "Hσ") as "H". d
-       iDestruct ("H1" with "Hσ") as (??) "H". iExists op0, op3, v1,v2.
-       iDestruct "H" as "(-> & ->)". done.
-     - apply in_iLblSig in H as (X' & ->).
-       iDestruct (sem_sig_prop with "Hσ") as (op3 op4 v1 v2) "(-> & ->)".
-       iExists _,_,_,_,_,_. done.
-   Qed. *)
 
 #[refine] Definition sem_row_later {Σ} (ρ : sem_row Σ) : sem_row Σ :=
   @SemRow Σ (map (λ '((ls1, ls2), σ), (ls1, ls2, sem_sig_later σ)) (sem_row_car ρ)) _.
@@ -63,199 +42,6 @@ Proof.
   done.
 Qed. 
 
-Lemma map_list_contractive {A B : ofe} (f : A → B) : ∀ n, 1 ≤ n → Proper (dist_later n ==> dist n) f → Proper (dist_later n ==> dist n) (map f).
-Proof.
-  intros n Hlt Hf l k Hlk. apply list_dist_Forall2.
-  apply Forall2_fmap_2. destruct n; first inversion Hlt. 
-  generalize dependent k. induction l; intros k Hlk.
-  - destruct k; first done.
-    apply Hlk in Hlt. inversion Hlt.
-  - destruct k.
-    + apply Hlk in Hlt. inversion Hlt.
-    + apply Forall2_cons_2.
-      * f_contractive. by inversion Hlk.
-      * apply IHl. inversion Hlk. 
-        constructor. intros m Hm. 
-        apply dist_later_lt in Hm. by inversion Hm.
-Qed.
-
-
-(* Program Definition iThy_later {Σ} (l1 l2 : label) : sem_sig Σ -n> iThy Σ := λne T, λ e e', λne ψ, (∃ v1 v2, ⌜e = do: l1 v1⌝%E ∗ ⌜e' = do: l2 v2⌝%E ∗  ▷ ((pmono_prot_car T) e e' ψ))%I.
-   Next Obligation.
-     intros. intros ψ ψ' Hne. do 6 f_equiv. rewrite Hne. done.
-   Qed.
-   Next Obligation.
-     intros. intros T T' Hne. intros e e' ψ.
-     simpl. 
-     do 6 f_equiv. destruct Hne.
-     by rewrite (Hne e e' ψ).
-   Qed.
-   
-   Instance iThy_later_contractive {Σ} (l1 l2 : label) : Contractive (@iThy_later Σ l1 l2).
-   Proof.
-     unfold iThy_later. simpl.
-     intros ? T T' ?.
-     intros e e' ?. simpl.
-     do 6 f_equiv.
-     f_contractive.
-     rewrite (H e e' _).
-     done.
-   Qed. *)
-
-(* Definition sem_sig_later {Σ} : sem_sig Σ -n> sem_sig Σ.
-   Proof.
-     unshelve econstructor.
-     - intros []. unshelve econstructor.
-       + destruct sem_sig_car.
-         exists (iThy_later pmono_prot_car).
-         rewrite /pers_mono.
-         iIntros (????) "#H H'".
-         rewrite /iThy_later. simpl. iNext.
-         iApply pmono_prot_prop => //.
-       + exact sem_sig_labels.
-       + destruct sem_sig_car.
-         iIntros "?".
-
-   Next Obligation.
-     intros. intros ψ ψ' Hne. rewrite Hne. done.
-   Qed.
-   Next Obligation.
-     intros. intros T T' Hne. intros e e' ψ.
-     simpl. by rewrite (Hne e e' ψ).
-   Qed. *)
-
-
-(* Definition sem_row_rec1 {Σ} (R : sem_row Σ → sem_row Σ) (rec : sem_row Σ) : sem_row Σ.
-     (* morally: ▷ (R rec)) *)
-     unshelve econstructor.
-     -
-       set (X := R rec).
-       set (X_sig := sem_row_car X).
-       opose proof (sem_row_car X) as X_sig'.
-       rewrite /iLblSig in X_sig'.
-       assert (sem_sig Σ → sem_sig Σ).
-       {
-         clear.
-         refine ((λ sg, _)).
-         destruct sg.
-         destruct sem_sig_car.
-         assert (iThy Σ).
-         {
-           intros e e'. unshelve refine (λne ψ, _)%I.
-           1: exact (▷ ψ e e')%I. Show Proof.
-
-           intros. intros ???.
-
-   (* Unset Printing Notations.
-      Set Printing All. *)
-   unfold dist in H.
-   unfold discrete_funO in H.
-   unfold discrete_fun in H. unfold ofe_dist in H.
-   unfold discrete_fun_dist in H.
-   unfold dist in H.
-   unfold discrete_funO in H.
-   unfold discrete_fun in H. unfold ofe_dist in H.
-   unfold discrete_fun_dist in H.
-   unfold ofe_dist in H.
-   unfold reverse_coercion in H.
-   unfold ofe_dist in H.
-   rewrite H.
-    done.
-   Show Proof.
-         }
-         set (pmono_prot_car_later' := (λ e e' φ, ▷ (φ e e'))%I :
-                expr -d> expr -d> (expr -d> expr -d> iProp Σ) -d> iProp Σ).
-         assert (Contractive pmono_prot_car_later').
-         { subst pmono_prot_car_later'. simpl. solve_contractive. }
-         set (sem_sig_car_later := {| pmono_prot_car := pmono_prot_car_later' ;
-                                     pmono_prot_prop := pmono_prot_prop |}).
-         eexists {| sem_sig_car :=  |}.
-       }
-       set (sig_later :=
-              (λ '(lbls, lbls', sig), (sem_sig_prop _ sig))%I
-              : (list label * list label * sem_sig Σ) -> _).
-       set (x := later <$> )
-     fixpoint R. *)
-
-(* Definition iLblThy_later {Σ} (L : iLblSig Σ) : iLblThy Σ := map (λ '((ls1,ls2), X), ((ls1, ls2), iThy_later (@sem_sig_labels Σ X).1 (@sem_sig_labels Σ X).2 X)) L.
-   
-   (* Lemma sem_row_shape X ρ : X :: ρ → ∃ σ, X = ((sem_sig_labels σ).1, (sem_sig_labels σ).2, σ). *)
-                                                                                      
-   
-   Lemma sem_row_later_iLblThy_later {Σ} ρ : iLblSig_to_iLblThy (sem_row_later ρ) = @iLblThy_later Σ ρ.
-   Admitted.
-   (* Proof.
-        destruct ρ. 
-        induction sem_row_car.
-        - done.
-        - unfold sem_row_later. unfold sem_sig_later. rewrite iLblSig_to_iLblThy_proj.
-          simpl. destruct a as ((ls1,ls2), σ). unfold pmono_prot_car. simpl.
-          f_equiv.
-          + f_equiv.   admit.
-          + unshelve eapply IHsem_row_car.
-            admit.
-      Admitted. *)
-   
-   (* Global Instance iLblSig_to_iLblThy_ne {Σ} : NonExpansive (@iLblSig_to_iLblThy Σ).
-      Admitted. *)
-   
-   Global Instance sem_row_later_contractive {Σ} : Contractive (@sem_row_later Σ). 
-   Proof. 
-     intros n l k Hlater. destruct n; first done.
-   (*   assert (n < S n)%nat as Heq by lia.
-        apply Hlater in Heq.
-        destruct n.
-        - unfold dist,sem_row_dist,listO,ofe_dist,list_dist in *. apply list_dist_Forall2.
-          
-      
-          
-        unfold sem_rowO. simpl. unfold ofe_dist. unfold sem_row_dist. simpl.
-        destruct l, k. unfold dist. (* rewrite !sem_row_later_iLblThy_later. *)
-        destruct n; first done.
-        apply map_list_contractive; first lia.
-        - intros ???. destruct x as ((xs1 & xs2) & X). 
-          destruct y as ((ys1&ys2) &Y). f_equiv.
-          + assert (n < S n) as Hlt by lia.  apply H in Hlt. 
-            by inversion Hlt.
-          + destruct X. destruct Y.
-            assert (n < S n) as Hlt by lia.
-            apply H in Hlt.
-            inversion Hlt. simpl in *. 
-            unfold dist,sem_sigO,ofe_dist,sem_sig_dist in H1. admit.
-        - apply Build_dist_later. intros m Hm. 
-          apply Hdist in Hm.
-          unfold dist,sem_row_dist in Hm.
-      p    
-          by apply Hdist.
-      Qed. *)
-   Admitted.  *)
-
-(* Definition sem_row_rec_pre {Σ} (R : sem_row Σ -n> sem_row Σ) (ρ : sem_row Σ) : sem_row Σ :=
-     sem_row_later (R ρ).
-   Global Instance sem_row_rec_pre_contractive {Σ} (R : sem_row Σ -n> sem_row Σ) : Contractive (sem_row_rec_pre R).
-   Proof.
-     intros ??? Hdist. apply sem_row_later_contractive. 
-     apply ne_dist_later; last done. solve_proper.
-   Qed.
-   
-   Definition sem_row_rec' {Σ} (R : sem_row Σ -n> sem_row Σ) : sem_row Σ := fixpoint (sem_row_rec_pre R).
-   
-   Global Instance sem_row_rec_pre_ne {Σ} : ∀ n, Proper (@dist _ _ ofe_mor_dist n ==> @dist _ _ discrete_fun_dist n) (@sem_row_rec_pre Σ).
-   Proof.
-     solve_proper.
-   Qed.
-   
-   (* Recursive Row *)
-   Definition sem_row_rec {Σ} (R : sem_row Σ → sem_row Σ) `{Contractive R} : sem_row Σ :=
-     fixpoint R.
-   
-   Lemma sem_row_rec_unfold {Σ} (R : sem_row Σ → sem_row Σ) `{Contractive R} :
-     sem_row_rec R ≡ R (sem_row_rec R).
-   Proof. rewrite /sem_row_rec {1} fixpoint_unfold //. Qed. *)
-
-(* Lemma sem_row_rec_unfold_iThy {Σ} (R : sem_row Σ → sem_row Σ) `{Contractive R} e1 e2 Φ:
-     pmono_prot_car (sem_row_car (sem_row_rec R)) e1 e2 Φ ≡ pmono_prot_car (sem_row_car (R (sem_row_rec R))) e1 e2 Φ.
-   Proof. f_equiv. apply non_dep_fun_equiv.  apply non_dep_fun_equiv. rewrite {1}sem_row_rec_unfold //. Qed. *)
 
 (* Flip-Bang Row *)
 (* This is essentially to_iThyIfMono *)
@@ -271,30 +57,17 @@ Next Obligation.
   iExists _,_,_,_,_. repeat (iSplit; first done).
   iIntros (??) "!# HS". iApply "HΦ". by iApply "Hcont".
 Qed.
-(* Next Obligation.
-     iIntros (??????) "Hρ".
-     simpl. iDestruct "Hρ" as (????????? -> ? -> ?) "(HX & #Hcont)".
-     apply in_iLblSig in H as (X' & ->).
-     iDestruct (sem_sig_prop with "HX") as (op3 op4 v1 v2) "(-> & ->)".
-     iExists _,_,_,_,_,_. done.
-   Qed. *)
+
 (* Notations. *)
 Notation "⟨⟩" := (sem_row_nil) : sem_row_scope.
 Notation "σ · ρ" := (sem_row_cons (* opσ.1.1 opσ.1.2 *) σ ρ) (at level 80, right associativity) : sem_row_scope.
 Notation "¡[ m ] ρ" := (sem_row_flip_mbang m ρ) (at level 10) : sem_row_scope.
 Notation "¡ ρ" := (sem_row_flip_mbang OS ρ) (at level 10) : sem_row_scope.
-(* Notation "'μᵣ' θ , ρ " := (sem_row_rec (λ θ, ρ%R)) (at level 50) : sem_row_scope. *)
 
 Section row_properties.
-  (* TODO: finish proofs in this section *)
+
   Global Instance sem_row_cons_ne {Σ} (* op op' *) : NonExpansive2 (@sem_row_cons Σ (* op op' *)).
   Proof.
-    (* Now provable: the [sem_sig] dist tracks labels (car-dist ∧ labels-eq)
-       and the [sem_row] dist is the list dist of the [iLblSig_to_iLblThy]
-       image, whose head reads both the labels and [sem_sig_car] of σ.  The
-       label-equality conjunct closes the discrete head-label components; the
-       car-dist conjunct closes the [sem_sig_car] component; [Hρ] is exactly
-       the tail dist. *)
     intros n σ1 σ2 [Hcar Hlbl] ρ1 ρ2 Hρ.
     unfold sem_row_cons, dist, ofe_dist, sem_rowO, sem_row_dist; simpl.
     rewrite Hlbl. f_equiv; [| exact Hρ].
@@ -303,19 +76,6 @@ Section row_properties.
   Global Instance sem_row_cons_Proper {Σ} (* op op' *): Proper ((≡) ==> (≡) ==> (≡)) (@sem_row_cons Σ (* op op' *)).
   Proof. apply ne_proper_2. apply _. Qed.
 
-  (* UNUSED: not referenced anywhere outside this definition (verified by
-     grep over theories/prob_eff_lang/).  It was added together with the
-     [sem_sig_later] head to make [sem_row_cons] contractive in σ for the
-     never-instantiated recursive-row fixpoint [sem_row_rec]/[RRec]
-     (commented out in interp.v).  With the plain σ head, [sem_row_cons] is
-     genuinely NOT contractive in σ (no guarding later); since the instance
-     is unused and now vacuous, it is left Admitted. *)
-  (* Global Instance sem_row_cons_contractive {Σ} (* op *) n : Proper (dist_later n ==> dist n ==> dist n) (@sem_row_cons Σ (* op *)).
-     Proof.
-       intros ??????. rewrite /sem_row_cons.
-       (* intros ???????. rewrite /sem_row_cons.
-          intros ?. simpl. do 6 f_equiv; first f_contractive; f_equiv; apply non_dep_fun_dist; by f_equiv. *)
-     Admitted. *)
   Global Instance sem_row_flip_mbang_ne {Σ} m : NonExpansive (@sem_row_flip_mbang Σ m).
   Proof.
     intros n ρ1 ρ2 Hρ.
@@ -364,11 +124,6 @@ Section once_row.
       iAssert (⌜(l1s0, l2s0, X) ∈ iLblSig_to_iLblThy ((l1s, l2s, σ) :: l)⌝ ∗ iThyTraverse l1s0 l2s0 X v1 v2 Φ)%I with "[H2]" as "Htemp".
       { iSplit; last done. iPureIntro. by apply list_elem_of_further. }
       iDestruct ("HΨ" with "Htemp") as "(% & $)".
-    (* - iIntros (???) "HΦ".
-         iPoseProof Hprop as "Hprop". 
-         iAssert (to_iThy (iLblSig_to_iLblThy ((l1s, l2s, σ) :: l)) e1 e2 Φ) with "[HΦ]" as "HΦ".
-         { iDestruct "HΦ" as (????) "HΦ". iExists _,_,_. iSplit; [iPureIntro; by apply list_elem_of_further |done]. }
-         iDestruct ("Hprop" with "HΦ") as "HΦ". done. *)
   Qed. 
 
   Definition mono_prot_on_prop {Σ} (Ψ : sem_row Σ) (P : iProp Σ) : iProp Σ :=
@@ -416,8 +171,8 @@ Section row_sub_typing.
     ⊢ ⟨⟩ ≤ᵣ ρ.
   Proof. iApply to_iThy_le_bot. Qed.
 
-  Lemma valid_cons_singleton (* (op1 op2 : label)  *)(σ : sem_sig Σ) (ρ : sem_row Σ) :
-    ⊢  logic.valid (iLblSig_to_iLblThy (sem_row_cons (* op1 op2 *) σ ρ)) ∗-∗ is_label (sem_sig_labels Σ σ).1 DfracDiscarded ∗ spec_labels_frag (sem_sig_labels Σ σ).2 DfracDiscarded ∗ (logic.valid (iLblSig_to_iLblThy ρ)).
+  Lemma valid_cons_singleton (σ : sem_sig Σ) (ρ : sem_row Σ) :
+    ⊢  logic.valid (iLblSig_to_iLblThy (sem_row_cons σ ρ)) ∗-∗ is_label (sem_sig_labels Σ σ).1 DfracDiscarded ∗ spec_labels_frag (sem_sig_labels Σ σ).2 DfracDiscarded ∗ (logic.valid (iLblSig_to_iLblThy ρ)).
   Proof.                                                                                    
     iSplit.
     - iIntros "#Hvalid".
@@ -504,33 +259,6 @@ Section row_sub_typing.
   Proof.
     iApply to_iThy_le_intro'. simpl. unfold sem_row_cons. apply submseteq_swap.
   Qed. 
-  
-  (* Corollary row_le_swap_third (op1 op1' op1'' op2 op2' op2'' : label) (σ σ' σ'' : sem_sig Σ) (ρ : sem_row Σ) : 
-       ⊢ (op1, op2,  σ) · (op1', op2', σ') · (op1'', op2'', σ'') · ρ ≤ᵣ (op1'', op2'', σ'') · (op1, op2, σ) · (op1', op2', σ') · ρ. 
-     Proof.
-       iApply to_iThy_le_intro'. simpl. apply submseteq_swap.
-       iApply row_le_trans; first iApply row_le_cons_comp; try (by iApply row_le_swap_second); last iApply sig_le_refl.
-       - simpl.
-     Qed.
-     Admitted. *)
-  
-  (* Corollary row_le_swap_fourth {Σ} (op op' op'' op''' : label) (σ σ' σ'' σ''': sem_sig Σ) (ρ : sem_row Σ) : 
-       op ≠ op' → op ≠ op'' → op ≠ op''' → op' ≠ op'' → op' ≠ op''' → op'' ≠ op''' → 
-       ⊢ (op, σ) · (op', σ') · (op'', σ'') · (op''', σ''') · ρ ≤ᵣ 
-         (op''', σ''') · (op, σ) · (op', σ') · (op'', σ'') · ρ.
-     Proof. 
-       iIntros (??????). 
-       iApply row_le_trans; first iApply row_le_cons_comp; [iApply sig_le_refl|by iApply row_le_swap_third|].
-       by iApply row_le_swap_second.
-     Qed. *)
-  
-  (* Lemma row_le_rec_unfold (R : sem_row Σ → sem_row Σ) `{Contractive R} :
-       ⊢ (μᵣ θ, R θ) ≤ᵣ R (μᵣ θ, R θ).
-     Proof. rewrite {1} sem_row_rec_unfold //. iApply row_le_refl. Qed.
-     
-     Lemma row_le_rec_fold (R : sem_row Σ → sem_row Σ) `{ Contractive R }:
-       ⊢ R (μᵣ θ, R θ) ≤ᵣ (μᵣ θ, R θ).
-     Proof. rewrite - {1} sem_row_rec_unfold. iApply row_le_refl. Qed. *)
 
   Lemma row_le_mfbang_intro (m : mode) (ρ : sem_row Σ) :
     ⊢ ρ ≤ᵣ ¡[ m ] ρ. 
@@ -675,21 +403,6 @@ Section row_sub_typing.
   
   Global Instance row_nil_once : OnceR (⟨⟩ : sem_row Σ)%R.
   Proof. constructor. iApply row_le_mfbang_elim_nil. Qed.
-  
-  (* Lemma row_le_mfbang_elim_rec (m : mode) (R : sem_row Σ → sem_row Σ) `{ Contractive R }: 
-       (∀ θ, ¡[ m ] (R θ) ≤ᵣ (R θ)) -∗ ¡[ m ] (μᵣ θ, R θ) ≤ᵣ (μᵣ θ, R θ).
-     Proof. 
-       iIntros "Hle". destruct m; last iApply row_le_mfbang_elim_ms.
-       rewrite sem_row_rec_unfold. iApply "Hle".
-     Qed.
-     
-     Global Instance row_rec_once (R : sem_row Σ → sem_row Σ) `{Contractive R} :
-       (∀ θ, OnceR (R θ)) → OnceR (μᵣ θ, R θ)%R.
-     Proof.
-       intros Hle. constructor. 
-       iApply row_le_mfbang_elim_rec. iIntros (θ). 
-       destruct (Hle θ). iApply row_le_mfbang_elim0.
-     Qed. *)
 
 End row_sub_typing.
 
@@ -767,25 +480,6 @@ Section sem_row_union.
   Global Instance sem_ty_row_union_proper :
     Proper ((≡) ==> (≡) ==> (≡)) (sem_row_union).
   Proof. apply ne_proper_2. solve_proper. Qed.
-
-
-  (* [valid]/[distinct] decompose over [iLblThy] append. *)
-  Lemma valid_app (L M : iLblThy Σ) :
-    logic.valid (L ++ M) ⊣⊢ logic.valid L ∗ logic.valid M.
-  Proof.
-    rewrite /logic.valid /valid_l /valid_r /labels_l /labels_r
-            !fmap_app !concat_app.
-    rewrite !big_sepL_app. iSplit; iIntros "[[$$][$$]]".
-  Qed.
-
-  Lemma distinct_app_iff (L M : iLblThy Σ) :
-    distinct (L ++ M) → distinct L ∧ distinct M.
-  Proof.
-    rewrite /distinct /distinct_l /distinct_r /labels_l /labels_r
-            !fmap_app !concat_app.
-    intros [Hl%NoDup_app Hr%NoDup_app].
-    split; split; tauto.
-  Qed.
 
   (* Union monotonicity, with the cross-disjointness premise supplied as
      two LABEL sub-multiset facts (one per side).  These let us derive
