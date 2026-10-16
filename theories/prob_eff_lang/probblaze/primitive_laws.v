@@ -223,11 +223,18 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
 Definition unshot `{probblazeGS Σ} r := (r ↦ #true)%I.
 
 (** User-level tapes *)
-Definition nat_tape `{probblazeGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
-  ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ (N; fs).
+Definition nat_tape `{probblazeGS Σ} l (N : nat) (dq : dfrac) (ns : list nat) : iProp Σ :=
+  ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪{ dq } (N; fs).
 
-Notation "l ↪N ( M ; ns )" := (nat_tape l M ns)%I
+Notation "l ↪N ( M ; ns )" := (nat_tape l M (DfracOwn 1) ns)%I
   (at level 20, format "l  ↪N  ( M ;  ns )") : bi_scope.
+
+Notation "l ↪{ dq }N ( M ; ns )" := (nat_tape l M dq ns)%I
+  (at level 20, format "l  ↪{ dq }N  ( M ;  ns )") : bi_scope.
+
+Notation "l ↪□N ( M ; ns )" := (nat_tape l M DfracDiscarded ns)%I
+  (at level 20, format "l  ↪□N  ( M ;  ns )") : bi_scope.
+
 
 Section tape_interface.
   Context `{!probblazeGS Σ}.
@@ -235,8 +242,8 @@ Section tape_interface.
   (** Helper lemmas to go back and forth between the user-level representation
       of tapes (using nat) and the backend (using fin) *)
 
-  Lemma tapeN_to_empty l M :
-    (l ↪N ( M ; [] ) -∗ l ↪ ( M ; [] )).
+  Lemma tapeN_to_empty l M dq :
+    (l ↪{ dq }N ( M ; [] ) -∗ l ↪{ dq } ( M ; [] )).
   Proof.
     iIntros "Hl".
     iDestruct "Hl" as (?) "(%Hmap & Hl')".
@@ -244,8 +251,8 @@ Section tape_interface.
   Qed.
 
 
-  Lemma empty_to_tapeN l M :
-    (l ↪ ( M ; [] ) -∗ l ↪N ( M ; [] )).
+  Lemma empty_to_tapeN l M dq :
+    (l ↪{ dq } ( M ; [] ) -∗ l ↪{ dq }N ( M ; [] )).
   Proof.
     iIntros "Hl".
     iExists []. auto.
@@ -265,6 +272,20 @@ Section tape_interface.
     iIntros.
     iExists xs; auto.
   Qed.
+
+  Global Instance tapeN_timeless l dq M ns : Timeless (l ↪{ dq }N (M ; ns)).
+  Proof. apply _. Qed.
+
+  Global Instance tapeN_persistent l M ns : Persistent (l ↪□N (M ; ns))%I.
+  Proof. apply _. Qed.
+
+  Lemma tapeN_to_persistent l dq M ns : l ↪{ dq }N (M ; ns) ==∗ l ↪□N (M ; ns).
+  Proof.  
+    iIntros "(%&%&H)".
+    iDestruct (ghost_map_elem_persist with "H") as ">H".
+    iModIntro.
+    iExists _. by iSplit. 
+  Qed. 
 
 End tape_interface.
 
@@ -478,11 +499,11 @@ Proof.
   pose proof (fin_to_nat_lt x). apply le_INR. lia.
 Qed.
 
-Lemma wp_rand_tape_empty N z α E s :
+Lemma wp_rand_tape_empty N z dq α E s :
   TCEq N (Z.to_nat z) →
-  {{{ ▷ α ↪N (N; []) }}}
+  {{{ ▷ α ↪{ dq }N (N; []) }}}
     rand(#lbl:α) #z @ s; E
-  {{{ (n : nat), RET #(LitInt n); α ↪N (N; []) ∗ ⌜n <= N⌝ }}}.
+  {{{ (n : nat), RET #(LitInt n); α ↪{ dq }N (N; []) ∗ ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iPoseProof (tapeN_to_empty with "Hl") as "Hl".
@@ -559,10 +580,10 @@ Proof.
 Qed.
 
 (** spec [rand(α)] with empty tape  *)
-Lemma wp_rand_empty_r N z E e K α Φ :
+Lemma wp_rand_empty_r N z dq E e K α Φ :
   TCEq N (Z.to_nat z) →
-  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (N; []) ∗
-  (∀ n : nat, (α ↪ₛN (N; []) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
+  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ{ dq }N (N; []) ∗
+  (∀ n : nat, (α ↪ₛ{ dq }N (N; []) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
   iIntros (->) "(Hj & Hα & Hwp)".
@@ -595,13 +616,13 @@ Proof.
 Qed.
 
 
-  (** spec [rand(α)] with wrong tape  *)
-  Lemma wp_rand_wrong_tape_r N M z E e K α Φ ns :
-    TCEq N (Z.to_nat z) →
-    N ≠ M →
-    ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (M; ns) ∗
-      (∀ (n : nat), (α ↪ₛN (M; ns) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
-      ⊢ WP e @ E {{ Φ }}.
+(** spec [rand(α)] with wrong tape  *)
+Lemma wp_rand_wrong_tape_r N M z E e K α Φ ns :
+  TCEq N (Z.to_nat z) →
+  N ≠ M →
+  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (M; ns) ∗
+  (∀ (n : nat), (α ↪ₛN (M; ns) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
 Proof.
   iIntros (-> ?) "(Hj & Hα & Hwp)".
   iApply wp_lift_step_spec_couple.
@@ -611,8 +632,8 @@ Proof.
   iDestruct (spec_auth_lookup_tape with "Hs Hα") as %?.
   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
   iApply spec_coupl_step.
-   { eexists. simpl. unfold semantics.prim_step. 
-     setoid_rewrite head_reducible_decomp_ctx;
+  { eexists. simpl. unfold semantics.prim_step. 
+    setoid_rewrite head_reducible_decomp_ctx;
       [|done| eexists; apply head_step_support_equiv_rel; unshelve eapply RandTapeOtherS; first exact (Z.to_nat z); eauto using Fin.F1].
     apply dmap_pos. eexists. split; last first.
     - apply head_step_support_equiv_rel. unshelve eapply RandTapeOtherS; first exact (Z.to_nat z); eauto using Fin.F1.

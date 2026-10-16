@@ -256,11 +256,15 @@ Proof.
 Qed.
 
 (** Tapes containing natural numbers defined as a wrapper over backend tapes *)
-Definition nat_spec_tape `{specG_blaze_prob_lang Σ} l (N : nat) (ns : list nat) : iProp Σ :=
-  ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ₛ (N; fs).
+Definition nat_spec_tape `{specG_blaze_prob_lang Σ} l (N : nat) (dq : dfrac) (ns : list nat) : iProp Σ :=
+  ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ₛ{ dq } (N; fs).
 
-Notation "l ↪ₛN ( M ; ns )" := (nat_spec_tape l M ns)%I
+Notation "l ↪ₛ{ dq }N ( M ; ns )" := (nat_spec_tape l M dq ns)%I
+                                 (at level 20, format "l ↪ₛ{ dq }N ( M ; ns )") : bi_scope.
+Notation "l ↪ₛN ( M ; ns )" := (l ↪ₛ{ DfracOwn 1 }N ( M ; ns ))%I
                                  (at level 20, format "l ↪ₛN ( M ; ns )") : bi_scope.
+Notation "l ↪ₛ□N ( M ; ns )" := (l ↪ₛ{ DfracDiscarded }N ( M ; ns ))%I
+                                 (at level 20, format "l ↪ₛ□N ( M ; ns )") : bi_scope.
 
 Section spec_tape_interface.
   Context `{!specG_blaze_prob_lang Σ}.
@@ -268,8 +272,8 @@ Section spec_tape_interface.
   (** Helper lemmas to go back and forth between the user-level representation
       of tapes (using nat) and the backend (using fin) *)
 
-  Lemma spec_tapeN_to_empty l M :
-    (l ↪ₛN ( M ; [] ) -∗ l ↪ₛ ( M ; [] )).
+  Lemma spec_tapeN_to_empty l M dq :
+    (l ↪ₛ{ dq }N ( M ; [] ) -∗ l ↪ₛ{ dq } ( M ; [] )).
   Proof.
     iIntros "Hl".
     iDestruct "Hl" as (?) "(%Hmap & Hl')".
@@ -277,8 +281,8 @@ Section spec_tape_interface.
   Qed.
 
 
-  Lemma empty_to_spec_tapeN l M :
-    (l ↪ₛ ( M ; [] ) -∗ l ↪ₛN ( M ; [] )).
+  Lemma empty_to_spec_tapeN l M dq :
+    (l ↪ₛ{ dq } ( M ; [] ) -∗ l ↪ₛ{ dq }N ( M ; [] )).
   Proof.
     iIntros "Hl".
     iExists []. auto.
@@ -297,6 +301,20 @@ Section spec_tape_interface.
     iSplit; auto.
     iIntros.
     iExists xs; auto.
+  Qed.
+
+  Global Instance spec_tapeN_timeless l dq M ns : Timeless (l ↪ₛ{ dq }N (M; ns)).
+  Proof. apply _. Qed.
+
+  Global Instance spec_tapeN_persistent l M ns : Persistent (l ↪ₛ□N (M; ns)).
+  Proof. apply _. Qed.
+
+  Lemma spec_tape_to_persistent l dq M ns : l ↪ₛ{ dq }N (M ; ns) ==∗ l ↪ₛ□N (M; ns).
+  Proof.
+    iIntros "(%&%&H)".
+    iDestruct (ghost_map_elem_persist with "H") as ">H".
+    iModIntro.
+    iExists _; by iSplit.
   Qed.
 
 End spec_tape_interface.

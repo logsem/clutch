@@ -1553,10 +1553,10 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
   Qed.     
   Definition rel_rand_r := rel_randT_r.
 
-  Lemma rel_randT_empty_r K E α N z e X R :
+  Lemma rel_randT_empty_r K E α N z dq e X R :
     TCEq N (Z.to_nat z) →
-    ▷ α ↪ₛN (N; []) ∗
-      (∀ n : nat, α ↪ₛN (N; []) -∗ ⌜ n ≤ N ⌝ -∗ REL e ≤ fill K (Val #n) @ E <|X|> {{R}})
+    ▷ α ↪ₛ{ dq }N (N; []) ∗
+      (∀ n : nat, α ↪ₛ{ dq }N (N; []) -∗ ⌜ n ≤ N ⌝ -∗ REL e ≤ fill K (Val #n) @ E <|X|> {{R}})
     ⊢ REL e ≤ fill K (rand(#lbl:α) #z) @ E <|X|> {{R}}.
   Proof.
     iIntros (->) "[>Hα H]".
@@ -1611,10 +1611,10 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
   Qed.
   Definition rel_rand_l := rel_randT_l.
 
-  Lemma rel_randT_empty_l K E α N z e X R :
+  Lemma rel_randT_empty_l K E α N z dq e X R :
     TCEq N (Z.to_nat z) →
-    ▷ α ↪N (N; []) ∗
-    ▷ (∀ (n : nat), α ↪N (N; []) -∗ ⌜ n ≤ N ⌝ -∗ REL fill K (Val #n) ≤ e @ E <|X|> {{R}})
+    ▷ α ↪{ dq }N (N; []) ∗
+    ▷ (∀ (n : nat), α ↪{ dq }N (N; []) -∗ ⌜ n ≤ N ⌝ -∗ REL fill K (Val #n) ≤ e @ E <|X|> {{R}})
     ⊢ REL fill K (rand(#lbl:α) #z) ≤ e @ E <|X|> {{R}}.
   Proof.
     iIntros (->) "[>Hα H]".
@@ -3421,10 +3421,10 @@ Section brel_probabilistic_rules.
   Qed.
   Definition brel_rand_r := brel_randT_r.
 
-  Lemma brel_randT_empty_r E K α N z e X R :
+  Lemma brel_randT_empty_r E K α N z dq e X R :
     TCEq N (Z.to_nat z) →
-    ▷ α ↪ₛN (N; []) ∗
-      (∀ n : nat, α ↪ₛN (N; []) -∗ ⌜ n ≤ N ⌝ -∗ BREL e ≤ fill K (Val #n) @ E <|X|> {{R}})
+    ▷ α ↪ₛ{ dq }N (N; []) ∗
+      (∀ n : nat, α ↪ₛ{ dq }N (N; []) -∗ ⌜ n ≤ N ⌝ -∗ BREL e ≤ fill K (Val #n) @ E <|X|> {{R}})
     ⊢ BREL e ≤ fill K (rand(#lbl:α) #z) @ E <|X|> {{R}}.
   Proof.
     iIntros (?) "(Hα & Hrel) #Hvalid Hdistinct".
@@ -3447,10 +3447,10 @@ Section brel_probabilistic_rules.
   Qed.
   Definition brel_rand_l := brel_randT_l.
 
-  Lemma brel_randT_empty_l E K α N z e X R :
+  Lemma brel_randT_empty_l E K α N z dq e X R :
     TCEq N (Z.to_nat z) →
-    ▷ α ↪N (N; []) ∗
-    ▷ (∀ (n : nat), α ↪N (N; []) -∗ ⌜ n ≤ N ⌝ -∗ BREL fill K (Val #n) ≤ e @ E <|X|> {{R}})
+    ▷ α ↪{ dq }N (N; []) ∗
+    ▷ (∀ (n : nat), α ↪{ dq }N (N; []) -∗ ⌜ n ≤ N ⌝ -∗ BREL fill K (Val #n) ≤ e @ E <|X|> {{R}})
     ⊢ BREL fill K (rand(#lbl:α) #z) ≤ e @ E <|X|> {{R}}.
   Proof.
     iIntros (?) "(Hα & Hrel) #Hvalid Hdistinct".
