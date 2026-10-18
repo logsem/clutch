@@ -3496,6 +3496,26 @@ Section brel_probabilistic_rules.
       by iApply ("Hrel" with "[$][$]").
   Qed.
 
+  Lemma brel_couple_TT E (N : nat) f `{Bij nat nat f} e1 e2 X R α αₛ ns nsₛ :
+    (∀ n, n < S N -> f n < S N)%nat ->
+    ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (N; nsₛ) ∗
+    (∀ n, α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (N; nsₛ ++ [f n]) -∗ 
+          BREL e1 ≤ e2 @ E <|X|> {{R}})
+    ⊢ BREL e1 ≤ e2 @ E <|X|> {{R}}.
+  Proof.
+    iIntros (Hf) "(Hα & Hαs & Hrel)".
+    pose proof (f_inv_bij f) as Hbij.
+    pose proof (fin.f_inv_restr (S N) f Hf) as Hrestr.
+    iApply (brel_couple_TT_frag _ N N (f_inv f) _ _ _ _ α αₛ ns nsₛ); [done|done|].
+    iFrame.
+    iIntros (n) "%Hn".
+    rewrite bool_decide_eq_true_2; last first.
+    { exists (f n). split; [apply Nat.lt_succ_r, Hf; lia|].
+      apply f_inv_cancel_l; apply _. }
+    iIntros (m) "(Hα & Hαs & _ & _)".
+    iApply ("Hrel" $! (f_inv f m)). rewrite f_inv_cancel_r. iFrame.
+  Qed.
+
   Lemma brel_couple_TT_adv E (N M : nat) (f : nat → nat) {_ : Inj (=) (=) f} e1 e2 X A α αₛ ns nsₛ (ε : R) :
     (0 <= ε)%R →
     (N < M)%nat →
