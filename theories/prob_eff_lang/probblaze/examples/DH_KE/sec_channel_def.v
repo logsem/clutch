@@ -21,7 +21,7 @@ Section schannel.
         let: "doRecv" := (λ: "m", do: "recv" "m") in
         handle: handle: "f" ("doSend", "doRecv") with
     (*Send Auth*)
-    | effect "send" "payload", rec "k" as multi =>
+    | effect "send" "payload", rec "k" =>
         let, ("m", "dst") := "payload" in
         match: !"message" with
         | NONE => "message" <- SOME "m" ;;
@@ -30,7 +30,7 @@ Section schannel.
         end
     | return "y" => "y" end with
 (* Receive Auth *)
-| effect "recv" "from", rec "k" as multi =>
+| effect "recv" "from", rec "k" =>
     let: "r" := ("doLeakRecv" "from") in
     match: "r" with
     | NONE => "k" NONEV
@@ -52,7 +52,7 @@ Section schannel.
         let: "doSecRecv" := (λ: <>, do: "srecv" bob) in
         handle: handle: "f" ("doSecSend", "doSecRecv") with
     (*SendSecure*)
-    | effect "ssend" "m", rec "k" as multi =>
+    | effect "ssend" "m", rec "k" =>
         match: vg_of_int "m" with
         | NONE => "k" #()%V
         | SOME "m" => 
@@ -69,7 +69,7 @@ Section schannel.
         end 
     | return "y" => "y" end with
 (*RecvSecure*)
-| effect "srecv" "payload", rec "k" as multi =>
+| effect "srecv" "payload", rec "k" =>
     let: "key" := "doGK" (alice) in
     match: "key" with
     | NONE => "k" NONEV
@@ -96,7 +96,7 @@ Section schannel.
         let: "doSecRecv" := (λ: <>, do: "srecv" bob) in
         handle: handle: "f" ("doSecSend" ,"doSecRecv") with
     (*SendSecure*)
-    | effect "ssend" "m", rec "k" as multi =>
+    | effect "ssend" "m", rec "k" =>
         match: vg_of_int "m" with
         | NONE => "k" #()%V
         | SOME "m" => 
@@ -109,7 +109,7 @@ Section schannel.
         end
     | return "y" => "y" end with
 (*ReceiveSecure*)
-| effect "srecv" "payload", rec "k" as multi =>
+| effect "srecv" "payload", rec "k" =>
     let: "r" := ("doLeakRecv" bob) in
     match: "r" with
     | NONE => "k" NONEV
@@ -130,7 +130,7 @@ Section schannel.
         let: "doLeakSecSend" := (λ: "m", do: (EffName "leaksec") (Send "m")) in
         let: "doLeakSecRecv" := (λ: "m", do: (EffName "leaksec") (Recv "m")) in
         handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
-    | effect (EffName "leaksec") "payload", rec "k" as multi =>
+    | effect (EffName "leaksec") "payload", rec "k" =>
         match: "payload" with
         (*Broadcast a message*)
         | InjL <> =>
@@ -192,7 +192,7 @@ Section schannel.
         let: "doLeakSecRecv" := (λ: "m", do: "lrecv" "m") in
         handle: handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
     (*Broadcast a message*)
-    | effect "lsend" "payload", rec "k" as multi =>
+    | effect "lsend" "payload", rec "k" =>
         let: "m'" := "sample_or_load" #()%V in
         ("doKeyLeakSnd" (bob));;
         let: "r" := "doKeyLeakRecv" (bob) in
@@ -211,7 +211,7 @@ Section schannel.
             end
         end
     | return "y" => "y" end with
-| effect "lrecv" "payload", rec "k" as multi =>
+| effect "lrecv" "payload", rec "k" =>
     (*("doKeyLeakRecv" (alice));;*)
     let: "r" := "doKeyLeakRecv" (alice) in
     match: "r" with
