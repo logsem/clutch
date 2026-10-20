@@ -29,6 +29,11 @@ Section schan_security.
   Context {ms : @fin_val_type_struct mt} {cs : @fin_val_type_struct ct}.
   (* key space is valgroup *)
   Context {ske : @SYM_struct vg_fvt vg_fvts mt ms ct cs}.
+  (* the semantic side of the scheme: the key space is [vg_fv], the message and
+     cipher spaces are abstract.  [enc_sem]/[dec_sem] take and return VALUES of
+     those spaces, so nothing below ever decodes a key or a message. *)
+  Context {msg : @fin_val Σ _ mt ms} {cipher : @fin_val Σ _ ct cs}.
+  Context {SKE : @SYM Σ _ vg_fvt mt ct vg_fvts ms cs vg_fv msg cipher ske}.
 
   Definition alphaN : namespace := nroot .@ "alpha".
   Definition betaN : namespace := nroot .@ "beta".
@@ -107,11 +112,15 @@ Section schan_security.
 
   (* [doSecRecv] is a thunk, so the INTERFACE argument type is 𝟙 -- but the
      effect PAYLOAD is the closed constant [bob].  Do not "simplify" it to #(). *)
+  (* The channel hands back a DECODED message, i.e. a value of the abstract
+     message space, not its integer code: [CHAN] returns [SOME (dec key m)] and
+     [RED_CHAN] / [F_CHAN] return the stored [!"message"], all of which are
+     [fvtval]s.  Hence the quantifier ranges over [mt], not over [nat]. *)
   Program Definition RecvSecB (srecv1 srecv2 : label) : iThy Σ :=
     λ e1 e2, (λne Q,
                 ⌜ e1 = do: srecv1 bob ⌝%E ∗
                 ⌜ e2 = do: srecv2 bob ⌝%E ∗
-                ((∀ g : nat, Q (SOMEV #g) (SOMEV #g)) ∧ Q NONEV NONEV)
+                ((∀ mv : mt, Q (SOMEV (fvtval mv)) (SOMEV (fvtval mv))) ∧ Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed.
 
@@ -251,7 +260,7 @@ Section schan_security.
                    (iLblSig_to_iLblThy [(l1s, l2s, sec_channel ssend_l ssend_r srecv_l srecv_r)])) :
       let θ := SemRow [(l1s, l2s, sec_channel ssend_l ssend_r srecv_l srecv_r)] Hpm in
       ⊢
-        (sem_val_typed  ((λ: "m", do: ssend_l "m"), (λ: <>, do: srecv_l bob))%V ((λ: "m", do: ssend_r "m") , (λ: <>, do: srecv_r bob))%V (((sem_ty_nat)%T -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option ℕ)))%T)%I.
+        (sem_val_typed  ((λ: "m", do: ssend_l "m"), (λ: <>, do: srecv_l bob))%V ((λ: "m", do: ssend_r "m") , (λ: <>, do: srecv_r bob))%V (((sem_ty_nat)%T -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option msg.(sem_τFT))))%T)%I.
   Proof.
     unfold sem_val_typed. simpl. intros.
     iModIntro. rewrite /sem_ty_arr /sem_ty_mbang /sem_ty_option /sem_ty_sum //=. rewrite /sem_ty_prod.
@@ -274,8 +283,8 @@ Section schan_security.
       iExists _,_,[],[],_; do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]);
                         iSplit; try (iIntros (??) "!# H"; iApply "H"). iRight.
       do 2 (iSplit; first done). iSplit.
-      - iIntros (?). iApply brel_value. iIntros "$ !>".
-        iExists _,_; iRight; iPureIntro; do 2 (split; first done); by exists g.
+      - iIntros (mv). iApply brel_value. iIntros "$ !>".
+        iExists _,_; iRight; iPureIntro; do 2 (split; first done); by exists mv.
       - iApply brel_value. iIntros "$ !>".
         iExists _,_; iLeft; by iPureIntro. 
   Qed.
@@ -352,6 +361,34 @@ Section schan_security.
   Lemma keyf_inv_spec (d : nat) : (d < S n)%nat → int_of_vg_sem (g ^+ f_inv keyf d)%g = d.
   Proof. intros Hd. rewrite -(keyf_lt _ (keyf_inv_dom d Hd)). apply f_inv_cancel_r. Qed.
 
+  (* Under the [fin_val] interface the key is passed to [enc]/[dec] as a group
+     VALUE, so the scheme never applies [int_of_vg] and the proof never needs
+     [brel_int_of_vg_sem_correct_*].  What it needs instead is the other
+     direction: the key code drawn on the [game1] side DECODES to exactly the
+     DH key held on the [sc_real] side.  Both directions of the coupling are
+     immediate from [int_of_vg_of_int_sem] once [keyf] has been unfolded. *)
+  Lemma vg_of_int_sem_keyf (x : nat) :
+    (x < S n)%nat → vg_of_int_sem (keyf x) = Some (g ^+ x)%g.
+  Proof. intros Hx. rewrite (keyf_lt x Hx). apply int_of_vg_of_int_sem. Qed.
+
+  (* [vgval] and the key space's [fin_val] injection are the same function, but
+     not the same TERM.  [enc_correct_*]/[dec_correct_*] are matched against the
+     goal up to syntax (their [fill K] leaves [K] an evar), so a key that the
+     key exchange produced as [vgval k] has to be rewritten into [fvtval] form
+     before those rules apply. *)
+  Lemma vgval_fvtval (k : vgG) : vgval k = fvtval (fin_val_type := vg_fv) k.
+  Proof. reflexivity. Qed.
+
+  Lemma vg_of_int_sem_keyf_inv (d : nat) :
+    (d < S n)%nat → vg_of_int_sem d = Some (g ^+ f_inv keyf d)%g.
+  (* NB: rewriting with [keyf_inv_spec] right-to-left in the goal would also hit
+     the [d] under [f_inv keyf]; rewrite left-to-right in the round-trip law
+     instead, whose right-hand side does not mention the code. *)
+  Proof.
+    intros Hd. pose proof (int_of_vg_of_int_sem (g ^+ f_inv keyf d)%g) as Hr.
+    by rewrite (keyf_inv_spec d Hd) in Hr.
+  Qed.
+
   (* [brel_couple_TT] does not say that the sample it produces is in range, but
      a tape only ever holds values below its bound, so the bound can be read
      back off the tape assertion. *)
@@ -384,8 +421,8 @@ Section schan_security.
     by iDestruct (ghost_map_elem_ne with "H1 H2") as %?.
   Qed.
 
-  Definition τsc :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option ℕ))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((ℕ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
+  Definition τsc :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option msg.(sem_τFT)))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((cipher.(sem_τFT) × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
   
   (* The reverse refinement.  Mirror image of [sc_real_game1] below: every
      left-hand step becomes a right-hand step and vice versa, the heap and tape
@@ -433,7 +470,7 @@ Section schan_security.
     set (θ := client_row' sr rr sl rl gkr gkl ssl srl ssr srr).
     iSpecialize ("Hff" $! θ).
     unfold sem_ty_arr, sem_ty_mbang. simpl.
-    iAssert (sem_val_typed  ((λ: "m", do: ssl "m"), (λ: <>, do: srl bob))%V ((λ: "m", do: ssr "m") , (λ: <>, do: srr bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option ℕ)))%T)) as "Hschn".
+    iAssert (sem_val_typed  ((λ: "m", do: ssl "m"), (λ: <>, do: srl bob))%V ((λ: "m", do: ssr "m") , (λ: <>, do: srr bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option msg.(sem_τFT))))%T)) as "Hschn".
     { iApply SEM_TYPED_EFF. }
      unfold sem_val_typed. simpl.
     iDestruct "Hschn" as "#Hschn".
@@ -483,12 +520,12 @@ Section schan_security.
     
     iApply (brel_na_alloc ((lmr ↦ₛ NONEV ∗ lcr ↦ₛ NONEV ∗ lml ↦ NONEV ∗ lcl ↦ NONEV ∗ lamr ↦ₛ NONEV ∗ laml ↦ NONEV
                            ∗ γr ↪ₛN (n; [f_inv keyf x]) ∗ (Loc ι) ↪N (n; [x]))
-                           ∨ (∃ c' m : nat, lmr ↦ₛ□ SOMEV #m ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV #m ∗ lcl ↦□ SOMEV #c'
-                                            ∗ lamr ↦ₛ NONEV ∗ laml ↦ NONEV 
-                                            ∗ γr ↪ₛ□N (n; []) ∗ ⌜(m ≤ ms.(fin_val_type.card))%nat⌝)
-                           ∨ (∃ c' m : nat, lmr ↦ₛ□ SOMEV #m ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV #m ∗ lcl ↦□ SOMEV #c' 
-                                            ∗ lamr ↦ₛ□ SOMEV #(enc_sem x m) ∗ laml ↦□ SOMEV #(enc_sem x m)
-                                            ∗ γr ↪ₛ□N (n; []) ∗ (Loc ι) ↪□N (n; []) ∗ ⌜(m ≤ msg_card)%nat⌝)
+                           ∨ (∃ (c' : nat) (mv : mt), lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c'
+                                            ∗ lamr ↦ₛ NONEV ∗ laml ↦ NONEV
+                                            ∗ γr ↪ₛ□N (n; []))
+                           ∨ (∃ (c' : nat) (mv : mt), lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c'
+                                            ∗ lamr ↦ₛ□ SOMEV (fvtval (enc_sem (key := vg_fv) (g ^+ f_inv keyf x)%g mv)) ∗ laml ↦□ SOMEV (fvtval (enc_sem (key := vg_fv) (g ^+ f_inv keyf x)%g mv))
+                                            ∗ γr ↪ₛ□N (n; []) ∗ (Loc ι) ↪□N (n; []))
               ) alphaN).
     iSplitL "Hlmr Hlml Hlcr Hlcl Hγr Hι Hlamr Hlaml"; [iNext; iLeft; iFrame|].
     iIntros "#HI".
@@ -504,9 +541,18 @@ Section schan_security.
     iIntros (?????) "!# %Hk1 %Hk2 [(%m&(->&->)&HQ)|(->&->&HQ)] #Hrel".
     (* Alice tries to send a message m *)
     - brel_pures'; [apply neutral_ectx|apply neutral_ectx|]; repeat constructor.
-      unfold msg_of_int...
-      case_decide...
-      2 : { iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
+      (* Both sides decode the client's integer code with the SAME [fvt_of_int],
+         so the case split is on [fvt_of_int_sem m] rather than on a bound, and
+         the message carried through the invariant is the decoded VALUE [mv]. *)
+      (* [fin_val := msg] MUST be pinned: left implicit, the [fvt_of_int] in the
+         rule's conclusion is headed by an evar and the [fill K] unification
+         against the handler stack has nothing to match on. *)
+      destruct (fvt_of_int_sem (fin_val := msg) m) as [mv|] eqn:Hmv.
+      2 : { iApply (brel_fvt_of_int_none_l (fin_val := msg)); first exact Hmv.
+            iApply (brel_fvt_of_int_none_r (fin_val := msg)); first exact Hmv...
+            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
+      iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first exact Hmv.
+      iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first exact Hmv...
       iApply (brel_na_inv _ _ alphaN); first set_solver.
       iFrame "HI".
       iIntros "(>[(Hlmr&Hlcr&Hlml&Hlcl&Hlamr&Hlaml&Hγr&Hι)|[H2|H3]]&Hclose)".
@@ -538,8 +584,8 @@ Section schan_security.
         iDestruct (spec_tape_to_persistent with "Hγr") as ">#Hγr".
         iApply brel_na_close. iFrame.
         iSplitL "Hlamr Hlaml".
-        { iModIntro. iRight. iLeft. iExists _, _. iFrame "#". iFrame. iPureIntro. lia. }
-        
+        { iModIntro. iRight. iLeft. iExists _, _. iFrame "#". iFrame. }
+
         iApply (brel_bind'' [AppRCtx _] [AppRCtx _] (to_iThyIfMono OS (iLblSig_to_iLblThy keyeff))); try (apply list_subseteq_nil).
         { iApply to_iThy_le_intro'. solve_submseteq. }
         iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
@@ -554,11 +600,16 @@ Section schan_security.
         brel_cont_r. 
         brel_cont_l...
         brel_rand_l...
-        iApply brel_int_of_vg_sem_correct_r.
-        assert (int_of_vg_sem (g ^+ f_inv keyf x) = x) as ->.
-        { exact (keyf_inv_spec x Hx). }
-        iApply enc_correct_r.
-        iApply enc_correct_l.
+        (* [enc_real_tape] decodes the key code [x] it just drew; by
+           [vg_of_int_sem_keyf_inv] that is exactly the DH key [g ^+ f_inv keyf x]
+           the right-hand side obtained from the key exchange, so after the
+           decode both sides encrypt under the same key.  (The old proof instead
+           ENCODED the right-hand key with [int_of_vg]; the scheme now takes a
+           group value, so that step is gone.) *)
+        iApply brel_vg_of_int_correct_l; first (by apply vg_of_int_sem_keyf_inv).
+        brel_pures_l.
+        iApply (enc_correct_r (key := vg_fv) _ _ _ mv).
+        iApply (enc_correct_l (key := vg_fv) _ _ _ mv).
         brel_pures'; simpl.
         (* [brel_pures'] raises one label-freshness goal per side; which side
            comes first is fixed by the tactic, not by the direction, so let
@@ -569,7 +620,7 @@ Section schan_security.
                 | eapply (submseteq_NoDup _ [rl; sl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l] ]. }
         iApply (brel_na_inv _ _ alphaN); first set_solver.
         iFrame "HI".
-        iIntros "(>[(_&_&_&_&_&_&_&Hι')|[(%&%&_&_&_&_&Hlamr&Hlaml&_)|(%&%&_&_&_&_&_&_&_&Hι'&_)]]&Hclose)".
+        iIntros "(>[(_&_&_&_&_&_&_&Hι')|[(%&%&_&_&_&_&Hlamr&Hlaml&_)|(%&%&_&_&_&_&_&_&_&Hι')]]&Hclose)".
         (* The key tape [ι] has already been read, so the "fresh" and the
            "already sent" disjuncts are both impossible: each hands back an
            assertion for [ι] that cannot coexist with the one we hold. *)
@@ -584,7 +635,7 @@ Section schan_security.
         iMod (ghost_map_elem_persist with "Hlaml") as "#Hlaml".
         iDestruct (tapeN_to_persistent with "Hι") as ">#Hι".
         iApply brel_na_close.
-        iFrame. iSplitR; [iNext; do 2 iRight; iExists _,_; iFrame "#"; iPureIntro; lia|].
+        iFrame. iSplitR; [iNext; do 2 iRight; iExists _,_; iFrame "#"|].
         iApply (brel_bind'' _ _ (to_iThyIfMono OS (iLblSig_to_iLblThy autheff)) _ _ _ (asnd_l _) (asnd_r _)).
         3 : { iApply to_iThy_le_intro'. 
               eassert (_ :: _ = [_] ++ _) as -> by done.
@@ -695,25 +746,30 @@ Section schan_security.
           iSplitR "HQ"; [iRight; iLeft; iExists _,_; iFrame "#"; iFrame|].
           iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
           iDestruct "HQ" as "[_ $]".
-        * iDestruct "H3" as "(%&%&Hlmr'&_&_&_&Hlamr&Hlaml&Hγr3&Hι&%Hmb)".
+        * iDestruct "H3" as "(%c3&%mv3&Hlmr'&_&_&_&Hlamr&Hlaml&Hγr3&Hι)".
           iDestruct (ghost_map_elem_agree with "Hlmr Hlmr'") as "->".
           brel_load_r.
           brel_load_l...
           iApply brel_na_close.
           iFrame. 
-          iSplitR "HQ"; [iNext;iRight; iRight; iExists _,_; iFrame "#"; iFrame "Hlamr Hlaml Hγr3 Hι"; iPureIntro; exact Hmb|]...
+          (* [iFrame "#"] already discharges the [γr] conjunct from the
+             persistent [Hγ], so naming [Hγr3] here would fail with nothing left
+             to frame; let [iFrame] take whatever remains. *)
+          iSplitR "HQ"; [iNext;iRight; iRight; iExists _,_; iFrame "#"; iFrame|]...
           brel_load_l...
-          iApply brel_int_of_vg_sem_correct_r.
-          assert (int_of_vg_sem (g ^+ f_inv keyf x) = x) as ->.
-          { exact (keyf_inv_spec x Hx). }
-          iApply dec_correct_r.
+          (* [dec_enc_sem_correct] is now unconditional, and the key reaching
+             [dec] is the group value itself -- no [int_of_vg] step, no bounds. *)
+          (* [SYM := SKE] MUST be pinned.  Left to instance resolution, [dec] in
+             the rule's conclusion stays evar-headed and the [fill K] matching
+             against the handler stack has nothing to key on -- supplying [key]
+             or even [K] and both elements does not help. *)
+          rewrite (vgval_fvtval (g ^+ f_inv keyf x)%g).
+          iApply (dec_correct_r (SYM := SKE)).
           rewrite dec_enc_sem_correct.
-          2 : { apply Nat.lt_succ_r. exact Hx. }
-          2 : { exact Hmb. }
           iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
           iDestruct "HQ" as "[HQ _]".
           iApply "HQ".
-      + iDestruct "H3" as "(%&%&#Hlmr&#Hlcr&#Hlcl&#Hlml&#Hlamr&#Hlaml&#Hγr&#Hι&%Hmb)".
+      + iDestruct "H3" as "(%c4&%mv4&#Hlmr&#Hlcr&#Hlcl&#Hlml&#Hlamr&#Hlaml&#Hγr&#Hι)".
         brel_load_r.
         brel_load_l...
         brel_cont_r.
@@ -724,7 +780,7 @@ Section schan_security.
                 | eapply (submseteq_NoDup _ [rl; sl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l] ]. }        
         iApply brel_na_close.
         iFrame. 
-        iSplitR "HQ"; [iRight; iRight; iExists _,_; iFrame "#"; iFrame; iPureIntro; exact Hmb|].
+        iSplitR "HQ"; [iRight; iRight; iExists _,_; iFrame "#"; iFrame|].
         iApply (brel_bind'' _ _ (to_iThyIfMono OS (iLblSig_to_iLblThy autheff)) _ _ _ (arcv_l _) (arcv_r _)).
         3 : { iApply to_iThy_le_intro'. 
               eassert (_ :: _ = [_] ++ _) as -> by done.
@@ -739,13 +795,9 @@ Section schan_security.
         brel_load_r.
         brel_load_l...
         brel_load_l...
-        iApply brel_int_of_vg_sem_correct_r.
-        assert (int_of_vg_sem (g ^+ f_inv keyf x) = x) as ->.
-        { exact (keyf_inv_spec x Hx). }
-        iApply dec_correct_r.
+        rewrite (vgval_fvtval (g ^+ f_inv keyf x)%g).
+        iApply (dec_correct_r (SYM := SKE)).
         rewrite dec_enc_sem_correct.
-        2 : { apply Nat.lt_succ_r. exact Hx. }
-        2 : { exact Hmb. } 
         iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
         iDestruct "HQ" as "[HQ _]".
         iApply "HQ".
@@ -755,9 +807,11 @@ Section schan_security.
     ⊢ sem_typed [] sc_real game1 ⊥ τsc [].
   Proof using All with (brel_pures'; repeat foldkont). 
     iIntros (?) "!# _ //=". rewrite /sc_real /reduction /CHAN /RED_CHAN /right_composition.
-    do 2 (rewrite !lookup_delete_eq; 
-          rewrite lookup_delete_ne; last done).
-    rewrite !lookup_delete_eq.
+     rewrite !lookup_delete_eq.
+    do 2 (rewrite lookup_delete_ne; last done).
+    rewrite lookup_delete_eq.
+    rewrite lookup_delete_ne; last done.
+    rewrite lookup_delete_eq.
     brel_alloctape_r (ι) as "Hι"...
     iModIntro. iSplit; last done.
     iIntros (θL f1 f2) "Hff"...
@@ -791,7 +845,7 @@ Section schan_security.
     set (θ := client_row  sl rl sr rr gkl gkr ssl srl ssr srr).
     iSpecialize ("Hff" $! θ).
     unfold sem_ty_arr, sem_ty_mbang. simpl.
-    iAssert (sem_val_typed  ((λ: "m", do: ssl "m"), (λ: <>, do: srl bob))%V ((λ: "m", do: ssr "m") , (λ: <>, do: srr bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option ℕ)))%T)) as "Hschn".
+    iAssert (sem_val_typed  ((λ: "m", do: ssl "m"), (λ: <>, do: srl bob))%V ((λ: "m", do: ssr "m") , (λ: <>, do: srr bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option msg.(sem_τFT))))%T)) as "Hschn".
     { iApply SEM_TYPED_EFF. }
      unfold sem_val_typed. simpl.
     iDestruct "Hschn" as "#Hschn".
@@ -824,6 +878,7 @@ Section schan_security.
       by (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]). }
 
     (* Invariants *)
+    rewrite vg_fvt_card. assert (S n - 1 = n)%Z as -> by lia.
     rewrite Nat2Z.id.
     iAssert ((Loc ι) ↪ₛN (n; []))%I with "[Hι]" as "Hι". 
     { iExists []. simpl. iFrame. done. }
@@ -841,12 +896,12 @@ Section schan_security.
     
     iApply (brel_na_alloc ((lml ↦ NONEV ∗ lcl ↦ NONEV ∗ lmr ↦ₛ NONEV ∗ lcr ↦ₛ NONEV ∗ laml ↦ NONEV ∗ lamr ↦ₛ NONEV
                            ∗ γl ↪N (n; [x]) ∗ (Loc ι) ↪ₛN (n; [keyf x]))
-                           ∨ (∃ c' m : nat, lml ↦□ SOMEV #m ∗ lcl ↦□ SOMEV #x ∗ lmr ↦ₛ□ SOMEV #m ∗ lcr ↦ₛ□ SOMEV #c'
-                                            ∗ laml ↦ NONEV ∗ lamr ↦ₛ NONEV 
-                                            ∗ γl ↪□N (n; []) ∗ ⌜(m ≤ msg_card)%nat⌝)
-                           ∨ (∃ c' m : nat, lml ↦□ SOMEV #m ∗ lcl ↦□ SOMEV #x ∗ lmr ↦ₛ□ SOMEV #m ∗ lcr ↦ₛ□ SOMEV #c' 
-                                            ∗ laml ↦□ SOMEV #(enc_sem (keyf x) m) ∗ lamr ↦ₛ□ SOMEV #(enc_sem (keyf x) m)
-                                            ∗ γl ↪□N (n; []) ∗ (Loc ι) ↪ₛ□N (n; []) ∗ ⌜(m ≤ msg_card)%nat⌝)
+                           ∨ (∃ (c' : nat) (mv : mt), lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #x ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c'
+                                            ∗ laml ↦ NONEV ∗ lamr ↦ₛ NONEV
+                                            ∗ γl ↪□N (n; []))
+                           ∨ (∃ (c' : nat) (mv : mt), lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #x ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c'
+                                            ∗ laml ↦□ SOMEV (fvtval (enc_sem (key := vg_fv) (g ^+ x)%g mv)) ∗ lamr ↦ₛ□ SOMEV (fvtval (enc_sem (key := vg_fv) (g ^+ x)%g mv))
+                                            ∗ γl ↪□N (n; []) ∗ (Loc ι) ↪ₛ□N (n; []))
               ) alphaN).
     iSplitL "Hlml Hlmr Hlcl Hlcr Hγl Hι Hlaml Hlamr"; [iNext; iLeft; iFrame|].
     iIntros "#HI".
@@ -862,9 +917,12 @@ Section schan_security.
     iIntros (?????) "!# %Hk1 %Hk2 [(%m&(->&->)&HQ)|(->&->&HQ)] #Hrel".
     (* Alice tries to send a message m *)
     - brel_pures'; [apply neutral_ectx|apply neutral_ectx|]; repeat constructor.
-      unfold msg_of_int...
-      case_decide...
-      2 : { iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
+      destruct (fvt_of_int_sem (fin_val := msg) m) as [mv|] eqn:Hmv.
+      2 : { iApply (brel_fvt_of_int_none_l (fin_val := msg)); first exact Hmv.
+            iApply (brel_fvt_of_int_none_r (fin_val := msg)); first exact Hmv...
+            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
+      iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first exact Hmv.
+      iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first exact Hmv...
       iApply (brel_na_inv _ _ alphaN); first set_solver.
       iFrame "HI".
       iIntros "(>[(Hlml&Hlcl&Hlmr&Hlcr&Hlaml&Hlamr&Hγl&Hι)|[H2|H3]]&Hclose)".
@@ -896,7 +954,7 @@ Section schan_security.
         iDestruct (tapeN_to_persistent with "Hγl") as ">#Hγl".
         iApply brel_na_close. iFrame.
         iSplitL "Hlaml Hlamr".
-        { iModIntro. iRight. iLeft. iExists _, _. iFrame "#". iFrame. iPureIntro. lia. }
+        { iModIntro. iRight. iLeft. iExists _, _. iFrame "#". iFrame. }
         
         iApply (brel_bind'' [AppRCtx _] [AppRCtx _] (to_iThyIfMono OS (iLblSig_to_iLblThy keyeff))); try (apply list_subseteq_nil).
         { iApply to_iThy_le_intro'. solve_submseteq. }
@@ -912,11 +970,13 @@ Section schan_security.
         brel_cont_l. 
         brel_cont_r...
         brel_rand_r...
-        iApply brel_int_of_vg_sem_correct_l.
-        assert (int_of_vg_sem (g ^+ x) = keyf x) as ->.
-        { by rewrite (keyf_lt x Hx). }
-        iApply enc_correct_l.
-        iApply enc_correct_r.
+        (* [enc_real_tape] decodes the key code [keyf x] it just drew; by
+           [vg_of_int_sem_keyf] that is the DH key [g ^+ x] the left-hand side
+           derived from its exponent, so both sides encrypt under the same key. *)
+        iApply brel_vg_of_int_correct_r; first (by apply vg_of_int_sem_keyf).
+        brel_pures_r.
+        iApply (enc_correct_l (SYM := SKE) _ _ _ mv).
+        iApply (enc_correct_r (SYM := SKE) _ _ _ mv).
         brel_pures'; simpl.
         { eapply NoDup_cons_1_1.
           eapply (submseteq_NoDup _ [rr; sr; gkr; srr; ssr]); [solve_submseteq|exact Hnd_r]. }
@@ -924,7 +984,7 @@ Section schan_security.
           eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }
         iApply (brel_na_inv _ _ alphaN); first set_solver.
         iFrame "HI".
-        iIntros "(>[(_&_&_&_&_&_&_&Hι')|[(%&%&_&_&_&_&Hlaml&Hlamr&_)|(%&%&_&_&_&_&_&_&_&Hι'&_)]]&Hclose)".
+        iIntros "(>[(_&_&_&_&_&_&_&Hι')|[(%&%&_&_&_&_&Hlaml&Hlamr&_)|(%&%&_&_&_&_&_&_&_&Hι')]]&Hclose)".
         (* The key tape [ι] has already been read, so the "fresh" and the
            "already sent" disjuncts are both impossible: each hands back an
            assertion for [ι] that cannot coexist with the one we hold. *)
@@ -939,7 +999,7 @@ Section schan_security.
         iMod (ghost_map_elem_persist with "Hlamr") as "#Hlamr".
         iDestruct (spec_tape_to_persistent with "Hι") as ">#Hι".
         iApply brel_na_close.
-        iFrame. iSplitR; [iNext; do 2 iRight; iExists _,_; iFrame "#"; iPureIntro; lia|].
+        iFrame. iSplitR; [iNext; do 2 iRight; iExists _,_; iFrame "#"|].
         iApply (brel_bind'' _ _ (to_iThyIfMono OS (iLblSig_to_iLblThy autheff)) _ _ _ (asnd_l _) (asnd_r _)).
         3 : { iApply to_iThy_le_intro'. 
               eassert (_ :: _ = [_] ++ _) as -> by done.
@@ -1050,25 +1110,21 @@ Section schan_security.
           iSplitR "HQ"; [iRight; iLeft; iExists _,_; iFrame "#"; iFrame|].
           iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
           iDestruct "HQ" as "[_ $]".
-        * iDestruct "H3" as "(%&%&Hlml'&_&_&_&Hlaml&Hlamr&Hγl3&Hι&%Hmb)".
+        * iDestruct "H3" as "(%&%&Hlml'&_&_&_&Hlaml&Hlamr&Hγl3&Hι)".
           iDestruct (ghost_map_elem_agree with "Hlml Hlml'") as "->".
           brel_load_l.
           brel_load_r...
           iApply brel_na_close.
           iFrame. 
-          iSplitR "HQ"; [iNext;iRight; iRight; iExists _,_; iFrame "#"; iFrame "Hlaml Hlamr Hγl3 Hι"; iPureIntro; exact Hmb|]...
+          iSplitR "HQ"; [iNext;iRight; iRight; iExists _,_; iFrame "#"; iFrame|]...
           brel_load_r...
-          iApply brel_int_of_vg_sem_correct_l.
-          assert (int_of_vg_sem (g ^+ x) = keyf x) as ->.
-          { by rewrite (keyf_lt x Hx). }
-          iApply dec_correct_l.
+          rewrite (vgval_fvtval (g ^+ x)%g).
+          iApply (dec_correct_l (SYM := SKE)).
           rewrite dec_enc_sem_correct.
-          2 : { apply Nat.lt_succ_r. exact (keyf_dom x Hx). }
-          2 : { exact Hmb. }
           iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
           iDestruct "HQ" as "[HQ _]".
           iApply "HQ".
-      + iDestruct "H3" as "(%&%&#Hlml&#Hlcl&#Hlcr&#Hlmr&#Hlaml&#Hlamr&#Hγl&#Hι&%Hmb)".
+      + iDestruct "H3" as "(%&%&#Hlml&#Hlcl&#Hlcr&#Hlmr&#Hlaml&#Hlamr&#Hγl&#Hι)".
         brel_load_l.
         brel_load_r...
         brel_cont_l.
@@ -1079,7 +1135,7 @@ Section schan_security.
           eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }        
         iApply brel_na_close.
         iFrame. 
-        iSplitR "HQ"; [iRight; iRight; iExists _,_; iFrame "#"; iFrame; iPureIntro; exact Hmb|].
+        iSplitR "HQ"; [iRight; iRight; iExists _,_; iFrame "#"; iFrame|].
         iApply (brel_bind'' _ _ (to_iThyIfMono OS (iLblSig_to_iLblThy autheff)) _ _ _ (arcv_l _) (arcv_r _)).
         3 : { iApply to_iThy_le_intro'. 
               eassert (_ :: _ = [_] ++ _) as -> by done.
@@ -1094,13 +1150,9 @@ Section schan_security.
         brel_load_l.
         brel_load_r...
         brel_load_r...
-        iApply brel_int_of_vg_sem_correct_l.
-        assert (int_of_vg_sem (g ^+ x) = keyf x) as ->.
-        { by rewrite (keyf_lt x Hx). }
-        iApply dec_correct_l.
+        rewrite (vgval_fvtval (g ^+ x)%g).
+        iApply (dec_correct_l (SYM := SKE)).
         rewrite dec_enc_sem_correct.
-        2 : { apply Nat.lt_succ_r. exact (keyf_dom x Hx). }
-        2 : { exact Hmb. } 
         iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
         iDestruct "HQ" as "[HQ _]".
         iApply "HQ".

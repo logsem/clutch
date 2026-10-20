@@ -1,7 +1,5 @@
 From iris.proofmode Require Import base proofmode classes.                                             
 From iris.base_logic.lib Require Import  na_invariants.   
-From iris.algebra Require Import agree excl auth frac excl_auth. 
-From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
   spec_rules spec_ra
@@ -26,15 +24,13 @@ Section schan_ideal.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg : @val_group_generator vg}.
   #[local] Notation n := (S n'').
-  Context {msg_card : nat}.
-  Context {cipher_card : nat}.
-  Instance ske_params : SYM_params := {
-      card_key := n;
-      card_message := msg_card;
-      card_cipher := cipher_card }.
-  Context {ske_struct : @SYM_struct ske_params}.
-  Context {ske : SYM}.
-  Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
+  (* message and cipher spaces: abstract *)
+  Context {mt ct : fin_val_type}.
+  Context {ms : @fin_val_type_struct mt} {cs : @fin_val_type_struct ct}.
+  Context {msg : @fin_val Σ _ mt ms} {cipher : @fin_val Σ _ ct cs}.
+  (* key space is valgroup *)
+  Context {ske : @SYM_struct vg_fvt vg_fvts mt ms ct cs}.
+  Context {SKE : @SYM Σ _ vg_fvt mt ct vg_fvts ms cs vg_fv msg cipher ske}.
   
 
   Definition alphaN : namespace := nroot .@ "alpha".
@@ -118,7 +114,7 @@ Section schan_ideal.
     λ e1 e2, (λne Q,
                 ⌜ e1 = do: srecv1 bob ⌝%E ∗
                 ⌜ e2 = do: srecv2 bob ⌝%E ∗
-                ((∀ g : nat, Q (SOMEV #g) (SOMEV #g)) ∧ Q NONEV NONEV)
+                ((∀ g : mt, Q (SOMEV (fvtval g)) (SOMEV (fvtval g))) ∧ Q NONEV NONEV)
              )%I.
   Next Obligation. solve_proper. Qed.
 
@@ -243,7 +239,7 @@ Section schan_ideal.
                    (iLblSig_to_iLblThy [(l1s, l2s, sec_channel ssend_l ssend_r srecv_l srecv_r)])) :
       let θ := SemRow [(l1s, l2s, sec_channel ssend_l ssend_r srecv_l srecv_r)] Hpm in
       ⊢
-        (sem_val_typed  ((λ: "m", do: ssend_l "m"), (λ: <>, do: srecv_l bob))%V ((λ: "m", do: ssend_r "m") , (λ: <>, do: srecv_r bob))%V (((sem_ty_nat)%T -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option ℕ)))%T)%I.
+        (sem_val_typed  ((λ: "m", do: ssend_l "m"), (λ: <>, do: srecv_l bob))%V ((λ: "m", do: ssend_r "m") , (λ: <>, do: srecv_r bob))%V (((sem_ty_nat)%T -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option msg.(sem_τFT))))%T)%I.
   Proof.
     unfold sem_val_typed. simpl. intros.
     iModIntro. rewrite /sem_ty_arr /sem_ty_mbang /sem_ty_option /sem_ty_sum //=. rewrite /sem_ty_prod.
@@ -290,8 +286,8 @@ Section schan_ideal.
     by iDestruct (ghost_map_elem_ne with "H1 H2") as %?.
   Qed.
 
-  Definition τsc :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option ℕ))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((ℕ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
+  Definition τsc :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option (msg.(sem_τFT))))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((cipher.(sem_τFT) × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
 
   (* The reversed refinement.  Mirror image of [game2_sc_ideal] below: every
      left-hand step becomes a right-hand step and vice versa, the heap and tape
@@ -347,7 +343,7 @@ Section schan_ideal.
     set (θ := client_row' sr rr lsl lrl gkr ssl srl ssr srr).
     iSpecialize ("Hff" $! θ).
     unfold sem_ty_arr, sem_ty_mbang. simpl.
-    iAssert (sem_val_typed  ((λ: "m", do: ssl "m"), (λ: <>, do: srl bob))%V ((λ: "m", do: ssr "m") , (λ: <>, do: srr bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option ℕ)))%T)) as "Hschn".
+    iAssert (sem_val_typed  ((λ: "m", do: ssl "m"), (λ: <>, do: srl bob))%V ((λ: "m", do: ssr "m") , (λ: <>, do: srr bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option msg.(sem_τFT))))%T)) as "Hschn".
     { iApply SEM_TYPED_EFF. }
     unfold sem_val_typed. simpl.
     iDestruct "Hschn" as "#Hschn".
@@ -398,10 +394,10 @@ Section schan_ideal.
     iApply (brel_na_alloc ((lmr ↦ₛ NONEV ∗ lcr ↦ₛ NONEV ∗ lamr ↦ₛ NONEV
                             ∗ lml ↦ NONEV ∗ lstl ↦ NONEV ∗ laml ↦ NONEV
                             ∗ γr ↪ₛN (n; []))
-                           ∨ (∃ m c : nat, lmr ↦ₛ□ SOMEV #m ∗ lcr ↦ₛ□ SOMEV #c ∗ lamr ↦ₛ NONEV
-                                           ∗ lml ↦□ SOMEV #m ∗ lstl ↦□ SOMEV #()%V ∗ laml ↦ NONEV)
-                           ∨ (∃ m c cph : nat, lmr ↦ₛ□ SOMEV #m ∗ lcr ↦ₛ□ SOMEV #c ∗ lamr ↦ₛ□ SOMEV #cph
-                                           ∗ lml ↦□ SOMEV #m ∗ lstl ↦□ SOMEV #()%V ∗ laml ↦□ SOMEV #cph
+                           ∨ (∃ (mv : mt) (c : nat), lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c ∗ lamr ↦ₛ NONEV
+                                           ∗ lml ↦□ SOMEV (fvtval mv) ∗ lstl ↦□ SOMEV #()%V ∗ laml ↦ NONEV)
+                           ∨ (∃ (mv : mt) (c : nat) (cph : ct), lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c ∗ lamr ↦ₛ□ SOMEV (fvtval cph)
+                                           ∗ lml ↦□ SOMEV (fvtval mv) ∗ lstl ↦□ SOMEV #()%V ∗ laml ↦□ SOMEV (fvtval cph)
                                            ∗ γr ↪ₛ□N (n; []))
               ) alphaN).
     iSplitL "Hlmr Hlcr Hlamr Hlml Hlstl Hlaml Hγr"; [iNext; iLeft; iFrame|].
@@ -418,9 +414,12 @@ Section schan_ideal.
     iIntros (?????) "!# %Hk1 %Hk2 [(%m&(->&->)&HQ)|(->&->&HQ)] #Hrel".
     (* Alice tries to send a message m *)
     - brel_pures'; try (apply neutral_ectx); repeat constructor.
-      unfold msg_of_int...
-      case_decide...
-      2 : { iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
+      destruct (fvt_of_int_sem (fin_val := msg) m) as [mv|] eqn:Hmv...
+      2 : { iApply (brel_fvt_of_int_none_l (fin_val := msg)); first exact Hmv.
+            iApply (brel_fvt_of_int_none_r (fin_val := msg)); first exact Hmv...
+            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
+      iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first exact Hmv.
+      iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first exact Hmv...
       iApply (brel_na_inv _ _ alphaN); first set_solver.
       iFrame "HI".
       iIntros "(>[(Hlmr&Hlcr&Hlamr&Hlml&Hlstl&Hlaml&Hγr)|[H2|H3]]&Hclose)".
@@ -486,8 +485,8 @@ Section schan_ideal.
         brel_load_l...
         (* The one coupling of the whole proof: both sides draw a ciphertext
            and we make the two draws agree. *)
-        iApply rand_cipher_coupl.
-        iIntros (cph) "%Hcph"...
+        iApply (rand_cipher_coupl (H := SKE)).
+        iIntros (cph)...
         brel_load_r...
         brel_store_r...
         brel_store_l...
@@ -730,7 +729,7 @@ Section schan_ideal.
     set (θ := client_row sl rl lsr lrr gkl ssl srl ssr srr).
     iSpecialize ("Hff" $! θ).
     unfold sem_ty_arr, sem_ty_mbang. simpl.
-    iAssert (sem_val_typed  ((λ: "m", do: ssl "m"), (λ: <>, do: srl bob))%V ((λ: "m", do: ssr "m") , (λ: <>, do: srr bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option ℕ)))%T)) as "Hschn".
+    iAssert (sem_val_typed  ((λ: "m", do: ssl "m"), (λ: <>, do: srl bob))%V ((λ: "m", do: ssr "m") , (λ: <>, do: srr bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option msg.(sem_τFT))))%T)) as "Hschn".
     { iApply SEM_TYPED_EFF. }
     unfold sem_val_typed. simpl.
     iDestruct "Hschn" as "#Hschn".
@@ -779,10 +778,10 @@ Section schan_ideal.
     iApply (brel_na_alloc ((lml ↦ NONEV ∗ lcl ↦ NONEV ∗ laml ↦ NONEV
                             ∗ lmr ↦ₛ NONEV ∗ lstr ↦ₛ NONEV ∗ lamr ↦ₛ NONEV
                             ∗ γl ↪N (n; []))
-                           ∨ (∃ m c : nat, lml ↦□ SOMEV #m ∗ lcl ↦□ SOMEV #c ∗ laml ↦ NONEV
-                                           ∗ lmr ↦ₛ□ SOMEV #m ∗ lstr ↦ₛ□ SOMEV #()%V ∗ lamr ↦ₛ NONEV)
-                           ∨ (∃ m c cph : nat, lml ↦□ SOMEV #m ∗ lcl ↦□ SOMEV #c ∗ laml ↦□ SOMEV #cph
-                                           ∗ lmr ↦ₛ□ SOMEV #m ∗ lstr ↦ₛ□ SOMEV #()%V ∗ lamr ↦ₛ□ SOMEV #cph
+                           ∨ (∃ (mv : mt) (c : nat), lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c ∗ laml ↦ NONEV
+                                           ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lstr ↦ₛ□ SOMEV #()%V ∗ lamr ↦ₛ NONEV)
+                           ∨ (∃ (mv : mt) (c : nat) (cph : ct), lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c ∗ laml ↦□ SOMEV (fvtval cph)
+                                           ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lstr ↦ₛ□ SOMEV #()%V ∗ lamr ↦ₛ□ SOMEV (fvtval cph)
                                            ∗ γl ↪□N (n; []))
               ) alphaN).
     iSplitL "Hlml Hlcl Hlaml Hlmr Hlstr Hlamr Hγl"; [iNext; iLeft; iFrame|].
@@ -799,9 +798,12 @@ Section schan_ideal.
     iIntros (?????) "!# %Hk1 %Hk2 [(%m&(->&->)&HQ)|(->&->&HQ)] #Hrel".
     (* Alice tries to send a message m *)
     - brel_pures'; try (apply neutral_ectx); repeat constructor.
-      unfold msg_of_int...
-      case_decide...
-      2 : { iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
+      destruct (fvt_of_int_sem (fin_val := msg) m) as [mv|] eqn:Hmv...
+      2 : { iApply (brel_fvt_of_int_none_l (fin_val := msg)); first exact Hmv.
+            iApply (brel_fvt_of_int_none_r (fin_val := msg)); first exact Hmv...
+            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
+      iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first exact Hmv.
+      iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first exact Hmv...
       iApply (brel_na_inv _ _ alphaN); first set_solver.
       iFrame "HI".
       iIntros "(>[(Hlml&Hlcl&Hlaml&Hlmr&Hlstr&Hlamr&Hγl)|[H2|H3]]&Hclose)".
@@ -867,8 +869,8 @@ Section schan_ideal.
         brel_load_r...
         (* The one coupling of the whole proof: both sides draw a ciphertext
            and we make the two draws agree. *)
-        iApply rand_cipher_coupl.
-        iIntros (cph) "%Hcph"...
+        iApply (rand_cipher_coupl (H := SKE)).
+        iIntros (cph)...
         brel_load_l...
         brel_store_l...
         brel_store_r...
