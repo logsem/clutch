@@ -1,7 +1,5 @@
 From iris.proofmode Require Import base proofmode classes.                                             
 From iris.base_logic.lib Require Import  na_invariants.   
-From iris.algebra Require Import agree excl auth frac excl_auth. 
-From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode
   spec_rules spec_ra
@@ -26,16 +24,11 @@ Section schan_security.
   Context {G : clutch_group (vg:=vg) (cg:=cg)}.
   Context {vgg : @val_group_generator vg}.
   #[local] Notation n := (S n'').
-  Context {msg_card : nat}.
-  Context {cipher_card : nat}.
-  Instance ske_params : SYM_params := {
-      card_key := n;
-      card_message := msg_card;
-      card_cipher := cipher_card }.
-  Context {ske_struct : @SYM_struct ske_params}.
-  Context {ske : SYM}.
-  Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
-  
+  (* message and cipher spaces: abstract *)
+  Context {mt ct : fin_val_type}.
+  Context {ms : @fin_val_type_struct mt} {cs : @fin_val_type_struct ct}.
+  (* key space is valgroup *)
+  Context {ske : @SYM_struct vg_fvt vg_fvts mt ms ct cs}.
 
   Definition alphaN : namespace := nroot .@ "alpha".
   Definition betaN : namespace := nroot .@ "beta".
@@ -393,7 +386,7 @@ Section schan_security.
 
   Definition τsc :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option ℕ))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
                   (∀ᵣ θ₁, ∀ᵣ θ₂,  (((ℕ × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
-
+  
   (* The reverse refinement.  Mirror image of [sc_real_game1] below: every
      left-hand step becomes a right-hand step and vice versa, the heap and tape
      assertions swap between the implementation and the specification side, and
@@ -402,9 +395,11 @@ Section schan_security.
     ⊢ sem_typed [] game1 sc_real ⊥ τsc [].
   Proof using All with (brel_pures'; repeat foldkont). 
     iIntros (?) "!# _ //=". rewrite /sc_real /reduction /CHAN /RED_CHAN /right_composition.
-    do 2 (rewrite !lookup_delete_eq; 
-          rewrite lookup_delete_ne; last done).
     rewrite !lookup_delete_eq.
+    do 2 (rewrite lookup_delete_ne; last done).
+    rewrite lookup_delete_eq.
+    rewrite lookup_delete_ne; last done.
+    rewrite lookup_delete_eq.
     brel_alloctape_l (ι) as "Hι"...
     iModIntro. iSplit; last done.
     iIntros (θL f1 f2) "Hff"...
@@ -481,7 +476,8 @@ Section schan_security.
        [x], by [keyf_inv_spec]. *)
     iApply (brel_couple_TT _ n (f_inv keyf)).
     { apply keyf_inv_dom. }
-    iSplitL "Hι"; first (iNext; iFrame); iSplitL "Hγr"; first iFrame.
+    rewrite vg_fvt_card. assert (S n - 1 = n)%Z as -> by lia.
+    rewrite Nat2Z.id. iFrame.
     iIntros (x) "(Hι&Hγr) //=".
     iDestruct (tapeN_hd_bound with "Hι") as "(%Hx&Hι)".
     
@@ -489,7 +485,7 @@ Section schan_security.
                            ∗ γr ↪ₛN (n; [f_inv keyf x]) ∗ (Loc ι) ↪N (n; [x]))
                            ∨ (∃ c' m : nat, lmr ↦ₛ□ SOMEV #m ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV #m ∗ lcl ↦□ SOMEV #c'
                                             ∗ lamr ↦ₛ NONEV ∗ laml ↦ NONEV 
-                                            ∗ γr ↪ₛ□N (n; []) ∗ ⌜(m ≤ msg_card)%nat⌝)
+                                            ∗ γr ↪ₛ□N (n; []) ∗ ⌜(m ≤ ms.(fin_val_type.card))%nat⌝)
                            ∨ (∃ c' m : nat, lmr ↦ₛ□ SOMEV #m ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV #m ∗ lcl ↦□ SOMEV #c' 
                                             ∗ lamr ↦ₛ□ SOMEV #(enc_sem x m) ∗ laml ↦□ SOMEV #(enc_sem x m)
                                             ∗ γr ↪ₛ□N (n; []) ∗ (Loc ι) ↪□N (n; []) ∗ ⌜(m ≤ msg_card)%nat⌝)

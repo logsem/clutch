@@ -1,4 +1,4 @@
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Export def_dhke valgroup ske mask.
+From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Export def_dhke valgroup ske valgroup_finval fin_val_type.
 From clutch.prob_eff_lang.probblaze Require Export notation p_composition.
 
 Import fingroup.
@@ -10,13 +10,12 @@ Section schannel.
   Context {cg : clutch_group_struct}.
   Context {vgg : @val_group_generator vg}. 
   #[local] Notation n := (S n'').
-  Context {msg_card : nat}.
-  Context {cipher_card : nat}.
-  Local Instance ske_params : SYM_params := {
-      card_key := n;
-      card_message := msg_card;
-      card_cipher := cipher_card }.
-  Context {ske : @SYM_struct ske_params}.
+  (* message and cipher spaces: abstract *)
+  Context {mt ct : fin_val_type}.
+  Context {ms : @fin_val_type_struct mt} {cs : @fin_val_type_struct ct}.
+  (* key space is valgroup *)
+  Context {ske : @SYM_struct vg_fvt vg_fvts mt ms ct cs}.
+
 
   Definition F_OAUTH : val :=
     λ: "f" "LeakOp",
@@ -60,7 +59,7 @@ Section schannel.
         handle: handle: "f" ("doSecSend", "doSecRecv") with
     (*SendSecure*)
     | effect "ssend" "m", rec "k" as multi =>
-        match: msg_of_int "m" with
+        match: ms.(fvt_of_int) "m" with
         | NONE => "k" #()%V
         | SOME "m" => 
             match: !"message" with
@@ -69,7 +68,7 @@ Section schannel.
                       match: "key" with
                       | NONE => "k" #()%V
                       | SOME "key" =>
-                          let: "mg" := enc (int_of_vg "key") "m" in ("doSend" ("mg", bob));; "k" #()%V
+                          let: "mg" := ske.(enc) "key" "m" in ("doSend" ("mg", bob));; "k" #()%V
                       end
             | SOME "m" => "k" #()%V
             end
@@ -85,7 +84,7 @@ Section schannel.
         match: "r" with
         | NONE => "k" NONEV
         | SOME "m" =>
-            "k" (SOME (dec (int_of_vg "key") "m"))   
+            "k" (SOME (ske.(dec) "key" "m"))   
         end       
     end                              
 | return "y" => "y"
@@ -103,7 +102,7 @@ Section schannel.
         handle: handle: "f" ("doSecSend", "doSecRecv") with
       (*SendSecure*)
     | effect "ssend" "m", rec "k" as multi =>
-        match: msg_of_int "m" with
+        match: ms.(fvt_of_int) "m" with
         | NONE => "k" #()%V
         | SOME "m" => 
             match: !"message" with
@@ -148,7 +147,7 @@ Section schannel.
         handle: handle: "f" ("doSecSend" ,"doSecRecv") with
     (*SendSecure*)
     | effect "ssend" "m", rec "k" as multi =>
-        match: msg_of_int "m" with
+        match: ms.(fvt_of_int) "m" with
         | NONE => "k" #()%V
         | SOME "m" => 
             match: !"message" with
@@ -176,12 +175,6 @@ Section schannel.
       let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
       let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in
       let: "message" := ref NONEV in
-      (* Mirrors [F_KE_lazy_alice]'s key cache [lc]: set as soon as a secure
-         send has STARTED, i.e. before the key leaks are resolved.  The real
-         side only reaches its authenticated-receive leak once a key has been
-         established, so the simulator must gate its own on the same event --
-         note that ["message"] is not a substitute, as it is only set when the
-         key leak actually succeeded. *)
       let: "started" := ref NONEV in
       effect "lsend"
         effect "lrecv"
@@ -199,7 +192,7 @@ Section schannel.
         | SOME "x" =>
             match: !"message" with
             | NONE =>
-                let: "mA" := rand_cipher #()%V in
+                let: "mA" := ske.(rand_cipher) #()%V in
                 "message" <- SOME "mA";;
                 ("doLeakASend" ("mA", bob));;
                 "k" #()%V
@@ -228,18 +221,13 @@ Section schannel.
 
 
   Definition sc_real : val := λ: "f", (F_KE_lazy_alice ||ᵣ F_OAUTH) (CHAN "f").
-
-  Definition enc_real : expr := let: "ι" := alloc #n in λ: "m", let: "k" := rand("ι") #n in enc "k" "m". 
+  
   Definition reduction : val := (λ: "enc" "f", (F_KE_lazy_alice ||ᵣ F_OAUTH) (RED_CHAN "enc" "f")).
-  Definition game1 : expr := reduction enc_real.
 
-  Definition enc_ideal : expr := λ: "m", rand_cipher #()%V.
+  Definition game1 : expr := reduction (enc_real_tape ske).
 
-  Definition game2 : expr := reduction enc_ideal.
+  Definition game2 : expr := reduction (enc_ideal ske).
 
-  (* The ideal world: the one-message secure channel [F_CHAN] together with the
-     simulator [CHAN_SIM] that fakes the authenticated-channel and key-exchange
-     leaks the environment would otherwise see. *)
   Definition sc_ideal : val := λ: "f", CHAN_SIM (F_CHAN "f").
 
 
