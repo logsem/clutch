@@ -46,21 +46,11 @@ Section adv_schan.
     - intros Hrgs. apply game2_sc_ideal. 
     - intros Hrgs. apply sc_ideal_game2.
   Qed. 
-
-  Lemma advantage_reduction_expr `{!probblazeRGpreS Σ} (s : string) (adv red : val) (e e' : expr) (b : bool) :
-    (∀ `{probblazeRGS Σ}, ∃ α β, 
-        (⊢ sem_val_typed adv adv (β → 𝔹)%T) /\
-        (⊢ sem_val_typed red red (α → β)%T) /\
-        (⊢ sem_typed [] e e ⊥ α []) /\ (⊢ sem_typed [] e' e' ⊥ α [])) →
-    advantage adv (red e) (red e') #b <= 
-      advantage (λ: s, adv (red s)) e e' #b.
-  Proof.
-  Admitted. 
-
+ 
   Lemma adv_game1_game2 A : 
     (∀ `{!probblazeRGS Σ}, 
        ⊢ sem_val_typed A A (τsc → 𝔹)%T) →
-    nonneg (advantage A game1 game2 #true) <= advantage (λ: "enc", A (reduction (msg_card := msg_card) (cipher_card := cipher_card) "enc")) enc_real enc_ideal #true.
+    nonneg (advantage A game1 game2 #true) <= advantage (λ: "enc", A (reduction (msg_card := msg_card) (cipher_card := cipher_card) "enc")) enc_real_tape enc_ideal #true.
   Proof using All.
     intros HA. unfold game1, game2.
     apply advantage_reduction_expr.
@@ -83,8 +73,15 @@ Section adv_schan.
     - eapply advantage_triangle.
       + by apply adv_game1_game2.
       + right. by apply adv_game2_sc_ideal.
-      + done.
-    - lra.
-  Qed. 
+      + rewrite Rplus_0_r. eapply advantage_triangle.
+        * right. eapply sem_typed_advantage_expr.
+          -- admit.             (* A ∘ reduction well-typed *)
+          -- split.
+             ++ iIntros (?). apply enc_real_tape_enc_real.
+             ++ iIntros (?). apply enc_real_enc_real_tape.
+        * done.
+        * done. 
+    - by rewrite !Rplus_0_l. 
+  Admitted. 
   
 End adv_schan.

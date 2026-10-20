@@ -228,6 +228,12 @@ Proof.
   all : by iIntros (???) "(%&->&->)".
 Qed.  
 
+Theorem sem_typed_advantage_expr `{!probblazeRGpreS Σ} A e e' (τ : ∀ `{probblazeRGS Σ}, sem_ty Σ):
+  ∀ (b : bool), (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] A A ⊥ (τ → 𝔹)%T []) ->
+                (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] e e' ⊥ τ [])  /\ (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] e' e ⊥ τ []) ->
+                nonneg (advantage A e e' #b) = 0%R.
+Proof.
+Admitted. 
 
 Lemma advantage_reduction `{!probblazeRGpreS Σ} (adv red : val) (e e' : val) (b : bool) :
   (∀ `{probblazeRGS Σ}, ∃ α β, 
@@ -314,6 +320,16 @@ Proof.
   }
   done.
 Qed.
+
+Lemma advantage_reduction_expr `{!probblazeRGpreS Σ} (s : string) (adv red : val) (e e' : expr) (b : bool) :
+  (∀ `{probblazeRGS Σ}, ∃ α β, 
+      (⊢ sem_val_typed adv adv (β → 𝔹)%T) /\
+      (⊢ sem_val_typed red red (α → β)%T) /\
+      (⊢ sem_typed [] e e ⊥ α []) /\ (⊢ sem_typed [] e' e' ⊥ α [])) →
+  advantage adv (red e) (red e') #b <= 
+    advantage (λ: s, adv (red s)) e e' #b.
+Proof.
+Admitted. 
 
 Theorem sem_typed_advantage_aff `{!probblazeRGpreS Σ} A e e' (τ : ∀ `{probblazeRGS Σ}, sem_ty Σ) (ε : R) :
   0 <= ε →
