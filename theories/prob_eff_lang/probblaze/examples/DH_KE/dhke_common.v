@@ -406,7 +406,7 @@ Section typing.
                 ** econstructor; try (by constructor).
                    { constructor. eexists; eapply le.RFlipNil_le. }
                    eapply (Sub_typed _ _ _ _ ∅ _ RNil true _ (TBang MS (ℤ -∘ _))); try (by constructor).
-                   { apply CRefl_le.}
+                   { apply CRefl_le. }
                    { eapply le.TTrans_le; first apply le.TBangElim_le.
                      eapply le.TArrow_le; try constructor. }
                    econstructor; try (by constructor).
