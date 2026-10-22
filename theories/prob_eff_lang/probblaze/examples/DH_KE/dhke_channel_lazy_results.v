@@ -34,38 +34,40 @@ Section handlee_verification.
   (* Verification of F_AUTH[DH_KE] ≤ F_AUTH[C[DH_real]] *)
   (*------------------------------------------------------------*)
 
+  Definition func_comp : val := λ: "F1" "F2" "f", "F1" ("F2" "f").
 
   Lemma F_AUTH_DH_KE_FAUTH_C_DH_real :
-    ⊢ sem_val_typed (λ: "f", F_AUTH (DH_KE "f"))%V (λ: "f", F_AUTH (C_lazy DH_real "f"))%V  
-        τ_DH.
-  Proof using G inG0 inG1 inG2.
-    iModIntro. iIntros (L).
-    iIntros (f1 f2) "Hff".
-    brel_pures'.
-    iMod token_alloc as (γtoka) "Htoka".
-    iMod token_alloc as (γtokb) "Htokb".
-    iMod message_alloc as (γautha) "Hautha".
-    iMod message_alloc as (γauthb) "Hauthb".
-    iMod all_receipts_alloc as (γfraca) "Hfraca".
-    iMod all_receipts_alloc as (γfracb) "Hfracb".                         
-    simpl.
-    assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
-    - iApply (F_AUTH_F_AUTH_new with "[$][$]"); 
-        last by iApply (DH_KE_C_DH_real with "[$Htoka][$Htokb][$Hautha][$Hauthb]").
-      all : apply _. 
-    - iIntros (??) "$". 
-  Qed.
-
+    ⊢ sem_typed [] (func_comp F_AUTH DH_KE) (func_comp F_AUTH C_DH_real) ⊥ τ_DH [].
+  Proof using All. 
+   iIntros (vs) "!# Hvs /=".
+   unfold func_comp.
+   brel_pures'. iFrame.
+   iIntros "!>" (L f1 f2) "Hff".
+   brel_pures'.
+   iMod token_alloc as (γtoka) "Htoka".
+   iMod token_alloc as (γtokb) "Htokb".
+   iMod message_alloc as (γautha) "Hautha".
+   iMod message_alloc as (γauthb) "Hauthb".
+   iMod all_receipts_alloc as (γfraca) "Hfraca".
+   iMod all_receipts_alloc as (γfracb) "Hfracb".                         
+   simpl.
+   assert (to_iThyIfMono OS [] = []) as <- by done.
+   iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
+   - iApply (F_AUTH_F_AUTH_new with "[$][$]"); 
+       last by iApply (DH_KE_C_DH_real with "[$Htoka][$Htokb][$Hautha][$Hauthb]").
+     all : apply _. 
+   - iIntros (??) "$". 
+  Qed.    
   
   (* Verification of F_AUTH[C[DH_real]] ≤ F_AUTH[DH_KE] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_C_DH_real_FAUTH_DH_KE :
-    ⊢ sem_val_typed (λ: "f", F_AUTH (C_lazy DH_real "f"))%V (λ: "f", F_AUTH (DH_KE "f"))%V  
-        τ_DH.
-  Proof using G inG0 inG1 inG2.
-    iModIntro. iIntros (L).
-    iIntros (f1 f2) "Hff".
+    ⊢ sem_typed [] (func_comp F_AUTH C_DH_real) (func_comp F_AUTH DH_KE) ⊥ τ_DH [].
+  Proof using All.
+    iIntros (vs) "!# Hvs /=".
+    unfold func_comp.
+    brel_pures'. iFrame.
+    iIntros "!>" (L f1 f2) "Hff".
     brel_pures'.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
@@ -82,15 +84,15 @@ Section handlee_verification.
     - iIntros (??) "$".
   Qed.
   
-  
   (* Verification of F_AUTH[DH_SIM[F_KE]] ≤ F_AUTH[C[DH_rand]] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand :
-    ⊢ sem_val_typed (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V (λ: "f", F_AUTH (C_lazy DH_rand "f"))%V  
-        τ_DH.
-  Proof using G inG0 inG1 inG2.
-    iModIntro. iIntros (L).
-    iIntros (f1 f2) "Hff".
+    ⊢ sem_typed [] (func_comp F_AUTH (func_comp DH_SIM F_KE_lazy_alice)) (func_comp F_AUTH C_DH_rand) ⊥ τ_DH [].
+  Proof using All.
+    iIntros (vs) "!# Hvs /=".
+    unfold func_comp.
+    brel_pures'. iFrame.
+    iIntros "!>" (L f1 f2) "Hff".
     brel_pures'.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
@@ -106,16 +108,16 @@ Section handlee_verification.
       all : apply _.
     - iIntros (??) "$". 
   Qed.
-
   
   (* Verification of F_AUTH[C[DH_rand]] ≤ F_AUTH[DH_SIM[F_KE]] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE :
-    ⊢ sem_val_typed (λ: "f", F_AUTH (C_lazy DH_rand "f"))%V (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V  
-        τ_DH.
-  Proof using G inG0 inG1 inG2.
-    iModIntro. iIntros (L).
-    iIntros (f1 f2) "Hff".
+    ⊢ sem_typed [] (func_comp F_AUTH C_DH_rand) (func_comp F_AUTH (func_comp DH_SIM F_KE_lazy_alice)) ⊥ τ_DH [].
+  Proof using All.
+    iIntros (vs) "!# Hvs /=".
+    unfold func_comp.
+    brel_pures'. iFrame.
+    iIntros "!>" (L f1 f2) "Hff".
     brel_pures'.
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
@@ -132,49 +134,49 @@ Section handlee_verification.
     - iIntros (??) "$". 
   Qed.
   
-  (* Rewriting to match top-level statements *)
-  (*------------------------------------------------------------*)
-  Lemma DHSIM_RED : 
-    ⊢ sem_typed [] (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_rand) ⊥ τ_DH [].
-  Proof using G inG0 inG1 inG2.
-    iIntros (vs) "!# _". simpl.
-    brel_pures'.
-    iModIntro. iSplit; last done.
-    iPoseProof F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand as "H".
-    rewrite /sem_val_typed //=. 
-  Qed. 
-  
-  Lemma RED_DHSIM :
-    ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_rand) (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ⊥ τ_DH [].
-  Proof using G inG0 inG1 inG2.
-    iIntros (vs) "!# _". simpl.
-    brel_pures'.
-    iModIntro. iSplit; last done.
-    iPoseProof F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE as "H".
-    rewrite /sem_val_typed //=. 
-  Qed.  
-  
-  Lemma DHKE_RED :
-    ⊢ sem_typed [] (λ: "f", F_AUTH (DH_KE "f"))%V ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_real) ⊥
-        τ_DH [].
-  Proof using G inG0 inG1 inG2.
-    iIntros (vs) "!# _". simpl.
-    brel_pures'.
-    iModIntro. iSplit; last done.
-    iPoseProof F_AUTH_DH_KE_FAUTH_C_DH_real as "H".
-    rewrite /sem_val_typed //=. 
-  Qed.  
-  
-  Lemma RED_DHKE :
-    ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_real) (λ: "f", F_AUTH (DH_KE "f"))%V ⊥
-        τ_DH [].
-  Proof using G inG0 inG1 inG2.
-    iIntros (vs) "!# _". simpl.
-    brel_pures'.
-    iModIntro. iSplit; last done.
-    iPoseProof F_AUTH_C_DH_real_FAUTH_DH_KE as "H".
-    rewrite /sem_val_typed //=. 
-  Qed.
+  (* (* Rewriting to match top-level statements *)
+     (*------------------------------------------------------------*)
+     Lemma DHSIM_RED : 
+       ⊢ sem_typed [] (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_rand) ⊥ τ_DH [].
+     Proof using G inG0 inG1 inG2.
+       iIntros (vs) "!# _". simpl.
+       brel_pures'.
+       iModIntro. iSplit; last done.
+       iPoseProof F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand as "H".
+       rewrite /sem_val_typed //=. 
+     Qed. 
+     
+     Lemma RED_DHSIM :
+       ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_rand) (λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ⊥ τ_DH [].
+     Proof using G inG0 inG1 inG2.
+       iIntros (vs) "!# _". simpl.
+       brel_pures'.
+       iModIntro. iSplit; last done.
+       iPoseProof F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE as "H".
+       rewrite /sem_val_typed //=. 
+     Qed.  
+     
+     Lemma DHKE_RED :
+       ⊢ sem_typed [] (λ: "f", F_AUTH (DH_KE "f"))%V ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_real) ⊥
+           τ_DH [].
+     Proof using G inG0 inG1 inG2.
+       iIntros (vs) "!# _". simpl.
+       brel_pures'.
+       iModIntro. iSplit; last done.
+       iPoseProof F_AUTH_DH_KE_FAUTH_C_DH_real as "H".
+       rewrite /sem_val_typed //=. 
+     Qed.  
+     
+     Lemma RED_DHKE :
+       ⊢ sem_typed [] ((λ: "DH" "f", F_AUTH (C_lazy "DH" "f"))%V DH_real) (λ: "f", F_AUTH (DH_KE "f"))%V ⊥
+           τ_DH [].
+     Proof using G inG0 inG1 inG2.
+       iIntros (vs) "!# _". simpl.
+       brel_pures'.
+       iModIntro. iSplit; last done.
+       iPoseProof F_AUTH_C_DH_real_FAUTH_DH_KE as "H".
+       rewrite /sem_val_typed //=. 
+     Qed. *)
 
 End handlee_verification.
 
