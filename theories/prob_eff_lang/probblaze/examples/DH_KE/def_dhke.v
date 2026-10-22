@@ -24,8 +24,6 @@ Section def_implementation.
   Definition RecvV (v : val) := InjRV v.
   Definition bob := InjLV #()%V.
   Definition alice := InjRV #()%V.
-  Definition pow : expr := rec: "pow" "b" "e" := if: "e" = #0 then #1 else "b" * ("pow" "b" ("e" - #1)).
-  Definition modn : expr := rec: "mod" "a" := if: "a" < #n then "a" else "mod" ("a" - #n).
 
   Definition F_AUTH : val :=
   λ: "f" "effs",  

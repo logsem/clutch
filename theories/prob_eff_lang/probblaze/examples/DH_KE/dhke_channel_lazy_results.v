@@ -6,7 +6,7 @@ From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode
   class_instances. 
 From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import dhke_common.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement. 
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement p_composition. 
 
 Import fingroup.
 
@@ -34,10 +34,8 @@ Section handlee_verification.
   (* Verification of F_AUTH[DH_KE] ≤ F_AUTH[C[DH_real]] *)
   (*------------------------------------------------------------*)
 
-  Definition func_comp : val := λ: "F1" "F2" "f", "F1" ("F2" "f").
-
   Lemma F_AUTH_DH_KE_FAUTH_C_DH_real :
-    ⊢ sem_typed [] (func_comp F_AUTH DH_KE) (func_comp F_AUTH C_DH_real) ⊥ τ_DH [].
+    ⊢ sem_typed [] (F_AUTH ∘f DH_KE) (F_AUTH ∘f C_DH_real) ⊥ τ_DH [].
   Proof using All. 
    iIntros (vs) "!# Hvs /=".
    unfold func_comp.
@@ -62,7 +60,7 @@ Section handlee_verification.
   (* Verification of F_AUTH[C[DH_real]] ≤ F_AUTH[DH_KE] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_C_DH_real_FAUTH_DH_KE :
-    ⊢ sem_typed [] (func_comp F_AUTH C_DH_real) (func_comp F_AUTH DH_KE) ⊥ τ_DH [].
+    ⊢ sem_typed [] (F_AUTH ∘f C_DH_real) (F_AUTH ∘f DH_KE) ⊥ τ_DH [].
   Proof using All.
     iIntros (vs) "!# Hvs /=".
     unfold func_comp.
@@ -86,8 +84,9 @@ Section handlee_verification.
   
   (* Verification of F_AUTH[DH_SIM[F_KE]] ≤ F_AUTH[C[DH_rand]] *)
   (*------------------------------------------------------------*)
+
   Lemma F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand :
-    ⊢ sem_typed [] (func_comp F_AUTH (func_comp DH_SIM F_KE_lazy_alice)) (func_comp F_AUTH C_DH_rand) ⊥ τ_DH [].
+    ⊢ sem_typed [] (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) (F_AUTH ∘f C_DH_rand) ⊥ τ_DH [].
   Proof using All.
     iIntros (vs) "!# Hvs /=".
     unfold func_comp.
@@ -112,7 +111,7 @@ Section handlee_verification.
   (* Verification of F_AUTH[C[DH_rand]] ≤ F_AUTH[DH_SIM[F_KE]] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE :
-    ⊢ sem_typed [] (func_comp F_AUTH C_DH_rand) (func_comp F_AUTH (func_comp DH_SIM F_KE_lazy_alice)) ⊥ τ_DH [].
+    ⊢ sem_typed [] (F_AUTH ∘f C_DH_rand) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) ⊥ τ_DH [].
   Proof using All.
     iIntros (vs) "!# Hvs /=".
     unfold func_comp.
