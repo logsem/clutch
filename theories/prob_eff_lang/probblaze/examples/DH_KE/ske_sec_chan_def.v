@@ -92,7 +92,7 @@ Section schannel.
   
 
   Definition RED_CHAN : val :=
-    λ: "enc" "f" "ChanOp" "doGK", 
+    λ: "enc" "f" "ChanOp" "doGK",
       let, ("doSend", "doRecv") := "ChanOp" in
       let: "message" := ref NONEV in
       effect "ssend"
@@ -171,7 +171,8 @@ Section schannel.
 
   (*Simulator for the one message secure channel *)
   Definition CHAN_SIM : val :=
-    λ: "f" "LeakAOp" "doKeyLeak",
+    λ: "f" "effs",
+      let, ("LeakAOp", "doKeyLeak") := "effs" in
       let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
       let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in
       let: "message" := ref NONEV in
@@ -220,15 +221,15 @@ Section schannel.
 | return "y" => "y" end.
 
 
-  Definition sc_real : val := λ: "f", (F_KE_lazy_alice ||ᵣ F_OAUTH) (CHAN "f").
+  Definition sc_real : expr := (F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f CHAN.
   
-  Definition reduction : val := (λ: "enc" "f", (F_KE_lazy_alice ||ᵣ F_OAUTH) (RED_CHAN "enc" "f")).
+  Definition reduction : expr := (λ: "enc", (F_KE_lazy_alice ||ᵣ F_OAUTH)  ∘f (RED_CHAN "enc")).
 
   Definition game1 : expr := reduction (enc_real_tape ske).
 
   Definition game2 : expr := reduction (enc_ideal ske).
 
-  Definition sc_ideal : val := λ: "f", CHAN_SIM (F_CHAN "f").
+  Definition sc_ideal : expr := CHAN_SIM ∘f F_CHAN.
 
 
 End schannel.

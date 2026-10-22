@@ -286,8 +286,8 @@ Section schan_ideal.
     by iDestruct (ghost_map_elem_ne with "H1 H2") as %?.
   Qed.
 
-  Definition τsc :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option (msg.(sem_τFT))))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((cipher.(sem_τFT) × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
+  Definition τsc :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option msg.(sem_τFT)))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((cipher.(sem_τFT) × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
 
   (* The reversed refinement.  Mirror image of [game2_sc_ideal] below: every
      left-hand step becomes a right-hand step and vice versa, the heap and tape
@@ -308,15 +308,18 @@ Section schan_ideal.
                                          end);
                                  set_unfold; tauto
                              end)).
-    iIntros (?) "!# _ //=". rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /right_composition.
+    iIntros (?) "!# _ //=". 
+    rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /right_composition.
     repeat (rewrite lookup_delete_eq || (rewrite lookup_delete_ne; last done))...
+
     iModIntro. iSplit; last done.
     iIntros (θL f1 f2) "Hff"...
-    iIntros "!#" (autheff keyeff autheff_l autheff_r) "Hautheff".
-    iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(%H1al & %H2al & (#Hasnd & #Harcv))"...
-    iIntros "!>" (keyeff_l keyeff_r) "Hkeyeff".
-    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(%H1k & %H2k & (#Hkeysnd & #Hkeyrcv))".
-    rewrite H1al H2al H1k H2k /F_OAUTH /F_KE_lazy_alice...
+    iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
+    rewrite /sem_ty_prod /=.
+    iDestruct "Hauthkey" as (w1 w1' w2 w2') "(-> & -> & [Hautheff Hkeyeff])".
+    iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & (#Hasnd & #Harcv))"...
+    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))".
+    brel_pures'.
 
     (* Allocation/initialization.  Left (game2): the key tape, the lazy key
        cache, [getKey], then F_OAUTH's and RED_CHAN's state.  Right (sc_ideal):
@@ -694,15 +697,16 @@ Section schan_ideal.
                                          end);
                                  set_unfold; tauto
                              end)).
-    iIntros (?) "!# _ //=". rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /right_composition.
+    iIntros (?) "!# _ //=". rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /right_composition.
     repeat (rewrite lookup_delete_eq || (rewrite lookup_delete_ne; last done))...
     iModIntro. iSplit; last done.
     iIntros (θL f1 f2) "Hff"...
-    iIntros "!#" (autheff keyeff autheff_l autheff_r) "Hautheff".
-    iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(%H1al & %H2al & (#Hasnd & #Harcv))"...
-    iIntros "!>" (keyeff_l keyeff_r) "Hkeyeff".
-    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(%H1k & %H2k & (#Hkeysnd & #Hkeyrcv))".
-    rewrite H1al H2al H1k H2k /F_OAUTH /F_KE_lazy_alice...
+    iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
+    rewrite /sem_ty_prod /=.
+    iDestruct "Hauthkey" as (w1 w1' w2 w2') "(-> & -> & [Hautheff Hkeyeff])".
+    iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & (#Hasnd & #Harcv))"...
+    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))".
+    brel_pures'.
 
     (* Allocation/initialization.  Left (game2): the key tape, the lazy key
        cache, [getKey], then F_OAUTH's and RED_CHAN's state.  Right (sc_ideal):

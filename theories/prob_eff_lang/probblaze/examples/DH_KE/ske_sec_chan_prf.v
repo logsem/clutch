@@ -422,7 +422,7 @@ Section schan_security.
   Qed.
 
   Definition τsc :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option msg.(sem_τFT)))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((cipher.(sem_τFT) × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
+                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((cipher.(sem_τFT) × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
   
   (* The reverse refinement.  Mirror image of [sc_real_game1] below: every
      left-hand step becomes a right-hand step and vice versa, the heap and tape
@@ -431,7 +431,7 @@ Section schan_security.
   Lemma game1_sc_real : 
     ⊢ sem_typed [] game1 sc_real ⊥ τsc [].
   Proof using All with (brel_pures'; repeat foldkont). 
-    iIntros (?) "!# _ //=". rewrite /sc_real /reduction /CHAN /RED_CHAN /right_composition.
+    iIntros (?) "!# _ //=". rewrite /sc_real /reduction /CHAN /RED_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /right_composition.
     rewrite !lookup_delete_eq.
     do 2 (rewrite lookup_delete_ne; last done).
     rewrite lookup_delete_eq.
@@ -440,11 +440,12 @@ Section schan_security.
     brel_alloctape_l (ι) as "Hι"...
     iModIntro. iSplit; last done.
     iIntros (θL f1 f2) "Hff"...
-    iIntros "!#" (autheff keyeff autheff_l autheff_r) "Hautheff".
-    iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(%H1al & %H2al & (#Hasnd & #Harcv))"...
-    iIntros "!>" (keyeff_l keyeff_r) "Hkeyeff".
-    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(%H1k & %H2k & (#Hkeysnd & #Hkeyrcv))".
-    rewrite H1al H2al H1k H2k /F_OAUTH /F_KE_lazy_alice...
+    iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
+    rewrite /sem_ty_prod /=.
+    iDestruct "Hauthkey" as (w1 w1' w2 w2') "(-> & -> & [Hautheff Hkeyeff])".
+    iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & (#Hasnd & #Harcv))"...
+    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))".
+    brel_pures'.
     
     (* Allocation/initialization *)
     brel_alloctape_r γr as "Hγr"...
@@ -806,7 +807,7 @@ Section schan_security.
   Lemma sc_real_game1 : 
     ⊢ sem_typed [] sc_real game1 ⊥ τsc [].
   Proof using All with (brel_pures'; repeat foldkont). 
-    iIntros (?) "!# _ //=". rewrite /sc_real /reduction /CHAN /RED_CHAN /right_composition.
+    iIntros (?) "!# _ //=". rewrite /sc_real /reduction /CHAN /RED_CHAN /func_comp /F_KE_lazy_alice /F_OAUTH /right_composition.
      rewrite !lookup_delete_eq.
     do 2 (rewrite lookup_delete_ne; last done).
     rewrite lookup_delete_eq.
@@ -815,11 +816,12 @@ Section schan_security.
     brel_alloctape_r (ι) as "Hι"...
     iModIntro. iSplit; last done.
     iIntros (θL f1 f2) "Hff"...
-    iIntros "!#" (autheff keyeff autheff_l autheff_r) "Hautheff".
-    iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(%H1al & %H2al & (#Hasnd & #Harcv))"...
-    iIntros "!>" (keyeff_l keyeff_r) "Hkeyeff".
-    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(%H1k & %H2k & (#Hkeysnd & #Hkeyrcv))".
-    rewrite H1al H2al H1k H2k /F_OAUTH /F_KE_lazy_alice...
+    iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
+    rewrite /sem_ty_prod /=.
+    iDestruct "Hauthkey" as (w1 w1' w2 w2') "(-> & -> & [Hautheff Hkeyeff])".
+    iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & (#Hasnd & #Harcv))"...
+    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))".
+    brel_pures'.
     
     (* Allocation/initialization *)
     brel_alloctape_l γl as "Hγl"...
