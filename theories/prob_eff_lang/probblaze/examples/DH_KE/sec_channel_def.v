@@ -123,7 +123,6 @@ Section schannel.
 
   (*Simulator for the one message secure channel *)      
   Definition CHAN_SIM : val :=
-    (*λ: "f" "LeakAOp" "doKeyLeak", *)
     λ: "f" "effs",
       let, ("LeakAOp" , "doKeyLeak") := "effs" in
       let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
@@ -176,7 +175,6 @@ Section schannel.
 
   (*Simulator for the one message secure channel *)
   Definition CHAN_SIM_lazy : val :=
-    (*λ: "f" "LeakAOp" "doKeyLeak", *)
     λ: "f" "effs",
       let, ("LeakAOp", "doKeyLeak") := "effs" in
       let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
