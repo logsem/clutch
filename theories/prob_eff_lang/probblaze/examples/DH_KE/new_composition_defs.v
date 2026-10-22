@@ -24,8 +24,8 @@ Section new_comp_verification.
         (* the type of the client needs to change to a linear function *)
         (∀ᵣ θ__L ,(∀ᵣ θₕ, ((ℕ -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option 𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)
                   (* the product needs to be under a bang, since the effects can be used multiple times *)
-                   ⊸ (∀ᵣ θ₁,∀ᵣ θ2, ((((𝔾 × (𝟙 + 𝟙))) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙))
-                    ⊸ (((𝔾 × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) × ((𝟙 + 𝟙) -{ θ2 }-> Option ℕ)) -{ sem_row_union θ₁ (sem_row_union (¡θ2)%R θ__L) }-∘ 𝟙))%T.
+                   ⊸ (∀ᵣ θ₁,∀ᵣ θ2, (((((𝔾 × (𝟙 + 𝟙))) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙))
+                    × (((𝔾 × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) × ((𝟙 + 𝟙) -{ θ2 }-> Option ℕ))) -{ sem_row_union θ₁ (sem_row_union (¡θ2)%R θ__L) }-∘ 𝟙))%T.
 
   Definition REAL_CHAN_DHKE : val :=
     λ: "f", ((λ: "f", F_AUTH (DH_KE "f"))%V ||ᵣ F_OAUTH) (CHAN "f").
@@ -48,13 +48,30 @@ Section new_comp_verification.
   Definition DHSIM_FKE_CHAN2 : val :=
     (λ: "f", ((λ: "f", (λ: "f", F_AUTH (DH_SIM "f"))%V (F_KE_lazy_alice "f"))%V ||ᵣ F_OAUTH) (CHAN "f")).
 
+  Definition DHSIM_FAUTH : val :=
+    λ: "f",
+    (F_AUTH ∘f DH_SIM) "f".
+  
+  Definition DHSIM_FKE : val :=
+    λ: "f",
+    ((λ: "f", (F_AUTH ∘f DH_SIM) "f")%V ∘F (F_KE_lazy_alice ||ᵣ F_OAUTH)%V) "f".
+
   Definition DHSIM_FKE_CHAN3 : val :=
-    ((F_AUTH ∘f DH_SIM) ∘F (F_KE_lazy_alice ||ᵣ F_OAUTH)%V)%V ∘f CHAN.
+    λ: "f",
+      ((λ: "f",
+        (F_AUTH ∘f DH_SIM) "f")%V ∘F
+       (λ: "f",
+          ((F_KE_lazy_alice ||ᵣ F_OAUTH)%V ∘f CHAN) "f")%V) "f".
 
   Definition DHSIM_FKE_CHAN4 : val :=
-    (F_AUTH ∘f DH_SIM) ∘F R_CHAN.
+    λ: "f",      
+      ((λ: "f", (F_AUTH ∘f DH_SIM) "f")%V
+         ∘F R_CHAN) "f".
 
   Definition SIMSIMFCHAN : val :=
-    (F_AUTH ∘f DH_SIM) ∘F (CHAN_SIM_lazy ∘f F_CHAN).
+    λ: "f",
+      (λ: "f" , (F_AUTH ∘f DH_SIM) "f")%V
+         ∘F
+     (λ: "f" , (CHAN_SIM_lazy ∘f F_CHAN) "f")%V "f".
 
 End new_comp_verification.
