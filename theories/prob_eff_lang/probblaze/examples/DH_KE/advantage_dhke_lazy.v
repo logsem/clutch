@@ -104,9 +104,9 @@ Section adv_dhke.
     - eapply advantage_reduction.
       intros HRGS. exists (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T, τ_DH.
       split; [apply HA | split].
-      + (* apply red_self. *) admit.
+      + apply red_self. 
       + split; [apply DH_real_self | apply DH_rand_self].
-  Admitted.
+  Qed.
  
   Lemma adv_DHKE_typed A :
    ⊢ᵥ A : (T_DH ⇾ TBool) →

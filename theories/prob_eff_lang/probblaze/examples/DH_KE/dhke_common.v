@@ -3,7 +3,7 @@ From iris.base_logic.lib Require Import  na_invariants.
 From iris.algebra Require Export agree excl auth frac excl_auth.
 From iris.algebra.lib Require Export dfrac_agree.
 From clutch.prob_eff_lang.probblaze Require Export logic notation sem_def tactics sem_types sem_judgement sem_row.
-From clutch.prob_eff_lang.probblaze Require Import sem_sig.
+From clutch.prob_eff_lang.probblaze Require Import sem_sig p_composition.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Export valgroup def_dhke.
 From clutch.prob_eff_lang.probblaze.typing Require Import types.
 
@@ -506,8 +506,8 @@ Section typing.
      [C_lazy] self-refinement with [F_AUTH]'s own self-refinement, it executes
      the whole composite program in lockstep on both sides. *)
   Lemma red_self :
-    ⊢ sem_val_typed (λ: "DH", (λ: "f", F_AUTH (C_lazy "DH" "f")))%V
-                    (λ: "DH", (λ: "f", F_AUTH (C_lazy "DH" "f")))%V
+    ⊢ sem_val_typed (λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%V
+                    (λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%V
         ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾)) → τ_DH)%T.
   Proof with brel_pures' using All.
     (* ------------------------------------------------------------------ *)
@@ -523,7 +523,7 @@ Section typing.
     (* theory ([θ]) that is already in this file.                          *)
     (* ------------------------------------------------------------------ *)
     rewrite /sem_val_typed /τ_DH.
-    iModIntro. rewrite {1}/sem_ty_mbang {1}/sem_ty_arr /=.
+    iModIntro. rewrite {1}/sem_ty_mbang {1}/sem_ty_arr /func_comp /=.
     iModIntro. iIntros (DH1 DH2) "HDH"... iModIntro.
     iIntros (θ__L). iIntros (f1 f2) "Hf"...
     rewrite /F_AUTH /C_lazy //=...
