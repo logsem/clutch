@@ -43,7 +43,9 @@ Section schannel.
   (* Assumes a fixed direction from Alice to Bob, so the leak raised by CHAN doesnt need to send a destination with the argument Bob*)
   (* InjL arg represents the message being sent by Alice, and InjR <>, just represents that Bob is requesting a receive , so "doSecRecv" is now a genuine thunk, because it doesnt need any argument anymore*)
   Definition CHAN : val :=
-    λ: "f" "ChanOp" "doGK",
+    λ: "f" "ChanOp" "doGK", 
+    (*λ: "f" "effs", *)
+      (*let, ("ChanOp", "doGK") := "effs" in *)
       let, ("doSend", "doRecv") := "ChanOp" in
       let: "message" := ref NONEV in
       effect "ssend"
@@ -121,7 +123,9 @@ Section schannel.
 
   (*Simulator for the one message secure channel *)      
   Definition CHAN_SIM : val :=
-    λ: "f" "LeakAOp" "doKeyLeak",
+    (*λ: "f" "LeakAOp" "doKeyLeak", *)
+    λ: "f" "effs",
+      let, ("LeakAOp" , "doKeyLeak") := "effs" in
       let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
       let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in  
       (*let: "α" := alloc #n in*)
@@ -172,7 +176,9 @@ Section schannel.
 
   (*Simulator for the one message secure channel *)
   Definition CHAN_SIM_lazy : val :=
-    λ: "f" "LeakAOp" "doKeyLeak",
+    (*λ: "f" "LeakAOp" "doKeyLeak", *)
+    λ: "f" "effs",
+      let, ("LeakAOp", "doKeyLeak") := "effs" in
       let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
       let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in
       let: "message" := ref NONEV in

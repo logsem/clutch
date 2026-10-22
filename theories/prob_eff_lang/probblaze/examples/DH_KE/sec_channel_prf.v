@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base proofmode classes.                                             
+From iris.proofmode Require Import base proofmode classes.                                              
 From iris.base_logic.lib Require Import  na_invariants.   
 From iris.algebra Require Import agree excl auth frac excl_auth. 
 From iris.algebra.lib Require Import dfrac_agree.
@@ -296,16 +296,25 @@ Section schan_security.
       f1 f2 -∗
     BREL R_CHAN f1
       ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
-                                            (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂) L) }-∘ 𝟙)%T v1 v2 }}. 
+                                            (* (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂) L) }-∘ 𝟙)%T v1 v2 }}.*)
+                                           (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂) L) }-∘ 𝟙)%T v1 v2 }}. 
   Proof with (repeat foldkont; brel_pures') using All. 
     iIntros "Hrelf1f2".
     unfold R_CHAN, right_composition, CHAN, F_CHAN, CHAN_SIM_lazy...
-    iIntros "!>" (autheff keyeff autheff_l autheff_r) "Hautheff".
+    (*iModIntro.
+    brel_pures'.*) 
+    iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
+    (*iIntros "!>" (autheff keyeff autheff_l autheff_r) "Hautheff".*)
+    rewrite /sem_ty_prod /=.
+    iDestruct "Hauthkey" as (w1 w1' w2 w2') "[%Hauthkey_l [%Hauthkey_r [Hautheff Hkeyeff]]]".
+    rewrite -> Hauthkey_l.
+    rewrite -> Hauthkey_r.
+    brel_pures'.
     iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(%H1al & %H2al & (#Hasnd & #Harcv))"...
-    iIntros "!>" (keyeff_l keyeff_r) "Hkeyeff".
+    (*iIntros "!>" (keyeff_l keyeff_r) "Hkeyeff". *)
     iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(%H1k & %H2k & (#Hkeysnd & #Hkeyrcv))".
     rewrite H1al. rewrite H2al. rewrite H1k. rewrite H2k.
-    unfold F_OAUTH, F_KE_lazy_alice...
+    unfold F_OAUTH, F_KE_lazy_alice... 
 
     brel_alloc_r l_sim as "Hl_sim"...
     brel_alloc_r l_m'sim as "Hl_m'sim"...
@@ -320,6 +329,7 @@ Section schan_security.
     brel_alloc_r l_fchan as "Hlfchan"...
     brel_effect_r ssend_r as "Hssend_r"...
     brel_effect_r srecv_r as "Hsrecv_r"...
+    brel_pures'.
     brel_alloc_l l_rchan as "Hlrchan"...
     brel_effect_l ssend_l as "Hssend_l"...
     brel_effect_l srecv_l as "Hsrecv_l"...
@@ -821,13 +831,20 @@ Section schan_security.
       f1 f2 -∗
     BREL CHAN_SIM_lazy (F_CHAN f1)
       ≤ (R_CHAN f2) <|⊥|> {{λ v1 v2,
-                              (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡ θ₂)%R L) }-∘ 𝟙)%T v1 v2 }}.
+                              (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡ θ₂)%R L) }-∘ 𝟙)%T v1 v2 }}.
   Proof with (repeat foldkont; brel_pures') using All.
     iIntros "Hrelf1f2".  
     unfold R_CHAN, right_composition, CHAN, F_CHAN, CHAN_SIM_lazy...
-    iIntros "!>" (autheff keyeff autheff_l autheff_r) "Hautheff".
+    iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
+    (*iIntros "!>" (autheff keyeff autheff_l autheff_r) "Hautheff".*)
+    rewrite /sem_ty_prod /=.
+    iDestruct "Hauthkey" as (w1 w1' w2 w2') "[%Hauthkey_l [%Hauthkey_r [Hautheff Hkeyeff]]]".
+    rewrite -> Hauthkey_l.
+    rewrite -> Hauthkey_r.
+    brel_pures'.
+    (*iIntros "!>" (autheff keyeff autheff_l autheff_r) "Hautheff".*)
     iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & (#Hasnd & #Harcv))"...
-    iIntros "!>" (keyeff_l keyeff_r) "Hkeyeff".
+    (*iIntros "!>" (keyeff_l keyeff_r) "Hkeyeff". *)
     iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))".
     unfold F_OAUTH, F_KE_lazy_alice...
 
@@ -1313,7 +1330,7 @@ Section schan_security.
   Lemma R_CHAN_CHAN_SIM_F_CHAN :
     ⊢ sem_val_typed (R_CHAN)%V (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V
         (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡ θ₂)%R θ__L) }-∘ 𝟙))%T.
+                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡ θ₂)%R θ__L) }-∘ 𝟙))%T.
   Proof using All.
     iModIntro. iIntros (L).
     iIntros (f1 f2) "Hrelf1f2".
@@ -1329,7 +1346,7 @@ Section schan_security.
   Lemma CHAN_SIM_F_CHAN_R_CHAN :
     ⊢ sem_val_typed (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V (R_CHAN)%V
         (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union  (¡ θ₁)%R (sem_row_union (¡ θ₂)%R θ__L) }-∘ 𝟙))%T.
+                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union  (¡ θ₁)%R (sem_row_union (¡ θ₂)%R θ__L) }-∘ 𝟙))%T.
   Proof using All.
     iModIntro. iIntros (L).
     iIntros (f1 f2) "Hrelf1f2".
@@ -1347,7 +1364,7 @@ Section schan_security.
   Lemma R_I_SCHAN :
     ⊢ sem_typed [] R_CHAN (λ: "f", (CHAN_SIM_lazy (F_CHAN "f")))%V ⊥
         (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
+                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
   Proof using All.
     iIntros (vs) "!# H". simpl.
     iApply brel_value.
@@ -1362,7 +1379,7 @@ Section schan_security.
   Lemma I_R_SCHAN :
     ⊢ sem_typed [] (λ: "f", (CHAN_SIM_lazy (F_CHAN "f")))%V R_CHAN ⊥
         (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union  (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
+                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union  (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
   Proof using All.
     iIntros (vs) "!# H". simpl.
     iApply brel_value.
