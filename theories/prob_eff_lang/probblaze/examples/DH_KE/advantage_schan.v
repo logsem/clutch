@@ -20,13 +20,13 @@ Section adv_schan.
 
   Definition τ_CHAN `{!probblazeRGS Σ}
       :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((ℕ -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                 (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union θ₁ (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
+                 (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union (¡ θ₁)%R  (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
 
   Definition T_CHAN : type :=
     (∀R: (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> (() + τG)) -{ RVar 0%nat ∪ᵣ (RVar 1%nat) }-∘ ())) -∘
-  (∀R: (∀R: (((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> (() + ()))) 
-            -∘ ((() + ()) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ())) 
-                -{ RVar 1%nat ∪ᵣ ((RFlip OS (RVar 0%nat)) ∪ᵣ RVar 2%nat) }-∘ ()))).
+  (∀R: (∀R: ((((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> (() + ()))) 
+            * (((() + ()) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ())))) 
+                -{ (RFlip OS (RVar 1%nat)) ∪ᵣ ((RFlip OS (RVar 0%nat)) ∪ᵣ RVar 2%nat) }-∘ ()))).
 
   Lemma T_CHAN_subtype `{!probblazeRGS Σ} η μ δ ξ :
     ⊢ τ_CHAN ≤ₜ (interp._ty η μ δ T_CHAN ξ).
@@ -44,7 +44,7 @@ Section adv_schan.
     - iApply ty_le_row_forall; iIntros (?).
       iApply ty_le_row_forall; iIntros (?).
       iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
-      iApply ty_le_prod; last iApply ty_le_refl.
+      do 2 (iApply ty_le_prod; last iApply ty_le_refl).
       iApply ty_le_mbang_comp; first iApply mode_le_refl.
       iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
       iApply ty_le_prod; last iApply ty_le_refl.
