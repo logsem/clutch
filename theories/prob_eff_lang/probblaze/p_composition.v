@@ -272,7 +272,7 @@ Section parallel_composition.
     (∀ θ, ∀ θG, sem_typed [(f, τ__fO θ τ1'); (x, τG θG)] G G (sem_row_union (¡ θG)%R θ) 𝟙%T []) -∗
     sem_typed [] J J ⊥ (τ__F τ1 τ2')%T [] -∗
     sem_typed [] ((F ∘f (λ: f x, G)%V) ||ᵣ J) 
-      (F ∘F ((λ: f x, G)%V ||ᵣ J)) ⊥ ((τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union θ1 (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
+      (F ∘F ((λ: f x, G)%V ||ᵣ J)) ⊥ ((τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
   Proof.  
    (* iIntros (Hfx) "#HFF #HGG #HJJ !# %vs _". simpl.
     unfold func_comp,right_composition,functionality_composition.
@@ -438,7 +438,7 @@ Section parallel_composition.
     ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, τ3 θ ⊸ τ4 θ)%T [] -∗
     sem_typed [] G G ⊥ (∀ᵣ θ, τ2 θ ⊸ τ3 θ)%T [] -∗
     sem_typed [] J J ⊥ (∀ᵣ θ, τ1 θ ⊸ τ2 θ)%T [] -∗
-    sem_val_typed (λ: "f", F (G (J "f"))) (λ: "f", (λ: "f", F (G "f"))%V (J "f")) (∀ᵣ θ, τ1 θ ⊸ τ4 θ)%T.
+    sem_typed [] (F ∘f (G ∘f J)) ((F ∘f G) ∘f J) ⊥ (∀ᵣ θ, τ1 θ ⊸ τ4 θ)%T [].
   Proof. 
     (*iIntros "#HFF #HGG #HJJ".
     iIntros (θ v1 v2) "!# Hτ1".
@@ -462,7 +462,7 @@ Section parallel_composition.
     ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, τ3 θ ⊸ τ4 θ)%T [] -∗
     sem_typed [] G G ⊥ (∀ᵣ θ, τ2 θ ⊸ τ3 θ)%T [] -∗
     sem_typed [] J J ⊥ (∀ᵣ θ, τ1 θ ⊸ τ2 θ)%T [] -∗
-    sem_val_typed (λ: "f", (λ: "f", F (G "f"))%V (J "f")) (λ: "f", F (G (J "f"))) (∀ᵣ θ, τ1 θ ⊸ τ4 θ)%T.
+    sem_typed [] ((F ∘f G ) ∘f J) (F ∘f (G ∘f J)) ⊥ (∀ᵣ θ, τ1 θ ⊸ τ4 θ)%T [].
   Proof. 
     (*iIntros "#HFF #HGG #HJJ".
     iIntros (θ v1 v2) "!# Hτ1".
