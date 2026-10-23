@@ -378,8 +378,8 @@ Section def_implementation.
     let: "c" := sample #()%V in
     ( g^"a", g^"b", g^"c").
 
-  Definition C_DH_real : val := λ: "f", C_lazy DH_real "f".
+  Definition C_DH_real : expr := λ: "f", C_lazy DH_real "f".
 
-  Definition C_DH_rand : val := λ: "f", C_lazy DH_rand "f".
+  Definition C_DH_rand : expr := λ: "f", C_lazy DH_rand "f".
     
  End def_implementation.

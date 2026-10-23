@@ -24,54 +24,35 @@ Section new_comp_verification.
         (* the type of the client needs to change to a linear function *)
         (∀ᵣ θ__L ,(∀ᵣ θₕ, ((ℕ -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option 𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)
                   (* the product needs to be under a bang, since the effects can be used multiple times *)
-                   ⊸ (∀ᵣ θ₁,∀ᵣ θ2, (((((𝔾 × (𝟙 + 𝟙))) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙))
-                    × (((𝔾 × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) × ((𝟙 + 𝟙) -{ θ2 }-> Option ℕ))) -{ sem_row_union θ₁ (sem_row_union (¡θ2)%R θ__L) }-∘ 𝟙))%T.
+                   ⊸ (∀ᵣ θ₁,∀ᵣ θ2, ((((𝔾 × (𝟙 + 𝟙))) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙))
+                    ⊸ (((𝔾 × (𝟙 + 𝟙)) -{ θ2 }-> 𝟙) × ((𝟙 + 𝟙) -{ θ2 }-> Option ℕ)) -{ sem_row_union (¡θ₁)%R (sem_row_union (¡θ2)%R θ__L) }-∘ 𝟙))%T.
 
-  Definition REAL_CHAN_DHKE : val :=
-    λ: "f", ((λ: "f", F_AUTH (DH_KE "f"))%V ||ᵣ F_OAUTH) (CHAN "f").
+  Definition REAL_CHAN_DHKE : expr :=
+    ((F_AUTH ∘f DH_KE) ||ᵣ F_OAUTH) ∘f CHAN.
 
-  Definition REAL_CHAN_DH_REAL : val :=
-    λ: "f", ( (λ: "f", F_AUTH (C_lazy DH_real "f"))%V ||ᵣ F_OAUTH) (CHAN "f").
+  Definition REAL_CHAN_DH_REAL : expr :=
+    ((F_AUTH ∘f C_DH_real) ||ᵣ F_OAUTH) ∘f CHAN.
 
-  Definition REAL_CHAN_DH_RED : val :=
-    λ:"DH", λ: "f", ( (λ: "f", F_AUTH (C_lazy "DH" "f")) ||ᵣ F_OAUTH) (CHAN "f").
+  Definition REAL_CHAN_DH_RED : expr :=
+    λ:"DH", ((F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) ||ᵣ F_OAUTH) ∘f CHAN.
 
   Definition REAL_CHAN_DH_RED_REAL : expr := REAL_CHAN_DH_RED DH_real.
   Definition REAL_CHAN_DH_RED_RAND : expr := REAL_CHAN_DH_RED DH_rand.
 
-  Definition REAL_CHAN_DH_RAND : val :=
-    λ: "f", ((λ: "f", F_AUTH (C_lazy DH_rand "f"))%V ||ᵣ F_OAUTH) (CHAN "f").
+  Definition REAL_CHAN_DH_RAND : expr := ((F_AUTH ∘f C_DH_rand) ||ᵣ F_OAUTH) ∘f CHAN.
 
-  Definition DHSIM_FKE_CHAN1 : val :=
-    (λ: "f", ((λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ||ᵣ F_OAUTH) (CHAN "f")).
+  Definition DHSIM_FKE_CHAN1 : expr := ((F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) ||ᵣ F_OAUTH) ∘f CHAN.
 
-  Definition DHSIM_FKE_CHAN2 : val :=
-    (λ: "f", ((λ: "f", (λ: "f", F_AUTH (DH_SIM "f"))%V (F_KE_lazy_alice "f"))%V ||ᵣ F_OAUTH) (CHAN "f")).
+  Definition DHSIM_FKE_CHAN2 : expr := (((F_AUTH ∘f DH_SIM) ∘f F_KE_lazy_alice) ||ᵣ F_OAUTH) ∘f CHAN.
 
-  Definition DHSIM_FAUTH : val :=
-    λ: "f",
-    (F_AUTH ∘f DH_SIM) "f".
+  Definition DHSIM_FAUTH : expr := F_AUTH ∘f DH_SIM.
   
-  Definition DHSIM_FKE : val :=
-    λ: "f",
-    ((λ: "f", (F_AUTH ∘f DH_SIM) "f")%V ∘F (F_KE_lazy_alice ||ᵣ F_OAUTH)%V) "f".
+  Definition DHSIM_FKE : expr := (F_AUTH ∘f DH_SIM) ∘F (F_KE_lazy_alice ||ᵣ F_OAUTH).
 
-  Definition DHSIM_FKE_CHAN3 : val :=
-    λ: "f",
-      ((λ: "f",
-        (F_AUTH ∘f DH_SIM) "f")%V ∘F
-       (λ: "f",
-          ((F_KE_lazy_alice ||ᵣ F_OAUTH)%V ∘f CHAN) "f")%V) "f".
+  Definition DHSIM_FKE_CHAN3 : expr := (F_AUTH ∘f DH_SIM) ∘F ((F_KE_lazy_alice ||ᵣ F_OAUTH)%V ∘f CHAN).
 
-  Definition DHSIM_FKE_CHAN4 : val :=
-    λ: "f",      
-      ((λ: "f", (F_AUTH ∘f DH_SIM) "f")%V
-         ∘F R_CHAN) "f".
-
-  Definition SIMSIMFCHAN : val :=
-    λ: "f",
-      (λ: "f" , (F_AUTH ∘f DH_SIM) "f")%V
-         ∘F
-     (λ: "f" , (CHAN_SIM_lazy ∘f F_CHAN) "f")%V "f".
+  Definition DHSIM_FKE_CHAN4 : expr := (F_AUTH ∘f DH_SIM) ∘F R_CHAN.
+  
+  Definition SIMSIMFCHAN : expr := (F_AUTH ∘f DH_SIM) ∘F (CHAN_SIM_lazy ∘f F_CHAN).
 
 End new_comp_verification.
