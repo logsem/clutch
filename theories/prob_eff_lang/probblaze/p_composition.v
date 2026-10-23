@@ -160,24 +160,28 @@ Section parallel_composition.
     is_closed_expr ∅ F2 →
     ⊢ (∀ θ : sem_row Σ, sem_typed [] F1 F2 ⊥ (τ θ ⊸ τ' θ)%T []) -∗
     (∀ θ : sem_row Σ, sem_val_typed F F (τ'' θ ⊸ τ θ)%T) -∗
-    sem_val_typed (λ: "f", F1 (F "f")) (λ: "f", F2 (F "f")) (∀ᵣ θ, τ'' θ ⊸ τ' θ)%T.
+    sem_typed [] (F1 ∘f F) (F2 ∘f F) ⊥ (∀ᵣ θ, τ'' θ ⊸ τ' θ)%T [].
   Proof.
-    iIntros (HF1closed HF2closed) "#HFF #HF". rewrite /sem_val_typed /sem_typed //=.
-    iIntros (???) "!# Hτ'' /=".
-    iDestruct ("HF" with "Hτ''") as "HFτ".
-    brel_pures'.
-    erewrite !subst_is_closed; try done.
-    iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy_nil|].
-    iApply (brel_wand with "HFτ").
-    iIntros (??) "!# Hvv".
-    iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy_nil|].
-    assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS _ _ [] [] with "[][HFF]");
-      [iApply to_iThy_le_bot| |].
-    { iDestruct ("HFF" $! θ ∅) as "#HFθ". rewrite !subst_map_empty.
-      by iApply "HFθ". }
-    simpl. iIntros (??) "(Hff&_)". by iApply "Hff".
-  Qed. 
+  (*   iIntros (HF1closed HF2closed) "#HFF #HF". rewrite /sem_val_typed /sem_typed //=.
+       iIntros (?) "!# _". 
+       erewrite !subst_map_is_closed_empty; try done.
+       
+       iIntros (???) "!# Hτ'' /=".
+       iDestruct ("HF" with "Hτ''") as "HFτ".
+       brel_pures'.
+       erewrite !subst_is_closed; try done.
+       iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy_nil|].
+       iApply (brel_wand with "HFτ").
+       iIntros (??) "!# Hvv".
+       iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy_nil|].
+       assert (to_iThyIfMono OS [] = []) as <- by done.
+       iApply (brel_mono OS _ _ [] [] with "[][HFF]");
+         [iApply to_iThy_le_bot| |].
+       { iDestruct ("HFF" $! θ ∅) as "#HFθ". rewrite !subst_map_empty.
+         by iApply "HFθ". }
+       simpl. iIntros (??) "(Hff&_)". by iApply "Hff".
+     Qed.  *)
+  Admitted. 
 
   Lemma parallel_comp_right (F1 F2 F : expr) θ τ1 τ2 τ1' τ2' :
     is_closed_expr ∅ F1 ->
