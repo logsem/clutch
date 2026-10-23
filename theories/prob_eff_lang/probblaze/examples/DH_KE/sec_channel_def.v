@@ -43,9 +43,9 @@ Section schannel.
   (* Assumes a fixed direction from Alice to Bob, so the leak raised by CHAN doesnt need to send a destination with the argument Bob*)
   (* InjL arg represents the message being sent by Alice, and InjR <>, just represents that Bob is requesting a receive , so "doSecRecv" is now a genuine thunk, because it doesnt need any argument anymore*)
   Definition CHAN : val :=
-    λ: "f" "ChanOp" "doGK", 
-    (*λ: "f" "effs", *)
-      (*let, ("ChanOp", "doGK") := "effs" in *)
+    (*λ: "f" "ChanOp" "doGK",*)
+    λ: "f" "effs", 
+      let, ("ChanOp", "doGK") := "effs" in 
       let, ("doSend", "doRecv") := "ChanOp" in
       let: "message" := ref NONEV in
       effect "ssend"
