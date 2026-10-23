@@ -191,7 +191,7 @@ Section parallel_composition.
     
     sem_typed [] F F ⊥ (τ__F τ1 τ1')%T [] -∗
     
-    sem_typed [] (F1 ||ᵣ F) (F2 ||ᵣ F) ⊥ ((τ__f θ τ1' τ2') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union θ1 (sem_row_union (¡θ2) θ) }-∘ 𝟙))%T [].
+    sem_typed [] (F1 ||ᵣ F) (F2 ||ᵣ F) ⊥ ((τ__f θ τ1' τ2') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡θ2) θ) }-∘ 𝟙))%T [].
   Proof. 
     (*iIntros "#HFF #HF".
     iIntros (?) "!# Hvs //=".
