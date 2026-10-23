@@ -380,6 +380,11 @@ Section def_implementation.
 
   Definition C_DH_real : expr := λ: "f", C_lazy DH_real "f".
 
-  Definition C_DH_rand : expr := λ: "f", C_lazy DH_rand "f".
+  Definition C_DH_rand : expr:= λ: "f", C_lazy DH_rand "f".
+
+  Definition C_DH_real_val : val := λ: "f", C_lazy DH_real "f".
+
+  Definition C_DH_rand_val : val := λ: "f", C_lazy DH_rand "f".
+
     
  End def_implementation.

@@ -816,6 +816,79 @@ Section parallel_composition.
     iApply "HFfv".
   Qed.
 
+  Lemma sem_typed_eta_expansion_l (Γ1 Γ2 : env Σ) e1 e2 v1 v2 s τ κ ρ : 
+    s ∉ env_dom Γ1 → s ∉ env_dom Γ2 →
+    sem_typed ((s, τ) ::? Γ1) e1 e2 ρ κ Γ2 -∗
+    ⊨ᵥ v1 ≤ v2 : τ -∗
+    sem_typed Γ1 (val_subst' s v1 e1) ((λ: s, e2)%E v2) ρ κ Γ2.  
+  Proof.
+    iIntros (HΓ1 HΓ2) "#Hee #Hvv !# %vs Hvs".
+    brel_pures'.
+    rewrite -subst_map_binder_insert.
+    rewrite /sem_typed /=.
+    iDestruct "Hee" as "#Hee".
+    destruct s; first by iApply "Hee".
+    simpl.
+    assert (subst_map (fst <$> vs) (val_subst s v1 e1) = subst_map (fst <$> (binder_insert s (v1, v2)(delete s vs))) e1) as ->.
+    { rewrite subst_map_val_subst. simpl.
+      assert (v1 = fst (v1, v2)) as -> by done.  
+      by rewrite -fmap_insert insert_delete_eq. }
+    assert (subst_map (<[s:=v2]> (snd <$> vs)) e2 = subst_map (snd <$> (binder_insert s (v1, v2) (delete s vs))) e2) as ->.
+    { by rewrite fmap_insert fmap_delete insert_delete_eq /=. }
+    iSpecialize ("Hee" $! (binder_insert s (v1, v2)(delete s vs))).
+    iApply (brel_wand with "[Hvs]").
+    - iApply "Hee". 
+      rewrite env_sem_typed_cons.
+      iSplitR.
+      + iExists v1, v2.
+        rewrite /sem_val_typed /=.
+        iSplit; last done.
+        iPureIntro. apply lookup_insert_eq.
+      + rewrite -env_sem_typed_insert; last done.
+        by rewrite -env_sem_typed_delete.
+    - iIntros (??) "!# ($&HΓ)".
+      iClear "Hee".
+      rewrite -env_sem_typed_insert; last done.
+      by rewrite -env_sem_typed_delete.
+  Qed. 
+
+  Lemma sem_typed_eta_expansion_r (Γ1 Γ2 : env Σ) e1 e2 v1 v2 s τ κ ρ : 
+    s ∉ env_dom Γ1 → s ∉ env_dom Γ2 →
+    sem_typed ((s, τ) ::? Γ1) e1 e2 ρ κ Γ2 -∗
+    ⊨ᵥ v1 ≤ v2 : τ -∗
+                 sem_typed Γ1 ((λ: s, e1)%E v1) (val_subst' s v2 e2) ρ κ Γ2.  
+  Proof.
+    iIntros (HΓ1 HΓ2) "#Hee #Hvv !# %vs Hvs".
+    brel_pures'.
+    rewrite -subst_map_binder_insert.
+    rewrite /sem_typed /=.
+    iDestruct "Hee" as "#Hee".
+    destruct s; first by iApply "Hee".
+    simpl.
+    assert (subst_map (snd <$> vs) (val_subst s v2 e2) = subst_map (snd <$> (binder_insert s (v1, v2)(delete s vs))) e2) as ->.
+    { rewrite subst_map_val_subst. simpl.
+      assert (v2 = snd (v1, v2)) as -> by done.  
+      by rewrite -fmap_insert insert_delete_eq. }
+    assert (subst_map (<[s:=v1]> (fst <$> vs)) e1 = subst_map (fst <$> (binder_insert s (v1, v2) (delete s vs))) e1) as ->.
+    { by rewrite fmap_insert fmap_delete insert_delete_eq /=. }
+    iSpecialize ("Hee" $! (binder_insert s (v1, v2)(delete s vs))).
+    iApply (brel_wand with "[Hvs]").
+    - iApply "Hee". 
+      rewrite env_sem_typed_cons.
+      iSplitR.
+      + iExists v1, v2.
+        rewrite /sem_val_typed /=.
+        iSplit; last done.
+        iPureIntro. apply lookup_insert_eq.
+      + rewrite -env_sem_typed_insert; last done.
+        by rewrite -env_sem_typed_delete.
+    - iIntros (??) "!# ($&HΓ)".
+      iClear "Hee".
+      rewrite -env_sem_typed_insert; last done.
+      by rewrite -env_sem_typed_delete.
+  Qed. 
+  
+
 End parallel_composition.
 
 Notation " F₁ ||ₗ F₂" := (left_composition F₁ F₂) (at level 10).

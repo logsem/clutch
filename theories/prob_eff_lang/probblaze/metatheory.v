@@ -956,6 +956,18 @@ Lemma subst_map_binder_insert_2_empty b1 v1 b2 v2 e :
 Proof.
   by rewrite subst_map_binder_insert_2 !binder_delete_empty subst_map_empty.
 Qed.
+  
+Lemma subst_map_val_subst vs s v e :
+  subst_map vs (val_subst s v e) = subst_map (binder_insert s v vs) e.
+Proof.
+  revert vs. induction e=> vs /=; simplify_map_eq; auto with f_equal.
+  - (* Var *) destruct (decide (s = x)); simplify_map_eq=> //.
+  - (* Rec *)
+    destruct (decide _) as [[??]|[<-%dec_stable|[<-%dec_stable ?]]%not_and_l_alt].
+    + rewrite IHe !binder_delete_insert //.
+    + by rewrite /= delete_insert_eq.
+    + by rewrite /= binder_delete_insert // delete_insert_eq.
+Qed.
 
 Lemma subst_map_is_closed X e vs :
   is_closed_expr X e →
