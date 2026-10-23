@@ -54,7 +54,6 @@ Section parallel_composition.
   Definition τ := ( ∀ᵣ θ, ∀ₜ α ,α ⊸ 𝟙)%T.
     
   Definition τ__f θ τ1' τ2' := (∀ᵣ θ1, ∀ᵣ θ2, ((τ1' θ1) × (τ2' θ2)) -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙)%T.
-  (*Definition τ__f θ τ1' τ2' := (∀ᵣ θ1, ∀ᵣ θ2, ((τ1' θ1) × (τ2' θ2)) -{ sem_row_union θ2 (sem_row_union θ1 θ) }-∘ 𝟙)%T. *)
   Definition τ__F τ τ' := (∀ᵣ θ, (∀ᵣ θ₁, τ' θ₁ -{ sem_row_union θ₁ θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union θ₂ θ }-∘ 𝟙))%T.
   Definition τ__FO τ τ' := (∀ᵣ θ, (∀ᵣ θ₁, τ' θ₁ -{ sem_row_union (¡θ₁) θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union (¡θ₂) θ }-∘ 𝟙))%T.
   Definition τ__FC τ τ' := (∀ᵣ θ, (∀ᵣ θ₁, τ' θ₁ -{ sem_row_union θ₁ θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union (¡θ₂) θ }-∘ 𝟙))%T.
@@ -67,17 +66,31 @@ Section parallel_composition.
   Qed.  
   
 
-  Lemma parallel_comp_left (F₁ F₂ F : val) θ τ1 τ2 τ1' τ2' :
-    ⊢ sem_val_typed F₁ F₂ (τ__F τ2 τ2' ) -∗
+  Lemma parallel_comp_left (F₁ F₂ F : expr) θ τ1 τ2 τ1' τ2' :
+    is_closed_expr ∅ F₁ →
+    is_closed_expr ∅ F₂ →
+    is_closed_expr ∅ F →
+    ⊢ sem_typed [] F₁ F₂ ⊥ (τ__F τ2 τ2' )%T [] -∗
 
-    sem_val_typed F F (τ__F τ1 τ1') -∗
+    sem_typed [] F F ⊥ (τ__F τ1 τ1')%T [] -∗
 
     sem_typed [] (F ||ₗ F₁) (F ||ₗ F₂) ⊥ ((τ__f θ τ1' τ2') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T [].
   Proof.
-    iIntros "#HFF #HF".
+   (* iIntros "%HclosedF1 %HclosedF2 %HclosedF #HFF #HF".
     iIntros (?) "!# Hvs //=".
     unfold left_composition.
-    brel_pures'. iFrame.   
+    brel_pures'.
+    Search subst_map.
+    rewrite !subst_map_is_closed_empty; try done.
+    About brel_bind.
+    Print ectx.
+    Print frame.
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][HFF]");[iApply to_iThy_le_refl | |simpl].
+    +
+    iApply "HFF".
+    iApply (brel_bind [_;_] [_;_]).
     iIntros "!> %f1 %f2 Hff". brel_pures'.  
     iIntros "!> %θ1 %θ2 %r1 %r2 Heffs".
     brel_pures'.
@@ -139,7 +152,8 @@ Section parallel_composition.
     iSpecialize ("Hvv" $! θ1).
     rewrite /sem_ty_mbang //=.
     by iApply "Hvv".
-  Qed. 
+  Qed. *)
+    Admitted.
   
   Lemma func_comp_left (F1 F2 : expr) (F : val) τ τ' τ'':
     is_closed_expr ∅ F1 →
@@ -165,14 +179,17 @@ Section parallel_composition.
     simpl. iIntros (??) "(Hff&_)". by iApply "Hff".
   Qed. 
 
-  Lemma parallel_comp_right (F1 F2 F : val) θ τ1 τ2 τ1' τ2' :
-    ⊢ sem_val_typed F1 F2 (τ__FC τ2 τ2' ) -∗
+  Lemma parallel_comp_right (F1 F2 F : expr) θ τ1 τ2 τ1' τ2' :
+    is_closed_expr ∅ F1 ->
+    is_closed_expr ∅ F2 ->
+    is_closed_expr ∅ F ->
+    ⊢ sem_typed [] F1 F2 ⊥ (τ__FC τ2 τ2')%T [] -∗
     
-    sem_val_typed F F (τ__F τ1 τ1') -∗
+    sem_typed [] F F ⊥ (τ__F τ1 τ1')%T [] -∗
     
     sem_typed [] (F1 ||ᵣ F) (F2 ||ᵣ F) ⊥ ((τ__f θ τ1' τ2') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union θ1 (sem_row_union (¡θ2) θ) }-∘ 𝟙))%T [].
   Proof. 
-    iIntros "#HFF #HF".
+    (*iIntros "#HFF #HF".
     iIntros (?) "!# Hvs //=".
     unfold right_composition.
     brel_pures'. iFrame. 
@@ -236,21 +253,24 @@ Section parallel_composition.
     iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡ θ2)%R ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ)).
     { iApply to_iThy_le_intro'; solve_submseteq. }
     iApply "Hvv".
-  Qed.
+  Qed. *)
+    Admitted.
   
   Definition τ__F' θ τ τ' := ((∀ᵣ θ₁, τ' θ₁ -{ sem_row_union θ₁ θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{ sem_row_union θ₂ θ }-∘ 𝟙))%T.
   Definition τ__f' θ τ2' := (∀ᵣ θ2, τ2' θ2 -{ (sem_row_union θ2 θ) }-∘ 𝟙)%T.
   Definition τ__fO θ gk := (∀ᵣ θ2, gk θ2 -{ sem_row_union θ2 θ }-∘ 𝟙)%T.
  
-  Lemma func_comp_parallel_comp_assoc (F J : val) (G : expr) (f x : string) τ1 τ2 τG τ1' τ2' θ :
+  Lemma func_comp_parallel_comp_assoc (F J G : expr) (f x : string) τ1 τ2 τG τ1' τ2' θ :
     (BNamed f) ≠ (BNamed x) →
-    ⊢ sem_val_typed F F (τ__FO τ2 τG)-∗
+    is_closed_expr ∅ F ->
+    is_closed_expr ∅ J ->
+    ⊢ sem_typed [] F F ⊥ (τ__FO τ2 τG)%T [] -∗
     (∀ θ, ∀ θG, sem_typed [(f, τ__fO θ τ1'); (x, τG θG)] G G (sem_row_union (¡ θG)%R θ) 𝟙%T []) -∗
-    sem_val_typed J J (τ__F τ1 τ2') -∗
+    sem_typed [] J J ⊥ (τ__F τ1 τ2')%T [] -∗
     sem_typed [] ((F ∘f (λ: f x, G)%V) ||ᵣ J) 
       (F ∘F ((λ: f x, G)%V ||ᵣ J)) ⊥ ((τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union θ1 (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
   Proof.  
-    iIntros (Hfx) "#HFF #HGG #HJJ !# %vs _". simpl.
+   (* iIntros (Hfx) "#HFF #HGG #HJJ !# %vs _". simpl.
     unfold func_comp,right_composition,functionality_composition.
     brel_pures'.
     iModIntro; iSplit; last done.
@@ -295,11 +315,6 @@ Section parallel_composition.
           iSplitR "Hhh2 Hhh"; [iPureIntro; reflexivity | iFrame ]. }
           iDestruct ("Hff" with "Hprod") as "Hff".
             simpl; by iApply "Hff". }
-         (* iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
-          assert (to_iThyIfMono OS [] = []) as <- by done.
-          iApply (brel_mono OS with "[][Hff Hhh2 Hhh]"); [iApply to_iThy_le_refl| | ].
-          (*simpl;by iApply "Hff"|simpl].*)
-          iIntros (Jf1 Jf2) "HJf". by iApply "HJf". } *)
         simpl. iIntros (g1 g2) "Hgg".  
         iDestruct ("Hgg" with "Hτ1") as "Hgg".
         rewrite !iLblSig_to_iLblThy_distr.
@@ -327,17 +342,20 @@ Section parallel_composition.
     rewrite !iLblSig_to_iLblThy_distr.
     iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡ θ2)%R ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ)); last done.
     iApply to_iThy_le_intro'; solve_submseteq.
-  Qed. 
+  Qed. *)
+    Admitted.
 
-  Lemma func_comp_parallel_comp_assoc_rev (F J : val) (G : expr) (f x : string) τ1 τ2 τG τ1' τ2' θ :
+  Lemma func_comp_parallel_comp_assoc_rev (F J G : expr) (f x : string) τ1 τ2 τG τ1' τ2' θ :
     (BNamed f) ≠ (BNamed x) →
-    ⊢ sem_val_typed F F (τ__FO τ2 τG)-∗
+    is_closed_expr ∅ F ->
+    is_closed_expr ∅ G ->
+    ⊢ sem_typed [] F F ⊥ (τ__FO τ2 τG)%T [] -∗
     (∀ θ, ∀ θG, sem_typed [(f, τ__fO θ τ1'); (x, τG θG)] G G (sem_row_union (¡ θG)%R θ) 𝟙%T []) -∗
-    sem_val_typed J J (τ__F τ1 τ2') -∗
+    sem_typed [] J J ⊥ (τ__F τ1 τ2')%T [] -∗
     sem_typed [] (F ∘F ((λ: f x, G)%V ||ᵣ J))
     ((F ∘f (λ: f x, G)%V) ||ᵣ J)  ⊥ ((τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union θ1 (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].          
   Proof.      
-    iIntros (Hfx) "#HFF #HGG #HJJ !# %vs _". simpl. 
+  (*  iIntros (Hfx) "#HFF #HGG #HJJ !# %vs _". simpl. 
     unfold func_comp,right_composition,functionality_composition. 
     brel_pures'.
     iModIntro; iSplit; last done. 
@@ -380,10 +398,6 @@ Section parallel_composition.
           }
           iDestruct ("Hff" with "Hprod") as "Hff".
           iApply "Hff". }
-          (*iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
-          assert (to_iThyIfMono OS [] = []) as <- by done.
-          iApply (brel_mono OS with "[][Hff Hhh2]"); [iApply to_iThy_le_refl|simpl;by iApply "Hff"|simpl].
-          iIntros (Jf1 Jf2) "HJf". by iApply "HJf". } *)
         simpl. iIntros (g1 g2) "Hgg". 
         iDestruct ("Hgg" with "Hτ1") as "Hgg".
         rewrite !iLblSig_to_iLblThy_distr.
@@ -410,15 +424,19 @@ Section parallel_composition.
     rewrite !iLblSig_to_iLblThy_distr.
     iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡ θ2)%R ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ)); last done.
     iApply to_iThy_le_intro'; solve_submseteq.
-  Qed. 
+  Qed. *)
+    Admitted.
 
-  Lemma func_comp_assoc (F G J : val) τ1 τ2 τ3 τ4 : 
-    ⊢ sem_val_typed F F (∀ᵣ θ, τ3 θ ⊸ τ4 θ)%T -∗
-    sem_val_typed G G (∀ᵣ θ, τ2 θ ⊸ τ3 θ)%T -∗
-    sem_val_typed J J (∀ᵣ θ, τ1 θ ⊸ τ2 θ)%T -∗
+  Lemma func_comp_assoc (F G J : expr) τ1 τ2 τ3 τ4 :
+    is_closed_expr ∅ F ->
+    is_closed_expr ∅ G ->
+    is_closed_expr ∅ J ->
+    ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, τ3 θ ⊸ τ4 θ)%T [] -∗
+    sem_typed [] G G ⊥ (∀ᵣ θ, τ2 θ ⊸ τ3 θ)%T [] -∗
+    sem_typed [] J J ⊥ (∀ᵣ θ, τ1 θ ⊸ τ2 θ)%T [] -∗
     sem_val_typed (λ: "f", F (G (J "f"))) (λ: "f", (λ: "f", F (G "f"))%V (J "f")) (∀ᵣ θ, τ1 θ ⊸ τ4 θ)%T.
   Proof. 
-    iIntros "#HFF #HGG #HJJ".
+    (*iIntros "#HFF #HGG #HJJ".
     iIntros (θ v1 v2) "!# Hτ1".
     iSpecialize ("HJJ" with "Hτ1").
     brel_pures'.
@@ -433,15 +451,16 @@ Section parallel_composition.
     iSpecialize ("HFF" with "Hτ3").
     iApply (brel_wand with "HFF").
     by iIntros (??) "!# H".
-  Qed. 
+  Qed. *)
+    Admitted.
 
   Lemma func_comp_assoc_rev (F G J : val) τ1 τ2 τ3 τ4 : 
-    ⊢ sem_val_typed F F (∀ᵣ θ, τ3 θ ⊸ τ4 θ)%T -∗
-    sem_val_typed G G (∀ᵣ θ, τ2 θ ⊸ τ3 θ)%T -∗
-    sem_val_typed J J (∀ᵣ θ, τ1 θ ⊸ τ2 θ)%T -∗
+    ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, τ3 θ ⊸ τ4 θ)%T [] -∗
+    sem_typed [] G G ⊥ (∀ᵣ θ, τ2 θ ⊸ τ3 θ)%T [] -∗
+    sem_typed [] J J ⊥ (∀ᵣ θ, τ1 θ ⊸ τ2 θ)%T [] -∗
     sem_val_typed (λ: "f", (λ: "f", F (G "f"))%V (J "f")) (λ: "f", F (G (J "f"))) (∀ᵣ θ, τ1 θ ⊸ τ4 θ)%T.
   Proof. 
-    iIntros "#HFF #HGG #HJJ".
+    (*iIntros "#HFF #HGG #HJJ".
     iIntros (θ v1 v2) "!# Hτ1".
     iSpecialize ("HJJ" with "Hτ1").
     brel_pures'.
@@ -456,10 +475,11 @@ Section parallel_composition.
     iSpecialize ("HFF" with "Hτ3").
     iApply (brel_wand with "HFF").
     by iIntros (??) "!# H".
-  Qed. 
+  Qed. *)
+    Admitted.
 
     
-  Lemma functionality_comp_func_comp_assoc (F G : val) (J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
+  Lemma functionality_comp_func_comp_assoc (F G : expr) (J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
     (BNamed f) ≠ (BNamed x) →
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
@@ -471,7 +491,7 @@ Section parallel_composition.
       sem_typed [] (((F ∘F G)%V ∘f (λ: f x, J)%V)) (F ∘F (G ∘f (λ: f x, J)%V)) ⊥ 
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T [].
   Proof. 
-    iIntros (Hfx HFclosed HGclosed) "#HFF #HGG #HJJ !# %vs _".
+   (* iIntros (Hfx HFclosed HGclosed) "#HFF #HGG #HJJ !# %vs _".
     rewrite /functionality_composition /func_comp //=. simpl.
     brel_pures'.
     iModIntro; iSplit; last done.
@@ -533,9 +553,9 @@ Section parallel_composition.
       rewrite !iLblSig_to_iLblThy_distr.
       iApply (brel_introduction_mono (iLblSig_to_iLblThy θ2 ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ)); last done.
       iApply to_iThy_le_intro'; solve_submseteq.
-  Qed. 
+  Qed. *) Admitted.
 
-  Lemma functionality_comp_func_comp_assoc_rev (F G : val) (J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
+  Lemma functionality_comp_func_comp_assoc_rev (F G J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
     (BNamed f) ≠ (BNamed x) →
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
@@ -547,7 +567,7 @@ Section parallel_composition.
     sem_typed [] (F ∘F (G ∘f (λ: f x, J)%V)) ((F ∘F G)%V ∘f (λ: f x, J)%V) ⊥
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union θ1 (sem_row_union θ2 θ) }-∘ 𝟙))%T []. 
   Proof. 
-    iIntros (Hfx HFclosed HGclosed) "#HFF #HGG #HJJ  !# %vs _".
+ (*   iIntros (Hfx HFclosed HGclosed) "#HFF #HGG #HJJ  !# %vs _".
     rewrite /functionality_composition /func_comp //=. simpl.
     brel_pures'.
     iModIntro; iSplit; last done.
@@ -608,9 +628,9 @@ Section parallel_composition.
       rewrite !iLblSig_to_iLblThy_distr.
       iApply (brel_introduction_mono (iLblSig_to_iLblThy θ2 ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ)); last done.
       iApply to_iThy_le_intro'; solve_submseteq.
-  Qed. 
+  Qed. *) Admitted.
 
-   Lemma functionality_comp_func_comp_assoc_curried (F G : val) (J : expr) (f x y : string) τ1 τ2 τ1' τJ τJ' τF :
+   Lemma functionality_comp_func_comp_assoc_curried (F G J : expr) (f x y : string) τ1 τ2 τ1' τJ τJ' τF :
     (BNamed f) ≠ (BNamed x) →
     (BNamed f) ≠ (BNamed y) →
     (BNamed x) ≠ (BNamed y) →
@@ -625,7 +645,7 @@ Section parallel_composition.
     sem_typed [] ((F ∘F G) ∘f (λ: f x y, J)%V) (F ∘F (G ∘f (λ: f x y, J)%V)) ⊥
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union θ1 (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
    Proof using All.
-    iIntros (Hfx Hfy Hxy HFclosed HGclosed) "#HFF #HGG #HJJ !# %vs _".
+  (*  iIntros (Hfx Hfy Hxy HFclosed HGclosed) "#HFF #HGG #HJJ !# %vs _".
     rewrite /functionality_composition /func_comp //=.
     brel_pures'.
     iModIntro; iSplit; last done.
@@ -702,9 +722,10 @@ Section parallel_composition.
       rewrite !iLblSig_to_iLblThy_distr.
       iApply (brel_introduction_mono (iLblSig_to_iLblThy  (¡θ2)%R ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ)); last done.
       iApply to_iThy_le_intro'; solve_submseteq.
-   Qed.
+   Qed. *)
+     Admitted.
    
-   Lemma functionality_comp_func_comp_assoc_curried_rev (F G : val) (J : expr) (f x y : string) τ1 τ2 τ1' τJ τJ' τF :
+   Lemma functionality_comp_func_comp_assoc_curried_rev (F G J : expr) (f x y : string) τ1 τ2 τ1' τJ τJ' τF :
     (BNamed f) ≠ (BNamed x) →
     (BNamed f) ≠ (BNamed y) →
     (BNamed x) ≠ (BNamed y) →
@@ -719,7 +740,7 @@ Section parallel_composition.
     sem_typed [] (F ∘F (G ∘f (λ: f x y, J)%V)) ((F ∘F G) ∘f (λ: f x y, J)%V)  ⊥
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union θ1 (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
    Proof using All.
-    iIntros (Hfx Hfy Hxy HFclosed HGclosed) "#HFF #HGG #HJJ !# %vs _".
+  (*  iIntros (Hfx Hfy Hxy HFclosed HGclosed) "#HFF #HGG #HJJ !# %vs _".
     rewrite /functionality_composition /func_comp //=.
     brel_pures'.
     iModIntro; iSplit; last done.
@@ -796,9 +817,10 @@ Section parallel_composition.
       rewrite !iLblSig_to_iLblThy_distr.
       iApply (brel_introduction_mono (iLblSig_to_iLblThy  (¡θ2)%R ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ)); last done.
       iApply to_iThy_le_intro'; solve_submseteq.
-  Qed.
+  Qed. *)
+     Admitted.
     
-  Lemma functionality_comp_cong (F G1 G2 : val) τ1 τ2 τ1' τF :
+  Lemma functionality_comp_cong (F G1 G2 : expr) τ1 τ2 τ1' τF :
     is_closed_expr ∅ F →
     is_closed_expr ∅ G1 →
     is_closed_expr ∅ G2 →
@@ -807,7 +829,7 @@ Section parallel_composition.
     sem_typed [] (F ∘F G1) (F ∘F G2) ⊥ 
       (∀ᵣ θ, τ1' θ ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union θ1 (sem_row_union (¡ θ2) θ) }-∘ 𝟙))%T []. 
   Proof.
-    iIntros (HFclosed HG1closed HG2closed)  "#HGG #HFF !# %vs _".
+  (*  iIntros (HFclosed HG1closed HG2closed)  "#HGG #HFF !# %vs _".
     rewrite /functionality_composition /=.
     brel_pures'.
     iModIntro; iSplit; last done.
@@ -855,7 +877,8 @@ Section parallel_composition.
     iApply (brel_introduction_mono ((iLblSig_to_iLblThy (¡θ2)%R ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ))).
     { iApply to_iThy_le_intro'; solve_submseteq. }
     iApply "HFfv".
-  Qed.
+  Qed. *)
+    Admitted.
 
   Lemma sem_typed_eta_expansion_l (Γ1 Γ2 : env Σ) e1 e2 v1 v2 s τ κ ρ : 
     s ∉ env_dom Γ1 → s ∉ env_dom Γ2 →
