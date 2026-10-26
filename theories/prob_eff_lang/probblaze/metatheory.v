@@ -992,6 +992,6 @@ Proof.
 Qed.
 
 Ltac is_closed :=
-  cbn ; rewrite (bool_decide_eq_true_2 _ _) ; [|set_solver] ;
-  rewrite !andb_true_r !andb_true_l ;
-  repeat (apply andb_prop_intro ; split) ; auto.
+    cbn ;  rewrite ?bool_decide_eq_true_2 ; [|set_solver] ;
+    try rewrite !andb_true_r !andb_true_l ;
+    repeat (apply andb_prop_intro ; split) ; auto.
