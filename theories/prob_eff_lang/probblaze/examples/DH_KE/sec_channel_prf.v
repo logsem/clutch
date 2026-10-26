@@ -286,30 +286,23 @@ Section schan_security.
         iExists _,_; iLeft; iPureIntro; repeat (split; first done); reflexivity. }
   Qed.
 
-  Definition R_CHAN : expr :=
-    (F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f CHAN.
 
-  Lemma SEM_R_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
-    (∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙))%T
-      f1 f2 -∗
-    BREL R_CHAN f1
-      ≤ CHAN_SIM_lazy (F_CHAN f2) <|⊥|> {{λ v1 v2,
-                                            (* (∀ᵣ θ₁, ∀ᵣ θ₂,  (((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) ⊸ (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂) L) }-∘ 𝟙)%T v1 v2 }}.*)
-                                           (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂) L) }-∘ 𝟙)%T v1 v2 }}. 
+  Lemma SEM_R_CHAN_SIM :
+    ⊢ sem_typed [] R_CHAN  (CHAN_SIM_lazy ∘f F_CHAN) ⊥
+        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
   Proof with (repeat foldkont; brel_pures') using All. 
-    iIntros "Hrelf1f2".
-    unfold R_CHAN, right_composition, func_comp, CHAN, F_CHAN, CHAN_SIM_lazy...
-    (*iModIntro.
-    brel_pures'.*) 
+    iIntros (vs) "!> _ /=".
+    unfold R_CHAN, right_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp...
+    iSplitR; last done. iModIntro.
+    iIntros (L f1 f2) "Hrelf1f2"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
-    (*iIntros "!>" (autheff keyeff autheff_l autheff_r) "Hautheff".*)
     rewrite /sem_ty_prod /=.
     iDestruct "Hauthkey" as (w1 w1' w2 w2') "[%Hauthkey_l [%Hauthkey_r [Hautheff Hkeyeff]]]".
     rewrite -> Hauthkey_l.
     rewrite -> Hauthkey_r.
     brel_pures'.
     iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(%H1al & %H2al & (#Hasnd & #Harcv))"...
-    (*iIntros "!>" (keyeff_l keyeff_r) "Hkeyeff". *)
     iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(%H1k & %H2k & (#Hkeysnd & #Hkeyrcv))".
     rewrite H1al. rewrite H2al. rewrite H1k. rewrite H2k.
     unfold F_OAUTH, F_KE_lazy_alice... 
@@ -823,25 +816,22 @@ Section schan_security.
                 by iDestruct "HmQ" as "[Hsome Hnone]". 
   Qed.
   
-  Lemma SEM_R_CHAN_SIM_rev (f1 f2 : val) (L : sem_row Σ) :
-    (∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙))%T
-      f1 f2 -∗
-    BREL CHAN_SIM_lazy (F_CHAN f1)
-      ≤ (R_CHAN f2) <|⊥|> {{λ v1 v2,
-                              (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡ θ₂)%R L) }-∘ 𝟙)%T v1 v2 }}.
+  Lemma SEM_R_CHAN_SIM_rev :
+     ⊢ sem_typed [] (CHAN_SIM_lazy ∘f F_CHAN) R_CHAN ⊥
+        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union  (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
   Proof with (repeat foldkont; brel_pures') using All.
-    iIntros "Hrelf1f2".  
-    unfold R_CHAN, right_composition, CHAN, F_CHAN, CHAN_SIM_lazy...
+    iIntros (vs) "!> _ /=".
+    unfold R_CHAN, right_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp...
+    iSplitR; last done. iModIntro.
+    iIntros (L f1 f2) "Hrelf1f2"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
-    (*iIntros "!>" (autheff keyeff autheff_l autheff_r) "Hautheff".*)
     rewrite /sem_ty_prod /=.
     iDestruct "Hauthkey" as (w1 w1' w2 w2') "[%Hauthkey_l [%Hauthkey_r [Hautheff Hkeyeff]]]".
     rewrite -> Hauthkey_l.
     rewrite -> Hauthkey_r.
     brel_pures'.
-    (*iIntros "!>" (autheff keyeff autheff_l autheff_r) "Hautheff".*)
     iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & (#Hasnd & #Harcv))"...
-    (*iIntros "!>" (keyeff_l keyeff_r) "Hkeyeff". *)
     iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))".
     unfold F_OAUTH, F_KE_lazy_alice...
 
@@ -1324,68 +1314,10 @@ Section schan_security.
                by iDestruct "HmQ" as "[Hsome Hnone]". 
   Qed.
 
-  Lemma R_CHAN_CHAN_SIM_F_CHAN :
-    ⊢ sem_val_typed (R_CHAN)%V (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V
-        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡ θ₂)%R θ__L) }-∘ 𝟙))%T.
-  Proof using All.
-    iModIntro. iIntros (L).
-    iIntros (f1 f2) "Hrelf1f2".
-    brel_pures'. simpl.
-    assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][Hrelf1f2]");
-      [iApply to_iThy_le_refl|simpl|simpl].
-    + iApply (SEM_R_CHAN_SIM _ _ L).
-      iApply "Hrelf1f2".
-    + iIntros (??) "$".
-  Qed.
-
-  Lemma CHAN_SIM_F_CHAN_R_CHAN :
-    ⊢ sem_val_typed (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V (R_CHAN)%V
-        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union  (¡ θ₁)%R (sem_row_union (¡ θ₂)%R θ__L) }-∘ 𝟙))%T.
-  Proof using All.
-    iModIntro. iIntros (L).
-    iIntros (f1 f2) "Hrelf1f2".
-    brel_pures'. simpl.
-    assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][Hrelf1f2]");
-      [iApply to_iThy_le_refl|simpl|simpl].
-    + iApply SEM_R_CHAN_SIM_rev.
-      iApply "Hrelf1f2".
-    + iIntros (??) "$".
-  Qed.
-
   (*top level statements for the secure channel *)
   (*----------------------------------------------------------------*)
-  Lemma R_I_SCHAN :
-    ⊢ sem_typed [] R_CHAN (λ: "f", (CHAN_SIM_lazy (F_CHAN "f")))%V ⊥
-        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
-  Proof using All.
-    iIntros (vs) "!# H". simpl.
-    iApply brel_value.
-    iIntros "$ !>".
-    iSplit; try (done).
-    iPoseProof R_CHAN_CHAN_SIM_F_CHAN as "Hsemty".
-    rewrite /sem_val_typed /=.
-    iDestruct "Hsemty" as "#Hsemty".
-    iApply "Hsemty".
-  Qed.
+  Definition R_I_SCHAN := SEM_R_CHAN_SIM.
 
-  Lemma I_R_SCHAN :
-    ⊢ sem_typed [] (λ: "f", (CHAN_SIM_lazy (F_CHAN "f")))%V R_CHAN ⊥
-        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union  (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
-  Proof using All.
-    iIntros (vs) "!# H". simpl.
-    iApply brel_value.
-    iIntros "$ !>".
-    iSplit; try (done).
-    iPoseProof CHAN_SIM_F_CHAN_R_CHAN as "Hsemty".
-    rewrite /sem_val_typed /=.
-    iDestruct "Hsemty" as "#Hsemty".
-    iApply "Hsemty".
-  Qed.
+  Definition I_R_SCHAN := SEM_R_CHAN_rev.
 
 End schan_security.

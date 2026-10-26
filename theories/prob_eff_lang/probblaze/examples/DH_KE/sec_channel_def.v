@@ -238,4 +238,9 @@ Section schannel.
     end
 | return "y" => "y" end.
 
+
+  Definition R_CHAN : expr:=
+      (F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f CHAN.
+
+
 End schannel.
