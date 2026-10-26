@@ -17,20 +17,45 @@ Section new_comp_verification.
      closedness (a field of the [XOR] class) available to it. *)
   #[local] Hint Resolve mask_closed : core.
 
-  Lemma F_AUTH_DHKE_closed : is_closed_expr ∅ ((λ: "f", F_AUTH (DH_KE "f"))%V ||ᵣ F_OAUTH).
+  Lemma F_OAUTH_closed : is_closed_expr ∅ F_OAUTH.
+  Proof. is_closed. Qed. 
+  Lemma F_AUTH_closed : is_closed_expr ∅ F_AUTH.
+  Proof. is_closed. Qed. 
+  Lemma DH_SIM_closed : is_closed_expr ∅ DH_SIM.
   Proof. is_closed. Qed.
-  Lemma F_AUTH_C_DDH_real_closed : is_closed_expr ∅ ( (λ: "f", F_AUTH (C_lazy DH_real "f"))%V ||ᵣ F_OAUTH).
+  Lemma FKE_closed : is_closed_expr ∅ F_KE_lazy_alice.
   Proof. is_closed. Qed.
-  Lemma F_AUTH_C_DDH_rand_closed : is_closed_expr ∅ ((λ: "f", F_AUTH (C_lazy DH_rand "f"))%V ||ᵣ F_OAUTH).
-  Proof. is_closed. Qed.
-
-  Lemma DHSIM_FKE_CHAN1_closed : is_closed_expr ∅ ((λ: "f", F_AUTH (DH_SIM (F_KE_lazy_alice "f")))%V ||ᵣ F_OAUTH).
-  Proof. is_closed. Qed.
-
-  Lemma DHSIM_FKE_CHAN2_closed : is_closed_expr ∅ ((λ: "f", (λ: "f", F_AUTH (DH_SIM "f"))%V (F_KE_lazy_alice "f"))%V ||ᵣ F_OAUTH).
+  Lemma CHAN_closed : is_closed_expr ∅ CHAN.
   Proof. is_closed. Qed.
 
-  Lemma DHSIM_FKE_CHAN3_closed : is_closed_expr ∅ ((F_AUTH ∘f DH_SIM) ∘F (F_KE_lazy_alice ||ᵣ F_OAUTH)%V)%V.
+  Lemma F_AUTH_DHKE_FOAUTH_closed : is_closed_expr ∅ ((F_AUTH ∘f DH_KE) ||ᵣ F_OAUTH).
+  Proof. is_closed. Qed.
+  Lemma F_AUTH_DHKE_closed : is_closed_expr ∅ (F_AUTH ∘f DH_KE).
+  Proof. is_closed. Qed.
+  Lemma F_AUTH_DHSIM_closed : is_closed_expr ∅ (F_AUTH ∘f DH_SIM).
+  Proof. is_closed. Qed.
+
+  Lemma F_AUTH_C_DH_real_closed : is_closed_expr ∅ (F_AUTH ∘f C_DH_real).
+  Proof. is_closed. Qed.
+  Lemma F_AUTH_C_DH_rand_closed : is_closed_expr ∅ (F_AUTH ∘f C_DH_rand).
+  Proof. is_closed. Qed.
+  Lemma F_AUTH_C_DDH_real_FOAUTH_closed : is_closed_expr ∅ ((F_AUTH ∘f C_DH_real) ||ᵣ F_OAUTH).
+  Proof. is_closed. Qed.
+  Lemma F_AUTH_C_DDH_rand_FOAUTH_closed : is_closed_expr ∅ ((F_AUTH ∘f C_DH_rand) ||ᵣ F_OAUTH).
+  Proof. is_closed. Qed.
+  Lemma F_AUTH_DHSIM_FKE_closed : is_closed_expr ∅ (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)).
+  Proof. is_closed. Qed.
+  Lemma F_AUTH_DHSIM_FKE_assoc_closed : is_closed_expr ∅ ((F_AUTH ∘f DH_SIM) ∘f F_KE_lazy_alice).
+  Proof. is_closed. Qed.
+
+
+  Lemma DHSIM_FKE_CHAN1_closed : is_closed_expr ∅ ((F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) ||ᵣ F_OAUTH).
+  Proof. is_closed. Qed.
+
+  Lemma DHSIM_FKE_CHAN2_closed : is_closed_expr ∅ (((F_AUTH ∘f DH_SIM) ∘f F_KE_lazy_alice) ||ᵣ F_OAUTH).
+  Proof. is_closed. Qed.
+
+  Lemma DHSIM_FKE_CHAN3_closed : is_closed_expr ∅ ((F_AUTH ∘f DH_SIM) ∘F (F_KE_lazy_alice ||ᵣ F_OAUTH)).
   Proof. is_closed. Qed.
 
   Lemma F_AUTH_DH_SIM_closed : is_closed_expr ∅ (F_AUTH ∘f DH_SIM).

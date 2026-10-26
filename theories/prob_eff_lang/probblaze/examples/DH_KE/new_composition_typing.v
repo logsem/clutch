@@ -4,7 +4,7 @@ From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import p_composition primitive_laws proofmode.
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_env sem_judgement.
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_env sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import dhke_common sec_channel_def sec_channel_prf 
   dhke_channel_lazy_results dhke_channel_authchan_new
   new_composition_defs mask.
@@ -65,2094 +65,1395 @@ Section new_comp_verification.
   (* the handler consuming an interface I, polymorphic over I's row *)
   Definition hdl (I : sem_row Σ -> sem_ty Σ) (θ : sem_row Σ) : sem_ty Σ :=
     (∀ᵣ θ', I θ' -{ sem_row_union θ' θ }-∘ 𝟙)%T.
+  (* [τ__f] with the interface rows flipped: the client's operations may be
+     handled by one-shot handlers that call the environment while holding a
+     continuation (cf. [τ__FO]). *)
+  Definition τ__f_once (θ : sem_row Σ) (τ1' τ2' : sem_row Σ → sem_ty Σ) : sem_ty Σ :=
+    (∀ᵣ θ1, ∀ᵣ θ2, (τ1' θ1 × τ2' θ2) -{ sem_row_union (¡ θ1) (sem_row_union (¡ θ2) θ) }-∘ 𝟙)%T.
+
+  Lemma τFO_le_τFC ι κ :
+    ⊢ τ__FO ι κ ≤ₜ τ__FC ι κ.
+  Proof. 
+    iApply ty_le_row_forall. iIntros (θ).
+    iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
+    iApply ty_le_row_forall. iIntros (θ1).
+    iApply ty_le_arr; [|iApply ty_le_refl|iApply ty_le_refl].
+    iApply row_le_union'; rewrite ?iThyIfMono_iLblSig_to_iThyIfMono ?labels_l_to_iThyIfMono ?labels_r_to_iThyIfMono; try done.
+    - iApply row_le_mfbang_intro.
+    - iApply row_le_refl.
+  Qed. 
 
   (* Atomic functionalities, as effect-handler transformers (τ__F τ τ' takes
      a τ'-consuming handler to a τ-consuming handler). *)
 
   (* ----------------------------------------------------------------- *)
-  (* Effect theories for [F_OAUTH]'s [send]/[recv] effects, shared with *)
-  (* its sibling [F_AUTH].                                              *)
+  (* [F_OAUTH_typed], derived from the compatibility lemmas.            *)
   (*                                                                    *)
-  (* F_OAUTH gives its client [f] a [chan]-interface: [doSend] takes a  *)
-  (* (group, direction) and returns unit; [doRecv] takes a direction    *)
-  (* and returns [Option 𝔾].  We cannot type this syntactically as a    *)
-  (* self-refinement because F_OAUTH forwards the client's [recv] to     *)
-  (* the environment's [doLeakRecv : dir → Option 𝟙] (a presence flag)   *)
-  (* while returning [!message : Option 𝔾] to the client's continuation. *)
-  (* Instead we relate F_OAUTH to itself in BREL, running both copies    *)
-  (* in lockstep with a plain invariant tying the two message refs.      *)
-  (*                                                                    *)
-  (* [ASend]/[ARecv] are the theories of the two effects the client      *)
-  (* raises through [doSend]/[doRecv]; both payloads are untagged, so    *)
-  (* each label gets its own row entry.  [ASend] returns unit,           *)
-  (* [ARecv] returns an [Option 𝔾].  [achan_row] lists [recv] first      *)
-  (* because [brel_exhaustion] consumes the row head and the outer       *)
-  (* handler is the [recv] one.                                          *)
-  Program Definition ASend (c1 c2 : label) : iThy Σ :=
-    (λ e1 e2, λne Q,
-       ∃ (m1 m2 dst1 dst2 : val),
-         𝔾%T m1 m2 ∗ (𝟙 + 𝟙)%T dst1 dst2 ∗
-         ⌜ e1 = do: c1 (m1, dst1)%V ⌝%E ∗
-         ⌜ e2 = do: c2 (m2, dst2)%V ⌝%E ∗
-         □ (Q #()%V #()%V))%I.
-  Next Obligation. solve_proper. Qed.
-
-  Program Definition ARecv (c1 c2 : label) : iThy Σ :=
-    (λ e1 e2, λne Q,
-       ∃ (from1 from2 : val),
-         (𝟙 + 𝟙)%T from1 from2 ∗
-         ⌜ e1 = do: c1 from1 ⌝%E ∗
-         ⌜ e2 = do: c2 from2 ⌝%E ∗
-         □ (Q NONEV NONEV ∗ ∀ m : vgG, Q (SOMEV m) (SOMEV m)))%I.
-  Next Obligation. solve_proper. Qed.
-
-  Program Definition asend_mono (s1 s2 : label) :=
-    {| pmono_prot_car := ASend s1 s2; pmono_prot_prop := _ |}.
-  Next Obligation.
-    iIntros (??????) "#HΦ H".
-    iDestruct "H" as (????) "(HG&Hd&%&%&#H)".
-    iExists _,_,_,_. iFrame. repeat (iSplit; first done). iModIntro. by iApply "HΦ".
-  Qed.
-  Program Definition arecv_mono (r1 r2 : label) :=
-    {| pmono_prot_car := ARecv r1 r2; pmono_prot_prop := _ |}.
-  Next Obligation.
-    iIntros (??????) "#HΦ H".
-    iDestruct "H" as (??) "(Hd&%&%&#(H1&H2))".
-    iExists _,_. iFrame. repeat (iSplit; first done). iModIntro.
-    iSplitL; [by iApply "HΦ"|]. iIntros (m); by iApply "HΦ".
-  Qed.
-
-  Definition asend (s1 s2 : label) := @SemSig Σ (asend_mono s1 s2) (s1, s2).
-  Definition arecv (r1 r2 : label) := @SemSig Σ (arecv_mono r1 r2) (r1, r2).
-  Program Definition achan_row (s1 s2 r1 r2 : label) := SemRow [([r1],[r2], arecv r1 r2); ([s1],[s2], asend s1 s2)] _.
-  Next Obligation.
-    intros ????.
-    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_.
-    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H".
-  Qed.
-
-  Lemma F_OAUTH_typed :
-    ⊢ sem_val_typed F_OAUTH F_OAUTH (τ__F oaleak chan).
-  Proof using Type*.
-    rewrite /sem_val_typed /τ__F //=.
-    iModIntro. iIntros (θ).
-    iIntros (f1 f2) "Hff".
-    unfold F_OAUTH. brel_pures'. iModIntro. iIntros (θ₂).
-    iIntros (LeakOp1 LeakOp2) "HLeak".
-    iDestruct "HLeak" as (dls1 dls2 dlr1 dlr2) "(->&->&#Hls&#Hlr)".
-    brel_pures'.
-    iApply brel_alloc_l. iIntros (lm) "!> Hlm".
-    brel_pures_l.
-    iApply brel_alloc_r. iIntros (lm') "Hlm'".
-    brel_pures_r.
-    iApply (brel_na_alloc (∃ v1 v2, lm ↦ v1 ∗ lm' ↦ₛ v2 ∗ (Option 𝔾)%T v1 v2)%I
-                          (nroot .@ "oamsg")).
-    iSplitL "Hlm Hlm'".
-    { iNext. iExists _, _. iFrame. iExists _,_. iLeft. done. }
-    iIntros "#Hinv".
-    (* Program order: the [send] binder comes first, then [recv]. *)
-    iApply brel_effect_l. iIntros (send1) "!> Hsend1".
-    iApply brel_effect_r. iModIntro. iIntros (send2) "Hsend2 !>".
-    iApply brel_effect_l. iIntros (recv1) "!> Hrecv1".
-    iApply brel_effect_r. iModIntro. iIntros (recv2) "Hrecv2 !>".
-    brel_pures'.
-    (* Build the (doSend,doRecv) pair related at [chan (achan_row …)]. *)
-    iAssert (chan (achan_row send1 send2 recv1 recv2)
-               (λ: "m", do: send1 "m", λ: "m", do: recv1 "m")%V
-               (λ: "m", do: send2 "m", λ: "m", do: recv2 "m")%V) as "#Hops".
-    { iExists _, _, _, _. iSplit; [done|]. iSplit; [done|].
-      rewrite /sem_ty_mbang /=. iSplit.
-      - iModIntro. iIntros (a1 a2) "Ha".
-        iDestruct "Ha" as (m1 m2 d1 d2) "(->&->&#Hm&#Hd)".
-        brel_pures'.
-        iApply (brel_introduction' [send1] [send2]); [repeat constructor|].
-        rewrite /iThyTraverse /=.
-        iExists _, _, [], [], (λ s1 s2, ⌜ s1 = Val #()%V ⌝ ∗ ⌜ s2 = Val #()%V ⌝)%I.
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplitL.
-        + iExists m1, m2, d1, d2. iFrame "Hm Hd". do 2 (iSplit; [done|]).
-          iModIntro. iSplit; done.
-        + iIntros "!>" (s1 s2) "(->&->)". iApply brel_value. iIntros "$ !>". done.
-      - iModIntro. iIntros (a1 a2) "#Hfr".
-        brel_pures'.
-        iApply (brel_introduction' [recv1] [recv2]); [repeat constructor|].
-        rewrite /iThyTraverse /=.
-        iExists _, _, [], [],
-          (λ s1 s2, ∃ v1 v2 : val, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ (Option 𝔾)%T v1 v2)%I.
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplitL.
-        + iExists a1, a2. iFrame "Hfr". do 2 (iSplit; [done|]).
-          iModIntro. iSplit.
-          * iExists NONEV, NONEV. do 2 (iSplit; [done|]). iExists _,_. iLeft. done.
-          * iIntros (m). iExists _, _. do 2 (iSplit; [done|]).
-            iExists _,_. iRight. iSplit; [done|]. iSplit; [done|]. iExists _. done.
-        + iIntros "!>" (s1 s2) "(%v1&%v2&->&->&#Hopt)". iApply brel_value. iIntros "$ !>". done. }
-    iDestruct ("Hff" $! (achan_row send1 send2 recv1 recv2) with "Hops") as "Hfbrel".
-    (* Push both theories; the LAST pushed sits at the row head = outer handler. *)
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hsend1").
-    iApply (brel_add_label_r with "Hsend2").
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hrecv1").
-    iApply (brel_add_label_r with "Hrecv2").
-    (* OUTER exhaustion (recv); [R] must be pinned or the send branch's value
-       case cannot close. *)
-    iApply (brel_exhaustion _ _ [_] [_] _ _ _ (λ w1 w2, 𝟙%T w1 w2) with "[Hfbrel]");
-      [done|done| |].
-    - (* SEND: peel the inner handler.  [brel_exhaustion] eats the row head, but
-         the row lists recv first, so swap. *)
-      iApply brel_introduction_mono; first (iApply to_iThy_le_intro'; apply submseteq_swap).
-      iApply (brel_exhaustion _ _ [_] [_] with "[Hfbrel]"); [done|done| |].
-      { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'.
-        etrans; [apply submseteq_swap|]. do 2 apply submseteq_skip.
-        rewrite iLblSig_to_iLblThy_app. by apply submseteq_inserts_l. }
-      iLöb as "IHsend".
-      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-      iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HSend #Hkont".
-      iDestruct "HSend" as (m1 m2 d1 d2) "(#Hm & #Hd & -> & -> & #HQ)".
-      brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
-      iApply (brel_na_inv _ _ (nroot.@"oamsg")); [set_solver|]. iFrame "Hinv".
-      iIntros "((%v1 & %v2 & Hlm & Hlm' & #Hopt) & Hclose)".
-      iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hlm"). iIntros "!> Hlm".
-      iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hlm'"). iIntros "Hlm'".
-      iDestruct "Hopt" as (w1 w2) "[(->&->&_)|(->&->&#Hgm)]".
-      + (* First message: store, leak, resume. *)
-        brel_pures.
-        iApply (brel_store_l _ _ _ [AppRCtx _] with "Hlm"). iIntros "!> Hlm".
-        iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hlm'"). iIntros "Hlm'".
-        brel_pures.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-          by apply submseteq_inserts_r. }
-        iApply brel_na_close. iFrame "Hclose".
-        iSplitL "Hlm Hlm'".
-        { iNext. iExists (SOMEV m1), (SOMEV m2). iFrame. iExists _,_. iRight.
-          do 2 (iSplit; [done|]). iApply "Hm". }
-        iAssert ((𝔾 × (𝟙 + 𝟙))%T (m1, d1)%V (m2, d2)%V) as "#Hmm".
-        { iExists m1, m2, d1, d2. iSplit; [done|]. iSplit; [done|]. iFrame "Hm Hd". }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
-        iDestruct ("Hls" with "Hmm") as "Hsend1".
-        iApply (brel_wand with "[$Hsend1]").
-        iIntros (u1 u2) "!# (->&->)".
-        brel_pures'.
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-      + (* Message already stored: just resume. *)
-        brel_pures.
-        iApply brel_na_close. iFrame "Hclose".
-        iSplitL "Hlm Hlm'".
-        { iNext. iExists (SOMEV w1), (SOMEV w2). iFrame. iExists _,_. iRight.
-          do 2 (iSplit; [done|]). iApply "Hgm". }
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-    - (* RECV: the outer handler.  This branch never re-peels the send handler:
-         in the effect case [k1'] is abstract, and [Hkont] already hands back a
-         continuation whose send row entry sits at [iThyBot]. *)
-      iLöb as "IH".
-      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-      iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HRecv #Hkont".
-      iDestruct "HRecv" as (fr1 fr2) "(#Hfr & -> & -> & #HQ)".
-      iDestruct "HQ" as "(#HQN & #HQS)".
-      brel_pures; [apply Hk1|apply Hk2|]; try set_solver.
-      iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-      { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-        by apply submseteq_inserts_r. }
-      iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
-      iDestruct ("Hlr" with "Hfr") as "Hrecv1".
-      iApply (brel_wand with "[$Hrecv1]").
-      iIntros (r1 r2) "!# #Hr".
-      iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
-      + (* Leak reports absent: forward NONE to the client. *)
-        brel_pures'.
-        iDestruct ("Hkont" with "HQN") as "Hbrel".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-      + (* Leak reports present: forward !message (Option 𝔾) to the client. *)
-        brel_pures'.
-        iApply (brel_na_inv _ _ (nroot.@"oamsg")); [set_solver|]. iFrame "Hinv".
-        iIntros "((%v1 & %v2 & Hlm & Hlm' & #Hopt) & Hclose)".
-        iApply (brel_load_l _ _ _ [AppRCtx _] with "Hlm"). iIntros "!> Hlm".
-        iApply (brel_load_r _ _ _ _ [AppRCtx _] with "Hlm'"). iIntros "Hlm'".
-        iApply brel_na_close. iFrame "Hclose".
-        iSplitL "Hlm Hlm'".
-        { iNext. iExists v1, v2. iFrame "Hlm Hlm'". iFrame "Hopt". }
-        iDestruct "Hopt" as (og1 og2) "[(->&->&%Hu)|(->&->&#Hgm)]".
-        * destruct Hu as [-> ->]. brel_pures'.
-          iDestruct ("Hkont" with "HQN") as "Hbrel".
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-        * iDestruct "Hgm" as (gg) "(->&->)".
-          brel_pures'.
-          iDestruct ("HQS" $! gg) as "HQSg".
-          iDestruct ("Hkont" with "HQSg") as "Hbrel".
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-  Qed.
-
-
-  (* F_AUTH is F_OAUTH's sibling: an authenticated channel with TWO message
-     refs (m1 for one direction, m2 for the other), no ghost/auth state.  It
-     reuses the same client-facing [send]/[recv] effect theories as
-     F_OAUTH.  The self-refinement runs both copies in lockstep under a plain
-     invariant tying both ref pairs at [Option 𝔾].  Here the leak interface is
-     also [chan] (its [doLeakRecv] returns [Option 𝔾]); the handler discards
-     the leaked value and returns [!m1]/[!m2] to the client (the auth
-     cross-over). *)
-  Lemma F_AUTH_typed :
-    ⊢ sem_val_typed F_AUTH F_AUTH (τ__FO aleak chan).
-  Proof using Type*.
-    rewrite /sem_val_typed /τ__F //=.
-    iModIntro. iIntros (θ).
-    iIntros (f1 f2) "Hff".
-    unfold F_AUTH. brel_pures'. iModIntro. iIntros (θ₂).
-    iIntros (LeakOp1 LeakOp2) "HLeak".
-    iDestruct "HLeak" as (dls1 dls2 dlr1 dlr2) "(->&->&#Hls&#Hlr)".
-    brel_pures'.
-    iApply brel_alloc_l. iIntros (la) "!> Hl1".
-    iApply brel_alloc_l. iIntros (lb) "!> Hl2".
-    brel_pures_l.
-    iApply brel_alloc_r. iIntros (la') "Hl1s".
-    iApply brel_alloc_r. iIntros (lb') "Hl2s".
-    brel_pures_r.
-    iApply (brel_na_alloc
-              (∃ a1 a2 b1 b2, la ↦ a1 ∗ la' ↦ₛ a2 ∗ lb ↦ b1 ∗ lb' ↦ₛ b2 ∗
-                              (Option 𝔾)%T a1 a2 ∗ (Option 𝔾)%T b1 b2)%I
-              (nroot .@ "authmsg")).
-    iSplitL "Hl1 Hl1s Hl2 Hl2s".
-    { iNext. iExists _, _, _, _. iFrame. iSplit; iExists _,_; iLeft; done. }
-    iIntros "#Hinv".
-    iApply brel_effect_l. iIntros (send1) "!> Hsend1".
-    iApply brel_effect_r. iModIntro. iIntros (send2) "Hsend2 !>".
-    iApply brel_effect_l. iIntros (recv1) "!> Hrecv1".
-    iApply brel_effect_r. iModIntro. iIntros (recv2) "Hrecv2 !>".
-    brel_pures'.
-    (* Same (doSend,doRecv) construction as F_OAUTH, at [chan (achan_row …)]. *)
-    iAssert (chan (achan_row send1 send2 recv1 recv2)
-               (λ: "m", do: send1 "m", λ: "m", do: recv1 "m")%V
-               (λ: "m", do: send2 "m", λ: "m", do: recv2 "m")%V) as "#Hops".
-    { iExists _, _, _, _. iSplit; [done|]. iSplit; [done|].
-      rewrite /sem_ty_mbang /=. iSplit.
-      - iModIntro. iIntros (a1 a2) "Ha".
-        iDestruct "Ha" as (mm1 mm2 dd1 dd2) "(->&->&#Hm&#Hd)".
-        brel_pures'.
-        iApply (brel_introduction' [send1] [send2]); [repeat constructor|].
-        rewrite /iThyTraverse /=.
-        iExists _, _, [], [], (λ s1 s2, ⌜ s1 = Val #()%V ⌝ ∗ ⌜ s2 = Val #()%V ⌝)%I.
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplitL.
-        + iExists mm1, mm2, dd1, dd2. iFrame "Hm Hd". do 2 (iSplit; [done|]).
-          iModIntro. iSplit; done.
-        + iIntros "!>" (s1 s2) "(->&->)". iApply brel_value. iIntros "$ !>". done.
-      - iModIntro. iIntros (a1 a2) "#Hfr".
-        brel_pures'.
-        iApply (brel_introduction' [recv1] [recv2]); [repeat constructor|].
-        rewrite /iThyTraverse /=.
-        iExists _, _, [], [],
-          (λ s1 s2, ∃ v1 v2 : val, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ (Option 𝔾)%T v1 v2)%I.
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplitL.
-        + iExists a1, a2. iFrame "Hfr". do 2 (iSplit; [done|]).
-          iModIntro. iSplit.
-          * iExists NONEV, NONEV. do 2 (iSplit; [done|]). iExists _,_. iLeft. done.
-          * iIntros (m). iExists (SOMEV m), (SOMEV m). do 2 (iSplit; [done|]).
-            iExists _,_. iRight. iSplit; [done|]. iSplit; [done|]. iExists m. done.
-        + iIntros "!>" (s1 s2) "(%v1&%v2&->&->&#Hopt)". iApply brel_value. iIntros "$ !>". done. }
-    iDestruct ("Hff" $! (achan_row send1 send2 recv1 recv2) with "Hops") as "Hfbrel".
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hsend1").
-    iApply (brel_add_label_r with "Hsend2").
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hrecv1").
-    iApply (brel_add_label_r with "Hrecv2").
-  
-    iApply (brel_exhaustion _ _ [_] [_] _ _ _ (λ w1 w2, 𝟙%T w1 w2)with "[Hfbrel]"); [done|done| |].
-  
-      (* brel_exhaustion consumes the head of the row, so bring send to the front. *)
-    - iApply brel_introduction_mono; first (iApply to_iThy_le_intro'; apply submseteq_swap).
-      iApply (brel_exhaustion _ _ [_] [_] with "[Hfbrel]"); [done|done| |].
-      { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'.
-        etrans; [apply submseteq_swap|]. do 2 apply submseteq_skip.
-        rewrite iLblSig_to_iLblThy_app. by apply submseteq_inserts_l. }
-      iLöb as "IHsend".
-      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-      iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HSend #Hkont".
-      rewrite /sem_sig_flip_mbang //=.  
-      iDestruct "HSend" as (Q') "(HSend & HQQ)".
-      iDestruct "HSend" as (mm1 mm2 d1 d2) "(#Hm & #Hd & -> & -> & #HQ')".
-      iDestruct "Hd" as (dw1 dw2) "[(-> & -> & #Hu)|(-> & -> & #Hu)]".
-      + (* dst = InjL: store to l1. *)
-        brel_handle_os_l (sndl) as "Hsndl".
-        brel_handle_os_r (sndr) as "Hsndr".
-        brel_pures'.
-        iApply (brel_na_inv _ _ (nroot.@"authmsg")); [set_solver|]. iFrame "Hinv".
-        iIntros "((%a1 & %a2 & %b1 & %b2 & Hl1 & Hl1s & Hl2 & Hl2s & #Hoa & #Hob) & Hclose)".
-        brel_load_l.
-        brel_load_r.
-        iDestruct "Hoa" as (w1 w2) "[(->&->&_)|(->&->&#Hgm)]".
-        * (* first message on this ref: store, leak, resume. *)
-          brel_pures'.
-          brel_store_l. 
-          brel_store_r.
-          brel_pures'.
-          iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-            by apply submseteq_inserts_r. }
-          iApply brel_na_close. iFrame "Hclose".
-          iSplitL "Hl1 Hl1s Hl2 Hl2s".
-          { iNext. iExists (SOMEV mm1), (SOMEV mm2), b1, b2.
-            iFrame "Hl1 Hl1s Hl2 Hl2s Hob". iExists _,_. iRight.
-            do 2 (iSplit; [done|]). iApply "Hm". }
-          iAssert ((𝔾 × (𝟙 + 𝟙))%T (mm1, InjLV dw1)%V (mm2, InjLV dw2)%V) as "#Hmm".
-          { iExists mm1, mm2, (InjLV dw1), (InjLV dw2). iSplit; [done|]. iSplit; [done|].
-            iFrame "Hm". iExists dw1, dw2. iLeft. iSplit; [done|]. iSplit; [done|]. iApply "Hu". }
-          iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
-          iDestruct ("Hls" with "Hmm") as "Hsend1". simpl. 
-          rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-          iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
-          iIntros (u1 u2) "(->&->)".
-          brel_pures'.
-          iDestruct ("HQQ" with "HQ'") as "HQ".
-          iDestruct ("Hkont" with "HQ") as "Hbrel".
-          brel_cont_l.
-          brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-        * (* already stored: just resume. *)
-          brel_pures'.
-          iApply brel_na_close. iFrame "Hclose".
-          iSplitL "Hl1 Hl1s Hl2 Hl2s".
-          { iNext. iExists (SOMEV w1), (SOMEV w2), b1, b2.
-            iFrame "Hl1 Hl1s Hl2 Hl2s Hob". iExists _,_. iRight.
-            do 2 (iSplit; [done|]). iApply "Hgm". }
-          iDestruct ("HQQ" with "HQ'") as "HQ".
-          iDestruct ("Hkont" with "HQ") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-      + (* dst = InjR: store to l2. *)
-        brel_handle_os_l (sndl) as "Hsndl".
-        brel_handle_os_r (sndr) as "Hsndr".
-        brel_pures'. 
-        iApply (brel_na_inv _ _ (nroot.@"authmsg")); [set_solver|]. iFrame "Hinv".
-        iIntros "((%a1 & %a2 & %b1 & %b2 & Hl1 & Hl1s & Hl2 & Hl2s & #Hoa & #Hob) & Hclose)".
-        brel_load_l.
-        brel_load_r.
-        iDestruct "Hob" as (w1 w2) "[(->&->&_)|(->&->&#Hgm)]".
-        * brel_pures'.
-          brel_store_l.
-          brel_store_r.
-          brel_pures'.
-          iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-            by apply submseteq_inserts_r. }
-          iApply brel_na_close. iFrame "Hclose".
-          iSplitL "Hl1 Hl1s Hl2 Hl2s".
-          { iNext. iExists a1, a2, (SOMEV mm1), (SOMEV mm2).
-            iFrame "Hl1 Hl1s Hl2 Hl2s Hoa". iExists _,_. iRight.
-            do 2 (iSplit; [done|]). iApply "Hm". }
-          iAssert ((𝔾 × (𝟙 + 𝟙))%T (mm1, InjRV dw1)%V (mm2, InjRV dw2)%V) as "#Hmm".
-          { iExists mm1, mm2, (InjRV dw1), (InjRV dw2). iSplit; [done|]. iSplit; [done|].
-            iFrame "Hm". iExists dw1, dw2. iRight. iSplit; [done|]. iSplit; [done|]. iApply "Hu". }
-          iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
-          iDestruct ("Hls" with "Hmm") as "Hsend1".
-          rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-          iApply (brel_mono with "[][$Hsend1]");[iApply to_iThy_le_refl|simpl].
-          iIntros (u1 u2) "(->&->)".
-          brel_pures'.
-          iDestruct ("HQQ" with "HQ'") as "HQ".
-          iDestruct ("Hkont" with "HQ") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-        * brel_pures'.
-          iApply brel_na_close. iFrame "Hclose".
-          iSplitL "Hl1 Hl1s Hl2 Hl2s".
-          { iNext. iExists a1, a2, (SOMEV w1), (SOMEV w2).
-            iFrame "Hl1 Hl1s Hl2 Hl2s Hoa". iExists _,_. iRight.
-            do 2 (iSplit; [done|]). iApply "Hgm". }
-          iDestruct ("HQQ" with "HQ'") as "HQ".
-          iDestruct ("Hkont" with "HQ") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend". 
-    - (* Recv. *)
-      iLöb as "IH".
-      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-      iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HRecv #Hkont".
-      iDestruct "HRecv" as (Q') "(HRecv & HQQ)".
-      iDestruct "HRecv" as (fr1 fr2) "(#Hfr & -> & -> & #HQ')".
-      iDestruct "HQ'" as "(#HQN & #HQS)".
-      brel_handle_os_l (rcvl) as "Hrcvl".
-      brel_handle_os_r (rcvr) as "Hrcvr".
-      brel_pures'.
-      iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-      { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-        by apply submseteq_inserts_r. }
-      iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
-      iDestruct ("Hlr" with "Hfr") as "Hrecv1".
-      rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-      iApply (brel_mono with "[][$Hrecv1]");[iApply to_iThy_le_refl|simpl].
-      iIntros (r1 r2) "#Hr".
-      iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
-      + (* leak reports absent: forward NONE. *)
-        brel_pures'.
-        iDestruct ("HQQ" with "HQN") as "HQ".
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-      + (* leak reports present: cross-over read (from=InjL → !l2, from=InjR → !l1). *)
-        iDestruct "Hfr" as (fw1 fw2) "[(-> & -> & _)|(-> & -> & _)]".
-        * (* from = InjL: read !l2. *)
-          brel_pures'.
-          iApply (brel_na_inv _ _ (nroot.@"authmsg")); [set_solver|]. iFrame "Hinv".
-          iIntros "((%a1 & %a2 & %b1 & %b2 & Hl1 & Hl1s & Hl2 & Hl2s & #Hoa & #Hob) & Hclose)".
-          brel_load_l.
-          brel_load_r.
-          iApply brel_na_close. iFrame "Hclose".
-          iSplitL "Hl1 Hl1s Hl2 Hl2s".
-          { iNext. iExists a1, a2, b1, b2. iFrame "Hl1 Hl1s Hl2 Hl2s Hoa Hob". }
-          iDestruct "Hob" as (og1 og2) "[(->&->&_)|(->&->&#Hgm)]".
-          -- brel_pures'.
-             iDestruct ("HQQ" with "HQN") as "HQ".
-             iDestruct ("Hkont" with "HQ") as "Hbrel".
-             brel_cont_l. brel_cont_r.
-             iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-          -- iDestruct "Hgm" as (gg) "(->&->)".
-             brel_pures'.
-             iDestruct ("HQS" $! gg) as "HQSg".
-             iDestruct ("HQQ" with "HQSg") as "HQ".
-             iDestruct ("Hkont" with "HQ") as "Hbrel".
-             brel_cont_l. brel_cont_r.
-             iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-        * (* from = InjR: read !l1. *)
-          brel_pures'.
-          iApply (brel_na_inv _ _ (nroot.@"authmsg")); [set_solver|]. iFrame "Hinv".
-          iIntros "((%a1 & %a2 & %b1 & %b2 & Hl1 & Hl1s & Hl2 & Hl2s & #Hoa & #Hob) & Hclose)".
-          brel_load_l.
-          brel_load_r.
-          iApply brel_na_close. iFrame "Hclose".
-          iSplitL "Hl1 Hl1s Hl2 Hl2s".
-          { iNext. iExists a1, a2, b1, b2. iFrame "Hl1 Hl1s Hl2 Hl2s Hoa Hob". }
-          iDestruct "Hoa" as (og1 og2) "[(->&->&_)|(->&->&#Hgm)]".
-          -- brel_pures'.
-             iDestruct ("HQQ" with "HQN") as "HQ".
-             iDestruct ("Hkont" with "HQ") as "Hbrel".
-             brel_cont_l. brel_cont_r.
-             iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-          -- iDestruct "Hgm" as (gg) "(->&->)".
-             brel_pures'.
-             iDestruct ("HQS" $! gg) as "HQSg".
-             iDestruct ("HQQ" with "HQSg") as "HQ".
-             iDestruct ("Hkont" with "HQ") as "Hbrel".
-             brel_cont_l. brel_cont_r.
-             iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-  Qed.
-
+  (* The type is [τ__FO], not [τ__F]: in both handlers the one-shot     *)
+  (* continuation [k] is still live when F_OAUTH calls the leak         *)
+  (* functions ([doLeakSend (m,dst);; k ()], [let r := doLeakRecv from  *)
+  (* in … k …]).  Under [τ__F] a context could handle the leak effect   *)
+  (* multi-shot and make [k] run twice; under [τ__FO] the body runs at  *)
+  (* [¡θ₂ ∪ θ], and [¡θ₂] is OnceR, so [k] may be held across the call. *)
   (* ----------------------------------------------------------------- *)
-  (* Effect theories for DH_SIM's [leakSend]/[leakRecv] effects.  The     *)
-  (* client [f] raises them via [doLeakSend]/[doLeakRecv]; both carry     *)
-  (* only a direction [(𝟙+𝟙)], untagged.  [leakSend] returns [𝟙];       *)
-  (* [leakRecv] returns [Option 𝟙] (the handler forwards presence,        *)
-  (* discarding the value).                                              *)
-  Program Definition SLSend (s1 s2 : label) : iThy Σ :=
-    (λ e1 e2, λne Q,
-      ∃ (d1 d2 : val),
-        (𝟙 + 𝟙)%T d1 d2 ∗
-        ⌜ e1 = do: s1 d1 ⌝%E ∗
-        ⌜ e2 = do: s2 d2 ⌝%E ∗
-        □ (Q #()%V #()%V))%I.
-  Next Obligation. solve_proper. Qed.
 
-  Program Definition SLRecv (r1 r2 : label) : iThy Σ :=
-    (λ e1 e2, λne Q,
-      ∃ (from1 from2 : val),
-        (𝟙 + 𝟙)%T from1 from2 ∗
-        ⌜ e1 = do: r1 from1 ⌝%E ∗
-        ⌜ e2 = do: r2 from2 ⌝%E ∗
-        □ (Q NONEV NONEV ∗ Q (SOMEV #()%V) (SOMEV #()%V)))%I.
-  Next Obligation. solve_proper. Qed.
+  (* A nested section, so the local instance and hint modes below do not
+     reach the BREL proofs further down. *)
+  Section f_oauth.
 
-  Program Definition slsend_mono (s1 s2 : label) :=
-    {| pmono_prot_car := SLSend s1 s2; pmono_prot_prop := _ |}.
-  Next Obligation.
-    iIntros (??????) "#HΦ H".
-    iDestruct "H" as (??) "(Hd&%&%&#H)".
-    iExists _,_. iFrame. repeat (iSplit; first done). iModIntro. by iApply "HΦ".
-  Qed.
-  Program Definition slrecv_mono (r1 r2 : label) :=
-    {| pmono_prot_car := SLRecv r1 r2; pmono_prot_prop := _ |}.
-  Next Obligation.
-    iIntros (??????) "#HΦ H".
-    iDestruct "H" as (??) "(Hd&%&%&#(H1&H2))".
-    iExists _,_. iFrame. repeat (iSplit; first done). iModIntro.
-    iSplitL; [by iApply "HΦ" | by iApply "HΦ"].
-  Qed.
+    #[local] Instance multi_ty_group : MultiT (𝔾 : sem_ty Σ).
+    Proof.
+      constructor. iIntros "!#" (v1 v2) "(%g & -> & ->)".
+      rewrite /sem_ty_mbang /=. iModIntro. by iExists g.
+    Qed.
 
-  Definition slsend (s1 s2 : label) := @SemSig Σ (slsend_mono s1 s2) (s1, s2).
-  Definition slrecv (r1 r2 : label) := @SemSig Σ (slrecv_mono r1 r2) (r1, r2).
-  (* Row order mirrors handler nesting: [leakRecv] is the OUTER handler and
-     [brel_exhaustion] always consumes the row head, so recv comes first. *)
-  Program Definition simleak_row (s1 s2 r1 r2 : label) :=
-    SemRow [([r1],[r2], slrecv r1 r2); ([s1],[s2], slsend s1 s2)] _.
-  Next Obligation.
-    intros ????.
-    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_.
-    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H".
-  Qed.
+    (* See the tactics at the end of [compatibility.v]. *)
+    Import typed_hint_modes.
 
-  (* DH_SIM samples group exponents.  For a self-refinement both copies must
-     draw the SAME exponent, so we couple the two [samplelbl] draws
-     synchronously with the identity bijection.  The [na_inv] keeps all four
-     tapes EMPTY between handler invocations and keeps the two cache refs
-     (per direction) holding the same optional exponent; the tape is only
-     transiently non-empty inside a clause (presample via [brel_couple_TT_frag],
-     immediately consumed by [rand]).  Equal exponent [c] ⇒ equal [g^c] ⇒
-     𝔾-related [doSend] argument. *)
-  Lemma DH_SIM_typed :
-    ⊢ sem_val_typed DH_SIM DH_SIM (τ__FO chan leakI).
-  Proof using Type*.
-    rewrite /sem_val_typed /τ__F //=.
-    iModIntro. iIntros (θ).
-    iIntros (f1 f2) "Hff".
-    unfold DH_SIM. brel_pures'. iModIntro. iIntros (θ₂).
-    iIntros (effs1 effs2) "Heffs".
-    iDestruct "Heffs" as (ds1 ds2 dr1 dr2) "(->&->&#Hds&#Hdr)".
-    brel_pures'.
-    iApply brel_alloctape_l. iIntros (α) "!> Hα". brel_pures_l.
-    iApply brel_alloctape_l. iIntros (β) "!> Hβ". brel_pures_l.
-    iApply brel_alloc_l. iIntros (lca) "!> Hlca". brel_pures_l.
-    iApply brel_alloc_l. iIntros (lcb) "!> Hlcb". brel_pures_l.
-    iApply brel_alloctape_r. iIntros (αs) "Hαs". brel_pures_r.
-    iApply brel_alloctape_r. iIntros (βs) "Hβs". brel_pures_r.
-    iApply brel_alloc_r. iIntros (lcas) "Hlcas". brel_pures_r.
-    iApply brel_alloc_r. iIntros (lcbs) "Hlcbs". brel_pures_r.
-    iAssert (αs ↪ₛN (S n''; []))%I with "[Hαs]" as "Hαs". { iExists []. by iFrame. }
-    iAssert (βs ↪ₛN (S n''; []))%I with "[Hβs]" as "Hβs". { iExists []. by iFrame. }
-    iApply (brel_na_alloc
-      (α ↪N (S n''; []) ∗ αs ↪ₛN (S n''; []) ∗ β ↪N (S n''; []) ∗ βs ↪ₛN (S n''; []) ∗
-       ((lca ↦ NONEV ∗ lcas ↦ₛ NONEV) ∨ (∃ c : nat, lca ↦ SOMEV #c ∗ lcas ↦ₛ SOMEV #c)) ∗
-       ((lcb ↦ NONEV ∗ lcbs ↦ₛ NONEV) ∨ (∃ c : nat, lcb ↦ SOMEV #c ∗ lcbs ↦ₛ SOMEV #c)))%I
-      (nroot .@ "simleak")).
-    iSplitL "Hα Hαs Hβ Hβs Hlca Hlcas Hlcb Hlcbs".
-    { iNext. iFrame "Hα Hαs Hβ Hβs". iSplitL "Hlca Hlcas"; iLeft; iFrame. }
-    iIntros "#Hinv".
-    iApply brel_effect_l. iIntros (lsend1) "!> Hlsend1".
-    iApply brel_effect_r. iModIntro. iIntros (lsend2) "Hlsend2 !>".
-    iApply brel_effect_l. iIntros (lrecv1) "!> Hlrecv1".
-    iApply brel_effect_r. iModIntro. iIntros (lrecv2) "Hlrecv2 !>".
-    brel_pures'.
-    (* Build (doLeakSend,doLeakRecv) at
-       [leakI (simleak_row lsend1 lsend2 lrecv1 lrecv2)]. *)
-    iAssert (leakI (simleak_row lsend1 lsend2 lrecv1 lrecv2)
-               (λ: "m", do: lsend1 "m", λ: "m", do: lrecv1 "m")%V
-               (λ: "m", do: lsend2 "m", λ: "m", do: lrecv2 "m")%V) as "#Hlops".
-    { iExists _, _, _, _. iSplit; [done|]. iSplit; [done|].
-      rewrite /sem_ty_mbang /=. iSplit.
-      - iModIntro. iIntros (a1 a2) "#Hd". brel_pures'.
-        iApply (brel_introduction' [lsend1] [lsend2]); [repeat constructor|].
-        rewrite /iThyTraverse /=.
-        iExists _, _, [], [], (λ s1 s2, ⌜ s1 = Val #()%V ⌝ ∗ ⌜ s2 = Val #()%V ⌝)%I.
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplitL.
-        + iExists a1, a2. iSplit; [iApply "Hd"|]. do 2 (iSplit; [done|]).
-          iModIntro. iSplit; done.
-        + iIntros "!>" (s1 s2) "(->&->)". iApply brel_value. iIntros "$ !>". done.
-      - iModIntro. iIntros (a1 a2) "#Hfr". brel_pures'.
-        iApply (brel_introduction' [lrecv1] [lrecv2]); [repeat constructor|].
-        rewrite /iThyTraverse /=.
-        iExists _, _, [], [],
-          (λ s1 s2, ∃ v1 v2 : val, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ (Option 𝟙)%T v1 v2)%I.
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-        iSplitL.
-        + iExists a1, a2. iSplit; [iApply "Hfr"|]. do 2 (iSplit; [done|]).
-          iModIntro. iSplit.
-          * iExists NONEV, NONEV. do 2 (iSplit; [done|]). iExists _,_. iLeft. done.
-          * iExists (SOMEV #()%V), (SOMEV #()%V). do 2 (iSplit; [done|]).
-            iExists _,_. iRight. iSplit; [done|]. iSplit; [done|]. done.
-        + iIntros "!>" (s1 s2) "(%v1&%v2&->&->&#Hopt)". iApply brel_value. iIntros "$ !>". done. }
-    iDestruct ("Hff" $! (simleak_row lsend1 lsend2 lrecv1 lrecv2) with "Hlops") as "Hfbrel".
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hlsend1").
-    iApply (brel_add_label_r with "Hlsend2").
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hlrecv1").
-    iApply (brel_add_label_r with "Hlrecv2").
-    (* OUTER exhaustion peels the [leakRecv] handler.  [R] must be pinned: left
-       as an evar it survives the whole send branch and the inner value case
-       cannot close. *)
-    iApply (brel_exhaustion _ _ [_] [_] _ _ _ (λ w1 w2, 𝟙%T w1 w2) with "[Hfbrel]"); [done|done| |].
-  
-      (* brel_exhaustion consumes the head of the row, so bring leakSend to the front. *)
-    - iApply brel_introduction_mono; first (iApply to_iThy_le_intro'; apply submseteq_swap).
-      iApply (brel_exhaustion _ _ [_] [_] with "[Hfbrel]"); [done|done| |].
-      { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'.
-        etrans; [apply submseteq_swap|]. do 2 apply submseteq_skip.
-        rewrite iLblSig_to_iLblThy_app. by apply submseteq_inserts_l. }
-      iLöb as "IHsend".
-      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures'|].
-      iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HSend #Hkont".
-      (* Send: sample exponent, compute g^c, forward via [doSend]. *)
-      iDestruct "HSend" as (Q') "(HSend & HQQ)".
-      iDestruct "HSend" as (d1 d2) "(#Hd & -> & -> & #HQ')".
-      iDestruct "Hd" as (dw1 dw2) "[(-> & -> & _)|(-> & -> & _)]".
-      + (* dst = InjL: tape α / cache lca / [doSend (_, bob)]. *)
-        brel_handle_os_l (lkl) as "Hlkl".
-        brel_handle_os_r (lkr) as "Hlkr".
-        brel_pures'.
-        iApply (brel_na_inv _ _ (nroot.@"simleak")); [set_solver|]. iFrame "Hinv".
-        iIntros "((Hα & Hαs & Hβ & Hβs & Hca & Hcb) & Hclose)".
-        iDestruct "Hca" as "[(Hlca & Hlcas)|(%cc & Hlca & Hlcas)]".
-        * (* fresh: couple the two draws, sample, cache. *)
-          brel_load_l.
-          brel_load_r.
-          brel_pures'.
-          iApply (brel_couple_TT_frag _ (S n'') (S n'') (λ x:nat, x) _ _ _ _ α αs [] []);
-            [ lia | by (intros ??; lia) | ].
-          iFrame "Hα Hαs".
-          iIntros (kk) "%Hkk".
-          rewrite bool_decide_eq_true_2; [| by exists kk].
-          iIntros (mm) "(Hα & Hαs & %Hle1 & %Hle2)".
-          brel_rand_l. 
-          brel_rand_r. 
-          brel_pures'.
-          brel_store_l. 
-          brel_store_r.
-          brel_pures'.
-          iApply brel_na_close. iFrame "Hclose".
-          iSplitL "Hα Hαs Hβ Hβs Hlca Hlcas Hcb".
-          { iNext. iFrame "Hα Hαs Hβ Hβs Hcb". iRight. iExists mm. iFrame. }
-          iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-            by apply submseteq_inserts_r. }
-          iAssert ((𝔾 × (𝟙 + 𝟙))%T (vgval (g ^+ mm)%g, bob)%V (vgval (g ^+ mm)%g, bob)%V) as "#Harg".
-          { iExists _, _, _, _. iSplit; [done|]. iSplit; [done|]. iSplit.
-            - iExists (g ^+ mm)%g. done.
-            - iExists _,_. iLeft. done. }
-          iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hds".
-          iDestruct ("Hds" with "Harg") as "Hsend1".
-          rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-          iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
-          iIntros (u1 u2) "(->&->)".
-          brel_pures'.
-          iDestruct ("HQQ" with "HQ'") as "HQ".
-          iDestruct ("Hkont" with "HQ") as "Hbrel".
-          brel_cont_l.
-          brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-        * (* cached: reuse exponent. *)
-          brel_load_l.
-          brel_load_r.
-          brel_pures'.
-          iApply brel_na_close. iFrame "Hclose".
-          iSplitL "Hα Hαs Hβ Hβs Hlca Hlcas Hcb".
-          { iNext. iFrame "Hα Hαs Hβ Hβs Hcb". iRight. iExists cc. iFrame. }
-          iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-            by apply submseteq_inserts_r. }
-          iAssert ((𝔾 × (𝟙 + 𝟙))%T (vgval (g ^+ cc)%g, bob)%V (vgval (g ^+ cc)%g, bob)%V) as "#Harg".
-          { iExists _, _, _, _. iSplit; [done|]. iSplit; [done|]. iSplit.
-            - iExists (g ^+ cc)%g. done.
-            - iExists _,_. iLeft. done. }
-          iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hds".
-          iDestruct ("Hds" with "Harg") as "Hsend1".
-          rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-          iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
-          iIntros (u1 u2) "(->&->)".
-          brel_pures'.
-          iDestruct ("HQQ" with "HQ'") as "HQ".
-          iDestruct ("Hkont" with "HQ") as "Hbrel".
-          brel_cont_l.
-          brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-      + (* dst = InjR: tape β / cache lcb / [doSend (_, alice)]. *)
-        brel_handle_os_l (lkl) as "Hlkl".
-        brel_handle_os_r (lkr) as "Hlkr".
-        brel_pures'.
-        iApply (brel_na_inv _ _ (nroot.@"simleak")); [set_solver|]. iFrame "Hinv".
-        iIntros "((Hα & Hαs & Hβ & Hβs & Hca & Hcb) & Hclose)".
-        iDestruct "Hcb" as "[(Hlcb & Hlcbs)|(%cc & Hlcb & Hlcbs)]".
-        * brel_load_l.
-          brel_load_r.
-          brel_pures'.
-          iApply (brel_couple_TT_frag _ (S n'') (S n'') (λ x:nat, x) _ _ _ _ β βs [] []);
-            [ lia | by (intros ??; lia) | ].
-          iFrame "Hβ Hβs".
-          iIntros (kk) "%Hkk".
-          rewrite bool_decide_eq_true_2; [| by exists kk].
-          iIntros (mm) "(Hβ & Hβs & %Hle1 & %Hle2)".
-          brel_rand_l. 
-          brel_rand_r. 
-          brel_pures'.
-          brel_store_l.
-          brel_store_r. 
-          brel_pures'.
-          iApply brel_na_close. iFrame "Hclose".
-          iSplitL "Hα Hαs Hβ Hβs Hlcb Hlcbs Hca".
-          { iNext. iFrame "Hα Hαs Hβ Hβs Hca". iRight. iExists mm. iFrame. }
-          iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-            by apply submseteq_inserts_r. }
-          iAssert ((𝔾 × (𝟙 + 𝟙))%T (vgval (g ^+ mm)%g, alice)%V (vgval (g ^+ mm)%g, alice)%V) as "#Harg".
-          { iExists _, _, _, _. iSplit; [done|]. iSplit; [done|]. iSplit.
-            - iExists (g ^+ mm)%g. done.
-            - iExists _,_. iRight. done. }
-          iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hds".
-          iDestruct ("Hds" with "Harg") as "Hsend1".
-          rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-          iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
-          iIntros (u1 u2) "(->&->)".
-          brel_pures'.
-          iDestruct ("HQQ" with "HQ'") as "HQ".
-          iDestruct ("Hkont" with "HQ") as "Hbrel".
-          brel_cont_l.
-          brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-        * brel_load_l.
-          brel_load_r. 
-          brel_pures'.
-          iApply brel_na_close. iFrame "Hclose".
-          iSplitL "Hα Hαs Hβ Hβs Hlcb Hlcbs Hca".
-          { iNext. iFrame "Hα Hαs Hβ Hβs Hca". iRight. iExists cc. iFrame. }
-          iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-            by apply submseteq_inserts_r. }
-          iAssert ((𝔾 × (𝟙 + 𝟙))%T (vgval (g ^+ cc)%g, alice)%V (vgval (g ^+ cc)%g, alice)%V) as "#Harg".
-          { iExists _, _, _, _. iSplit; [done|]. iSplit; [done|]. iSplit.
-            - iExists (g ^+ cc)%g. done.
-            - iExists _,_. iRight. done. }
-          iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hds".
-          iDestruct ("Hds" with "Harg") as "Hsend1".
-          rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-          iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
-          iIntros (u1 u2) "(->&->)".
-          brel_pures'.
-          iDestruct ("HQQ" with "HQ'") as "HQ".
-          iDestruct ("Hkont" with "HQ") as "Hbrel".
-          brel_cont_l.
-          brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-    - (* Recv: the OUTER handler.  Never re-peels the send handler: [Hkont]
-         already hands back a row with the send entry at [iThyBot]. *)
-      iLöb as "IH".
-      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-      iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HRecv #Hkont".
-      iDestruct "HRecv" as (Q') "(HRecv & HQ')".
-      iDestruct "HRecv" as (fr1 fr2) "(#Hfr & -> & -> & #HQ)".
-      iDestruct "HQ" as "(#HQN & #HQS)".
-      brel_handle_os_l (lkl) as "Hlkl".
-      brel_handle_os_r (lkr) as "Hlkr".
-      brel_pures'.
-      iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-      { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-        by apply submseteq_inserts_r. }
-      iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hdr".
-      iDestruct ("Hdr" with "Hfr") as "Hrecv1".
-      rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-      iApply (brel_mono with "[][$Hrecv1]"); [iApply to_iThy_le_refl|simpl].
-      iIntros (r1 r2) "#Hr".
-      iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
-      + brel_pures'.
-        iDestruct ("HQ'" with "HQN") as "HQ".
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-      + brel_pures'.
-        iDestruct ("HQ'" with "HQS") as "HQ".
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        brel_cont_l. brel_cont_r. 
-        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-  Qed.
+    Lemma oauth_send_handler_typed (θ₂ ρh : sem_row Σ) :
+      ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
+      sem_typed [("payload", (𝔾 × (𝟙 + 𝟙))%T); ("k", (𝟙 -{ ρh }-[OS]-> 𝟙)%T);
+                 ("message", Refᶜ (Option 𝔾)); ("doLeakSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)]
+        (let, ("m", "dst") := "payload" in
+         match: !"message" with
+         | NONE => "message" <- SOME "m" ;; ("doLeakSend" ("m", "dst"));; "k" #()%V
+         | SOME "message" => "k" #()%V
+         end)%E
+        (let, ("m", "dst") := "payload" in
+         match: !"message" with
+         | NONE => "message" <- SOME "m" ;; ("doLeakSend" ("m", "dst"));; "k" #()%V
+         | SOME "message" => "k" #()%V
+         end)%E
+        ρh 𝟙 [("message", Refᶜ (Option 𝔾)); ("doLeakSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)].
+    Proof.
+      iIntros "#Hρ".
+      iApplyT sem_typed_pair_elim; first typed_var.
+      (* The [SOME "message"] branch shadows the reference, so it sets the
+       [message] entry aside; the [NONE] branch needs it. *)
+      iApplyT (sem_typed_match_split [] [("message", _)]).
+      - iApplyT sem_typed_load_cpy. typed_var_copy.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_seq.
+        { iApplyT sem_typed_store_cpy_gen.
+          2: { iApplyT sem_typed_injr. typed_var_copy. }
+          typed_var_copy. }
+        iApplyT sem_typed_seq.
+        { (* [k] is live across the leak call: fine because [¡θ₂] is OnceR. *)
+          iApplyT sem_typed_app_fun_nil; first iApply "Hρ".
+          - iApplyT sem_typed_pair; typed_var.
+          - typed_leak_fun. }
+        iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|].
+        typed_cont.
+      - iApply env_le_refl.
+      - env_pick. iApply env_le_refl.
+      - (* Drop the shadowing [message : 𝔾]; [m] and [dst] are dropped by the
+         output split. *)
+        iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+        iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|].
+        typed_cont.
+      - env_solve.
+        Unshelve. all: solve_typed_side.
+    Qed.
 
-  
-  (* ----------------------------------------------------------------- *)
-  (* Effect theory for F_KE_lazy_alice's [getKey] effect.  This is a     *)
-  (* SINGLE operation (not a Send/Recv sum), so a plain [iThy]: payload  *)
-  (* [(𝟙+𝟙)] (the party), result [Option 𝔾] (the key).                   *)
-  Program Definition GKeff (c1 c2 : label) : iThy Σ :=
-    (λ e1 e2, λne Q,
-      ∃ (p1 p2 : val), (𝟙 + 𝟙)%T p1 p2 ∗
-        ⌜ e1 = do: c1 p1 ⌝%E ∗ ⌜ e2 = do: c2 p2 ⌝%E ∗
-        □ (Q NONEV NONEV ∗ ∀ g : vgG, Q (SOMEV g) (SOMEV g)))%I.
-  Next Obligation. solve_proper. Qed.
+    Lemma oauth_recv_handler_typed (θ₂ ρh : sem_row Σ) :
+      ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
+      sem_typed [("from", (𝟙 + 𝟙)%T); ("k", (Option 𝔾 -{ ρh }-[OS]-> 𝟙)%T);
+                 ("message", Refᶜ (Option 𝔾)); ("doLeakRecv", ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)%T)]
+        (let: "r" := ("doLeakRecv" "from") in
+         match: "r" with
+         | NONE => "k" NONEV
+         | SOME "x" => "k" !"message"
+         end)%E
+        (let: "r" := ("doLeakRecv" "from") in
+         match: "r" with
+         | NONE => "k" NONEV
+         | SOME "x" => "k" !"message"
+         end)%E
+        ρh 𝟙 [("message", Refᶜ (Option 𝔾)); ("doLeakRecv", ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)%T)].
+    Proof.
+      iIntros "#Hρ".
+      iApplyT sem_typed_let.
+      { (* [k] is live across the leak call: fine because [¡θ₂] is OnceR. *)
+        iApplyT sem_typed_app_fun_nil; [iApply "Hρ"|typed_var|].
+        typed_leak_fun. }
+      iApplyT (sem_typed_match_split [] []).
+      - typed_var.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|].
+        typed_cont.
+      - iApply env_le_refl.
+      - iApply env_le_refl.
+      - (* Drop the binder [x] from the output. *)
+        iApplyT sem_typed_sub_env_final; first iApply env_le_weaken.
+        iApplyT sem_typed_app_fun_nil; first iApply row_le_refl.
+        + iApplyT sem_typed_load_cpy. typed_var_copy.
+        + typed_cont.
+      - iApply env_le_refl.
+        Unshelve. all: solve_typed_side.
+    Qed.
 
-  Program Definition gkeff_mono (c1 c2 : label) :=
-    {| pmono_prot_car := GKeff c1 c2; pmono_prot_prop := _ |}.
-  Next Obligation.
-    intros ??.
-    iIntros (????) "#HΦ H". iDestruct "H" as (??) "(Hp&%&%&#(H1&H2))".
-    iExists _,_. iFrame. repeat (iSplit; first done). iModIntro.
-    iSplitL; [by iApply "HΦ"|]. iIntros (g); by iApply "HΦ".
-  Qed.
+    Lemma F_OAUTH_val_typed :
+      ⊢ sem_val_typed F_OAUTH F_OAUTH (τ__FO oaleak chan).
+    Proof using Type*.
+      iApply sem_typed_Rclosure. iIntros (θ).
+      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
+      iApply sem_typed_closure; first done.
+      iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ₂).
+      iApplyT sem_oval_typed_afun.
+      iApplyT sem_typed_pair_elim; first typed_var.
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+      iApply sem_typed_effect_gen. iIntros (ls1 ls2).
+      iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
+      (* The client's [doSend]/[doRecv]: their signatures fix the client row
+       [θ₁ := σs · σr · ⟨⟩]. *)
+      iApplyT sem_typed_let.
+      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+        iApplyT sem_oval_typed_ufun.
+        iApply (sem_typed_do_const OS _ (ls1, ls2) (𝔾 × (𝟙 + 𝟙))%T 𝟙%T).
+        iApply sem_typed_sub_nil. iApply sem_typed_var. }
+      iApplyT sem_typed_let.
+      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+        iApplyT sem_oval_typed_ufun.
+        iApplyT sem_typed_sub_row; first iApply row_le_cons_extend.
+        iApply (sem_typed_do_const OS ⟨⟩%R (lr1, lr2) (𝟙 + 𝟙)%T (Option 𝔾)%T).
+        iApply sem_typed_sub_nil. iApply sem_typed_var. }
+      (* Each handler keeps its own copy of [message] (plus its leak function)
+       in its persistent context; [f] and the two closures are consumed by
+       the inner handled expression. *)
+      iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
+      iApplyT (sem_typed_sub_env _ ([("doRecv", _); ("doSend", _); ("f", _); ("message", _); ("doLeakSend", _)]
+                                      ++ [("message", _); ("doLeakRecv", _)])).
+      { simpl. env_solve. }
+      (* Outer handler: recv. *)
+      iApplyT (sem_typed_deep_handler_OS (lr1, lr2) (λ _, 𝟙 + 𝟙)%T (λ _, Option 𝔾)%T).
+      - (* Inner handler: send.  Its result row needs [send]'s bottom
+         signature at the head. *)
+        iApplyT sem_typed_sub_row; first iApply row_le_swap_second.
+        iApplyT (sem_typed_sub_env _ ([_; _; _] ++ [_; _])); first iApply env_le_refl.
+        iApplyT (sem_typed_deep_handler_OS (ls1, ls2) (λ _, 𝔾 × (𝟙 + 𝟙))%T (λ _, 𝟙)%T).
+        + (* The client call [f (doSend, doRecv)], at [¡θ₁ ∪ θ ≤ θ₁ ∪ θ]. *)
+          iApplyT sem_typed_app_fun_nil.
+          2: { iApplyT sem_typed_pair; typed_var. }
+          2: { iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst. }
+          iApply row_le_trans; first iApplyT row_le_union'.
+          * iApply row_le_mfbang_elim.
+          * iApply row_le_refl.
+          * row_le_submseteq.
+        + iIntros (?). iApply oauth_send_handler_typed. row_le_submseteq.
+        + typed_var.
+      - iIntros (?). iApply oauth_recv_handler_typed. row_le_submseteq.
+      - iApplyT sem_typed_sub_env_final; last typed_var. env_solve.
+        Unshelve. all: solve_typed_side.
+    Qed.
 
-  Definition gkeff (c1 c2 : label) := @SemSig Σ (gkeff_mono c1 c2) (c1, c2).
-  Program Definition gkeff_row (c1 c2 : label) := SemRow [([c1],[c2], gkeff c1 c2)] _.
-  Next Obligation.
-    intros ??.
-    iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_.
-    repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H".
-  Qed.
+    Corollary F_OAUTH_typed : ⊢ sem_typed [] F_OAUTH F_OAUTH ⊥ (τ__FO oaleak chan) [].
+    Proof using All. 
+      iApply sem_typed_val.
+      iApply F_OAUTH_val_typed.
+    Qed. 
 
-  (* F_KE_lazy_alice lazily samples a shared key [g^c].  As in DH_SIM the two
-     copies must draw the SAME exponent, so we couple the [samplelbl γ] draws
-     with the identity bijection.  The [na_inv] keeps the tape EMPTY between
-     invocations and both cache refs holding [SOMEV (vgval (g^+c))] for the SAME
-     [c:nat] (storing the exponent [c] rather than a [vgG] element avoids an
-     [Inhabited vgG] obligation when destructing under the invariant's later).
-     Equal [c] ⇒ equal key ⇒ 𝔾-related value handed to the client. *)
-  Lemma F_KE_lazy_alice_typed :
-    ⊢ sem_val_typed F_KE_lazy_alice F_KE_lazy_alice (τ__FC leakI gk).
-  Proof using Type*.
-    rewrite /sem_val_typed /τ__FO //=.
-    iModIntro. iIntros (θ).
-    iIntros (f1 f2) "Hff".
-    unfold F_KE_lazy_alice. brel_pures'. iModIntro. iIntros (θ₂).
-    iIntros (effs1 effs2) "Heffs".
-    iDestruct "Heffs" as (dls1 dls2 dlr1 dlr2) "(->&->&#Hls&#Hlr)".
-    brel_pures'.
-    iApply brel_alloctape_l. iIntros (γ) "!> Hγ". brel_pures_l.
-    iApply brel_alloc_l. iIntros (ko) "!> Hko". brel_pures_l.
-    iApply brel_alloctape_r. iIntros (γs) "Hγs". brel_pures_r.
-    iApply brel_alloc_r. iIntros (kos) "Hkos". brel_pures_r.
-    iAssert (γs ↪ₛN (S n''; []))%I with "[Hγs]" as "Hγs". { iExists []. by iFrame. }
-    iApply (brel_na_alloc
-      (γ ↪N (S n''; []) ∗ γs ↪ₛN (S n''; []) ∗
-       ((ko ↦ NONEV ∗ kos ↦ₛ NONEV)
-        ∨ (∃ c : nat, ko ↦ SOMEV #c ∗ kos ↦ₛ SOMEV #c)))%I
-      (nroot .@ "keyinv")).
-    iSplitL "Hγ Hγs Hko Hkos".
-    { iNext. iFrame "Hγ Hγs". iLeft. iFrame. }
-    iIntros "#Hinv".
-    iApply brel_effect_l. iIntros (gk1) "!> Hgk1".
-    iApply brel_effect_r. iModIntro. iIntros (gk2) "Hgk2 !>".
-    brel_pures'.
-    (* Build the [doGK] operation related at [gk (gkeff_row gk1 gk2)]. *)
-    iAssert (gk (gkeff_row gk1 gk2)
-               (λ: "party", do: gk1 "party")%V (λ: "party", do: gk2 "party")%V) as "#Hgg".
-    { rewrite /gk /sem_ty_mbang /=. iModIntro. iIntros (a1 a2) "#Hp". brel_pures'.
-      iApply (brel_introduction' [gk1] [gk2] (gkeff gk1 gk2)); [ by left | ].
-      rewrite /iThyTraverse /=.
-      iExists _, _, [], [],
-        (λ s1 s2, ∃ v1 v2 : val, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ (Option 𝔾)%T v1 v2)%I.
-      iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-      iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-      iSplitL.
-      + iExists a1, a2. iSplit; [iApply "Hp"|]. do 2 (iSplit; [done|]).
-        iModIntro. iSplit.
-        * iExists NONEV, NONEV. do 2 (iSplit; [done|]). iExists _,_. iLeft. done.
-        * iIntros (gg). iExists (SOMEV gg), (SOMEV gg). do 2 (iSplit; [done|]).
-          iExists _,_. iRight. iSplit; [done|]. iSplit; [done|]. iExists gg. done.
-      + iIntros "!>" (s1 s2) "(%v1&%v2&->&->&#Hopt)". iApply brel_value. iIntros "$ !>". done. }
-    iDestruct ("Hff" $! (gkeff_row gk1 gk2) with "Hgg") as "Hfbrel".
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hgk1").
-    iApply (brel_add_label_r with "Hgk2").
-    iApply (brel_exhaustion _ _ [_] [_] with "[Hfbrel]"); [done|done| |].
-    { iApply (brel_introduction_mono with "[][$Hfbrel]").
-      iApply to_iThy_le_intro'. apply submseteq_skip. rewrite iLblSig_to_iLblThy_app.
-      by apply submseteq_inserts_l. }
-    iLöb as "IH".
-    iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-    iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 Hpayload #Hkont".
-    iDestruct "Hpayload" as (p1 p2) "(#Hp & -> & -> & #HQ)".
-    iDestruct "HQ" as "(#HQN & #HQS)".
-    iDestruct "Hp" as (pw1 pw2) "[(-> & -> & _)|(-> & -> & _)]".
-    - (* Alice: sample-or-load the key, leak send+recv, forward the key. *)
-      iAssert ((𝟙 + 𝟙)%T bob bob) as "#Hbob". { iExists _,_. iLeft. done. }
-      brel_handle_os_l (gkl) as "Hgkl".
-      brel_handle_os_r (gkr) as "Hgkr".
-      brel_pures'.
-      iApply (brel_na_inv _ _ (nroot.@"keyinv")); [set_solver|]. iFrame "Hinv".
-      iIntros "((Hγ & Hγs & Hko) & Hclose)".
-      iDestruct "Hko" as "[(Hko & Hkos)|(%cc & Hko & Hkos)]".
-      + (* first use: couple the two draws, sample, cache the key. *)
-        brel_load_l.
-        brel_load_r. 
-        brel_pures'.
-        iApply (brel_couple_TT_frag _ (S n'') (S n'') (λ x:nat, x) _ _ _ _ γ γs [] []);
-          [ lia | by (intros ??; lia) | ].
-        iFrame "Hγ Hγs". iIntros (kk) "%Hkk". rewrite bool_decide_eq_true_2; [| by exists kk].
-        iIntros (mm) "(Hγ & Hγs & %Hle1 & %Hle2)".
-        brel_rand_l.
-        brel_rand_r.
-        brel_pures'.
-        brel_store_l.
-        brel_store_r. 
-        brel_pures'.
-        iApply brel_na_close. iFrame "Hclose".
-        iSplitL "Hγ Hγs Hko Hkos".
-        { iNext. iFrame "Hγ Hγs". iRight. iExists mm. iFrame. }
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-          by apply submseteq_inserts_r. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
-        iDestruct ("Hls" with "Hbob") as "Hsend1".
-        rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-        iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (u1 u2) "(->&->)".
-        brel_pures'. 
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-          by apply submseteq_inserts_r. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
-        iDestruct ("Hlr" with "Hbob") as "Hrecv1".
-        rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-        iApply (brel_mono with "[][$Hrecv1]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (r1 r2) "#Hr".
-        iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
-        * brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-        * brel_pures'. iDestruct ("HQS" $! (g ^+ mm)%g) as "HQSg".
-          iDestruct ("Hkont" with "HQSg") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-      + (* cached: reuse the key. *)
-        brel_load_l.
-        brel_load_r.        
-        brel_pures'.
-        iApply brel_na_close. iFrame "Hclose".
-        iSplitL "Hγ Hγs Hko Hkos".
-        { iNext. iFrame "Hγ Hγs". iRight. iExists cc. iFrame. }
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-          by apply submseteq_inserts_r. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
-        iDestruct ("Hls" with "Hbob") as "Hsend1".
-        rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-        iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (u1 u2) "(->&->)". brel_pures'.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-          by apply submseteq_inserts_r. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
-        iDestruct ("Hlr" with "Hbob") as "Hrecv1".
-        rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-        iApply (brel_mono with "[][$Hrecv1]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (r1 r2) "#Hr".
-        iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
-        * brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-        * brel_pures'. iDestruct ("HQS" $! (g ^+ cc)%g) as "HQSg".
-          iDestruct ("Hkont" with "HQSg") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-    - (* Bob: leak recv; on presence, leak send and forward the cached key. *)
-      iAssert ((𝟙 + 𝟙)%T alice alice) as "#Halice". { iExists _,_. iRight. done. }
-      brel_handle_os_l (gkl) as "Hgkl".
-      brel_handle_os_r (gkr) as "Hgkr".
-      brel_pures'. 
-      iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-      { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-        by apply submseteq_inserts_r. }
-      iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
-      iDestruct ("Hlr" with "Halice") as "Hrecv1".
-      rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-      iApply (brel_mono with "[][$Hrecv1]"); [iApply to_iThy_le_refl|simpl].
-      iIntros (r1 r2) "#Hr".
-      iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
-      + brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-      + brel_pures'.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-          by apply submseteq_inserts_r. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
-        iDestruct ("Hls" with "Halice") as "Hsend1".
-        rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-        iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (u1 u2) "(->&->)". brel_pures'.
-        iApply (brel_na_inv _ _ (nroot.@"keyinv")); [set_solver|]. iFrame "Hinv".
-        iIntros "((Hγ & Hγs & Hko) & Hclose)".
-        iDestruct "Hko" as "[(Hko & Hkos)|(%cc & Hko & Hkos)]".
-        * brel_load_l.
-          brel_load_r.
-          iApply brel_na_close. iFrame "Hclose". iSplitL "Hγ Hγs Hko Hkos".
-          { iNext. iFrame "Hγ Hγs". iLeft. iFrame. }
-          brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-          brel_cont_l.
-          brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-        * brel_load_l.
-          brel_load_r.
-          iApply brel_na_close. iFrame "Hclose". iSplitL "Hγ Hγs Hko Hkos".
-          { iNext. iFrame "Hγ Hγs". iRight. iExists cc. iFrame. }
-          brel_pures'. iDestruct ("HQS" $! (g ^+ cc)%g) as "HQSg".
-          iDestruct ("Hkont" with "HQSg") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-  Qed.
-
-  (* ----------------------------------------------------------------- *)
-  (* Effect theory for CHAN's [schannel] effect (the [cli] interface as an
-     effect): [SendSecure] payload 𝔾 (a group message) → result 𝟙;
-     [RecvSecure] payload is the fixed [Recv bob] → result [Option 𝔾]. *)
-  (* Untagged payloads: the send payload is a bare variable and the recv payload
-     the closed constant [bob], so neither needs a %V annotation.  [scchan_row]
-     lists recv first because [brel_exhaustion] consumes the row head and the
-     recv handler is the outer one. *)
-  Program Definition SCSend (s1 s2 : label) : iThy Σ :=
-    (λ e1 e2, λne Q, ∃ m1 m2 : val, ℕ%T m1 m2 ∗
-      ⌜ e1 = do: s1 m1 ⌝%E ∗ ⌜ e2 = do: s2 m2 ⌝%E ∗ □ (Q #()%V #()%V))%I.
-  Next Obligation. solve_proper. Qed.
-  Program Definition SCRecv (r1 r2 : label) : iThy Σ :=
-    (λ e1 e2, λne Q, ⌜ e1 = do: r1 bob ⌝%E ∗ ⌜ e2 = do: r2 bob ⌝%E ∗
-      □ (Q NONEV NONEV ∗ ∀ g : vgG, Q (SOMEV g) (SOMEV g)))%I.
-  Next Obligation. solve_proper. Qed.
-  Program Definition scsend_mono (s1 s2 : label) :=
-    {| pmono_prot_car := SCSend s1 s2; pmono_prot_prop := _ |}.
-  Next Obligation.
-    iIntros (??????) "#HΦ H". iDestruct "H" as (m1 m2) "(HG&%&%&#H)".
-    iExists _,_. iFrame. repeat (iSplit; first done). iModIntro. by iApply "HΦ".
-  Qed.
-  Program Definition screcv_mono (r1 r2 : label) :=
-    {| pmono_prot_car := SCRecv r1 r2; pmono_prot_prop := _ |}.
-  Next Obligation.
-    iIntros (??????) "#HΦ H". iDestruct "H" as "(%&%&#(H1&H2))".
-    repeat (iSplit; first done). iModIntro.
-    iSplitL; [by iApply "HΦ" | iIntros (g); by iApply "HΦ"].
-  Qed.
-  Definition scsend (s1 s2 : label) := @SemSig Σ (scsend_mono s1 s2) (s1, s2).
-  Definition screcv (r1 r2 : label) := @SemSig Σ (screcv_mono r1 r2) (r1, r2).
-  Program Definition scchan_row (s1 s2 r1 r2 : label) :=
-    SemRow [([r1],[r2], screcv r1 r2); ([s1],[s2], scsend s1 s2)] _.
-  Next Obligation.
-    intros ????. iIntros (????) "#HΦ % % % ($&H)". iDestruct "H" as (?????) "(->&%&->&%&HX&#H)".
-    iExists _,_,_,_,_. repeat (iSplit; first done). iIntros (??) "!# HS". iApply "HΦ". by iApply "H".
-  Qed.
-
-  Lemma CHAN_typed :
-    ⊢ ∀ θ, sem_val_typed CHAN CHAN ((hdl cli θ ⊸ τ__f θ chan gk)%T).
-  Proof using Type*.
-    iIntros (θ). rewrite /sem_val_typed. iModIntro.
-    rewrite /hdl /τ__f /=.
-    iIntros (f1 f2) "Hff".
-    unfold CHAN. brel_pures'.
-    iModIntro. iIntros (θ1 θ2).
-    iIntros (ChanOp1 ChanOp2) "HChanOp".
-    iDestruct "HChanOp" as (dsend1 dsend2 drecv1 drecv2) "(->&->&#Hsend&#Hrecv)".
-    brel_pures'.
-    iModIntro. iIntros (doGK1 doGK2) "#Hgk".
-    brel_pures'.
-    iApply brel_alloc_l. iIntros (lm) "!> Hlm". brel_pures_l.
-    iApply brel_alloc_r. iIntros (lms) "Hlms". brel_pures_r.
-    iApply (brel_na_alloc (∃ v1 v2, lm ↦ v1 ∗ lms ↦ₛ v2 ∗ (Option 𝔾)%T v1 v2)%I
-                          (nroot .@ "scmsg")).
-    iSplitL "Hlm Hlms". { iNext. iExists _,_. iFrame. iExists _,_. iLeft. done. }
-    iIntros "#Hinv".
-    (* Program order: the [ssend] binder comes first, then [srecv]. *)
-    iApply brel_effect_l. iIntros (ssend1) "!> Hssend1".
-    iApply brel_effect_r. iModIntro. iIntros (ssend2) "Hssend2 !>".
-    iApply brel_effect_l. iIntros (srecv1) "!> Hsrecv1".
-    iApply brel_effect_r. iModIntro. iIntros (srecv2) "Hsrecv2 !>".
-    brel_pures'.
-    (* Build the (doSecSend, doSecRecv) pair related at [cli (scchan_row …)]. *)
-    iAssert (cli (scchan_row ssend1 ssend2 srecv1 srecv2)
-               (λ: "m", do: ssend1 "m", λ: <>, do: srecv1 bob)%V
-               (λ: "m", do: ssend2 "m", λ: <>, do: srecv2 bob)%V) as "#Hcli".
-    { iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. rewrite /sem_ty_mbang /=. iSplit.
-      - iModIntro. iIntros (a1 a2) "#Hm". brel_pures'.
-        iApply (brel_introduction' [ssend1] [ssend2]); [repeat constructor|].
-        rewrite /iThyTraverse /=.
-        iExists _,_,[],[], (λ s1 s2, ⌜ s1 = Val #()%V ⌝ ∗ ⌜ s2 = Val #()%V ⌝)%I.
-        iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|]. iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|].
-        iSplitL.
-        + iExists a1, a2. iSplit; [iApply "Hm"|]. do 2 (iSplit;[done|]). iModIntro. iSplit; done.
-        + iIntros "!>" (s1 s2) "(->&->)". iApply brel_value. iIntros "$ !>". done.
-      - iModIntro. iIntros (a1 a2) "#Hu". brel_pures'.
-        iApply (brel_introduction' [srecv1] [srecv2]); [repeat constructor|].
-        rewrite /iThyTraverse /=.
-        iExists _,_,[],[], (λ s1 s2, ∃ v1 v2 : val, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ (Option 𝔾)%T v1 v2)%I.
-        iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|]. iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|].
-        iSplitL.
-        + do 2 (iSplit;[done|]). iModIntro. iSplit.
-          * iExists NONEV, NONEV. do 2 (iSplit;[done|]). iExists _,_. iLeft. done.
-          * iIntros (g). iExists (SOMEV g), (SOMEV g). do 2 (iSplit;[done|]). iExists _,_. iRight. iSplit;[done|]. iSplit;[done|]. iExists g. done.
-        + iIntros "!>" (s1 s2) "(%v1&%v2&->&->&#Hopt)". iApply brel_value. iIntros "$ !>". done. }
-    iDestruct ("Hff" $! (scchan_row ssend1 ssend2 srecv1 srecv2) with "Hcli") as "Hfbrel".
-    (* Push both theories; the LAST pushed sits at the row head = outer handler. *)
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hssend1").
-    iApply (brel_add_label_r with "Hssend2").
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hsrecv1").
-    iApply (brel_add_label_r with "Hsrecv2").
-    (* OUTER exhaustion (recv); pin R or the send branch's value case cannot close. *)
-    iApply (brel_exhaustion _ _ [_] [_] _ _ _ (λ w1 w2, 𝟙%T w1 w2) with "[Hfbrel]");
-      [done|done| |].
-    - (* SEND: peel the inner handler; the row lists recv first, so swap. *)
-      iApply brel_introduction_mono; first (iApply to_iThy_le_intro'; apply submseteq_swap).
-      iApply (brel_exhaustion _ _ [_] [_] with "[Hfbrel]"); [done|done| |].
-      { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'.
-        etrans; [apply submseteq_swap|]. do 2 apply submseteq_skip.
-        rewrite !iLblSig_to_iLblThy_app.
-        apply submseteq_inserts_l. apply submseteq_inserts_l. reflexivity. }
-      iLöb as "IHsend".
-      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-      iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HS #Hkont".
-      (* SendSecure: store the message, [doGK], encrypt via [G_XOR], [doSend]. *)
-      iDestruct "HS" as (m1 m2) "(#Hm & -> & -> & #HQ)".
-      iDestruct "Hm" as (mz) "(-> & ->)".
-      brel_pures; try (solve [apply Hk1; set_solver]); try (solve [apply Hk2; set_solver]).
-      all: try iModIntro.
-      iApply (brel_na_inv _ _ (nroot.@"scmsg")); [set_solver|]. iFrame "Hinv".
-      iIntros "((%v1 & %v2 & Hlm & Hlms & #Hopt) & Hclose)".
-
-      (* Interpreting a group element from mz *)
-      destruct (vg_of_int_sem mz) as [gm|] eqn:Hmz .
-      2 : {
-        iApply brel_na_close. iFrame "Hclose". iSplitL "Hlm Hlms".
-        { iNext. iExists v1, v2. iFrame. done. }
-        iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures'. 
-        iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V));
-          [set_solver|done|by iApply "Hkont"|iApply "IHsend"]. }
+    Corollary F_OAUTH_FC_typed : ⊢ sem_typed [] F_OAUTH F_OAUTH ⊥ (τ__FC oaleak chan) [].
+    Proof using All. 
+      iApply sem_typed_val.
+      iApply sem_val_typed_sub; last iApply F_OAUTH_val_typed.
+      iApply τFO_le_τFC.
+    Qed. 
       
-      iApply (brel_vg_of_int_correct_l _ [CaseCtx _ _]); first done.
-      iApply (brel_vg_of_int_correct_r _ [CaseCtx _ _]); first done.
-      brel_pures'. 
+  End f_oauth.
 
-      iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hlm"). iIntros "!> Hlm".
-      iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hlms"). iIntros "Hlms".
-      iDestruct "Hopt" as (w1 w2) "[(->&->&_)|(->&->&#Hgw)]".
-      + (* first message: store, get key, encrypt, forward. *)
-        brel_pures.
-        iApply (brel_store_l _ _ _ [AppRCtx _] with "Hlm"). iIntros "!> Hlm".
-        iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hlms"). iIntros "Hlms".
-        brel_pures.
-        iApply brel_na_close. iFrame "Hclose". iSplitL "Hlm Hlms".
-        { iNext. iExists (SOMEV (vgval gm)), (SOMEV (vgval gm)). iFrame. iExists _,_. iRight.
-          do 2 (iSplit;[done|]). iExists gm. done. }
-        iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θ2)); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
-          apply submseteq_inserts_l. apply submseteq_inserts_r. reflexivity. }
-        iAssert ((𝟙 + 𝟙)%T bob bob) as "#Hbob". { iExists _,_. iLeft. done. }
-        iEval (rewrite /gk /sem_ty_arr /sem_ty_mbang /=) in "Hgk".
-        iDestruct ("Hgk" with "Hbob") as "Hgkbob".
-        iApply (brel_wand with "[$Hgkbob]"). iIntros (key1 key2) "!# #Hkey".
-        iDestruct "Hkey" as (kw1 kw2) "[(->&->&_)|(->&->&#Hgkey)]".
-        * brel_pures'. iDestruct ("Hkont" with "HQ") as "Hbrel".
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-        * iDestruct "Hgkey" as (gkey) "(->&->)".
-          brel_pures'.
-          iApply mask_correct_l.
-          iApply mask_correct_r.
-          brel_pures'.
-          iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θ1)); [iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
-            apply submseteq_inserts_r. reflexivity. }
-          iAssert ((𝔾 × (𝟙 + 𝟙))%T (vgval _, bob)%V (vgval _, bob)%V) as "#Harg".
-          { iExists _,_,_,_. iSplit;[done|]. iSplit;[done|]. iSplit; [iExists _; done | iExists _,_; iLeft; done]. }
-          iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hsend".
-          iDestruct ("Hsend" with "Harg") as "Hsend1".
-          iApply (brel_wand with "[$Hsend1]"). iIntros (u1 u2) "!# (->&->)". brel_pures'.
-          iDestruct ("Hkont" with "HQ") as "Hbrel".
-          iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-      + (* message already stored: just resume. *)
-        brel_pures'.
-        iApply brel_na_close. iFrame "Hclose". iSplitL "Hlm Hlms".
-        { iNext. iExists (InjRV w1), (InjRV w2). iFrame "Hlm Hlms". iExists _,_. iRight.
-          do 2 (iSplit;[done|]). iApply "Hgw". }
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-    - (* RECV: the outer handler.  It never re-peels the send handler -- in the
-         effect case [k1'] is abstract, and [Hkont] already returns a
-         continuation whose send row entry sits at [iThyBot]. *)
-      iLöb as "IH".
-      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures'|].
-      iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HR #Hkont".
-      (* RecvSecure: get key, [doRecv], decrypt via [G_XOR], forward. *)
-      iDestruct "HR" as "(-> & -> & #HQ)". iDestruct "HQ" as "(#HQN & #HQS)".
-      brel_pures'; try (solve [apply Hk1; set_solver]); try (solve [apply Hk2; set_solver]).
-      iAssert ((𝟙 + 𝟙)%T alice alice) as "#Halice". { iExists _,_. iRight. done. }
-      iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θ2)); [iApply traversable_to_iThy| |].
-      { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
-        apply submseteq_inserts_l. apply submseteq_inserts_r. reflexivity. }
-      iEval (rewrite /gk /sem_ty_arr /sem_ty_mbang /=) in "Hgk".
-      iDestruct ("Hgk" with "Halice") as "Hgkal".
-      iApply (brel_wand with "[$Hgkal]"). iIntros (key1 key2) "!# #Hkey".
-      iDestruct "Hkey" as (kw1 kw2) "[(->&->&_)|(->&->&#Hgkey)]".
-      + brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-      + iDestruct "Hgkey" as (gkey) "(->&->)".
-        brel_pures'.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θ1)); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
-          apply submseteq_inserts_r. reflexivity. }
-        iAssert ((𝟙 + 𝟙)%T bob bob) as "#Hbob". { iExists _,_. iLeft. done. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hrecv".
-        iDestruct ("Hrecv" with "Hbob") as "Hrecvbob".
-        iApply (brel_wand with "[$Hrecvbob]"). iIntros (r1 r2) "!# #Hr".
-        iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&#Hgx)]".
-        * brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-        * iDestruct "Hgx" as (gx) "(->&->)".
-          brel_pures'.
-          iApply mask_correct_l.
-          iApply mask_correct_r. 
-          brel_pures'.
-          iDestruct ("HQS" $! _) as "HQSmg".
-          iDestruct ("Hkont" with "HQSmg") as "Hbrel".
-          iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IH".
-  Qed.
 
-  (* Generic composition of two functionality transformers:
-     [F : τ__F A B] and [G : τ__F B B'] compose to [F ∘f G : τ__F A B'].
-     Pure plumbing of the two [τ__F] applications (no effects/invariants):
-     [G] turns the [B']-client [f] into a [B]-handler, and [F] turns that
-     into the [A]-handler. *)
-  Lemma func_comp_typed (F J : val) (A B B' : sem_row Σ → sem_ty Σ) :
-    ⊢ sem_val_typed F F (τ__F A B) -∗ sem_val_typed J J (τ__F B B') -∗
-      sem_val_typed (F ∘f J) (F ∘f J) (τ__F A B').
-  Proof using Type*.
-    iIntros "#HF #HJ". rewrite /sem_val_typed /τ__F /func_comp //=.
-    iModIntro. iIntros (θ). iIntros (f1 f2) "Hff". brel_pures'.
-    iDestruct ("HJ" $! θ f1 f2 with "Hff") as "HJf".
-    iApply (brel_bind' [AppRCtx F] [AppRCtx F]); [iApply traversable_to_iThy_nil|].
-    iApply (brel_wand with "HJf").
-    iIntros (gv1 gv2) "!# Hgv".
-    iApply ("HF" $! θ gv1 gv2 with "Hgv").
-  Qed.
+  (* [F_AUTH], derived from the compatibility lemmas: F_OAUTH's shape with
+     one message reference per direction. *)
+  Section f_auth.
+    Import typed_hint_modes.
+    #[local] Existing Instance multi_ty_group.
 
-  Lemma func_comp_OS_typed (F J : val) (A B B' : sem_row Σ → sem_ty Σ) :
-    ⊢ sem_val_typed F F (τ__FO A B) -∗ sem_val_typed J J (τ__FO B B') -∗
-      sem_val_typed (F ∘f J) (F ∘f J) (τ__FO A B').
-  Proof using Type*.
-    iIntros "#HF #HJ". rewrite /sem_val_typed /τ__FO /func_comp //=.
-    iModIntro. iIntros (θ). iIntros (f1 f2) "Hff". brel_pures'.
-    iDestruct ("HJ" $! θ f1 f2 with "Hff") as "HJf".
-    iApply (brel_bind' [AppRCtx F] [AppRCtx F]); [iApply traversable_to_iThy_nil|].
-    iApply (brel_wand with "HJf").
-    iIntros (gv1 gv2) "!# Hgv". simpl.
-    iSpecialize ("HF" $! θ gv1 gv2).
-    by iApply "HF".
-  Qed.
+    Lemma fauth_send_handler_typed (θ₂ ρh : sem_row Σ) :
+      ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
+      sem_typed [("message", (𝔾 × (𝟙 + 𝟙))%T); ("k", (𝟙 -{ ρh }-[OS]-> 𝟙)%T);
+                 ("m1", Refᶜ (Option 𝔾)); ("m2", Refᶜ (Option 𝔾));
+                 ("doLeakSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)]
+        (let, ("m", "dst") := "message" in
+         match: "dst" with
+           
+           InjL <> => match: !"m1" with 
+                        NONE => "m1" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
+                      | SOME "x" => "k" #()%V 
+                      end
+                        
+         | InjR <> => match: !"m2" with
+                        NONE => "m2" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
+                      | SOME "x" => "k" #()%V 
+                      end
+         end)%E
+        (let, ("m", "dst") := "message" in
+         match: "dst" with
+           
+           InjL <> => match: !"m1" with 
+                        NONE => "m1" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
+                      | SOME "x" => "k" #()%V 
+                      end
+                        
+         | InjR <> => match: !"m2" with
+                        NONE => "m2" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
+                      | SOME "x" => "k" #()%V 
+                      end
+         end)%E
+        ρh 𝟙 [("m1", Refᶜ (Option 𝔾)); ("m2", Refᶜ (Option 𝔾));
+              ("doLeakSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)].
+    Proof.
+      iIntros "#Hρ".
+      iApplyT sem_typed_pair_elim; first typed_var.
+      (* [dst] is matched on and then leaked, so the scrutinee copies it. *)
+      iApplyT (sem_typed_match_split [] []).
+      - typed_var_copy.
+      - iApply env_le_refl.
+      - iApplyT (sem_typed_match_split [] []).
+        + iApplyT sem_typed_load_cpy. typed_var_copy.
+        + iApply env_le_refl.
+        + iApplyT sem_typed_seq.
+          { iApplyT sem_typed_store_cpy_gen.
+            2: { iApplyT sem_typed_injr. typed_var_copy. }
+            typed_var_copy. }
+          iApplyT sem_typed_seq.
+          { iApplyT sem_typed_app_fun_nil; [iApply "Hρ"|iApplyT sem_typed_pair; typed_var|typed_leak_fun]. }
+          iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|typed_cont].
+        + iApply env_le_refl.
+        + iApply env_le_refl.
+        + iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+          iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|typed_cont].
+        + env_solve.
+      - iApply env_le_refl.
+      - iApply env_le_refl.
+      - iApplyT (sem_typed_match_split [] []).
+        + iApplyT sem_typed_load_cpy. typed_var_copy.
+        + iApply env_le_refl.
+        + iApplyT sem_typed_seq.
+          { iApplyT sem_typed_store_cpy_gen.
+            2: { iApplyT sem_typed_injr. typed_var_copy. }
+            typed_var_copy. }
+          iApplyT sem_typed_seq.
+          { iApplyT sem_typed_app_fun_nil; [iApply "Hρ"|iApplyT sem_typed_pair; typed_var|typed_leak_fun]. }
+          iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|typed_cont].
+        + iApply env_le_refl.
+        + iApply env_le_refl.
+        + iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+          iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|typed_cont].
+        + env_solve.
+      - iApply env_le_refl.
+        Unshelve. all: solve_typed_side.
+    Qed.
 
-  (* [F_AUTH ∘f DH_SIM], in both value and open (sem_typed) presentations. *)
-  Lemma F_AUTH_DH_SIM_typed_val :
-    ⊢ sem_val_typed (F_AUTH ∘f DH_SIM) (F_AUTH ∘f DH_SIM) (τ__FO aleak leakI).
-  Proof using Type*.
-    iApply func_comp_OS_typed; [iApply F_AUTH_typed | iApply DH_SIM_typed].
-  Qed.
+    Lemma fauth_recv_handler_typed (θ₂ ρh : sem_row Σ) :
+      ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
+      sem_typed [("from", (𝟙 + 𝟙)%T); ("k", (Option 𝔾 -{ ρh }-[OS]-> 𝟙)%T);
+                 ("m1", Refᶜ (Option 𝔾)); ("m2", Refᶜ (Option 𝔾));
+                 ("doLeakRecv", ((𝟙 + 𝟙) -{ θ₂ }-> Option ℕ)%T)]
+        (let: "r" := ("doLeakRecv" "from") in
+         match: "r" with
+           NONE => "k" NONEV
+         | SOME "x" => match: "from" with
+                         
+                         InjL <> => match: !"m2" with
+                                      NONE => "k" NONEV
+                                    | SOME "m" => "k" (SOME "m")
+                                    end
+                                      
+                       | InjR <> => match: !"m1" with
+                                      NONE => "k" NONEV
+                                    | SOME "m" => "k" (SOME "m")
+                                    end
+                       end
+         end)%E
+        (let: "r" := ("doLeakRecv" "from") in
+         match: "r" with
+           NONE => "k" NONEV
+         | SOME "x" => match: "from" with
+                         
+                         InjL <> => match: !"m2" with
+                                      NONE => "k" NONEV
+                                    | SOME "m" => "k" (SOME "m")
+                                    end
+                                      
+                       | InjR <> => match: !"m1" with
+                                      NONE => "k" NONEV
+                                    | SOME "m" => "k" (SOME "m")
+                                    end
+                       end
+         end)%E
+        ρh 𝟙 [("m1", Refᶜ (Option 𝔾)); ("m2", Refᶜ (Option 𝔾));
+              ("doLeakRecv", ((𝟙 + 𝟙) -{ θ₂ }-> Option ℕ)%T)].
+    Proof.
+      iIntros "#Hρ".
+      (* [from] is leaked and then matched on, so the leak call copies it. *)
+      iApplyT sem_typed_let.
+      { iApplyT sem_typed_app_fun_nil; [iApply "Hρ"|typed_var_copy|typed_leak_fun]. }
+      iApplyT (sem_typed_match_split [] []).
+      - typed_var.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
+      - env_solve.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+        iApplyT (sem_typed_match_split [] []).
+        + typed_var.
+        + iApply env_le_refl.
+        + iApplyT (sem_typed_match_split [] []).
+          * iApplyT sem_typed_load_cpy. typed_var_copy.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
+          * iApply env_le_refl.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var|typed_cont].
+          * iApply env_le_refl.
+        + iApply env_le_refl.
+        + iApply env_le_refl.
+        + iApplyT (sem_typed_match_split [] []).
+          * iApplyT sem_typed_load_cpy. typed_var_copy.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
+          * iApply env_le_refl.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var|typed_cont].
+          * iApply env_le_refl.
+        + iApply env_le_refl.
+      - iApply env_le_refl.
+        Unshelve. all: solve_typed_side.
+    Qed.
 
-  Lemma F_AUTH_DH_SIM_typed :
-    ⊢ sem_typed [] (F_AUTH ∘f DH_SIM) (F_AUTH ∘f DH_SIM) ⊥ (τ__FO aleak leakI) [].
-  Proof using Type*.
-    iIntros (vs) "!# _". simpl. brel_pures'.
-    iApply brel_value. iIntros "$ !>". iSplit; last done.
-    iPoseProof F_AUTH_DH_SIM_typed_val as "H". rewrite /sem_val_typed //=.
-  Qed.
+    Lemma F_AUTH_val_typed :
+      ⊢ sem_val_typed F_AUTH F_AUTH (τ__FO aleak chan).
+    Proof using Type*.
+      iApply sem_typed_Rclosure. iIntros (θ).
+      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
+      iApply sem_typed_closure; first done.
+      iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ₂).
+      iApplyT sem_oval_typed_afun.
+      iApplyT sem_typed_pair_elim; first typed_var.
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+      iApply sem_typed_effect_gen. iIntros (ls1 ls2).
+      iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
+      (* The client's [doSend]/[doRecv]: their signatures fix the client row. *)
+      iApplyT sem_typed_let.
+      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+        iApplyT sem_oval_typed_ufun.
+        iApply (sem_typed_do_const OS _ (ls1, ls2) (𝔾 × (𝟙 + 𝟙))%T 𝟙%T).
+        iApply sem_typed_sub_nil. iApply sem_typed_var. }
+      iApplyT sem_typed_let.
+      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+        iApplyT sem_oval_typed_ufun.
+        iApplyT sem_typed_sub_row; first iApply row_le_cons_extend.
+        iApply (sem_typed_do_const OS ⟨⟩%R (lr1, lr2) (𝟙 + 𝟙)%T (Option 𝔾)%T).
+        iApply sem_typed_sub_nil. iApply sem_typed_var. }
+      (* Each handler keeps its own copies of the two references. *)
+      iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
+      iApplyT (sem_typed_sub_env _ ([("doRecv", _); ("doSend", _); ("f", _); ("m1", _); ("m2", _); ("doLeakSend", _)]
+                                      ++ [("m1", _); ("m2", _); ("doLeakRecv", _)])).
+      { simpl. env_solve. }
+      (* Outer handler: recv. *)
+      iApplyT (sem_typed_deep_handler_OS (lr1, lr2) (λ _, 𝟙 + 𝟙)%T (λ _, Option 𝔾)%T).
+      - (* Inner handler: send. *)
+        iApplyT sem_typed_sub_row; first iApply row_le_swap_second.
+        iApplyT (sem_typed_sub_env _ ([_; _; _] ++ [_; _; _])); first iApply env_le_refl.
+        iApplyT (sem_typed_deep_handler_OS (ls1, ls2) (λ _, 𝔾 × (𝟙 + 𝟙))%T (λ _, 𝟙)%T).
+        + (* The client call [f (doSend, doRecv)], at [¡θ₁ ∪ θ ≤ θ₁ ∪ θ]. *)
+          iApplyT sem_typed_app_fun_nil.
+          2: { iApplyT sem_typed_pair; typed_var. }
+          2: { iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst. }
+          iApply row_le_trans; first iApplyT row_le_union'.
+          * iApply row_le_mfbang_elim.
+          * iApply row_le_refl.
+          * row_le_submseteq.
+        + iIntros (?). iApply fauth_send_handler_typed. row_le_submseteq.
+        + iApplyT sem_typed_sub_env_final; last iApplyT sem_typed_unit'. env_solve.
+      - iIntros (?). iApply fauth_recv_handler_typed. row_le_submseteq.
+      - iApplyT sem_typed_sub_env_final; last iApplyT sem_typed_unit'. env_solve.
+        Unshelve. all: solve_typed_side.
+    Qed.
 
-  (* [chan]/[gk] interfaces (products of [-{θ}->] arrows) are usable at any
-     larger effect row θ' ⊇ θ (covariant effect subtyping). *)
-  Lemma chan_le (θ θ' : sem_row Σ) : θ ≤ᵣ θ' -∗ chan θ ≤ₜ chan θ'.
-  Proof using Type*.
-    iIntros "#Hle". rewrite /chan.
-    iApply ty_le_prod; iApply ty_le_uarr; try iApply "Hle"; iApply ty_le_refl.
-  Qed.
-  Lemma gk_le (θ θ' : sem_row Σ) : θ ≤ᵣ θ' -∗ gk θ ≤ₜ gk θ'.
-  Proof using Type*.
-    iIntros "#Hle". rewrite /gk.
-    iApply ty_le_uarr; [iApply "Hle" | iApply ty_le_refl | iApply ty_le_refl].
-  Qed.
+    Corollary F_AUTH_typed : ⊢ sem_typed [] F_AUTH F_AUTH ⊥  (τ__FO aleak chan) [].
+    Proof using All. 
+      iApply sem_typed_val.
+      iApply F_AUTH_val_typed.
+    Qed. 
 
-  Lemma F_KE_F_OAUTH_typed :
-    ⊢ sem_typed [] (F_KE_lazy_alice ||ᵣ F_OAUTH) (F_KE_lazy_alice ||ᵣ F_OAUTH) ⊥
-        ((∀ᵣ θ, (∀ᵣ θJ, chan θJ ⊸ gk θJ -{ sem_row_union θJ θ }-∘ 𝟙) ⊸
-            (∀ᵣ θ1, oaleak θ1 ⊸ ∀ᵣ θ2, leakI θ2
-                    -{ sem_row_union θ1 (sem_row_union (¡θ2) θ) }-∘ 𝟙))%T) [].
-  Proof using Type*.
-    iPoseProof F_KE_lazy_alice_typed as "#HFF".
-    iPoseProof F_OAUTH_typed as "#HF".
-    rewrite /sem_val_typed /τ__F //=.
-    iIntros (vs) "!# Hvs". simpl.
-    rewrite /right_composition.
-    brel_pures'.
-    iModIntro.
-    iSplitR "Hvs"; last (iApply "Hvs").
-    iIntros (θ).
-    iIntros (f1 f2) "Hff".
-    brel_pures'.
-    iModIntro.
-    iIntros (θ1).
-    iIntros (r2a r2b) "#Hoa".
-    brel_pures'.
-    iModIntro.
-    iIntros (θ2).
-    iIntros (r1a r1b) "#Hleak".
-    brel_pures'.
-    iAssert ((∀ᵣ θ2', gk θ2' -{ sem_row_union (θ2') (sem_row_union θ1 θ) }-∘ 𝟙)%T
-               (λ: "h₁", F_OAUTH (λ: "h₂", f1 "h₂" "h₁") r2a)%V
-               (λ: "h₁", F_OAUTH (λ: "h₂", f2 "h₂" "h₁") r2b)%V) with "[Hff]" as "Hclients".
-    { iIntros (θ2' v1 v2) "Hgk". brel_pures'.
-      iAssert ((∀ᵣ θ1', chan θ1' -{ sem_row_union θ1' (sem_row_union θ2' θ) }-∘ 𝟙)%T
-                 (λ: "h₂", f1 "h₂" v1)%V (λ: "h₂", f2 "h₂" v2)%V)
-        with "[Hff Hgk]" as "Hinner".
-      { iIntros (θ1' v1' v2') "Hchan". brel_pures'.
-        iAssert (θ1' ≤ᵣ sem_row_union θ1' θ2')%I as "#Hle1".
-        { iApply to_iThy_le_intro'. unfold sem_row_union. simpl.
-          rewrite iLblSig_to_iLblThy_app. apply submseteq_inserts_r. done. }
-        iAssert (θ2' ≤ᵣ sem_row_union θ1' θ2')%I as "#Hle2".
-        { iApply to_iThy_le_intro'. unfold sem_row_union. simpl.
-          rewrite iLblSig_to_iLblThy_app. apply submseteq_inserts_l. done. }
-        iDestruct (chan_le with "Hle1") as "#Hcw". iDestruct ("Hcw" with "Hchan") as "Hchan'".
-        iDestruct (gk_le with "Hle2") as "#Hgw". iDestruct ("Hgw" with "Hgk") as "Hgk'".
-        iDestruct ("Hff" $! (sem_row_union θ1' θ2') with "Hchan'") as "Hff1".
-        iApply (brel_bind [AppLCtx v1] [AppLCtx v2]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
-        assert (to_iThyIfMono OS [] = []) as <- by done.
-        iApply (brel_mono OS with "[][$Hff1]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (fv1 fv2) "Hff1".
-        iSpecialize ("Hff1" with "Hgk'").
-        iApply (brel_introduction_mono (iLblSig_to_iLblThy (sem_row_union (sem_row_union θ1' θ2') θ)) with "[] Hff1").
-        iApply to_iThy_le_intro'. unfold sem_row_union. simpl.
-        rewrite !iLblSig_to_iLblThy_app. rewrite -app_assoc. done. }
-      iSpecialize ("HF" with "Hinner").
-      iApply (brel_bind [AppLCtx r2a] [AppLCtx r2b]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
-      assert (to_iThyIfMono OS [] = []) as <- by done.
-      iApply (brel_mono OS with "[][$HF]"); [iApply to_iThy_le_refl|simpl].
-      iIntros (FO1 FO2) "HF".
-      iSpecialize ("HF" $! θ1 with "Hoa").
-      iApply (brel_introduction_mono (iLblSig_to_iLblThy (sem_row_union θ1 (sem_row_union θ2' θ))) with "[] HF").
-      iApply to_iThy_le_intro'. 
-      rewrite /sem_row_union !iLblSig_to_iLblThy_app. 
-      solve_submseteq. }
-      (* rewrite /sem_row_union !iLblSig_to_iLblThy_app.
-         iApply to_iThy_le_trans.
-         - iApply to_iThy_le_intro'. apply Permutation_submseteq. 
-           apply Permutation_app_swap_app. 
-         - iSplit; last iSplit.
-           + iApply iThy_le_trans; first iApply iThy_le_to_iThy_app_inv.
-             iApply iThy_le_trans; last iApply iThy_le_to_iThy_app.
-             iApply iThy_le_sum_map; last by iApply iThy_le_refl.
-             (* rewrite iThyIfMono_iLblSig_to_iThyIfMono. *)
-             iModIntro.
-             iIntros (???) "(%&%&%&%Hin&Ht)". iExists _,_, (iThyMono X).
-             iSplit.
-             { iPureIntro. induction (iLblSig_to_iLblThy θ2'); first by apply elem_of_nil in Hin.
-               simpl. destruct a as [[l1s' l2s'] X']. apply elem_of_cons in Hin as [Hin| Hin].
-               - simplify_eq. apply list_elem_of_here.
-               - apply IHi in Hin. by apply list_elem_of_further. }
-             iDestruct "Ht" as (?????->?->?) "(HX & #Hcont)".
-             iExists _,_,_,_,_. repeat (iSplit; first done).
-             iSplitL; last iFrame "#".
-             iExists S. iSplitL; first iFrame.
-             iIntros (??) "!> $".
-           + iModIntro; rewrite iThyIfMono_iLblSig_to_iThyIfMono !valid_app -valid_to_iThyIfMono; iIntros "$".
-           + iIntros "!#" (?); iPureIntro. 
-             eapply distinct_submseteq'; last done.
-             * by rewrite !labels_l_app iThyIfMono_iLblSig_to_iThyIfMono labels_l_to_iThyIfMono.
-             * by rewrite !labels_r_app iThyIfMono_iLblSig_to_iThyIfMono labels_r_to_iThyIfMono. } *)
-    iSpecialize ("HFF" with "Hclients").
-    iApply (brel_bind [AppLCtx r1a] [AppLCtx r1b] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
-    assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][$HFF]"); [iApply to_iThy_le_refl|simpl].
-    iIntros (FK1 FK2) "Hvv".
-    iSpecialize ("Hvv" $! θ2 with "Hleak").
-    iApply (brel_introduction_mono (iLblSig_to_iLblThy (sem_row_union (¡θ2)%R (sem_row_union θ1 θ))) with "[] Hvv").
-    iApply to_iThy_le_intro'. unfold sem_row_union. simpl.
-    rewrite !iLblSig_to_iLblThy_app. solve_submseteq.
-  Qed.
+    Corollary F_AUTH_FC_typed : ⊢ sem_typed [] F_AUTH F_AUTH ⊥ (τ__FC aleak chan) [].
+    Proof using All. 
+      iApply sem_typed_val.
+      iApply sem_val_typed_sub; last iApply F_AUTH_val_typed.
+      iApply τFO_le_τFC.
+    Qed. 
 
-  (* Open bodies of [F_KE_lazy_alice] and [CHAN xor], needed as the [G]/[J]
-     premises of the (functionality-)composition-associativity lemmas.
-     [F_KE_body] is free in "f","effs"; [CHAN_body] is free in "f","ChanOp".
-     These are copied verbatim from the source definitions
-     ([def_dhke.F_KE_lazy_alice] and [sec_channel_def.CHAN]). *)
+  End f_auth.
+
+  (* [DH_SIM], derived from the compatibility lemmas.  The two exponents are
+     drawn lazily from tapes ([sem_ty_tape]: the identity coupling makes both
+     sides draw the same value) and cached in [Refᶜ (Option ℕ)]. *)
+  Section dh_sim.
+    Import typed_hint_modes.
+    #[local] Existing Instance multi_ty_group.
+
+    Lemma sem_typed_party (b : bool) Γ ρ :
+      ⊢ sem_typed Γ (if b then bob else alice) (if b then bob else alice) ρ (𝟙 + 𝟙)%T Γ.
+    Proof.
+      iApply sem_typed_sub_nil. iApply sem_typed_val. iIntros "!>".
+      destruct b; iExists _, _; [iLeft|iRight]; done.
+    Qed.
+
+    Lemma sem_typed_vexp (b : vgG) Γ1 Γ2 e e' ρ :
+      ⊢ sem_typed Γ1 e e' ρ ℕ Γ2 -∗
+      sem_typed Γ1 (vexp (vgval b) e) (vexp (vgval b) e') ρ 𝔾 Γ2.
+    Proof using All.
+      iIntros "#He !# %γ HΓ1 /=".
+      iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+      iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+      iIntros "!# % % (Hn & HΓ2) /=". iDestruct "Hn" as (n) "(-> & ->)".
+      iApply (brel_exp_l []). iApply (brel_exp_r []).
+      iApply brel_value. iIntros "$ !>". iFrame. by iExists _.
+    Qed.
+
+    Lemma dh_sim_send_handler_typed (θ₂ ρh : sem_row Σ) :
+      ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
+      sem_typed [("dst", (𝟙 + 𝟙)%T); ("k", (𝟙 -{ ρh }-[OS]-> 𝟙)%T);
+                 ("α", sem_ty_tape); ("l1", Refᶜ (Option ℕ)); ("β", sem_ty_tape); ("l2", Refᶜ (Option ℕ));
+                 ("doSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)]
+        (match: "dst" with
+           InjL <> => let: "c" := 
+                        (match: !"l1" with
+                           NONE => let: "c" := (samplelbl "α" #()%V) in "l1" <- SOME "c";; "c"
+                         | SOME "c" => "c"
+                         end) in
+                      let: "gC" := g^"c" in
+                      "doSend" ("gC",bob);;
+                      "k" #()%V
+         | InjR <> => let: "c" :=
+                        (match: !"l2" with
+                           NONE => let: "c" := (samplelbl "β" #()%V) in "l2" <- SOME "c";; "c"
+                         | SOME "c" => "c"
+                         end) in
+                      let: "gC" := g^"c" in
+                      "doSend" ("gC", alice);;
+                      "k" #()%V
+         end)%E
+        (match: "dst" with
+           InjL <> => let: "c" := 
+                        (match: !"l1" with
+                           NONE => let: "c" := (samplelbl "α" #()%V) in "l1" <- SOME "c";; "c"
+                         | SOME "c" => "c"
+                         end) in
+                      let: "gC" := g^"c" in
+                      "doSend" ("gC",bob);;
+                      "k" #()%V
+         | InjR <> => let: "c" :=
+                        (match: !"l2" with
+                           NONE => let: "c" := (samplelbl "β" #()%V) in "l2" <- SOME "c";; "c"
+                         | SOME "c" => "c"
+                         end) in
+                      let: "gC" := g^"c" in
+                      "doSend" ("gC", alice);;
+                      "k" #()%V
+         end)%E
+        ρh 𝟙 [("α", sem_ty_tape); ("l1", Refᶜ (Option ℕ)); ("β", sem_ty_tape); ("l2", Refᶜ (Option ℕ));
+              ("doSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)].
+    Proof using All.
+      iIntros "#Hρ". rewrite /samplelbl.
+      (* Each branch draws its exponent from its tape at most once (cached in
+       [l1]/[l2]) and sends [g^c]. *)
+      iApplyT (sem_typed_match_split [] []).
+      - typed_var.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_let.
+        { iApplyT (sem_typed_match_split [] []).
+          + iApplyT sem_typed_load_cpy. typed_var_copy.
+          + iApply env_le_refl.
+          + iApplyT sem_typed_let.
+            { iApplyT sem_typed_let; first iApplyT sem_typed_unit'.
+              iApplyT sem_typed_rand; [typed_var_copy|iApplyT sem_typed_int']. }
+            iApplyT sem_typed_seq.
+            { iApplyT sem_typed_store_cpy_gen.
+              2: { iApplyT sem_typed_injr. typed_var_copy. }
+              typed_var_copy. }
+            typed_var.
+          + iApply env_le_refl.
+          + iApply env_le_refl.
+          + typed_var.
+          + iApply env_le_refl. }
+        iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; typed_var).
+        iApplyT sem_typed_seq.
+        { iApplyT sem_typed_app_fun_nil; [iApply "Hρ"|iApplyT sem_typed_pair; [iApply (sem_typed_party true)|typed_var]|typed_leak_fun]. }
+        iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|typed_cont].
+      - iApply env_le_refl.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_let.
+        { iApplyT (sem_typed_match_split [] []).
+          + iApplyT sem_typed_load_cpy. typed_var_copy.
+          + iApply env_le_refl.
+          + iApplyT sem_typed_let.
+            { iApplyT sem_typed_let; first iApplyT sem_typed_unit'.
+              iApplyT sem_typed_rand; [typed_var_copy|iApplyT sem_typed_int']. }
+            iApplyT sem_typed_seq.
+            { iApplyT sem_typed_store_cpy_gen.
+              2: { iApplyT sem_typed_injr. typed_var_copy. }
+              typed_var_copy. }
+            typed_var.
+          + iApply env_le_refl.
+          + iApply env_le_refl.
+          + typed_var.
+          + iApply env_le_refl. }
+        iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; typed_var).
+        iApplyT sem_typed_seq.
+        { iApplyT sem_typed_app_fun_nil; [iApply "Hρ"|iApplyT sem_typed_pair; [iApply (sem_typed_party false)|typed_var]|typed_leak_fun]. }
+        iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|typed_cont].
+      - iApply env_le_refl.
+        Unshelve. all: solve_typed_side.
+    Qed.
+
+    Lemma dh_sim_recv_handler_typed (θ₂ ρh : sem_row Σ) :
+      ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
+      sem_typed [("from", (𝟙 + 𝟙)%T); ("k", (Option 𝟙 -{ ρh }-[OS]-> 𝟙)%T);
+                 ("doRecv", ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝔾)%T)]
+        (let: "r" := "doRecv" "from" in
+         match: "r" with
+           NONE => "k" NONE
+         | SOME "x" => "k" (SOME #()%V)
+         end)%E
+        (let: "r" := "doRecv" "from" in
+         match: "r" with
+           NONE => "k" NONE
+         | SOME "x" => "k" (SOME #()%V)
+         end)%E
+        ρh 𝟙 [("doRecv", ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝔾)%T)].
+    Proof.
+      iIntros "#Hρ".
+      iApplyT sem_typed_let.
+      { iApplyT sem_typed_app_fun_nil; [iApply "Hρ"|typed_var|typed_leak_fun]. }
+      iApplyT (sem_typed_match_split [] []).
+      - typed_var.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injl; iApplyT sem_typed_unit'|typed_cont].
+      - iApply env_le_refl.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+        iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; iApplyT sem_typed_unit'|typed_cont].
+      - iApply env_le_refl.
+        Unshelve. all: solve_typed_side.
+    Qed.
+
+    Lemma DH_SIM_val_typed :
+      ⊢ sem_val_typed DH_SIM DH_SIM (τ__FO chan leakI).
+    Proof using All.
+      iApply sem_typed_Rclosure. iIntros (θ).
+      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
+      iApply sem_typed_closure; first done.
+      iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ₂).
+      iApplyT sem_oval_typed_afun.
+      iApplyT sem_typed_pair_elim; first typed_var.
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloctape; iApplyT sem_typed_int').
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloctape; iApplyT sem_typed_int').
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+      iApply sem_typed_effect_gen. iIntros (ls1 ls2).
+      iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
+      (* The client's [doLeakSend]/[doLeakRecv]: their signatures fix the
+       client row. *)
+      iApplyT sem_typed_let.
+      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+        iApplyT sem_oval_typed_ufun.
+        iApply (sem_typed_do_const OS _ (ls1, ls2) (𝟙 + 𝟙)%T 𝟙%T).
+        iApply sem_typed_sub_nil. iApply sem_typed_var. }
+      iApplyT sem_typed_let.
+      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+        iApplyT sem_oval_typed_ufun.
+        iApplyT sem_typed_sub_row; first iApply row_le_cons_extend.
+        iApply (sem_typed_do_const OS ⟨⟩%R (lr1, lr2) (𝟙 + 𝟙)%T (Option 𝟙)%T).
+        iApply sem_typed_sub_nil. iApply sem_typed_var. }
+      (* The send handler keeps the tapes, caches and [doSend]; the receive
+       handler keeps [doRecv]. *)
+      iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
+      iApplyT (sem_typed_sub_env _ ([("doLeakRecv", _); ("doLeakSend", _); ("f", _);
+                                     ("α", _); ("l1", _); ("β", _); ("l2", _); ("doSend", _)]
+                                      ++ [("doRecv", _)])).
+      { simpl. env_solve. }
+      (* Outer handler: leakRecv. *)
+      iApplyT (sem_typed_deep_handler_OS (lr1, lr2) (λ _, 𝟙 + 𝟙)%T (λ _, Option 𝟙)%T).
+      - (* Inner handler: leakSend. *)
+        iApplyT sem_typed_sub_row; first iApply row_le_swap_second.
+        iApplyT (sem_typed_sub_env _ ([_; _; _] ++ [_; _; _; _; _])); first iApply env_le_refl.
+        iApplyT (sem_typed_deep_handler_OS (ls1, ls2) (λ _, 𝟙 + 𝟙)%T (λ _, 𝟙)%T).
+        + (* The client call [f (doLeakSend, doLeakRecv)], at [¡θ₁ ∪ θ ≤ θ₁ ∪ θ]. *)
+          iApplyT sem_typed_app_fun_nil.
+          2: { iApplyT sem_typed_pair; typed_var. }
+          2: { iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst. }
+          iApply row_le_trans; first iApplyT row_le_union'.
+          * iApply row_le_mfbang_elim.
+          * iApply row_le_refl.
+          * row_le_submseteq.
+        + iIntros (?). iApply dh_sim_send_handler_typed. row_le_submseteq.
+        + typed_var.
+      - iIntros (?). iApply dh_sim_recv_handler_typed. row_le_submseteq.
+      - iApplyT sem_typed_sub_env_final; last typed_var. env_solve.
+        Unshelve. all: solve_typed_side.
+    Qed.
+
+    Corollary DH_SIM_typed : ⊢ sem_typed [] DH_SIM DH_SIM ⊥ (τ__FO chan leakI) [].
+      iApply sem_typed_val. iApply DH_SIM_val_typed.
+    Qed. 
+
+    Corollary DH_SIM_FC_typed : ⊢ sem_typed [] DH_SIM DH_SIM ⊥ (τ__FC chan leakI) [].
+      iApply sem_typed_val.
+      iApply sem_val_typed_sub; last iApply DH_SIM_val_typed.
+      iApply τFO_le_τFC.
+    Qed. 
+
+
+  End dh_sim.
+
+  (* The body of [F_KE_lazy_alice] (free in "f","effs"), copied verbatim
+     from [def_dhke.F_KE_lazy_alice], so that [F_KE_lazy_alice] is
+     [λ: "f" "effs", F_KE_body]. *)
   Definition F_KE_body : expr :=
     (let, ("doLeakSend", "doLeakRecv") := "effs" in
      let: "γ" := alloc #(S n'') in
      let: "lc" := ref NONEV in
-       let: "sample_or_load" :=
-         λ:<>, match: !"lc" with
-           | NONE =>
-               let: "c" := (samplelbl "γ" #()%V) in
-               "lc" <- SOME "c" ;;
-               "c"
-           | SOME "c" => "c"
-           end
-       in
-
-       effect "getKey"
-         let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
-     handle: "f" "doGK" with
-     | effect (EffName "getKey") "p", rec "k" =>
-         match: "p" with
-           (* Alice *)
-           InjL <> =>
-             let: "c" := "sample_or_load" #()%V in
-             let: "key" := g^"c" in
-             (* Leak a send *)
-             ("doLeakSend" bob);;
-             (* Receive a dummy value *)
-             let: "r" := ("doLeakRecv" bob) in
-             match: "r" with
-               NONE => "k" NONEV
-             | SOME "w" =>
-                 "k" (SOME "key")
-             end
-         (* Bob  *)
-         | InjR <> =>
-             let: "r" := ("doLeakRecv" alice) in
-             match: "r" with
-               NONE => "k" NONEV
-             | SOME "w" =>
-                 ("doLeakSend" alice);;
-                 match: !"lc" with
-                 | NONE => "k" NONEV
-                 | SOME "c" =>
-                     let: "key" := g^"c" in
-                     "k" (SOME "key")
-                 end
-             end
+     let: "sample_or_load" :=
+       λ:<>, match: !"lc" with
+         | NONE =>
+             let: "c" := (samplelbl "γ" #()%V) in
+             "lc" <- SOME "c" ;;
+             "c"
+         | SOME "c" => "c"
          end
-     | return "y" => "y" end).
-    
+     in
 
-  Definition CHAN_body : expr :=
-    ( let, ("doSend", "doRecv") := "ChanOp" in
-      let: "message" := ref NONEV in
-      effect "ssend"
-      effect "srecv"
-      let: "doSecSend" := (λ: "m", do: "ssend" "m") in
-      let: "doSecRecv" := (λ: <>, do: "srecv" bob) in
-      handle: handle: "f" ("doSecSend", "doSecRecv") with
-      | effect "ssend" "m", rec "k" as multi =>
-              match: vg_of_int "m" with
-              | NONE => "k" #()%V
-              | SOME "m" => 
-                  match: !"message" with
-                  | NONE => "message" <- SOME "m";;
-                            let: "key" := "doGK" (bob) in
-                            match: "key" with
-                            | NONE => "k" #()%V
-                            | SOME "key" =>
-                                let: "mg" := mask.mask "key" "m" in ("doSend" ("mg", bob));; "k" #()%V
-                            end
-                  | SOME "m" => "k" #()%V
-                  end
-              end 
-      | return "y" => "y" end with
-      | effect "srecv" "payload", rec "k" as multi =>
-            let: "key" := "doGK" (alice) in
-            match: "key" with
-            | NONE => "k" NONEV
-            | SOME "key" =>
-                let: "r" := ("doRecv" bob) in
-                match: "r" with
+     effect "getKey"
+       let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+       handle: "f" "doGK" with
+    | effect (EffName "getKey") "p", rec "k" =>
+        match: "p" with
+          (* Alice *)
+          InjL <> =>
+            let: "c" := "sample_or_load" #()%V in
+            let: "key" := g^"c" in
+            (* Leak a send *)
+            ("doLeakSend" bob);;
+            (* Receive a dummy value *)
+            let: "r" := ("doLeakRecv" bob) in
+            match: "r" with
+              NONE => "k" NONEV
+            | SOME "w" =>
+                "k" (SOME "key")
+            end
+        (* Bob  *)
+        | InjR <> =>
+            let: "r" := ("doLeakRecv" alice) in
+            match: "r" with
+              NONE => "k" NONEV
+            | SOME "w" =>
+                ("doLeakSend" alice);;
+                match: !"lc" with
                 | NONE => "k" NONEV
-                | SOME "m" =>
-                    "k" (SOME (mask.mask "key" "m"))   
+                | SOME "c" =>
+                    let: "key" := g^"c" in
+                    "k" (SOME "key")
                 end
             end
+        end
+    | return "y" => "y" end).
+
+  Section f_ke.
+    Import typed_hint_modes.
+    #[local] Existing Instance multi_ty_group.
+
+    (* Like [C_lazy]: [sample_or_load] captures copies of the tape and the
+     cache, and Bob reads the cache directly. *)
+    Lemma F_KE_body_typed :
+      ⊢ ∀ (θ θG : sem_row Σ),
+          sem_typed [("f", (∀ᵣ θ₁, gk θ₁ -{ sem_row_union (¡ θ₁) θ }-∘ 𝟙)%T); ("effs", leakI θG)]
+            F_KE_body F_KE_body (sem_row_union (¡θG)%R θ) (𝟙)%T [].
+    Proof using All.
+      iIntros (θ θG). rewrite /F_KE_body /samplelbl.
+      iApplyT sem_typed_pair_elim; first typed_var.
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloctape; iApplyT sem_typed_int').
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+      (* [sample_or_load] captures copies of the tape and the cache. *)
+      iApplyT sem_typed_let.
+      { iApplyT (sem_typed_sub_env _ ([("γ", _); ("lc", _)] ++ [("lc", _); ("γ", _); ("doLeakSend", _); ("doLeakRecv", _); ("f", _)])).
+        { simpl. env_solve. }
+        iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _]).
+        iApplyT sem_oval_typed_ufun. simpl.
+        iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
+        iApplyT (sem_typed_match_split [] []).
+        - iApplyT sem_typed_load_cpy. typed_var_copy.
+        - iApply env_le_refl.
+        - iApplyT sem_typed_let.
+          { iApplyT sem_typed_let; first iApplyT sem_typed_unit'.
+            iApplyT sem_typed_rand; [typed_var_copy|iApplyT sem_typed_int']. }
+          iApplyT sem_typed_seq.
+          { iApplyT sem_typed_store_cpy_gen.
+            2: { iApplyT sem_typed_injr. typed_var_copy. }
+            typed_var_copy. }
+          typed_var.
+        - iApply env_le_refl.
+        - iApply env_le_refl.
+        - typed_var.
+        - iApply env_le_refl. }
+      iApply sem_typed_effect_gen. iIntros (l1 l2). simpl.
+      iApplyT sem_typed_let.
+      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+        iApplyT sem_oval_typed_ufun.
+        iApply (sem_typed_do_const OS ⟨⟩%R (l1, l2) (𝟙 + 𝟙)%T (Option 𝔾)%T).
+        iApply sem_typed_sub_nil. iApply sem_typed_var. }
+      iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
+      iApplyT (sem_typed_sub_env _ ([("doGK", _); ("f", _)]
+                                      ++ [("sample_or_load", _); ("lc", _); ("doLeakSend", _); ("doLeakRecv", _)])).
+      { simpl. env_solve. }
+      iApplyT (sem_typed_deep_handler_OS (l1, l2) (λ _, 𝟙 + 𝟙)%T (λ _, Option 𝔾)%T).
+      - (* The client call [f doGK], at [¡θ₁ ∪ θ ≤ θ₁ ∪ θ]. *)
+        iApplyT sem_typed_app_fun_nil.
+        2: typed_var.
+        2: { iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst. }
+        iApply row_le_trans; first iApplyT row_le_union'.
+        + iApply row_le_mfbang_elim.
+        + iApply row_le_refl.
+        + row_le_submseteq.
+      - iIntros (?). simpl.
+        iApplyT (sem_typed_match_split [] []).
+        + typed_var.
+        + iApply env_le_refl.
+        + (* Alice: draw (or load) the exponent, leak a send and a receive. *)
+          iApplyT sem_typed_let.
+          { iApplyT sem_typed_app_fun_nil; [iApply row_le_nil|iApplyT sem_typed_unit'|].
+            iApplyT sem_typed_sub_ty; [iApply ty_le_u2aarr|typed_var_copy]. }
+          iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; typed_var).
+          iApplyT sem_typed_seq.
+          { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party true)|typed_leak_fun]. }
+          iApplyT sem_typed_let.
+          { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party true)|typed_leak_fun]. }
+          iApplyT (sem_typed_match_split [] []).
+          * typed_var.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+            iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
+          * iApply env_le_refl.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+            iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var|typed_cont].
+          * iApply env_le_refl.
+        + iApply env_le_refl.
+        + iApply env_le_refl.
+        + (* Bob: leak a receive and a send, then read the cached exponent. *)
+          iApplyT sem_typed_let.
+          { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party false)|typed_leak_fun]. }
+          iApplyT (sem_typed_match_split [] []).
+          * typed_var.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
+          * iApply env_le_refl.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+            iApplyT sem_typed_seq.
+            { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party false)|typed_leak_fun]. }
+            iApplyT (sem_typed_match_split [] []).
+            -- iApplyT sem_typed_load_cpy. typed_var_copy.
+            -- iApply env_le_refl.
+            -- iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
+            -- iApply env_le_refl.
+            -- iApply env_le_refl.
+            -- iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; typed_var).
+               iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var|typed_cont].
+            -- iApply env_le_refl.
+          * iApply env_le_refl.
+        + iApply env_le_refl.
+      - typed_var.
+        Unshelve. all: solve_typed_side.
+    Qed.
+
+
+    Lemma F_KE_lazy_alice_val_typed :
+      ⊢ sem_val_typed F_KE_lazy_alice F_KE_lazy_alice (τ__FO leakI gk).
+    Proof using Type*.
+      iApply sem_typed_Rclosure. iIntros (θ).
+      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
+      iApply sem_typed_closure; first done.
+      iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ₂).
+      iApplyT sem_oval_typed_afun. simpl.
+      iApply sem_typed_swap_second. iApply F_KE_body_typed.
+      Unshelve. all: solve_typed_side.
+    Qed.
+
+    Corollary F_KE_lazy_alice_typed : ⊢ sem_typed [] F_KE_lazy_alice F_KE_lazy_alice ⊥ (τ__FO leakI gk) [].
+    Proof using All.
+      iApply sem_typed_val.
+      iApply F_KE_lazy_alice_val_typed.
+    Qed. 
+
+    Corollary F_KE_lazy_alice_FC_typed : ⊢ sem_typed [] F_KE_lazy_alice F_KE_lazy_alice ⊥ (τ__FC leakI gk) [].
+    Proof using All.
+      iApply sem_typed_val.
+      iApply sem_val_typed_sub; last iApply F_KE_lazy_alice_val_typed.
+      iApply τFO_le_τFC.
+    Qed. 
+
+  End f_ke.
+
+  (* [CHAN], derived from the compatibility lemmas.  As for F_OAUTH, its
+     one-shot handlers call [doGK]/[doSend]/[doRecv] while holding the
+     continuation, so the interface rows are flipped ([τ__f_once]). *)
+  Section chan.
+    Import typed_hint_modes.
+    #[local] Existing Instance multi_ty_group.
+
+    Lemma sem_typed_vg_of_int Γ1 Γ2 e e' ρ :
+      ⊢ sem_typed Γ1 e e' ρ ℕ Γ2 -∗
+      sem_typed Γ1 (vg_of_int e) (vg_of_int e') ρ (Option 𝔾) Γ2.
+    Proof using G.
+      iIntros "#He !# %γ HΓ1 /=".
+      iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+      iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+      iIntros "!# % % (Hn & HΓ2) /=".
+      iDestruct "Hn" as (n) "(-> & ->)".
+      destruct (vg_of_int_sem n) as [g|] eqn:Hg.
+      - iApply (brel_vg_of_int_correct_l _ []); first done.
+        iApply (brel_vg_of_int_correct_r _ []); first done.
+        iApply brel_value. iIntros "$ !>". iFrame. iExists _, _. iRight. iSplit; [done|]. iSplit; [done|]. by iExists g.
+      - iApply (brel_vg_of_int_none_l _ []); first done.
+        iApply (brel_vg_of_int_none_r _ []); first done.
+        iApply brel_value. iIntros "$ !>". iFrame. iExists _, _. iLeft. done.
+    Qed.
+
+    Lemma sem_typed_mask Γ1 Γ2 Γ3 e1 e1' e2 e2' ρ :
+      ⊢ sem_typed Γ1 e2 e2' ρ 𝔾 Γ2 -∗ sem_typed Γ2 e1 e1' ρ 𝔾 Γ3 -∗
+      sem_typed Γ1 (mask e1 e2) (mask e1' e2') ρ 𝔾 Γ3.
+    Proof using All.
+      iIntros "#He2 #He1 !# %γ HΓ1 /=".
+      iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+      iApply (brel_wand with "[HΓ1]"); first by iApply "He2".
+      iIntros "!# % % (Hm & HΓ2) /=". iDestruct "Hm" as (m) "(-> & ->)".
+      iApply (brel_bind [AppLCtx _; AppRCtx _] [AppLCtx _; AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+      iApply (brel_wand with "[HΓ2]"); first by iApply "He1".
+      iIntros "!# % % (Hk & HΓ3) /=". iDestruct "Hk" as (k) "(-> & ->)".
+      iApply (mask_correct_l _ []). iApply (mask_correct_r _ []).
+      iApply brel_value. iIntros "$ !>". iFrame. by iExists _.
+    Qed.
+
+    Lemma chan_send_handler_typed (θ1 θ2 ρh : sem_row Σ) :
+      ⊢ (¡ θ1)%R ≤ᵣ ρh -∗ (¡ θ2)%R ≤ᵣ ρh -∗
+      sem_typed [("m", ℕ); ("k", (𝟙 -{ ρh }-[OS]-> 𝟙)%T);
+                 ("message", Refᶜ (Option 𝔾)); ("doGK", gk θ2); ("doSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ1 }-> 𝟙)%T)]
+        (match: vg_of_int "m" with
+         | NONE => "k" #()%V
+         | SOME "m" =>
+             match: !"message" with
+             | NONE => "message" <- SOME "m";;
+                       let: "key" := "doGK" (bob) in
+                       match: "key" with
+                       | NONE => "k" #()%V
+                       | SOME "key" =>
+                           let: "mg" := mask "key" "m" in ("doSend" ("mg", bob));; "k" #()%V
+                       end
+             | SOME "m" => "k" #()%V
+             end
+         end)%E
+        (match: vg_of_int "m" with
+         | NONE => "k" #()%V
+         | SOME "m" =>
+             match: !"message" with
+             | NONE => "message" <- SOME "m";;
+                       let: "key" := "doGK" (bob) in
+                       match: "key" with
+                       | NONE => "k" #()%V
+                       | SOME "key" =>
+                           let: "mg" := mask "key" "m" in ("doSend" ("mg", bob));; "k" #()%V
+                       end
+             | SOME "m" => "k" #()%V
+             end
+         end)%E
+        ρh 𝟙 [("message", Refᶜ (Option 𝔾)); ("doGK", gk θ2); ("doSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ1 }-> 𝟙)%T)].
+    Proof using All.
+      iIntros "#Hρ1 #Hρ2".
+      iApplyT (sem_typed_match_split [] []).
+      - iApplyT sem_typed_vg_of_int. typed_var.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|].
+        typed_cont.
+      - iApply env_le_refl.
+      - iApply env_le_refl.
+      - (* The inner [SOME "m"] shadows the group element [m]. *)
+        iApplyT (sem_typed_match_split [] [("m", _)]).
+        + iApplyT sem_typed_load_cpy. typed_var_copy.
+        + iApply env_le_refl.
+        + iApplyT sem_typed_seq.
+          { iApplyT sem_typed_store_cpy_gen.
+            2: { iApplyT sem_typed_injr. typed_var_copy. }
+            typed_var_copy. }
+          iApplyT sem_typed_let.
+          { (* [k] is live across the key request: fine because [¡θ2] is OnceR. *)
+            iApplyT sem_typed_app_fun_nil; [iApply "Hρ2"|iApply (sem_typed_party true)|].
+            typed_leak_fun. }
+          iApplyT (sem_typed_match_split [] []).
+          * typed_var.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+            iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|].
+            typed_cont.
+          * iApply env_le_refl.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_let.
+            { iApplyT sem_typed_mask; typed_var. }
+            iApplyT sem_typed_seq.
+            { iApplyT sem_typed_app_fun_nil; first iApply "Hρ1".
+              - iApplyT sem_typed_pair; [iApply (sem_typed_party true)|typed_var].
+              - typed_leak_fun. }
+            iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|].
+            typed_cont.
+          * iApply env_le_refl.
+        + iApply env_le_refl.
+        + env_pick. iApply env_le_refl.
+        + iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+          iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|].
+          typed_cont.
+        + env_solve.
+      - iApply env_le_refl.
+        Unshelve. all: solve_typed_side.
+    Qed.
+
+    Lemma chan_recv_handler_typed (θ1 θ2 ρh : sem_row Σ) :
+      ⊢ (¡ θ1)%R ≤ᵣ ρh -∗ (¡ θ2)%R ≤ᵣ ρh -∗
+      sem_typed [("payload", (𝟙 + 𝟙)%T); ("k", (Option 𝔾 -{ ρh }-[OS]-> 𝟙)%T);
+                 ("doGK", gk θ2); ("doRecv", ((𝟙 + 𝟙) -{ θ1 }-> Option 𝔾)%T)]
+        (let: "key" := "doGK" (alice) in
+         match: "key" with
+         | NONE => "k" NONEV
+         | SOME "key" =>
+             let: "r" := ("doRecv" bob) in
+             match: "r" with
+             | NONE => "k" NONEV
+             | SOME "m" => "k" (SOME (mask "key" "m"))
+             end
+         end)%E
+        (let: "key" := "doGK" (alice) in
+         match: "key" with
+         | NONE => "k" NONEV
+         | SOME "key" =>
+             let: "r" := ("doRecv" bob) in
+             match: "r" with
+             | NONE => "k" NONEV
+             | SOME "m" => "k" (SOME (mask "key" "m"))
+             end
+         end)%E
+        ρh 𝟙 [("doGK", gk θ2); ("doRecv", ((𝟙 + 𝟙) -{ θ1 }-> Option 𝔾)%T)].
+    Proof using All.
+      iIntros "#Hρ1 #Hρ2".
+      (* The payload (Bob's direction) is not used. *)
+      iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+      iApplyT sem_typed_let.
+      { (* [k] is live across the key request: fine because [¡θ2] is OnceR. *)
+        iApplyT sem_typed_app_fun_nil; [iApply "Hρ2"|iApply (sem_typed_party false)|].
+        typed_leak_fun. }
+      iApplyT (sem_typed_match_split [] []).
+      - typed_var.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|].
+        typed_cont.
+      - iApply env_le_refl.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_let.
+        { iApplyT sem_typed_app_fun_nil; [iApply "Hρ1"|iApply (sem_typed_party true)|].
+          typed_leak_fun. }
+        iApplyT (sem_typed_match_split [] []).
+        + typed_var.
+        + iApply env_le_refl.
+        + iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+          iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|].
+          typed_cont.
+        + iApply env_le_refl.
+        + iApply env_le_refl.
+        + iApplyT sem_typed_app_fun_nil; first iApply row_le_refl.
+          * iApplyT sem_typed_injr. iApplyT sem_typed_mask; typed_var.
+          * typed_cont.
+        + iApply env_le_refl.
+      - iApply env_le_refl.
+        Unshelve. all: solve_typed_side.
+    Qed.
+
+
+    (* The body of [CHAN] (free in "f","effs"), copied verbatim from
+     [sec_channel_def.CHAN], so that [CHAN] is [λ: "f" "effs", CHAN_body]. *)
+    Definition CHAN_body : expr :=
+      (let, ("ChanOp", "doGK") := "effs" in 
+       let, ("doSend", "doRecv") := "ChanOp" in
+       let: "message" := ref NONEV in
+       effect "ssend"
+         effect "srecv"
+         let: "doSecSend" := (λ: "m", do: "ssend" "m") in
+         let: "doSecRecv" := (λ: <>, do: "srecv" bob) in
+         handle: handle: "f" ("doSecSend", "doSecRecv") with
+      (*SendSecure*)
+      | effect "ssend" "m", rec "k" =>
+          match: vg_of_int "m" with
+          | NONE => "k" #()%V
+          | SOME "m" => 
+              match: !"message" with
+              | NONE => "message" <- SOME "m";;
+                        let: "key" := "doGK" (bob) in
+                        match: "key" with
+                        | NONE => "k" #()%V
+                        | SOME "key" =>
+                            let: "mg" := mask "key" "m" in ("doSend" ("mg", bob));; "k" #()%V
+                        end
+              | SOME "m" => "k" #()%V
+              end
+          end 
+      | return "y" => "y" end with
+      (*RecvSecure*)
+      | effect "srecv" "payload", rec "k" =>
+          let: "key" := "doGK" (alice) in
+          match: "key" with
+          | NONE => "k" NONEV
+          | SOME "key" =>
+              let: "r" := ("doRecv" bob) in
+              match: "r" with
+              | NONE => "k" NONEV
+              | SOME "m" =>
+                  "k" (SOME (mask "key" "m"))   
+              end       
+          end                              
       | return "y" => "y"
-    end)%E.
+       end)%E.
 
-  Lemma F_KE_body_typed :
-    ⊢ ∀ (θ θG : sem_row Σ),
-      sem_typed [("f", τ__fO θ gk); ("effs", leakI θG)]
-        F_KE_body F_KE_body (sem_row_union (¡θG)%R θ) (𝟙)%T [].
-  Proof using Type*.
-    iIntros (θ θ₂). iIntros (vs) "!# Henv".
-    rewrite !env_sem_typed_cons env_sem_typed_empty.
-    iDestruct "Henv" as "((%f1 & %f2 & %Hlf & Hff) & (%e1 & %e2 & %Hle & Heffs) & _)".
-    rewrite /F_KE_body.
-    assert (Hf' : (fst<$>vs) !! "f" = Some f1) by (rewrite lookup_fmap Hlf //).
-    assert (He' : (fst<$>vs) !! "effs" = Some e1) by (rewrite lookup_fmap Hle //).
-    assert (Hf2' : (snd<$>vs) !! "f" = Some f2) by (rewrite lookup_fmap Hlf //).
-    assert (He2' : (snd<$>vs) !! "effs" = Some e2) by (rewrite lookup_fmap Hle //).
-    simpl; simplify_map_eq.
-    iApply (brel_wand _ _ _ (λ v1 v2 : val, 𝟙%T v1 v2) with "[-]"); last first.
-    { iModIntro. iIntros (v1 v2) "H". iFrame. }
-    iDestruct "Heffs" as (dls1 dls2 dlr1 dlr2) "(->&->&#Hls&#Hlr)".
-    brel_pures'.
-    iApply brel_alloctape_l. iIntros (γ) "!> Hγ". brel_pures_l.
-    iApply brel_alloc_l. iIntros (ko) "!> Hko". brel_pures_l.
-    iApply brel_alloctape_r. iIntros (γs) "Hγs". brel_pures_r.
-    iApply brel_alloc_r. iIntros (kos) "Hkos". brel_pures_r.
-    iAssert (γs ↪ₛN (S n''; []))%I with "[Hγs]" as "Hγs". { iExists []. by iFrame. }
-    iApply (brel_na_alloc
-      (γ ↪N (S n''; []) ∗ γs ↪ₛN (S n''; []) ∗
-       ((ko ↦ NONEV ∗ kos ↦ₛ NONEV)
-        ∨ (∃ c : nat, ko ↦ SOMEV #c ∗ kos ↦ₛ SOMEV #c)))%I
-      (nroot .@ "keyinv")).
-    iSplitL "Hγ Hγs Hko Hkos".
-    { iNext. iFrame "Hγ Hγs". iLeft. iFrame. }
-    iIntros "#Hinv".
-    iApply brel_effect_l. iIntros (gk1) "!> Hgk1".
-    iApply brel_effect_r. iModIntro. iIntros (gk2) "Hgk2 !>".
-    brel_pures'.
-    (* Build the [doGK] operation related at [gk (gkeff_row gk1 gk2)]. *)
-    iAssert (gk (gkeff_row gk1 gk2)
-               (λ: "party", do: gk1 "party")%V (λ: "party", do: gk2 "party")%V) as "#Hgg".
-    { rewrite /gk /sem_ty_mbang /=. iModIntro. iIntros (a1 a2) "#Hp". brel_pures'.
-      iApply (brel_introduction' [gk1] [gk2] (gkeff gk1 gk2)); [ by left | ].
-      rewrite /iThyTraverse /=.
-      iExists _, _, [], [],
-        (λ s1 s2, ∃ v1 v2 : val, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ (Option 𝔾)%T v1 v2)%I.
-      iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-      iSplit; [done|]. iSplit; [iPureIntro; apply NeutralEctx_nil|].
-      iSplitL.
-      + iExists a1, a2. iSplit; [iApply "Hp"|]. do 2 (iSplit; [done|]).
-        iModIntro. iSplit.
-        * iExists NONEV, NONEV. do 2 (iSplit; [done|]). iExists _,_. iLeft. done.
-        * iIntros (gg). iExists (SOMEV gg), (SOMEV gg). do 2 (iSplit; [done|]).
-          iExists _,_. iRight. iSplit; [done|]. iSplit; [done|]. iExists gg. done.
-      + iIntros "!>" (s1 s2) "(%v1&%v2&->&->&#Hopt)". iApply brel_value. iIntros "$ !>". done. }
-    iDestruct ("Hff" $! (gkeff_row gk1 gk2) with "Hgg") as "Hfbrel".
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hgk1").
-    iApply (brel_add_label_r with "Hgk2").
-    iApply (brel_exhaustion _ _ [_] [_] with "[Hfbrel]"); [done|done| |].
-    { iApply (brel_introduction_mono with "[][$Hfbrel]").
-      iApply to_iThy_le_intro'. apply submseteq_skip. rewrite iLblSig_to_iLblThy_app.
-      by apply submseteq_inserts_l. }
-    iLöb as "IH".
-    iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-    iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 Hpayload #Hkont".
-    iDestruct "Hpayload" as (p1 p2) "(#Hp & -> & -> & #HQ)".
-    iDestruct "HQ" as "(#HQN & #HQS)".
-    iDestruct "Hp" as (pw1 pw2) "[(-> & -> & _)|(-> & -> & _)]".
-    - (* Alice: sample-or-load the key, leak send+recv, forward the key. *)
-      iAssert ((𝟙 + 𝟙)%T bob bob) as "#Hbob". { iExists _,_. iLeft. done. }
-      brel_handle_os_l (gkl) as "Hgkl".
-      brel_handle_os_r (gkr) as "Hgkr".
-      brel_pures'.
-      iApply (brel_na_inv _ _ (nroot.@"keyinv")); [set_solver|]. iFrame "Hinv".
-      iIntros "((Hγ & Hγs & Hko) & Hclose)".
-      iDestruct "Hko" as "[(Hko & Hkos)|(%cc & Hko & Hkos)]".
-      + (* first use: couple the two draws, sample, cache the key. *)
-        brel_load_l.
-        brel_load_r.
-        brel_pures'.
-        iApply (brel_couple_TT_frag _ (S n'') (S n'') (λ x:nat, x) _ _ _ _ γ γs [] []);
-          [ lia | by (intros ??; lia) | ].
-        iFrame "Hγ Hγs". iIntros (kk) "%Hkk". rewrite bool_decide_eq_true_2; [| by exists kk].
-        iIntros (mm) "(Hγ & Hγs & %Hle1 & %Hle2)".
-        brel_rand_l. 
-        brel_rand_r.
-        brel_pures'.
-        brel_store_l.
-        brel_store_r.
-        brel_pures'.
-        iApply brel_na_close. iFrame "Hclose".
-        iSplitL "Hγ Hγs Hko Hkos".
-        { iNext. iFrame "Hγ Hγs". iRight. iExists mm. iFrame. }
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-          by apply submseteq_inserts_r. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
-        iDestruct ("Hls" with "Hbob") as "Hsend1".
-        rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-        iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (u1 u2) "(->&->)".
-        brel_pures'. 
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-          by apply submseteq_inserts_r. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
-        iDestruct ("Hlr" with "Hbob") as "Hrecv1".
-        rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-        iApply (brel_mono with "[][$Hrecv1]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (r1 r2) "#Hr".
-        iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
-        * brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-        * brel_pures'. iDestruct ("HQS" $! (g ^+ mm)%g) as "HQSg".
-          iDestruct ("Hkont" with "HQSg") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-      + (* cached: reuse the key. *)
-        brel_load_l.
-        brel_load_r.
-        brel_pures'.
-        iApply brel_na_close. iFrame "Hclose".
-        iSplitL "Hγ Hγs Hko Hkos".
-        { iNext. iFrame "Hγ Hγs". iRight. iExists cc. iFrame. }
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-          by apply submseteq_inserts_r. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
-        iDestruct ("Hls" with "Hbob") as "Hsend1".
-        rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-        iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (u1 u2) "(->&->)".
-        brel_pures'.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-          by apply submseteq_inserts_r. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
-        iDestruct ("Hlr" with "Hbob") as "Hrecv1".
-        rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-        iApply (brel_mono with "[][$Hrecv1]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (r1 r2) "#Hr".
-        iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
-        * brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-        * brel_pures'. iDestruct ("HQS" $! (g ^+ cc)%g) as "HQSg".
-          iDestruct ("Hkont" with "HQSg") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-    - (* Bob: leak recv; on presence, leak send and forward the cached key. *)
-      iAssert ((𝟙 + 𝟙)%T alice alice) as "#Halice". { iExists _,_. iRight. done. }
-      brel_handle_os_l (gkl) as "Hgkl".
-      brel_handle_os_r (gkr) as "Hgkr".
-      brel_pures'.
-      iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-      { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-        by apply submseteq_inserts_r. }
-      iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hlr".
-      iDestruct ("Hlr" with "Halice") as "Hrecv1".
-      rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-      iApply (brel_mono with "[][$Hrecv1]"); [iApply to_iThy_le_refl|simpl].
-      iIntros (r1 r2) "#Hr".
-      iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&_)]".
-      + brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-      + brel_pures'.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. apply submseteq_cons. rewrite iLblSig_to_iLblThy_app.
-          by apply submseteq_inserts_r. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hls".
-        iDestruct ("Hls" with "Halice") as "Hsend1".
-        rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-        iApply (brel_mono with "[][$Hsend1]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (u1 u2) "(->&->)".
-        brel_pures'.
-        iApply (brel_na_inv _ _ (nroot.@"keyinv")); [set_solver|]. iFrame "Hinv".
-        iIntros "((Hγ & Hγs & Hko) & Hclose)".
-        iDestruct "Hko" as "[(Hko & Hkos)|(%cc & Hko & Hkos)]".
-        * brel_load_l.
-          brel_load_r.
-          iApply brel_na_close. iFrame "Hclose". iSplitL "Hγ Hγs Hko Hkos".
-          { iNext. iFrame "Hγ Hγs". iLeft. iFrame. }
-          brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-        * brel_load_l. 
-          brel_load_r.
-          iApply brel_na_close. iFrame "Hclose". iSplitL "Hγ Hγs Hko Hkos".
-          { iNext. iFrame "Hγ Hγs". iRight. iExists cc. iFrame. }
-          brel_pures'. iDestruct ("HQS" $! (g ^+ cc)%g) as "HQSg".
-          iDestruct ("Hkont" with "HQSg") as "Hbrel".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-  Qed.
+    Lemma CHAN_body_typed (θ θ1 θ2 : sem_row Σ) :
+      ⊢ sem_typed [("f", hdl cli θ); ("effs", (chan θ1 × gk θ2)%T)] CHAN_body CHAN_body
+          (sem_row_union (¡ θ1) (sem_row_union (¡ θ2) θ)) 𝟙 [].
+    Proof using All.
+      iApply sem_typed_swap_second.
+      iApplyT sem_typed_pair_elim; first typed_var.
+      iApplyT sem_typed_pair_elim; first typed_var.
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+      iApply sem_typed_effect_gen. iIntros (ls1 ls2).
+      iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
+      (* The client's [doSecSend]/[doSecRecv]: their signatures fix the client
+       row [θc := σs · σr · ⟨⟩]. *)
+      iApplyT sem_typed_let.
+      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+        iApplyT sem_oval_typed_ufun.
+        iApply (sem_typed_do_const OS _ (ls1, ls2) ℕ 𝟙%T).
+        iApply sem_typed_sub_nil. iApply sem_typed_var. }
+      iApplyT sem_typed_let.
+      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+        iApplyT sem_oval_typed_ufun.
+        iApplyT sem_typed_sub_row; first iApply row_le_cons_extend.
+        iApply (sem_typed_do_const OS ⟨⟩%R (lr1, lr2) (𝟙 + 𝟙)%T (Option 𝔾)%T).
+        iApply (sem_typed_party true). }
+      (* The send handler keeps [message], [doGK] and [doSend]; the receive
+       handler keeps [doGK] and [doRecv]. *)
+      iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
+      iApplyT (sem_typed_sub_env _ ([("doSecRecv", _); ("doSecSend", _); ("f", _);
+                                     ("message", _); ("doGK", _); ("doSend", _)]
+                                      ++ [("doGK", _); ("doRecv", _)])).
+      { simpl. env_solve. }
+      (* Outer handler: srecv. *)
+      iApplyT (sem_typed_deep_handler_OS (lr1, lr2) (λ _, 𝟙 + 𝟙)%T (λ _, Option 𝔾)%T).
+      - (* Inner handler: ssend. *)
+        iApplyT sem_typed_sub_row; first iApply row_le_swap_second.
+        iApplyT (sem_typed_sub_env _ ([_; _; _] ++ [_; _; _])); first iApply env_le_refl.
+        iApplyT (sem_typed_deep_handler_OS (ls1, ls2) (λ _, ℕ) (λ _, 𝟙)%T).
+        + (* The client call [f (doSecSend, doSecRecv)]. *)
+          iApplyT sem_typed_app_fun_nil.
+          2: { iApplyT sem_typed_pair; typed_var. }
+          2: { iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst. }
+          row_le_submseteq.
+        + iIntros (?). iApply chan_send_handler_typed;
+            row_le_submseteq.
+        + typed_var.
+      - iIntros (?). iApply chan_recv_handler_typed;
+          row_le_submseteq.
+      - iApplyT sem_typed_sub_env_final; last typed_var. env_solve.
+        Unshelve. all: solve_typed_side.
+    Qed.
 
-  Lemma CHAN_body_typed :
-    ⊢ ∀ (θ θJ : sem_row Σ),
-      sem_typed [("f", hdl cli θ); ("ChanOp", chan θJ); ("doGK", gk θJ)]
-        CHAN_body CHAN_body (sem_row_union θJ θ) (𝟙)%T [].
-  Proof using Type*.
-    (* Open-body version of [CHAN_typed]: [f]/[ChanOp]/[doGK] come from the
-       environment, and both interfaces are at the SAME row [θJ] (whereas
-       [CHAN_typed] uses two independent rows [θ1],[θ2]).  Row idempotence is
-       NOT derivable ([to_iThy_le] enforces [distinct']), so we re-prove the
-       body directly at the single row [θJ]: the effect firing at [θJ] once
-       makes the residual effect [θJ ∪ θ] (not [θJ ∪ (θJ ∪ θ)]).  Compared to
-       [CHAN_typed], every row-management [submseteq] script drops one segment
-       ([Lθ1 ++ Lθ2 ++ Lθ] collapses to [LθJ ++ Lθ]). *)
-    iIntros (θ θJ). iIntros (vs) "!# Henv".
-    rewrite !env_sem_typed_cons env_sem_typed_empty.
-    iDestruct "Henv" as "((%f1 & %f2 & %Hlf & Hff) & (%c1 & %c2 & %Hlc & HChanOp) & (%d1 & %d2 & %Hld & #Hgk) & _)".
-    rewrite /CHAN_body.
-    assert (Hf' : (fst<$>vs) !! "f" = Some f1) by (rewrite lookup_fmap Hlf //).
-    assert (Hc' : (fst<$>vs) !! "ChanOp" = Some c1) by (rewrite lookup_fmap Hlc //).
-    assert (Hd' : (fst<$>vs) !! "doGK" = Some d1) by (rewrite lookup_fmap Hld //).
-    assert (Hf2' : (snd<$>vs) !! "f" = Some f2) by (rewrite lookup_fmap Hlf //).
-    assert (Hc2' : (snd<$>vs) !! "ChanOp" = Some c2) by (rewrite lookup_fmap Hlc //).
-    assert (Hd2' : (snd<$>vs) !! "doGK" = Some d2) by (rewrite lookup_fmap Hld //).
-    simplify_map_eq.
-        iApply (brel_wand _ _ _ (λ v1 v2 : val, 𝟙%T v1 v2) with "[-]"); last first.
-    { iModIntro. iIntros (v1 v2) "H". iFrame. }
-    iDestruct "HChanOp" as (dsend1 dsend2 drecv1 drecv2) "(->&->&#Hsend&#Hrecv)".
-    brel_pures'.
-    iApply brel_alloc_l. iIntros (lm) "!> Hlm". brel_pures_l.
-    iApply brel_alloc_r. iIntros (lms) "Hlms". brel_pures_r.
-    iApply (brel_na_alloc (∃ v1 v2, lm ↦ v1 ∗ lms ↦ₛ v2 ∗ (Option 𝔾)%T v1 v2)%I
-                          (nroot .@ "scmsg")).
-    iSplitL "Hlm Hlms". { iNext. iExists _,_. iFrame. iExists _,_. iLeft. done. }
-    iIntros "#Hinv".
-    (* Program order: the [ssend] binder comes first, then [srecv]. *)
-    iApply brel_effect_l. iIntros (ssend1) "!> Hssend1".
-    iApply brel_effect_r. iModIntro. iIntros (ssend2) "Hssend2 !>".
-    iApply brel_effect_l. iIntros (srecv1) "!> Hsrecv1".
-    iApply brel_effect_r. iModIntro. iIntros (srecv2) "Hsrecv2 !>".
-    brel_pures'.
-    iAssert (cli (scchan_row ssend1 ssend2 srecv1 srecv2)
-               (λ: "m", do: ssend1 "m", λ: <>, do: srecv1 bob)%V
-               (λ: "m", do: ssend2 "m", λ: <>, do: srecv2 bob)%V) as "#Hcli".
-    { iExists _,_,_,_. iSplit; [done|]. iSplit; [done|]. rewrite /sem_ty_mbang /=. iSplit.
-      - iModIntro. iIntros (a1 a2) "#Hm". brel_pures'.
-        iApply (brel_introduction' [ssend1] [ssend2]); [repeat constructor|].
-        rewrite /iThyTraverse /=.
-        iExists _,_,[],[], (λ s1 s2, ⌜ s1 = Val #()%V ⌝ ∗ ⌜ s2 = Val #()%V ⌝)%I.
-        iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|]. iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|].
-        iSplitL.
-        + iExists a1, a2. iSplit; [iApply "Hm"|]. do 2 (iSplit;[done|]). iModIntro. iSplit; done.
-        + iIntros "!>" (s1 s2) "(->&->)". iApply brel_value. iIntros "$ !>". done.
-      - iModIntro. iIntros (a1 a2) "#Hu". brel_pures'.
-        iApply (brel_introduction' [srecv1] [srecv2]); [repeat constructor|].
-        rewrite /iThyTraverse /=.
-        iExists _,_,[],[], (λ s1 s2, ∃ v1 v2 : val, ⌜ s1 = Val v1 ⌝ ∗ ⌜ s2 = Val v2 ⌝ ∗ (Option 𝔾)%T v1 v2)%I.
-        iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|]. iSplit;[done|]. iSplit;[iPureIntro; apply NeutralEctx_nil|].
-        iSplitL.
-        + do 2 (iSplit;[done|]). iModIntro. iSplit.
-          * iExists NONEV, NONEV. do 2 (iSplit;[done|]). iExists _,_. iLeft. done.
-          * iIntros (g). iExists (SOMEV g), (SOMEV g). do 2 (iSplit;[done|]). iExists _,_. iRight. iSplit;[done|]. iSplit;[done|]. iExists g. done.
-        + iIntros "!>" (s1 s2) "(%v1&%v2&->&->&#Hopt)". iApply brel_value. iIntros "$ !>". done. }
-    iDestruct ("Hff" $! (scchan_row ssend1 ssend2 srecv1 srecv2) with "Hcli") as "Hfbrel".
-    (* Push both theories; the LAST pushed sits at the row head = outer handler. *)
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hssend1").
-    iApply (brel_add_label_r with "Hssend2").
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hsrecv1").
-    iApply (brel_add_label_r with "Hsrecv2").
-    (* OUTER exhaustion (recv); pin R or the send branch's value case cannot close. *)
-    iApply (brel_exhaustion _ _ [_] [_] _ _ _ (λ w1 w2, 𝟙%T w1 w2) with "[Hfbrel]");
-      [done|done| |].
-    - (* SEND: peel the inner handler; the row lists recv first, so swap. *)
-      iApply brel_introduction_mono; first (iApply to_iThy_le_intro'; apply submseteq_swap).
-      iApply (brel_exhaustion _ _ [_] [_] with "[Hfbrel]"); [done|done| |].
-      { iApply (brel_introduction_mono with "[][$]"). iApply to_iThy_le_intro'.
-        etrans; [apply submseteq_swap|]. do 2 apply submseteq_skip.
-        rewrite !iLblSig_to_iLblThy_app. apply submseteq_inserts_l. reflexivity. }
-      iLöb as "IHsend".
-      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-      iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HS #Hkont".
-      (* SendSecure: store the message, [doGK], encrypt via [G_XOR], [doSend]. *)
-      iDestruct "HS" as (m1 m2) "(#Hm & -> & -> & #HQ)".
-      iDestruct "Hm" as (mz) "(-> & ->)".
-      brel_pures; try (solve [apply Hk1; set_solver]); try (solve [apply Hk2; set_solver]).
-      all: try iModIntro.
+    Lemma CHAN_typed :
+      ⊢ sem_typed [] CHAN CHAN ⊥ (∀ᵣ θ, hdl cli θ ⊸ τ__fu θ chan gk)%T [].
+    Proof using All.
+      iApply sem_typed_val. iApply sem_typed_Rclosure. iIntros (θ).
+      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
+      iApply sem_typed_closure; first done.
+      iApply (sem_typed_oval _ [_]).
+      iApply sem_typed_RLam. iIntros (θ1). iApply sem_typed_RLam. iIntros (θ2).
+      iApplyT sem_oval_typed_afun. simpl.
+      iApply sem_typed_swap_second. iApply CHAN_body_typed.
+      Unshelve. all: solve_typed_side.
+    Qed.
 
-      (* Interpreting a group element from mz *)
-      destruct (vg_of_int_sem mz) as [gm|] eqn:Hmz .
-      2 : {
-        iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done.
-        brel_pures'. 
-        iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V));
-          [set_solver|done|by iApply "Hkont"|iApply "IHsend"]. }
-      
-      iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done.
-      brel_pures'. 
+  End chan.
 
-      iApply (brel_na_inv _ _ (nroot.@"scmsg")); [set_solver|]. iFrame "Hinv".
-      iIntros "((%v1 & %v2 & Hlm & Hlms & #Hopt) & Hclose)".
-      iApply (brel_load_l _ _ _ [CaseCtx _ _] with "Hlm"). iIntros "!> Hlm".
-      iApply (brel_load_r _ _ _ _ [CaseCtx _ _] with "Hlms"). iIntros "Hlms".
-      iDestruct "Hopt" as (w1 w2) "[(->&->&_)|(->&->&#Hgw)]".
-      + (* first message: store, get key, encrypt, forward. *)
-        brel_pures'.
-        iApply (brel_store_l _ _ _ [AppRCtx _] with "Hlm"). iIntros "!> Hlm".
-        iApply (brel_store_r _ _ _ _ [AppRCtx _] with "Hlms"). iIntros "Hlms".
-        brel_pures.
-        iApply brel_na_close. iFrame "Hclose". iSplitL "Hlm Hlms".
-        { iNext. iExists (SOMEV (vgval gm)), (SOMEV (vgval gm)). iFrame. iExists _,_. iRight.
-          do 2 (iSplit;[done|]). iExists gm. done. }
-        iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θJ)); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
-          apply submseteq_inserts_r. reflexivity. }
-        iAssert ((𝟙 + 𝟙)%T bob bob) as "#Hbob". { iExists _,_. iLeft. done. }
-        iEval (rewrite /gk /sem_ty_arr /sem_ty_mbang /=) in "Hgk".
-        iDestruct ("Hgk" with "Hbob") as "Hgkbob".
-        iApply (brel_wand with "[$Hgkbob]"). iIntros (key1 key2) "!# #Hkey".
-        iDestruct "Hkey" as (kw1 kw2) "[(->&->&_)|(->&->&#Hgkey)]".
-        * brel_pures'. iDestruct ("Hkont" with "HQ") as "Hbrel".
-          iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-        * iDestruct "Hgkey" as (gkey) "(->&->)".
-          brel_pures'.
-          iApply mask_correct_l.
-          iApply mask_correct_r.
-          brel_pures'.
-          iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θJ)); [iApply traversable_to_iThy| |].
-          { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
-            apply submseteq_inserts_r. reflexivity. }
-          iAssert ((𝔾 × (𝟙 + 𝟙))%T (vgval _, bob)%V (vgval _, bob)%V) as "#Harg".
-          { iExists _,_,_,_. iSplit;[done|]. iSplit;[done|]. iSplit; [iExists _; done | iExists _,_; iLeft; done]. }
-          iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hsend".
-          iDestruct ("Hsend" with "Harg") as "Hsend1".
-          iApply (brel_wand with "[$Hsend1]"). iIntros (u1 u2) "!# (->&->)". brel_pures'.
-          iDestruct ("Hkont" with "HQ") as "Hbrel".
-          iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-      + (* message already stored: just resume. *)
-        brel_pures'.
-        iApply brel_na_close. iFrame "Hclose". iSplitL "Hlm Hlms".
-        { iNext. iExists (InjRV w1), (InjRV w2). iFrame "Hlm Hlms". iExists _,_. iRight.
-          do 2 (iSplit;[done|]). iApply "Hgw". }
-        iDestruct ("Hkont" with "HQ") as "Hbrel".
-        iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IHsend".
-    - (* RECV: the outer handler; it never re-peels the send handler. *)
-      iLöb as "IH".
-      iSplit; [iIntros (v1 v2) "!# (->&->)"; by brel_pures|].
-      iIntros (k1' k2' e1' e2' Q) "!# %Hk1 %Hk2 HR #Hkont".
-      (* RecvSecure: get key, [doRecv], decrypt via [G_XOR], forward. *)
-      iDestruct "HR" as "(-> & -> & #HQ)". iDestruct "HQ" as "(#HQN & #HQS)".
-      brel_pures'; try (solve [apply Hk1; set_solver]); try (solve [apply Hk2; set_solver]).
-      iAssert ((𝟙 + 𝟙)%T alice alice) as "#Halice". { iExists _,_. iRight. done. }
-      iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θJ)); [iApply traversable_to_iThy| |].
-      { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
-        apply submseteq_inserts_r. reflexivity. }
-      iEval (rewrite /gk /sem_ty_arr /sem_ty_mbang /=) in "Hgk".
-      iDestruct ("Hgk" with "Halice") as "Hgkal".
-      iApply (brel_wand with "[$Hgkal]"). iIntros (key1 key2) "!# #Hkey".
-      iDestruct "Hkey" as (kw1 kw2) "[(->&->&_)|(->&->&#Hgkey)]".
-      + brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-        iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-      + iDestruct "Hgkey" as (gkey) "(->&->)".
-        brel_pures'.
-        iApply (brel_bind [AppRCtx _] [AppRCtx _] _ (iLblSig_to_iLblThy θJ)); [iApply traversable_to_iThy| |].
-        { iApply to_iThy_le_intro'. do 2 apply submseteq_cons. rewrite !iLblSig_to_iLblThy_app.
-          apply submseteq_inserts_r. reflexivity. }
-        iAssert ((𝟙 + 𝟙)%T bob bob) as "#Hbob". { iExists _,_. iLeft. done. }
-        iEval (rewrite /sem_ty_arr /sem_ty_mbang /=) in "Hrecv".
-        iDestruct ("Hrecv" with "Hbob") as "Hrecvbob".
-        iApply (brel_wand with "[$Hrecvbob]"). iIntros (r1 r2) "!# #Hr".
-        iDestruct "Hr" as (rw1 rw2) "[(->&->&_)|(->&->&#Hgx)]".
-        * brel_pures'. iDestruct ("Hkont" with "HQN") as "Hbrel".
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hbrel]"); [done|done|]. iApply "IH".
-        * iDestruct "Hgx" as (gx) "(->&->)".
-          brel_pures'.
-          iApply mask_correct_l.
-          iApply mask_correct_r.
-          brel_pures'. iDestruct "HQS" as "HQSmg".
-          iDestruct ("Hkont" with "HQSmg") as "Hbrel".
-          iApply (brel_exhaustion with "[$Hbrel]"); [done|done|]. iApply "IH".
-  Qed.
 
-  Lemma REAL_CHAN_DH_RED_sem_typed :
-    ⊢ ⊨ᵥ REAL_CHAN_DH_RED ≤ REAL_CHAN_DH_RED
-      : ((𝟙 ⊸ (sem_ty_group × sem_ty_group) × sem_ty_group) → τ).
+  (* Generic composition of two functionality transformers:
+     [F : τ__FO A B] and [J : τ__FO B B'] compose to [F ∘f J : τ__FO A B'],
+     an instance of the typing of the [func_comp] closure. *)
+  Section func_comp.
+    Import typed_hint_modes.
+
+    Lemma func_comp_val_typed (T1 T2 T3 : sem_row Σ → sem_ty Σ) :
+      ⊢ ⊨ᵥ func_comp ≤ func_comp :
+        ((∀ᵣ θ, T2 θ ⊸ T3 θ) ⊸ (∀ᵣ θ, T1 θ ⊸ T2 θ) ⊸ (∀ᵣ θ, T1 θ ⊸ T3 θ))%T.
+    Proof.
+      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
+      iApply sem_typed_closure; first done.
+      iApply (sem_typed_oval _ [_]). iApplyT sem_oval_typed_afun.
+      iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
+      iApplyT sem_oval_typed_afun. simpl.
+      iApplyT sem_typed_app_fun_nil; first iApply row_le_refl.
+      - iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|typed_var|].
+        iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst.
+      - iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst.
+        Unshelve. all: solve_typed_side.
+    Qed.
+
+    Lemma func_comp_OS_typed (F J : expr) (A B B' : sem_row Σ → sem_ty Σ) :
+      ⊢ sem_typed [] F F ⊥ (τ__FO A B) [] -∗ sem_typed [] J J ⊥ (τ__FO B B') []-∗
+      sem_typed [] (F ∘f J) (F ∘f J) ⊥ (τ__FO A B') [].
+    Proof.
+      iIntros "#HF #HJ".
+      iApplyT sem_typed_app_nil; last iApply "HJ".
+      iApplyT sem_typed_app_nil; last iApply "HF".
+      iApply sem_typed_val. iApply func_comp_val_typed.
+    Qed.
+
+  End func_comp.
+
+  (* [F_AUTH ∘f DH_SIM]. *)
+  Lemma F_AUTH_DH_SIM_FO_typed :
+    ⊢ sem_typed [] (F_AUTH ∘f DH_SIM) (F_AUTH ∘f DH_SIM) ⊥ (τ__FO aleak leakI) [].
   Proof using All.
-    rewrite /REAL_CHAN_DH_RED /sem_val_typed.
-    iModIntro. rewrite {1}/sem_ty_mbang {1}/sem_ty_arr /=. iModIntro.
-    iIntros (DH1 DH2) "HDH". brel_pures'. iModIntro.
-    rewrite /τ /=.
-    iIntros (θ__L).
-    iIntros (client1 client2) "Hcli".
-    brel_pures'.
-    iPoseProof (CHAN_typed) as "#HF".
-    iDestruct ("HF" $! θ__L with "Hcli") as "HFτ".
-    iApply (brel_bind [AppRCtx _] [AppRCtx _] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
-    assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][$HFτ]"); [iApply to_iThy_le_refl|].
-    simpl. iIntros (v1 v2) "Hvv".
-    unfold right_composition. brel_pures'.
-    iModIntro.
-    iIntros (θ₁ θ2).
-    iIntros (r1 r2) "Hoaleak".
-    brel_pures'.
-    iModIntro.
-    iIntros (r1' r2') "Hchan".
-    brel_pures'.
-    iPoseProof (F_OAUTH_typed) as "#HFO".
-    iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
-    assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][HDH Hvv Hoaleak]"); [iApply to_iThy_le_refl| | ].
-    { brel_pures'.
-      iMod token_alloc as (γtoka) "Htoka".
-      iMod token_alloc as (γtokb) "Htokb".
-      iMod message_alloc as (γautha) "Hautha".
-      iMod message_alloc as (γauthb) "Hauthb".
-      iMod all_receipts_alloc as (γfraca) "Hfraca".
-      iMod all_receipts_alloc as (γfracb) "Hfracb".
-      set (P := dhke_channel_lazy_sim_one.P).
-      set (chan_row := chan_new_row (P γautha) (P γauthb)).
-      iApply (F_AUTH_F_AUTH_new _ _ _ _ _ _ (dhke_channel_lazy_sim_one.P γautha) (dhke_channel_lazy_sim_one.P γauthb)  with "Hfraca Hfracb [-]").
-      rewrite /C_lazy. brel_pures'. iModIntro. iIntros (send1 send2 recv1 recv2). brel_pures'.
-      eset (ac := chan_row γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2).
-      iDestruct ("HDH" $! #()%V #()%V with "[]") as "Hdh"; [by iPureIntro|].
-      iApply (brel_bind [AppRCtx _] [AppRCtx _] _ []);
-        [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
-      assert (to_iThyIfMono OS [] = []) as <- by done.
-      iApply (brel_mono OS with "[][$Hdh]"); [iApply to_iThy_le_refl|].
-      simpl. iIntros (t1 t2) "Ht".
-      iDestruct "Ht" as (p1 p2 gc1 gc2) "(->&->&Hpp&Hgc)".
-      iDestruct "Hpp" as (ga1 ga2 gb1 gb2) "(->&->&Hga&Hgb)".
-      iDestruct "Hga" as (A) "(->&->)". iDestruct "Hgb" as (B) "(->&->)".
-      iDestruct "Hgc" as (C) "(->&->)".
-      brel_pures'.
-      iMod (store_message (vgval A) with "Hautha") as "#Hautha".
-      iMod (store_message (vgval B) with "Hauthb") as "#Hauthb".
-      iMod (inv_alloc atokN _ (token γtoka ∨ receipt γfraca)%I with "[Htoka]") as "#Hinvta".
-      { iNext; iLeft; iFrame. }
-      iMod (inv_alloc btokN _ (token γtokb ∨ receipt γfracb)%I with "[Htokb]") as "#Hinvtb".
-      { iNext; iLeft; iFrame. }
-      iApply brel_alloc_l. iIntros (loc1) "!> Hl1". brel_pures_l.
-      iApply brel_alloc_r. iIntros (loc2) "Hl2". brel_pures_r.
-      iApply (brel_na_alloc
-                ((loc1 ↦ NONEV ∗ loc2 ↦ₛ NONEV)
-                 ∨ (loc1 ↦□ SOMEV (vgval C) ∗ loc2 ↦ₛ□ SOMEV (vgval C)))%I
-                (nroot .@ "lc")).
-      iSplitL "Hl1 Hl2"; [iNext; iLeft; iFrame|].
-      iIntros "#Hlcinv".
-      iApply brel_effect_l. iIntros (gk1) "!> Hgk1".
-      iApply brel_effect_r. iModIntro. iIntros (gk2) "Hgk2 !>".
-      brel_pures'.
-      iApply brel_new_theory.
-      iApply (brel_add_label_l with "Hgk1").
-      iApply (brel_add_label_r with "Hgk2").
-      iAssert (sem_val_typed (λ: "party", do: gk1 "party")%V (λ: "party", do: gk2 "party")%V
-                 ((𝟙 + 𝟙)%T -{ θ gk1 gk2 }-> (Option 𝔾))%T) as "Hgg".
-      { iModIntro. rewrite /sem_ty_arr /sem_ty_mbang //=.
-        iIntros (??) "!# #(%&%&[(->&->&->&->)|(->&->&->&->)])";
-          brel_pures';
-          iApply brel_introduction'; try constructor;
-          iExists _,_,[],[],_; do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]);
-                            iSplit; try (iIntros (??) "!# H"; iApply "H").
-        - iSplit; first (iPureIntro; left; split; done); iModIntro; iSplitL; last iIntros (key); brel_pures'; iApply brel_value; iIntros "$ !>";
-            iExists _,_; [iLeft; by iPureIntro| iRight; iPureIntro; repeat (split; first done); by eexists].
-        - iSplit; first (iPureIntro; right; split; done); iModIntro; iSplitL; last iIntros (key); brel_pures'; iApply brel_value; iIntros "$ !>";
-            iExists _,_; [iLeft; by iPureIntro| iRight; iPureIntro; repeat (split; first done); by eexists]. }
-      unfold sem_val_typed. simpl. iDestruct "Hgg" as "#Hgg".
-      iAssert (BREL (F_OAUTH (λ: "h₂", v1 "h₂" (λ: "party", do: gk1 "party")%V)%V r1)
-                  ≤ (F_OAUTH (λ: "h₂", v2 "h₂" (λ: "party", do: gk2 "party")%V)%V r2)
-                  <| iLblSig_to_iLblThy (sem_row_union (θ gk1 gk2) (sem_row_union θ₁ θ__L)) |>
-                  {{ λ u1 u2, 𝟙%T u1 u2 }})%I
-        with "[Hoaleak Hvv]" as "Hf0".
-      { iAssert ((∀ᵣ θ1', chan θ1' -{ sem_row_union θ1' (sem_row_union (θ gk1 gk2) θ__L) }-∘ 𝟙)%T
-                   (λ: "h₂", v1 "h₂" (λ: "party", do: gk1 "party")%V)%V
-                   (λ: "h₂", v2 "h₂" (λ: "party", do: gk2 "party")%V)%V) with "[Hvv]" as "Hinner".
-        { iIntros (θ1' w1' w2') "Hchan'". brel_pures'.
-          iDestruct ("Hvv" $! θ1' (θ gk1 gk2) with "Hchan'") as "Hvv2".
-          iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
-          assert (to_iThyIfMono OS [] = []) as <- by done.
-          iApply (brel_mono OS with "[][$Hvv2]"); [iApply to_iThy_le_refl|simpl].
-          iIntros (gv1 gv2) "Hg". iSpecialize ("Hg" with "Hgg").
-          rewrite !iLblSig_to_iLblThy_distr. iApply "Hg". }
-        iSpecialize ("HFO" $! (sem_row_union (θ gk1 gk2) θ__L) with "Hinner").
-        iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
-        assert (to_iThyIfMono OS [] = []) as <- by done.
-        iApply (brel_mono OS with "[][$HFO]"); [iApply to_iThy_le_refl|simpl].
-        iIntros (ov1 ov2) "Ho". iSpecialize ("Ho" $! θ₁ with "Hoaleak").
-        rewrite !iLblSig_to_iLblThy_distr.
-        iApply (brel_introduction_mono (iLblSig_to_iLblThy θ₁ ++ iLblSig_to_iLblThy (θ gk1 gk2) ++ iLblSig_to_iLblThy θ__L)).
-        { iApply to_iThy_le_intro'; solve_submseteq. }
-        iApply "Ho". }
-      iDestruct (brel_introduction_mono _ ([([gk1],[gk2],GetKey gk1 gk2)] ++ (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy (sem_row_union θ₁ θ__L))) with "[][$Hf0]") as "Hf'".
-      { iApply to_iThy_le_intro'. apply submseteq_skip. by do 2 apply submseteq_cons. }
-      iApply (brel_exhaustion with "[$Hf']"); [done|done|].
-      iLöb as "IH".
-      iSplit; [iIntros (v1_ v2_) "!# (-> & ->)"; by brel_pures|].
-      iIntros (?????) "!# %Hk1 %Hk2 ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) #Hcont".
-      - brel_handle_os_l (gkl) as "Hgkl".
-        brel_handle_os_r (gkr) as "Hgkr".
-        brel_pures'. 
-        iApply (brel_na_inv _ _ (nroot.@"lc")); [set_solver|]. iFrame "Hlcinv".
-        iIntros "(>[(Hl1 & Hl2) | #(Hl1 & Hl2)] & Hclose)".
-        + brel_load_l. 
-          brel_load_r.
-          brel_pures'.
-          brel_store_l.
-          brel_store_r.
-          brel_pures'. 
-          iMod (ghost_map_elem_persist with "Hl1") as "#Hl1c".
-          iMod (ghost_map_elem_persist with "Hl2") as "#Hl2c".
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb Hgkl Hgkr"; [iNext; iRight; iFrame "#"|].
-          iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
-          iApply (brel_introduction' [send1] [send2]). { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iLeft. iExists A, A.
-          iSplitR "Hgkl Hgkr".
-          { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
-            - iModIntro. iLeft. iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". by iModIntro.
-            - iModIntro. iRight. iFrame "#". iApply "Hclose". iNext. by iRight. }
-          iSplit; first (do 2 (iSplit; try (iPureIntro; done))). 
-          iApply brel_value. iIntros "$ !>". brel_pures'.
-          iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
-          iApply (brel_introduction' [recv1] [recv2]). { apply elem_of_cons. right. apply list_elem_of_here. }
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. do 2 (iSplit; try (iPureIntro; done)). iSplit.
-          { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
-            brel_cont_l. brel_cont_r.
-            iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
-          iIntros (m) "Ha'". iDestruct (message_unique with "[$Hauthb] [$Ha']") as "<-".
-          iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hsome") as "Hkk".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
-        + brel_load_l. 
-          brel_load_r.
-          brel_pures'.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb Hgkr Hgkl"; [iNext; iRight; iFrame "#"|].
-          iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
-          iApply (brel_introduction' [send1] [send2]). { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iLeft. iExists A, A.
-          iSplitR "Hgkl Hgkr".
-          { iMod (inv_acc with "Hinvta") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
-            - iModIntro. iLeft. iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". by iModIntro.
-            - iModIntro. iRight. iFrame "#". iApply "Hclose". iNext. by iRight. }
-          iSplit; first (do 2 (iSplit; try (iPureIntro; done))).
-          iApply brel_value. iIntros "$ !>". brel_pures'.
-          iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
-          iApply (brel_introduction' [recv1] [recv2]). { apply elem_of_cons. right. apply list_elem_of_here. }
-          iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-          iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-          iRight. do 2 (iSplit; try (iPureIntro; done)). iSplit.
-          { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
-            brel_cont_l. brel_cont_r.
-            iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
-          iIntros (m) "Ha'". iDestruct (message_unique with "[$Hauthb] [$Ha']") as "<-".
-          iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hsome") as "Hkk".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
-      - brel_handle_os_l (gkl) as "Hgkl". 
-        brel_handle_os_r (gkr) as "Hgkr".
-        brel_pures'.
-        iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
-        iApply (brel_introduction' [recv1] [recv2]). { apply elem_of_cons. right. apply list_elem_of_here. }
-        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iLeft. do 2 (iSplit; try (iPureIntro; done)). iSplit.
-        { iApply brel_value. iIntros "$ !>". brel_pures'. iDestruct ("Hcont" with "Hnone") as "Hkk".
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
-        iIntros (m) "Ha'". iDestruct (message_unique with "[$Hautha] [$Ha']") as "<-".
-        iApply brel_value. iIntros "$ !>". brel_pures'.
-        iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
-        iApply (brel_introduction' [send1] [send2]). { apply elem_of_cons. right. apply elem_of_cons. right. apply list_elem_of_here. }
-        iExists _, _, [], [], _. do 2 (iSplit; [done|]; iSplit; [iPureIntro; apply _|]).
-        iSplitL; [|by iIntros "!>" (??) "H"; iApply "H"].
-        iRight. iExists B, B.
-        iSplitR "Hgkl Hgkr".
-        { iMod (inv_acc with "Hinvtb") as "([>Htok | >#Hfrac'] & Hclose)"; try done.
-          - iModIntro. iLeft. iIntros. iFrame. iMod ("Hclose" with "[$]") as "_". iFrame "#". by iModIntro.
-          - iModIntro. iRight. iFrame "#". iApply "Hclose". iNext. by iRight. }
-        iSplit; first (do 2 (iSplit; try (iPureIntro; done))). 
-        iApply brel_value. iIntros "$ !>". brel_pures'.
-        iApply (brel_na_inv _ _ (nroot.@"lc")); [set_solver|]. iFrame "Hlcinv".
-        iIntros "(>[(Hl1 & Hl2) | #(Hl1 & Hl2)] & Hclose)".
-        + brel_load_l.
-          brel_load_r.
-          brel_pures'. 
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb Hgkl Hgkr"; [iNext; iLeft; iFrame|].
-          iDestruct ("Hcont" with "Hnone") as "Hkk". 
-          brel_cont_l. brel_cont_r.
-          iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"].
-        + brel_load_l.
-          brel_load_r. 
-          brel_pures'.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hautha Hauthb Hgkl Hgkr"; [iNext; iRight; iFrame "#"|].
-          brel_cont_l. brel_cont_r.
-          iDestruct ("Hcont" with "Hsome") as "Hkk". iApply (brel_exhaustion _ _ [_] [_] with "[$Hkk]"); [done|done|iApply "IH"]. }
-    simpl. iIntros (u1 u2) "Hu".
-    iSpecialize ("Hu" $! θ2 with "Hchan").
-    rewrite !iLblSig_to_iLblThy_distr.
-    iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡θ2)%R ++ iLblSig_to_iLblThy θ₁ ++ iLblSig_to_iLblThy θ__L)).
-    { iApply to_iThy_le_intro'; solve_submseteq. }
-    iApply "Hu".
+    iApply func_comp_OS_typed; iApply sem_typed_val; [iApply F_AUTH_val_typed|iApply DH_SIM_val_typed].
   Qed.
+
+  Corollary F_AUTH_DH_SIM_typed : ⊢ sem_typed [] (F_AUTH ∘f DH_SIM) (F_AUTH ∘f DH_SIM) ⊥ (τ__FC aleak leakI) [].
+  Proof using All.
+    iApply sem_typed_sub.
+    - iApply env_le_refl.
+    - iApply env_le_refl.
+    - iApply row_le_refl.    
+    - iApply τFO_le_τFC.
+    - iApply F_AUTH_DH_SIM_FO_typed.
+  Qed. 
+
+  Section right_comp.
+    Import typed_hint_modes.
+
+    (* [F₁ ||ᵣ F₂] for two [τ__FO] functionalities: [F₁] is instantiated at
+     [¡θ1 ∪ θ] and [F₂] at [¡θh ∪ θ], where [θh] is [F₁]'s client row, so
+     that every row step is a permutation of union components. *)
+    Lemma right_comp_val_typed (τ1 τ1' τ2 τ2' : sem_row Σ → sem_ty Σ) :
+      ⊢ ⊨ᵥ right_composition ≤ right_composition :
+        (τ__FO τ2 τ2' ⊸ τ__FO τ1 τ1' ⊸ ∀ᵣ θ, τ__fu θ τ1' τ2' ⊸ τ__fu θ τ1 τ2)%T.
+    Proof.
+      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
+      iApply sem_typed_closure; first done.
+      iApply (sem_typed_oval _ [_]). iApplyT sem_oval_typed_afun.
+      iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
+      iApplyT sem_oval_typed_afun.
+      iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ1).
+      iApply sem_typed_RLam. iIntros (θ2).
+      iApplyT sem_oval_typed_afun. simpl.
+      iApplyT sem_typed_pair_elim; first typed_var.
+      iApplyT sem_typed_app_fun_nil.
+      2: typed_var.
+      2: { iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApply (sem_typed_oval _ [_; _; _])|].
+           2: { iApplyT sem_typed_sub_ty; last typed_var.
+                iApply ty_le_trans; first iApply (ty_le_row_forall_inst _ (sem_row_union (¡ θ1) θ)).
+                iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|iApply ty_le_row_forall_inst]. }
+           iApply sem_typed_RLam. iIntros (θh). iApplyT sem_oval_typed_afun. simpl.
+           iApplyT sem_typed_app_fun_nil.
+           2: typed_var.
+           2: { iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApply (sem_typed_oval _ [_; _])|].
+                2: { iApplyT sem_typed_sub_ty; last typed_var.
+                     iApply ty_le_trans; first iApply (ty_le_row_forall_inst _ (sem_row_union (¡ θh) θ)).
+                     iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|iApply ty_le_row_forall_inst]. }
+                iApply sem_typed_RLam. iIntros (θh2). iApplyT sem_oval_typed_afun. simpl.
+                (* The client call [f (h₂, h₁)]. *)
+                iApplyT sem_typed_app_fun_nil.
+                2: { iApply sem_typed_sub_nil. iApplyT sem_typed_pair; typed_var. }
+                2: { iApplyT sem_typed_sub_ty; last typed_var.
+                     iApply ty_le_trans; first iApply ty_le_row_forall_inst. iApply ty_le_row_forall_inst. }
+                iApply row_le_refl. }
+           row_le_submseteq. }
+      row_le_submseteq.
+      Unshelve. all: solve_typed_side.
+    Qed.
+
+  End right_comp.
+
+  Lemma F_KE_F_OAUTH_typed :
+    ⊢ sem_typed [] (F_KE_lazy_alice ||ᵣ F_OAUTH) (F_KE_lazy_alice ||ᵣ F_OAUTH) ⊥
+        (∀ᵣ θ, τ__fu θ chan gk ⊸ τ__fu θ oaleak leakI)%T [].
+  Proof using All.
+    iApply sem_typed_app_nil; last (iApply sem_typed_val; iApply F_OAUTH_val_typed).
+    iApply sem_typed_app_nil; last (iApply sem_typed_val; iApply F_KE_lazy_alice_val_typed).
+    iApply sem_typed_val. iApply right_comp_val_typed.
+  Qed.
+
+
+  (* [C_lazy], the DH-based key exchange, derived from the compatibility
+     lemmas.  Like F_OAUTH it holds the one-shot continuation across the
+     leak calls, so it is a [τ__FO] functionality. *)
+  Section c_lazy.
+    Import typed_hint_modes.
+    #[local] Existing Instance multi_ty_group.
+
+    Lemma C_lazy_val_typed :
+      ⊢ ⊨ᵥ C_lazy ≤ C_lazy : ((𝟙 ⊸ ((𝔾 × 𝔾) × 𝔾)) ⊸ τ__FO chan gk)%T.
+    Proof.
+      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
+      iApply sem_typed_closure; first done.
+      iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
+      iApplyT sem_oval_typed_afun.
+      iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ₂).
+      iApplyT sem_oval_typed_afun. simpl.
+      iApplyT sem_typed_pair_elim; first typed_var.
+      (* [let, ("ga", "gb", "gc") := "DH" #()]: bind the triple to "ga", copy
+       out "gb" and "gc", then consume it for "ga". *)
+      iApplyT sem_typed_let.
+      { iApplyT sem_typed_app_fun_nil; [iApply row_le_nil|iApplyT sem_typed_unit'|typed_var]. }
+      iApplyT sem_typed_let; first (iApplyT sem_typed_snd_gen; iApplyT sem_typed_fst_gen; typed_var_copy).
+      iApplyT sem_typed_let; first (iApplyT sem_typed_snd_gen; typed_var_copy).
+      iApplyT sem_typed_let; first (iApplyT sem_typed_fst_gen; iApplyT sem_typed_fst_gen; typed_var).
+      simpl.
+      iApplyT sem_typed_let.
+      { iApplyT sem_typed_alloc_cpy. iApplyT sem_typed_injl. iApplyT sem_typed_unit'. }
+      (* [store_if_none] captures copies of "lc" and "gc". *)
+      iApplyT sem_typed_let.
+      { iApplyT (sem_typed_sub_env _ ([("lc", _); ("gc", _)] ++ [("lc", _); ("ga", _); ("gc", _); ("gb", _); ("doSend", _); ("doRecv", _); ("f", _)])).
+        { simpl. env_solve. }
+        iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _]).
+        iApplyT sem_oval_typed_ufun. simpl.
+        iApplyT (sem_typed_match_split [] []).
+        - iApplyT sem_typed_load_cpy. typed_var_copy.
+        - iApply env_le_refl.
+        - iApplyT sem_typed_store_cpy_gen.
+          2: { iApplyT sem_typed_injr. typed_var_copy. }
+          typed_var_copy.
+        - iApply env_le_nil.
+        - iApply env_le_refl.
+        - iApplyT sem_typed_sub_env; first iApply env_le_weaken. iApplyT sem_typed_unit'.
+        - iApply env_le_nil. }
+      iApply sem_typed_effect_gen. iIntros (l1 l2). simpl.
+      iApplyT sem_typed_let.
+      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+        iApplyT sem_oval_typed_ufun.
+        iApply (sem_typed_do_const OS ⟨⟩%R (l1, l2) (𝟙 + 𝟙)%T (Option 𝔾)%T).
+        iApply sem_typed_sub_nil. iApply sem_typed_var. }
+      iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
+      iApplyT (sem_typed_sub_env _ ([("doGK", _); ("f", _)]
+                                      ++ [("store_if_none", _); ("doSend", _); ("doRecv", _); ("ga", _); ("gb", _); ("gc", _); ("lc", _)])).
+      { simpl. env_solve. }
+      iApplyT (sem_typed_deep_handler_OS (l1, l2) (λ _, 𝟙 + 𝟙)%T (λ _, Option 𝔾)%T).
+      - (* The client call [f doGK], at [¡θ₁ ∪ θ ≤ θ₁ ∪ θ]. *)
+        iApplyT sem_typed_app_fun_nil.
+        2: typed_var.
+        2: { iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst. }
+        iApply row_le_trans; first iApplyT row_le_union'.
+        + iApply row_le_mfbang_elim.
+        + iApply row_le_refl.
+        + row_le_submseteq.
+      - iIntros (?). simpl.
+        iApplyT (sem_typed_match_split [] []).
+        + typed_var.
+        + iApply env_le_refl.
+        + (* Alice. *)
+          iApplyT sem_typed_seq.
+          { iApplyT sem_typed_app_fun_nil; [iApply row_le_nil|iApplyT sem_typed_unit'|].
+            iApplyT sem_typed_sub_ty; [iApply ty_le_u2aarr|typed_var_copy]. }
+          iApplyT sem_typed_seq.
+          { iApplyT sem_typed_app_fun_nil; first row_le_submseteq.
+            - iApplyT sem_typed_pair; [iApply (sem_typed_party true)|typed_var_copy].
+            - typed_leak_fun. }
+          iApplyT sem_typed_let.
+          { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party true)|typed_leak_fun]. }
+          iApplyT (sem_typed_match_split [] []).
+          * typed_var.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injl; iApplyT sem_typed_unit'|typed_cont].
+          * iApply env_le_refl.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+            iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var_copy|typed_cont].
+          * iApply env_le_refl.
+        + iApply env_le_refl.
+        + iApply env_le_refl.
+        + (* Bob. *)
+          iApplyT sem_typed_let.
+          { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party false)|typed_leak_fun]. }
+          iApplyT (sem_typed_match_split [] []).
+          * typed_var.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injl; iApplyT sem_typed_unit'|typed_cont].
+          * iApply env_le_refl.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+            iApplyT sem_typed_seq.
+            { iApplyT sem_typed_app_fun_nil; first row_le_submseteq.
+              - iApplyT sem_typed_pair; [iApply (sem_typed_party false)|typed_var_copy].
+              - typed_leak_fun. }
+            iApplyT (sem_typed_match_split [] []).
+            -- iApplyT sem_typed_load_cpy. typed_var_copy.
+            -- iApply env_le_refl.
+            -- iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injl; iApplyT sem_typed_unit'|typed_cont].
+            -- iApply env_le_refl.
+            -- iApply env_le_refl.
+            -- iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+               iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var_copy|typed_cont].
+            -- iApply env_le_refl.
+          * iApply env_le_refl.
+        + iApply env_le_refl.
+      - typed_var.
+        Unshelve. all: solve_typed_side.
+    Qed.
+
+  End c_lazy.
+
+  Section real_chan.
+    Import typed_hint_modes.
+
+    Lemma REAL_CHAN_DH_RED_unfolded_typed :
+      ⊢ sem_typed ((BNamed "DH", (𝟙 ⊸ (sem_ty_group × sem_ty_group) × sem_ty_group)) ::? []) (((F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) ||ᵣ F_OAUTH) ∘f CHAN)%E (((F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) ||ᵣ F_OAUTH) ∘f CHAN)%E  ⊥ τ [].
+    Proof using All.
+      (* [G ∘f CHAN] with [G := (F_AUTH ∘f C) ||ᵣ F_OAUTH]; arguments first. *)
+      iApplyT sem_typed_app_nil; last first.
+      { iApply (sem_typed_frame_env_gen _ [_]). iApply CHAN_typed. }
+      iApplyT sem_typed_app_nil; last first.
+      - iApplyT sem_typed_app_nil; last first.
+        { iApply (sem_typed_frame_env_gen _ [_]). iApply sem_typed_val. iApply F_OAUTH_val_typed. }
+        iApplyT sem_typed_app_nil; last first.
+        + (* [F_AUTH ∘f C], with [C := λ: "f", C_lazy "DH" "f"]. *)
+          iApplyT sem_typed_app_nil; last first.
+          * iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
+            iApplyT sem_oval_typed_afun. simpl.
+            iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|typed_var|].
+            iApplyT sem_typed_sub_ty; last first.
+            { iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|typed_var|].
+              iApply sem_typed_val. iApply C_lazy_val_typed. }
+            iApply ty_le_row_forall_inst.
+          * iApplyT sem_typed_app_nil; last (iApply sem_typed_val; iApply F_AUTH_val_typed).
+            iApply sem_typed_val. iApply func_comp_val_typed.
+        + iApply sem_typed_val. iApply right_comp_val_typed.
+      - iApply sem_typed_val. iApply func_comp_val_typed.
+        Unshelve. all: solve_typed_side.
+    Qed.
+
+    Lemma REAL_CHAN_DH_RED_sem_typed :
+      ⊢ sem_typed [] REAL_CHAN_DH_RED REAL_CHAN_DH_RED ⊥ ((𝟙 ⊸ (sem_ty_group × sem_ty_group) × sem_ty_group) → τ)%T [].
+    Proof using All.
+      iApply (sem_typed_oval _ [] []). iApplyT sem_oval_typed_ufun.
+      iApply REAL_CHAN_DH_RED_unfolded_typed.
+      Unshelve. all: solve_typed_side.
+    Qed.
+
+  End real_chan.
+  
+
+  
+
 
 End new_comp_verification.

@@ -8,6 +8,7 @@ From iris.base_logic.lib Require Import iprop invariants.
 
 (* Local imports *)
 From clutch.prob_eff_lang.probblaze Require Import notation class_instances proofmode  mode sem_def sem_sig sem_types sem_row sem_env logic sem_judgement sem_operators pure_weakestpre tactics.
+From clutch.prob_eff_lang.probblaze Require Import primitive_laws coupling_rules.
 
 
 Open Scope stdpp_scope.
@@ -741,7 +742,291 @@ Section compatibility.
       { iFrame. rewrite lookup_insert_ne; last done. by rewrite lookup_insert_eq. }
       rewrite env_sem_typed_cons. iSplitL "Hκ"; last by do 2 (rewrite -env_sem_typed_insert; last done).
       iExists _, _. iFrame. iPureIntro. apply lookup_insert_eq.
-    - iIntros "!# % % ($ & HΓ3)". by do 2 (rewrite -env_sem_typed_insert; last done). 
+    - iIntros "!# % % ($ & HΓ3)". by do 2 (rewrite -env_sem_typed_insert; last done).
+  Qed.
+
+  Lemma sem_typed_let τ κ ρ Γ1 Γ2 Γ3 (x : binder) e1 e2 e1' e2' :
+    x ∉ (env_dom Γ2) → x ∉ (env_dom Γ3) →
+    ⊢ sem_typed Γ1 e1 e2 ρ τ Γ2 -∗
+    sem_typed ((x, τ) ::? Γ2) e1' e2' ρ κ Γ3 -∗
+    sem_typed Γ1 (let: x := e1 in e1') (let: x := e2 in e2') ρ κ Γ3.
+  Proof.
+    iIntros (??) "#He #He' !# %γ HΓ1 //=".
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (Hτ & HΓ2) //=".
+    brel_pures_l. brel_pures_r.
+    rewrite -!subst_map_binder_insert.
+    assert (v1 = fst (v1, v2) ∧ v2 = snd (v1, v2)) as (-> & ->) by done.
+    rewrite -!binder_insert_fmap /=.
+    iApply (brel_wand with "[Hτ HΓ2]"); first iApply "He'".
+    - destruct x; solve_env.
+    - iIntros "!# % % ($ & HΓ3)". destruct x; [done|]. by rewrite -env_sem_typed_insert.
+  Qed.
+
+  (* Case rule with shadowing, per branch.  A branch binder may shadow
+     variables of the scrutinee's output context [Γ2]: each branch picks a
+     frame [Γsx]/[Γsy] that is set aside around it (hence [ρ ᵣ⪯ₑ Γs*]) and
+     returned unchanged, and a branch context [Γ2x]/[Γ2y] avoiding its
+     binder.  The splits are given up to [≤ₑ], so a branch may also drop or
+     reorder entries; a variable shadowed in one branch can still be used
+     in the other.  Also covers [match: e with NONE => e1 | SOME x => e2 end]
+     (with [x := BAnon]).  The frames come first and the premises are in
+     data-flow order, so that [iApply (sem_typed_match_split Γsx Γsy)]
+     leaves every other context to be fixed by the subproofs. *)
+  Lemma sem_typed_match_split Γsx Γsy τ1 τ2 τ ρ Γ1 Γ2 Γ2x Γ3x Γ2y Γ3y Γ3 (x y : binder) e0 e0' e1 e1' e2 e2' `{! ρ ᵣ⪯ₑ Γsx } `{! ρ ᵣ⪯ₑ Γsy } :
+    x ∉ (env_dom Γ2x) → x ∉ (env_dom Γ3x) →
+    y ∉ (env_dom Γ2y) → y ∉ (env_dom Γ3y) →
+    ⊢ sem_typed Γ1 e0 e0' ρ (τ1 + τ2) Γ2 -∗
+    Γ2 ≤ₑ Γsx ++ Γ2x -∗ sem_typed ((x, τ1) ::? Γ2x) e1 e1' ρ τ Γ3x -∗ Γsx ++ Γ3x ≤ₑ Γ3 -∗
+    Γ2 ≤ₑ Γsy ++ Γ2y -∗ sem_typed ((y, τ2) ::? Γ2y) e2 e2' ρ τ Γ3y -∗ Γsy ++ Γ3y ≤ₑ Γ3 -∗
+    sem_typed Γ1
+      (match: e0 with InjL x => e1 | InjR y => e2 end)
+      (match: e0' with InjL x => e1' | InjR y => e2' end) ρ τ Γ3.
+  Proof.
+    iIntros (????) "#He0 #Hx2 #He1 #Hx3 #Hy2 #He2 #Hy3 !# %γ HΓ1 //=".
+    iApply (brel_bind [CaseCtx _ _] [CaseCtx _ _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He0".
+    iIntros "!# % % ((% & % & [(-> & -> & Hτ)|(-> & -> & Hτ)]) & HΓ2) //=".
+    - iDestruct ("Hx2" with "HΓ2") as "HΓsΓ2".
+      iDestruct (env_sem_typed_app with "HΓsΓ2") as "[HΓs HΓ2]".
+      brel_pures_l; brel_pures_r.
+      rewrite -!subst_map_binder_insert.
+      iApply (brel_wand _ _ _ (λ v1 v2, (τ v1 v2 ∗ Γ3x ⊨ₑ γ) ∗ Γsx ⊨ₑ γ) with "[HΓs HΓ2 Hτ]").
+      2:{ iIntros "!# % % ((Hτ & HΓ3) & HΓs)". iFrame. iApply "Hx3". iApply env_sem_typed_app. iFrame. }
+      iApply (brel_mono_on_prop with "[][HΓs]"); [iApply row_env_sub|iFrame|].
+      assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (-> & ->) by done.
+      rewrite -!binder_insert_fmap /=.
+      iApply (brel_wand with "[Hτ HΓ2]"); first iApply "He1".
+      + destruct x; solve_env.
+      + iIntros "!# % % ($ & HΓ3)". destruct x; [done|]. by rewrite -env_sem_typed_insert.
+    - iDestruct ("Hy2" with "HΓ2") as "HΓsΓ2".
+      iDestruct (env_sem_typed_app with "HΓsΓ2") as "[HΓs HΓ2]".
+      brel_pures_l; brel_pures_r.
+      rewrite -!subst_map_binder_insert.
+      iApply (brel_wand _ _ _ (λ v1 v2, (τ v1 v2 ∗ Γ3y ⊨ₑ γ) ∗ Γsy ⊨ₑ γ) with "[HΓs HΓ2 Hτ]").
+      2:{ iIntros "!# % % ((Hτ & HΓ3) & HΓs)". iFrame. iApply "Hy3". iApply env_sem_typed_app. iFrame. }
+      iApply (brel_mono_on_prop with "[][HΓs]"); [iApply row_env_sub|iFrame|].
+      assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (-> & ->) by done.
+      rewrite -!binder_insert_fmap /=.
+      iApply (brel_wand with "[Hτ HΓ2]"); first iApply "He2".
+      + destruct y; solve_env.
+      + iIntros "!# % % ($ & HΓ3)". destruct y; [done|]. by rewrite -env_sem_typed_insert.
+  Qed.
+
+  (* Both branches share the frame [Γs] and the branch context [Γ2]. *)
+  Corollary sem_typed_match_gen τ1 τ2 τ ρ Γ1 Γs Γ2 Γ3 (x y : binder) e0 e0' e1 e1' e2 e2' `{! ρ ᵣ⪯ₑ Γs } :
+    x ∉ (env_dom Γ2) → x ∉ (env_dom Γ3) →
+    y ∉ (env_dom Γ2) → y ∉ (env_dom Γ3) →
+    ⊢ sem_typed Γ1 e0 e0' ρ (τ1 + τ2) (Γs ++ Γ2) -∗
+    sem_typed ((x, τ1) ::? Γ2) e1 e1' ρ τ Γ3 -∗
+    sem_typed ((y, τ2) ::? Γ2) e2 e2' ρ τ Γ3 -∗
+    sem_typed Γ1
+      (match: e0 with InjL x => e1 | InjR y => e2 end)
+      (match: e0' with InjL x => e1' | InjR y => e2' end) ρ τ (Γs ++ Γ3).
+  Proof.
+    iIntros (????) "#He0 #He1 #He2".
+    iApply (sem_typed_match_split Γs Γs with "He0 [] He1 [] [] He2 []");
+      try done; iApply env_le_refl.
+  Qed.
+
+  Corollary sem_typed_match τ1 τ2 τ ρ Γ1 Γ2 Γ3 (x y : binder) e0 e0' e1 e1' e2 e2' :
+    x ∉ (env_dom Γ2) → x ∉ (env_dom Γ3) →
+    y ∉ (env_dom Γ2) → y ∉ (env_dom Γ3) →
+    ⊢ sem_typed Γ1 e0 e0' ρ (τ1 + τ2) Γ2 -∗
+    sem_typed ((x, τ1) ::? Γ2) e1 e1' ρ τ Γ3 -∗
+    sem_typed ((y, τ2) ::? Γ2) e2 e2' ρ τ Γ3 -∗
+    sem_typed Γ1
+      (match: e0 with InjL x => e1 | InjR y => e2 end)
+      (match: e0' with InjL x => e1' | InjR y => e2' end) ρ τ Γ3.
+  Proof. iIntros (????). iApply (sem_typed_match_gen _ _ _ _ _ []); done. Qed.
+
+  (* Variable rules for an entry at any position [n]; the copy variant
+     keeps a [MultiT] entry in the context. *)
+  Lemma sem_typed_var_at (Γ : env Σ) n x τ ρ :
+    nth_error Γ n = Some (x, τ) →
+    ⊢ sem_typed Γ x x ρ τ (list.list_delete n Γ).
+  Proof.
+    iIntros (Hn). iApply sem_typed_sub_env; first by iApply env_le_bring_forth.
+    iApply sem_typed_sub_nil. iApply sem_typed_var.
+  Qed.
+
+  Lemma sem_typed_var_copy_at (Γ : env Σ) n x τ ρ `{! MultiT τ} :
+    nth_error Γ n = Some (x, τ) →
+    ⊢ sem_typed Γ x x ρ τ Γ.
+  Proof.
+    iIntros (Hn). iApply sem_typed_sub_env_final; first by iApply env_le_bring_forth_rev.
+    iApply sem_typed_sub_env.
+    { iApply env_le_trans; [by iApply env_le_bring_forth|by iApply env_le_contraction]. }
+    iApply sem_typed_sub_nil. iApply sem_typed_var.
+  Qed.
+
+  Lemma sem_typed_injl (τ κ : sem_ty Σ) ρ Γ1 Γ2 e e' :
+    ⊢ sem_typed Γ1 e e' ρ τ Γ2 -∗ sem_typed Γ1 (InjL e) (InjL e') ρ (τ + κ) Γ2.
+  Proof.
+    iIntros "#He !# %γ HΓ1 //=".
+    iApply (brel_bind [InjLCtx] [InjLCtx]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (Hτ & HΓ2) //=".
+    brel_pures_l. brel_pures_r.
+    iFrame. iExists _,_. iLeft. by iFrame.
+  Qed.
+
+  Lemma sem_typed_injr (τ κ : sem_ty Σ) ρ Γ1 Γ2 e e' :
+    ⊢ sem_typed Γ1 e e' ρ κ Γ2 -∗ sem_typed Γ1 (InjR e) (InjR e') ρ (τ + κ) Γ2.
+  Proof.
+    iIntros "#He !# %γ HΓ1 //=".
+    iApply (brel_bind [InjRCtx] [InjRCtx]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (Hκ & HΓ2) //=".
+    brel_pures_l. brel_pures_r.
+    iFrame. iExists _,_. iRight. by iFrame.
+  Qed.
+
+  (* Pairs evaluate right to left, so the right component's value must
+     survive the left one's effects ([ρ ᵣ⪯ₜ κ]). *)
+  Lemma sem_typed_pair (τ κ : sem_ty Σ) ρ Γ1 Γ2 Γ3 e1 e1' e2 e2' `{! ρ ᵣ⪯ₜ κ } :
+    ⊢ sem_typed Γ1 e2 e2' ρ κ Γ2 -∗ sem_typed Γ2 e1 e1' ρ τ Γ3 -∗
+      sem_typed Γ1 (e1, e2) (e1', e2') ρ (τ × κ) Γ3.
+  Proof.
+    iIntros "#He2 #He1 !# %γ HΓ1 //=".
+    iApply (brel_bind [PairRCtx _] [PairRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He2".
+    iIntros "!# % % (Hκ & HΓ2) //=".
+    iApply (brel_bind [PairLCtx _] [PairLCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[Hκ HΓ2]").
+    { iApply (brel_mono_on_prop with "[][Hκ]"); [iApply row_type_sub|iApply "Hκ"|]. by iApply "He1". }
+    iIntros "!# % % ((Hτ & HΓ3) & Hκ) //=".
+    brel_pures_l. brel_pures_r.
+    iFrame. by iModIntro.
+  Qed.
+
+  (* App rule for a function position typed at the empty row (a variable
+     or a value); the context left after the call only has to be
+     preserved by the callee's row [ρ''].  Premises in evaluation order:
+     argument, then function. *)
+  Corollary sem_typed_app_fun_nil (τ κ : sem_ty Σ) ρ ρ'' Γ1 Γ2 Γ3 e1 e2 e1' e2' `{! ρ'' ᵣ⪯ₑ Γ3 } :
+    ⊢ ρ'' ≤ᵣ ρ -∗
+    sem_typed Γ1 e1' e2' ρ τ Γ2 -∗
+    sem_typed Γ2 e1 e2 ⟨⟩ (τ -{ ρ'' }-∘ κ) Γ3 -∗
+    sem_typed Γ1 (e1 e1') (e2 e2') ρ κ Γ3.
+  Proof.
+    iIntros "#Hρ #He2 #He1".
+    iApply (sem_typed_app_gen τ ⟨⟩%R ρ ρ'' with "[] Hρ He1 He2"). iApply row_le_nil.
+  Qed.
+
+  Lemma sem_typed_fst_gen (τ κ : sem_ty Σ) ρ Γ1 Γ2 e e' :
+    ⊢ sem_typed Γ1 e e' ρ (τ × κ) Γ2 -∗ sem_typed Γ1 (Fst e) (Fst e') ρ τ Γ2.
+  Proof.
+    iIntros "#He !# %γ HΓ1 //=".
+    iApply (brel_bind [FstCtx] [FstCtx]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % ((% & % & % & % & -> & -> & Hτ & _) & HΓ2) //=".
+    brel_pures_l. brel_pures_r. iFrame. by iModIntro.
+  Qed.
+
+  Lemma sem_typed_snd_gen (τ κ : sem_ty Σ) ρ Γ1 Γ2 e e' :
+    ⊢ sem_typed Γ1 e e' ρ (τ × κ) Γ2 -∗ sem_typed Γ1 (Snd e) (Snd e') ρ κ Γ2.
+  Proof.
+    iIntros "#He !# %γ HΓ1 //=".
+    iApply (brel_bind [SndCtx] [SndCtx]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % ((% & % & % & % & -> & -> & _ & Hκ) & HΓ2) //=".
+    brel_pures_l. brel_pures_r. iFrame. by iModIntro.
+  Qed.
+
+  (* A multi-shot function at row [ρ] can be used once at the once-row [¡ρ]. *)
+  Lemma ty_le_uarr_mfbang (τ κ : sem_ty Σ) ρ :
+    ⊢ (τ -{ ρ }-> κ) ≤ₜ (τ -{ ¡ ρ }-∘ κ).
+  Proof.
+    iApply ty_le_trans; [iApply ty_le_u2aarr|].
+    iApply ty_le_arr; [iApply row_le_mfbang_intro|iApply ty_le_refl|iApply ty_le_refl].
+  Qed.
+
+  (* Tapes: both tapes are empty and have the same bound ([sem_ty_tape]);
+     drawing from them couples the two samples with the identity. *)
+  Global Instance multi_ty_nat : @MultiT Σ ℕ.
+  Proof.
+    constructor. iIntros "!#" (v1 v2) "(%n & -> & ->)".
+    rewrite /sem_ty_mbang /=. iModIntro. by iExists n.
+  Qed.
+
+  Global Instance multi_ty_tape : MultiT sem_ty_tape.
+  Proof.
+    constructor. iIntros "!#" (v1 v2) "#H".
+    rewrite /sem_ty_mbang /=. by iModIntro.
+  Qed.
+
+  Lemma sem_typed_alloctape Γ1 Γ2 ρ e1 e2 :
+    ⊢ sem_typed Γ1 e1 e2 ρ ℤ Γ2 -∗
+      sem_typed Γ1 (alloc e1) (alloc e2) ρ sem_ty_tape Γ2.
+  Proof.
+    iIntros "#He !# %γ HΓ1 //=".
+    iApply (brel_bind [AllocTapeCtx] [AllocTapeCtx]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % ((%z & -> & ->) & HΓ2) //=".
+    iApply (brel_alloctape_l _ (Z.to_nat z)). iIntros "!> %α1 Hα1".
+    iApply (brel_alloctape_r _ (Z.to_nat z)). iIntros "%α2 Hα2".
+    iDestruct (tapeN_to_empty with "Hα1") as "Hα1".
+    iMod (inv_alloc (logN.@(α1,α2)) _
+            (α1 ↪ (Z.to_nat z; []) ∗ α2 ↪ₛ (Z.to_nat z; []))%I with "[Hα1 Hα2]") as "#Hinv".
+    { iFrame. }
+    iApply brel_value. iIntros. iFrame.
+    iExists α1, α2, (Z.to_nat z). by iFrame "Hinv".
+  Qed.
+
+  Lemma sem_typed_rand Γ1 Γ2 Γ3 ρ e1 e2 e1' e2' :
+    ⊢ sem_typed Γ1 e2 e2' ρ sem_ty_tape Γ2 -∗ sem_typed Γ2 e1 e1' ρ ℤ Γ3 -∗
+      sem_typed Γ1 (rand(e2) e1) (rand(e2') e1') ρ ℕ Γ3.
+  Proof.
+    iIntros "#He2 #He1 !# %γ HΓ1 //=".
+    iApply (brel_bind [RandRCtx _] [RandRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He2".
+    iIntros "!# % % ((%α1 & %α2 & %N & -> & -> & #Hinv) & HΓ2) //=".
+    iApply (brel_bind [RandLCtx _] [RandLCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ2]"); first by iApply "He1".
+    iIntros "!# % % ((%z & -> & ->) & HΓ3) //=".
+    iApply (brel_atomic_l _ []).
+    iIntros (K') "Hj".
+    iMod (inv_acc _ (logN.@(α1,α2)) with "Hinv") as "[(>Hα1 & >Hα2) Hclose]"; first done.
+    iModIntro.
+    iApply (wp_couple_rand_lbl_rand_lbl _ (λ n : nat, n) with "[$Hα1 $Hα2 $Hj]"); [done|].
+    iIntros (n) "!> (Hα1 & Hα2 & Hj & %Hlt)".
+    iMod ("Hclose" with "[$Hα1 $Hα2]") as "_".
+    iModIntro. iExists _. iFrame.
+    iApply brel_value. iIntros. iFrame.
+    iExists n. iModIntro. by iSplit.
+  Qed.
+
+  Lemma sem_typed_none (τ : sem_ty Σ) Γ ρ :
+    ⊢ sem_typed Γ NONEV NONEV ρ (Option τ) Γ.
+  Proof.
+    iApply sem_typed_sub_nil. iApply sem_typed_val.
+    iIntros "!>". iExists _, _. iLeft. done.
+  Qed.
+
+  Lemma ty_le_row_forall_inst (C : sem_row Σ → sem_ty Σ) ρ :
+    ⊢ (∀ᵣ θ, C θ) ≤ₜ C ρ.
+  Proof. iIntros "!#" (v1 v2) "H". iApply "H". Qed.
+
+  (* Building a context head-first: take [(x,τ)] from position [n] of [Γ],
+     consuming it, or (for a [MultiT] entry) copying it. *)
+  Lemma env_le_pick (Γ Γ' : env Σ) n x τ :
+    nth_error Γ n = Some (x, τ) →
+    ⊢ list.list_delete n Γ ≤ₑ Γ' -∗ Γ ≤ₑ (x, τ) :: Γ'.
+  Proof.
+    iIntros (Hn) "#H". iApply env_le_trans; first by iApply env_le_bring_forth.
+    iApply (env_le_cons with "H"). iApply ty_le_refl.
+  Qed.
+
+  Lemma env_le_pick_copy (Γ Γ' : env Σ) n x τ `{! MultiT τ} :
+    nth_error Γ n = Some (x, τ) →
+    ⊢ Γ ≤ₑ Γ' -∗ Γ ≤ₑ (x, τ) :: Γ'.
+  Proof.
+    iIntros (Hn) "#H". iApply env_le_trans; first by iApply env_le_bring_forth.
+    iApply env_le_trans; first by iApply env_le_contraction.
+    iApply env_le_cons; last iApply ty_le_refl.
+    iApply env_le_trans; last iApply "H". by iApply env_le_bring_forth_rev.
   Qed.
 
   Lemma bin_op_copy_types (τ κ ι : sem_ty Σ) op :
@@ -1118,6 +1403,12 @@ Section compatibility.
     iApply brel_value.
     iIntros. by iFrame.
   Qed.
+
+  (* [sem_typed_do] for a signature that does not quantify over a type. *)
+  Corollary sem_typed_do_const m ρ' op (A B : sem_ty Σ) Γ1 Γ2 e1 e2 `{ m ₘ⪯ₑ Γ2 } :
+    ⊢ sem_typed Γ1 e1 e2 ((⟨op.1, op.2⟩ : A =[ m ]=> B)%S · ρ') A Γ2 -∗
+      sem_typed Γ1 (do: op.1 e1) (do: op.2 e2) ((⟨op.1, op.2⟩ : A =[ m ]=> B)%S · ρ') B Γ2.
+  Proof. iApply (sem_typed_do m ⊤ ρ' op (λ _, A) (λ _, B)). Qed.
 
   Lemma sem_typed_shallow_handler_MS op (A B : sem_ty Σ → sem_ty Σ) m τ τ' (σ' : sem_sig Σ) ρ'' Γ1 Γ2 Γ3 (x y k : binder) e1 e2 h1 h2 r1 r2 `{!MultiE Γ3} :
     (match x with BNamed s => s ∉ env_dom Γ2 | BAnon => True end) →
@@ -2202,3 +2493,85 @@ Section compatibility.
 End compatibility.
 
     
+
+(* ------------------------------------------------------------------ *)
+(* Tactics for deriving [sem_typed] judgements from the lemmas above.  *)
+(*                                                                      *)
+(* They are meant to be used with the hint modes of [typed_hint_modes]  *)
+(* active ([Import typed_hint_modes.] inside a section scopes them to   *)
+(* that section), so that instance search never instantiates an open    *)
+(* type, row or context: without them, [ρ ᵣ⪯ₜ ?τ] can be solved by       *)
+(* picking any [MultiT] type, [ρ ᵣ⪯ₑ ?Γ] by [?Γ := []], and [OnceR ?ρ]    *)
+(* search diverges.  The modes are not global because other             *)
+(* developments rely on the eager behaviour.                            *)
+(* ------------------------------------------------------------------ *)
+
+Module typed_hint_modes.
+  #[export] Hint Mode MultiT - ! : typeclass_instances.
+  #[export] Hint Mode RowTypeSub - ! ! : typeclass_instances.
+  #[export] Hint Mode RowEnvSub - ! ! : typeclass_instances.
+  #[export] Hint Mode OnceR - - ! : typeclass_instances.
+  #[export] Hint Mode OnceS - ! : typeclass_instances.
+End typed_hint_modes.
+
+(* Binder side conditions [x ∉ env_dom Γ], also for [x : binder].  Once
+   [env_dom] is computed the goal only mentions strings; the context is
+   cleared first because [set_solver] generalizes over all hypotheses, which
+   would make the proof depend on unrelated section variables. *)
+Ltac solve_env_dom :=
+  rewrite ?env_dom_cons ?env_dom_app ?env_dom_nil;
+  try lazymatch goal with |- ¬ @elem_of binder _ _ _ _ => unfold elem_of at 1, elem_binder_string end;
+  repeat match goal with H : _ |- _ => clear H end;
+  set_solver.
+
+(* [iApplyT lem] applies [lem] and shelves its non-proofmode premises
+   (binder side conditions, instances); after the derivation has fixed
+   all contexts and types, [Unshelve. all: solve_typed_side.] closes them. *)
+Ltac shelve_typed_side :=
+  lazymatch goal with
+  | |- environments.envs_entails _ _ => fail
+  | |- _ => shelve
+  end.
+Tactic Notation "iApplyT" open_constr(lem) := iApply lem; try shelve_typed_side.
+Ltac solve_typed_side := first [ apply _ | solve_env_dom | done ].
+
+(* Premises of the position-indexed lemmas: shelve the instance, compute
+   the lookup. *)
+Ltac typed_pick_side :=
+  lazymatch goal with
+  | |- MultiT _ => shelve | |- nth_error _ _ = _ => done | |- _ => idtac
+  end.
+Ltac typed_try_positions lem :=
+  first [ iApply (lem 0%nat); typed_pick_side | iApply (lem 1%nat); typed_pick_side
+        | iApply (lem 2%nat); typed_pick_side | iApply (lem 3%nat); typed_pick_side
+        | iApply (lem 4%nat); typed_pick_side | iApply (lem 5%nat); typed_pick_side
+        | iApply (lem 6%nat); typed_pick_side | iApply (lem 7%nat); typed_pick_side ];
+  simpl.
+
+(* Variable rules, finding the variable in the context: [typed_var]
+   consumes the entry, [typed_var_copy] keeps it ([MultiT]). *)
+Ltac typed_var := typed_try_positions uconstr:(sem_typed_var_at _).
+Ltac typed_var_copy := typed_try_positions uconstr:(sem_typed_var_copy_at _).
+
+(* A row inclusion that is a sub-multiset of row components. *)
+Ltac row_le_submseteq :=
+  iApply to_iThy_le_intro'; simpl; rewrite ?iLblSig_to_iLblThy_app; solve_submseteq.
+
+(* Function position: a multi-shot function copied from the context and used
+   once at the flipped row ([typed_leak_fun]), or a one-shot continuation
+   consumed from the context ([typed_cont]). *)
+Ltac typed_leak_fun :=
+  iApplyT sem_typed_sub_ty; [iApply ty_le_uarr_mfbang|typed_var_copy].
+Ltac typed_cont := iApplyT sem_typed_sub_ty; [iApply ty_le_mbang_elim|typed_var].
+
+(* [Γ ≤ₑ Γ'] for a concrete [Γ']: build [Γ'] entry by entry from [Γ],
+   consuming entries, or copying [MultiT] ones when they are needed again. *)
+Ltac env_pick := typed_try_positions uconstr:(env_le_pick _ _).
+Ltac env_pick_copy := typed_try_positions uconstr:(env_le_pick_copy _ _).
+Ltac env_solve :=
+  simpl;
+  lazymatch goal with
+  | |- environments.envs_entails _ (_ ≤ₑ []) => iApply env_le_nil
+  | |- environments.envs_entails _ (_ ≤ₑ _ :: _) =>
+      first [ env_pick; env_solve | env_pick_copy; env_solve ]
+  end.
