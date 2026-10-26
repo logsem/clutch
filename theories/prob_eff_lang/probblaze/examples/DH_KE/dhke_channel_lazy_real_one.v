@@ -34,7 +34,7 @@ Section handlee_verification.
     token γtokb -∗
     empty_message γautha -∗
     empty_message γauthb -∗
-    (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T f1 f2 -∗
+    (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) L }-∘ 𝟙)%T f1 f2 -∗
 
     BREL DH_KE f1 ≤ C_DH_real_val f2 <|⊥|> {{ λ v1 v2, 
                                                  ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
@@ -116,7 +116,7 @@ Section handlee_verification.
     iApply (brel_add_label_r with "Hgk2").
     
     (* extend the clients row to match the row of DHKE *)
-    iDestruct (brel_introduction_mono _ ([([gk1],[gk2],GetKey gk1 gk2)] ++ (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L)) with "[][$Hff]") as "Hf".
+    iDestruct (brel_introduction_mono _ ((iLblSig_to_iLblThy (¡ (θ gk1 gk2))%R) ++ (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L)) with "[][$Hff]") as "Hf".
     { iApply to_iThy_le_intro'. solve_submseteq. }
 
     (* clients either return 𝟙 or raises getKey alice/bob *)
@@ -130,7 +130,7 @@ Section handlee_verification.
     iSplit; [by iIntros (v1 v2) "!# (-> & ->)"; brel_pures'|].
 
     (* client raises getKey alice or getKey bob *)
-    iIntros (?????) "!# %Hk1 %Hk2 ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) #Hcont".
+    iIntros (?????) "!# %Hk1 %Hk2 (%Q' & ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) & HQ'Q) #Hcont".
     
     (* getKey Alice *)
     - brel_handle_os_l (gkl) as "Hgkl".
@@ -169,7 +169,8 @@ Section handlee_verification.
       + iApply brel_value. iIntros "$ !>"...
         brel_cont_l. 
         brel_cont_r.
-        iDestruct ("Hcont" with "Hnone") as "Hkk".
+        iDestruct ("HQ'Q" with "Hnone") as "HQ".
+        iDestruct ("Hcont" with "HQ") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [done|done|].
         iApply "IH".
         
@@ -179,7 +180,8 @@ Section handlee_verification.
         iApply brel_value. iIntros "$ !>"...
         brel_cont_l. brel_cont_r.
         rewrite -expgM -ssrnat.multE -Nat.mul_comm.
-        iDestruct ("Hcont" with "Hsome") as "Hkk".
+        iDestruct ("HQ'Q" with "Hsome") as "HQ".
+        iDestruct ("Hcont" with "HQ") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [done|done|].
         iApply "IH". 
    
@@ -202,7 +204,8 @@ Section handlee_verification.
       { iApply brel_value. iIntros "$ !>"...
         brel_cont_l.
         brel_cont_r.
-        iDestruct ("Hcont" with "Hnone") as "Hkk".
+        iDestruct ("HQ'Q" with "Hnone") as "HQ".
+        iDestruct ("Hcont" with "HQ") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [done|done|].
         iApply "IH". }
       
@@ -245,7 +248,8 @@ Section handlee_verification.
       brel_load_r...
       brel_cont_l.
       brel_cont_r.
-      iDestruct ("Hcont" with "Hsome") as "Hkk". 
+        iDestruct ("HQ'Q" with "Hsome") as "HQ".
+      iDestruct ("Hcont" with "HQ") as "Hkk". 
       apply Nat2Z.inj in Ha as ->.
       iApply (brel_exhaustion with "[$]"); [done|done|subst].
       iApply "IH". 

@@ -19,7 +19,7 @@ Section adv_dhke.
   
   Definition T_DH : type :=
     (∀R:
-       ((∀R: (((() + ()) -{ RVar 0%nat }-> (() + τG)) -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()))
+       ((∀R: (((() + ()) -{ RVar 0%nat }-> (() + τG)) -{ (RFlip OS (RVar 0%nat)) ∪ᵣ RVar 1%nat }-∘ ()))
         -∘
         (∀R: ((((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + TNat))) -{ (RFlip OS (RVar 0%nat)) ∪ᵣ RVar 1%nat }-∘ ()))))%ty.
 
@@ -54,7 +54,7 @@ Section adv_dhke.
   Lemma adv_DHKE_DH_real  A :
     (∀ `{!probblazeRGS Σ}, 
        ⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
-    nonneg (advantage A (F_AUTH ∘f DH_KE) ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%V DH_real) #true) = 0%R.
+    nonneg (advantage A (F_AUTH ∘f DH_KE) ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_real) #true) = 0%R.
   Proof using All.
     intros HA. eapply sem_typed_advantage; first apply HA. split.
     - intros Hrgs. apply DHKE_RED. 
@@ -63,7 +63,7 @@ Section adv_dhke.
 
   Lemma adv_DH_rand_FKE  A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
-    nonneg (advantage A ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%V DH_rand) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice))  #true) = 0%R.
+    nonneg (advantage A ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_rand) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice))  #true) = 0%R.
   Proof using All.
     intros HA. eapply sem_typed_advantage; first apply HA. split.
     - intros Hrgs. apply RED_DHSIM. 
@@ -72,7 +72,7 @@ Section adv_dhke.
 
   Theorem adv_DHKE A (ε : R) :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
-    advantage A ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%V DH_real) ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%V DH_rand) #true <= ε →
+    advantage A ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) DH_real) ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) DH_rand) #true <= ε →
     advantage A (F_AUTH ∘f DH_KE) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) #true <= ε.
   Proof using All.
     intros HA HAadv.
@@ -88,7 +88,7 @@ Section adv_dhke.
   Corollary adv_DHKE_no_epsilon  A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
     advantage A (F_AUTH ∘f DH_KE) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) #true 
-    <= advantage A ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%V DH_real) ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%V DH_rand) #true.
+    <= advantage A ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) DH_real) ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) DH_rand) #true.
   Proof using All.
     intros. eapply adv_DHKE; eauto; lra.
   Qed.
@@ -96,22 +96,24 @@ Section adv_dhke.
   Theorem adv_DHKE_real A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ_DH → 𝔹)%T) →
     advantage A (F_AUTH ∘f DH_KE) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) #true <=
-      advantage (λ: "v", A ((λ: "DH", (F_AUTH ∘f (λ: "f", C_lazy "DH" "f")))%V "v"))%V DH_real DH_rand #true.
+      advantage (λ: "v", A ((λ: "DH", (F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))) "v")) DH_real DH_rand #true.
   Proof using All.
     intros HA.
     etrans.
     - apply adv_DHKE_no_epsilon; eauto.
-    - eapply advantage_reduction.
+    - eapply advantage_reduction_expr_expr; first done.
       intros HRGS. exists (𝟙 ⊸ (𝔾 × 𝔾 × 𝔾))%T, τ_DH.
       split; [apply HA | split].
       + apply red_self. 
-      + split; [apply DH_real_self | apply DH_rand_self].
+      + split; iApply compatibility.sem_typed_val.
+        * iApply DH_real_self. 
+        * iApply DH_rand_self.
   Qed.
  
   Lemma adv_DHKE_typed A :
-   ⊢ᵥ A : (T_DH ⇾ TBool) →
-          advantage A (F_AUTH ∘f DH_KE) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) #true <=
-            advantage (λ: "v", A ((λ: "DH", (F_AUTH ∘f (λ: "f", C_lazy "DH" "f")))%V "v"))%V DH_real DH_rand #true.
+    ⊢ᵥ A : (T_DH ⇾ TBool) →
+           advantage A (F_AUTH ∘f DH_KE) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) #true <=
+             advantage (λ: "v", A ((λ: "DH", (F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))) "v")) DH_real DH_rand #true.
   Proof using All.
     intros HAtyped. apply adv_DHKE_real. 
     intros HRGS.

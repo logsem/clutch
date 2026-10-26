@@ -32,7 +32,7 @@ Section handlee_verification.
     token γtokb -∗
     empty_message γautha -∗
     empty_message γauthb -∗
-    (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙)%T f1 f2 -∗
+    (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) L }-∘ 𝟙)%T f1 f2 -∗
     BREL C_DH_rand_val f1 ≤ DH_SIM (F_KE_lazy_alice f2) <|⊥|> 
       {{ λ v1 v2, ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
                                    BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
@@ -119,7 +119,7 @@ Section handlee_verification.
     iApply (brel_add_label_r with "Hleakrecv").
     iApply (brel_add_label_r with "Hleaksend").
     
-    iDestruct (brel_introduction_mono _ ([([gk1],[leaksend;leakrecv;gk2],GetKey gk1 gk2)] ++ (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L)) with "[][$Hff]") as "Hf".
+    iDestruct (brel_introduction_mono _ ([([gk1],[leaksend;leakrecv;gk2],iThyMono (GetKey gk1 gk2))] ++ (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L)) with "[][$Hff]") as "Hf".
     { iApply to_iThy_le_intro'. solve_submseteq. }
     iApply (brel_exhaustion with "[$]"); [done|set_solver|].
     
@@ -127,7 +127,7 @@ Section handlee_verification.
     
     iSplit; [iIntros (v1 v2) "!# (-> & ->)"; by brel_pures'|].
     
-    iIntros (?????) "!# %Hk1 %Hk2 ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) #Hcont".
+    iIntros (?????) "!# %Hk1 %Hk2 (%Q' & ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) & HQ'Q) #Hcont".
     
     - brel_handle_os_l (Hgkl) as "Hgkl".
       brel_handle_os_r (Hgkr) as "Hgkr"...
@@ -179,7 +179,8 @@ Section handlee_verification.
       + brel_cont_l.
         brel_cont_r...
         brel_cont_r.
-        iDestruct ("Hcont" with "Hnone") as "Hkk".
+        iDestruct ("HQ'Q" with "Hnone") as "HQ".
+        iDestruct ("Hcont" with "HQ") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [done|set_solver|iApply "IH"].
         
       (* Recv bob = Some gB *)
@@ -188,7 +189,8 @@ Section handlee_verification.
         brel_cont_l.
         brel_cont_r...
         brel_cont_r.
-        iDestruct ("Hcont" with "Hsome") as "Hkk".
+        iDestruct ("HQ'Q" with "Hsome") as "HQ".
+        iDestruct ("Hcont" with "HQ") as "Hkk". 
         (* First call is done. Can call getKey1 or getKey2 again. *)
         iApply (brel_exhaustion with "[$]"); [done|set_solver|iApply "IH"].
     
@@ -212,7 +214,8 @@ Section handlee_verification.
         brel_cont_l.
         brel_cont_r...
         brel_cont_r.
-        iDestruct ("Hcont" with "Hnone") as "Hkk".
+        iDestruct ("HQ'Q" with "Hnone") as "HQ".
+        iDestruct ("Hcont" with "HQ") as "Hkk".
         iApply (brel_exhaustion with "[$]"); [done|set_solver|iApply "IH"].
         
       + iIntros (m) "Ha'".
@@ -252,8 +255,9 @@ Section handlee_verification.
           brel_load_r...
           brel_cont_l.
           brel_cont_r.
-          iApply brel_na_close. iFrame. iSplitL; [iLeft; iFrame|].
-          iDestruct ("Hcont" with "Hnone") as "Hkk".
+          iApply brel_na_close. iFrame. iSplitR "HQ'Q"; [iLeft; iFrame|].
+          iDestruct ("HQ'Q" with "Hnone") as "HQ".
+          iDestruct ("Hcont" with "HQ") as "Hkk".
           iApply (brel_exhaustion with "[$]"); [done|set_solver|iApply "IH"].
         
         * brel_cont_r...
@@ -261,8 +265,9 @@ Section handlee_verification.
           brel_load_r...
           brel_cont_l.
           brel_cont_r.
-          iApply brel_na_close. iFrame. iSplitL; [iRight; iFrame "#"|].
-          iDestruct ("Hcont" with "Hsome") as "Hkk".
+          iApply brel_na_close. iFrame. iSplitR "HQ'Q"; [iRight; iFrame "#"|].
+          iDestruct ("HQ'Q" with "Hsome") as "HQ".
+          iDestruct ("Hcont" with "HQ") as "Hkk". 
           iApply (brel_exhaustion with "[$]"); [done|set_solver|iApply "IH"].
   Qed.
 

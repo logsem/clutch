@@ -3,6 +3,7 @@ From clutch.prelude Require Import NNRbar.
 From clutch.common Require Import language.
 From clutch.prob Require Import distribution markov.
 From clutch.prob_eff_lang.probblaze Require Import notation semantics logic sem_judgement sem_types sem_def adequacy proofmode. (* semantics proves that blaze_prob_lang is a lang_markov *)
+From clutch.prob_eff_lang.probblaze Require compatibility.
 Set Default Proof Using "Type*".
 #[local] Open Scope R_scope.
 
@@ -235,90 +236,86 @@ Theorem sem_typed_advantage_expr `{!probblazeRGpreS Σ} A e e' (τ : ∀ `{probb
 Proof.
 Admitted. 
 
-Lemma advantage_reduction `{!probblazeRGpreS Σ} (adv red : val) (e e' : val) (b : bool) :
+(* General reduction lemma: any adversary [A] that, applied to a value [v],
+   purely steps to [adv (red v)]. Both games run [e] first, then [red], then [adv]. *)
+Lemma advantage_reduction_pure `{!probblazeRGpreS Σ} (A : expr) (adv : val) (red e e' : expr) (n : nat) (b : bool) :
+  (∀ v : val, PureExec True n (A v) (adv (red v))) →
   (∀ `{probblazeRGS Σ}, ∃ α β, 
       (⊢ sem_val_typed adv adv (β → 𝔹)%T) /\
-      (⊢ sem_val_typed red red (α → β)%T) /\
-      (⊢ sem_val_typed e e α) /\ (⊢ sem_val_typed e' e' α)) →
-  advantage adv (red e) (red e') #b <= 
-    advantage (λ: "v", adv (red "v"))%V e e' #b.
+      (⊢ sem_typed [] red red ⊥ (α → β)%T []) /\
+      (⊢ sem_typed [] e e ⊥ α []) /\ (⊢ sem_typed [] e' e' ⊥ α [])) →
+  advantage adv (red e) (red e') #b <= advantage A e e' #b.
 Proof.
-  intros.
+  intros HA H.
   apply advantage_uniform => σ.
   etrans; last by apply (advantage_ub _ _ _ _ σ).
-  right. 
-  unfold pr_dist.
-  assert (lim_exec (adv (red e), σ) #b = lim_exec ((λ: "v", adv (red "v"))%V e, σ) #b) as ->.
-  { f_equiv. apply ARcoupl_antisym; eapply brel_refines_coupling; try done; first last. 
-    - iIntros (HRGS). iStartProof. 
-      iApply brel_pure_step_later; [done|iIntros "!> /="].
+  right. unfold pr_dist.
+  assert (∀ e0, (∀ (HRGS : probblazeRGS Σ), ∃ α β,
+      (⊢ sem_val_typed adv adv (β → 𝔹)%T) /\
+      (⊢ sem_typed [] red red ⊥ (α → β)%T []) /\
+      (⊢ sem_typed [] e0 e0 ⊥ α [])) →
+    lim_exec (adv (red e0), σ) #b = lim_exec (A e0, σ) #b) as Heq.
+  { intros e0 H0. f_equiv.
+    apply ARcoupl_antisym; eapply brel_refines_coupling; try done; first last.
+    - iIntros (HRGS). iStartProof.
+      destruct (H0 HRGS) as (α & β & Hadv & Hred & He).
+      iPoseProof He as "#He". iPoseProof Hred as "#Hred". iPoseProof Hadv as "#Hadv".
+      iApply (brel_bind' [AppRCtx _] [AppRCtx _; AppRCtx _]); [iApply traversable_to_iThy_nil|].
+      rewrite /sem_typed /tc_opaque /=.
+      iDestruct ("He" $! ∅ with "[//]") as "He'". rewrite !fmap_empty !subst_map_empty.
+      iApply (brel_wand with "He'").
+      iIntros (v1 v2) "!# [Hα _] /=".
+      iApply (brel_pure_step_later _ _ _ _ _ _ _ _ (HA v1)); [done|]. iModIntro.
+      iApply (brel_bind' [AppRCtx adv; AppLCtx v1] [AppRCtx adv; AppLCtx v2] _ _ _ red red); [iApply traversable_to_iThy_nil|].
+      iDestruct ("Hred" $! ∅ with "[//]") as "Hred'". rewrite !fmap_empty !subst_map_empty.
+      iApply (brel_mono OS _ _ [] [] with "[] Hred' [Hα]"); [iApply to_iThy_le_refl|].
+      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang /=.
+      iIntros (f1 f2) "[#Hf _] /=".
       iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
-      destruct (H HRGS) as (α & β & Hadv & Hred & He & He').
-      iPoseProof He as "#He".  
-      iPoseProof Hred as "Hred".
-      iPoseProof Hadv as "Hadv".
-      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang //=.
-      iDestruct "He" as "#He".
-      iDestruct "Hred" as "#Hred". 
-      iDestruct ("Hred" with "He") as "Hrede".
-      iApply (brel_wand with "Hrede").
+      iApply (brel_wand with "(Hf Hα)").
       iIntros (??) "!# Hβ".
-      iDestruct "Hadv" as "#Hadv".
-      iDestruct ("Hadv" with "Hβ") as "$Hadvv".
+      iDestruct "Hadv" as "#Hadv'".
+      iApply ("Hadv'" with "Hβ").
     - by iIntros (???) "(%&->&->)".
     - iIntros (HRGS). iStartProof.
-      iApply brel_pure_step_r; [done|simpl].
+      destruct (H0 HRGS) as (α & β & Hadv & Hred & He).
+      iPoseProof He as "#He". iPoseProof Hred as "#Hred". iPoseProof Hadv as "#Hadv".
+      iApply (brel_bind' [AppRCtx _; AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
+      rewrite /sem_typed /tc_opaque /=.
+      iDestruct ("He" $! ∅ with "[//]") as "He'". rewrite !fmap_empty !subst_map_empty.
+      iApply (brel_wand with "He'").
+      iIntros (v1 v2) "!# [Hα _] /=".
+      iApply (brel_pure_step_r _ _ _ _ _ _ _ _ (HA v2)); [done|].
+      iApply (brel_bind' [AppRCtx adv; AppLCtx v1] [AppRCtx adv; AppLCtx v2] _ _ _ red red); [iApply traversable_to_iThy_nil|].
+      iDestruct ("Hred" $! ∅ with "[//]") as "Hred'". rewrite !fmap_empty !subst_map_empty.
+      iApply (brel_mono OS _ _ [] [] with "[] Hred' [Hα]"); [iApply to_iThy_le_refl|].
+      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang /=.
+      iIntros (f1 f2) "[#Hf _] /=".
       iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
-      destruct (H HRGS) as (α & β & Hadv & Hred & He & He').
-      iPoseProof He as "#He".  
-      iPoseProof Hred as "Hred".
-      iPoseProof Hadv as "Hadv".
-      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang //=.
-      iDestruct "He" as "#He".
-      iDestruct "Hred" as "#Hred". 
-      iDestruct ("Hred" with "He") as "Hrede".
-      iApply (brel_wand with "Hrede").
+      iApply (brel_wand with "(Hf Hα)").
       iIntros (??) "!# Hβ".
-      iDestruct "Hadv" as "#Hadv".
-      iDestruct ("Hadv" with "Hβ") as "$Hadvv".
-    - by iIntros (???) "(%&->&->)".
-  }
-  assert (lim_exec (adv (red e'), σ) #b = lim_exec ((λ: "v", adv (red "v"))%V e', σ) #b) as ->.
-  { f_equiv. apply ARcoupl_antisym; eapply brel_refines_coupling; try done; first last. 
-    - iIntros (HRGS). iStartProof. 
-      iApply brel_pure_step_later; [done|iIntros "!> /="].
-      iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
-      destruct (H HRGS) as (α & β & Hadv & Hred & He & He').
-      iPoseProof He' as "#He'".  
-      iPoseProof Hred as "Hred".
-      iPoseProof Hadv as "Hadv".
-      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang //=.
-      iDestruct "He'" as "#He'".
-      iDestruct "Hred" as "#Hred". 
-      iDestruct ("Hred" with "He'") as "Hrede".
-      iApply (brel_wand with "Hrede").
-      iIntros (??) "!# Hβ".
-      iDestruct "Hadv" as "#Hadv".
-      iDestruct ("Hadv" with "Hβ") as "$Hadvv".
-    - by iIntros (???) "(%&->&->)".
-    - iIntros (HRGS). iStartProof.
-      iApply brel_pure_step_r; [done|simpl].
-      iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
-      destruct (H HRGS) as (α & β & Hadv & Hred & He & He').
-      iPoseProof He' as "#He'".  
-      iPoseProof Hred as "Hred".
-      iPoseProof Hadv as "Hadv".
-      rewrite /sem_val_typed /sem_ty_arr /sem_ty_mbang //=.
-      iDestruct "He'" as "#He'".
-      iDestruct "Hred" as "#Hred". 
-      iDestruct ("Hred" with "He'") as "Hrede".
-      iApply (brel_wand with "Hrede").
-      iIntros (??) "!# Hβ".
-      iDestruct "Hadv" as "#Hadv".
-      iDestruct ("Hadv" with "Hβ") as "$Hadvv".
-    - by iIntros (???) "(%&->&->)".
-  }
-  done.
+      iDestruct "Hadv" as "#Hadv'".
+      iApply ("Hadv'" with "Hβ").
+    - by iIntros (???) "(%&->&->)". }
+  rewrite !Heq //; intros HRGS; destruct (H HRGS) as (α & β & ? & ? & ? & ?); eauto 10.
+Qed.
+
+(* [red] is substituted into by the adversary's β-step, so it must not mention [s] freely. *)
+Lemma advantage_reduction_expr_expr `{!probblazeRGpreS Σ} (s : string) (adv : val) (red e e' : expr) (b : bool) :
+  (∀ v : val, val_subst s v red = red) →
+  (∀ `{probblazeRGS Σ}, ∃ α β, 
+      (⊢ sem_val_typed adv adv (β → 𝔹)%T) /\
+      (⊢ sem_typed [] red red ⊥ (α → β)%T []) /\
+      (⊢ sem_typed [] e e ⊥ α []) /\ (⊢ sem_typed [] e' e' ⊥ α [])) →
+  advantage adv (red e) (red e') #b <= 
+    advantage (λ: s, adv (red s)) e e' #b.
+Proof.
+  intros Hclosed. apply (advantage_reduction_pure _ _ _ _ _ 2).
+  intros v _.
+  apply (nsteps_trans 1 1 _ (fill [AppLCtx v] (Val (RecV BAnon s (adv (red s)))))).
+  { by apply (pure_exec_ctx [AppLCtx v] True 1 (Rec BAnon s (adv (red s))) _ (pure_recc _ _ _)). }
+  pose proof (pure_beta BAnon s (adv (red s)) (RecV BAnon s (adv (red s))) v I) as Hb.
+  simpl in Hb. by rewrite decide_True // Hclosed in Hb.
 Qed.
 
 Lemma advantage_reduction_expr `{!probblazeRGpreS Σ} (s : string) (adv red : val) (e e' : expr) (b : bool) :
@@ -329,7 +326,26 @@ Lemma advantage_reduction_expr `{!probblazeRGpreS Σ} (s : string) (adv red : va
   advantage adv (red e) (red e') #b <= 
     advantage (λ: s, adv (red s)) e e' #b.
 Proof.
-Admitted. 
+  intros H. apply advantage_reduction_expr_expr; first done.
+  intros HRGS. destruct (H HRGS) as (α & β & Hadv & Hred & He & He').
+  exists α, β. split_and!; [done| |done|done].
+  iApply compatibility.sem_typed_val. iApply Hred.
+Qed.
+
+Lemma advantage_reduction `{!probblazeRGpreS Σ} (adv red : val) (e e' : val) (b : bool) :
+  (∀ `{probblazeRGS Σ}, ∃ α β, 
+      (⊢ sem_val_typed adv adv (β → 𝔹)%T) /\
+      (⊢ sem_val_typed red red (α → β)%T) /\
+      (⊢ sem_val_typed e e α) /\ (⊢ sem_val_typed e' e' α)) →
+  advantage adv (red e) (red e') #b <= 
+    advantage (λ: "v", adv (red "v"))%V e e' #b.
+Proof.
+  intros H. apply (advantage_reduction_pure _ _ _ _ _ 1).
+  { intros v. exact (pure_beta BAnon "v" (adv (red "v")) (RecV BAnon "v" (adv (red "v"))) v). }
+  intros HRGS. destruct (H HRGS) as (α & β & Hadv & Hred & He & He').
+  exists α, β. split; first done.
+  split_and!; iApply compatibility.sem_typed_val; [iApply Hred|iApply He|iApply He'].
+Qed.
 
 Theorem sem_typed_advantage_aff `{!probblazeRGpreS Σ} A e e' (τ : ∀ `{probblazeRGS Σ}, sem_ty Σ) (ε : R) :
   0 <= ε →

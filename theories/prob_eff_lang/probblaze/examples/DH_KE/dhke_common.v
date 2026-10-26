@@ -496,7 +496,7 @@ Section typing.
     { iExists _. by iSplit. }
   Qed.
 
-  Definition τ_DH := (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union θₕ θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union (¡ θₗ) θ__L }-∘ 𝟙)))%T.
+  Definition τ_DH := (∀ᵣ θ__L, (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) θ__L }-∘ 𝟙)%T ⊸ ((∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union (¡ θₗ) θ__L }-∘ 𝟙)))%T.
 
   Context `{!inG Σ (exclR unitO), !inG Σ dfracO, !inG Σ (dfrac_agreeR valO)}.
   Definition P γauth (m : vgG) : iProp Σ := message γauth (vgval m).
@@ -506,9 +506,9 @@ Section typing.
      [C_lazy] self-refinement with [F_AUTH]'s own self-refinement, it executes
      the whole composite program in lockstep on both sides. *)
   Lemma red_self :
-    ⊢ sem_val_typed (λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%V
-                    (λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%V
-        ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾)) → τ_DH)%T.
+    ⊢ sem_typed [] (λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))
+                    (λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) ⊥
+        ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾)) → τ_DH)%T [].
   Proof with brel_pures' using All.
     (* ------------------------------------------------------------------ *)
     (* Non-modular self-refinement of [red = λ DH f, F_AUTH (C_lazy DH f)].*)
@@ -522,11 +522,17 @@ Section typing.
     (* [C_lazy] already uses, and the [getKey] effect by the [GetKey]      *)
     (* theory ([θ]) that is already in this file.                          *)
     (* ------------------------------------------------------------------ *)
+    iIntros (?) "!# _"...
+    iSplitL; last done.
+    iModIntro.
     rewrite /sem_val_typed /τ_DH.
-    iModIntro. rewrite {1}/sem_ty_mbang {1}/sem_ty_arr /func_comp /=.
+    rewrite {1}/sem_ty_mbang {1}/sem_ty_arr /func_comp /=.
     iModIntro. iIntros (DH1 DH2) "HDH"... iModIntro.
     iIntros (θ__L). iIntros (f1 f2) "Hf"...
     rewrite /F_AUTH /C_lazy //=...
+    rewrite !lookup_delete_eq.
+    do 2 (rewrite lookup_delete_ne; last done; rewrite lookup_delete_eq).
+    simpl...
     iIntros "!>" (θₗ ??) "(%dls1&%dls2&%dlr1&%dlr2&->&->&#Hls&#Hlr)"...
     (* F_AUTH's prelude: the two message cells and the two fresh effect
        labels, on both sides. *)
@@ -611,7 +617,7 @@ Section typing.
         iApply (brel_add_label_l with "Hgl").
         iApply (brel_add_label_r with "Hgr").
         iDestruct (brel_introduction_mono _
-                     (([gl],[gr], (gk gl gr : iThy Σ)) ::
+                     (([gl],[gr], ((¡ (gk gl gr))%S : iThy Σ)) ::
                       ([sl],[sr], (σs : iThy Σ)) ::
                       ([rl],[rr], (σr : iThy Σ)) ::
                       iLblSig_to_iLblThy (sem_row_union (¡ θₗ)%R θ__L)) with "[][$Hf]") as "Hf'".
@@ -620,7 +626,7 @@ Section typing.
         iApply (brel_exhaustion _ _ [_] [_] _ _ _ (λ w1 w2, 𝟙%T w1 w2) with "[$Hf']"); [done|done|].
         iLöb as "IH".
         iSplit; [iIntros (v1 v2) "!# (-> & ->)"; by brel_pures'|].
-        iIntros (?????) "!# %Hk1 %Hk2 ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) #Hcont".
+        iIntros (?????) "!# %Hk1 %Hk2 (%Q' & ([(-> & ->)|(-> & ->)] & #(Hnone & Hsome)) & HQ'Q) #Hcont".
         * brel_handle_os_l (ul) as "Hul". 
           brel_handle_os_r (ur) as "Hur"...
           iApply (brel_na_inv _ _ (nroot.@"lc")); [set_solver|]. iFrame "Hlcinv".
@@ -656,10 +662,12 @@ Section typing.
              iDestruct "Hopt" as (o1 o2) "[(->&->&_)|(->&->&#Hg)]"...
              ++ brel_cont_l.
                 brel_cont_r.
-                iDestruct ("Hcont" with "Hnone") as "Hkk".
+                iDestruct ("HQ'Q" with "Hnone") as "HQ".
+                iDestruct ("Hcont" with "HQ") as "Hkk".
                 iApply (brel_exhaustion with "[$Hkk]"); [done|done|iApply "IH"].
              ++ brel_cont_l. brel_cont_r.
-                iDestruct ("Hcont" with "Hsome") as "Hkk".
+                iDestruct ("HQ'Q" with "Hsome") as "HQ".
+                iDestruct ("Hcont" with "HQ") as "Hkk".
                 iApply (brel_exhaustion with "[$Hkk]"); [done|done|iApply "IH"].
           -- (* later calls: both caches already hold [SOME C]. *)
              brel_load_l... brel_load_r...
@@ -688,11 +696,14 @@ Section typing.
              iIntros "!>" (w1 w2) "(%&%&-> & -> & #Hopt)".
              iApply brel_value. iIntros "$ !>".
              iDestruct "Hopt" as (o1 o2) "[(->&->&_)|(->&->&#Hg)]"...
-             ++ brel_cont_l. brel_cont_r.
-                iDestruct ("Hcont" with "Hnone") as "Hkk".
+             ++ brel_cont_l.
+                brel_cont_r.
+                iDestruct ("HQ'Q" with "Hnone") as "HQ".
+                iDestruct ("Hcont" with "HQ") as "Hkk".
                 iApply (brel_exhaustion with "[$Hkk]"); [done|done|iApply "IH"].
              ++ brel_cont_l. brel_cont_r.
-                iDestruct ("Hcont" with "Hsome") as "Hkk".
+                iDestruct ("HQ'Q" with "Hsome") as "HQ".
+                iDestruct ("Hcont" with "HQ") as "Hkk".
                 iApply (brel_exhaustion with "[$Hkk]"); [done|done|iApply "IH"].
         * (* getKey (InjR): doRecv alice;; on SOME, doSend (B,alice);; read lc. *)
           brel_handle_os_l (ul) as "Hul". brel_handle_os_r (ur) as "Hur"...
@@ -709,7 +720,8 @@ Section typing.
           iApply brel_value. iIntros "$ !>".
           iDestruct "Hopt" as (o1 o2) "[(->&->&_)|(->&->&#Hg)]"...
           -- brel_cont_l. brel_cont_r.
-             iDestruct ("Hcont" with "Hnone") as "Hkk".
+             iDestruct ("HQ'Q" with "Hnone") as "HQ".
+             iDestruct ("Hcont" with "HQ") as "Hkk".
              iApply (brel_exhaustion with "[$Hkk]"); [done|done|iApply "IH"].
           -- iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy|].
              iApply (brel_introduction' [sl] [sr]). { apply elem_of_cons. right. apply list_elem_of_here. }
@@ -728,12 +740,14 @@ Section typing.
              ++ brel_load_l... brel_load_r...
                 iApply brel_na_close. iFrame "Hclose". iSplitL "Hl1 Hl2"; [iNext; iLeft; iFrame|].
                 brel_cont_l. brel_cont_r.
-                iDestruct ("Hcont" with "Hnone") as "Hkk".
+                iDestruct ("HQ'Q" with "Hnone") as "HQ".
+                iDestruct ("Hcont" with "HQ") as "Hkk".
                 iApply (brel_exhaustion with "[$Hkk]"); [done|done|iApply "IH"].
              ++ brel_load_l... brel_load_r...
                 iApply brel_na_close. iFrame "Hclose". iSplitL "Hl1 Hl2"; [iNext; iRight; iFrame "#"|].
                 brel_cont_l. brel_cont_r.
-                iDestruct ("Hcont" with "Hsome") as "Hkk".
+                iDestruct ("HQ'Q" with "Hsome") as "HQ".
+                iDestruct ("Hcont" with "HQ") as "Hkk".
                 iApply (brel_exhaustion with "[$Hkk]"); [done|done|iApply "IH"].
       + (* ---------------- F_AUTH's [send] handler ---------------------- *)
         (* The theory [σs] hands us two 𝔾-related messages and two
