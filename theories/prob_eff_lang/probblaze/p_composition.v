@@ -992,8 +992,6 @@ Section parallel_composition.
 
 End parallel_composition.
 
-Notation " F₁ ||ₗ F₂" := (left_composition F₁ F₂) (at level 10).
-
 Notation "F₁ ||ᵣ F₂" := (right_composition F₁ F₂) (at level 10).
 
 Notation "F '∘F' G" := (functionality_composition F G) (at level 10). 
