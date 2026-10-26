@@ -747,7 +747,6 @@ Section parallel_composition.
           done. } 
         iDestruct ("HJJ" $! θ θJ with "HΓ'") as "Hrel". 
         rewrite -Hs1 -Hs2.
-        About brel_wand.
         iApply (brel_wand with "[$Hrel]"). (*{ iApply "Hrel". }*)
         iIntros (v0 v3) "!# ($&_)".
       + simpl. iIntros (GJ1 GJ2) "HGJ".
