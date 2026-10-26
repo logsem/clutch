@@ -216,10 +216,10 @@ Section parallel_composition.
     is_closed_expr ∅ F ->
     is_closed_expr ∅ J ->
     ⊢ sem_typed [] F F ⊥ (τ__FO τ2 τG)%T [] -∗ 
-    (∀ θ, ∀ θG, sem_typed [(f, τ__fO θ τ1'); (x, τG θG)] G G (sem_row_union (¡ θG)%R θ) 𝟙%T []) -∗ 
-    sem_typed [] J J ⊥ (τ__F τ1 τ2')%T [] -∗
+    (∀ θ, ∀ θG, sem_typed [(f, τ__f' θ τ1'); (x, τG θG)] G G (sem_row_union (¡ θG)%R θ) 𝟙%T []) -∗ 
+    sem_typed [] J J ⊥ (τ__FC τ1 τ2')%T [] -∗
     sem_typed [] ((F ∘f (λ: f x, G)%V) ||ᵣ J) 
-      (F ∘F ((λ: f x, G)%V ||ᵣ J)) ⊥ ((τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union θ1 (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T []. 
+      (F ∘F ((λ: f x, G)%V ||ᵣ J)) ⊥ ((τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T []. 
   Proof.  
     iIntros (Hfx HisclosedF HisclosedJ) "#HFF #HGG #HJJ !# %vs _". simpl.
     unfold func_comp,right_composition,functionality_composition.
@@ -253,7 +253,7 @@ Section parallel_composition.
     brel_pures'.
     rewrite decide_True; last (split; done).
     simpl. 
-    iAssert ((∀ᵣ θG, τG θG -{ sem_row_union (¡ θG) (sem_row_union θ1 θ) }-∘ 𝟙)%T
+    iAssert ((∀ᵣ θG, τG θG -{ sem_row_union (¡ θG) (sem_row_union (¡ θ1)%R θ) }-∘ 𝟙)%T
                (λ: x, val_subst f (λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂","h₁")) w1) G)%V          
                (λ: "rG", (λ: "f" "r",
                             let: "r₂" := "r" in
@@ -265,9 +265,9 @@ Section parallel_composition.
       brel_pures_r 1. 
       brel_pures'.
       rewrite decide_True; last (split; done). 
-      iSpecialize ("HGG" $! (sem_row_union θ1 θ) θG).
+      iSpecialize ("HGG" $! (sem_row_union (¡θ1)%R θ) θG).
       brel_pures.
-      iAssert ((τ__f' (sem_row_union θ1 θ) τ1' (λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂", "h₁")) w1)%V (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂", "h₁")) w1')%V)) with "[Hff Hτ1 HJ1J2]" as "Hff".
+      iAssert ((τ__f' (sem_row_union  (¡θ1)%R θ) τ1' (λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂", "h₁")) w1)%V (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂", "h₁")) w1')%V)) with "[Hff Hτ1 HJ1J2]" as "Hff".
       { iIntros (θ1' h1 h1') "Hhh". brel_pures'.
         iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
         assert (to_iThyIfMono OS [] = []) as <- by done.
@@ -283,10 +283,10 @@ Section parallel_composition.
             simpl; by iApply "Hff". }
         simpl. iIntros (g1 g2) "Hgg".  
         iDestruct ("Hgg" with "Hτ1") as "Hgg".
-        rewrite !iLblSig_to_iLblThy_distr.
-        iApply (brel_introduction_mono (iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ1' ++ iLblSig_to_iLblThy θ)); [|done].
+        rewrite !iLblSig_to_iLblThy_distr. 
+        iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡θ1)%R ++ iLblSig_to_iLblThy θ1' ++ iLblSig_to_iLblThy θ)); [|done].
         iApply to_iThy_le_intro'; solve_submseteq. }
-      iAssert ([(f, τ__f' (sem_row_union θ1 θ) τ1'); (x, τG θG)] ⊨ₑ {[ x := (rg1, rg2); f := ((λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂","h₁")) w1)%V, (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂", "h₁")) w1')%V)]}) with "[HτG Hff]" as "HΓ'". 
+      iAssert ([(f, τ__f' (sem_row_union (¡θ1)%R θ) τ1'); (x, τG θG)] ⊨ₑ {[ x := (rg1, rg2); f := ((λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂","h₁")) w1)%V, (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂", "h₁")) w1')%V)]}) with "[HτG Hff]" as "HΓ'". 
       { solve_env. intros heq. apply Hfx. simpl. by destruct heq. }
       iDestruct ("HGG" with "HΓ'") as "Hrel".
       iApply (brel_wand with "[Hrel]"). 
@@ -306,7 +306,7 @@ Section parallel_composition.
     iIntros (??) "Hτ".
     iSpecialize ("Hτ" with "Hτ2").
     rewrite !iLblSig_to_iLblThy_distr.
-    iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡ θ2)%R ++ iLblSig_to_iLblThy θ1 ++ iLblSig_to_iLblThy θ)); last done.
+    iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡ θ2)%R ++ iLblSig_to_iLblThy (¡θ1)%R ++ iLblSig_to_iLblThy θ)); last done.
     iApply to_iThy_le_intro'; solve_submseteq.
   Qed.
   
