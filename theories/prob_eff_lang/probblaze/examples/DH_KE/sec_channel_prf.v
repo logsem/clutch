@@ -1318,6 +1318,6 @@ Section schan_security.
   (*----------------------------------------------------------------*)
   Definition R_I_SCHAN := SEM_R_CHAN_SIM.
 
-  Definition I_R_SCHAN := SEM_R_CHAN_rev.
+  Definition I_R_SCHAN := SEM_R_CHAN_SIM_rev.
 
 End schan_security.

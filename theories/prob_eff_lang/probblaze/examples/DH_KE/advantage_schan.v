@@ -61,7 +61,7 @@ Section adv_schan.
   Lemma adv_SCHAN A :
     (∀ `{!probblazeRGS Σ}, 
        ⊢ sem_val_typed A A (τ_CHAN → 𝔹)%T) →
-    nonneg (advantage A R_CHAN (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V #true) = 0%R.
+    nonneg (advantage A R_CHAN (CHAN_SIM_lazy ∘f F_CHAN) #true) = 0%R.
   Proof using All.
     intros. eapply sem_typed_advantage; eauto. split.
     - intros Hrgs. by unshelve eapply R_I_SCHAN.
@@ -70,7 +70,7 @@ Section adv_schan.
 
   Lemma adv_SCHAN_typed A :
    ⊢ᵥ A : (T_CHAN ⇾ TBool) →
-   nonneg (advantage A R_CHAN (λ: "f", CHAN_SIM_lazy (F_CHAN "f"))%V #true) = 0%R.
+   nonneg (advantage A R_CHAN (CHAN_SIM_lazy ∘f F_CHAN) #true) = 0%R.
   Proof using All.
     intros HAtyped. apply adv_SCHAN. 
     intros HRGS.
