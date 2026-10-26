@@ -286,10 +286,8 @@ Section schan_security.
         iExists _,_; iLeft; iPureIntro; repeat (split; first done); reflexivity. }
   Qed.
 
-
-  Definition R_CHAN : val :=
-    λ: "f",
-      (F_KE_lazy_alice ||ᵣ F_OAUTH) (CHAN "f").
+  Definition R_CHAN : expr :=
+    (F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f CHAN.
 
   Lemma SEM_R_CHAN_SIM (f1 f2 : val) (L : sem_row Σ) :
     (∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> Option 𝔾)) -{ sem_row_union θₕ L }-∘ 𝟙))%T
@@ -300,7 +298,7 @@ Section schan_security.
                                            (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) ×(𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂) L) }-∘ 𝟙)%T v1 v2 }}. 
   Proof with (repeat foldkont; brel_pures') using All. 
     iIntros "Hrelf1f2".
-    unfold R_CHAN, right_composition, CHAN, F_CHAN, CHAN_SIM_lazy...
+    unfold R_CHAN, right_composition, func_comp, CHAN, F_CHAN, CHAN_SIM_lazy...
     (*iModIntro.
     brel_pures'.*) 
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
@@ -587,8 +585,7 @@ Section schan_security.
         brel_cont_r.
         iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V)); [set_solver|done|iApply "Hrel";iApply"HmQ"|iApply "IH"].
 
-    - iDestruct "HRecvBob" as "[-> [-> #HmQ]]"...
-      About brel_handle_os_l.
+    - iDestruct "HRecvBob" as "[-> [-> #HmQ]]"... 
       iApply (brel_handle_os_l _ (HandleCtx _ _ _ _ _ :: k1')).
       { simpl.
         apply not_elem_of_cons; split; last (apply neutral_ectx; repeat constructor). 
