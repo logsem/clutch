@@ -858,7 +858,7 @@ Section parallel_composition.
     is_closed_expr ∅ F →
     is_closed_expr ∅ G1 →
     is_closed_expr ∅ G2 →
-    ⊢ sem_typed [] G1 G2 ⊥ (∀ᵣ θ, τ1' θ ⊸ ∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τF θ2)) -{ sem_row_union (¡ θ2)%R (sem_row_union (¡ θ1) θ)}-∘ 𝟙)%T [] -∗
+    ⊢ sem_typed [] G1 G2 ⊥ (∀ᵣ θ, τ1' θ ⊸ ∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τF θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2) θ)}-∘ 𝟙)%T [] -∗
     sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡ θF) θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡ θ1) θ }-∘ 𝟙)%T [] -∗
     sem_typed [] (F ∘F G1) (F ∘F G2) ⊥ 
       (∀ᵣ θ, τ1' θ ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2) θ) }-∘ 𝟙))%T []. 
@@ -891,8 +891,7 @@ Section parallel_composition.
     rewrite -> Hr1.
     rewrite -> Hr2.
     brel_pures'.
-    iAssert ([] ⊨ₑ ∅) as "#Hempty"; first done.
-    iAssert ((∀ᵣ θF, τF θF -{ sem_row_union (¡θF) (sem_row_union  (¡θ1) θ) }-∘ 𝟙)%T (λ: "rG", vG1 f1 (w1, "rG"))%V (λ: "rG", vG2 f2 (w1',"rG"))%V) with "[Hff Hτ1 HG1G2]" as "Hff'".
+    iAssert ((∀ᵣ θF, τF θF -{ sem_row_union (¡θ1) (sem_row_union  (¡θF) θ) }-∘ 𝟙)%T (λ: "rG", vG1 f1 (w1, "rG"))%V (λ: "rG", vG2 f2 (w1',"rG"))%V) with "[Hff Hτ1 HG1G2]" as "Hff'".
     { iIntros (θF rG1 rG2) "HτF".
       brel_pures'.
       unfold sem_typed. simpl. 
@@ -902,8 +901,14 @@ Section parallel_composition.
       iApply (brel_mono OS with "[][$HG1G2]"); [iApply to_iThy_le_refl|simpl].
       iIntros (GfrGv1 GfrGv2) "HGfrGv".
       iApply "HGfrGv".
-      iExists w1, w1', rG1, rG2.
-      iSplitR "Hτ1 HτF"; [ iPureIntro; reflexivity | iSplitR "Hτ1 HτF"; [iPureIntro; reflexivity| iFrame]]. }
+      iExists  w1, w1', rG1, rG2.
+      iSplitR "Hτ1 HτF"; [done| iSplitR "Hτ1 HτF"; [done| iFrame]]. }
+    iAssert ((∀ᵣ θF, τF θF -{ sem_row_union (¡θF) (sem_row_union  (¡θ1) θ) }-∘ 𝟙)%T (λ: "rG", vG1 f1 (w1, "rG"))%V (λ: "rG", vG2 f2 (w1',"rG"))%V) with "[Hff']" as "Hff'".
+    { iApply ty_le_row_forall; last iApply "Hff'". iIntros (θF).
+      iApply ty_le_arr.
+      - iApply to_iThy_le_intro'. rewrite /sem_row_union !iLblSig_to_iLblThy_app. solve_submseteq.
+      - iApply ty_le_refl.
+      - iApply ty_le_refl. }
     iSpecialize ("HF1F2" with "Hff'").
     iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
