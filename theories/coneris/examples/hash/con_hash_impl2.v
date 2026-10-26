@@ -24,7 +24,7 @@ Section con_hash_impl2.
   
   Definition hash_set_frag v γ_set γ_set' := (hash_set_frag1 v γ_set∗ (v ↪[γ_set'] ()))%I.
   Definition hash_set n γ γ':=
-    (∃ s, ⌜size s = n⌝ ∗ hash_set1 s γ ∗ ghost_map_auth γ' 1 (gset_to_gmap () s))%I.
+    (∃ s, ⌜size s = n⌝ ∗ hash_set1 s γ ∗ ghost_map_auth γ' (DfracOwn 1) (gset_to_gmap () s))%I.
   
   Definition hash_auth m γ1 γ2 γ4 γ5:=
     (hv_auth (L:=Hhv) m γ4 ∗

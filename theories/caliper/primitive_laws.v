@@ -46,7 +46,7 @@ Definition tapes_auth `{caliperG δ Σ} :=
 #[export] Instance caliperG_caliperWpG `{caliperG δ Σ} : caliperWpG δ prob_lang Σ := {
   caliperWpG_invGS := caliperG_invG;
 
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
+  state_interp σ := (heap_auth (DfracOwn 1) σ.(heap) ∗ tapes_auth (DfracOwn 1) σ.(tapes))%I;
 }.
 
 (** Heap *)

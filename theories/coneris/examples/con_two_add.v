@@ -98,7 +98,7 @@ Section complex'.
      form of the paper *)
 
   Definition parallel_add_inv' (γ1 γ2: gname) l: iProp Σ :=
-    ∃ (s1 s2 : T), ghost_var γ1 (1/2) s1 ∗ ghost_var γ2 (1/2) s2 ∗
+    ∃ (s1 s2 : T), ghost_var γ1 (DfracOwn (1/2)) s1 ∗ ghost_var γ2 (DfracOwn (1/2)) s2 ∗
       (((l ↦ #0 ∗ ⌜ no_thread_added s1 s2 ⌝) ∨
          (∃ n : nat, l ↦ #n ∗ ⌜ one_thread_added n s1 s2 ⌝) ∨
          (∃ n : nat, l ↦ #n ∗ ⌜ n > 0 ⌝ ∗ ⌜ both_threads_added n s1 s2 ⌝)) ∗
@@ -138,9 +138,9 @@ Section complex'.
   Qed.
 
   Lemma rand_step γ1 γ2 l:
-    {{{ inv nroot (parallel_add_inv' γ1 γ2 l) ∗ ghost_var γ1 (1/2) S0 }}}
+    {{{ inv nroot (parallel_add_inv' γ1 γ2 l) ∗ ghost_var γ1 (DfracOwn (1/2)) S0 }}}
       rand #3
-      {{{ (n: nat), RET #n; ghost_var γ1 (1/2) (S1 n) }}}.
+      {{{ (n: nat), RET #n; ghost_var γ1 (DfracOwn (1/2)) (S1 n) }}}.
   Proof.
     iIntros (Φ) "(#I&Hfrag1) HΦ".
     iInv "I" as ">(%s1&%s2&Hauth1&Hauth2&Hstate&Hsamp)".
@@ -194,9 +194,9 @@ Section complex'.
   Qed.
 
   Lemma faa_step γ1 γ2 l (n: nat) :
-    {{{ inv nroot (parallel_add_inv' γ1 γ2 l) ∗ ghost_var γ1 (1/2) (S1 n) }}}
+    {{{ inv nroot (parallel_add_inv' γ1 γ2 l) ∗ ghost_var γ1 (DfracOwn (1/2)) (S1 n) }}}
       FAA #l #n
-    {{{ (v : val), RET v; ghost_var γ1 (1/2) (S2 n) }}}.
+    {{{ (v : val), RET v; ghost_var γ1 (DfracOwn (1/2)) (S2 n) }}}.
   Proof.
     iIntros (Φ) "(#I&Hfrag1) HΦ".
     iInv "I" as ">(%s1&%s2&Hauth1&Hauth2&Hstate&Hsamp)".
@@ -272,8 +272,8 @@ Section complex'.
       { iPureIntro. left. by eauto. }
       { iLeft. iFrame. }
     }
-    wp_apply (wp_par (λ _, ∃ (n:nat), ghost_var γ1 (1/2) (S2 n))%I
-                (λ _, ∃ (n:nat), ghost_var γ2 (1/2) (S2 n))%I with "[Hfrag1][Hfrag2]").
+    wp_apply (wp_par (λ _, ∃ (n:nat), ghost_var γ1 (DfracOwn (1/2)) (S2 n))%I
+                (λ _, ∃ (n:nat), ghost_var γ2 (DfracOwn (1/2)) (S2 n))%I with "[Hfrag1][Hfrag2]").
     - wp_apply (rand_step with "[$]").
       iIntros (n) "Hfrag1".
       wp_apply (faa_step with "[$]").
@@ -305,7 +305,7 @@ Section complex'.
   Qed.
 
   Definition gs γ1 γ2 P : iProp Σ :=
-    ∃ (s1 s2 : T), ghost_var γ1 (1/2/2) s1 ∗ ghost_var γ2 (1/2/2) s2 ∗ ⌜ P s1 s2 ⌝.
+    ∃ (s1 s2 : T), ghost_var γ1 (DfracOwn (1/2/2)) s1 ∗ ghost_var γ2 (DfracOwn (1/2/2)) s2 ∗ ⌜ P s1 s2 ⌝.
 
   (* In the paper we do not have leading existentials in the descriptions of the invariant.
      This alternate version matching the paper is defined next . It is equivalent to what
@@ -327,7 +327,7 @@ Section complex'.
          (∃ n : nat, l ↦ #n ∗ gs γ1 γ2 (one_thread_added n)) ∨
          (∃ n : nat, l ↦ #n ∗ ⌜ n > 0 ⌝ ∗ gs γ1 γ2 (both_threads_added n)))
    -∗
-    ∃ (s1 s2 : T), ghost_var γ1 (1/2/2) s1 ∗ ghost_var γ2 (1/2/2) s2 ∗
+    ∃ (s1 s2 : T), ghost_var γ1 (DfracOwn (1/2/2)) s1 ∗ ghost_var γ2 (DfracOwn (1/2/2)) s2 ∗
       (((l ↦ #0 ∗ ⌜ no_thread_added s1 s2 ⌝) ∨
          (∃ n : nat, l ↦ #n ∗ ⌜ one_thread_added n s1 s2 ⌝) ∨
          (∃ n : nat, l ↦ #n ∗ ⌜ n > 0 ⌝ ∗ ⌜ both_threads_added n s1 s2 ⌝))).
@@ -342,7 +342,7 @@ Section complex'.
      (↯(1) ∗ gs γ1 γ2 (λ _ _, True : Prop)) ∨
      (↯(0) ∗ gs γ1 γ2 at_least_one_thread_sampled_non_zero))
    -∗
-    ∃ (s1 s2 : T), ghost_var γ1 (1/2/2) s1 ∗ ghost_var γ2 (1/2/2) s2 ∗
+    ∃ (s1 s2 : T), ghost_var γ1 (DfracOwn (1/2/2)) s1 ∗ ghost_var γ2 (DfracOwn (1/2/2)) s2 ∗
        ((↯(1/16) ∗ ⌜ no_thread_sampled s1 s2 ⌝) ∨
          (↯(1/4) ∗ ⌜ one_thread_sampled_zero s1 s2 ⌝) ∨
          (↯(1) (* both_thread_sampled_zero *)) ∨

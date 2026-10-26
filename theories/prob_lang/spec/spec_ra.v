@@ -45,11 +45,11 @@ Section resources.
   Definition spec_prog_auth e :=
     own specG_prob_lang_prog_name (● (Excl' e : progUR)).
   Definition spec_heap_auth `{specG_prob_lang Σ} :=
-    @ghost_map_auth _ _ _ _ _ specG_prob_lang_heap specG_prob_lang_heap_name 1.
+    @ghost_map_auth _ _ _ _ _ specG_prob_lang_heap specG_prob_lang_heap_name (DfracOwn 1).
   Definition spec_tapes_auth `{specG_prob_lang Σ} :=
-    @ghost_map_auth _ _ _ _ _ specG_prob_lang_tapes specG_prob_lang_tapes_name 1.
+    @ghost_map_auth _ _ _ _ _ specG_prob_lang_tapes specG_prob_lang_tapes_name (DfracOwn 1).
   Definition spec_tapes_laplace_auth `{specG_prob_lang Σ} :=
-    @ghost_map_auth _ _ _ _ _ specG_prob_lang_tapes_laplace specG_prob_lang_tapes_laplace_name 1.
+    @ghost_map_auth _ _ _ _ _ specG_prob_lang_tapes_laplace specG_prob_lang_tapes_laplace_name (DfracOwn 1).
 
   Definition spec_auth (ρ : cfg) : iProp Σ :=
     spec_prog_auth (ρ.1) ∗

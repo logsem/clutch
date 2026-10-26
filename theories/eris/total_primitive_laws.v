@@ -20,7 +20,7 @@ Lemma twp_alloc E v s :
 Proof.
   iIntros (Φ) "_ HΦ".
   iApply twp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
+  iIntros (n σ1) "[Hh Ht] !#".
   solve_red.
   iIntros "/=" (e2 σ2 Hs); inv_head_step.
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
@@ -40,7 +40,7 @@ Lemma twp_allocN_seq (N : nat) (z : Z) E v s:
 Proof.
   iIntros (-> Hn Φ) "_ HΦ".
   iApply twp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
+  iIntros (n σ1) "[Hh Ht] !#".
   iSplit.
   { iPureIntro.
     rewrite /head_reducible.
@@ -92,7 +92,7 @@ Lemma twp_load E l dq v s :
 Proof.
   iIntros (Φ) "Hl HΦ".
   iApply twp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
+  iIntros (n σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
   iIntros "/=" (e2 σ2 Hs); inv_head_step.
@@ -105,7 +105,7 @@ Lemma twp_store E l v' v s :
 Proof.
   iIntros (Φ) "Hl HΦ".
   iApply twp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
+  iIntros (n σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
   iIntros "/=" (e2 σ2 Hs); inv_head_step.
@@ -119,7 +119,7 @@ Lemma twp_rand (N : nat) (z : Z) E s :
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply twp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "Hσ !#".
+  iIntros (n σ1) "Hσ !#".
   solve_red.
   iIntros (e2 σ2 Hs).
   inv_head_step.
@@ -148,7 +148,7 @@ Lemma twp_alloc_tape N z E s :
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply twp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !# /=".
+  iIntros (n σ1) "(Hh & Ht) !# /=".
   solve_red.
   iIntros (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
@@ -163,7 +163,7 @@ Lemma twp_rand_tape N α n ns z E s :
 Proof.
   iIntros (-> Φ) "Hl HΦ".
   iApply twp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !#".
+  iIntros (n' σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros (e2 σ2 Hs).
@@ -179,7 +179,7 @@ Lemma twp_rand_tape_empty N z α E s :
 Proof.
   iIntros (-> Φ) "Hl HΦ".
   iApply twp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !#".
+  iIntros (n σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros (e2 σ2 Hs).
@@ -195,7 +195,7 @@ Lemma twp_rand_tape_wrong_bound N M z α E ns s :
 Proof.
   iIntros (-> ? Φ) "Hl HΦ".
   iApply twp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "(Hh & Ht) !#".
+  iIntros (n σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros (e2 σ2 Hs).

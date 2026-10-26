@@ -578,7 +578,7 @@ Section prog.
           ⌜dom m = set_seq 0 k⌝ ∗
           ⌜map_Forall (λ _ x, base_lit_type_check x = Some BLTInt) m⌝ ∗
           ⌜is_valid_urn (urn_unif s)⌝ ∗
-          mono_nat_auth_own γ2 1 (k-1) ∗
+          mono_nat_auth_own γ2 (DfracOwn 1) (k-1) ∗
           ⌜dom m = dom m'⌝ ∗ 
           ⌜map_Forall (λ _ x, 0<=x.1<p/\0<=x.2<p) m'⌝ ∗
           ⌜map_match m m' l⌝  ∗
@@ -638,8 +638,8 @@ Section prog.
         wp_pures.
 
         
-        iDestruct (mono_nat_lb_own_valid with "[$][$Hfrag1]") as "%".
-        iDestruct (mono_nat_lb_own_valid with "[$][$Hfrag2]") as "%".
+        iDestruct (mono_nat_auth_lb_own_valid with "[$][$Hfrag1]") as "%".
+        iDestruct (mono_nat_auth_lb_own_valid with "[$][$Hfrag2]") as "%".
         assert (n1 ∈ dom m) as Hlookup1.
         { rewrite Hdom. rewrite elem_of_set_seq. destruct!/=; simpl in *.
           lia. }
@@ -925,7 +925,7 @@ Section prog.
         wp_pures.
 
         
-        iDestruct (mono_nat_lb_own_valid with "[$][$Hfrag']") as "%".
+        iDestruct (mono_nat_auth_lb_own_valid with "[$][$Hfrag']") as "%".
         assert (n ∈ dom m) as Hlookup.
         { rewrite Hdom. rewrite elem_of_set_seq. destruct!/=; simpl in *.
           lia. }
@@ -1185,8 +1185,8 @@ Section prog.
         iInv "Hinv" as ">(%m&%k&%s'&%m'&Hurn&%Hs&Harr&%&Htries&Hm&%Hdom&%Hforall&%&Hauth&%Hdom'&%Hforall2&%Hmatch&Hor)" "Hclose".
 
         
-        iDestruct (mono_nat_lb_own_valid with "[$][$Hfrag1]") as "%".
-        iDestruct (mono_nat_lb_own_valid with "[$][$Hfrag2]") as "%".
+        iDestruct (mono_nat_auth_lb_own_valid with "[$][$Hfrag1]") as "%".
+        iDestruct (mono_nat_auth_lb_own_valid with "[$][$Hfrag2]") as "%".
         assert (n1 ∈ dom m) as Hlookup1.
         { rewrite Hdom. rewrite elem_of_set_seq. destruct!/=; simpl in *.
           lia. }

@@ -66,11 +66,11 @@ Qed.
 Section resources.
   Context `{!specG_con_prob_lang Σ}.
   Definition spec_prog_auth :=
-    @ghost_map_auth _ _ _ _ _ specG_con_prob_lang_prog specG_con_prob_lang_prog_name 1.
+    @ghost_map_auth _ _ _ _ _ specG_con_prob_lang_prog specG_con_prob_lang_prog_name (DfracOwn 1).
   Definition spec_heap_auth :=
-    @ghost_map_auth _ _ _ _ _ specG_con_prob_lang_heap specG_con_prob_lang_heap_name 1.
+    @ghost_map_auth _ _ _ _ _ specG_con_prob_lang_heap specG_con_prob_lang_heap_name (DfracOwn 1).
   Definition spec_tapes_auth  :=
-    @ghost_map_auth _ _ _ _ _ specG_con_prob_lang_tapes specG_con_prob_lang_tapes_name 1.
+    @ghost_map_auth _ _ _ _ _ specG_con_prob_lang_tapes specG_con_prob_lang_tapes_name (DfracOwn 1).
 
   Definition spec_auth (ρ : cfg) : iProp Σ :=
     spec_prog_auth (to_tpool ρ.1) ∗

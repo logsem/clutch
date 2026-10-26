@@ -54,7 +54,7 @@ Section rules.
   Proof.
     iIntros (He) "(H𝛼&Hwp)".
     iApply twp_lift_step_fupd_glm; [done|].
-    iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
+    iIntros (k 𝜎 ε) "((Hheap&Htapes)&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
@@ -70,7 +70,7 @@ Section rules.
     iMod "Hclose'" as "_".
     iSpecialize ("Hwp" $! n with "H𝛼").
     rewrite !tgl_wp_unfold /tgl_wp_pre /= He.
-    iSpecialize ("Hwp" $! 𝜎' ε).
+    iSpecialize ("Hwp" $! k 𝜎' ε).
     iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp".
     { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
       rewrite H𝜎'.
@@ -87,7 +87,7 @@ Section rules.
   Proof.
     iIntros (He) "(>H𝛼&Hwp)".
     iApply wp_lift_step_fupd_glm; [done|].
-    iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
+    iIntros (k 𝜎 ε) "((Hheap&Htapes)&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
@@ -103,7 +103,7 @@ Section rules.
     iMod "Hclose'" as "_".
     iSpecialize ("Hwp" $! n with "H𝛼").
     rewrite !pgl_wp_unfold /pgl_wp_pre /= He.
-    iSpecialize ("Hwp" $! 𝜎' ε).
+    iSpecialize ("Hwp" $! k 𝜎' ε).
     iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp".
     { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
       rewrite H𝜎'.
@@ -129,7 +129,7 @@ Section rules.
       transitivity (ε2 0%fin); auto.
     }
     iApply twp_lift_step_fupd_glm; [done|].
-    iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
+    iIntros (k σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
 
@@ -285,7 +285,7 @@ Section rules.
     remember {| heap := heap2; tapes := tapes2 |} as σ2.
     rewrite Hσ_red.
     iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
-    iSpecialize ("Hwp" $! σ2 _).
+    iSpecialize ("Hwp" $! k σ2 _).
     iSpecialize ("Hwp" with "[Hheap Htapes Hε_supply]").
     { iSplitL "Hheap Htapes".
       - rewrite /tapes_auth.
@@ -315,7 +315,7 @@ Section rules.
       transitivity (ε2 0%fin); auto.
     }
     iApply wp_lift_step_fupd_glm; [done|].
-    iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
+    iIntros (k σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
     iMod (ec_supply_decrease with "Hε_supply Hε") as (ε1' ε_rem -> Hε1') "Hε_supply".
@@ -460,7 +460,7 @@ Section rules.
     remember {| heap := heap2; tapes := tapes2 |} as σ2.
     rewrite /= Hσ_red /=.
     iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
-    iSpecialize ("Hwp" $! σ2 _).
+    iSpecialize ("Hwp" $! k σ2 _).
     iSpecialize ("Hwp" with "[Hheap Htapes Hε_supply]").
     { iSplitL "Hheap Htapes".
       - rewrite /tapes_auth.
@@ -585,7 +585,7 @@ Section rules.
   Proof.
     iIntros (H1 H2) "He".
     iApply wp_lift_step_fupd_glm; first done.
-    iIntros (σ1 ε) "[Hσ Hε]".
+    iIntros (k σ1 ε) "[Hσ Hε]".
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose'".
     iDestruct (ec_supply_bound with "Hε He ") as %Hle.
