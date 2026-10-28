@@ -90,7 +90,7 @@ Section adv_rc.
 
 End adv_rc.
 
-From clutch.prob_eff_lang.probblaze Require Import OT_SCorrupt_thunk definition_thunk_sender_corrupt.
+From clutch.prob_eff_lang.probblaze Require Import OT_SCorrupt_thunk definition_thunk_sender_corrupt ot_common.
 
 Section adv_sc_typing.
   Context {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg}.
@@ -130,9 +130,7 @@ Section adv_sc_typing.
     iDestruct "H2'" as "(%gc&->&->)".
     iDestruct "H2" as "(%gd&->&->)".
     brel_pures'.
-    iDestruct (auth_upd (vgval ga, vgval gb, vgval gc, vgval gd)%V with "Hcrs") as ">Hcrs".
-    iDestruct (auth_persist with "Hcrs") as ">Hcrs".
-    iDestruct "Hcrs" as "#Hcrs".
+    iDestruct (crs_upd _ (vgval ga, vgval gb, vgval gc, vgval gd)%V with "Hcrs") as ">#Hcrs".
     iApply brel_effect_l. iIntros (CRSl) "!> Hcrsl !>".
     iApply brel_effect_r. iIntros (CRSr) "Hcrsr !>".
     brel_pures'.
@@ -148,7 +146,7 @@ Section adv_sc_typing.
       iIntros (??) "!# (->&->)". brel_pures'.
       iApply brel_introduction'; first constructor.
       iExists _,_,[],[],_;do 2 (iSplit; [by iPureIntro|]; iSplit; [iPureIntro; apply NeutralEctx_nil|]); iSplit; try (iIntros (??) "!# H"; iApply "H").
-      do 2 (iSplit; [by iPureIntro|]). iIntros (crs) "Hcrs'". iDestruct (auth_agree with "[$][$]") as "->".
+      do 2 (iSplit; [by iPureIntro|]). iIntros (crs) "Hcrs'". iDestruct (crs_agree with "[$][$]") as "->".
       iApply brel_value. iIntros "$ !>".
       do 3 (iExists _,_,_,_; do 2 (iSplit; [by iPureIntro|]);
       iSplit; last (iExists _; done)). iExists _; done. }
@@ -185,7 +183,7 @@ Section adv_sc_typing.
     iApply (brel_bind' [AppLCtx _] [AppLCtx _]).
     { iApply traversable_to_iThy. }
     iApply brel_introduction_mono; [iApply to_iThy_le_bot|].
-    iDestruct auth_alloc as ">(%γcrs&Hcrs)".
+    iDestruct crs_alloc as ">(%γcrs&Hcrs)".
     assert (to_iThyIfMono OS [] = ⊥) as <-; first done.
     iApply (brel_mono OS with "[][Hcrs HDH]"); [iApply to_iThy_le_refl|iApply (reduction_self with "Hcrs HDH")|simpl].
     iIntros (g1 g2) "Hgg /=".
@@ -378,3 +376,4 @@ Section adv_sc.
   Qed.
 
 End adv_sc.
+
