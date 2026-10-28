@@ -22,32 +22,32 @@ Section adv_comp.
   Proof using All.
     intros Hadv.
     eapply (advantage_triangle _ _ _ _ _ 0); last (rewrite Rplus_0_l; apply Rle_refl).
-    - right. eapply sem_val_typed_advantage; first apply Hadv.
+    - right. eapply sem_typed_advantage; first apply Hadv.
       split.
       + intros H. eapply F_OAUTH_DHKE_C_REAL; try done.
       + intros H. eapply C_REAL_DHKE_F_OAUTH; try done.
     - eapply (advantage_triangle _ _ _ _ _ _ 0); [apply Rle_refl| | (rewrite Rplus_0_r; apply Rle_refl)].
       eapply (advantage_triangle _ _ _ _ _ 0 0); last lra.
-      { right. eapply sem_val_typed_advantage; first apply Hadv.
+      { right. eapply sem_typed_advantage; first apply Hadv.
         split. 
         - intros H. by eapply REAL_CHAN_DH_RAND_DHSIM_FKE_CHAN1.
         - intros H. by eapply DHSIM_FKE_CHAN1_REAL_CHAN_DH_RAND. }
       eapply (advantage_triangle _ _ _ _ _ 0 0); last lra.
-      { right. eapply sem_val_typed_advantage; first apply Hadv.
+      { right. eapply sem_typed_advantage; first apply Hadv.
         split. 
         - intros H. by eapply DHSIM_FKE_CHAN1_DHSIM_FKE_CHAN2.
         - intros H. by eapply DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN1. }
       eapply (advantage_triangle _ _ _ _ _ 0 0); last lra.
-      { right. eapply sem_val_typed_advantage; first apply Hadv.
+      { right. eapply sem_typed_advantage; first apply Hadv.
         split. 
         - intros H. by eapply DHSIM_FKE_CHAN2_DHSIM_FKE_CHAN3.
         - intros H. by eapply DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN2. }
       eapply (advantage_triangle _ _ _ _ _ 0 0); last lra.
-      { right. eapply sem_val_typed_advantage; first apply Hadv.
+      { right. eapply sem_typed_advantage; first apply Hadv.
         split. 
         - intros H. by eapply DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4.
         - intros H. by eapply DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3. }
-      right. eapply sem_val_typed_advantage; first apply Hadv.
+      right. eapply sem_typed_advantage; first apply Hadv.
       split.
       + intros H. by eapply DHSIM_FKE_CHAN4_SIMFCHAN.
       + intros H. by eapply SIMFCHAN_DHSIM_FKE_CHAN4.
@@ -81,7 +81,7 @@ Section adv_comp.
   Theorem adv_composition_real A :
     (∀ `{!probblazeRGS Σ},⊢ sem_val_typed A A (τ → 𝔹)%T) →
     advantage A REAL_CHAN_DHKE SIMSIMFCHAN #true <=
-      advantage (λ: "v", A ((REAL_CHAN_DH_RED "v")))%V DH_real DH_rand #true.
+      advantage (λ: "v", A ((REAL_CHAN_DH_RED "v"))) DH_real DH_rand #true.
   Proof using All.
     intros Aty.
     etrans. 
@@ -93,12 +93,13 @@ Section adv_comp.
       { right. rewrite advantage_sym.
         apply REAL_DHKE_DH_RED_REAL_adv. done. }
       2: { right. apply REAL_DHKE_DH_RED_RAND_adv. done. }
-      apply (advantage_reduction A REAL_CHAN_DH_RED DH_real DH_rand true).
+      apply (advantage_reduction_expr_expr _ A REAL_CHAN_DH_RED DH_real DH_rand true).
+      1 : { intros. apply (subst_is_closed ∅); first is_closed. done. }
       intros. eexists _,_. split ; [|split].
       1: apply Aty.
-      2:{ split.
-          - by unshelve eapply DH_real_self.
-          - by unshelve eapply DH_rand_self. }
+      2:{ split; iApply compatibility.sem_typed_val.
+          - by iApply DH_real_self.
+          - by iApply DH_rand_self. }
       by apply new_composition_typing.REAL_CHAN_DH_RED_sem_typed.
   Qed.
 
@@ -107,8 +108,8 @@ Section adv_comp.
    (∀R:  ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> () + τG)) -{ RUnion (RVar 0%nat) (RVar 1%nat) }-∘ ())
    -∘ ∀R:
      (∀R:
-      (((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> () + ()))
-      -∘ (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ (RVar 0%nat) }-> () + ℕ)) -{ RUnion (RVar 1%nat) (RUnion (RFlip OS (RVar 0%nat)) (RVar 2%nat)) }-∘ ())).
+      (((((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> () + ())))
+      * ((((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ (RVar 0%nat) }-> () + ℕ)))) -{ RUnion (RFlip OS (RVar 1%nat)) (RUnion (RFlip OS (RVar 0%nat)) (RVar 2%nat)) }-∘ ())).
 
   Lemma T_subtype `{!probblazeRGS Σ} η μ δ ξ :
     ⊢ τ ≤ₜ interp._ty η μ δ T ξ.
@@ -124,15 +125,15 @@ Section adv_comp.
       iApply ty_le_sum; first iApply ty_le_refl.
       iIntros (??) "!#". iApply τG_subtype.
     - iApply ty_le_row_forall; iIntros (?).
-      iApply ty_le_row_forall; iIntros (?).
-      iApply ty_le_arr; [iApply row_le_refl| |].
+      iApply ty_le_row_forall; iIntros (?). 
+      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      iApply ty_le_prod.
       + iApply ty_le_prod; last iApply ty_le_refl.
         iApply ty_le_mbang_comp; first iApply mode_le_refl.
         iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
         iApply ty_le_prod; last iApply ty_le_refl.
         iIntros (??) "!#". iApply τG_subtype.
-      + iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
-        iApply ty_le_prod; last iApply ty_le_refl.
+      + iApply ty_le_prod; last iApply ty_le_refl.
         iApply ty_le_mbang_comp; first iApply mode_le_refl.
         iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
         iApply ty_le_prod; last iApply ty_le_refl.
@@ -149,7 +150,7 @@ Section adv_comp.
   Lemma adv_composition_typed A :
    ⊢ᵥ A : (T ⇾ TBool) →
     advantage A REAL_CHAN_DHKE SIMSIMFCHAN #true <=
-      advantage (λ: "v", A ((REAL_CHAN_DH_RED "v")))%V DH_real DH_rand #true.
+      advantage (λ: "v", A ((REAL_CHAN_DH_RED "v"))) DH_real DH_rand #true.
   Proof using All.
     intros HAtyped. apply adv_composition_real. 
     intros HRGS.
