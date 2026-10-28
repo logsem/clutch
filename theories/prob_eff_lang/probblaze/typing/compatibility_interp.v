@@ -316,52 +316,17 @@ Section compatibility_interp.
   Lemma interp_c_bin_log_pure_typed_ufun Δ Γ  ρ τ κ e1 e2 f x `{le.MultiC Γ} :
     x ∉ (ctx_dom Γ) -> f ∉ (ctx_dom Γ) ->
     match f with BNamed f => BNamed f ≠ x | BAnon => True end →
-    ⊢ (〈Δ; (x, τ) ::? (f, (TBang MS (TArrow τ ρ κ))) ::? Γ〉 ⊨ₜ e1 ≤log≤ e2 :ρ:κ⫤[]) -∗
+    ⊢ (〈Δ; ( x, τ) ::? (f, (TBang MS (TArrow τ ρ κ))) ::? Γ〉 ⊨ₜ e1 ≤log≤ e2 :ρ:κ⫤[]) -∗
     (⟨Δ; Γ ⟩ ⊨ₚ (rec: f x := e1) ≤log≤ (rec: f x := e2) :(τ -{ ρ }-> κ)).
   Proof.
     iIntros (???) "#He".
     iIntros (η μ δ ξ Hδ). push_lr.
-    iIntros "!# %γ HΓ /=".
-    pose proof (multi_env_sound Γ H η μ δ ξ) as HMultiE.
-    iDestruct "HΓ" as "#HΓ".
-    iSpecialize ("He" $! η μ δ ξ Hδ). push_lr.
-    rewrite /prel /=.
-    iExists _,_,1%nat,1%nat.
-    iSplit; first (iPureIntro; repeat split; by apply pure_recc).
-    iLöb as "IH". rewrite /sem_ty_mbang /sem_ty_arr /=.
-    iIntros "!# % % Hτ". simpl.
-    iApply brel_pure_step_r; first done.
-    iApply brel_pure_step_later; first done. iModIntro.
-    destruct f; destruct x; simpl.
-    - iApply brel_wand;
-       [by iApply "He"|iIntros (??) "!# ($&_)"].
-    - rewrite -!subst_map_insert.
-      assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (->&->) by done.
-      rewrite -!fmap_insert. simpl. 
-      iApply (brel_wand with "[Hτ]"); [iApply "He"|iIntros (??) "!# ($&_)"].
-      solve_env. rewrite -env_sem_typed_insert; [iApply "HΓ" |].
-      simpl. eapply ctx_dom_env_dom. auto.
-    - rewrite -!subst_map_insert.
-      assert ((rec: _ _ := _)%V = fst (_,(rec: s <> := subst_map (delete s (snd <$> γ)) e2)%V)) as -> by done.
-       assert ((rec: s <> := subst_map _ e2)%V = snd ((rec: s <> := subst_map (delete s (fst <$> γ)) e1)%V, _)) as -> by done.
-         rewrite -!fmap_insert; simpl. solve_env. admit.
-         (*iApply brel_wand.
-         +  iApply "He". [iApply "He"|iIntros (??) "!# ($&_)"].
-         solve_env. *)
-       - assert (s ≠ s0) by (intros ?; simplify_eq).
-         do 2 (rewrite subst_subst_ne; last done;
-               rewrite -subst_map_insert;
-               rewrite -delete_insert_ne; last done;
-               rewrite -subst_map_insert).
-         assert (w1 = fst (w1, w2) ∧ w2 = snd (w1, w2)) as (->&->) by done.
-         rewrite -!fmap_insert; simpl.
-         assert ((rec: _ _ := _)%V = fst (_,(rec: s s0 := subst_map (delete s0 (delete s (snd <$> γ))) e2)%V)) as -> by done.
-         assert ((rec: s s0 := subst_map _ e2)%V = snd ((rec: s s0 := subst_map (delete s0 (delete s (fst <$> γ)))  e1)%V, _)) as -> by done.
-         rewrite -!fmap_insert; simpl. admit.
-         (*iApply (brel_wand with "[Hτ]"); [iApply "He"|iIntros (??) "!# ($ &_)"].
-         solve_env.
-         by do 2 (rewrite -env_sem_typed_insert; last done). *)
-  Admitted.
+    iApply sem_oval_typed_ufun; try done; try (eapply ctx_dom_env_dom).
+    +  pose proof (multi_env_sound Γ H η μ δ ξ) as HMultiE. eapply HMultiE.
+    + destruct x; simpl; [done | eapply ctx_dom_env_dom; eapply H0].
+    + destruct f; simpl; [done | eapply ctx_dom_env_dom; eapply H1].
+    + simpl. destruct x; destruct f; simpl; iApply "He"; iPureIntro; eapply Hδ.
+  Qed.
   
   Lemma interp_c_bin_log_pure_typed_ufun_mode Δ Γ τ κ ρ m f x e1 e2 `{le.MultiC Γ} :
     x ∉ (ctx_dom Γ) -> f ∉ (ctx_dom Γ) ->
