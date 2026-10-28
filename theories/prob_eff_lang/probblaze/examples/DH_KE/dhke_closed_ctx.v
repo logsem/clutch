@@ -1,5 +1,5 @@
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import advantage_dhke_lazy valgroup_Zpx def_dhke.
-From clutch.prob_eff_lang.probblaze Require Import adequacy syntax types notation advantage.
+From clutch.prob_eff_lang.probblaze Require Import p_composition adequacy syntax types notation advantage.
 From Stdlib Require Import Reals.
 From iris.base_logic.lib Require Import ghost_map.
 From iris.algebra Require Import excl dfrac_agree.
@@ -53,9 +53,9 @@ Section multiplicative.
 
   Lemma adv_DHKE_typed A :
     ⊢ᵥ A : (@T_DH cgs ⇾ TBool) →
-           (advantage A (λ: "f", F_AUTH (DHKE "f"))%V (λ: "f", F_AUTH (DHSIM (FKE "f")))%V #true <=
-             advantage (λ: "v", A (((λ: "DH", (λ: "f", F_AUTH (C_lazy "DH" "f")))%V "v")))%V DDHR DDHI #true)%R.
-  Proof.
+           (advantage A (F_AUTH ∘f DHKE) (F_AUTH ∘f (DHSIM ∘f FKE)) #true <=
+              advantage (λ: "v", A (((λ: "DH", (F_AUTH ∘f (λ: "f", C_lazy "DH" "f")))) "v")) DDHR DDHI #true)%R.
+  Proof. 
     exact (DHKE_secure A).
   Qed. 
 
