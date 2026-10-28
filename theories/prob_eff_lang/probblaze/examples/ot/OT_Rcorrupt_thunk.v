@@ -221,7 +221,7 @@ Section handlee_verification.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
          iApply brel_vg_of_int_none_r; first done...
-
+         unfold kont, kont0. clear kont kont0.
          (* Protocol done loop *)
          protocol_done. }
 
@@ -233,7 +233,7 @@ Section handlee_verification.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
          iApply brel_vg_of_int_none_r; first done...
-
+         unfold kont, kont0. clear kont kont0.
          (* Protocol done loop *)
          protocol_done. }
 
@@ -273,7 +273,8 @@ Section handlee_verification.
        iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])".
        
         (* Protocol done loop *)
-       { protocol_done pop_r. }
+       { unfold kont, kont1, kont0. clear kont kont0 kont1.
+         protocol_done pop_r. }
    
        iDestruct "H" as (????) "(->&->&(%uz&->&->)&(%vz&->&->))"...
 
@@ -282,7 +283,7 @@ Section handlee_verification.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
          iApply brel_vg_of_int_none_r; first done...
-
+         unfold kont, kont1, kont0. clear kont kont0 kont1.
          (* Protocol done loop *)
          protocol_done pop_r. }
 
@@ -294,7 +295,7 @@ Section handlee_verification.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
          iApply brel_vg_of_int_none_r; first done...
-
+         unfold kont, kont1, kont0. clear kont kont0 kont1.
          (* Protocol done loop *)
          protocol_done pop_r. }
 
@@ -305,7 +306,8 @@ Section handlee_verification.
        destruct (bool_decide (u = 1%g)) eqn:Heq...
    
     (* Protocol done loop *)
-       { protocol_done pop_r. }
+       { unfold kont, kont1, kont0. clear kont kont0 kont1.
+         protocol_done pop_r. }
        
        destruct (bool_decide (v = (u ^+ (f_ring (Fp_of_fin g0) t0))%g)) eqn:Heq1...
    
@@ -380,7 +382,8 @@ Section handlee_verification.
          iIntros (??) "(->&->)"...
    
          (* Protocol done loop *)
-       { protocol_done pop_r. }
+       { unfold kont, kont3, kont2, kont1, kont0. clear kont kont0 kont1 kont2 kont3.
+         protocol_done pop_r. }
    
        + iApply (brel_handle_os_r [_] [AppRCtx _]); [set_solver|].
          iIntros (rRecv) "Hr"...
@@ -446,7 +449,8 @@ Section handlee_verification.
          iIntros (??) "(->&->)"...
    
          (* Protocol done loop *)
-       { protocol_done pop_r. }
+       {  unfold kont, kont3, kont2, kont1, kont0. clear kont kont0 kont1 kont2 kont3.
+          protocol_done pop_r. }
        Unshelve. all : done.
    Qed.
 
@@ -615,7 +619,7 @@ Section handlee_verification.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
          iApply brel_vg_of_int_none_r; first done...
-
+         unfold kont, kont0. clear kont kont0.
          (* Protocol done loop *)
          protocol_done. }
 
@@ -627,7 +631,7 @@ Section handlee_verification.
        2 : {
          iApply brel_vg_of_int_none_l; first done.
          iApply brel_vg_of_int_none_r; first done...
-
+         unfold kont, kont0. clear kont kont0.
          (* Protocol done loop *)
          protocol_done. }
 
@@ -667,7 +671,8 @@ Section handlee_verification.
     iIntros (??) "(%&%&[(->&->&->&->)|(->&->&H)])".
     
     (* Protocol done loop *)
-    { protocol_done pop_l. }
+    { unfold kont1, kont0, kont. clear kont kont0 kont1.
+      protocol_done pop_l. }
 
     iDestruct "H" as (????) "(->&->&(%uz&->&->)&(%vz&->&->))"...
 
@@ -676,7 +681,7 @@ Section handlee_verification.
     2 : {
       iApply brel_vg_of_int_none_l; first done.
       iApply brel_vg_of_int_none_r; first done...
-
+      unfold kont1, kont0, kont. clear kont kont0 kont1.
       (* Protocol done loop *)
       protocol_done pop_l. }
 
@@ -688,7 +693,7 @@ Section handlee_verification.
     2 : {
       iApply brel_vg_of_int_none_l; first done.
       iApply brel_vg_of_int_none_r; first done...
-
+      unfold kont1, kont0, kont. clear kont kont0 kont1.
       (* Protocol done loop *)
       protocol_done pop_l. }
 
@@ -698,7 +703,8 @@ Section handlee_verification.
     destruct (bool_decide (u = 1%g)) eqn:Heq...
     
     (* Protocol done loop *)
-    { protocol_done pop_l. }
+    { unfold kont1, kont0, kont. clear kont kont0 kont1.
+      protocol_done pop_l. }
     
     destruct (bool_decide (v = (u ^+ t0)%g)) eqn:Heq1...
 
@@ -773,7 +779,8 @@ Section handlee_verification.
       iIntros (??) "(->&->)"...
 
       (* Protocol done loop *)
-      { protocol_done pop_l. }
+      { unfold kont3, kont2, kont1, kont0, kont. clear kont kont0 kont1 kont2 kont3.
+        protocol_done pop_l. }
 
     + iApply (brel_handle_os_l [_] [AppRCtx _]); [set_solver|].
       iIntros (rRecv) "!> Hr"...
@@ -840,7 +847,8 @@ Section handlee_verification.
       iIntros (??) "(->&->)"...
 
       (* Protocol done loop *)
-      { protocol_done pop_l. }
+      { unfold kont3, kont2, kont1, kont0, kont. clear kont kont0 kont1 kont2 kont3.
+        protocol_done pop_l. }
       
       Unshelve. all : done.
   Qed. 
