@@ -667,22 +667,22 @@ Section parallel_composition.
       iApply to_iThy_le_intro'; solve_submseteq.
   Qed.
 
-   Lemma functionality_comp_func_comp_assoc_curried (F G J : expr) (f x y : string) τ1 τ2 τ1' τJ τJ' τF :
+   Lemma functionality_comp_func_comp_assoc_curried (F G J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
     (BNamed f) ≠ (BNamed x) →
-    (BNamed f) ≠ (BNamed y) →
-    (BNamed x) ≠ (BNamed y) →
+    (* (BNamed f) ≠ (BNamed y) →
+       (BNamed x) ≠ (BNamed y) → *)
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
     ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡ θF)%R θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡ θ1)%R θ }-∘ 𝟙)%T [] -∗
 
-    sem_typed [] G G ⊥ (∀ᵣ θ, (∀ᵣ θJ, τJ θJ ⊸ τJ' θJ -{ sem_row_union  (¡ θJ)%R θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τF θ2)) -{ sem_row_union (¡ θ2)%R (sem_row_union (¡ θ1)%R θ)}-∘ 𝟙)%T [] -∗
+    sem_typed [] G G ⊥ (∀ᵣ θ, (∀ᵣ θJ, τJ θJ -{ sem_row_union  (¡ θJ)%R θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τF θ2)) -{ sem_row_union (¡ θ2)%R (sem_row_union (¡ θ1)%R θ)}-∘ 𝟙)%T [] -∗
 
-    (∀ θ θJ, sem_typed [(f, τ1' θ); (x, τJ θJ); (y, τJ' θJ)] J J (sem_row_union  (¡ θJ)%R θ) (𝟙)%T []) -∗
+    (∀ θ θJ, sem_typed [(f, τ1' θ); (x, τJ θJ)] J J (sem_row_union  (¡ θJ)%R θ) (𝟙)%T []) -∗
 
-    sem_typed [] ((F ∘F G) ∘f (λ: f x y, J)%V) (F ∘F (G ∘f (λ: f x y, J)%V)) ⊥
+    sem_typed [] ((F ∘F G) ∘f (λ: f x, J)%V) (F ∘F (G ∘f (λ: f x, J)%V)) ⊥
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
    Proof using All.
-   iIntros (Hfx Hfy Hxy HFclosed HGclosed) "#HFF #HGG #HJJ !# %vs _".
+   iIntros (Hfx HFclosed HGclosed) "#HFF #HGG #HJJ !# %vs _".
     rewrite /functionality_composition /func_comp //=.
     brel_pures'.
     rewrite /sem_typed /=. 
@@ -723,33 +723,19 @@ Section parallel_composition.
       assert (to_iThyIfMono OS [] = []) as <- by done.
       iApply (brel_mono OS with "[][HG1G2 Hff]"); [iApply to_iThy_le_refl|iApply "HG1G2"|].
       + iIntros (θJ x1 x2) "HτJ". brel_pures'.
-        rewrite decide_True; [| (split; done)]; rewrite decide_True; [| (split; done)].
-        simpl.
-        repeat (rewrite decide_True; last (split; done)).
-        brel_pures'.
-        iModIntro.
-        iIntros (y1 y2) "HτJ'". brel_pures'.
-        assert (Hs1 : subst_map (fst <$> {[y:=(y1,y2); x:=(x1,x2); f:=(f1,f2)]}) J
-                      = val_subst y y1 (val_subst x x1 (val_subst f f1 J))).
-        { rewrite !fmap_insert fmap_empty /= subst_map_insert delete_insert_ne; [|naive_solver].
-          rewrite delete_insert_ne; [|naive_solver]. rewrite delete_empty.
-          rewrite subst_map_insert delete_insert_ne; [|naive_solver]. rewrite delete_empty.
-          rewrite subst_map_insert delete_empty subst_map_empty //. }
-        assert (Hs2 : subst_map (snd <$> {[y:=(y1,y2); x:=(x1,x2); f:=(f1,f2)]}) J
-                      = val_subst y y2 (val_subst x x2 (val_subst f f2 J))).
-        { rewrite !fmap_insert fmap_empty /= subst_map_insert delete_insert_ne; [|naive_solver].
-          rewrite delete_insert_ne; [|naive_solver]. rewrite delete_empty.
-          rewrite subst_map_insert delete_insert_ne; [|naive_solver]. rewrite delete_empty.
-          rewrite subst_map_insert delete_empty subst_map_empty //. }
-        iAssert ([(f, τ1' θ); (x, τJ θJ); (y, τJ' θJ)] ⊨ₑ {[ y:=(y1,y2); x:=(x1,x2); f:=(f1,f2) ]}) with "[Hff HτJ HτJ']" as "HΓ'".
-        { rewrite !sem_env.env_sem_typed_cons sem_env.env_sem_typed_empty.
-          iSplitL "Hff". { iExists f1, f2. iFrame "Hff". iPureIntro. rewrite lookup_insert_ne; [|naive_solver]. rewrite lookup_insert_ne; [|naive_solver]. by simplify_map_eq. }
-          iSplitL "HτJ". { iExists x1, x2. iFrame "HτJ". iPureIntro. rewrite lookup_insert_ne; [|naive_solver]. by simplify_map_eq. }
-          iSplitL "HτJ'". { iExists y1, y2. iFrame "HτJ'". iPureIntro. by simplify_map_eq. }
-          done. } 
+        assert (Hs1 : subst_map (fst <$> {[x:=(x1,x2); f:=(f1,f2)]}) J
+                      = (val_subst x x1 (val_subst f f1 J))).
+        { rewrite !fmap_insert fmap_empty !subst_map_insert delete_insert_ne /=; [|naive_solver].
+          by rewrite subst_map_insert !delete_empty subst_map_empty. }
+        assert (Hs2 : subst_map (snd <$> {[ x:=(x1,x2); f:=(f1,f2)]}) J
+                      = (val_subst x x2 (val_subst f f2 J))).
+        { rewrite !fmap_insert fmap_empty !subst_map_insert delete_insert_ne /=; [|naive_solver].
+          by rewrite subst_map_insert !delete_empty subst_map_empty. }
+        iAssert ([(f, τ1' θ); (x, τJ θJ)] ⊨ₑ {[x:=(x1,x2); f:=(f1,f2) ]}) with "[Hff HτJ]" as "HΓ'".
+        { solve_env. naive_solver. }
         iDestruct ("HJJ" $! θ θJ with "HΓ'") as "Hrel". 
         rewrite -Hs1 -Hs2.
-        iApply (brel_wand with "[$Hrel]"). (*{ iApply "Hrel". }*)
+        iApply (brel_wand with "[$Hrel]"). 
         iIntros (v0 v3) "!# ($&_)".
       + simpl. iIntros (GJ1 GJ2) "HGJ".
         iApply "HGJ".
