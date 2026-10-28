@@ -53,7 +53,8 @@ Section adv_schan.
     nonneg (advantage A game1 game2 #true) <= advantage (λ: "enc", A ((reduction (mt := mt) (ms := ms)) "enc")) (enc_real_tape ske) (enc_ideal ske) #true.
   Proof using All.
     intros HA. unfold game1, game2.
-    apply advantage_reduction_expr.
+    apply advantage_reduction_expr_expr.
+    { intros. apply (subst_is_closed ∅); first is_closed. done. }
     intros ?. eexists _,_.
     split; first done.
     split; last split.
