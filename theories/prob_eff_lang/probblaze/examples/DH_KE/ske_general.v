@@ -29,8 +29,9 @@ Section symmetric.
     {cipher : @fin_val Σ HΣ _ cs}
     {sym_struct : @SYM_struct _ ks _ ms _ cs} :=
     { P : key → msg → cipher → iProp Σ
+    ; P_pers k m c :: Persistent (P k m c)
     ; brel_enc_couple : ∀ (k : key) (m : msg) E,
-        ⊢ BREL (enc (fvtval k) (fvtval m)) ≤ enc (fvtval k) (fvtval m) @ E <|⊥|> {{ (λ v1 v2, ∃ c : cipher, ⌜v1 = fvtval c⌝ ∗ ⌜v2 = fvtval c⌝ ∗ (□ P k m c)) }}
+        ⊢ BREL (enc (fvtval k) (fvtval m)) ≤ enc (fvtval k) (fvtval m) @ E <|⊥|> {{ (λ v1 v2, ∃ c : cipher, ⌜v1 = fvtval c⌝ ∗ ⌜v2 = fvtval c⌝ ∗ (P k m c)) }}
     ; brel_dec_enc_correct_l : ∀ (k : key) (m : msg) (c : cipher) K e E X R,
         P k m c -∗ 
         BREL fill K (fvtval m) ≤ e @ E <|X|> {{ R }} -∗ 
@@ -77,18 +78,18 @@ End symmetric.
 Section programs.
   Context `{sym_struct : SYM_struct}.
 
-  Definition enc_real_tape : expr :=
-    let: "ι" := alloc #(ks.(card) - 1) in
-    λ: "m", let: "n" := rand("ι") #(Z.to_nat (ks.(card) - 1)) in
-            match: ks.(fvt_of_int) "n" with
-              NONE     => #()%V
-            | SOME "k" => enc "k" "m"
-            end.
+  Definition enc_real_tape : val :=
+    λ: <>, let: "ι" := alloc #(ks.(card) - 1) in
+      λ: "m", let: "n" := rand("ι") #(Z.to_nat (ks.(card) - 1)) in
+              match: ks.(fvt_of_int) "n" with
+                NONE     => #()%V
+              | SOME "k" => enc "k" "m"
+              end.
 
-  Definition enc_real : expr :=
-    λ: "m", let: "k" := rand_key #()%V in enc "k" "m".
+  Definition enc_real : val :=
+    λ: <> "m", let: "k" := rand_key #()%V in enc "k" "m".
 
-  Definition enc_ideal : expr := λ: "m", rand_cipher #()%V.
+  Definition enc_ideal : val := λ: <> "m", rand_cipher #()%V.
 
 End programs.
 
@@ -100,22 +101,22 @@ Section OTS.
   Context `{ske : SYM}.
 
   Lemma enc_real_tape_enc_real : 
-    ⊢ sem_typed [] (enc_real_tape ske) (enc_real ske) ⊥ (msg.(sem_τFT) → cipher.(sem_τFT))%T [].
+    ⊢ sem_typed [] (enc_real_tape ske) (enc_real ske) ⊥ (𝟙 ⊸ (msg.(sem_τFT) → cipher.(sem_τFT)))%T [].
   Proof.
-    iIntros "!# %vs Hvs". simpl.
-    rewrite !lookup_delete_eq.
-    do 2 (rewrite lookup_delete_ne; last done).
-    rewrite !lookup_delete_eq.
-    do 2 (rewrite lookup_delete_ne; last done;
-          rewrite !lookup_delete_eq).
+    iIntros "!# %vs Hvs /=". 
+    unfold enc_real_tape, enc_real.
+    iApply brel_value. iIntros "$ !>". 
+    iSplitL; last done.
+    iIntros (??) "(->&->)". 
+    brel_pures_l.
+    brel_pures_r.
     brel_alloctape_l ι as "Hι".
     iApply (brel_na_alloc (ι ↪N (Z.to_nat (key.(card) - 1); []))%I  (nroot .@ "inv")).
     iSplitL "Hι"; [iNext; iFrame|].
     iIntros "#HI".
     brel_pures_l.
-    brel_pures_r.
     rewrite /sem_ty_arr /sem_ty_mbang /=.
-    iModIntro; iSplitR; last done.
+    iModIntro.
     iIntros (m1 m2) "!> (%m&->&->)". 
     iApply (brel_na_inv _ _ (nroot .@ "inv")); first set_solver.
     iFrame "HI".
@@ -150,18 +151,22 @@ Section OTS.
   Qed.
 
   Lemma enc_real_enc_real_tape : 
-    ⊢ sem_typed [] (enc_real ske) (enc_real_tape ske) ⊥ (msg.(sem_τFT) → cipher.(sem_τFT))%T [].
+    ⊢ sem_typed [] (enc_real ske) (enc_real_tape ske) ⊥ (𝟙 ⊸ (msg.(sem_τFT) → cipher.(sem_τFT)))%T [].
   Proof.
-    iIntros "!# %vs Hvs". simpl.
-    repeat (rewrite lookup_delete_eq || (rewrite lookup_delete_ne; last done)).
+    iIntros "!# %vs Hvs /=".
+    unfold enc_real_tape, enc_real.
+    iApply brel_value. iIntros "$ !>". 
+    iSplitL; last done.
+    iIntros (??) "(->&->)". 
+    brel_pures_l.
+    brel_pures_r.
     brel_alloctape_r ι as "Hι".
     iApply (brel_na_alloc (ι ↪ₛ (Z.to_nat (ks.(card) - 1); []))%I (nroot .@ "inv")).
     iSplitL "Hι"; [iNext; iFrame|].
     iIntros "#HI".
-    brel_pures_l.
     brel_pures_r.
     rewrite /sem_ty_arr /sem_ty_mbang /=.
-    iModIntro; iSplitR; last done.
+    iModIntro.
     iIntros (m1 m2) "!> (%m&->&->)".
     iApply (brel_na_inv _ _ (nroot .@ "inv")); first set_solver.
     iFrame "HI".

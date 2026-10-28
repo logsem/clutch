@@ -49,8 +49,9 @@ Section schannel.
   (* Assumes a fixed direction from Alice to Bob, so the leak raised by CHAN doesnt need to send a destination with the argument Bob*)
   (* InjL arg represents the message being sent by Alice, and InjR <>, just represents that Bob is requesting a receive , so "doSecRecv" is now a genuine thunk, because it doesnt need any argument anymore*)
   Definition CHAN : val :=
-    λ: "f" "ChanOp" "doGK",
-      let, ("doSend", "doRecv") := "ChanOp" in
+    λ: "f" "effs",
+      let, ("chanOp", "doGK") := "effs" in
+      let, ("doSend", "doRecv") := "chanOp" in
       let: "message" := ref NONEV in
       effect "ssend"
         effect "srecv"
@@ -92,8 +93,10 @@ Section schannel.
   
 
   Definition RED_CHAN : val :=
-    λ: "enc" "f" "ChanOp" "doGK", 
-      let, ("doSend", "doRecv") := "ChanOp" in
+    λ: "enc" "f" "effs", 
+      let: "enc" := "enc" #()%V in
+      let, ("chanOp", "doGK") := "effs" in
+      let, ("doSend", "doRecv") := "chanOp" in
       let: "message" := ref NONEV in
       effect "ssend"
         effect "srecv"
@@ -171,7 +174,8 @@ Section schannel.
 
   (*Simulator for the one message secure channel *)
   Definition CHAN_SIM : val :=
-    λ: "f" "LeakAOp" "doKeyLeak",
+    λ: "f" "effs",
+      let, ("LeakAOp", "doKeyLeak") := "effs" in
       let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
       let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in
       let: "message" := ref NONEV in
@@ -220,15 +224,15 @@ Section schannel.
 | return "y" => "y" end.
 
 
-  Definition sc_real : val := λ: "f", (F_KE_lazy_alice ||ᵣ F_OAUTH) (CHAN "f").
+  Definition sc_real : expr := (F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f CHAN.
   
-  Definition reduction : val := (λ: "enc" "f", (F_KE_lazy_alice ||ᵣ F_OAUTH) (RED_CHAN "enc" "f")).
+  Definition reduction : val := (λ: "enc", (F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f (RED_CHAN "enc")).
 
   Definition game1 : expr := reduction (enc_real_tape ske).
 
   Definition game2 : expr := reduction (enc_ideal ske).
 
-  Definition sc_ideal : val := λ: "f", CHAN_SIM (F_CHAN "f").
+  Definition sc_ideal : expr := CHAN_SIM ∘f F_CHAN.
 
 
 End schannel.
