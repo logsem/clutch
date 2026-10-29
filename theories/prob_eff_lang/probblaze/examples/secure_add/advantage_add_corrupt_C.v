@@ -1,7 +1,7 @@
 From clutch.prob_eff_lang.probblaze Require Import advantage.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy mode.
 From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental.
-From clutch.prob_eff_lang.probblaze.examples.secure_add Require Import add_def add_prf.
+From clutch.prob_eff_lang.probblaze.examples.secure_add Require Import add_corrupt_C_def add_corrupt_C_prf.
 
 Import fingroup.
 Import fingroup.fingroup.

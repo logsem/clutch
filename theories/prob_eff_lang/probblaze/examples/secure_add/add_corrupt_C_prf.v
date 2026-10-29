@@ -5,7 +5,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   spec_rules spec_ra class_instances.
 From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
-From clutch.prob_eff_lang.probblaze.examples.secure_add Require Import add_def add_bijection.
+From clutch.prob_eff_lang.probblaze.examples.secure_add Require Import add_corrupt_C_def add_corrupt_C_bijection.
 
 Import fingroup.
 Import fingroup.fingroup.
