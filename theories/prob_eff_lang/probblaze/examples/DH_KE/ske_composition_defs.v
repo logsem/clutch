@@ -26,7 +26,7 @@ Section new_comp_verification.
     ((F_AUTH ∘f C_DH_real) ||ᵣ F_OAUTH) ∘f CHAN.
 
   Definition REAL_CHAN_DH_RED : expr :=
-    λ:"DH", ((F_AUTH ∘f (C_lazy "DH")) ||ᵣ F_OAUTH) ∘f CHAN.
+    λ:"DH", ((F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) ||ᵣ F_OAUTH) ∘f CHAN.
 
   Definition REAL_CHAN_DH_RED_REAL : expr := REAL_CHAN_DH_RED DH_real.
   Definition REAL_CHAN_DH_RED_RAND : expr := REAL_CHAN_DH_RED DH_rand.

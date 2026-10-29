@@ -531,6 +531,168 @@ Section ske_comp_verification.
       Unshelve. all: solve_typed_side.
     Qed.
 
+    Lemma DHSIM_FKE_RED_typed :
+      ⊢ sem_typed [] (DHSIM_FKE_RED (mt := mt) (ms := ms)) (DHSIM_FKE_RED (mt := mt) (ms := ms)) ⊥ ((𝟙 ⊸ (Msg -{ ⊥ }-> Cph)) → τ)%T [].
+    Proof using All.
+      iApply (sem_typed_oval _ [] []). iApplyT sem_oval_typed_ufun.
+      iApply DHSIM_FKE_RED_unfolded_typed.
+      Unshelve. all: solve_typed_side.
+    Qed.
+
   End reduction.
+
+  (* [C_lazy], the DH-based key exchange, derived from the compatibility
+     lemmas.  Like F_OAUTH it holds the one-shot continuation across the
+     leak calls, so it is a [τ__FO] functionality. *)
+  Section c_lazy.
+    Import typed_hint_modes.
+    #[local] Existing Instance multi_ty_group.
+
+    Lemma C_lazy_val_typed :
+      ⊢ ⊨ᵥ C_lazy ≤ C_lazy : ((𝟙 ⊸ ((𝔾 × 𝔾) × 𝔾)) ⊸ τ__FO chan gk)%T.
+    Proof.
+      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
+      iApply sem_typed_closure; first done.
+      iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
+      iApplyT sem_oval_typed_afun.
+      iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ₂).
+      iApplyT sem_oval_typed_afun. simpl.
+      iApplyT sem_typed_pair_elim; first typed_var.
+      iApplyT sem_typed_let.
+      { iApplyT sem_typed_app_fun_nil; [iApply row_le_nil|iApplyT sem_typed_unit'|typed_var]. }
+      iApplyT sem_typed_let; first (iApplyT sem_typed_snd_gen; iApplyT sem_typed_fst_gen; typed_var_copy).
+      iApplyT sem_typed_let; first (iApplyT sem_typed_snd_gen; typed_var_copy).
+      iApplyT sem_typed_let; first (iApplyT sem_typed_fst_gen; iApplyT sem_typed_fst_gen; typed_var).
+      simpl.
+      iApplyT sem_typed_let.
+      { iApplyT sem_typed_alloc_cpy. iApplyT sem_typed_injl. iApplyT sem_typed_unit'. }
+      iApplyT sem_typed_let.
+      { iApplyT (sem_typed_sub_env _ ([("lc", _); ("gc", _)] ++ [("lc", _); ("ga", _); ("gc", _); ("gb", _); ("doSend", _); ("doRecv", _); ("f", _)])).
+        { simpl. env_solve. }
+        iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _]).
+        iApplyT sem_oval_typed_ufun. simpl.
+        iApplyT (sem_typed_match_split [] []).
+        - iApplyT sem_typed_load_cpy. typed_var_copy.
+        - iApply env_le_refl.
+        - iApplyT sem_typed_store_cpy_gen.
+          2: { iApplyT sem_typed_injr. typed_var_copy. }
+          typed_var_copy.
+        - iApply env_le_nil.
+        - iApply env_le_refl.
+        - iApplyT sem_typed_sub_env; first iApply env_le_weaken. iApplyT sem_typed_unit'.
+        - iApply env_le_nil. }
+      iApply sem_typed_effect_gen. iIntros (l1 l2). simpl.
+      iApplyT sem_typed_let.
+      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+        iApplyT sem_oval_typed_ufun.
+        iApply (sem_typed_do_const OS ⟨⟩%R (l1, l2) (𝟙 + 𝟙)%T (Option 𝔾)%T).
+        iApply sem_typed_sub_nil. iApply sem_typed_var. }
+      iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
+      iApplyT (sem_typed_sub_env _ ([("doGK", _); ("f", _)]
+                                      ++ [("store_if_none", _); ("doSend", _); ("doRecv", _); ("ga", _); ("gb", _); ("gc", _); ("lc", _)])).
+      { simpl. env_solve. }
+      iApplyT (sem_typed_deep_handler_OS (l1, l2) (λ _, 𝟙 + 𝟙)%T (λ _, Option 𝔾)%T).
+      - iApplyT sem_typed_app_fun_nil.
+        2: typed_var.
+        2: { iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst. }
+        iApply row_le_trans; first iApplyT row_le_union'.
+        + iApply row_le_mfbang_elim.
+        + iApply row_le_refl.
+        + row_le_submseteq.
+      - iIntros (?). simpl.
+        iApplyT (sem_typed_match_split [] []).
+        + typed_var.
+        + iApply env_le_refl.
+        + (* Alice. *)
+          iApplyT sem_typed_seq.
+          { iApplyT sem_typed_app_fun_nil; [iApply row_le_nil|iApplyT sem_typed_unit'|].
+            iApplyT sem_typed_sub_ty; [iApply ty_le_u2aarr|typed_var_copy]. }
+          iApplyT sem_typed_seq.
+          { iApplyT sem_typed_app_fun_nil; first row_le_submseteq.
+            - iApplyT sem_typed_pair; [iApply (sem_typed_party true)|typed_var_copy].
+            - typed_leak_fun. }
+          iApplyT sem_typed_let.
+          { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party true)|typed_leak_fun]. }
+          iApplyT (sem_typed_match_split [] []).
+          * typed_var.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injl; iApplyT sem_typed_unit'|typed_cont].
+          * iApply env_le_refl.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+            iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var_copy|typed_cont].
+          * iApply env_le_refl.
+        + iApply env_le_refl.
+        + iApply env_le_refl.
+        + (* Bob. *)
+          iApplyT sem_typed_let.
+          { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party false)|typed_leak_fun]. }
+          iApplyT (sem_typed_match_split [] []).
+          * typed_var.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injl; iApplyT sem_typed_unit'|typed_cont].
+          * iApply env_le_refl.
+          * iApply env_le_refl.
+          * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+            iApplyT sem_typed_seq.
+            { iApplyT sem_typed_app_fun_nil; first row_le_submseteq.
+              - iApplyT sem_typed_pair; [iApply (sem_typed_party false)|typed_var_copy].
+              - typed_leak_fun. }
+            iApplyT (sem_typed_match_split [] []).
+            -- iApplyT sem_typed_load_cpy. typed_var_copy.
+            -- iApply env_le_refl.
+            -- iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injl; iApplyT sem_typed_unit'|typed_cont].
+            -- iApply env_le_refl.
+            -- iApply env_le_refl.
+            -- iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+               iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var_copy|typed_cont].
+            -- iApply env_le_refl.
+          * iApply env_le_refl.
+        + iApply env_le_refl.
+      - typed_var.
+        Unshelve. all: solve_typed_side.
+    Qed.
+
+  End c_lazy.
+
+  Section real_chan.
+    Import typed_hint_modes.
+
+    Lemma REAL_CHAN_DH_RED_unfolded_typed :
+      ⊢ sem_typed ((BNamed "DH", (𝟙 ⊸ (sem_ty_group × sem_ty_group) × sem_ty_group)) ::? []) (((F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) ||ᵣ F_OAUTH) ∘f CHAN)%E (((F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) ||ᵣ F_OAUTH) ∘f CHAN)%E  ⊥ τ [].
+    Proof using All.
+      (* [G ∘f CHAN] with [G := (F_AUTH ∘f C) ||ᵣ F_OAUTH]; arguments first. *)
+      iApplyT sem_typed_app_nil; last first.
+      { iApply (sem_typed_frame_env_gen _ [_]). iApply (CHAN_typed (SKE := SKE)). }
+      iApplyT sem_typed_app_nil; last first.
+      - iApplyT sem_typed_app_nil; last first.
+        { iApply (sem_typed_frame_env_gen _ [_]). iApply sem_typed_val. iApply (F_OAUTH_val_typed (SKE := SKE)). }
+        iApplyT sem_typed_app_nil; last first.
+        + (* [F_AUTH ∘f C], with [C := λ: "f", C_lazy "DH" "f"]. *)
+          iApplyT sem_typed_app_nil; last first.
+          * iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
+            iApplyT sem_oval_typed_afun. simpl.
+            iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|typed_var|].
+            iApplyT sem_typed_sub_ty; last first.
+            { iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|typed_var|].
+              iApply sem_typed_val. iApply C_lazy_val_typed. }
+            iApply ty_le_row_forall_inst.
+          * iApplyT sem_typed_app_nil; last (iApply sem_typed_val; iApply F_AUTH_val_typed).
+            iApply sem_typed_val. iApply func_comp_val_typed.
+        + iApply sem_typed_val. iApply right_comp_val_typed.
+      - iApply sem_typed_val. iApply func_comp_val_typed.
+        Unshelve. all: solve_typed_side.
+    Qed.
+
+    Lemma REAL_CHAN_DH_RED_typed :
+      ⊢ sem_typed [] REAL_CHAN_DH_RED REAL_CHAN_DH_RED ⊥ ((𝟙 ⊸ (sem_ty_group × sem_ty_group) × sem_ty_group) → τ)%T [].
+    Proof using All.
+      iApply (sem_typed_oval _ [] []). iApplyT sem_oval_typed_ufun.
+      iApply REAL_CHAN_DH_RED_unfolded_typed.
+      Unshelve. all: solve_typed_side.
+    Qed.
+
+
+  End real_chan.
 
 End ske_comp_verification.

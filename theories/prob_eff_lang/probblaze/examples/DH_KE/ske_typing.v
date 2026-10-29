@@ -1106,4 +1106,17 @@ Section ske_typing.
     Unshelve. all: solve_typed_side.
   Qed.
 
+  Lemma sem_typed_adv_red_expr (s : string) (A : val) (red : expr) (α β : sem_ty Σ) :
+    ⊢ ⊨ᵥ A ≤ A : (β → 𝔹) -∗ sem_typed [] red red ⊥ (α → β)%T [] -∗
+      sem_typed [] (λ: s, A (red s))%E (λ: s, A (red s))%E ⊥ (α → 𝔹)%T [].
+  Proof.
+    iIntros "#HA #Hr".
+    iApply (sem_typed_oval _ []). iApplyT sem_oval_typed_ufun. simpl.
+    iApplyT sem_typed_app_nil; last first.
+    { iApplyT sem_typed_app_nil; last typed_var.
+      iApply sem_typed_sub_ty; [iApply ty_le_mbang_elim|iApply "Hr"]. }
+    iApply sem_typed_val. iApply sem_val_typed_sub; [iApply ty_le_mbang_elim|iApply "HA"].
+    Unshelve. all: solve_typed_side.
+  Qed.
+
 End ske_typing.
