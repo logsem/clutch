@@ -1,4 +1,4 @@
-From clutch.prob_eff_lang.probblaze Require Import notation proofmode.
+From clutch.prob_eff_lang.probblaze Require Import notation proofmode logic sem_def sem_types sem_row sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import valgroup ske fin_val_type valgroup_finval.
 From mathcomp Require Import finset fintype.
 Import fingroup.FinGroup.Exports.
@@ -30,11 +30,21 @@ Section otp.
   (** ** The scheme *)
 
   Definition otp_enc : val := λ: "k" "m", "k"^-1 · "m".
-  Definition otp_dec : val := λ: "k" "m", "k" · "m".
+  Definition otp_dec : val := λ: "k" "m", SOME ("k" · "m").
+  
+  Lemma otp_enc_closed : is_closed_val otp_enc.
+  Proof. is_closed. Qed.
+  Lemma otp_dec_closed : is_closed_val otp_dec.
+  Proof. is_closed. Qed.
+
+  #[local] Instance vg_fvt_inhabited : Inhabited (fvt_sort vg_fvts) := populate (1%g : vgG).
 
   Global Instance otp_struct :
     @SYM_struct vg_fvt vg_fvts vg_fvt vg_fvts vg_fvt vg_fvts :=
-    { enc := otp_enc ; dec := otp_dec }.
+    { enc := otp_enc 
+    ; dec := otp_dec 
+    ; enc_closed := otp_enc_closed
+    ; dec_closed := otp_dec_closed }.
 
   Definition otp_enc_sem (k m : vgG) : vgG := (k^-1 * m)%g.
 
@@ -52,7 +62,7 @@ Section otp.
   Proof. by rewrite /otp_dec_sem /otp_enc_sem mulgA mulgV mul1g. Qed.
 
   Lemma otp_enc_correct_l E K (k m : vgG) X R e :
-    (BREL fill K (vgval (otp_enc_sem k m)) ≤ e @ E <|X|> {{R}}) -∗
+    ⊢ (BREL fill K (vgval (otp_enc_sem k m)) ≤ e @ E <|X|> {{R}}) -∗
     (BREL fill K (otp_enc (vgval k) (vgval m)) ≤ e @ E <|X|> {{R}}).
   Proof with (repeat rewrite fill_app; simpl).
     iIntros "Hsem". rewrite /otp_enc /otp_enc_sem.
@@ -62,7 +72,7 @@ Section otp.
   Qed.
 
   Lemma otp_enc_correct_r E K (k m : vgG) X R e :
-    (BREL e ≤ fill K (vgval (otp_enc_sem k m)) @ E <|X|> {{R}}) -∗
+    ⊢ (BREL e ≤ fill K (vgval (otp_enc_sem k m)) @ E <|X|> {{R}}) -∗
     (BREL e ≤ fill K (otp_enc (vgval k) (vgval m)) @ E <|X|> {{R}}).
   Proof with (repeat rewrite fill_app; simpl).
     iIntros "Hsem". rewrite /otp_enc /otp_enc_sem.
@@ -72,39 +82,68 @@ Section otp.
   Qed.
 
   Lemma otp_dec_correct_l E K (k c : vgG) X R e :
-    (BREL fill K (vgval (otp_dec_sem k c)) ≤ e @ E <|X|> {{R}}) -∗
+    ⊢ (BREL fill K (SOMEV (vgval (otp_dec_sem k c))) ≤ e @ E <|X|> {{R}}) -∗
     (BREL fill K (otp_dec (vgval k) (vgval c)) ≤ e @ E <|X|> {{R}}).
   Proof with (repeat rewrite fill_app; simpl).
     iIntros "Hsem". rewrite /otp_dec /otp_dec_sem.
-    brel_pures'...
+    brel_pures'... brel_pures_l.
     iApply "Hsem".
   Qed.
 
   Lemma otp_dec_correct_r E K (k c : vgG) X R e :
-    (BREL e ≤ fill K (vgval (otp_dec_sem k c)) @ E <|X|> {{R}}) -∗
+    ⊢ (BREL e ≤ fill K (SOMEV (vgval (otp_dec_sem k c))) @ E <|X|> {{R}}) -∗
     (BREL e ≤ fill K (otp_dec (vgval k) (vgval c)) @ E <|X|> {{R}}).
   Proof with (repeat rewrite fill_app; simpl).
     iIntros "Hsem". rewrite /otp_dec /otp_dec_sem.
-    brel_pures'...
+    brel_pures'... brel_pures_r.
     iApply "Hsem".
+  Qed.
+
+  #[local] Notation Grp := (sem_τFT (fin_val := vg_fv)).
+  #[local] Existing Instance multi_ty_fvt.
+
+  Lemma sem_typed_mult Γ1 Γ2 Γ3 e1 e1' e2 e2' ρ :
+    ⊢ sem_typed Γ1 e2 e2' ρ Grp Γ2 -∗ sem_typed Γ2 e1 e1' ρ Grp Γ3 -∗
+      sem_typed Γ1 (e1 · e2)%E (e1' · e2')%E ρ Grp Γ3.
+  Proof.
+    iIntros "#He2 #He1 !# %γ HΓ1 /=".
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He2".
+    iIntros "!# % % (Hm & HΓ2) /=". iDestruct "Hm" as (m) "(-> & ->)".
+    iApply (brel_bind [AppLCtx _; AppRCtx _] [AppLCtx _; AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ2]"); first by iApply "He1".
+    iIntros "!# % % (Hk & HΓ3) /=". iDestruct "Hk" as (k) "(-> & ->)".
+    iApply (brel_mult_l []). iApply (brel_mult_r []).
+    iApply brel_value. iIntros "$ !>". iFrame. by iExists _.
+  Qed.
+
+  Lemma otp_dec_typed : ⊢ ⊨ᵥ otp_dec ≤ otp_dec : (Grp -{ ⊥ }-> Grp -{ ⊥ }-> Option Grp).
+  Proof.
+    iApply sem_typed_closure; first done. simpl.
+    iApply (sem_typed_oval _ [_]). iApplyT sem_oval_typed_ufun. simpl.
+    iApplyT sem_typed_injr. iApplyT sem_typed_mult; typed_var.
+    Unshelve. all: solve_typed_side.
   Qed.
 
   Program Global Instance OTP :
     @SYM Σ _ vg_fvt vg_fvt vg_fvt vg_fvts vg_fvts vg_fvts
          vg_fv vg_fv vg_fv otp_struct :=
-    { enc_sem := otp_enc_sem
-    ; dec_sem := otp_dec_sem
-    ; dec_enc_sem_correct := otp_dec_enc_correct
-    ; enc_correct_l := otp_enc_correct_l
-    ; enc_correct_r := otp_enc_correct_r
-    ; dec_correct_l := otp_dec_correct_l
-    ; dec_correct_r := otp_dec_correct_r }.
+    { P k m c := ⌜c = otp_enc_sem k m⌝%I
+    ; dec_typed := otp_dec_typed }.
+  Next Obligation.
+    iIntros (k m). iApply (otp_enc_correct_l _ []). iApply (otp_enc_correct_r _ []).
+    iApply brel_value. iIntros "$ !>". by iExists _.
+  Qed.
+  Next Obligation.
+    iIntros (k m c K e E X R ->) "H". iApply otp_dec_correct_l. by rewrite otp_dec_enc_correct.
+  Qed.
+  Next Obligation.
+    iIntros (k m c K e E X R ->) "H". iApply otp_dec_correct_r. by rewrite otp_dec_enc_correct.
+  Qed.
   Next Obligation. rewrite vg_fvt_card. lia. Qed.
   Next Obligation. rewrite vg_fvt_card. lia. Qed.
 
 End otp.
-
-From clutch.prob_eff_lang.probblaze Require Import logic sem_judgement sem_types sem_def.
 
 Section otp_ots. 
   Context `{probblazeRGS Σ}.
@@ -119,53 +158,66 @@ Section otp_ots.
   Local Definition enc_real := enc_real otp_struct.
   Local Definition enc_ideal := enc_ideal otp_struct.
 
-  Definition f : vgG → nat → nat := λ m k, match vg_of_int_sem k with
-                                               | None => k
-                                               | Some k => int_of_vg_sem (otp_enc_sem k m)
-                                           end.
- 
-  Local Instance f_bij m : Bij (f m).
+  Definition lift_vg (h : vgG → vgG) : nat → nat :=
+    λ k, match vg_of_int_sem k with
+         | None => k
+         | Some k => int_of_vg_sem (h k)
+         end.
+
+  Local Instance lift_vg_bij h `{!Bij h} : Bij (lift_vg h).
   Proof. 
     split.
     - intros x y Heq.
-      unfold f in Heq.
+      unfold lift_vg in Heq.
       destruct (vg_of_int_sem x) eqn:Hx; destruct (vg_of_int_sem y) eqn:Hy; last done.
-      + apply int_of_vg_sem_inj, (inj (λ k, otp_enc_sem k m)) in Heq as ->.
+      + apply int_of_vg_sem_inj, (inj h) in Heq as ->.
         by rewrite -(vg_of_int_of_vg_sem _ _ Hx) -(vg_of_int_of_vg_sem _ _ Hy).
       + rewrite -Heq in Hy. by rewrite int_of_vg_of_int_sem in Hy. 
       + rewrite Heq in Hx. by rewrite int_of_vg_of_int_sem in Hx. 
     - intros y.
-      destruct (vg_of_int_sem y) as [xy|] eqn:Hy; last by exists y; rewrite /f Hy.
-      destruct (surj (λ k, otp_enc_sem k m) xy) as [xk Hxk].
+      destruct (vg_of_int_sem y) as [xy|] eqn:Hy; last by exists y; rewrite /lift_vg Hy.
+      destruct (surj h xy) as [xk Hxk].
       exists (int_of_vg_sem xk).
-      by rewrite /f int_of_vg_of_int_sem Hxk (vg_of_int_of_vg_sem _ _ Hy).
+      by rewrite /lift_vg int_of_vg_of_int_sem Hxk (vg_of_int_of_vg_sem _ _ Hy).
   Qed.
 
-  Lemma f_bound m : ∀ k : nat, k < S n → f m k < S n.
+  Lemma lift_vg_bound h : ∀ k : nat, k < S n → lift_vg h k < S n.
   Proof.
     intros k Hlt.
     destruct (vg_of_int_sem_surj k) as (xk & Hxk & _); first by rewrite vgG_card.
-    rewrite /f Hxk -vgG_card.
+    rewrite /lift_vg Hxk -vgG_card.
     apply int_of_vg_sem_bound.
   Qed.
 
+  (* The key under which [m] encrypts to [c]. *)
+  Definition otp_key_of (m c : vgG) : vgG := (m * c^-1)%g.
+
+  Local Instance otp_key_of_bij m : Bij (otp_key_of m).
+  Proof.
+    rewrite /otp_key_of. split.
+    - intros x y Heq. apply (mulgI m) in Heq. exact (invg_inj Heq).
+    - intros k. exists (k^-1 * m)%g. by rewrite invMg invgK mulgA mulgV mul1g.
+  Qed.
+
+  Lemma otp_enc_key_of m c : otp_enc_sem (otp_key_of m c) m = c.
+  Proof. by rewrite /otp_enc_sem /otp_key_of invMg invgK -mulgA mulVg mulg1. Qed.
+
   Lemma otp_enc_real_ideal_1 : 
-    ⊢ sem_typed [] enc_real enc_ideal ⊥ (sem_ty_group → sem_ty_group)%T [].
+    ⊢ sem_typed [] enc_real enc_ideal ⊥ (𝟙 ⊸ (sem_τFT (fin_val := vg_fv) → sem_τFT (fin_val := vg_fv)))%T [].
   Proof. 
-    unfold enc_real, enc_ideal.
-    unfold rand_cipher. simpl.
-    iIntros "!> %vs Hvs /=".
-    rewrite !lookup_delete_eq; 
-      rewrite lookup_delete_ne; last done.
-    rewrite !lookup_delete_eq.
+    iIntros "!# %vs Hvs /=".
+    rewrite /enc_real /enc_ideal /ske.enc_real /ske.enc_ideal.
+    iApply brel_value. iIntros "$ !>".
+    iSplitL; last done.
+    iIntros (??) "(->&->)".
     brel_pures'.
-    iModIntro. iFrame.
+    iModIntro.
     rewrite /sem_ty_arr /sem_ty_mbang /rand_key /rand_cipher /rand_fvt /=.
     iIntros (m1 m2) "!> (%m&->&->)".
     brel_pures'.
-    iApply (brel_couple_rand_rand _ _ (f m)).
+    iApply (brel_couple_rand_rand _ _ (lift_vg (λ k, otp_enc_sem k m))).
     { rewrite /fvt_of_fvts vg_fvt_card. assert (S otp_ots.n - 1 = otp_ots.n)%Z as -> by lia. 
-      rewrite Nat2Z.id. apply f_bound. }
+      rewrite Nat2Z.id. apply lift_vg_bound. }
     iIntros (k) "%Hklt".
     brel_pures'.
     assert (∃ xk : vgG, vg_of_int_sem k = Some xk) as (xk & Heqk).
@@ -173,9 +225,41 @@ Section otp_ots.
       rewrite /fvt_of_fvts vg_fvt_card in Hklt. rewrite vgG_card. lia. }
     iApply brel_vg_of_int_correct_l; first done.
     iApply brel_vg_of_int_correct_r.
-    { unfold f. rewrite Heqk. apply int_of_vg_of_int_sem. }
+    { rewrite /lift_vg Heqk. apply int_of_vg_of_int_sem. }
     brel_pures'.
     iApply otp_enc_correct_l.
+    iApply brel_value.
+    iIntros "$ !>".
+    by iExists _.
+  Qed. 
+
+  Lemma otp_enc_real_ideal_2 : 
+    ⊢ sem_typed [] enc_ideal enc_real ⊥ (𝟙 ⊸ (sem_τFT (fin_val := vg_fv) → sem_τFT (fin_val := vg_fv)))%T [].
+  Proof. 
+    iIntros "!# %vs Hvs /=".
+    rewrite /enc_real /enc_ideal /ske.enc_real /ske.enc_ideal.
+    iApply brel_value. iIntros "$ !>".
+    iSplitL; last done.
+    iIntros (??) "(->&->)".
+    brel_pures'.
+    iModIntro.
+    rewrite /sem_ty_arr /sem_ty_mbang /rand_key /rand_cipher /rand_fvt /=.
+    iIntros (m1 m2) "!> (%m&->&->)".
+    brel_pures'.
+    iApply (brel_couple_rand_rand _ _ (lift_vg (otp_key_of m))).
+    { rewrite /fvt_of_fvts vg_fvt_card. assert (S otp_ots.n - 1 = otp_ots.n)%Z as -> by lia. 
+      rewrite Nat2Z.id. apply lift_vg_bound. }
+    iIntros (c) "%Hclt".
+    brel_pures'.
+    assert (∃ xc : vgG, vg_of_int_sem c = Some xc) as (xc & Heqc).
+    { destruct (vg_of_int_sem_surj c) as (xc & Hxc & _); last by eexists.
+      rewrite /fvt_of_fvts vg_fvt_card in Hclt. rewrite vgG_card. lia. }
+    iApply brel_vg_of_int_correct_l; first done.
+    iApply brel_vg_of_int_correct_r.
+    { rewrite /lift_vg Heqc. apply int_of_vg_of_int_sem. }
+    brel_pures'.
+    iApply otp_enc_correct_r.
+    rewrite otp_enc_key_of.
     iApply brel_value.
     iIntros "$ !>".
     by iExists _.

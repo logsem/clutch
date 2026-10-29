@@ -1,4 +1,5 @@
 From clutch.prob_eff_lang.probblaze Require Import notation types sem_def interp metatheory logic.
+From clutch.prob_eff_lang.probblaze Require sem_types.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype  seq choice fintype.
 Import fintype.
 
@@ -35,6 +36,13 @@ Coercion fvt_of_fvts : fin_val_type_struct >-> fin_val_type.
 
 Definition sem_ty_fvt `{probblazeRGS Σ} {vg : fin_val_type} : sem_ty Σ :=
   (λ v1 v2, ∃ x : fvT, ⌜ v1 = x ⌝ ∗ ⌜ v2 = x ⌝)%I.
+
+(* Not an instance: enable locally with [#[local] Existing Instance multi_ty_fvt]. *)
+Lemma multi_ty_fvt `{probblazeRGS Σ} {fvt : fin_val_type} : sem_types.MultiT (sem_ty_fvt (vg := fvt) : sem_ty Σ).
+Proof.
+  constructor. iIntros "!#" (v1 v2) "(%x & -> & ->)".
+  rewrite /sem_types.sem_ty_mbang /=. iModIntro. by iExists x.
+Qed.
 
 Class fin_val `{probblazeRGS Σ} `{fvts : fin_val_type_struct} :=
   Fin_val

@@ -3,7 +3,10 @@ From iris.algebra Require Import excl.
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy mode.
 From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import ske_sec_chan_def ske_sec_chan_prf ske_sec_chan_ideal_prf ske.
+From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import 
+  ske_sec_chan_def ske_sec_chan_prf
+  ske_sec_chan_ideal_prf ske
+  ske_sec_chan_common ske_typing.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -15,6 +18,7 @@ Section adv_schan.
   Context {vgg : @val_group_generator vg}.
   Context `{probblazeRGpreS Σ}.
   #[local] Notation n := (S n'').
+  (* message and cipher spaces: abstract *)
   Context {mt ct : fin_val_type}.
   Context {ms : @fin_val_type_struct mt} {cs : @fin_val_type_struct ct}.
   (* key space is valgroup *)
@@ -24,7 +28,7 @@ Section adv_schan.
      those spaces, so nothing below ever decodes a key or a message. *)
   Context {msg : ∀ `(!probblazeRGS Σ), @fin_val Σ _ mt ms} {cipher : ∀ `(!probblazeRGS Σ), @fin_val Σ _ ct cs}.
   Context {SKE : ∀ `{H : !probblazeRGS Σ}, @SYM Σ _ vg_fvt mt ct vg_fvts ms cs (vg_fv (Σ := Σ) (H := H)) (msg H) (cipher H) ske}.
-
+  
   Import valgroup_notation.
   
   Lemma adv_sc_real_game1 A : 
@@ -53,15 +57,14 @@ Section adv_schan.
     nonneg (advantage A game1 game2 #true) <= advantage (λ: "enc", A ((reduction (mt := mt) (ms := ms)) "enc")) (enc_real_tape ske) (enc_ideal ske) #true.
   Proof using All.
     intros HA. unfold game1, game2.
-    apply advantage_reduction_expr_expr.
-    { intros. apply (subst_is_closed ∅); first is_closed. done. }
+    apply advantage_reduction_expr. 
     intros ?. eexists _,_.
     split; first done.
     split; last split.
-    - admit.                    (* reduction well-tyepd *)
-    - admit.                    (* enc_real well-typed *)
-    - admit.                    (* enc_ideal well_typed *)
-  Admitted. 
+    - iApply (reduction_val_typed (SKE := SKE _)).
+    - iApply compatibility.sem_typed_val. iApply (enc_real_tape_val_typed (SKE := SKE _)).
+    - iApply compatibility.sem_typed_val. iApply (enc_ideal_val_typed (SKE := SKE _)).
+  Qed.
 
   Lemma adv_ske_schan A :
     (∀ `{!probblazeRGS Σ}, 
@@ -76,13 +79,13 @@ Section adv_schan.
       + right. by apply adv_game2_sc_ideal.
       + rewrite Rplus_0_r. eapply (advantage_triangle _ _ (enc_real ske)).
         * right. eapply sem_typed_advantage_expr.
-          -- admit.             (* A ∘ reduction well-typed *)
+          -- intros ?. iApply sem_typed_adv_red; [iApply HA|iApply (reduction_val_typed (SKE := SKE _))].
           -- split.
              ++ iIntros (?). apply (enc_real_tape_enc_real (ske := SKE H0)) .
              ++ iIntros (?). apply (enc_real_enc_real_tape (ske := SKE H0)).
         * done.
         * done. 
     - by rewrite !Rplus_0_l. 
-  Admitted. 
+  Qed.
   
 End adv_schan.

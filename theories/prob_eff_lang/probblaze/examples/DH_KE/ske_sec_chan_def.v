@@ -27,7 +27,7 @@ Section schannel.
         let: "doRecv" := (λ: "m", do: "recv" "m") in
         handle: handle: "f" ("doSend", "doRecv") with
     (*Send Auth*)
-    | effect "send" "payload", rec "k" as multi =>
+    | effect "send" "payload", rec "k" =>
         let, ("m", "dst") := "payload" in
         match: !"message" with
         | NONE => "message" <- SOME "m" ;;
@@ -36,7 +36,7 @@ Section schannel.
         end
     | return "y" => "y" end with
 (* Receive Auth *)
-| effect "recv" "from", rec "k" as multi =>
+| effect "recv" "from", rec "k" =>
     let: "r" := ("doLeakRecv" "from") in
     match: "r" with
     | NONE => "k" NONEV
@@ -50,7 +50,8 @@ Section schannel.
   (* InjL arg represents the message being sent by Alice, and InjR <>, just represents that Bob is requesting a receive , so "doSecRecv" is now a genuine thunk, because it doesnt need any argument anymore*)
   Definition CHAN : val :=
     λ: "f" "effs",
-      let, ("doSend", "doRecv", "doGK") := "effs" in
+      let, ("chanOp", "doGK") := "effs" in
+      let, ("doSend", "doRecv") := "chanOp" in
       let: "message" := ref NONEV in
       effect "ssend"
         effect "srecv"
@@ -58,7 +59,7 @@ Section schannel.
         let: "doSecRecv" := (λ: <>, do: "srecv" bob) in
         handle: handle: "f" ("doSecSend", "doSecRecv") with
     (*SendSecure*)
-    | effect "ssend" "m", rec "k" as multi =>
+    | effect "ssend" "m", rec "k" =>
         match: ms.(fvt_of_int) "m" with
         | NONE => "k" #()%V
         | SOME "m" => 
@@ -75,7 +76,7 @@ Section schannel.
         end 
     | return "y" => "y" end with
 (*RecvSecure*)
-| effect "srecv" "payload", rec "k" as multi =>
+| effect "srecv" "payload", rec "k" =>
     let: "key" := "doGK" (alice) in
     match: "key" with
     | NONE => "k" NONEV
@@ -84,7 +85,7 @@ Section schannel.
         match: "r" with
         | NONE => "k" NONEV
         | SOME "m" =>
-            "k" (SOME (ske.(dec) "key" "m"))   
+            "k" (ske.(dec) "key" "m")   
         end       
     end                              
 | return "y" => "y"
@@ -92,8 +93,10 @@ Section schannel.
   
 
   Definition RED_CHAN : val :=
-    λ: "enc" "f" "effs",
-      let, ("doSend", "doRecv", "doGK") := "effs" in
+    λ: "enc" "f" "effs", 
+      let: "enc" := "enc" #()%V in
+      let, ("chanOp", "doGK") := "effs" in
+      let, ("doSend", "doRecv") := "chanOp" in
       let: "message" := ref NONEV in
       effect "ssend"
         effect "srecv"
@@ -101,7 +104,7 @@ Section schannel.
         let: "doSecRecv" := (λ: <>, do: "srecv" bob) in
         handle: handle: "f" ("doSecSend", "doSecRecv") with
       (*SendSecure*)
-    | effect "ssend" "m", rec "k" as multi =>
+    | effect "ssend" "m", rec "k" =>
         match: ms.(fvt_of_int) "m" with
         | NONE => "k" #()%V
         | SOME "m" => 
@@ -118,7 +121,7 @@ Section schannel.
         end 
     | return "y" => "y" end with
 (*RecvSecure*)
-| effect "srecv" "payload", rec "k" as multi =>
+| effect "srecv" "payload", rec "k" =>
     let: "key" := "doGK" (alice) in
     match: "key" with
     | NONE => "k" NONE
@@ -146,7 +149,7 @@ Section schannel.
         let: "doSecRecv" := (λ: <>, do: "srecv" bob) in
         handle: handle: "f" ("doSecSend" ,"doSecRecv") with
     (*SendSecure*)
-    | effect "ssend" "m", rec "k" as multi =>
+    | effect "ssend" "m", rec "k" =>
         match: ms.(fvt_of_int) "m" with
         | NONE => "k" #()%V
         | SOME "m" => 
@@ -159,7 +162,7 @@ Section schannel.
         end
     | return "y" => "y" end with
 (*ReceiveSecure*)
-| effect "srecv" "payload", rec "k" as multi =>
+| effect "srecv" "payload", rec "k" =>
     let: "r" := ("doLeakRecv" bob) in
     match: "r" with
     | NONE => "k" NONEV
@@ -183,7 +186,7 @@ Section schannel.
         let: "doLeakSecRecv" := (λ: "m", do: "lrecv" "m") in
         handle: handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
     (*Broadcast a message*)
-    | effect "lsend" "payload", rec "k" as multi =>
+    | effect "lsend" "payload", rec "k" =>
         "started" <- SOME #()%V ;;
         ("doKeyLeakSnd" (bob));;
         let: "r" := "doKeyLeakRecv" (bob) in
@@ -201,7 +204,7 @@ Section schannel.
             end
         end
     | return "y" => "y" end with
-| effect "lrecv" "payload", rec "k" as multi =>
+| effect "lrecv" "payload", rec "k" =>
             let: "r" := "doKeyLeakRecv" (alice) in
             match: "r" with
             | NONE =>
@@ -223,7 +226,7 @@ Section schannel.
 
   Definition sc_real : expr := (F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f CHAN.
   
-  Definition reduction : expr := (λ: "enc", (F_KE_lazy_alice ||ᵣ F_OAUTH)  ∘f (RED_CHAN "enc")).
+  Definition reduction : val := (λ: "enc", (F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f (RED_CHAN "enc")).
 
   Definition game1 : expr := reduction (enc_real_tape ske).
 

@@ -12,9 +12,17 @@ Section symmetric.
            | SOME "x" => "x"
            end.
 
-  Class SYM_struct `{ks : fin_val_type_struct} `{ms : fin_val_type_struct} `{cs : fin_val_type_struct} :=
+  Class SYM_struct 
+    `{ks : fin_val_type_struct}
+    `{ms : fin_val_type_struct}
+    `{cs : fin_val_type_struct} :=
     { enc : val
     ; dec : val
+    ; enc_closed : is_closed_val enc
+    ; dec_closed : is_closed_val dec
+    ; ms_inhabited :: Inhabited (fvt_sort ms)
+    ; cs_inhabited :: Inhabited (fvt_sort cs)
+    ; ks_inhabited :: Inhabited (fvt_sort ks)
     ; rand_cipher : val := rand_fvt cs
     ; rand_key : val := rand_fvt ks
     }.
@@ -28,21 +36,19 @@ Section symmetric.
     {msg    : @fin_val Σ HΣ _ ms}
     {cipher : @fin_val Σ HΣ _ cs}
     {sym_struct : @SYM_struct _ ks _ ms _ cs} :=
-    { enc_sem : key → msg → cipher
-    ; dec_sem : key → cipher → msg
-    ; dec_enc_sem_correct k m : dec_sem k (enc_sem k m) = m
-    ; enc_correct_l : ∀ E K k m X R e,
-        (BREL fill K (fvtval (enc_sem k m)) ≤ e @ E <|X|> {{R}}) -∗
-        (BREL fill K (enc (fvtval k) (fvtval m)) ≤ e @ E <|X|> {{R}})
-    ; enc_correct_r : ∀ E K k m X R e,
-        BREL e ≤ fill K (fvtval (enc_sem k m)) @ E <|X|> {{R}} -∗
-        BREL e ≤ fill K (enc (fvtval k) (fvtval m)) @ E <|X|> {{R}}
-    ; dec_correct_l : ∀ E K k c X R e,
-        BREL fill K (fvtval (dec_sem k c)) ≤ e @ E <|X|> {{R}} -∗
-        BREL fill K (dec (fvtval k) (fvtval c)) ≤ e @ E <|X|> {{R}}
-    ; dec_correct_r : ∀ E K k c X R e,
-        BREL e ≤ fill K (fvtval (dec_sem k c)) @ E <|X|> {{R}} -∗
-        BREL e ≤ fill K (dec (fvtval k) (fvtval c)) @ E <|X|> {{R}}
+    { P : key → msg → cipher → iProp Σ
+    ; P_pers k m c :: Persistent (P k m c)
+    ; brel_enc_couple : ∀ (k : key) (m : msg),
+        ⊢ BREL (enc (fvtval k) (fvtval m)) ≤ enc (fvtval k) (fvtval m) <|⊥|> {{ (λ v1 v2, ∃ c : cipher, ⌜v1 = fvtval c⌝ ∗ ⌜v2 = fvtval c⌝ ∗ (P k m c)) }}
+    ; brel_dec_enc_correct_l : ∀ (k : key) (m : msg) (c : cipher) K e E X R,
+        P k m c -∗ 
+        BREL fill K (SOMEV (fvtval m)) ≤ e @ E <|X|> {{ R }} -∗ 
+        BREL fill K (dec (fvtval k) (fvtval c)) ≤ e @ E <|X|> {{ R }}
+    ; brel_dec_enc_correct_r : ∀ (k : key) (m : msg) (c : cipher) K e E X R,
+        P k m c -∗ 
+        BREL e ≤ fill K (SOMEV (fvtval m)) @ E <|X|> {{ R }} -∗ 
+        BREL e ≤ fill K (dec (fvtval k) (fvtval c)) @ E <|X|> {{ R }}
+    ; dec_typed : ⊢ ⊨ᵥ dec ≤ dec : (key.(sem_τFT) -{ ⊥ }-> cipher.(sem_τFT) -{ ⊥ }-> Option msg.(sem_τFT))
     ; kt_nontrivial : (2 ≤ kt.(card))%nat
     ; cs_nontrivial : (2 ≤ ct.(card))%nat
     }.
@@ -75,21 +81,24 @@ Section symmetric.
 
 End symmetric.
 
+#[export] Hint Resolve enc_closed : core.
+#[export] Hint Resolve dec_closed : core.
+
 Section programs.
   Context `{sym_struct : SYM_struct}.
 
-  Definition enc_real_tape : expr :=
-    let: "ι" := alloc #(ks.(card) - 1) in
-    λ: "m", let: "n" := rand("ι") #(Z.to_nat (ks.(card) - 1)) in
-            match: ks.(fvt_of_int) "n" with
-              NONE     => #()%V
-            | SOME "k" => enc "k" "m"
-            end.
+  Definition enc_real_tape : val :=
+    λ: <>, let: "ι" := alloc #(ks.(card) - 1) in
+      λ: "m", let: "n" := rand("ι") #(Z.to_nat (ks.(card) - 1)) in
+              match: ks.(fvt_of_int) "n" with
+                NONE     => fvtval (inhabitant : fvt_sort cs)
+              | SOME "k" => enc "k" "m"
+              end.
 
-  Definition enc_real : expr :=
-    λ: "m", let: "k" := rand_key #()%V in enc "k" "m".
+  Definition enc_real : val :=
+    λ: <> "m", let: "k" := rand_key #()%V in enc "k" "m".
 
-  Definition enc_ideal : expr := λ: "m", rand_cipher #()%V.
+  Definition enc_ideal : val := λ: <> "m", rand_cipher #()%V.
 
 End programs.
 
@@ -101,22 +110,22 @@ Section OTS.
   Context `{ske : SYM}.
 
   Lemma enc_real_tape_enc_real : 
-    ⊢ sem_typed [] (enc_real_tape ske) (enc_real ske) ⊥ (msg.(sem_τFT) → cipher.(sem_τFT))%T [].
+    ⊢ sem_typed [] (enc_real_tape ske) (enc_real ske) ⊥ (𝟙 ⊸ (msg.(sem_τFT) → cipher.(sem_τFT)))%T [].
   Proof.
-    iIntros "!# %vs Hvs". simpl.
-    rewrite !lookup_delete_eq.
-    do 2 (rewrite lookup_delete_ne; last done).
-    rewrite !lookup_delete_eq.
-    do 2 (rewrite lookup_delete_ne; last done;
-          rewrite !lookup_delete_eq).
+    iIntros "!# %vs Hvs /=". 
+    unfold enc_real_tape, enc_real.
+    iApply brel_value. iIntros "$ !>". 
+    iSplitL; last done.
+    iIntros (??) "(->&->)". 
+    brel_pures_l.
+    brel_pures_r.
     brel_alloctape_l ι as "Hι".
     iApply (brel_na_alloc (ι ↪N (Z.to_nat (key.(card) - 1); []))%I  (nroot .@ "inv")).
     iSplitL "Hι"; [iNext; iFrame|].
     iIntros "#HI".
     brel_pures_l.
-    brel_pures_r.
     rewrite /sem_ty_arr /sem_ty_mbang /=.
-    iModIntro; iSplitR; last done.
+    iModIntro.
     iIntros (m1 m2) "!> (%m&->&->)". 
     iApply (brel_na_inv _ _ (nroot .@ "inv")); first set_solver.
     iFrame "HI".
@@ -142,26 +151,31 @@ Section OTS.
     unshelve iApply (@brel_fvt_of_int_correct_r _ _ kt); try done.
     brel_pures_l.
     brel_pures_r.
-    unshelve iApply (@enc_correct_l _ _ ks ms); try done.
-    unshelve iApply (@enc_correct_r _ _ ks ms); try done.
-    iApply brel_value.
-    iIntros "$ !>".
-    by iExists _.
+    unfold fvtval_as.
+    iApply brel_wand; first iApply (brel_enc_couple x m).
+    iIntros "!>" (??) "(%&H1&H2&_)".
+    iExists c.
+    unfold fvtval_as. 
+    iFrame.
   Qed.
 
   Lemma enc_real_enc_real_tape : 
-    ⊢ sem_typed [] (enc_real ske) (enc_real_tape ske) ⊥ (msg.(sem_τFT) → cipher.(sem_τFT))%T [].
+    ⊢ sem_typed [] (enc_real ske) (enc_real_tape ske) ⊥ (𝟙 ⊸ (msg.(sem_τFT) → cipher.(sem_τFT)))%T [].
   Proof.
-    iIntros "!# %vs Hvs". simpl.
-    repeat (rewrite lookup_delete_eq || (rewrite lookup_delete_ne; last done)).
+    iIntros "!# %vs Hvs /=".
+    unfold enc_real_tape, enc_real.
+    iApply brel_value. iIntros "$ !>". 
+    iSplitL; last done.
+    iIntros (??) "(->&->)". 
+    brel_pures_l.
+    brel_pures_r.
     brel_alloctape_r ι as "Hι".
     iApply (brel_na_alloc (ι ↪ₛ (Z.to_nat (ks.(card) - 1); []))%I (nroot .@ "inv")).
     iSplitL "Hι"; [iNext; iFrame|].
     iIntros "#HI".
-    brel_pures_l.
     brel_pures_r.
     rewrite /sem_ty_arr /sem_ty_mbang /=.
-    iModIntro; iSplitR; last done.
+    iModIntro.
     iIntros (m1 m2) "!> (%m&->&->)".
     iApply (brel_na_inv _ _ (nroot .@ "inv")); first set_solver.
     iFrame "HI".
@@ -185,12 +199,15 @@ Section OTS.
     unshelve iApply (@brel_fvt_of_int_correct_r _ _ kt); try done.
     brel_pures_l.
     brel_pures_r.
-    unshelve iApply (@enc_correct_l _ _ ks ms); try done.
-    unshelve iApply (@enc_correct_r _ _ ks ms); try done.
-    iApply brel_value.
-    iIntros "$ !>".
-    by iExists _.
+    unfold fvtval_as.
+    iApply brel_wand; first iApply (brel_enc_couple x m).
+    iIntros "!>" (??) "(%&H1&H2&_)".
+    iExists c.
+    unfold fvtval_as. 
+    iFrame.
   Qed. 
 
 
 End OTS.
+
+
