@@ -6,7 +6,7 @@ From clutch.prob_eff_lang.probblaze Require Import
   spec_rules spec_ra class_instances tactics notation 
   sem_row sem_sig.
 From clutch.prob_eff_lang.probblaze.typing Require Import fundamental.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import
+From clutch.prob_eff_lang.probblaze.examples Require Import
   dhke_common sec_channel_def xor sec_channel_prf dhke_channel_lazy_results dhke_channel_authchan_new
   new_composition_defs new_composition_closed new_composition_typing.
  

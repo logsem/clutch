@@ -5,7 +5,7 @@ From clutch.prob_eff_lang.probblaze Require Import p_composition primitive_laws 
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_env sem_judgement compatibility.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import dhke_common ske ske_sec_chan_def
+From clutch.prob_eff_lang.probblaze.examples Require Import dhke_common ske ske_sec_chan_def
   ske_sec_chan_common.
 
 Import fingroup.

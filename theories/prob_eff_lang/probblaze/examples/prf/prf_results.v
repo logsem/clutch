@@ -3,7 +3,7 @@ From iris.algebra Require Import excl.
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy mode.
 From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import
+From clutch.prob_eff_lang.probblaze.examples Require Import
   ske_sec_chan_def ske_sec_chan_prf ske_sec_chan_ideal_prf ske ske_sec_chan_common ske_typing
   advantage_ske_schan fin_val_type fin_val_type_prod ske_prf
   ske_composition ske_composition_defs dhke_common ske_composition_typing advantage_ske_comp.
@@ -52,7 +52,7 @@ Section prf_results.
   #[local] Notation SC_REAL := (@sc_real vg cg vgg mt CT ms CS SKES).
   #[local] Notation SC_IDEAL := (@sc_ideal vg cg mt CT ms CS SKES).
   #[local] Notation REDC := (@reduction vg cg vgg mt ms).
-
+  
   Theorem adv_schan_prf A :
     (∀ `{!probblazeRGS Σ},
        ⊢ sem_val_typed A A ((τsc (msg := msg _) (cipher := CIPHER _)) → 𝔹)%T) →
@@ -112,9 +112,10 @@ Section prf_results_comp.
 
   Let τ `{H : !probblazeRGS Σ} :=
     (ske_composition_defs.τ (ms := ms) (cs := CS) (msg := msg H) (cipher := CIPHER H) (mt := mt) (ct := CT)).
+  Let T:= @T cg mt CT ms CS.
 
   Theorem adv_composition_prf A :
-    (∀ `{!probblazeRGS Σ}, ⊢ sem_val_typed A A (τ → 𝔹)%T) →
+    ⊢ᵥ A : (T ⇾ TBool) →
     advantage A REAL IDEAL #true <=
       advantage (λ: "v", A (DH_RED "v")) (DH_real (vg := vg) (cg := cg) (vgg := vgg))
                 (DH_rand (vg := vg) (cg := cg) (vgg := vgg)) #true
@@ -122,13 +123,17 @@ Section prf_results_comp.
   Proof using All.
     intros HA.
     etrans.
-    { apply (adv_composition_real (ske := SKES) (SKE := λ _, SKE_INST)). apply HA. }
-    apply Rplus_le_compat_l.
-    apply (adv_enc_prf (PRF_inst := PRF_inst)
+    - by apply (adv_composition_typed (SKE := λ _, SKE_INST)).
+    - apply Rplus_le_compat_l.
+      apply (adv_enc_prf (PRF_inst := PRF_inst)
              ltac:(pose proof (vg_fvt_nontriv (vgg := vgg)); lia) nt_nonempty mt_nontriv).
-    - done. 
-    - intros ?. iApply sem_typed_adv_red_expr; first iApply HA.
-      iApply (DHSIM_FKE_RED_typed (SKE := SKE_INST)).
+      + done. 
+      + intros H. iApply sem_typed_adv_red_expr; last iApply (DHSIM_FKE_RED_typed (SKE := SKE_INST)).
+        iPoseProof (fundamental_val A _ HA) as "Hadv".
+        unfold bin_log_val_related.
+        iSpecialize ("Hadv" $! [] [] ∅ []).
+        iModIntro. iApply (T_bool_subtype (SKE := λ _, SKE_INST)).
+        by rewrite /sem_val_typed /=.
   Qed.
 
 End prf_results_comp.

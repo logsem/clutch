@@ -1,7 +1,7 @@
 From Coquelicot Require Import Rcomplements.
 From mathcomp Require all_boot ssrnat prime solvable.cyclic.
 From clutch.prelude Require base stdpp_ext.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require valgroup xor.
+From clutch.prob_eff_lang.probblaze.examples Require valgroup xor.
 From clutch.prob_eff_lang.probblaze Require logic.
 From Stdlib Require Import Lia.
 Set Default Proof Using "Type*".

@@ -1,5 +1,5 @@
 From clutch.prob_eff_lang.probblaze Require Import logic sem_types sem_def sem_row.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Export valgroup def_dhke ske_sec_chan_def.
+From clutch.prob_eff_lang.probblaze.examples Require Export valgroup def_dhke ske_sec_chan_def.
 
 Import fingroup.
 

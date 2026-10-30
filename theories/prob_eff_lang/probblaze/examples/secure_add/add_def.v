@@ -1,5 +1,5 @@
 From clutch.prob_eff_lang.probblaze Require Export notation valgroup p_composition.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Export def_dhke sec_channel_def.
+From clutch.prob_eff_lang.probblaze.examples Require Export def_dhke sec_channel_def.
 From clutch.prob_eff_lang.probblaze Require Import logic sem_types sem_def sem_row.
 
 Import fingroup.

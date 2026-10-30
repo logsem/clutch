@@ -1,5 +1,5 @@
 From clutch.prob_eff_lang.probblaze Require Import logic.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import valgroup def_dhke ske_sec_chan_def.
+From clutch.prob_eff_lang.probblaze.examples Require Import valgroup def_dhke ske_sec_chan_def.
 Import fingroup.
 
 Create HintDb ske_comp_closed discriminated.
