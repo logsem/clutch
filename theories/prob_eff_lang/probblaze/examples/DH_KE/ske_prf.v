@@ -819,6 +819,80 @@ Section reduction_spec.
 
 End reduction_spec.
 
+(** [advantage_reduction_expr] for an adversary that is an expression: after its
+    argument [e0] is evaluated, [(λ: s, A (red s)) e0] steps purely to [A (red v)]. *)
+Lemma advantage_reduction_adv_expr `{!probblazeRGpreS Σ} (s : string) (A : expr) (red : val)
+    (e e' : expr) (b : bool) :
+  (∀ v : val, val_subst s v A = A) →
+  (∀ `{probblazeRGS Σ}, ∃ α β,
+      (⊢ sem_typed [] A A ⊥ (β → 𝔹)%T []) /\
+      (⊢ sem_val_typed red red (α → β)%T) /\
+      (⊢ sem_typed [] e e ⊥ α []) /\ (⊢ sem_typed [] e' e' ⊥ α [])) →
+  advantage A (red e) (red e') #b <= advantage (λ: s, A (red s)) e e' #b.
+Proof.
+  intros Hsub H.
+  apply advantage_uniform => σ.
+  etrans; last by apply (advantage_ub _ _ _ _ σ).
+  right. unfold pr_dist.
+  assert (∀ e0, (∀ (HRGS : probblazeRGS Σ), ∃ α β,
+      (⊢ sem_typed [] A A ⊥ (β → 𝔹)%T []) /\
+      (⊢ sem_val_typed red red (α → β)%T) /\
+      (⊢ sem_typed [] e0 e0 ⊥ α [])) →
+    lim_exec (A (red e0), σ) #b = lim_exec ((λ: s, A (red s))%E e0, σ) #b) as Heq.
+  { intros e0 H0. f_equiv.
+    apply ARcoupl_antisym; eapply brel_refines_coupling; try done; first last.
+    - iIntros (HRGS). iStartProof.
+      destruct (H0 HRGS) as (α & β & HA & Hred & He).
+      iPoseProof He as "#He". iPoseProof Hred as "#Hred". iPoseProof HA as "#HA".
+      iApply (brel_bind' [AppRCtx _] [AppRCtx _; AppRCtx _]); [iApply traversable_to_iThy_nil|].
+      rewrite /sem_typed /tc_opaque /=.
+      iDestruct ("He" $! ∅ with "[//]") as "He'". rewrite !fmap_empty !subst_map_empty.
+      iApply (brel_wand with "He'").
+      iIntros (v1 v2) "!# [Hα _] /=".
+      iApply (brel_pure_step_later _ _ (fill [AppLCtx v1] (Val (RecV BAnon s (A (red s))))) _ True 1).
+      { apply (pure_exec_ctx [AppLCtx v1] True 1 (Rec BAnon s _)). apply pure_recc. }
+      { done. }
+      iIntros "!> /=".
+      iApply brel_pure_step_later; [done|iIntros "!> /="].
+      rewrite Hsub decide_True //.
+      rewrite /sem_val_typed /tc_opaque /sem_ty_arr /sem_ty_mbang /=.
+      iDestruct "Hred" as "#Hred'".
+      iApply (brel_bind' [AppRCtx A] [AppRCtx A]); [iApply traversable_to_iThy_nil|].
+      iApply (brel_wand with "(Hred' Hα)").
+      iIntros (w1 w2) "!# Hβ /=".
+      iApply (brel_bind' [AppLCtx w1] [AppLCtx w2]); [iApply traversable_to_iThy_nil|].
+      iDestruct ("HA" $! ∅ with "[//]") as "HA'". rewrite !fmap_empty !subst_map_empty.
+      iApply (brel_mono OS _ _ [] [] with "[] HA' [Hβ]"); [iApply to_iThy_le_refl|].
+      simpl. iIntros (f1 f2) "[#Hf _] /=". iApply ("Hf" with "Hβ").
+    - by iIntros (???) "(%&->&->)".
+    - iIntros (HRGS). iStartProof.
+      destruct (H0 HRGS) as (α & β & HA & Hred & He).
+      iPoseProof He as "#He". iPoseProof Hred as "#Hred". iPoseProof HA as "#HA".
+      iApply (brel_bind' [AppRCtx _; AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
+      rewrite /sem_typed /tc_opaque /=.
+      iDestruct ("He" $! ∅ with "[//]") as "He'". rewrite !fmap_empty !subst_map_empty.
+      iApply (brel_wand with "He'").
+      iIntros (v1 v2) "!# [Hα _] /=".
+      iApply (brel_pure_step_r _ _ _ (fill [AppLCtx v2] (Val (RecV BAnon s (A (red s))))) True 1).
+      { apply (pure_exec_ctx [AppLCtx v2] True 1 (Rec BAnon s _)). apply pure_recc. }
+      { done. }
+      iApply brel_pure_step_r; [done|]. simpl.
+      rewrite Hsub decide_True //.
+      rewrite /sem_val_typed /tc_opaque /sem_ty_arr /sem_ty_mbang /=.
+      iDestruct "Hred" as "#Hred'".
+      iApply (brel_bind' [AppRCtx A] [AppRCtx A]); [iApply traversable_to_iThy_nil|].
+      iApply (brel_wand with "(Hred' Hα)").
+      iIntros (w1 w2) "!# Hβ /=".
+      iApply (brel_bind' [AppLCtx w1] [AppLCtx w2]); [iApply traversable_to_iThy_nil|].
+      iDestruct ("HA" $! ∅ with "[//]") as "HA'". rewrite !fmap_empty !subst_map_empty.
+      iApply (brel_mono OS _ _ [] [] with "[] HA' [Hβ]"); [iApply to_iThy_le_refl|].
+      simpl. iIntros (f1 f2) "[#Hf _] /=". iApply ("Hf" with "Hβ").
+    - by iIntros (???) "(%&->&->)". }
+  rewrite (Heq e); last (intros HRGS; destruct (H HRGS) as (α & β & ? & ? & ? & ?); by exists α, β).
+  rewrite (Heq e'); last (intros HRGS; destruct (H HRGS) as (α & β & ? & ? & ? & ?); by exists α, β).
+  done.
+Qed.
+
 Section reduction.
   Context {Σ : gFunctors} `{!probblazeRGpreS Σ}.
   Context {kt nt mt : fin_val_type}.
@@ -842,25 +916,26 @@ Section reduction.
   Definition τenc `{!probblazeRGS Σ} : sem_ty Σ :=
     (𝟙 ⊸ (sem_τFT (fin_val := msg _) → sem_τFT (fin_val := prod_fv (nonce _) (msg _))))%T.
 
-  Lemma adv_enc_prf A :
-    (∀ `{!probblazeRGS Σ}, ⊢ ⊨ᵥ A ≤ A : (τenc → 𝔹)) →
+  Lemma adv_enc_prf (A : expr) :
+    (∀ v : val, val_subst "F" v A = A) →
+    (∀ `{!probblazeRGS Σ}, ⊢ sem_typed [] A A ⊥ (τenc → 𝔹)%T []) →
     advantage A (enc_real SKES) (enc_ideal SKES) #true <=
       advantage (λ: "F", A (RED "F")) PREAL PIDEAL #true.
   Proof.
-    intros HA.
+    intros Hsub HA.
     eapply (advantage_triangle _ _ (RED PREAL)).
-    - right. eapply sem_typed_advantage; first apply HA.
+    - right. eapply sem_typed_advantage_expr; first apply HA.
       split; intros; [by apply enc_real_red_real|by apply red_real_enc_real].
     - eapply (advantage_triangle _ _ (RED PIDEAL)).
-      + apply (advantage_reduction_expr "F"). intros ?. eexists _, _.
+      + apply (advantage_reduction_adv_expr "F"); first done. intros ?. eexists _, _.
         split; first apply HA. split; last split.
         * by iApply (red_prf_typed (PRF_inst := PRF_inst _)).
         * iApply compatibility.sem_typed_val. by iApply (prf_real_typed (PRF_inst := PRF_inst _)).
         * iApply compatibility.sem_typed_val. by iApply (prf_ideal_typed (PRF_inst := PRF_inst _)).
       + eapply (advantage_triangle _ _ HYB).
-        * right. eapply sem_typed_advantage; first apply HA.
+        * right. eapply sem_typed_advantage_expr; first apply HA.
           split; intros; [by apply red_ideal_hyb|by apply hyb_red_ideal].
-        * right. eapply sem_typed_advantage; first apply HA.
+        * right. eapply sem_typed_advantage_expr; first apply HA.
           split; intros; [by apply hyb_ideal|by apply ideal_hyb].
         * by rewrite Rplus_0_l.
       + by rewrite Rplus_0_r.
