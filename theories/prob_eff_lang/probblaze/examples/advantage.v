@@ -234,7 +234,59 @@ Theorem sem_typed_advantage_expr `{!probblazeRGpreS Σ} A e e' (τ : ∀ `{probb
                 (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] e e' ⊥ τ [])  /\ (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] e' e ⊥ τ []) ->
                 nonneg (advantage A e e' #b) = 0%R.
 Proof.
-Admitted. 
+  intros b HA (He1&He2).
+  cut (advantage A e e' #b <= 0).
+  { intros Hlt. apply nnreal_le_0 in Hlt. by rewrite Hlt. }
+  apply advantage_uniform => σ.
+  apply Rabs_le.
+  cut (lim_exec (A e, σ) #b = lim_exec (A e', σ) #b).
+  { intros Heq. rewrite Heq. lra. }
+  f_equiv.
+  apply ARcoupl_antisym; eapply brel_refines_coupling; [done| | |done| |].
+  2 : {
+    iIntros (H). 
+    iPoseProof (He1 H) as "He1".
+    iPoseProof (HA H) as "HA".
+    unfold sem_val_typed. simpl.
+    iDestruct "HA" as "#HA".
+    iDestruct "He1" as "#He1".
+    iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
+    unfold sem_typed. simpl. iDestruct "He1" as "#He1".
+    iAssert ([] ⊨ₑ ∅) as "Hvs". { done. }
+    iDestruct ("He1" with "Hvs") as "He". rewrite !subst_map_empty.
+    iApply (brel_wand with "He").
+    iIntros (??) "!# (Hτ&_)".
+    unfold sem_ty_arr, sem_ty_mbang. simpl.
+    iApply (brel_bind' [AppLCtx _] [AppLCtx _]); [iApply traversable_to_iThy_nil|].
+    iDestruct "HA" as "#HA".
+    iDestruct ("HA" with "Hvs") as "HAs". rewrite !subst_map_empty.
+    assert (to_iThyIfMono OS [] = ⊥) as <- by done.
+    iApply (brel_mono with "[][$HAs][Hτ]"); [iApply to_iThy_le_refl|simpl].
+    iIntros (??) "(HτA&_)".
+    by iApply "HτA". }
+  3 : {
+    iIntros (H). 
+    iPoseProof (He2 H) as "He2".
+    iPoseProof (HA H) as "HA".
+    unfold sem_val_typed. simpl.
+    iDestruct "HA" as "#HA".
+    iDestruct "He2" as "#He2".
+    iApply (brel_bind' [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|].
+    unfold sem_typed. simpl. iDestruct "He2" as "#He2".
+    iAssert ([] ⊨ₑ ∅) as "Hvs". { done. }
+    iDestruct ("He2" with "Hvs") as "He". rewrite !subst_map_empty.
+    iApply (brel_wand with "He").
+    iIntros (??) "!# (Hτ&_)".
+    unfold sem_ty_arr, sem_ty_mbang. simpl.
+    iApply (brel_bind' [AppLCtx _] [AppLCtx _]); [iApply traversable_to_iThy_nil|].
+    iDestruct "HA" as "#HA".
+    iDestruct ("HA" with "Hvs") as "HAs". rewrite !subst_map_empty.
+    assert (to_iThyIfMono OS [] = ⊥) as <- by done.
+    iApply (brel_mono with "[][$HAs][Hτ]"); [iApply to_iThy_le_refl|simpl].
+    iIntros (??) "(HτA&_)".
+    by iApply "HτA". }
+  all : by iIntros (???) "(%&->&->)".
+Qed. 
 
 (* General reduction lemma: any adversary [A] that, applied to a value [v],
    purely steps to [adv (red v)]. Both games run [e] first, then [red], then [adv]. *)
