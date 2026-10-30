@@ -5,6 +5,8 @@ From clutch.prob_eff_lang.probblaze Require compatibility sem_operators sem_row 
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import fin_val_type ske.
 Set Default Proof Using "Type*".
 
+(* PRP function F that is assumed to be PRF secure as in Joy of Cryptography [Mike Rosulek] *)
+
 (** A symmetric encryption scheme built from an abstract keyed function
     [prf : key → nonce → message]: [enc k m = (r, prf k r + m mod |M|)] for a
     fresh nonce [r].  The ciphertext space is abstract; the pair is stored as the
@@ -31,7 +33,7 @@ Class PRF `{HΣ : probblazeRGS Σ} {kt nt mt : fin_val_type}
       BREL e ≤ fill K (prf (fvtval k) (fvtval x)) @ E <|X|> {{ R }}
   }.
 
-(** * The PRF games *)
+(** * The PRF games - Joy of Cryptography def. 6.1.1 *)
 Section prf_games.
   Context {kt nt mt : fin_val_type}.
   Context {ks : @fin_val_type_struct kt} {ns : @fin_val_type_struct nt} {ms : @fin_val_type_struct mt}.
@@ -68,15 +70,9 @@ Section prf_games.
   Definition prf_adversary (A : val) : Prop :=
     ∀ `{!probblazeRGS Σ}, ⊢ ⊨ᵥ A ≤ A : (τprf → 𝔹).
 
-  (* This assumption is too strong. The advantage defined here is what we want to reduce to, not a universal ϵ. *)
-  (* There is nothing inherent that bounds the adversary, so it could try all inputs. *)
-  (* (** [prf] is an [ε]-secure PRF. *)
-     Definition prf_secure (ε : R) : Prop :=
-       ∀ A, prf_adversary A → (advantage A prf_real prf_ideal #true <= ε)%R. *)
-
 End prf_games.
 
-(** * The scheme *)
+(** * The scheme - Joy of Cryptography construction 8.3.1 *)
 Section scheme.
   Context {kt nt mt ct : fin_val_type}.
   Context {ks : @fin_val_type_struct kt} {ns : @fin_val_type_struct nt}
