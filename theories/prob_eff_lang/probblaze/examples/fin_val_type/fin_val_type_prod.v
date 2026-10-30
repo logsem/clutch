@@ -1,7 +1,7 @@
 From clutch.prob_eff_lang.probblaze Require Import notation types sem_def interp metatheory logic tactics proofmode.
 From clutch.prob_eff_lang.probblaze Require sem_types.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype seq choice fintype.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import fin_val_type.
+From clutch.prob_eff_lang.probblaze.examples Require Import fin_val_type.
 Import fintype.
 Set Default Proof Using "Type*".
 

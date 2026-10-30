@@ -1,5 +1,5 @@
 From clutch.prob_eff_lang.probblaze Require Import notation logic sem_judgement sem_types sem_def tactics proofmode.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import fin_val_type.
+From clutch.prob_eff_lang.probblaze.examples Require Import fin_val_type.
 Set Default Proof Using "Type*".
 
 Section symmetric.

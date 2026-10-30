@@ -1,7 +1,7 @@
 From iris.proofmode Require Import base.
 From mathcomp Require all_boot ssrnat prime solvable.cyclic.
 From clutch.prelude Require base.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require valgroup.
+From clutch.prob_eff_lang.probblaze.examples Require valgroup.
 From Stdlib Require Import Lia.
 Set Default Proof Using "Type*".
 

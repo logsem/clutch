@@ -1,5 +1,5 @@
 From clutch.prob_eff_lang.probblaze Require Import notation proofmode.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import valgroup fin_val_type.
+From clutch.prob_eff_lang.probblaze.examples Require Import valgroup fin_val_type.
 From mathcomp Require Import finset fintype.
 Import fingroup.FinGroup.Exports.
 Set Default Proof Using "Type*".

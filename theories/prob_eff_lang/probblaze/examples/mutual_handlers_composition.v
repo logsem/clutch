@@ -1,6 +1,6 @@
 From clutch.prob_eff_lang.probblaze Require Import logic notation sem_types sem_def proofmode.
 From iris.proofmode Require Import base proofmode classes.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import valgroup.
+From clutch.prob_eff_lang.probblaze.examples Require Import valgroup.
 
 Import valgroup_tactics.
 

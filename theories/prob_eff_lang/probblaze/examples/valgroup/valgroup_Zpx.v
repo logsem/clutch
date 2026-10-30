@@ -6,7 +6,7 @@ From mathcomp Require Import fingroup solvable.cyclic choice eqtype finset
   fintype seq ssrbool zmodp.
 
 From clutch.prelude Require Import mc_stdlib.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import valgroup.
+From clutch.prob_eff_lang.probblaze.examples Require Import valgroup.
 From clutch.approxis Require Import app_weakestpre.
 
 Local Open Scope group_scope.

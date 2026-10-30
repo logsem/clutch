@@ -1,5 +1,5 @@
 From clutch.prob_eff_lang.probblaze Require Import notation proofmode logic sem_def sem_types sem_row sem_judgement compatibility.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import valgroup ske fin_val_type valgroup_finval.
+From clutch.prob_eff_lang.probblaze.examples Require Import valgroup ske fin_val_type valgroup_finval.
 From mathcomp Require Import finset fintype.
 Import fingroup.FinGroup.Exports.
 Set Default Proof Using "Type*".
