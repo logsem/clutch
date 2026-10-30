@@ -210,4 +210,23 @@ Section OTS.
 
 End OTS.
 
+Section rand_fvt_typing.
+  Context `{!probblazeRGS Σ} {t : fin_val_type} {s : @fin_val_type_struct t} (fv : @fin_val Σ _ t s).
 
+  Lemma sem_typed_rand_fvt Γ ρ :
+    (1 ≤ fin_val_type.card (fin_val_type := t))%nat →
+    ⊢ sem_typed Γ (rand_fvt s #()%V) (rand_fvt s #()%V) ρ (sem_τFT (fin_val := fv)) Γ.
+  Proof.
+    iIntros (Hc γ) "!# HΓ /=". rewrite /rand_fvt. brel_pures_l. brel_pures_r.
+    iApply (brel_couple_rand_rand _ _ (λ n : nat, n)).
+    { by intros. }
+    iIntros (n Hn) "/=".
+    destruct (fvt_of_int_sem_surj (FV := fv) n) as (x & Hx & _).
+    { unfold fvt_of_fvts in *. simpl in *. lia. }
+    iApply (brel_fvt_of_int_correct_l (fin_val := fv)); first done.
+    iApply (brel_fvt_of_int_correct_r (fin_val := fv)); first done.
+    brel_pures_l. brel_pures_r.
+    iModIntro. iFrame. by iExists x.
+  Qed.
+
+End rand_fvt_typing.

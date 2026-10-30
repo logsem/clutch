@@ -297,6 +297,34 @@ Set Default Proof Using "Type*".
     apply Rcoupl_dret. eauto.
   Qed.
 
+  (** * rand(M) ~ two state_steps (N1, N2), along a bijection [fin (S N1) * fin (S N2) → fin (S M)] *)
+  Lemma Rcoupl_rand_state_state (M N1 N2 : nat) (g : fin (S N1) * fin (S N2) → fin (S M)) `{!Bij g}
+      z σ σₛ αₛ1 αₛ2 ys1 ys2 :
+    M = Z.to_nat z →
+    (S M = S N1 * S N2)%nat →
+    αₛ1 ≠ αₛ2 →
+    σₛ.(tapes) !! αₛ1 = Some (N1; ys1) →
+    σₛ.(tapes) !! αₛ2 = Some (N2; ys2) →
+    Rcoupl (prim_step (rand #z) σ) (state_step σₛ αₛ1 ≫= λ σ', state_step σ' αₛ2)
+      (λ ρ σ2', ∃ (x1 : fin (S N1)) (x2 : fin (S N2)),
+         ρ = (Val #(g (x1, x2)), σ) ∧
+         σ2' = state_upd_tapes <[αₛ2 := (N2; ys2 ++ [x2])]>
+                 (state_upd_tapes <[αₛ1 := (N1; ys1 ++ [x1])]> σₛ)).
+  Proof.
+    intros Hz HM Hne H1 H2.
+    setoid_rewrite head_prim_step_eq.
+    2: { eexists. apply head_step_support_equiv_rel. unshelve constructor; [|exact Fin.F1|reflexivity]. }
+    simpl. rewrite -Hz.
+    rewrite (dunifP_decompose N1 N2 M g); last lia.
+    rewrite (state_step_unfold σₛ αₛ1 N1 ys1) //.
+    rewrite dmap_dbind {2}/dmap -dbind_assoc.
+    eapply Rcoupl_dbind; last apply Rcoupl_eq.
+    intros x1 ? <-. rewrite dret_id_left.
+    rewrite (state_step_unfold _ αₛ2 N2 ys2); last by rewrite /= lookup_insert_ne.
+    rewrite dmap_comp. apply Rcoupl_dmap. eapply Rcoupl_mono; first apply Rcoupl_eq.
+    intros x2 ? <-. by exists x1, x2.
+  Qed.
+
   (** * rand(α1, N) ~ rand(α2, N) coupling, both tapes EMPTY.
         For an empty tape the labelled read samples uniformly from
         [dunifP N] and leaves the state untouched, whether or not the

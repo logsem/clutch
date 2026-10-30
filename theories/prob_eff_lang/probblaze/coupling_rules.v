@@ -619,6 +619,102 @@ Section rules.
       apply fin_to_nat_le.
   Qed.
 
+  (** [rand] on the left, two spec tapes on the right. *)
+  Lemma wp_couple_rand_tapes (M N1 N2 : nat) (f : nat → nat → nat)
+      (Hdom : ∀ n1 n2, (n1 < S N1 → n2 < S N2 → f n1 n2 < S M)%nat)
+      (Hinj : ∀ n1 n2 n1' n2', (n1 < S N1 → n2 < S N2 → n1' < S N1 → n2' < S N2 →
+                f n1 n2 = f n1' n2' → n1 = n1' ∧ n2 = n2')%nat)
+      z E αₛ1 αₛ2 nsₛ1 nsₛ2 :
+    TCEq M (Z.to_nat z) →
+    (S M = S N1 * S N2)%nat →
+    {{{ ▷ αₛ1 ↪ₛN (N1; nsₛ1) ∗ ▷ αₛ2 ↪ₛN (N2; nsₛ2) }}}
+      rand #z @ E
+    {{{ (n1 n2 : nat), RET #(f n1 n2); ⌜n1 < S N1⌝%nat ∗ ⌜n2 < S N2⌝%nat ∗
+          αₛ1 ↪ₛN (N1; nsₛ1 ++ [n1]) ∗ αₛ2 ↪ₛN (N2; nsₛ2 ++ [n2]) }}}.
+  Proof.
+    iIntros (Hz HM Φ) "(>Hαₛ1 & >Hαₛ2) HΦ".
+    apply TCEq_eq in Hz.
+    destruct (restr_pair_bij M N1 N2 f Hdom Hinj HM) as (g & Hg & Hgf).
+    iDestruct "Hαₛ1" as (fsₛ1) "(<-&Hαₛ1)".
+    iDestruct "Hαₛ2" as (fsₛ2) "(<-&Hαₛ2)".
+    iDestruct (ghost_map_elem_ne with "Hαₛ1 Hαₛ2") as %Hne.
+    iApply wp_lift_prim_step_l_erasable; [done|].
+    iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
+    iDestruct (spec_auth_lookup_tape with "Hauth2 Hαₛ1") as %?.
+    iDestruct (spec_auth_lookup_tape with "Hauth2 Hαₛ2") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε) with (0+ε)%NNR at 2 by (apply nnreal_ext; simpl; lra).
+    iExists _, (state_step σ1' αₛ1 ≫= λ σ', state_step σ' αₛ2), 0%NNR, ε.
+    repeat iSplit.
+    4: { iPureIntro. apply ARcoupl_exact. by eapply Rcoupl_rand_state_state. }
+    - iPureIntro. apply nnreal_ext. simpl. real_solver.
+    - iPureIntro. eexists. simpl. apply head_step_prim_step.
+      apply head_step_support_equiv_rel. unshelve econstructor; [|exact Fin.F1|reflexivity].
+    - iPureIntro. apply erasable_dbind; first by eapply state_step_erasable.
+      intros ? Hpos. erewrite state_step_unfold in Hpos; last done.
+      apply dmap_pos in Hpos as (?&->&_).
+      eapply state_step_erasable. by rewrite /= lookup_insert_ne.
+    - iIntros (??? (x1 & x2 & [= -> ->] & ->)).
+      iMod (spec_auth_update_tape (_; fsₛ1 ++ [x1]) with "Hauth2 Hαₛ1") as "[Hauth2 Hαₛ1]".
+      iMod (spec_auth_update_tape (_; fsₛ2 ++ [x2]) with "Hauth2 Hαₛ2") as "[Hauth2 Hαₛ2]".
+      do 2 iModIntro. iMod "Hclose'" as "_". iFrame.
+      iApply wp_value. rewrite Hgf.
+      iApply ("HΦ" $! x1 x2). iModIntro.
+      iSplit; [iPureIntro; apply fin_to_nat_lt|].
+      iSplit; [iPureIntro; apply fin_to_nat_lt|].
+      iSplitL "Hαₛ1"; iExists _; iFrame; by rewrite fmap_app.
+  Qed.
+
+  (** Two tapes on the left, [rand] in the spec program on the right. *)
+  Lemma wp_couple_tapes_rand (M N1 N2 : nat) (f : nat → nat → nat)
+      (Hdom : ∀ n1 n2, (n1 < S N1 → n2 < S N2 → f n1 n2 < S M)%nat)
+      (Hinj : ∀ n1 n2 n1' n2', (n1 < S N1 → n2 < S N2 → n1' < S N1 → n2' < S N2 →
+                f n1 n2 = f n1' n2' → n1 = n1' ∧ n2 = n2')%nat)
+      z K E α1 α2 ns1 ns2 e Φ :
+    TCEq M (Z.to_nat z) →
+    (S M = S N1 * S N2)%nat →
+    ▷ α1 ↪N (N1; ns1) ∗ ▷ α2 ↪N (N2; ns2) ∗ ⤇ fill K (rand #z) ∗
+    (∀ n1 n2 : nat, ⌜n1 < S N1⌝%nat -∗ ⌜n2 < S N2⌝%nat -∗
+       α1 ↪N (N1; ns1 ++ [n1]) -∗ α2 ↪N (N2; ns2 ++ [n2]) -∗ ⤇ fill K #(f n1 n2) -∗
+       WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Hz HM) "(>Hα1 & >Hα2 & Hj & Hwp)".
+    apply TCEq_eq in Hz.
+    destruct (restr_pair_bij M N1 N2 f Hdom Hinj HM) as (g & Hg & Hgf).
+    iDestruct "Hα1" as (fs1) "(<-&Hα1)".
+    iDestruct "Hα2" as (fs2) "(<-&Hα2)".
+    iDestruct (ghost_map_elem_ne with "Hα1 Hα2") as %Hne.
+    iApply wp_lift_step_spec_couple.
+    iIntros (σ1 e1' σ1' ε) "[[Hh1 [Ht1 Hl1]] [Hauth2 Herr]]".
+    iDestruct (ghost_map_lookup with "Ht1 Hα1") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα2") as %?.
+    iDestruct (spec_auth_prog_agree with "Hauth2 Hj") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε) with (0 + ε)%NNR by (apply nnreal_ext; simpl; lra).
+    iApply (spec_coupl_erasable_steps 1 _ (state_step σ1 α1 ≫= λ σ', state_step σ' α2)); [done|..].
+    { rewrite pexec_1 step_or_final_no_final; last first.
+      { apply reducible_not_final. eexists. simpl. apply fill_step. apply head_step_prim_step.
+        apply head_step_support_equiv_rel. unshelve econstructor; [|exact Fin.F1|reflexivity]. }
+      apply ARcoupl_steps_ctx_bind_r => /=; [done|done|].
+      apply ARcoupl_exact, Rcoupl_pos_R, Rcoupl_swap. by eapply Rcoupl_rand_state_state. }
+    { apply erasable_dbind; first by eapply state_step_erasable.
+      intros ? Hpos. erewrite state_step_unfold in Hpos; last done.
+      apply dmap_pos in Hpos as (?&->&_).
+      eapply state_step_erasable. by rewrite /= lookup_insert_ne. }
+    iIntros (σ2 e2' σ2' (? & [= ->] & (x1 & x2 & [= -> ->] & ->) & ? & ?)).
+    iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #(g (x1, x2))) with "Hauth2 Hj") as "[$ Hj]".
+    iMod (ghost_map_update ((N1; fs1 ++ [x1]) : tape) with "Ht1 Hα1") as "[Ht1 Hα1]".
+    iMod (ghost_map_update ((N2; fs2 ++ [x2]) : tape) with "Ht1 Hα2") as "[Ht1 Hα2]".
+    iModIntro. iMod "Hclose'" as "_".
+    replace (0 + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
+    iFrame. rewrite Hgf.
+    iApply ("Hwp" $! x1 x2 with "[] [] [Hα1] [Hα2] Hj"); try (iPureIntro; apply fin_to_nat_lt).
+    - iExists _. iFrame. by rewrite fmap_app.
+    - iExists _. iFrame. by rewrite fmap_app.
+  Qed.
+
   (** * rand(α, N) ~ rand(α', N) coupling on two labelled EMPTY tapes.
         Because an empty tape read samples [dunifP N] and leaves the tapes
         untouched (regardless of whether the tape bounds [M1]/[M2] equal

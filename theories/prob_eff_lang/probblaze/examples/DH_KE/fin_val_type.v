@@ -1,5 +1,5 @@
 From clutch.prob_eff_lang.probblaze Require Import notation types sem_def interp metatheory logic.
-From clutch.prob_eff_lang.probblaze Require sem_types.
+From clutch.prob_eff_lang.probblaze Require sem_types sem_judgement.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype  seq choice fintype.
 Import fintype.
 
@@ -125,3 +125,22 @@ Section decoding.
     exists x. split; [| exact Hint]. rewrite -Hint. apply int_of_fvt_of_int_sem.
   Qed.
 End decoding.
+
+Section typing.
+  Context `{!probblazeRGS Σ} {t : fin_val_type} {s : @fin_val_type_struct t} (fv : @fin_val Σ _ t s).
+  Import sem_judgement sem_types.
+
+  Lemma sem_typed_int_of_fvt Γ1 Γ2 ρ e e' :
+    ⊢ sem_typed Γ1 e e' ρ (sem_τFT (fin_val := fv)) Γ2 -∗
+      sem_typed Γ1 (s.(int_of_fvt) e) (s.(int_of_fvt) e') ρ sem_ty_int Γ2.
+  Proof.
+    iIntros "#He !# %γ HΓ1 /=".
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % ((%x & -> & ->) & HΓ2) /=".
+    iApply (brel_int_of_fvt_sem_correct_l (fin_val := fv) _ []).
+    iApply (brel_int_of_fvt_sem_correct_r (fin_val := fv) _ []).
+    iApply brel_value. iIntros "$ !>". iFrame. by iExists _.
+  Qed.
+
+End typing.

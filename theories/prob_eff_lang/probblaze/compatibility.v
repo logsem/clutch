@@ -1033,6 +1033,37 @@ Section compatibility.
     typed_bin_op op τ κ ι → MultiT τ ∧ MultiT κ ∧ MultiT ι.
   Proof. intros []; (split; last split); apply _. Qed.
 
+  Lemma sem_typed_bin_op op τ κ ι Γ1 Γ2 Γ3 ρ e1 e1' e2 e2' :
+    typed_bin_op op τ κ ι →
+    ⊢ sem_typed Γ2 e1 e1' ρ τ Γ3 -∗ sem_typed Γ1 e2 e2' ρ κ Γ2 -∗
+      sem_typed Γ1 (BinOp op e1 e2) (BinOp op e1' e2') ρ ι Γ3.
+  Proof.
+    intros Hop. iIntros "#He1 #He2 !# %γ HΓ1 /=".
+    destruct (bin_op_copy_types _ _ _ _ Hop) as [? [? ?]].
+    iApply (brel_bind [BinOpRCtx _ _] [BinOpRCtx _ _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He2".
+    iIntros "!# % % (#Hκ & HΓ2) /=".
+    iApply (brel_bind [BinOpLCtx _ _] [BinOpLCtx _ _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ2]"); first by iApply "He1".
+    iIntros "!# % % (#Hτ & HΓ3) /=".
+    destruct op; inversion Hop; subst;
+      iDestruct "Hκ" as "(%n1 & -> & ->)";
+      iDestruct "Hτ" as "(%n2 & -> & ->)";
+      brel_pures_l; brel_pures_r; iModIntro; iFrame; eauto.
+  Qed.
+
+  Lemma sem_typed_if Γ1 Γ2 Γ3 ρ τ e0 e0' e1 e1' e2 e2' :
+    ⊢ sem_typed Γ1 e0 e0' ρ 𝔹 Γ2 -∗
+      sem_typed Γ2 e1 e1' ρ τ Γ3 -∗ sem_typed Γ2 e2 e2' ρ τ Γ3 -∗
+      sem_typed Γ1 (if: e0 then e1 else e2) (if: e0' then e1' else e2') ρ τ Γ3.
+  Proof.
+    iIntros "#He0 #He1 #He2 !# %γ HΓ1 /=".
+    iApply (brel_bind [IfCtx _ _] [IfCtx _ _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He0".
+    iIntros "!# % % ((% & -> & ->) & HΓ2) /=".
+    destruct b; brel_pures_l; brel_pures_r; [by iApply "He1"|by iApply "He2"].
+  Qed.
+
   (* Type abstraction and application *)
   Lemma sem_typed_TLam C Γ1 e1 e2 : 
      ⊢ (∀ α, sem_oval_typed Γ1 e1 e2 (C α)) -∗

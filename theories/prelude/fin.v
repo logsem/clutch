@@ -135,6 +135,26 @@ Section fin.
       rewrite fin_to_nat_to_fin //.
   Qed.
 
+  (** A product of two ranges onto a range of the product size. *)
+  Lemma restr_pair_bij (M N1 N2 : nat) (f : nat → nat → nat)
+    (Hdom : ∀ n1 n2, (n1 < S N1 → n2 < S N2 → f n1 n2 < S M)%nat)
+    (Hinj : ∀ n1 n2 n1' n2', (n1 < S N1 → n2 < S N2 → n1' < S N1 → n2' < S N2 →
+              f n1 n2 = f n1' n2' → n1 = n1' ∧ n2 = n2')%nat) :
+    (S M = S N1 * S N2)%nat →
+    ∃ g : fin (S N1) * fin (S N2) → fin (S M), Bij g ∧ ∀ x1 x2, fin_to_nat (g (x1, x2)) = f x1 x2.
+  Proof.
+    intros HM.
+    exists (λ x, nat_to_fin (Hdom _ _ (fin_to_nat_lt x.1) (fin_to_nat_lt x.2))).
+    split; last (intros; by rewrite fin_to_nat_to_fin).
+    assert (Inj eq eq (λ x : fin (S N1) * fin (S N2),
+              nat_to_fin (Hdom _ _ (fin_to_nat_lt x.1) (fin_to_nat_lt x.2)))) as Hi.
+    { intros [a b] [c d] H. apply (f_equal fin_to_nat) in H. rewrite !fin_to_nat_to_fin in H.
+      destruct (Hinj a b c d) as [Hac Hbd]; try apply fin_to_nat_lt; first done.
+      apply fin_to_nat_inj in Hac, Hbd. by subst. }
+    split; first done.
+    apply finite_inj_surj; first done. rewrite prod_card !fin_card. lia.
+  Qed.
+
 
   Lemma nat_inj_surj N f `{Inj nat nat eq eq f}:
     (forall n, n < N -> f n < N)%nat ->

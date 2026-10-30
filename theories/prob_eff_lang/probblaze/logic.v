@@ -1786,6 +1786,62 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     iExists _. iFrame.
   Qed.
 
+  Lemma rel_couple_TT_U (M N1 N2 : nat) (f : nat → nat → nat)
+      (Hdom : ∀ n1 n2, (n1 < S N1 → n2 < S N2 → f n1 n2 < S M)%nat)
+      (Hinj : ∀ n1 n2 n1' n2', (n1 < S N1 → n2 < S N2 → n1' < S N1 → n2' < S N2 →
+                f n1 n2 = f n1' n2' → n1 = n1' ∧ n2 = n2')%nat)
+      z K' E e X R α1 α2 ns1 ns2 :
+    TCEq M (Z.to_nat z) →
+    (S M = S N1 * S N2)%nat →
+    ▷ α1 ↪N (N1; ns1) ∗ ▷ α2 ↪N (N2; ns2) ∗
+    (∀ n1 n2 : nat, ⌜n1 < S N1⌝%nat -∗ ⌜n2 < S N2⌝%nat -∗
+       α1 ↪N (N1; ns1 ++ [n1]) -∗ α2 ↪N (N2; ns2 ++ [n2]) -∗
+       REL e ≤ fill K' #(f n1 n2) @ E <|X|> {{R}})
+    ⊢ REL e ≤ fill K' (rand #z) @ E <|X|> {{R}}.
+  Proof.
+    iIntros (Hz HM) "(Hα1 & Hα2 & H)".
+    rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp %K2 %ε2 He2 Hnais Herr' %Hε'".
+    rewrite -!fill_app.
+    iApply (wp_couple_tapes_rand M N1 N2 f Hdom Hinj); first done.
+    iFrame "Hα1 Hα2 He2".
+    iIntros (n1 n2 Hn1 Hn2) "Hα1 Hα2 Hj".
+    iSpecialize ("H" $! n1 n2 Hn1 Hn2 with "Hα1 Hα2").
+    rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    rewrite !fill_app. simpl.
+    by iApply ("H" with "[$][$][$][$]").
+  Qed.
+
+  Lemma rel_couple_U_TT (M N1 N2 : nat) (f : nat → nat → nat)
+      (Hdom : ∀ n1 n2, (n1 < S N1 → n2 < S N2 → f n1 n2 < S M)%nat)
+      (Hinj : ∀ n1 n2 n1' n2', (n1 < S N1 → n2 < S N2 → n1' < S N1 → n2' < S N2 →
+                f n1 n2 = f n1' n2' → n1 = n1' ∧ n2 = n2')%nat)
+      z K E e X R αₛ1 αₛ2 nsₛ1 nsₛ2 :
+    TCEq M (Z.to_nat z) →
+    (S M = S N1 * S N2)%nat →
+    ▷ αₛ1 ↪ₛN (N1; nsₛ1) ∗ ▷ αₛ2 ↪ₛN (N2; nsₛ2) ∗
+    ▷ (∀ n1 n2 : nat, ⌜n1 < S N1⌝%nat -∗ ⌜n2 < S N2⌝%nat -∗
+         αₛ1 ↪ₛN (N1; nsₛ1 ++ [n1]) -∗ αₛ2 ↪ₛN (N2; nsₛ2 ++ [n2]) -∗
+         REL fill K #(f n1 n2) ≤ e @ E <|X|> {{R}})
+    ⊢ REL fill K (rand #z) ≤ e @ E <|X|> {{R}}.
+  Proof.
+    iIntros (Hz HM) "(Hα1 & Hα2 & Hcnt)".
+    rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp %K2 %ε2 He2 Hnais Herr' %Hε'".
+    rewrite -!fill_app.
+    iApply wp_bind.
+    iApply (wp_couple_rand_tapes M N1 N2 f Hdom Hinj with "[$Hα1 $Hα2]"); first done.
+    iIntros "!>" (n1 n2) "(%Hn1 & %Hn2 & Hα1 & Hα2)".
+    iSpecialize ("Hcnt" $! n1 n2 Hn1 Hn2 with "Hα1 Hα2").
+    rewrite rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    rewrite !fill_app.
+    iSpecialize ("Hcnt" with "Hkwp He2 Hnais Herr'").
+    iSpecialize ("Hcnt" $! Hε'). simpl.
+    iApply (wp_mono with "Hcnt").
+    iIntros (v) "[% (%&? &?&?)]".
+    iExists _. iFrame.
+  Qed.
+
   
   (* Error credit amplification *)
   Lemma rel_get_ec E e e' X A :
@@ -3565,6 +3621,44 @@ Section brel_probabilistic_rules.
     iApply rel_couple_UT => //.
     iFrame. iIntros (n) "!> % Hα".
     by iApply ("H" with "[][$][$][$]").
+  Qed.
+
+  Lemma brel_couple_TT_U (M N1 N2 : nat) (f : nat → nat → nat)
+      (Hdom : ∀ n1 n2, (n1 < S N1 → n2 < S N2 → f n1 n2 < S M)%nat)
+      (Hinj : ∀ n1 n2 n1' n2', (n1 < S N1 → n2 < S N2 → n1' < S N1 → n2' < S N2 →
+                f n1 n2 = f n1' n2' → n1 = n1' ∧ n2 = n2')%nat)
+      z K' E e X R α1 α2 ns1 ns2 :
+    TCEq M (Z.to_nat z) →
+    (S M = S N1 * S N2)%nat →
+    ▷ α1 ↪N (N1; ns1) ∗ ▷ α2 ↪N (N2; ns2) ∗
+    (∀ n1 n2 : nat, ⌜n1 < S N1⌝%nat -∗ ⌜n2 < S N2⌝%nat -∗
+       α1 ↪N (N1; ns1 ++ [n1]) -∗ α2 ↪N (N2; ns2 ++ [n2]) -∗
+       BREL e ≤ fill K' #(f n1 n2) @ E <|X|> {{R}})
+    ⊢ BREL e ≤ fill K' (rand #z) @ E <|X|> {{R}}.
+  Proof.
+    iIntros (Hz HM) "(Hα1 & Hα2 & H) #Hvalid Hdistinct".
+    iApply (rel_couple_TT_U M N1 N2 f Hdom Hinj); first done.
+    iFrame. iIntros (n1 n2 Hn1 Hn2) "Hα1 Hα2".
+    by iApply ("H" with "[//] [//] Hα1 Hα2 [$] [$]").
+  Qed.
+
+  Lemma brel_couple_U_TT (M N1 N2 : nat) (f : nat → nat → nat)
+      (Hdom : ∀ n1 n2, (n1 < S N1 → n2 < S N2 → f n1 n2 < S M)%nat)
+      (Hinj : ∀ n1 n2 n1' n2', (n1 < S N1 → n2 < S N2 → n1' < S N1 → n2' < S N2 →
+                f n1 n2 = f n1' n2' → n1 = n1' ∧ n2 = n2')%nat)
+      z K E e X R αₛ1 αₛ2 nsₛ1 nsₛ2 :
+    TCEq M (Z.to_nat z) →
+    (S M = S N1 * S N2)%nat →
+    ▷ αₛ1 ↪ₛN (N1; nsₛ1) ∗ ▷ αₛ2 ↪ₛN (N2; nsₛ2) ∗
+    ▷ (∀ n1 n2 : nat, ⌜n1 < S N1⌝%nat -∗ ⌜n2 < S N2⌝%nat -∗
+         αₛ1 ↪ₛN (N1; nsₛ1 ++ [n1]) -∗ αₛ2 ↪ₛN (N2; nsₛ2 ++ [n2]) -∗
+         BREL fill K #(f n1 n2) ≤ e @ E <|X|> {{R}})
+    ⊢ BREL fill K (rand #z) ≤ e @ E <|X|> {{R}}.
+  Proof.
+    iIntros (Hz HM) "(Hα1 & Hα2 & H) #Hvalid Hdistinct".
+    iApply (rel_couple_U_TT M N1 N2 f Hdom Hinj); first done.
+    iFrame. iIntros "!>" (n1 n2 Hn1 Hn2) "Hα1 Hα2".
+    by iApply ("H" with "[//] [//] Hα1 Hα2 [$] [$]").
   Qed.
 
   (* Error credit amplification *)
