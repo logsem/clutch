@@ -42,7 +42,7 @@ Section prf_results.
 
   Import valgroup_notation.
 
-  #[local] Notation CIPHER := (λ `{!probblazeRGS Σ}, @prod_fv Σ _ nt mt ns ms (nonce _) (msg _)).
+  #[local] Notation CIPHER := (λ (H: probblazeRGS Σ), @prod_fv Σ H nt mt ns ms (nonce H) (msg H)).
   #[local] Notation SKES := (@prf_sym_struct vg_fvt nt mt vg_fvts ns ms prf_struct _ _ _).
   #[local] Notation RED := (@red_prf nt mt ns ms).
   #[local] Notation PREAL := (@prf_real vg_fvt nt mt vg_fvts ns ms prf_struct).
@@ -99,8 +99,8 @@ Section prf_results_comp.
 
   #[local] Notation CT := (@prod_fvt nt mt).
   #[local] Notation CS := (@prod_fvts nt mt ns ms).
-  #[local] Notation CIPHER := (λ `{!probblazeRGS Σ}, @prod_fv Σ _ nt mt ns ms (nonce _) (msg _)).
-  #[local] Notation SKES := (@prf_sym_struct vg_fvt nt mt vg_fvts ns ms prf_struct _ _ _).
+  #[local] Notation CIPHER := (λ (H : probblazeRGS Σ), @prod_fv Σ H nt mt ns ms (nonce H) (msg H)).
+  #[local] Notation SKES := (@prf_sym_struct vg_fvt nt mt vg_fvts ns ms prf_struct).
   #[local] Notation RED := (@red_prf nt mt ns ms).
   #[local] Notation PREAL := (@prf_real vg_fvt nt mt vg_fvts ns ms prf_struct).
   #[local] Notation PIDEAL := (@prf_ideal nt mt ns ms).
