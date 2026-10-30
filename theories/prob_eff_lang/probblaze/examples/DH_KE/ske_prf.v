@@ -2,15 +2,15 @@ From clutch.prelude Require Import stdpp_ext fin.
 From clutch.prob_eff_lang.probblaze Require Import advantage.
 From clutch.prob_eff_lang.probblaze Require Import notation logic sem_judgement sem_types sem_def tactics proofmode adequacy.
 From clutch.prob_eff_lang.probblaze Require compatibility sem_operators sem_row sem_env sem_sig.
-From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import fin_val_type ske.
+From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import fin_val_type fin_val_type_prod ske.
 Set Default Proof Using "Type*".
 
 (* PRP function F that is assumed to be PRF secure as in Joy of Cryptography [Mike Rosulek] *)
 
 (** A symmetric encryption scheme built from an abstract keyed function
     [prf : key → nonce → message]: [enc k m = (r, prf k r + m mod |M|)] for a
-    fresh nonce [r].  The ciphertext space is abstract; the pair is stored as the
-    code [int r * |M| + pad], so [card ct = card nt * card mt] is assumed. *)
+    fresh nonce [r].  The ciphertext space is the product [fin_val] of nonces and
+    messages ([fin_val_type_prod]). *)
 
 Class PRF_struct {kt nt mt : fin_val_type}
   {ks : @fin_val_type_struct kt} {ns : @fin_val_type_struct nt} {ms : @fin_val_type_struct mt} :=
@@ -74,13 +74,16 @@ End prf_games.
 
 (** * The scheme - Joy of Cryptography construction 8.3.1 *)
 Section scheme.
-  Context {kt nt mt ct : fin_val_type}.
-  Context {ks : @fin_val_type_struct kt} {ns : @fin_val_type_struct nt}
-          {ms : @fin_val_type_struct mt} {cs : @fin_val_type_struct ct}.
+  Context {kt nt mt : fin_val_type}.
+  Context {ks : @fin_val_type_struct kt} {ns : @fin_val_type_struct nt} {ms : @fin_val_type_struct mt}.
   Context {prf_struct : @PRF_struct kt nt mt ks ns ms}.
-  Context `{!Inhabited (fvt_sort ks), !Inhabited (fvt_sort ms), !Inhabited (fvt_sort cs)}.
+  Context `{!Inhabited (fvt_sort ks), !Inhabited (fvt_sort ns), !Inhabited (fvt_sort ms)}.
 
   #[local] Notation N := (fin_val_type.card (fin_val_type := mt)).
+  #[local] Notation CT := (@prod_fvt nt mt).
+  #[local] Notation CS := (@prod_fvts nt mt ns ms).
+
+  #[local] Instance prod_fvt_inhabited : Inhabited (fvt_sort CS) := populate (inhabitant, inhabitant).
 
   Definition rand_nonce : val := rand_fvt ns.
 
@@ -88,38 +91,33 @@ Section scheme.
     λ: "k" "m",
       let: "r" := rand_nonce #()%V in
       let: "p" := (ms.(int_of_fvt) (prf "k" "r") + ms.(int_of_fvt) "m") `rem` #N in
-      match: cs.(fvt_of_int) (ns.(int_of_fvt) "r" * #N + "p") with
+      match: ms.(fvt_of_int) "p" with
         NONE => #()%V
-      | SOME "c" => "c"
+      | SOME "c" => ("r", "c")
       end.
 
   Definition dec_prf : val :=
     λ: "k" "c",
-      let: "n" := cs.(int_of_fvt) "c" in
-      match: ns.(fvt_of_int) ("n" `quot` #N) with
-        NONE => NONE
-      | SOME "r" =>
-          ms.(fvt_of_int) (("n" `rem` #N - ms.(int_of_fvt) (prf "k" "r") + #N) `rem` #N)
-      end.
+      ms.(fvt_of_int) ((ms.(int_of_fvt) (Snd "c") - ms.(int_of_fvt) (prf "k" (Fst "c")) + #N) `rem` #N).
 
   Lemma enc_prf_closed : is_closed_val enc_prf.
   Proof. is_closed. Qed.
   Lemma dec_prf_closed : is_closed_val dec_prf.
   Proof. is_closed. Qed.
 
-  Global Instance prf_sym_struct : @SYM_struct kt ks mt ms ct cs :=
+  Global Instance prf_sym_struct : @SYM_struct kt ks mt ms CT CS :=
     { enc := enc_prf
     ; dec := dec_prf
     ; enc_closed := enc_prf_closed
     ; dec_closed := dec_prf_closed }.
 
-  (** The tail of [enc_prf]: pad [y] with [m] and encode the pair with the nonce [r]. *)
+  (** The tail of [enc_prf]: pad [y] with [m] and pair it with the nonce [r]. *)
   Definition pad_enc : val :=
     λ: "r" "y" "m",
       let: "p" := (ms.(int_of_fvt) "y" + ms.(int_of_fvt) "m") `rem` #N in
-      match: cs.(fvt_of_int) (ns.(int_of_fvt) "r" * #N + "p") with
+      match: ms.(fvt_of_int) "p" with
         NONE => #()%V
-      | SOME "c" => "c"
+      | SOME "c" => ("r", "c")
       end.
 
   (** The reduction: [enc_prf] with [prf "k"] replaced by an oracle from the PRF game
@@ -131,7 +129,8 @@ Section scheme.
       pad_enc "r" ("f" "r") "m".
 
   (** Hybrid between [red_prf prf_ideal] and [enc_ideal]: nonce and pad drawn as raw
-      integers from tapes, and the message ignored. *)
+      integers from tapes, and the message ignored.  The pair is decoded from its code,
+      as [rand_cipher] does. *)
   Definition enc_hyb : val :=
     λ: <>,
       let: "ιr" := alloc #(ns.(card) - 1) in
@@ -139,23 +138,12 @@ Section scheme.
       λ: "m",
         let: "r" := rand("ιr") #(Z.to_nat (ns.(card) - 1)) in
         let: "p" := rand("ιp") #(Z.to_nat (ms.(card) - 1)) in
-        match: cs.(fvt_of_int) ("r" * #N + "p") with
+        match: CS.(fvt_of_int) ("r" * #N + "p") with
           NONE => #()%V
         | SOME "c" => "c"
         end.
 
 End scheme.
-
-Lemma code_quot (r p N : nat) : (p < N)%nat →
-  (Z.of_nat (r * N + p) `quot` Z.of_nat N)%Z = Z.of_nat r.
-Proof. intros. Z.to_euclidean_division_equations. nia. Qed.
-
-Lemma code_rem (r p N : nat) : (p < N)%nat →
-  (Z.of_nat (r * N + p) `rem` Z.of_nat N)%Z = Z.of_nat p.
-Proof.
-  intros. rewrite Nat2Z.inj_add Nat2Z.inj_mul Z.rem_mod_nonneg; [|lia|lia].
-  rewrite Z.add_comm Z.mod_add; [|lia]. rewrite Z.mod_small; lia.
-Qed.
 
 Lemma pad_code_Z (y m N : nat) : (0 < N)%nat →
   ((Z.of_nat y + Z.of_nat m) `rem` Z.of_nat N)%Z = Z.of_nat ((y + m) `mod` N).
@@ -232,29 +220,28 @@ Qed.
 
 Section scheme_spec.
   Context `{probblazeRGS Σ}.
-  Context {kt nt mt ct : fin_val_type}.
-  Context {ks : @fin_val_type_struct kt} {ns : @fin_val_type_struct nt}
-          {ms : @fin_val_type_struct mt} {cs : @fin_val_type_struct ct}.
-  Context {key : @fin_val Σ _ _ ks} {nonce : @fin_val Σ _ _ ns}
-          {msg : @fin_val Σ _ _ ms} {cipher : @fin_val Σ _ _ cs}.
+  Context {kt nt mt : fin_val_type}.
+  Context {ks : @fin_val_type_struct kt} {ns : @fin_val_type_struct nt} {ms : @fin_val_type_struct mt}.
+  Context {key : @fin_val Σ _ _ ks} {nonce : @fin_val Σ _ _ ns} {msg : @fin_val Σ _ _ ms}.
   Context {prf_struct : @PRF_struct kt nt mt ks ns ms}.
   Context {PRF_inst : @PRF Σ _ kt nt mt ks ns ms key nonce msg prf_struct}.
-  Context `{!Inhabited (fvt_sort ks), !Inhabited (fvt_sort ms), !Inhabited (fvt_sort cs)}.
+  Context `{!Inhabited (fvt_sort ks), !Inhabited (fvt_sort ns), !Inhabited (fvt_sort ms)}.
 
-  Hypothesis card_ct : fin_val_type.card (fin_val_type := ct) =
-                         (fin_val_type.card (fin_val_type := nt) * fin_val_type.card (fin_val_type := mt))%nat.
   Hypothesis kt_nontriv : (2 ≤ fin_val_type.card (fin_val_type := kt))%nat.
   Hypothesis nt_nonempty : (1 ≤ fin_val_type.card (fin_val_type := nt))%nat.
   Hypothesis mt_nontriv : (2 ≤ fin_val_type.card (fin_val_type := mt))%nat.
 
   #[local] Notation N := (fin_val_type.card (fin_val_type := mt)).
+  #[local] Notation CT := (@prod_fvt nt mt).
+  #[local] Notation CS := (@prod_fvts nt mt ns ms).
+  #[local] Notation CIPHER := (@prod_fv Σ _ nt mt ns ms nonce msg).
   #[local] Notation nonce_rand := (@rand_nonce nt ns).
-  #[local] Notation ENC := (@enc_prf kt nt mt ct ks ns ms cs prf_struct).
-  #[local] Notation DEC := (@dec_prf kt nt mt ct ks ns ms cs prf_struct).
+  #[local] Notation ENC := (@enc_prf kt nt mt ks ns ms prf_struct).
+  #[local] Notation DEC := (@dec_prf kt nt mt ks ns ms prf_struct).
 
-  Definition cipher_code (k : kt) (r : nt) (m : mt) : nat :=
-    int_of_fvt_sem (fin_val := nonce) r * N
-    + (int_of_fvt_sem (fin_val := msg) (prf_sem k r) + int_of_fvt_sem (fin_val := msg) m) `mod` N.
+  (** The pad of [m] under nonce [r]. *)
+  Definition pad_sem (k : kt) (r : nt) (m : mt) : nat :=
+    ((int_of_fvt_sem (fin_val := msg) (prf_sem k r) + int_of_fvt_sem (fin_val := msg) m) `mod` N)%nat.
 
   Lemma rand_nonce_coupl E K K' X R :
     (∀ r : nt, BREL fill K (fvtval r) ≤ fill K' (fvtval r) @ E <|X|> {{R}}) -∗
@@ -275,8 +262,8 @@ Section scheme_spec.
 
   Lemma prf_brel_enc_couple (k : kt) (m : mt) :
     ⊢ BREL (ENC (fvtval k) (fvtval m)) ≤ ENC (fvtval k) (fvtval m) <|⊥|>
-        {{ (λ v1 v2, ∃ c : ct, ⌜v1 = fvtval c⌝ ∗ ⌜v2 = fvtval c⌝ ∗
-             ∃ r : nt, ⌜int_of_fvt_sem (fin_val := cipher) c = cipher_code k r m⌝) }}.
+        {{ (λ v1 v2, ∃ c : CT, ⌜v1 = fvtval c⌝ ∗ ⌜v2 = fvtval c⌝ ∗
+             ⌜int_of_fvt_sem (fin_val := msg) c.2 = pad_sem k c.1 m⌝) }}.
   Proof.
     rewrite /enc_prf. brel_pures_l. brel_pures_r.
     iApply (rand_nonce_coupl _ [AppRCtx _] [AppRCtx _]). iIntros (r) "/=".
@@ -288,97 +275,66 @@ Section scheme_spec.
     iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
     brel_pures_l. brel_pures_r.
     rewrite pad_code_Z; [|lia].
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := nonce)).
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := nonce)).
+    destruct (fvt_of_int_sem_surj (FV := msg) (pad_sem k r m)) as (c & Hc & Hcc).
+    { apply Nat.mod_upper_bound. lia. }
+    iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first done.
+    iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first done.
     brel_pures_l. brel_pures_r.
-    rewrite -Nat2Z.inj_mul -Nat2Z.inj_add.
-    pose proof (int_of_fvt_sem_bound (fin_val := nonce) r) as Hr.
-    destruct (fvt_of_int_sem_surj (FV := cipher) (cipher_code k r m)) as (c & Hc & Hcc).
-    { rewrite /cipher_code card_ct. unfold fvt_of_fvts in *.
-      pose proof (Nat.mod_upper_bound (int_of_fvt_sem (prf_sem k r) + int_of_fvt_sem m) N).
-      nia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := cipher)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := cipher)); first done.
-    brel_pures_l. brel_pures_r.
-    iModIntro. iExists c. do 2 (iSplit; [done|]). by iExists r.
+    iModIntro. iExists (r, c). by do 2 (iSplit; [done|]).
   Qed.
 
-  Lemma prf_dec_correct_l (k : kt) (m : mt) (c : ct) K e E X R :
-    (∃ r : nt, ⌜int_of_fvt_sem (fin_val := cipher) c = cipher_code k r m⌝) -∗
+  Lemma prf_dec_correct_l (k : kt) (m : mt) (c : CT) K e E X R :
+    ⌜int_of_fvt_sem (fin_val := msg) c.2 = pad_sem k c.1 m⌝ -∗
     BREL fill K (SOMEV (fvtval m)) ≤ e @ E <|X|> {{ R }} -∗
-    BREL fill K (DEC (fvtval k) (fvtval c)) ≤ e @ E <|X|> {{ R }}.
+    BREL fill K (DEC (fvtval k) (fvtval (fin_val_type := CT) c)) ≤ e @ E <|X|> {{ R }}.
   Proof.
-    iIntros "[%r %Hc] H". rewrite /dec_prf. brel_pures_l.
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := cipher)).
-    rewrite Hc /cipher_code.
-    pose proof (Nat.mod_upper_bound (int_of_fvt_sem (fin_val := msg) (prf_sem k r)
-                  + int_of_fvt_sem (fin_val := msg) m) N ltac:(lia)).
-    rewrite fill_app /=. brel_pures_l.
-    rewrite code_quot //.
-    iApply (brel_fvt_of_int_correct_l (fin_val := nonce)); first apply int_of_fvt_of_int_sem.
-    rewrite fill_app /=. brel_pures_l.
+    destruct c as [r p]. iIntros "%Hp H". rewrite /dec_prf /=. brel_pures_l.
     iApply (brel_prf_l (PRF := PRF_inst)). rewrite fill_app /=.
     iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)). rewrite fill_app /=.
     brel_pures_l.
-    rewrite code_rem // unpad_code_Z; try apply (int_of_fvt_sem_bound (fin_val := msg)).
+    iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)). rewrite fill_app /=.
+    brel_pures_l.
+    rewrite Hp /pad_sem unpad_code_Z; try apply (int_of_fvt_sem_bound (fin_val := msg)).
     by iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first apply int_of_fvt_of_int_sem.
   Qed.
 
-  Lemma prf_dec_correct_r (k : kt) (m : mt) (c : ct) K e E X R :
-    (∃ r : nt, ⌜int_of_fvt_sem (fin_val := cipher) c = cipher_code k r m⌝) -∗
+  Lemma prf_dec_correct_r (k : kt) (m : mt) (c : CT) K e E X R :
+    ⌜int_of_fvt_sem (fin_val := msg) c.2 = pad_sem k c.1 m⌝ -∗
     BREL e ≤ fill K (SOMEV (fvtval m)) @ E <|X|> {{ R }} -∗
-    BREL e ≤ fill K (DEC (fvtval k) (fvtval c)) @ E <|X|> {{ R }}.
+    BREL e ≤ fill K (DEC (fvtval k) (fvtval (fin_val_type := CT) c)) @ E <|X|> {{ R }}.
   Proof.
-    iIntros "[%r %Hc] H". rewrite /dec_prf. brel_pures_r.
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := cipher)).
-    rewrite Hc /cipher_code.
-    pose proof (Nat.mod_upper_bound (int_of_fvt_sem (fin_val := msg) (prf_sem k r)
-                  + int_of_fvt_sem (fin_val := msg) m) N ltac:(lia)).
-    rewrite fill_app /=. brel_pures_r.
-    rewrite code_quot //.
-    iApply (brel_fvt_of_int_correct_r (fin_val := nonce)); first apply int_of_fvt_of_int_sem.
-    rewrite fill_app /=. brel_pures_r.
+    destruct c as [r p]. iIntros "%Hp H". rewrite /dec_prf /=. brel_pures_r.
     iApply (brel_prf_r (PRF := PRF_inst)). rewrite fill_app /=.
     iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)). rewrite fill_app /=.
     brel_pures_r.
-    rewrite code_rem // unpad_code_Z; try apply (int_of_fvt_sem_bound (fin_val := msg)).
+    iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)). rewrite fill_app /=.
+    brel_pures_r.
+    rewrite Hp /pad_sem unpad_code_Z; try apply (int_of_fvt_sem_bound (fin_val := msg)).
     by iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first apply int_of_fvt_of_int_sem.
   Qed.
 
   Lemma prf_dec_typed :
-    ⊢ ⊨ᵥ DEC ≤ DEC : (key.(sem_τFT) -{ ⊥ }-> cipher.(sem_τFT) -{ ⊥ }-> Option msg.(sem_τFT)).
+    ⊢ ⊨ᵥ DEC ≤ DEC : (key.(sem_τFT) -{ ⊥ }-> CIPHER.(sem_τFT) -{ ⊥ }-> Option msg.(sem_τFT)).
   Proof.
     rewrite /sem_val_typed /tc_opaque /sem_ty_mbang /sem_ty_arr /=.
     iIntros "!# !#" (k1 k2) "(%k & -> & ->)".
     rewrite /dec_prf. brel_pures_l. brel_pures_r.
-    iIntros "!> !#" (c1 c2) "(%c & -> & ->)".
-    brel_pures_l. brel_pures_r.
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := cipher)).
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := cipher)).
-    brel_pures_l. brel_pures_r.
-    set (a := int_of_fvt_sem c).
-    assert ((Z.of_nat a `quot` Z.of_nat N)%Z = Z.of_nat (a `div` N)) as ->
-      by (rewrite Nat2Z.inj_div Z.quot_div_nonneg; lia).
-    destruct (fvt_of_int_sem (fin_val := nonce) (a `div` N)) as [r|] eqn:Hr.
-    2:{ iApply (brel_fvt_of_int_none_l (fin_val := nonce)); first done.
-        iApply (brel_fvt_of_int_none_r (fin_val := nonce)); first done.
-        brel_pures_l. brel_pures_r. iModIntro. iExists _, _. by iLeft. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := nonce)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := nonce)); first done.
+    iIntros "!> !#" (c1 c2) "(%c & -> & ->)". destruct c as [r p]. simpl.
     brel_pures_l. brel_pures_r.
     iApply (brel_prf_l (PRF := PRF_inst)). iApply (brel_prf_r (PRF := PRF_inst)).
     iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)).
     iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
     brel_pures_l. brel_pures_r.
+    iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)).
+    iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
+    brel_pures_l. brel_pures_r.
+    set (a := int_of_fvt_sem (fin_val := msg) p).
     set (y := int_of_fvt_sem (fin_val := msg) (prf_sem k r)).
     assert (Hy : (y < N)%nat) by apply (int_of_fvt_sem_bound (fin_val := msg)).
-    assert (((Z.of_nat a `rem` Z.of_nat N - Z.of_nat y + Z.of_nat N) `rem` Z.of_nat N)%Z
-            = Z.of_nat ((a `mod` N + N - y) `mod` N)) as ->.
-    { pose proof (Nat.mod_upper_bound a N ltac:(lia)).
-      rewrite (Z.rem_mod_nonneg (Z.of_nat a)); [|lia|lia]. rewrite -Nat2Z.inj_mod.
-      rewrite Z.rem_mod_nonneg; [|lia|lia]. rewrite (Nat2Z.inj_mod (a `mod` N + N - y)).
-      f_equal. lia. }
-    destruct (fvt_of_int_sem (fin_val := msg) ((a `mod` N + N - y) `mod` N)) as [m|] eqn:Hm.
+    assert (((Z.of_nat a - Z.of_nat y + Z.of_nat N) `rem` Z.of_nat N)%Z
+            = Z.of_nat ((a + N - y) `mod` N)) as ->.
+    { rewrite Z.rem_mod_nonneg; [|lia|lia]. rewrite Nat2Z.inj_mod. f_equal. lia. }
+    destruct (fvt_of_int_sem (fin_val := msg) ((a + N - y) `mod` N)) as [m|] eqn:Hm.
     - iApply (brel_fvt_of_int_correct_l (fin_val := msg) _ []); first done.
       iApply (brel_fvt_of_int_correct_r (fin_val := msg) _ []); first done.
       iApply brel_value. iIntros "$ !>". iExists _, _. iRight.
@@ -389,15 +345,15 @@ Section scheme_spec.
   Qed.
 
   Program Global Instance PRF_SKE :
-    @SYM Σ _ kt mt ct ks ms cs key msg cipher
-         (@prf_sym_struct kt nt mt ct ks ns ms cs prf_struct _ _ _) :=
-    { P k m c := (∃ r : nt, ⌜int_of_fvt_sem (fin_val := cipher) c = cipher_code k r m⌝)%I
+    @SYM Σ _ kt mt CT ks ms CS key msg CIPHER
+         (@prf_sym_struct kt nt mt ks ns ms prf_struct _ _ _) :=
+    { P k m c := ⌜int_of_fvt_sem (fin_val := msg) c.2 = pad_sem k c.1 m⌝%I
     ; brel_enc_couple := prf_brel_enc_couple
     ; brel_dec_enc_correct_l := prf_dec_correct_l
     ; brel_dec_enc_correct_r := prf_dec_correct_r
     ; dec_typed := prf_dec_typed }.
   Next Obligation. exact kt_nontriv. Qed.
-  Next Obligation. rewrite /fvt_of_fvts card_ct. nia. Qed.
+  Next Obligation. rewrite /fvt_of_fvts prod_fvt_card. nia. Qed.
 
 End scheme_spec.
 
@@ -410,33 +366,31 @@ End scheme_spec.
     [enc_hyb ≃ enc_ideal]                      (two tape samples coupled with one) *)
 Section reduction_spec.
   Context `{probblazeRGS Σ}.
-  Context {kt nt mt ct : fin_val_type}.
-  Context {ks : @fin_val_type_struct kt} {ns : @fin_val_type_struct nt}
-          {ms : @fin_val_type_struct mt} {cs : @fin_val_type_struct ct}.
-  Context {key : @fin_val Σ _ _ ks} {nonce : @fin_val Σ _ _ ns}
-          {msg : @fin_val Σ _ _ ms} {cipher : @fin_val Σ _ _ cs}.
+  Context {kt nt mt : fin_val_type}.
+  Context {ks : @fin_val_type_struct kt} {ns : @fin_val_type_struct nt} {ms : @fin_val_type_struct mt}.
+  Context {key : @fin_val Σ _ _ ks} {nonce : @fin_val Σ _ _ ns} {msg : @fin_val Σ _ _ ms}.
   Context {prf_struct : @PRF_struct kt nt mt ks ns ms}.
   Context {PRF_inst : @PRF Σ _ kt nt mt ks ns ms key nonce msg prf_struct}.
-  Context `{!Inhabited (fvt_sort ks), !Inhabited (fvt_sort ms), !Inhabited (fvt_sort cs)}.
+  Context `{!Inhabited (fvt_sort ks), !Inhabited (fvt_sort ns), !Inhabited (fvt_sort ms)}.
 
-  Hypothesis card_ct : fin_val_type.card (fin_val_type := ct) =
-                         (fin_val_type.card (fin_val_type := nt) * fin_val_type.card (fin_val_type := mt))%nat.
   Hypothesis kt_nonempty : (1 ≤ fin_val_type.card (fin_val_type := kt))%nat.
   Hypothesis nt_nonempty : (1 ≤ fin_val_type.card (fin_val_type := nt))%nat.
   Hypothesis mt_nontriv : (2 ≤ fin_val_type.card (fin_val_type := mt))%nat.
 
-  #[local] Notation SKES := (@prf_sym_struct kt nt mt ct ks ns ms cs prf_struct _ _ _).
-  #[local] Notation RED := (@red_prf nt mt ct ns ms cs).
-  #[local] Notation HYB := (@enc_hyb nt mt ct ns ms cs).
+  #[local] Notation CS := (@prod_fvts nt mt ns ms).
+  #[local] Notation CIPHER := (@prod_fv Σ _ nt mt ns ms nonce msg).
+  #[local] Notation SKES := (@prf_sym_struct kt nt mt ks ns ms prf_struct _ _ _).
+  #[local] Notation RED := (@red_prf nt mt ns ms).
+  #[local] Notation HYB := (@enc_hyb nt mt ns ms).
   #[local] Notation PREAL := (@prf_real kt nt mt ks ns ms prf_struct).
   #[local] Notation PIDEAL := (@prf_ideal nt mt ns ms).
-  #[local] Notation PAD := (@pad_enc nt mt ct ns ms cs).
+  #[local] Notation PAD := (@pad_enc mt ms).
 
   #[local] Notation N := (fin_val_type.card (fin_val_type := mt)).
   #[local] Notation Key := (sem_τFT (fin_val := key)).
   #[local] Notation Nonce := (sem_τFT (fin_val := nonce)).
   #[local] Notation Msg := (sem_τFT (fin_val := msg)).
-  #[local] Notation Cph := (sem_τFT (fin_val := cipher)).
+  #[local] Notation Cph := (sem_τFT (fin_val := CIPHER)).
   #[local] Notation τP := (𝟙 → (Nonce → Msg))%T.
   #[local] Notation τE := (𝟙 ⊸ (Msg → Cph))%T.
 
@@ -476,23 +430,15 @@ Section reduction_spec.
       iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)).
       iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
       brel_pures_l. brel_pures_r.
-      iApply (brel_int_of_fvt_sem_correct_l (fin_val := nonce)).
-      iApply (brel_int_of_fvt_sem_correct_r (fin_val := nonce)).
-      brel_pures_l. brel_pures_r.
       rewrite pad_code_Z; last lia.
-      rewrite -Nat2Z.inj_mul -Nat2Z.inj_add.
-      pose proof (Nat.mod_upper_bound
-                    (int_of_fvt_sem (fin_val := msg) y + int_of_fvt_sem (fin_val := msg) m) N ltac:(lia)).
-      pose proof (int_of_fvt_sem_bound (fin_val := nonce) r).
-      destruct (fvt_of_int_sem_surj (FV := cipher)
-                  (int_of_fvt_sem (fin_val := nonce) r * N
-                   + (int_of_fvt_sem (fin_val := msg) y + int_of_fvt_sem (fin_val := msg) m) `mod` N))
+      destruct (fvt_of_int_sem_surj (FV := msg)
+                  ((int_of_fvt_sem (fin_val := msg) y + int_of_fvt_sem (fin_val := msg) m) `mod` N))
         as (c & Hc & _).
-      { unfold fvt_of_fvts in *. simpl in *. rewrite card_ct. nia. }
-      iApply (brel_fvt_of_int_correct_l (fin_val := cipher)); first done.
-      iApply (brel_fvt_of_int_correct_r (fin_val := cipher)); first done.
+      { apply Nat.mod_upper_bound. lia. }
+      iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first done.
+      iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first done.
       brel_pures_l. brel_pures_r.
-      iModIntro. by iExists c.
+      iModIntro. by iExists (r, c).
     Qed.
 
     Lemma red_prf_typed : ⊢ ⊨ᵥ RED ≤ RED : (τP → τE).
@@ -610,22 +556,15 @@ Section reduction_spec.
     iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
     iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
     brel_pures_l. brel_pures_r.
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := nonce)).
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := nonce)).
-    brel_pures_l. brel_pures_r.
     rewrite pad_code_Z; last lia.
-    rewrite -Nat2Z.inj_mul -Nat2Z.inj_add.
-    set (y := int_of_fvt_sem (fin_val := msg) (prf_sem kv rv)).
-    pose proof (Nat.mod_upper_bound (y + int_of_fvt_sem (fin_val := msg) m) N ltac:(lia)).
-    pose proof (int_of_fvt_sem_bound (fin_val := nonce) rv).
-    destruct (fvt_of_int_sem_surj (FV := cipher)
-                (int_of_fvt_sem (fin_val := nonce) rv * N + (y + int_of_fvt_sem (fin_val := msg) m) `mod` N))
+    destruct (fvt_of_int_sem_surj (FV := msg)
+                ((int_of_fvt_sem (fin_val := msg) (prf_sem kv rv) + int_of_fvt_sem (fin_val := msg) m) `mod` N))
       as (c & Hc & _).
-    { unfold fvt_of_fvts in *. simpl in *. rewrite card_ct. nia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := cipher)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := cipher)); first done.
+    { apply Nat.mod_upper_bound. lia. }
+    iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first done.
+    iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first done.
     brel_pures_l. brel_pures_r.
-    iModIntro. by iExists c.
+    iModIntro. by iExists (rv, c).
   Qed.
 
   Lemma red_real_enc_real : ⊢ sem_typed [] (RED PREAL) (enc_real SKES) ⊥ τE [].
@@ -661,22 +600,15 @@ Section reduction_spec.
     iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)).
     iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)).
     brel_pures_l. brel_pures_r.
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := nonce)).
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := nonce)).
-    brel_pures_l. brel_pures_r.
     rewrite pad_code_Z; last lia.
-    rewrite -Nat2Z.inj_mul -Nat2Z.inj_add.
-    set (y := int_of_fvt_sem (fin_val := msg) (prf_sem kv rv)).
-    pose proof (Nat.mod_upper_bound (y + int_of_fvt_sem (fin_val := msg) m) N ltac:(lia)).
-    pose proof (int_of_fvt_sem_bound (fin_val := nonce) rv).
-    destruct (fvt_of_int_sem_surj (FV := cipher)
-                (int_of_fvt_sem (fin_val := nonce) rv * N + (y + int_of_fvt_sem (fin_val := msg) m) `mod` N))
+    destruct (fvt_of_int_sem_surj (FV := msg)
+                ((int_of_fvt_sem (fin_val := msg) (prf_sem kv rv) + int_of_fvt_sem (fin_val := msg) m) `mod` N))
       as (c & Hc & _).
-    { unfold fvt_of_fvts in *. simpl in *. rewrite card_ct. nia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := cipher)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := cipher)); first done.
+    { apply Nat.mod_upper_bound. lia. }
+    iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first done.
+    iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first done.
     brel_pures_l. brel_pures_r.
-    iModIntro. by iExists c.
+    iModIntro. by iExists (rv, c).
   Qed.
 
   Lemma red_ideal_hyb : ⊢ sem_typed [] (RED PIDEAL) HYB ⊥ τE [].
@@ -723,22 +655,23 @@ Section reduction_spec.
     brel_pures_l. brel_load_l. brel_pures_l. brel_store_l. brel_pures_l.
     iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)).
     iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)). brel_pures_l.
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := nonce)). brel_pures_l.
     brel_rand_r. brel_pures_r. brel_rand_r. brel_pures_r.
     iApply brel_na_close. iFrame "Hclose".
     iSplitL "Hιr Hιp"; first (iNext; iSplitL "Hιr"; by iApply spec_tapeN_to_empty).
     unfold fvt_of_fvts in *. simpl in *.
     assert (y < N)%nat as HyN by lia.
-    rewrite Hrv' Hyv' pad_code_Z; last lia.
-    rewrite pad_map_mod // -Nat2Z.inj_mul -Nat2Z.inj_add.
+    rewrite Hyv' pad_code_Z; last lia.
+    rewrite pad_map_mod //.
     pose proof (Nat.mod_upper_bound (y + int_of_fvt_sem (fin_val := msg) m) N ltac:(lia)).
-    destruct (fvt_of_int_sem_surj (FV := cipher) (r * N + (y + int_of_fvt_sem (fin_val := msg) m) `mod` N))
-      as (c & Hc & _).
-    { unfold fvt_of_fvts in *. simpl in *. rewrite card_ct. nia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := cipher)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := cipher)); first done.
-    brel_pures_l. brel_pures_r.
-    iModIntro. by iExists c.
+    destruct (fvt_of_int_sem_surj (FV := msg) ((y + int_of_fvt_sem (fin_val := msg) m) `mod` N))
+      as (c & Hc & Hc'); first lia.
+    iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first done.
+    brel_pures_l.
+    rewrite -Hrv' -Hc' -Nat2Z.inj_mul -Nat2Z.inj_add.
+    iApply (brel_fvt_of_int_correct_r (fin_val := CIPHER));
+      first exact (int_of_fvt_of_int_sem (fin_val := CIPHER) (rv, c)).
+    brel_pures_r.
+    iModIntro. by iExists (rv, c).
   Qed.
 
   Lemma hyb_red_ideal : ⊢ sem_typed [] HYB (RED PIDEAL) ⊥ τE [].
@@ -798,21 +731,23 @@ Section reduction_spec.
     brel_pures_r. brel_load_r. brel_pures_r. brel_store_r. brel_pures_r.
     iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
     iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)). brel_pures_r.
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := nonce)). brel_pures_r.
     iApply brel_na_close. iFrame "Hclose Hιr Hιp".
-    rewrite Hrv' Hyv' pad_code_Z; last lia.
-    rewrite pad_map_inv // -Nat2Z.inj_mul -Nat2Z.inj_add.
-    destruct (fvt_of_int_sem_surj (FV := cipher) (r * N + p)) as (c & Hc & _).
-    { unfold fvt_of_fvts in *. simpl in *. rewrite card_ct. nia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := cipher)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := cipher)); first done.
-    brel_pures_l. brel_pures_r.
-    iModIntro. by iExists c.
+    rewrite Hyv' pad_code_Z; last lia.
+    rewrite pad_map_inv //.
+    destruct (fvt_of_int_sem_surj (FV := msg) p) as (pv & Hpv & Hpv'); first lia.
+    iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first done.
+    brel_pures_r.
+    rewrite -Hrv' -Hpv' -Nat2Z.inj_mul -Nat2Z.inj_add.
+    iApply (brel_fvt_of_int_correct_l (fin_val := CIPHER));
+      first exact (int_of_fvt_of_int_sem (fin_val := CIPHER) (rv, pv)).
+    brel_pures_l.
+    iModIntro. by iExists (rv, pv).
   Qed.
 
   (** The two-against-one coupling: the tapes of [HYB] against the [rand] of [enc_ideal]. *)
   Lemma hyb_ideal : ⊢ sem_typed [] HYB (enc_ideal SKES) ⊥ τE [].
   Proof.
+    pose proof (@prod_fvt_card nt mt) as card_ct.
     iIntros "!# %vs Hvs /=". rewrite /enc_hyb /enc_ideal.
     iApply brel_value. iIntros "$ !>". iSplitL; last done.
     iIntros (??) "(->&->)".
@@ -827,7 +762,7 @@ Section reduction_spec.
     iApply (brel_na_inv _ _ (nroot .@ "hyb")); first set_solver.
     iFrame "HI". iIntros "((Hιr & Hιp) & Hclose)".
     brel_pures_l. brel_pures_r. rewrite /rand_cipher /rand_fvt /=. brel_pures_r.
-    iApply (brel_couple_TT_U (Z.to_nat (cs.(card) - 1)) (Z.to_nat (ns.(card) - 1)) (Z.to_nat (ms.(card) - 1))
+    iApply (brel_couple_TT_U (Z.to_nat (CS.(card) - 1)) (Z.to_nat (ns.(card) - 1)) (Z.to_nat (ms.(card) - 1))
               (λ r p, r * N + p)%nat).
     1-3: unfold fvt_of_fvts in *; simpl in *.
     1,3: intros; nia.
@@ -837,16 +772,17 @@ Section reduction_spec.
     brel_rand_l. brel_pures_l. brel_rand_l. brel_pures_l.
     iApply brel_na_close. iFrame "Hclose Hιr Hιp".
     rewrite -Nat2Z.inj_mul -Nat2Z.inj_add.
-    destruct (fvt_of_int_sem_surj (FV := cipher) (n1 * N + n2)) as (c & Hc & _).
+    destruct (fvt_of_int_sem_surj (FV := CIPHER) (n1 * N + n2)) as (c & Hc & _).
     { unfold fvt_of_fvts in *. simpl in *. rewrite card_ct. nia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := cipher)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := cipher)); first done.
+    iApply (brel_fvt_of_int_correct_l (fin_val := CIPHER)); first done.
+    iApply (brel_fvt_of_int_correct_r (fin_val := CIPHER)); first done.
     brel_pures_l. brel_pures_r.
     iModIntro. by iExists c.
   Qed.
 
   Lemma ideal_hyb : ⊢ sem_typed [] (enc_ideal SKES) HYB ⊥ τE [].
   Proof.
+    pose proof (@prod_fvt_card nt mt) as card_ct.
     iIntros "!# %vs Hvs /=". rewrite /enc_hyb /enc_ideal.
     iApply brel_value. iIntros "$ !>". iSplitL; last done.
     iIntros (??) "(->&->)".
@@ -861,7 +797,7 @@ Section reduction_spec.
     iApply (brel_na_inv _ _ (nroot .@ "hyb")); first set_solver.
     iFrame "HI". iIntros "((Hιr & Hιp) & Hclose)".
     brel_pures_l. brel_pures_r. rewrite /rand_cipher /rand_fvt /=. brel_pures_l.
-    iApply (brel_couple_U_TT (Z.to_nat (cs.(card) - 1)) (Z.to_nat (ns.(card) - 1)) (Z.to_nat (ms.(card) - 1))
+    iApply (brel_couple_U_TT (Z.to_nat (CS.(card) - 1)) (Z.to_nat (ns.(card) - 1)) (Z.to_nat (ms.(card) - 1))
               (λ r p, r * N + p)%nat).
     1-3: unfold fvt_of_fvts in *; simpl in *.
     1,3: intros; nia.
@@ -873,10 +809,10 @@ Section reduction_spec.
     iApply brel_na_close. iFrame "Hclose".
     iSplitL "Hιr Hιp"; first (iNext; iSplitL "Hιr"; by iApply spec_tapeN_to_empty).
     rewrite -Nat2Z.inj_mul -Nat2Z.inj_add.
-    destruct (fvt_of_int_sem_surj (FV := cipher) (n1 * N + n2)) as (c & Hc & _).
+    destruct (fvt_of_int_sem_surj (FV := CIPHER) (n1 * N + n2)) as (c & Hc & _).
     { unfold fvt_of_fvts in *. simpl in *. rewrite card_ct. nia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := cipher)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := cipher)); first done.
+    iApply (brel_fvt_of_int_correct_l (fin_val := CIPHER)); first done.
+    iApply (brel_fvt_of_int_correct_r (fin_val := CIPHER)); first done.
     brel_pures_l. brel_pures_r.
     iModIntro. by iExists c.
   Qed.
@@ -885,29 +821,26 @@ End reduction_spec.
 
 Section reduction.
   Context {Σ : gFunctors} `{!probblazeRGpreS Σ}.
-  Context {kt nt mt ct : fin_val_type}.
-  Context {ks : @fin_val_type_struct kt} {ns : @fin_val_type_struct nt}
-          {ms : @fin_val_type_struct mt} {cs : @fin_val_type_struct ct}.
+  Context {kt nt mt : fin_val_type}.
+  Context {ks : @fin_val_type_struct kt} {ns : @fin_val_type_struct nt} {ms : @fin_val_type_struct mt}.
   Context {key : ∀ `{!probblazeRGS Σ}, @fin_val Σ _ _ ks} {nonce : ∀ `{!probblazeRGS Σ}, @fin_val Σ _ _ ns}
-          {msg : ∀ `{!probblazeRGS Σ}, @fin_val Σ _ _ ms} {cipher : ∀ `{!probblazeRGS Σ}, @fin_val Σ _ _ cs}.
+          {msg : ∀ `{!probblazeRGS Σ}, @fin_val Σ _ _ ms}.
   Context {prf_struct : @PRF_struct kt nt mt ks ns ms}.
   Context {PRF_inst : ∀ `{!probblazeRGS Σ}, @PRF Σ _ kt nt mt ks ns ms (key _) (nonce _) (msg _) prf_struct}.
-  Context `{!Inhabited (fvt_sort ks), !Inhabited (fvt_sort ms), !Inhabited (fvt_sort cs)}.
+  Context `{!Inhabited (fvt_sort ks), !Inhabited (fvt_sort ns), !Inhabited (fvt_sort ms)}.
 
-  Hypothesis card_ct : fin_val_type.card (fin_val_type := ct) =
-                         (fin_val_type.card (fin_val_type := nt) * fin_val_type.card (fin_val_type := mt))%nat.
   Hypothesis kt_nonempty : (1 ≤ fin_val_type.card (fin_val_type := kt))%nat.
   Hypothesis nt_nonempty : (1 ≤ fin_val_type.card (fin_val_type := nt))%nat.
   Hypothesis mt_nontriv : (2 ≤ fin_val_type.card (fin_val_type := mt))%nat.
 
-  #[local] Notation SKES := (@prf_sym_struct kt nt mt ct ks ns ms cs prf_struct _ _ _).
-  #[local] Notation RED := (@red_prf nt mt ct ns ms cs).
-  #[local] Notation HYB := (@enc_hyb nt mt ct ns ms cs).
+  #[local] Notation SKES := (@prf_sym_struct kt nt mt ks ns ms prf_struct _ _ _).
+  #[local] Notation RED := (@red_prf nt mt ns ms).
+  #[local] Notation HYB := (@enc_hyb nt mt ns ms).
   #[local] Notation PREAL := (@prf_real kt nt mt ks ns ms prf_struct).
   #[local] Notation PIDEAL := (@prf_ideal nt mt ns ms).
 
   Definition τenc `{!probblazeRGS Σ} : sem_ty Σ :=
-    (𝟙 ⊸ (sem_τFT (fin_val := msg _) → sem_τFT (fin_val := cipher _)))%T.
+    (𝟙 ⊸ (sem_τFT (fin_val := msg _) → sem_τFT (fin_val := prod_fv (nonce _) (msg _))))%T.
 
   Lemma adv_enc_prf A :
     (∀ `{!probblazeRGS Σ}, ⊢ ⊨ᵥ A ≤ A : (τenc → 𝔹)) →
