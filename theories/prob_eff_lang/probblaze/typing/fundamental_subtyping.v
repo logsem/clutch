@@ -325,6 +325,7 @@ Section fundamental_subtyping.
       + iIntros (????) "!# #HD"; iApply ty_le_mbang_comp.
         * by iApply fundamental_mode.
         * by iApply fundamental_type.
+      + iIntros (????) "!# #HD"; iApply ty_le_mbang_prod.
       + iIntros (????) "!# #HD"; iApply ty_le_type_forall_mbang.
       + iIntros (????) "!# #HD"; iApply ty_le_mbang_type_forall.
       + iIntros (????) "!# #HD"; iApply ty_le_row_forall_mbang.

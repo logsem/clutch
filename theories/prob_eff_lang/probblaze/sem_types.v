@@ -680,6 +680,16 @@ Section sub_typing.
       by iApply "Hττ'". 
   Qed.
 
+  Lemma ty_le_mbang_prod m (τ κ : sem_ty Σ) :
+    ⊢ (![m] τ × ![m] κ) ≤ₜ ![m] (τ × κ).
+  Proof.
+    iIntros "!# %v1 %v2 (%w1 & %w1' & %w2 & %w2' & -> & -> & Hτ & Hκ)".
+    rewrite /sem_ty_mbang. destruct m; simpl.
+    - iExists w1, w1', w2, w2'. by iFrame.
+    - iDestruct "Hτ" as "#Hτ". iDestruct "Hκ" as "#Hκ". iModIntro.
+      iExists w1, w1', w2, w2'. by iFrame "#".
+  Qed.
+
   Lemma ty_le_mbang_comm m m' (τ : sem_ty Σ) :
     ⊢ ![m] (![m'] τ) ≤ₜ ![m'] (![m] τ). 
   Proof.

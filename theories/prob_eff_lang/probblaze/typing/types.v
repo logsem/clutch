@@ -1096,6 +1096,8 @@ Module le.
     _mode m' m →
     _type D α α' →
     _type D (TBang m α) (TBang m' α')
+  | TBangProd_le D m α β :
+    _type D (TProd (TBang m α) (TBang m β)) (TBang m (TProd α β))
           
   | TBangTForallTComm1_le D m α : _type D (TBang m (TForallT α)) (TForallT (TBang m α))
   | TBangTForallTComm2_le D m α : _type D (TForallT (TBang m α)) (TBang m (TForallT α))

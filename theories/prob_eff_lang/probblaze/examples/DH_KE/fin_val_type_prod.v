@@ -51,13 +51,12 @@ Section fin_val_type_struct_prod.
   Lemma prod_of_int_closed : is_closed_val prod_of_int.
   Proof. is_closed. Qed.
 
-  (** Not derivable: the syntactic subtyping [le._type] has no rule pushing [![m]]
-      through [TProd] (only through base types).  With a rule
-      [TBangProd_le : TProd (![m] α) (![m] β) ≤ ![m] (TProd α β)] this follows from
-      [TProd_le] and the components' [τFT_multi]. *)
+  (** Each component is duplicable, and [TBangProd_le] pushes the bang over the pair. *)
   Lemma τFT_prod_multi : le.MultiT (s1.(τFT) * s2.(τFT))%ty.
   Proof.
-  Admitted.
+    eapply le.TTrans_le; last apply le.TBangProd_le.
+    apply le.TProd_le; apply τFT_multi.
+  Qed.
 
   Local Lemma RNil_rtype (τ : type) : RNil R⪯T τ.
   Proof. apply le.Once_le. exists true. apply le.RFlipNil_le. Qed.
