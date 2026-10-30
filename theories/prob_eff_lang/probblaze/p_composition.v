@@ -1073,8 +1073,8 @@ Section parallel_composition.
     sem_typed ((s, τ) ::? Γ1) e1 e2 ρ κ Γ2 -∗
     ⊨ᵥ v1 ≤ v2 : τ -∗
     sem_typed Γ1 (val_subst' s v1 e1) ((λ: s, e2)%E v2) ρ κ Γ2.  
-  Proof. Admitted.
-   (* iIntros (HΓ1 HΓ2) "#Hee #Hvv !# %vs Hvs".
+  Proof.
+    iIntros (HΓ1 HΓ2) "#Hee #Hvv !# %vs Hvs".
     brel_pures'.
     rewrite -subst_map_binder_insert.
     rewrite /sem_typed /=.
@@ -1082,8 +1082,7 @@ Section parallel_composition.
     destruct s; first by iApply "Hee".
     simpl.
     assert (subst_map (fst <$> vs) (val_subst s v1 e1) = subst_map (fst <$> (binder_insert s (v1, v2)(delete s vs))) e1) as ->.
-    { 
-      rewrite subst_map_val_subst. simpl.
+    { rewrite subst_map_val_subst. simpl.
       assert (v1 = fst (v1, v2)) as -> by done.  
       by rewrite -fmap_insert insert_delete_eq. }
     assert (subst_map (<[s:=v2]> (snd <$> vs)) e2 = subst_map (snd <$> (binder_insert s (v1, v2) (delete s vs))) e2) as ->.
@@ -1104,14 +1103,14 @@ Section parallel_composition.
       rewrite -env_sem_typed_insert; last done.
       by rewrite -env_sem_typed_delete.
   Qed. 
- *)
+
   Lemma sem_typed_eta_expansion_r (Γ1 Γ2 : env Σ) e1 e2 v1 v2 s τ κ ρ : 
     s ∉ env_dom Γ1 → s ∉ env_dom Γ2 →
     sem_typed ((s, τ) ::? Γ1) e1 e2 ρ κ Γ2 -∗
     ⊨ᵥ v1 ≤ v2 : τ -∗
                  sem_typed Γ1 ((λ: s, e1)%E v1) (val_subst' s v2 e2) ρ κ Γ2.  
-  Proof. Admitted.
-   (* iIntros (HΓ1 HΓ2) "#Hee #Hvv !# %vs Hvs".
+  Proof. 
+    iIntros (HΓ1 HΓ2) "#Hee #Hvv !# %vs Hvs".
     brel_pures'.
     rewrite -subst_map_binder_insert.
     rewrite /sem_typed /=.
@@ -1139,7 +1138,7 @@ Section parallel_composition.
       iClear "Hee".
       rewrite -env_sem_typed_insert; last done.
       by rewrite -env_sem_typed_delete.
-  Qed. *)
+  Qed.
   
 
 End parallel_composition.
