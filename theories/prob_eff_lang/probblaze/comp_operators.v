@@ -32,8 +32,6 @@ Section composition_operators.
       let, ("rH", "rF") := "r" in
       ("F" (λ: "rG", "G" "f" ("rH", "rG")) "rF").
 
-  (*Notation " F₁ ||ₗ F₂" := (left_composition F₁ F₂)%V (at level 10). *)
-
   Notation "F ||ᵣ G" := (parallel_composition F G)%V (at level 10).
   
   Notation "F '∘F' G" := (functionality_composition F G)%V (at level 10).
@@ -214,7 +212,7 @@ Section composition_operators.
     (∀ θ, ∀ θG, sem_typed [(f, τ__f' θ τ1'); (x, τG θG)] G G (sem_row_union (¡ θG)%R θ) 𝟙%T []) -∗ 
     sem_typed [] J J ⊥ (τ__F τ1 τ2')%T [] -∗
     sem_typed [] ((F ∘f (λ: f x, G)%V) ||ᵣ J) 
-      (F ∘F ((λ: f x, G)%V ||ᵣ J)) ⊥ (∀ᵣ θ, (τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T []. 
+      (F ∘F ((λ: f x, G)%V ||ᵣ J)) ⊥ (∀ᵣ θ, (τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
   Proof.  
     iIntros (Hfx HisclosedF HisclosedJ) "#HFF #HGG #HJJ !# %vs _". simpl.
     unfold func_comp, parallel_composition,functionality_composition.
@@ -993,16 +991,17 @@ Section composition_operators.
       iApply to_iThy_le_intro'; solve_submseteq.
   Qed.
     
-  Lemma functionality_comp_cong (F G1 G2 : expr) τ1 τ2 τ1' τF :
-    is_closed_expr ∅ F →
+  Lemma functionality_comp_cong (F1 F2 G1 G2 : expr) τ1 τ2 τ1' τF :
+    is_closed_expr ∅ F1 →
+    is_closed_expr ∅ F2 ->
     is_closed_expr ∅ G1 →
     is_closed_expr ∅ G2 →
     ⊢ sem_typed [] G1 G2 ⊥ (∀ᵣ θ, τ1' θ ⊸ ∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τF θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2) θ)}-∘ 𝟙)%T [] -∗
-    sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡ θF) θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡ θ1) θ }-∘ 𝟙)%T [] -∗
-    sem_typed [] (F ∘F G1) (F ∘F G2) ⊥ 
+    sem_typed [] F1 F2 ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡ θF) θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡ θ1) θ }-∘ 𝟙)%T [] -∗
+    sem_typed [] (F1 ∘F G1) (F2 ∘F G2) ⊥ 
       (∀ᵣ θ, τ1' θ ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2) θ) }-∘ 𝟙))%T []. 
   Proof.
-    iIntros (HFclosed HG1closed HG2closed)  "#HGG #HFF !# %vs _".
+    iIntros (HF1closed HF2closed HG1closed HG2closed)  "#HGG #HFF !# %vs _".
     rewrite /functionality_composition /=.
     brel_pures'.
     iAssert ([] ⊨ₑ ∅) as "HΓ"; first done.
