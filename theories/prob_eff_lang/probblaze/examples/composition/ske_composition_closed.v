@@ -33,13 +33,13 @@ Section ske_comp_closed.
   Proof. is_closed. Qed.
   Lemma func_comp_closed : is_closed_expr ∅ func_comp.
   Proof. is_closed. Qed.
-  Lemma right_composition_closed : is_closed_expr ∅ right_composition.
+  Lemma right_composition_closed : is_closed_expr ∅ parallel_composition.
   Proof. is_closed. Qed.
   Lemma functionality_composition_closed : is_closed_expr ∅ functionality_composition.
   Proof. is_closed. Qed.
 
   #[local] Opaque F_OAUTH F_AUTH DH_SIM F_KE_lazy_alice DH_KE C_DH_real C_DH_rand CHAN
-    func_comp right_composition functionality_composition.
+    func_comp parallel_composition functionality_composition.
   #[local] Hint Constants Opaque : ske_comp_closed.
   #[local] Hint Resolve F_OAUTH_closed F_AUTH_closed DH_SIM_closed FKE_closed DH_KE_closed
     C_DH_real_closed C_DH_rand_closed CHAN_closed func_comp_closed right_composition_closed

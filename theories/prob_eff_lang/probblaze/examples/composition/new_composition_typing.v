@@ -1,7 +1,7 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import na_invariants.
 From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import p_composition primitive_laws proofmode.
+From clutch.prob_eff_lang.probblaze Require Import comp_operators primitive_laws proofmode.
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_env sem_judgement compatibility.

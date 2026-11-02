@@ -1,4 +1,4 @@
-From clutch.prob_eff_lang.probblaze Require Export def_dhke notation valgroup p_composition mask.
+From clutch.prob_eff_lang.probblaze Require Export def_dhke notation valgroup comp_operators mask.
 
 Import fingroup.
 

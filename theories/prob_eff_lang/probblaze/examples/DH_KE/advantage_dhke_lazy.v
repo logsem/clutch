@@ -6,7 +6,7 @@ From clutch.prob_eff_lang.probblaze Require Import
   dhke_channel_lazy_results
   dhke_channel_authchan_new
   dhke_common adequacy
-  p_composition.
+  comp_operators.
 
 Section adv_dhke.
   Context {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg}.

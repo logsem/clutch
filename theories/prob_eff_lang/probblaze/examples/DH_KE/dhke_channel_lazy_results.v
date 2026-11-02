@@ -6,7 +6,7 @@ From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode
   class_instances. 
 From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import dhke_common.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement p_composition. 
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement comp_operators. 
 
 Import fingroup.
 

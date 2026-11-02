@@ -1,5 +1,5 @@
 From clutch.prob_eff_lang.probblaze.examples Require Import advantage_dhke_lazy valgroup_Zpx def_dhke.
-From clutch.prob_eff_lang.probblaze Require Import p_composition adequacy syntax types notation advantage.
+From clutch.prob_eff_lang.probblaze Require Import comp_operators adequacy syntax types notation advantage.
 From Stdlib Require Import Reals.
 From iris.base_logic.lib Require Import ghost_map.
 From iris.algebra Require Import excl dfrac_agree.

@@ -293,7 +293,7 @@ Section schan_security.
                   (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
   Proof with (repeat foldkont; brel_pures') using All. 
     iIntros (vs) "!> _ /=".
-    unfold R_CHAN, right_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp...
+    unfold R_CHAN, parallel_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp...
     iSplitR; last done. iModIntro.
     iIntros (L f1 f2) "Hrelf1f2"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
@@ -531,8 +531,6 @@ Section schan_security.
              iApply brel_na_close. iFrame. rewrite sc_coupling_mask.
              iSplitR "Hlsendr Hssendr Hssendl Hcsendl"...
              { iModIntro; iRight; iLeft; unfold f. setoid_rewrite sc_coupling_mask. by iFrame "#". }
-             About brel_bind.
-             About brel_bind''.
              set (M' :=  [([csend'; crecv'; getKey'; srecv_l; ssend_l], [lrecv'; lsend'; srecv_r; ssend_r], iThyBot)] ++
     iLblSig_to_iLblThy (sem_row_union (¡ keyeff)%R L)).
              iApply (brel_bind'' _ _ (iLblSig_to_iLblThy (sem_row_flip_mbang OS autheff)) M' N (𝟙%T) (asnd_l _) (asnd_r _)); [ set_unfold; tauto | set_unfold; tauto | |].
@@ -822,7 +820,7 @@ Section schan_security.
                   (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union  (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
   Proof with (repeat foldkont; brel_pures') using All.
     iIntros (vs) "!> _ /=".
-    unfold R_CHAN, right_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp...
+    unfold R_CHAN, parallel_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp...
     iSplitR; last done. iModIntro.
     iIntros (L f1 f2) "Hrelf1f2"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".

@@ -95,7 +95,7 @@ Section schan_ideal.
                                  set_unfold; tauto
                              end)).
     iIntros (?) "!# _ //=". 
-    rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /right_composition.
+    rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /parallel_composition.
     repeat (rewrite lookup_delete_eq || (rewrite lookup_delete_ne; last done))...
 
     iModIntro. iSplit; last done.
@@ -535,7 +535,7 @@ Section schan_ideal.
                                          end);
                                  set_unfold; tauto
                              end)).
-    iIntros (?) "!# _ //=". rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /right_composition.
+    iIntros (?) "!# _ //=". rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /parallel_composition.
     repeat (rewrite lookup_delete_eq || (rewrite lookup_delete_ne; last done))...
     iModIntro. iSplit; last done.
     iIntros (θL f1 f2) "Hff"...

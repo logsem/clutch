@@ -3,7 +3,7 @@ From iris.base_logic.lib Require Import  na_invariants.
 From iris.algebra Require Export agree excl auth frac excl_auth.
 From iris.algebra.lib Require Export dfrac_agree.
 From clutch.prob_eff_lang.probblaze Require Export logic notation sem_def tactics sem_types sem_judgement sem_row.
-From clutch.prob_eff_lang.probblaze Require Import sem_sig p_composition.
+From clutch.prob_eff_lang.probblaze Require Import sem_sig comp_operators.
 From clutch.prob_eff_lang.probblaze.examples Require Export valgroup def_dhke.
 From clutch.prob_eff_lang.probblaze.typing Require Import types.
 

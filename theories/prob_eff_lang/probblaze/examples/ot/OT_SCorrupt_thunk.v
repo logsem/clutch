@@ -6,7 +6,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   spec_rules spec_ra 
   class_instances sem_types
   sem_judgement sem_row sem_def 
-  p_composition
+  comp_operators
   fundamental
   tactics.
 From clutch.prob_eff_lang.probblaze.examples.ot Require Import definition_thunk_sender_corrupt ot_bijection ot_common.

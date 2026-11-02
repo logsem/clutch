@@ -1,7 +1,7 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import na_invariants.
 From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import p_composition primitive_laws proofmode.
+From clutch.prob_eff_lang.probblaze Require Import comp_operators primitive_laws proofmode.
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_env sem_judgement compatibility.
@@ -162,7 +162,7 @@ Section ske_typing.
     Qed.
 
     Lemma F_OAUTH_val_typed :
-      ⊢ sem_val_typed F_OAUTH F_OAUTH (τ__FO oaleak cchan).
+      ⊢ sem_val_typed F_OAUTH F_OAUTH (τ__F oaleak cchan).
     Proof using Type*.
       iApply sem_typed_Rclosure. iIntros (θ).
       iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
@@ -215,7 +215,7 @@ Section ske_typing.
         Unshelve. all: solve_typed_side.
     Qed.
 
-    Corollary F_OAUTH_typed : ⊢ sem_typed [] F_OAUTH F_OAUTH ⊥ (τ__FO oaleak cchan) [].
+    Corollary F_OAUTH_typed : ⊢ sem_typed [] F_OAUTH F_OAUTH ⊥ (τ__F oaleak cchan) [].
     Proof using All.
       iApply sem_typed_val.
       iApply F_OAUTH_val_typed.
@@ -405,7 +405,7 @@ Section ske_typing.
 
 
     Lemma F_KE_lazy_alice_val_typed :
-      ⊢ sem_val_typed F_KE_lazy_alice F_KE_lazy_alice (τ__FO leakI gk).
+      ⊢ sem_val_typed F_KE_lazy_alice F_KE_lazy_alice (τ__F leakI gk).
     Proof using Type*.
       iApply sem_typed_Rclosure. iIntros (θ).
       iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
@@ -416,7 +416,7 @@ Section ske_typing.
       Unshelve. all: solve_typed_side.
     Qed.
 
-    Corollary F_KE_lazy_alice_typed : ⊢ sem_typed [] F_KE_lazy_alice F_KE_lazy_alice ⊥ (τ__FO leakI gk) [].
+    Corollary F_KE_lazy_alice_typed : ⊢ sem_typed [] F_KE_lazy_alice F_KE_lazy_alice ⊥ (τ__F leakI gk) [].
     Proof using All.
       iApply sem_typed_val.
       iApply F_KE_lazy_alice_val_typed.
@@ -720,7 +720,7 @@ Section ske_typing.
     Qed.
 
     Lemma CHAN_typed :
-      ⊢ sem_typed [] CHAN CHAN ⊥ (∀ᵣ θ, hdl cli θ ⊸ τ__fu θ cchan gk)%T [].
+      ⊢ sem_typed [] CHAN CHAN ⊥ (∀ᵣ θ, hdl cli θ ⊸ τ__f θ cchan gk)%T [].
     Proof using All.
       iApply sem_typed_val. iApply sem_typed_Rclosure. iIntros (θ).
       iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
@@ -758,8 +758,8 @@ Section ske_typing.
     Qed.
 
     Lemma func_comp_OS_typed (F J : expr) (A B B' : sem_row Σ → sem_ty Σ) :
-      ⊢ sem_typed [] F F ⊥ (τ__FO A B) [] -∗ sem_typed [] J J ⊥ (τ__FO B B') []-∗
-      sem_typed [] (F ∘f J) (F ∘f J) ⊥ (τ__FO A B') [].
+      ⊢ sem_typed [] F F ⊥ (τ__F A B) [] -∗ sem_typed [] J J ⊥ (τ__F B B') []-∗
+      sem_typed [] (F ∘f J) (F ∘f J) ⊥ (τ__F A B') [].
     Proof.
       iIntros "#HF #HJ".
       iApplyT sem_typed_app_nil; last iApply "HJ".
@@ -776,8 +776,8 @@ Section ske_typing.
      [¡θ1 ∪ θ] and [F₂] at [¡θh ∪ θ], where [θh] is [F₁]'s client row, so
      that every row step is a permutation of union components. *)
     Lemma right_comp_val_typed (τ1 τ1' τ2 τ2' : sem_row Σ → sem_ty Σ) :
-      ⊢ ⊨ᵥ right_composition ≤ right_composition :
-        (τ__FO τ2 τ2' ⊸ τ__FO τ1 τ1' ⊸ ∀ᵣ θ, τ__fu θ τ1' τ2' ⊸ τ__fu θ τ1 τ2)%T.
+      ⊢ ⊨ᵥ parallel_composition ≤ parallel_composition :
+        (τ__F τ2 τ2' ⊸ τ__F τ1 τ1' ⊸ ∀ᵣ θ, τ__f θ τ1' τ2' ⊸ τ__f θ τ1 τ2)%T.
     Proof.
       iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
       iApply sem_typed_closure; first done.
@@ -817,7 +817,7 @@ Section ske_typing.
 
   Lemma F_KE_F_OAUTH_typed :
     ⊢ sem_typed [] (F_KE_lazy_alice ||ᵣ F_OAUTH) (F_KE_lazy_alice ||ᵣ F_OAUTH) ⊥
-        (∀ᵣ θ, τ__fu θ cchan gk ⊸ τ__fu θ oaleak leakI)%T [].
+        (∀ᵣ θ, τ__f θ cchan gk ⊸ τ__f θ oaleak leakI)%T [].
   Proof using All.
     iApply sem_typed_app_nil; last (iApply sem_typed_val; iApply F_OAUTH_val_typed).
     iApply sem_typed_app_nil; last (iApply sem_typed_val; iApply F_KE_lazy_alice_val_typed).
@@ -971,7 +971,7 @@ Section ske_typing.
     Qed.
 
     Lemma RED_CHAN_val_typed :
-      ⊢ ⊨ᵥ (@RED_CHAN mt ms) ≤ (@RED_CHAN mt ms) : ((𝟙 ⊸ (Msg -{ ⊥ }-> Cph)) ⊸ ∀ᵣ θ, hdl cli θ ⊸ τ__fu θ cchan gk)%T.
+      ⊢ ⊨ᵥ (@RED_CHAN mt ms) ≤ (@RED_CHAN mt ms) : ((𝟙 ⊸ (Msg -{ ⊥ }-> Cph)) ⊸ ∀ᵣ θ, hdl cli θ ⊸ τ__f θ cchan gk)%T.
     Proof using All.
       iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
       iApply sem_typed_closure; first done.
@@ -1022,7 +1022,7 @@ Section ske_typing.
 
     Lemma reduction_val_typed :
       ⊢ ⊨ᵥ (@reduction vg cg vgg mt ms) ≤ (@reduction vg cg vgg mt ms) :
-        ((𝟙 ⊸ (Msg -{ ⊥ }-> Cph)) → ∀ᵣ θ, hdl cli θ ⊸ τ__fu θ oaleak leakI)%T.
+        ((𝟙 ⊸ (Msg -{ ⊥ }-> Cph)) → ∀ᵣ θ, hdl cli θ ⊸ τ__f θ oaleak leakI)%T.
     Proof using All.
       iApply sem_typed_closure; first done. simpl.
       iApplyT sem_typed_app_nil; last first.

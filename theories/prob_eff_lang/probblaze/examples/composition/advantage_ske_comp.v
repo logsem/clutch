@@ -1,6 +1,6 @@
 From clutch.prob_eff_lang.probblaze Require Import advantage.
 From clutch.prob_eff_lang.probblaze.typing Require Import types fundamental interp.
-From clutch.prob_eff_lang.probblaze Require Import p_composition sem_row syntax semantics proofmode valgroup adequacy mode.
+From clutch.prob_eff_lang.probblaze Require Import comp_operators sem_row syntax semantics proofmode valgroup adequacy mode.
 From clutch.prob_eff_lang.probblaze.examples Require Import ske_composition ske_composition_defs dhke_common ske_typing ske_composition_typing.
 
 Import fingroup.

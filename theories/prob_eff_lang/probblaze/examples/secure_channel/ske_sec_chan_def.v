@@ -1,5 +1,5 @@
 From clutch.prob_eff_lang.probblaze.examples Require Export def_dhke valgroup ske valgroup_finval fin_val_type.
-From clutch.prob_eff_lang.probblaze Require Export notation p_composition.
+From clutch.prob_eff_lang.probblaze Require Export notation comp_operators.
 
 Import fingroup.
 
