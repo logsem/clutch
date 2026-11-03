@@ -38,7 +38,7 @@ Section composition_operators.
 
  
   Definition func_comp : val :=
-   λ: "F" "G" "f", "F" ("G" "f").
+   λ: "F" "G" "f", "F" (λ: "r", "G" "f" "r").
 
   Notation "F ∘f G" := (func_comp F G)%V (at level 10).
     
@@ -51,27 +51,27 @@ Section composition_operators.
     induction L1; first done.
     simpl. by rewrite IHL1.
   Qed.  
-  
-  Lemma func_comp_left (F1 F2 G1 G2 : expr) τ τ' τ'':
-    is_closed_expr ∅ F1 →
-    is_closed_expr ∅ F2 →
+
+  Lemma func_comp_left (F1 F2 G1 G2 : expr) τr τf τG τ :
+    is_closed_expr ∅ F1 ->
+    is_closed_expr ∅ F2 ->
     is_closed_expr ∅ G1 ->
     is_closed_expr ∅ G2 ->
-    ⊢ sem_typed [] F1 F2 ⊥ (∀ᵣ θ,τ θ ⊸ τ' θ)%T [] -∗
-      sem_typed [] G1 G2 ⊥ (∀ᵣ θ, τ'' θ ⊸ τ θ)%T [] -∗
-    sem_typed [] (F1 ∘f G1 ) (F2 ∘f G2) ⊥ (∀ᵣ θ, τ'' θ ⊸ τ' θ)%T [].
+    ⊢ sem_typed [] F1 F2 ⊥ (∀ᵣ θ, (τr θ ⊸ τG θ) ⊸ τ θ)%T [] -∗
+    sem_typed [] G1 G2 ⊥ (∀ᵣ θ, τf θ ⊸ τr θ ⊸ τG θ)%T [] -∗
+    sem_typed [] (F1 ∘f G1) (F2 ∘f G2) ⊥ (∀ᵣ θ, τf θ ⊸ τ θ)%T [].
   Proof.
-    iIntros (HF1closed HF2closed HG1closed HG2closed) "#HFF #HGG". rewrite /sem_val_typed /sem_typed //=.
-    simpl.
-    iIntros "!> %vs Hvs".
-    rewrite /func_comp /=. 
+    iIntros (HF1closed HF2closed HG1closed HG2closed) "#HFF #HGG".
+    rewrite /sem_val_typed /sem_typed //=. simpl.
+    iIntros "!> %Vs Hvs".
+    rewrite /func_comp /=.
     iAssert ([] ⊨ₑ ∅) as "HΓ"; first done.
     iSpecialize ("HFF" with "HΓ").
     iSpecialize ("HGG" with "HΓ").
     erewrite !subst_map_is_closed_empty; try done. 
-    iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy_nil |].
+    iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy_nil |]. 
     iApply (brel_wand with "HGG").
-    iIntros (v1 v2) "!# Hv1v2".  
+    iIntros (v1 v2) "!# Hv1v2".   
     iApply (brel_bind' [_; _] [_ ;_ ]); [iApply traversable_to_iThy_nil|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS _ _ [] [] with "[][$HFF]");
@@ -83,23 +83,34 @@ Section composition_operators.
     iSplitL "Hv1v2 Hv0v3"; try done.
     rewrite /sem_ty_arr /=.
     iIntros (θ w1 w2) "Hw1w2".
-    brel_pures'. 
-    iDestruct "Hv1v2" as "[Hv1v2 _] ".
-    iSpecialize ("Hv1v2" $! θ).
-    iSpecialize ("Hv1v2" $! w1 w2).
-    iDestruct ("Hv1v2" with "Hw1w2") as "Hv1v2'".
+    brel_pures'.
+    iAssert ((τr θ ⊸ τG θ)%T (λ: "r", v1 w1 "r")%V (λ: "r", v2 w2 "r")%V)  with "[Hv1v2 Hw1w2]" as "Hclients".
+    { iDestruct "Hv1v2" as "[Hv1v2 _]".
+      iSpecialize ("Hv1v2" $! θ).
+      rewrite /sem_ty_arr /=.
+      iIntros (w0 w3) "Hw0w3".
+      iSpecialize ("Hv1v2" with "Hw1w2").
+      brel_pures'.
+      iApply (brel_bind' [_] [_]); [iApply traversable_to_iThy_nil |].
+      assert (to_iThyIfMono OS [] = []) as <- by done. 
+      iApply (brel_mono OS _ _ [] [] with "[][Hv1v2]");
+        [iApply to_iThy_le_bot| by iApply "Hv1v2" |].
+      simpl.
+      iIntros (v4 v5) "Hw4w5".
+      iSpecialize ("Hw4w5" with "Hw0w3").
+      iApply "Hw4w5".
+        }
     iDestruct "Hv0v3" as "[Hv0v3 _]".
     iSpecialize ("Hv0v3" $! θ).
-    iApply (brel_bind' [_] [_] with "[][Hv0v3 Hv1v2']"); [iApply traversable_to_iThy_nil|].
-    assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS _ _ [] [] with "[][Hv1v2']");
-      [iApply to_iThy_le_bot| by iApply "Hv1v2'" |].
+    iSpecialize ("Hv0v3" with "Hclients").  
+    assert (to_iThyIfMono OS [] = []) as <- by done. 
+    iApply (brel_mono OS _ _ [] [] with "[][Hv0v3]");
+      [iApply to_iThy_le_bot| by iApply "Hv0v3" |].
     simpl.
     iIntros (v4 v5) "Hv4v5".
-    iSpecialize ("Hv0v3" $! v4 v5).
-    iDestruct ("Hv0v3" with "Hv4v5") as "Hv0v3'".
-    iApply "Hv0v3'".
-  Qed. 
+    iApply "Hv4v5".
+  Qed.
+    
 
   
   Lemma parallel_comp_right (F1 F2 G1 G2 : expr) τ1 τ2 τ1' τ2' :
@@ -208,26 +219,32 @@ Section composition_operators.
     (BNamed f) ≠ (BNamed x) →
     is_closed_expr ∅ F ->
     is_closed_expr ∅ J ->
-    ⊢ sem_typed [] F F ⊥ (τ__F τ2 τG)%T [] -∗ 
-    (∀ θ, ∀ θG, sem_typed [(f, τ__f' θ τ1'); (x, τG θG)] G G (sem_row_union (¡ θG)%R θ) 𝟙%T []) -∗ 
+    is_closed_expr ∅ G ->
+    ⊢ sem_typed [] F F ⊥ (τ__F τ2 τG)%T [] -∗
+      sem_typed [] G G ⊥ (∀ᵣ θ, ∀ᵣ θG, (τ__f' θ τ1') ⊸ (τG θG) -{sem_row_union (¡ θG)%R θ}-∘ 𝟙)%T [] -∗
     sem_typed [] J J ⊥ (τ__F τ1 τ2')%T [] -∗
-    sem_typed [] ((F ∘f (λ: f x, G)%V) ||ᵣ J) 
-      (F ∘F ((λ: f x, G)%V ||ᵣ J)) ⊥ (∀ᵣ θ, (τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
+    sem_typed [] ((F ∘f G) ||ᵣ J) (F ∘F (G ||ᵣ J)) ⊥ (∀ᵣ θ, (τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
   Proof.  
-    iIntros (Hfx HisclosedF HisclosedJ) "#HFF #HGG #HJJ !# %vs _". simpl.
+    iIntros (Hfx HisclosedF HisclosedJ HisclosedG) "#HFF #HGG #HJJ !# %vs _". simpl.
     unfold func_comp, parallel_composition,functionality_composition.
     brel_pures'.
     rewrite /sem_typed /=. 
     iAssert ([] ⊨ₑ ∅) as "HΓ"; first done.
     iSpecialize ("HFF" with "HΓ"). 
     iSpecialize ("HJJ" with "HΓ").
+    iSpecialize ("HGG" with "HΓ").
     rewrite !subst_map_is_closed_empty; try done. 
     iApply (brel_bind [AppRCtx _] [AppRCtx _ ; _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
     assert (to_iThyIfMono OS [] = []) as <- by done. 
     iApply (brel_mono OS with "[][$HJJ]");[iApply to_iThy_le_refl |simpl ].
     iIntros (vJ1 vJ2) "(HJ1J2 & _)".
-    iApply (brel_bind [_; _ ; _ ; _] [AppLCtx _ ; _]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot |].        
-    assert (to_iThyIfMono OS [] = []) as <- by done. 
+    iApply (brel_bind [_ ; _ ; _] [_ ; _ ; _]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot |].        
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][$HGG]");[iApply to_iThy_le_refl |simpl].
+    iIntros (vG1 vG2) "(HG1G2 & _)".
+    brel_pures'.
+    iApply (brel_bind [_ ; _ ; _ ; _] [_ ; _ ]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot |].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][$HFF]");[iApply to_iThy_le_refl |simpl].
     iIntros (vF1 vF2) "(HF1F2 & _)".
     brel_pures'.
@@ -244,21 +261,19 @@ Section composition_operators.
     brel_pures_l 3.  
     brel_pures_r. 
     brel_pures'.
-    rewrite decide_True; last (split; done).
-    simpl. 
+    simpl.  
     iAssert ((∀ᵣ θG, τG θG -{ sem_row_union (¡ θG) (sem_row_union (¡ θ1)%R θ) }-∘ 𝟙)%T
-               (λ: x, val_subst f (λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂","h₁")) w1) G)%V          
+               (λ: "r", vG1 (λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂","h₁")) w1)%V "r")%V          
                (λ: "rG", (λ: "f" "r",
                             let: "r₂" := "r" in
                             let: "r₁" := Fst "r₂" in
                             let: "r₂" := Snd "r₂" in
-                            (λ: f x, G)%V (λ: "h₁", vJ2 (λ: "h₂", "f" ("h₂", "h₁")) "r₁") "r₂")%V f2 (w1', "rG"))%V) with "[Hτ1 Hff HJ1J2]" as "Hgg". 
+                            vG2 (λ: "h₁", vJ2 (λ: "h₂", "f" ("h₂", "h₁")) "r₁") "r₂")%V f2 (w1', "rG"))%V) with "[Hτ1 Hff HJ1J2 HG1G2]" as "Hgg". 
     { iIntros (θG rg1 rg2) "HτG".
       brel_pures_l.
       brel_pures_r 1. 
       brel_pures'.
-      rewrite decide_True; last (split; done). 
-      iSpecialize ("HGG" $! (sem_row_union (¡θ1)%R θ) θG).
+      iSpecialize ("HG1G2" $! (sem_row_union (¡θ1)%R θ) θG).
       brel_pures.
       iAssert ((τ__f' (sem_row_union  (¡θ1)%R θ) τ1' (λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂", "h₁")) w1)%V (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂", "h₁")) w1')%V)) with "[Hff Hτ1 HJ1J2]" as "Hff".
       { 
@@ -276,22 +291,22 @@ Section composition_operators.
           iDestruct ("Hff" with "Hprod") as "Hff".
             simpl; by iApply "Hff". } 
         simpl. iIntros (g1 g2) "Hgg".  
-        iDestruct ("Hgg" with "Hτ1") as "Hgg".
+        iDestruct ("Hgg" with "Hτ1") as "Hgg". 
         rewrite !iLblSig_to_iLblThy_distr.  
         iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡θ1)%R ++ iLblSig_to_iLblThy (¡θ1')%R ++ iLblSig_to_iLblThy θ)); [|done].
         iApply to_iThy_le_intro'; solve_submseteq. }
-      iAssert ([(f, τ__f' (sem_row_union (¡θ1)%R θ) τ1'); (x, τG θG)] ⊨ₑ {[ x := (rg1, rg2); f := ((λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂","h₁")) w1)%V, (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂", "h₁")) w1')%V)]}) with "[HτG Hff]" as "HΓ'". 
-      { solve_env. intros heq. apply Hfx. simpl. by destruct heq. }
-      iDestruct ("HGG" with "HΓ'") as "Hrel".
-      iApply (brel_wand with "[Hrel]"). 
-      { rewrite !fmap_insert !fmap_empty //=. 
-        rewrite !subst_map_insert !delete_insert_ne //=.
-        2,3 : intros heq; apply Hfx; by destruct heq.
-        rewrite !delete_empty.
-        rewrite !subst_map_insert !delete_empty subst_map_empty.
-       
-        iApply "Hrel". }
-      iIntros (??) "!# ($&_)". }
+      iApply (brel_wand with "[HG1G2 Hff HτG]"). 
+      { iSpecialize ("HG1G2" with "Hff").
+        iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+        assert (to_iThyIfMono OS [] = []) as <- by done.
+        iApply (brel_mono OS with "[][HG1G2][HτG]"); [iApply to_iThy_le_refl|simpl|].
+        +  iApply "HG1G2".
+        + simpl.
+          iIntros (v1 v2) "Hv1v2".
+          iSpecialize ("Hv1v2" with "HτG").
+          iApply "Hv1v2". }
+      iModIntro.
+      iIntros (v1 v2) "Hv1v2". iApply "Hv1v2". }
 
     iSpecialize ("HF1F2" with "Hgg").
     iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
@@ -308,54 +323,60 @@ Section composition_operators.
     (BNamed f) ≠ (BNamed x) →
     is_closed_expr ∅ F ->
     is_closed_expr ∅ J ->
+    is_closed_expr ∅ G ->
     ⊢ sem_typed [] F F ⊥ (τ__F τ2 τG)%T [] -∗
-    (∀ θ, ∀ θG, sem_typed [(f, τ__f' θ τ1'); (x, τG θG)] G G (sem_row_union (¡ θG)%R θ) 𝟙%T []) -∗
+    (*(∀ θ, ∀ θG, sem_typed [(f, τ__f' θ τ1'); (x, τG θG)] G G (sem_row_union (¡ θG)%R θ) 𝟙%T []) -∗*)
+    sem_typed [] G G ⊥ (∀ᵣ θ, ∀ᵣ θG, (τ__f' θ τ1') ⊸ (τG θG) -{sem_row_union (¡ θG)%R θ}-∘ 𝟙)%T [] -∗
     sem_typed [] J J ⊥ (τ__F τ1 τ2')%T [] -∗
-    sem_typed [] (F ∘F ((λ: f x, G)%V ||ᵣ J))
-    ((F ∘f (λ: f x, G)%V) ||ᵣ J)  ⊥ (∀ᵣ θ,(τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].          
+    sem_typed [] (F ∘F (G ||ᵣ J))
+    ((F ∘f G) ||ᵣ J)  ⊥ (∀ᵣ θ,(τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].          
   Proof.      
-    iIntros (Hfx HisclosedF HisclosedJ) "#HFF #HGG #HJJ !# %vs _". simpl. 
+    iIntros (Hfx HisclosedF HisclosedJ HisclosedG) "#HFF #HGG #HJJ !# %vs _". simpl. 
     unfold func_comp, parallel_composition,functionality_composition. 
     brel_pures'.
     rewrite /sem_typed /=. 
     iAssert ([] ⊨ₑ ∅) as "HΓ"; first done.
     iSpecialize ("HFF" with "HΓ").
     iSpecialize ("HJJ" with "HΓ").
+    iSpecialize ("HGG" with "HΓ").
     rewrite !subst_map_is_closed_empty; try done. 
     iApply (brel_bind [AppRCtx _ ; _] [AppRCtx _ ]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
     assert (to_iThyIfMono OS [] = []) as <- by done. 
     iApply (brel_mono OS with "[][$HJJ]");[iApply to_iThy_le_refl |simpl ].
     iIntros (vJ1 vJ2) "(HJ1J2 & _)".
-    iApply (brel_bind [AppLCtx _; _ ] [ _ ; _ ; _ ; _]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot |].        
-    assert (to_iThyIfMono OS [] = []) as <- by done. 
+    iApply (brel_bind [_ ; _ ; _] [_ ; _ ; _]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot |].        
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][$HGG]");[iApply to_iThy_le_refl |simpl].
+    iIntros (vG1 vG2) "(HG1G2 & _)".
+    brel_pures'.
+    iApply (brel_bind [_ ; _ ] [_ ; _  ; _ ; _]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot |].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][$HFF]");[iApply to_iThy_le_refl |simpl].
     iIntros (vF1 vF2) "(HF1F2 & _)".
     brel_pures'.
-    iModIntro; iSplit; last done.  
+    iModIntro; iSplit; last done.
     iIntros (θ f1 f2) "Hff".
     brel_pures'.
     iModIntro.
     iIntros (θ1 θ2 v v') "Heffs".
-    brel_pures'.
+    brel_pures'. 
     rewrite /sem_ty_prod.
     iDestruct "Heffs" as ( w1 w1' w2 w2') "[%Hr1 [%Hr2 [Hτ1 Hτ2]]]". 
     rewrite -> Hr1.
     rewrite -> Hr2. 
-    brel_pures_r 3.
-    brel_pures_l.
-    brel_pures'. 
-    rewrite decide_True; last (split; done). 
+    brel_pures_l 3.  
+    brel_pures_r. 
+    brel_pures'.   
     iAssert ((∀ᵣ θG, τG θG -{ sem_row_union (¡ θG)%R (sem_row_union (¡ θ1)%R θ) }-∘ 𝟙)%T 
                (λ: "rG", (λ: "f" "r",
                             let: "r₂" := "r" in
                             let: "r₁" := Fst "r₂" in
                             let: "r₂" := Snd "r₂" in
-                            (λ: f x, G)%V (λ: "h₁", vJ1 (λ: "h₂", "f" ("h₂","h₁")) "r₁") "r₂")%V f1 (w1,"rG"))%V
-               (λ: x, val_subst f (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂","h₁")) w1') G)%V) with "[Hτ1 Hff HJ1J2]" as "Hgg".
+                            vG1 (λ: "h₁", vJ1 (λ: "h₂", "f" ("h₂","h₁")) "r₁") "r₂")%V f1 (w1,"rG"))%V
+               (λ: "r", vG2 (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂","h₁")) w1')%V "r")%V) with "[Hτ1 Hff HJ1J2 HG1G2]" as "Hgg".
     { iIntros (θG rg1 rg2) "HτG".
       brel_pures'.
-      rewrite decide_True; last (split; done). 
-      iSpecialize ("HGG" $! (sem_row_union (¡ θ1)%R θ) θG). 
+      iSpecialize ("HG1G2" $! (sem_row_union (¡ θ1)%R θ) θG). 
       iAssert ((τ__f' (sem_row_union (¡ θ1)%R θ) τ1' (λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂","h₁")) w1)%V (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂","h₁")) w1')%V)) with "[Hff Hτ1 HJ1J2]" as "Hff".
       { iIntros (θ1' h1 h1') "Hhh". brel_pures'.
         iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
@@ -376,18 +397,18 @@ Section composition_operators.
         rewrite !iLblSig_to_iLblThy_distr.  
         iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡ θ1)%R ++ iLblSig_to_iLblThy (¡θ1')%R ++ iLblSig_to_iLblThy θ)); [|done].
         iApply to_iThy_le_intro'; solve_submseteq. }
-      iAssert ([(f, τ__f' (sem_row_union  (¡ θ1)%R θ) τ1'); (x, τG θG)] ⊨ₑ {[ x := (rg1, rg2); f := ((λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂","h₁")) w1)%V, (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂","h₁")) w1')%V)]}) with "[HτG Hff]" as "HΓ'". 
-      { solve_env. intros heq. apply Hfx. simpl. by destruct heq. } 
-      iDestruct ("HGG" with "HΓ'") as "Hrel". 
-      iApply (brel_wand with "[Hrel]"). 
-      { rewrite !fmap_insert !fmap_empty //=. 
-        rewrite !subst_map_insert !delete_insert_ne //=.
-        2,3 : intros heq; apply Hfx; by destruct heq.
-        rewrite !delete_empty.
-        rewrite !subst_map_insert !delete_empty subst_map_empty.
-        iApply "Hrel". }
-      iIntros (??) "!# ($&_)". 
-     }
+      iApply (brel_wand with "[HG1G2 Hff HτG]"). 
+      { iSpecialize ("HG1G2" with "Hff").
+        iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+        assert (to_iThyIfMono OS [] = []) as <- by done.
+        iApply (brel_mono OS with "[][HG1G2][HτG]"); [iApply to_iThy_le_refl|simpl|].
+        +  iApply "HG1G2".
+        + simpl.
+          iIntros (v1 v2) "Hv1v2".
+          iSpecialize ("Hv1v2" with "HτG").
+          iApply "Hv1v2". }
+      iModIntro.
+      iIntros (v1 v2) "Hv1v2". iApply "Hv1v2". }
     unfold τ__F.
     iSpecialize ("HF1F2" with "Hgg").
     iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
@@ -400,6 +421,15 @@ Section composition_operators.
     iApply to_iThy_le_intro'; solve_submseteq.
   Qed.
 
+ (* Lemma func_comp_assoc (F G J : expr) :
+    is_closed_expr ∅ F ->
+    is_closed_expr ∅ G ->
+    is_closed_expr ∅ J ->
+    ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, τfF θ ⊸ τF θ)%T [] -∗
+    sem_typed [] G G ⊥ (∀ᵣ θ, τf θ ⊸ τrG θ ⊸ τG θ)%T [] -∗
+    sem_typed [] J J ⊥ (∀ᵣ θ, τf θ ⊸ τrJ θ ⊸ τJ θ)%T [] -∗
+    sem_typed [] (F ∘f (G ∘f J)) ((F ∘f G) ∘f J) ⊥ (∀ᵣ θ, (τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
+  Proof. 
   Lemma func_comp_assoc (F G J : expr) τ1 τ2 τ3 τ4 :
     is_closed_expr ∅ F ->
     is_closed_expr ∅ G ->
@@ -509,29 +539,34 @@ Section composition_operators.
     iSpecialize ("HvF" with "Hv3v4").
     iApply "HvF".
   Qed. 
-
+*)
 
   Lemma functionality_comp_func_comp_assoc_gen (F G : expr) (J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
     (BNamed f) ≠ (BNamed x) →
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
+     is_closed_expr ∅ J ->
     ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙)%T [] -∗
 
     sem_typed [] G G ⊥ (∀ᵣ θ, (∀ᵣ θJ1, ∀ᵣ θJ2, τJ θJ1 θJ2 -{ sem_row_union (¡θJ1)%R (sem_row_union  (¡θJ2)%R θ)}-∘ 𝟙) ⊸ (∀ᵣ θ1,( ∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ1)%R (sem_row_union  (¡θ2)%R θ)}-∘ 𝟙)))%T [] -∗
-    (∀ θ θJ1 θJ2, sem_typed [(f, τ1' θ); (x, τJ θJ1 θJ2)] J J (sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ)) (𝟙)%T []) -∗
-
-      sem_typed [] (((F ∘F G)%V ∘f (λ: f x, J)%V)) (F ∘F (G ∘f (λ: f x, J)%V)) ⊥ 
+      sem_typed [] J J ⊥ (∀ᵣ θ, ∀ᵣ θJ1, ∀ᵣ θJ2, (τ1' θ) ⊸ (τJ θJ1 θJ2) -{sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ)}-∘ 𝟙)%T [] -∗
+      sem_typed [] ((F ∘F G)%V ∘f J)%V (F ∘F (G ∘f J)%V) ⊥ 
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
   Proof. 
-   iIntros (Hfx HFclosed HGclosed) "#HFF #HGG #HJJ !# %vs _".
+   iIntros (Hfx HFclosed HGclosed HJclosed) "#HFF #HGG #HJJ !# %vs _".
     rewrite /functionality_composition /func_comp //=. simpl.
     brel_pures'.
     rewrite /sem_typed /=. 
     iAssert ([] ⊨ₑ ∅) as "HΓ"; first done.
     iSpecialize ("HFF" with "HΓ").
     iSpecialize ("HGG" with "HΓ").
+    iSpecialize ("HJJ" with "HΓ").
     rewrite !subst_map_is_closed_empty; try done. 
-    iApply (brel_bind [_ ; _ ; _] [_ ; _  ; _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+    iApply (brel_bind [_ ] [_ ; _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+    assert (to_iThyIfMono OS [] = []) as <- by done. 
+    iApply (brel_mono OS with "[][$HJJ]"); [iApply to_iThy_le_refl|simpl].
+    iIntros (vJ1 vJ2) "(HJ1J2 & _)".
+    iApply (brel_bind [_ ; _; _] [_ ; _ ; _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
     assert (to_iThyIfMono OS [] = []) as <- by done. 
     iApply (brel_mono OS with "[][$HGG]"); [iApply to_iThy_le_refl|simpl].
     iIntros (vG1 vG2) "(HG1G2 & _)".
@@ -552,29 +587,30 @@ Section composition_operators.
     rewrite -> Hr1.
     rewrite -> Hr2. 
     brel_pures'.
-    rewrite decide_True; last (split; done). 
     iSpecialize ("HF1F2" $! (sem_row_union (¡θ1)%R θ)).
     iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][HF1F2 Hff Hτ1 HG1G2]"); [iApply to_iThy_le_refl|iApply "HF1F2"|].
+    iApply (brel_mono OS with "[][HF1F2 Hff Hτ1 HG1G2 HJ1J2]"); [iApply to_iThy_le_refl|iApply "HF1F2"|].
     - iIntros (θF rF1 rF2) "HτF". 
       brel_pures'.
-      rewrite decide_True; last (split; done).
       iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
       assert (to_iThyIfMono OS [] = []) as <- by done. 
-      iApply (brel_mono OS with "[][HG1G2 Hff]"); [iApply to_iThy_le_refl| iApply "HG1G2" |].
+      iApply (brel_mono OS with "[][HG1G2 Hff HJ1J2]"); [iApply to_iThy_le_refl| iApply "HG1G2" |].
       + simpl. iIntros (θJ1 θJ2 x1 x2) "HτJ". brel_pures'.
-        iAssert ([(f, τ1' θ); (x, τJ θJ1 θJ2)] ⊨ₑ {[ x:= (x1,x2); f := (f1,f2) ]}) with "[Hff HτJ]" as "HΓ'".
-        { solve_env. by intros ->. }
-        iDestruct ("HJJ" with "HΓ'") as "Hrel".
-        iApply (brel_wand with "[Hrel]"). 
-        { rewrite !fmap_insert !fmap_empty //=. 
-          rewrite !subst_map_insert !delete_insert_ne //=.
-          2,3 : by intros ->.
-          rewrite !delete_empty.
-          rewrite !subst_map_insert !delete_empty subst_map_empty.
-          iApply "Hrel". }
-        iIntros (??) "!# ($&_)".  
+        iApply (brel_wand with "[HJ1J2 Hff HτJ]"). 
+        { iSpecialize ("HJ1J2" $! θ).
+          iSpecialize ("HJ1J2" $! θJ1 θJ2).
+          iSpecialize ("HJ1J2" with "Hff").
+          iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot|].
+          assert (to_iThyIfMono OS [] = []) as <- by done. 
+          iApply (brel_mono OS _ _ [] [] with "[][HJ1J2]");
+          [iApply to_iThy_le_bot| by iApply "HJ1J2" |].
+          simpl.
+          iIntros (v1 v2) "Hv1v2".
+          iSpecialize ("Hv1v2" with "HτJ").
+          iApply "Hv1v2". }
+        iModIntro; iIntros (v1 v2) "Hv1v2".
+        iApply "Hv1v2".
       + simpl. iIntros (GJ1 GJ2) "HGJ". 
         rewrite !iLblSig_to_iLblThy_distr.
         iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡ θ1)%R ++ iLblSig_to_iLblThy  (¡ θF)%R ++ iLblSig_to_iLblThy θ)).
@@ -594,22 +630,27 @@ Section composition_operators.
     (BNamed f) ≠ (BNamed x) →
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
+     is_closed_expr ∅ J ->
     ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙)%T [] -∗
 
     sem_typed [] G G ⊥ (∀ᵣ θ, (∀ᵣ θJ1, ∀ᵣ θJ2, τJ θJ1 θJ2 -{ sem_row_union (¡θJ1)%R (sem_row_union  (¡θJ2)%R θ)}-∘ 𝟙) ⊸ (∀ᵣ θ1,( ∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ1)%R (sem_row_union  (¡θ2)%R θ)}-∘ 𝟙)))%T [] -∗
-    (∀ θ θJ1 θJ2, sem_typed [(f, τ1' θ); (x, τJ θJ1 θJ2)] J J (sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ)) (𝟙)%T []) -∗
-
-      sem_typed [] (F ∘F (G ∘f (λ: f x, J)%V)) (((F ∘F G)%V ∘f (λ: f x, J)%V)) ⊥ 
+      sem_typed [] J J ⊥ (∀ᵣ θ, ∀ᵣ θJ1, ∀ᵣ θJ2, (τ1' θ) ⊸ (τJ θJ1 θJ2) -{sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ)}-∘ 𝟙)%T [] -∗
+      sem_typed [] (F ∘F (G ∘f J)%V) ((F ∘F G)%V ∘f J)%V ⊥ 
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
   Proof. 
-   iIntros (Hfx HFclosed HGclosed) "#HFF #HGG #HJJ !# %vs _".
+   iIntros (Hfx HFclosed HGclosed HJclosed) "#HFF #HGG #HJJ !# %vs _".
     rewrite /functionality_composition /func_comp //=. simpl.
     brel_pures'.
     rewrite /sem_typed /=. 
     iAssert ([] ⊨ₑ ∅) as "HΓ"; first done.
     iSpecialize ("HFF" with "HΓ").
     iSpecialize ("HGG" with "HΓ").
-    rewrite !subst_map_is_closed_empty; try done. 
+    iSpecialize ("HJJ" with "HΓ").
+    rewrite !subst_map_is_closed_empty; try done.
+    iApply (brel_bind [_ ; _] [_ ]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+    assert (to_iThyIfMono OS [] = []) as <- by done. 
+    iApply (brel_mono OS with "[][$HJJ]"); [iApply to_iThy_le_refl|simpl].
+    iIntros (vJ1 vJ2) "(HJ1J2 & _)".
     iApply (brel_bind [_ ; _ ; _] [_ ; _  ; _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
     assert (to_iThyIfMono OS [] = []) as <- by done. 
     iApply (brel_mono OS with "[][$HGG]"); [iApply to_iThy_le_refl|simpl].
@@ -631,29 +672,30 @@ Section composition_operators.
     rewrite -> Hr1.
     rewrite -> Hr2. 
     brel_pures'.
-    rewrite decide_True; last (split; done). 
     iSpecialize ("HF1F2" $! (sem_row_union (¡θ1)%R θ)).
     iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][HF1F2 Hff Hτ1 HG1G2]"); [iApply to_iThy_le_refl|iApply "HF1F2"|].
+    iApply (brel_mono OS with "[][HF1F2 Hff Hτ1 HG1G2 HJ1J2]"); [iApply to_iThy_le_refl|iApply "HF1F2"|].
     - iIntros (θF rF1 rF2) "HτF". 
       brel_pures'.
-      rewrite decide_True; last (split; done).
       iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
       assert (to_iThyIfMono OS [] = []) as <- by done. 
-      iApply (brel_mono OS with "[][HG1G2 Hff]"); [iApply to_iThy_le_refl| iApply "HG1G2" |].
+      iApply (brel_mono OS with "[][HG1G2 Hff HJ1J2]"); [iApply to_iThy_le_refl| iApply "HG1G2" |].
       + simpl. iIntros (θJ1 θJ2 x1 x2) "HτJ". brel_pures'.
-        iAssert ([(f, τ1' θ); (x, τJ θJ1 θJ2)] ⊨ₑ {[ x:= (x1,x2); f := (f1,f2) ]}) with "[Hff HτJ]" as "HΓ'".
-        { solve_env. by intros ->. }
-        iDestruct ("HJJ" with "HΓ'") as "Hrel".
-        iApply (brel_wand with "[Hrel]"). 
-        { rewrite !fmap_insert !fmap_empty //=. 
-          rewrite !subst_map_insert !delete_insert_ne //=.
-          2,3 : by intros ->.
-          rewrite !delete_empty.
-          rewrite !subst_map_insert !delete_empty subst_map_empty.
-          iApply "Hrel". }
-        iIntros (??) "!# ($&_)".  
+         iApply (brel_wand with "[HJ1J2 Hff HτJ]"). 
+        { iSpecialize ("HJ1J2" $! θ).
+          iSpecialize ("HJ1J2" $! θJ1 θJ2).
+          iSpecialize ("HJ1J2" with "Hff").
+          iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot|].
+          assert (to_iThyIfMono OS [] = []) as <- by done. 
+          iApply (brel_mono OS _ _ [] [] with "[][HJ1J2]");
+          [iApply to_iThy_le_bot| by iApply "HJ1J2" |].
+          simpl.
+          iIntros (v1 v2) "Hv1v2".
+          iSpecialize ("Hv1v2" with "HτJ").
+          iApply "Hv1v2". }
+        iModIntro; iIntros (v1 v2) "Hv1v2".
+        iApply "Hv1v2".
       + simpl. iIntros (GJ1 GJ2) "HGJ". 
         rewrite !iLblSig_to_iLblThy_distr.
         iApply (brel_introduction_mono (iLblSig_to_iLblThy (¡ θ1)%R ++ iLblSig_to_iLblThy  (¡ θF)%R ++ iLblSig_to_iLblThy θ)).
@@ -673,22 +715,28 @@ Section composition_operators.
     (BNamed f) ≠ (BNamed x) →
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
+     is_closed_expr ∅ J ->
     ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙)%T [] -∗
 
     sem_typed [] G G ⊥ (∀ᵣ θ, (∀ᵣ θJ, τJ θJ -{ sem_row_union  (¡θJ)%R θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ2)%R (sem_row_union  (¡θ1)%R θ)}-∘ 𝟙)%T [] -∗
-    (∀ θ θJ, sem_typed [(f, τ1' θ); (x, τJ θJ)] J J (sem_row_union (¡θJ)%R θ) (𝟙)%T []) -∗
-
-      sem_typed [] (((F ∘F G)%V ∘f (λ: f x, J)%V)) (F ∘F (G ∘f (λ: f x, J)%V)) ⊥ 
+      sem_typed [] J J ⊥ (∀ᵣ θ, ∀ᵣ θJ, τ1' θ ⊸ τJ θJ -{sem_row_union (¡θJ)%R θ}-∘ 𝟙)%T [] -∗ 
+      sem_typed [] ((F ∘F G)%V ∘f J)%V (F ∘F (G ∘f J)) ⊥ 
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
   Proof. 
-   iIntros (Hfx HFclosed HGclosed) "#HFF #HGG #HJJ !# %vs _".
+   iIntros (Hfx HFclosed HGclosed HJclosed) "#HFF #HGG #HJJ !# %vs _".
     rewrite /functionality_composition /func_comp //=. simpl.
     brel_pures'.
     rewrite /sem_typed /=. 
     iAssert ([] ⊨ₑ ∅) as "HΓ"; first done.
     iSpecialize ("HFF" with "HΓ").
     iSpecialize ("HGG" with "HΓ").
+    iSpecialize ("HJJ" with "HΓ").
     rewrite !subst_map_is_closed_empty; try done.
+    iApply (brel_bind [_ ] [_ ;_ ]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][$HJJ]"); [iApply to_iThy_le_refl|simpl].
+    iIntros (vJ1 vJ2) "(HJ1J2 & _)".
+    brel_pures'.
     iApply (brel_bind [_ ; _ ; _] [_ ; _  ; _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][$HGG]"); [iApply to_iThy_le_refl|simpl].
@@ -710,29 +758,27 @@ Section composition_operators.
     rewrite -> Hr1.
     rewrite -> Hr2. 
     brel_pures'.
-    rewrite decide_True; last (split; done). 
     iSpecialize ("HF1F2" $! (sem_row_union (¡θ1)%R θ)).
     iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][HF1F2 Hff Hτ1 HG1G2]"); [iApply to_iThy_le_refl|iApply "HF1F2"|].
+    iApply (brel_mono OS with "[][HF1F2 Hff Hτ1 HG1G2 HJ1J2]"); [iApply to_iThy_le_refl|iApply "HF1F2"|].
     - iIntros (θF rF1 rF2) "HτF". 
       brel_pures'.
-      rewrite decide_True; last (split; done).
       iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
       assert (to_iThyIfMono OS [] = []) as <- by done. 
-      iApply (brel_mono OS with "[][HG1G2 Hff]"); [iApply to_iThy_le_refl| iApply "HG1G2" |].
+      iApply (brel_mono OS with "[][HG1G2 Hff HJ1J2]"); [iApply to_iThy_le_refl| iApply "HG1G2" |].
       + simpl. iIntros (θJ x1 x2) "HτJ". brel_pures'.
-        iAssert ([(f, τ1' θ); (x, τJ θJ)] ⊨ₑ {[ x:= (x1,x2); f := (f1,f2) ]}) with "[Hff HτJ]" as "HΓ'".
-        { solve_env. by intros ->. }
-        iDestruct ("HJJ" with "HΓ'") as "Hrel".
-        iApply (brel_wand with "[Hrel]"). 
-        { rewrite !fmap_insert !fmap_empty //=. 
-          rewrite !subst_map_insert !delete_insert_ne //=.
-          2,3 : by intros ->.
-          rewrite !delete_empty.
-          rewrite !subst_map_insert !delete_empty subst_map_empty.
-          iApply "Hrel". }
-        iIntros (??) "!# ($&_)".  
+         iSpecialize ("HJ1J2" $! θ).
+          iSpecialize ("HJ1J2" $! θJ).
+          iSpecialize ("HJ1J2" with "Hff").
+          iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot|].
+          assert (to_iThyIfMono OS [] = []) as <- by done. 
+          iApply (brel_mono OS _ _ [] [] with "[][HJ1J2]");
+          [iApply to_iThy_le_bot| by iApply "HJ1J2" |].
+          simpl.
+          iIntros (v1 v2) "Hv1v2".
+          iSpecialize ("Hv1v2" with "HτJ").
+          iApply "Hv1v2".       
       + simpl. iIntros (GJ1 GJ2) "HGJ". 
         iApply "HGJ".
         iExists w1, w1', rF1, rF2.
@@ -748,27 +794,32 @@ Section composition_operators.
     (BNamed f) ≠ (BNamed x) →
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
+     is_closed_expr ∅ J ->
       ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙)%T [] -∗
     sem_typed [] G G ⊥ (∀ᵣ θ, (∀ᵣ θJ, τJ θJ -{ sem_row_union (¡ θJ)%R θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ2)%R (sem_row_union (¡θ1)%R θ)}-∘ 𝟙)%T [] -∗
-
-    (∀ θ θJ, sem_typed [(f, τ1' θ); (x, τJ θJ)] J J (sem_row_union (¡θJ)%R θ) (𝟙)%T []) -∗
-
-    sem_typed [] (F ∘F (G ∘f (λ: f x, J)%V)) ((F ∘F G)%V ∘f (λ: f x, J)%V) ⊥
+     sem_typed [] J J ⊥ (∀ᵣ θ, ∀ᵣ θJ, τ1' θ ⊸ τJ θJ -{sem_row_union (¡θJ)%R θ}-∘ 𝟙)%T [] -∗
+    sem_typed [] (F ∘F (G ∘f J)%V) ((F ∘F G)%V ∘f J) ⊥
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T []. 
   Proof. 
-    iIntros (Hfx HFclosed HGclosed) "#HFF #HGG #HJJ  !# %vs _".
+    iIntros (Hfx HFclosed HGclosed HJclosed) "#HFF #HGG #HJJ  !# %vs _".
     rewrite /functionality_composition /func_comp //=. simpl.
     brel_pures'.
      iAssert ([] ⊨ₑ ∅) as "HΓ"; first done.
     iSpecialize ("HFF" with "HΓ").
     iSpecialize ("HGG" with "HΓ").
+    iSpecialize ("HJJ" with "HΓ").
     rewrite !subst_map_is_closed_empty; try done.
+    iApply (brel_bind [_ ; _] [_ ]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][$HJJ]"); [iApply to_iThy_le_refl|simpl].
+    iIntros (vJ1 vJ2) "(HJ1J2 & _)".
+    brel_pures'.
     iApply (brel_bind [_ ; _ ; _] [_ ; _  ; _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][$HGG]"); [iApply to_iThy_le_refl|simpl].
     iIntros (vG1 vG2) "(HG1G2 & _)".
     brel_pures'.
-    iApply (brel_bind [_ ; _ ] [_ ; _ ; _ ; _ ]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
+    iApply (brel_bind [_ ; _ ] [_ ; _ ; _ ; _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[][$HFF]"); [iApply to_iThy_le_refl|simpl].
     iIntros (vF1 vF2) "(HF1F2 & _)".
@@ -784,29 +835,27 @@ Section composition_operators.
     rewrite -> Hr1.
     rewrite -> Hr2.
     brel_pures'.
-    rewrite decide_True; last (split; done).
     iSpecialize ("HF1F2" $! (sem_row_union (¡θ1)%R θ)).
     iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][HF1F2 Hff Hτ1 HG1G2]"); [iApply to_iThy_le_refl|iApply "HF1F2"|].
+    iApply (brel_mono OS with "[][HF1F2 Hff Hτ1 HG1G2 HJ1J2]"); [iApply to_iThy_le_refl|iApply "HF1F2"|].
     - iIntros (θF rF1 rF2) "HτF". 
       brel_pures'.
-      rewrite decide_True; last (split; done).
       iApply (brel_bind [_] [_] _ []); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
       assert (to_iThyIfMono OS [] = []) as <- by done.
-      iApply (brel_mono OS with "[][HG1G2 Hff]"); [iApply to_iThy_le_refl|iApply "HG1G2"|].
+      iApply (brel_mono OS with "[][HG1G2 Hff HJ1J2]"); [iApply to_iThy_le_refl|iApply "HG1G2"|].
       + iIntros (θJ x1 x2) "HτJ". brel_pures'.
-        iAssert ([(f, τ1' θ); (x, τJ θJ)] ⊨ₑ {[ x:= (x1,x2); f := (f1,f2) ]}) with "[Hff HτJ]" as "HΓ'".
-        { solve_env. by intros ->. }
-        iDestruct ("HJJ" with "HΓ'") as "Hrel".
-        iApply (brel_wand with "[Hrel]"). 
-        { rewrite !fmap_insert !fmap_empty //=. 
-          rewrite !subst_map_insert !delete_insert_ne //=.
-          2,3 : by intros ->.
-          rewrite !delete_empty.
-          rewrite !subst_map_insert !delete_empty subst_map_empty.
-          iApply "Hrel". }
-        iIntros (??) "!# ($&_)". 
+        iSpecialize ("HJ1J2" $! θ).
+          iSpecialize ("HJ1J2" $! θJ).
+          iSpecialize ("HJ1J2" with "Hff").
+          iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot|].
+          assert (to_iThyIfMono OS [] = []) as <- by done. 
+          iApply (brel_mono OS _ _ [] [] with "[][HJ1J2]");
+          [iApply to_iThy_le_bot| by iApply "HJ1J2" |].
+          simpl.
+          iIntros (v1 v2) "Hv1v2".
+          iSpecialize ("Hv1v2" with "HτJ").
+          iApply "Hv1v2".
       + simpl. iIntros (GJ1 GJ2) "HGJ".
         iApply "HGJ".
         iExists w1, w1', rF1, rF2.
@@ -818,7 +867,7 @@ Section composition_operators.
       iApply to_iThy_le_intro'; solve_submseteq.
   Qed.
 
-   Lemma functionality_comp_func_comp_assoc_curried (F G J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
+ (*  Lemma functionality_comp_func_comp_assoc_curried (F G J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
     (BNamed f) ≠ (BNamed x) →
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
@@ -990,7 +1039,7 @@ Section composition_operators.
       iApply (brel_introduction_mono (iLblSig_to_iLblThy  (¡θ2)%R ++ iLblSig_to_iLblThy (¡ θ1)%R ++ iLblSig_to_iLblThy θ)); last done.
       iApply to_iThy_le_intro'; solve_submseteq.
   Qed.
-    
+    *)
   Lemma functionality_comp_cong (F1 F2 G1 G2 : expr) τ1 τ2 τ1' τF :
     is_closed_expr ∅ F1 →
     is_closed_expr ∅ F2 ->
