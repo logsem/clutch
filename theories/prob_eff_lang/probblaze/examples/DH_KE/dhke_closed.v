@@ -6,6 +6,8 @@ Section dhke_closed.
   Context {cg : clutch_group_struct}.
   Context {vgg : @val_group_generator vg}.
 
+  Lemma F_KE_lazy_alice_closed : is_closed_expr ∅ F_KE_lazy_alice.
+  Proof. is_closed. Qed.
   Lemma F_AUTH_DHKE_closed : is_closed_expr ∅ (F_AUTH ∘f DH_KE).
   Proof. is_closed. Qed.
   Lemma F_AUTH_C_DH_real_closed : is_closed_expr ∅ (F_AUTH ∘f C_DH_real).

@@ -26,6 +26,8 @@ Section dhke_typing.
   Definition aleak (θ : sem_row Σ) : sem_ty Σ :=
     (((𝔾 × (𝟙 + 𝟙)) -{ θ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ }-> Option ℕ))%T.
   Definition gk (θ : sem_row Σ) : sem_ty Σ := ((𝟙 + 𝟙) -{ θ }-> Option 𝔾)%T.
+  Definition leakI (θ : sem_row Σ) : sem_ty Σ :=
+    (((𝟙 + 𝟙) -{ θ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ }-> Option 𝟙))%T.
 
   Import typed_hint_modes.
 
@@ -40,6 +42,18 @@ Section dhke_typing.
   Proof.
     iApply sem_typed_sub_nil. iApply sem_typed_val. iIntros "!>".
     destruct b; iExists _, _; [iLeft|iRight]; done.
+  Qed.
+
+  Lemma sem_typed_vexp (b : vgG) Γ1 Γ2 e e' ρ :
+    ⊢ sem_typed Γ1 e e' ρ ℕ Γ2 -∗
+    sem_typed Γ1 (vexp (vgval b) e) (vexp (vgval b) e') ρ 𝔾 Γ2.
+  Proof using G vgg.
+    iIntros "#He !# %γ HΓ1 /=".
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
+    iApply (brel_wand with "[HΓ1]"); first by iApply "He".
+    iIntros "!# % % (Hn & HΓ2) /=". iDestruct "Hn" as (n) "(-> & ->)".
+    iApply (brel_exp_l []). iApply (brel_exp_r []).
+    iApply brel_value. iIntros "$ !>". iFrame. by iExists _.
   Qed.
 
   Lemma func_comp_val_typed (T1 T2 T3 : sem_row Σ → sem_ty Σ) :
@@ -257,6 +271,290 @@ Section dhke_typing.
       + iApplyT sem_typed_sub_env_final; last iApplyT sem_typed_unit'. env_solve.
     - iIntros (?). iApply fauth_recv_handler_typed. row_le_submseteq.
     - iApplyT sem_typed_sub_env_final; last iApplyT sem_typed_unit'. env_solve.
+      Unshelve. all: solve_typed_side.
+  Qed.
+
+  Lemma dh_sim_send_handler_typed (θ₂ ρh : sem_row Σ) :
+    ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
+    sem_typed [("dst", (𝟙 + 𝟙)%T); ("k", (𝟙 -{ ρh }-[OS]-> 𝟙)%T);
+               ("α", sem_ty_tape); ("l1", Refᶜ (Option ℕ)); ("β", sem_ty_tape); ("l2", Refᶜ (Option ℕ));
+               ("doSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)]
+      (match: "dst" with
+         InjL <> => let: "c" := 
+                      (match: !"l1" with
+                         NONE => let: "c" := (samplelbl "α" #()%V) in "l1" <- SOME "c";; "c"
+                       | SOME "c" => "c"
+                       end) in
+                    let: "gC" := g^"c" in
+                    "doSend" ("gC",bob);;
+                    "k" #()%V
+       | InjR <> => let: "c" :=
+                      (match: !"l2" with
+                         NONE => let: "c" := (samplelbl "β" #()%V) in "l2" <- SOME "c";; "c"
+                       | SOME "c" => "c"
+                       end) in
+                    let: "gC" := g^"c" in
+                    "doSend" ("gC", alice);;
+                    "k" #()%V
+       end)%E
+      (match: "dst" with
+         InjL <> => let: "c" := 
+                      (match: !"l1" with
+                         NONE => let: "c" := (samplelbl "α" #()%V) in "l1" <- SOME "c";; "c"
+                       | SOME "c" => "c"
+                       end) in
+                    let: "gC" := g^"c" in
+                    "doSend" ("gC",bob);;
+                    "k" #()%V
+       | InjR <> => let: "c" :=
+                      (match: !"l2" with
+                         NONE => let: "c" := (samplelbl "β" #()%V) in "l2" <- SOME "c";; "c"
+                       | SOME "c" => "c"
+                       end) in
+                    let: "gC" := g^"c" in
+                    "doSend" ("gC", alice);;
+                    "k" #()%V
+       end)%E
+      ρh 𝟙 [("α", sem_ty_tape); ("l1", Refᶜ (Option ℕ)); ("β", sem_ty_tape); ("l2", Refᶜ (Option ℕ));
+            ("doSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)].
+  Proof using All.
+    iIntros "#Hρ". rewrite /samplelbl.
+    (* Each branch draws its exponent from its tape at most once (cached in
+     [l1]/[l2]) and sends [g^c]. *)
+    iApplyT (sem_typed_match_split [] []).
+    - typed_var.
+    - iApply env_le_refl.
+    - iApplyT sem_typed_let.
+      { iApplyT (sem_typed_match_split [] []).
+        + iApplyT sem_typed_load_cpy. typed_var_copy.
+        + iApply env_le_refl.
+        + iApplyT sem_typed_let.
+          { iApplyT sem_typed_let; first iApplyT sem_typed_unit'.
+            iApplyT sem_typed_rand; [typed_var_copy|iApplyT sem_typed_int']. }
+          iApplyT sem_typed_seq.
+          { iApplyT sem_typed_store_cpy_gen.
+            2: { iApplyT sem_typed_injr. typed_var_copy. }
+            typed_var_copy. }
+          typed_var.
+        + iApply env_le_refl.
+        + iApply env_le_refl.
+        + typed_var.
+        + iApply env_le_refl. }
+      iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; typed_var).
+      iApplyT sem_typed_seq.
+      { iApplyT sem_typed_app_fun_nil; [iApply "Hρ"|iApplyT sem_typed_pair; [iApply (sem_typed_party true)|typed_var]|typed_leak_fun]. }
+      iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|typed_cont].
+    - iApply env_le_refl.
+    - iApply env_le_refl.
+    - iApplyT sem_typed_let.
+      { iApplyT (sem_typed_match_split [] []).
+        + iApplyT sem_typed_load_cpy. typed_var_copy.
+        + iApply env_le_refl.
+        + iApplyT sem_typed_let.
+          { iApplyT sem_typed_let; first iApplyT sem_typed_unit'.
+            iApplyT sem_typed_rand; [typed_var_copy|iApplyT sem_typed_int']. }
+          iApplyT sem_typed_seq.
+          { iApplyT sem_typed_store_cpy_gen.
+            2: { iApplyT sem_typed_injr. typed_var_copy. }
+            typed_var_copy. }
+          typed_var.
+        + iApply env_le_refl.
+        + iApply env_le_refl.
+        + typed_var.
+        + iApply env_le_refl. }
+      iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; typed_var).
+      iApplyT sem_typed_seq.
+      { iApplyT sem_typed_app_fun_nil; [iApply "Hρ"|iApplyT sem_typed_pair; [iApply (sem_typed_party false)|typed_var]|typed_leak_fun]. }
+      iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|typed_cont].
+    - iApply env_le_refl.
+      Unshelve. all: solve_typed_side.
+  Qed.
+
+  Lemma dh_sim_recv_handler_typed (θ₂ ρh : sem_row Σ) :
+    ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
+    sem_typed [("from", (𝟙 + 𝟙)%T); ("k", (Option 𝟙 -{ ρh }-[OS]-> 𝟙)%T);
+               ("doRecv", ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝔾)%T)]
+      (let: "r" := "doRecv" "from" in
+       match: "r" with
+         NONE => "k" NONE
+       | SOME "x" => "k" (SOME #()%V)
+       end)%E
+      (let: "r" := "doRecv" "from" in
+       match: "r" with
+         NONE => "k" NONE
+       | SOME "x" => "k" (SOME #()%V)
+       end)%E
+      ρh 𝟙 [("doRecv", ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝔾)%T)].
+  Proof.
+    iIntros "#Hρ".
+    iApplyT sem_typed_let.
+    { iApplyT sem_typed_app_fun_nil; [iApply "Hρ"|typed_var|typed_leak_fun]. }
+    iApplyT (sem_typed_match_split [] []).
+    - typed_var.
+    - iApply env_le_refl.
+    - iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injl; iApplyT sem_typed_unit'|typed_cont].
+    - iApply env_le_refl.
+    - iApply env_le_refl.
+    - iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+      iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; iApplyT sem_typed_unit'|typed_cont].
+    - iApply env_le_refl.
+      Unshelve. all: solve_typed_side.
+  Qed.
+
+  Lemma DH_SIM_typed : ⊢ sem_typed [] DH_SIM DH_SIM ⊥ (τ__FO chan leakI) [].
+  Proof using All.
+    iApplyT sem_typed_let; first (iApplyT sem_typed_alloctape; iApplyT sem_typed_int').
+    iApplyT sem_typed_let; first (iApplyT sem_typed_alloctape; iApplyT sem_typed_int').
+    iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+    iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+    iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _; _; _]). iApply sem_typed_RLam. iIntros (θ).
+    iApplyT sem_oval_typed_afun.
+    iApply (sem_typed_oval _ [_; _; _; _; _]). iApply sem_typed_RLam. iIntros (θ₂).
+    iApplyT sem_oval_typed_afun.
+    iApplyT sem_typed_pair_elim; first typed_var.
+    iApply sem_typed_effect_gen. iIntros (ls1 ls2).
+    iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
+    (* The client's [doLeakSend]/[doLeakRecv]: their signatures fix the
+     client row. *)
+    iApplyT sem_typed_let.
+    { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+      iApplyT sem_oval_typed_ufun.
+      iApply (sem_typed_do_const OS _ (ls1, ls2) (𝟙 + 𝟙)%T 𝟙%T).
+      iApply sem_typed_sub_nil. iApply sem_typed_var. }
+    iApplyT sem_typed_let.
+    { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+      iApplyT sem_oval_typed_ufun.
+      iApplyT sem_typed_sub_row; first iApply row_le_cons_extend.
+      iApply (sem_typed_do_const OS ⟨⟩%R (lr1, lr2) (𝟙 + 𝟙)%T (Option 𝟙)%T).
+      iApply sem_typed_sub_nil. iApply sem_typed_var. }
+    (* The send handler keeps the tapes, caches and [doSend]; the receive
+     handler keeps [doRecv]. *)
+    iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
+    iApplyT (sem_typed_sub_env _ ([("doLeakRecv", _); ("doLeakSend", _); ("f", _);
+                                   ("α", _); ("l1", _); ("β", _); ("l2", _); ("doSend", _)]
+                                    ++ [("doRecv", _)])).
+    { simpl. env_solve. }
+    (* Outer handler: leakRecv. *)
+    iApplyT (sem_typed_deep_handler_OS (lr1, lr2) (λ _, 𝟙 + 𝟙)%T (λ _, Option 𝟙)%T).
+    - (* Inner handler: leakSend. *)
+      iApplyT sem_typed_sub_row; first iApply row_le_swap_second.
+      iApplyT (sem_typed_sub_env _ ([_; _; _] ++ [_; _; _; _; _])); first iApply env_le_refl.
+      iApplyT (sem_typed_deep_handler_OS (ls1, ls2) (λ _, 𝟙 + 𝟙)%T (λ _, 𝟙)%T).
+      + (* The client call [f (doLeakSend, doLeakRecv)], at [¡θ₁ ∪ θ ≤ θ₁ ∪ θ]. *)
+        iApplyT sem_typed_app_fun_nil.
+        2: { iApplyT sem_typed_pair; typed_var. }
+        2: { iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst. }
+        iApply row_le_trans; first iApplyT row_le_union'.
+        * iApply row_le_mfbang_elim.
+        * iApply row_le_refl.
+        * row_le_submseteq.
+      + iIntros (?). iApply dh_sim_send_handler_typed. row_le_submseteq.
+      + typed_var.
+    - iIntros (?). iApply dh_sim_recv_handler_typed. row_le_submseteq.
+    - iApplyT sem_typed_sub_env_final; last typed_var. env_solve.
+      Unshelve. all: solve_typed_side.
+  Qed.
+
+  Lemma F_KE_lazy_alice_typed : ⊢ sem_typed [] F_KE_lazy_alice F_KE_lazy_alice ⊥ (τ__FO leakI gk) [].
+  Proof using All.
+    rewrite /F_KE_lazy_alice /samplelbl.
+    iApplyT sem_typed_let; first (iApplyT sem_typed_alloctape; iApplyT sem_typed_int').
+    iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+    (* [sample_or_load] captures copies of the tape and the cache. *)
+    iApplyT sem_typed_let.
+    { iApplyT (sem_typed_sub_env _ ([("γ", _); ("lc", _)] ++ [("lc", _); ("γ", _)])).
+      { simpl. env_solve. }
+      iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _]).
+      iApplyT sem_oval_typed_ufun. simpl.
+      iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
+      iApplyT (sem_typed_match_split [] []).
+      - iApplyT sem_typed_load_cpy. typed_var_copy.
+      - iApply env_le_refl.
+      - iApplyT sem_typed_let.
+        { iApplyT sem_typed_let; first iApplyT sem_typed_unit'.
+          iApplyT sem_typed_rand; [typed_var_copy|iApplyT sem_typed_int']. }
+        iApplyT sem_typed_seq.
+        { iApplyT sem_typed_store_cpy_gen.
+          2: { iApplyT sem_typed_injr. typed_var_copy. }
+          typed_var_copy. }
+        typed_var.
+      - iApply env_le_refl.
+      - iApply env_le_refl.
+      - typed_var.
+      - iApply env_le_refl. }
+    iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ).
+    iApplyT sem_oval_typed_afun.
+    iApply (sem_typed_oval _ [_; _; _; _]). iApply sem_typed_RLam. iIntros (θ₂).
+    iApplyT sem_oval_typed_afun. simpl.
+    iApplyT sem_typed_pair_elim; first typed_var.
+    iApply sem_typed_effect_gen. iIntros (l1 l2). simpl.
+    iApplyT sem_typed_let.
+    { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
+      iApplyT sem_oval_typed_ufun.
+      iApply (sem_typed_do_const OS ⟨⟩%R (l1, l2) (𝟙 + 𝟙)%T (Option 𝔾)%T).
+      iApply sem_typed_sub_nil. iApply sem_typed_var. }
+    iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
+    iApplyT (sem_typed_sub_env _ ([("doGK", _); ("f", _)]
+                                    ++ [("sample_or_load", _); ("lc", _); ("doLeakSend", _); ("doLeakRecv", _)])).
+    { simpl. env_solve. }
+    iApplyT (sem_typed_deep_handler_OS (l1, l2) (λ _, 𝟙 + 𝟙)%T (λ _, Option 𝔾)%T).
+    - (* The client call [f doGK], at [¡θ₁ ∪ θ ≤ θ₁ ∪ θ]. *)
+      iApplyT sem_typed_app_fun_nil.
+      2: typed_var.
+      2: { iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst. }
+      iApply row_le_trans; first iApplyT row_le_union'.
+      + iApply row_le_mfbang_elim.
+      + iApply row_le_refl.
+      + row_le_submseteq.
+    - iIntros (?). simpl.
+      iApplyT (sem_typed_match_split [] []).
+      + typed_var.
+      + iApply env_le_refl.
+      + (* Alice: draw (or load) the exponent, leak a send and a receive. *)
+        iApplyT sem_typed_let.
+        { iApplyT sem_typed_app_fun_nil; [iApply row_le_nil|iApplyT sem_typed_unit'|].
+          iApplyT sem_typed_sub_ty; [iApply ty_le_u2aarr|typed_var_copy]. }
+        iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; typed_var).
+        iApplyT sem_typed_seq.
+        { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party true)|typed_leak_fun]. }
+        iApplyT sem_typed_let.
+        { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party true)|typed_leak_fun]. }
+        iApplyT (sem_typed_match_split [] []).
+        * typed_var.
+        * iApply env_le_refl.
+        * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+          iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
+        * iApply env_le_refl.
+        * iApply env_le_refl.
+        * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+          iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var|typed_cont].
+        * iApply env_le_refl.
+      + iApply env_le_refl.
+      + iApply env_le_refl.
+      + (* Bob: leak a receive and a send, then read the cached exponent. *)
+        iApplyT sem_typed_let.
+        { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party false)|typed_leak_fun]. }
+        iApplyT (sem_typed_match_split [] []).
+        * typed_var.
+        * iApply env_le_refl.
+        * iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
+        * iApply env_le_refl.
+        * iApply env_le_refl.
+        * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
+          iApplyT sem_typed_seq.
+          { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party false)|typed_leak_fun]. }
+          iApplyT (sem_typed_match_split [] []).
+          -- iApplyT sem_typed_load_cpy. typed_var_copy.
+          -- iApply env_le_refl.
+          -- iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
+          -- iApply env_le_refl.
+          -- iApply env_le_refl.
+          -- iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; typed_var).
+             iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var|typed_cont].
+          -- iApply env_le_refl.
+        * iApply env_le_refl.
+      + iApply env_le_refl.
+    - typed_var.
       Unshelve. all: solve_typed_side.
   Qed.
 
