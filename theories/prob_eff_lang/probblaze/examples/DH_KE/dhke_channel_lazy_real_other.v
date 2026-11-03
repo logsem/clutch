@@ -23,36 +23,38 @@ Section handlee_verification.
   Definition chan γautha γauthb := chan_new_row (P γautha) (P' γauthb).
 
 
-  Lemma C_DH_real_DH_KE (f1 f2 : val) γtoka γtokb γfraca γfracb γautha γauthb L :
+  Lemma C_DH_real_DH_KE γtoka γtokb γfraca γfracb γautha γauthb :
     token γtoka -∗
     token γtokb -∗
     empty_message γautha -∗
     empty_message γauthb -∗
-    (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) L }-∘ 𝟙)%T f1 f2 -∗
-
-    BREL C_DH_real_val f1 ≤ DH_KE f2 <|⊥|> {{ λ v1 v2, 
-                                                 ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
-                                                                  BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
-                                                                    v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V 
-                                                                    <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }}.
+    BREL C_DH_real ≤ DH_KE <|⊥|> {{ λ D1 D2, ∀ (L : sem_row Σ) (f1 f2 : val),
+      (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) L }-∘ 𝟙)%T f1 f2 -∗
+      BREL D1 f1 ≤ D2 f2 <|⊥|> {{ λ v1 v2,
+                                    ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
+                                                     BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
+                                                       v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V
+                                                       <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} }}.
   Proof with (repeat foldkont; brel_pures') using G.
-    iIntros "Htoka Htokb Ha Hb Hff". 
-    unfold DH_KE, C_DH_real_val, C_lazy...
-    iModIntro. 
-    iIntros (send1 send2 recv1 recv2). 
-    set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2)...
-
+    iIntros "Htoka Htokb Ha Hb".
+    unfold DH_KE, C_DH_real...
     brel_alloctape_r α as "Hα"...
     brel_alloctape_r β as "Hβ"...
     brel_alloc_r la as "Hla"...
     brel_alloc_r lb as "Hlb"...
-    
+    iModIntro. iIntros (L f1 f2) "Hff".
+    unfold C_lazy...
+
     rewrite /DH_real Nat2Z.id.
     iApply brel_couple_UT. 1: auto. iFrame "Hα". iSplit => //. iIntros (a ?) "!> Hα".
     iApply brel_couple_UT. 1: auto. iFrame "Hβ". iSplit => //. iIntros (b ?) "!> Hβ"...
     rewrite -Nat2Z.inj_mul...    
     brel_alloc_l lc as "Hlc"...
-    
+
+    iModIntro. 
+    iIntros (send1 send2 recv1 recv2). 
+    set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2)...
+        
     iMod (store_message (#la, #a)%V with "Ha") as "#Ha".
     iMod (store_message (vgval $ g ^+ b)%g with "Hb") as "#Hb".
 

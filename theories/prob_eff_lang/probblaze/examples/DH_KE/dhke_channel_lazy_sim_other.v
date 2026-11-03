@@ -7,7 +7,7 @@ From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode
   spec_rules spec_ra 
   class_instances. 
 From clutch.prob_eff_lang.probblaze Require Import dhke_common.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement. 
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement p_composition.
 
 Section handlee_verification.
   Context `{!probblazeRGS Σ}.
@@ -27,29 +27,34 @@ Section handlee_verification.
   (* Verification of C[DH_rand] ≤ DH_SIM[F_KE] *)
   (*--------------------------------------------------*)  
 
-  Lemma C_DH_rand_DH_SIM_F_KE f1 f2 γtoka γtokb γfraca γfracb γautha γauthb L :
+  Lemma C_DH_rand_DH_SIM_F_KE γtoka γtokb γfraca γfracb γautha γauthb :
     token γtoka -∗
     token γtokb -∗
     empty_message γautha -∗
     empty_message γauthb -∗
-    (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) L }-∘ 𝟙)%T f1 f2 -∗
-    BREL C_DH_rand_val f1 ≤ DH_SIM (F_KE_lazy_alice f2) <|⊥|> 
-      {{ λ v1 v2, ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
-                                   BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
-                                     v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V 
-                                     <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }}.
+    BREL C_DH_rand ≤ (DH_SIM ∘f F_KE_lazy_alice) <|⊥|>
+      {{ λ D1 D2, ∀ (L : sem_row Σ) (f1 f2 : val),
+        (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) L }-∘ 𝟙)%T f1 f2 -∗
+        BREL D1 f1 ≤ D2 f2 <|⊥|>
+          {{ λ v1 v2, ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
+                                       BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
+                                         v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V
+                                         <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} }}.
   Proof with (repeat foldkont; brel_pures') using G inG0 inG1 inG2.
-    iIntros "Htoka Htokb Ha Hb Hff". 
-    unfold DH_SIM, F_KE_lazy_alice, C_DH_rand_val, C_lazy, DH_rand...
-    iModIntro. 
-    iIntros (send1 send2 recv1 recv2)...
-    set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2).
+    iIntros "Htoka Htokb Ha Hb".
+    unfold DH_SIM, F_KE_lazy_alice, C_DH_rand, func_comp...
+    brel_alloctape_r γ as "Hγ"...
+    rewrite Nat2Z.id.
+
+    brel_alloc_r lc as "Hlc"...
 
     brel_alloctape_r α as "Hα"...
     brel_alloctape_r β as "Hβ"...
     rewrite Nat2Z.id.
     brel_alloc_r la as "Hla"...
     brel_alloc_r lb as "Hlb"...
+    iModIntro. iIntros (L f1 f2) "Hff".
+    unfold C_lazy, DH_rand...
 
     iAssert (α ↪ₛN (n; []))%I with "[Hα]" as "Hα".
     { iExists []. iSplit; done. }
@@ -57,17 +62,18 @@ Section handlee_verification.
     iAssert (β ↪ₛN (n; []))%I with "[Hβ]" as "Hβ".
     { iExists []. iSplit; done. }
     iApply brel_couple_UT; first done. iFrame "Hβ". iIntros (b ?) "!> Hβ"...
-    
-    brel_effect_r leaksend as "Hleaksend"...
-    brel_effect_r leakrecv as "Hleakrecv"...
-    
-    brel_alloctape_r γ as "Hγ"...
-    rewrite Nat2Z.id.
     iAssert (γ ↪ₛN (n; []))%I with "[Hγ]" as "Hγ".
     { iExists []. iSplit; done. }
     iApply brel_couple_UT; first done. iFrame "Hγ". iIntros (c ?) "!> Hγ"...
-    brel_alloc_l lcs as "Hlcs".
-    brel_alloc_r lc as "Hlc"...
+
+    brel_alloc_l lcs as "Hlcs"...
+
+    iModIntro. 
+    iIntros (send1 send2 recv1 recv2)...
+    set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2).
+    
+    brel_effect_r leaksend as "Hleaksend"...
+    brel_effect_r leakrecv as "Hleakrecv"...
 
     brel_effect_l gk1 as "Hgk1".
     brel_effect_r gk2 as "Hgk2"...

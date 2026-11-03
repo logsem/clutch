@@ -25,61 +25,63 @@ Section def_implementation.
   Definition bob := InjLV #()%V.
   Definition alice := InjRV #()%V.
 
-  Definition F_AUTH : val :=
-  λ: "f" "effs",  
-    let, ("doLeakSend", "doLeakRecv") := "effs" in
+  Definition F_AUTH : expr :=
     let: "m1" := ref NONEV in
     let: "m2" := ref NONEV in
-    effect "send"
-    effect "recv"
-    let: "doSend" := (λ: "m", do: "send" "m") in  
-    let: "doRecv" := (λ: "m", do: "recv" "m") in
-    handle: handle: "f" ("doSend", "doRecv") with
+    λ: "f" "effs",  
+      let, ("doLeakSend", "doLeakRecv") := "effs" in
+      effect "send"
+        effect "recv"
+        let: "doSend" := (λ: "m", do: "send" "m") in  
+        let: "doRecv" := (λ: "m", do: "recv" "m") in
+        handle: handle: "f" ("doSend", "doRecv") with
     | effect "send" "message", rec "k" =>
-            let, ("m", "dst") := "message" in
-            match: "dst" with
-              (* Alice *)
-              InjL <> => match: !"m1" with (* Send only the first value. Discard all others.  *)
-                         NONE => "m1" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
-                       | SOME "x" => "k" #()%V 
-                         end
-            (* Bob *)
-            | InjR <> => match: !"m2" with
-                          NONE => "m2" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
-                        | SOME "x" => "k" #()%V 
-                        end
-            end
-    | return "y" => #()%V end with
-    (* Recv *)
-    | effect "recv" "from", rec "k" =>
-        let: "r" := ("doLeakRecv" "from") in
-        match: "r" with
-          NONE => "k" NONEV
-        | SOME "x" => match: "from" with
-                        (* Alice *)
-                        InjL <> => match: !"m2" with
-                                     NONE => "k" NONEV
-                                   | SOME "m" => "k" (SOME "m")
-                                   end
-                      (* Bob *)
-                      | InjR <> => match: !"m1" with
-                                     NONE => "k" NONEV
-                                   | SOME "m" => "k" (SOME "m")
-                                   end
-                      end
+        let, ("m", "dst") := "message" in
+        match: "dst" with
+          (* Alice *)
+          InjL <> => match: !"m1" with (* Send only the first value. Discard all others.  *)
+                       NONE => "m1" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
+                     | SOME "x" => "k" #()%V 
+                     end
+        (* Bob *)
+        | InjR <> => match: !"m2" with
+                       NONE => "m2" <- SOME "m";; ("doLeakSend" ("m", "dst"));; "k" #()%V
+                     | SOME "x" => "k" #()%V 
+                     end
         end
-     | return "y" => #()%V end.
+    | return "y" => #()%V end with
+(* Recv *)
+| effect "recv" "from", rec "k" =>
+    let: "r" := ("doLeakRecv" "from") in
+    match: "r" with
+      NONE => "k" NONEV
+    | SOME "x" => match: "from" with
+                    (* Alice *)
+                    InjL <> => match: !"m2" with
+                                 NONE => "k" NONEV
+                               | SOME "m" => "k" (SOME "m")
+                               end
+                  (* Bob *)
+                  | InjR <> => match: !"m1" with
+                                 NONE => "k" NONEV
+                               | SOME "m" => "k" (SOME "m")
+                               end
+                  end
+    end
+| return "y" => #()%V end.
 
-  Definition DH_KE  : val :=
-    λ: "f" "effs",
-    let, ("doSend", "doRecv") := "effs" in
+  Definition DH_KE  : expr :=
     let: "α" := alloc #n in
     let: "β" := alloc #n in
     let: "l1" := ref NONEV in
     let: "l2" := ref NONEV in
-    effect "getKey"  
-    let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
-    handle: "f" "doGK" with
+
+    λ: "f" "effs",
+      let, ("doSend", "doRecv") := "effs" in
+      
+      effect "getKey"  
+        let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+        handle: "f" "doGK" with
     | effect (EffName "getKey") "p", rec "k" =>
         match: "p" with
           (* Alice *)
@@ -87,8 +89,8 @@ Section def_implementation.
             (* Sample *)
             let: "a" :=
               (match: !"l1" with
-                NONE => let: "a" := (samplelbl "α" #()%V) in "l1" <- SOME "a";; "a"
-              | SOME "a" => "a"
+                 NONE => let: "a" := (samplelbl "α" #()%V) in "l1" <- SOME "a";; "a"
+               | SOME "a" => "a"
                end) in
             (* Compute gA *)
             let: "gA" := g^"a" in
@@ -120,48 +122,49 @@ Section def_implementation.
                 let: "key" := "gA"^"b" in
                 "k" (SOME "key")
             end
-       end
-   | return "y" => "y" end.
+        end
+    | return "y" => "y" end.
 
- Definition DH_SIM : val :=
- λ: "f" "effs",
-   let, ("doSend", "doRecv") := "effs" in
+ Definition DH_SIM : expr :=
    let: "α" := alloc #n in
-    let: "β" := alloc #n in
-    let: "l1" := ref NONEV in
-    let: "l2" := ref NONEV in
-    effect "leakSend"
-    effect "leakRecv"
-    let: "doLeakSend" := (λ: "m", do: "leakSend" "m") in
-    let: "doLeakRecv" := (λ: "m", do: "leakRecv" "m") in
-    handle: handle: "f" ("doLeakSend", "doLeakRecv") with
-    | effect "leakSend" "dst", rec "k" =>
-            match: "dst" with
-              InjL <> => let: "c" := 
-                           (match: !"l1" with
-                              NONE => let: "c" := (samplelbl "α" #()%V) in "l1" <- SOME "c";; "c"
-                            | SOME "c" => "c"
-                            end) in
-                         let: "gC" := g^"c" in
-                         "doSend" ("gC",bob);;
-                         "k" #()%V
-            | InjR <> => let: "c" :=
-                           (match: !"l2" with
-                              NONE => let: "c" := (samplelbl "β" #()%V) in "l2" <- SOME "c";; "c"
-                            | SOME "c" => "c"
-                            end) in
-                         let: "gC" := g^"c" in
-                         "doSend" ("gC", alice);;
-                         "k" #()%V
-            end
-   | return "y" => "y" end with
-   | effect "leakRecv" "from", rec "k" => 
-       let: "r" := "doRecv" "from" in
-       match: "r" with
-         NONE => "k" NONE
-       | SOME "x" => "k" (SOME #()%V)
+   let: "β" := alloc #n in
+   let: "l1" := ref NONEV in
+   let: "l2" := ref NONEV in
+   λ: "f" "effs",
+     let, ("doSend", "doRecv") := "effs" in
+     
+     effect "leakSend"
+       effect "leakRecv"
+       let: "doLeakSend" := (λ: "m", do: "leakSend" "m") in
+       let: "doLeakRecv" := (λ: "m", do: "leakRecv" "m") in
+       handle: handle: "f" ("doLeakSend", "doLeakRecv") with
+   | effect "leakSend" "dst", rec "k" =>
+       match: "dst" with
+         InjL <> => let: "c" := 
+                      (match: !"l1" with
+                         NONE => let: "c" := (samplelbl "α" #()%V) in "l1" <- SOME "c";; "c"
+                       | SOME "c" => "c"
+                       end) in
+                    let: "gC" := g^"c" in
+                    "doSend" ("gC",bob);;
+                    "k" #()%V
+       | InjR <> => let: "c" :=
+                      (match: !"l2" with
+                         NONE => let: "c" := (samplelbl "β" #()%V) in "l2" <- SOME "c";; "c"
+                       | SOME "c" => "c"
+                       end) in
+                    let: "gC" := g^"c" in
+                    "doSend" ("gC", alice);;
+                    "k" #()%V
        end
-   | return "y" => "y" end.
+   | return "y" => "y" end with
+| effect "leakRecv" "from", rec "k" => 
+    let: "r" := "doRecv" "from" in
+    match: "r" with
+      NONE => "k" NONE
+    | SOME "x" => "k" (SOME #()%V)
+    end
+| return "y" => "y" end.
 
   
    Definition F_KE : val :=
@@ -198,10 +201,7 @@ Section def_implementation.
      | return "y" => "y" end.
 
 
-   Definition F_KE_lazy_alice : val :=
-     λ: "f" "effs",
-       let, ("doLeakSend", "doLeakRecv") := "effs" in
-       (* Magically share a lazily sampled key *)
+   Definition F_KE_lazy_alice : expr :=
        let: "γ" := alloc #n in
        let: "lc" := ref NONEV in
        let: "sample_or_load" :=
@@ -213,6 +213,10 @@ Section def_implementation.
            | SOME "c" => "c"
            end
        in
+
+     λ: "f" "effs",
+       let, ("doLeakSend", "doLeakRecv") := "effs" in
+       (* Magically share a lazily sampled key *)
 
        effect "getKey"
          let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
@@ -327,20 +331,23 @@ Section def_implementation.
 
 
   Definition C_lazy : val :=
-   λ: "DH" "f" "effs",
-     let, ("doSend", "doRecv") := "effs" in
-    let, ("ga", "gb", "gc") := "DH" #()%V in
-    let: "lc" := ref NONE in
-    let: "store_if_none" :=
-         λ:<>, match: !"lc" with
-           | NONE =>
-               "lc" <- SOME "gc"
-           | SOME "key" => #()%V
-           end 
-    in 
-    effect "getKey" 
-    let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
-    handle: "f" "doGK" with
+    λ: "DH",
+      let, ("ga", "gb", "gc") := "DH" #()%V in
+      let: "lc" := ref NONE in
+      let: "store_if_none" :=
+        λ:<>, match: !"lc" with
+          | NONE =>
+              "lc" <- SOME "gc"
+          | SOME "key" => #()%V
+          end 
+      in 
+      λ: "f" "effs", 
+        let, ("doSend", "doRecv") := "effs" in
+
+        
+        effect "getKey" 
+          let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
+          handle: "f" "doGK" with
     | effect (EffName "getKey") "p", rec "k" =>
         match: "p" with
           InjL <> =>

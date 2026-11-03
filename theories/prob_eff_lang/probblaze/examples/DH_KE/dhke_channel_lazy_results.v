@@ -19,7 +19,8 @@ From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import
   dhke_channel_lazy_real_other
   dhke_channel_lazy_sim_one
   dhke_channel_lazy_sim_other
-  dhke_channel_authchan_new.
+  dhke_channel_authchan_new
+  dhke_closed.
 
 Section handlee_verification.
   Context `{!probblazeRGS Σ}.
@@ -36,52 +37,56 @@ Section handlee_verification.
 
   Lemma F_AUTH_DH_KE_FAUTH_C_DH_real :
     ⊢ sem_typed [] (F_AUTH ∘f DH_KE) (F_AUTH ∘f C_DH_real) ⊥ τ_DH [].
-  Proof using All. 
-   iIntros (vs) "!# Hvs /=".
-   rewrite /func_comp lookup_delete_eq.
-   brel_pures'. iFrame.
-   iIntros "!>" (L f1 f2) "Hff".
-   brel_pures_l 1.
-   brel_pures_r 1.
+  Proof using All.
+   iIntros (vs) "!# Hvs".
+   rewrite (subst_map_is_closed_empty _ _ F_AUTH_DHKE_closed) (subst_map_is_closed_empty _ _ F_AUTH_C_DH_real_closed).
    iMod token_alloc as (γtoka) "Htoka".
    iMod token_alloc as (γtokb) "Htokb".
    iMod message_alloc as (γautha) "Hautha".
    iMod message_alloc as (γauthb) "Hauthb".
    iMod all_receipts_alloc as (γfraca) "Hfraca".
-   iMod all_receipts_alloc as (γfracb) "Hfracb".                         
-   simpl.
+   iMod all_receipts_alloc as (γfracb) "Hfracb".
+   iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
    assert (to_iThyIfMono OS [] = []) as <- by done.
-   iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
-   - iApply (F_AUTH_F_AUTH_new with "[$][$]");
-       last by iApply (DH_KE_C_DH_real with "[$Htoka][$Htokb][$Hautha][$Hauthb]").
-     all : apply _. 
-   - iIntros (??) "$". 
-  Qed.    
+   iApply (brel_mono OS with "[] [Htoka Htokb Hautha Hauthb]"); [iApply to_iThy_le_bot|iApply (DH_KE_C_DH_real _ _ γfraca γfracb with "Htoka Htokb Hautha Hauthb")|simpl].
+   iIntros (D1 D2) "HD".
+   iApply (brel_bind [AppLCtx _; AppRCtx _] [AppLCtx _; AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+   assert (to_iThyIfMono OS [] = []) as <- by done.
+   iApply (brel_mono OS with "[] [Hfraca Hfracb]"); [iApply to_iThy_le_bot|iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_channel_lazy_real_one.P γautha) (dhke_channel_lazy_real_one.P' γauthb) with "Hfraca Hfracb")|simpl].
+   iIntros (F1 F2) "HF".
+   rewrite /func_comp. brel_pures'. iFrame.
+   iIntros "!>" (L f1 f2) "Hff".
+   brel_pures_l 1.
+   brel_pures_r 1.
+   iApply "HF". iApply ("HD" with "Hff").
+  Qed.
   
   (* Verification of F_AUTH[C[DH_real]] ≤ F_AUTH[DH_KE] *)
   (*------------------------------------------------------------*)
   Lemma F_AUTH_C_DH_real_FAUTH_DH_KE :
     ⊢ sem_typed [] (F_AUTH ∘f C_DH_real) (F_AUTH ∘f DH_KE) ⊥ τ_DH [].
   Proof using All.
-    iIntros (vs) "!# Hvs /=".
-    rewrite /func_comp lookup_delete_eq.
-    brel_pures'. iFrame.
-    iIntros "!>" (L f1 f2) "Hff".
-    brel_pures_l 1.
-    brel_pures_r 1.
+    iIntros (vs) "!# Hvs".
+    rewrite (subst_map_is_closed_empty _ _ F_AUTH_C_DH_real_closed) (subst_map_is_closed_empty _ _ F_AUTH_DHKE_closed).
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
     iMod message_alloc as (γautha) "Hautha".
     iMod message_alloc as (γauthb) "Hauthb".
     iMod all_receipts_alloc as (γfraca) "Hfraca".
-    iMod all_receipts_alloc as (γfracb) "Hfracb".                         
-    simpl. 
+    iMod all_receipts_alloc as (γfracb) "Hfracb".
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
-    - iApply (F_AUTH_F_AUTH_new with "[$][$]"); 
-        last by iApply (C_DH_real_DH_KE with "[$][$][$][$]").
-      all : apply _.
-    - iIntros (??) "$".
+    iApply (brel_mono OS with "[] [Htoka Htokb Hautha Hauthb]"); [iApply to_iThy_le_bot|iApply (C_DH_real_DH_KE _ _ γfraca γfracb with "Htoka Htokb Hautha Hauthb")|simpl].
+    iIntros (D1 D2) "HD".
+    iApply (brel_bind [AppLCtx _; AppRCtx _] [AppLCtx _; AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[] [Hfraca Hfracb]"); [iApply to_iThy_le_bot|iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_channel_lazy_real_other.P γautha) (dhke_channel_lazy_real_other.P' γauthb) with "Hfraca Hfracb")|simpl].
+    iIntros (F1 F2) "HF".
+    rewrite /func_comp. brel_pures'. iFrame.
+    iIntros "!>" (L f1 f2) "Hff".
+    brel_pures_l 1.
+    brel_pures_r 1.
+    iApply "HF". iApply ("HD" with "Hff").
   Qed.
   
   (* Verification of F_AUTH[DH_SIM[F_KE]] ≤ F_AUTH[C[DH_rand]] *)
@@ -90,25 +95,27 @@ Section handlee_verification.
   Lemma F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand :
     ⊢ sem_typed [] (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) (F_AUTH ∘f C_DH_rand) ⊥ τ_DH [].
   Proof using All.
-    iIntros (vs) "!# Hvs /=".
-    rewrite /func_comp lookup_delete_eq.
-    brel_pures'. iFrame.
-    iIntros "!>" (L f1 f2) "Hff".
-    brel_pures_l 2.
-    brel_pures_r 1.
+    iIntros (vs) "!# Hvs".
+    rewrite (subst_map_is_closed_empty _ _ F_AUTH_DHSIM_FKE_closed) (subst_map_is_closed_empty _ _ F_AUTH_C_DH_rand_closed).
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
     iMod message_alloc as (γautha) "Hautha".
     iMod message_alloc as (γauthb) "Hauthb".
     iMod all_receipts_alloc as (γfraca) "Hfraca".
-    iMod all_receipts_alloc as (γfracb) "Hfracb".                         
-    simpl.
+    iMod all_receipts_alloc as (γfracb) "Hfracb".
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
-    - iApply (F_AUTH_F_AUTH_new with "[$][$]");
-        last by iApply (DH_SIM_F_KE_C_DH_rand with "[$][$][$][$]").
-      all : apply _.
-    - iIntros (??) "$". 
+    iApply (brel_mono OS with "[] [Htoka Htokb Hautha Hauthb]"); [iApply to_iThy_le_bot|iApply (DH_SIM_F_KE_C_DH_rand _ _ γfraca γfracb with "Htoka Htokb Hautha Hauthb")|simpl].
+    iIntros (D1 D2) "HD".
+    iApply (brel_bind [AppLCtx _; AppRCtx _] [AppLCtx _; AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[] [Hfraca Hfracb]"); [iApply to_iThy_le_bot|iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_channel_lazy_sim_one.P γautha) (dhke_channel_lazy_sim_one.P γauthb) with "Hfraca Hfracb")|simpl].
+    iIntros (F1 F2) "HF".
+    rewrite /func_comp. brel_pures'. iFrame.
+    iIntros "!>" (L f1 f2) "Hff".
+    brel_pures_l 1.
+    brel_pures_r 1.
+    iApply "HF". iApply ("HD" with "Hff").
   Qed.
   
   (* Verification of F_AUTH[C[DH_rand]] ≤ F_AUTH[DH_SIM[F_KE]] *)
@@ -116,25 +123,27 @@ Section handlee_verification.
   Lemma F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE :
     ⊢ sem_typed [] (F_AUTH ∘f C_DH_rand) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) ⊥ τ_DH [].
   Proof using All.
-    iIntros (vs) "!# Hvs /=".
-    rewrite /func_comp lookup_delete_eq.
-    brel_pures'. iFrame.
-    iIntros "!>" (L f1 f2) "Hff".
-    brel_pures_r 2.
-    brel_pures_l 1.
+    iIntros (vs) "!# Hvs".
+    rewrite (subst_map_is_closed_empty _ _ F_AUTH_C_DH_rand_closed) (subst_map_is_closed_empty _ _ F_AUTH_DHSIM_FKE_closed).
     iMod token_alloc as (γtoka) "Htoka".
     iMod token_alloc as (γtokb) "Htokb".
     iMod message_alloc as (γautha) "Hautha".
     iMod message_alloc as (γauthb) "Hauthb".
     iMod all_receipts_alloc as (γfraca) "Hfraca".
-    iMod all_receipts_alloc as (γfracb) "Hfracb".                         
-    simpl.
+    iMod all_receipts_alloc as (γfracb) "Hfracb".
+    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS with "[][Htoka Htokb Hautha Hauthb Hfraca Hfracb Hff]"); [iApply to_iThy_le_refl|simpl|simpl].
-    - iApply (F_AUTH_F_AUTH_new with "[$][$]"); 
-      last by iApply (C_DH_rand_DH_SIM_F_KE with "[$][$][$][$]").
-      all : apply _.
-    - iIntros (??) "$". 
+    iApply (brel_mono OS with "[] [Htoka Htokb Hautha Hauthb]"); [iApply to_iThy_le_bot|iApply (C_DH_rand_DH_SIM_F_KE _ _ γfraca γfracb with "Htoka Htokb Hautha Hauthb")|simpl].
+    iIntros (D1 D2) "HD".
+    iApply (brel_bind [AppLCtx _; AppRCtx _] [AppLCtx _; AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[] [Hfraca Hfracb]"); [iApply to_iThy_le_bot|iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_channel_lazy_sim_other.P γautha) (dhke_channel_lazy_sim_other.P γauthb) with "Hfraca Hfracb")|simpl].
+    iIntros (F1 F2) "HF".
+    rewrite /func_comp. brel_pures'. iFrame.
+    iIntros "!>" (L f1 f2) "Hff".
+    brel_pures_l 1.
+    brel_pures_r 1.
+    iApply "HF". iApply ("HD" with "Hff").
   Qed.
   
   (* Rewriting to match top-level statements *)
@@ -142,57 +151,49 @@ Section handlee_verification.
   Lemma DHSIM_RED : 
     ⊢ sem_typed [] (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_rand) ⊥ τ_DH [].
   Proof using All.
-    iIntros (vs) "!# _". simpl.
-    rewrite lookup_delete_ne; last done. 
-    rewrite !lookup_delete_eq.
-    brel_pures_r 2.
+    iIntros (vs) "!# Hvs".
     iPoseProof F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand as "H".
-    rewrite /sem_typed /=.
-    iDestruct "H" as "#H".
-    setoid_rewrite lookup_delete_eq.
-    by iApply "H".
-  Qed. 
+    rewrite /sem_typed /tc_opaque.
+    iSpecialize ("H" with "Hvs").
+    rewrite (subst_map_is_closed_empty _ _ F_AUTH_DHSIM_FKE_closed) (subst_map_is_closed_empty _ _ F_AUTH_C_DH_rand_closed) (subst_map_is_closed_empty _ _ red_DH_rand_closed).
+    brel_pures_r 2.
+    iApply "H".
+  Qed.
   
   Lemma RED_DHSIM :
     ⊢ sem_typed [] ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_rand) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) ⊥ τ_DH [].
   Proof using All.
-    iIntros (vs) "!# _". simpl.
-    rewrite lookup_delete_ne; last done. 
-    rewrite !lookup_delete_eq.
-    brel_pures_l 2.
+    iIntros (vs) "!# Hvs".
     iPoseProof F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE as "H".
-    rewrite /sem_typed /=.
-    iDestruct "H" as "#H".
-    setoid_rewrite lookup_delete_eq.
-    by iApply "H".
-  Qed.  
+    rewrite /sem_typed /tc_opaque.
+    iSpecialize ("H" with "Hvs").
+    rewrite (subst_map_is_closed_empty _ _ F_AUTH_C_DH_rand_closed) (subst_map_is_closed_empty _ _ F_AUTH_DHSIM_FKE_closed) (subst_map_is_closed_empty _ _ red_DH_rand_closed).
+    brel_pures_l 2.
+    iApply "H".
+  Qed.
   
   Lemma DHKE_RED :
     ⊢ sem_typed [] (F_AUTH ∘f DH_KE) ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_real) ⊥ τ_DH [].
   Proof using All.
-    iIntros (vs) "!# _". simpl.
-    rewrite lookup_delete_ne; last done. 
-    rewrite !lookup_delete_eq.
-    brel_pures_r 2.
+    iIntros (vs) "!# Hvs".
     iPoseProof F_AUTH_DH_KE_FAUTH_C_DH_real as "H".
-    rewrite /sem_typed /=.
-    iDestruct "H" as "#H".
-    setoid_rewrite lookup_delete_eq.
-    by iApply "H".
-  Qed.  
+    rewrite /sem_typed /tc_opaque.
+    iSpecialize ("H" with "Hvs").
+    rewrite (subst_map_is_closed_empty _ _ F_AUTH_DHKE_closed) (subst_map_is_closed_empty _ _ F_AUTH_C_DH_real_closed) (subst_map_is_closed_empty _ _ red_DH_real_closed).
+    brel_pures_r 2.
+    iApply "H".
+  Qed.
   
   Lemma RED_DHKE :
     ⊢ sem_typed [] ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_real) (F_AUTH ∘f DH_KE) ⊥ τ_DH [].
   Proof using G inG0 inG1 inG2.
-    iIntros (vs) "!# _". simpl.
-    rewrite lookup_delete_ne; last done. 
-    rewrite !lookup_delete_eq.
-    brel_pures_l 2.
+    iIntros (vs) "!# Hvs".
     iPoseProof F_AUTH_C_DH_real_FAUTH_DH_KE as "H".
-    rewrite /sem_typed /=.
-    iDestruct "H" as "#H".
-    setoid_rewrite lookup_delete_eq.
-    by iApply "H".
+    rewrite /sem_typed /tc_opaque.
+    iSpecialize ("H" with "Hvs").
+    rewrite (subst_map_is_closed_empty _ _ F_AUTH_C_DH_real_closed) (subst_map_is_closed_empty _ _ F_AUTH_DHKE_closed) (subst_map_is_closed_empty _ _ red_DH_real_closed).
+    brel_pures_l 2.
+    iApply "H".
   Qed.
 
 End handlee_verification.

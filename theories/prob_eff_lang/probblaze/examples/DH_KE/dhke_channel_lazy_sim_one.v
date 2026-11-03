@@ -5,7 +5,7 @@ From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode
   spec_rules spec_ra 
   class_instances. 
 From clutch.prob_eff_lang.probblaze.examples.DH_KE Require Import dhke_common.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement. 
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement p_composition.
 
 Section handlee_verification.
   Context `{!probblazeRGS Σ}.
@@ -22,43 +22,50 @@ Section handlee_verification.
   Definition P γauth (m : vgG) : iProp Σ := message γauth (vgval m).
   Definition chan γautha γauthb := chan_new_row (P γautha) (P γauthb).
 
-  Lemma DH_SIM_F_KE_C_DH_rand (f1 f2 : val) γtoka γtokb γfraca γfracb γautha γauthb L :
+  Lemma DH_SIM_F_KE_C_DH_rand γtoka γtokb γfraca γfracb γautha γauthb :
     token γtoka -∗
     token γtokb -∗
     empty_message γautha -∗
     empty_message γauthb -∗
-    (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) L }-∘ 𝟙)%T f1 f2 -∗
-    BREL DH_SIM (F_KE_lazy_alice f1) ≤ C_DH_rand_val f2 <|⊥|> 
-      {{ λ v1 v2, ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
-                                   BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
-                                     v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V 
-                                     <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }}.
+    BREL (DH_SIM ∘f F_KE_lazy_alice) ≤ C_DH_rand <|⊥|>
+      {{ λ D1 D2, ∀ (L : sem_row Σ) (f1 f2 : val),
+        (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) L }-∘ 𝟙)%T f1 f2 -∗
+        BREL D1 f1 ≤ D2 f2 <|⊥|>
+          {{ λ v1 v2, ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
+                                       BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
+                                         v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V
+                                         <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} }}.
   Proof with (repeat foldkont; brel_pures') using G inG0 inG1 inG2.
-    iIntros "Htoka Htokb Ha Hb Hff". 
-    unfold DH_SIM, F_KE_lazy_alice, C_DH_rand_val, C_lazy, DH_rand...
+    iIntros "Htoka Htokb Ha Hb".
+    unfold DH_SIM, F_KE_lazy_alice, C_DH_rand, func_comp...
+    brel_alloctape_l γ as "Hγ"...
+    brel_alloc_l lc as "Hlc"...
+
+    brel_alloctape_l α as "Hα"...
+    brel_alloctape_l β as "Hβ"...
+    rewrite Nat2Z.id.
+    brel_alloc_l la as "Hla"...
+    brel_alloc_l lb as "Hlb"...
+    iModIntro. iIntros (L f1 f2) "Hff".
+    unfold C_lazy, DH_rand. brel_pures_r.
+
+    iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
+    iApply brel_couple_TU; [done|]. iFrame "Hα". iIntros (a) "Hα".
+    iDestruct "Hβ" as (ms) "(%Hf' & Hβ)". apply map_eq_nil in Hf'. simplify_eq.
+    iApply brel_couple_TU; [done|]. iFrame "Hβ". iIntros (b) "Hβ".
+    iDestruct "Hγ" as (ns) "(%Hf & Hγ)". apply map_eq_nil in Hf. simplify_eq.
+    iApply brel_couple_TU; [done|]. iFrame "Hγ". iIntros (c) "Hγ"...
+
+    brel_alloc_r lcs as "Hlcs"...
+
     iModIntro. 
     iIntros (send1 send2 recv1 recv2). 
     set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2).
     brel_pures'.
     
-    brel_alloctape_l α as "Hα"...
-    brel_alloctape_l β as "Hβ"...
-    brel_alloc_l la as "Hla"...
-    brel_alloc_l lb as "Hlb"...
     brel_effect_l leaksend as "Hleaksend"...
     brel_effect_l leakrecv as "Hleakrecv"...
-    brel_alloctape_l γ as "Hγ"...
-    rewrite Nat2Z.id.
-    brel_alloc_l lc as "Hlc"...
-      
-    iDestruct "Hα" as (ns) "(%Hf & Hα)". apply map_eq_nil in Hf. simplify_eq.
-    iApply brel_couple_TU; [done|]. iFrame. simpl. iIntros (a) "Hα".
-    iDestruct "Hβ" as (ms) "(%Hf' & Hβ)". apply map_eq_nil in Hf'. simplify_eq.
-    iApply brel_couple_TU; [done|]. iFrame "Hβ". simpl. iIntros (b) "Hβ".
-    iDestruct "Hγ" as (ns) "(%Hf & Hγ)". apply map_eq_nil in Hf. simplify_eq.
-    iApply brel_couple_TU; [done|]. iFrame "Hγ". simpl. iIntros (c) "Hγ"...
 
-    brel_alloc_r lcs as "Hlcs"...
     brel_effect_l gk1 as "Hgk1"...
     brel_effect_r gk2 as "Hgk2"...
 

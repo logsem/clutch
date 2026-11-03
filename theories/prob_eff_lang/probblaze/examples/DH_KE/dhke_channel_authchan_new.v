@@ -52,33 +52,27 @@ Section handlee_verification.
      and persistent points-tos) satisfy this. *)
   (*------------------------------------------------------------*)
 
-  Lemma F_AUTH_F_AUTH_new (f1 f2 : expr) γtoka γtokb γfraca γfracb
+  Lemma F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb
     (P P' : vgG → iProp Σ)
-    `{!∀ m : vgG, Timeless (P m), !∀ m : vgG, Timeless (P' m)} (L : sem_row Σ) :
+    `{!∀ m : vgG, Timeless (P m), !∀ m : vgG, Timeless (P' m)} :
     all_receipts γfraca -∗
     all_receipts γfracb -∗
-    BREL f1 ≤ f2 <|⊥|> {{λ v1 v2,
-                           ∀ send1 send2 recv1 recv2 : label, let ac := chan_new_row P P' γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
-                                            BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
-                                              v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V
-                                              <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
-    BREL F_AUTH f1 ≤ F_AUTH f2 <| ⊥ |> {{ λ v1 v2,
-                                            (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union (¡ θₗ) L }-∘ 𝟙)%T v1 v2 }}.
+    BREL F_AUTH ≤ F_AUTH <|⊥|> {{ λ F1 F2, ∀ (L : sem_row Σ) (f1 f2 : expr),
+      BREL f1 ≤ f2 <|⊥|> {{λ v1 v2,
+                             ∀ send1 send2 recv1 recv2 : label, let ac := chan_new_row P P' γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
+                                              BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
+                                                v2 ((λ: "m", do: send2 "m"), (λ: "m", do: recv2 "m"))%V
+                                                <| (iLblSig_to_iLblThy ac) ++ (iLblSig_to_iLblThy L) |> {{ (λ w1 w2, 𝟙%T w1 w2) }} }} -∗
+      BREL F1 f1 ≤ F2 f2 <| ⊥ |> {{ λ v1 v2,
+                                      (∀ᵣ θₗ, (((𝔾 × (𝟙 + 𝟙)) -{ θₗ }-> 𝟙) × ((𝟙 + 𝟙) -{ θₗ }-> Option ℕ)) -{ sem_row_union (¡ θₗ) L }-∘ 𝟙)%T v1 v2 }} }}.
   Proof with (repeat foldkont;brel_pures') using G.
-    iIntros "Hfraca Hfracb Hff".
-    iApply (brel_bind _ _ _ [] _ _ f1 f2); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
-    assert (to_iThyIfMono OS [] = []) as <- by done.
-    iApply (brel_mono OS _ _ ⊥ [] with "[][$Hff]"); [iApply to_iThy_le_bot|simpl].
-    clear f1 f2.
-    iIntros (f1 f2) "Hff".
+    iIntros "Hfraca Hfracb".
     unfold F_AUTH...
-    iModIntro.
-    iIntros (sendrecv). iIntros (sr1 sr2) "(%send1&%send2&%recv1&%recv2&->&->&(#Hsend&#Hrecv))"...
-    
+
     brel_alloc_l l1 as "Hl1"...
     brel_alloc_l l2 as "Hl2"...
     brel_alloc_r l1' as "Hl1s"...
-    brel_alloc_r l2' as "Hl2s"...
+    brel_alloc_r l2' as "Hl2s".
 
     (* Alice's message: written by [Send bob], read by [Recv alice], carries [P]. *)
     iApply (brel_na_alloc
@@ -96,7 +90,17 @@ Section handlee_verification.
                          ∗ receipt γfracb
                          ∗ □ (P' mB))) betaN).
     iSplitL "Hl2 Hl2s Hfracb"; [iNext; iLeft; iFrame|].
-    iIntros "#Hinvb".
+    iIntros "#Hinvb"...
+
+    iModIntro. iIntros (L f1 f2) "Hff".
+    iApply (brel_bind _ _ _ [] _ _ f1 f2); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS _ _ ⊥ [] with "[][$Hff]"); [iApply to_iThy_le_bot|simpl].
+    clear f1 f2.
+    iIntros (f1 f2) "Hff"...
+
+    iModIntro.
+    iIntros (sendrecv). iIntros (sr1 sr2) "(%send1&%send2&%recv1&%recv2&->&->&(#Hsend&#Hrecv))"...
 
     brel_effect_l sendl1 as "Hsend1".
     brel_effect_r sendl2 as "Hsend2".
