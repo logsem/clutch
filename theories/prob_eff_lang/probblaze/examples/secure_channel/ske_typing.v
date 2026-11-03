@@ -5,7 +5,7 @@ From clutch.prob_eff_lang.probblaze Require Import comp_operators primitive_laws
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_env sem_judgement compatibility.
-From clutch.prob_eff_lang.probblaze.examples Require Import dhke_common ske ske_sec_chan_def
+From clutch.prob_eff_lang.probblaze.examples Require Import dhke_common dhke_typing ske ske_sec_chan_def
   ske_sec_chan_common.
 
 Import fingroup.
@@ -36,16 +36,11 @@ Section ske_typing.
   (* Interface families (each parametrised by the effect row of its ops).*)
   (* [cchan]  : authenticated channel — cipher send, cipher recv.        *)
   (* [oaleak] : F_OAUTH's leak — cipher send, recv only leaks presence.   *)
-  (* [leakI]  : direction-only send/recv (unit messages).                 *)
-  (* [gk]     : the getKey operation.                                     *)
   (* [cli]    : the top-level secure-channel client interface.            *)
   Definition cchan (θ : sem_row Σ) : sem_ty Σ :=
     (((Cph × (𝟙 + 𝟙)) -{ θ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ }-> Option Cph))%T.
   Definition oaleak (θ : sem_row Σ) : sem_ty Σ :=
     (((Cph × (𝟙 + 𝟙)) -{ θ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ }-> Option 𝟙))%T.
-  Definition leakI (θ : sem_row Σ) : sem_ty Σ :=
-    (((𝟙 + 𝟙) -{ θ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ }-> Option 𝟙))%T.
-  Definition gk (θ : sem_row Σ) : sem_ty Σ := ((𝟙 + 𝟙) -{ θ }-> Option 𝔾)%T.
   Definition cli (θ : sem_row Σ) : sem_ty Σ :=
     ((ℕ -{ θ }-> 𝟙) × (𝟙 -{ θ }-> Option Msg))%T.
   (* the handler consuming an interface I, polymorphic over I's row *)
@@ -70,11 +65,7 @@ Section ske_typing.
      reach the BREL proofs further down. *)
   Section f_oauth.
 
-    #[local] Instance multi_ty_group : MultiT (𝔾 : sem_ty Σ).
-    Proof.
-      constructor. iIntros "!#" (v1 v2) "(%g & -> & ->)".
-      rewrite /sem_ty_mbang /=. iModIntro. by iExists g.
-    Qed.
+    #[local] Existing Instance multi_ty_group.
 
     (* See the tactics at the end of [compatibility.v]. *)
     Import typed_hint_modes.
@@ -222,208 +213,6 @@ Section ske_typing.
     Qed.
 
   End f_oauth.
-
-  (* The body of [F_KE_lazy_alice] (free in "f","effs"), copied verbatim
-     from [def_dhke.F_KE_lazy_alice], so that [F_KE_lazy_alice] is
-     [λ: "f" "effs", F_KE_body]. *)
-  Definition F_KE_body : expr :=
-    (let, ("doLeakSend", "doLeakRecv") := "effs" in
-     let: "γ" := alloc #(S n'') in
-     let: "lc" := ref NONEV in
-     let: "sample_or_load" :=
-       λ:<>, match: !"lc" with
-         | NONE =>
-             let: "c" := (samplelbl "γ" #()%V) in
-             "lc" <- SOME "c" ;;
-             "c"
-         | SOME "c" => "c"
-         end
-     in
-
-     effect "getKey"
-       let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
-       handle: "f" "doGK" with
-    | effect (EffName "getKey") "p", rec "k" =>
-        match: "p" with
-          (* Alice *)
-          InjL <> =>
-            let: "c" := "sample_or_load" #()%V in
-            let: "key" := g^"c" in
-            (* Leak a send *)
-            ("doLeakSend" bob);;
-            (* Receive a dummy value *)
-            let: "r" := ("doLeakRecv" bob) in
-            match: "r" with
-              NONE => "k" NONEV
-            | SOME "w" =>
-                "k" (SOME "key")
-            end
-        (* Bob  *)
-        | InjR <> =>
-            let: "r" := ("doLeakRecv" alice) in
-            match: "r" with
-              NONE => "k" NONEV
-            | SOME "w" =>
-                ("doLeakSend" alice);;
-                match: !"lc" with
-                | NONE => "k" NONEV
-                | SOME "c" =>
-                    let: "key" := g^"c" in
-                    "k" (SOME "key")
-                end
-            end
-        end
-    | return "y" => "y" end).
-
-  Section f_ke.
-    Import typed_hint_modes.
-    #[local] Existing Instance multi_ty_group.
-
-    Lemma sem_typed_party (b : bool) Γ ρ :
-      ⊢ sem_typed Γ (if b then bob else alice) (if b then bob else alice) ρ (𝟙 + 𝟙)%T Γ.
-    Proof.
-      iApply sem_typed_sub_nil. iApply sem_typed_val. iIntros "!>".
-      destruct b; iExists _, _; [iLeft|iRight]; done.
-    Qed.
-
-    Lemma sem_typed_vexp (b : vgG) Γ1 Γ2 e e' ρ :
-      ⊢ sem_typed Γ1 e e' ρ ℕ Γ2 -∗
-      sem_typed Γ1 (vexp (vgval b) e) (vexp (vgval b) e') ρ 𝔾 Γ2.
-    Proof using G vgg.
-      iIntros "#He !# %γ HΓ1 /=".
-      iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
-      iApply (brel_wand with "[HΓ1]"); first by iApply "He".
-      iIntros "!# % % (Hn & HΓ2) /=". iDestruct "Hn" as (n) "(-> & ->)".
-      iApply (brel_exp_l []). iApply (brel_exp_r []).
-      iApply brel_value. iIntros "$ !>". iFrame. by iExists _.
-    Qed.
-
-
-    (* Like [C_lazy]: [sample_or_load] captures copies of the tape and the
-     cache, and Bob reads the cache directly. *)
-    Lemma F_KE_body_typed :
-      ⊢ ∀ (θ θG : sem_row Σ),
-          sem_typed [("f", (∀ᵣ θ₁, gk θ₁ -{ sem_row_union (¡ θ₁) θ }-∘ 𝟙)%T); ("effs", leakI θG)]
-            F_KE_body F_KE_body (sem_row_union (¡θG)%R θ) (𝟙)%T [].
-    Proof using All.
-      iIntros (θ θG). rewrite /F_KE_body /samplelbl.
-      iApplyT sem_typed_pair_elim; first typed_var.
-      iApplyT sem_typed_let; first (iApplyT sem_typed_alloctape; iApplyT sem_typed_int').
-      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
-      (* [sample_or_load] captures copies of the tape and the cache. *)
-      iApplyT sem_typed_let.
-      { iApplyT (sem_typed_sub_env _ ([("γ", _); ("lc", _)] ++ [("lc", _); ("γ", _); ("doLeakSend", _); ("doLeakRecv", _); ("f", _)])).
-        { simpl. env_solve. }
-        iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _]).
-        iApplyT sem_oval_typed_ufun. simpl.
-        iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
-        iApplyT (sem_typed_match_split [] []).
-        - iApplyT sem_typed_load_cpy. typed_var_copy.
-        - iApply env_le_refl.
-        - iApplyT sem_typed_let.
-          { iApplyT sem_typed_let; first iApplyT sem_typed_unit'.
-            iApplyT sem_typed_rand; [typed_var_copy|iApplyT sem_typed_int']. }
-          iApplyT sem_typed_seq.
-          { iApplyT sem_typed_store_cpy_gen.
-            2: { iApplyT sem_typed_injr. typed_var_copy. }
-            typed_var_copy. }
-          typed_var.
-        - iApply env_le_refl.
-        - iApply env_le_refl.
-        - typed_var.
-        - iApply env_le_refl. }
-      iApply sem_typed_effect_gen. iIntros (l1 l2). simpl.
-      iApplyT sem_typed_let.
-      { iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []).
-        iApplyT sem_oval_typed_ufun.
-        iApply (sem_typed_do_const OS ⟨⟩%R (l1, l2) (𝟙 + 𝟙)%T (Option 𝔾)%T).
-        iApply sem_typed_sub_nil. iApply sem_typed_var. }
-      iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
-      iApplyT (sem_typed_sub_env _ ([("doGK", _); ("f", _)]
-                                      ++ [("sample_or_load", _); ("lc", _); ("doLeakSend", _); ("doLeakRecv", _)])).
-      { simpl. env_solve. }
-      iApplyT (sem_typed_deep_handler_OS (l1, l2) (λ _, 𝟙 + 𝟙)%T (λ _, Option 𝔾)%T).
-      - (* The client call [f doGK], at [¡θ₁ ∪ θ ≤ θ₁ ∪ θ]. *)
-        iApplyT sem_typed_app_fun_nil.
-        2: typed_var.
-        2: { iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst. }
-        iApply row_le_trans; first iApplyT row_le_union'.
-        + iApply row_le_mfbang_elim.
-        + iApply row_le_refl.
-        + row_le_submseteq.
-      - iIntros (?). simpl.
-        iApplyT (sem_typed_match_split [] []).
-        + typed_var.
-        + iApply env_le_refl.
-        + (* Alice: draw (or load) the exponent, leak a send and a receive. *)
-          iApplyT sem_typed_let.
-          { iApplyT sem_typed_app_fun_nil; [iApply row_le_nil|iApplyT sem_typed_unit'|].
-            iApplyT sem_typed_sub_ty; [iApply ty_le_u2aarr|typed_var_copy]. }
-          iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; typed_var).
-          iApplyT sem_typed_seq.
-          { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party true)|typed_leak_fun]. }
-          iApplyT sem_typed_let.
-          { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party true)|typed_leak_fun]. }
-          iApplyT (sem_typed_match_split [] []).
-          * typed_var.
-          * iApply env_le_refl.
-          * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
-            iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
-          * iApply env_le_refl.
-          * iApply env_le_refl.
-          * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
-            iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var|typed_cont].
-          * iApply env_le_refl.
-        + iApply env_le_refl.
-        + iApply env_le_refl.
-        + (* Bob: leak a receive and a send, then read the cached exponent. *)
-          iApplyT sem_typed_let.
-          { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party false)|typed_leak_fun]. }
-          iApplyT (sem_typed_match_split [] []).
-          * typed_var.
-          * iApply env_le_refl.
-          * iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
-          * iApply env_le_refl.
-          * iApply env_le_refl.
-          * iApplyT sem_typed_sub_env; first iApply env_le_weaken.
-            iApplyT sem_typed_seq.
-            { iApplyT sem_typed_app_fun_nil; [row_le_submseteq|iApply (sem_typed_party false)|typed_leak_fun]. }
-            iApplyT (sem_typed_match_split [] []).
-            -- iApplyT sem_typed_load_cpy. typed_var_copy.
-            -- iApply env_le_refl.
-            -- iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_none|typed_cont].
-            -- iApply env_le_refl.
-            -- iApply env_le_refl.
-            -- iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; typed_var).
-               iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_injr; typed_var|typed_cont].
-            -- iApply env_le_refl.
-          * iApply env_le_refl.
-        + iApply env_le_refl.
-      - typed_var.
-        Unshelve. all: solve_typed_side.
-    Qed.
-
-
-    Lemma F_KE_lazy_alice_val_typed :
-      ⊢ sem_val_typed F_KE_lazy_alice F_KE_lazy_alice (τ__F leakI gk).
-    Proof using Type*.
-      iApply sem_typed_Rclosure. iIntros (θ).
-      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
-      iApply sem_typed_closure; first done.
-      iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ₂).
-      iApplyT sem_oval_typed_afun. simpl.
-      iApply sem_typed_swap_second. iApply F_KE_body_typed.
-      Unshelve. all: solve_typed_side.
-    Qed.
-
-    Corollary F_KE_lazy_alice_typed : ⊢ sem_typed [] F_KE_lazy_alice F_KE_lazy_alice ⊥ (τ__F leakI gk) [].
-    Proof using All.
-      iApply sem_typed_val.
-      iApply F_KE_lazy_alice_val_typed.
-    Qed. 
-
-
-  End f_ke.
 
   (* [CHAN], derived from the compatibility lemmas.  As for F_OAUTH, its
      one-shot handlers call [doGK]/[doSend]/[doRecv] while holding the
@@ -741,22 +530,6 @@ Section ske_typing.
   Section func_comp.
     Import typed_hint_modes.
 
-    Lemma func_comp_val_typed (T1 T2 T3 : sem_row Σ → sem_ty Σ) :
-      ⊢ ⊨ᵥ func_comp ≤ func_comp :
-        ((∀ᵣ θ, T2 θ ⊸ T3 θ) ⊸ (∀ᵣ θ, T1 θ ⊸ T2 θ) ⊸ (∀ᵣ θ, T1 θ ⊸ T3 θ))%T.
-    Proof.
-      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
-      iApply sem_typed_closure; first done.
-      iApply (sem_typed_oval _ [_]). iApplyT sem_oval_typed_afun.
-      iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
-      iApplyT sem_oval_typed_afun. simpl.
-      iApplyT sem_typed_app_fun_nil; first iApply row_le_refl.
-      - iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|typed_var|].
-        iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst.
-      - iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst.
-        Unshelve. all: solve_typed_side.
-    Qed.
-
     Lemma func_comp_OS_typed (F J : expr) (A B B' : sem_row Σ → sem_ty Σ) :
       ⊢ sem_typed [] F F ⊥ (τ__F A B) [] -∗ sem_typed [] J J ⊥ (τ__F B B') []-∗
       sem_typed [] (F ∘f J) (F ∘f J) ⊥ (τ__F A B') [].
@@ -820,7 +593,7 @@ Section ske_typing.
         (∀ᵣ θ, τ__f θ cchan gk ⊸ τ__f θ oaleak leakI)%T [].
   Proof using All.
     iApply sem_typed_app_nil; last (iApply sem_typed_val; iApply F_OAUTH_val_typed).
-    iApply sem_typed_app_nil; last (iApply sem_typed_val; iApply F_KE_lazy_alice_val_typed).
+    iApply sem_typed_app_nil; last iApply F_KE_lazy_alice_typed.
     iApply sem_typed_val. iApply right_comp_val_typed.
   Qed.
 

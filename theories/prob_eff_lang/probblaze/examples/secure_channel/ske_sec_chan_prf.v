@@ -82,8 +82,7 @@ Section schan_security.
     ⊢ sem_typed [] game1 sc_real ⊥ τsc [].
   Proof using All with (brel_pures'; repeat foldkont). 
     iIntros (?) "!# _". 
-    rewrite subst_map_is_closed_empty; last is_closed.
-    2 : admit.
+    change (subst_map _ game1) with game1.
     rewrite subst_map_is_closed_empty; last is_closed.
     rewrite /sc_real /game1 /reduction /CHAN /RED_CHAN /F_OAUTH /F_KE_lazy_alice /parallel_composition /enc_real_tape /func_comp...
 
@@ -503,15 +502,14 @@ Section schan_security.
         iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
         iDestruct "HQ" as "[HQ _]".
         iApply "HQ".
-  Admitted. 
+  Qed.
 
   Lemma sc_real_game1 : 
     ⊢ sem_typed [] sc_real game1 ⊥ τsc [].
   Proof using All with (brel_pures'; repeat foldkont). 
     iIntros (?) "!# _". 
     rewrite subst_map_is_closed_empty; last is_closed.
-    rewrite subst_map_is_closed_empty; last is_closed.
-    2 : admit.
+    change (subst_map _ game1) with game1.
     rewrite /sc_real /game1 /reduction /CHAN /RED_CHAN /F_OAUTH /F_KE_lazy_alice /parallel_composition /enc_real_tape /func_comp...
 
     brel_alloctape_l γl as "Hγl"...
@@ -909,6 +907,6 @@ Section schan_security.
         iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
         iDestruct "HQ" as "[HQ _]".
         iApply "HQ".
-  Admitted. 
+  Qed.
 
 End schan_security.
