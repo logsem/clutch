@@ -1484,6 +1484,24 @@ Inductive typed :
   Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2 →
   Δ .| <[ x :=c κ ]> Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2
 
+(* Unlike typing [let] as [Rec_typed] + [App_typed], the body sees the whole
+   remaining context [Γ2], so it may use affine variables bound outside. *)
+| Let_typed Δ Γ1 Γ2 Γ3 (x : binder) e1 e2 ρ τ κ :
+  x ∉ ctx_dom Γ2 → x ∉ ctx_dom Γ3 →
+  Δ .| Γ1 ⊢ₜ e1 : ρ : τ ⊣ Γ2 →
+  Δ .| <[ x :=c τ ]> Γ2 ⊢ₜ e2 : ρ : κ ⊣ Γ3 →
+  Δ .| Γ1 ⊢ₜ (let: x := e1 in e2) : ρ : κ ⊣ Γ3
+
+(* Destructuring [let,] for pairs whose components may be affine; its
+   desugaring projects the pair variable twice, which [Contraction_typed]
+   only allows for [MultiT] pairs. *)
+| LetPair_typed Δ Γ1 Γ2 Γ3 (x1 x2 : string) e1 e2 ρ τ1 τ2 κ :
+  x1 ∉ ctx_dom Γ2 → x2 ∉ ctx_dom Γ2 →
+  x1 ∉ ctx_dom Γ3 → x2 ∉ ctx_dom Γ3 → x1 ≠ x2 →
+  Δ .| Γ1 ⊢ₜ e1 : ρ : τ1 * τ2 ⊣ Γ2 →
+  Δ .| <[ x1 :=c τ1 ]> <[ x2 :=c τ2 ]> Γ2 ⊢ₜ e2 : ρ : κ ⊣ Γ3 →
+  Δ .| Γ1 ⊢ₜ (let, (x1, x2) := e1 in e2) : ρ : κ ⊣ Γ3
+
 (* Pure_typed is used for value restriction, but allowing a bit more freedom. Can be extended later to cover all pure expressions *)
 (* Additionally I think we need an effect name environment for this typing relation as well *)
 with pure_typed  : stringmap unit → ctx → expr → type → Prop :=

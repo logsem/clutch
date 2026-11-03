@@ -1141,5 +1141,46 @@ Qed.
       * iApply sem_typed_sub_env; [iApply env_le_weaken|iApply "He1e2"].
         iPureIntro. auto.
   Qed.
-  
+
+  Lemma interp_c_let Δ Γ1 Γ2 Γ3 (x : binder) e1 e2 ρ τ κ :
+    x ∉ ctx_dom Γ2 → x ∉ ctx_dom Γ3 →
+    ⊢ (〈Δ; Γ1〉 ⊨ₜ e1 ≤log≤ e1 :ρ:τ⫤Γ2) -∗
+      (〈Δ; <[ x :=c τ ]> Γ2〉 ⊨ₜ e2 ≤log≤ e2 :ρ:κ⫤Γ3) -∗
+      (〈Δ; Γ1〉 ⊨ₜ (let: x := e1 in e2) ≤log≤ (let: x := e1 in e2) :ρ:κ⫤Γ3).
+  Proof.
+    iIntros (Hx2 Hx3) "#He1 #He2". iIntros (η μ δ ξ Hδ).
+    iSpecialize ("He1" $! η μ δ ξ Hδ). iSpecialize ("He2" $! η μ δ ξ Hδ).
+    rewrite !lbl_resolve_app !lbl_resolve_rec.
+    iApply (sem_typed_let (interp._ty η μ δ τ ξ) _ _ _
+              ((λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ2)).
+    - destruct x as [|x]; [done|]. by apply ctx_dom_env_dom.
+    - destruct x as [|x]; [done|]. by apply ctx_dom_env_dom.
+    - iApply "He1".
+    - destruct x; iApply "He2".
+  Qed.
+
+  Lemma interp_c_letpair Δ Γ1 Γ2 Γ3 (x1 x2 : string) e1 e2 ρ τ1 τ2 κ :
+    x1 ∉ ctx_dom Γ2 → x2 ∉ ctx_dom Γ2 →
+    x1 ∉ ctx_dom Γ3 → x2 ∉ ctx_dom Γ3 → x1 ≠ x2 →
+    ⊢ (〈Δ; Γ1〉 ⊨ₜ e1 ≤log≤ e1 :ρ:(τ1 * τ2)⫤Γ2) -∗
+      (〈Δ; <[ x1 :=c τ1 ]> <[ x2 :=c τ2 ]> Γ2〉 ⊨ₜ e2 ≤log≤ e2 :ρ:κ⫤Γ3) -∗
+      (〈Δ; Γ1〉 ⊨ₜ (let, (x1, x2) := e1 in e2) ≤log≤ (let, (x1, x2) := e1 in e2) :ρ:κ⫤Γ3).
+  Proof.
+    iIntros (Hx12 Hx22 Hx13 Hx23 Hx) "#He1 #He2". iIntros (η μ δ ξ Hδ).
+    iSpecialize ("He1" $! η μ δ ξ Hδ). iSpecialize ("He2" $! η μ δ ξ Hδ).
+    repeat first [ rewrite !lbl_resolve_app | rewrite !lbl_resolve_rec
+                 | rewrite !lbl_resolve_fst | rewrite !lbl_resolve_snd
+                 | rewrite !lbl_resolve_var ].
+    iApply (sem_typed_pair_elim (interp._ty η μ δ τ1 ξ) _ (interp._ty η μ δ τ2 ξ) _ _
+              ((λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ2)
+              ((λ '(s, τ), (s, interp._ty η μ δ τ ξ)) <$> Γ3)).
+    - by apply ctx_dom_env_dom.
+    - by apply ctx_dom_env_dom.
+    - by apply ctx_dom_env_dom.
+    - by apply ctx_dom_env_dom.
+    - done.
+    - iApply "He1".
+    - iApply "He2".
+  Qed.
+
 End compatibility_interp.

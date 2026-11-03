@@ -62,10 +62,21 @@ Proof.
         end;
       try reflexivity.
     (* Remaining goals (order-independent): [Pure] (delegate), [Effect]
-       (fresh binder), and [Do]/[Handle] with in-scope effect NAME [s]
-       ([Δ !! s = Some ()], so [s ∉ dom rm]).  Hypotheses matched by shape. *)
+       (fresh binder), [Do]/[Handle] with in-scope effect NAME [s]
+       ([Δ !! s = Some ()], so [s ∉ dom rm]), and [LetPair], whose
+       desugaring nests [Rec]s deeper than one rewrite pass reaches.
+       Hypotheses matched by shape. *)
     all: first
-      [ (* Pure *) match goal with
+      [ (* LetPair *)
+        repeat first [ rewrite lbl_resolve_app | rewrite lbl_resolve_rec
+                     | rewrite lbl_resolve_fst | rewrite lbl_resolve_snd
+                     | rewrite lbl_resolve_var ];
+        repeat match goal with
+            IH : ∀ rm, dom rm ## dom _ → lbl_resolve rm ?e0 = ?e0
+            |- context[lbl_resolve _ ?e0] => erewrite IH by eassumption
+          end;
+        reflexivity
+      | (* Pure *) match goal with
           Hp : _ ..| _ ⊢ₚ _ : _ |- _ => by rewrite (pure_lbl_resolve_id _ _ _ _ Hp)
         end
       | (* Effect (fresh binder [s]) *)
@@ -479,6 +490,16 @@ Proof.
       iApply interp_c_weakening.
       apply fundamental in Ht.
       iPoseProof Ht as "Ht". by iApply "Ht".
+    + (* Let_typed *)
+      (* Apply to the IHs first so that they fix [Γ2] and [τ]; solving the
+         freshness premises first would guess them wrongly. *)
+      apply fundamental in Ht1, Ht2.
+      iPoseProof Ht1 as "Ht1". iPoseProof Ht2 as "Ht2".
+      by iApply (interp_c_let with "Ht1 Ht2").
+    + (* LetPair_typed *)
+      apply fundamental in Ht1, Ht2.
+      iPoseProof Ht1 as "Ht1". iPoseProof Ht2 as "Ht2".
+      by iApply (interp_c_letpair with "Ht1 Ht2").
   - intros Hv. destruct Hv; iIntros (η μ δ ξ).
     + (* Unit_val_typed *) rewrite /sem_val_typed /=. iModIntro. done.
     + (* Int_val_typed *) rewrite /sem_val_typed /=. iModIntro. eauto.
