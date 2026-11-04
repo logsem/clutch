@@ -50,6 +50,7 @@ Section ske_comp_verification.
   #[local] Notation τ := (@ske_composition_defs.τ Σ _ vg mt ct ms cs msg cipher).
 
   Import valgroup_notation valgroup_tactics fingroup.
+  #[local] Existing Instance dhke_typing.multi_ty_group.
 
   (* [chan] : authenticated channel — group send, group recv. *)
   Definition chan (θ : sem_row Σ) : sem_ty Σ :=
@@ -61,7 +62,7 @@ Section ske_comp_verification.
      one message reference per direction. *)
   Section f_auth.
     Import typed_hint_modes.
-    #[local] Existing Instance multi_ty_group.
+
 
     Lemma fauth_send_handler_typed (θ₂ ρh : sem_row Σ) :
       ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
@@ -217,7 +218,7 @@ Section ske_comp_verification.
     Qed.
 
     Lemma F_AUTH_val_typed :
-      ⊢ sem_val_typed F_AUTH F_AUTH (τ__FO aleak chan).
+      ⊢ sem_val_typed F_AUTH F_AUTH (τ__F aleak chan).
     Proof using Type*.
       iApply sem_typed_Rclosure. iIntros (θ).
       iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
