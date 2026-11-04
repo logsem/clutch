@@ -31,6 +31,8 @@ Section ske_comp_closed.
   (* [is_closed] leaves the closedness of the scheme's [enc]/[dec] open. *)
   Lemma CHAN_closed : is_closed_expr ∅ CHAN.
   Proof. is_closed. Qed.
+  Lemma reduction_closed : is_closed_expr ∅ reduction.
+  Proof. is_closed. Qed.
   Lemma func_comp_closed : is_closed_expr ∅ func_comp.
   Proof. is_closed. Qed.
   Lemma right_composition_closed : is_closed_expr ∅ parallel_composition.
@@ -38,11 +40,11 @@ Section ske_comp_closed.
   Lemma functionality_composition_closed : is_closed_expr ∅ functionality_composition.
   Proof. is_closed. Qed.
 
-  #[local] Opaque F_OAUTH F_AUTH DH_SIM F_KE_lazy_alice DH_KE C_DH_real C_DH_rand CHAN
+  #[local] Opaque F_OAUTH F_AUTH DH_SIM F_KE_lazy_alice DH_KE C_DH_real C_DH_rand CHAN reduction
     func_comp parallel_composition functionality_composition.
   #[local] Hint Constants Opaque : ske_comp_closed.
   #[local] Hint Resolve F_OAUTH_closed F_AUTH_closed DH_SIM_closed FKE_closed DH_KE_closed
-    C_DH_real_closed C_DH_rand_closed CHAN_closed func_comp_closed right_composition_closed
+    C_DH_real_closed C_DH_rand_closed CHAN_closed reduction_closed func_comp_closed right_composition_closed
     functionality_composition_closed : ske_comp_closed.
   #[local] Hint Extern 1 (Is_true (is_closed_val ?v)) =>
     change (Is_true (is_closed_expr ∅ (Val v))) : ske_comp_closed.
@@ -84,7 +86,7 @@ Section ske_comp_closed.
   Proof. is_closed_hint. Qed.
 
   Lemma game2_closed : is_closed_expr ∅ game2.
-  Proof. is_closed_hint. Qed.
+  Proof. is_closed. Qed.
   Lemma sc_ideal_closed : is_closed_expr ∅ sc_ideal.
   Proof. is_closed_hint. Qed.
 
