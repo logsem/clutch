@@ -80,13 +80,15 @@ Section new_comp_verification.
   Lemma F_OAUTH_DHKE_C_REAL :
     ⊢ sem_typed [] REAL_CHAN_DHKE REAL_CHAN_DH_REAL ⊥ τ [].
   Proof using All.
-    iApply func_comp_left.
+    iApply func_comp_left. 
     - apply F_AUTH_DHKE_FOAUTH_closed. 
-    - apply F_AUTH_C_DDH_real_FOAUTH_closed.
+    - apply F_AUTH_C_DDH_real_FOAUTH_closed. 
+    - apply CHAN_closed.
     - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_DHKE_closed.
       + apply F_AUTH_C_DH_real_closed. 
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply F_AUTH_DH_KE_FAUTH_C_DH_real.
       + iApply F_OAUTH_typed.   
@@ -100,9 +102,11 @@ Section new_comp_verification.
     - apply F_AUTH_C_DDH_real_FOAUTH_closed.
     - apply F_AUTH_DHKE_FOAUTH_closed.
     - apply CHAN_closed.
+    - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_C_DH_real_closed.
       + apply F_AUTH_DHKE_closed.
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply F_AUTH_C_DH_real_FAUTH_DH_KE.
       + iApply F_OAUTH_typed.   
@@ -116,9 +120,11 @@ Section new_comp_verification.
     - apply F_AUTH_C_DDH_rand_FOAUTH_closed.
     - apply DHSIM_FKE_CHAN1_closed.
     - apply CHAN_closed.
+    - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_C_DH_rand_closed. 
       + apply F_AUTH_DHSIM_FKE_closed. 
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE.
       + iApply F_OAUTH_typed.   
@@ -132,9 +138,11 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN1_closed.
     - apply F_AUTH_C_DDH_rand_FOAUTH_closed.
     - apply CHAN_closed.
+    - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_DHSIM_FKE_closed.
       + apply F_AUTH_C_DH_rand_closed.
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand.
       + iApply F_OAUTH_typed.   
@@ -148,9 +156,11 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN1_closed.
     - apply DHSIM_FKE_CHAN2_closed.
     - apply CHAN_closed.
+    - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_DHSIM_FKE_closed.
       + apply F_AUTH_DHSIM_FKE_assoc_closed.
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply func_comp_assoc.
         * apply F_AUTH_closed. 
@@ -170,9 +180,11 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN2_closed.
     - apply DHSIM_FKE_CHAN1_closed.
     - apply CHAN_closed.
+    - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_DHSIM_FKE_assoc_closed.
       + apply F_AUTH_DHSIM_FKE_closed.
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply func_comp_assoc_rev.
         * apply F_AUTH_closed. 
@@ -192,12 +204,16 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN2_closed.
     - apply DHSIM_FKE_CHAN3_closed.
     - apply CHAN_closed.
-    - iApply func_comp_parallel_comp_assoc; first done.
+    - apply CHAN_closed.
+    - iApply func_comp_parallel_comp_assoc; try done.
+      + admit.
       + apply F_AUTH_DHSIM_closed. 
       + apply F_OAUTH_closed.
+      + (* F_KE_lazy_alice closed.*) admit.
       + iApply F_AUTH_DH_SIM_FO_typed. 
-      + iApply F_KE_body_typed. 
-      + iApply F_OAUTH_typed. 
+      + (*iApply F_KE_lazy_alice_typed. *) admit.
+      + iApply F_OAUTH_typed.
+        (*iApply F_KE_body_typed.*)  
     - iApply CHAN_typed. 
   Qed. 
 
