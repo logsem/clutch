@@ -1,7 +1,7 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import na_invariants.
 From clutch Require Import stdpp_ext.
-From clutch.prob_eff_lang.probblaze Require Import p_composition primitive_laws proofmode.
+From clutch.prob_eff_lang.probblaze Require Import comp_operators primitive_laws proofmode.
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_env sem_judgement compatibility.
@@ -225,7 +225,7 @@ Section dhke_typing.
       Unshelve. all: solve_typed_side.
   Qed.
 
-  Lemma F_AUTH_typed : ⊢ sem_typed [] F_AUTH F_AUTH ⊥ (τ__FO aleak chan) [].
+  Lemma F_AUTH_typed : ⊢ sem_typed [] F_AUTH F_AUTH ⊥ (τ__F aleak chan) [].
   Proof using Type*.
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
@@ -401,7 +401,7 @@ Section dhke_typing.
       Unshelve. all: solve_typed_side.
   Qed.
 
-  Lemma DH_SIM_typed : ⊢ sem_typed [] DH_SIM DH_SIM ⊥ (τ__FO chan leakI) [].
+  Lemma DH_SIM_typed : ⊢ sem_typed [] DH_SIM DH_SIM ⊥ (τ__F chan leakI) [].
   Proof using All.
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloctape; iApplyT sem_typed_int').
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloctape; iApplyT sem_typed_int').
@@ -455,7 +455,7 @@ Section dhke_typing.
       Unshelve. all: solve_typed_side.
   Qed.
 
-  Lemma F_KE_lazy_alice_typed : ⊢ sem_typed [] F_KE_lazy_alice F_KE_lazy_alice ⊥ (τ__FO leakI gk) [].
+  Lemma F_KE_lazy_alice_typed : ⊢ sem_typed [] F_KE_lazy_alice F_KE_lazy_alice ⊥ (τ__F leakI gk) [].
   Proof using All.
     rewrite /F_KE_lazy_alice /samplelbl.
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloctape; iApplyT sem_typed_int').
@@ -559,7 +559,7 @@ Section dhke_typing.
   Qed.
 
   Lemma C_lazy_val_typed :
-    ⊢ sem_val_typed C_lazy C_lazy ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾)) → τ__FO chan gk)%T.
+    ⊢ sem_val_typed C_lazy C_lazy ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾)) → τ__F chan gk)%T.
   Proof using Type*.
     iApply sem_typed_closure; first done. simpl.
     iApplyT sem_typed_let.

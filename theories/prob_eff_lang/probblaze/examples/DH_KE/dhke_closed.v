@@ -1,4 +1,4 @@
-From clutch.prob_eff_lang.probblaze Require Import logic p_composition.
+From clutch.prob_eff_lang.probblaze Require Import logic comp_operators.
 From clutch.prob_eff_lang.probblaze.examples Require Import valgroup def_dhke.
 
 Section dhke_closed.

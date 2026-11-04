@@ -5,7 +5,7 @@ From clutch.prob_eff_lang.probblaze Require Import sem_types sem_judgement sem_r
 From clutch.prob_eff_lang.probblaze Require Import 
   dhke_channel_lazy_results
   dhke_channel_authchan_new
-  dhke_common adequacy
+  dhke_common dhke_typing adequacy
   comp_operators.
 
 Section adv_dhke.

@@ -53,11 +53,11 @@ Section ske_typing.
   (* ----------------------------------------------------------------- *)
   (* [F_OAUTH_typed], derived from the compatibility lemmas.            *)
   (*                                                                    *)
-  (* The type is [τ__FO], not [τ__F]: in both handlers the one-shot     *)
+  (* [τ__F] puts the leak rows under [¡]: in both handlers the one-shot *)
   (* continuation [k] is still live when F_OAUTH calls the leak         *)
   (* functions ([doLeakSend (m,dst);; k ()], [let r := doLeakRecv from  *)
-  (* in … k …]).  Under [τ__F] a context could handle the leak effect   *)
-  (* multi-shot and make [k] run twice; under [τ__FO] the body runs at  *)
+  (* in … k …]).  Without [¡] a context could handle the leak effect    *)
+  (* multi-shot and make [k] run twice; under [τ__F] the body runs at   *)
   (* [¡θ₂ ∪ θ], and [¡θ₂] is OnceR, so [k] may be held across the call. *)
   (* ----------------------------------------------------------------- *)
 
@@ -525,7 +525,7 @@ Section ske_typing.
 
 
   (* Generic composition of two functionality transformers:
-     [F : τ__FO A B] and [J : τ__FO B B'] compose to [F ∘f J : τ__FO A B'],
+     [F : τ__F A B] and [J : τ__F B B'] compose to [F ∘f J : τ__F A B'],
      an instance of the typing of the [func_comp] closure. *)
   Section func_comp.
     Import typed_hint_modes.
@@ -545,7 +545,7 @@ Section ske_typing.
   Section right_comp.
     Import typed_hint_modes.
 
-    (* [F₁ ||ᵣ F₂] for two [τ__FO] functionalities: [F₁] is instantiated at
+    (* [F₁ ||ᵣ F₂] for two [τ__F] functionalities: [F₁] is instantiated at
      [¡θ1 ∪ θ] and [F₂] at [¡θh ∪ θ], where [θh] is [F₁]'s client row, so
      that every row step is a permutation of union components. *)
     Lemma right_comp_val_typed (τ1 τ1' τ2 τ2' : sem_row Σ → sem_ty Σ) :
