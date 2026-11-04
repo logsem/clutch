@@ -18,7 +18,10 @@ Local Notation "'cval'" := syntax.val.
 Class val_group :=
   Val_group { vgG : finGroupType
             ; vgval : vgG → cval
-            ; vgval_inj : Inj eq eq vgval }.
+            ; vgval_inj : Inj eq eq vgval
+            ; vgval_closed : ∀ x : vgG, is_closed_val (vgval x) }.
+
+#[export] Hint Resolve vgval_closed : core.
 
 (* Both of the below seem necessary since there is a subtle difference in the
    domain type DOM, despite the two being convertible. *)

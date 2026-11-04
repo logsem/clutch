@@ -34,10 +34,14 @@ Section Zpx.
     apply Nat2Z.inj, ord_inj in hh. exact hh.
   Qed.
 
+  Lemma vgval_p_closed (n : Zpx) : is_closed_val (vgval_p n).
+  Proof. done. Qed.
+
   Instance vg_p : val_group :=
     {| vgG := Zpx
     ; vgval := vgval_p
-    ; vgval_inj := vgval_inj_p |}.
+    ; vgval_inj := vgval_inj_p
+    ; vgval_closed := vgval_p_closed |}.
 
   Import valgroup_notation.
 

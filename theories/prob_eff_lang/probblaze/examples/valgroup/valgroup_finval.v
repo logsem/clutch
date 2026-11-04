@@ -35,6 +35,7 @@ Section valgroup_finval.
   Program Definition vg_fvt : fin_val_type :=
     {| fvT := fingroup_FinGroup__to__fintype_Finite vgG ; fvtval := vgval |}.
   Next Obligation. exact vgval_inj. Defined.
+  Next Obligation. exact vgval_closed. Defined.
 
   (* NB [card] is qualified: [fintype] is imported above and shadows it. *)
   Lemma vg_fvt_card : @fin_val_type.card vg_fvt = S (S n'').

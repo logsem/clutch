@@ -19,6 +19,9 @@ Section fin_val_type_prod.
     intros [x1 y1] [x2 y2] [= H1 H2] => /=.
     by rewrite (fvtval_inj _ _ H1) (fvtval_inj _ _ H2).
   Qed.
+  Next Obligation.
+    intros [x y] => /=. apply andb_prop_intro. split; apply fvtval_closed.
+  Qed.
 
   Lemma prod_fvt_card :
     fin_val_type.card (fin_val_type := prod_fvt) =

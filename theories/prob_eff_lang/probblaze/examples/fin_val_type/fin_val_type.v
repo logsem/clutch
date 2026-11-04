@@ -9,7 +9,10 @@ Class fin_val_type :=
   Fin_val_type { fvT : finType
                ; fvtval : fvT → cval
                ; card := #|{: fvT}|
-               ; fvtval_inj : Inj eq eq fvtval }.
+               ; fvtval_inj : Inj eq eq fvtval
+               ; fvtval_closed : ∀ x : fvT, is_closed_val (fvtval x) }.
+
+#[export] Hint Resolve fvtval_closed : core.
 
 #[warning="-uniform-inheritance"] Coercion fvtval_as {fvt : fin_val_type}
   (x : fvT) : cval := fvtval x.
