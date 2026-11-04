@@ -58,7 +58,15 @@ Section handlee_verification.
    iIntros "!>" (L f1 f2) "Hff".
    brel_pures_l 1.
    brel_pures_r 1.
-   iApply "HF". iApply ("HD" with "Hff").
+   iApply "HF". 
+   brel_pures'.
+   iModIntro.
+   iIntros (????).
+   brel_pures'.
+   iApply (brel_bind [AppLCtx _] [AppLCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+   assert (to_iThyIfMono OS [] = []) as <- by done.
+   iApply (brel_mono OS with "[][HD Hff]"); [iApply to_iThy_le_bot|by iApply "HD"|simpl].
+   iIntros (??) "H". iApply "H".
   Qed.
   
   (* Verification of F_AUTH[C[DH_real]] ≤ F_AUTH[DH_KE] *)
@@ -86,7 +94,15 @@ Section handlee_verification.
     iIntros "!>" (L f1 f2) "Hff".
     brel_pures_l 1.
     brel_pures_r 1.
-    iApply "HF". iApply ("HD" with "Hff").
+    iApply "HF". 
+    brel_pures'.
+    iModIntro.
+    iIntros (????).
+    brel_pures'.
+    iApply (brel_bind [AppLCtx _] [AppLCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][HD Hff]"); [iApply to_iThy_le_bot|by iApply "HD"|simpl].
+    iIntros (??) "H". iApply "H".
   Qed.
   
   (* Verification of F_AUTH[DH_SIM[F_KE]] ≤ F_AUTH[C[DH_rand]] *)
@@ -115,7 +131,15 @@ Section handlee_verification.
     iIntros "!>" (L f1 f2) "Hff".
     brel_pures_l 1.
     brel_pures_r 1.
-    iApply "HF". iApply ("HD" with "Hff").
+    iApply "HF".
+    brel_pures'.
+    iModIntro.
+    iIntros (????).
+    brel_pures'.
+    iApply (brel_bind [AppLCtx _] [AppLCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][HD Hff]"); [iApply to_iThy_le_bot|by iApply "HD"|simpl].
+    iIntros (??) "H". iApply "H".
   Qed.
   
   (* Verification of F_AUTH[C[DH_rand]] ≤ F_AUTH[DH_SIM[F_KE]] *)
@@ -143,7 +167,15 @@ Section handlee_verification.
     iIntros "!>" (L f1 f2) "Hff".
     brel_pures_l 1.
     brel_pures_r 1.
-    iApply "HF". iApply ("HD" with "Hff").
+    iApply "HF". 
+    brel_pures'.
+    iModIntro.
+    iIntros (????).
+    brel_pures'.
+    iApply (brel_bind [AppLCtx _] [AppLCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS with "[][HD Hff]"); [iApply to_iThy_le_bot|by iApply "HD"|simpl].
+    iIntros (??) "H". iApply "H".
   Qed.
   
   (* Rewriting to match top-level statements *)
