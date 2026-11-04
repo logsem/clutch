@@ -31,7 +31,8 @@ Section ske_comp_closed.
   (* [is_closed] leaves the closedness of the scheme's [enc]/[dec] open. *)
   Lemma CHAN_closed : is_closed_expr ∅ CHAN.
   Proof. is_closed. Qed.
-  Lemma reduction_closed : is_closed_expr ∅ reduction.
+  (* Pinned: unpinned, [reduction] resolves to the cipher space [ct]/[cs]. *)
+  Lemma reduction_closed : is_closed_expr ∅ (@reduction _ _ _ mt ms).
   Proof. is_closed. Qed.
   Lemma func_comp_closed : is_closed_expr ∅ func_comp.
   Proof. is_closed. Qed.
@@ -93,6 +94,6 @@ Section ske_comp_closed.
   Lemma sc_real_closed : is_closed_expr ∅ sc_real.
   Proof. is_closed_hint. Qed.
   Lemma game1_closed : is_closed_expr ∅ game1.
-  Proof. is_closed. Admitted.
+  Proof. is_closed_hint. Qed.
 
 End ske_comp_closed.
