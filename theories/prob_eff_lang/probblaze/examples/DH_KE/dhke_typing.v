@@ -56,9 +56,47 @@ Section dhke_typing.
     iApply brel_value. iIntros "$ !>". iFrame. by iExists _.
   Qed.
 
-  Lemma func_comp_val_typed (T1 T2 T3 : sem_row Σ → sem_ty Σ) :
+  (* [func_comp] hands [F] the client [λ r, G f r]: the application [G f] is
+     delayed behind an η-expansion. [EtaT τ] says that this delay preserves
+     [τ]. It holds for one-shot arrows and is closed under [∀ᵣ], so it covers
+     both [τ__F]'s client (one row binder) and [τ__f] (two row binders). *)
+  Class EtaT (τ : sem_ty Σ) := {
+    eta_ty : ⊢ ∀ g1 g2 x1 x2 : val,
+      BREL g1 x1 ≤ g2 x2 <| [] |> {{ τ }} -∗ τ (λ: "r", g1 x1 "r")%V (λ: "r", g2 x2 "r")%V
+  }.
+
+  Global Instance eta_ty_arr ρ τ κ : EtaT (τ -{ ρ }-∘ κ).
+  Proof.
+    constructor. iIntros (g1 g2 x1 x2) "Hg". rewrite /sem_ty_arr /=.
+    iIntros (w1 w2) "Hw". brel_pures_l; brel_pures_r.
+    iApply (brel_bind [AppLCtx _] [AppLCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
+    assert (to_iThyIfMono OS [] = []) as <- by done.
+    iApply (brel_mono OS _ _ [] [] with "[] Hg"); first iApply to_iThy_le_refl.
+    simpl. iIntros (v1 v2) "Hv". by iApply "Hv".
+  Qed.
+
+  Global Instance eta_ty_row_forall (C : sem_row Σ → sem_ty Σ) `{!∀ θ, EtaT (C θ)} :
+    EtaT (∀ᵣ θ, C θ).
+  Proof.
+    constructor. iIntros (g1 g2 x1 x2) "Hg". rewrite /sem_ty_row_forall /=. iIntros (θ).
+    iApply eta_ty. iApply (brel_wand with "Hg"). iIntros "!# % % H". iApply "H".
+  Qed.
+
+  Lemma sem_oval_typed_eta (g x : string) τ M `{!EtaT M} :
+    g ≠ "r" → x ≠ "r" →
+    ⊢ sem_oval_typed [(x, τ); (g, τ ⊸ M)] (λ: "r", g x "r") (λ: "r", g x "r") M.
+  Proof.
+    iIntros (Hg Hx) "!# %vs HΓ /=".
+    rewrite !env_sem_typed_cons env_sem_typed_empty.
+    iDestruct "HΓ" as "([%x1 [%x2 [%Hvx Hx]]] & [%g1 [%g2 [%Hvg Hg]]] & _)".
+    simplify_map_eq. rewrite /pure_weakestpre.prel /=. iExists _, _, 1%nat, 1%nat.
+    iSplit; first (iPureIntro; repeat split; by apply pure_recc).
+    iApply eta_ty. by iApply "Hg".
+  Qed.
+
+  Lemma func_comp_val_typed (T1 M T4 : sem_row Σ → sem_ty Σ) `{!∀ θ, EtaT (M θ)} :
     ⊢ ⊨ᵥ func_comp ≤ func_comp :
-      ((∀ᵣ θ, T2 θ ⊸ T3 θ) ⊸ (∀ᵣ θ, T1 θ ⊸ T2 θ) ⊸ (∀ᵣ θ, T1 θ ⊸ T3 θ))%T.
+      ((∀ᵣ θ, M θ ⊸ T4 θ) ⊸ (∀ᵣ θ, T1 θ ⊸ M θ) ⊸ (∀ᵣ θ, T1 θ ⊸ T4 θ))%T.
   Proof.
     iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
     iApply sem_typed_closure; first done.
@@ -66,8 +104,11 @@ Section dhke_typing.
     iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
     iApplyT sem_oval_typed_afun. simpl.
     iApplyT sem_typed_app_fun_nil; first iApply row_le_refl.
-    - iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|typed_var|].
-      iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst.
+    - iApplyT (sem_typed_sub_env _ [("f", T1 θ); ("G", T1 θ ⊸ M θ); ("F", _)]).
+      { iApply env_le_cons; last iApply ty_le_refl.
+        iApply env_le_cons; [iApply env_le_refl|iApply ty_le_row_forall_inst]. }
+      iApply (sem_typed_oval _ [("f", _); ("G", _)] [("F", _)]).
+      by iApply sem_oval_typed_eta.
     - iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst.
       Unshelve. all: solve_typed_side.
   Qed.
