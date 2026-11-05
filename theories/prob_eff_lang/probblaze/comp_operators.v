@@ -285,7 +285,7 @@ Section composition_operators.
     is_closed_expr ∅ J ->
     is_closed_expr ∅ G ->
     ⊢ sem_typed [] F F ⊥ (τ__F τ2 τG)%T [] -∗
-    sem_typed [] G G ⊥ (∀ᵣ θ, ∀ᵣ θG, (τ__f' θ τ1') ⊸ (τG θG) -{sem_row_union (¡ θG)%R θ}-∘ 𝟙)%T [] -∗
+    sem_typed [] G G ⊥ (∀ᵣ θ, (τ__f' θ τ1') ⊸ (∀ᵣ θG, (τG θG) -{sem_row_union (¡ θG)%R θ}-∘ 𝟙))%T [] -∗
     (*sem_typed [] G G ⊥ (τ__F τG τ1')%T [] -∗*)
     sem_typed [] J J ⊥ (τ__F τ1 τ2')%T [] -∗
     sem_typed [] ((F ∘f G) ||ᵣ J) (F ∘F (G ||ᵣ J)) ⊥ (∀ᵣ θ, (τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
@@ -325,7 +325,7 @@ Section composition_operators.
     rewrite -> Hr2. 
     brel_pures_l 3.  
     brel_pures_r. 
-    brel_pures'.   
+    brel_pures'.    
     iAssert ((∀ᵣ θG, τG θG -{ sem_row_union (¡ θG)%R (sem_row_union (¡ θ1)%R θ) }-∘ 𝟙)%T
                 (λ: "r", vG1 (λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂","h₁")) w1)%V "r")%V                 
                (λ: "rG", (λ: "f" "r",
@@ -335,7 +335,7 @@ Section composition_operators.
                             vG2 (λ: "h₁", vJ2 (λ: "h₂", "f" ("h₂","h₁")) "r₁") "r₂")%V f2 (w1',"rG"))%V) with "[Hτ1 Hff HJ1J2 HG1G2]" as "Hgg".
     { iIntros (θG rg1 rg2) "HτG".
       brel_pures'.
-      iSpecialize ("HG1G2" $! (sem_row_union (¡ θ1)%R θ) θG). 
+      iSpecialize ("HG1G2" $! (sem_row_union (¡ θ1)%R θ)). (* θG). *)
       iAssert ((τ__f' (sem_row_union (¡ θ1)%R θ) τ1' (λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂","h₁")) w1)%V (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂","h₁")) w1')%V)) with "[Hff Hτ1 HJ1J2]" as "Hff".
       { iIntros (θ1' h1 h1') "Hhh". brel_pures'.
         iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
@@ -385,7 +385,7 @@ Section composition_operators.
     is_closed_expr ∅ J ->
     is_closed_expr ∅ G ->
     ⊢ sem_typed [] F F ⊥ (τ__F τ2 τG)%T [] -∗
-    sem_typed [] G G ⊥ (∀ᵣ θ, ∀ᵣ θG, (τ__f' θ τ1') ⊸ (τG θG) -{sem_row_union (¡ θG)%R θ}-∘ 𝟙)%T [] -∗
+    sem_typed [] G G ⊥ (∀ᵣ θ, (τ__f' θ τ1') ⊸ (∀ᵣ θG, (τG θG) -{sem_row_union (¡ θG)%R θ}-∘ 𝟙))%T [] -∗
     sem_typed [] J J ⊥ (τ__F τ1 τ2')%T [] -∗
     sem_typed [] (F ∘F (G ||ᵣ J))
     ((F ∘f G) ||ᵣ J)  ⊥ (∀ᵣ θ,(τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].          
@@ -437,7 +437,7 @@ Section composition_operators.
                (λ: "r", vG2 (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂","h₁")) w1')%V "r")%V) with "[Hτ1 Hff HJ1J2 HG1G2]" as "Hgg".
     { iIntros (θG rg1 rg2) "HτG".
       brel_pures'.
-      iSpecialize ("HG1G2" $! (sem_row_union (¡ θ1)%R θ) θG). 
+      iSpecialize ("HG1G2" $! (sem_row_union (¡ θ1)%R θ)). (*θG).*) 
       iAssert ((τ__f' (sem_row_union (¡ θ1)%R θ) τ1' (λ: "h₁", vJ1 (λ: "h₂", f1 ("h₂","h₁")) w1)%V (λ: "h₁", vJ2 (λ: "h₂", f2 ("h₂","h₁")) w1')%V)) with "[Hff Hτ1 HJ1J2]" as "Hff".
       { iIntros (θ1' h1 h1') "Hhh". brel_pures'.
         iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot |].
@@ -793,7 +793,7 @@ Section composition_operators.
     ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙)%T [] -∗
 
     sem_typed [] G G ⊥ (∀ᵣ θ, (∀ᵣ θJ1, ∀ᵣ θJ2, τJ θJ1 θJ2 -{ sem_row_union (¡θJ1)%R (sem_row_union  (¡θJ2)%R θ)}-∘ 𝟙) ⊸ (∀ᵣ θ1,( ∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ1)%R (sem_row_union  (¡θ2)%R θ)}-∘ 𝟙)))%T [] -∗
-      sem_typed [] J J ⊥ (∀ᵣ θ, ∀ᵣ θJ1, ∀ᵣ θJ2, (τ1' θ) ⊸ (τJ θJ1 θJ2) -{sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ)}-∘ 𝟙)%T [] -∗
+      sem_typed [] J J ⊥ (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θJ1, ∀ᵣ θJ2, (τJ θJ1 θJ2) -{sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ)}-∘ 𝟙))%T [] -∗
       sem_typed [] ((F ∘F G)%V ∘f J)%V (F ∘F (G ∘f J)%V) ⊥ 
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
   Proof. 
@@ -843,7 +843,7 @@ Section composition_operators.
       + simpl. iIntros (θJ1 θJ2 x1 x2) "HτJ". brel_pures'.
         iApply (brel_wand with "[HJ1J2 Hff HτJ]"). 
         { iSpecialize ("HJ1J2" $! θ).
-          iSpecialize ("HJ1J2" $! θJ1 θJ2).
+          (*iSpecialize ("HJ1J2" $! θJ1 θJ2).*)
           iSpecialize ("HJ1J2" with "Hff").
           iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot|].
           assert (to_iThyIfMono OS [] = []) as <- by done. 
@@ -877,7 +877,7 @@ Section composition_operators.
     ⊢ sem_typed [] F F ⊥ (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ}-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙)%T [] -∗
 
     sem_typed [] G G ⊥ (∀ᵣ θ, (∀ᵣ θJ1, ∀ᵣ θJ2, τJ θJ1 θJ2 -{ sem_row_union (¡θJ1)%R (sem_row_union  (¡θJ2)%R θ)}-∘ 𝟙) ⊸ (∀ᵣ θ1,( ∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ1)%R (sem_row_union  (¡θ2)%R θ)}-∘ 𝟙)))%T [] -∗
-      sem_typed [] J J ⊥ (∀ᵣ θ, ∀ᵣ θJ1, ∀ᵣ θJ2, (τ1' θ) ⊸ (τJ θJ1 θJ2) -{sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ)}-∘ 𝟙)%T [] -∗
+      sem_typed [] J J ⊥ (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θJ1, ∀ᵣ θJ2, (τJ θJ1 θJ2) -{sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ)}-∘ 𝟙))%T [] -∗
       sem_typed [] (F ∘F (G ∘f J)%V) ((F ∘F G)%V ∘f J)%V ⊥ 
       (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
   Proof. 
@@ -927,7 +927,7 @@ Section composition_operators.
       + simpl. iIntros (θJ1 θJ2 x1 x2) "HτJ". brel_pures'.
          iApply (brel_wand with "[HJ1J2 Hff HτJ]"). 
         { iSpecialize ("HJ1J2" $! θ).
-          iSpecialize ("HJ1J2" $! θJ1 θJ2).
+          (*iSpecialize ("HJ1J2" $! θJ1 θJ2).*)
           iSpecialize ("HJ1J2" with "Hff").
           iApply (brel_bind [_] [_]); [iApply traversable_to_iThy_nil | iApply to_iThy_le_bot|].
           assert (to_iThyIfMono OS [] = []) as <- by done. 
