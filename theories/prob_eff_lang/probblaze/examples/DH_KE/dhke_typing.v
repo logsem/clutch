@@ -698,22 +698,17 @@ Section dhke_typing.
   Qed.
 
   Lemma red_self :
-    ⊢ sem_typed [] (λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))
-                    (λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) ⊥
+    ⊢ sem_typed [] (λ: "DH", F_AUTH ∘f (C_lazy "DH"))
+                    (λ: "DH", F_AUTH ∘f (C_lazy "DH")) ⊥
         ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾)) → τ_DH)%T [].
   Proof using Type*.
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []). iApplyT sem_oval_typed_ufun. simpl.
     iApplyT sem_typed_app_nil.
     - iApplyT sem_typed_app_nil; last iApply F_AUTH_typed.
       iApply sem_typed_val. iApply func_comp_val_typed.
-    - iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
-      iApplyT sem_oval_typed_afun. simpl.
-      iApplyT sem_typed_app_nil; last typed_var.
-      iApplyT sem_typed_sub_ty.
-      2: { iApplyT sem_typed_app_nil; last typed_var.
-           iApplyT sem_typed_sub_ty; first iApply ty_le_mbang_elim.
-           iApply sem_typed_val. iApply C_lazy_val_typed. }
-      iApply ty_le_row_forall_inst.
+    - iApplyT sem_typed_app_nil; last typed_var.
+      iApplyT sem_typed_sub_ty; first iApply ty_le_mbang_elim.
+      iApply sem_typed_val. iApply C_lazy_val_typed.
       Unshelve. all: solve_typed_side.
   Qed.
 

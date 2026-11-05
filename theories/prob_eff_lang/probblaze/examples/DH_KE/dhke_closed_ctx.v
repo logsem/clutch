@@ -54,7 +54,7 @@ Section multiplicative.
   Lemma adv_DHKE_typed A :
     ⊢ᵥ A : (@T_DH cgs ⇾ TBool) →
            (advantage A (F_AUTH ∘f DHKE) (F_AUTH ∘f (DHSIM ∘f FKE)) #true <=
-              advantage (λ: "v", A (((λ: "DH", (F_AUTH ∘f (λ: "f", C_lazy "DH" "f")))) "v")) DDHR DDHI #true)%R.
+              advantage (λ: "v", A (((λ: "DH", (F_AUTH ∘f (C_lazy "DH")))) "v")) DDHR DDHI #true)%R.
   Proof. 
     exact (DHKE_secure A).
   Qed. 
