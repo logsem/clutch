@@ -271,12 +271,14 @@ Section secure_add3_type.
   Definition τ_envops (θ : sem_row Σ) : sem_ty Σ :=
     ((τ_view -{ θ }-> 𝟙) × ((τ_hdr -{ θ }-> 𝟙) × (τ_hdr -{ θ }-> 𝟙)))%T.
 
-  (* Both worlds.  The scenario can be called any number of times; each call
-     is one session, in which the client uses the three ports and returns a
-     result of its choice. *)
+  (* Both worlds.  Starting a session is unrestricted: the environment can
+     start any number of sessions on the one instance (and start a new one
+     while holding the continuations of a suspended one).  Within a session
+     everything is linear: the client runs once, and the function awaiting
+     the environment's operations closes over it. *)
   Definition τ_ADD3 : sem_ty Σ :=
-    (![MS] (∀ₜ α, ∀ᵣ θ__L,
-       (∀ᵣ θₕ, ((τ_port θₕ × τ_port θₕ) × τ_port θₕ) -{ sem_row_union θₕ θ__L }-∘ α) ⊸
-       (∀ᵣ θ₁, τ_envops θ₁ -{ sem_row_union (¡ θ₁)%R θ__L }-∘ α)))%T.
+    (∀ₜ α, ∀ᵣ θ__L,
+       (∀ᵣ θₕ, ((τ_port θₕ × τ_port θₕ) × τ_port θₕ) -{ sem_row_union θₕ θ__L }-∘ α) →
+       (∀ᵣ θ₁, τ_envops θ₁ -{ sem_row_union (¡ θ₁)%R θ__L }-∘ α))%T.
 
 End secure_add3_type.

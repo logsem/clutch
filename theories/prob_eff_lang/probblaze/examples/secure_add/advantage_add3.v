@@ -25,10 +25,10 @@ Section adv_add3.
      [∀R:], [RVar 0] is the client's (resp. the environment's operations')
      row. *)
   Definition T_ADD3 : type :=
-    ![MS] (∀T: ∀R:
+    (∀T: ∀R:
       (∀R: (((ℕ -{ RVar 0%nat }-> (() + τG)) * (ℕ -{ RVar 0%nat }-> (() + τG)))
             * (ℕ -{ RVar 0%nat }-> (() + τG)))
-             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ TVar 0%nat) -∘
+             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ TVar 0%nat) ⇾
       (∀R: (((τG + ((ℤ * ℤ) * τG)) -{ RVar 0%nat }-> ())
             * ((((ℤ * ℤ) * ℤ) -{ RVar 0%nat }-> ()) * (((ℤ * ℤ) * ℤ) -{ RVar 0%nat }-> ())))
              -{ (RFlip OS (RVar 0%nat)) ∪ᵣ RVar 1%nat }-∘ TVar 0%nat))%ty.
@@ -37,9 +37,9 @@ Section adv_add3.
     ⊢ τ_ADD3 ≤ₜ (interp._ty η μ δ T_ADD3 ξ).
   Proof using All.
     rewrite /T_ADD3 /τ_ADD3 /τ_port /τ_envops /τ_view /τ_hdr /sem_ty_option /=.
-    iApply ty_le_mbang_comp; first iApply mode_le_refl.
     iApply ty_le_type_forall; iIntros (α).
     iApply ty_le_row_forall; iIntros (θL).
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
     iApply ty_le_arr; first iApply row_le_refl.
     - (* the client: its ports return group elements *)
       iApply ty_le_row_forall; iIntros (θh).

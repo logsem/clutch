@@ -399,7 +399,7 @@ Section main_rev.
     brel_pures. iModIntro. iSplit; last done.
     (* a session: the environment calls the scenario with a client [f] *)
     rewrite /τ_ADD3 /sem_ty_mbang /sem_ty_type_forall /sem_ty_row_forall /sem_ty_arr /=.
-    iModIntro. iIntros (α θL f1 f2) "Hf".
+    iIntros (α θL) "!> %f1 %f2 Hf".
     brel_pures. iModIntro. iIntros (θ1 r1 r2) "Hr".
     rewrite /τ_envops /sem_ty_prod.
     iDestruct "Hr" as (lk1 lk2 ops1 ops2) "(-> & -> & #Hlk & %nl1 & %nl2 & %w1 & %w2 & -> & -> & #Hnl & #Hw)".
