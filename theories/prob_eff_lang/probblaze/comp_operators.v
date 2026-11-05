@@ -187,7 +187,8 @@ Section composition_operators.
     
     sem_typed [] G1 G2 ⊥ (τ__F τ1 τ1')%T [] -∗
     
-    sem_typed [] (F1 ||ᵣ G1) (F2 ||ᵣ G2) ⊥ (∀ᵣ θ, (τ__f θ τ1' τ2') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡θ2) θ) }-∘ 𝟙))%T [].
+    (*sem_typed [] (F1 ||ᵣ G1) (F2 ||ᵣ G2) ⊥ (∀ᵣ θ, (τ__f θ τ1' τ2') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡θ2) θ) }-∘ 𝟙))%T [].*)
+    sem_typed [] (F1 ||ᵣ G1) (F2 ||ᵣ G2) ⊥ (∀ᵣ θ, (τ__f θ τ1' τ2') ⊸ (τ__f θ τ1 τ2))%T [].
   Proof. 
      iIntros (HisclosedF1 HisclosedF2 HisclosedG1 HisclosedG2) "#HFF #HGG".
     iIntros (?) "!# Hvs //=".
@@ -285,10 +286,11 @@ Section composition_operators.
     is_closed_expr ∅ J ->
     is_closed_expr ∅ G ->
     ⊢ sem_typed [] F F ⊥ (τ__F τ2 τG)%T [] -∗
-    sem_typed [] G G ⊥ (∀ᵣ θ, (τ__f' θ τ1') ⊸ (∀ᵣ θG, (τG θG) -{sem_row_union (¡ θG)%R θ}-∘ 𝟙))%T [] -∗
-    (*sem_typed [] G G ⊥ (τ__F τG τ1')%T [] -∗*)
+    (*sem_typed [] G G ⊥ (∀ᵣ θ, (τ__f' θ τ1') ⊸ (∀ᵣ θG, (τG θG) -{sem_row_union (¡ θG)%R θ}-∘ 𝟙))%T [] -∗*)
+    sem_typed [] G G ⊥ (τ__F τG τ1')%T [] -∗
     sem_typed [] J J ⊥ (τ__F τ1 τ2')%T [] -∗
-    sem_typed [] ((F ∘f G) ||ᵣ J) (F ∘F (G ||ᵣ J)) ⊥ (∀ᵣ θ, (τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].
+    sem_typed [] ((F ∘f G) ||ᵣ J) (F ∘F (G ||ᵣ J)) ⊥ (∀ᵣ θ, (τ__f θ τ2' τ1') ⊸ (τ__f θ τ1 τ2))%T [].
+    (*sem_typed [] ((F ∘f G) ||ᵣ J) (F ∘F (G ||ᵣ J)) ⊥ (∀ᵣ θ, (τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1) (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].*)
   Proof.  
   iIntros (HisclosedF HisclosedJ HisclosedG) "#HFF #HGG #HJJ !# %vs _". simpl. 
     unfold func_comp, parallel_composition,functionality_composition. 
@@ -385,10 +387,11 @@ Section composition_operators.
     is_closed_expr ∅ J ->
     is_closed_expr ∅ G ->
     ⊢ sem_typed [] F F ⊥ (τ__F τ2 τG)%T [] -∗
-    sem_typed [] G G ⊥ (∀ᵣ θ, (τ__f' θ τ1') ⊸ (∀ᵣ θG, (τG θG) -{sem_row_union (¡ θG)%R θ}-∘ 𝟙))%T [] -∗
+    sem_typed [] G G ⊥ (τ__F τG τ1')%T [] -∗
+    (*sem_typed [] G G ⊥ (∀ᵣ θ, (τ__f' θ τ1') ⊸ (∀ᵣ θG, (τG θG) -{sem_row_union (¡ θG)%R θ}-∘ 𝟙))%T [] -∗*)
     sem_typed [] J J ⊥ (τ__F τ1 τ2')%T [] -∗
     sem_typed [] (F ∘F (G ||ᵣ J))
-    ((F ∘f G) ||ᵣ J)  ⊥ (∀ᵣ θ,(τ__f θ τ2' τ1') ⊸ (∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{ sem_row_union (¡θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙))%T [].          
+    ((F ∘f G) ||ᵣ J)  ⊥ (∀ᵣ θ,(τ__f θ τ2' τ1') ⊸ (τ__f θ τ1 τ2))%T [].          
   Proof.      
     iIntros (HisclosedF HisclosedJ HisclosedG) "#HFF #HGG #HJJ !# %vs _". simpl. 
     unfold func_comp, parallel_composition,functionality_composition. 
