@@ -33,7 +33,7 @@ Section handlee_verification.
     empty_message γautha -∗
     empty_message γauthb -∗
     BREL C_DH_rand ≤ (DH_SIM ∘f F_KE_lazy_alice) <|⊥|>
-      {{ λ D1 D2, ∀ (L : sem_row Σ) (f1 f2 : val),
+      {{ λ D1 D2, □ ∀ (L : sem_row Σ) (f1 f2 : val),
         (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) L }-∘ 𝟙)%T f1 f2 -∗
         BREL D1 f1 ≤ D2 f2 <|⊥|>
           {{ λ v1 v2, ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
@@ -59,19 +59,9 @@ Section handlee_verification.
     iAssert (γ ↪ₛN (n; []))%I with "[Hγ]" as "Hγ".
     { iExists []. iSplit; done. }
     iApply brel_couple_UT; first done. iFrame "Hγ". iIntros (c ?) "!> Hγ"...
-    brel_alloc_l lcs as "Hlcs"...
+    brel_alloc_l lcs as "Hlcs".
 
-    iModIntro. iIntros (L f1 f2) "Hff"...
-    iModIntro. 
-    iIntros (send1 send2 recv1 recv2)...
-    set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2).
-    
-    brel_effect_r leaksend as "Hleaksend"...
-    brel_effect_r leakrecv as "Hleakrecv"...
-
-    brel_effect_l gk1 as "Hgk1".
-    brel_effect_r gk2 as "Hgk2"...
-    
+    (* Store resources before the client is given; the protocol can be called multiple times *)
     iMod (store_message (vgval (g ^+ a)%g) with "Ha") as "#Ha".
     iMod (store_message (vgval (g ^+ b)%g) with "Hb") as "#Hb".
 
@@ -88,17 +78,28 @@ Section handlee_verification.
               betaN).
     iSplitL "Hβ Hlb"; [iNext; iFrame; iLeft; iFrame|].
     iIntros "#Hinvb".
-    
+
     iApply (brel_na_alloc
               ((α ↪ₛN (n; [a]) ∗ la ↦ₛ NONEV ∨ α ↪ₛ□ (n; [])
-                  ∗ la ↦ₛ□ SOMEV #a) ∗ 
+                  ∗ la ↦ₛ□ SOMEV #a) ∗
                 ((γ ↪ₛN (n; [c]) ∗ lc ↦ₛ NONEV ∗ lcs ↦ NONEV)
                ∨  (γ ↪ₛ□ (n; [])
                   ∗ lc ↦ₛ□ SOMEV #c
                   ∗ lcs ↦□ SOMEV (vgval (g ^+ c)%g))))%I
               alphaN).
     iSplitL "Hα Hla Hγ Hlc Hlcs"; [iNext; iSplitL "Hα Hla"; iLeft; iFrame|].
-    iIntros "#Hinva".
+    iIntros "#Hinva"...
+
+    iModIntro. iIntros "!#" (L f1 f2) "Hff"...
+    iModIntro. 
+    iIntros (send1 send2 recv1 recv2)...
+    set (ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2).
+    
+    brel_effect_r leaksend as "Hleaksend"...
+    brel_effect_r leakrecv as "Hleakrecv"...
+
+    brel_effect_l gk1 as "Hgk1".
+    brel_effect_r gk2 as "Hgk2"...
 
     iAssert (sem_val_typed (λ: "party", do: gk1 "party")%V (λ: "party", do: gk2 "party")%V ((𝟙 + 𝟙)%T -{ gkleakr leaksend leakrecv gk1 gk2 }-> (Option 𝔾))%T) as "Hgg".
     { iModIntro. rewrite /sem_ty_arr /sem_ty_mbang //=. iIntros (??) "!# #(%&%&[(->&->&->&->)|(->&->&->&->)])";

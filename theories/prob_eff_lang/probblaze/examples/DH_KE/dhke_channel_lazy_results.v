@@ -6,7 +6,7 @@ From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode
   class_instances. 
 From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import dhke_common.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement comp_operators. 
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement comp_operators compatibility.
 
 Import fingroup.
 
@@ -49,13 +49,13 @@ Section handlee_verification.
    iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
    assert (to_iThyIfMono OS [] = []) as <- by done.
    iApply (brel_mono OS with "[] [Htoka Htokb Hautha Hauthb]"); [iApply to_iThy_le_bot|iApply (DH_KE_C_DH_real _ _ γfraca γfracb with "Htoka Htokb Hautha Hauthb")|simpl].
-   iIntros (D1 D2) "HD".
+   iIntros (D1 D2) "#HD".
    iApply (brel_bind [AppLCtx _; AppRCtx _] [AppLCtx _; AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
    assert (to_iThyIfMono OS [] = []) as <- by done.
    iApply (brel_mono OS with "[] [Hfraca Hfracb]"); [iApply to_iThy_le_bot|iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_channel_lazy_real_one.P γautha) (dhke_channel_lazy_real_one.P' γauthb) with "Hfraca Hfracb")|simpl].
-   iIntros (F1 F2) "HF".
+   iIntros (F1 F2) "#HF".
    rewrite /func_comp. brel_pures'. iFrame.
-   iIntros "!>" (L f1 f2) "Hff".
+   iIntros "!>" (L). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff".
    brel_pures_l 1.
    brel_pures_r 1.
    iApply "HF". 
@@ -85,13 +85,13 @@ Section handlee_verification.
     iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[] [Htoka Htokb Hautha Hauthb]"); [iApply to_iThy_le_bot|iApply (C_DH_real_DH_KE _ _ γfraca γfracb with "Htoka Htokb Hautha Hauthb")|simpl].
-    iIntros (D1 D2) "HD".
+    iIntros (D1 D2) "#HD".
     iApply (brel_bind [AppLCtx _; AppRCtx _] [AppLCtx _; AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[] [Hfraca Hfracb]"); [iApply to_iThy_le_bot|iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_channel_lazy_real_other.P γautha) (dhke_channel_lazy_real_other.P' γauthb) with "Hfraca Hfracb")|simpl].
-    iIntros (F1 F2) "HF".
+    iIntros (F1 F2) "#HF".
     rewrite /func_comp. brel_pures'. iFrame.
-    iIntros "!>" (L f1 f2) "Hff".
+    iIntros "!>" (L). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff".
     brel_pures_l 1.
     brel_pures_r 1.
     iApply "HF". 
@@ -122,13 +122,13 @@ Section handlee_verification.
     iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[] [Htoka Htokb Hautha Hauthb]"); [iApply to_iThy_le_bot|iApply (DH_SIM_F_KE_C_DH_rand _ _ γfraca γfracb with "Htoka Htokb Hautha Hauthb")|simpl].
-    iIntros (D1 D2) "HD".
+    iIntros (D1 D2) "#HD".
     iApply (brel_bind [AppLCtx _; AppRCtx _] [AppLCtx _; AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[] [Hfraca Hfracb]"); [iApply to_iThy_le_bot|iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_channel_lazy_sim_one.P γautha) (dhke_channel_lazy_sim_one.P γauthb) with "Hfraca Hfracb")|simpl].
-    iIntros (F1 F2) "HF".
+    iIntros (F1 F2) "#HF".
     rewrite /func_comp. brel_pures'. iFrame.
-    iIntros "!>" (L f1 f2) "Hff".
+    iIntros "!>" (L). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff".
     brel_pures_l 1.
     brel_pures_r 1.
     iApply "HF".
@@ -158,13 +158,13 @@ Section handlee_verification.
     iApply (brel_bind [AppRCtx _] [AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[] [Htoka Htokb Hautha Hauthb]"); [iApply to_iThy_le_bot|iApply (C_DH_rand_DH_SIM_F_KE _ _ γfraca γfracb with "Htoka Htokb Hautha Hauthb")|simpl].
-    iIntros (D1 D2) "HD".
+    iIntros (D1 D2) "#HD".
     iApply (brel_bind [AppLCtx _; AppRCtx _] [AppLCtx _; AppRCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[] [Hfraca Hfracb]"); [iApply to_iThy_le_bot|iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_channel_lazy_sim_other.P γautha) (dhke_channel_lazy_sim_other.P γauthb) with "Hfraca Hfracb")|simpl].
-    iIntros (F1 F2) "HF".
+    iIntros (F1 F2) "#HF".
     rewrite /func_comp. brel_pures'. iFrame.
-    iIntros "!>" (L f1 f2) "Hff".
+    iIntros "!>" (L). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff".
     brel_pures_l 1.
     brel_pures_r 1.
     iApply "HF". 
@@ -177,7 +177,33 @@ Section handlee_verification.
     iApply (brel_mono OS with "[][HD Hff]"); [iApply to_iThy_le_bot|by iApply "HD"|simpl].
     iIntros (??) "H". iApply "H".
   Qed.
-  
+
+  (* One-shot versions, used by the composition proofs *)
+  (*------------------------------------------------------------*)
+  Lemma F_AUTH_DH_KE_FAUTH_C_DH_real_OS :
+    ⊢ sem_typed [] (F_AUTH ∘f DH_KE) (F_AUTH ∘f C_DH_real) ⊥ τ_DH_OS [].
+  Proof using All.
+    iApply sem_typed_sub_ty; [iApply τ_DH_le_τ_DH_OS|iApply F_AUTH_DH_KE_FAUTH_C_DH_real].
+  Qed.
+
+  Lemma F_AUTH_C_DH_real_FAUTH_DH_KE_OS :
+    ⊢ sem_typed [] (F_AUTH ∘f C_DH_real) (F_AUTH ∘f DH_KE) ⊥ τ_DH_OS [].
+  Proof using All.
+    iApply sem_typed_sub_ty; [iApply τ_DH_le_τ_DH_OS|iApply F_AUTH_C_DH_real_FAUTH_DH_KE].
+  Qed.
+
+  Lemma F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand_OS :
+    ⊢ sem_typed [] (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) (F_AUTH ∘f C_DH_rand) ⊥ τ_DH_OS [].
+  Proof using All.
+    iApply sem_typed_sub_ty; [iApply τ_DH_le_τ_DH_OS|iApply F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand].
+  Qed.
+
+  Lemma F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE_OS :
+    ⊢ sem_typed [] (F_AUTH ∘f C_DH_rand) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) ⊥ τ_DH_OS [].
+  Proof using All.
+    iApply sem_typed_sub_ty; [iApply τ_DH_le_τ_DH_OS|iApply F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE].
+  Qed.
+
   (* Rewriting to match top-level statements *)
   (*------------------------------------------------------------*)
   Lemma DHSIM_RED : 

@@ -28,7 +28,7 @@ Section handlee_verification.
     empty_message γautha -∗
     empty_message γauthb -∗
     BREL (DH_SIM ∘f F_KE_lazy_alice) ≤ C_DH_rand <|⊥|>
-      {{ λ D1 D2, ∀ (L : sem_row Σ) (f1 f2 : val),
+      {{ λ D1 D2, □ ∀ (L : sem_row Σ) (f1 f2 : val),
         (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) L }-∘ 𝟙)%T f1 f2 -∗
         BREL D1 f1 ≤ D2 f2 <|⊥|>
           {{ λ v1 v2, ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
@@ -51,9 +51,38 @@ Section handlee_verification.
     iApply brel_couple_TU; [done|]. iFrame "Hβ". iIntros (b) "Hβ".
     iDestruct "Hγ" as (ns) "(%Hf & Hγ)". apply map_eq_nil in Hf. simplify_eq.
     iApply brel_couple_TU; [done|]. iFrame "Hγ". iIntros (c) "Hγ"...
-    brel_alloc_r lcs as "Hlcs"...
+    brel_alloc_r lcs as "Hlcs".
 
-    iModIntro. iIntros (L f1 f2) "Hff"...
+    (* Store resources before the client is given; the protocol can be called multiple times *)
+    iMod (store_message (vgval (g ^+ a)%g) with "Ha") as "#Ha".
+    iMod (store_message (vgval $ g ^+ b)%g with "Hb") as "#Hb".
+
+    iMod (inv_alloc atokN _ (token γtoka ∨ receipt γfraca)%I with "[Htoka]") as "#Hinvta".
+    { iNext; iLeft;iFrame. }
+    iMod (inv_alloc btokN _ (token γtokb ∨ receipt γfracb)%I with "[Htokb]") as "#Hinvtb".
+    { iNext; iFrame. }
+
+    iApply (brel_na_alloc
+              ((β ↪ (n; [b]) ∗ lb ↦ NONEV)
+               ∨ (β ↪□ (n; [])
+                  ∗ lb ↦□ SOMEV #b)
+              )%I
+              betaN).
+    iSplitL "Hβ Hlb"; [iNext; iFrame; iLeft; iFrame|].
+    iIntros "#Hinvb".
+
+    iApply (brel_na_alloc
+              ((α ↪ (n; [a]) ∗ la ↦ NONEV ∨ α ↪□ (n; [])
+                  ∗ la ↦□ SOMEV #a) ∗
+                ((γ ↪ (n; [c]) ∗ lc ↦ NONEV ∗ lcs ↦ₛ NONEV)
+               ∨  (γ ↪□ (n; [])
+                  ∗ lc ↦□ SOMEV #c
+                  ∗ lcs ↦ₛ□ SOMEV (vgval (g ^+ c)%g))))%I
+              alphaN).
+    iSplitL "Hα Hla Hγ Hlc Hlcs"; [iNext; iSplitL "Hα Hla"; iLeft; iFrame|].
+    iIntros "#Hinva"...
+
+    iModIntro. iIntros "!#" (L f1 f2) "Hff"...
 
     iModIntro. 
     iIntros (send1 send2 recv1 recv2). 
@@ -66,34 +95,6 @@ Section handlee_verification.
     brel_effect_l gk1 as "Hgk1"...
     brel_effect_r gk2 as "Hgk2"...
 
-    iMod (store_message (vgval (g ^+ a)%g) with "Ha") as "#Ha".
-    iMod (store_message (vgval $ g ^+ b)%g with "Hb") as "#Hb".
-
-    iMod (inv_alloc atokN _ (token γtoka ∨ receipt γfraca)%I with "[Htoka]") as "#Hinvta".
-    { iNext; iLeft;iFrame. }
-    iMod (inv_alloc btokN _ (token γtokb ∨ receipt γfracb)%I with "[Htokb]") as "#Hinvtb".
-    { iNext; iFrame. }
-    
-    iApply (brel_na_alloc
-              ((β ↪ (n; [b]) ∗ lb ↦ NONEV)
-               ∨ (β ↪□ (n; [])
-                  ∗ lb ↦□ SOMEV #b)
-              )%I
-              betaN).
-    iSplitL "Hβ Hlb"; [iNext; iFrame; iLeft; iFrame|].
-    iIntros "#Hinvb".
-    
-    iApply (brel_na_alloc
-              ((α ↪ (n; [a]) ∗ la ↦ NONEV ∨ α ↪□ (n; [])
-                  ∗ la ↦□ SOMEV #a) ∗ 
-                ((γ ↪ (n; [c]) ∗ lc ↦ NONEV ∗ lcs ↦ₛ NONEV)
-               ∨  (γ ↪□ (n; [])
-                  ∗ lc ↦□ SOMEV #c
-                  ∗ lcs ↦ₛ□ SOMEV (vgval (g ^+ c)%g))))%I
-              alphaN).
-    iSplitL "Hα Hla Hγ Hlc Hlcs"; [iNext; iSplitL "Hα Hla"; iLeft; iFrame|].
-    iIntros "#Hinva".
-    
     iAssert (sem_val_typed (λ: "party", do: gk1 "party")%V (λ: "party", do: gk2 "party")%V ((𝟙 + 𝟙)%T -{ gkleakl leaksend leakrecv gk1 gk2 }-> (Option 𝔾))%T) as "Hgg".
     { iModIntro. rewrite /sem_ty_arr /sem_ty_mbang //=. iIntros (??) "!# #(%&%&[(->&->&->&->)|(->&->&->&->)])";
         brel_pures';

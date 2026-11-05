@@ -113,6 +113,35 @@ Section dhke_typing.
       Unshelve. all: solve_typed_side.
   Qed.
 
+  (* Unrestricted variant of [τ__F]: the functionality can be given a client multiple times *)
+  Definition τ__Fu (τ τ' : sem_row Σ → sem_ty Σ) :=
+    (∀ᵣ θ, (∀ᵣ θ₁, τ' θ₁ -{ sem_row_union (¡θ₁) θ}-∘ 𝟙) → (∀ᵣ θ₂, τ θ₂ -{ sem_row_union (¡θ₂) θ }-∘ 𝟙))%T.
+
+  Lemma τ__Fu_le_τ__F τ τ' : ⊢ τ__Fu τ τ' ≤ₜ τ__F τ τ'.
+  Proof. iApply ty_le_row_forall. iIntros (θ). iApply ty_le_mbang_elim. Qed.
+
+  (* Only the closure taking the client is unrestricted, so [F] and [G] must be *)
+  Lemma func_comp_val_typed_u (T1 M T4 : sem_row Σ → sem_ty Σ) `{!∀ θ, EtaT (M θ)} :
+    ⊢ ⊨ᵥ func_comp ≤ func_comp :
+      ((∀ᵣ θ, M θ → T4 θ) ⊸ (∀ᵣ θ, T1 θ → M θ) ⊸ (∀ᵣ θ, T1 θ → T4 θ))%T.
+  Proof.
+    iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
+    iApply sem_typed_closure; first done.
+    iApply (sem_typed_oval _ [_]). iApplyT sem_oval_typed_afun.
+    iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
+    iApplyT sem_oval_typed_ufun. simpl.
+    iApplyT sem_typed_app_fun_nil; first iApply row_le_refl.
+    - iApplyT (sem_typed_sub_env _ [("f", T1 θ); ("G", T1 θ ⊸ M θ); ("F", _)]).
+      { iApply env_le_cons; last iApply ty_le_refl.
+        iApply env_le_cons; [iApply env_le_refl|].
+        iApply ty_le_trans; [iApply ty_le_row_forall_inst|iApply ty_le_mbang_elim]. }
+      iApply (sem_typed_oval _ [("f", _); ("G", _)] [("F", _)]).
+      by iApply sem_oval_typed_eta.
+    - iApplyT sem_typed_sub_ty; last typed_var.
+      iApply ty_le_trans; [iApply ty_le_row_forall_inst|iApply ty_le_mbang_elim].
+      Unshelve. all: solve_typed_side.
+  Qed.
+
   Lemma fauth_send_handler_typed (θ₂ ρh : sem_row Σ) :
     ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
     sem_typed [("message", (𝔾 × (𝟙 + 𝟙))%T); ("k", (𝟙 -{ ρh }-[OS]-> 𝟙)%T);
@@ -266,12 +295,13 @@ Section dhke_typing.
       Unshelve. all: solve_typed_side.
   Qed.
 
-  Lemma F_AUTH_typed : ⊢ sem_typed [] F_AUTH F_AUTH ⊥ (τ__F aleak chan) [].
+  Lemma F_AUTH_typed_u : ⊢ sem_typed [] F_AUTH F_AUTH ⊥ (τ__Fu aleak chan) [].
   Proof using Type*.
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    (* the copyable references are the only captured state *)
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ₂).
     iApplyT sem_oval_typed_afun.
     iApplyT sem_typed_pair_elim; first typed_var.
@@ -313,6 +343,11 @@ Section dhke_typing.
     - iIntros (?). iApply fauth_recv_handler_typed. row_le_submseteq.
     - iApplyT sem_typed_sub_env_final; last iApplyT sem_typed_unit'. env_solve.
       Unshelve. all: solve_typed_side.
+  Qed.
+
+  Lemma F_AUTH_typed : ⊢ sem_typed [] F_AUTH F_AUTH ⊥ (τ__F aleak chan) [].
+  Proof using Type*.
+    iApply sem_typed_sub_ty; [iApply τ__Fu_le_τ__F|iApply F_AUTH_typed_u].
   Qed.
 
   Lemma dh_sim_send_handler_typed (θ₂ ρh : sem_row Σ) :
@@ -599,8 +634,8 @@ Section dhke_typing.
       Unshelve. all: solve_typed_side.
   Qed.
 
-  Lemma C_lazy_val_typed :
-    ⊢ sem_val_typed C_lazy C_lazy ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾)) → τ__F chan gk)%T.
+  Lemma C_lazy_val_typed_u :
+    ⊢ sem_val_typed C_lazy C_lazy ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾)) → τ__Fu chan gk)%T.
   Proof using Type*.
     iApply sem_typed_closure; first done. simpl.
     iApplyT sem_typed_let.
@@ -627,7 +662,8 @@ Section dhke_typing.
         iApplyT sem_typed_unit'.
       - iApply env_le_refl. }
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _; _; _; _]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    (* the captured group elements and the copyable reference are duplicable *)
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _; _; _; _; _]). iApply sem_typed_RLam. iIntros (θ₂).
     iApplyT sem_oval_typed_afun. simpl.
     iApplyT sem_typed_pair_elim; first typed_var.
@@ -697,6 +733,15 @@ Section dhke_typing.
       Unshelve. all: solve_typed_side.
   Qed.
 
+  Lemma C_lazy_val_typed :
+    ⊢ sem_val_typed C_lazy C_lazy ((𝟙 ⊸ (𝔾 × 𝔾 × 𝔾)) → τ__F chan gk)%T.
+  Proof using Type*.
+    iApply sem_val_typed_sub; last iApply C_lazy_val_typed_u.
+    iApply ty_le_mbang_comp; first iApply mode.mode_le_refl.
+    iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|iApply τ__Fu_le_τ__F].
+  Qed.
+
+  (* [τ_DH] is [τ__Fu aleak gk] *)
   Lemma red_self :
     ⊢ sem_typed [] (λ: "DH", F_AUTH ∘f (C_lazy "DH"))
                     (λ: "DH", F_AUTH ∘f (C_lazy "DH")) ⊥
@@ -704,11 +749,11 @@ Section dhke_typing.
   Proof using Type*.
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ []). iApplyT sem_oval_typed_ufun. simpl.
     iApplyT sem_typed_app_nil.
-    - iApplyT sem_typed_app_nil; last iApply F_AUTH_typed.
-      iApply sem_typed_val. iApply func_comp_val_typed.
+    - iApplyT sem_typed_app_nil; last iApply F_AUTH_typed_u.
+      iApply sem_typed_val. iApply func_comp_val_typed_u.
     - iApplyT sem_typed_app_nil; last typed_var.
       iApplyT sem_typed_sub_ty; first iApply ty_le_mbang_elim.
-      iApply sem_typed_val. iApply C_lazy_val_typed.
+      iApply sem_typed_val. iApply C_lazy_val_typed_u.
       Unshelve. all: solve_typed_side.
   Qed.
 

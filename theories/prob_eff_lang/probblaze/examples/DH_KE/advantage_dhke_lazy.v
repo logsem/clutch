@@ -20,7 +20,7 @@ Section adv_dhke.
   Definition T_DH : type :=
     (∀R:
        ((∀R: (((() + ()) -{ RVar 0%nat }-> (() + τG)) -{ (RFlip OS (RVar 0%nat)) ∪ᵣ RVar 1%nat }-∘ ()))
-        -∘
+        ⇾
         (∀R: ((((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + TNat))) -{ (RFlip OS (RVar 0%nat)) ∪ᵣ RVar 1%nat }-∘ ()))))%ty.
 
   Lemma T_DH_subtype `{!probblazeRGS Σ} η μ δ ξ :
@@ -28,6 +28,7 @@ Section adv_dhke.
   Proof using All. 
     rewrite /T_DH /τ_DH /sem_ty_option /=. 
     iApply ty_le_row_forall. iIntros (?).
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
     iApply ty_le_arr; first iApply row_le_refl.
     - iApply ty_le_row_forall; iIntros (?).
       iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].

@@ -34,7 +34,7 @@ Section handlee_verification.
     token γtokb -∗
     empty_message γautha -∗
     empty_message γauthb -∗
-    BREL DH_KE ≤ C_DH_real <|⊥|> {{ λ D1 D2, ∀ (L : sem_row Σ) (f1 f2 : val),
+    BREL DH_KE ≤ C_DH_real <|⊥|> {{ λ D1 D2, □ ∀ (L : sem_row Σ) (f1 f2 : val),
       (∀ᵣ θₕ, ((sem_ty_sum 𝟙 𝟙) -{ θₕ }-> (Option 𝔾)) -{ sem_row_union (¡ θₕ) L }-∘ 𝟙)%T f1 f2 -∗
       BREL D1 f1 ≤ D2 f2 <|⊥|> {{ λ v1 v2,
                                     ∀ send1 send2 recv1 recv2 : label, let ac := chan γautha γauthb γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
@@ -55,8 +55,35 @@ Section handlee_verification.
     iDestruct "Hβ" as (ms) "(%Hf' & Hβ)". apply map_eq_nil in Hf'. simplify_eq.
     iApply brel_couple_TU; [done|]. iFrame "Hβ". simpl. iIntros (b) "Hβ"...
     rewrite -Nat2Z.inj_mul...
-    brel_alloc_r lcs as "Hlcs"...
-    iModIntro. iIntros (L f1 f2) "Hff"...
+    brel_alloc_r lcs as "Hlcs".
+
+    iMod (store_message ((#la, #a)%V) with "Ha") as "#Ha".
+    iMod (store_message (vgval $ g ^+ b)%g with "Hb") as "#Hb".
+
+    (* Store resources before the client is given; the protocol can be called multiple times *)
+    iMod (inv_alloc atokN _ (token γtoka ∨ receipt γfraca)%I with "[Htoka]") as "#Hinvta".
+    { iNext; iLeft;iFrame. }
+    iMod (inv_alloc btokN _ (token γtokb ∨ receipt γfracb)%I with "[Htokb]") as "#Hinvtb".
+    { iNext; iFrame. }
+
+    iApply (brel_na_alloc
+              ((β ↪ (n; [b]) ∗ lb ↦ NONEV)
+               ∨ (β ↪□ (n; [])
+                  ∗ lb ↦□ SOMEV #b)
+              )%I
+              betaN).
+    iSplitL "Hβ Hlb"; [iNext; iFrame; iLeft; iFrame|].
+    iIntros "#Hinvb".
+
+    iApply (brel_na_alloc
+              ((α ↪ (n; [a]) ∗ la ↦ NONEV ∗ lcs ↦ₛ NONEV)
+               ∨ (α ↪□ (n; [])
+                  ∗ la ↦□ SOMEV #a
+                  ∗ lcs ↦ₛ□ SOMEV (vgval (g ^+ (a * b)))))%I
+              alphaN).
+    iSplitL "Hα Hla Hlcs"; [iNext; iFrame; iLeft; iFrame|].
+    iIntros "#Hinva"...
+    iModIntro. iIntros "!#" (L f1 f2) "Hff"...
 
     (* TAPES : stems from the fact that some lemmas uses fin-tapes other nat-tapes -- should be unified *)
     
@@ -83,36 +110,8 @@ Section handlee_verification.
 
     
     rewrite /sem_val_typed //=. 
-    iSpecialize ("Hff" with "Hgg"). 
-    
-    iMod (store_message ((#la, #a)%V) with "Ha") as "#Ha".
-    iMod (store_message (vgval $ g ^+ b)%g with "Hb") as "#Hb".
+    iSpecialize ("Hff" with "Hgg").
 
-    (* Store resources before induction *)
-    iMod (inv_alloc atokN _ (token γtoka ∨ receipt γfraca)%I with "[Htoka]") as "#Hinvta".
-    { iNext; iLeft;iFrame. }
-    iMod (inv_alloc btokN _ (token γtokb ∨ receipt γfracb)%I with "[Htokb]") as "#Hinvtb".
-    { iNext; iFrame. }
-
-    
-    iApply (brel_na_alloc
-              ((β ↪ (n; [b]) ∗ lb ↦ NONEV)
-               ∨ (β ↪□ (n; [])
-                  ∗ lb ↦□ SOMEV #b)
-              )%I
-              betaN).
-    iSplitL "Hβ Hlb"; [iNext; iFrame; iLeft; iFrame|].
-    iIntros "#Hinvb".
-    
-    iApply (brel_na_alloc
-              ((α ↪ (n; [a]) ∗ la ↦ NONEV ∗ lcs ↦ₛ NONEV)
-               ∨ (α ↪□ (n; [])
-                  ∗ la ↦□ SOMEV #a
-                  ∗ lcs ↦ₛ□ SOMEV (vgval (g ^+ (a * b)))))%I
-              alphaN).
-    iSplitL "Hα Hla Hlcs"; [iNext; iFrame; iLeft; iFrame|].
-    iIntros "#Hinva".
-    
     iApply brel_new_theory.
     iApply (brel_add_label_l with "Hgk1").
     iApply (brel_add_label_r with "Hgk2").

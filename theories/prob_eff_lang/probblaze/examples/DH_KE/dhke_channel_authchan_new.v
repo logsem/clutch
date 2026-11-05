@@ -57,7 +57,7 @@ Section handlee_verification.
     `{!∀ m : vgG, Timeless (P m), !∀ m : vgG, Timeless (P' m)} :
     all_receipts γfraca -∗
     all_receipts γfracb -∗
-    BREL F_AUTH ≤ F_AUTH <|⊥|> {{ λ F1 F2, ∀ (L : sem_row Σ) (f1 f2 : expr),
+    BREL F_AUTH ≤ F_AUTH <|⊥|> {{ λ F1 F2, □ ∀ (L : sem_row Σ) (f1 f2 : expr),
       BREL f1 ≤ f2 <|⊥|> {{λ v1 v2,
                              ∀ send1 send2 recv1 recv2 : label, let ac := chan_new_row P P' γtoka atokN γtokb btokN γfraca γfracb send1 send2 recv1 recv2 in
                                               BREL v1 ((λ: "m", do: send1 "m"), (λ: "m", do: recv1 "m"))%V ≤
@@ -92,7 +92,7 @@ Section handlee_verification.
     iSplitL "Hl2 Hl2s Hfracb"; [iNext; iLeft; iFrame|].
     iIntros "#Hinvb"...
 
-    iModIntro. iIntros (L f1 f2) "Hff".
+    iModIntro. iIntros "!#" (L f1 f2) "Hff".
     iApply (brel_bind _ _ _ [] _ _ f1 f2); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS _ _ ⊥ [] with "[][$Hff]"); [iApply to_iThy_le_bot|simpl].

@@ -90,7 +90,7 @@ Section new_comp_verification.
       + apply F_AUTH_C_DH_real_closed. 
       + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
-      + iApply F_AUTH_DH_KE_FAUTH_C_DH_real.
+      + iApply F_AUTH_DH_KE_FAUTH_C_DH_real_OS.
       + iApply F_OAUTH_typed.   
     - iApply CHAN_typed.        
   Qed. 
@@ -108,7 +108,7 @@ Section new_comp_verification.
       + apply F_AUTH_DHKE_closed.
       + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
-      + iApply F_AUTH_C_DH_real_FAUTH_DH_KE.
+      + iApply F_AUTH_C_DH_real_FAUTH_DH_KE_OS.
       + iApply F_OAUTH_typed.   
     - iApply CHAN_typed.
   Qed. 
@@ -126,7 +126,7 @@ Section new_comp_verification.
       + apply F_AUTH_DHSIM_FKE_closed. 
       + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
-      + iApply F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE.
+      + iApply F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE_OS.
       + iApply F_OAUTH_typed.   
     - iApply CHAN_typed.
   Qed. 
@@ -144,7 +144,7 @@ Section new_comp_verification.
       + apply F_AUTH_C_DH_rand_closed.
       + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
-      + iApply F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand.
+      + iApply F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand_OS.
       + iApply F_OAUTH_typed.   
     - iApply CHAN_typed.
   Qed.
