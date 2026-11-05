@@ -181,31 +181,34 @@ Section handlee_verification.
   (* Rewriting to match top-level statements *)
   (*------------------------------------------------------------*)
   Lemma DHSIM_RED : 
-    ⊢ sem_typed [] (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_rand) ⊥ τ_DH [].
+    ⊢ sem_typed [] (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) ((λ: "DH", F_AUTH ∘f (C_lazy "DH"))%E DH_rand) ⊥ τ_DH [].
   Proof using All.
     iIntros (vs) "!# Hvs".
     iPoseProof F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand as "H".
     rewrite /sem_typed /tc_opaque.
     iSpecialize ("H" with "Hvs").
-    rewrite (subst_map_is_closed_empty _ _ F_AUTH_DHSIM_FKE_closed) (subst_map_is_closed_empty _ _ F_AUTH_C_DH_rand_closed) (subst_map_is_closed_empty _ _ red_DH_rand_closed).
+    rewrite (subst_map_is_closed_empty _ _ F_AUTH_DHSIM_FKE_closed). 
+    rewrite (subst_map_is_closed_empty _ _ F_AUTH_C_DH_rand_closed). 
+    rewrite (subst_map_is_closed_empty _ _ red_DH_rand_closed).
     brel_pures_r 2.
     iApply "H".
   Qed.
   
   Lemma RED_DHSIM :
-    ⊢ sem_typed [] ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_rand) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) ⊥ τ_DH [].
+    ⊢ sem_typed [] ((λ: "DH", F_AUTH ∘f (C_lazy "DH"))%E DH_rand) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) ⊥ τ_DH [].
   Proof using All.
     iIntros (vs) "!# Hvs".
     iPoseProof F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE as "H".
     rewrite /sem_typed /tc_opaque.
     iSpecialize ("H" with "Hvs").
-    rewrite (subst_map_is_closed_empty _ _ F_AUTH_C_DH_rand_closed) (subst_map_is_closed_empty _ _ F_AUTH_DHSIM_FKE_closed) (subst_map_is_closed_empty _ _ red_DH_rand_closed).
+    rewrite (subst_map_is_closed_empty _ _ F_AUTH_C_DH_rand_closed).
+    rewrite (subst_map_is_closed_empty _ _ F_AUTH_DHSIM_FKE_closed) (subst_map_is_closed_empty _ _ red_DH_rand_closed).
     brel_pures_l 2.
     iApply "H".
   Qed.
   
   Lemma DHKE_RED :
-    ⊢ sem_typed [] (F_AUTH ∘f DH_KE) ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_real) ⊥ τ_DH [].
+    ⊢ sem_typed [] (F_AUTH ∘f DH_KE) ((λ: "DH", F_AUTH ∘f (C_lazy "DH"))%E DH_real) ⊥ τ_DH [].
   Proof using All.
     iIntros (vs) "!# Hvs".
     iPoseProof F_AUTH_DH_KE_FAUTH_C_DH_real as "H".
@@ -217,7 +220,7 @@ Section handlee_verification.
   Qed.
   
   Lemma RED_DHKE :
-    ⊢ sem_typed [] ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_real) (F_AUTH ∘f DH_KE) ⊥ τ_DH [].
+    ⊢ sem_typed [] ((λ: "DH", F_AUTH ∘f (C_lazy "DH"))%E DH_real) (F_AUTH ∘f DH_KE) ⊥ τ_DH [].
   Proof using G inG0 inG1 inG2.
     iIntros (vs) "!# Hvs".
     iPoseProof F_AUTH_C_DH_real_FAUTH_DH_KE as "H".

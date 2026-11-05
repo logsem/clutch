@@ -16,11 +16,11 @@ Section dhke_closed.
   Proof. is_closed. Qed.
   Lemma F_AUTH_C_DH_rand_closed : is_closed_expr ∅ (F_AUTH ∘f C_DH_rand).
   Proof. is_closed. Qed.
-  Lemma red_closed : is_closed_expr ∅ (λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E.
+  Lemma red_closed : is_closed_expr ∅ (λ: "DH", F_AUTH ∘f (C_lazy "DH"))%E.
   Proof. is_closed. Qed.
-  Lemma red_DH_real_closed : is_closed_expr ∅ ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_real).
+  Lemma red_DH_real_closed : is_closed_expr ∅ ((λ: "DH", F_AUTH ∘f (C_lazy "DH"))%E DH_real).
   Proof. is_closed. Qed.
-  Lemma red_DH_rand_closed : is_closed_expr ∅ ((λ: "DH", F_AUTH ∘f (λ: "f", C_lazy "DH" "f"))%E DH_rand).
+  Lemma red_DH_rand_closed : is_closed_expr ∅ ((λ: "DH", F_AUTH ∘f (C_lazy "DH"))%E DH_rand).
   Proof. is_closed. Qed.
 
 End dhke_closed.

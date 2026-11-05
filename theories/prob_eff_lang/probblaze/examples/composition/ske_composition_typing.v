@@ -127,7 +127,7 @@ Section ske_comp_verification.
     Import typed_hint_modes.
 
     Lemma REAL_CHAN_DH_RED_unfolded_typed :
-      ⊢ sem_typed ((BNamed "DH", (𝟙 ⊸ (sem_ty_group × sem_ty_group) × sem_ty_group)) ::? []) (((F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) ||ᵣ F_OAUTH) ∘f CHAN)%E (((F_AUTH ∘f (λ: "f", C_lazy "DH" "f")) ||ᵣ F_OAUTH) ∘f CHAN)%E  ⊥ τ [].
+      ⊢ sem_typed ((BNamed "DH", (𝟙 ⊸ (sem_ty_group × sem_ty_group) × sem_ty_group)) ::? []) (((F_AUTH ∘f (C_lazy "DH")) ||ᵣ F_OAUTH) ∘f CHAN)%E (((F_AUTH ∘f (C_lazy "DH")) ||ᵣ F_OAUTH) ∘f CHAN)%E  ⊥ τ [].
     Proof using All.
       (* [G ∘f CHAN] with [G := (F_AUTH ∘f C) ||ᵣ F_OAUTH]; arguments first. *)
       iApplyT sem_typed_app_nil; last first.
@@ -138,14 +138,10 @@ Section ske_comp_verification.
         iApplyT sem_typed_app_nil; last first.
         + (* [F_AUTH ∘f C], with [C := λ: "f", C_lazy "DH" "f"]. *)
           iApplyT sem_typed_app_nil; last first.
-          * iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
-            iApplyT sem_oval_typed_afun. simpl.
-            iApplyT sem_typed_app_nil; last typed_var.
+          * iApplyT sem_typed_app_nil; last typed_var. simpl.
             iApplyT sem_typed_sub_ty.
-            2: { iApplyT sem_typed_app_nil; last typed_var.
-                 iApplyT sem_typed_sub_ty; first iApply ty_le_mbang_elim.
-                 iApply sem_typed_val. iApply C_lazy_val_typed. }
-            iApply ty_le_row_forall_inst.
+            2: { iApply sem_typed_val. iApply C_lazy_val_typed. }
+            iApply ty_le_mbang_elim.
           * iApplyT sem_typed_app_nil; last iApply F_AUTH_typed.
             iApply sem_typed_val. iApply func_comp_val_typed.
         + iApply sem_typed_val. iApply right_comp_val_typed.

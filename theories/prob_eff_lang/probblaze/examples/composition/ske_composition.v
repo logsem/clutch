@@ -83,7 +83,7 @@ Section new_comp_verification.
     ⊢ sem_typed [] REAL_CHAN_DH_REAL REAL_CHAN_DH_RED_REAL ⊥ τ [].
   Proof using All.
     unfold REAL_CHAN_DH_REAL, C_DH_real, REAL_CHAN_DH_RED_REAL, REAL_CHAN_DH_RED.
-    assert ((((F_AUTH ∘f (λ: "f", C_lazy DH_real "f")) ||ᵣ F_OAUTH) ∘f CHAN)%E = val_subst' "DH" DH_real (((F_AUTH ∘f (λ: "f", C_lazy "DH" "f") ||ᵣ F_OAUTH)) ∘f CHAN)%E) as -> by done.
+    assert ((((F_AUTH ∘f (C_lazy DH_real)) ||ᵣ F_OAUTH) ∘f CHAN)%E = val_subst' "DH" DH_real (((F_AUTH ∘f (C_lazy "DH") ||ᵣ F_OAUTH)) ∘f CHAN)%E) as -> by done.
     iApply sem_typed_eta_expansion_l. 
     1,2 : rewrite sem_env.env_dom_nil; apply not_elem_of_nil.
     - iApply (REAL_CHAN_DH_RED_unfolded_typed (SKE := SKE)). 
@@ -94,7 +94,7 @@ Section new_comp_verification.
     ⊢ sem_typed [] REAL_CHAN_DH_RED_REAL REAL_CHAN_DH_REAL ⊥ τ [].
   Proof using All.
     unfold REAL_CHAN_DH_REAL, C_DH_real, REAL_CHAN_DH_RED_REAL, REAL_CHAN_DH_RED.
-    assert ((((F_AUTH ∘f (λ: "f", C_lazy DH_real "f")) ||ᵣ F_OAUTH) ∘f CHAN)%E = val_subst' "DH" DH_real (((F_AUTH ∘f (λ: "f", C_lazy "DH" "f") ||ᵣ F_OAUTH)) ∘f CHAN)%E) as -> by done.
+    assert ((((F_AUTH ∘f (C_lazy DH_real)) ||ᵣ F_OAUTH) ∘f CHAN)%E = val_subst' "DH" DH_real (((F_AUTH ∘f (C_lazy "DH") ||ᵣ F_OAUTH)) ∘f CHAN)%E) as -> by done.
     iApply sem_typed_eta_expansion_r. 
     1,2 : rewrite sem_env.env_dom_nil; apply not_elem_of_nil.
     - iApply (REAL_CHAN_DH_RED_unfolded_typed (SKE := SKE)).
@@ -105,7 +105,7 @@ Section new_comp_verification.
     ⊢ sem_typed [] REAL_CHAN_DH_RAND REAL_CHAN_DH_RED_RAND ⊥ τ [].
   Proof using All.
     unfold REAL_CHAN_DH_RAND, C_DH_rand, REAL_CHAN_DH_RED_RAND, REAL_CHAN_DH_RED.
-    assert ((((F_AUTH ∘f (λ: "f", C_lazy DH_rand "f")) ||ᵣ F_OAUTH) ∘f CHAN)%E = val_subst' "DH" DH_rand (((F_AUTH ∘f (λ: "f", C_lazy "DH" "f") ||ᵣ F_OAUTH)) ∘f CHAN)%E) as -> by done.
+    assert ((((F_AUTH ∘f (C_lazy DH_rand)) ||ᵣ F_OAUTH) ∘f CHAN)%E = val_subst' "DH" DH_rand (((F_AUTH ∘f (C_lazy "DH") ||ᵣ F_OAUTH)) ∘f CHAN)%E) as -> by done.
     iApply sem_typed_eta_expansion_l. 
     1,2 : rewrite sem_env.env_dom_nil; apply not_elem_of_nil.
     - iApply (REAL_CHAN_DH_RED_unfolded_typed (SKE := SKE)).
@@ -116,7 +116,7 @@ Section new_comp_verification.
     ⊢ sem_typed [] REAL_CHAN_DH_RED_RAND REAL_CHAN_DH_RAND ⊥ τ [].
   Proof using All.
     unfold REAL_CHAN_DH_RAND, C_DH_rand, REAL_CHAN_DH_RED_RAND, REAL_CHAN_DH_RED.
-    assert ((((F_AUTH ∘f (λ: "f", C_lazy DH_rand "f")) ||ᵣ F_OAUTH) ∘f CHAN)%E = val_subst' "DH" DH_rand (((F_AUTH ∘f (λ: "f", C_lazy "DH" "f") ||ᵣ F_OAUTH)) ∘f CHAN)%E) as -> by done.
+    assert ((((F_AUTH ∘f (C_lazy DH_rand)) ||ᵣ F_OAUTH) ∘f CHAN)%E = val_subst' "DH" DH_rand (((F_AUTH ∘f (C_lazy "DH") ||ᵣ F_OAUTH)) ∘f CHAN)%E) as -> by done.
     iApply sem_typed_eta_expansion_r. 
     1,2 : rewrite sem_env.env_dom_nil; apply not_elem_of_nil.
     - iApply (REAL_CHAN_DH_RED_unfolded_typed (SKE := SKE)).
