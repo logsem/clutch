@@ -83,7 +83,7 @@ Section handlee_verification.
   (* The tapes of [DH_KE] are a proof device: [DH_KE] refines the version
      that samples directly. *)
   Lemma DH_KE_DH_KE_tapeless :
-    ⊢ sem_typed [] DH_KE DH_KE_tapeless ⊥ (τ__F chan gk) [].
+    ⊢ sem_typed [] DH_KE DH_KE_tapeless ⊥ (τ__Fu chan gk) [].
   Proof using All.
     iIntros (vs) "!# _".
     rewrite !subst_map_is_closed_empty; [|is_closed|is_closed].
@@ -96,11 +96,11 @@ Section handlee_verification.
     iApply (brel_na_alloc (β ↪N (n; [])) betaN). iFrame "Hβ". iIntros "#Hβ".
     (* From here on both sides have the same shape: type them, with
        [sem_typed_rand_tape_l] for the two reads. *)
-    iApply (sem_typed_brel _ _ ⊥ (τ__F chan gk) vs).
+    iApply (sem_typed_brel _ _ ⊥ (τ__Fu chan gk) vs).
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT (sem_typed_none ℕ)).
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT (sem_typed_none ℕ)).
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ₂).
     iApplyT sem_oval_typed_afun. simpl.
     iApplyT sem_typed_pair_elim; first typed_var.
@@ -198,7 +198,7 @@ Section handlee_verification.
   Qed.
 
   Lemma DH_KE_tapeless_DH_KE :
-    ⊢ sem_typed [] DH_KE_tapeless DH_KE ⊥ (τ__F chan gk) [].
+    ⊢ sem_typed [] DH_KE_tapeless DH_KE ⊥ (τ__Fu chan gk) [].
   Proof using All.
     iIntros (vs) "!# _".
     rewrite !subst_map_is_closed_empty; [|is_closed|is_closed].
@@ -213,11 +213,11 @@ Section handlee_verification.
     iSplitL "Hβ"; first by iApply empty_to_spec_tapeN. iIntros "#Hβ".
     (* The same derivation as in [DH_KE_DH_KE_tapeless], with
        [sem_typed_rand_tape_r] for the two reads. *)
-    iApply (sem_typed_brel _ _ ⊥ (τ__F chan gk) vs).
+    iApply (sem_typed_brel _ _ ⊥ (τ__Fu chan gk) vs).
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT (sem_typed_none ℕ)).
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT (sem_typed_none ℕ)).
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ₂).
     iApplyT sem_oval_typed_afun. simpl.
     iApplyT sem_typed_pair_elim; first typed_var.
