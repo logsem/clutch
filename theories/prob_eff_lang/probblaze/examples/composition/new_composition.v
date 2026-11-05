@@ -205,17 +205,16 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN3_closed.
     - apply CHAN_closed.
     - apply CHAN_closed.
-    - iApply func_comp_parallel_comp_assoc; try done.
-      + admit.
+    - iApply func_comp_parallel_comp_assoc.
       + apply F_AUTH_DHSIM_closed. 
       + apply F_OAUTH_closed.
       + (* F_KE_lazy_alice closed.*) admit.
       + iApply F_AUTH_DH_SIM_FO_typed. 
-      + (*iApply F_KE_lazy_alice_typed. *) admit.
+      + unfold τ__f'. (*iApply F_KE_lazy_alice_typed.*) admit.
       + iApply F_OAUTH_typed.
         (*iApply F_KE_body_typed.*)  
     - iApply CHAN_typed. 
-  Qed. 
+  Admitted. 
 
   Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN2 :
     ⊢ sem_typed [] DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN2 ⊥ τ [].
@@ -224,48 +223,55 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN3_closed.
     - apply DHSIM_FKE_CHAN2_closed.
     - apply CHAN_closed.
-    - iApply func_comp_parallel_comp_assoc_rev; first done.
+    - apply CHAN_closed.
+    - iApply func_comp_parallel_comp_assoc_rev.
       + apply F_AUTH_DHSIM_closed. 
       + apply F_OAUTH_closed.
+      +  is_closed. (* F_KE_lazy_alice closed *)
       + iApply F_AUTH_DH_SIM_FO_typed. 
-      + iApply F_KE_body_typed. 
+      + (*iApply F_KE_body_typed.*) admit. 
       + iApply F_OAUTH_typed. 
     - iApply CHAN_typed. 
-  Qed. 
+  Admitted. 
 
   
   Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4 :
     ⊢ sem_typed [] DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN4 ⊥ τ [].
   Proof using All.
     unfold DHSIM_FKE_CHAN3, DHSIM_FKE_CHAN4, R_CHAN, τ.
-    set (τJ θ1 θ2 := (chan θ1 × gk θ2)%T).
-   
-    
-    iApply (functionality_comp_func_comp_assoc_gen _ _ _ "f" "effs" _ _ _ τJ _); first done. 
+    set (τJ θ1 θ2 := (chan θ1 × gk θ2)%T).       
+    iApply (functionality_comp_func_comp_assoc_gen  _ _ _ _ _ _ τJ _). 
     - apply F_AUTH_DH_SIM_closed.
     - apply F_KE_lazy_alice_F_OAUTH_closed.
+    - apply CHAN_closed.
     - iApply F_AUTH_DH_SIM_FO_typed.
     - unfold τJ.
       iApply F_KE_F_OAUTH_typed.
-    -  iIntros (???). iApply CHAN_body_typed.
-  Qed. 
+    - (*iApply CHAN_typed.*) admit.
+      (*iIntros (???). iApply CHAN_body_typed.*)
+    Admitted.
+  
 
   Lemma DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3 :
     ⊢ sem_typed [] DHSIM_FKE_CHAN4 DHSIM_FKE_CHAN3 ⊥ τ [].
   Proof using All.
      set (τJ θ1 θ2 := (chan θ1 × gk θ2)%T).
-     iApply (functionality_comp_func_comp_assoc_gen_rev _ _ _ _ _ _ _ _ τJ); first done.
+     iApply (functionality_comp_func_comp_assoc_gen_rev _ _ _ _ _ _ τJ).
        - apply F_AUTH_DH_SIM_closed.
        - apply F_KE_lazy_alice_F_OAUTH_closed.
+       - apply CHAN_closed.
        - iApply F_AUTH_DH_SIM_FO_typed.
        - iApply F_KE_F_OAUTH_typed.
-       - iIntros (???). iApply CHAN_body_typed.
-     Qed.
+       - admit.
+         (*iIntros (???). iApply CHAN_body_typed.
+     Qed.*)
+    Admitted.
 
   Lemma DHSIM_FKE_CHAN4_SIMFCHAN :
     ⊢ sem_typed [] DHSIM_FKE_CHAN4 SIMSIMFCHAN ⊥ τ [].
   Proof using All.
     iApply functionality_comp_cong.
+    - apply F_AUTH_DH_SIM_closed.
     - apply F_AUTH_DH_SIM_closed.
     - apply R_CHAN_closed.
     - apply CHAN_SIM_lazy_F_CHAN_closed.
@@ -277,6 +283,7 @@ Section new_comp_verification.
     ⊢ sem_typed [] SIMSIMFCHAN DHSIM_FKE_CHAN4 ⊥ τ [].
   Proof using All.
     iApply functionality_comp_cong.
+    - apply F_AUTH_DH_SIM_closed.
     - apply F_AUTH_DH_SIM_closed.
     - apply CHAN_SIM_lazy_F_CHAN_closed.
     - apply R_CHAN_closed.

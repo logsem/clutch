@@ -51,7 +51,7 @@ Section composition_operators.
     induction L1; first done.
     simpl. by rewrite IHL1.
   Qed.  
-  (* we are forced to use arrow types in comp_left_gen, cannot prove a lemma of the simpler form when func_comp was defined differently (without delayed evaluation), otherwise eta-expansion in certain places in the proof wont type check. The type τ__f in comp_left doesnt violate this, since it is itself in the shape of an arrow type *)
+  (* we are forced to use arrow types in comp_left_gen, cannot prove a lemma of the simpler form when func_comp was defined differently (without delayed evaluation), otherwise eta-expansion in certain places in the proof wont type check. The type τ__f in comp_left doesnt violate this, since it is itself in the shape of an arrow type. The difference between τ__f and the arrow types in comp_left_gen is that τ__f is an arrow type for an effectful computation *)
   Lemma func_comp_left (F1 F2 G1 G2 : expr) τ τ' τ1' τ2' :
     is_closed_expr ∅ F1 ->
     is_closed_expr ∅ F2 ->
@@ -280,8 +280,7 @@ Section composition_operators.
   
   Definition τ__f' θ τ2' := (∀ᵣ θ2, τ2' θ2 -{ (sem_row_union (¡θ2)%R θ) }-∘ 𝟙)%T.
  
-  Lemma func_comp_parallel_comp_assoc (F J G : expr) (f x : string) τ1 τ2 τG τ1' τ2' :
-    (*(BNamed f) ≠ (BNamed x) →*)
+  Lemma func_comp_parallel_comp_assoc (F J G : expr) τ1 τ2 τG τ1' τ2' :
     is_closed_expr ∅ F ->
     is_closed_expr ∅ J ->
     is_closed_expr ∅ G ->
@@ -381,8 +380,7 @@ Section composition_operators.
     iApply to_iThy_le_intro'; solve_submseteq.
   Qed.
   
-  Lemma func_comp_parallel_comp_assoc_rev (F J G : expr) (f x : string) τ1 τ2 τG τ1' τ2' :
-    (*(BNamed f) ≠ (BNamed x) →*)
+  Lemma func_comp_parallel_comp_assoc_rev (F J G : expr) τ1 τ2 τG τ1' τ2' :
     is_closed_expr ∅ F ->
     is_closed_expr ∅ J ->
     is_closed_expr ∅ G ->
@@ -788,8 +786,7 @@ Section composition_operators.
   Qed.
 
 
-  Lemma functionality_comp_func_comp_assoc_gen (F G : expr) (J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
-    (*(BNamed f) ≠ (BNamed x) →*)
+  Lemma functionality_comp_func_comp_assoc_gen (F G : expr) (J : expr) τ1 τ2 τ1' τJ τF :
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
      is_closed_expr ∅ J ->
@@ -873,8 +870,7 @@ Section composition_operators.
       iApply to_iThy_le_intro'; solve_submseteq.
   Qed.
 
-   Lemma functionality_comp_func_comp_assoc_gen_rev (F G : expr) (J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
-    (*(BNamed f) ≠ (BNamed x) →*)
+   Lemma functionality_comp_func_comp_assoc_gen_rev (F G : expr) (J : expr) τ1 τ2 τ1' τJ τF :
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
      is_closed_expr ∅ J ->
@@ -958,8 +954,7 @@ Section composition_operators.
       iApply to_iThy_le_intro'; solve_submseteq.
   Qed.
   
-  Lemma functionality_comp_func_comp_assoc (F G : expr) (J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
-    (*(BNamed f) ≠ (BNamed x) →*)
+  Lemma functionality_comp_func_comp_assoc (F G : expr) (J : expr) τ1 τ2 τ1' τJ τF :
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
      is_closed_expr ∅ J ->
@@ -1037,8 +1032,7 @@ Section composition_operators.
       iApply to_iThy_le_intro'; solve_submseteq.
   Qed.
 
-  Lemma functionality_comp_func_comp_assoc_rev (F G J : expr) (f x : string) τ1 τ2 τ1' τJ τF :
-    (*(BNamed f) ≠ (BNamed x) →*)
+  Lemma functionality_comp_func_comp_assoc_rev (F G J : expr) τ1 τ2 τ1' τJ τF :
      is_closed_expr ∅ F →
      is_closed_expr ∅ G →
      is_closed_expr ∅ J ->
