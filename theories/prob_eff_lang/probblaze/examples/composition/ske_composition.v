@@ -50,9 +50,11 @@ Section new_comp_verification.
     - apply F_AUTH_DHKE_FOAUTH_closed. 
     - apply F_AUTH_C_DDH_real_FOAUTH_closed. 
     - apply CHAN_closed.
+    - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_DHKE_closed.
       + apply F_AUTH_C_DH_real_closed.
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply F_AUTH_DH_KE_FAUTH_C_DH_real.
        + iApply (F_OAUTH_typed (SKE := SKE)).
@@ -66,9 +68,11 @@ Section new_comp_verification.
     - apply F_AUTH_C_DDH_real_FOAUTH_closed. 
     - apply F_AUTH_DHKE_FOAUTH_closed. 
     - apply CHAN_closed.
+    - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_C_DH_real_closed.
       + apply F_AUTH_DHKE_closed.
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply F_AUTH_C_DH_real_FAUTH_DH_KE.
      + iApply (F_OAUTH_typed (SKE := SKE)).
@@ -126,9 +130,11 @@ Section new_comp_verification.
     - apply F_AUTH_C_DDH_rand_FOAUTH_closed. 
     - apply DHSIM_FKE_CHAN1_closed. 
     - apply CHAN_closed.
+    - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_C_DH_rand_closed.
       + apply F_AUTH_DHSIM_FKE_closed.
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply F_AUTH_C_DH_rand_FAUTH_DH_SIM_F_KE.
       + iApply (F_OAUTH_typed (SKE := SKE)).
@@ -142,9 +148,11 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN1_closed. 
     - apply F_AUTH_C_DDH_rand_FOAUTH_closed. 
     - apply CHAN_closed.
+    - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_DHSIM_FKE_closed.
       + apply F_AUTH_C_DH_rand_closed.
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply F_AUTH_DH_SIM_F_KE_FAUTH_C_DH_rand.
       + iApply (F_OAUTH_typed (SKE := SKE)).
@@ -158,17 +166,19 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN1_closed.
     - apply DHSIM_FKE_CHAN2_closed. 
     - apply CHAN_closed.
+    - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_DHSIM_FKE_closed.
       + apply F_AUTH_DHSIM_FKE_assoc_closed.
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply func_comp_assoc.
         * apply F_AUTH_closed.
         * apply DH_SIM_closed.
         * apply FKE_closed.
-        * iApply (F_AUTH_typed (SKE := SKE)).
-        * iApply (DH_SIM_typed (SKE := SKE)).
-        * iApply (F_KE_lazy_alice_typed (SKE := SKE)).
+        * (*iApply (F_AUTH_typed (SKE := SKE)).*) iApply F_AUTH_typed.
+        * (*iApply (DH_SIM_typed (SKE := SKE)).*) iApply DH_SIM_typed.
+        * (*iApply (F_KE_lazy_alice_typed (SKE := SKE)).*) iApply F_KE_lazy_alice_typed.
       + iApply (F_OAUTH_typed (SKE := SKE)).
     - iApply (CHAN_typed (SKE := SKE)).
   Qed.
@@ -180,17 +190,19 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN2_closed. 
     - apply DHSIM_FKE_CHAN1_closed. 
     - apply CHAN_closed.
+    - apply CHAN_closed.
     - iApply parallel_comp_right.
       + apply F_AUTH_DHSIM_FKE_assoc_closed.
       + apply F_AUTH_DHSIM_FKE_closed.
+      + apply F_OAUTH_closed.
       + apply F_OAUTH_closed.
       + iApply func_comp_assoc_rev.
         * apply F_AUTH_closed.
         * apply DH_SIM_closed.
         * apply FKE_closed.
-        * iApply (F_AUTH_typed (SKE := SKE)).
-        * iApply (DH_SIM_typed (SKE := SKE)).
-        * iApply (F_KE_lazy_alice_typed (SKE := SKE)).
+        * iApply F_AUTH_typed.
+        * iApply DH_SIM_typed.
+        * iApply F_KE_lazy_alice_typed.
       + iApply (F_OAUTH_typed (SKE := SKE)).
     - iApply (CHAN_typed (SKE := SKE)).
   Qed.
@@ -202,11 +214,13 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN2_closed.
     - apply DHSIM_FKE_CHAN3_closed.
     - apply CHAN_closed.
-    - iApply func_comp_parallel_comp_assoc; first done.
+    - apply CHAN_closed.
+    - iApply func_comp_parallel_comp_assoc.
       + apply F_AUTH_DHSIM_closed.
       + apply F_OAUTH_closed.
+      + is_closed.
       + iApply (F_AUTH_DH_SIM_FO_typed (SKE := SKE)).
-      + iApply (F_KE_body_typed (SKE := SKE)).
+      + iApply F_KE_lazy_alice_typed.
       + iApply (F_OAUTH_typed (SKE := SKE)).
     - iApply (CHAN_typed (SKE := SKE)).
   Qed.
@@ -218,11 +232,13 @@ Section new_comp_verification.
     - apply DHSIM_FKE_CHAN3_closed.
     - apply DHSIM_FKE_CHAN2_closed.
     - apply CHAN_closed.
-    - iApply func_comp_parallel_comp_assoc_rev; first done.
+    - apply CHAN_closed.
+    - iApply func_comp_parallel_comp_assoc_rev.
       + apply F_AUTH_DHSIM_closed.
       + apply F_OAUTH_closed.
+      + is_closed.
       + iApply (F_AUTH_DH_SIM_FO_typed (SKE := SKE)).
-      + iApply (F_KE_body_typed (SKE := SKE)).
+      + iApply F_KE_lazy_alice_typed. 
       + iApply (F_OAUTH_typed (SKE := SKE)).
     - iApply (CHAN_typed (SKE := SKE)).
   Qed.
@@ -230,29 +246,32 @@ Section new_comp_verification.
   Lemma DHSIM_FKE_CHAN3_DHSIM_FKE_CHAN4 :
     ⊢ sem_typed [] DHSIM_FKE_CHAN3 DHSIM_FKE_CHAN4 ⊥ τ [].
   Proof using All.
-    iApply functionality_comp_func_comp_assoc_gen; first done.
+    iApply functionality_comp_func_comp_assoc_gen.
     - apply F_AUTH_DHSIM_closed.
     - apply F_KE_lazy_alice_F_OAUTH_closed.
+    - apply CHAN_closed.
     - iApply (F_AUTH_DH_SIM_FO_typed (SKE := SKE)).
     - iApply (F_KE_F_OAUTH_typed (SKE := SKE)).
-    - iIntros (???); iApply (CHAN_body_typed (SKE := SKE)).
+    - iApply (CHAN_typed (SKE := SKE)).
   Qed.
   
   Lemma DHSIM_FKE_CHAN4_DHSIM_FKE_CHAN3 :
     ⊢ sem_typed [] DHSIM_FKE_CHAN4 DHSIM_FKE_CHAN3 ⊥ τ [].
   Proof using All.
-    iApply functionality_comp_func_comp_assoc_gen_rev; first done.
+    iApply functionality_comp_func_comp_assoc_gen_rev.
     - apply F_AUTH_DHSIM_closed.
     - apply F_KE_lazy_alice_F_OAUTH_closed.
+    - apply CHAN_closed.
     - iApply (F_AUTH_DH_SIM_FO_typed (SKE := SKE)).
     - iApply (F_KE_F_OAUTH_typed (SKE := SKE)).
-    - iIntros (???); iApply (CHAN_body_typed (SKE := SKE)).
+    - iApply (CHAN_typed (SKE := SKE)).
   Qed.
   
   Lemma DHSIM_FKE_CHAN4_GAME1 :
     ⊢ sem_typed [] DHSIM_FKE_CHAN4 DHSIM_FKE_GAME1 ⊥ τ [].
   Proof using All.
     iApply functionality_comp_cong.
+    - apply F_AUTH_DHSIM_closed.
     - apply F_AUTH_DHSIM_closed.
     - apply sc_real_closed.
     - apply game1_closed.
@@ -265,6 +284,7 @@ Section new_comp_verification.
   Proof using All.
     iApply functionality_comp_cong.
     - apply F_AUTH_DHSIM_closed. 
+    - apply F_AUTH_DHSIM_closed.
     - apply game1_closed.
     - apply sc_real_closed.
     - iApply (@game1_sc_real _ _ _ _ _ _ mt ct ms cs).  
@@ -327,6 +347,7 @@ Section new_comp_verification.
   Proof using All.
     iApply functionality_comp_cong.
     - apply F_AUTH_DHSIM_closed.
+    - apply F_AUTH_DHSIM_closed.
     - apply game2_closed. 
     - apply sc_ideal_closed.
     - iApply (@game2_sc_ideal _ _ _ _ _ _ mt ct ms cs).
@@ -337,6 +358,7 @@ Section new_comp_verification.
     ⊢ sem_typed [] SIMSIMFCHAN DHSIM_FKE_GAME2 ⊥ τ [].
   Proof using All.
     iApply functionality_comp_cong.
+    - apply F_AUTH_DHSIM_closed.
     - apply F_AUTH_DHSIM_closed.
     - apply sc_ideal_closed. 
     - apply game2_closed.
