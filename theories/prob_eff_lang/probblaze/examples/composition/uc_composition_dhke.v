@@ -45,10 +45,6 @@ Section uc_dhke.
   Definition SIM_DHKE_CHAN : expr := (F_AUTH ∘f DH_SIM) ∘F CHAN_SIM_lazy.
   Definition IDEAL_CHAN : expr := SIM_DHKE_CHAN ∘f F_CHAN.
 
-  Lemma closed_app_inv (e1 e2 : expr) :
-    is_closed_expr ∅ (e1 e2) → is_closed_expr ∅ e1 ∧ is_closed_expr ∅ e2.
-  Proof. simpl. by intros [? ?]%andb_prop_elim. Qed.
-
   Lemma CHAN_SIM_lazy_closed : is_closed_expr ∅ CHAN_SIM_lazy.
   Proof using All.
     by destruct (closed_app_inv _ _ (proj1 (closed_app_inv _ _ CHAN_SIM_lazy_F_CHAN_closed))).
@@ -120,4 +116,5 @@ Section uc_dhke.
   Qed.
 
 End uc_dhke.
+
 

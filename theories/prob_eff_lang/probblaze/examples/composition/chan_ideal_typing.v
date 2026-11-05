@@ -74,26 +74,21 @@ Section chan_ideal_typing.
   (* F_CHAN                                                              *)
   (* ------------------------------------------------------------------ *)
 
+  Definition fchan_send_body : expr :=
+      (match: vg_of_int "m" with
+       | NONE => "k" #()%V
+       | SOME "m" =>
+           match: !"message" with
+           | NONE => "message" <- SOME "m";; ("doLeakSend" alice);; "k" #()%V
+           | SOME "x" => "k" #()%V
+           end
+       end)%E.
+
   Lemma fchan_send_handler_typed (θJ ρh : sem_row Σ) :
     ⊢ (¡ θJ)%R ≤ᵣ ρh -∗
     sem_typed [("m", ℕ); ("k", (𝟙 -{ ρh }-[OS]-> 𝟙)%T);
                ("message", Refᶜ (Option 𝔾)); ("doLeakSend", ((𝟙 + 𝟙) -{ θJ }-> τ_sl)%T)]
-      (match: vg_of_int "m" with
-       | NONE => "k" #()%V
-       | SOME "m" =>
-           match: !"message" with
-           | NONE => "message" <- SOME "m";; ("doLeakSend" alice);; "k" #()%V
-           | SOME "x" => "k" #()%V
-           end
-       end)%E
-      (match: vg_of_int "m" with
-       | NONE => "k" #()%V
-       | SOME "m" =>
-           match: !"message" with
-           | NONE => "message" <- SOME "m";; ("doLeakSend" alice);; "k" #()%V
-           | SOME "x" => "k" #()%V
-           end
-       end)%E
+      fchan_send_body fchan_send_body
       ρh 𝟙 [("message", Refᶜ (Option 𝔾)); ("doLeakSend", ((𝟙 + 𝟙) -{ θJ }-> τ_sl)%T)].
   Proof using All.
     iIntros "#Hρ".
@@ -126,20 +121,18 @@ Section chan_ideal_typing.
       Unshelve. all: solve_typed_side.
   Qed.
 
+  Definition fchan_recv_body : expr :=
+      (let: "r" := ("doLeakRecv" bob) in
+       match: "r" with
+       | NONE => "k" NONEV
+       | SOME "x" => "k" (!"message")
+       end)%E.
+
   Lemma fchan_recv_handler_typed (θJ ρh : sem_row Σ) :
     ⊢ (¡ θJ)%R ≤ᵣ ρh -∗
     sem_typed [("payload", (𝟙 + 𝟙)%T); ("k", (Option 𝔾 -{ ρh }-[OS]-> 𝟙)%T);
                ("message", Refᶜ (Option 𝔾)); ("doLeakRecv", ((𝟙 + 𝟙) -{ θJ }-> Option ℕ)%T)]
-      (let: "r" := ("doLeakRecv" bob) in
-       match: "r" with
-       | NONE => "k" NONEV
-       | SOME "x" => "k" (!"message")
-       end)%E
-      (let: "r" := ("doLeakRecv" bob) in
-       match: "r" with
-       | NONE => "k" NONEV
-       | SOME "x" => "k" (!"message")
-       end)%E
+      fchan_recv_body fchan_recv_body
       ρh 𝟙 [("message", Refᶜ (Option 𝔾)); ("doLeakRecv", ((𝟙 + 𝟙) -{ θJ }-> Option ℕ)%T)].
   Proof using All.
     iIntros "#Hρ".
@@ -259,42 +252,28 @@ Section chan_ideal_typing.
      ("doLeakASend", ((𝔾 × (𝟙 + 𝟙)) -{ θ1 }-> 𝟙)%T); ("doLeakARecv", ((𝟙 + 𝟙) -{ θ1 }-> Option 𝟙)%T);
      ("message", Refᶜ (Option ℕ)); ("m'_opt", Refᶜ (Option ℕ));
      ("sample_or_load", (𝟙 -{ ⟨⟩ }-> ℕ)%T)].
-  Global Instance sim_env_MultiE θ1 θ2 : MultiE (sim_env θ1 θ2).
-  Proof. rewrite /sim_env. apply _. Qed.
+
+  Definition sim_lsend_body : expr :=
+      (let: "m'" := "sample_or_load" #()%V in
+       ("doKeyLeakSnd" (bob));;
+       let: "r" := "doKeyLeakRecv" (bob) in
+       match: "r" with
+       | NONE => "k" NONEV
+       | SOME "x" =>
+           match: !"message" with
+           | NONE =>
+               let: "mA" := g^"m'" in
+               "message" <- SOME "m'";;
+               ("doLeakASend" ("mA", bob));;
+               "k" #()%V
+           | SOME "m" => "k" #()%V
+           end
+       end)%E.
 
   Lemma sim_lsend_handler_typed (θ1 θ2 ρh : sem_row Σ) :
     ⊢ (¡ θ1)%R ≤ᵣ ρh -∗ (¡ θ2)%R ≤ᵣ ρh -∗
     sem_typed (("payload", (𝟙 + 𝟙)%T) :: ("k", (τ_sl -{ ρh }-[OS]-> 𝟙)%T) :: sim_env θ1 θ2)
-      (let: "m'" := "sample_or_load" #()%V in
-       ("doKeyLeakSnd" (bob));;
-       let: "r" := "doKeyLeakRecv" (bob) in
-       match: "r" with
-       | NONE => "k" NONEV
-       | SOME "x" =>
-           match: !"message" with
-           | NONE =>
-               let: "mA" := g^"m'" in
-               "message" <- SOME "m'";;
-               ("doLeakASend" ("mA", bob));;
-               "k" #()%V
-           | SOME "m" => "k" #()%V
-           end
-       end)%E
-      (let: "m'" := "sample_or_load" #()%V in
-       ("doKeyLeakSnd" (bob));;
-       let: "r" := "doKeyLeakRecv" (bob) in
-       match: "r" with
-       | NONE => "k" NONEV
-       | SOME "x" =>
-           match: !"message" with
-           | NONE =>
-               let: "mA" := g^"m'" in
-               "message" <- SOME "m'";;
-               ("doLeakASend" ("mA", bob));;
-               "k" #()%V
-           | SOME "m" => "k" #()%V
-           end
-       end)%E
+      sim_lsend_body sim_lsend_body
       ρh 𝟙 (sim_env θ1 θ2).
   Proof using All.
     iIntros "#Hρ1 #Hρ2". rewrite /sim_env.
@@ -337,39 +316,27 @@ Section chan_ideal_typing.
       Unshelve. all: solve_typed_side.
   Qed.
 
+  Definition sim_lrecv_body : expr :=
+      (let: "r" := "doKeyLeakRecv" (alice) in
+       match: "r" with
+       | NONE => "k" NONEV
+       | SOME "x" =>
+           ("doKeyLeakSnd" alice);;
+           match: !"m'_opt" with
+           | NONE => "k" NONEV
+           | SOME "_" =>
+               let: "rla" := ("doLeakARecv" bob) in
+               match: "rla" with
+               | NONE => "k" NONEV
+               | SOME "x" => "k" !"message"
+               end
+           end
+       end)%E.
+
   Lemma sim_lrecv_handler_typed (θ1 θ2 ρh : sem_row Σ) :
     ⊢ (¡ θ1)%R ≤ᵣ ρh -∗ (¡ θ2)%R ≤ᵣ ρh -∗
     sem_typed (("payload", (𝟙 + 𝟙)%T) :: ("k", (Option ℕ -{ ρh }-[OS]-> 𝟙)%T) :: sim_env θ1 θ2)
-      (let: "r" := "doKeyLeakRecv" (alice) in
-       match: "r" with
-       | NONE => "k" NONEV
-       | SOME "x" =>
-           ("doKeyLeakSnd" alice);;
-           match: !"m'_opt" with
-           | NONE => "k" NONEV
-           | SOME "_" =>
-               let: "rla" := ("doLeakARecv" bob) in
-               match: "rla" with
-               | NONE => "k" NONEV
-               | SOME "x" => "k" !"message"
-               end
-           end
-       end)%E
-      (let: "r" := "doKeyLeakRecv" (alice) in
-       match: "r" with
-       | NONE => "k" NONEV
-       | SOME "x" =>
-           ("doKeyLeakSnd" alice);;
-           match: !"m'_opt" with
-           | NONE => "k" NONEV
-           | SOME "_" =>
-               let: "rla" := ("doLeakARecv" bob) in
-               match: "rla" with
-               | NONE => "k" NONEV
-               | SOME "x" => "k" !"message"
-               end
-           end
-       end)%E
+      sim_lrecv_body sim_lrecv_body
       ρh 𝟙 (sim_env θ1 θ2).
   Proof using All.
     iIntros "#Hρ1 #Hρ2". rewrite /sim_env.

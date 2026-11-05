@@ -56,14 +56,17 @@ Section operator_typing.
   Context `{!probblazeRGS Σ}.
   Import typed_hint_modes.
 
-  Class EtaT (τ : sem_ty Σ) := {
-    eta_ty : ⊢ ∀ g1 g2 x1 x2 : val,
-      BREL g1 x1 ≤ g2 x2 <| [] |> {{ τ }} -∗ τ (λ: "r", g1 x1 "r")%V (λ: "r", g2 x2 "r")%V
-  }.
+  (* [func_comp] hands [F] the client [λ r, G f r]: the application [G f] is
+     delayed behind an η-expansion.  [eta_ty τ] says that this delay preserves
+     [τ].  It holds for one-shot arrows and is closed under [∀ᵣ], which covers
+     the client types of [τ__F] and [τ__f]. *)
+  Definition eta_ty (τ : sem_ty Σ) : iProp Σ :=
+    ∀ g1 g2 x1 x2 : val,
+      BREL g1 x1 ≤ g2 x2 <| [] |> {{ τ }} -∗ τ (λ: "r", g1 x1 "r")%V (λ: "r", g2 x2 "r")%V.
 
-  Global Instance eta_ty_arr ρ τ κ : EtaT (τ -{ ρ }-∘ κ).
+  Lemma eta_ty_arr ρ τ κ : ⊢ eta_ty (τ -{ ρ }-∘ κ).
   Proof.
-    constructor. iIntros (g1 g2 x1 x2) "Hg". rewrite /sem_ty_arr /=.
+    iIntros (g1 g2 x1 x2) "Hg". rewrite /sem_ty_arr /=.
     iIntros (w1 w2) "Hw". brel_pures_l; brel_pures_r.
     iApply (brel_bind [AppLCtx _] [AppLCtx _]); [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
     assert (to_iThyIfMono OS [] = []) as <- by done.
@@ -71,29 +74,34 @@ Section operator_typing.
     simpl. iIntros (v1 v2) "Hv". by iApply "Hv".
   Qed.
 
-  Global Instance eta_ty_row_forall (C : sem_row Σ → sem_ty Σ) `{!∀ θ, EtaT (C θ)} :
-    EtaT (∀ᵣ θ, C θ).
+  Lemma eta_ty_row_forall (C : sem_row Σ → sem_ty Σ) :
+    (∀ θ, ⊢ eta_ty (C θ)) → ⊢ eta_ty (∀ᵣ θ, C θ).
   Proof.
-    constructor. iIntros (g1 g2 x1 x2) "Hg". rewrite /sem_ty_row_forall /=. iIntros (θ).
-    iApply eta_ty. iApply (brel_wand with "Hg"). iIntros "!# % % H". iApply "H".
+    intros HC. iIntros (g1 g2 x1 x2) "Hg". rewrite /sem_ty_row_forall /=. iIntros (θ).
+    iApply HC. iApply (brel_wand with "Hg"). iIntros "!# % % H". iApply "H".
   Qed.
 
-  Lemma sem_oval_typed_eta (g x : string) τ M `{!EtaT M} :
-    g ≠ "r" → x ≠ "r" →
+  Lemma eta_ty_τf (τ1 τ2 : sem_row Σ → sem_ty Σ) θ : ⊢ eta_ty (τ__f θ τ1 τ2).
+  Proof. apply eta_ty_row_forall => θ1. apply eta_ty_row_forall => θ2. apply eta_ty_arr. Qed.
+
+  Lemma sem_oval_typed_eta (g x : string) τ M :
+    g ≠ "r" → x ≠ "r" → (⊢ eta_ty M) →
     ⊢ sem_oval_typed [(x, τ); (g, τ ⊸ M)] (λ: "r", g x "r") (λ: "r", g x "r") M.
   Proof.
-    iIntros (Hg Hx) "!# %vs HΓ /=".
+    iIntros (Hg Hx HM) "!# %vs HΓ /=".
     rewrite !env_sem_typed_cons env_sem_typed_empty.
     iDestruct "HΓ" as "([%x1 [%x2 [%Hvx Hx]]] & [%g1 [%g2 [%Hvg Hg]]] & _)".
     simplify_map_eq. rewrite /pure_weakestpre.prel /=. iExists _, _, 1%nat, 1%nat.
     iSplit; first (iPureIntro; repeat split; by apply pure_recc).
-    iApply eta_ty. by iApply "Hg".
+    iApply HM. by iApply "Hg".
   Qed.
 
-  Lemma func_comp_val_typed (T1 M T4 : sem_row Σ → sem_ty Σ) `{!∀ θ, EtaT (M θ)} :
+  Lemma func_comp_val_typed (T1 M T4 : sem_row Σ → sem_ty Σ) :
+    (∀ θ, ⊢ eta_ty (M θ)) →
     ⊢ ⊨ᵥ func_comp ≤ func_comp :
       ((∀ᵣ θ, M θ ⊸ T4 θ) ⊸ (∀ᵣ θ, T1 θ ⊸ M θ) ⊸ (∀ᵣ θ, T1 θ ⊸ T4 θ))%T.
   Proof.
+    intros HM.
     iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
     iApply sem_typed_closure; first done.
     iApply (sem_typed_oval _ [_]). iApplyT sem_oval_typed_afun.
@@ -104,7 +112,7 @@ Section operator_typing.
       { iApply env_le_cons; last iApply ty_le_refl.
         iApply env_le_cons; [iApply env_le_refl|iApply ty_le_row_forall_inst]. }
       iApply (sem_typed_oval _ [("f", _); ("G", _)] [("F", _)]).
-      by iApply sem_oval_typed_eta.
+      iApply sem_oval_typed_eta; [done|done|apply HM].
     - iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst.
       Unshelve. all: solve_typed_side.
   Qed.
@@ -178,27 +186,6 @@ Section operator_typing.
     Unshelve. all: solve_typed_side.
   Qed.
 
-  (* [F ∘f J] for functionalities at [τ__F] types. *)
-  Lemma func_comp_F_typed (F J : expr) (A B B' : sem_row Σ → sem_ty Σ) :
-    ⊢ sem_typed [] F F ⊥ (τ__F A B) [] -∗ sem_typed [] J J ⊥ (τ__F B B') [] -∗
-    sem_typed [] (F ∘f J) (F ∘f J) ⊥ (τ__F A B') [].
-  Proof.
-    iIntros "#HF #HJ".
-    iApplyT sem_typed_app_nil; last iApply "HJ".
-    iApplyT sem_typed_app_nil; last iApply "HF".
-    iApply sem_typed_val. iApply func_comp_val_typed.
-  Qed.
-
-  (* [F ||ᵣ G] for functionalities at [τ__F] types. *)
-  Lemma parallel_comp_typed (F G : expr) (τ1 τ1' τ2 τ2' : sem_row Σ → sem_ty Σ) :
-    ⊢ sem_typed [] F F ⊥ (τ__F τ2 τ2') [] -∗ sem_typed [] G G ⊥ (τ__F τ1 τ1') [] -∗
-    sem_typed [] (F ||ᵣ G) (F ||ᵣ G) ⊥ (∀ᵣ θ, τ__f θ τ1' τ2' ⊸ τ__f θ τ1 τ2)%T [].
-  Proof.
-    iIntros "#HF #HG".
-    iApplyT sem_typed_app_nil; last iApply "HG".
-    iApplyT sem_typed_app_nil; last iApply "HF".
-    iApply sem_typed_val. iApply parallel_comp_val_typed.
-  Qed.
 
   (* The hybrid-world context [λ x. (x ||ᵣ A₀) ∘f ρ], as an open term in [x]. *)
   Lemma ctx_hybrid_typed (A₀ ρ : expr) (τc τJ1 τJ2 τA τH : sem_row Σ → sem_ty Σ) :
@@ -215,7 +202,7 @@ Section operator_typing.
       { iApply (sem_typed_frame_env_gen _ [_]). iApply "HA₀". }
       iApplyT sem_typed_app_nil; last typed_var.
       iApply sem_typed_val. iApply parallel_comp_val_typed.
-    - iApply sem_typed_val. iApply func_comp_val_typed.
+    - iApply sem_typed_val. iApply func_comp_val_typed. intros θ. apply eta_ty_τf.
     Unshelve. all: solve_typed_side.
   Qed.
 
@@ -230,6 +217,34 @@ Section operator_typing.
     iApplyT sem_typed_app_nil; last iApply "HS".
     iApply sem_typed_val. iApply functionality_comp_val_typed.
     Unshelve. all: solve_typed_side.
+  Qed.
+
+  (* The shapes in which [functionality_comp_func_comp_assoc] wants a
+     simulator [S'] over a one-port functionality and that functionality [G]:
+     [S']'s output row in the other order, and [G]'s port quantifier outside
+     the arrow.  Both are subtyping. *)
+  Lemma sem_typed_sim_assoc_shape (S' : expr) (τG τA τF : sem_row Σ → sem_ty Σ) :
+    ⊢ sem_typed [] S' S' ⊥ (∀ᵣ θ, (∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) ⊸ τ__f θ τA τF)%T [] -∗
+      sem_typed [] S' S' ⊥ (∀ᵣ θ, (∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) ⊸
+          ∀ᵣ θ1, ∀ᵣ θ2, (τA θ1 × τF θ2) -{ sem_row_union (¡θ2) (sem_row_union (¡θ1) θ) }-∘ 𝟙)%T [].
+  Proof.
+    iIntros "#HS'". iApply sem_typed_sub_ty; last iApply "HS'".
+    iApply ty_le_row_forall; iIntros (θ).
+    iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
+    rewrite /τ__f. iApply ty_le_row_forall; iIntros (θ1). iApply ty_le_row_forall; iIntros (θ2).
+    iApply ty_le_arr; [row_le_submseteq|iApply ty_le_refl|iApply ty_le_refl].
+  Qed.
+
+  Lemma sem_typed_fun_assoc_shape (G : expr) (τc τG : sem_row Σ → sem_ty Σ) :
+    ⊢ sem_typed [] G G ⊥ (∀ᵣ θ, τc θ ⊸ ∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)%T [] -∗
+      sem_typed [] G G ⊥ (∀ᵣ θ, ∀ᵣ θJ, τc θ ⊸ τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)%T [].
+  Proof.
+    iIntros "#HG". iApply sem_typed_sub_ty; last iApply "HG".
+    iApply ty_le_row_forall; iIntros (θ).
+    iIntros "!# %v1 %v2 H %θJ".
+    iDestruct (ty_le_arr with "[] [] []") as "Hle";
+      [iApply row_le_refl|iApply ty_le_refl|iApply (ty_le_row_forall_inst _ θJ)|].
+    iApply ("Hle" with "H").
   Qed.
 
   (* An environment composed with a typed context is a typed environment. *)
@@ -253,6 +268,10 @@ End operator_typing.
 Lemma closed_app (e1 e2 : expr) :
   is_closed_expr ∅ e1 → is_closed_expr ∅ e2 → is_closed_expr ∅ (e1 e2).
 Proof. intros H1 H2. simpl. apply andb_prop_intro. by split. Qed.
+
+Lemma closed_app_inv (e1 e2 : expr) :
+  is_closed_expr ∅ (e1 e2) → is_closed_expr ∅ e1 ∧ is_closed_expr ∅ e2.
+Proof. simpl. by intros [? ?]%andb_prop_elim. Qed.
 
 Lemma func_comp_closed : is_closed_expr ∅ func_comp.
 Proof. is_closed. Qed.
@@ -495,35 +514,14 @@ Section uc_composition.
       eapply (advantage_triangle _ _ (S ∘F (S' ∘f G)) _ _ _ 0); first last.
       { rewrite Rplus_0_r. reflexivity. }
       1: { apply (advantage_zero _ _ _ _ β); [exact HA| |]; intros HRGS.
-           (* [S'] and [G] are given at the natural shapes; the associativity
-              lemma wants [S']'s output row in the other order and [G]'s port
-              quantifier outside the arrow.  Both are subtyping. *)
            - iApply (functionality_comp_func_comp_assoc_rev _ _ _ _ _ _ (τG HRGS));
-               [done|done|done|iApply HS| |].
-             + iApply sem_typed_sub_ty; last iApply HS'.
-               iApply ty_le_row_forall; iIntros (θ).
-               iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
-               rewrite /τ__f. iApply ty_le_row_forall; iIntros (θ1). iApply ty_le_row_forall; iIntros (θ2).
-               iApply ty_le_arr; [row_le_submseteq|iApply ty_le_refl|iApply ty_le_refl].
-             + iApply sem_typed_sub_ty; last iApply HG.
-               iApply ty_le_row_forall; iIntros (θ).
-               iIntros "!# %v1 %v2 H %θJ".
-               iDestruct (ty_le_arr with "[] [] []") as "Hle";
-                 [iApply row_le_refl|iApply ty_le_refl|iApply (ty_le_row_forall_inst _ θJ)|].
-               iApply ("Hle" with "H").
+               [done|done|done|iApply HS
+               |iApply sem_typed_sim_assoc_shape; iApply HS'
+               |iApply sem_typed_fun_assoc_shape; iApply HG].
            - iApply (functionality_comp_func_comp_assoc _ _ _ _ _ _ (τG HRGS));
-               [done|done|done|iApply HS| |].
-             + iApply sem_typed_sub_ty; last iApply HS'.
-               iApply ty_le_row_forall; iIntros (θ).
-               iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
-               rewrite /τ__f. iApply ty_le_row_forall; iIntros (θ1). iApply ty_le_row_forall; iIntros (θ2).
-               iApply ty_le_arr; [row_le_submseteq|iApply ty_le_refl|iApply ty_le_refl].
-             + iApply sem_typed_sub_ty; last iApply HG.
-               iApply ty_le_row_forall; iIntros (θ).
-               iIntros "!# %v1 %v2 H %θJ".
-               iDestruct (ty_le_arr with "[] [] []") as "Hle";
-                 [iApply row_le_refl|iApply ty_le_refl|iApply (ty_le_row_forall_inst _ θJ)|].
-               iApply ("Hle" with "H"). }
+               [done|done|done|iApply HS
+               |iApply sem_typed_sim_assoc_shape; iApply HS'
+               |iApply sem_typed_fun_assoc_shape; iApply HG]. }
       change (S ∘F ((F ||ᵣ A₀) ∘f ρ))%E with (fill (sim_ctx S) ((F ||ᵣ A₀) ∘f ρ)).
       change (S ∘F (S' ∘f G))%E with (fill (sim_ctx S) (S' ∘f G)).
       change (S ∘F "v")%E with (fill (sim_ctx S) "v").
@@ -543,35 +541,6 @@ Section uc_composition.
       iApply ctx_adv_typed; first iApply HA. iApply ctx_hybrid_typed; [iApply HA₀|iApply Hρ].
   Qed.
 
-  (* The two composed environments are well-typed environments against the
-     respective realisations, so the bound chains with any further
-     assumption stated for typed environments. *)
-  Lemma hybrid_env_typed (A₀ ρ A : val)
-      (τc τJ1 τJ2 τA τH : ∀ `{probblazeRGS Σ}, sem_row Σ → sem_ty Σ) :
-    (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] A₀ A₀ ⊥ (τ__F τA τJ1) []) →
-    (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] ρ ρ ⊥ (∀ᵣ θ, τc θ ⊸ τ__f θ τJ1 τJ2)%T []) →
-    (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A ((∀ᵣ θ, τc θ ⊸ τ__f θ τA τH) → 𝔹)%T) →
-    ∀ `{probblazeRGS Σ},
-      ⊢ sem_val_typed (λ: "v", A (("v" ||ᵣ A₀) ∘f ρ))%V (λ: "v", A (("v" ||ᵣ A₀) ∘f ρ))%V
-          (τ__F τH τJ2 → 𝔹)%T.
-  Proof.
-    intros HA₀ Hρ HA HRGS.
-    change (("v" ||ᵣ A₀) ∘f ρ)%E with (fill (hybrid_ctx A₀ ρ) "v").
-    iApply ctx_adv_typed; first iApply HA. iApply ctx_hybrid_typed; [iApply HA₀|iApply Hρ].
-  Qed.
-
-  Lemma sim_env_typed (S : expr) (A : val)
-      (τc τA τF τH : ∀ `{probblazeRGS Σ}, sem_row Σ → sem_ty Σ) :
-    (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] S S ⊥ (τ__F τH τF) []) →
-    (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A ((∀ᵣ θ, τc θ ⊸ τ__f θ τA τH) → 𝔹)%T) →
-    ∀ `{probblazeRGS Σ},
-      ⊢ sem_val_typed (λ: "v", A (S ∘F "v"))%V (λ: "v", A (S ∘F "v"))%V
-          ((∀ᵣ θ, τc θ ⊸ τ__f θ τA τF) → 𝔹)%T.
-  Proof.
-    intros HS HA HRGS.
-    change (S ∘F "v")%E with (fill (sim_ctx S) "v").
-    iApply ctx_adv_typed; first iApply HA. iApply ctx_sim_typed. iApply HS.
-  Qed.
 
 End uc_composition.
 
