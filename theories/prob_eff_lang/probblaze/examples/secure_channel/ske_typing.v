@@ -152,16 +152,15 @@ Section ske_typing.
         Unshelve. all: solve_typed_side.
     Qed.
 
-    Lemma F_OAUTH_val_typed :
-      ⊢ sem_val_typed F_OAUTH F_OAUTH (τ__F oaleak cchan).
+    Lemma F_OAUTH_typed_u : ⊢ sem_typed [] F_OAUTH F_OAUTH ⊥ (τ__Fu oaleak cchan) [].
     Proof using Type*.
-      iApply sem_typed_Rclosure. iIntros (θ).
-      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
-      iApply sem_typed_closure; first done.
-      iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ₂).
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+      iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
+      (* the copyable reference is the only captured state *)
+      iApplyT sem_oval_typed_ufun.
+      iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ₂).
       iApplyT sem_oval_typed_afun.
       iApplyT sem_typed_pair_elim; first typed_var.
-      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
       iApply sem_typed_effect_gen. iIntros (ls1 ls2).
       iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
       (* The client's [doSend]/[doRecv]: their signatures fix the client row
@@ -208,8 +207,7 @@ Section ske_typing.
 
     Corollary F_OAUTH_typed : ⊢ sem_typed [] F_OAUTH F_OAUTH ⊥ (τ__F oaleak cchan) [].
     Proof using All.
-      iApply sem_typed_val.
-      iApply F_OAUTH_val_typed.
+      iApply sem_typed_sub_ty; [iApply τ__Fu_le_τ__F|iApply F_OAUTH_typed_u].
     Qed.
 
   End f_oauth.
@@ -414,12 +412,11 @@ Section ske_typing.
     Qed.
 
 
-    (* The body of [CHAN] (free in "f","effs"), copied verbatim from
-     [sec_channel_def.CHAN], so that [CHAN] is [λ: "f" "effs", CHAN_body]. *)
+    (* The body of [CHAN] (free in "f", "effs" and the hoisted "message"), so
+     that [CHAN] is [let: "message" := ref NONEV in λ: "f" "effs", CHAN_body]. *)
     Definition CHAN_body : expr :=
       (let, ("chanOp", "doGK") := "effs" in
        let, ("doSend", "doRecv") := "chanOp" in
-       let: "message" := ref NONEV in
        effect "ssend"
          effect "srecv"
          let: "doSecSend" := (λ: "m", do: "ssend" "m") in
@@ -459,13 +456,12 @@ Section ske_typing.
        end)%E.
 
     Lemma CHAN_body_typed (θ θ1 θ2 : sem_row Σ) :
-      ⊢ sem_typed [("f", hdl cli θ); ("effs", (cchan θ1 × gk θ2)%T)] CHAN_body CHAN_body
-          (sem_row_union (¡ θ1) (sem_row_union (¡ θ2) θ)) 𝟙 [].
+      ⊢ sem_typed [("f", hdl cli θ); ("effs", (cchan θ1 × gk θ2)%T); ("message", Refᶜ (Option Msg))]
+          CHAN_body CHAN_body (sem_row_union (¡ θ1) (sem_row_union (¡ θ2) θ)) 𝟙 [].
     Proof using All.
       iApply sem_typed_swap_second.
       iApplyT sem_typed_pair_elim; first typed_var.
       iApplyT sem_typed_pair_elim; first typed_var.
-      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
       iApply sem_typed_effect_gen. iIntros (ls1 ls2).
       iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
       (* The client's [doSecSend]/[doSecRecv]: their signatures fix the client
@@ -508,17 +504,25 @@ Section ske_typing.
         Unshelve. all: solve_typed_side.
     Qed.
 
-    Lemma CHAN_typed :
-      ⊢ sem_typed [] CHAN CHAN ⊥ (∀ᵣ θ, hdl cli θ ⊸ τ__f θ cchan gk)%T [].
+    Lemma CHAN_typed_u :
+      ⊢ sem_typed [] CHAN CHAN ⊥ (∀ᵣ θ, hdl cli θ → τ__f θ cchan gk)%T [].
     Proof using All.
-      iApply sem_typed_val. iApply sem_typed_Rclosure. iIntros (θ).
-      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
-      iApply sem_typed_closure; first done.
-      iApply (sem_typed_oval _ [_]).
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+      iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
+      (* the copyable reference is the only captured state *)
+      iApplyT sem_oval_typed_ufun.
+      iApply (sem_typed_oval _ [_; _]).
       iApply sem_typed_RLam. iIntros (θ1). iApply sem_typed_RLam. iIntros (θ2).
       iApplyT sem_oval_typed_afun. simpl.
       iApply sem_typed_swap_second. iApply CHAN_body_typed.
       Unshelve. all: solve_typed_side.
+    Qed.
+
+    Lemma CHAN_typed :
+      ⊢ sem_typed [] CHAN CHAN ⊥ (∀ᵣ θ, hdl cli θ ⊸ τ__f θ cchan gk)%T [].
+    Proof using All.
+      iApply sem_typed_sub_ty; last iApply CHAN_typed_u.
+      iApply ty_le_row_forall. iIntros (θ). iApply ty_le_mbang_elim.
     Qed.
 
   End chan.
@@ -586,15 +590,65 @@ Section ske_typing.
       Unshelve. all: solve_typed_side.
     Qed.
 
+    (* Unrestricted variant: [F₁] and [F₂] are captured by the closure taking
+       the client, so both must be unrestricted. *)
+    Lemma right_comp_val_typed_u (τ1 τ1' τ2 τ2' : sem_row Σ → sem_ty Σ) :
+      ⊢ ⊨ᵥ parallel_composition ≤ parallel_composition :
+        (τ__Fu τ2 τ2' ⊸ τ__Fu τ1 τ1' ⊸ ∀ᵣ θ, τ__f θ τ1' τ2' → τ__f θ τ1 τ2)%T.
+    Proof.
+      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
+      iApply sem_typed_closure; first done.
+      iApply (sem_typed_oval _ [_]). iApplyT sem_oval_typed_afun.
+      iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
+      iApplyT sem_oval_typed_ufun.
+      iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ1).
+      iApply sem_typed_RLam. iIntros (θ2).
+      iApplyT sem_oval_typed_afun. simpl.
+      iApplyT sem_typed_pair_elim; first typed_var.
+      iApplyT sem_typed_app_fun_nil.
+      2: typed_var.
+      2: { iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApply (sem_typed_oval _ [_; _; _])|].
+           2: { iApplyT sem_typed_sub_ty; last typed_var.
+                iApply ty_le_trans; first iApply (ty_le_row_forall_inst _ (sem_row_union (¡ θ1) θ)).
+                iApply ty_le_trans; first iApply ty_le_mbang_elim.
+                iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|iApply ty_le_row_forall_inst]. }
+           iApply sem_typed_RLam. iIntros (θh). iApplyT sem_oval_typed_afun. simpl.
+           iApplyT sem_typed_app_fun_nil.
+           2: typed_var.
+           2: { iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApply (sem_typed_oval _ [_; _])|].
+                2: { iApplyT sem_typed_sub_ty; last typed_var.
+                     iApply ty_le_trans; first iApply (ty_le_row_forall_inst _ (sem_row_union (¡ θh) θ)).
+                     iApply ty_le_trans; first iApply ty_le_mbang_elim.
+                     iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|iApply ty_le_row_forall_inst]. }
+                iApply sem_typed_RLam. iIntros (θh2). iApplyT sem_oval_typed_afun. simpl.
+                (* The client call [f (h₂, h₁)]. *)
+                iApplyT sem_typed_app_fun_nil.
+                2: { iApply sem_typed_sub_nil. iApplyT sem_typed_pair; typed_var. }
+                2: { iApplyT sem_typed_sub_ty; last typed_var.
+                     iApply ty_le_trans; first iApply ty_le_row_forall_inst. iApply ty_le_row_forall_inst. }
+                iApply row_le_refl. }
+           row_le_submseteq. }
+      row_le_submseteq.
+      Unshelve. all: solve_typed_side.
+    Qed.
+
   End right_comp.
+
+  Lemma F_KE_F_OAUTH_typed_u :
+    ⊢ sem_typed [] (F_KE_lazy_alice ||ᵣ F_OAUTH) (F_KE_lazy_alice ||ᵣ F_OAUTH) ⊥
+        (∀ᵣ θ, τ__f θ cchan gk → τ__f θ oaleak leakI)%T [].
+  Proof using All.
+    iApply sem_typed_app_nil; last iApply F_OAUTH_typed_u.
+    iApply sem_typed_app_nil; last iApply F_KE_lazy_alice_typed_u.
+    iApply sem_typed_val. iApply right_comp_val_typed_u.
+  Qed.
 
   Lemma F_KE_F_OAUTH_typed :
     ⊢ sem_typed [] (F_KE_lazy_alice ||ᵣ F_OAUTH) (F_KE_lazy_alice ||ᵣ F_OAUTH) ⊥
         (∀ᵣ θ, τ__f θ cchan gk ⊸ τ__f θ oaleak leakI)%T [].
   Proof using All.
-    iApply sem_typed_app_nil; last (iApply sem_typed_val; iApply F_OAUTH_val_typed).
-    iApply sem_typed_app_nil; last iApply F_KE_lazy_alice_typed.
-    iApply sem_typed_val. iApply right_comp_val_typed.
+    iApply sem_typed_sub_ty; last iApply F_KE_F_OAUTH_typed_u.
+    iApply ty_le_row_forall. iIntros (θ). iApply ty_le_mbang_elim.
   Qed.
 
   Section reduction.
@@ -743,21 +797,22 @@ Section ske_typing.
         Unshelve. all: solve_typed_side.
     Qed.
 
-    Lemma RED_CHAN_val_typed :
-      ⊢ ⊨ᵥ (@RED_CHAN mt ms) ≤ (@RED_CHAN mt ms) : ((𝟙 ⊸ (Msg -{ ⊥ }-> Cph)) ⊸ ∀ᵣ θ, hdl cli θ ⊸ τ__f θ cchan gk)%T.
+    Lemma RED_CHAN_val_typed_u :
+      ⊢ ⊨ᵥ (@RED_CHAN mt ms) ≤ (@RED_CHAN mt ms) : ((𝟙 ⊸ (Msg -{ ⊥ }-> Cph)) ⊸ ∀ᵣ θ, hdl cli θ → τ__f θ cchan gk)%T.
     Proof using All.
       iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
       iApply sem_typed_closure; first done.
-      iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
-      iApplyT sem_oval_typed_afun.
-      iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ1).
-      iApply sem_typed_RLam. iIntros (θ2).
-      iApplyT sem_oval_typed_afun. simpl.
+      (* The oracle and [message] are set up once, before the client. *)
       iApplyT sem_typed_let.
       { iApplyT sem_typed_app_fun_nil; [iApply row_le_nil|iApplyT sem_typed_unit'|typed_var]. }
-      iApplyT sem_typed_pair_elim; first typed_var.
-      iApplyT sem_typed_pair_elim; first typed_var.
       iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApply (sem_typed_none Msg)).
+      iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
+      iApplyT sem_oval_typed_ufun.
+      iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ1).
+      iApply sem_typed_RLam. iIntros (θ2).
+      iApplyT sem_oval_typed_afun. simpl.
+      iApplyT sem_typed_pair_elim; first typed_var.
+      iApplyT sem_typed_pair_elim; first typed_var.
       iApply sem_typed_effect_gen. iIntros (ls1 ls2).
       iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
       iApplyT sem_typed_let.
@@ -793,17 +848,27 @@ Section ske_typing.
         Unshelve. all: solve_typed_side.
     Qed.
 
-    Lemma reduction_val_typed :
+    Lemma reduction_val_typed_u :
       ⊢ ⊨ᵥ (@reduction vg cg vgg mt ms) ≤ (@reduction vg cg vgg mt ms) :
-        ((𝟙 ⊸ (Msg -{ ⊥ }-> Cph)) → ∀ᵣ θ, hdl cli θ ⊸ τ__f θ oaleak leakI)%T.
+        ((𝟙 ⊸ (Msg -{ ⊥ }-> Cph)) → ∀ᵣ θ, hdl cli θ → τ__f θ oaleak leakI)%T.
     Proof using All.
       iApply sem_typed_closure; first done. simpl.
       iApplyT sem_typed_app_nil; last first.
       { iApplyT sem_typed_app_nil; last typed_var.
-        iApply sem_typed_val. iApply RED_CHAN_val_typed. }
-      iApplyT sem_typed_app_nil; last iApply F_KE_F_OAUTH_typed.
-      iApply sem_typed_val. iApply func_comp_val_typed.
+        iApply sem_typed_val. iApply RED_CHAN_val_typed_u. }
+      iApplyT sem_typed_app_nil; last iApply F_KE_F_OAUTH_typed_u.
+      iApply sem_typed_val. iApply func_comp_val_typed_u.
       Unshelve. all: solve_typed_side.
+    Qed.
+
+    Lemma reduction_val_typed :
+      ⊢ ⊨ᵥ (@reduction vg cg vgg mt ms) ≤ (@reduction vg cg vgg mt ms) :
+        ((𝟙 ⊸ (Msg -{ ⊥ }-> Cph)) → ∀ᵣ θ, hdl cli θ ⊸ τ__f θ oaleak leakI)%T.
+    Proof using All.
+      iApply sem_val_typed_sub; last iApply reduction_val_typed_u.
+      iApply ty_le_mbang_comp; first iApply mode.mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
+      iApply ty_le_row_forall. iIntros (θ). iApply ty_le_mbang_elim.
     Qed.
 
     Lemma sem_typed_rand_cipher Γ ρ :

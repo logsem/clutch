@@ -61,7 +61,7 @@ Section adv_schan.
     intros ?. eexists _,_.
     split; first done.
     split; last split.
-    - iApply (reduction_val_typed (SKE := SKE _)).
+    - iApply (reduction_val_typed_u (SKE := SKE _)).
     - iApply compatibility.sem_typed_val. iApply (enc_real_tape_val_typed (SKE := SKE _)).
     - iApply compatibility.sem_typed_val. iApply (enc_ideal_val_typed (SKE := SKE _)).
   Qed.
@@ -79,7 +79,7 @@ Section adv_schan.
       + right. by apply adv_game2_sc_ideal.
       + rewrite Rplus_0_r. eapply (advantage_triangle _ _ (enc_real ske)).
         * right. eapply sem_typed_advantage_expr.
-          -- intros ?. iApply sem_typed_adv_red; [iApply HA|iApply (reduction_val_typed (SKE := SKE _))].
+          -- intros ?. iApply sem_typed_adv_red; [iApply HA|iApply (reduction_val_typed_u (SKE := SKE _))].
           -- split.
              ++ iIntros (?). apply (enc_real_tape_enc_real (ske := SKE H0)) .
              ++ iIntros (?). apply (enc_real_enc_real_tape (ske := SKE H0)).

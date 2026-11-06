@@ -388,6 +388,24 @@ Section schan_common.
     by iDestruct (ghost_map_elem_ne with "H1 H2") as %?.
   Qed.
 
-  Definition τsc :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option msg.(sem_τFT)))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+  Definition τsc :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option msg.(sem_τFT)))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) → (*type of client*)
                   (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((cipher.(sem_τFT) × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
+
+  (* One-shot variant of [τsc], the shape the composition operators expect *)
+  Definition τsc_OS :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }->  𝟙) × (𝟙 -{ θₕ }-> (Option msg.(sem_τFT)))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((cipher.(sem_τFT) × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × (𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙)) -{ sem_row_union (¡θ₁) (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
+
+  Lemma τsc_le_τsc_OS : ⊢ τsc ≤ₜ τsc_OS.
+  Proof. iApply ty_le_row_forall. iIntros (θ). iApply ty_le_mbang_elim. Qed.
+
+  (* Subsumption at [τsc_OS], without depending on [compatibility] *)
+  Lemma sem_typed_τsc_OS e1 e2 :
+    (⊢ sem_typed [] e1 e2 ⊥ τsc []) → ⊢ sem_typed [] e1 e2 ⊥ τsc_OS [].
+  Proof.
+    intros He. iPoseProof He as "H". iPoseProof τsc_le_τsc_OS as "Hle".
+    rewrite /sem_typed /ty_le /tc_opaque.
+    iIntros "!#" (vs) "HΓ".
+    iApply (brel_wand with "[HΓ]"); first iApply ("H" with "HΓ").
+    iIntros "!#" (v1 v2) "[Hτ $]". iApply ("Hle" with "Hτ").
+  Qed.
 End schan_common.

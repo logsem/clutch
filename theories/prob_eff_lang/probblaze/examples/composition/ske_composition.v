@@ -275,7 +275,7 @@ Section new_comp_verification.
     - apply F_AUTH_DHSIM_closed.
     - apply sc_real_closed.
     - apply game1_closed.
-    - iApply (@sc_real_game1 _ _ _ _ _ _ mt ct ms cs).  
+    - iApply (@sc_real_game1_OS _ _ _ _ _ _ mt ct ms cs).  
     - iApply (F_AUTH_DH_SIM_FO_typed (SKE := SKE)).
   Qed.
   
@@ -287,7 +287,7 @@ Section new_comp_verification.
     - apply F_AUTH_DHSIM_closed.
     - apply game1_closed.
     - apply sc_real_closed.
-    - iApply (@game1_sc_real _ _ _ _ _ _ mt ct ms cs).  
+    - iApply (@game1_sc_real_OS _ _ _ _ _ _ mt ct ms cs).  
     - iApply (F_AUTH_DH_SIM_FO_typed (SKE := SKE)).
   Qed.
 
@@ -350,7 +350,7 @@ Section new_comp_verification.
     - apply F_AUTH_DHSIM_closed.
     - apply game2_closed. 
     - apply sc_ideal_closed.
-    - iApply (@game2_sc_ideal _ _ _ _ _ _ mt ct ms cs).
+    - iApply (@game2_sc_ideal_OS _ _ _ _ _ _ mt ct ms cs).
     - iApply (F_AUTH_DH_SIM_FO_typed (SKE := SKE)).
   Qed.
 
@@ -362,7 +362,7 @@ Section new_comp_verification.
     - apply F_AUTH_DHSIM_closed.
     - apply sc_ideal_closed. 
     - apply game2_closed.
-    - iApply (@sc_ideal_game2 _ _ _ _ _ _ mt ct ms cs).
+    - iApply (@sc_ideal_game2_OS _ _ _ _ _ _ mt ct ms cs).
     - iApply (F_AUTH_DH_SIM_FO_typed (SKE := SKE)).
   Qed.
 

@@ -531,7 +531,7 @@ Section dhke_typing.
       Unshelve. all: solve_typed_side.
   Qed.
 
-  Lemma F_KE_lazy_alice_typed : ⊢ sem_typed [] F_KE_lazy_alice F_KE_lazy_alice ⊥ (τ__F leakI gk) [].
+  Lemma F_KE_lazy_alice_typed_u : ⊢ sem_typed [] F_KE_lazy_alice F_KE_lazy_alice ⊥ (τ__Fu leakI gk) [].
   Proof using All.
     rewrite /F_KE_lazy_alice /samplelbl.
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloctape; iApplyT sem_typed_int').
@@ -559,7 +559,8 @@ Section dhke_typing.
       - typed_var.
       - iApply env_le_refl. }
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    (* the tape, the cache and [sample_or_load] are copyable *)
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _; _; _]). iApply sem_typed_RLam. iIntros (θ₂).
     iApplyT sem_oval_typed_afun. simpl.
     iApplyT sem_typed_pair_elim; first typed_var.
@@ -632,6 +633,11 @@ Section dhke_typing.
       + iApply env_le_refl.
     - typed_var.
       Unshelve. all: solve_typed_side.
+  Qed.
+
+  Lemma F_KE_lazy_alice_typed : ⊢ sem_typed [] F_KE_lazy_alice F_KE_lazy_alice ⊥ (τ__F leakI gk) [].
+  Proof using All.
+    iApply sem_typed_sub_ty; [iApply τ__Fu_le_τ__F|iApply F_KE_lazy_alice_typed_u].
   Qed.
 
   Lemma C_lazy_val_typed_u :

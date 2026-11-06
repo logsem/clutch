@@ -37,6 +37,7 @@ Section schan_security.
 
   #[local] Notation sec_channel := (@sec_channel Σ mt).
   #[local] Notation τsc := (@τsc Σ _ mt ct ms cs msg cipher).
+  #[local] Notation τsc_OS := (@τsc_OS Σ _ mt ct ms cs msg cipher).
   #[local] Notation SEM_TYPED_EFF := (@SEM_TYPED_EFF Σ _ mt ms msg).
 
 
@@ -86,32 +87,65 @@ Section schan_security.
     rewrite subst_map_is_closed_empty; last is_closed.
     rewrite /sc_real /game1 /reduction /CHAN /RED_CHAN /F_OAUTH /F_KE_lazy_alice /parallel_composition /enc_real_tape /func_comp...
 
-    brel_alloctape_r γr as "Hγr"...
+    (* Setup, shared by all calls.  Arguments are evaluated first: left
+       (game1) the encryption scheme, RED_CHAN, F_OAUTH, F_KE; right (sc_real)
+       CHAN, F_OAUTH, F_KE. *)
+    brel_alloctape_l (ι) as "Hι"... (* Initialization of the encryption scheme *)
+    brel_alloc_l lml as "Hlml"...
+    brel_alloc_l laml as "Hlaml"...
     brel_alloctape_l γl as "Hγl"...
-    brel_alloc_r lcr as "Hlcr"...
     brel_alloc_l lcl as "Hlcl"...
+    brel_alloc_r lmr as "Hlmr"...
+    brel_alloc_r lamr as "Hlamr"...
+    brel_alloctape_r γr as "Hγr"...
+    (* No [...]: the invariant must be allocated before both sides are values. *)
+    brel_alloc_r lcr as "Hlcr".
 
+    (* Invariants *)
+    rewrite Nat2Z.id.
+    iAssert (γr ↪ₛN (n; []))%I with "[Hγr]" as "Hγr".
+    { iExists []. simpl. iFrame. done. }
+    iDestruct (tapeN_to_persistent with "Hγl") as ">#Hγl".
+    (* Mirror image of the coupling in [sc_real_game1]: here [game1] is on the
+       left, so the left tape [ι] draws the symmetric key [x] and the right tape
+       [γr] draws Alice's DH exponent [f_inv keyf x] -- whose encoding is again
+       [x], by [keyf_inv_spec]. *)
+    iApply (brel_couple_TT _ n (f_inv keyf)).
+    { apply keyf_inv_dom. }
+    rewrite vg_fvt_card. assert (S n - 1 = n)%Z as -> by lia.
+    rewrite Nat2Z.id. iFrame.
+    iIntros (x) "(Hι&Hγr) //=".
+    iDestruct (tapeN_hd_bound with "Hι") as "(%Hx&Hι)".
 
+    iApply (brel_na_alloc ((lmr ↦ₛ NONEV ∗ lcr ↦ₛ NONEV ∗ lml ↦ NONEV ∗ lcl ↦ NONEV ∗ lamr ↦ₛ NONEV ∗ laml ↦ NONEV
+                           ∗ γr ↪ₛN (n; [f_inv keyf x]) ∗ (Loc ι) ↪N (n; [x]))
+                           ∨ (∃ (c' : nat) (mv : mt), lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c'
+                                            ∗ lamr ↦ₛ NONEV ∗ laml ↦ NONEV
+                                            ∗ γr ↪ₛ□N (n; []))
+                           ∨ (∃ (c' : nat) (mv : mt) (cv : ct), (□ P (key := vg_fv) (g ^+ f_inv keyf x)%g mv cv) ∗
+                                                                lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c'
+                                                                ∗ lamr ↦ₛ□ SOMEV (fvtval cv) ∗ laml ↦□ SOMEV (fvtval cv)
+                                                                ∗ γr ↪ₛ□N (n; []) ∗ (Loc ι) ↪□N (n; []))
+              ) alphaN).
+    iSplitL "Hlmr Hlml Hlcr Hlcl Hγr Hι Hlamr Hlaml"; [iNext; iLeft; iFrame|].
+    iIntros "#HI"...
+
+    (* One call: a client and its effect handlers *)
     iModIntro. iSplit; last done.
-    iIntros (θL f1 f2) "Hff"...
+    iIntros (θL). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     iDestruct "Hauthkey" as (w1 w1' w2 w2') "[-> [-> [Hautheff Hkeyeff]]]"...
     iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & (#Hasnd & #Harcv))"...
     iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))"...
 
-    
+
     (* Allocation/initialization *)
     brel_effect_r gkr as "Hgkr".
     brel_effect_l gkl as "Hgkl"...
-    brel_alloc_r lamr as "Hlamr".
-    brel_alloc_l laml as "Hlaml"...
     brel_effect_r sr as "Hsr".
     brel_effect_l sl as "Hsl"...
     brel_effect_r rr as "Hrr".
     brel_effect_l rl as "Hrl"...
-    brel_alloc_r lmr as "Hlmr".
-    brel_alloctape_l (ι) as "Hι"... (* Initialization of the encryption scheme *)
-    brel_alloc_l lml as "Hlml"...
     brel_effect_r ssr as "Hssr".
     brel_effect_l ssl as "Hssl"...
     brel_effect_r srr as "Hsrr".
@@ -152,35 +186,6 @@ Section schan_security.
       unfold distinct_l in Hd'. simpl in Hd'.
       rewrite !labels_l_cons in Hd'.
       by (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]). }
-
-    (* Invariants *)
-    rewrite Nat2Z.id.
-    iAssert (γr ↪ₛN (n; []))%I with "[Hγr]" as "Hγr". 
-    { iExists []. simpl. iFrame. done. }
-    iDestruct (tapeN_to_persistent with "Hγl") as ">#Hγl".
-    (* Mirror image of the coupling in [sc_real_game1]: here [game1] is on the
-       left, so the left tape [ι] draws the symmetric key [x] and the right tape
-       [γr] draws Alice's DH exponent [f_inv keyf x] -- whose encoding is again
-       [x], by [keyf_inv_spec]. *)
-    iApply (brel_couple_TT _ n (f_inv keyf)).
-    { apply keyf_inv_dom. }
-    rewrite vg_fvt_card. assert (S n - 1 = n)%Z as -> by lia.
-    rewrite Nat2Z.id. iFrame.
-    iIntros (x) "(Hι&Hγr) //=".
-    iDestruct (tapeN_hd_bound with "Hι") as "(%Hx&Hι)".
-    
-    iApply (brel_na_alloc ((lmr ↦ₛ NONEV ∗ lcr ↦ₛ NONEV ∗ lml ↦ NONEV ∗ lcl ↦ NONEV ∗ lamr ↦ₛ NONEV ∗ laml ↦ NONEV
-                           ∗ γr ↪ₛN (n; [f_inv keyf x]) ∗ (Loc ι) ↪N (n; [x]))
-                           ∨ (∃ (c' : nat) (mv : mt), lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c'
-                                            ∗ lamr ↦ₛ NONEV ∗ laml ↦ NONEV
-                                            ∗ γr ↪ₛ□N (n; []))
-                           ∨ (∃ (c' : nat) (mv : mt) (cv : ct), (□ P (key := vg_fv) (g ^+ f_inv keyf x)%g mv cv) ∗
-                                                                lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c'
-                                                                ∗ lamr ↦ₛ□ SOMEV (fvtval cv) ∗ laml ↦□ SOMEV (fvtval cv)
-                                                                ∗ γr ↪ₛ□N (n; []) ∗ (Loc ι) ↪□N (n; []))
-              ) alphaN).
-    iSplitL "Hlmr Hlml Hlcr Hlcl Hγr Hι Hlamr Hlaml"; [iNext; iLeft; iFrame|].
-    iIntros "#HI".
 
     (* Case on the clients behaviour and induction *)
     rewrite !iLblSig_to_iLblThy_app !iThyIfMono_iLblSig_to_iThyIfMono.
@@ -512,13 +517,52 @@ Section schan_security.
     change (subst_map _ game1) with game1.
     rewrite /sc_real /game1 /reduction /CHAN /RED_CHAN /F_OAUTH /F_KE_lazy_alice /parallel_composition /enc_real_tape /func_comp...
 
+    (* Setup, shared by all calls.  Arguments are evaluated first: left
+       (sc_real) CHAN, F_OAUTH, F_KE; right (game1) the encryption scheme,
+       RED_CHAN, F_OAUTH, F_KE. *)
+    brel_alloc_l lml as "Hlml"...
+    brel_alloc_l laml as "Hlaml"...
     brel_alloctape_l γl as "Hγl"...
-    brel_alloctape_r γr as "Hγr"...
     brel_alloc_l lcl as "Hlcl"...
-    brel_alloc_r lcr as "Hlcr"...
+    brel_alloctape_r (ι) as "Hι"... (* Initialization of encryption scheme *)
+    brel_alloc_r lmr as "Hlmr"...
+    brel_alloc_r lamr as "Hlamr"...
+    brel_alloctape_r γr as "Hγr"...
+    (* No [...]: the invariant must be allocated before both sides are values. *)
+    brel_alloc_r lcr as "Hlcr".
 
+    (* Invariants *)
+    rewrite vg_fvt_card. assert (S n - 1 = n)%Z as -> by lia.
+    rewrite Nat2Z.id.
+    iAssert ((Loc ι) ↪ₛN (n; []))%I with "[Hι]" as "Hι".
+    { iExists []. simpl. iFrame. done. }
+    iAssert (γr ↪ₛN (n; []))%I with "[Hγr]" as "Hγr".
+    { iExists []. simpl. iFrame. done. }
+    iDestruct (spec_tape_to_persistent with "Hγr") as ">#Hγr".
+    (* Couple Alice's exponent tape [γl] with [game1]'s key tape [ι] along
+       [keyf]: the left draws the DH exponent [x], the right draws the symmetric
+       key [keyf x], which is exactly the key the left derives from [x]. *)
+    iApply (brel_couple_TT _ n keyf).
+    { apply keyf_dom. }
+    iSplitL "Hγl"; first (iNext; iFrame); iSplitL "Hι"; first iFrame.
+    iIntros (x) "(Hγl&Hι) //=".
+    iDestruct (tapeN_hd_bound with "Hγl") as "(%Hx&Hγl)".
+
+    iApply (brel_na_alloc ((lml ↦ NONEV ∗ lcl ↦ NONEV ∗ lmr ↦ₛ NONEV ∗ lcr ↦ₛ NONEV ∗ laml ↦ NONEV ∗ lamr ↦ₛ NONEV
+                           ∗ γl ↪N (n; [x]) ∗ (Loc ι) ↪ₛN (n; [keyf x]))
+                           ∨ (∃ (c' : nat) (mv : mt), lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #x ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c'
+                                            ∗ laml ↦ NONEV ∗ lamr ↦ₛ NONEV
+                                            ∗ γl ↪□N (n; []))
+                           ∨ (∃ (c' : nat) (mv : mt) (cv : ct), □ P  (key := vg_fv) (g ^+ x)%g mv cv ∗ lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #x ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c'
+                                            ∗ laml ↦□ SOMEV (fvtval cv) ∗ lamr ↦ₛ□ SOMEV (fvtval cv)
+                                            ∗ γl ↪□N (n; []) ∗ (Loc ι) ↪ₛ□N (n; []))
+              ) alphaN).
+    iSplitL "Hlml Hlmr Hlcl Hlcr Hγl Hι Hlaml Hlamr"; [iNext; iLeft; iFrame|].
+    iIntros "#HI"...
+
+    (* One call: a client and its effect handlers *)
     iModIntro. iSplit; last done.
-    iIntros (θL f1 f2) "Hff"...
+    iIntros (θL). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     iDestruct "Hauthkey" as (w1 w1' w2 w2') "[-> [-> [Hautheff Hkeyeff]]]"...
     iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & (#Hasnd & #Harcv))"...
@@ -527,15 +571,10 @@ Section schan_security.
     (* Allocation/initialization *)
     brel_effect_l gkl as "Hgkl".
     brel_effect_r gkr as "Hgkr"...
-    brel_alloc_l laml as "Hlaml".
-    brel_alloc_r lamr as "Hlamr"...
     brel_effect_l sl as "Hsl".
     brel_effect_r sr as "Hsr"...
     brel_effect_l rl as "Hrl".
     brel_effect_r rr as "Hrr"...
-    brel_alloc_l lml as "Hlml".
-    brel_alloctape_r (ι) as "Hι"... (* Initialization of encryption scheme *)
-    brel_alloc_r lmr as "Hlmr"...
     brel_effect_l ssl as "Hssl".
     brel_effect_r ssr as "Hssr"...
     brel_effect_l srl as "Hsrl".
@@ -576,35 +615,6 @@ Section schan_security.
       unfold distinct_r in Hd'. simpl in Hd'.
       rewrite !labels_r_cons in Hd'.
       by (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]). }
-
-    (* Invariants *)
-    rewrite vg_fvt_card. assert (S n - 1 = n)%Z as -> by lia.
-    rewrite Nat2Z.id.
-    iAssert ((Loc ι) ↪ₛN (n; []))%I with "[Hι]" as "Hι". 
-    { iExists []. simpl. iFrame. done. }
-    iAssert (γr ↪ₛN (n; []))%I with "[Hγr]" as "Hγr". 
-    { iExists []. simpl. iFrame. done. }
-    iDestruct (spec_tape_to_persistent with "Hγr") as ">#Hγr".
-    (* Couple Alice's exponent tape [γl] with [game1]'s key tape [ι] along
-       [keyf]: the left draws the DH exponent [x], the right draws the symmetric
-       key [keyf x], which is exactly the key the left derives from [x]. *)
-    iApply (brel_couple_TT _ n keyf).
-    { apply keyf_dom. }
-    iSplitL "Hγl"; first (iNext; iFrame); iSplitL "Hι"; first iFrame.
-    iIntros (x) "(Hγl&Hι) //=".
-    iDestruct (tapeN_hd_bound with "Hγl") as "(%Hx&Hγl)".
-    
-    iApply (brel_na_alloc ((lml ↦ NONEV ∗ lcl ↦ NONEV ∗ lmr ↦ₛ NONEV ∗ lcr ↦ₛ NONEV ∗ laml ↦ NONEV ∗ lamr ↦ₛ NONEV
-                           ∗ γl ↪N (n; [x]) ∗ (Loc ι) ↪ₛN (n; [keyf x]))
-                           ∨ (∃ (c' : nat) (mv : mt), lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #x ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c'
-                                            ∗ laml ↦ NONEV ∗ lamr ↦ₛ NONEV
-                                            ∗ γl ↪□N (n; []))
-                           ∨ (∃ (c' : nat) (mv : mt) (cv : ct), □ P  (key := vg_fv) (g ^+ x)%g mv cv ∗ lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #x ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c'
-                                            ∗ laml ↦□ SOMEV (fvtval cv) ∗ lamr ↦ₛ□ SOMEV (fvtval cv)
-                                            ∗ γl ↪□N (n; []) ∗ (Loc ι) ↪ₛ□N (n; []))
-              ) alphaN).
-    iSplitL "Hlml Hlmr Hlcl Hlcr Hγl Hι Hlaml Hlamr"; [iNext; iLeft; iFrame|].
-    iIntros "#HI".
 
     (* Case on the clients behaviour and induction *)
     rewrite !iLblSig_to_iLblThy_app !iThyIfMono_iLblSig_to_iThyIfMono.
@@ -904,9 +914,16 @@ Section schan_security.
         iApply (brel_dec_enc_correct_l (SYM := SKE)); first done.
         brel_cont_r. 
         iApply (brel_cont_l with "Hsrl")... 
-        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
+        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"].
         iDestruct "HQ" as "[HQ _]".
         iApply "HQ".
   Qed.
+
+  (* One-shot versions, the shape the composition operators expect *)
+  Lemma game1_sc_real_OS : ⊢ sem_typed [] game1 sc_real ⊥ τsc_OS [].
+  Proof using All. apply sem_typed_τsc_OS. apply game1_sc_real. Qed.
+
+  Lemma sc_real_game1_OS : ⊢ sem_typed [] sc_real game1 ⊥ τsc_OS [].
+  Proof using All. apply sem_typed_τsc_OS. apply sc_real_game1. Qed.
 
 End schan_security.

@@ -134,7 +134,7 @@ Section ske_comp_verification.
       { iApply (sem_typed_frame_env_gen _ [_]). iApply (CHAN_typed (SKE := SKE)). }
       iApplyT sem_typed_app_nil; last first.
       - iApplyT sem_typed_app_nil; last first.
-        { iApply (sem_typed_frame_env_gen _ [_]). iApply sem_typed_val. iApply (F_OAUTH_val_typed (SKE := SKE)). }
+        { iApply (sem_typed_frame_env_gen _ [_]). iApply (F_OAUTH_typed (SKE := SKE)). }
         iApplyT sem_typed_app_nil; last first.
         + (* [F_AUTH ∘f C], with [C := λ: "f", C_lazy "DH" "f"]. *)
           iApplyT sem_typed_app_nil; last first.

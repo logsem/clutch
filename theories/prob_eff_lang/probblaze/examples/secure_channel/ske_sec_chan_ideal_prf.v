@@ -34,6 +34,7 @@ Section schan_ideal.
 
   #[local] Notation sec_channel := (@sec_channel Σ mt).
   #[local] Notation τsc := (@τsc Σ _ mt ct ms cs msg cipher).
+  #[local] Notation τsc_OS := (@τsc_OS Σ _ mt ct ms cs msg cipher).
   #[local] Notation SEM_TYPED_EFF := (@SEM_TYPED_EFF Σ _ mt ms msg).
 
   (* The client's row for this refinement.  Unlike the real/reduction games,
@@ -94,15 +95,56 @@ Section schan_ideal.
                                          end);
                                  set_unfold; tauto
                              end)).
-    iIntros (?) "!# _ //=". 
-    rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /parallel_composition.
-    repeat (rewrite lookup_delete_eq || (rewrite lookup_delete_ne; last done))...
+    iIntros (?) "!# _".
+    (* Not [//=]: that would compute [subst_map] through the hoisted bodies. *)
+    change (subst_map _ game2) with game2.
+    rewrite subst_map_is_closed_empty; last is_closed.
+    rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /parallel_composition...
 
+    (* Setup, shared by all calls.  Arguments are evaluated first: left
+       (sc_ideal) F_CHAN's state, then the simulator's ciphertext cell and its
+       [started] flag; right (game2) RED_CHAN, F_OAUTH, F_KE. *)
+    brel_alloc_l lml as "Hlml"...
+    brel_alloc_l laml as "Hlaml"...
+    brel_alloc_l lstl as "Hlstl"...
+    brel_alloc_r lmr as "Hlmr"...
+    brel_alloc_r lamr as "Hlamr"...
     brel_alloctape_r γr as "Hγr"...
-    brel_alloc_r lcr as "Hlcr"...
+    (* No [...]: the invariant must be allocated before both sides are values. *)
+    brel_alloc_r lcr as "Hlcr".
 
+    (* The invariant.  Three states, as in the real/reduction proof:
+         I0  nothing has happened;
+         I1  a valid secure send has STARTED -- the plaintext is recorded on
+             both sides, the real side has cached a key ([lcr]) and the
+             simulator has flipped its [started] flag, but no ciphertext has
+             been produced (the key leak may still fail, or be in flight);
+         I2  the ciphertext has been drawn and leaked; it is the SAME on both
+             sides, because the two [rand_cipher] draws are coupled by the
+             identity.
+       [lcr] and [lstl] move together: that is exactly the agreement that makes
+       the receive branch work in state I0.  The key tape [γr] is never
+       presampled and acts as the sender's exclusive token: it is absent from
+       I1 (the sender holds it across the two key leaks), which is how the
+       stale disjuncts are ruled out on re-entry. *)
+    rewrite Nat2Z.id.
+    iAssert (γr ↪ₛN (n; []))%I with "[Hγr]" as "Hγr".
+    { iExists []. simpl. iFrame. done. }
+    iApply (brel_na_alloc ((lmr ↦ₛ NONEV ∗ lcr ↦ₛ NONEV ∗ lamr ↦ₛ NONEV
+                            ∗ lml ↦ NONEV ∗ lstl ↦ NONEV ∗ laml ↦ NONEV
+                            ∗ γr ↪ₛN (n; []))
+                           ∨ (∃ (mv : mt) (c : nat), lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c ∗ lamr ↦ₛ NONEV
+                                           ∗ lml ↦□ SOMEV (fvtval mv) ∗ lstl ↦□ SOMEV #()%V ∗ laml ↦ NONEV)
+                           ∨ (∃ (mv : mt) (c : nat) (cph : ct), lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c ∗ lamr ↦ₛ□ SOMEV (fvtval cph)
+                                           ∗ lml ↦□ SOMEV (fvtval mv) ∗ lstl ↦□ SOMEV #()%V ∗ laml ↦□ SOMEV (fvtval cph)
+                                           ∗ γr ↪ₛ□N (n; []))
+              ) alphaN).
+    iSplitL "Hlmr Hlcr Hlamr Hlml Hlstl Hlaml Hγr"; [iNext; iLeft; iFrame|].
+    iIntros "#HI"...
+
+    (* One call: a client and its effect handlers *)
     iModIntro. iSplit; last done.
-    iIntros (θL f1 f2) "Hff"...
+    iIntros (θL). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     rewrite /sem_ty_prod /=.
     iDestruct "Hauthkey" as (w1 w1' w2 w2') "(-> & -> & [Hautheff Hkeyeff])".
@@ -110,22 +152,15 @@ Section schan_ideal.
     iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))".
     brel_pures'.
 
-    (* Allocation/initialization.  Left (game2): the key tape, the lazy key
-       cache, [getKey], then F_OAUTH's and RED_CHAN's state.  Right (sc_ideal):
-       the simulator's ciphertext cell and its new [started] flag, then
-       F_CHAN's state. *)
+    (* Per-call effect labels.  Right (game2): [getKey], then F_OAUTH's and
+       RED_CHAN's; left (sc_ideal): the simulator's, then F_CHAN's. *)
     brel_effect_r gkr as "Hgkr"...
-    brel_alloc_r lamr as "Hlamr"...
     brel_effect_r sr as "Hsr"...
     brel_effect_r rr as "Hrr"...
-    brel_alloc_r lmr as "Hlmr"...
     brel_effect_r ssr as "Hssr"...
     brel_effect_r srr as "Hsrr"...
-    brel_alloc_l laml as "Hlaml"...
-    brel_alloc_l lstl as "Hlstl"...
     brel_effect_l lsl as "Hlsl"...
     brel_effect_l lrl as "Hlrl"...
-    brel_alloc_l lml as "Hlml"...
     brel_effect_l ssl as "Hssl"...
     brel_effect_l srl as "Hsrl"...
 
@@ -163,35 +198,6 @@ Section schan_ideal.
       unfold distinct_l in Hd'. simpl in Hd'.
       rewrite !labels_l_cons in Hd'.
       by (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]). }
-
-    (* The invariant.  Three states, as in the real/reduction proof:
-         I0  nothing has happened;
-         I1  a valid secure send has STARTED -- the plaintext is recorded on
-             both sides, the real side has cached a key ([lcr]) and the
-             simulator has flipped its [started] flag, but no ciphertext has
-             been produced (the key leak may still fail, or be in flight);
-         I2  the ciphertext has been drawn and leaked; it is the SAME on both
-             sides, because the two [rand_cipher] draws are coupled by the
-             identity.
-       [lcr] and [lstl] move together: that is exactly the agreement that makes
-       the receive branch work in state I0.  The key tape [γr] is never
-       presampled and acts as the sender's exclusive token: it is absent from
-       I1 (the sender holds it across the two key leaks), which is how the
-       stale disjuncts are ruled out on re-entry. *)
-    rewrite Nat2Z.id.
-    iAssert (γr ↪ₛN (n; []))%I with "[Hγr]" as "Hγr".
-    { iExists []. simpl. iFrame. done. }
-    iApply (brel_na_alloc ((lmr ↦ₛ NONEV ∗ lcr ↦ₛ NONEV ∗ lamr ↦ₛ NONEV
-                            ∗ lml ↦ NONEV ∗ lstl ↦ NONEV ∗ laml ↦ NONEV
-                            ∗ γr ↪ₛN (n; []))
-                           ∨ (∃ (mv : mt) (c : nat), lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c ∗ lamr ↦ₛ NONEV
-                                           ∗ lml ↦□ SOMEV (fvtval mv) ∗ lstl ↦□ SOMEV #()%V ∗ laml ↦ NONEV)
-                           ∨ (∃ (mv : mt) (c : nat) (cph : ct), lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c ∗ lamr ↦ₛ□ SOMEV (fvtval cph)
-                                           ∗ lml ↦□ SOMEV (fvtval mv) ∗ lstl ↦□ SOMEV #()%V ∗ laml ↦□ SOMEV (fvtval cph)
-                                           ∗ γr ↪ₛ□N (n; []))
-              ) alphaN).
-    iSplitL "Hlmr Hlcr Hlamr Hlml Hlstl Hlaml Hγr"; [iNext; iLeft; iFrame|].
-    iIntros "#HI".
 
     (* Case on the client's behaviour, and induction *)
     rewrite !iLblSig_to_iLblThy_app !iThyIfMono_iLblSig_to_iThyIfMono.
@@ -536,14 +542,54 @@ Section schan_ideal.
                                          end);
                                  set_unfold; tauto
                              end)).
-    iIntros (?) "!# _ //=". rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /parallel_composition.
-    repeat (rewrite lookup_delete_eq || (rewrite lookup_delete_ne; last done))...
+    iIntros (?) "!# _".
+    (* Not [//=]: that would compute [subst_map] through the hoisted bodies. *)
+    change (subst_map _ game2) with game2.
+    rewrite subst_map_is_closed_empty; last is_closed.
+    rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /parallel_composition...
 
+    (* Setup, shared by all calls.  Arguments are evaluated first: right
+       (sc_ideal) F_CHAN's state, then the simulator's ciphertext cell and its
+       [started] flag; left (game2) RED_CHAN, F_OAUTH, F_KE. *)
+    brel_alloc_r lmr as "Hlmr"...
+    brel_alloc_r lamr as "Hlamr"...
+    brel_alloc_r lstr as "Hlstr"...
+    brel_alloc_l lml as "Hlml"...
+    brel_alloc_l laml as "Hlaml"...
     brel_alloctape_l γl as "Hγl"...
-    brel_alloc_l lcl as "Hlcl"...
+    (* No [...]: the invariant must be allocated before both sides are values. *)
+    brel_alloc_l lcl as "Hlcl".
 
+    (* The invariant.  Three states, as in the real/reduction proof:
+         I0  nothing has happened;
+         I1  a valid secure send has STARTED -- the plaintext is recorded on
+             both sides, the real side has cached a key ([lcl]) and the
+             simulator has flipped its [started] flag, but no ciphertext has
+             been produced (the key leak may still fail, or be in flight);
+         I2  the ciphertext has been drawn and leaked; it is the SAME on both
+             sides, because the two [rand_cipher] draws are coupled by the
+             identity.
+       [lcl] and [lstr] move together: that is exactly the agreement that makes
+       the receive branch work in state I0.  The key tape [γl] is never
+       presampled and acts as the sender's exclusive token: it is absent from
+       I1 (the sender holds it across the two key leaks), which is how the
+       stale disjuncts are ruled out on re-entry. *)
+    rewrite Nat2Z.id.
+    iApply (brel_na_alloc ((lml ↦ NONEV ∗ lcl ↦ NONEV ∗ laml ↦ NONEV
+                            ∗ lmr ↦ₛ NONEV ∗ lstr ↦ₛ NONEV ∗ lamr ↦ₛ NONEV
+                            ∗ γl ↪N (n; []))
+                           ∨ (∃ (mv : mt) (c : nat), lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c ∗ laml ↦ NONEV
+                                           ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lstr ↦ₛ□ SOMEV #()%V ∗ lamr ↦ₛ NONEV)
+                           ∨ (∃ (mv : mt) (c : nat) (cph : ct), lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c ∗ laml ↦□ SOMEV (fvtval cph)
+                                           ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lstr ↦ₛ□ SOMEV #()%V ∗ lamr ↦ₛ□ SOMEV (fvtval cph)
+                                           ∗ γl ↪□N (n; []))
+              ) alphaN).
+    iSplitL "Hlml Hlcl Hlaml Hlmr Hlstr Hlamr Hγl"; [iNext; iLeft; iFrame|].
+    iIntros "#HI"...
+
+    (* One call: a client and its effect handlers *)
     iModIntro. iSplit; last done.
-    iIntros (θL f1 f2) "Hff"...
+    iIntros (θL). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     rewrite /sem_ty_prod /=.
     iDestruct "Hauthkey" as (w1 w1' w2 w2') "(-> & -> & [Hautheff Hkeyeff])".
@@ -551,22 +597,15 @@ Section schan_ideal.
     iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))".
     brel_pures'.
 
-    (* Allocation/initialization.  Left (game2): the key tape, the lazy key
-       cache, [getKey], then F_OAUTH's and RED_CHAN's state.  Right (sc_ideal):
-       the simulator's ciphertext cell and its new [started] flag, then
-       F_CHAN's state. *)
+    (* Per-call effect labels.  Left (game2): [getKey], then F_OAUTH's and
+       RED_CHAN's; right (sc_ideal): the simulator's, then F_CHAN's. *)
     brel_effect_l gkl as "Hgkl"...
-    brel_alloc_l laml as "Hlaml"...
     brel_effect_l sl as "Hsl"...
     brel_effect_l rl as "Hrl"...
-    brel_alloc_l lml as "Hlml"...
     brel_effect_l ssl as "Hssl"...
     brel_effect_l srl as "Hsrl"...
-    brel_alloc_r lamr as "Hlamr"...
-    brel_alloc_r lstr as "Hlstr"...
     brel_effect_r lsr as "Hlsr"...
     brel_effect_r lrr as "Hlrr"...
-    brel_alloc_r lmr as "Hlmr"...
     brel_effect_r ssr as "Hssr"...
     brel_effect_r srr as "Hsrr"...
 
@@ -604,33 +643,6 @@ Section schan_ideal.
       unfold distinct_r in Hd'. simpl in Hd'.
       rewrite !labels_r_cons in Hd'.
       by (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]). }
-
-    (* The invariant.  Three states, as in the real/reduction proof:
-         I0  nothing has happened;
-         I1  a valid secure send has STARTED -- the plaintext is recorded on
-             both sides, the real side has cached a key ([lcl]) and the
-             simulator has flipped its [started] flag, but no ciphertext has
-             been produced (the key leak may still fail, or be in flight);
-         I2  the ciphertext has been drawn and leaked; it is the SAME on both
-             sides, because the two [rand_cipher] draws are coupled by the
-             identity.
-       [lcl] and [lstr] move together: that is exactly the agreement that makes
-       the receive branch work in state I0.  The key tape [γl] is never
-       presampled and acts as the sender's exclusive token: it is absent from
-       I1 (the sender holds it across the two key leaks), which is how the
-       stale disjuncts are ruled out on re-entry. *)
-    rewrite Nat2Z.id.
-    iApply (brel_na_alloc ((lml ↦ NONEV ∗ lcl ↦ NONEV ∗ laml ↦ NONEV
-                            ∗ lmr ↦ₛ NONEV ∗ lstr ↦ₛ NONEV ∗ lamr ↦ₛ NONEV
-                            ∗ γl ↪N (n; []))
-                           ∨ (∃ (mv : mt) (c : nat), lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c ∗ laml ↦ NONEV
-                                           ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lstr ↦ₛ□ SOMEV #()%V ∗ lamr ↦ₛ NONEV)
-                           ∨ (∃ (mv : mt) (c : nat) (cph : ct), lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c ∗ laml ↦□ SOMEV (fvtval cph)
-                                           ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lstr ↦ₛ□ SOMEV #()%V ∗ lamr ↦ₛ□ SOMEV (fvtval cph)
-                                           ∗ γl ↪□N (n; []))
-              ) alphaN).
-    iSplitL "Hlml Hlcl Hlaml Hlmr Hlstr Hlamr Hγl"; [iNext; iLeft; iFrame|].
-    iIntros "#HI".
 
     (* Case on the client's behaviour, and induction *)
     rewrite !iLblSig_to_iLblThy_app !iThyIfMono_iLblSig_to_iThyIfMono.
@@ -954,5 +966,12 @@ Section schan_ideal.
           iDestruct "HQ" as "[HQ _]".
           iApply "HQ".
   Qed.
+
+  (* One-shot versions, the shape the composition operators expect *)
+  Lemma sc_ideal_game2_OS : ⊢ sem_typed [] sc_ideal game2 ⊥ τsc_OS [].
+  Proof using All. apply sem_typed_τsc_OS. apply sc_ideal_game2. Qed.
+
+  Lemma game2_sc_ideal_OS : ⊢ sem_typed [] game2 sc_ideal ⊥ τsc_OS [].
+  Proof using All. apply sem_typed_τsc_OS. apply game2_sc_ideal. Qed.
 
 End schan_ideal.

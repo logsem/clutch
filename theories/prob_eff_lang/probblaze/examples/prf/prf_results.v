@@ -68,7 +68,7 @@ Section prf_results.
              ltac:(pose proof vg_fvt_nontriv; lia) nt_nonempty mt_nontriv).
     - intros v. reflexivity.
     - intros ?. iApply sem_typed_adv_red; [iApply HA|].
-      iApply (reduction_val_typed
+      iApply (reduction_val_typed_u
                 (SKE := PRF_SKE (PRF_inst := PRF_inst _) vg_fvt_nontriv nt_nonempty mt_nontriv)).
   Qed.
 

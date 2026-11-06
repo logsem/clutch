@@ -17,10 +17,12 @@ Section schannel.
   Context {ske : @SYM_struct vg_fvt vg_fvts mt ms ct cs}.
 
 
-  Definition F_OAUTH : val :=
+  (* The functionalities allocate their state before taking the client, so all
+     calls of an evaluated functionality share one session. *)
+  Definition F_OAUTH : expr :=
+    let: "message" := ref NONEV in
     λ: "f" "LeakOp",
       let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
-      let: "message" := ref NONEV in
       effect "send"
         effect "recv"
         let: "doSend" := (λ: "m", do: "send" "m") in
@@ -48,11 +50,11 @@ Section schannel.
 
   (* Assumes a fixed direction from Alice to Bob, so the leak raised by CHAN doesnt need to send a destination with the argument Bob*)
   (* InjL arg represents the message being sent by Alice, and InjR <>, just represents that Bob is requesting a receive , so "doSecRecv" is now a genuine thunk, because it doesnt need any argument anymore*)
-  Definition CHAN : val :=
+  Definition CHAN : expr :=
+    let: "message" := ref NONEV in
     λ: "f" "effs",
       let, ("chanOp", "doGK") := "effs" in
       let, ("doSend", "doRecv") := "chanOp" in
-      let: "message" := ref NONEV in
       effect "ssend"
         effect "srecv"
         let: "doSecSend" := (λ: "m", do: "ssend" "m") in
@@ -92,12 +94,14 @@ Section schannel.
   end.
   
 
+  (* The encryption oracle is initialised once, at setup. *)
   Definition RED_CHAN : val :=
-    λ: "enc" "f" "effs", 
-      let: "enc" := "enc" #()%V in
+    λ: "enc",
+    let: "enc" := "enc" #()%V in
+    let: "message" := ref NONEV in
+    λ: "f" "effs",
       let, ("chanOp", "doGK") := "effs" in
       let, ("doSend", "doRecv") := "chanOp" in
-      let: "message" := ref NONEV in
       effect "ssend"
         effect "srecv"
         let: "doSecSend" := (λ: "m", do: "ssend" "m") in
@@ -139,10 +143,10 @@ Section schannel.
 
   (*reflecting the same change here as in the real functionality*)
   (* Ideal functionality of the ONE-MESSAGE secure channel *)
-  Definition F_CHAN : val :=
+  Definition F_CHAN : expr :=
+    let: "message" := ref NONEV in
     λ: "f" "LeakOp",
       let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
-      let: "message" := ref NONEV in
       effect "ssend"
         effect "srecv"
         let: "doSecSend" := (λ: "m", do: "ssend" "m")  in
@@ -173,13 +177,13 @@ Section schannel.
 
 
   (*Simulator for the one message secure channel *)
-  Definition CHAN_SIM : val :=
+  Definition CHAN_SIM : expr :=
+    let: "message" := ref NONEV in
+    let: "started" := ref NONEV in
     λ: "f" "effs",
       let, ("LeakAOp", "doKeyLeak") := "effs" in
       let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
       let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in
-      let: "message" := ref NONEV in
-      let: "started" := ref NONEV in
       effect "lsend"
         effect "lrecv"
         let: "doLeakSecSend" := (λ: "m", do: "lsend" "m") in
