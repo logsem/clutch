@@ -81,7 +81,10 @@ Section uc_dhke.
     (∀ `{!probblazeRGS Σ}, ⊢ sem_val_typed A A ((∀ᵣ θ, hdl cli θ ⊸ τ__f θ oaleak leakI) → 𝔹)%T) →
     advantage A ((F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f CHAN) (CHAN_SIM_lazy ∘f F_CHAN) #true <= 0.
   Proof using All.
-    intros HA. right. apply adv_SCHAN. intros HRGS. iApply HA.
+    intros HA. right. apply adv_SCHAN. intros HRGS.
+    iApply sem_val_typed_sub; last iApply HA.
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
+    iApply ty_le_arr; [iApply row_le_refl|iApply sec_channel_prf.τ_CHAN_le_τ_CHAN_OS|iApply ty_le_refl].
   Qed.
 
   (* The composition theorem instantiated. *)

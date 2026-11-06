@@ -11,10 +11,12 @@ Section schannel.
   Context {msk : @Mask (@vgG vg) vgval}.
   #[local] Notation n := (S n'').
 
-  Definition F_OAUTH : val :=
+  (* The functionalities allocate their state before taking the client, so all
+     calls of an evaluated functionality share one session. *)
+  Definition F_OAUTH : expr :=
+    let: "message" := ref NONEV in
     λ: "f" "LeakOp",
       let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
-      let: "message" := ref NONEV in
       effect "send"
         effect "recv"
         let: "doSend" := (λ: "m", do: "send" "m") in
@@ -42,12 +44,12 @@ Section schannel.
 
   (* Assumes a fixed direction from Alice to Bob, so the leak raised by CHAN doesnt need to send a destination with the argument Bob*)
   (* InjL arg represents the message being sent by Alice, and InjR <>, just represents that Bob is requesting a receive , so "doSecRecv" is now a genuine thunk, because it doesnt need any argument anymore*)
-  Definition CHAN : val :=
+  Definition CHAN : expr :=
+    let: "message" := ref NONEV in
     (*λ: "f" "ChanOp" "doGK",*)
-    λ: "f" "effs", 
-      let, ("ChanOp", "doGK") := "effs" in 
+    λ: "f" "effs",
+      let, ("ChanOp", "doGK") := "effs" in
       let, ("doSend", "doRecv") := "ChanOp" in
-      let: "message" := ref NONEV in
       effect "ssend"
         effect "srecv"
         let: "doSecSend" := (λ: "m", do: "ssend" "m") in
@@ -88,10 +90,10 @@ Section schannel.
   
   (*reflecting the same change here as in the real functionality*)
   (* Ideal functionality of the ONE-MESSAGE secure channel *)
-  Definition F_CHAN : val :=
+  Definition F_CHAN : expr :=
+    let: "message" := ref NONEV in
     λ: "f" "LeakOp",
       let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
-      let: "message" := ref NONEV in
       effect "ssend"
         effect "srecv"
         let: "doSecSend" := (λ: "m", do: "ssend" "m")  in
@@ -174,22 +176,22 @@ Section schannel.
 
 
   (*Simulator for the one message secure channel *)
-  Definition CHAN_SIM_lazy : val :=
+  Definition CHAN_SIM_lazy : expr :=
+    let: "message" := ref NONEV in
+    let: "m'_opt" := ref NONEV in
+    let: "sample_or_load" :=
+      λ:<>, match: !"m'_opt" with
+        | NONE =>
+            let: "m'" := (sample #()%V) in
+            "m'_opt" <- SOME "m'" ;;
+            "m'"
+        | SOME "m'" => "m'"
+        end
+    in
     λ: "f" "effs",
       let, ("LeakAOp", "doKeyLeak") := "effs" in
       let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
       let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in
-      let: "message" := ref NONEV in
-      let: "m'_opt" := ref NONEV in
-      let: "sample_or_load" :=
-        λ:<>, match: !"m'_opt" with
-          | NONE =>
-              let: "m'" := (sample #()%V) in
-              "m'_opt" <- SOME "m'" ;;
-              "m'"
-          | SOME "m'" => "m'"
-          end
-      in
       effect "lsend"
         effect "lrecv"
         let: "doLeakSecSend" := (λ: "m", do: "lsend" "m") in

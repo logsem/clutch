@@ -18,12 +18,9 @@ Section adv_schan.
 
   Import valgroup_notation.
 
-  Definition τ_CHAN `{!probblazeRGS Σ}
-      :=  (∀ᵣ θ__L ,(∀ᵣ θₕ, (((ℕ -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                 (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union (¡ θ₁)%R  (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
-
+  (* [τ_CHAN], the semantic interface, comes from [sec_channel_prf]. *)
   Definition T_CHAN : type :=
-    (∀R: (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> (() + τG)) -{ RVar 0%nat ∪ᵣ (RVar 1%nat) }-∘ ())) -∘
+    (∀R: (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> (() + τG)) -{ RVar 0%nat ∪ᵣ (RVar 1%nat) }-∘ ())) ⇾
   (∀R: (∀R: ((((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> (() + ()))) 
             * (((() + ()) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ())))) 
                 -{ (RFlip OS (RVar 1%nat)) ∪ᵣ ((RFlip OS (RVar 0%nat)) ∪ᵣ RVar 2%nat) }-∘ ()))).
@@ -31,8 +28,9 @@ Section adv_schan.
   Lemma T_CHAN_subtype `{!probblazeRGS Σ} η μ δ ξ :
     ⊢ τ_CHAN ≤ₜ (interp._ty η μ δ T_CHAN ξ).
   Proof using All. 
-    rewrite /T_CHAN /τ_CHAN /sem_ty_option /=. 
+    rewrite /T_CHAN /τ_CHAN /sem_ty_option /=.
     iApply ty_le_row_forall; iIntros (?).
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
     iApply ty_le_arr; first iApply row_le_refl.
     - iApply ty_le_row_forall; iIntros (?).
       iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
@@ -63,7 +61,7 @@ Section adv_schan.
        ⊢ sem_val_typed A A (τ_CHAN → 𝔹)%T) →
     nonneg (advantage A R_CHAN (CHAN_SIM_lazy ∘f F_CHAN) #true) = 0%R.
   Proof using All.
-    intros. eapply sem_typed_advantage; eauto. split.
+    intros HA. eapply sem_typed_advantage; first apply HA. split.
     - intros Hrgs. by unshelve eapply R_I_SCHAN.
     - intros Hrgs. by unshelve eapply I_R_SCHAN.
   Qed. 

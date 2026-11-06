@@ -155,11 +155,10 @@ Section chan_ideal_typing.
       Unshelve. all: solve_typed_side.
   Qed.
 
-  (* The body of [F_CHAN] (free in "f", "LeakOp"), copied verbatim from
-     [sec_channel_def.F_CHAN]. *)
+  (* The body of [F_CHAN] (free in "f", "LeakOp" and the hoisted "message"),
+     copied verbatim from [sec_channel_def.F_CHAN]. *)
   Definition F_CHAN_body : expr :=
     (let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
-     let: "message" := ref NONEV in
      effect "ssend"
        effect "srecv"
        let: "doSecSend" := (λ: "m", do: "ssend" "m")  in
@@ -187,12 +186,11 @@ Section chan_ideal_typing.
      end)%E.
 
   Lemma F_CHAN_body_typed (θ θJ : sem_row Σ) :
-    ⊢ sem_typed [("f", hdl cli θ); ("LeakOp", fleak θJ)] F_CHAN_body F_CHAN_body
-        (sem_row_union (¡ θJ) θ) 𝟙 [].
+    ⊢ sem_typed [("f", hdl cli θ); ("LeakOp", fleak θJ); ("message", Refᶜ (Option 𝔾))]
+        F_CHAN_body F_CHAN_body (sem_row_union (¡ θJ) θ) 𝟙 [].
   Proof using All.
     iApply sem_typed_swap_second.
     iApplyT sem_typed_pair_elim; first typed_var.
-    iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
     iApply sem_typed_effect_gen. iIntros (ls1 ls2).
     iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
     iApplyT sem_typed_let.
@@ -232,10 +230,10 @@ Section chan_ideal_typing.
 
   Lemma F_CHAN_typed : ⊢ sem_typed [] F_CHAN F_CHAN ⊥ τ_FCHAN [].
   Proof using All.
-    iApply sem_typed_val. iApply sem_typed_Rclosure. iIntros (θ).
-    iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
-    iApply sem_typed_closure; first done.
-    iApply (sem_typed_oval _ [_]).
+    iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+    iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
+    iApplyT sem_oval_typed_afun.
+    iApply (sem_typed_oval _ [_; _]).
     iApply sem_typed_RLam. iIntros (θJ).
     iApplyT sem_oval_typed_afun. simpl.
     iApply sem_typed_swap_second. iApply F_CHAN_body_typed.
@@ -379,23 +377,11 @@ Section chan_ideal_typing.
 
   Lemma CHAN_SIM_lazy_typed : ⊢ sem_typed [] CHAN_SIM_lazy CHAN_SIM_lazy ⊥ τ_CHAN_SIM [].
   Proof using All.
-    iApply sem_typed_val. iApply sem_typed_Rclosure. iIntros (θ).
-    iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
-    iApply sem_typed_closure; first done.
-    iApply (sem_typed_oval _ [_]).
-    iApply sem_typed_RLam. iIntros (θ1). iApply sem_typed_RLam. iIntros (θ2).
-    iApplyT sem_oval_typed_afun. simpl.
-    iApply sem_typed_swap_second.
-    iApplyT sem_typed_pair_elim; first typed_var.
-    iApplyT sem_typed_pair_elim; first typed_var.
-    iApplyT sem_typed_pair_elim; first typed_var.
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
     (* [sample_or_load] captures a copy of the cache. *)
     iApplyT sem_typed_let.
-    { iApplyT (sem_typed_sub_env _ ([("m'_opt", _)] ++ [("m'_opt", _); ("message", _);
-                                     ("doKeyLeakSnd", _); ("doKeyLeakRecv", _);
-                                     ("doLeakASend", _); ("doLeakARecv", _); ("f", _)])).
+    { iApplyT (sem_typed_sub_env _ ([("m'_opt", _)] ++ [("m'_opt", _); ("message", _)])).
       { simpl. env_solve. }
       iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_]).
       iApplyT sem_oval_typed_ufun. simpl.
@@ -415,6 +401,16 @@ Section chan_ideal_typing.
       - iApply env_le_refl.
       - typed_var.
       - iApply env_le_refl. }
+    (* The state is captured by the client-taking closures *)
+    iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ).
+    iApplyT sem_oval_typed_afun.
+    iApply (sem_typed_oval _ [_; _; _; _]).
+    iApply sem_typed_RLam. iIntros (θ1). iApply sem_typed_RLam. iIntros (θ2).
+    iApplyT sem_oval_typed_afun. simpl.
+    iApply sem_typed_swap_second.
+    iApplyT sem_typed_pair_elim; first typed_var.
+    iApplyT sem_typed_pair_elim; first typed_var.
+    iApplyT sem_typed_pair_elim; first typed_var.
     iApply sem_typed_effect_gen. iIntros (ls1 ls2).
     iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
     iApplyT sem_typed_let.

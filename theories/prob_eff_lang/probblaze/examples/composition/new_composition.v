@@ -273,7 +273,7 @@ Section new_comp_verification.
     - apply F_AUTH_DH_SIM_closed.
     - apply R_CHAN_closed.
     - apply CHAN_SIM_lazy_F_CHAN_closed.
-    - iApply R_I_SCHAN. 
+    - iApply R_I_SCHAN_OS.
     - iApply F_AUTH_DH_SIM_FO_typed.
   Qed.
 
@@ -285,7 +285,7 @@ Section new_comp_verification.
     - apply F_AUTH_DH_SIM_closed.
     - apply CHAN_SIM_lazy_F_CHAN_closed.
     - apply R_CHAN_closed.
-    - iApply I_R_SCHAN. 
+    - iApply I_R_SCHAN_OS.
     - iApply F_AUTH_DH_SIM_FO_typed.
   Qed.
 

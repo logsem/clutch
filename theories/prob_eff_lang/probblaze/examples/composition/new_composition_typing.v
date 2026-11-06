@@ -163,16 +163,15 @@ Section new_comp_verification.
         Unshelve. all: solve_typed_side.
     Qed.
 
-    Lemma F_OAUTH_val_typed :
-      ⊢ sem_val_typed F_OAUTH F_OAUTH (τ__F oaleak chan).
+    Lemma F_OAUTH_typed_u : ⊢ sem_typed [] F_OAUTH F_OAUTH ⊥ (τ__Fu oaleak chan) [].
     Proof using Type*.
-      iApply sem_typed_Rclosure. iIntros (θ).
-      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
-      iApply sem_typed_closure; first done.
-      iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ₂).
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+      iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
+      (* the copyable reference is the only captured state *)
+      iApplyT sem_oval_typed_ufun.
+      iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ₂).
       iApplyT sem_oval_typed_afun.
       iApplyT sem_typed_pair_elim; first typed_var.
-      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
       iApply sem_typed_effect_gen. iIntros (ls1 ls2).
       iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
       (* The client's [doSend]/[doRecv]: their signatures fix the client row
@@ -218,10 +217,9 @@ Section new_comp_verification.
     Qed.
 
     Corollary F_OAUTH_typed : ⊢ sem_typed [] F_OAUTH F_OAUTH ⊥ (τ__F oaleak chan) [].
-    Proof using All. 
-      iApply sem_typed_val.
-      iApply F_OAUTH_val_typed.
-    Qed. 
+    Proof using All.
+      iApply sem_typed_sub_ty; [iApply τ__Fu_le_τ__F|iApply F_OAUTH_typed_u].
+    Qed.
       
   End f_oauth.
 
@@ -406,12 +404,12 @@ Section new_comp_verification.
     Qed.
 
 
-    (* The body of [CHAN] (free in "f","effs"), copied verbatim from
-     [sec_channel_def.CHAN], so that [CHAN] is [λ: "f" "effs", CHAN_body]. *)
+    (* The body of [CHAN] (free in "f", "effs" and the hoisted "message"),
+     copied verbatim from [sec_channel_def.CHAN], so that [CHAN] is
+     [let: "message" := ref NONEV in λ: "f" "effs", CHAN_body]. *)
     Definition CHAN_body : expr :=
-      (let, ("ChanOp", "doGK") := "effs" in 
+      (let, ("ChanOp", "doGK") := "effs" in
        let, ("doSend", "doRecv") := "ChanOp" in
-       let: "message" := ref NONEV in
        effect "ssend"
          effect "srecv"
          let: "doSecSend" := (λ: "m", do: "ssend" "m") in
@@ -451,13 +449,12 @@ Section new_comp_verification.
        end)%E.
 
     Lemma CHAN_body_typed (θ θ1 θ2 : sem_row Σ) :
-      ⊢ sem_typed [("f", hdl cli θ); ("effs", (chan θ1 × gk θ2)%T)] CHAN_body CHAN_body
-          (sem_row_union (¡ θ1) (sem_row_union (¡ θ2) θ)) 𝟙 [].
+      ⊢ sem_typed [("f", hdl cli θ); ("effs", (chan θ1 × gk θ2)%T); ("message", Refᶜ (Option 𝔾))]
+          CHAN_body CHAN_body (sem_row_union (¡ θ1) (sem_row_union (¡ θ2) θ)) 𝟙 [].
     Proof using All.
       iApply sem_typed_swap_second.
       iApplyT sem_typed_pair_elim; first typed_var.
       iApplyT sem_typed_pair_elim; first typed_var.
-      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
       iApply sem_typed_effect_gen. iIntros (ls1 ls2).
       iApply sem_typed_effect_gen. iIntros (lr1 lr2). simpl.
       (* The client's [doSecSend]/[doSecRecv]: their signatures fix the client
@@ -500,17 +497,25 @@ Section new_comp_verification.
         Unshelve. all: solve_typed_side.
     Qed.
 
-    Lemma CHAN_typed :
-      ⊢ sem_typed [] CHAN CHAN ⊥ (∀ᵣ θ, hdl cli θ ⊸ τ__f θ chan gk)%T [].
+    Lemma CHAN_typed_u :
+      ⊢ sem_typed [] CHAN CHAN ⊥ (∀ᵣ θ, hdl cli θ → τ__f θ chan gk)%T [].
     Proof using All.
-      iApply sem_typed_val. iApply sem_typed_Rclosure. iIntros (θ).
-      iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
-      iApply sem_typed_closure; first done.
-      iApply (sem_typed_oval _ [_]).
+      iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
+      iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
+      (* the copyable reference is the only captured state *)
+      iApplyT sem_oval_typed_ufun.
+      iApply (sem_typed_oval _ [_; _]).
       iApply sem_typed_RLam. iIntros (θ1). iApply sem_typed_RLam. iIntros (θ2).
       iApplyT sem_oval_typed_afun. simpl.
       iApply sem_typed_swap_second. iApply CHAN_body_typed.
       Unshelve. all: solve_typed_side.
+    Qed.
+
+    Lemma CHAN_typed :
+      ⊢ sem_typed [] CHAN CHAN ⊥ (∀ᵣ θ, hdl cli θ ⊸ τ__f θ chan gk)%T [].
+    Proof using All.
+      iApply sem_typed_sub_ty; last iApply CHAN_typed_u.
+      iApply ty_le_row_forall. iIntros (θ). iApply ty_le_mbang_elim.
     Qed.
 
   End chan.
@@ -591,7 +596,7 @@ Section new_comp_verification.
     ⊢ sem_typed [] (F_KE_lazy_alice ||ᵣ F_OAUTH) (F_KE_lazy_alice ||ᵣ F_OAUTH) ⊥
         (∀ᵣ θ, τ__f θ chan gk ⊸ τ__f θ oaleak leakI)%T [].
   Proof using All.
-    iApply sem_typed_app_nil; last (iApply sem_typed_val; iApply F_OAUTH_val_typed).
+    iApply sem_typed_app_nil; last iApply F_OAUTH_typed.
     iApply sem_typed_app_nil; last iApply F_KE_lazy_alice_typed.
     iApply sem_typed_val. iApply right_comp_val_typed.
   Qed.
@@ -607,7 +612,7 @@ Section new_comp_verification.
       { iApply (sem_typed_frame_env_gen _ [_]). iApply CHAN_typed. }
       iApplyT sem_typed_app_nil; last first.
       - iApplyT sem_typed_app_nil; last first.
-        { iApply (sem_typed_frame_env_gen _ [_]). iApply sem_typed_val. iApply F_OAUTH_val_typed. }
+        { iApply (sem_typed_frame_env_gen _ [_]). iApply F_OAUTH_typed. }
         iApplyT sem_typed_app_nil; last first.
         + (* [F_AUTH ∘f C], with [C := λ: "f", C_lazy "DH" "f"]. *)
           iApplyT sem_typed_app_nil; last first.

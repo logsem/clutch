@@ -287,20 +287,61 @@ Section schan_security.
   Qed.
 
 
+  (* The interface of the secure channel: the client may be called any number
+     of times, and all calls share one session. *)
+  Definition τ_CHAN : sem_ty Σ :=
+    (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) → (*type of client*)
+              (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
+
+  (* One-shot variant of [τ_CHAN], the shape the composition operators expect *)
+  Definition τ_CHAN_OS : sem_ty Σ :=
+    (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
+              (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
+
+  Lemma τ_CHAN_le_τ_CHAN_OS : ⊢ τ_CHAN ≤ₜ τ_CHAN_OS.
+  Proof. iApply ty_le_row_forall. iIntros (θ). iApply ty_le_mbang_elim. Qed.
+
+  (* Subsumption at [τ_CHAN_OS], without depending on [compatibility] *)
+  Lemma sem_typed_τ_CHAN_OS e1 e2 :
+    (⊢ sem_typed [] e1 e2 ⊥ τ_CHAN []) → ⊢ sem_typed [] e1 e2 ⊥ τ_CHAN_OS [].
+  Proof.
+    intros He. iPoseProof He as "H". iPoseProof τ_CHAN_le_τ_CHAN_OS as "Hle".
+    rewrite /sem_typed /ty_le /tc_opaque.
+    iIntros "!#" (vs) "HΓ".
+    iApply (brel_wand with "[HΓ]"); first iApply ("H" with "HΓ").
+    iIntros "!#" (v1 v2) "[Hτ $]". iApply ("Hle" with "Hτ").
+  Qed.
+
   Lemma SEM_R_CHAN_SIM :
-    ⊢ sem_typed [] R_CHAN  (CHAN_SIM_lazy ∘f F_CHAN) ⊥
-        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
-  Proof with (repeat foldkont; brel_pures') using All. 
+    ⊢ sem_typed [] R_CHAN  (CHAN_SIM_lazy ∘f F_CHAN) ⊥ τ_CHAN [].
+  Proof with (repeat foldkont; brel_pures') using All.
     iIntros (vs) "!> _".
     rewrite subst_map_is_closed_empty; last is_closed.
     rewrite subst_map_is_closed_empty; last is_closed.
-    unfold R_CHAN, parallel_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp, F_KE_lazy_alice...
+    unfold τ_CHAN, R_CHAN, parallel_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp, F_KE_lazy_alice, F_OAUTH...
+    (* Setup: the functionalities' state, in evaluation order *)
+    brel_alloc_l l_rchan as "Hlrchan"...
+    brel_alloc_l l_auth as "Hl_auth"...
     brel_alloctape_l γ as "Hγ"...
     rewrite Nat2Z.id.
     brel_alloc_l l_key as "Hl_key"...
+    brel_alloc_r l_fchan as "Hlfchan"...
+    brel_alloc_r l_sim as "Hl_sim"...
+    (* No [...]: the invariant must be allocated before both sides are values. *)
+    brel_alloc_r l_m'sim as "Hl_m'sim".
+    set (f m := sc_coupling_fin m).
+    set (d1 := (γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ NONEV ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗  l_key ↦ NONEV)%I).
+    set (d2 := ((∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ□ SOMEV #(f m n) ∗
+                                                   l_auth ↦□ SOMEV (vgval
+                                                                      (g ^+ f m n))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV #n))%I).
+
+    set (d3 := (∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV #n)%I).
+    iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
+    iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; iFrame|].
+    iIntros "#Hinvα"...
+    (* One call: a client and its effect handlers *)
     iSplitL; last done. iModIntro.
-    iIntros (L f1 f2) "Hrelf1f2"...
+    iIntros (L). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hrelf1f2"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     rewrite /sem_ty_prod /=.
     iDestruct "Hauthkey" as (w1 w1' w2 w2') "[%Hauthkey_l [%Hauthkey_r [Hautheff Hkeyeff]]]".
@@ -309,22 +350,16 @@ Section schan_security.
     brel_pures'.
     iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(%H1al & %H2al & (#Hasnd & #Harcv))"...
     iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(%H1k & %H2k & (#Hkeysnd & #Hkeyrcv))".
-    rewrite H1al. rewrite H2al. rewrite H1k. rewrite H2k.
-    unfold F_OAUTH... 
-
-    brel_alloc_r l_sim as "Hl_sim"...
-    brel_alloc_r l_m'sim as "Hl_m'sim"...
+    rewrite H1al. rewrite H2al. rewrite H1k. rewrite H2k...
+    (* Per-call effect labels *)
     brel_effect_l getKey' as "HgK"...
     brel_effect_r lsend' as "Hlsend"...
     brel_effect_r lrecv' as "Hlrecv"...
-    brel_alloc_l l_auth as "Hl_auth"...
     brel_effect_l csend' as "Hcsend"...
     brel_effect_l crecv' as "Hcrecv"...
-    brel_alloc_r l_fchan as "Hlfchan"...
     brel_effect_r ssend_r as "Hssend_r"...
     brel_effect_r srecv_r as "Hsrecv_r"...
     brel_pures'.
-    brel_alloc_l l_rchan as "Hlrchan"...
     brel_effect_l ssend_l as "Hssend_l"...
     brel_effect_l srecv_l as "Hsrecv_l"...
 
@@ -337,16 +372,6 @@ Section schan_security.
     unfold sem_val_typed. simpl.
     iDestruct "Hschn" as "#Hschn".
     iSpecialize ("Hrelf1f2" with "Hschn"). simpl.
-    set (f m := sc_coupling_fin m).
-    set (d1 := (γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ NONEV ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ NONEV ∗ l_rchan ↦ NONEV ∗  l_key ↦ NONEV)%I).
-    set (d2 := ((∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ□ SOMEV #(f m n) ∗
-                                                   l_auth ↦□ SOMEV (vgval
-                                                                      (g ^+ f m n))%V ∗  l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV #n))%I).
-
-    set (d3 := (∃ m : vgG, ∃ n : fin (S (S n'')), γ ↪N (S n''; []) ∗ l_m'sim ↦ₛ□ SOMEV #(f m n) ∗ l_sim ↦ₛ NONEV ∗ l_auth ↦ NONEV ∗ l_fchan ↦ₛ□ SOMEV (vgval m) ∗  l_rchan ↦□ SOMEV (vgval m) ∗ l_key ↦□ SOMEV #n)%I).
-    iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
-    iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; iFrame|].
-    iIntros "#Hinvα".
     iApply brel_new_theory.
     iApply (brel_add_label_l with "Hssend_l").
     iApply (brel_add_label_l with "Hsrecv_l").
@@ -818,19 +843,35 @@ Section schan_security.
   Qed.
   
   Lemma SEM_R_CHAN_SIM_rev :
-     ⊢ sem_typed [] (CHAN_SIM_lazy ∘f F_CHAN) R_CHAN ⊥
-        (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-                  (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union  (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T [].
+     ⊢ sem_typed [] (CHAN_SIM_lazy ∘f F_CHAN) R_CHAN ⊥ τ_CHAN [].
   Proof with (repeat foldkont; brel_pures') using All.
     iIntros (vs) "!> _".
     rewrite subst_map_is_closed_empty; last is_closed.
     rewrite subst_map_is_closed_empty; last is_closed.
-    unfold R_CHAN, parallel_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp, F_KE_lazy_alice...
+    unfold τ_CHAN, R_CHAN, parallel_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp, F_KE_lazy_alice, F_OAUTH...
+    (* Setup: the functionalities' state, in evaluation order *)
+    brel_alloc_l l_fchan as "Hlfchan"...
+    brel_alloc_l l_sim as "Hl_sim"...
+    brel_alloc_l l_m'sim as "Hl_m'sim"...
+    brel_alloc_r l_rchan as "Hlrchan"...
+    brel_alloc_r l_auth as "Hl_auth"...
     brel_alloctape_r γ as "Hγ"...
-    brel_alloc_r l_key as "Hl_key"...
+    (* No [...]: the invariant must be allocated before both sides are values. *)
+    brel_alloc_r l_key as "Hl_key".
+    set (d1 := (γ ↪ₛN (S n''; []) ∗ l_m'sim ↦ NONEV ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦ NONEV ∗ l_rchan ↦ₛ NONEV ∗  l_key ↦ₛ NONEV)%I).
+    set (d2 := ((∃ m : vgG, ∃ (c : nat), ⌜ (c < n)%nat ⌝ ∗  γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #c ∗ l_sim ↦□ SOMEV #c ∗
+                                         l_auth ↦ₛ□ SOMEV (vgval
+                                                             ((g ^+ c)%g))%V ∗
+                                         l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(sc_coupling_nat m c)))%I).
 
+    set (d3 := (∃ m : vgG, ∃ c : nat, ⌜ (c < n)%nat ⌝ ∗  γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #c ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦□ SOMEV (vgval m) ∗
+                                      l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(sc_coupling_nat m c))%I).
+    iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
+    iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; rewrite Nat2Z.id; by iFrame|].
+    iIntros "#Hinvα"...
+    (* One call: a client and its effect handlers *)
     iSplitL; last done. iModIntro.
-    iIntros (L f1 f2) "Hrelf1f2"...
+    iIntros (L). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hrelf1f2"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     rewrite /sem_ty_prod /=.
     iDestruct "Hauthkey" as (w1 w1' w2 w2') "[%Hauthkey_l [%Hauthkey_r [Hautheff Hkeyeff]]]".
@@ -838,25 +879,21 @@ Section schan_security.
     rewrite -> Hauthkey_r.
     brel_pures'.
     iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & (#Hasnd & #Harcv))"...
-    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))".
-    unfold F_OAUTH...
+    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))"...
 
-    brel_alloc_l l_sim as "Hl_sim"...
-    brel_alloc_l l_m'sim as "Hl_m'sim"...
-    iApply brel_effect_r. iIntros (getKey') "HgK !>"... 
+    (* Per-call effect labels *)
+    iApply brel_effect_r. iIntros (getKey') "HgK !>"...
     (* CHAN_SIM_lazy now binds two labels: [lsend] first, then [lrecv]. *)
     iApply brel_effect_l. iIntros (lsend') "!> Hlsend !>".
     iApply brel_effect_l. iIntros (lrecv') "!> Hlrecv !>"...
-    brel_alloc_r l_auth as "Hl_auth"...
 
     (* F_OAUTH now binds two labels: [send] first, then [recv]. *)
     brel_effect_r csend' as "Hcsend".
     brel_effect_r crecv' as "Hcrecv".
-    
-    brel_alloc_l l_fchan as "Hlfchan"...
+    brel_pures'.
     brel_effect_l ssend_l as "Hssend_l".
     brel_effect_l srecv_l as "Hsrecv_l".
-    brel_alloc_r l_rchan as "Hlrchan"...
+    brel_pures'.
     brel_effect_r ssend_r as "Hssend_r".
     brel_effect_r srecv_r as "Hsrecv_r".
 
@@ -866,19 +903,7 @@ Section schan_security.
     { iApply SEM_TYPED_EFF. }
     unfold sem_val_typed. simpl.
     iDestruct "Hschn" as "#Hschn".
-    iSpecialize ("Hrelf1f2" with "Hschn"). 
-
-    set (d1 := (γ ↪ₛN (S n''; []) ∗ l_m'sim ↦ NONEV ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦ NONEV ∗ l_rchan ↦ₛ NONEV ∗  l_key ↦ₛ NONEV)%I).
-    set (d2 := ((∃ m : vgG, ∃ (c : nat), ⌜ (c < n)%nat ⌝ ∗  γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #c ∗ l_sim ↦□ SOMEV #c ∗
-                                         l_auth ↦ₛ□ SOMEV (vgval
-                                                             ((g ^+ c)%g))%V ∗
-                                         l_fchan ↦□ SOMEV (vgval m) ∗  l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(sc_coupling_nat m c)))%I).
-
-    set (d3 := (∃ m : vgG, ∃ c : nat, ⌜ (c < n)%nat ⌝ ∗  γ ↪ₛN (S n''; []) ∗ l_m'sim ↦□ SOMEV #c ∗ l_sim ↦ NONEV ∗ l_auth ↦ₛ NONEV ∗ l_fchan ↦□ SOMEV (vgval m) ∗
-                                      l_rchan ↦ₛ□ SOMEV (vgval m) ∗ l_key ↦ₛ□ SOMEV #(sc_coupling_nat m c))%I). 
-    iApply (brel_na_alloc (d1 ∨ (d2 ∨ d3))%I alphaN).
-    iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; rewrite Nat2Z.id; by iFrame|].
-    iIntros "#Hinvα".
+    iSpecialize ("Hrelf1f2" with "Hschn").
     iApply brel_new_theory.
     iApply (brel_add_label_l with "Hssend_l").
     iApply (brel_add_label_l with "Hsrecv_l").
@@ -1323,5 +1348,12 @@ Section schan_security.
   Definition R_I_SCHAN := SEM_R_CHAN_SIM.
 
   Definition I_R_SCHAN := SEM_R_CHAN_SIM_rev.
+
+  (* One-shot versions, the shape the composition operators expect *)
+  Lemma R_I_SCHAN_OS : ⊢ sem_typed [] R_CHAN (CHAN_SIM_lazy ∘f F_CHAN) ⊥ τ_CHAN_OS [].
+  Proof using All. apply sem_typed_τ_CHAN_OS. apply R_I_SCHAN. Qed.
+
+  Lemma I_R_SCHAN_OS : ⊢ sem_typed [] (CHAN_SIM_lazy ∘f F_CHAN) R_CHAN ⊥ τ_CHAN_OS [].
+  Proof using All. apply sem_typed_τ_CHAN_OS. apply I_R_SCHAN. Qed.
 
 End schan_security.
