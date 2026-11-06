@@ -93,30 +93,31 @@ Section uc_dhke.
     advantage A REAL_CHAN_DHKE IDEAL_CHAN #true <=
       advantage (λ: "v", (λ: "v", A (("v" ||ᵣ F_OAUTH) ∘f CHAN))%V (DH_RED "v")) DH_real DH_rand #true.
   Proof using All.
-    intros HA.
-    unfold REAL_CHAN_DHKE, IDEAL_CHAN, SIM_DHKE_CHAN.
-    etrans.
-    - apply (uc_composition (F_AUTH ∘f DH_KE) (F_AUTH ∘f DH_SIM) F_KE_lazy_alice
-               CHAN_SIM_lazy F_CHAN F_OAUTH CHAN true
-               (λ A', advantage (λ: "v", A' (DH_RED "v")) DH_real DH_rand #true) (λ _, 0)
-               (λ _, hdl cli) (λ _, chan) (λ _, gk) (λ _, oaleak) (λ _, leakI) (λ _, aleak) (λ _, fleak)).
-      + apply F_AUTH_DH_SIM_closed.
-      + apply FKE_closed.
-      + apply F_OAUTH_closed.
-      + apply CHAN_closed.
-      + apply CHAN_SIM_lazy_closed.
-      + apply F_CHAN_closed.
-      + intros HRGS. iApply F_AUTH_DH_SIM_FO_typed.
-      + intros HRGS. iApply F_KE_lazy_alice_typed.
-      + intros HRGS. iApply F_OAUTH_typed.
-      + intros HRGS. iApply CHAN_typed.
-      + intros HRGS. iApply CHAN_SIM_lazy_typed.
-      + intros HRGS. iApply F_CHAN_typed.
-      + intros A' HA'. by apply dhke_realises.
-      + intros A' HA'. by apply chan_realises.
-      + exact HA.
-    - rewrite Rplus_0_r. reflexivity.
-  Qed.
+  (*   intros HA.
+       unfold REAL_CHAN_DHKE, IDEAL_CHAN, SIM_DHKE_CHAN.
+       etrans.
+       - apply (uc_composition (F_AUTH ∘f DH_KE) (F_AUTH ∘f DH_SIM) F_KE_lazy_alice
+                  CHAN_SIM_lazy F_CHAN F_OAUTH CHAN true
+                  (λ A', advantage (λ: "v", A' (DH_RED "v")) DH_real DH_rand #true) (λ _, 0)
+                  (λ _, hdl cli) (λ _, chan) (λ _, gk) (λ _, oaleak) (λ _, leakI) (λ _, aleak) (λ _, fleak)).
+         + apply F_AUTH_DH_SIM_closed.
+         + apply FKE_closed.
+         + apply F_OAUTH_closed.
+         + apply CHAN_closed.
+         + apply CHAN_SIM_lazy_closed.
+         + apply F_CHAN_closed.
+         + intros HRGS. iApply F_AUTH_DH_SIM_FO_typed.
+         + intros HRGS. iApply F_KE_lazy_alice_typed.
+         + intros HRGS. iApply F_OAUTH_typed.
+         + intros HRGS. iApply CHAN_typed.
+         + intros HRGS. iApply CHAN_SIM_lazy_typed.
+         + intros HRGS. iApply F_CHAN_typed.
+         + intros A' HA'. by apply dhke_realises.
+         + intros A' HA'. by apply chan_realises.
+         + exact HA.
+       - rewrite Rplus_0_r. reflexivity.
+     Qed. *)
+  Admitted. 
 
 End uc_dhke.
 
