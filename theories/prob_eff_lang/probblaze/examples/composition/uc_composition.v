@@ -187,6 +187,18 @@ Section operator_typing.
   Qed.
 
 
+
+  (* Congruence of [∘f] for functionality transformers at [τ__F] types. *)
+  Lemma func_comp_cong_F (F1 F2 G1 G2 : expr) (A B C : sem_row Σ → sem_ty Σ) :
+    ⊢ sem_typed [] F1 F2 ⊥ (τ__F A B) [] -∗ sem_typed [] G1 G2 ⊥ (τ__F B C) [] -∗
+      sem_typed [] (F1 ∘f G1) (F2 ∘f G2) ⊥ (τ__F A C) [].
+  Proof.
+    iIntros "#HF #HG".
+    iApplyT sem_typed_app_nil; last iApply "HG".
+    iApplyT sem_typed_app_nil; last iApply "HF".
+    iApply sem_typed_val. iApply func_comp_val_typed.
+    intros θ. apply eta_ty_row_forall => θ1. apply eta_ty_arr.
+  Qed.
   (* The hybrid-world context [λ x. (x ||ᵣ A₀) ∘f ρ], as an open term in [x]. *)
   Lemma ctx_hybrid_typed (A₀ ρ : expr) (τc τJ1 τJ2 τA τH : sem_row Σ → sem_ty Σ) :
     ⊢ sem_typed [] A₀ A₀ ⊥ (τ__F τA τJ1) [] -∗
@@ -542,6 +554,99 @@ Section uc_composition.
   Qed.
 
 
+
+  (* ------------------------------------------------------------------ *)
+  (* The same theorem without a side functionality: ρ runs directly on   *)
+  (* top of F.  Every component is a functionality transformer at a      *)
+  (* [τ__F] type and the bookkeeping is [func_comp_assoc].              *)
+  (* ------------------------------------------------------------------ *)
+
+  Definition hybrid_ctx_f (ρ : val) : ectx := [AppLCtx ρ; AppRCtx func_comp].
+  Definition sim_ctx_f (S : expr) : ectx := [AppRCtx (func_comp S)].
+
+  Lemma ctx_hybrid_f_typed `{!probblazeRGS Σ} (ρ : expr) (τc τJ τH : sem_row Σ → sem_ty Σ) :
+    ⊢ sem_typed [] ρ ρ ⊥ (τ__F τJ τc) [] -∗
+      sem_typed [("v", τ__F τH τJ)] ("v" ∘f ρ) ("v" ∘f ρ) ⊥ (τ__F τH τc) [].
+  Proof.
+    iIntros "#Hρ".
+    iApplyT sem_typed_app_nil; last first.
+    { iApply (sem_typed_frame_env_gen _ [_]). iApply "Hρ". }
+    iApplyT sem_typed_app_nil; last typed_var.
+    iApply sem_typed_val. iApply func_comp_val_typed.
+    intros θ. apply eta_ty_row_forall => θ1. apply eta_ty_arr.
+    Unshelve. all: solve_typed_side.
+  Qed.
+
+  Lemma ctx_sim_f_typed `{!probblazeRGS Σ} (S : expr) (τc τF τH : sem_row Σ → sem_ty Σ) :
+    ⊢ sem_typed [] S S ⊥ (τ__F τH τF) [] -∗
+      sem_typed [("v", τ__F τF τc)] (S ∘f "v") (S ∘f "v") ⊥ (τ__F τH τc) [].
+  Proof.
+    iIntros "#HS".
+    iApplyT sem_typed_app_nil; last typed_var.
+    iApplyT sem_typed_app_nil; last iApply "HS".
+    iApply sem_typed_val. iApply func_comp_val_typed.
+    intros θ. apply eta_ty_row_forall => θ1. apply eta_ty_arr.
+    Unshelve. all: solve_typed_side.
+  Qed.
+
+  (* Interface types:
+       τc : the client interface of ρ (and of G)
+       τJ : what ρ needs, i.e. F's client interface
+       τF : F's environment ports      τH : the environment ports of H ∘f π and of S
+       τG : G's environment ports, handled by S'                                   *)
+  Theorem uc_composition_f
+      (Rπ S F S' G : expr) (ρ : val) (b : bool) (ε_π ε_ρ : val → R)
+      (τc τJ τF τH τG : ∀ `{probblazeRGS Σ}, sem_row Σ → sem_ty Σ) :
+    is_closed_expr ∅ S → is_closed_expr ∅ F → is_closed_expr ∅ ρ →
+    is_closed_expr ∅ S' → is_closed_expr ∅ G →
+    (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] S S ⊥ (τ__F τH τF) []) →
+    (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] F F ⊥ (τ__F τF τJ) []) →
+    (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] ρ ρ ⊥ (τ__F τJ τc) []) →
+    (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] S' S' ⊥ (τ__F τF τG) []) →
+    (∀ `{probblazeRGS Σ}, ⊢ sem_typed [] G G ⊥ (τ__F τG τc) []) →
+    (* π realises F in the H-hybrid world with simulator S *)
+    (∀ A : val, (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (τ__F τH τJ → 𝔹)%T) →
+       advantage A Rπ (S ∘f F) #b <= ε_π A) →
+    (* ρ realises G in the F-hybrid world with simulator S' *)
+    (∀ A : val, (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (τ__F τF τc → 𝔹)%T) →
+       advantage A (F ∘f ρ) (S' ∘f G) #b <= ε_ρ A) →
+    ∀ A : val,
+      (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (τ__F τH τc → 𝔹)%T) →
+      advantage A (Rπ ∘f ρ) ((S ∘f S') ∘f G) #b
+        <= ε_π (λ: "v", A ("v" ∘f ρ))%V + ε_ρ (λ: "v", A (S ∘f "v"))%V.
+  Proof.
+    intros HSc HFc Hρc HS'c HGc HS HF Hρ HS' HG Hπ Hρ' A HA.
+    set (β := λ H : probblazeRGS Σ, τ__F (τH H) (τc H)).
+    (*   Rπ ∘f ρ  ≤  (S ∘f F) ∘f ρ  ≃  S ∘f (F ∘f ρ)  ≤  S ∘f (S' ∘f G)  ≃  (S ∘f S') ∘f G   *)
+    eapply (advantage_triangle _ _ ((S ∘f F) ∘f ρ)); first last.
+    { reflexivity. }
+    - eapply (advantage_triangle _ _ (S ∘f (F ∘f ρ)) _ _ 0); first last.
+      { rewrite Rplus_0_l. reflexivity. }
+      2: { apply (advantage_zero _ _ _ _ β); [exact HA| |]; intros HRGS.
+           - iApply func_comp_assoc_rev; [done|done|done|iApply HS|iApply HF|iApply Hρ].
+           - iApply func_comp_assoc; [done|done|done|iApply HS|iApply HF|iApply Hρ]. }
+      eapply (advantage_triangle _ _ (S ∘f (S' ∘f G)) _ _ _ 0); first last.
+      { rewrite Rplus_0_r. reflexivity. }
+      1: { apply (advantage_zero _ _ _ _ β); [exact HA| |]; intros HRGS.
+           - iApply func_comp_assoc; [done|done|done|iApply HS|iApply HS'|iApply HG].
+           - iApply func_comp_assoc_rev; [done|done|done|iApply HS|iApply HS'|iApply HG]. }
+      change (S ∘f (F ∘f ρ))%E with (fill (sim_ctx_f S) (F ∘f ρ)).
+      change (S ∘f (S' ∘f G))%E with (fill (sim_ctx_f S) (S' ∘f G)).
+      change (S ∘f "v")%E with (fill (sim_ctx_f S) "v").
+      etrans; first apply advantage_reduction_ctx.
+      { done. }
+      { intros vs w Hw. simpl. by rewrite Hw (subst_map_is_closed_empty S). }
+      apply Hρ'. intros HRGS.
+      iApply ctx_adv_typed; first iApply HA. iApply ctx_sim_f_typed. iApply HS.
+    - change (Rπ ∘f ρ)%E with (fill (hybrid_ctx_f ρ) Rπ).
+      change ((S ∘f F) ∘f ρ)%E with (fill (hybrid_ctx_f ρ) (S ∘f F)).
+      change ("v" ∘f ρ)%E with (fill (hybrid_ctx_f ρ) "v").
+      etrans; first apply advantage_reduction_ctx.
+      { done. }
+      { intros vs w Hw. simpl. by rewrite Hw. }
+      apply Hπ. intros HRGS.
+      iApply ctx_adv_typed; first iApply HA. iApply ctx_hybrid_f_typed. iApply Hρ.
+  Qed.
 End uc_composition.
 
 
