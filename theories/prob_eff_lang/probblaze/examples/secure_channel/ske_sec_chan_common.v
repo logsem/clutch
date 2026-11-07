@@ -114,7 +114,7 @@ Section schan_common.
      effect PAYLOAD is the closed constant [bob].  Do not "simplify" it to #(). *)
   (* The channel hands back a DECODED message, i.e. a value of the abstract
      message space, not its integer code: [CHAN] returns [SOME (dec key m)] and
-     [RED_CHAN] / [F_CHAN] return the stored [!"message"], all of which are
+     [RED_CHAN_sess] / [F_CHAN_sess] return the stored [!"message"], all of which are
      [fvtval]s.  Hence the quantifier ranges over [mt], not over [nat]. *)
   Program Definition RecvSecB (srecv1 srecv2 : label) : iThy Σ :=
     λ e1 e2, (λne Q,
@@ -409,3 +409,7 @@ Section schan_common.
     iIntros "!#" (v1 v2) "[Hτ $]". iApply ("Hle" with "Hτ").
   Qed.
 End schan_common.
+
+(* The value instances are explicit (see [ske_sec_chan_def]). *)
+#[global] Arguments τsc {Σ H mt ct ms cs} msg cipher.
+#[global] Arguments τsc_OS {Σ H mt ct ms cs} msg cipher.

@@ -80,8 +80,8 @@ Section schan_ideal.
      left-hand step becomes a right-hand step and vice versa, the heap and tape
      assertions swap sides, and the client's row becomes [client_row'] because
      the four-label ideal side is now on the left. *)
-  Lemma sc_ideal_game2 :
-    ⊢ sem_typed [] sc_ideal game2 ⊥ τsc [].
+  Lemma IDEAL_SKE_GAME2_MS :
+    ⊢ sem_typed [] SIM_IDEAL_SKE GAME2 ⊥ (𝟙 -{ ⟨⟩ }-[ MS ]-> τsc)%T [].
   Proof using All with (brel_pures'; repeat foldkont;
                         try (lazymatch goal with
                              | |- _ ∉ _ => simpl;
@@ -95,11 +95,11 @@ Section schan_ideal.
                                          end);
                                  set_unfold; tauto
                              end)).
-    iIntros (?) "!# _".
-    (* Not [//=]: that would compute [subst_map] through the hoisted bodies. *)
-    change (subst_map _ game2) with game2.
-    rewrite subst_map_is_closed_empty; last is_closed.
-    rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /parallel_composition...
+    iIntros (vs) "!> _". simpl.
+    iApply brel_value. iIntros "$ !>". iSplit; last done.
+    rewrite /sem_ty_mbang /sem_ty_arr /=. iModIntro.
+    iIntros (u1 u2) "[-> ->]".
+    rewrite /GAME2 /SIM_IDEAL_SKE /SIM_SKE /IDEAL_SKE /C_ENC_ideal /enc_ideal /RED_CHAN_sess /func_comp /parallel_composition...
 
     (* Setup, shared by all calls.  Arguments are evaluated first: left
        (sc_ideal) F_CHAN's state, then the simulator's ciphertext cell and its
@@ -143,7 +143,7 @@ Section schan_ideal.
     iIntros "#HI"...
 
     (* One call: a client and its effect handlers *)
-    iModIntro. iSplit; last done.
+    iModIntro.
     iIntros (θL). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     rewrite /sem_ty_prod /=.
@@ -153,7 +153,7 @@ Section schan_ideal.
     brel_pures'.
 
     (* Per-call effect labels.  Right (game2): [getKey], then F_OAUTH's and
-       RED_CHAN's; left (sc_ideal): the simulator's, then F_CHAN's. *)
+       RED_CHAN_sess's; left (sc_ideal): the simulator's, then F_CHAN's. *)
     brel_effect_r gkr as "Hgkr"...
     brel_effect_r sr as "Hsr"...
     brel_effect_r rr as "Hrr"...
@@ -522,8 +522,8 @@ Section schan_ideal.
           iApply "HQ".
   Qed.
 
-  Lemma game2_sc_ideal :
-    ⊢ sem_typed [] game2 sc_ideal ⊥ τsc [].
+  Lemma GAME2_IDEAL_SKE_MS :
+    ⊢ sem_typed [] GAME2 SIM_IDEAL_SKE ⊥ (𝟙 -{ ⟨⟩ }-[ MS ]-> τsc)%T [].
   (* [brel_pures'] raises a label-freshness side goal every time a reduction
      crosses one of the four/five nested handlers.  They are all consequences
      of [Hnd_l]/[Hnd_r], so discharge them as part of the [...] tactic; the
@@ -542,11 +542,11 @@ Section schan_ideal.
                                          end);
                                  set_unfold; tauto
                              end)).
-    iIntros (?) "!# _".
-    (* Not [//=]: that would compute [subst_map] through the hoisted bodies. *)
-    change (subst_map _ game2) with game2.
-    rewrite subst_map_is_closed_empty; last is_closed.
-    rewrite /game2 /sc_ideal /reduction /enc_ideal /RED_CHAN /CHAN_SIM /F_CHAN /F_KE_lazy_alice /F_OAUTH /func_comp /parallel_composition...
+    iIntros (vs) "!> _". simpl.
+    iApply brel_value. iIntros "$ !>". iSplit; last done.
+    rewrite /sem_ty_mbang /sem_ty_arr /=. iModIntro.
+    iIntros (u1 u2) "[-> ->]".
+    rewrite /GAME2 /SIM_IDEAL_SKE /SIM_SKE /IDEAL_SKE /C_ENC_ideal /enc_ideal /RED_CHAN_sess /func_comp /parallel_composition...
 
     (* Setup, shared by all calls.  Arguments are evaluated first: right
        (sc_ideal) F_CHAN's state, then the simulator's ciphertext cell and its
@@ -588,7 +588,7 @@ Section schan_ideal.
     iIntros "#HI"...
 
     (* One call: a client and its effect handlers *)
-    iModIntro. iSplit; last done.
+    iModIntro.
     iIntros (θL). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     rewrite /sem_ty_prod /=.
@@ -598,7 +598,7 @@ Section schan_ideal.
     brel_pures'.
 
     (* Per-call effect labels.  Left (game2): [getKey], then F_OAUTH's and
-       RED_CHAN's; right (sc_ideal): the simulator's, then F_CHAN's. *)
+       RED_CHAN_sess's; right (sc_ideal): the simulator's, then F_CHAN's. *)
     brel_effect_l gkl as "Hgkl"...
     brel_effect_l sl as "Hsl"...
     brel_effect_l rl as "Hrl"...
@@ -968,10 +968,4 @@ Section schan_ideal.
   Qed.
 
   (* One-shot versions, the shape the composition operators expect *)
-  Lemma sc_ideal_game2_OS : ⊢ sem_typed [] sc_ideal game2 ⊥ τsc_OS [].
-  Proof using All. apply sem_typed_τsc_OS. apply sc_ideal_game2. Qed.
-
-  Lemma game2_sc_ideal_OS : ⊢ sem_typed [] game2 sc_ideal ⊥ τsc_OS [].
-  Proof using All. apply sem_typed_τsc_OS. apply game2_sc_ideal. Qed.
-
 End schan_ideal.

@@ -1,4 +1,7 @@
-From clutch.prob_eff_lang.probblaze Require Export def_dhke notation valgroup comp_operators mask.
+From clutch.prob_eff_lang.probblaze Require Import class_instances.
+From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems.
+From clutch.prob_eff_lang.probblaze Require Export dhke_def notation valgroup mask.
+From clutch.prob_eff_lang.probblaze.uc Require Export comp_operators.
 
 Import fingroup.
 
@@ -13,7 +16,7 @@ Section schannel.
 
   (* The functionalities allocate their state before taking the client, so all
      calls of an evaluated functionality share one session. *)
-  Definition F_OAUTH : expr :=
+  Definition F_OAUTH : val := λ: <>,
     let: "message" := ref NONEV in
     λ: "f" "LeakOp",
       let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
@@ -44,7 +47,7 @@ Section schannel.
 
   (* Assumes a fixed direction from Alice to Bob, so the leak raised by CHAN doesnt need to send a destination with the argument Bob*)
   (* InjL arg represents the message being sent by Alice, and InjR <>, just represents that Bob is requesting a receive , so "doSecRecv" is now a genuine thunk, because it doesnt need any argument anymore*)
-  Definition CHAN : expr :=
+  Definition CHAN : val := λ: <>,
     let: "message" := ref NONEV in
     (*λ: "f" "ChanOp" "doGK",*)
     λ: "f" "effs",
@@ -90,7 +93,7 @@ Section schannel.
   
   (*reflecting the same change here as in the real functionality*)
   (* Ideal functionality of the ONE-MESSAGE secure channel *)
-  Definition F_CHAN : expr :=
+  Definition F_CHAN : val := λ: <>,
     let: "message" := ref NONEV in
     λ: "f" "LeakOp",
       let, ("doLeakSend", "doLeakRecv") := "LeakOp" in
@@ -123,60 +126,8 @@ Section schannel.
   end.
 
 
-  (*Simulator for the one message secure channel *)      
-  Definition CHAN_SIM : val :=
-    λ: "f" "effs",
-      let, ("LeakAOp" , "doKeyLeak") := "effs" in
-      let, ("doLeakASend" , "doLeakARecv") := "LeakAOp" in
-      let, ("doKeyLeakSnd", "doKeyLeakRecv") := "doKeyLeak" in  
-      (*let: "α" := alloc #n in*)
-      let: "message" := ref NONEV in
-      effect "leaksec"
-        let: "doLeakSecSend" := (λ: "m", do: (EffName "leaksec") (Send "m")) in
-        let: "doLeakSecRecv" := (λ: "m", do: (EffName "leaksec") (Recv "m")) in
-        handle: "f" ("doLeakSecSend" , "doLeakSecRecv") with
-    | effect (EffName "leaksec") "payload", rec "k" =>
-        match: "payload" with
-        (*Broadcast a message*)
-        | InjL <> =>
-            ("doKeyLeakSnd" (bob));;
-            let: "r" := "doKeyLeakRecv" (bob) in
-            match: "r" with
-            | NONE =>
-                "k" NONEV
-            | SOME "x" =>
-                match: !"message" with
-                | NONE =>
-                    let: "m'" := (sample #()%V) in
-                    let: "mA" := g^"m'" in
-                    "message" <- SOME "m'";;
-                    ("doLeakASend" ("mA", bob));;
-                    "k" #()%V
-                | SOME "m" => "k" #()%V
-                end    
-            end                           
-        | InjR <> =>
-            (*("doKeyLeakRecv" (alice));;*)
-            let: "r" := "doKeyLeakRecv" (alice) in
-            match: "r" with
-            | NONE =>
-                (*(do: leakauth ("from"));;*)
-                "k" NONEV
-            | SOME "x" =>
-                ("doKeyLeakSnd" alice);;
-                let: "rla" := ("doLeakARecv" bob) in
-                match: "rla" with
-                | NONE => "k" NONEV
-                | SOME "x" => "k" !"message"
-                end
-                  
-            end                             
-        end
-    | return "y" => "y" end.
-
-
   (*Simulator for the one message secure channel *)
-  Definition CHAN_SIM_lazy : expr :=
+  Definition CHAN_SIM_lazy : val := λ: <>,
     let: "message" := ref NONEV in
     let: "m'_opt" := ref NONEV in
     let: "sample_or_load" :=
@@ -241,8 +192,18 @@ Section schannel.
 | return "y" => "y" end.
 
 
-  Definition R_CHAN : expr:=
-      (F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f CHAN.
+
+  (* The systems are factories (uc/DESIGN.md): a call allocates the state of
+     a fresh session and returns it. *)
+  #[global] Instance F_OAUTH_as_recv : AsRecV F_OAUTH BAnon BAnon _ := eq_refl.
+  #[global] Instance CHAN_as_recv : AsRecV CHAN BAnon BAnon _ := eq_refl.
+  #[global] Instance F_CHAN_as_recv : AsRecV F_CHAN BAnon BAnon _ := eq_refl.
+  #[global] Instance CHAN_SIM_lazy_as_recv : AsRecV CHAN_SIM_lazy BAnon BAnon _ := eq_refl.
+  (* The real system: the protocol in the (F_KE_lazy_alice, F_OAUTH)-hybrid
+     world; the ideal functionality; the simulator. *)
+  Definition REAL_SCHAN : val := ((F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f CHAN)%fac.
+  Definition IDEAL_SCHAN : val := F_CHAN.
+  Definition SIM_SCHAN : val := CHAN_SIM_lazy.
 
 
 End schannel.

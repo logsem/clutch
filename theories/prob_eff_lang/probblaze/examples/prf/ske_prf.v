@@ -1,5 +1,5 @@
 From clutch.prelude Require Import stdpp_ext fin.
-From clutch.prob_eff_lang.probblaze Require Import advantage.
+From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From clutch.prob_eff_lang.probblaze Require Import notation logic sem_judgement sem_types sem_def tactics proofmode adequacy.
 From clutch.prob_eff_lang.probblaze Require compatibility sem_operators sem_row sem_env sem_sig.
 From clutch.prob_eff_lang.probblaze.examples Require Import fin_val_type fin_val_type_prod ske.

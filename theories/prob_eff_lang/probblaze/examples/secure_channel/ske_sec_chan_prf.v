@@ -79,13 +79,14 @@ Section schan_security.
      left-hand step becomes a right-hand step and vice versa, the heap and tape
      assertions swap between the implementation and the specification side, and
      the tapes are coupled along the inverse bijection [f_inv keyf]. *)
-  Lemma game1_sc_real : 
-    ⊢ sem_typed [] game1 sc_real ⊥ τsc [].
+  Lemma GAME1_REAL_SKE_MS :
+    ⊢ sem_typed [] GAME1 REAL_SKE ⊥ (𝟙 -{ ⟨⟩ }-[ MS ]-> τsc)%T [].
   Proof using All with (brel_pures'; repeat foldkont). 
-    iIntros (?) "!# _". 
-    change (subst_map _ game1) with game1.
-    rewrite subst_map_is_closed_empty; last is_closed.
-    rewrite /sc_real /game1 /reduction /CHAN /RED_CHAN /F_OAUTH /F_KE_lazy_alice /parallel_composition /enc_real_tape /func_comp...
+    iIntros (vs) "!> _". simpl.
+    iApply brel_value. iIntros "$ !>". iSplit; last done.
+    rewrite /sem_ty_mbang /sem_ty_arr /=. iModIntro.
+    iIntros (u1 u2) "[-> ->]".
+    rewrite /GAME1 /REAL_SKE /C_ENC_real /RED_CHAN_sess /parallel_composition /enc_real_tape /func_comp...
 
     (* Setup, shared by all calls.  Arguments are evaluated first: left
        (game1) the encryption scheme, RED_CHAN, F_OAUTH, F_KE; right (sc_real)
@@ -131,7 +132,7 @@ Section schan_security.
     iIntros "#HI"...
 
     (* One call: a client and its effect handlers *)
-    iModIntro. iSplit; last done.
+    iModIntro.
     iIntros (θL). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     iDestruct "Hauthkey" as (w1 w1' w2 w2') "[-> [-> [Hautheff Hkeyeff]]]"...
@@ -509,13 +510,14 @@ Section schan_security.
         iApply "HQ".
   Qed.
 
-  Lemma sc_real_game1 : 
-    ⊢ sem_typed [] sc_real game1 ⊥ τsc [].
+  Lemma REAL_SKE_GAME1_MS :
+    ⊢ sem_typed [] REAL_SKE GAME1 ⊥ (𝟙 -{ ⟨⟩ }-[ MS ]-> τsc)%T [].
   Proof using All with (brel_pures'; repeat foldkont). 
-    iIntros (?) "!# _". 
-    rewrite subst_map_is_closed_empty; last is_closed.
-    change (subst_map _ game1) with game1.
-    rewrite /sc_real /game1 /reduction /CHAN /RED_CHAN /F_OAUTH /F_KE_lazy_alice /parallel_composition /enc_real_tape /func_comp...
+    iIntros (vs) "!> _". simpl.
+    iApply brel_value. iIntros "$ !>". iSplit; last done.
+    rewrite /sem_ty_mbang /sem_ty_arr /=. iModIntro.
+    iIntros (u1 u2) "[-> ->]".
+    rewrite /GAME1 /REAL_SKE /C_ENC_real /RED_CHAN_sess /parallel_composition /enc_real_tape /func_comp...
 
     (* Setup, shared by all calls.  Arguments are evaluated first: left
        (sc_real) CHAN, F_OAUTH, F_KE; right (game1) the encryption scheme,
@@ -561,7 +563,7 @@ Section schan_security.
     iIntros "#HI"...
 
     (* One call: a client and its effect handlers *)
-    iModIntro. iSplit; last done.
+    iModIntro.
     iIntros (θL). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     iDestruct "Hauthkey" as (w1 w1' w2 w2') "[-> [-> [Hautheff Hkeyeff]]]"...
@@ -920,10 +922,4 @@ Section schan_security.
   Qed.
 
   (* One-shot versions, the shape the composition operators expect *)
-  Lemma game1_sc_real_OS : ⊢ sem_typed [] game1 sc_real ⊥ τsc_OS [].
-  Proof using All. apply sem_typed_τsc_OS. apply game1_sc_real. Qed.
-
-  Lemma sc_real_game1_OS : ⊢ sem_typed [] sc_real game1 ⊥ τsc_OS [].
-  Proof using All. apply sem_typed_τsc_OS. apply sc_real_game1. Qed.
-
 End schan_security.

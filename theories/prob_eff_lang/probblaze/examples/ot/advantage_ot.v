@@ -1,4 +1,4 @@
-From clutch.prob_eff_lang.probblaze Require Import advantage.
+From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From iris.algebra Require Import excl.
 From iris.algebra.lib Require Import dfrac_agree.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row semantics proofmode valgroup sem_judgement mode.

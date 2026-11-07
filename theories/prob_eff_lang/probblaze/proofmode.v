@@ -226,6 +226,14 @@ Proof. intros ?%TCSimpl_eq. solve_do_pure_step. Qed.
 Global Hint Extern 1 (DoPureStep _ (App (Val (RecV _ _ _)) (Val _)) _) =>
   notypeclasses refine (do_pure_step_app _ _ _ _ _ _) : typeclass_instances.
 
+(** A value that declares itself a lambda through an [AsRecV] instance (a
+definition such as a factory [λ: <>, e] or a factory operator) also steps,
+with the definition kept folded in the recursive occurrence. *)
+Global Instance do_pure_step_app_as_recv v1 f x e v e' `{!AsRecV v1 f x e} :
+  TCSimpl (val_subst' x v (val_subst' f v1 e)) e' →
+  DoPureStep True (App (Val v1) (Val v)) e' | 5.
+Proof. intros ?%TCSimpl_eq. unfold AsRecV in *. subst. solve_do_pure_step. Qed.
+
 Global Instance do_pure_step_unop op v w :
   TCSimpl (un_op_eval op v) (Some w) →
   DoPureStep True (UnOp op (Val v)) (Val w).

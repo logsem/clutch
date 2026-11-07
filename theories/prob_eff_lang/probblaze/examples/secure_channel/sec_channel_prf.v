@@ -7,7 +7,8 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   spec_rules spec_ra
   class_instances.
 From clutch.prob_eff_lang.probblaze Require Import tactics.
-From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
+From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def compatibility.
+From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems.
 From clutch.prob_eff_lang.probblaze.examples Require Import mask sec_channel_def mask_bijection.
 
 
@@ -301,24 +302,21 @@ Section schan_security.
   Lemma τ_CHAN_le_τ_CHAN_OS : ⊢ τ_CHAN ≤ₜ τ_CHAN_OS.
   Proof. iApply ty_le_row_forall. iIntros (θ). iApply ty_le_mbang_elim. Qed.
 
-  (* Subsumption at [τ_CHAN_OS], without depending on [compatibility] *)
-  Lemma sem_typed_τ_CHAN_OS e1 e2 :
-    (⊢ sem_typed [] e1 e2 ⊥ τ_CHAN []) → ⊢ sem_typed [] e1 e2 ⊥ τ_CHAN_OS [].
-  Proof.
-    intros He. iPoseProof He as "H". iPoseProof τ_CHAN_le_τ_CHAN_OS as "Hle".
-    rewrite /sem_typed /ty_le /tc_opaque.
-    iIntros "!#" (vs) "HΓ".
-    iApply (brel_wand with "[HΓ]"); first iApply ("H" with "HΓ").
-    iIntros "!#" (v1 v2) "[Hτ $]". iApply ("Hle" with "Hτ").
-  Qed.
+  (* ---------------------------------------------------------------- *)
+  (* The two relations, on the factories: calling the composites        *)
+  (* allocates the functionalities' state (in evaluation order), then   *)
+  (* one client call is related step by step.                           *)
+  (* ---------------------------------------------------------------- *)
 
-  Lemma SEM_R_CHAN_SIM :
-    ⊢ sem_typed [] R_CHAN  (CHAN_SIM_lazy ∘f F_CHAN) ⊥ τ_CHAN [].
+  Lemma R_CHAN_SIM_f md :
+    ⊢ sem_typed [] REAL_SCHAN (SIM_SCHAN ∘f IDEAL_SCHAN)%fac ⊥ (fac md τ_CHAN) [].
   Proof with (repeat foldkont; brel_pures') using All.
-    iIntros (vs) "!> _".
-    rewrite subst_map_is_closed_empty; last is_closed.
-    rewrite subst_map_is_closed_empty; last is_closed.
-    unfold τ_CHAN, R_CHAN, parallel_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp, F_KE_lazy_alice, F_OAUTH...
+    iApply sem_typed_sub_ty; first iApply fac_MS_le.
+    iIntros (vs) "!> _". simpl.
+    iApply brel_value. iIntros "$ !>". iSplit; last done.
+    rewrite /fac /sem_ty_mbang /sem_ty_arr /=. iModIntro.
+    iIntros (u1 u2) "[-> ->]".
+    unfold τ_CHAN, REAL_SCHAN, SIM_SCHAN, IDEAL_SCHAN, parallel_composition, func_comp...
     (* Setup: the functionalities' state, in evaluation order *)
     brel_alloc_l l_rchan as "Hlrchan"...
     brel_alloc_l l_auth as "Hl_auth"...
@@ -340,7 +338,7 @@ Section schan_security.
     iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; iFrame|].
     iIntros "#Hinvα"...
     (* One call: a client and its effect handlers *)
-    iSplitL; last done. iModIntro.
+    iModIntro.
     iIntros (L). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hrelf1f2"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     rewrite /sem_ty_prod /=.
@@ -839,16 +837,18 @@ Section schan_security.
                 brel_cont_l.
                 brel_cont_r.
                 iApply (brel_exhaustion (fill k1' _) (fill k2' _)); [set_unfold; tauto|set_solver|iApply "Hrel"|iApply "IH"].
-                by iDestruct "HmQ" as "[Hsome Hnone]". 
+                by iDestruct "HmQ" as "[Hsome Hnone]".
   Qed.
-  
-  Lemma SEM_R_CHAN_SIM_rev :
-     ⊢ sem_typed [] (CHAN_SIM_lazy ∘f F_CHAN) R_CHAN ⊥ τ_CHAN [].
+
+  Lemma SIM_R_CHAN_f md :
+    ⊢ sem_typed [] (SIM_SCHAN ∘f IDEAL_SCHAN)%fac REAL_SCHAN ⊥ (fac md τ_CHAN) [].
   Proof with (repeat foldkont; brel_pures') using All.
-    iIntros (vs) "!> _".
-    rewrite subst_map_is_closed_empty; last is_closed.
-    rewrite subst_map_is_closed_empty; last is_closed.
-    unfold τ_CHAN, R_CHAN, parallel_composition, CHAN, F_CHAN, CHAN_SIM_lazy, func_comp, F_KE_lazy_alice, F_OAUTH...
+    iApply sem_typed_sub_ty; first iApply fac_MS_le.
+    iIntros (vs) "!> _". simpl.
+    iApply brel_value. iIntros "$ !>". iSplit; last done.
+    rewrite /fac /sem_ty_mbang /sem_ty_arr /=. iModIntro.
+    iIntros (u1 u2) "[-> ->]".
+    unfold τ_CHAN, REAL_SCHAN, SIM_SCHAN, IDEAL_SCHAN, parallel_composition, func_comp...
     (* Setup: the functionalities' state, in evaluation order *)
     brel_alloc_l l_fchan as "Hlfchan"...
     brel_alloc_l l_sim as "Hl_sim"...
@@ -870,7 +870,7 @@ Section schan_security.
     iSplitL "Hγ Hl_m'sim Hl_sim Hl_auth Hlfchan Hlrchan Hl_key"; [iNext; iLeft; rewrite Nat2Z.id; by iFrame|].
     iIntros "#Hinvα"...
     (* One call: a client and its effect handlers *)
-    iSplitL; last done. iModIntro.
+    iModIntro.
     iIntros (L). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hrelf1f2"...
     iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
     rewrite /sem_ty_prod /=.
@@ -1340,20 +1340,8 @@ Section schan_security.
                brel_cont_l.
                brel_cont_r.
                iApply (brel_exhaustion (fill k1' (InjLV #()%V)) (fill k2' (InjLV #()%V))); [set_solver|set_unfold;tauto|iApply "Hrel" |iApply "IH"].
-               by iDestruct "HmQ" as "[Hsome Hnone]". 
+               by iDestruct "HmQ" as "[Hsome Hnone]".
   Qed.
 
-  (*top level statements for the secure channel *)
-  (*----------------------------------------------------------------*)
-  Definition R_I_SCHAN := SEM_R_CHAN_SIM.
-
-  Definition I_R_SCHAN := SEM_R_CHAN_SIM_rev.
-
-  (* One-shot versions, the shape the composition operators expect *)
-  Lemma R_I_SCHAN_OS : ⊢ sem_typed [] R_CHAN (CHAN_SIM_lazy ∘f F_CHAN) ⊥ τ_CHAN_OS [].
-  Proof using All. apply sem_typed_τ_CHAN_OS. apply R_I_SCHAN. Qed.
-
-  Lemma I_R_SCHAN_OS : ⊢ sem_typed [] (CHAN_SIM_lazy ∘f F_CHAN) R_CHAN ⊥ τ_CHAN_OS [].
-  Proof using All. apply sem_typed_τ_CHAN_OS. apply I_R_SCHAN. Qed.
 
 End schan_security.
