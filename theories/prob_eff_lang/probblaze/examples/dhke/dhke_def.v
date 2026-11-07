@@ -1,5 +1,6 @@
 From clutch.prob_eff_lang.probblaze Require Export notation valgroup.
 From clutch.prob_eff_lang.probblaze Require Import class_instances.
+From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems.
 
 
 Import fingroup.
@@ -491,5 +492,16 @@ Section def_implementation.
   #[global] Instance F_KE_just_lazy_as_recv : AsRecV F_KE_just_lazy BAnon BAnon _ := eq_refl.
   #[global] Instance DH_real_as_recv : AsRecV DH_real BAnon BAnon _ := eq_refl.
   #[global] Instance DH_rand_as_recv : AsRecV DH_rand BAnon BAnon _ := eq_refl.
+
+
+  (* The real system: the protocol in the F_AUTH-hybrid world. *)
+  Definition REAL_DHKE : val := (F_AUTH ∘f DH_KE)%fac.
+  (* The ideal functionality. *)
+  Definition IDEAL_DHKE : val := F_KE_lazy_alice.
+  (* The simulator: F_AUTH, simulated by DH_SIM on top of the ideal functionality. *)
+  Definition SIM_DHKE : val := (F_AUTH ∘f DH_SIM)%fac.
+  (* The DDH reduction for an environment [A]. *)
+  Definition RED_DHKE (A : val) : val := (λ: "v", A (F_AUTH ∘fₚ (C_lazy "v"))%fac)%V.
+
 
  End def_implementation.

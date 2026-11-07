@@ -48,23 +48,6 @@ Import fingroup.fingroup.
 #[local] Set Default Proof Using "All".
 
 (* ------------------------------------------------------------------ *)
-(* The systems.                                                        *)
-(* ------------------------------------------------------------------ *)
-
-Section dhke_systems.
-  Context {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg}.
-
-  (* The real system: the protocol in the F_AUTH-hybrid world. *)
-  Definition REAL_DHKE : val := (F_AUTH ∘f DH_KE)%fac.
-  (* The ideal functionality. *)
-  Definition IDEAL_DHKE : val := F_KE_lazy_alice.
-  (* The simulator: F_AUTH, simulated by DH_SIM on top of the ideal functionality. *)
-  Definition SIM_DHKE : val := (F_AUTH ∘f DH_SIM)%fac.
-  (* The DDH reduction for an environment [A]. *)
-  Definition RED_DHKE (A : val) : val := (λ: "v", A (F_AUTH ∘fₚ (C_lazy "v")))%V.
-
-End dhke_systems.
-
 (* ------------------------------------------------------------------ *)
 (* Typing.                                                             *)
 (* ------------------------------------------------------------------ *)
