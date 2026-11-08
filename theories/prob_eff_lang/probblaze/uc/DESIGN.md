@@ -218,7 +218,9 @@ classical axioms are used.
 Instances: `dhke_chan_realises` (DHKE under the mask channel),
 `dhke_ske_realises` (DHKE under the SKE channel, then `adv_composition_prf`
 with the PRF-based scheme), `auth_dhke` (DHKE over the authenticated-channel
-protocol, with `uc_composition_f`).
+protocol, with `uc_composition_f`; its premise for `AUTH` is `adv_AUTH`, a
+`2/q` bound that spends error credits per session and so holds at mode OS
+only).
 
 ## 7. Single versus multi-session
 

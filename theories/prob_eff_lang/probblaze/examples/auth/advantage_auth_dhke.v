@@ -2,7 +2,7 @@
    UC composition theorem [uc_composition_f]:
 
      π = AUTH    over the raw network, with simulator S_AUTH, realising
-                 F_AUTH (hypothesis [auth_realises], up to 2/q);
+                 F_AUTH (up to 2/q: [adv_AUTH]);
      ρ = DH_KE   in the F_AUTH-hybrid world, with simulator SIM_DHKE, realising
                  IDEAL_DHKE (computationally, via DDH: [dhke_realises]).
 
@@ -21,7 +21,7 @@ From clutch.prob_eff_lang.probblaze.uc Require Import advantage comp_operators.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems uc_advantage uc_theorem.
 From clutch.prob_eff_lang.probblaze.examples Require Import dhke_common dhke_typing.
 From clutch.prob_eff_lang.probblaze.examples.dhke Require Import dhke_def advantage_dhke.
-From clutch.prob_eff_lang.probblaze.examples.auth Require Import auth_def auth_typing.
+From clutch.prob_eff_lang.probblaze.examples.auth Require Import auth_def auth_typing advantage_auth.
 From Stdlib Require Import Reals Psatz.
 
 Import fingroup.
@@ -63,21 +63,22 @@ Section auth_dhke.
   Import valgroup_notation.
   #[local] Notation n := (S n'').
 
-  (* π = AUTH realises F_AUTH over the raw network with simulator S_AUTH, up
-     to the probability 2/q of forging one of the two one-time MACs.  (To be
-     proved separately.) *)
-  Hypothesis auth_realises : ∀ (m : mode) (A : val),
-    (∀ `{!probblazeRGS Σ}, ⊢ sem_val_typed A A (fac m (τ__F raw chan) → 𝔹)%T) →
-    advantage A AUTH (S_AUTH ∘f F_AUTH) #true <= 2 / n.
+  #[local] Notation q := (S (S n'')).
+  (* The group order is prime ([adv_AUTH]). *)
+  Hypothesis Hq : is_true (prime.prime q).
 
-  Theorem auth_dhke (m : mode) (A : val) :
-    (∀ `{!probblazeRGS Σ}, ⊢ sem_val_typed A A (fac m (τ__F raw gk) → 𝔹)%T) →
+  (* π = AUTH realises F_AUTH over the raw network with simulator S_AUTH, up
+     to the probability 2/q of forging one of the two one-time MACs
+     ([adv_AUTH]); this holds for one-shot environments, so the composition
+     is stated for them. *)
+  Theorem auth_dhke (A : val) :
+    (∀ `{!probblazeRGS Σ}, ⊢ sem_val_typed A A (fac OS (τ__F raw gk) → 𝔹)%T) →
     advantage A REAL_AUTH_DHKE (SIM_AUTH_DHKE ∘f IDEAL_AUTH_DHKE) #true
-      <= 2 / n + advantage (RED_AUTH_DHKE A) DH_real DH_rand #true.
+      <= 2 / q + advantage (RED_AUTH_DHKE A) DH_real DH_rand #true.
   Proof using All.
     intros HA. rewrite /REAL_AUTH_DHKE /SIM_AUTH_DHKE /IDEAL_AUTH_DHKE /RED_AUTH_DHKE.
-    apply (uc_composition_f m AUTH S_AUTH F_AUTH SIM_DHKE IDEAL_DHKE DH_KE true
-             (λ _, 2 / n) (λ A', advantage (RED_DHKE A') DH_real DH_rand #true)
+    apply (uc_composition_f OS AUTH S_AUTH F_AUTH SIM_DHKE IDEAL_DHKE DH_KE true
+             (λ _, 2 / q) (λ A', advantage (RED_DHKE A') DH_real DH_rand #true)
              (λ H : probblazeRGS Σ, gk) (λ H : probblazeRGS Σ, chan) (λ H : probblazeRGS Σ, aleak)
              (λ H : probblazeRGS Σ, raw) (λ H : probblazeRGS Σ, leakI)).
     + intros HRGS. iApply S_AUTH_typed.
@@ -85,8 +86,8 @@ Section auth_dhke.
     + intros HRGS. iApply DH_KE_typed.
     + intros HRGS. iApply SIM_DHKE_typed_f.
     + intros HRGS. iApply F_KE_lazy_alice_typed.
-    + intros A' HA'. by apply (auth_realises m).
-    + intros A' HA'. by apply (dhke_realises m).
+    + intros A' HA'. by apply (adv_AUTH (G := @G) Hq).
+    + intros A' HA'. by apply (dhke_realises OS).
     + exact HA.
   Qed.
 
