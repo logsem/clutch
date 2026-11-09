@@ -36,6 +36,7 @@ Section schan_ideal.
   Context {SKE : @SYM Σ _ vg_fvt mt ct vg_fvts ms cs vg_fv msg cipher ske}.
 
   #[local] Notation sec_channel := (@sec_channel Σ mt).
+  #[local] Notation skechan_thy := (@skechan_thy Σ mt).
   #[local] Notation τsc := (@τsc Σ _ mt ct ms cs msg cipher).
   #[local] Notation τsc_OS := (@τsc_OS Σ _ mt ct ms cs msg cipher).
   #[local] Notation SEM_TYPED_EFF := (@SEM_TYPED_EFF Σ _ mt ms msg).
@@ -78,28 +79,6 @@ Section schan_ideal.
   Qed.
 
   Program Definition client_row' (csend crecv lsend lrecv getKey1 ssend1 srecv1 ssend2 srecv2 : label) := SemRow [([lrecv; lsend; srecv1; ssend1], [csend; crecv; getKey1; srecv2; ssend2], sec_channel ssend1 ssend2 srecv1 srecv2)] (client_pers_mono_row' csend crecv lsend lrecv getKey1 ssend1 srecv1 ssend2 srecv2).
-
-  (* The theory of the client's secure channel, with the labels of [l]
-     ([sl], [rl]) and of [r] ([sr], [rr]); it is symmetric, so in direction
-     [Bwd] it is the same theory with the labels swapped. *)
-  Definition skechan_thy (sl sr rl rr : label) : dir → iThy Σ :=
-    λ d, pmono_prot_car (sem_sig_car (sec_channel (pick d sl sr) (pick d sr sl) (pick d rl rr) (pick d rr rl))).
-
-  Lemma skechan_thy_app sl sr rl rr el er Q :
-    eq_thy_app (skechan_thy sl sr rl rr) el er Q ⊢
-      (∃ m : nat, ⌜el = (do: sl #m)%E ∧ er = (do: sr #m)%E⌝ ∗ ⎡Q #()%V #()%V⎤) ∨
-      (⌜el = (do: rl bob)%E ∧ er = (do: rr bob)%E⌝ ∗
-       ((∀ mv : mt, ⎡Q (SOMEV (fvtval mv)) (SOMEV (fvtval mv))⎤) ∧ ⎡Q NONEV NONEV⎤)).
-  Proof.
-    split=> d. destruct d; rewrite /eq_thy_app /skechan_thy /pick /=;
-      iIntros "[(%m & [-> ->] & HQ)|(-> & -> & HQ)]"; rewrite monPred_at_or.
-    all: try (iLeft; rewrite monPred_at_exist; iExists m;
-              rewrite monPred_at_sep monPred_at_pure monPred_at_embed; iFrame "HQ"; by iPureIntro).
-    all: iRight; rewrite monPred_at_sep monPred_at_pure monPred_at_and monPred_at_forall;
-      iSplit; first by iPureIntro.
-    all: iSplit; [iIntros (mv); rewrite monPred_at_embed; iDestruct "HQ" as "[HQs _]"; iApply "HQs"
-                 |rewrite monPred_at_embed; iDestruct "HQ" as "[_ HQn]"; iApply "HQn"].
-  Qed.
 
   (* [GAME2] is [l], the simulated ideal system [r].  The invariant has three
      states: nothing has happened; a valid send has started (the plaintext is
@@ -191,7 +170,7 @@ Section schan_ideal.
     { iIntros "!>" (vl vr) "Hv". rewrite eq_lift_unit. iDestruct "Hv" as %[-> ->].
       eq_pures_l. eq_pures_r. iApply eq_value. iModIntro. by rewrite eq_lift_unit. }
     iIntros "!>" (k1' k2' e1 e2 Q) "%Hk1 %Hk2 HXQ #Hrel".
-    iDestruct (skechan_thy_app with "HXQ") as "[(%m & %Hm' & HQ) | (%Hrecv & HQ)]".
+    iDestruct (skechan_thy_app (mt := mt) with "HXQ") as "[(%m & %Hm' & HQ) | (%Hrecv & HQ)]".
     (* Alice tries to send a message m *)
     - destruct Hm' as [-> ->].
       eq_handle_os rssl rssr as "Hssl" "Hssr"...

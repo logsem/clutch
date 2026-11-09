@@ -177,6 +177,14 @@ Section dhke_eq.
   Definition gk_thy (gl gr : label) : dir → iThy Σ :=
     λ d, iThyMono (GetKey (pick d gl gr) (pick d gr gl)).
 
+  Lemma gk_thy_sym gl gr : eq_thy_sym (gk_thy gl gr).
+  Proof.
+    apply (eq_thy_sym_pick (λ a b, iThyMono (GetKey a b)))=> e1 e2 Q /=.
+    iSplit; iIntros "(%Q' & (%Hcase & #[Hn Hs]) & HQ)"; iExists (λ s1 s2, Q' s2 s1);
+      (iSplitR "HQ"; [iSplit; [iPureIntro; naive_solver|iModIntro; iSplitR; [iApply "Hn"|iIntros (k); iApply "Hs"]]
+                     |iIntros "!>" (s1 s2) "H"; by iApply "HQ"]).
+  Qed.
+
   Lemma gk_thy_app gl gr el er (Q : expr -d> expr -d> iProp Σ) :
     eq_thy_app (gk_thy gl gr) el er Q ⊢
       ∃ Q' : expr -d> expr -d> iProp Σ,
@@ -185,12 +193,12 @@ Section dhke_eq.
         □ (⎡Q' NONEV NONEV⎤ ∗ ∀ key : vgG, ⎡Q' (SOMEV (vgval key)) (SOMEV (vgval key))⎤) ∗
         ▷ (∀ sl sr, ⎡Q' sl sr⎤ -∗ ⎡Q sl sr⎤).
   Proof.
-    iStartProof (iProp _). iIntros (d) "H". rewrite /eq_thy_app /gk_thy /=.
-    destruct d; rewrite /pick /=; iDestruct "H" as (Q') "(([[-> ->]|[-> ->]] & #[Hn Hs]) & HQ)".
-    1,2: iExists Q'; iSplit; [iPureIntro; by [left|right]|]; iSplit; [iIntros "!>"; iSplitR; [iApply "Hn"|iIntros (k); iApply "Hs"]|];
-      iIntros "!>" (sl sr) "H"; by iApply "HQ".
-    all: iExists (λ s1 s2, Q' s2 s1); iSplit; [iPureIntro; by [left|right]|]; iSplit; [iIntros "!>"; iSplitR; [iApply "Hn"|iIntros (k); iApply "Hs"]|];
-      iIntros "!>" (sl sr) "H"; by iApply "HQ".
+    rewrite eq_thy_app_sym; last apply gk_thy_sym. rewrite /gk_thy /pick /=.
+    iIntros "(%Q' & (%Hcase & #[Hn Hs]) & HQ)". iExists Q'. iSplit; first done.
+    iEval (rewrite embed_forall) in "Hs". iEval (rewrite embed_later embed_forall) in "HQ".
+    iSplitR; [iModIntro; iSplitR; [iApply "Hn"|iIntros (k); iApply "Hs"]|].
+    iIntros "!>" (sl sr) "H". iSpecialize ("HQ" $! sl). iEval (rewrite embed_forall) in "HQ".
+    iSpecialize ("HQ" $! sr). iEval (rewrite embed_wand) in "HQ". by iApply "HQ".
   Qed.
 
 End dhke_eq.

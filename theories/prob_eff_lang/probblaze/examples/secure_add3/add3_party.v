@@ -11,7 +11,7 @@ From iris.bi Require Import monpred.
 From iris.proofmode Require Import monpred.
 From clutch.prob_eff_lang.probblaze.examples.secure_add3 Require Import
   add3_def add3_tbl add3_net.
-From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_valgroup eq_handlers.
+From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_valgroup eq_handlers eq_compat.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -235,17 +235,21 @@ Section party.
   Definition shift (i j : Z) (x : vgG) : vgG :=
     if bool_decide ((i, j) = (hz' c, hz c)) then (x^-1)%g else 1%g.
 
-  (* An operation of the environment, called (from anywhere above the
-     theories [Lz]) on arguments satisfying [P]. *)
-  Definition env_fun_spec (Lz : iLblThy Σ) (P : val → Prop) (f1 f2 : val) : iProp Σ :=
-    □ ∀ l1s l2s X k1 k2 v S,
-      ⌜ectx_labels k1 ⊆ l1s⌝ → ⌜ectx_labels k2 ⊆ l2s⌝ → ⌜P v⌝ →
-      BREL fill k1 #()%V ≤ fill k2 #()%V <|(l1s, l2s, X) :: Lz|> {{S}} -∗
-      BREL fill k1 (f1 v) ≤ fill k2 (f2 v) <|(l1s, l2s, X) :: Lz|> {{S}}.
-
   (* What the corrupt party leaks: a sample, or a received message. *)
   Definition leak_ok (v : val) : Prop :=
     (∃ r : vgG, v = InjLV (vgval r)) ∨ (∃ (s t : Z) (m : vgG), v = InjRV ((#s, #t), vgval m)).
+
+  (* What the corrupt party leaks has the type of the leak operation's argument. *)
+  Lemma leak_ok_typed v : leak_ok v → ⊢ τ_view v v.
+  Proof.
+    rewrite /τ_view /sem_ty_sum /sem_ty_prod.
+    intros [[r ->] | (s & t & m & ->)].
+    - iExists _, _. iLeft. repeat iSplit; try done. by iExists r.
+    - iExists _, _. iRight. repeat iSplit; try done.
+      iExists _, _, _, _. repeat iSplit; try done.
+      + iExists _, _, _, _. repeat iSplit; try done; by iExists _.
+      + by iExists m.
+  Qed.
 
   Local Notation lval := (lval γx γr).
   Local Notation raw_adj := (raw_adj c γx).
@@ -426,23 +430,6 @@ Section party_eq.
   Local Notation output_post := (output_post c Hc γx γr).
   Local Notation deliv_to_c := (deliv_to_c c Hc γx γr).
 
-  (* [env_fun_spec] in each direction. *)
-  Definition eq_env_fun_spec (X : eqThy Σ) (P : val → Prop) (fl fr : val) : iPropD Σ :=
-    MonPred (λ d, env_fun_spec (eq_thy_at X d) P (pick d fl fr) (pick d fr fl)) _.
-
-  Global Instance eq_env_fun_spec_persistent X P fl fr : Persistent (eq_env_fun_spec X P fl fr).
-  Proof. split=> d. rewrite monPred_at_persistently /= /env_fun_spec. by iIntros "#H !>". Qed.
-
-  Lemma eq_env_fun_call X lls rls T kl kr P fl fr v S :
-    ectx_labels kl ⊆ lls → ectx_labels kr ⊆ rls → P v →
-    ⊢ eq_env_fun_spec X P fl fr -∗
-      EQ fill kl #()%V ≈ fill kr #()%V <|eq_thy_cons lls rls T X|> {{ S }} -∗
-      EQ fill kl (fl v) ≈ fill kr (fr v) <|eq_thy_cons lls rls T X|> {{ S }}.
-  Proof.
-    intros Hl Hr HP. iStartProof (iProp _). iIntros (d) "#H Hk". rewrite !eq_rel_at.
-    destruct d; rewrite /pick /=; by iApply ("H" with "[] [] [] Hk").
-  Qed.
-
   Local Existing Instance NeutralEctx_app.
 
   (* Focus on the argument of an application in contexts [Kl], [Kr]. *)
@@ -454,7 +441,8 @@ Section party_eq.
 
   (** Party [i]'s operations, related as the protocol needs. *)
   Section ops.
-    Context (ll lr : label) (X : eqThy Σ) (i : Z) (x : vgG).
+    Context (ll lr : label) (θ L : sem_row Σ) (i : Z) (x : vgG).
+    Local Notation X := (iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)).
     Local Notation T := (eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) X).
 
     Definition send_spec (sl sr : val) : iPropD Σ :=
@@ -595,7 +583,7 @@ Section party_eq.
     Qed.
 
     Lemma leaky_recv_spec lkl lkr :
-      i = cz c → ⊢ eq_env_fun_spec X leak_ok lkl lkr -∗
+      i = cz c → ⊢ ⟪ τ_view -{ θ }-> 𝟙 ⟫ lkl lkr -∗
       recv_spec (leaky_recv (recv_v i ll) lkl) (leaky_recv (recv_v i lr) lkr).
     Proof using Hc.
       iIntros (Hic) "#Hlk !>". iIntros (Kl Kr s t S HKl HKr HLl HLr Hhdr) "Hk".
@@ -606,14 +594,15 @@ Section party_eq.
       iDestruct (deliv_to_c with "Hu") as (m) "[-> ->]"; [done | done |].
       eq_pures'.
       bind_app Kl Kr.
-      iApply (eq_env_fun_call with "Hlk");
-        [rewrite ectx_labels_app /=; set_solver.. | right; by eexists _, _, _ |].
+      iApply (eq_env_call with "Hlk [] [Hk]");
+        [rewrite ectx_labels_app /=; set_solver.. | iApply eq_lift_same; iApply leak_ok_typed; right; by eexists _, _, _ |].
+      iIntros (wl wr) "Hw". rewrite eq_lift_unit. iDestruct "Hw" as %[-> ->].
       rewrite !fill_app /=. eq_pures'.
       by iApply "Hk".
     Qed.
 
     Lemma leaky_smp_spec lkl lkr :
-      i = cz c → ⊢ eq_env_fun_spec X leak_ok lkl lkr -∗
+      i = cz c → ⊢ ⟪ τ_view -{ θ }-> 𝟙 ⟫ lkl lkr -∗
       smp_spec (leaky_smp smp lkl) (leaky_smp smp lkr).
     Proof using All.
       iIntros (Hic) "#Hlk !>". iIntros (Kl Kr σ S HLl HLr [Hσ | ->]) "Hk"; first done.
@@ -623,15 +612,16 @@ Section party_eq.
         [iPureIntro; rewrite ectx_labels_app /=; set_solver.. | by iPureIntro; right |].
       iIntros (r). rewrite mul1g !fill_app /=. eq_pures'.
       bind_app Kl Kr.
-      iApply (eq_env_fun_call with "Hlk");
-        [rewrite ectx_labels_app /=; set_solver.. | left; by eexists |].
+      iApply (eq_env_call with "Hlk [] [Hk]");
+        [rewrite ectx_labels_app /=; set_solver.. | iApply eq_lift_same; iApply leak_ok_typed; left; by eexists |].
+      iIntros (wl wr) "Hw". rewrite eq_lift_unit. iDestruct "Hw" as %[-> ->].
       rewrite !fill_app /=. eq_pures'.
       iSpecialize ("Hk" $! r). by rewrite mul1g.
     Qed.
 
     Lemma run_party_spec lkl lkr Φ :
       0 ≤ i < 3 →
-      ⊢ eq_env_fun_spec X leak_ok lkl lkr -∗
+      ⊢ ⟪ τ_view -{ θ }-> 𝟙 ⟫ lkl lkr -∗
         ⎡xk i x⎤ -∗ ⎡slot_tok (γr i (nxt i))⎤ -∗ ⎡slot_tok (γr i (nxt2 i))⎤ -∗
         (∀ vl vr, ⎡party_post γx vl vr⎤ -∗ Φ vl vr) -∗
         EQ run_party c lkl (net_eps ll) #i (vgval x)
@@ -672,7 +662,7 @@ Section party_eq.
        the dummy input in the simulation. *)
     Lemma eq_run_party_c lkl lkr Φ :
       0 ≤ i < 3 → i = cz c →
-      ⊢ eq_env_fun_spec X leak_ok lkl lkr -∗
+      ⊢ ⟪ τ_view -{ θ }-> 𝟙 ⟫ lkl lkr -∗
         ⎡xk i x⎤ -∗ ⎡slot_tok (γr i (nxt i))⎤ -∗ ⎡slot_tok (γr i (nxt2 i))⎤ -∗
         (∀ vl vr, ⎡party_post γx vl vr⎤ -∗ Φ vl vr) -∗
         EQ run_party c lkl (net_eps ll) #i (vgval x) ≈ run_party c lkr (net_eps lr) #i (vgval x)
@@ -685,7 +675,7 @@ Section party_eq.
 
     Lemma eq_run_party_h lkl lkr Φ :
       0 ≤ i < 3 → i ≠ cz c →
-      ⊢ eq_env_fun_spec X leak_ok lkl lkr -∗
+      ⊢ ⟪ τ_view -{ θ }-> 𝟙 ⟫ lkl lkr -∗
         ⎡xk i x⎤ -∗ ⎡slot_tok (γr i (nxt i))⎤ -∗ ⎡slot_tok (γr i (nxt2 i))⎤ -∗
         (∀ vl vr, ⎡party_post γx vl vr⎤ -∗ Φ vl vr) -∗
         EQ run_party c lkl (net_eps ll) #i (vgval x) ≈ run_party c lkr (net_eps lr) #i vunit

@@ -317,20 +317,26 @@ Section schan_security.
   Definition schan_thy (sl sr rl rr : label) : dir → iThy Σ :=
     λ d, iThySum (SendSec (pick d sl sr) (pick d sr sl)) (RecvSecB (pick d rl rr) (pick d rr rl)).
 
+  Lemma schan_thy_sym sl sr rl rr : eq_thy_sym (schan_thy sl sr rl rr).
+  Proof.
+    intros e1 e2 Q. rewrite /schan_thy /pick /=.
+    iSplit; iIntros "[(%m & [-> ->] & #HQ)|(-> & -> & #HQ)]";
+      first [iLeft; iExists m; iFrame "HQ"; by iSplit
+            |iRight; do 2 (iSplit; first done); iDestruct "HQ" as "[Hs Hn]"; iModIntro;
+             iSplit; [iIntros (g); iApply "Hs"|iApply "Hn"]].
+  Qed.
+
   Lemma schan_thy_app sl sr rl rr el er Q :
     eq_thy_app (schan_thy sl sr rl rr) el er Q ⊢
       (∃ m : nat, ⌜el = (do: sl #m)%E ∧ er = (do: sr #m)%E⌝ ∗ ⎡□ Q #()%V #()%V⎤) ∨
       (⌜el = (do: rl bob)%E ∧ er = (do: rr bob)%E⌝ ∗
        □ ((∀ g : vgG, ⎡Q (SOMEV (vgval g)) (SOMEV (vgval g))⎤) ∧ ⎡Q NONEV NONEV⎤)).
   Proof.
-    split=> d. destruct d; rewrite /eq_thy_app /schan_thy /pick /=;
-      iIntros "[(%m & [-> ->] & #HQ)|(-> & -> & #HQ)]"; rewrite monPred_at_or.
-    all: try (iLeft; rewrite monPred_at_exist; iExists m;
-              rewrite monPred_at_sep monPred_at_pure monPred_at_embed; iFrame "HQ"; by iPureIntro).
-    all: iRight; rewrite monPred_at_sep monPred_at_pure monPred_at_intuitionistically monPred_at_and monPred_at_forall;
-      iSplit; first by iPureIntro.
-    all: iDestruct "HQ" as "[HQs HQn]"; iModIntro;
-      iSplit; [iIntros (g); rewrite monPred_at_embed; iApply "HQs"|rewrite monPred_at_embed; iApply "HQn"].
+    rewrite eq_thy_app_sym; last apply schan_thy_sym. rewrite /schan_thy /pick /=.
+    iIntros "[(%m & [-> ->] & #HQ)|(-> & -> & #[Hs Hn])]".
+    - iLeft. iExists m. by iFrame "HQ".
+    - iRight. iSplit; first done. iEval (rewrite embed_forall) in "Hs".
+      iModIntro. iSplit; [iIntros (g); iApply "Hs"|iApply "Hn"].
   Qed.
 
   (* The real channel [REAL_SCHAN] is [l], the simulated functionality [r].

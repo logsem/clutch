@@ -256,6 +256,27 @@ Section eq_handlers.
       iApply (brel_wand with "H"). iIntros "!>" (v1 v2) "H". by rewrite eq_rel_at /pick /=.
   Qed.
 
+  (** Symmetric theories *)
+
+  (* A theory is symmetric if, seen backwards, it relates the same effects,
+     with the programs swapped and the continuation relation flipped. *)
+  Definition eq_thy_sym (T : dir → iThy Σ) : Prop :=
+    ∀ e1 e2 (Q : expr -d> expr -d> iProp Σ), T Bwd e2 e1 (λ s1 s2, Q s2 s1) ⊣⊢ T Fwd e1 e2 Q.
+
+  (* A theory built from one constructor, applied to the labels of [l]
+     first, is symmetric if the constructor is invariant under swapping. *)
+  Lemma eq_thy_sym_pick {A} (mk : A → A → iThy Σ) (a b : A) :
+    (∀ e1 e2 (Q : expr -d> expr -d> iProp Σ), mk b a e2 e1 (λ s1 s2, Q s2 s1) ⊣⊢ mk a b e1 e2 Q) →
+    eq_thy_sym (λ d, mk (pick d a b) (pick d b a)).
+  Proof. intros H e1 e2 Q. apply H. Qed.
+
+  (* A symmetric theory, as the program [l] sees it. *)
+  Lemma eq_thy_app_sym T el er Q :
+    eq_thy_sym T → eq_thy_app T el er Q ⊣⊢ ⎡T Fwd el er Q⎤.
+  Proof.
+    intros HT. split=> d. rewrite monPred_at_embed /eq_thy_app /=.
+    destruct d; rewrite /pick /=; [done|apply HT].
+  Qed.
 
   (* Performing effects [el], [er] that [T], at labels [lls], [rls] of [X],
      relates, in neutral contexts [kl], [kr]. *)

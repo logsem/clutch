@@ -289,18 +289,22 @@ Section prf.
        ([gr]); it is symmetric. *)
     Definition go_thy (gl gr : label) : dir → iThy Σ := λ d, GoThy (pick d gl gr) (pick d gr gl).
 
+    Lemma go_thy_sym gl gr : eq_thy_sym (go_thy gl gr).
+    Proof.
+      apply eq_thy_sym_pick=> e1 e2 Q /=.
+      iSplit; iIntros "(%j & %n & %Hj & -> & -> & #HQ)"; iExists j, n;
+        do 3 (iSplit; first done); iIntros "!>" (o); iApply "HQ".
+    Qed.
+
     Lemma go_thy_app gl gr el er Q :
       eq_thy_app (go_thy gl gr) el er Q ⊢
         ∃ (j : Z) (n : nat), ⌜0 ≤ j < 3⌝ ∗
           ⌜el = (do: gl (#j, #n)%V)%E ∧ er = (do: gr (#j, #n)%V)%E⌝ ∗
           □ (∀ o : option vgG, ⎡Q (optvg o) (optvg o)⎤).
     Proof.
-      split=> d. rewrite monPred_at_exist.
-      destruct d; rewrite /eq_thy_app /go_thy /pick /=;
-        iIntros "(%j & %n & %Hj & -> & -> & #HQ)"; iExists j; rewrite monPred_at_exist; iExists n;
-        rewrite !monPred_at_sep !monPred_at_pure monPred_at_intuitionistically monPred_at_forall;
-        (iSplitR; first by iPureIntro); (iSplitR; first by iPureIntro);
-        iIntros "!>" (o); rewrite monPred_at_embed; iApply "HQ".
+      rewrite eq_thy_app_sym; last apply go_thy_sym. rewrite /go_thy /pick /=.
+      iIntros "(%j & %n & %Hj & -> & -> & #HQ)". iExists j, n. do 2 (iSplit; first done).
+      iEval (rewrite embed_forall) in "HQ". iIntros "!>" (o). iApply "HQ".
     Qed.
 
     (* After the simulator's bookkeeping, in every case: close the invariant,
@@ -347,16 +351,17 @@ Section prf.
 
     (** One session: the protocol ([l]) against F_ADD3 and the simulator's
         leak ([r]). *)
-    Lemma eq_go_sess_spec N (X : eqThy Σ) ll lr (fl fr lkl lkr : val) R :
+    Lemma eq_go_sess_spec N (θ L : sem_row Σ) ll lr (fl fr lkl lkr : val) R :
       ⊢ eq_na_inv N start_inv -∗
-        eq_env_fun_spec X leak_ok lkl lkr -∗
+        ⟪ τ_view -{ θ }-> 𝟙 ⟫ lkl lkr -∗
         (∀ gl gr, EQ fl (ports gl) ≈ fr (ports gr)
-           <|eq_thy_cons [gl] [gr] (go_thy gl gr) (eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) X)|> {{ R }}) -∗
+           <|eq_thy_cons [gl] [gr] (go_thy gl gr) (eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) (iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)))|> {{ R }}) -∗
         EQ Π_sess c (#ℓs0, #ℓs1, #ℓs2)%V fl (lkl, net_eps ll)%V
          ≈ (λ: "r", (λ: "f" "leakIn", F_ADD3_sess c (#ℓx0, #ℓx1, #ℓx2)%V "f" "leakIn")%V fr "r")%V
              (sim_leak c #ℓδ #ℓxc lkr (net_eps lr))
-          <|eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) X|> {{ R }}.
+          <|eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) (iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L))|> {{ R }}.
     Proof using All.
+      set (X := iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)).
       iIntros "#Hinv #Hlk Hf".
       rewrite /Π_sess /F_ADD3_sess /sim_leak. eq_pures'.
       eq_effect_l go1 as "Hg1". eq_effect_r go2 as "Hg2". eq_pures'.
@@ -589,22 +594,6 @@ Section typed_infra.
     rewrite /sem_ty_mbang /sem_ty_arr /=. by iApply "Hf".
   Qed.
 
-  Lemma leak_spec_typed θ L lk1 lk2 :
-    (τ_view -{ θ }-> 𝟙)%T lk1 lk2 -∗
-    env_fun_spec (iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)) leak_ok lk1 lk2.
-  Proof.
-    iIntros "#Hlk !>" (l1s l2s X k1 k2 v S Hk1 Hk2 Hv) "Hk".
-    iApply (brel_env_call' with "Hlk [] [Hk]"); [done | done | |].
-    - rewrite /τ_view /sem_ty_sum /sem_ty_prod.
-      destruct Hv as [[r ->] | (s & t & m & ->)].
-      + iExists _, _. iLeft. repeat iSplit; try done. by iExists r.
-      + iExists _, _. iRight. repeat iSplit; try done.
-        iExists _, _, _, _. repeat iSplit; try done.
-        * iExists _, _, _, _. repeat iSplit; try done; by iExists _.
-        * by iExists m.
-    - by iIntros (w1 w2) "[-> ->]".
-  Qed.
-
   Lemma hdr_spec_typed θ L f1 f2 :
     (τ_hdr -{ θ }-> 𝟙)%T f1 f2 -∗
     env_op_spec (iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)) f1 f2.
@@ -617,14 +606,6 @@ Section typed_infra.
     - by iIntros (w1 w2) "[-> ->]".
   Qed.
 
-
-  Lemma eq_leak_spec_typed θ L lkl lkr :
-    ⊢ ⟪ τ_view -{ θ }-> 𝟙 ⟫ lkl lkr -∗
-      eq_env_fun_spec (iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)) leak_ok lkl lkr.
-  Proof.
-    iStartProof (iProp _). iIntros (d) "H". iEval (rewrite eq_lift_at) in "H".
-    destruct d; rewrite /pick /=; by iApply leak_spec_typed.
-  Qed.
 
   Lemma eq_hdr_spec_typed θ L fl fr :
     ⊢ ⟪ τ_hdr -{ θ }-> 𝟙 ⟫ fl fr -∗
@@ -726,8 +707,7 @@ Section main.
     { iApply eq_patch_spec_eq_at. by iApply (eq_patch_ok c Hc γx γr st0 st1 st2 x0 x1 x2 d xc startN). }
     iIntros (ll lr). eq_pures'.
     (* the protocol against F_ADD3 and the simulator *)
-    iApply (eq_go_sess_spec c Hc γx γr st0 st1 st2 x0 x1 x2 d xc startN with "Hstart [] [Hf]").
-    { by iApply eq_leak_spec_typed. }
+    iApply (eq_go_sess_spec c Hc γx γr st0 st1 st2 x0 x1 x2 d xc startN with "Hstart Hlk [Hf]").
     iIntros (gl gr).
     (* the client, at its type, with the ports of the program on the left *)
     set (θc := λ dr, go_row (Σ := Σ) (pick dr gl gr) (pick dr gr gl)).

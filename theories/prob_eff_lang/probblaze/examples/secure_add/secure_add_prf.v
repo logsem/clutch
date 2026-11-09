@@ -84,15 +84,19 @@ Section add_security.
      theory with the labels swapped. *)
   Definition add_thy (al ar : label) : dir → iThy Σ := λ d, AddThy (pick d al ar) (pick d ar al).
 
+  Lemma add_thy_sym al ar : eq_thy_sym (add_thy al ar).
+  Proof.
+    apply eq_thy_sym_pick=> e1 e2 Q /=.
+    iSplit; iIntros "(%m & [[-> ->]|[-> ->]] & #HQ)"; iExists m; iFrame "HQ"; first [iLeft; by iSplit | iRight; by iSplit].
+  Qed.
+
   Lemma add_thy_app al ar el er Q :
     eq_thy_app (add_thy al ar) el er Q ⊢
       ∃ m : nat, ⌜(el = (do: al (InjLV #m))%E ∧ er = (do: ar (InjLV #m))%E) ∨
                   (el = (do: al (InjRV #m))%E ∧ er = (do: ar (InjRV #m))%E)⌝ ∗ ⎡□ Q #()%V #()%V⎤.
   Proof.
-    split=> d. rewrite monPred_at_exist.
-    destruct d; rewrite /eq_thy_app /add_thy /pick /=;
-      iIntros "(%m & [[-> ->]|[-> ->]] & #HQ)"; iExists m;
-      rewrite monPred_at_sep monPred_at_pure monPred_at_embed; iFrame "HQ"; iPureIntro; naive_solver.
+    rewrite eq_thy_app_sym; last apply add_thy_sym.
+    iIntros "(%m & [[-> ->]|[-> ->]] & #HQ)"; iExists m; iFrame "HQ"; iPureIntro; naive_solver.
   Qed.
 
   (* The protocol [REAL_ADD] is [l], the simulated functionality [r]. *)

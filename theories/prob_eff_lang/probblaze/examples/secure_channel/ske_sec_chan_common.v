@@ -6,7 +6,10 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   class_instances.
 From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
+From iris.bi Require Import monpred.
+From iris.proofmode Require Import monpred.
 From clutch.prob_eff_lang.probblaze.examples Require Import ske ske_sec_chan_def.
+From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_handlers.
 
 
 Import fingroup.
@@ -407,6 +410,35 @@ Section schan_common.
     iIntros "!#" (vs) "HΓ".
     iApply (brel_wand with "[HΓ]"); first iApply ("H" with "HΓ").
     iIntros "!#" (v1 v2) "[Hτ $]". iApply ("Hle" with "Hτ").
+  Qed.
+
+  (** The client's secure channel, in the logic for equivalences *)
+
+  (* The theory of the client's secure channel, with the labels of [l]
+     ([sl], [rl]) and of [r] ([sr], [rr]); it is symmetric. *)
+  Definition skechan_thy (sl sr rl rr : label) : dir → iThy Σ :=
+    λ d, pmono_prot_car (sem_sig_car (sec_channel (pick d sl sr) (pick d sr sl) (pick d rl rr) (pick d rr rl))).
+
+  Lemma skechan_thy_sym sl sr rl rr : eq_thy_sym (skechan_thy sl sr rl rr).
+  Proof.
+    intros e1 e2 Q. rewrite /skechan_thy /pick /=.
+    iSplit; iIntros "[(%m & [-> ->] & HQ)|(-> & -> & HQ)]";
+      first [iLeft; iExists m; iFrame "HQ"; by iSplit
+            |iRight; do 2 (iSplit; first done);
+             iSplit; [iIntros (mv); iDestruct "HQ" as "[Hs _]"; iApply "Hs"
+                     |iDestruct "HQ" as "[_ Hn]"; iApply "Hn"]].
+  Qed.
+
+  Lemma skechan_thy_app sl sr rl rr el er Q :
+    eq_thy_app (skechan_thy sl sr rl rr) el er Q ⊢
+      (∃ m : nat, ⌜el = (do: sl #m)%E ∧ er = (do: sr #m)%E⌝ ∗ ⎡Q #()%V #()%V⎤) ∨
+      (⌜el = (do: rl bob)%E ∧ er = (do: rr bob)%E⌝ ∗
+       ((∀ mv : mt, ⎡Q (SOMEV (fvtval mv)) (SOMEV (fvtval mv))⎤) ∧ ⎡Q NONEV NONEV⎤)).
+  Proof.
+    rewrite eq_thy_app_sym; last apply skechan_thy_sym. rewrite /skechan_thy /pick /=.
+    iIntros "[(%m & [-> ->] & HQ)|(-> & -> & HQ)]".
+    - iLeft. iExists m. by iFrame "HQ".
+    - iRight. iSplit; first done. by iEval (rewrite embed_and embed_forall) in "HQ".
   Qed.
 End schan_common.
 
