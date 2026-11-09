@@ -84,7 +84,84 @@ Section compatiblity.
       + by rewrite !labels_r_interp_row. 
       + by iApply "Hrow1'".
       + by iApply "Hrow2'".
-  Qed. 
+  Qed.
+
+  Lemma row_le_RBot D b ρ :
+    ⊢ sem_row_le D b RNil ρ.
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; last iApply row_le_nil.
+    iPureIntro; destruct b; try done; split; apply submseteq_nil_l.
+  Qed.
+
+  Lemma row_le_RUnionComm D b ρ1 ρ2 :
+    ⊢ sem_row_le D b (ρ1 ∪ᵣ ρ2)%ty (ρ2 ∪ᵣ ρ1)%ty.
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; last iApply row_le_union_comm.
+    iPureIntro; destruct b; try done; split;
+      apply Permutation_submseteq, Permutation_app_comm.
+  Qed.
+
+  Lemma row_le_RUnionAssoc1 D b ρ1 ρ2 ρ3 :
+    ⊢ sem_row_le D b (ρ1 ∪ᵣ (ρ2 ∪ᵣ ρ3))%ty ((ρ1 ∪ᵣ ρ2) ∪ᵣ ρ3)%ty.
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; last iApply row_le_union_assoc_l.
+    iPureIntro; destruct b; try done; split; by rewrite /= assoc.
+  Qed.
+
+  Lemma row_le_RUnionAssoc2 D b ρ1 ρ2 ρ3 :
+    ⊢ sem_row_le D b ((ρ1 ∪ᵣ ρ2) ∪ᵣ ρ3)%ty (ρ1 ∪ᵣ (ρ2 ∪ᵣ ρ3))%ty.
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; last iApply row_le_union_assoc_r.
+    iPureIntro; destruct b; try done; split; by rewrite /= assoc.
+  Qed.
+
+  Lemma row_le_RUnionNilLeft1 D b ρ :
+    ⊢ sem_row_le D b ρ (ρ ∪ᵣ RNil)%ty.
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; last iApply row_le_union_nil_r_intro.
+    iPureIntro; destruct b; try done; split; by rewrite /= right_id.
+  Qed.
+
+  Lemma row_le_RUnionNilLeft2 D b ρ :
+    ⊢ sem_row_le D b (ρ ∪ᵣ RNil)%ty ρ.
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; last iApply row_le_union_nil_r_elim.
+    iPureIntro; destruct b; try done; split; by rewrite /= right_id.
+  Qed.
+
+  Lemma row_le_RUnionNilRight1 D b ρ :
+    ⊢ sem_row_le D b ρ (RNil ∪ᵣ ρ)%ty.
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; last iApply row_le_union_nil_l_intro; by destruct b.
+  Qed.
+
+  Lemma row_le_RUnionNilRight2 D b ρ :
+    ⊢ sem_row_le D b (RNil ∪ᵣ ρ)%ty ρ.
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; last iApply row_le_union_nil_l_elim; by destruct b.
+  Qed.
+
+  Lemma row_le_RUnionCons1 D b σ ρ :
+    ⊢ sem_row_le D b (RCons σ ρ) (RCons σ RNil ∪ᵣ ρ)%ty.
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; last iApply row_le_union_cons_intro; by destruct b.
+  Qed.
+
+  Lemma row_le_RUnionCons2 D b σ ρ :
+    ⊢ sem_row_le D b (RCons σ RNil ∪ᵣ ρ)%ty (RCons σ ρ).
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; last iApply row_le_union_cons_elim; by destruct b.
+  Qed.
 
   Lemma row_le_RErase D s ss js ρ :
     ⌜D !! s = Some (ss, js)⌝ -∗
@@ -281,7 +358,8 @@ Section fundamental_subtyping.
         * by iApply fundamental_mode. 
         * by iApply fundamental_sig.
     - induction 1. 
-      + iApply row_le_RNil. 
+      + iApply row_le_RNil.
+      + iApply row_le_RBot.
       + iApply row_le_RVar.
       + iApply row_le_RExtend.
       + iApply row_le_RSwap.
@@ -289,7 +367,16 @@ Section fundamental_subtyping.
         * by iApply fundamental_sig.
         * by iApply fundamental_row.
       + iApply row_le_RUnion; by iApply fundamental_row.
-      + by iApply row_le_RErase. 
+      + iApply row_le_RUnionComm.
+      + iApply row_le_RUnionAssoc1.
+      + iApply row_le_RUnionAssoc2.
+      + iApply row_le_RUnionNilLeft1.
+      + iApply row_le_RUnionNilLeft2.
+      + iApply row_le_RUnionNilRight1.
+      + iApply row_le_RUnionNilRight2.
+      + iApply row_le_RUnionCons1.
+      + iApply row_le_RUnionCons2.
+      + by iApply row_le_RErase.
       + iApply row_le_RTrans; by iApply fundamental_row.
       + iApply row_le_RFlipNil.
       + iApply row_le_RFlipCons.
@@ -326,6 +413,9 @@ Section fundamental_subtyping.
         * by iApply fundamental_mode.
         * by iApply fundamental_type.
       + iIntros (????) "!# #HD"; iApply ty_le_mbang_prod.
+      + iIntros (????) "!# #HD"; iApply ty_le_mbang_prod_inv.
+      + iIntros (????) "!# #HD"; iApply ty_le_mbang_sum.
+      + iIntros (????) "!# #HD"; iApply ty_le_mbang_sum_inv.
       + iIntros (????) "!# #HD"; iApply ty_le_type_forall_mbang.
       + iIntros (????) "!# #HD"; iApply ty_le_mbang_type_forall.
       + iIntros (????) "!# #HD"; iApply ty_le_row_forall_mbang.

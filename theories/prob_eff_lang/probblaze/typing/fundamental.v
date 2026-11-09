@@ -116,7 +116,9 @@ Proof.
              end;
       try reflexivity; try done.
     + (* Rec_pure: body typed under [∅], resolution is identity for any rm. *)
-      f_equal. by apply (typed_lbl_resolve_id _ _ _ _ _ _ H3 rm). 
+      f_equal. match goal with
+        Ht : typed _ _ _ _ _ _ |- _ => by apply (typed_lbl_resolve_id _ _ _ _ _ _ Ht rm)
+      end.
 Qed.
 
 (* Extract the bare relational interpretation of a value from its semantic
@@ -596,19 +598,12 @@ Proof.
     + (* Rec_pure_typed *)
       (* Mirror of [Rec_typed] at the pure (oval) level.  The [Rec_pure]
          rule's premise context is [<[x]><[f]>Γ1] (argument binder [x]
-         outer, recursive binder [f] inner), so the IH context matches
-         [sem_oval_typed_ufun_rec_xf]'s body shape
-         [(x,τ) ::? (f, ![m]arr) ::? interp Γ1] definitionally — no reorder
-         needed.  [MultiE (interp Γ1)] from [multi_env_sound] (strengthened
-         [le.MultiC Γ1]); freshness from [ctx_dom_env_dom]. *)
-      pose proof (multi_env_sound Γ1 H2 η μ δ ξ) as HME.
-      iApply sem_oval_typed_ufun_rec_xf.
-      { destruct x as [|s]; [done|]. by eapply ctx_dom_env_dom. }
-      { destruct f as [|s]; [done|]. by eapply ctx_dom_env_dom. }
-      { exact H. }
-      apply fundamental in H3. iPoseProof H3 as "Ht".
-      iSpecialize ("Ht" $! η μ δ ξ Hδ).
-      destruct f as [|sf]; destruct x as [|sx]; simpl in *; iApply "Ht".
+         outer, recursive binder [f] inner), which is the body context of
+         [interp_c_pure_fun_rec]; that lemma splits on [f] and [m] to get
+         [le.MultiC Γ1] or [m m⪯C Γ1].  The side conditions are premises of
+         the rule, closed by [done]. *)
+      iApply (interp_c_pure_fun_rec with "[]"); try done.
+      by iApply fundamental.
     + (* Pair_pure_typed *)
       (* Now sound after removing [le.TBangRef_le] and adding the
          [le.MultiC Γ] premise: it interprets to [MultiE (interp Γ)] (via
@@ -666,7 +661,6 @@ Proof.
       iApply "H"; first done. by rewrite interp.ctx_mweaken.
       Set Printing All.
       Unshelve.
-      { auto. }
       { eapply H. }
       { eapply H0. }
     Qed.

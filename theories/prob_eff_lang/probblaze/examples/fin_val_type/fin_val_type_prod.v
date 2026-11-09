@@ -54,10 +54,10 @@ Section fin_val_type_struct_prod.
   Lemma prod_of_int_closed : is_closed_val prod_of_int.
   Proof. is_closed. Qed.
 
-  (** Each component is duplicable, and [TBangProd_le] pushes the bang over the pair. *)
+  (** Each component is duplicable, and [TBangProd1_le] pushes the bang over the pair. *)
   Lemma τFT_prod_multi : le.MultiT (s1.(τFT) * s2.(τFT))%ty.
   Proof.
-    eapply le.TTrans_le; last apply le.TBangProd_le.
+    eapply le.TTrans_le; last apply le.TBangProd1_le.
     apply le.TProd_le; apply τFT_multi.
   Qed.
 

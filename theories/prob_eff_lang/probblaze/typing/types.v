@@ -1019,6 +1019,7 @@ Module le.
 
   with _row : disj_ctx → bool → row → row → Prop :=
   | RNil_le D b : _row D b RNil RNil
+  | RBot_le D b ρ : _row D b RNil ρ
   | RVar_le D b i : _row D b (RVar i) (RVar i)
   | RExtend_le D b ρ σ : _row D b ρ (RCons σ ρ)
   | RSwap_le D b σ σ' ρ : _row D b (RCons σ (RCons σ' ρ)) (RCons σ' (RCons σ ρ))
@@ -1030,6 +1031,27 @@ Module le.
     _row D false ρ1 ρ1' →
     _row D false ρ2 ρ2' →
     _row D b (RUnion ρ1 ρ2) (RUnion ρ1' ρ2')
+  | RUnionComm_le D b ρ1 ρ2 :
+    _row D b (RUnion ρ1 ρ2) (RUnion ρ2 ρ1)
+  | RUnionAssoc1_le D b ρ1 ρ2 ρ3 :
+    _row D b (RUnion ρ1 (RUnion ρ2 ρ3)) (RUnion (RUnion ρ1 ρ2) ρ3)
+  | RUnionAssoc2_le D b ρ1 ρ2 ρ3 :
+    _row D b (RUnion (RUnion ρ1 ρ2) ρ3) (RUnion ρ1 (RUnion ρ2 ρ3))
+  | RUnionNilLeft1_le D b ρ :
+    _row D b ρ (RUnion ρ RNil)
+  | RUnionNilLeft2_le D b ρ :
+    _row D b (RUnion ρ RNil) ρ 
+  | RUnionNilRight1_le D b ρ :
+    _row D b ρ (RUnion RNil ρ)
+  | RUnionNilRight2_le D b ρ :
+    _row D b (RUnion RNil ρ) ρ 
+
+
+  | RUnionCons1_le D b σ ρ :
+    _row D b (RCons σ ρ) (RUnion (RCons σ RNil) ρ)
+  | RUnionCons2_le D b σ ρ :
+    _row D b (RUnion (RCons σ RNil) ρ) (RCons σ ρ)
+
 
   | RErase_le (D : disj_ctx) s ρ ss js :
     D !! s = Some (ss, js) →
@@ -1096,8 +1118,15 @@ Module le.
     _mode m' m →
     _type D α α' →
     _type D (TBang m α) (TBang m' α')
-  | TBangProd_le D m α β :
+  | TBangProd1_le D m α β :
     _type D (TProd (TBang m α) (TBang m β)) (TBang m (TProd α β))
+  | TBangProd2_le D m α β :
+    _type D (TBang m (TProd α β)) (TProd (TBang m α) (TBang m β)) 
+  | TBangSum1_le D m α β :
+    _type D (TSum (TBang m α) (TBang m β)) (TBang m (TSum α β))
+  | TBangSum2_le D m α β :
+    _type D (TBang m (TSum α β)) (TSum (TBang m α) (TBang m β))
+
           
   | TBangTForallTComm1_le D m α : _type D (TBang m (TForallT α)) (TForallT (TBang m α))
   | TBangTForallTComm2_le D m α : _type D (TForallT (TBang m α)) (TBang m (TForallT α))
@@ -1368,14 +1397,8 @@ Inductive typed :
                                         Δ .| Γ2 ⊢ₜ e2 : ρ : τ ⊣ Γ3 →
                                                            Δ .| Γ1 ⊢ₜ If e0 e1 e2 : ρ : τ ⊣ Γ3
 | Rec_typed Δ Γ Γ' f x e m ρ τ κ :
-  match f with BNamed f => BNamed f ≠ x | BAnon => True end →
-  (* TODO: for now we have to have this restriction *)
-  (* [MultiC Γ] (strengthened from [m m⪯C Γ]): the recursive closure
-     captures [Γ] and the soundness proof builds it via [iLöb], which
-     requires the captured environment to be duplicable.  For [m = OS],
-     [m m⪯C Γ] gives no such guarantee, so the closure must be over a
-     fully-multi context. *)
-  f ∉ ctx_dom Γ → x ∉ ctx_dom Γ →  le.MultiC Γ →
+  match f with BNamed f => BNamed f ≠ x ∧ le.MultiC Γ | BAnon => m m⪯C Γ end →
+  f ∉ ctx_dom Γ → x ∉ ctx_dom Γ → 
   Δ .| <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> <[ x :=c τ ]> Γ ⊢ₜ e : ρ : κ ⊣ ∅ →
                                                                 Δ .| Γ ;; Γ' ⊢ₜ Rec f x e : RNil : τ -{ ρ }-[m]-> κ ⊣ Γ'
 
@@ -1509,12 +1532,8 @@ with pure_typed  : stringmap unit → ctx → expr → type → Prop :=
   ⊢ᵥ v : τ → ∅ ..| [] ⊢ₚ v : τ
 
 | Rec_pure_typed Δ Γ1 f x e m τ ρ κ :
-  match f with BNamed f => BNamed f ≠ x | BAnon => True end →
-  (* TODO: for now we have to have this restriction *)
-  (* [MultiC Γ1] strengthened from [m m⪯C Γ1]; see [Rec_typed]: the
-     iLöb-built recursive closure needs a duplicable captured env. *)
+  match f with BNamed f => BNamed f ≠ x ∧ le.MultiC Γ1 | BAnon => m m⪯C Γ1 end →
   f ∉ ctx_dom Γ1 → x ∉ ctx_dom Γ1 →
-  le.MultiC Γ1 →
   Δ .| <[ x :=c τ ]> <[ f :=c (τ -{ ρ }-[m]-> κ)%ty ]> Γ1 ⊢ₜ e : ρ : κ ⊣ [] → Δ ..| Γ1 ⊢ₚ Rec f x e : (τ -{ ρ }-[m]-> κ)%ty
 
 | Pair_pure_typed Δ Γ e1 e2 τ1 τ2 :
@@ -1694,3 +1713,4 @@ Section derived_rules.
 
         
 End derived_rules.
+

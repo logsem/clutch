@@ -313,6 +313,52 @@ Section compatibility_interp.
     iIntros "#H". by iApply bi.intuitionistically_intuitionistically_if.
   Qed.
 
+Lemma disjointness_ctx_sem_jugdment Γ1 e e' η μ δ ρ ξ τ Γ2 :
+   □(erase_ctx δ ξ (le.row_to_disj_ctx ρ) -∗ sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2) -∗
+   sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2.
+  Proof.
+   iIntros "#H".
+   iIntros (vs) "!# Hvs".
+   iApply brel_learn.
+   iIntros "#Hvalid #Hdistinct".
+   iPoseProof erase_ctx_row_to_disj_ctx as "#HD".
+   iCombine "Hdistinct Hvalid" as "Hvd".
+   iDestruct ("HD" with "Hvd") as "Herase".
+   iDestruct ("H" with "Herase") as "Hrel".
+   iDestruct ("Hrel" with "Hvs") as "Hbrel".
+   done.
+  Qed.
+         
+  Lemma interp_c_sub Δ Γ1 Γ1' Γ2 Γ2' e1 e2 ρ ρ' τ τ' b :
+    let D := le.row_to_disj_ctx ρ in
+     D ⊢ₗ Γ1 ≤C Γ1' ->
+     D ⊢ₗ Γ2' ≤C Γ2 ->
+     D ⊢ₗ ρ' ≤R ρ @ b ->
+     D ⊢ₗ τ' ≤T τ ->
+     ⊢ (〈Δ; Γ1'〉 ⊨ₜ e1 ≤log≤ e2 :ρ':τ'⫤Γ2') -∗
+     (〈Δ; Γ1〉 ⊨ₜ e1 ≤log≤ e2 :ρ:τ⫤Γ2).
+  Proof.
+    simpl.
+    iIntros "%HΓ1 %HΓ2 %Hρ %Hτ #Hse".
+    iIntros (η μ δ ξ Hδ).
+    iApply disjointness_ctx_sem_jugdment. iIntros "!# #HD".
+    push_lr.
+    iApply (sem_typed_sub
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ1)
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ1')
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ2)
+                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ2')
+                _ _
+                (interp._row η μ δ ρ ξ) (interp._row η μ δ ρ' ξ)
+                (interp._ty η μ δ τ ξ) (interp._ty η μ δ τ' ξ)).
+     * iApply (ctx_le_sound _ _ _ HΓ1 with "HD").
+     * iApply (ctx_le_sound _ _ _ HΓ2 with "HD").
+     * iPoseProof (fundamental_row _ _ _ b _ with "HD") as "(_&$)".
+     * by iApply (fundamental_type with "HD").
+     *  iApply ("Hse" $! η μ δ ξ Hδ).
+     Unshelve. auto.
+   Qed.
+
   Lemma interp_c_bin_log_pure_typed_ufun Δ Γ  ρ τ κ e1 e2 f x `{le.MultiC Γ} :
     x ∉ (ctx_dom Γ) -> f ∉ (ctx_dom Γ) ->
     match f with BNamed f => BNamed f ≠ x | BAnon => True end →
@@ -331,40 +377,73 @@ Section compatibility_interp.
   Lemma interp_c_bin_log_pure_typed_ufun_mode Δ Γ τ κ ρ m f x e1 e2 `{le.MultiC Γ} :
     x ∉ (ctx_dom Γ) -> f ∉ (ctx_dom Γ) ->
     match f with BNamed f => BNamed f ≠ x | BAnon => True end →
-    ⊢ (〈Δ; (x, τ) ::? (f, (TBang MS (TArrow τ ρ κ))) ::? Γ〉 ⊨ₜ e1 ≤log≤ e2 :ρ:κ⫤[]) -∗
+    ⊢ (〈Δ; (x, τ) ::? (f, (TBang m (TArrow τ ρ κ))) ::? Γ〉 ⊨ₜ e1 ≤log≤ e2 :ρ:κ⫤[]) -∗
     (⟨Δ; Γ ⟩ ⊨ₚ (rec: f x := e1) ≤log≤ (rec: f x := e2) :(τ -{ ρ }-[ m ]-> κ)).
   Proof.
     iIntros (???) "#He". 
-    iApply bin_log_pure_typed_mbang_MS_weaken.
-    by iApply (interp_c_bin_log_pure_typed_ufun with "He"). 
+    iApply bin_log_pure_typed_mbang_MS_weaken. 
+    iApply interp_c_bin_log_pure_typed_ufun; try done.
+    iApply interp_c_sub; last done; try done; last first.
+    - apply le.TRefl_le.
+    - apply RRefl_le.
+    - assert (Hf : le.row_to_disj_ctx ρ ⊢ₗ (τ -{ ρ }-[ MS ]-> κ)%ty ≤T (τ -{ ρ }-[ m ]-> κ)%ty).
+      { apply le.TBangComp_le; [apply le.MMS_le | apply le.TRefl_le]. }
+      destruct x as [|sx], f as [|sf].
+      + apply CRefl_le.
+      + simpl. exists (τ -{ ρ }-[ MS ]-> κ)%ty, [], Γ.
+        split; [done|]. split; [done|]. apply CRefl_le.
+      + apply CRefl_le.
+      + simpl. exists τ, [], ((sf, (τ -{ ρ }-[ MS ]-> κ)%ty) :: Γ).
+        split; [done|]. split; [apply le.TRefl_le|]. simpl.
+        exists (τ -{ ρ }-[ MS ]-> κ)%ty, [], Γ.
+        split; [done|]. split; [done|]. apply CRefl_le.
+    Unshelve. exact true.
   Qed.
   
-  Lemma interp_c_fun_rec Δ Γ Γ' ρ τ κ e f x m `{le.MultiC Γ} :
+  Lemma interp_c_pure_fun_rec Δ Γ ρ τ κ e f x (m : vmode) :
     x ∉ (ctx_dom Γ) -> f ∉ (ctx_dom Γ) ->
-    match f with BNamed f => BNamed f ≠ x | BAnon => True end →
+    match f with BNamed f => BNamed f ≠ x ∧ le.MultiC Γ | BAnon => m m⪯C Γ end →
     ⊢ (〈Δ; ((x, τ) ::? (f, TBang m (TArrow τ ρ κ)) ::? Γ)〉 ⊨ₜ e ≤log≤ e :ρ:κ⫤[]) -∗
-    (〈Δ; ctx_append Γ Γ'〉 ⊨ₜ (rec: f x := e) ≤log≤ (rec: f x := e) :RNil:(τ -{ ρ }-[ m ]-> κ)⫤Γ').
+    (⟨Δ; Γ⟩ ⊨ₚ (rec: f x := e) ≤log≤ (rec: f x := e) :(τ -{ ρ }-[ m ]-> κ)).
   Proof. 
     iIntros (Hx Hf Hfx) "#He".
+    (* For [m ≠ OS], [m m⪯C Γ] forces every type in [Γ] to be multi. *)
+    assert (HmultiC : ∀ (m' : vmode) Γ0, m' ≠ types.OS → m' m⪯C Γ0 → le.MultiC Γ0).
+    { intros m' Γ0 Hne Hm'.
+      induction Hm' as [m0|m0 y t Γ1 Ht HΓ1 IH]; first constructor.
+      destruct y as [|sy]; simpl; [by apply IH|].
+      constructor; [|by apply IH]. by inversion Ht. }
+    destruct m.
+    - destruct f as [|sf]; destruct x as [|sx]; simpl.
+      + iIntros (?????). push_lr.
+        iApply sem_oval_typed_afun; first done.
+        simpl. by iApply "He".
+      + iIntros (?????). push_lr.
+        iApply sem_oval_typed_afun; first by apply ctx_dom_env_dom. 
+        simpl. by iApply "He".
+      + destruct Hfx as [Hsfneq Hmulti].
+        by iApply interp_c_bin_log_pure_typed_ufun_mode.
+      + destruct Hfx as [Hsfneq Hmulti].
+        by iApply interp_c_bin_log_pure_typed_ufun_mode.
+    - destruct f as [|sf]; [|destruct Hfx as [Hsfneq Hmulti]].
+      + iApply interp_c_bin_log_pure_typed_ufun_mode; try done.
+        by eapply HmultiC; last exact Hfx.
+      + iApply interp_c_bin_log_pure_typed_ufun_mode; try done.
+    - destruct f as [|sf]; [|destruct Hfx as [Hsfneq Hmulti]].
+      + iApply interp_c_bin_log_pure_typed_ufun_mode; try done.
+        by eapply HmultiC; last exact Hfx.
+      + iApply interp_c_bin_log_pure_typed_ufun_mode; try done.
+  Qed.
+
+  Lemma interp_c_fun_rec Δ Γ Γ' ρ τ κ e f x (m : vmode) :
+    x ∉ (ctx_dom Γ) -> f ∉ (ctx_dom Γ) ->
+    match f with BNamed f => BNamed f ≠ x ∧ le.MultiC Γ | BAnon => m m⪯C Γ end →
+    ⊢ (〈Δ; ((x, τ) ::? (f, TBang m (TArrow τ ρ κ)) ::? Γ)〉 ⊨ₜ e ≤log≤ e :ρ:κ⫤[]) -∗
+    (〈Δ; ctx_append Γ Γ'〉 ⊨ₜ (rec: f x := e) ≤log≤ (rec: f x := e) :RNil:(τ -{ ρ }-[ m ]-> κ)⫤Γ').
+  Proof.
+    iIntros (Hx Hf Hfx) "#He".
     iApply bin_log_pure_typed_oval.
-    iApply (interp_c_bin_log_pure_typed_ufun_mode Δ Γ τ κ ρ m f x e e Hx Hf Hfx).
-    iIntros (η μ δ ξ Hδ). push_lr.
-    unfold bin_log_related.
-    iSpecialize ("He" $! η μ δ ξ Hδ).
-    iApply (sem_typed_sub_env with "[] He").
-    destruct f as [|sf]; destruct x as [|sx]; simpl.
-    - iApply env_le_refl.
-    - iApply env_le_refl.
-    - iApply env_le_cons;
-        [iApply env_le_refl| iApply ty_le_mbang_elim_MS].
-    - iApply env_le_trans; [iApply env_le_refl | iApply env_le_cons].
-      { iApply env_le_cons.
-        + iApply env_le_refl.
-        + iApply ty_le_mbang_elim_MS.
-      }
-      { iApply ty_le_refl. }
-      Unshelve.
-      + eapply H.
+    by iApply interp_c_pure_fun_rec.
   Qed.
 
   Lemma bin_log_swap_ctx_second Δ Γ x y τ1 τ2 κ ρ e1 e2 :
@@ -1070,51 +1149,7 @@ Qed.
   Qed.
 
 
-  Lemma disjointness_ctx_sem_jugdment Γ1 e e' η μ δ ρ ξ τ Γ2 :
-   □(erase_ctx δ ξ (le.row_to_disj_ctx ρ) -∗ sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2) -∗
-   sem_typed Γ1 e e' (interp._row η μ δ ρ ξ) τ Γ2.
-  Proof.
-   iIntros "#H".
-   iIntros (vs) "!# Hvs".
-   iApply brel_learn.
-   iIntros "#Hvalid #Hdistinct".
-   iPoseProof erase_ctx_row_to_disj_ctx as "#HD".
-   iCombine "Hdistinct Hvalid" as "Hvd".
-   iDestruct ("HD" with "Hvd") as "Herase".
-   iDestruct ("H" with "Herase") as "Hrel".
-   iDestruct ("Hrel" with "Hvs") as "Hbrel".
-   done.
-  Qed.
-         
-  Lemma interp_c_sub Δ Γ1 Γ1' Γ2 Γ2' e1 e2 ρ ρ' τ τ' b :
-    let D := le.row_to_disj_ctx ρ in
-     D ⊢ₗ Γ1 ≤C Γ1' ->
-     D ⊢ₗ Γ2' ≤C Γ2 ->
-     D ⊢ₗ ρ' ≤R ρ @ b ->
-     D ⊢ₗ τ' ≤T τ ->
-     ⊢ (〈Δ; Γ1'〉 ⊨ₜ e1 ≤log≤ e2 :ρ':τ'⫤Γ2') -∗
-     (〈Δ; Γ1〉 ⊨ₜ e1 ≤log≤ e2 :ρ:τ⫤Γ2).
-  Proof.
-    simpl.
-    iIntros "%HΓ1 %HΓ2 %Hρ %Hτ #Hse".
-    iIntros (η μ δ ξ Hδ).
-    iApply disjointness_ctx_sem_jugdment. iIntros "!# #HD".
-    push_lr.
-    iApply (sem_typed_sub
-                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ1)
-                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ1')
-                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ2)
-                ((λ '(s, τ0), (s, interp._ty η μ δ τ0 ξ)) <$> Γ2')
-                _ _
-                (interp._row η μ δ ρ ξ) (interp._row η μ δ ρ' ξ)
-                (interp._ty η μ δ τ ξ) (interp._ty η μ δ τ' ξ)).
-     * iApply (ctx_le_sound _ _ _ HΓ1 with "HD").
-     * iApply (ctx_le_sound _ _ _ HΓ2 with "HD").
-     * iPoseProof (fundamental_row _ _ _ b _ with "HD") as "(_&$)".
-     * by iApply (fundamental_type with "HD").
-     *  iApply ("Hse" $! η μ δ ξ Hδ).
-     Unshelve. auto.
-   Qed.
+  
 
   Lemma interp_c_contraction Δ Γ1 Γ2 κ τ ρ e1 e2 x `{le.MultiT κ}:
         ⊢ (〈Δ; <[ x :=c κ ]> (<[ x :=c κ ]> Γ1)〉 ⊨ₜ e1 ≤log≤ e2 :ρ:τ⫤Γ2) -∗

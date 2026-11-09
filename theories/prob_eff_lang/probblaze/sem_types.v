@@ -690,6 +690,38 @@ Section sub_typing.
       iExists w1, w1', w2, w2'. by iFrame "#".
   Qed.
 
+  Lemma ty_le_mbang_prod_inv m (τ κ : sem_ty Σ) :
+    ⊢ ![m] (τ × κ) ≤ₜ (![m] τ × ![m] κ).
+  Proof.
+    iIntros "!# %v1 %v2 H".
+    rewrite /sem_ty_mbang. destruct m; simpl.
+    - iDestruct "H" as (w1 w1' w2 w2' -> ->) "[Hτ Hκ]".
+      iExists w1, w1', w2, w2'. by iFrame.
+    - iDestruct "H" as (w1 w1' w2 w2' -> ->) "#[Hτ Hκ]".
+      iExists w1, w1', w2, w2'. by iFrame "#".
+  Qed.
+
+  Lemma ty_le_mbang_sum m (τ κ : sem_ty Σ) :
+    ⊢ (![m] τ + ![m] κ) ≤ₜ ![m] (τ + κ).
+  Proof.
+    iIntros "!# % % (% & % & [(-> & -> & Hτ)|(-> & -> & Hκ)])".
+    - iApply (bi.intuitionistically_if_mono with "Hτ").
+      iIntros "Hτ". iExists _,_. iLeft. by iFrame.
+    - iApply (bi.intuitionistically_if_mono with "Hκ").
+      iIntros "Hκ". iExists _,_. iRight. by iFrame.
+  Qed.
+
+  Lemma ty_le_mbang_sum_inv m (τ κ : sem_ty Σ) :
+    ⊢ ![m] (τ + κ) ≤ₜ (![m] τ + ![m] κ).
+  Proof.
+    iIntros "!# %v1 %v2 H".
+    rewrite /sem_ty_mbang. destruct m; simpl.
+    - iDestruct "H" as (w1 w2) "[(-> & -> & Hτ)|(-> & -> & Hκ)]";
+        iExists _,_; [iLeft|iRight]; by iFrame.
+    - iDestruct "H" as (w1 w2) "#[(-> & -> & Hτ)|(-> & -> & Hκ)]";
+        iExists _,_; [iLeft|iRight]; by iFrame "#".
+  Qed.
+
   Lemma ty_le_mbang_comm m m' (τ : sem_ty Σ) :
     ⊢ ![m] (![m'] τ) ≤ₜ ![m'] (![m] τ). 
   Proof.

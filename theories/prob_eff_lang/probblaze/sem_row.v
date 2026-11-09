@@ -541,5 +541,60 @@ Section sem_row_union.
     iApply to_iThy_le_refl.
   Qed.
 
+  (* UNION is commutative and associative, has [⟨⟩] as a unit on either
+     side, and [σ · ρ] is the union of the singleton [σ · ⟨⟩] with [ρ].
+     In each case the carriers agree up to permutation, so the inclusion
+     is an instance of [to_iThy_le_intro'].  Used by the [RUnionComm_le],
+     [RUnionAssoc{1,2}_le], [RUnionNil{Left,Right}{1,2}_le] and
+     [RUnionCons{1,2}_le] cases of [fundamental_row]. *)
+  Lemma row_le_union_comm (ρ1 ρ2 : sem_row Σ) :
+    ⊢ sem_row_union ρ1 ρ2 ≤ᵣ sem_row_union ρ2 ρ1.
+  Proof.
+    iApply to_iThy_le_intro'. rewrite /= !iLblSig_to_iLblThy_app.
+    by apply Permutation_submseteq, Permutation_app_comm.
+  Qed.
+
+  Lemma row_le_union_assoc_l (ρ1 ρ2 ρ3 : sem_row Σ) :
+    ⊢ sem_row_union ρ1 (sem_row_union ρ2 ρ3)
+        ≤ᵣ sem_row_union (sem_row_union ρ1 ρ2) ρ3.
+  Proof.
+    iApply to_iThy_le_intro'. by rewrite /= !iLblSig_to_iLblThy_app assoc.
+  Qed.
+
+  Lemma row_le_union_assoc_r (ρ1 ρ2 ρ3 : sem_row Σ) :
+    ⊢ sem_row_union (sem_row_union ρ1 ρ2) ρ3
+        ≤ᵣ sem_row_union ρ1 (sem_row_union ρ2 ρ3).
+  Proof.
+    iApply to_iThy_le_intro'. by rewrite /= !iLblSig_to_iLblThy_app assoc.
+  Qed.
+
+  Lemma row_le_union_nil_r_intro (ρ : sem_row Σ) :
+    ⊢ ρ ≤ᵣ sem_row_union ρ ⟨⟩.
+  Proof.
+    iApply to_iThy_le_intro'. by rewrite /= iLblSig_to_iLblThy_app right_id.
+  Qed.
+
+  Lemma row_le_union_nil_r_elim (ρ : sem_row Σ) :
+    ⊢ sem_row_union ρ ⟨⟩ ≤ᵣ ρ.
+  Proof.
+    iApply to_iThy_le_intro'. by rewrite /= iLblSig_to_iLblThy_app right_id.
+  Qed.
+
+  Lemma row_le_union_nil_l_intro (ρ : sem_row Σ) :
+    ⊢ ρ ≤ᵣ sem_row_union ⟨⟩ ρ.
+  Proof. iApply row_le_refl. Qed.
+
+  Lemma row_le_union_nil_l_elim (ρ : sem_row Σ) :
+    ⊢ sem_row_union ⟨⟩ ρ ≤ᵣ ρ.
+  Proof. iApply row_le_refl. Qed.
+
+  Lemma row_le_union_cons_intro (σ : sem_sig Σ) (ρ : sem_row Σ) :
+    ⊢ σ · ρ ≤ᵣ sem_row_union (σ · ⟨⟩) ρ.
+  Proof. iApply row_le_refl. Qed.
+
+  Lemma row_le_union_cons_elim (σ : sem_sig Σ) (ρ : sem_row Σ) :
+    ⊢ sem_row_union (σ · ⟨⟩) ρ ≤ᵣ σ · ρ.
+  Proof. iApply row_le_refl. Qed.
+
 End sem_row_union.
 
