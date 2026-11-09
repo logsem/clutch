@@ -1,14 +1,18 @@
 (* The ideal protocol [AUTH_ideal] (both directions over the ideal MAC) and
-   the simulated functionality [S_AUTH ∘f F_AUTH] are related, in both
-   directions, exactly.
+   the simulated functionality [S_AUTH ∘f F_AUTH] are equivalent, exactly.
 
    Both sessions have the same handler skeleton ([auth_skel], [F_AUTH_eq]);
    [auth_skel_rel] relates two such sessions from relations between their
    handler bodies, so only the bodies are compared here, under an invariant
-   per message slot that ties the left MAC instance to the right one and
-   [F_AUTH]'s stored message to the tagged one. *)
+   per message slot that ties the protocol's MAC instance to the simulator's
+   and [F_AUTH]'s stored message to the tagged one.
 
-From iris.proofmode Require Import base proofmode classes.
+   The comparison is one proof in the logic for equivalences ([eq_logic]),
+   with the protocol as the program [l] and the simulated functionality as
+   [r]; the two typing judgements are its instances. *)
+
+From iris.bi Require Import monpred.
+From iris.proofmode Require Import base proofmode classes monpred.
 From iris.base_logic.lib Require Import na_invariants.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode.
@@ -19,6 +23,7 @@ From clutch.prob_eff_lang.probblaze.uc Require Import comp_operators uc_systems.
 From clutch.prob_eff_lang.probblaze.examples.dhke Require Import dhke_def.
 From clutch.prob_eff_lang.probblaze.examples Require Import dhke_typing.
 From clutch.prob_eff_lang.probblaze.examples.auth Require Import auth_def auth_typing.
+From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_valgroup eq_compat.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -182,6 +187,7 @@ Section rel.
   Import valgroup_notation.
   Import valgroup_tactics.
   #[local] Notation n := (S n'').
+  #[local] Open Scope bi_scope.
 
   Definition pure_ty (P : val → val → Prop) : sem_ty Σ := (λ v1 v2, ⌜P v1 v2⌝)%I.
   Global Instance pure_ty_multi P : MultiT (pure_ty P).
@@ -200,66 +206,19 @@ Section rel.
   Definition resv (tg : option (fingroup.FinGroup.sort vgG * fingroup.FinGroup.sort vgG)) (v : option bool) : val :=
     if accb v then msgv tg else NONEV.
 
-  (* One message slot: the left MAC instance and receiver state, the right
-     (simulator's) MAC instance and receiver state, and [F_AUTH]'s stored
-     message.  Both MAC instances are in the same state; the left receiver's
-     result is the right one's permission applied to the stored message. *)
-  Definition slot_inv (αL βL keyL tgL verL decL resL αR βR keyR tgR verR decR accR mR : loc) : iProp Σ :=
+  (* One message slot: the protocol's MAC instance and receiver state ([l]),
+     the simulator's MAC instance and receiver state and [F_AUTH]'s stored
+     message ([r]).  Both MAC instances are in the same state; the protocol
+     receiver's result is the simulator's permission applied to the stored
+     message. *)
+  Definition slot_inv (αl βl keyl tgl verl decl resl αr βr keyr tgr verr decr accr mr : loc) : iPropD Σ :=
     ∃ (key : option (nat * nat)) (tg : option (fingroup.FinGroup.sort vgG * fingroup.FinGroup.sort vgG)) (v : option bool),
       ⌜accb v = true → is_Some tg⌝ ∗
-      αL ↪N (n; []) ∗ βL ↪N (n; []) ∗ αR ↪ₛN (n; []) ∗ βR ↪ₛN (n; []) ∗
-      keyL ↦ keyv key ∗ keyR ↦ₛ keyv key ∗ tgL ↦ tgv tg ∗ tgR ↦ₛ tgv tg ∗
-      verL ↦ verv v ∗ verR ↦ₛ verv v ∗
-      decL ↦ #(decb v) ∗ decR ↦ₛ #(decb v) ∗ resL ↦ resv tg v ∗ accR ↦ₛ #(accb v) ∗
-      mR ↦ₛ msgv tg.
-
-  (* Calling a port of the network from a handler body at row [ρh]. *)
-  Lemma raw_call (θ' ρh : sem_row Σ) (A B : sem_ty Σ) (f1 f2 w1 w2 : val) :
-    ⊢ (¡ θ')%R ≤ᵣ ρh -∗ (A -{ θ' }-> B)%T f1 f2 -∗ A w1 w2 -∗
-      BREL (f1 w1) ≤ (f2 w2) <|iLblSig_to_iLblThy ρh|> {{ B }}.
-  Proof.
-    iIntros "#Hρ #Hf Hw".
-    iPoseProof (sem_typed_app_fun_nil A B ρh (¡ θ')%R [("w", A)] [] [] (Val f1) (Val f2) "w" "w"
-                  with "Hρ [] []") as "#H".
-    { iApply sem_typed_sub_nil. iApply sem_typed_var. }
-    { iApply sem_typed_val. iModIntro. by iApply ty_le_uarr_mfbang. }
-    rewrite /sem_typed /tc_opaque.
-    iDestruct ("H" $! {["w" := (w1, w2)]} with "[Hw]") as "H'".
-    { rewrite env_sem_typed_cons env_sem_typed_empty. iSplitL; last done.
-      iExists _, _. iFrame. by simplify_map_eq. }
-    iRevert "H'". rewrite !fmap_insert !fmap_empty /= !lookup_insert /=. iIntros "H'".
-    iApply (brel_wand with "H'"). iIntros "!# % % [$ _]".
-  Qed.
-
-  (* The same, under evaluation contexts, framing a resource [P] (e.g. the
-     handler's continuation) through the call. *)
-  Lemma raw_call_k (θ' ρh : sem_row Σ) (A B : sem_ty Σ) (P : iProp Σ) (f1 f2 w1 w2 : val) K1 K2 R :
-    (∀ l1s, NeutralEctx l1s K1) → (∀ l2s, NeutralEctx l2s K2) →
-    ⊢ (¡ θ')%R ≤ᵣ ρh -∗ (A -{ θ' }-> B)%T f1 f2 -∗ A w1 w2 -∗ P -∗
-      □ (∀ v1 v2, B v1 v2 -∗ P -∗ BREL fill K1 (Val v1) ≤ fill K2 (Val v2) <|iLblSig_to_iLblThy ρh|> {{ R }}) -∗
-      BREL fill K1 (f1 w1) ≤ fill K2 (f2 w2) <|iLblSig_to_iLblThy ρh|> {{ R }}.
-  Proof.
-    iIntros (HK1 HK2) "#Hρ #Hf Hw HP #Hc".
-    iApply (brel_bind K1 K2); [by iApply traversable_to_iThy|iApply to_iThy_le_refl|].
-    iApply (brel_wand _ _ _ (λ v1 v2, B v1 v2 ∗ P)%I with "[Hw HP]"); last first.
-    { iIntros "!# % % [HB HP]". iApply ("Hc" with "HB HP"). }
-    iApply brel_introduction_mono; first iApply "Hρ".
-    iApply (brel_mono_on_prop _ _ _ P with "[] HP").
-    { iApply (row_type_sub (ρ := (¡ θ')%R) (τ := λ _ _, P) $! #()%V #()%V). }
-    iDestruct (ty_le_uarr_mfbang A B θ' $! f1 f2 with "Hf") as "Hf'".
-    rewrite /sem_ty_arr /=. iApply ("Hf'" with "Hw").
-  Qed.
-
-  (* The mirrored slot invariant: the simulator and [F_AUTH] on the left,
-     the protocol on the right. *)
-  Definition slot_inv' (αL βL keyL tgL verL decL accL mL αR βR keyR tgR verR decR resR : loc) : iProp Σ :=
-    ∃ (key : option (nat * nat)) (tg : option (fingroup.FinGroup.sort vgG * fingroup.FinGroup.sort vgG)) (v : option bool),
-      ⌜accb v = true → is_Some tg⌝ ∗
-      αL ↪N (n; []) ∗ βL ↪N (n; []) ∗ αR ↪ₛN (n; []) ∗ βR ↪ₛN (n; []) ∗
-      keyL ↦ keyv key ∗ keyR ↦ₛ keyv key ∗ tgL ↦ tgv tg ∗ tgR ↦ₛ tgv tg ∗
-      verL ↦ verv v ∗ verR ↦ₛ verv v ∗
-      decL ↦ #(decb v) ∗ decR ↦ₛ #(decb v) ∗ resR ↦ₛ resv tg v ∗ accL ↦ #(accb v) ∗
-      mL ↦ msgv tg.
+      αl ↪ₗN (n; []) ∗ βl ↪ₗN (n; []) ∗ αr ↪ᵣN (n; []) ∗ βr ↪ᵣN (n; []) ∗
+      keyl ↦ₗ keyv key ∗ keyr ↦ᵣ keyv key ∗ tgl ↦ₗ tgv tg ∗ tgr ↦ᵣ tgv tg ∗
+      verl ↦ₗ verv v ∗ verr ↦ᵣ verv v ∗
+      decl ↦ₗ #(decb v) ∗ decr ↦ᵣ #(decb v) ∗ resl ↦ₗ resv tg v ∗ accr ↦ᵣ #(accb v) ∗
+      mr ↦ᵣ msgv tg.
 
   Definition slot1N : namespace := nroot .@ "slot1".
   Definition slot2N : namespace := nroot .@ "slot2".
@@ -282,621 +241,376 @@ Section rel.
   Lemma from_typed (d : val) : d = InjLV #()%V ∨ d = InjRV #()%V → ⊢ ((𝟙 + 𝟙)%T : sem_ty Σ) d d.
   Proof. iIntros (Hd). iExists #()%V, #()%V. destruct Hd as [->| ->]; [iLeft|iRight]; by repeat iSplit. Qed.
 
-  Lemma AUTH_ideal_SIM_F : ⊢ sem_typed [] AUTH_ideal (S_AUTH ∘f F_AUTH)%fac ⊥ (fac MS (τ__F raw chan)) [].
+  (* [auth_skel_rel], instantiated: two sessions of the [auth_skel'] shape
+     are equivalent if their send and receive bodies are. *)
+  Lemma eq_auth_skel (θ θ₂ : sem_row Σ) hsl hsr hrl hrr (sl sr rl rr fl fr : val) :
+    lbl_free hsl → lbl_free hsr → lbl_free hrl → lbl_free hrr →
+    is_closed_expr {[ "message"; "k"; "doLeakSend" ]} hsl →
+    is_closed_expr {[ "message"; "k"; "doLeakSend" ]} hsr →
+    is_closed_expr {[ "from"; "k"; "doLeakRecv" ]} hrl →
+    is_closed_expr {[ "from"; "k"; "doLeakRecv" ]} hrr →
+    ⊢ □ (∀ ρh, ⎡(¡ θ₂)%R ≤ᵣ ρh⎤ -∗ ∀ al ar bl br,
+          ⟪ 𝔾 × (𝟙 + 𝟙) ⟫ al ar -∗ ⟪ 𝟙 -{ ρh }-[OS]-> 𝟙 ⟫ bl br -∗
+          EQ val_subst "message" al (val_subst "k" bl (val_subst "doLeakSend" sl hsl))
+           ≈ val_subst "message" ar (val_subst "k" br (val_subst "doLeakSend" sr hsr))
+           <|iLblSig_to_iLblThy ρh|> {{ ⟪ 𝟙 ⟫ }}) -∗
+      □ (∀ ρh, ⎡(¡ θ₂)%R ≤ᵣ ρh⎤ -∗ ∀ al ar bl br,
+          ⟪ 𝟙 + 𝟙 ⟫ al ar -∗ ⟪ Option 𝔾 -{ ρh }-[OS]-> 𝟙 ⟫ bl br -∗
+          EQ val_subst "from" al (val_subst "k" bl (val_subst "doLeakRecv" rl hrl))
+           ≈ val_subst "from" ar (val_subst "k" br (val_subst "doLeakRecv" rr hrr))
+           <|iLblSig_to_iLblThy ρh|> {{ ⟪ 𝟙 ⟫ }}) -∗
+      ⟪ clientT θ ⟫ fl fr -∗
+      EQ val_subst "doLeakRecv" rl (val_subst "doLeakSend" sl (val_subst "f" fl (auth_skel' hsl hrl)))
+       ≈ val_subst "doLeakRecv" rr (val_subst "doLeakSend" sr (val_subst "f" fr (auth_skel' hsr hrr)))
+       <|iLblSig_to_iLblThy (sem_row_union (¡ θ₂) θ)|> {{ ⟪ 𝟙 ⟫ }}.
   Proof using All.
-    iIntros (vs) "!> _". simpl.
-    iApply brel_value. iIntros "$ !>". iSplit; last done.
-    rewrite /fac /sem_ty_mbang /sem_ty_arr /=. iModIntro.
-    iIntros (u1 u2) "[-> ->]".
+    intros ????????. iStartProof (iProp _). iIntros (d) "#Hs #Hr Hf".
+    destruct d; rewrite eq_rel_at eq_lift_at /pick /=;
+      iApply (brel_wand' _ _ _ 𝟙%T with "[]"); try (iIntros "!> % % H"; by rewrite eq_lift_at).
+    - iApply (sem_typed_inst3 "doLeakSend" "doLeakRecv" "f"
+                (pure_ty (λ v1 v2, v1 = sl ∧ v2 = sr)%type) (pure_ty (λ v1 v2, v1 = rl ∧ v2 = rr)%type) (clientT θ)
+                (auth_skel' hsl hrl) (auth_skel' hsr hrr) _ _ sl sr rl rr fl fr
+              with "[] [] [] Hf"); [done|done|done| |done|done].
+      iApply (auth_skel_rel with "[] []"); try done.
+      + iIntros "!>" (ρh) "#Hρ". iIntros (a1 a2 b1 b2 c1 c2) "Ha Hk %Hc". destruct Hc as [-> ->].
+        iApply (brel_wand with "[-]"); first (iApply (eq_rel_at_elim_const Fwd); iApply ("Hs" $! ρh with "[] [Ha] [Hk]");
+          [iExact "Hρ"|rewrite eq_lift_at; iExact "Ha"|rewrite eq_lift_at; iExact "Hk"]).
+        iIntros "!> % % H". by rewrite eq_lift_at.
+      + iIntros "!>" (ρh) "#Hρ". iIntros (a1 a2 b1 b2 c1 c2) "Ha Hk %Hc". destruct Hc as [-> ->].
+        iApply (brel_wand with "[-]"); first (iApply (eq_rel_at_elim_const Fwd); iApply ("Hr" $! ρh with "[] [Ha] [Hk]");
+          [iExact "Hρ"|rewrite eq_lift_at; iExact "Ha"|rewrite eq_lift_at; iExact "Hk"]).
+        iIntros "!> % % H". by rewrite eq_lift_at.
+    - iApply (sem_typed_inst3 "doLeakSend" "doLeakRecv" "f"
+                (pure_ty (λ v1 v2, v1 = sr ∧ v2 = sl)%type) (pure_ty (λ v1 v2, v1 = rr ∧ v2 = rl)%type) (clientT θ)
+                (auth_skel' hsr hrr) (auth_skel' hsl hrl) _ _ sr sl rr rl fr fl
+              with "[] [] [] Hf"); [done|done|done| |done|done].
+      iApply (auth_skel_rel with "[] []"); try done.
+      + iIntros "!>" (ρh) "#Hρ". iIntros (a1 a2 b1 b2 c1 c2) "Ha Hk %Hc". destruct Hc as [-> ->].
+        iApply (brel_wand with "[-]"); first (iApply (eq_rel_at_elim_const Bwd); iApply ("Hs" $! ρh with "[] [Ha] [Hk]");
+          [iExact "Hρ"|rewrite eq_lift_at; iExact "Ha"|rewrite eq_lift_at; iExact "Hk"]).
+        iIntros "!> % % H". by rewrite eq_lift_at.
+      + iIntros "!>" (ρh) "#Hρ". iIntros (a1 a2 b1 b2 c1 c2) "Ha Hk %Hc". destruct Hc as [-> ->].
+        iApply (brel_wand with "[-]"); first (iApply (eq_rel_at_elim_const Bwd); iApply ("Hr" $! ρh with "[] [Ha] [Hk]");
+          [iExact "Hρ"|rewrite eq_lift_at; iExact "Ha"|rewrite eq_lift_at; iExact "Hk"]).
+        iIntros "!> % % H". by rewrite eq_lift_at.
+  Qed.
+
+  Lemma AUTH_SIM_EQ :
+    ⊢ EQ AUTH_ideal ≈ (S_AUTH ∘f F_AUTH)%fac <|iLblSig_to_iLblThy (⊥ : sem_row Σ)|> {{ ⟪ fac MS (τ__F raw chan) ⟫ }}.
+  Proof using All.
+    iApply eq_value. iModIntro. rewrite /fac. iModIntro.
+    iApply eq_lift_arr. iIntros (u1 u2) "Hu". rewrite eq_lift_unit. iDestruct "Hu" as %[-> ->].
     rewrite /AUTH_ideal /AUTH_of /S_AUTH F_AUTH_eq.
-    brel_pures_l.
-    (* the left setup: two MAC instances and the receivers' state *)
-    brel_alloctape_l αa as "Hαa". brel_pures_l. brel_alloctape_l βa as "Hβa". brel_pures_l.
-    brel_alloc_l keya as "Hkeya". brel_pures_l. brel_alloc_l tga as "Htga". brel_pures_l.
-    brel_alloc_l vera as "Hvera". brel_pures_l.
-    brel_alloctape_l αb as "Hαb". brel_pures_l. brel_alloctape_l βb as "Hβb". brel_pures_l.
-    brel_alloc_l keyb as "Hkeyb". brel_pures_l. brel_alloc_l tgb as "Htgb". brel_pures_l.
-    brel_alloc_l verb as "Hverb". brel_pures_l.
-    brel_alloc_l dec1 as "Hdec1". brel_pures_l. brel_alloc_l dec2 as "Hdec2". brel_pures_l.
-    brel_alloc_l res1 as "Hres1". brel_pures_l. brel_alloc_l res2 as "Hres2". brel_pures_l.
-    (* the right setup: [F_AUTH]'s slots, then the simulator's state *)
-    brel_pures_r.
-    brel_alloc_r m1 as "Hm1". brel_pures_r. brel_alloc_r m2 as "Hm2". brel_pures_r.
-    brel_alloctape_r αa' as "Hαa'". brel_pures_r. brel_alloctape_r βa' as "Hβa'". brel_pures_r.
-    brel_alloc_r keya' as "Hkeya'". brel_pures_r. brel_alloc_r tga' as "Htga'". brel_pures_r.
-    brel_alloc_r vera' as "Hvera'". brel_pures_r.
-    brel_alloctape_r αb' as "Hαb'". brel_pures_r. brel_alloctape_r βb' as "Hβb'". brel_pures_r.
-    brel_alloc_r keyb' as "Hkeyb'". brel_pures_r. brel_alloc_r tgb' as "Htgb'". brel_pures_r.
-    brel_alloc_r verb' as "Hverb'". brel_pures_r.
-    brel_alloc_r dec1' as "Hdec1'". brel_pures_r. brel_alloc_r dec2' as "Hdec2'". brel_pures_r.
-    brel_alloc_r acc1 as "Hacc1". brel_pures_r. brel_alloc_r acc2 as "Hacc2".
-    rewrite !Nat2Z.id.
-    iAssert (αa' ↪ₛN (n; []))%I with "[Hαa']" as "Hαa'"; first (iExists []; by iFrame).
-    iAssert (βa' ↪ₛN (n; []))%I with "[Hβa']" as "Hβa'"; first (iExists []; by iFrame).
-    iAssert (αb' ↪ₛN (n; []))%I with "[Hαb']" as "Hαb'"; first (iExists []; by iFrame).
-    iAssert (βb' ↪ₛN (n; []))%I with "[Hβb']" as "Hβb'"; first (iExists []; by iFrame).
-    iApply (brel_na_alloc (slot_inv αa βa keya tga vera dec1 res1 αa' βa' keya' tga' vera' dec1' acc1 m1) slot1N).
+    eq_pures_l.
+    (* [l]: two MAC instances and the receivers' state *)
+    eq_alloctape_l αa as "Hαa". eq_pures_l. eq_alloctape_l βa as "Hβa". eq_pures_l.
+    eq_alloc_l keya as "Hkeya". eq_pures_l. eq_alloc_l tga as "Htga". eq_pures_l.
+    eq_alloc_l vera as "Hvera". eq_pures_l.
+    eq_alloctape_l αb as "Hαb". eq_pures_l. eq_alloctape_l βb as "Hβb". eq_pures_l.
+    eq_alloc_l keyb as "Hkeyb". eq_pures_l. eq_alloc_l tgb as "Htgb". eq_pures_l.
+    eq_alloc_l verb as "Hverb". eq_pures_l.
+    eq_alloc_l dec1 as "Hdec1". eq_pures_l. eq_alloc_l dec2 as "Hdec2". eq_pures_l.
+    eq_alloc_l res1 as "Hres1". eq_pures_l. eq_alloc_l res2 as "Hres2". eq_pures_l.
+    (* [r]: [F_AUTH]'s slots, then the simulator's state *)
+    eq_pures_r.
+    eq_alloc_r m1 as "Hm1". eq_pures_r. eq_alloc_r m2 as "Hm2". eq_pures_r.
+    eq_alloctape_r αa' as "Hαa'". eq_pures_r. eq_alloctape_r βa' as "Hβa'". eq_pures_r.
+    eq_alloc_r keya' as "Hkeya'". eq_pures_r. eq_alloc_r tga' as "Htga'". eq_pures_r.
+    eq_alloc_r vera' as "Hvera'". eq_pures_r.
+    eq_alloctape_r αb' as "Hαb'". eq_pures_r. eq_alloctape_r βb' as "Hβb'". eq_pures_r.
+    eq_alloc_r keyb' as "Hkeyb'". eq_pures_r. eq_alloc_r tgb' as "Htgb'". eq_pures_r.
+    eq_alloc_r verb' as "Hverb'". eq_pures_r.
+    eq_alloc_r dec1' as "Hdec1'". eq_pures_r. eq_alloc_r dec2' as "Hdec2'". eq_pures_r.
+    eq_alloc_r acc1 as "Hacc1". eq_pures_r. eq_alloc_r acc2 as "Hacc2".
+    rewrite ?Nat2Z.id.
+    iApply (eq_na_alloc (slot_inv αa βa keya tga vera dec1 res1 αa' βa' keya' tga' vera' dec1' acc1 m1) slot1N).
     iSplitL "Hαa Hβa Hkeya Htga Hvera Hdec1 Hres1 Hαa' Hβa' Hkeya' Htga' Hvera' Hdec1' Hacc1 Hm1".
     { iNext. iExists None, None, None. by iFrame. }
     iIntros "#Hinv1".
-    iApply (brel_na_alloc (slot_inv αb βb keyb tgb verb dec2 res2 αb' βb' keyb' tgb' verb' dec2' acc2 m2) slot2N).
+    iApply (eq_na_alloc (slot_inv αb βb keyb tgb verb dec2 res2 αb' βb' keyb' tgb' verb' dec2' acc2 m2) slot2N).
     iSplitL "Hαb Hβb Hkeyb Htgb Hverb Hdec2 Hres2 Hαb' Hβb' Hkeyb' Htgb' Hverb' Hdec2' Hacc2 Hm2".
     { iNext. iExists None, None, None. by iFrame. }
     iIntros "#Hinv2".
-    brel_pures_r.
-    iModIntro. iIntros (θ f1 f2) "Hf".
-    brel_pures_l. brel_pures_r.
-    iModIntro. iIntros (θ₂ e1 e2) "He". rewrite /raw /sem_ty_prod.
+    eq_pures_r.
+    iApply eq_value. iModIntro. rewrite /τ__F eq_lift_forall. iIntros (θ).
+    iApply eq_lift_arr. iIntros (f1 f2) "Hf". eq_pures_l. eq_pures_r.
+    iApply eq_value. iModIntro. iEval (rewrite eq_lift_forall). iIntros (θ₂).
+    iApply eq_lift_arr. iIntros (e1 e2) "He". iEval (rewrite /raw eq_lift_prod) in "He".
     iDestruct "He" as (w1 w1' w2 w2') "(-> & -> & #Hsnd & #Hrcv)".
-    brel_pures_l. brel_pures_r.
+    eq_pures_l. eq_pures_r.
     set (va := mac_ideal_v αa βa keya tga vera). set (vb := mac_ideal_v αb βb keyb tgb verb).
     set (va' := mac_ideal_v αa' βa' keya' tga' vera'). set (vb' := mac_ideal_v αb' βb' keyb' tgb' verb').
     set (sc := (λ: "payload", sauth_send_b va' vb' w1')%V).
     set (rc := (λ: "from", sauth_recv_b va' vb' #dec1' #dec2' #acc1 #acc2 w2')%V).
-    iApply (sem_typed_inst3 "doLeakSend" "doLeakRecv" "f"
-              (pure_ty (λ v1 v2, v1 = w1 ∧ v2 = sc)%type) (pure_ty (λ v1 v2, v1 = w2 ∧ v2 = rc)%type) (clientT θ)
-              (auth_skel' (auth_send_h va vb) (auth_recv_h va vb #dec1 #dec2 #res1 #res2))
-              (auth_skel' (fauth_send_h #m1 #m2) (fauth_recv_h #m1 #m2))
-            with "[] [] [] Hf"); [done|done|done| | done | done].
-    iApply (auth_skel_rel with "[] []"); try (intros ??; reflexivity);
-      try (rewrite /auth_send_h /auth_recv_h /fauth_send_h /fauth_recv_h /va /vb /mac_ideal_v /ideal_tag_b /ideal_verify_b /tag; is_closed; fail).
+    iApply (eq_auth_skel θ θ₂
+              (auth_send_h va vb) (fauth_send_h #m1 #m2)
+              (auth_recv_h va vb #dec1 #dec2 #res1 #res2) (fauth_recv_h #m1 #m2)
+              w1 sc w2 rc f1 f2 with "[] [] Hf");
+      try (intros ??; reflexivity);
+      try (rewrite /auth_send_h /auth_recv_h /fauth_send_h /fauth_recv_h /va /vb /mac_ideal_v
+                   /ideal_tag_b /ideal_verify_b /tag; is_closed; fail).
     - (* send *)
-      iIntros "!>" (ρh) "#Hρ". iIntros (a1 a2 b1 b2 c1 c2) "Ha Hk %Hc". destruct Hc as [-> ->].
-      iEval (rewrite /sem_ty_mbang /sem_ty_arr /=) in "Hk".
-      iDestruct "Ha" as (x1 x1' y1 y1') "(-> & -> & (%m & -> & ->) & (%d1 & %d2 & [(-> & -> & -> & ->)|(-> & -> & -> & ->)]))".
-      all: rewrite /auth_send_h /fauth_send_h /sc /rc /va /vb /va' /vb' /mac_ideal_v /sauth_send_b /ideal_tag_b; simpl; brel_pures_l; brel_pures_r.
+      iIntros "!>" (ρh) "#Hρ". iIntros (a1 a2 b1 b2) "Ha Hk".
+      iEval (rewrite eq_lift_prod) in "Ha". iDestruct "Ha" as (x1 x1' y1 y1') "(-> & -> & Hm & Hd)".
+      iEval (rewrite eq_lift_group) in "Hm". iDestruct "Hm" as %(m & -> & ->).
+      iEval (rewrite eq_lift_sum) in "Hd". iDestruct "Hd" as (d1 d2) "[(-> & -> & Hu)|(-> & -> & Hu)]";
+        iEval (rewrite eq_lift_unit) in "Hu"; iDestruct "Hu" as %[-> ->].
+      all: rewrite /auth_send_h /fauth_send_h /sc /rc /va /vb /va' /vb' /mac_ideal_v /sauth_send_b /ideal_tag_b; simpl; eq_pures_l; eq_pures_r.
       + 
-        iApply (brel_na_inv _ _ slot1N); [set_solver|]. iFrame "Hinv1". iIntros "(>HI & Hclose)".
+        iApply (eq_na_open _ _ slot1N); [set_solver|]. iFrame "Hinv1". iIntros "(>HI & Hclose)".
         iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
         destruct tg as [[m0 t0]|]; simpl.
         * (* the slot was used: nothing is sent *)
-          brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+          eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
+          iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
           { iNext. iExists key, (Some (m0, t0)), v. by iFrame. }
-          iApply ("Hk" with "[//]").
+          iApply (eq_lift_app with "Hk"); by rewrite eq_lift_unit.
         * assert (accb v = false) as Hv0 by (destruct (accb v); [by destruct Hacc|done]).
-          brel_load_l. brel_pures_l. brel_load_r. brel_pures_r. brel_store_r. brel_pures_r.
-          brel_load_r. brel_pures_r.
+          eq_load_l. eq_pures_l. eq_load_r. eq_pures_r. eq_store_r. eq_pures_r.
+          eq_load_r. eq_pures_r.
           destruct key as [[k1 k2]|]; simpl.
-          -- brel_load_l. brel_pures_l. brel_load_r. brel_pures_r. rewrite /tag. brel_pures_l. brel_pures_r.
-             brel_exp_l. brel_exp_l. brel_mult_l. brel_pures_l. brel_store_l. brel_pures_l.
-             brel_exp_r. brel_exp_r. brel_mult_r. brel_pures_r. brel_store_r. brel_pures_r.
-             iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+          -- eq_load_l. eq_pures_l. eq_load_r. eq_pures_r. rewrite /tag. eq_pures_l. eq_pures_r.
+             eq_exp_l. eq_exp_l. eq_mult_l. eq_pures_l. eq_store_l. eq_pures_l.
+             eq_exp_r. eq_exp_r. eq_mult_r. eq_pures_r. eq_store_r. eq_pures_r.
+             iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
              { iNext. iExists (Some (k1, k2)), (Some (m, (m ^+ k1 * g ^+ k2)%g)), v. rewrite /resv Hv0. iFrame.
                iPureIntro. by eexists. }
-             iApply (raw_call_k θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
-             { iApply packet_typed. by (left + right). }
-             iIntros "!>" (v1 v2) "[-> ->] Hk". brel_pures_l. brel_pures_r. iApply ("Hk" with "[//]").
-          -- iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
+             iApply (eq_call_frame θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
+             { iApply eq_lift_same. iApply packet_typed. by (left + right). }
+             iIntros "!>" (v1 v2) "Hv Hk". iEval (rewrite eq_lift_unit) in "Hv". iDestruct "Hv" as %[-> ->]. eq_pures_l. eq_pures_r. iApply (eq_lift_app with "Hk"); by rewrite eq_lift_unit.
+          -- iApply (eq_couple_tapes _ _ _ _ _ _ _ _ [] []).
              iFrame "Hβ Hβ'". iIntros (r) "[Hβ Hβ']". simpl.
-             brel_load_l. brel_pures_l. brel_rand_l as "%Hr". brel_exp_l. brel_pures_l. brel_store_l. brel_pures_l.
-             brel_load_r. brel_pures_r. brel_rand_r as "%Hr'". brel_exp_r. brel_pures_r. brel_store_r. brel_pures_r.
-             iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+             eq_load_l. eq_pures_l. eq_rand_l as "%Hr". eq_exp_l. eq_pures_l. eq_store_l. eq_pures_l.
+             eq_load_r. eq_pures_r. eq_rand_r as "%Hr'". eq_exp_r. eq_pures_r. eq_store_r. eq_pures_r.
+             iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
              { iNext. iExists None, (Some (m, (g ^+ r)%g)), v. rewrite /resv Hv0. iFrame.
                iPureIntro. by eexists. }
-             iApply (raw_call_k θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
-             { iApply packet_typed. by (left + right). }
-             iIntros "!>" (v1 v2) "[-> ->] Hk". brel_pures_l. brel_pures_r. iApply ("Hk" with "[//]").
+             iApply (eq_call_frame θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
+             { iApply eq_lift_same. iApply packet_typed. by (left + right). }
+             iIntros "!>" (v1 v2) "Hv Hk". iEval (rewrite eq_lift_unit) in "Hv". iDestruct "Hv" as %[-> ->]. eq_pures_l. eq_pures_r. iApply (eq_lift_app with "Hk"); by rewrite eq_lift_unit.
       + 
-        iApply (brel_na_inv _ _ slot2N); [set_solver|]. iFrame "Hinv2". iIntros "(>HI & Hclose)".
+        iApply (eq_na_open _ _ slot2N); [set_solver|]. iFrame "Hinv2". iIntros "(>HI & Hclose)".
         iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
         destruct tg as [[m0 t0]|]; simpl.
         * (* the slot was used: nothing is sent *)
-          brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+          eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
+          iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
           { iNext. iExists key, (Some (m0, t0)), v. by iFrame. }
-          iApply ("Hk" with "[//]").
+          iApply (eq_lift_app with "Hk"); by rewrite eq_lift_unit.
         * assert (accb v = false) as Hv0 by (destruct (accb v); [by destruct Hacc|done]).
-          brel_load_l. brel_pures_l. brel_load_r. brel_pures_r. brel_store_r. brel_pures_r.
-          brel_load_r. brel_pures_r.
+          eq_load_l. eq_pures_l. eq_load_r. eq_pures_r. eq_store_r. eq_pures_r.
+          eq_load_r. eq_pures_r.
           destruct key as [[k1 k2]|]; simpl.
-          -- brel_load_l. brel_pures_l. brel_load_r. brel_pures_r. rewrite /tag. brel_pures_l. brel_pures_r.
-             brel_exp_l. brel_exp_l. brel_mult_l. brel_pures_l. brel_store_l. brel_pures_l.
-             brel_exp_r. brel_exp_r. brel_mult_r. brel_pures_r. brel_store_r. brel_pures_r.
-             iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+          -- eq_load_l. eq_pures_l. eq_load_r. eq_pures_r. rewrite /tag. eq_pures_l. eq_pures_r.
+             eq_exp_l. eq_exp_l. eq_mult_l. eq_pures_l. eq_store_l. eq_pures_l.
+             eq_exp_r. eq_exp_r. eq_mult_r. eq_pures_r. eq_store_r. eq_pures_r.
+             iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
              { iNext. iExists (Some (k1, k2)), (Some (m, (m ^+ k1 * g ^+ k2)%g)), v. rewrite /resv Hv0. iFrame.
                iPureIntro. by eexists. }
-             iApply (raw_call_k θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
-             { iApply packet_typed. by (left + right). }
-             iIntros "!>" (v1 v2) "[-> ->] Hk". brel_pures_l. brel_pures_r. iApply ("Hk" with "[//]").
-          -- iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
+             iApply (eq_call_frame θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
+             { iApply eq_lift_same. iApply packet_typed. by (left + right). }
+             iIntros "!>" (v1 v2) "Hv Hk". iEval (rewrite eq_lift_unit) in "Hv". iDestruct "Hv" as %[-> ->]. eq_pures_l. eq_pures_r. iApply (eq_lift_app with "Hk"); by rewrite eq_lift_unit.
+          -- iApply (eq_couple_tapes _ _ _ _ _ _ _ _ [] []).
              iFrame "Hβ Hβ'". iIntros (r) "[Hβ Hβ']". simpl.
-             brel_load_l. brel_pures_l. brel_rand_l as "%Hr". brel_exp_l. brel_pures_l. brel_store_l. brel_pures_l.
-             brel_load_r. brel_pures_r. brel_rand_r as "%Hr'". brel_exp_r. brel_pures_r. brel_store_r. brel_pures_r.
-             iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+             eq_load_l. eq_pures_l. eq_rand_l as "%Hr". eq_exp_l. eq_pures_l. eq_store_l. eq_pures_l.
+             eq_load_r. eq_pures_r. eq_rand_r as "%Hr'". eq_exp_r. eq_pures_r. eq_store_r. eq_pures_r.
+             iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
              { iNext. iExists None, (Some (m, (g ^+ r)%g)), v. rewrite /resv Hv0. iFrame.
                iPureIntro. by eexists. }
-             iApply (raw_call_k θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
-             { iApply packet_typed. by (left + right). }
-             iIntros "!>" (v1 v2) "[-> ->] Hk". brel_pures_l. brel_pures_r. iApply ("Hk" with "[//]").
+             iApply (eq_call_frame θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
+             { iApply eq_lift_same. iApply packet_typed. by (left + right). }
+             iIntros "!>" (v1 v2) "Hv Hk". iEval (rewrite eq_lift_unit) in "Hv". iDestruct "Hv" as %[-> ->]. eq_pures_l. eq_pures_r. iApply (eq_lift_app with "Hk"); by rewrite eq_lift_unit.
     - (* recv *)
-      iIntros "!>" (ρh) "#Hρ". iIntros (a1 a2 b1 b2 c1 c2) "Ha Hk %Hc". destruct Hc as [-> ->].
-      iEval (rewrite /sem_ty_mbang /sem_ty_arr /=) in "Hk".
-      iDestruct "Ha" as (d1 d2) "[(-> & -> & -> & ->)|(-> & -> & -> & ->)]".
+      iIntros "!>" (ρh) "#Hρ". iIntros (a1 a2 b1 b2) "Ha Hk".
+      iEval (rewrite eq_lift_sum) in "Ha". iDestruct "Ha" as (d1 d2) "[(-> & -> & Hu)|(-> & -> & Hu)]";
+        iEval (rewrite eq_lift_unit) in "Hu"; iDestruct "Hu" as %[-> ->].
       all: rewrite /auth_recv_h /fauth_recv_h /sc /rc /va /vb /va' /vb' /mac_ideal_v /sauth_recv_b /ideal_verify_b;
-        simpl; brel_pures_l; brel_pures_r.
+        simpl; eq_pures_l; eq_pures_r.
       + (* a receiver [InjL] reads slot 2 *)
-        iApply (brel_na_inv _ _ slot2N); [set_solver|]. iFrame "Hinv2". iIntros "(>HI & Hclose)".
+        iApply (eq_na_open _ _ slot2N); [set_solver|]. iFrame "Hinv2". iIntros "(>HI & Hclose)".
         iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
         destruct v as [b|]; simpl.
         * (* already decided *)
           destruct b.
           { destruct tg as [[m0 t0]|]; last by destruct Hacc. simpl.
-            brel_load_l. brel_pures_l. brel_load_l.
-            brel_load_r. brel_pures_r. brel_load_r. brel_pures_r. brel_load_r. brel_pures_r.
-            iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+            eq_load_l. eq_pures_l. eq_load_l.
+            eq_load_r. eq_pures_r. eq_load_r. eq_pures_r. eq_load_r. eq_pures_r.
+            iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
             { iNext. iExists key, (Some (m0, t0)), (Some true). by iFrame. }
-            iApply "Hk". iApply opt_some. }
-          { brel_load_l. brel_pures_l. brel_load_l.
-            brel_load_r. brel_pures_r. brel_load_r. brel_pures_r.
-            iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+            iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_some. }
+          { eq_load_l. eq_pures_l. eq_load_l.
+            eq_load_r. eq_pures_r. eq_load_r. eq_pures_r.
+            iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
             { iNext. iExists key, tg, (Some false). by iFrame. }
-            iApply "Hk". iApply opt_none. }
-        * brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+            iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none. }
+        * eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
+          iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
           { iNext. iExists key, tg, None. by iFrame. }
-          iApply (raw_call_k θ₂ ρh _ (Option (𝔾 × 𝔾))%T _ _ _ _ _ [CaseCtx _ _] [AppRCtx _; CaseCtx _ _]
+          iApply (eq_call_frame θ₂ ρh _ (Option (𝔾 × 𝔾))%T _ _ _ _ _ [CaseCtx _ _] [AppRCtx _; CaseCtx _ _]
                     with "Hρ Hrcv [] Hk"); try (intros; apply _).
-          { iApply from_typed. by (left + right). }
-          iIntros "!>" (r1 r2) "(%p1 & %p2 & [(-> & -> & -> & ->)|(-> & -> & Hp)]) Hk".
+          { iApply eq_lift_same. iApply from_typed. by (left + right). }
+          iIntros "!>" (r1 r2) "Hv Hk". iEval (rewrite eq_lift_sum) in "Hv".
+          iDestruct "Hv" as (p1 p2) "[(-> & -> & Hu)|(-> & -> & Hp)]";
+            [iEval (rewrite eq_lift_unit) in "Hu"; iDestruct "Hu" as %[-> ->]|].
           -- (* nothing delivered *)
-             brel_pures_l. brel_pures_r. iApply "Hk". iApply opt_none.
-          -- iDestruct "Hp" as (q1 q1' q2 q2') "(-> & -> & (%m' & -> & ->) & (%t' & -> & ->))".
-             brel_pures_l. brel_pures_r.
+             eq_pures_l. eq_pures_r. iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none.
+          -- iEval (rewrite eq_lift_prod) in "Hp". iDestruct "Hp" as (q1 q1' q2 q2') "(-> & -> & Hm' & Ht')".
+             iEval (rewrite eq_lift_group) in "Hm' Ht'". iDestruct "Hm'" as %(m' & -> & ->). iDestruct "Ht'" as %(t' & -> & ->).
+             eq_pures_l. eq_pures_r.
              clear key tg Hacc.
-             iApply (brel_na_inv _ _ slot2N); [set_solver|]. iFrame "Hinv2". iIntros "(>HI & Hclose)".
+             iApply (eq_na_open _ _ slot2N); [set_solver|]. iFrame "Hinv2". iIntros "(>HI & Hclose)".
              iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
              destruct v as [b|]; simpl.
              ++ (* decided meanwhile *)
                 destruct b.
                 { destruct tg as [[m0 t0]|]; last by destruct Hacc. simpl.
-                  brel_load_l. brel_pures_l. brel_load_l.
-                  brel_load_r. brel_pures_r. brel_load_r. brel_pures_r. brel_load_r. brel_pures_r.
-                  iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                  eq_load_l. eq_pures_l. eq_load_l.
+                  eq_load_r. eq_pures_r. eq_load_r. eq_pures_r. eq_load_r. eq_pures_r.
+                  iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                   { iNext. iExists key, (Some (m0, t0)), (Some true). by iFrame. }
-                  iApply "Hk". iApply opt_some. }
-                { brel_load_l. brel_pures_l. brel_load_l.
-                  brel_load_r. brel_pures_r. brel_load_r. brel_pures_r.
-                  iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                  iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_some. }
+                { eq_load_l. eq_pures_l. eq_load_l.
+                  eq_load_r. eq_pures_r. eq_load_r. eq_pures_r.
+                  iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                   { iNext. iExists key, tg, (Some false). by iFrame. }
-                  iApply "Hk". iApply opt_none. }
-             ++ brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
-                brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
+                  iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none. }
+             ++ eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
+                eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
                 destruct tg as [[m0 t0]|]; simpl.
                 ** (* tagged: accept iff the pair is the tagged one *)
-                   brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
-                   brel_eq_l. brel_eq_r.
+                   eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
+                   eq_eq_l. eq_eq_r.
                    destruct (decide (m' = m0)) as [<-|Hne].
-                   --- rewrite bool_decide_eq_true_2 //. brel_pures_l. brel_pures_r. brel_eq_l. brel_eq_r.
+                   --- rewrite bool_decide_eq_true_2 //. eq_pures_l. eq_pures_r. eq_eq_l. eq_eq_r.
                        destruct (decide (t' = t0)) as [<-|Hne'].
-                       +++ rewrite bool_decide_eq_true_2 //. brel_pures_l. brel_pures_r.
-                           brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                           brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                           brel_load_r. brel_pures_r.
-                           iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                       +++ rewrite bool_decide_eq_true_2 //. eq_pures_l. eq_pures_r.
+                           eq_store_l. eq_pures_l. eq_store_l. eq_pures_l. eq_store_l. eq_pures_l.
+                           eq_store_r. eq_pures_r. eq_store_r. eq_pures_r. eq_store_r. eq_pures_r.
+                           eq_load_r. eq_pures_r.
+                           iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                            { iNext. iExists key, (Some (m', t')), (Some true). iFrame. iPureIntro. by eexists. }
-                           iApply "Hk". iApply opt_some.
-                       +++ rewrite bool_decide_eq_false_2 //. brel_pures_l. brel_pures_r.
-                           brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                           brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                           iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                           iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_some.
+                       +++ rewrite bool_decide_eq_false_2 //. eq_pures_l. eq_pures_r.
+                           eq_store_l. eq_pures_l. eq_store_l. eq_pures_l. eq_store_l. eq_pures_l.
+                           eq_store_r. eq_pures_r. eq_store_r. eq_pures_r. eq_store_r. eq_pures_r.
+                           iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                            { iNext. iExists key, (Some (m', t0)), (Some false). by iFrame. }
-                           iApply "Hk". iApply opt_none.
-                   --- rewrite bool_decide_eq_false_2 //. brel_pures_l. brel_pures_r.
-                       brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                       brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                       iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                           iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none.
+                   --- rewrite bool_decide_eq_false_2 //. eq_pures_l. eq_pures_r.
+                       eq_store_l. eq_pures_l. eq_store_l. eq_pures_l. eq_store_l. eq_pures_l.
+                       eq_store_r. eq_pures_r. eq_store_r. eq_pures_r. eq_store_r. eq_pures_r.
+                       iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                        { iNext. iExists key, (Some (m0, t0)), (Some false). by iFrame. }
-                       iApply "Hk". iApply opt_none.
+                       iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none.
                 ** (* untagged: the key is sampled (in sync) and the pair rejected *)
-                   brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
-                   iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
+                   eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
+                   iApply (eq_couple_tapes _ _ _ _ _ _ _ _ [] []).
                    iFrame "Hα Hα'". iIntros (k1) "[Hα Hα']". simpl.
-                   iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
+                   iApply (eq_couple_tapes _ _ _ _ _ _ _ _ [] []).
                    iFrame "Hβ Hβ'". iIntros (k2) "[Hβ Hβ']". simpl.
-                   brel_rand_l as "%Hk1". brel_pures_l. brel_rand_l as "%Hk2". brel_pures_l.
-                   brel_rand_r as "%Hk1'". brel_pures_r. brel_rand_r as "%Hk2'". brel_pures_r.
-                   brel_store_l. brel_pures_l. brel_store_r. brel_pures_r.
-                   brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                   brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                   iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                   eq_rand_l as "%Hk1". eq_pures_l. eq_rand_l as "%Hk2". eq_pures_l.
+                   eq_rand_r as "%Hk1'". eq_pures_r. eq_rand_r as "%Hk2'". eq_pures_r.
+                   eq_store_l. eq_pures_l. eq_store_r. eq_pures_r.
+                   eq_store_l. eq_pures_l. eq_store_l. eq_pures_l. eq_store_l. eq_pures_l.
+                   eq_store_r. eq_pures_r. eq_store_r. eq_pures_r. eq_store_r. eq_pures_r.
+                   iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                    { iNext. iExists (Some (k1, k2)), None, (Some false). by iFrame. }
-                   iApply "Hk". iApply opt_none.
+                   iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none.
       + (* a receiver [InjR] reads slot 1 *)
-        iApply (brel_na_inv _ _ slot1N); [set_solver|]. iFrame "Hinv1". iIntros "(>HI & Hclose)".
+        iApply (eq_na_open _ _ slot1N); [set_solver|]. iFrame "Hinv1". iIntros "(>HI & Hclose)".
         iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
         destruct v as [b|]; simpl.
         * (* already decided *)
           destruct b.
           { destruct tg as [[m0 t0]|]; last by destruct Hacc. simpl.
-            brel_load_l. brel_pures_l. brel_load_l.
-            brel_load_r. brel_pures_r. brel_load_r. brel_pures_r. brel_load_r. brel_pures_r.
-            iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+            eq_load_l. eq_pures_l. eq_load_l.
+            eq_load_r. eq_pures_r. eq_load_r. eq_pures_r. eq_load_r. eq_pures_r.
+            iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
             { iNext. iExists key, (Some (m0, t0)), (Some true). by iFrame. }
-            iApply "Hk". iApply opt_some. }
-          { brel_load_l. brel_pures_l. brel_load_l.
-            brel_load_r. brel_pures_r. brel_load_r. brel_pures_r.
-            iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+            iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_some. }
+          { eq_load_l. eq_pures_l. eq_load_l.
+            eq_load_r. eq_pures_r. eq_load_r. eq_pures_r.
+            iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
             { iNext. iExists key, tg, (Some false). by iFrame. }
-            iApply "Hk". iApply opt_none. }
-        * brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+            iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none. }
+        * eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
+          iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
           { iNext. iExists key, tg, None. by iFrame. }
-          iApply (raw_call_k θ₂ ρh _ (Option (𝔾 × 𝔾))%T _ _ _ _ _ [CaseCtx _ _] [AppRCtx _; CaseCtx _ _]
+          iApply (eq_call_frame θ₂ ρh _ (Option (𝔾 × 𝔾))%T _ _ _ _ _ [CaseCtx _ _] [AppRCtx _; CaseCtx _ _]
                     with "Hρ Hrcv [] Hk"); try (intros; apply _).
-          { iApply from_typed. by (left + right). }
-          iIntros "!>" (r1 r2) "(%p1 & %p2 & [(-> & -> & -> & ->)|(-> & -> & Hp)]) Hk".
+          { iApply eq_lift_same. iApply from_typed. by (left + right). }
+          iIntros "!>" (r1 r2) "Hv Hk". iEval (rewrite eq_lift_sum) in "Hv".
+          iDestruct "Hv" as (p1 p2) "[(-> & -> & Hu)|(-> & -> & Hp)]";
+            [iEval (rewrite eq_lift_unit) in "Hu"; iDestruct "Hu" as %[-> ->]|].
           -- (* nothing delivered *)
-             brel_pures_l. brel_pures_r. iApply "Hk". iApply opt_none.
-          -- iDestruct "Hp" as (q1 q1' q2 q2') "(-> & -> & (%m' & -> & ->) & (%t' & -> & ->))".
-             brel_pures_l. brel_pures_r.
+             eq_pures_l. eq_pures_r. iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none.
+          -- iEval (rewrite eq_lift_prod) in "Hp". iDestruct "Hp" as (q1 q1' q2 q2') "(-> & -> & Hm' & Ht')".
+             iEval (rewrite eq_lift_group) in "Hm' Ht'". iDestruct "Hm'" as %(m' & -> & ->). iDestruct "Ht'" as %(t' & -> & ->).
+             eq_pures_l. eq_pures_r.
              clear key tg Hacc.
-             iApply (brel_na_inv _ _ slot1N); [set_solver|]. iFrame "Hinv1". iIntros "(>HI & Hclose)".
+             iApply (eq_na_open _ _ slot1N); [set_solver|]. iFrame "Hinv1". iIntros "(>HI & Hclose)".
              iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
              destruct v as [b|]; simpl.
              ++ (* decided meanwhile *)
                 destruct b.
                 { destruct tg as [[m0 t0]|]; last by destruct Hacc. simpl.
-                  brel_load_l. brel_pures_l. brel_load_l.
-                  brel_load_r. brel_pures_r. brel_load_r. brel_pures_r. brel_load_r. brel_pures_r.
-                  iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                  eq_load_l. eq_pures_l. eq_load_l.
+                  eq_load_r. eq_pures_r. eq_load_r. eq_pures_r. eq_load_r. eq_pures_r.
+                  iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                   { iNext. iExists key, (Some (m0, t0)), (Some true). by iFrame. }
-                  iApply "Hk". iApply opt_some. }
-                { brel_load_l. brel_pures_l. brel_load_l.
-                  brel_load_r. brel_pures_r. brel_load_r. brel_pures_r.
-                  iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                  iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_some. }
+                { eq_load_l. eq_pures_l. eq_load_l.
+                  eq_load_r. eq_pures_r. eq_load_r. eq_pures_r.
+                  iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                   { iNext. iExists key, tg, (Some false). by iFrame. }
-                  iApply "Hk". iApply opt_none. }
-             ++ brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
-                brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
+                  iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none. }
+             ++ eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
+                eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
                 destruct tg as [[m0 t0]|]; simpl.
                 ** (* tagged: accept iff the pair is the tagged one *)
-                   brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
-                   brel_eq_l. brel_eq_r.
+                   eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
+                   eq_eq_l. eq_eq_r.
                    destruct (decide (m' = m0)) as [<-|Hne].
-                   --- rewrite bool_decide_eq_true_2 //. brel_pures_l. brel_pures_r. brel_eq_l. brel_eq_r.
+                   --- rewrite bool_decide_eq_true_2 //. eq_pures_l. eq_pures_r. eq_eq_l. eq_eq_r.
                        destruct (decide (t' = t0)) as [<-|Hne'].
-                       +++ rewrite bool_decide_eq_true_2 //. brel_pures_l. brel_pures_r.
-                           brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                           brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                           brel_load_r. brel_pures_r.
-                           iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                       +++ rewrite bool_decide_eq_true_2 //. eq_pures_l. eq_pures_r.
+                           eq_store_l. eq_pures_l. eq_store_l. eq_pures_l. eq_store_l. eq_pures_l.
+                           eq_store_r. eq_pures_r. eq_store_r. eq_pures_r. eq_store_r. eq_pures_r.
+                           eq_load_r. eq_pures_r.
+                           iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                            { iNext. iExists key, (Some (m', t')), (Some true). iFrame. iPureIntro. by eexists. }
-                           iApply "Hk". iApply opt_some.
-                       +++ rewrite bool_decide_eq_false_2 //. brel_pures_l. brel_pures_r.
-                           brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                           brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                           iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                           iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_some.
+                       +++ rewrite bool_decide_eq_false_2 //. eq_pures_l. eq_pures_r.
+                           eq_store_l. eq_pures_l. eq_store_l. eq_pures_l. eq_store_l. eq_pures_l.
+                           eq_store_r. eq_pures_r. eq_store_r. eq_pures_r. eq_store_r. eq_pures_r.
+                           iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                            { iNext. iExists key, (Some (m', t0)), (Some false). by iFrame. }
-                           iApply "Hk". iApply opt_none.
-                   --- rewrite bool_decide_eq_false_2 //. brel_pures_l. brel_pures_r.
-                       brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                       brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                       iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                           iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none.
+                   --- rewrite bool_decide_eq_false_2 //. eq_pures_l. eq_pures_r.
+                       eq_store_l. eq_pures_l. eq_store_l. eq_pures_l. eq_store_l. eq_pures_l.
+                       eq_store_r. eq_pures_r. eq_store_r. eq_pures_r. eq_store_r. eq_pures_r.
+                       iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                        { iNext. iExists key, (Some (m0, t0)), (Some false). by iFrame. }
-                       iApply "Hk". iApply opt_none.
+                       iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none.
                 ** (* untagged: the key is sampled (in sync) and the pair rejected *)
-                   brel_load_l. brel_pures_l. brel_load_r. brel_pures_r.
-                   iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
+                   eq_load_l. eq_pures_l. eq_load_r. eq_pures_r.
+                   iApply (eq_couple_tapes _ _ _ _ _ _ _ _ [] []).
                    iFrame "Hα Hα'". iIntros (k1) "[Hα Hα']". simpl.
-                   iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
+                   iApply (eq_couple_tapes _ _ _ _ _ _ _ _ [] []).
                    iFrame "Hβ Hβ'". iIntros (k2) "[Hβ Hβ']". simpl.
-                   brel_rand_l as "%Hk1". brel_pures_l. brel_rand_l as "%Hk2". brel_pures_l.
-                   brel_rand_r as "%Hk1'". brel_pures_r. brel_rand_r as "%Hk2'". brel_pures_r.
-                   brel_store_l. brel_pures_l. brel_store_r. brel_pures_r.
-                   brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                   brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                   iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
+                   eq_rand_l as "%Hk1". eq_pures_l. eq_rand_l as "%Hk2". eq_pures_l.
+                   eq_rand_r as "%Hk1'". eq_pures_r. eq_rand_r as "%Hk2'". eq_pures_r.
+                   eq_store_l. eq_pures_l. eq_store_r. eq_pures_r.
+                   eq_store_l. eq_pures_l. eq_store_l. eq_pures_l. eq_store_l. eq_pures_l.
+                   eq_store_r. eq_pures_r. eq_store_r. eq_pures_r. eq_store_r. eq_pures_r.
+                   iApply eq_na_close_rule. iFrame "Hclose". iSplitR "Hk".
                    { iNext. iExists (Some (k1, k2)), None, (Some false). by iFrame. }
-                   iApply "Hk". iApply opt_none.
+                   iApply (eq_lift_app with "Hk"). iApply eq_lift_same. iApply opt_none.
   Qed.
 
+  Lemma AUTH_ideal_SIM_F : ⊢ sem_typed [] AUTH_ideal (S_AUTH ∘f F_AUTH)%fac ⊥ (fac MS (τ__F raw chan)) [].
+  Proof using All. apply (EQ_sem_typed _ _ _ _ AUTH_SIM_EQ Fwd). Qed.
+
   Lemma SIM_F_AUTH_ideal : ⊢ sem_typed [] (S_AUTH ∘f F_AUTH)%fac AUTH_ideal ⊥ (fac MS (τ__F raw chan)) [].
-  Proof using All.
-    iIntros (vs) "!> _". simpl.
-    iApply brel_value. iIntros "$ !>". iSplit; last done.
-    rewrite /fac /sem_ty_mbang /sem_ty_arr /=. iModIntro.
-    iIntros (u1 u2) "[-> ->]".
-    rewrite /AUTH_ideal /AUTH_of /S_AUTH F_AUTH_eq.
-    brel_pures_r.
-    (* the left setup: two MAC instances and the receivers' state *)
-    brel_alloctape_r αa as "Hαa". brel_pures_r. brel_alloctape_r βa as "Hβa". brel_pures_r.
-    brel_alloc_r keya as "Hkeya". brel_pures_r. brel_alloc_r tga as "Htga". brel_pures_r.
-    brel_alloc_r vera as "Hvera". brel_pures_r.
-    brel_alloctape_r αb as "Hαb". brel_pures_r. brel_alloctape_r βb as "Hβb". brel_pures_r.
-    brel_alloc_r keyb as "Hkeyb". brel_pures_r. brel_alloc_r tgb as "Htgb". brel_pures_r.
-    brel_alloc_r verb as "Hverb". brel_pures_r.
-    brel_alloc_r dec1 as "Hdec1". brel_pures_r. brel_alloc_r dec2 as "Hdec2". brel_pures_r.
-    brel_alloc_r res1 as "Hres1". brel_pures_r. brel_alloc_r res2 as "Hres2". brel_pures_r.
-    (* the right setup: [F_AUTH]'s slots, then the simulator's state *)
-    brel_pures_l.
-    brel_alloc_l m1 as "Hm1". brel_pures_l. brel_alloc_l m2 as "Hm2". brel_pures_l.
-    brel_alloctape_l αa' as "Hαa'". brel_pures_l. brel_alloctape_l βa' as "Hβa'". brel_pures_l.
-    brel_alloc_l keya' as "Hkeya'". brel_pures_l. brel_alloc_l tga' as "Htga'". brel_pures_l.
-    brel_alloc_l vera' as "Hvera'". brel_pures_l.
-    brel_alloctape_l αb' as "Hαb'". brel_pures_l. brel_alloctape_l βb' as "Hβb'". brel_pures_l.
-    brel_alloc_l keyb' as "Hkeyb'". brel_pures_l. brel_alloc_l tgb' as "Htgb'". brel_pures_l.
-    brel_alloc_l verb' as "Hverb'". brel_pures_l.
-    brel_alloc_l dec1' as "Hdec1'". brel_pures_l. brel_alloc_l dec2' as "Hdec2'". brel_pures_l.
-    brel_alloc_l acc1 as "Hacc1". brel_pures_l. brel_alloc_l acc2 as "Hacc2".
-    rewrite !Nat2Z.id.
-    iAssert (αa ↪ₛN (n; []))%I with "[Hαa]" as "Hαa"; first (iExists []; by iFrame).
-    iAssert (βa ↪ₛN (n; []))%I with "[Hβa]" as "Hβa"; first (iExists []; by iFrame).
-    iAssert (αb ↪ₛN (n; []))%I with "[Hαb]" as "Hαb"; first (iExists []; by iFrame).
-    iAssert (βb ↪ₛN (n; []))%I with "[Hβb]" as "Hβb"; first (iExists []; by iFrame).
-    iApply (brel_na_alloc (slot_inv' αa' βa' keya' tga' vera' dec1' acc1 m1 αa βa keya tga vera dec1 res1) slot1N).
-    iSplitL "Hαa Hβa Hkeya Htga Hvera Hdec1 Hres1 Hαa' Hβa' Hkeya' Htga' Hvera' Hdec1' Hacc1 Hm1".
-    { iNext. iExists None, None, None. by iFrame. }
-    iIntros "#Hinv1".
-    iApply (brel_na_alloc (slot_inv' αb' βb' keyb' tgb' verb' dec2' acc2 m2 αb βb keyb tgb verb dec2 res2) slot2N).
-    iSplitL "Hαb Hβb Hkeyb Htgb Hverb Hdec2 Hres2 Hαb' Hβb' Hkeyb' Htgb' Hverb' Hdec2' Hacc2 Hm2".
-    { iNext. iExists None, None, None. by iFrame. }
-    iIntros "#Hinv2".
-    brel_pures_l.
-    iModIntro. iIntros (θ f1 f2) "Hf".
-    brel_pures_r. brel_pures_l.
-    iModIntro. iIntros (θ₂ e1 e2) "He". rewrite /raw /sem_ty_prod.
-    iDestruct "He" as (w1 w1' w2 w2') "(-> & -> & #Hsnd & #Hrcv)".
-    brel_pures_r. brel_pures_l.
-    set (va := mac_ideal_v αa βa keya tga vera). set (vb := mac_ideal_v αb βb keyb tgb verb).
-    set (va' := mac_ideal_v αa' βa' keya' tga' vera'). set (vb' := mac_ideal_v αb' βb' keyb' tgb' verb').
-    set (sc := (λ: "payload", sauth_send_b va' vb' w1)%V).
-    set (rc := (λ: "from", sauth_recv_b va' vb' #dec1' #dec2' #acc1 #acc2 w2)%V).
-    iApply (sem_typed_inst3 "doLeakSend" "doLeakRecv" "f"
-              (pure_ty (λ v1 v2, v1 = sc ∧ v2 = w1')%type) (pure_ty (λ v1 v2, v1 = rc ∧ v2 = w2')%type) (clientT θ)
-              (auth_skel' (fauth_send_h #m1 #m2) (fauth_recv_h #m1 #m2))
-              (auth_skel' (auth_send_h va vb) (auth_recv_h va vb #dec1 #dec2 #res1 #res2))
-            with "[] [] [] Hf"); [done|done|done| | done | done].
-    iApply (auth_skel_rel with "[] []"); try (intros ??; reflexivity);
-      try (rewrite /auth_send_h /auth_recv_h /fauth_send_h /fauth_recv_h /va /vb /mac_ideal_v /ideal_tag_b /ideal_verify_b /tag; is_closed; fail).
-    - (* send *)
-      iIntros "!>" (ρh) "#Hρ". iIntros (a1 a2 b1 b2 c1 c2) "Ha Hk %Hc". destruct Hc as [-> ->].
-      iEval (rewrite /sem_ty_mbang /sem_ty_arr /=) in "Hk".
-      iDestruct "Ha" as (x1 x1' y1 y1') "(-> & -> & (%m & -> & ->) & (%d1 & %d2 & [(-> & -> & -> & ->)|(-> & -> & -> & ->)]))".
-      all: rewrite /auth_send_h /fauth_send_h /sc /rc /va /vb /va' /vb' /mac_ideal_v /sauth_send_b /ideal_tag_b; simpl; brel_pures_r; brel_pures_l.
-      + 
-        iApply (brel_na_inv _ _ slot1N); [set_solver|]. iFrame "Hinv1". iIntros "(>HI & Hclose)".
-        iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
-        destruct tg as [[m0 t0]|]; simpl.
-        * (* the slot was used: nothing is sent *)
-          brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-          { iNext. iExists key, (Some (m0, t0)), v. by iFrame. }
-          iApply ("Hk" with "[//]").
-        * assert (accb v = false) as Hv0 by (destruct (accb v); [by destruct Hacc|done]).
-          brel_load_r. brel_pures_r. brel_load_l. brel_pures_l. brel_store_l. brel_pures_l.
-          brel_load_l. brel_pures_l.
-          destruct key as [[k1 k2]|]; simpl.
-          -- brel_load_r. brel_pures_r. brel_load_l. brel_pures_l. rewrite /tag. brel_pures_r. brel_pures_l.
-             brel_exp_r. brel_exp_r. brel_mult_r. brel_pures_r. brel_store_r. brel_pures_r.
-             brel_exp_l. brel_exp_l. brel_mult_l. brel_pures_l. brel_store_l. brel_pures_l.
-             iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-             { iNext. iExists (Some (k1, k2)), (Some (m, (m ^+ k1 * g ^+ k2)%g)), v. rewrite /resv Hv0. iFrame.
-               iPureIntro. by eexists. }
-             iApply (raw_call_k θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
-             { iApply packet_typed. by (left + right). }
-             iIntros "!>" (v1 v2) "[-> ->] Hk". brel_pures_r. brel_pures_l. iApply ("Hk" with "[//]").
-          -- iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
-             iFrame "Hβ Hβ'". iIntros (r) "[Hβ Hβ']". simpl.
-             brel_load_r. brel_pures_r. brel_rand_r as "%Hr". brel_exp_r. brel_pures_r. brel_store_r. brel_pures_r.
-             brel_load_l. brel_pures_l. brel_rand_l as "%Hr'". brel_exp_l. brel_pures_l. brel_store_l. brel_pures_l.
-             iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-             { iNext. iExists None, (Some (m, (g ^+ r)%g)), v. rewrite /resv Hv0. iFrame.
-               iPureIntro. by eexists. }
-             iApply (raw_call_k θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
-             { iApply packet_typed. by (left + right). }
-             iIntros "!>" (v1 v2) "[-> ->] Hk". brel_pures_r. brel_pures_l. iApply ("Hk" with "[//]").
-      + 
-        iApply (brel_na_inv _ _ slot2N); [set_solver|]. iFrame "Hinv2". iIntros "(>HI & Hclose)".
-        iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
-        destruct tg as [[m0 t0]|]; simpl.
-        * (* the slot was used: nothing is sent *)
-          brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-          { iNext. iExists key, (Some (m0, t0)), v. by iFrame. }
-          iApply ("Hk" with "[//]").
-        * assert (accb v = false) as Hv0 by (destruct (accb v); [by destruct Hacc|done]).
-          brel_load_r. brel_pures_r. brel_load_l. brel_pures_l. brel_store_l. brel_pures_l.
-          brel_load_l. brel_pures_l.
-          destruct key as [[k1 k2]|]; simpl.
-          -- brel_load_r. brel_pures_r. brel_load_l. brel_pures_l. rewrite /tag. brel_pures_r. brel_pures_l.
-             brel_exp_r. brel_exp_r. brel_mult_r. brel_pures_r. brel_store_r. brel_pures_r.
-             brel_exp_l. brel_exp_l. brel_mult_l. brel_pures_l. brel_store_l. brel_pures_l.
-             iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-             { iNext. iExists (Some (k1, k2)), (Some (m, (m ^+ k1 * g ^+ k2)%g)), v. rewrite /resv Hv0. iFrame.
-               iPureIntro. by eexists. }
-             iApply (raw_call_k θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
-             { iApply packet_typed. by (left + right). }
-             iIntros "!>" (v1 v2) "[-> ->] Hk". brel_pures_r. brel_pures_l. iApply ("Hk" with "[//]").
-          -- iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
-             iFrame "Hβ Hβ'". iIntros (r) "[Hβ Hβ']". simpl.
-             brel_load_r. brel_pures_r. brel_rand_r as "%Hr". brel_exp_r. brel_pures_r. brel_store_r. brel_pures_r.
-             brel_load_l. brel_pures_l. brel_rand_l as "%Hr'". brel_exp_l. brel_pures_l. brel_store_l. brel_pures_l.
-             iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-             { iNext. iExists None, (Some (m, (g ^+ r)%g)), v. rewrite /resv Hv0. iFrame.
-               iPureIntro. by eexists. }
-             iApply (raw_call_k θ₂ ρh _ 𝟙 _ _ _ _ _ [AppRCtx _] [AppRCtx _] with "Hρ Hsnd [] Hk"); try (intros; apply _).
-             { iApply packet_typed. by (left + right). }
-             iIntros "!>" (v1 v2) "[-> ->] Hk". brel_pures_r. brel_pures_l. iApply ("Hk" with "[//]").
-    - (* recv *)
-      iIntros "!>" (ρh) "#Hρ". iIntros (a1 a2 b1 b2 c1 c2) "Ha Hk %Hc". destruct Hc as [-> ->].
-      iEval (rewrite /sem_ty_mbang /sem_ty_arr /=) in "Hk".
-      iDestruct "Ha" as (d1 d2) "[(-> & -> & -> & ->)|(-> & -> & -> & ->)]".
-      all: rewrite /auth_recv_h /fauth_recv_h /sc /rc /va /vb /va' /vb' /mac_ideal_v /sauth_recv_b /ideal_verify_b;
-        simpl; brel_pures_r; brel_pures_l.
-      + (* a receiver [InjL] reads slot 2 *)
-        iApply (brel_na_inv _ _ slot2N); [set_solver|]. iFrame "Hinv2". iIntros "(>HI & Hclose)".
-        iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
-        destruct v as [b|]; simpl.
-        * (* already decided *)
-          destruct b.
-          { destruct tg as [[m0 t0]|]; last by destruct Hacc. simpl.
-            brel_load_r. brel_pures_r. brel_load_r.
-            brel_load_l. brel_pures_l. brel_load_l. brel_pures_l. brel_load_l. brel_pures_l.
-            iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-            { iNext. iExists key, (Some (m0, t0)), (Some true). by iFrame. }
-            iApply "Hk". iApply opt_some. }
-          { brel_load_r. brel_pures_r. brel_load_r.
-            brel_load_l. brel_pures_l. brel_load_l. brel_pures_l.
-            iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-            { iNext. iExists key, tg, (Some false). by iFrame. }
-            iApply "Hk". iApply opt_none. }
-        * brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-          { iNext. iExists key, tg, None. by iFrame. }
-          iApply (raw_call_k θ₂ ρh _ (Option (𝔾 × 𝔾))%T _ _ _ _ _ [AppRCtx _; CaseCtx _ _] [CaseCtx _ _]
-                    with "Hρ Hrcv [] Hk"); try (intros; apply _).
-          { iApply from_typed. by (left + right). }
-          iIntros "!>" (r1 r2) "(%p1 & %p2 & [(-> & -> & -> & ->)|(-> & -> & Hp)]) Hk".
-          -- (* nothing delivered *)
-             brel_pures_r. brel_pures_l. iApply "Hk". iApply opt_none.
-          -- iDestruct "Hp" as (q1 q1' q2 q2') "(-> & -> & (%m' & -> & ->) & (%t' & -> & ->))".
-             brel_pures_r. brel_pures_l.
-             clear key tg Hacc.
-             iApply (brel_na_inv _ _ slot2N); [set_solver|]. iFrame "Hinv2". iIntros "(>HI & Hclose)".
-             iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
-             destruct v as [b|]; simpl.
-             ++ (* decided meanwhile *)
-                destruct b.
-                { destruct tg as [[m0 t0]|]; last by destruct Hacc. simpl.
-                  brel_load_r. brel_pures_r. brel_load_r.
-                  brel_load_l. brel_pures_l. brel_load_l. brel_pures_l. brel_load_l. brel_pures_l.
-                  iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                  { iNext. iExists key, (Some (m0, t0)), (Some true). by iFrame. }
-                  iApply "Hk". iApply opt_some. }
-                { brel_load_r. brel_pures_r. brel_load_r.
-                  brel_load_l. brel_pures_l. brel_load_l. brel_pures_l.
-                  iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                  { iNext. iExists key, tg, (Some false). by iFrame. }
-                  iApply "Hk". iApply opt_none. }
-             ++ brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-                brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-                destruct tg as [[m0 t0]|]; simpl.
-                ** (* tagged: accept iff the pair is the tagged one *)
-                   brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-                   brel_eq_r. brel_eq_l.
-                   destruct (decide (m' = m0)) as [<-|Hne].
-                   --- rewrite bool_decide_eq_true_2 //. brel_pures_r. brel_pures_l. brel_eq_r. brel_eq_l.
-                       destruct (decide (t' = t0)) as [<-|Hne'].
-                       +++ rewrite bool_decide_eq_true_2 //. brel_pures_r. brel_pures_l.
-                           brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                           brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                           brel_load_l. brel_pures_l.
-                           iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                           { iNext. iExists key, (Some (m', t')), (Some true). iFrame. iPureIntro. by eexists. }
-                           iApply "Hk". iApply opt_some.
-                       +++ rewrite bool_decide_eq_false_2 //. brel_pures_r. brel_pures_l.
-                           brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                           brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                           iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                           { iNext. iExists key, (Some (m', t0)), (Some false). by iFrame. }
-                           iApply "Hk". iApply opt_none.
-                   --- rewrite bool_decide_eq_false_2 //. brel_pures_r. brel_pures_l.
-                       brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                       brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                       iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                       { iNext. iExists key, (Some (m0, t0)), (Some false). by iFrame. }
-                       iApply "Hk". iApply opt_none.
-                ** (* untagged: the key is sampled (in sync) and the pair rejected *)
-                   brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-                   iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
-                   iFrame "Hα Hα'". iIntros (k1) "[Hα Hα']". simpl.
-                   iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
-                   iFrame "Hβ Hβ'". iIntros (k2) "[Hβ Hβ']". simpl.
-                   brel_rand_r as "%Hk1". brel_pures_r. brel_rand_r as "%Hk2". brel_pures_r.
-                   brel_rand_l as "%Hk1'". brel_pures_l. brel_rand_l as "%Hk2'". brel_pures_l.
-                   brel_store_r. brel_pures_r. brel_store_l. brel_pures_l.
-                   brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                   brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                   iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                   { iNext. iExists (Some (k1, k2)), None, (Some false). by iFrame. }
-                   iApply "Hk". iApply opt_none.
-      + (* a receiver [InjR] reads slot 1 *)
-        iApply (brel_na_inv _ _ slot1N); [set_solver|]. iFrame "Hinv1". iIntros "(>HI & Hclose)".
-        iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
-        destruct v as [b|]; simpl.
-        * (* already decided *)
-          destruct b.
-          { destruct tg as [[m0 t0]|]; last by destruct Hacc. simpl.
-            brel_load_r. brel_pures_r. brel_load_r.
-            brel_load_l. brel_pures_l. brel_load_l. brel_pures_l. brel_load_l. brel_pures_l.
-            iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-            { iNext. iExists key, (Some (m0, t0)), (Some true). by iFrame. }
-            iApply "Hk". iApply opt_some. }
-          { brel_load_r. brel_pures_r. brel_load_r.
-            brel_load_l. brel_pures_l. brel_load_l. brel_pures_l.
-            iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-            { iNext. iExists key, tg, (Some false). by iFrame. }
-            iApply "Hk". iApply opt_none. }
-        * brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-          iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-          { iNext. iExists key, tg, None. by iFrame. }
-          iApply (raw_call_k θ₂ ρh _ (Option (𝔾 × 𝔾))%T _ _ _ _ _ [AppRCtx _; CaseCtx _ _] [CaseCtx _ _]
-                    with "Hρ Hrcv [] Hk"); try (intros; apply _).
-          { iApply from_typed. by (left + right). }
-          iIntros "!>" (r1 r2) "(%p1 & %p2 & [(-> & -> & -> & ->)|(-> & -> & Hp)]) Hk".
-          -- (* nothing delivered *)
-             brel_pures_r. brel_pures_l. iApply "Hk". iApply opt_none.
-          -- iDestruct "Hp" as (q1 q1' q2 q2') "(-> & -> & (%m' & -> & ->) & (%t' & -> & ->))".
-             brel_pures_r. brel_pures_l.
-             clear key tg Hacc.
-             iApply (brel_na_inv _ _ slot1N); [set_solver|]. iFrame "Hinv1". iIntros "(>HI & Hclose)".
-             iDestruct "HI" as (key tg v) "(%Hacc & Hα & Hβ & Hα' & Hβ' & Hkey & Hkey' & Htg & Htg' & Hv & Hv' & Hd & Hd' & Hr & Hac & Hm)".
-             destruct v as [b|]; simpl.
-             ++ (* decided meanwhile *)
-                destruct b.
-                { destruct tg as [[m0 t0]|]; last by destruct Hacc. simpl.
-                  brel_load_r. brel_pures_r. brel_load_r.
-                  brel_load_l. brel_pures_l. brel_load_l. brel_pures_l. brel_load_l. brel_pures_l.
-                  iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                  { iNext. iExists key, (Some (m0, t0)), (Some true). by iFrame. }
-                  iApply "Hk". iApply opt_some. }
-                { brel_load_r. brel_pures_r. brel_load_r.
-                  brel_load_l. brel_pures_l. brel_load_l. brel_pures_l.
-                  iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                  { iNext. iExists key, tg, (Some false). by iFrame. }
-                  iApply "Hk". iApply opt_none. }
-             ++ brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-                brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-                destruct tg as [[m0 t0]|]; simpl.
-                ** (* tagged: accept iff the pair is the tagged one *)
-                   brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-                   brel_eq_r. brel_eq_l.
-                   destruct (decide (m' = m0)) as [<-|Hne].
-                   --- rewrite bool_decide_eq_true_2 //. brel_pures_r. brel_pures_l. brel_eq_r. brel_eq_l.
-                       destruct (decide (t' = t0)) as [<-|Hne'].
-                       +++ rewrite bool_decide_eq_true_2 //. brel_pures_r. brel_pures_l.
-                           brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                           brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                           brel_load_l. brel_pures_l.
-                           iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                           { iNext. iExists key, (Some (m', t')), (Some true). iFrame. iPureIntro. by eexists. }
-                           iApply "Hk". iApply opt_some.
-                       +++ rewrite bool_decide_eq_false_2 //. brel_pures_r. brel_pures_l.
-                           brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                           brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                           iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                           { iNext. iExists key, (Some (m', t0)), (Some false). by iFrame. }
-                           iApply "Hk". iApply opt_none.
-                   --- rewrite bool_decide_eq_false_2 //. brel_pures_r. brel_pures_l.
-                       brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                       brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                       iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                       { iNext. iExists key, (Some (m0, t0)), (Some false). by iFrame. }
-                       iApply "Hk". iApply opt_none.
-                ** (* untagged: the key is sampled (in sync) and the pair rejected *)
-                   brel_load_r. brel_pures_r. brel_load_l. brel_pures_l.
-                   iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
-                   iFrame "Hα Hα'". iIntros (k1) "[Hα Hα']". simpl.
-                   iApply (brel_couple_TT _ _ (λ x, x) _ _ _ _ _ _ [] []); first done.
-                   iFrame "Hβ Hβ'". iIntros (k2) "[Hβ Hβ']". simpl.
-                   brel_rand_r as "%Hk1". brel_pures_r. brel_rand_r as "%Hk2". brel_pures_r.
-                   brel_rand_l as "%Hk1'". brel_pures_l. brel_rand_l as "%Hk2'". brel_pures_l.
-                   brel_store_r. brel_pures_r. brel_store_l. brel_pures_l.
-                   brel_store_r. brel_pures_r. brel_store_r. brel_pures_r. brel_store_r. brel_pures_r.
-                   brel_store_l. brel_pures_l. brel_store_l. brel_pures_l. brel_store_l. brel_pures_l.
-                   iApply brel_na_close. iFrame "Hclose". iSplitR "Hk".
-                   { iNext. iExists (Some (k1, k2)), None, (Some false). by iFrame. }
-                   iApply "Hk". iApply opt_none.
-  Qed.
+  Proof using All. apply (EQ_sem_typed _ _ _ _ AUTH_SIM_EQ Bwd). Qed.
 End rel.

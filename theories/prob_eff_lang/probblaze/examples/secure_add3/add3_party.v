@@ -7,8 +7,11 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
 From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
 From clutch.prob_eff_lang.probblaze.examples.secure_add Require Import secure_add_bijection.
+From iris.bi Require Import monpred.
+From iris.proofmode Require Import monpred.
 From clutch.prob_eff_lang.probblaze.examples.secure_add3 Require Import
   add3_def add3_tbl add3_net.
+From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_valgroup eq_handlers.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -226,7 +229,6 @@ Section party.
   Local Notation rk := (rk γr).
   Local Notation Rmsg := (Rmsg c γx γr).
   Local Notation Rdeliv := (Rdeliv c γx γr).
-  Local Notation NetT l1 l2 := (NetThy Rmsg Rdeliv l1 l2).
 
   (* The simulator's sample, against the real sample [r], is [shift i j x * r]:
      only [h']'s share to [h] is shifted, by [x_{h'}⁻¹]. *)
@@ -373,75 +375,148 @@ Section party.
       by rewrite -mulgA (vgG_comm x).
   Qed.
 
+  (** The honest operations. *)
+  Definition send_v (i : Z) (l : label) : val := (λ: "msg", do: l (InjL (#i, "msg")))%V.
+  Definition recv_v (i : Z) (l : label) : val := (λ: "h", do: l (InjR (#i, "h")))%V.
+
+  (** The corrupt party's operations, as [leaky] builds them. *)
+  Definition leaky_recv (r lk : val) : val :=
+    (λ: "h", let: "m" := r "h" in lk (InjR ("h", "m"));; "m")%V.
+  Definition leaky_smp (s lk : val) : val :=
+    (λ: <>, let: "r" := s #()%V in lk (InjL "r");; "r")%V.
+
+  (* After its run, a party has output the product of the (real) inputs. *)
+  Definition party_post (v1 v2 : val) : iProp Σ :=
+    ∃ x0 x1 x2, xk 0 x0 ∗ xk 1 x1 ∗ xk 2 x2 ∗ ⌜v1 = vgval (x0 * x1 * x2)%g⌝.
+
+  (* What [c] receives is the same in both worlds. *)
+  Lemma deliv_to_c s d t u1 u2 :
+    d = cz c → hdr_ok s d t → Rdeliv (key s d t) u1 u2 -∗ ∃ m : vgG, ⌜u1 = vgval m ∧ u2 = vgval m⌝.
+  Proof using Hc.
+    iIntros (-> Hhdr) "Hu".
+    iDestruct (deliv_inv with "Hu") as (m m') "([-> ->] & _ & Hadj)"; first done.
+    iExists m. rewrite /add3_party.del_adj /add3_party.raw_adj.
+    destruct (roles_spec c Hc) as (_ & _ & _ & _ & _ & _ & Hhc & Hh'c & _).
+    case_bool_decide as H1; [by iDestruct "Hadj" as %->|].
+    rewrite (bool_decide_eq_false_2 ((s, cz c, t) = _)); last by intros [= _ ? _].
+    case_bool_decide as H2; [simplify_eq; by destruct H1|].
+    by iDestruct "Hadj" as %->.
+  Qed.
+
+End party.
+
+(** * A party's run, in both directions *)
+
+Section party_eq.
+  Context `{!probblazeRGS Σ, !inG Σ (dfrac_agreeR valO)}.
+  Context {vg : val_group}.
+  Context {cg : clutch_group_struct}.
+  Context {G : clutch_group (vg:=vg) (cg:=cg)}.
+  Context {vgg : @val_group_generator vg}.
+  Context (c : nat) (Hc : (c < 3)%nat).
+  Context (γx : Z → gname) (γr : Z → Z → gname).
+  #[local] Open Scope bi_scope.
+  Local Open Scope Z_scope.
+
+  Local Notation xk := (xk γx).
+  Local Notation Rmsg := (Rmsg c γx γr).
+  Local Notation Rdeliv := (Rdeliv c γx γr).
+  Local Notation share_rmsg := (share_rmsg c Hc γx γr).
+  Local Notation sum_rmsg := (sum_rmsg c Hc γx γr).
+  Local Notation output_post := (output_post c Hc γx γr).
+  Local Notation deliv_to_c := (deliv_to_c c Hc γx γr).
+
+  (* [env_fun_spec] in each direction. *)
+  Definition eq_env_fun_spec (X : eqThy Σ) (P : val → Prop) (fl fr : val) : iPropD Σ :=
+    MonPred (λ d, env_fun_spec (eq_thy_at X d) P (pick d fl fr) (pick d fr fl)) _.
+
+  Global Instance eq_env_fun_spec_persistent X P fl fr : Persistent (eq_env_fun_spec X P fl fr).
+  Proof. split=> d. rewrite monPred_at_persistently /= /env_fun_spec. by iIntros "#H !>". Qed.
+
+  Lemma eq_env_fun_call X lls rls T kl kr P fl fr v S :
+    ectx_labels kl ⊆ lls → ectx_labels kr ⊆ rls → P v →
+    ⊢ eq_env_fun_spec X P fl fr -∗
+      EQ fill kl #()%V ≈ fill kr #()%V <|eq_thy_cons lls rls T X|> {{ S }} -∗
+      EQ fill kl (fl v) ≈ fill kr (fr v) <|eq_thy_cons lls rls T X|> {{ S }}.
+  Proof.
+    intros Hl Hr HP. iStartProof (iProp _). iIntros (d) "#H Hk". rewrite !eq_rel_at.
+    destruct d; rewrite /pick /=; by iApply ("H" with "[] [] [] Hk").
+  Qed.
+
+  Local Existing Instance NeutralEctx_app.
+
+  (* Focus on the argument of an application in contexts [Kl], [Kr]. *)
+  Local Ltac bind_app Kl Kr :=
+    lazymatch goal with
+    | |- environments.envs_entails _ (eq_rel _ (fill Kl (App ?f ?e)) (fill Kr (App ?f' ?e')) _ _) =>
+        rewrite -(fill_app Kl [AppRCtx f] e) -(fill_app Kr [AppRCtx f'] e')
+    end.
+
   (** Party [i]'s operations, related as the protocol needs. *)
   Section ops.
-    Context (l1 l2 : label) (Lz : iLblThy Σ) (i : Z) (x : vgG).
-    Local Notation M := (([l1], [l2], NetT l1 l2) :: Lz).
+    Context (ll lr : label) (X : eqThy Σ) (i : Z) (x : vgG).
+    Local Notation T := (eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) X).
 
-    Definition send_spec (send1 send2 : val) : iProp Σ :=
-      □ ∀ K1 K2 (d t : Z) (m1 m2 : val) S,
-        ⌜NeutralEctx [l1] K1⌝ → ⌜NeutralEctx [l2] K2⌝ →
-        ⌜ectx_labels K1 ⊆ [l1]⌝ → ⌜ectx_labels K2 ⊆ [l2]⌝ →
-        Rmsg (key i d t) m1 m2 -∗
-        BREL fill K1 #()%V ≤ fill K2 #()%V <|M|> {{S}} -∗
-        BREL fill K1 (send1 ((#d, #t), m1)%V) ≤ fill K2 (send2 ((#d, #t), m2)%V) <|M|> {{S}}.
+    Definition send_spec (sl sr : val) : iPropD Σ :=
+      □ ∀ Kl Kr (d t : Z) (ml mr : val) S,
+        ⌜NeutralEctx [ll] Kl⌝ → ⌜NeutralEctx [lr] Kr⌝ →
+        ⌜ectx_labels Kl ⊆ [ll]⌝ → ⌜ectx_labels Kr ⊆ [lr]⌝ →
+        ⎡Rmsg (key i d t) ml mr⎤ -∗
+        EQ fill Kl #()%V ≈ fill Kr #()%V <|T|> {{S}} -∗
+        EQ fill Kl (sl ((#d, #t), ml)%V) ≈ fill Kr (sr ((#d, #t), mr)%V) <|T|> {{S}}.
 
-    Definition recv_spec (recv1 recv2 : val) : iProp Σ :=
-      □ ∀ K1 K2 (s t : Z) S,
-        ⌜NeutralEctx [l1] K1⌝ → ⌜NeutralEctx [l2] K2⌝ →
-        ⌜ectx_labels K1 ⊆ [l1]⌝ → ⌜ectx_labels K2 ⊆ [l2]⌝ → ⌜hdr_ok s i t⌝ →
-        (∀ u1 u2, Rdeliv (key s i t) u1 u2 -∗ BREL fill K1 u1 ≤ fill K2 u2 <|M|> {{S}}) -∗
-        BREL fill K1 (recv1 (#s, #t)%V) ≤ fill K2 (recv2 (#s, #t)%V) <|M|> {{S}}.
+    Definition recv_spec (rl rr : val) : iPropD Σ :=
+      □ ∀ Kl Kr (s t : Z) S,
+        ⌜NeutralEctx [ll] Kl⌝ → ⌜NeutralEctx [lr] Kr⌝ →
+        ⌜ectx_labels Kl ⊆ [ll]⌝ → ⌜ectx_labels Kr ⊆ [lr]⌝ → ⌜hdr_ok s i t⌝ →
+        (∀ ul ur, ⎡Rdeliv (key s i t) ul ur⎤ -∗ EQ fill Kl ul ≈ fill Kr ur <|T|> {{S}}) -∗
+        EQ fill Kl (rl (#s, #t)%V) ≈ fill Kr (rr (#s, #t)%V) <|T|> {{S}}.
 
     (* The two samples are coupled along [σ]; the corrupt party's samples
        only identically. *)
-    Definition smp_spec (smp1 smp2 : val) : iProp Σ :=
-      □ ∀ K1 K2 (σ : vgG) S,
-        ⌜ectx_labels K1 ⊆ [l1]⌝ → ⌜ectx_labels K2 ⊆ [l2]⌝ → ⌜i ≠ cz c ∨ σ = 1%g⌝ →
-        (∀ r : vgG, BREL fill K1 (vgval r) ≤ fill K2 (vgval (σ * r)%g) <|M|> {{S}}) -∗
-        BREL fill K1 (smp1 #()%V) ≤ fill K2 (smp2 #()%V) <|M|> {{S}}.
+    Definition smp_spec (ml mr : val) : iPropD Σ :=
+      □ ∀ Kl Kr (σ : vgG) S,
+        ⌜ectx_labels Kl ⊆ [ll]⌝ → ⌜ectx_labels Kr ⊆ [lr]⌝ → ⌜i ≠ cz c ∨ σ = 1%g⌝ →
+        (∀ r : vgG, EQ fill Kl (vgval r) ≈ fill Kr (vgval (σ * r)%g) <|T|> {{S}}) -∗
+        EQ fill Kl (ml #()%V) ≈ fill Kr (mr #()%V) <|T|> {{S}}.
 
-    (* After its run, a party has output the product of the (real) inputs. *)
-    Definition party_post (v1 v2 : val) : iProp Σ :=
-      ∃ x0 x1 x2, xk 0 x0 ∗ xk 1 x1 ∗ xk 2 x2 ∗ ⌜v1 = vgval (x0 * x1 * x2)%g⌝.
-
-    Lemma party_core_spec (send1 send2 recv1 recv2 smp1 smp2 : val) Φ :
+    Lemma party_core_spec (sl sr rl rr ml mr : val) Φ :
       0 ≤ i < 3 →
-      send_spec send1 send2 -∗ recv_spec recv1 recv2 -∗ smp_spec smp1 smp2 -∗
-      xk i x -∗ slot_tok (γr i (nxt i)) -∗ slot_tok (γr i (nxt2 i)) -∗
-      (∀ v1 v2, party_post v1 v2 -∗ Φ v1 v2) -∗
-      BREL party #i (vgval x) ((send1, recv1), smp1)%V
-         ≤ party #i (vgval (if bool_decide (i = cz c) then x else 1%g)) ((send2, recv2), smp2)%V
-        <|M|> {{Φ}}.
+      ⊢ send_spec sl sr -∗ recv_spec rl rr -∗ smp_spec ml mr -∗
+        ⎡xk i x⎤ -∗ ⎡slot_tok (γr i (nxt i))⎤ -∗ ⎡slot_tok (γr i (nxt2 i))⎤ -∗
+        (∀ vl vr, ⎡party_post γx vl vr⎤ -∗ Φ vl vr) -∗
+        EQ party #i (vgval x) ((sl, rl), ml)%V
+         ≈ party #i (vgval (if bool_decide (i = cz c) then x else 1%g)) ((sr, rr), mr)%V
+          <|T|> {{Φ}}.
     Proof using All.
       iIntros (Hi) "#Hsend #Hrecv #Hsmp #Hx Htp Htq HΦ".
       destruct (nxt_spec i Hi) as (Hp & Hq & Hpi & Hqi & Hqp & _).
-      rewrite /party /Shr /Sum. brel_pures. rewrite -/(nxt i) -/(nxt2 i).
+      rewrite /party /Shr /Sum. eq_pures'. rewrite -/(nxt i) -/(nxt2 i).
       (* the two samples; only [h']'s share to [h] is shifted *)
       iApply ("Hsmp" $! [AppRCtx _] [AppRCtx _] 1%g);
         [iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | iPureIntro; by right |].
       iIntros (rp). rewrite mul1g.
-      iMod (slot_set _ (vgval rp) with "Htp") as "#Hrp". simpl. brel_pures.
-      iApply ("Hsmp" $! [AppRCtx _] [AppRCtx _] (shift i (nxt2 i) x));
+      iMod (slot_set _ (vgval rp) with "Htp") as "#Hrp". simpl. eq_pures'.
+      iApply ("Hsmp" $! [AppRCtx _] [AppRCtx _] (shift c i (nxt2 i) x));
         [iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | |].
       { iPureIntro. rewrite /shift. case_bool_decide as Hs; [left | by right].
         simplify_eq. by destruct (roles_spec c Hc) as (_&_&_&_&_&_&_&?&_). }
       iIntros (rq).
-      iMod (slot_set _ (vgval rq) with "Htq") as "#Hrq". simpl. brel_pures.
+      iMod (slot_set _ (vgval rq) with "Htq") as "#Hrq". simpl. eq_pures'.
       (* sending the shares *)
       iApply ("Hsend" $! [AppRCtx _] [AppRCtx _] (nxt i) 0 (vgval rp) (vgval rp));
         [iPureIntro; tc_solve | iPureIntro; tc_solve |
          iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | |].
       { iPoseProof (share_rmsg i (nxt i) x rp with "Hx Hrp") as "H";
           first (rewrite /hdr_ok; lia).
-        by rewrite shift_nxt mul1g. }
-      simpl. brel_pures.
+        by rewrite (shift_nxt c Hc) mul1g. }
+      simpl. eq_pures'.
       iApply ("Hsend" $! [AppRCtx _] [AppRCtx _] (nxt2 i) 0 (vgval rq)
-                (vgval (shift i (nxt2 i) x * rq)%g));
+                (vgval (shift c i (nxt2 i) x * rq)%g));
         [iPureIntro; tc_solve | iPureIntro; tc_solve |
          iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | |].
       { iApply (share_rmsg with "Hx Hrq"). rewrite /hdr_ok; lia. }
-      simpl. brel_pures.
+      simpl. eq_pures'.
       (* receiving the shares *)
       iApply ("Hrecv" $! [AppRCtx _] [AppRCtx _] (nxt i) 0);
         [iPureIntro; tc_solve | iPureIntro; tc_solve |
@@ -450,7 +525,7 @@ Section party.
       iIntros (u1 u2) "Hu".
       iDestruct (deliv_inv with "Hu") as (bp bp') "([-> ->] & #Hbp & #Hbp')";
         first (rewrite /hdr_ok; lia).
-      simpl. brel_pures.
+      simpl. eq_pures'.
       iApply ("Hrecv" $! [AppRCtx _] [AppRCtx _] (nxt2 i) 0);
         [iPureIntro; tc_solve | iPureIntro; tc_solve |
          iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver |
@@ -458,19 +533,18 @@ Section party.
       iIntros (u1 u2) "Hu2".
       iDestruct (deliv_inv with "Hu2") as (bq bq') "([-> ->] & #Hbq & #Hbq')";
         first (rewrite /hdr_ok; lia).
-      simpl. brel_pures.
-      repeat (brel_mult_l || brel_inv_l). repeat (brel_mult_r || brel_inv_r). brel_pures.
+      simpl. eq_pures'.
       (* sending the sums *)
       iApply ("Hsend" $! [AppRCtx _] [AppRCtx _] (nxt i) 1);
         [iPureIntro; tc_solve | iPureIntro; tc_solve |
          iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | |].
       { iApply (sum_rmsg with "Hx Hrp Hrq Hbp Hbp' Hbq Hbq'"); [done | by left]. }
-      simpl. brel_pures.
+      simpl. eq_pures'.
       iApply ("Hsend" $! [AppRCtx _] [AppRCtx _] (nxt2 i) 1);
         [iPureIntro; tc_solve | iPureIntro; tc_solve |
          iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | |].
       { iApply (sum_rmsg with "Hx Hrp Hrq Hbp Hbp' Hbq Hbq'"); [done | by right]. }
-      simpl. brel_pures.
+      simpl. eq_pures'.
       (* receiving the peers' sums *)
       iApply ("Hrecv" $! [AppRCtx _] [AppRCtx _] (nxt i) 1);
         [iPureIntro; tc_solve | iPureIntro; tc_solve |
@@ -479,7 +553,7 @@ Section party.
       iIntros (u1 u2) "Hu3".
       iDestruct (deliv_inv with "Hu3") as (sp sp') "([-> ->] & #Hsp & _)";
         first (rewrite /hdr_ok; lia).
-      simpl. brel_pures.
+      simpl. eq_pures'.
       iApply ("Hrecv" $! [AppRCtx _] [AppRCtx _] (nxt2 i) 1);
         [iPureIntro; tc_solve | iPureIntro; tc_solve |
          iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver |
@@ -487,130 +561,95 @@ Section party.
       iIntros (u1 u2) "Hu4".
       iDestruct (deliv_inv with "Hu4") as (sq sq') "([-> ->] & #Hsq & _)";
         first (rewrite /hdr_ok; lia).
-      simpl. brel_pures.
-      repeat (brel_mult_l || brel_inv_l). repeat (brel_mult_r || brel_inv_r). brel_pures.
+      simpl. eq_pures'.
       (* the output *)
       iDestruct (output_post with "Hx Hrp Hrq [Hbp] [Hbq] Hsp Hsq") as (x0 x1 x2) "(H0 & H1 & H2 & %Heq)";
         [done | by iApply lval_share | by iApply lval_share |].
-      iApply brel_value. iIntros "$ !>". iApply "HΦ".
+      iApply eq_value. iModIntro. iApply "HΦ".
       iExists x0, x1, x2. iFrame "H0 H1 H2". iPureIntro. by f_equal.
-  Qed.
-
-    (** The honest operations. *)
-    Definition send_v (l : label) : val := (λ: "msg", do: l (InjL (#i, "msg")))%V.
-    Definition recv_v (l : label) : val := (λ: "h", do: l (InjR (#i, "h")))%V.
-
-    Lemma net_send_spec : ⊢ send_spec (send_v l1) (send_v l2).
-    Proof using.
-      iIntros "!>" (K1 K2 d t m1 m2 S HK1 HK2 _ _) "Hm Hk".
-      rewrite /send_v. brel_pures.
-      by iApply (brel_net_send with "Hm Hk").
     Qed.
 
-    Lemma net_recv_spec : ⊢ recv_spec (recv_v l1) (recv_v l2).
+    Lemma net_send_spec : ⊢ send_spec (send_v i ll) (send_v i lr).
     Proof using.
-      iIntros "!>" (K1 K2 s t S HK1 HK2 _ _ Hhdr) "Hk".
-      rewrite /recv_v. brel_pures.
-      by iApply (brel_net_recv with "Hk").
+      iIntros "!>" (Kl Kr d t ml mr S HKl HKr _ _) "Hm Hk".
+      rewrite /send_v. eq_pures'.
+      by iApply (eq_net_send with "Hm Hk").
+    Qed.
+
+    Lemma net_recv_spec : ⊢ recv_spec (recv_v i ll) (recv_v i lr).
+    Proof using.
+      iIntros "!>" (Kl Kr s t S HKl HKr _ _ Hhdr) "Hk".
+      rewrite /recv_v. eq_pures'.
+      by iApply (eq_net_recv with "Hk").
     Qed.
 
     Lemma smp_smp_spec : ⊢ smp_spec smp smp.
     Proof using All.
-      iIntros "!>" (K1 K2 σ S _ _ _) "Hk".
-      rewrite /smp /sample. brel_pures.
-      iApply (brel_couple_rand_rand _ _ (add_coupling_nat σ)); first apply add_coupling_nat_bound.
-      iIntros (k) "%Hk". rewrite !fill_app /=. brel_exp_l. brel_exp_r.
+      iIntros "!>" (Kl Kr σ S _ _ _) "Hk".
+      rewrite /smp /sample. eq_pures'.
+      eq_focus_l (rand #_)%E. eq_focus_r (rand #_)%E.
+      iApply (eq_couple_rand_rand_bij _ _ (add_coupling_nat σ)); first apply add_coupling_nat_bound.
+      iIntros (k) "%Hk". rewrite !fill_app /=. eq_pures'.
       rewrite add_coupling_nat_mult; last lia.
       iApply "Hk".
     Qed.
 
-
-
-    Local Existing Instance NeutralEctx_app.
-
-    (* Focus on the argument of an application in contexts [K1], [K2]. *)
-    Local Ltac bind_app K1 K2 :=
-      lazymatch goal with
-      | |- environments.envs_entails _ (brel _ (fill K1 (App ?f ?e)) (fill K2 (App ?f' ?e')) _ _) =>
-          rewrite -(fill_app K1 [AppRCtx f] e) -(fill_app K2 [AppRCtx f'] e')
-      end.
-
-    (** The corrupt party's operations, as [leaky] builds them. *)
-    Definition leaky_recv (r lk : val) : val :=
-      (λ: "h", let: "m" := r "h" in lk (InjR ("h", "m"));; "m")%V.
-    Definition leaky_smp (s lk : val) : val :=
-      (λ: <>, let: "r" := s #()%V in lk (InjL "r");; "r")%V.
-
-    (* What [c] receives is the same in both worlds. *)
-    Lemma deliv_to_c s d t u1 u2 :
-      d = cz c → hdr_ok s d t → Rdeliv (key s d t) u1 u2 -∗ ∃ m : vgG, ⌜u1 = vgval m ∧ u2 = vgval m⌝.
+    Lemma leaky_recv_spec lkl lkr :
+      i = cz c → ⊢ eq_env_fun_spec X leak_ok lkl lkr -∗
+      recv_spec (leaky_recv (recv_v i ll) lkl) (leaky_recv (recv_v i lr) lkr).
     Proof using Hc.
-      iIntros (-> Hhdr) "Hu".
-      iDestruct (deliv_inv with "Hu") as (m m') "([-> ->] & _ & Hadj)"; first done.
-      iExists m. rewrite /add3_party.del_adj /add3_party.raw_adj.
-      destruct (roles_spec c Hc) as (_ & _ & _ & _ & _ & _ & Hhc & Hh'c & _).
-      case_bool_decide as H1; [by iDestruct "Hadj" as %->|].
-      rewrite (bool_decide_eq_false_2 ((s, cz c, t) = _)); last by intros [= _ ? _].
-      case_bool_decide as H2; [simplify_eq; by destruct H1|].
-      by iDestruct "Hadj" as %->.
-    Qed.
-
-    Lemma leaky_recv_spec lk1 lk2 :
-      i = cz c → env_fun_spec Lz leak_ok lk1 lk2 -∗
-      recv_spec (leaky_recv (recv_v l1) lk1) (leaky_recv (recv_v l2) lk2).
-    Proof using Hc.
-      iIntros (Hic) "#Hlk !>". iIntros (K1 K2 s t S HK1 HK2 HL1 HL2 Hhdr) "Hk".
-      rewrite /leaky_recv /recv_v. brel_pures.
-      bind_app K1 K2.
-      iApply brel_net_recv; first done.
-      iIntros (u1 u2) "#Hu". rewrite !fill_app /=.
+      iIntros (Hic) "#Hlk !>". iIntros (Kl Kr s t S HKl HKr HLl HLr Hhdr) "Hk".
+      rewrite /leaky_recv /recv_v. eq_pures'.
+      bind_app Kl Kr.
+      iApply eq_net_recv; [done.. |].
+      iIntros (ul ur) "#Hu". rewrite !fill_app /=.
       iDestruct (deliv_to_c with "Hu") as (m) "[-> ->]"; [done | done |].
-      brel_pures.
-      bind_app K1 K2.
-      iApply "Hlk"; [iPureIntro; rewrite ectx_labels_app /=; set_solver.. | |].
-      { iPureIntro. right. by eexists _, _, _. }
-      rewrite !fill_app /=. brel_pures.
+      eq_pures'.
+      bind_app Kl Kr.
+      iApply (eq_env_fun_call with "Hlk");
+        [rewrite ectx_labels_app /=; set_solver.. | right; by eexists _, _, _ |].
+      rewrite !fill_app /=. eq_pures'.
       by iApply "Hk".
     Qed.
 
-    Lemma leaky_smp_spec lk1 lk2 :
-      i = cz c → env_fun_spec Lz leak_ok lk1 lk2 -∗
-      smp_spec (leaky_smp smp lk1) (leaky_smp smp lk2).
+    Lemma leaky_smp_spec lkl lkr :
+      i = cz c → ⊢ eq_env_fun_spec X leak_ok lkl lkr -∗
+      smp_spec (leaky_smp smp lkl) (leaky_smp smp lkr).
     Proof using All.
-      iIntros (Hic) "#Hlk !>". iIntros (K1 K2 σ S HL1 HL2 [Hσ | ->]) "Hk"; first done.
-      rewrite /leaky_smp. brel_pures.
-      bind_app K1 K2.
+      iIntros (Hic) "#Hlk !>". iIntros (Kl Kr σ S HLl HLr [Hσ | ->]) "Hk"; first done.
+      rewrite /leaky_smp. eq_pures'.
+      bind_app Kl Kr.
       iApply (smp_smp_spec $! _ _ 1%g);
         [iPureIntro; rewrite ectx_labels_app /=; set_solver.. | by iPureIntro; right |].
-      iIntros (r). rewrite mul1g !fill_app /=. brel_pures.
-      bind_app K1 K2.
-      iApply "Hlk"; [iPureIntro; rewrite ectx_labels_app /=; set_solver.. | |].
-      { iPureIntro. left. by eexists. }
-      rewrite !fill_app /=. brel_pures.
+      iIntros (r). rewrite mul1g !fill_app /=. eq_pures'.
+      bind_app Kl Kr.
+      iApply (eq_env_fun_call with "Hlk");
+        [rewrite ectx_labels_app /=; set_solver.. | left; by eexists |].
+      rewrite !fill_app /=. eq_pures'.
       iSpecialize ("Hk" $! r). by rewrite mul1g.
     Qed.
 
-    Lemma run_party_spec lk1 lk2 Φ :
+    Lemma run_party_spec lkl lkr Φ :
       0 ≤ i < 3 →
-      env_fun_spec Lz leak_ok lk1 lk2 -∗
-      xk i x -∗ slot_tok (γr i (nxt i)) -∗ slot_tok (γr i (nxt2 i)) -∗
-      (∀ v1 v2, party_post v1 v2 -∗ Φ v1 v2) -∗
-      BREL run_party c lk1 (net_eps l1) #i (vgval x)
-         ≤ run_party c lk2 (net_eps l2) #i (if bool_decide (i = cz c) then vgval x else vunit)
-        <|M|> {{Φ}}.
+      ⊢ eq_env_fun_spec X leak_ok lkl lkr -∗
+        ⎡xk i x⎤ -∗ ⎡slot_tok (γr i (nxt i))⎤ -∗ ⎡slot_tok (γr i (nxt2 i))⎤ -∗
+        (∀ vl vr, ⎡party_post γx vl vr⎤ -∗ Φ vl vr) -∗
+        EQ run_party c lkl (net_eps ll) #i (vgval x)
+         ≈ run_party c lkr (net_eps lr) #i (if bool_decide (i = cz c) then vgval x else vunit)
+          <|T|> {{Φ}}.
     Proof using All.
       iIntros (Hi) "#Hlk #Hx Htp Htq HΦ".
-      rewrite /run_party. brel_pures.
-      iApply (brel_sel3_net [AppRCtx _] [AppRCtx _]); first done.
-      rewrite /net_ep /=. brel_pures.
+      rewrite /run_party. eq_pures'.
+      iApply (eq_sel3_net [AppRCtx _] [AppRCtx _]); first done.
+      rewrite /net_ep /=. eq_pures'.
       case_bool_decide as Hic.
       - (* the corrupt party *)
         assert (i = cz c) as Hic' by (inversion Hic; rewrite /cz; lia).
         rewrite (bool_decide_eq_true_2 (i = cz c)) //.
-        rewrite /leaky. brel_pures.
-        iPoseProof (party_core_spec (send_v l1) (send_v l2)
-          (leaky_recv (recv_v l1) lk1) (leaky_recv (recv_v l2) lk2)
-          (leaky_smp smp lk1) (leaky_smp smp lk2) _ Hi
+        rewrite /leaky. eq_pures'.
+        iPoseProof (party_core_spec (send_v i ll) (send_v i lr)
+          (leaky_recv (recv_v i ll) lkl) (leaky_recv (recv_v i lr) lkr)
+          (leaky_smp smp lkl) (leaky_smp smp lkr) _ Hi
           with "[] [] [] Hx Htp Htq HΦ") as "H".
         { iApply net_send_spec. }
         { by iApply leaky_recv_spec. }
@@ -619,8 +658,8 @@ Section party.
         iApply "H".
       - (* an honest party *)
         assert (i ≠ cz c) as Hic' by (intros Heq; apply Hic; by rewrite Heq).
-        rewrite (bool_decide_eq_false_2 (i = cz c)) // is_unit. brel_pures.
-        iPoseProof (party_core_spec (send_v l1) (send_v l2) (recv_v l1) (recv_v l2) smp smp _ Hi
+        rewrite (bool_decide_eq_false_2 (i = cz c)) // is_unit. eq_pures'.
+        iPoseProof (party_core_spec (send_v i ll) (send_v i lr) (recv_v i ll) (recv_v i lr) smp smp _ Hi
           with "[] [] [] Hx Htp Htq HΦ") as "H".
         { iApply net_send_spec. }
         { iApply net_recv_spec. }
@@ -631,298 +670,31 @@ Section party.
 
     (* The corrupt party runs on its input in both worlds, an honest one on
        the dummy input in the simulation. *)
-    Lemma run_party_spec_c lk1 lk2 Φ :
+    Lemma eq_run_party_c lkl lkr Φ :
       0 ≤ i < 3 → i = cz c →
-      env_fun_spec Lz leak_ok lk1 lk2 -∗
-      xk i x -∗ slot_tok (γr i (nxt i)) -∗ slot_tok (γr i (nxt2 i)) -∗
-      (∀ v1 v2, party_post v1 v2 -∗ Φ v1 v2) -∗
-      BREL run_party c lk1 (net_eps l1) #i (vgval x) ≤ run_party c lk2 (net_eps l2) #i (vgval x)
-        <|M|> {{Φ}}.
+      ⊢ eq_env_fun_spec X leak_ok lkl lkr -∗
+        ⎡xk i x⎤ -∗ ⎡slot_tok (γr i (nxt i))⎤ -∗ ⎡slot_tok (γr i (nxt2 i))⎤ -∗
+        (∀ vl vr, ⎡party_post γx vl vr⎤ -∗ Φ vl vr) -∗
+        EQ run_party c lkl (net_eps ll) #i (vgval x) ≈ run_party c lkr (net_eps lr) #i (vgval x)
+          <|T|> {{Φ}}.
     Proof using All.
       iIntros (Hi Hic) "Hlk Hx Htp Htq HΦ".
       iPoseProof (run_party_spec with "Hlk Hx Htp Htq HΦ") as "H"; first done.
       by rewrite bool_decide_eq_true_2.
     Qed.
 
-    Lemma run_party_spec_h lk1 lk2 Φ :
+    Lemma eq_run_party_h lkl lkr Φ :
       0 ≤ i < 3 → i ≠ cz c →
-      env_fun_spec Lz leak_ok lk1 lk2 -∗
-      xk i x -∗ slot_tok (γr i (nxt i)) -∗ slot_tok (γr i (nxt2 i)) -∗
-      (∀ v1 v2, party_post v1 v2 -∗ Φ v1 v2) -∗
-      BREL run_party c lk1 (net_eps l1) #i (vgval x) ≤ run_party c lk2 (net_eps l2) #i vunit
-        <|M|> {{Φ}}.
+      ⊢ eq_env_fun_spec X leak_ok lkl lkr -∗
+        ⎡xk i x⎤ -∗ ⎡slot_tok (γr i (nxt i))⎤ -∗ ⎡slot_tok (γr i (nxt2 i))⎤ -∗
+        (∀ vl vr, ⎡party_post γx vl vr⎤ -∗ Φ vl vr) -∗
+        EQ run_party c lkl (net_eps ll) #i (vgval x) ≈ run_party c lkr (net_eps lr) #i vunit
+          <|T|> {{Φ}}.
     Proof using All.
       iIntros (Hi Hic) "Hlk Hx Htp Htq HΦ".
       iPoseProof (run_party_spec with "Hlk Hx Htp Htq HΦ") as "H"; first done.
       by rewrite bool_decide_eq_false_2.
     Qed.
-
-
   End ops.
 
-  (** * The mirrored run: the ideal world on the left, the real one on the right *)
-
-  (* The message relations with the two worlds swapped. *)
-  Definition Rmsg_rev (k : Z) (v1 v2 : val) : iProp Σ := Rmsg k v2 v1.
-  Definition Rdeliv_rev (k : Z) (v1 v2 : val) : iProp Σ := Rdeliv k v2 v1.
-  Global Instance Rmsg_rev_persistent k v1 v2 : Persistent (Rmsg_rev k v1 v2).
-  Proof. rewrite /Rmsg_rev. apply _. Qed.
-  Global Instance Rmsg_rev_timeless k v1 v2 : Timeless (Rmsg_rev k v1 v2).
-  Proof. rewrite /Rmsg_rev. apply _. Qed.
-
-  Section ops_rev.
-    Context (l1 l2 : label) (Lz : iLblThy Σ) (i : Z) (x : vgG).
-    Local Notation M := (([l1], [l2], NetThy Rmsg_rev Rdeliv_rev l1 l2) :: Lz).
-
-    Definition send_spec_rev (send1 send2 : val) : iProp Σ :=
-      □ ∀ K1 K2 (d t : Z) (m1 m2 : val) S,
-        ⌜NeutralEctx [l1] K1⌝ → ⌜NeutralEctx [l2] K2⌝ →
-        ⌜ectx_labels K1 ⊆ [l1]⌝ → ⌜ectx_labels K2 ⊆ [l2]⌝ →
-        Rmsg_rev (key i d t) m1 m2 -∗
-        BREL fill K1 #()%V ≤ fill K2 #()%V <|M|> {{S}} -∗
-        BREL fill K1 (send1 ((#d, #t), m1)%V) ≤ fill K2 (send2 ((#d, #t), m2)%V) <|M|> {{S}}.
-
-    Definition recv_spec_rev (recv1 recv2 : val) : iProp Σ :=
-      □ ∀ K1 K2 (s t : Z) S,
-        ⌜NeutralEctx [l1] K1⌝ → ⌜NeutralEctx [l2] K2⌝ →
-        ⌜ectx_labels K1 ⊆ [l1]⌝ → ⌜ectx_labels K2 ⊆ [l2]⌝ → ⌜hdr_ok s i t⌝ →
-        (∀ u1 u2, Rdeliv_rev (key s i t) u1 u2 -∗ BREL fill K1 u1 ≤ fill K2 u2 <|M|> {{S}}) -∗
-        BREL fill K1 (recv1 (#s, #t)%V) ≤ fill K2 (recv2 (#s, #t)%V) <|M|> {{S}}.
-
-    (* Now the simulation's sample, on the left, is the shifted one. *)
-    Definition smp_spec_rev (smp1 smp2 : val) : iProp Σ :=
-      □ ∀ K1 K2 (σ : vgG) S,
-        ⌜ectx_labels K1 ⊆ [l1]⌝ → ⌜ectx_labels K2 ⊆ [l2]⌝ → ⌜i ≠ cz c ∨ σ = 1%g⌝ →
-        (∀ r : vgG, BREL fill K1 (vgval (σ * r)%g) ≤ fill K2 (vgval r) <|M|> {{S}}) -∗
-        BREL fill K1 (smp1 #()%V) ≤ fill K2 (smp2 #()%V) <|M|> {{S}}.
-
-    Definition party_post_rev (v1 v2 : val) : iProp Σ :=
-      ∃ x0 x1 x2, xk 0 x0 ∗ xk 1 x1 ∗ xk 2 x2 ∗ ⌜v2 = vgval (x0 * x1 * x2)%g⌝.
-
-    Lemma party_core_spec_rev (send1 send2 recv1 recv2 smp1 smp2 : val) Φ :
-      0 ≤ i < 3 →
-      send_spec_rev send1 send2 -∗ recv_spec_rev recv1 recv2 -∗ smp_spec_rev smp1 smp2 -∗
-      xk i x -∗ slot_tok (γr i (nxt i)) -∗ slot_tok (γr i (nxt2 i)) -∗
-      (∀ v1 v2, party_post_rev v1 v2 -∗ Φ v1 v2) -∗
-      BREL party #i (vgval (if bool_decide (i = cz c) then x else 1%g)) ((send1, recv1), smp1)%V
-         ≤ party #i (vgval x) ((send2, recv2), smp2)%V
-        <|M|> {{Φ}}.
-    Proof using All.
-      iIntros (Hi) "#Hsend #Hrecv #Hsmp #Hx Htp Htq HΦ".
-      destruct (nxt_spec i Hi) as (Hp & Hq & Hpi & Hqi & Hqp & _).
-      rewrite /party /Shr /Sum. brel_pures. rewrite -/(nxt i) -/(nxt2 i).
-      (* the two samples; only [h']'s share to [h] is shifted *)
-      iApply ("Hsmp" $! [AppRCtx _] [AppRCtx _] 1%g);
-        [iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | iPureIntro; by right |].
-      iIntros (rp). rewrite mul1g.
-      iMod (slot_set _ (vgval rp) with "Htp") as "#Hrp". simpl. brel_pures.
-      iApply ("Hsmp" $! [AppRCtx _] [AppRCtx _] (shift i (nxt2 i) x));
-        [iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | |].
-      { iPureIntro. rewrite /shift. case_bool_decide as Hs; [left | by right].
-        simplify_eq. by destruct (roles_spec c Hc) as (_&_&_&_&_&_&_&?&_). }
-      iIntros (rq).
-      iMod (slot_set _ (vgval rq) with "Htq") as "#Hrq". simpl. brel_pures.
-      (* sending the shares *)
-      iApply ("Hsend" $! [AppRCtx _] [AppRCtx _] (nxt i) 0 (vgval rp) (vgval rp));
-        [iPureIntro; tc_solve | iPureIntro; tc_solve |
-         iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | |].
-      { iPoseProof (share_rmsg i (nxt i) x rp with "Hx Hrp") as "H";
-          first (rewrite /hdr_ok; lia).
-        rewrite /Rmsg_rev. by rewrite shift_nxt mul1g. }
-      simpl. brel_pures.
-      iApply ("Hsend" $! [AppRCtx _] [AppRCtx _] (nxt2 i) 0
-                (vgval (shift i (nxt2 i) x * rq)%g) (vgval rq));
-        [iPureIntro; tc_solve | iPureIntro; tc_solve |
-         iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | |].
-      { rewrite /Rmsg_rev. iApply (share_rmsg with "Hx Hrq"). rewrite /hdr_ok; lia. }
-      simpl. brel_pures.
-      (* receiving the shares *)
-      iApply ("Hrecv" $! [AppRCtx _] [AppRCtx _] (nxt i) 0);
-        [iPureIntro; tc_solve | iPureIntro; tc_solve |
-         iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver |
-         iPureIntro; rewrite /hdr_ok; lia |].
-      iIntros (u1 u2) "Hu".
-      iDestruct (deliv_inv with "Hu") as (bp bp') "([-> ->] & #Hbp & #Hbp')";
-        first (rewrite /hdr_ok; lia).
-      simpl. brel_pures.
-      iApply ("Hrecv" $! [AppRCtx _] [AppRCtx _] (nxt2 i) 0);
-        [iPureIntro; tc_solve | iPureIntro; tc_solve |
-         iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver |
-         iPureIntro; rewrite /hdr_ok; lia |].
-      iIntros (u1 u2) "Hu2".
-      iDestruct (deliv_inv with "Hu2") as (bq bq') "([-> ->] & #Hbq & #Hbq')";
-        first (rewrite /hdr_ok; lia).
-      simpl. brel_pures.
-      repeat (brel_mult_l || brel_inv_l). repeat (brel_mult_r || brel_inv_r). brel_pures.
-      (* sending the sums *)
-      iApply ("Hsend" $! [AppRCtx _] [AppRCtx _] (nxt i) 1);
-        [iPureIntro; tc_solve | iPureIntro; tc_solve |
-         iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | |].
-      { rewrite /Rmsg_rev. iApply (sum_rmsg with "Hx Hrp Hrq Hbp Hbp' Hbq Hbq'"); [done | by left]. }
-      simpl. brel_pures.
-      iApply ("Hsend" $! [AppRCtx _] [AppRCtx _] (nxt2 i) 1);
-        [iPureIntro; tc_solve | iPureIntro; tc_solve |
-         iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver | |].
-      { rewrite /Rmsg_rev. iApply (sum_rmsg with "Hx Hrp Hrq Hbp Hbp' Hbq Hbq'"); [done | by right]. }
-      simpl. brel_pures.
-      (* receiving the peers' sums *)
-      iApply ("Hrecv" $! [AppRCtx _] [AppRCtx _] (nxt i) 1);
-        [iPureIntro; tc_solve | iPureIntro; tc_solve |
-         iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver |
-         iPureIntro; rewrite /hdr_ok; lia |].
-      iIntros (u1 u2) "Hu3".
-      iDestruct (deliv_inv with "Hu3") as (sp sp') "([-> ->] & #Hsp & _)";
-        first (rewrite /hdr_ok; lia).
-      simpl. brel_pures.
-      iApply ("Hrecv" $! [AppRCtx _] [AppRCtx _] (nxt2 i) 1);
-        [iPureIntro; tc_solve | iPureIntro; tc_solve |
-         iPureIntro; simpl; set_solver | iPureIntro; simpl; set_solver |
-         iPureIntro; rewrite /hdr_ok; lia |].
-      iIntros (u1 u2) "Hu4".
-      iDestruct (deliv_inv with "Hu4") as (sq sq') "([-> ->] & #Hsq & _)";
-        first (rewrite /hdr_ok; lia).
-      simpl. brel_pures.
-      repeat (brel_mult_l || brel_inv_l). repeat (brel_mult_r || brel_inv_r). brel_pures.
-      (* the output *)
-      iDestruct (output_post with "Hx Hrp Hrq [Hbp] [Hbq] Hsp Hsq") as (x0 x1 x2) "(H0 & H1 & H2 & %Heq)";
-        [done | by iApply lval_share | by iApply lval_share |].
-      iApply brel_value. iIntros "$ !>". iApply "HΦ".
-      iExists x0, x1, x2. iFrame "H0 H1 H2". iPureIntro. by f_equal.
-    Qed.
-
-    Lemma net_send_spec_rev : ⊢ send_spec_rev (send_v i l1) (send_v i l2).
-    Proof using.
-      iIntros "!>" (K1 K2 d t m1 m2 S HK1 HK2 _ _) "Hm Hk".
-      rewrite /send_v. brel_pures.
-      by iApply (brel_net_send with "Hm Hk").
-    Qed.
-
-    Lemma net_recv_spec_rev : ⊢ recv_spec_rev (recv_v i l1) (recv_v i l2).
-    Proof using.
-      iIntros "!>" (K1 K2 s t S HK1 HK2 _ _ Hhdr) "Hk".
-      rewrite /recv_v. brel_pures.
-      by iApply (brel_net_recv with "Hk").
-    Qed.
-
-    Lemma smp_smp_spec_rev : ⊢ smp_spec_rev smp smp.
-    Proof using All.
-      iIntros "!>" (K1 K2 σ S _ _ _) "Hk".
-      rewrite /smp /sample. brel_pures.
-      iApply (brel_couple_rand_rand _ _ (add_coupling_nat σ^-1)); first apply add_coupling_nat_bound.
-      iIntros (k) "%Hk". rewrite !fill_app /=. brel_exp_l. brel_exp_r.
-      rewrite add_coupling_nat_mult; last lia.
-      iSpecialize ("Hk" $! (σ^-1 * g ^+ k)%g). by rewrite mulKVg.
-    Qed.
-
-    Local Existing Instance NeutralEctx_app.
-
-    Local Ltac bind_app K1 K2 :=
-      lazymatch goal with
-      | |- environments.envs_entails _ (brel _ (fill K1 (App ?f ?e)) (fill K2 (App ?f' ?e')) _ _) =>
-          rewrite -(fill_app K1 [AppRCtx f] e) -(fill_app K2 [AppRCtx f'] e')
-      end.
-
-    Lemma leaky_recv_spec_rev lk1 lk2 :
-      i = cz c → env_fun_spec Lz leak_ok lk1 lk2 -∗
-      recv_spec_rev (leaky_recv (recv_v i l1) lk1) (leaky_recv (recv_v i l2) lk2).
-    Proof using Hc.
-      iIntros (Hic) "#Hlk !>". iIntros (K1 K2 s t S HK1 HK2 HL1 HL2 Hhdr) "Hk".
-      rewrite /leaky_recv /recv_v. brel_pures.
-      bind_app K1 K2.
-      iApply brel_net_recv; first done.
-      iIntros (u1 u2) "#Hu". rewrite !fill_app /=.
-      iDestruct (deliv_to_c with "Hu") as (m) "[-> ->]"; [done | done |].
-      brel_pures.
-      bind_app K1 K2.
-      iApply "Hlk"; [iPureIntro; rewrite ectx_labels_app /=; set_solver.. | |].
-      { iPureIntro. right. by eexists _, _, _. }
-      rewrite !fill_app /=. brel_pures.
-      by iApply "Hk".
-    Qed.
-
-    Lemma leaky_smp_spec_rev lk1 lk2 :
-      i = cz c → env_fun_spec Lz leak_ok lk1 lk2 -∗
-      smp_spec_rev (leaky_smp smp lk1) (leaky_smp smp lk2).
-    Proof using All.
-      iIntros (Hic) "#Hlk !>". iIntros (K1 K2 σ S HL1 HL2 [Hσ | ->]) "Hk"; first done.
-      rewrite /leaky_smp. brel_pures.
-      bind_app K1 K2.
-      iApply (smp_smp_spec_rev $! _ _ 1%g);
-        [iPureIntro; rewrite ectx_labels_app /=; set_solver.. | by iPureIntro; right |].
-      iIntros (r). rewrite mul1g !fill_app /=. brel_pures.
-      bind_app K1 K2.
-      iApply "Hlk"; [iPureIntro; rewrite ectx_labels_app /=; set_solver.. | |].
-      { iPureIntro. left. by eexists. }
-      rewrite !fill_app /=. brel_pures.
-      iSpecialize ("Hk" $! r). by rewrite mul1g.
-    Qed.
-
-    Lemma run_party_spec_rev lk1 lk2 Φ :
-      0 ≤ i < 3 →
-      env_fun_spec Lz leak_ok lk1 lk2 -∗
-      xk i x -∗ slot_tok (γr i (nxt i)) -∗ slot_tok (γr i (nxt2 i)) -∗
-      (∀ v1 v2, party_post_rev v1 v2 -∗ Φ v1 v2) -∗
-      BREL run_party c lk1 (net_eps l1) #i (if bool_decide (i = cz c) then vgval x else vunit)
-         ≤ run_party c lk2 (net_eps l2) #i (vgval x)
-        <|M|> {{Φ}}.
-    Proof using All.
-      iIntros (Hi) "#Hlk #Hx Htp Htq HΦ".
-      rewrite /run_party. brel_pures.
-      iApply (brel_sel3_net [AppRCtx _] [AppRCtx _]); first done.
-      rewrite /net_ep /=. brel_pures.
-      destruct (decide (i = cz c)) as [Hic' | Hic'].
-      - (* the corrupt party *)
-        rewrite (bool_decide_eq_true_2 (i = cz c)) // (bool_decide_eq_true_2 (#i = #c));
-          last by rewrite Hic'.
-        rewrite /leaky. brel_pures.
-        iPoseProof (party_core_spec_rev (send_v i l1) (send_v i l2)
-          (leaky_recv (recv_v i l1) lk1) (leaky_recv (recv_v i l2) lk2)
-          (leaky_smp smp lk1) (leaky_smp smp lk2) _ Hi
-          with "[] [] [] Hx Htp Htq HΦ") as "H".
-        { iApply net_send_spec_rev. }
-        { by iApply leaky_recv_spec_rev. }
-        { by iApply leaky_smp_spec_rev. }
-        iEval (rewrite (bool_decide_eq_true_2 (i = cz c)) //) in "H".
-        iApply "H".
-      - (* an honest party *)
-        rewrite (bool_decide_eq_false_2 (i = cz c)) // (bool_decide_eq_false_2 (#i = #c));
-          last by intros [= ?].
-        rewrite is_unit. brel_pures.
-        iPoseProof (party_core_spec_rev (send_v i l1) (send_v i l2) (recv_v i l1) (recv_v i l2) smp smp _ Hi
-          with "[] [] [] Hx Htp Htq HΦ") as "H".
-        { iApply net_send_spec_rev. }
-        { iApply net_recv_spec_rev. }
-        { iApply smp_smp_spec_rev. }
-        iEval (rewrite (bool_decide_eq_false_2 (i = cz c)) //) in "H".
-        iApply "H".
-    Qed.
-
-    Lemma run_party_spec_rev_c lk1 lk2 Φ :
-      0 ≤ i < 3 → i = cz c →
-      env_fun_spec Lz leak_ok lk1 lk2 -∗
-      xk i x -∗ slot_tok (γr i (nxt i)) -∗ slot_tok (γr i (nxt2 i)) -∗
-      (∀ v1 v2, party_post_rev v1 v2 -∗ Φ v1 v2) -∗
-      BREL run_party c lk1 (net_eps l1) #i (vgval x) ≤ run_party c lk2 (net_eps l2) #i (vgval x)
-        <|M|> {{Φ}}.
-    Proof using All.
-      iIntros (Hi Hic) "Hlk Hx Htp Htq HΦ".
-      iPoseProof (run_party_spec_rev with "Hlk Hx Htp Htq HΦ") as "H"; first done.
-      by rewrite bool_decide_eq_true_2.
-    Qed.
-
-    Lemma run_party_spec_rev_h lk1 lk2 Φ :
-      0 ≤ i < 3 → i ≠ cz c →
-      env_fun_spec Lz leak_ok lk1 lk2 -∗
-      xk i x -∗ slot_tok (γr i (nxt i)) -∗ slot_tok (γr i (nxt2 i)) -∗
-      (∀ v1 v2, party_post_rev v1 v2 -∗ Φ v1 v2) -∗
-      BREL run_party c lk1 (net_eps l1) #i vunit ≤ run_party c lk2 (net_eps l2) #i (vgval x)
-        <|M|> {{Φ}}.
-    Proof using All.
-      iIntros (Hi Hic) "Hlk Hx Htp Htq HΦ".
-      iPoseProof (run_party_spec_rev with "Hlk Hx Htp Htq HΦ") as "H"; first done.
-      by rewrite bool_decide_eq_false_2.
-    Qed.
-
-  End ops_rev.
-
-End party.
+End party_eq.

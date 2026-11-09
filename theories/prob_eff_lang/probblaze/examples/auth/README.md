@@ -36,6 +36,6 @@ DDH term.
 | `auth_typing.v` | The interface types `MACT` and `raw`; typings of the MAC instances, of `AUTH_of M` for any typed `M`, and of `S_AUTH`. |
 | `rand_avoid.v` | A coupling of two tapes along a bijection that avoids a list of values, paid by error credits. |
 | `auth_mac.v` | Group facts (abelian, prime order); the relations `MAC ≈ MAC_pad` (exact) and `MAC_pad ≈ MAC_ideal` (`1/q`). |
-| `auth_prf.v` | The skeleton lemma `auth_skel_rel`; both directions of `AUTH_ideal ≈ S_AUTH ∘f F_AUTH`. |
+| `auth_prf.v` | The skeleton lemma `auth_skel_rel`; the equivalence `AUTH_ideal ≈ S_AUTH ∘f F_AUTH` (`AUTH_SIM_EQ`, one proof in the logic of `eq/`) and its two directions. |
 | `advantage_auth.v` | Lifting a MAC relation with credits to the protocol (`AUTH_of_err`); the theorem `adv_AUTH`. |
 | `advantage_auth_dhke.v` | The composed systems `REAL_AUTH_DHKE = AUTH ∘f DH_KE`, `IDEAL_AUTH_DHKE`, `SIM_AUTH_DHKE = S_AUTH ∘f SIM_DHKE`, `RED_AUTH_DHKE`; the theorem `auth_dhke` by `uc_composition_f`. |

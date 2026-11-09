@@ -6,7 +6,10 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   class_instances.
 From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
+From iris.bi Require Import monpred.
+From iris.proofmode Require Import monpred.
 From clutch.prob_eff_lang.probblaze.examples Require Import ske ske_sec_chan_def ske_sec_chan_common.
+From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_valgroup eq_finval eq_handlers eq_compat.
 
 
 Import fingroup.
@@ -75,851 +78,387 @@ Section schan_security.
 
   Program Definition client_row' (csend crecv lsend lrecv getKey1 getKey2 ssend1 srecv1 ssend2 srecv2 : label) := SemRow [([lrecv; lsend; getKey2; srecv1; ssend1], [csend; crecv; getKey1; srecv2; ssend2], sec_channel ssend1 ssend2 srecv1 srecv2)] (client_pers_mono_row' csend crecv lsend lrecv getKey1 getKey2 ssend1 srecv1 ssend2 srecv2).
 
-  (* The reverse refinement.  Mirror image of [sc_real_game1] below: every
-     left-hand step becomes a right-hand step and vice versa, the heap and tape
-     assertions swap between the implementation and the specification side, and
-     the tapes are coupled along the inverse bijection [f_inv keyf]. *)
-  Lemma GAME1_REAL_SKE_MS :
-    ⊢ sem_typed [] GAME1 REAL_SKE ⊥ (𝟙 -{ ⟨⟩ }-[ MS ]-> τsc)%T [].
-  Proof using All with (brel_pures'; repeat foldkont). 
-    iIntros (vs) "!> _". simpl.
-    iApply brel_value. iIntros "$ !>". iSplit; last done.
-    rewrite /sem_ty_mbang /sem_ty_arr /=. iModIntro.
-    iIntros (u1 u2) "[-> ->]".
+  (* The theory of the client's secure channel, with the labels of [l]
+     ([sl], [rl]) and of [r] ([sr], [rr]); it is symmetric, so in direction
+     [Bwd] it is the same theory with the labels swapped. *)
+  Definition skechan_thy (sl sr rl rr : label) : dir → iThy Σ :=
+    λ d, pmono_prot_car (sem_sig_car (sec_channel (pick d sl sr) (pick d sr sl) (pick d rl rr) (pick d rr rl))).
+
+  Lemma skechan_thy_app sl sr rl rr el er Q :
+    eq_thy_app (skechan_thy sl sr rl rr) el er Q ⊢
+      (∃ m : nat, ⌜el = (do: sl #m)%E ∧ er = (do: sr #m)%E⌝ ∗ ⎡Q #()%V #()%V⎤) ∨
+      (⌜el = (do: rl bob)%E ∧ er = (do: rr bob)%E⌝ ∗
+       ((∀ mv : mt, ⎡Q (SOMEV (fvtval mv)) (SOMEV (fvtval mv))⎤) ∧ ⎡Q NONEV NONEV⎤)).
+  Proof.
+    split=> d. destruct d; rewrite /eq_thy_app /skechan_thy /pick /=;
+      iIntros "[(%m & [-> ->] & HQ)|(-> & -> & HQ)]"; rewrite monPred_at_or.
+    all: try (iLeft; rewrite monPred_at_exist; iExists m;
+              rewrite monPred_at_sep monPred_at_pure monPred_at_embed; iFrame "HQ"; by iPureIntro).
+    all: iRight; rewrite monPred_at_sep monPred_at_pure monPred_at_and monPred_at_forall;
+      iSplit; first by iPureIntro.
+    all: iSplit; [iIntros (mv); rewrite monPred_at_embed; iDestruct "HQ" as "[HQs _]"; iApply "HQs"
+                 |rewrite monPred_at_embed; iDestruct "HQ" as "[_ HQn]"; iApply "HQn"].
+  Qed.
+
+  (* [REAL_SKE] is [l], [GAME1] is [r].  [l]'s exponent tape [γl] and [r]'s
+     key tape [ι] are coupled along [keyf], so both sides encrypt under the
+     same key. *)
+  Lemma REAL_SKE_GAME1_EQ :
+    ⊢ EQ REAL_SKE ≈ GAME1 <|iLblSig_to_iLblThy (⊥ : sem_row Σ)|> {{ ⟪ 𝟙 -{ ⟨⟩ }-[ MS ]-> τsc ⟫ }}.
+  Proof using All with (eq_pures'; repeat foldkont).
+    iApply eq_value. iModIntro. iModIntro.
+    iApply eq_lift_arr. iIntros (u1 u2) "Hu". rewrite eq_lift_unit. iDestruct "Hu" as %[-> ->].
     rewrite /GAME1 /REAL_SKE /C_ENC_real /RED_CHAN_sess /parallel_composition /enc_real_tape /func_comp...
-
-    (* Setup, shared by all calls.  Arguments are evaluated first: left
-       (game1) the encryption scheme, RED_CHAN, F_OAUTH, F_KE; right (sc_real)
-       CHAN, F_OAUTH, F_KE. *)
-    brel_alloctape_l (ι) as "Hι"... (* Initialization of the encryption scheme *)
-    brel_alloc_l lml as "Hlml"...
-    brel_alloc_l laml as "Hlaml"...
-    brel_alloctape_l γl as "Hγl"...
-    brel_alloc_l lcl as "Hlcl"...
-    brel_alloc_r lmr as "Hlmr"...
-    brel_alloc_r lamr as "Hlamr"...
-    brel_alloctape_r γr as "Hγr"...
-    (* No [...]: the invariant must be allocated before both sides are values. *)
-    brel_alloc_r lcr as "Hlcr".
-
-    (* Invariants *)
-    rewrite Nat2Z.id.
-    iAssert (γr ↪ₛN (n; []))%I with "[Hγr]" as "Hγr".
-    { iExists []. simpl. iFrame. done. }
-    iDestruct (tapeN_to_persistent with "Hγl") as ">#Hγl".
-    (* Mirror image of the coupling in [sc_real_game1]: here [game1] is on the
-       left, so the left tape [ι] draws the symmetric key [x] and the right tape
-       [γr] draws Alice's DH exponent [f_inv keyf x] -- whose encoding is again
-       [x], by [keyf_inv_spec]. *)
-    iApply (brel_couple_TT _ n (f_inv keyf)).
-    { apply keyf_inv_dom. }
+    (* Setup, shared by all calls: [l] (sc_real) CHAN, F_OAUTH, F_KE; [r]
+       (game1) the encryption scheme, RED_CHAN, F_OAUTH, F_KE. *)
+    eq_alloc_l lml as "Hlml"...
+    eq_alloc_l laml as "Hlaml"...
+    eq_alloctape_l γl as "Hγl"...
+    eq_alloc_l lcl as "Hlcl"...
+    eq_alloctape_r ι as "Hι"...
+    eq_alloc_r lmr as "Hlmr"...
+    eq_alloc_r lamr as "Hlamr"...
+    eq_alloctape_r γr as "Hγr"...
+    eq_alloc_r lcr as "Hlcr".
     rewrite vg_fvt_card. assert (S n - 1 = n)%Z as -> by lia.
-    rewrite Nat2Z.id. iFrame.
-    iIntros (x) "(Hι&Hγr) //=".
-    iDestruct (tapeN_hd_bound with "Hι") as "(%Hx&Hι)".
-
-    iApply (brel_na_alloc ((lmr ↦ₛ NONEV ∗ lcr ↦ₛ NONEV ∗ lml ↦ NONEV ∗ lcl ↦ NONEV ∗ lamr ↦ₛ NONEV ∗ laml ↦ NONEV
-                           ∗ γr ↪ₛN (n; [f_inv keyf x]) ∗ (Loc ι) ↪N (n; [x]))
-                           ∨ (∃ (c' : nat) (mv : mt), lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c'
-                                            ∗ lamr ↦ₛ NONEV ∗ laml ↦ NONEV
-                                            ∗ γr ↪ₛ□N (n; []))
-                           ∨ (∃ (c' : nat) (mv : mt) (cv : ct), (□ P (key := vg_fv) (g ^+ f_inv keyf x)%g mv cv) ∗
-                                                                lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #(f_inv keyf x) ∗ lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #c'
-                                                                ∗ lamr ↦ₛ□ SOMEV (fvtval cv) ∗ laml ↦□ SOMEV (fvtval cv)
-                                                                ∗ γr ↪ₛ□N (n; []) ∗ (Loc ι) ↪□N (n; []))
-              ) alphaN).
-    iSplitL "Hlmr Hlml Hlcr Hlcl Hγr Hι Hlamr Hlaml"; [iNext; iLeft; iFrame|].
+    rewrite Nat2Z.id.
+    iMod (eq_tp_r_persist with "Hγr") as "#Hγr".
+    iApply (eq_couple_tapes_bij _ n keyf); first apply keyf_dom.
+    iFrame "Hγl Hι". iIntros (x Hx) "[Hγl Hι] /=".
+    set (I1 := (lml ↦ₗ NONEV ∗ lcl ↦ₗ NONEV ∗ lmr ↦ᵣ NONEV ∗ lcr ↦ᵣ NONEV ∗ laml ↦ₗ NONEV ∗ lamr ↦ᵣ NONEV
+                ∗ γl ↪ₗN (n; [x]) ∗ ι ↪ᵣN (n; [keyf x]))%I : iPropD Σ).
+    set (I2 := (∃ (c' : nat) (mv : mt), lml ↦ₗ□ SOMEV (fvtval mv) ∗ lcl ↦ₗ□ SOMEV #x ∗
+                  lmr ↦ᵣ□ SOMEV (fvtval mv) ∗ lcr ↦ᵣ□ SOMEV #c' ∗ laml ↦ₗ NONEV ∗ lamr ↦ᵣ NONEV ∗
+                  γl ↪ₗ□N (n; []))%I : iPropD Σ).
+    set (I3 := (∃ (c' : nat) (mv : mt) (cv : ct), ⎡□ P (key := vg_fv) (g ^+ x)%g mv cv⎤ ∗
+                  lml ↦ₗ□ SOMEV (fvtval mv) ∗ lcl ↦ₗ□ SOMEV #x ∗ lmr ↦ᵣ□ SOMEV (fvtval mv) ∗ lcr ↦ᵣ□ SOMEV #c' ∗
+                  laml ↦ₗ□ SOMEV (fvtval cv) ∗ lamr ↦ᵣ□ SOMEV (fvtval cv) ∗
+                  γl ↪ₗ□N (n; []) ∗ ι ↪ᵣ□N (n; []))%I : iPropD Σ).
+    iApply (eq_na_alloc (I1 ∨ I2 ∨ I3) alphaN).
+    iSplitL "Hlml Hlmr Hlcl Hlcr Hγl Hι Hlaml Hlamr"; [iNext; iLeft; iFrame|].
     iIntros "#HI"...
-
     (* One call: a client and its effect handlers *)
-    iModIntro.
-    iIntros (θL). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff"...
-    iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
-    iDestruct "Hauthkey" as (w1 w1' w2 w2') "[-> [-> [Hautheff Hkeyeff]]]"...
-    iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & (#Hasnd & #Harcv))"...
-    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))"...
-
-
+    iApply eq_value. iModIntro. iEval (rewrite eq_lift_forall). iIntros (θL). iModIntro.
+    iApply eq_lift_arr. iIntros (f1 f2) "Hff"...
+    iApply eq_value. iModIntro. iEval (rewrite eq_lift_forall). iIntros (autheff).
+    iEval (rewrite eq_lift_forall). iIntros (keyeff).
+    iApply eq_lift_arr. iIntros (ak_l ak_r) "Hauthkey".
+    iEval (rewrite eq_lift_prod) in "Hauthkey".
+    iDestruct "Hauthkey" as (w1 w1' w2 w2') "(-> & -> & Hautheff & Hkeyeff)"...
+    iEval (rewrite eq_lift_prod) in "Hautheff".
+    iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & #Hasnd & #Harcv)"...
+    iEval (rewrite eq_lift_prod) in "Hkeyeff".
+    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & #Hkeysnd & #Hkeyrcv)"...
     (* Allocation/initialization *)
-    brel_effect_r gkr as "Hgkr".
-    brel_effect_l gkl as "Hgkl"...
-    brel_effect_r sr as "Hsr".
-    brel_effect_l sl as "Hsl"...
-    brel_effect_r rr as "Hrr".
-    brel_effect_l rl as "Hrl"...
-    brel_effect_r ssr as "Hssr".
-    brel_effect_l ssl as "Hssl"...
-    brel_effect_r srr as "Hsrr".
-    brel_effect_l srl as "Hsrl"...
-
-    (* Setting up clients *)
-    set (θ := client_row' sr rr sl rl gkr gkl ssl srl ssr srr).
-    iSpecialize ("Hff" $! θ).
-    unfold sem_ty_arr, sem_ty_mbang. simpl.
-    iAssert (sem_val_typed  ((λ: "m", do: ssl "m"), (λ: <>, do: srl bob))%V ((λ: "m", do: ssr "m") , (λ: <>, do: srr bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option msg.(sem_τFT))))%T)) as "Hschn".
-    { iApply SEM_TYPED_EFF. }
-     unfold sem_val_typed. simpl.
-    iDestruct "Hschn" as "#Hschn".
-    iSpecialize ("Hff" with "Hschn"). 
-
-    (* Theories *)
-    iApply brel_new_theory.
-    iApply (brel_add_label_r with "Hssr").
-    iApply (brel_add_label_r with "Hsrr").
-    iApply (brel_add_label_l with "Hssl").
-    iApply (brel_add_label_l with "Hsrl").
-    iApply (brel_add_label_r with "Hgkr").
-    iApply (brel_add_label_l with "Hgkl").
-    iApply (brel_add_label_r with "Hrr").
-    iApply (brel_add_label_r with "Hsr").
-    iApply (brel_add_label_l with "Hsl").
-    iApply (brel_add_label_l with "Hrl"). 
-
-    iApply brel_learn. iIntros "%Hdist' _".
-    assert (NoDup [sr; rr; gkr; srr; ssr]) as Hnd_r.
-    { unfold distinct in Hdist'. destruct Hdist' as [_ Hd'].
-      unfold distinct_r in Hd'. simpl in Hd'.
-      repeat (rewrite -> labels_r_cons in Hd').
-      by (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]). }
-    
-    assert (NoDup [rl; sl; gkl; srl; ssl]) as Hnd_l.
-    { unfold distinct in Hdist'. destruct Hdist' as [Hd' _].
-      unfold distinct_l in Hd'. simpl in Hd'.
-      rewrite !labels_l_cons in Hd'.
-      by (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]). }
-
-    (* Case on the clients behaviour and induction *)
-    rewrite !iLblSig_to_iLblThy_app !iThyIfMono_iLblSig_to_iThyIfMono.
-    iDestruct (brel_introduction_mono _ (([rl; sl; gkl; srl; ssl], [sr; rr; gkr; srr; ssr], sec_channel ssl ssr srl srr : iThy Σ) :: to_iThyIfMono OS (iLblSig_to_iLblThy autheff) ++ to_iThyIfMono OS (iLblSig_to_iLblThy keyeff) ++ iLblSig_to_iLblThy θL) with "[][$Hff]") as "Hff".
-    { iApply to_iThy_le_intro'. solve_submseteq. }
-    iApply ((brel_exhaustion (f1 _) ( f2 _)) with "[$Hff]"); [set_solver|set_solver| ].
-    
+    eq_effect_l gkl as "Hgkl". eq_effect_r gkr as "Hgkr"...
+    eq_effect_l sl as "Hsl". eq_effect_r sr as "Hsr"...
+    eq_effect_l rl as "Hrl". eq_effect_r rr as "Hrr"...
+    eq_effect_l ssl as "Hssl". eq_effect_r ssr as "Hssr"...
+    eq_effect_l srl as "Hsrl". eq_effect_r srr as "Hsrr"...
+    set (lls := [sl; rl; gkl; srl; ssl]).
+    set (rls := [rr; sr; gkr; srr; ssr]).
+    (* The client's row: the secure channel, with the labels of the program
+       on the left. *)
+    set (θc := λ d, pick d (client_row sl rl sr rr gkl gkr ssl srl ssr srr)
+                           (client_row' sl rl sr rr gkl gkr ssr srr ssl srl)).
+    iApply eq_new_theory.
+    iApply eq_add_label_l. iFrame "Hssl".
+    iApply eq_add_label_l. iFrame "Hsrl".
+    iApply eq_add_label_l. iFrame "Hgkl".
+    iApply eq_add_label_l. iFrame "Hrl".
+    iApply eq_add_label_l. iFrame "Hsl".
+    iApply eq_add_label_r. iFrame "Hssr".
+    iApply eq_add_label_r. iFrame "Hsrr".
+    iApply eq_add_label_r. iFrame "Hgkr".
+    iApply eq_add_label_r. iFrame "Hsr".
+    iApply eq_add_label_r. iFrame "Hrr".
+    iApply eq_learn_nodup. iIntros ([Hnd_l Hnd_r]).
+    eq_reshape_l (f1 _). eq_reshape_r (f2 _).
+    iApply (eq_exhaustion _ _ _ _ (skechan_thy ssl ssr srl srr) with "[Hff]");
+      [set_unfold; tauto | set_unfold; tauto | |].
+    { iApply (eq_thy_mono _ _ (EqThy (λ d, iLblSig_to_iLblThy (sem_row_union (θc d) θL)))).
+      { intros []; rewrite /θc /skechan_thy /lls /rls /pick /=; iApply to_iThy_le_intro'; simpl;
+          apply submseteq_skip; unfold sem_row_union;
+          repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app);
+          solve_submseteq. }
+      iApply (eq_lift_forall_app _ _ _ θc with "Hff").
+      iApply eq_lift_dep_intro. intros []; rewrite /θc /pick /=.
+      - iPoseProof (SEM_TYPED_EFF _ _ _ _ _ _ (client_pers_mono_row _ _ _ _ _ _ _ _ _ _)) as "H".
+        unfold sem_val_typed. simpl. iDestruct "H" as "#H". iApply "H".
+      - iPoseProof (SEM_TYPED_EFF _ _ _ _ _ _ (client_pers_mono_row' _ _ _ _ _ _ _ _ _ _)) as "H".
+        unfold sem_val_typed. simpl. iDestruct "H" as "#H". iApply "H". }
     iLöb as "IH".
-    iSplit; [iIntros (v1 v2) "%Hv1v2 !>"; by brel_pures'|].
-    iIntros (?????) "!# %Hk1 %Hk2 [(%m&(->&->)&HQ)|(->&->&HQ)] #Hrel".
+    iSplit.
+    { iIntros "!>" (vl vr) "Hv". rewrite eq_lift_unit. iDestruct "Hv" as %[-> ->].
+      eq_pures_l. eq_pures_r. iApply eq_value. iModIntro. by rewrite eq_lift_unit. }
+    iIntros "!>" (k1' k2' e1 e2 Q) "%Hk1 %Hk2 HXQ #Hrel".
+    iDestruct (skechan_thy_app with "HXQ") as "[(%m & %Hm' & HQ) | (%Hrecv & HQ)]".
     (* Alice tries to send a message m *)
-    - 
-      brel_handle_os_l (rssl) as "Hssl".
-      brel_handle_os_r (rssr) as "Hssr"...
-      (* Both sides decode the client's integer code with the SAME [fvt_of_int],
-         so the case split is on [fvt_of_int_sem m] rather than on a bound, and
-         the message carried through the invariant is the decoded VALUE [mv]. *)
-      (* [fin_val := msg] MUST be pinned: left implicit, the [fvt_of_int] in the
-         rule's conclusion is headed by an evar and the [fill K] unification
-         against the handler stack has nothing to match on. *)
+    - destruct Hm' as [-> ->].
+      eq_handle_os rssl rssr as "Hssl" "Hssr"...
       destruct (fvt_of_int_sem (fin_val := msg) m) as [mv|] eqn:Hmv.
-      2 : { iApply (brel_fvt_of_int_none_l (fin_val := msg)); first exact Hmv.
-            iApply (brel_fvt_of_int_none_r (fin_val := msg)); first exact Hmv...
-             brel_cont_l. 
-             brel_cont_r.
-            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
-      iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first exact Hmv.
-      iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first exact Hmv...
-      iApply (brel_na_inv _ _ alphaN); first set_solver.
+      2: { eq_lift_l (brel_fvt_of_int_none_l (fin_val := msg)) (brel_fvt_of_int_none_r (fin_val := msg)).
+           eq_lift_r (brel_fvt_of_int_none_l (fin_val := msg)) (brel_fvt_of_int_none_r (fin_val := msg))...
+           eq_cont_l. eq_cont_r.
+           eq_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]";
+             [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
+      eq_fvt_of_int_l Hmv. eq_fvt_of_int_r Hmv...
+      iApply (eq_na_open _ _ alphaN); first set_solver.
       iFrame "HI".
-      iIntros "([>(Hlmr&Hlcr&Hlml&Hlcl&Hlamr&Hlaml&Hγr&Hι)|[H2|H3]]&Hclose)".
-      + brel_load_r...
-        brel_load_l...
-        brel_store_r...
-        brel_store_l...
-        iApply (brel_handle_os_r [] [HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _]).
+      iIntros "[[>(Hlml&Hlcl&Hlmr&Hlcr&Hlaml&Hlamr&Hγl&Hι)|[>H2|H3]] Hclose]".
+      + eq_load_l... eq_load_r... eq_store_l... eq_store_r...
+        eq_handle_os_l_in [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _].
         { eapply NoDup_cons_1_1. simpl.
-          eapply (submseteq_NoDup _ [sr; rr; gkr; srr; ssr]); [solve_submseteq|exact Hnd_r]. }
+          eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }
+        iIntros (rgkl) "Hrgkl"...
+        eq_handle_os_r_in [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _].
+        { eapply NoDup_cons_1_1. simpl.
+          eapply (submseteq_NoDup _ [rr; sr; gkr; srr; ssr]); [solve_submseteq | exact Hnd_r]. }
         iIntros (rgkr) "Hrgkr"...
-        iApply (brel_handle_os_l [] [HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _]).
-        { eapply NoDup_cons_1_1. simpl.
-          eapply (submseteq_NoDup _ [rl; sl; gkl; srl; ssl]); [solve_submseteq | exact Hnd_l]. }
-        iIntros (rgkl) "!> Hrgkl"...
-        brel_load_r...
-        brel_load_l...
-        brel_rand_r...
-        iApply brel_randT_empty_l. 
-        iSplitR; first by iFrame "#".
-        iIntros "!>" (c') "_ _".
-        brel_store_r...
-        brel_store_l...
-
-        iMod (ghost_map_elem_persist with "Hlmr") as "#Hlmr".
-        iMod (ghost_map_elem_persist with "Hlcr") as "#Hlcr".
-        iMod (ghost_map_elem_persist with "Hlml") as "#Hlml".
-        iMod (ghost_map_elem_persist with "Hlcl") as "#Hlcl".
-        iDestruct (spec_tape_to_persistent with "Hγr") as ">#Hγr".
-        iApply brel_na_close. iFrame.
-        iSplitL "Hlamr Hlaml".
-        { iModIntro. iRight. iLeft. iExists _, _. iFrame "#". iFrame. }
-
-        iApply (brel_bind'' [AppRCtx _] [AppRCtx _] (to_iThyIfMono OS (iLblSig_to_iLblThy keyeff))); try (apply list_subseteq_nil).
-        { iApply to_iThy_le_intro'. solve_submseteq. }
-        iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-        { iApply "Hkeysnd". iExists _, _. by iLeft. }
-        iIntros (v1 v2) "(->&->)"...
-        iApply (brel_bind'' [AppRCtx _] [AppRCtx _] (to_iThyIfMono OS (iLblSig_to_iLblThy keyeff))); try (apply list_subseteq_nil).
-        { iApply to_iThy_le_intro'. solve_submseteq. }
-        iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-        { iApply "Hkeyrcv". iExists _, _. by iLeft. }
-        iIntros (v1' v2') "(%&%&[(->&->&->&->)|(->&->&->&->)])"...
-        { brel_cont_r... brel_cont_r. 
-          brel_cont_l... brel_cont_l...
-          iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
-        brel_cont_r. 
-        brel_cont_l...
-        brel_rand_l...
-        (* [enc_real_tape] decodes the key code [x] it just drew; by
-           [vg_of_int_sem_keyf_inv] that is exactly the DH key [g ^+ f_inv keyf x]
-           the right-hand side obtained from the key exchange, so after the
-           decode both sides encrypt under the same key.  (The old proof instead
-           ENCODED the right-hand key with [int_of_vg]; the scheme now takes a
-           group value, so that step is gone.) *)
-        iApply brel_vg_of_int_correct_l; first (by apply vg_of_int_sem_keyf_inv).
-        brel_pures'.
-        iApply (brel_bind _ _ _ [] _ _ (enc (ks := vg_fv) (ms := ms)_ _) (enc (ks := vg_fv) (ms := ms)_ _)); 
-          [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
-        assert (to_iThyIfMono OS [] = []) as <- by done.
-        iApply brel_mono; first iApply to_iThy_le_refl.
-        { iApply (brel_enc_couple (key := vg_fv) (msg := msg)). }
-        simpl.
-        iIntros (??) "(%c&->&->&#P)".
-        brel_pures'; simpl.
-        (* [brel_pures'] raises one label-freshness goal per side; which side
-           comes first is fixed by the tactic, not by the direction, so let
-           each goal pick its own [NoDup] fact. *)
-        iApply (brel_handle_os_l _ [HandleCtx _ _ _ _ _;AppRCtx _]).
-        { eapply NoDup_cons_1_1. first [ eapply (submseteq_NoDup _ [sr; rr; gkr; srr; ssr]); [solve_submseteq|exact Hnd_r]
-                | eapply (submseteq_NoDup _ [rl; sl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l] ]. }
-        iIntros (rsl) "!> Hsl"...
-        iApply (brel_handle_os_r _ [HandleCtx _ _ _ _ _;AppRCtx _]).
-        { eapply NoDup_cons_1_1. first [ eapply (submseteq_NoDup _ [sr; rr; gkr; srr; ssr]); [solve_submseteq|exact Hnd_r]
-                | eapply (submseteq_NoDup _ [rl; sl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l] ]. }
+        eq_load_l... eq_load_r...
+        eq_rand_l as "%Hx'"...
+        eq_reshape_r (rand(#lbl:γr) #_)%E.
+        iApply eq_rand_empty_r. iFrame "Hγr".
+        iIntros (c') "_ %Hc'"...
+        eq_store_l... eq_store_r...
+        iMod (eq_pt_l_persist with "Hlml") as "#Hlml".
+        iMod (eq_pt_l_persist with "Hlcl") as "#Hlcl".
+        iMod (eq_pt_r_persist with "Hlmr") as "#Hlmr".
+        iMod (eq_pt_r_persist with "Hlcr") as "#Hlcr".
+        iMod (eq_tp_l_persist with "Hγl") as "#Hγl".
+        iApply eq_na_close_rule. iFrame "Hclose".
+        iSplitL "Hlaml Hlamr".
+        { iNext. iRight. iLeft. iExists _, _. iFrame "∗#". }
+        eq_reshape_l (kysnd_l _). eq_reshape_r (kysnd_r _).
+        iApply (eq_env_call_gen lls rls (λ _, iThyBot) _ _ with "Hkeysnd [] [-]");
+          [set_unfold; tauto | set_unfold; tauto | | |].
+        { intros []; rewrite /lls /rls /pick /=; iApply to_iThy_le_intro'; unfold sem_row_union;
+            repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app); solve_submseteq. }
+        { iApply eq_lift_same. iExists _, _. by iLeft. }
+        iIntros (v1 v2) "Hv". rewrite eq_lift_unit. iDestruct "Hv" as %[-> ->]...
+        eq_reshape_l (kyrcv_l _). eq_reshape_r (kyrcv_r _).
+        iApply (eq_env_call_gen lls rls (λ _, iThyBot) _ _ with "Hkeyrcv [] [-]");
+          [set_unfold; tauto | set_unfold; tauto | | |].
+        { intros []; rewrite /lls /rls /pick /=; iApply to_iThy_le_intro'; unfold sem_row_union;
+            repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app); solve_submseteq. }
+        { iApply eq_lift_same. iExists _, _. by iLeft. }
+        iIntros (v1' v2') "Hv". iEval (rewrite eq_lift_sum) in "Hv".
+        iDestruct "Hv" as (a1 a2) "[(-> & -> & Hu)|(-> & -> & Hu)]";
+          iEval (rewrite eq_lift_unit) in "Hu"; iDestruct "Hu" as %[-> ->]...
+        { eq_cont_l... eq_cont_l. eq_cont_r... eq_cont_r...
+          eq_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]";
+            [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
+        eq_cont_l. eq_cont_r...
+        eq_rand_r as "%Hk"...
+        (* [enc_real_tape] decodes the key code [keyf x] it just drew: the DH
+           key [g ^+ x] that [l] derives from its exponent. *)
+        pose proof (vg_of_int_sem_keyf x ltac:(lia)) as Hkx.
+        eq_vg_of_int_r. eq_pures'.
+        eq_reshape_l (enc (ks := vg_fvts) (ms := ms) _ _). eq_reshape_r (enc (ks := vg_fvts) (ms := ms) _ _).
+        iApply eq_bind_nil.
+        iApply (eq_brel_self _ _ _ _ (brel_enc_couple (key := vg_fv) (msg := msg) _ _)).
+        { intros ??. iIntros "(%c & -> & -> & HP)". iExists c. by iFrame. }
+        iIntros (vl vr) "(%c & -> & -> & #P)". simpl...
+        eq_handle_os_l_in [HandleCtx _ _ _ _ _; AppRCtx _].
+        { eapply NoDup_cons_1_1.
+          eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }
+        iIntros (rsl) "Hsl"...
+        eq_handle_os_r_in [HandleCtx _ _ _ _ _; AppRCtx _].
+        { eapply NoDup_cons_1_1.
+          eapply (submseteq_NoDup _ [rr; sr; gkr; srr; ssr]); [solve_submseteq|exact Hnd_r]. }
         iIntros (rsr) "Hsr"...
-        iApply (brel_na_inv _ _ alphaN); first set_solver.
+        iApply (eq_na_open _ _ alphaN); first set_solver.
         iFrame "HI".
-        iIntros "([>(_&_&_&_&_&_&_&Hι')|[>(%&%&_&_&_&_&Hlamr&Hlaml&_)|(%&%&%&_&_&_&_&_&_&_&_&>Hι')]]&Hclose)".
+        iIntros "[[>(_&_&_&_&_&_&_&Hι')|[>(%&%&_&_&_&_&Hlaml&Hlamr&_)|(%&%&%&_&_&_&_&_&_&_&_&>Hι')]] Hclose]".
         (* The key tape [ι] has already been read, so the "fresh" and the
-           "already sent" disjuncts are both impossible: each hands back an
-           assertion for [ι] that cannot coexist with the one we hold. *)
-        3 : { iExFalso. iApply (tapeN_excl with "Hι Hι'"). }
-        1 : { iExFalso. iApply (tapeN_excl with "Hι Hι'"). }
-        brel_load_r...
-        brel_load_l...
-        brel_store_r...
-        brel_store_l...
-
-        iMod (ghost_map_elem_persist with "Hlamr") as "#Hlamr".
-        iMod (ghost_map_elem_persist with "Hlaml") as "#Hlaml".
-        iDestruct (tapeN_to_persistent with "Hι") as ">#Hι".
-        iApply brel_na_close.
-        iFrame. iSplitR; [iNext; do 2 iRight; iExists _,_; iFrame "#"|].
-        iApply (brel_bind'' _ _ (to_iThyIfMono OS (iLblSig_to_iLblThy autheff)) _ _ _ (asnd_l _) (asnd_r _)).
-        3 : { iApply to_iThy_le_intro'. 
-              eassert (_ :: _ = [_] ++ _) as -> by done.
-              eapply submseteq_app_middle. simpl.
-              apply singleton_submseteq_l. constructor. }
-        1,2 : set_unfold; tauto.
-        iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-        { iApply "Hasnd". iExists _, _, _, _. 
-          repeat (iSplit; first done). 
-          iSplit; last (iExists _,_; by iLeft). 
+           "already sent" disjuncts are both impossible. *)
+        3: { iExFalso. iApply (eq_tp_r_excl with "Hι Hι'"). }
+        1: { iExFalso. iApply (eq_tp_r_excl with "Hι Hι'"). }
+        eq_load_l... eq_load_r... eq_store_l... eq_store_r...
+        iMod (eq_pt_l_persist with "Hlaml") as "#Hlaml".
+        iMod (eq_pt_r_persist with "Hlamr") as "#Hlamr".
+        iMod (eq_tp_r_persist with "Hι") as "#Hι".
+        iApply eq_na_close_rule. iFrame "Hclose".
+        iSplitR; [iNext; do 2 iRight; iExists _, _, _; iFrame "#"|].
+        eq_reshape_l (asnd_l _). eq_reshape_r (asnd_r _).
+        iApply (eq_env_call_gen lls rls (λ _, iThyBot) _ _ with "Hasnd [] [-]");
+          [set_unfold; tauto | set_unfold; tauto | | |].
+        { intros []; rewrite /lls /rls /pick /=; iApply to_iThy_le_intro'; unfold sem_row_union;
+            repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app); solve_submseteq. }
+        { iApply eq_lift_same. iExists _, _, _, _.
+          repeat (iSplit; first done).
+          iSplit; last (iExists _, _; by iLeft).
           by iExists _. }
-        iIntros (v1'' v2'') "(->&->)"...
-        brel_cont_l... brel_cont_l.
-        brel_cont_r... brel_cont_r...
-        iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"].
-      + iDestruct "H2" as ">(%&%&Hlmr&Hlcr&Hlml&Hlcl&Hγ)".
-        brel_load_r.
-        brel_load_l...
-        iApply brel_na_close.
-        iFrame. 
-        iSplitR "HQ Hssl Hssr"; [iRight; iLeft; iExists _,_; iFrame|].
-        brel_cont_l. brel_cont_r...
-        iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"].
-      + iDestruct "H3" as "(%&%&%&HP&>Hlmr&>Hlcr&>Hlml&>Hlamr&>Hlaml&>Hι)".
-        brel_load_r.
-        brel_load_l...
-        iApply brel_na_close.
-        iFrame. 
-        iSplitR "HQ Hssl Hssr"; [iRight; iRight; iExists _,_; iFrame|].
-        brel_cont_l. brel_cont_r...
-        iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"].
+        iIntros (v1'' v2'') "Hv". rewrite eq_lift_unit. iDestruct "Hv" as %[-> ->]...
+        eq_cont_l... eq_cont_l. eq_cont_r... eq_cont_r...
+        eq_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]";
+          [set_solver|set_solver|by iApply "Hrel"|iApply "IH"].
+      + iDestruct "H2" as "(%&%&#Hlml&#Hlcl&#Hlmr&#Hlcr&Hlaml&Hlamr&#Hγ)".
+        eq_load_l. eq_load_r...
+        iApply eq_na_close_rule. iFrame "Hclose".
+        iSplitR "HQ Hssl Hssr"; [iNext; iRight; iLeft; iExists _, _; iFrame "∗#"|].
+        eq_cont_l. eq_cont_r...
+        eq_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]";
+          [set_solver|set_solver|by iApply "Hrel"|iApply "IH"].
+      + iDestruct "H3" as "(%&%&%&#HP&>#Hlml&>#Hlcl&>#Hlmr&>#Hlcr&>#Hlaml&>#Hlamr&>#Hγl&>#Hι)".
+        eq_load_l. eq_load_r...
+        iApply eq_na_close_rule. iFrame "Hclose".
+        iSplitR "HQ Hssl Hssr"; [iNext; iRight; iRight; iExists _, _, _; iFrame "#"|].
+        eq_cont_l. eq_cont_r...
+        eq_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]";
+          [set_solver|set_solver|by iApply "Hrel"|iApply "IH"].
     (* Bob tries to receive a message *)
-    - brel_pures'.
-      iApply (brel_handle_os_l _ ([HandleCtx _ _ _ _ _] ++ k1')).
-      {  apply not_elem_of_cons; split; last (apply neutral_ectx; repeat constructor).
-         intro Heq. first [ apply NoDup_ListNoDup in Hnd_r;
-                 do 4 (apply NoDup_cons_iff in Hnd_r as [?Hn Hnd_r]); apply Hn2; by left
-               | apply NoDup_ListNoDup in Hnd_l;
-                 do 4 (apply NoDup_cons_iff in Hnd_l as [?Hn Hnd_l]); apply Hn2; by left ]. }
-      iIntros (rsrl) "!> Hsrl"...
-      iApply (brel_handle_os_r _ ([HandleCtx _ _ _ _ _] ++ k2')).
-      {  apply not_elem_of_cons; split; last (apply neutral_ectx; repeat constructor).
-         intro Heq. first [ apply NoDup_ListNoDup in Hnd_r;
-                 do 4 (apply NoDup_cons_iff in Hnd_r as [?Hn Hnd_r]); apply Hn2; by left
-               | apply NoDup_ListNoDup in Hnd_l;
-                 do 4 (apply NoDup_cons_iff in Hnd_l as [?Hn Hnd_l]); apply Hn2; by left ]. }
-      iIntros (rsrr) "Hsrr"...
+    - destruct Hrecv as [-> ->]...
+      eq_handle_os_in ([HandleCtx _ _ _ _ _] ++ k1') ([HandleCtx _ _ _ _ _] ++ k2').
+      { apply not_elem_of_cons; split; last (apply neutral_ectx; repeat constructor).
+        intro Heq.
+        apply NoDup_ListNoDup in Hnd_l.
+        do 4 (apply NoDup_cons_iff in Hnd_l as [?Hn Hnd_l]).
+        apply Hn2. by left. }
+      { apply not_elem_of_cons; split; last (apply neutral_ectx; repeat constructor).
+        intro Heq.
+        apply NoDup_ListNoDup in Hnd_r.
+        do 4 (apply NoDup_cons_iff in Hnd_r as [?Hn Hnd_r]).
+        apply Hn2. by left. }
+      iIntros "!>" (rsrl rsrr) "Hsrl Hsrr"...
       repeat foldkont.
-      iApply (brel_handle_os_r [] [HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _]).
+      eq_handle_os_l_in [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _].
       { eapply NoDup_cons_1_1. simpl.
-        eapply (submseteq_NoDup _ [sr; rr; gkr; srr; ssr]); [solve_submseteq|exact Hnd_r]. }
+        eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }
+      iIntros (rgkl) "Hrgkl"...
+      eq_handle_os_r_in [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _].
+      { eapply NoDup_cons_1_1. simpl.
+        eapply (submseteq_NoDup _ [rr; sr; gkr; srr; ssr]); [solve_submseteq | exact Hnd_r]. }
       iIntros (rgkr) "Hrgkr"...
-      iApply (brel_handle_os_l [] [HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _]).
-      { eapply NoDup_cons_1_1. simpl.
-        eapply (submseteq_NoDup _ [rl; sl; gkl; srl; ssl]); [solve_submseteq | exact Hnd_l]. }
-      iIntros (rgkl) "!> Hrgkl"...
-      iApply (brel_bind'' [AppRCtx _] [AppRCtx _] (to_iThyIfMono OS (iLblSig_to_iLblThy keyeff))); try (apply list_subseteq_nil).
-      { iApply to_iThy_le_intro'. solve_submseteq. }
-      iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-      { iApply "Hkeyrcv". iExists _, _. by iRight. }
-      iIntros (v1' v2') "(%&%&[(->&->&->&->)|(->&->&->&->)])"...
-      { brel_cont_r. brel_cont_l...  brel_cont_r. brel_cont_l...
-        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
+      eq_reshape_l (kyrcv_l _). eq_reshape_r (kyrcv_r _).
+      iApply (eq_env_call_gen lls rls (λ _, iThyBot) _ _ with "Hkeyrcv [] [-]");
+        [set_unfold; tauto | set_unfold; tauto | | |].
+      { intros []; rewrite /lls /rls /pick /=; iApply to_iThy_le_intro'; unfold sem_row_union;
+          repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app); solve_submseteq. }
+      { iApply eq_lift_same. iExists _, _. by iRight. }
+      iIntros (v1' v2') "Hv". iEval (rewrite eq_lift_sum) in "Hv".
+      iDestruct "Hv" as (a1 a2) "[(-> & -> & Hu)|(-> & -> & Hu)]";
+        iEval (rewrite eq_lift_unit) in "Hu"; iDestruct "Hu" as %[-> ->]...
+      { eq_cont_l. eq_cont_r... eq_cont_l. eq_cont_r...
+        eq_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"; [set_solver|set_solver|iApply "Hrel"|iApply "IH"].
         iDestruct "HQ" as "[_ $]". }
-      iApply (brel_bind'' [AppRCtx _] [AppRCtx _] (to_iThyIfMono OS (iLblSig_to_iLblThy keyeff))); try (apply list_subseteq_nil).
-      { iApply to_iThy_le_intro'. solve_submseteq. }
-      iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-      { iApply "Hkeysnd". iExists _, _. by iRight. }
-      iIntros (v1 v2) "(->&->)"...      
-      iApply (brel_na_inv _ _ alphaN); first set_solver.
+      eq_reshape_l (kysnd_l _). eq_reshape_r (kysnd_r _).
+      iApply (eq_env_call_gen lls rls (λ _, iThyBot) _ _ with "Hkeysnd [] [-]");
+        [set_unfold; tauto | set_unfold; tauto | | |].
+      { intros []; rewrite /lls /rls /pick /=; iApply to_iThy_le_intro'; unfold sem_row_union;
+          repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app); solve_submseteq. }
+      { iApply eq_lift_same. iExists _, _. by iRight. }
+      iIntros (v1 v2) "Hv". rewrite eq_lift_unit. iDestruct "Hv" as %[-> ->]...
+      iApply (eq_na_open _ _ alphaN); first set_solver.
       iFrame "HI".
-      iIntros "([>(Hlmr&Hlcr&Hlml&Hlcl&Hlamr&Hlaml&Hγr&Hι)|[H2|H3]]&Hclose)".
-      + brel_load_r...
-        brel_load_l...
-        brel_cont_r.
-        brel_cont_l...
-        brel_cont_r.
-        brel_cont_l...
-        iApply brel_na_close.
-        iFrame. 
-        iSplitR "HQ"; [iLeft; iFrame|].
-        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"].
+      iIntros "[[>(Hlml&Hlcl&Hlmr&Hlcr&Hlaml&Hlamr&Hγl&Hι)|[>H2|H3]] Hclose]".
+      + eq_load_l... eq_load_r...
+        eq_cont_l. eq_cont_r... eq_cont_l. eq_cont_r...
+        iApply eq_na_close_rule. iFrame "Hclose".
+        iSplitR "HQ"; [iNext; iLeft; iFrame|].
+        eq_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"; [set_solver|set_solver|iApply "Hrel"|iApply "IH"].
         iDestruct "HQ" as "[_ $]".
-      + iDestruct "H2" as ">(%&%&#Hlmr&#Hlcr&#Hlml&#Hlcl&Hlamr&Hlaml&#Hγ)".
-        brel_load_r...
-        brel_load_l...
-        brel_cont_r.
-        brel_cont_l...
-        iApply (brel_handle_os_l _ [HandleCtx _ _ _ _ _; AppRCtx _]).
-        { eapply NoDup_cons_1_1. simpl. first [ eapply (submseteq_NoDup _ [sr; rr; gkr; srr; ssr]); [solve_submseteq|exact Hnd_r]
-                | eapply (submseteq_NoDup _ [rl; sl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l] ]. }
-        iIntros (rrl) "!> Hrl"...
-        iApply (brel_handle_os_r _ [HandleCtx _ _ _ _ _; AppRCtx _]).
-        { eapply NoDup_cons_1_1. simpl. first [ eapply (submseteq_NoDup _ [sr; rr; gkr; srr; ssr]); [solve_submseteq|exact Hnd_r]
-                | eapply (submseteq_NoDup _ [rl; sl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l] ]. }        
+      + iDestruct "H2" as "(%c'&%mv&#Hlml&#Hlcl&#Hlmr&#Hlcr&Hlaml&Hlamr&#Hγ)".
+        eq_load_l... eq_load_r...
+        eq_cont_l. eq_cont_r...
+        eq_handle_os_l_in [HandleCtx _ _ _ _ _; AppRCtx _].
+        { eapply NoDup_cons_1_1. simpl.
+          eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }
+        iIntros (rrl) "Hrl"...
+        eq_handle_os_r_in [HandleCtx _ _ _ _ _; AppRCtx _].
+        { eapply NoDup_cons_1_1. simpl.
+          eapply (submseteq_NoDup _ [rr; sr; gkr; srr; ssr]); [solve_submseteq | exact Hnd_r]. }
         iIntros (rrr) "Hrr"...
-        iApply brel_na_close.
-        iFrame. 
-        iSplitR "HQ Hsrl Hsrr Hrl Hrr"; [iRight; iLeft; iExists _,_; iFrame "#"; iFrame|].
-        iApply (brel_bind'' _ _ (to_iThyIfMono OS (iLblSig_to_iLblThy autheff)) _ _ _ (arcv_l _) (arcv_r _)).
-        3 : { iApply to_iThy_le_intro'. 
-              eassert (_ :: _ = [_] ++ _) as -> by done.
-              eapply submseteq_app_middle. simpl.
-              apply singleton_submseteq_l. constructor. }
-        1,2 : set_unfold; tauto.
-        iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-        { iApply "Harcv". iExists _,_; by iLeft. }
-        iIntros (v1' v2') "(%&%&[(->&->&->&->)|(->&->&->&->)])"...
-        { brel_cont_l.
-          brel_cont_r...
-          brel_cont_l.
-          brel_cont_r...
-          iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
+        iApply eq_na_close_rule. iFrame "Hclose".
+        iSplitR "HQ Hsrl Hsrr Hrl Hrr"; [iNext; iRight; iLeft; iExists _, _; iFrame "∗#"|].
+        eq_reshape_l (arcv_l _). eq_reshape_r (arcv_r _).
+        iApply (eq_env_call_gen lls rls (λ _, iThyBot) _ _ with "Harcv [] [-]");
+          [set_unfold; tauto | set_unfold; tauto | | |].
+        { intros []; rewrite /lls /rls /pick /=; iApply to_iThy_le_intro'; unfold sem_row_union;
+            repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app); solve_submseteq. }
+        { iApply eq_lift_same. iExists _, _; by iLeft. }
+        iIntros (v1' v2') "Hv". iEval (rewrite eq_lift_sum) in "Hv".
+        iDestruct "Hv" as (a1 a2) "[(-> & -> & Hu)|(-> & -> & Hu)]";
+          iEval (rewrite eq_lift_unit) in "Hu"; iDestruct "Hu" as %[-> ->]...
+        { eq_cont_l. eq_cont_r... eq_cont_l. eq_cont_r...
+          eq_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"; [set_solver|set_solver|iApply "Hrel"|iApply "IH"].
           iDestruct "HQ" as "[_ $]". }
-        iApply (brel_na_inv _ _ alphaN); first set_solver.
+        iApply (eq_na_open _ _ alphaN); first set_solver.
         iFrame "HI".
-        iIntros "([>(Hlmr'&H')|[>H2|H3]]&Hclose)".
-        (* [lmr] already holds the message (persistently), so the "fresh"
-           disjunct of the invariant is impossible. *)
-        { iExFalso. by iDestruct (ghost_map_elem_ne with "Hlmr' Hlmr") as %?. }
-        * iDestruct "H2" as "(%&%&_&_&_&_&Hlamr&Hlaml&_)".
-          brel_load_r...
-          brel_load_l... 
-          brel_cont_l.
-          brel_cont_r...
-          brel_cont_l.
-          brel_cont_r...
-          iApply brel_na_close.
-          iFrame. 
-          iSplitR "HQ"; [iRight; iLeft; iExists _,_; iFrame "#"; iFrame|].
-          iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
+        iIntros "[[>(Hlml'&H')|[>H2|H3]] Hclose]".
+        (* [lml] already holds the message, so the "fresh" disjunct is impossible. *)
+        { iExFalso. iApply (eq_pt_l_excl with "Hlml' Hlml"). }
+        * iDestruct "H2" as "(%&%&_&_&_&_&Hlaml&Hlamr&_)".
+          eq_load_l... eq_load_r...
+          eq_cont_l. eq_cont_r... eq_cont_l. eq_cont_r...
+          iApply eq_na_close_rule. iFrame "Hclose".
+          iSplitR "HQ"; [iNext; iRight; iLeft; iExists _, _; iFrame "∗#"|].
+          eq_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"; [set_solver|set_solver|iApply "Hrel"|iApply "IH"].
           iDestruct "HQ" as "[_ $]".
-        * iDestruct "H3" as "(%c3&%mv3&%cv&#HP&>Hlmr'&_&_&_&>Hlamr&>Hlaml&>Hγr3&>Hι)".
-          iDestruct (ghost_map_elem_agree with "Hlmr Hlmr'") as "->".
-          brel_load_r.
-          brel_load_l...
-          brel_cont_l.
-          brel_cont_r...
-          brel_load_l...
-          brel_cont_l.
-          iApply brel_na_close.
-          iFrame. 
-          (* [iFrame "#"] already discharges the [γr] conjunct from the
-             persistent [Hγ], so naming [Hγr3] here would fail with nothing left
-             to frame; let [iFrame] take whatever remains. *)
-          iSplitR "HQ Hsrr"; [iNext;iRight; iRight; iExists _,_; iFrame "#"; iFrame|]...
-
-          (* [dec_enc_sem_correct] is now unconditional, and the key reaching
-             [dec] is the group value itself -- no [int_of_vg] step, no bounds. *)
-          (* [SYM := SKE] MUST be pinned.  Left to instance resolution, [dec] in
-             the rule's conclusion stays evar-headed and the [fill K] matching
-             against the handler stack has nothing to key on -- supplying [key]
-             or even [K] and both elements does not help. *)
-          rewrite (vgval_fvtval (g ^+ f_inv keyf x)%g).
-          iApply (brel_dec_enc_correct_r (SYM := SKE)); first done.
-          iApply (brel_cont_r with "Hsrr").
-          iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
-          iDestruct "HQ" as "[HQ _]".
-          iApply "HQ".
-      + iDestruct "H3" as "(%c4&%mv4&%cv&#HP&#Hlmr&>#Hlcr&#Hlcl&#Hlml&#Hlamr&#Hlaml&#Hγr&#Hι)".
-        brel_load_r.
-        brel_load_l...
-        brel_cont_r.
-        brel_cont_l...
-        iApply (brel_handle_os_l _ [HandleCtx _ _ _ _ _; AppRCtx _]).
-        { eapply NoDup_cons_1_1. simpl. first [ eapply (submseteq_NoDup _ [sr; rr; gkr; srr; ssr]); [solve_submseteq|exact Hnd_r]
-                | eapply (submseteq_NoDup _ [rl; sl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l] ]. }
-        iIntros (rrl) "!> Hrl"...
-        iApply (brel_handle_os_r _ [HandleCtx _ _ _ _ _; AppRCtx _]).
-        { eapply NoDup_cons_1_1. simpl. first [ eapply (submseteq_NoDup _ [sr; rr; gkr; srr; ssr]); [solve_submseteq|exact Hnd_r]
-                | eapply (submseteq_NoDup _ [rl; sl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l] ]. }        
+        * iDestruct "H3" as "(%c''&%mv'&%cv&#HP&>#Hlml'&_&_&_&>#Hlaml&>#Hlamr&>#Hγl3&>#Hι)".
+          iDestruct (eq_pt_l_agree with "Hlml Hlml'") as %Hmv.
+          assert (mv' = mv) as -> by (simplify_eq; by apply (@fvtval_inj mt)).
+          eq_load_l. eq_load_r...
+          eq_cont...
+          eq_load_r... eq_cont_r.
+          iApply eq_na_close_rule. iFrame "Hclose".
+          iSplitR "HQ Hsrl"; [iNext; iRight; iRight; iExists _, _, _; iFrame "#"|]...
+          rewrite (@vgval_fvtval Σ _ vg cg G vgg (g ^+ x)%g).
+          eq_reshape_l (dec _ _).
+          iApply (eq_step_l_with (P (SYM := SKE) (g ^+ x)%g mv cv)).
+          { intros e S. iIntros "[HP H]". by iApply (brel_dec_enc_correct_l (SYM := SKE) with "HP H"). }
+          { intros e S. iIntros "[HP H]". by iApply (brel_dec_enc_correct_r (SYM := SKE) with "HP H"). }
+          iSplitR; [iApply bi.intuitionistically_elim; rewrite -embed_intuitionistically; iExact "HP"|]. simpl...
+          eq_cont_l.
+          eq_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"; [set_solver|set_solver|iApply "Hrel"|iApply "IH"].
+          iDestruct "HQ" as "[HQ _]". iApply "HQ".
+      + iDestruct "H3" as "(%c'&%mv&%cv&#HP&>#Hlml&>#Hlcl&>#Hlmr&>#Hlcr&>#Hlaml&>#Hlamr&>#Hγl&>#Hι)".
+        eq_load_l. eq_load_r...
+        eq_cont...
+        eq_handle_os_l_in [HandleCtx _ _ _ _ _; AppRCtx _].
+        { eapply NoDup_cons_1_1. simpl.
+          eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }
+        iIntros (rrl) "Hrl"...
+        eq_handle_os_r_in [HandleCtx _ _ _ _ _; AppRCtx _].
+        { eapply NoDup_cons_1_1. simpl.
+          eapply (submseteq_NoDup _ [rr; sr; gkr; srr; ssr]); [solve_submseteq | exact Hnd_r]. }
         iIntros (rrr) "Hrr"...
-        iApply brel_na_close.
-        iFrame. 
-        iSplitR "HQ Hsrl Hsrr Hrl Hrr"; [iRight; iRight; iExists _,_; iFrame "#"; iFrame|].
-        iApply (brel_bind'' _ _ (to_iThyIfMono OS (iLblSig_to_iLblThy autheff)) _ _ _ (arcv_l _) (arcv_r _)).
-        3 : { iApply to_iThy_le_intro'. 
-              eassert (_ :: _ = [_] ++ _) as -> by done.
-              eapply submseteq_app_middle. simpl.
-              apply singleton_submseteq_l. constructor. }
-        1,2 : set_unfold; tauto.
-        iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-        { iApply "Harcv". iExists _,_; by iLeft. }
-        iIntros (v1' v2') "(%&%&[(->&->&->&->)|(->&->&->&->)])"...
-        { brel_cont_l. brel_cont_r...
-          brel_cont_l. brel_cont_r...
-          iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
+        iApply eq_na_close_rule. iFrame "Hclose".
+        iSplitR "HQ Hsrl Hsrr Hrl Hrr"; [iNext; iRight; iRight; iExists _, _, _; iFrame "#"|].
+        eq_reshape_l (arcv_l _). eq_reshape_r (arcv_r _).
+        iApply (eq_env_call_gen lls rls (λ _, iThyBot) _ _ with "Harcv [] [-]");
+          [set_unfold; tauto | set_unfold; tauto | | |].
+        { intros []; rewrite /lls /rls /pick /=; iApply to_iThy_le_intro'; unfold sem_row_union;
+            repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app); solve_submseteq. }
+        { iApply eq_lift_same. iExists _, _; by iLeft. }
+        iIntros (v1' v2') "Hv". iEval (rewrite eq_lift_sum) in "Hv".
+        iDestruct "Hv" as (a1 a2) "[(-> & -> & Hu)|(-> & -> & Hu)]";
+          iEval (rewrite eq_lift_unit) in "Hu"; iDestruct "Hu" as %[-> ->]...
+        { eq_cont_l. eq_cont_r... eq_cont_l. eq_cont_r...
+          eq_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"; [set_solver|set_solver|iApply "Hrel"|iApply "IH"].
           iDestruct "HQ" as "[_ $]". }
-        brel_load_r.
-        brel_load_l...
-        brel_cont_l. brel_cont_r...
-        brel_load_l...
-        rewrite (vgval_fvtval (g ^+ f_inv keyf x)%g).
-        iApply (brel_dec_enc_correct_r (SYM := SKE)); first done.
-        brel_cont_l. 
-        iApply (brel_cont_r with "Hsrr")... 
-        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
-        iDestruct "HQ" as "[HQ _]".
-        iApply "HQ".
+        eq_load_l. eq_load_r...
+        eq_cont_l. eq_cont_r...
+        eq_load_r...
+        rewrite (@vgval_fvtval Σ _ vg cg G vgg (g ^+ x)%g).
+        eq_reshape_l (dec _ _).
+        iApply (eq_step_l_with (P (SYM := SKE) (g ^+ x)%g mv cv)).
+        { intros e S. iIntros "[HP H]". by iApply (brel_dec_enc_correct_l (SYM := SKE) with "HP H"). }
+        { intros e S. iIntros "[HP H]". by iApply (brel_dec_enc_correct_r (SYM := SKE) with "HP H"). }
+        iSplitR; [iApply bi.intuitionistically_elim; rewrite -embed_intuitionistically; iExact "HP"|]. simpl...
+        eq_cont_r.
+        eq_cont_l...
+        eq_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"; [set_solver|set_solver|iApply "Hrel"|iApply "IH"].
+        iDestruct "HQ" as "[HQ _]". iApply "HQ".
   Qed.
 
   Lemma REAL_SKE_GAME1_MS :
     ⊢ sem_typed [] REAL_SKE GAME1 ⊥ (𝟙 -{ ⟨⟩ }-[ MS ]-> τsc)%T [].
-  Proof using All with (brel_pures'; repeat foldkont). 
-    iIntros (vs) "!> _". simpl.
-    iApply brel_value. iIntros "$ !>". iSplit; last done.
-    rewrite /sem_ty_mbang /sem_ty_arr /=. iModIntro.
-    iIntros (u1 u2) "[-> ->]".
-    rewrite /GAME1 /REAL_SKE /C_ENC_real /RED_CHAN_sess /parallel_composition /enc_real_tape /func_comp...
+  Proof using All. apply (EQ_sem_typed _ _ _ _ REAL_SKE_GAME1_EQ Fwd). Qed.
 
-    (* Setup, shared by all calls.  Arguments are evaluated first: left
-       (sc_real) CHAN, F_OAUTH, F_KE; right (game1) the encryption scheme,
-       RED_CHAN, F_OAUTH, F_KE. *)
-    brel_alloc_l lml as "Hlml"...
-    brel_alloc_l laml as "Hlaml"...
-    brel_alloctape_l γl as "Hγl"...
-    brel_alloc_l lcl as "Hlcl"...
-    brel_alloctape_r (ι) as "Hι"... (* Initialization of encryption scheme *)
-    brel_alloc_r lmr as "Hlmr"...
-    brel_alloc_r lamr as "Hlamr"...
-    brel_alloctape_r γr as "Hγr"...
-    (* No [...]: the invariant must be allocated before both sides are values. *)
-    brel_alloc_r lcr as "Hlcr".
-
-    (* Invariants *)
-    rewrite vg_fvt_card. assert (S n - 1 = n)%Z as -> by lia.
-    rewrite Nat2Z.id.
-    iAssert ((Loc ι) ↪ₛN (n; []))%I with "[Hι]" as "Hι".
-    { iExists []. simpl. iFrame. done. }
-    iAssert (γr ↪ₛN (n; []))%I with "[Hγr]" as "Hγr".
-    { iExists []. simpl. iFrame. done. }
-    iDestruct (spec_tape_to_persistent with "Hγr") as ">#Hγr".
-    (* Couple Alice's exponent tape [γl] with [game1]'s key tape [ι] along
-       [keyf]: the left draws the DH exponent [x], the right draws the symmetric
-       key [keyf x], which is exactly the key the left derives from [x]. *)
-    iApply (brel_couple_TT _ n keyf).
-    { apply keyf_dom. }
-    iSplitL "Hγl"; first (iNext; iFrame); iSplitL "Hι"; first iFrame.
-    iIntros (x) "(Hγl&Hι) //=".
-    iDestruct (tapeN_hd_bound with "Hγl") as "(%Hx&Hγl)".
-
-    iApply (brel_na_alloc ((lml ↦ NONEV ∗ lcl ↦ NONEV ∗ lmr ↦ₛ NONEV ∗ lcr ↦ₛ NONEV ∗ laml ↦ NONEV ∗ lamr ↦ₛ NONEV
-                           ∗ γl ↪N (n; [x]) ∗ (Loc ι) ↪ₛN (n; [keyf x]))
-                           ∨ (∃ (c' : nat) (mv : mt), lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #x ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c'
-                                            ∗ laml ↦ NONEV ∗ lamr ↦ₛ NONEV
-                                            ∗ γl ↪□N (n; []))
-                           ∨ (∃ (c' : nat) (mv : mt) (cv : ct), □ P  (key := vg_fv) (g ^+ x)%g mv cv ∗ lml ↦□ SOMEV (fvtval mv) ∗ lcl ↦□ SOMEV #x ∗ lmr ↦ₛ□ SOMEV (fvtval mv) ∗ lcr ↦ₛ□ SOMEV #c'
-                                            ∗ laml ↦□ SOMEV (fvtval cv) ∗ lamr ↦ₛ□ SOMEV (fvtval cv)
-                                            ∗ γl ↪□N (n; []) ∗ (Loc ι) ↪ₛ□N (n; []))
-              ) alphaN).
-    iSplitL "Hlml Hlmr Hlcl Hlcr Hγl Hι Hlaml Hlamr"; [iNext; iLeft; iFrame|].
-    iIntros "#HI"...
-
-    (* One call: a client and its effect handlers *)
-    iModIntro.
-    iIntros (θL). rewrite /sem_ty_mbang /=. iIntros "!#" (f1 f2) "Hff"...
-    iIntros "!>" (autheff keyeff autheffkeyeff_l autheffkeyeff_r) "Hauthkey".
-    iDestruct "Hauthkey" as (w1 w1' w2 w2') "[-> [-> [Hautheff Hkeyeff]]]"...
-    iDestruct "Hautheff" as (asnd_l asnd_r arcv_l arcv_r) "(-> & -> & (#Hasnd & #Harcv))"...
-    iDestruct "Hkeyeff" as (kysnd_l kysnd_r kyrcv_l kyrcv_r) "(-> & -> & (#Hkeysnd & #Hkeyrcv))"...
-
-    (* Allocation/initialization *)
-    brel_effect_l gkl as "Hgkl".
-    brel_effect_r gkr as "Hgkr"...
-    brel_effect_l sl as "Hsl".
-    brel_effect_r sr as "Hsr"...
-    brel_effect_l rl as "Hrl".
-    brel_effect_r rr as "Hrr"...
-    brel_effect_l ssl as "Hssl".
-    brel_effect_r ssr as "Hssr"...
-    brel_effect_l srl as "Hsrl".
-    brel_effect_r srr as "Hsrr"...
-
-    (* Setting up clients *)
-    set (θ := client_row  sl rl sr rr gkl gkr ssl srl ssr srr).
-    iSpecialize ("Hff" $! θ).
-    unfold sem_ty_arr, sem_ty_mbang. simpl.
-    iAssert (sem_val_typed  ((λ: "m", do: ssl "m"), (λ: <>, do: srl bob))%V ((λ: "m", do: ssr "m") , (λ: <>, do: srr bob))%V (((sem_ty_nat -{ θ }-> 𝟙) × (𝟙 -{ θ }-> (Option msg.(sem_τFT))))%T)) as "Hschn".
-    { iApply SEM_TYPED_EFF. }
-     unfold sem_val_typed. simpl.
-    iDestruct "Hschn" as "#Hschn".
-    iSpecialize ("Hff" with "Hschn"). 
-
-    (* Theories *)
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hssl").
-    iApply (brel_add_label_l with "Hsrl").
-    iApply (brel_add_label_r with "Hssr").
-    iApply (brel_add_label_r with "Hsrr").
-    iApply (brel_add_label_l with "Hgkl").
-    iApply (brel_add_label_r with "Hgkr").
-    iApply (brel_add_label_l with "Hrl").
-    iApply (brel_add_label_l with "Hsl").
-    iApply (brel_add_label_r with "Hsr").
-    iApply (brel_add_label_r with "Hrr"). 
-
-    iApply brel_learn. iIntros "%Hdist' _".
-    assert (NoDup [sl; rl; gkl; srl; ssl]) as Hnd_l.
-    { unfold distinct in Hdist'. destruct Hdist' as [Hd' _].
-      unfold distinct_l in Hd'. simpl in Hd'.
-      repeat (rewrite -> labels_l_cons in Hd').
-      by (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]). }
-    
-    assert (NoDup [rr; sr; gkr; srr; ssr]) as Hnd_r.
-    { unfold distinct in Hdist'. destruct Hdist' as [_ Hd'].
-      unfold distinct_r in Hd'. simpl in Hd'.
-      rewrite !labels_r_cons in Hd'.
-      by (eapply NoDup_app in Hd'; destruct Hd' as [Hd' _]). }
-
-    (* Case on the clients behaviour and induction *)
-    rewrite !iLblSig_to_iLblThy_app !iThyIfMono_iLblSig_to_iThyIfMono.
-    iDestruct (brel_introduction_mono _ (([sl; rl; gkl; srl; ssl], [rr; sr; gkr; srr; ssr], sec_channel ssl ssr srl srr : iThy Σ) :: to_iThyIfMono OS (iLblSig_to_iLblThy autheff) ++ to_iThyIfMono OS (iLblSig_to_iLblThy keyeff) ++ iLblSig_to_iLblThy θL) with "[][$Hff]") as "Hff".
-    { iApply to_iThy_le_intro'. solve_submseteq. }
-    iApply ((brel_exhaustion (f1 _) ( f2 _)) with "[$Hff]"); [set_solver|set_solver| ].
-    
-    iLöb as "IH".
-    iSplit; [iIntros (v1 v2) "%Hv1v2 !>"; by brel_pures'|].
-    iIntros (?????) "!# %Hk1 %Hk2 [(%m&(->&->)&HQ)|(->&->&HQ)] #Hrel".
-    (* Alice tries to send a message m *)
-    - 
-      brel_handle_os_l (rssl) as "Hssl".
-      brel_handle_os_r (rssr) as "Hssr"...
-      destruct (fvt_of_int_sem (fin_val := msg) m) as [mv|] eqn:Hmv.
-      2 : { iApply (brel_fvt_of_int_none_l (fin_val := msg)); first exact Hmv.
-            iApply (brel_fvt_of_int_none_r (fin_val := msg)); first exact Hmv...
-             brel_cont_l. 
-             brel_cont_r.
-            iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
-      iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first exact Hmv.
-      iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first exact Hmv...
-      iApply (brel_na_inv _ _ alphaN); first set_solver.
-      iFrame "HI".
-      iIntros "([>(Hlml&Hlcl&Hlmr&Hlcr&Hlaml&Hlamr&Hγl&Hι)|[>H2|H3]]&Hclose)".
-      + brel_load_l...
-        brel_load_r...
-        brel_store_l...
-        brel_store_r...
-        iApply (brel_handle_os_l [] [HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _]).
-        { eapply NoDup_cons_1_1. simpl.
-          eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }
-        iIntros (rgkl) "!> Hrgkl"...
-        iApply (brel_handle_os_r [] [HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _]).
-        { eapply NoDup_cons_1_1. simpl.
-          eapply (submseteq_NoDup _ [rr; sr; gkr; srr; ssr]); [solve_submseteq | exact Hnd_r]. }
-        iIntros (rgkr) "Hrgkr"...
-        brel_load_l...
-        brel_load_r...
-        brel_rand_l...
-        iApply brel_randT_empty_r. 
-        iSplitR; first by iFrame "#".
-        iIntros (c') "_ _".
-        brel_store_l...
-        brel_store_r...
-
-        iMod (ghost_map_elem_persist with "Hlml") as "#Hlml".
-        iMod (ghost_map_elem_persist with "Hlcl") as "#Hlcl".
-        iMod (ghost_map_elem_persist with "Hlmr") as "#Hlmr".
-        iMod (ghost_map_elem_persist with "Hlcr") as "#Hlcr".
-        iDestruct (tapeN_to_persistent with "Hγl") as ">#Hγl".
-        iApply brel_na_close. iFrame.
-        iSplitL "Hlaml Hlamr".
-        { iModIntro. iRight. iLeft. iExists _, _. iFrame "#". iFrame. }
-        
-        iApply (brel_bind'' [AppRCtx _] [AppRCtx _] (to_iThyIfMono OS (iLblSig_to_iLblThy keyeff))); try (apply list_subseteq_nil).
-        { iApply to_iThy_le_intro'. solve_submseteq. }
-        iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-        { iApply "Hkeysnd". iExists _, _. by iLeft. }
-        iIntros (v1 v2) "(->&->)"...
-        iApply (brel_bind'' [AppRCtx _] [AppRCtx _] (to_iThyIfMono OS (iLblSig_to_iLblThy keyeff))); try (apply list_subseteq_nil).
-        { iApply to_iThy_le_intro'. solve_submseteq. }
-        iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-        { iApply "Hkeyrcv". iExists _, _. by iLeft. }
-        iIntros (v1' v2') "(%&%&[(->&->&->&->)|(->&->&->&->)])"...
-        { brel_cont_l... brel_cont_l. 
-          brel_cont_r... brel_cont_r...
-          iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"]. }
-        brel_cont_l. 
-        brel_cont_r...
-        brel_rand_r...
-        (* [enc_real_tape] decodes the key code [keyf x] it just drew; by
-           [vg_of_int_sem_keyf] that is the DH key [g ^+ x] the left-hand side
-           derived from its exponent, so both sides encrypt under the same key. *)
-        iApply brel_vg_of_int_correct_r; first (by apply vg_of_int_sem_keyf).
-        brel_pures'.
-        iApply (brel_bind _ _ _ [] _ _ (enc (ks := vg_fv) (ms := ms)_ _) (enc (ks := vg_fv) (ms := ms)_ _)); 
-          [iApply traversable_to_iThy_nil|iApply to_iThy_le_bot|].
-        assert (to_iThyIfMono OS [] = []) as <- by done.
-        iApply brel_mono; first iApply to_iThy_le_refl.
-        { iApply (brel_enc_couple (key := vg_fv) (msg := msg)). }
-        simpl.
-        iIntros (??) "(%c&->&->&#P)".
-        brel_pures'; simpl.
-        iApply (brel_handle_os_l _ [HandleCtx _ _ _ _ _;AppRCtx _]).
-        { eapply NoDup_cons_1_1.
-          eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }
-        iIntros (rsl) "!> Hsl"...
-        iApply (brel_handle_os_r _ [HandleCtx _ _ _ _ _;AppRCtx _]).
-        { eapply NoDup_cons_1_1.
-          eapply (submseteq_NoDup _ [rr; sr; gkr; srr; ssr]); [solve_submseteq|exact Hnd_r]. }
-        iIntros (rsr) "Hsr"...
-        iApply (brel_na_inv _ _ alphaN); first set_solver.
-        iFrame "HI".
-        iIntros "([>(_&_&_&_&_&_&_&Hι')|[>(%&%&_&_&_&_&Hlaml&Hlamr&_)|(%&%&%&_&_&_&_&_&_&_&_&>Hι')]]&Hclose)".
-        (* The key tape [ι] has already been read, so the "fresh" and the
-           "already sent" disjuncts are both impossible: each hands back an
-           assertion for [ι] that cannot coexist with the one we hold. *)
-        3 : { iExFalso. iApply (spec_tapeN_excl with "Hι Hι'"). }
-        1 : { iExFalso. iApply (spec_tapeN_excl with "Hι Hι'"). }
-        brel_load_l...
-        brel_load_r...
-        brel_store_l...
-        brel_store_r...
-
-        iMod (ghost_map_elem_persist with "Hlaml") as "#Hlaml".
-        iMod (ghost_map_elem_persist with "Hlamr") as "#Hlamr".
-        iDestruct (spec_tape_to_persistent with "Hι") as ">#Hι".
-        iApply brel_na_close.
-        iFrame. iSplitR; [iNext; do 2 iRight; iExists _,_; iFrame "#"|].
-        iApply (brel_bind'' _ _ (to_iThyIfMono OS (iLblSig_to_iLblThy autheff)) _ _ _ (asnd_l _) (asnd_r _)).
-        3 : { iApply to_iThy_le_intro'. 
-              eassert (_ :: _ = [_] ++ _) as -> by done.
-              eapply submseteq_app_middle. simpl.
-              apply singleton_submseteq_l. constructor. }
-        1,2 : set_unfold; tauto.
-        iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-        { iApply "Hasnd". iExists _, _, _, _. 
-          repeat (iSplit; first done). 
-          iSplit; last (iExists _,_; by iLeft). 
-          by iExists _. }
-        iIntros (v1'' v2'') "(->&->)"...
-        brel_cont_l... brel_cont_l.
-        brel_cont_r... brel_cont_r...
-        iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"].
-      + iDestruct "H2" as "(%&%&Hlml&Hlcl&Hlmr&Hlcr&Hγ)".
-        brel_load_l.
-        brel_load_r...
-        iApply brel_na_close.
-        iFrame. 
-        iSplitR "HQ Hssl Hssr"; [iRight; iLeft; iExists _,_; iFrame|].
-        brel_cont_l. brel_cont_r...
-        iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"].
-      + iDestruct "H3" as "(%&%&%&HP&Hlml&>Hlcl&Hlmr&Hlaml&Hlamr&Hι)".
-        brel_load_l.
-        brel_load_r...
-        iApply brel_na_close.
-        iFrame. 
-        iSplitR "HQ Hssl Hssr"; [iRight; iRight; iExists _,_; iFrame|].
-        brel_cont_l. brel_cont_r...
-        iApply (brel_exhaustion (fill k1' #()%V) (fill k2' #()%V) with "[HQ]"); [set_solver|set_solver|by iApply "Hrel"|iApply "IH"].
-    (* Bob tries to receive a message *)
-    - brel_pures'.
-      iApply (brel_handle_os_l _ ([HandleCtx _ _ _ _ _] ++ k1')).
-      {  apply not_elem_of_cons; split; last (apply neutral_ectx; repeat constructor).
-         intro Heq.
-         apply NoDup_ListNoDup in Hnd_l.
-         do 4 (apply NoDup_cons_iff in Hnd_l as [?Hn Hnd_l]). 
-         apply Hn2. by left. }
-      iIntros (rsrl) "!> Hsrl"...
-      iApply (brel_handle_os_r _ ([HandleCtx _ _ _ _ _] ++ k2')).
-      {  apply not_elem_of_cons; split; last (apply neutral_ectx; repeat constructor).
-         intro Heq.
-         apply NoDup_ListNoDup in Hnd_r.
-         do 4 (apply NoDup_cons_iff in Hnd_r as [?Hn Hnd_r]). 
-         apply Hn2. by left. }
-      iIntros (rsrr) "Hsrr"...
-      repeat foldkont.
-      iApply (brel_handle_os_l [] [HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _]).
-      { eapply NoDup_cons_1_1. simpl.
-        eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }
-      iIntros (rgkl) "!> Hrgkl"...
-      iApply (brel_handle_os_r [] [HandleCtx _ _ _ _ _;HandleCtx _ _ _ _ _;AppRCtx _]).
-      { eapply NoDup_cons_1_1. simpl.
-        eapply (submseteq_NoDup _ [rr; sr; gkr; srr; ssr]); [solve_submseteq | exact Hnd_r]. }
-      iIntros (rgkr) "Hrgkr"...
-      iApply (brel_bind'' [AppRCtx _] [AppRCtx _] (to_iThyIfMono OS (iLblSig_to_iLblThy keyeff))); try (apply list_subseteq_nil).
-      { iApply to_iThy_le_intro'. solve_submseteq. }
-      iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-      { iApply "Hkeyrcv". iExists _, _. by iRight. }
-      iIntros (v1' v2') "(%&%&[(->&->&->&->)|(->&->&->&->)])"...
-      { brel_cont_l. brel_cont_r...  brel_cont_l. brel_cont_r...
-        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
-        iDestruct "HQ" as "[_ $]". }
-      iApply (brel_bind'' [AppRCtx _] [AppRCtx _] (to_iThyIfMono OS (iLblSig_to_iLblThy keyeff))); try (apply list_subseteq_nil).
-      { iApply to_iThy_le_intro'. solve_submseteq. }
-      iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-      { iApply "Hkeysnd". iExists _, _. by iRight. }
-      iIntros (v1 v2) "(->&->)"...      
-      iApply (brel_na_inv _ _ alphaN); first set_solver.
-      iFrame "HI".
-      iIntros "([>(Hlml&Hlcl&Hlmr&Hlcr&Hlaml&Hlamr&Hγl&Hι)|[>H2|H3]]&Hclose)".
-      + brel_load_l...
-        brel_load_r...
-        brel_cont_l.
-        brel_cont_r...
-        brel_cont_l.
-        brel_cont_r...
-        iApply brel_na_close.
-        iFrame. 
-        iSplitR "HQ"; [iLeft; iFrame|].
-        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"].
-        iDestruct "HQ" as "[_ $]".
-      + iDestruct "H2" as "(%&%&#Hlml&#Hlcl&#Hlmr&#Hlcr&Hlaml&Hlamr&#Hγ)".
-        brel_load_l...
-        brel_load_r...
-        brel_cont_l.
-        brel_cont_r...
-        iApply (brel_handle_os_l _ [HandleCtx _ _ _ _ _; AppRCtx _]).
-        { eapply NoDup_cons_1_1. simpl.
-          eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }
-        iIntros (rrl) "!> Hrl"...
-        iApply (brel_handle_os_r _ [HandleCtx _ _ _ _ _; AppRCtx _]).
-        { eapply NoDup_cons_1_1. simpl.
-          eapply (submseteq_NoDup _ [rr; sr; gkr; srr; ssr]); [solve_submseteq | exact Hnd_r]. }        
-        iIntros (rrr) "Hrr"...
-        iApply brel_na_close.
-        iFrame. 
-        iSplitR "HQ Hsrl Hsrr Hrl Hrr"; [iRight; iLeft; iExists _,_; iFrame "#"; iFrame|].
-        iApply (brel_bind'' _ _ (to_iThyIfMono OS (iLblSig_to_iLblThy autheff)) _ _ _ (arcv_l _) (arcv_r _)).
-        3 : { iApply to_iThy_le_intro'. 
-              eassert (_ :: _ = [_] ++ _) as -> by done.
-              eapply submseteq_app_middle. simpl.
-              apply singleton_submseteq_l. constructor. }
-        1,2 : set_unfold; tauto.
-        iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-        { iApply "Harcv". iExists _,_; by iLeft. }
-        iIntros (v1' v2') "(%&%&[(->&->&->&->)|(->&->&->&->)])"...
-        { brel_cont_l.
-          brel_cont_r...
-          brel_cont_l.
-          brel_cont_r...
-          iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
-          iDestruct "HQ" as "[_ $]". }
-        iApply (brel_na_inv _ _ alphaN); first set_solver.
-        iFrame "HI".
-        iIntros "([>(Hlml'&H')|[>H2|H3]]&Hclose)".
-        (* [lml] already holds the message (persistently), so the "fresh"
-           disjunct of the invariant is impossible. *)
-        { iExFalso. by iDestruct (ghost_map_elem_ne with "Hlml' Hlml") as %?. }
-        * iDestruct "H2" as "(%&%&_&_&_&_&Hlaml&Hlamr&_)".
-          brel_load_l...
-          brel_load_r... 
-          brel_cont_l.
-          brel_cont_r...
-          brel_cont_l.
-          brel_cont_r...
-          iApply brel_na_close.
-          iFrame. 
-          iSplitR "HQ"; [iRight; iLeft; iExists _,_; iFrame "#"; iFrame|].
-          iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
-          iDestruct "HQ" as "[_ $]".
-        * iDestruct "H3" as "(%&%&%&#HP&>Hlml'&_&_&_&Hlaml&Hlamr&Hγl3&Hι)".
-          iDestruct (ghost_map_elem_agree with "Hlml Hlml'") as "->".
-          brel_load_l.
-          brel_load_r...
-          brel_cont_l.
-          brel_cont_r...
-          brel_load_r...
-          brel_cont_r.
-          iApply brel_na_close.
-          iFrame. 
-          iSplitR "HQ Hsrl"; [iNext;iRight; iRight; iExists _,_; iFrame "#"; iFrame|]...
-
-          rewrite (vgval_fvtval (g ^+ x)%g).
-          iApply (brel_dec_enc_correct_l (SYM := SKE)); first done.
-          iApply (brel_cont_l with "Hsrl").
-          iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
-          iDestruct "HQ" as "[HQ _]".
-          iApply "HQ".
-      + iDestruct "H3" as "(%&%&%&#HP&#Hlml&#Hlcl&#Hlcr&#Hlmr&#Hlaml&#Hlamr&#Hγl&#Hι)".
-        brel_load_l.
-        brel_load_r...
-        brel_cont_l.
-        brel_cont_r...
-        iApply (brel_handle_os_l _ [HandleCtx _ _ _ _ _; AppRCtx _]).
-        { eapply NoDup_cons_1_1. simpl.
-          eapply (submseteq_NoDup _ [sl; rl; gkl; srl; ssl]); [solve_submseteq|exact Hnd_l]. }
-        iIntros (rrl) "!> Hrl"...
-        iApply (brel_handle_os_r _ [HandleCtx _ _ _ _ _; AppRCtx _]).
-        { eapply NoDup_cons_1_1. simpl.
-          eapply (submseteq_NoDup _ [rr; sr; gkr; srr; ssr]); [solve_submseteq | exact Hnd_r]. }        
-        iIntros (rrr) "Hrr"...
-        iApply brel_na_close.
-        iFrame. 
-        iSplitR "HQ Hsrl Hsrr Hrl Hrr"; [iRight; iRight; iExists _,_; iFrame "#"; iFrame|].
-        iApply (brel_bind'' _ _ (to_iThyIfMono OS (iLblSig_to_iLblThy autheff)) _ _ _ (arcv_l _) (arcv_r _)).
-        3 : { iApply to_iThy_le_intro'. 
-              eassert (_ :: _ = [_] ++ _) as -> by done.
-              eapply submseteq_app_middle. simpl.
-              apply singleton_submseteq_l. constructor. }
-        1,2 : set_unfold; tauto.
-        iApply brel_mono; [iApply to_iThy_le_refl| |simpl].
-        { iApply "Harcv". iExists _,_; by iLeft. }
-        iIntros (v1' v2') "(%&%&[(->&->&->&->)|(->&->&->&->)])"...
-        { brel_cont_l.
-          brel_cont_r...
-          brel_cont_l.
-          brel_cont_r...
-          iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"]. 
-          iDestruct "HQ" as "[_ $]". }
-        brel_load_l.
-        brel_load_r...
-        brel_cont_l. brel_cont_r...
-        brel_load_r...
-        rewrite (vgval_fvtval (g ^+ x)%g).
-        iApply (brel_dec_enc_correct_l (SYM := SKE)); first done.
-        brel_cont_r. 
-        iApply (brel_cont_l with "Hsrl")... 
-        iApply (brel_exhaustion (fill k1' _) (fill k2' _) with "[HQ]"); [set_solver|set_solver|iApply "Hrel"|iApply "IH"].
-        iDestruct "HQ" as "[HQ _]".
-        iApply "HQ".
-  Qed.
+  Lemma GAME1_REAL_SKE_MS :
+    ⊢ sem_typed [] GAME1 REAL_SKE ⊥ (𝟙 -{ ⟨⟩ }-[ MS ]-> τsc)%T [].
+  Proof using All. apply (EQ_sem_typed _ _ _ _ REAL_SKE_GAME1_EQ Bwd). Qed.
 
   (* One-shot versions, the shape the composition operators expect *)
 End schan_security.

@@ -3,6 +3,9 @@ From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From clutch.prob_eff_lang.probblaze Require Import notation logic sem_judgement sem_types sem_def tactics proofmode adequacy.
 From clutch.prob_eff_lang.probblaze Require compatibility sem_operators sem_row sem_env sem_sig.
 From clutch.prob_eff_lang.probblaze.examples Require Import fin_val_type fin_val_type_prod ske.
+From iris.bi Require Import monpred.
+From iris.proofmode Require Import monpred.
+From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_finval.
 Set Default Proof Using "Type*".
 
 (* PRP function F that is assumed to be PRF secure as in Joy of Cryptography [Mike Rosulek] *)
@@ -523,141 +526,88 @@ Section reduction_spec.
   (** ** The refinements *)
 
   (* Lockstep: both sides draw the key, then the nonce, then evaluate [prf k r]. *)
-  Lemma enc_real_red_real : ⊢ sem_typed [] (enc_real SKES) (RED PREAL) ⊥ τE [].
+  Lemma enc_real_red_real_EQ :
+    ⊢ EQ enc_real SKES ≈ RED PREAL <|iLblSig_to_iLblThy (⊥ : sem_row Σ)|> {{ ⟪ τE ⟫ }}.
   Proof.
-    iIntros "!# %vs Hvs /=". rewrite /red_prf /pad_enc /enc_real.
-    brel_pures_r. iModIntro. iSplitR "Hvs"; last done.
-    iIntros (??) "(->&->)".
-    brel_pures_l. brel_pures_r. rewrite /sem_ty_arr /sem_ty_mbang /=. iModIntro.
-    iIntros (m1 m2) "!> (%m&->&->)".
-    brel_pures_l. brel_pures_r.
-    rewrite /prf_real /rand_key /rand_prf_key /rand_fvt /=. brel_pures_l. brel_pures_r.
-    iApply (brel_couple_rand_rand _ _ (λ n : nat, n)).
-    { by intros. }
-    iIntros (k Hk) "/=".
+    rewrite /red_prf /pad_enc /enc_real.
+    eq_pures_r. iApply eq_value. iModIntro.
+    iApply eq_lift_arr. iIntros (u1 u2) "Hu". rewrite eq_lift_unit. iDestruct "Hu" as %[-> ->].
+    eq_pures_l. eq_pures_r. iApply eq_value. iModIntro. iModIntro.
+    iApply eq_lift_arr. iIntros (m1 m2) "Hm". rewrite eq_lift_fvt. iDestruct "Hm" as %(m & -> & ->).
+    eq_pures_l. eq_pures_r.
+    rewrite /prf_real /rand_key /rand_prf_key /rand_fvt /=. eq_pures_l. eq_pures_r.
+    eq_couple_rand_rand. iIntros (k Hk).
     destruct (fvt_of_int_sem_surj (FV := key) k) as (kv & Hkv & _).
     { unfold fvt_of_fvts in *. simpl in *. lia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := key)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := key)); first done.
-    rewrite /enc_prf. brel_pures_l. brel_pures_r.
-    rewrite /rand_nonce /rand_fvt. brel_pures_l. brel_pures_r.
-    iApply (brel_couple_rand_rand _ _ (λ n : nat, n)).
-    { by intros. }
-    iIntros (r Hr) "/=".
+    eq_fvt_of_int_l Hkv. eq_fvt_of_int_r Hkv.
+    rewrite /enc_prf. eq_pures_l. eq_pures_r.
+    rewrite /rand_nonce /rand_fvt. eq_pures_l. eq_pures_r.
+    eq_couple_rand_rand. iIntros (r Hr).
     destruct (fvt_of_int_sem_surj (FV := nonce) r) as (rv & Hrv & Hrv').
     { unfold fvt_of_fvts in *. simpl in *. lia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := nonce)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := nonce)); first done.
-    brel_pures_l. brel_pures_r.
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)).
-    iApply (brel_prf_l (PRF := PRF_inst)). iApply (brel_prf_r (PRF := PRF_inst)).
-    brel_pures_r.
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)).
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
-    brel_pures_l. brel_pures_r.
+    eq_fvt_of_int_l Hrv. eq_fvt_of_int_r Hrv.
+    eq_pures_l. eq_pures_r.
+    eq_int_of_fvt_l msg.
+    eq_lift_l (brel_prf_l (PRF := PRF_inst)) (brel_prf_r (PRF := PRF_inst)).
+    eq_lift_r (brel_prf_l (PRF := PRF_inst)) (brel_prf_r (PRF := PRF_inst)).
+    eq_pures_r.
+    eq_int_of_fvt_l msg. eq_int_of_fvt_r msg. eq_int_of_fvt_r msg.
+    eq_pures_l. eq_pures_r.
     rewrite pad_code_Z; last lia.
     destruct (fvt_of_int_sem_surj (FV := msg)
                 ((int_of_fvt_sem (fin_val := msg) (prf_sem kv rv) + int_of_fvt_sem (fin_val := msg) m) `mod` N))
       as (c & Hc & _).
     { apply Nat.mod_upper_bound. lia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first done.
-    brel_pures_l. brel_pures_r.
-    iModIntro. by iExists (rv, c).
+    eq_fvt_of_int_l Hc. eq_fvt_of_int_r Hc.
+    eq_pures_l. eq_pures_r.
+    iApply eq_value. iModIntro. rewrite eq_lift_fvt. iPureIntro. by exists (rv, c).
   Qed.
 
-  Lemma red_real_enc_real : ⊢ sem_typed [] (RED PREAL) (enc_real SKES) ⊥ τE [].
+  (* The table of [prf_ideal] is fresh, so it misses; the oracle's output is
+     the pad of [HYB], along the one-time pad of the message. *)
+  Lemma red_ideal_hyb_EQ :
+    ⊢ EQ RED PIDEAL ≈ HYB <|iLblSig_to_iLblThy (⊥ : sem_row Σ)|> {{ ⟪ τE ⟫ }}.
   Proof.
-    iIntros "!# %vs Hvs /=". rewrite /red_prf /pad_enc /enc_real.
-    brel_pures_l. iModIntro. iSplitR "Hvs"; last done.
-    iIntros (??) "(->&->)".
-    brel_pures_l. brel_pures_r. rewrite /sem_ty_arr /sem_ty_mbang /=. iModIntro.
-    iIntros (m1 m2) "!> (%m&->&->)".
-    brel_pures_l. brel_pures_r.
-    rewrite /prf_real /rand_key /rand_prf_key /rand_fvt /=. brel_pures_l. brel_pures_r.
-    iApply (brel_couple_rand_rand _ _ (λ n : nat, n)).
-    { by intros. }
-    iIntros (k Hk) "/=".
-    destruct (fvt_of_int_sem_surj (FV := key) k) as (kv & Hkv & _).
-    { unfold fvt_of_fvts in *. simpl in *. lia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := key)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := key)); first done.
-    rewrite /enc_prf. brel_pures_l. brel_pures_r.
-    rewrite /rand_nonce /rand_fvt. brel_pures_l. brel_pures_r.
-    iApply (brel_couple_rand_rand _ _ (λ n : nat, n)).
-    { by intros. }
-    iIntros (r Hr) "/=".
-    destruct (fvt_of_int_sem_surj (FV := nonce) r) as (rv & Hrv & Hrv').
-    { unfold fvt_of_fvts in *. simpl in *. lia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := nonce)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := nonce)); first done.
-    brel_pures_l. brel_pures_r.
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
-    iApply (brel_prf_l (PRF := PRF_inst)). iApply (brel_prf_r (PRF := PRF_inst)).
-    brel_pures_l.
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)).
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)).
-    brel_pures_l. brel_pures_r.
-    rewrite pad_code_Z; last lia.
-    destruct (fvt_of_int_sem_surj (FV := msg)
-                ((int_of_fvt_sem (fin_val := msg) (prf_sem kv rv) + int_of_fvt_sem (fin_val := msg) m) `mod` N))
-      as (c & Hc & _).
-    { apply Nat.mod_upper_bound. lia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first done.
-    brel_pures_l. brel_pures_r.
-    iModIntro. by iExists (rv, c).
-  Qed.
-
-  Lemma red_ideal_hyb : ⊢ sem_typed [] (RED PIDEAL) HYB ⊥ τE [].
-  Proof.
-    iIntros "!# %vs Hvs /=". rewrite /red_prf /pad_enc /enc_hyb.
-    brel_pures_l. iModIntro. iSplitR "Hvs"; last done.
-    iIntros (??) "(->&->)".
-    brel_pures_l. brel_pures_r.
-    brel_alloctape_r ιr as "Hιr". brel_pures_r.
-    brel_alloctape_r ιp as "Hιp".
-    iApply (brel_na_alloc (ιr ↪ₛ (Z.to_nat (ns.(card) - 1); [])
-                           ∗ ιp ↪ₛ (Z.to_nat (ms.(card) - 1); []))%I (nroot .@ "hyb")).
-    iSplitL "Hιr Hιp"; [iNext; iFrame|]. iIntros "#HI".
-    brel_pures_r. rewrite /sem_ty_arr /sem_ty_mbang /=. iModIntro.
-    iIntros (m1 m2) "!> (%m&->&->)".
-    iApply (brel_na_inv _ _ (nroot .@ "hyb")); first set_solver.
-    iFrame "HI". iIntros "((Hιr & Hιp) & Hclose)".
-    brel_pures_l. brel_pures_r.
+    rewrite /red_prf /pad_enc /enc_hyb.
+    eq_pures_l. iApply eq_value. iModIntro.
+    iApply eq_lift_arr. iIntros (u1 u2) "Hu". rewrite eq_lift_unit. iDestruct "Hu" as %[-> ->].
+    eq_pures_l. eq_pures_r.
+    eq_alloctape_r ιr as "Hιr". eq_pures_r.
+    eq_alloctape_r ιp as "Hιp".
+    iApply (eq_na_alloc (ιr ↪ᵣN (Z.to_nat (ns.(card) - 1); []) ∗ ιp ↪ᵣN (Z.to_nat (ms.(card) - 1); []))
+              (nroot .@ "hyb")).
+    iSplitL "Hιr Hιp"; first by iFrame. iIntros "#HI".
+    eq_pures_r. iApply eq_value. iModIntro. iModIntro.
+    iApply eq_lift_arr. iIntros (m1 m2) "Hm". rewrite eq_lift_fvt. iDestruct "Hm" as %(m & -> & ->).
+    iApply (eq_na_open _ _ (nroot .@ "hyb")); first solve_ndisj.
+    iFrame "HI". iIntros "[>[Hιr Hιp] Hclose]".
+    eq_pures_l. eq_pures_r.
     (* the fresh table of [prf_ideal] *)
-    rewrite /prf_ideal. brel_pures_l.
-    brel_alloc_l ℓ as "Hℓ". brel_pures_l.
-    (* the nonce, presampled on the right *)
-    rewrite /rand_nonce /rand_fvt. brel_pures_l.
-    iApply (brel_couple_UT _ _ (λ n : nat, n)).
-    { by intros. }
-    iSplitL "Hιr"; first (iNext; by iApply empty_to_spec_tapeN).
-    iIntros "!>" (r Hr) "Hιr /=".
+    rewrite /prf_ideal. eq_pures_l.
+    eq_alloc_l ℓ as "Hℓ". eq_pures_l.
+    (* the nonce, presampled by [r] *)
+    rewrite /rand_nonce /rand_fvt. eq_pures_l.
+    eq_couple_rand_tape "Hιr". iIntros (r Hr) "Hιr".
     destruct (fvt_of_int_sem_surj (FV := nonce) r) as (rv & Hrv & Hrv').
     { unfold fvt_of_fvts in *. simpl in *. lia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := nonce)); first done.
-    brel_pures_l.
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := nonce)). brel_pures_l.
-    (* the table misses; the oracle output becomes the pad on the right *)
-    brel_load_l. brel_pures_l.
-    rewrite /rand_prf_out /rand_fvt. brel_pures_l.
-    iApply (brel_couple_UT _ _ (pad_map N (int_of_fvt_sem (fin_val := msg) m))).
+    eq_fvt_of_int_l Hrv. eq_pures_l.
+    eq_int_of_fvt_l nonce. eq_pures_l.
+    (* the table misses; the oracle output becomes the pad *)
+    eq_load_l. eq_pures_l.
+    rewrite /rand_prf_out /rand_fvt. eq_pures_l.
+    eq_focus_l (rand #_)%E.
+    iApply (eq_couple_rand_tape_bij _ _ (pad_map N (int_of_fvt_sem (fin_val := msg) m))).
     { intros. unfold fvt_of_fvts in *; simpl in *.
       assert (S (Z.to_nat (N - 1)) = N) as -> by lia. apply pad_map_lt. lia. }
-    iSplitL "Hιp"; first (iNext; by iApply empty_to_spec_tapeN).
-    iIntros "!>" (y Hy) "Hιp /=".
+    { done. }
+    iFrame "Hιp". iIntros (y Hy) "Hιp".
     destruct (fvt_of_int_sem_surj (FV := msg) y) as (yv & Hyv & Hyv').
     { unfold fvt_of_fvts in *. simpl in *. lia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first done.
-    brel_pures_l. brel_load_l. brel_pures_l. brel_store_l. brel_pures_l.
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)).
-    iApply (brel_int_of_fvt_sem_correct_l (fin_val := msg)). brel_pures_l.
-    brel_rand_r. brel_pures_r. brel_rand_r. brel_pures_r.
-    iApply brel_na_close. iFrame "Hclose".
-    iSplitL "Hιr Hιp"; first (iNext; iSplitL "Hιr"; by iApply spec_tapeN_to_empty).
+    eq_fvt_of_int_l Hyv.
+    eq_pures_l. eq_load_l. eq_pures_l. eq_store_l. eq_pures_l.
+    eq_int_of_fvt_l msg. eq_int_of_fvt_l msg. eq_pures_l.
+    eq_rand_r as "_". eq_pures_r. eq_rand_r as "_". eq_pures_r.
+    iApply eq_na_close_rule. iFrame "Hclose Hιr Hιp".
     unfold fvt_of_fvts in *. simpl in *.
     assert (y < N)%nat as HyN by lia.
     rewrite Hyv' pad_code_Z; last lia.
@@ -665,157 +615,62 @@ Section reduction_spec.
     pose proof (Nat.mod_upper_bound (y + int_of_fvt_sem (fin_val := msg) m) N ltac:(lia)).
     destruct (fvt_of_int_sem_surj (FV := msg) ((y + int_of_fvt_sem (fin_val := msg) m) `mod` N))
       as (c & Hc & Hc'); first lia.
-    iApply (brel_fvt_of_int_correct_l (fin_val := msg)); first done.
-    brel_pures_l.
+    eq_fvt_of_int_l Hc. eq_pures_l.
     rewrite -Hrv' -Hc' -Nat2Z.inj_mul -Nat2Z.inj_add.
-    iApply (brel_fvt_of_int_correct_r (fin_val := CIPHER));
-      first exact (int_of_fvt_of_int_sem (fin_val := CIPHER) (rv, c)).
-    brel_pures_r.
-    iModIntro. by iExists (rv, c).
-  Qed.
-
-  Lemma hyb_red_ideal : ⊢ sem_typed [] HYB (RED PIDEAL) ⊥ τE [].
-  Proof.
-    iIntros "!# %vs Hvs /=". rewrite /red_prf /pad_enc /enc_hyb.
-    brel_pures_r. iModIntro. iSplitR "Hvs"; last done.
-    iIntros (??) "(->&->)".
-    brel_pures_l. brel_pures_r.
-    brel_alloctape_l ιr as "Hιr". brel_pures_l.
-    brel_alloctape_l ιp as "Hιp".
-    iApply (brel_na_alloc (ιr ↪N (Z.to_nat (ns.(card) - 1); [])
-                           ∗ ιp ↪N (Z.to_nat (ms.(card) - 1); []))%I (nroot .@ "hyb")).
-    iSplitL "Hιr Hιp"; [iNext; iFrame|]. iIntros "#HI".
-    brel_pures_l. rewrite /sem_ty_arr /sem_ty_mbang /=. iModIntro.
-    iIntros (m1 m2) "!> (%m&->&->)".
-    iApply (brel_na_inv _ _ (nroot .@ "hyb")); first set_solver.
-    iFrame "HI". iIntros "((Hιr & Hιp) & Hclose)".
-    brel_pures_l. brel_pures_r.
-    rewrite /prf_ideal. brel_pures_r.
-    brel_alloc_r ℓ as "Hℓ". brel_pures_r.
-    (* the nonce *)
-    rewrite /rand_nonce /rand_fvt. brel_pures_r.
-    iApply (brel_couple_TU _ _ (λ x : fin _, x)).
-    { by rewrite /=. }
-    iSplitL "Hιr"; first (iNext; by iApply tapeN_to_empty).
-    iIntros (r) "Hιr /=".
-    iAssert (ιr ↪N (Z.to_nat (ns.(card) - 1); [fin_to_nat r]))%I with "[Hιr]" as "Hιr".
-    { iExists [_]. simpl. iFrame. done. }
-    brel_rand_l. brel_pures_l.
-    pose proof (fin_to_nat_lt r) as Hr.
-    destruct (fvt_of_int_sem_surj (FV := nonce) r) as (rv & Hrv & Hrv').
-    { unfold fvt_of_fvts in *. simpl in *. lia. }
-    iApply (brel_fvt_of_int_correct_r (fin_val := nonce)); first done.
-    brel_pures_r.
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := nonce)). brel_pures_r.
-    brel_load_r. brel_pures_r.
-    (* the pad, coupled with the oracle output along the inverse one-time pad *)
-    rewrite /rand_prf_out /rand_fvt. brel_pures_r.
-    set (k := int_of_fvt_sem (fin_val := msg) m).
-    assert (S (Z.to_nat (ms.(card) - 1)) = N) as HN by (unfold fvt_of_fvts in *; simpl in *; lia).
-    destruct (restr_bij_fin (S (Z.to_nat (ms.(card) - 1))) (pad_map N (N - k mod N))) as (g & Hg & Hgeq).
-    { intros. rewrite HN in H0 |- *. by apply pad_map_lt. }
-    iApply (brel_couple_TU _ _ g).
-    { by rewrite /=. }
-    iSplitL "Hιp"; first (iNext; by iApply tapeN_to_empty).
-    iIntros (p) "Hιp /=".
-    iAssert (ιp ↪N (Z.to_nat (ms.(card) - 1); [fin_to_nat p]))%I with "[Hιp]" as "Hιp".
-    { iExists [_]. simpl. iFrame. done. }
-    brel_rand_l. brel_pures_l.
-    pose proof (fin_to_nat_lt p) as Hp.
-    assert (Hp' : (fin_to_nat p < N)%nat) by lia.
-    rewrite Hgeq.
-    pose proof (pad_map_lt N (N - k mod N) p Hp') as Hy.
-    destruct (fvt_of_int_sem_surj (FV := msg) (pad_map N (N - k mod N) p)) as (yv & Hyv & Hyv').
-    { unfold fvt_of_fvts in *. simpl in *. lia. }
-    iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first done.
-    brel_pures_r. brel_load_r. brel_pures_r. brel_store_r. brel_pures_r.
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)).
-    iApply (brel_int_of_fvt_sem_correct_r (fin_val := msg)). brel_pures_r.
-    iApply brel_na_close. iFrame "Hclose Hιr Hιp".
-    rewrite Hyv' pad_code_Z; last lia.
-    rewrite pad_map_inv //.
-    destruct (fvt_of_int_sem_surj (FV := msg) p) as (pv & Hpv & Hpv'); first lia.
-    iApply (brel_fvt_of_int_correct_r (fin_val := msg)); first done.
-    brel_pures_r.
-    rewrite -Hrv' -Hpv' -Nat2Z.inj_mul -Nat2Z.inj_add.
-    iApply (brel_fvt_of_int_correct_l (fin_val := CIPHER));
-      first exact (int_of_fvt_of_int_sem (fin_val := CIPHER) (rv, pv)).
-    brel_pures_l.
-    iModIntro. by iExists (rv, pv).
+    eq_fvt_of_int_r (int_of_fvt_of_int_sem (fin_val := CIPHER) (rv, c)).
+    eq_pures_r.
+    iApply eq_value. iModIntro. rewrite eq_lift_fvt. iPureIntro. by exists (rv, c).
   Qed.
 
   (** The two-against-one coupling: the tapes of [HYB] against the [rand] of [enc_ideal]. *)
-  Lemma hyb_ideal : ⊢ sem_typed [] HYB (enc_ideal SKES) ⊥ τE [].
+  Lemma hyb_ideal_EQ :
+    ⊢ EQ HYB ≈ enc_ideal SKES <|iLblSig_to_iLblThy (⊥ : sem_row Σ)|> {{ ⟪ τE ⟫ }}.
   Proof.
     pose proof (@prod_fvt_card nt mt) as card_ct.
-    iIntros "!# %vs Hvs /=". rewrite /enc_hyb /enc_ideal.
-    iApply brel_value. iIntros "$ !>". iSplitL; last done.
-    iIntros (??) "(->&->)".
-    brel_pures_l. brel_pures_r.
-    brel_alloctape_l ιr as "Hιr". brel_pures_l.
-    brel_alloctape_l ιp as "Hιp".
-    iApply (brel_na_alloc (ιr ↪N (Z.to_nat (ns.(card) - 1); [])
-                           ∗ ιp ↪N (Z.to_nat (ms.(card) - 1); []))%I (nroot .@ "hyb")).
-    iSplitL "Hιr Hιp"; [iNext; iFrame|]. iIntros "#HI".
-    brel_pures_l. rewrite /sem_ty_arr /sem_ty_mbang /=. iModIntro.
-    iIntros (m1 m2) "!> (%m&->&->)".
-    iApply (brel_na_inv _ _ (nroot .@ "hyb")); first set_solver.
-    iFrame "HI". iIntros "((Hιr & Hιp) & Hclose)".
-    brel_pures_l. brel_pures_r. rewrite /rand_cipher /rand_fvt /=. brel_pures_r.
-    iApply (brel_couple_TT_U (Z.to_nat (CS.(card) - 1)) (Z.to_nat (ns.(card) - 1)) (Z.to_nat (ms.(card) - 1))
+    rewrite /enc_hyb /enc_ideal.
+    iApply eq_value. iModIntro.
+    iApply eq_lift_arr. iIntros (u1 u2) "Hu". rewrite eq_lift_unit. iDestruct "Hu" as %[-> ->].
+    eq_pures_l. eq_pures_r.
+    eq_alloctape_l ιr as "Hιr". eq_pures_l.
+    eq_alloctape_l ιp as "Hιp".
+    iApply (eq_na_alloc (ιr ↪ₗN (Z.to_nat (ns.(card) - 1); []) ∗ ιp ↪ₗN (Z.to_nat (ms.(card) - 1); []))
+              (nroot .@ "hyb")).
+    iSplitL "Hιr Hιp"; first by iFrame. iIntros "#HI".
+    eq_pures_l. iApply eq_value. iModIntro. iModIntro.
+    iApply eq_lift_arr. iIntros (m1 m2) "Hm". rewrite eq_lift_fvt. iDestruct "Hm" as %(m & -> & ->).
+    iApply (eq_na_open _ _ (nroot .@ "hyb")); first solve_ndisj.
+    iFrame "HI". iIntros "[>[Hιr Hιp] Hclose]".
+    eq_pures_l. eq_pures_r. rewrite /rand_cipher /rand_fvt /=. eq_pures_r.
+    eq_focus_r (rand #_)%E.
+    iApply (eq_couple_tapes_rand (Z.to_nat (CS.(card) - 1)) (Z.to_nat (ns.(card) - 1)) (Z.to_nat (ms.(card) - 1))
               (λ r p, r * N + p)%nat).
     1-3: unfold fvt_of_fvts in *; simpl in *.
     1,3: intros; nia.
     { intros ????????. apply code_pair_inj; lia. }
     iFrame "Hιr Hιp".
-    iIntros (n1 n2 Hn1 Hn2) "Hιr Hιp /=".
-    brel_rand_l. brel_pures_l. brel_rand_l. brel_pures_l.
-    iApply brel_na_close. iFrame "Hclose Hιr Hιp".
+    iIntros (n1 n2 Hn1 Hn2) "Hιr Hιp".
+    eq_rand_l as "_". eq_pures_l. eq_rand_l as "_". eq_pures_l.
+    iApply eq_na_close_rule. iFrame "Hclose Hιr Hιp".
     rewrite -Nat2Z.inj_mul -Nat2Z.inj_add.
     destruct (fvt_of_int_sem_surj (FV := CIPHER) (n1 * N + n2)) as (c & Hc & _).
     { unfold fvt_of_fvts in *. simpl in *. rewrite card_ct. nia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := CIPHER)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := CIPHER)); first done.
-    brel_pures_l. brel_pures_r.
-    iModIntro. by iExists c.
+    eq_fvt_of_int_l Hc. eq_fvt_of_int_r Hc.
+    eq_pures_l. eq_pures_r.
+    iApply eq_value. iModIntro. rewrite eq_lift_fvt. iPureIntro. by exists c.
   Qed.
 
+  Lemma enc_real_red_real : ⊢ sem_typed [] (enc_real SKES) (RED PREAL) ⊥ τE [].
+  Proof. apply (EQ_sem_typed_expr _ _ _ _ Fwd enc_real_red_real_EQ); intros; done. Qed.
+  Lemma red_real_enc_real : ⊢ sem_typed [] (RED PREAL) (enc_real SKES) ⊥ τE [].
+  Proof. apply (EQ_sem_typed_expr _ _ _ _ Bwd enc_real_red_real_EQ); intros; done. Qed.
+  Lemma red_ideal_hyb : ⊢ sem_typed [] (RED PIDEAL) HYB ⊥ τE [].
+  Proof. apply (EQ_sem_typed_expr _ _ _ _ Fwd red_ideal_hyb_EQ); intros; done. Qed.
+  Lemma hyb_red_ideal : ⊢ sem_typed [] HYB (RED PIDEAL) ⊥ τE [].
+  Proof. apply (EQ_sem_typed_expr _ _ _ _ Bwd red_ideal_hyb_EQ); intros; done. Qed.
+  Lemma hyb_ideal : ⊢ sem_typed [] HYB (enc_ideal SKES) ⊥ τE [].
+  Proof. apply (EQ_sem_typed _ _ _ _ hyb_ideal_EQ Fwd). Qed.
   Lemma ideal_hyb : ⊢ sem_typed [] (enc_ideal SKES) HYB ⊥ τE [].
-  Proof.
-    pose proof (@prod_fvt_card nt mt) as card_ct.
-    iIntros "!# %vs Hvs /=". rewrite /enc_hyb /enc_ideal.
-    iApply brel_value. iIntros "$ !>". iSplitL; last done.
-    iIntros (??) "(->&->)".
-    brel_pures_l. brel_pures_r.
-    brel_alloctape_r ιr as "Hιr". brel_pures_r.
-    brel_alloctape_r ιp as "Hιp".
-    iApply (brel_na_alloc (ιr ↪ₛ (Z.to_nat (ns.(card) - 1); [])
-                           ∗ ιp ↪ₛ (Z.to_nat (ms.(card) - 1); []))%I (nroot .@ "hyb")).
-    iSplitL "Hιr Hιp"; [iNext; iFrame|]. iIntros "#HI".
-    brel_pures_r. rewrite /sem_ty_arr /sem_ty_mbang /=. iModIntro.
-    iIntros (m1 m2) "!> (%m&->&->)".
-    iApply (brel_na_inv _ _ (nroot .@ "hyb")); first set_solver.
-    iFrame "HI". iIntros "((Hιr & Hιp) & Hclose)".
-    brel_pures_l. brel_pures_r. rewrite /rand_cipher /rand_fvt /=. brel_pures_l.
-    iApply (brel_couple_U_TT (Z.to_nat (CS.(card) - 1)) (Z.to_nat (ns.(card) - 1)) (Z.to_nat (ms.(card) - 1))
-              (λ r p, r * N + p)%nat).
-    1-3: unfold fvt_of_fvts in *; simpl in *.
-    1,3: intros; nia.
-    { intros ????????. apply code_pair_inj; lia. }
-    iSplitL "Hιr"; first (iNext; by iApply empty_to_spec_tapeN).
-    iSplitL "Hιp"; first (iNext; by iApply empty_to_spec_tapeN).
-    iIntros "!>" (n1 n2 Hn1 Hn2) "Hιr Hιp /=".
-    brel_rand_r. brel_pures_r. brel_rand_r. brel_pures_r.
-    iApply brel_na_close. iFrame "Hclose".
-    iSplitL "Hιr Hιp"; first (iNext; iSplitL "Hιr"; by iApply spec_tapeN_to_empty).
-    rewrite -Nat2Z.inj_mul -Nat2Z.inj_add.
-    destruct (fvt_of_int_sem_surj (FV := CIPHER) (n1 * N + n2)) as (c & Hc & _).
-    { unfold fvt_of_fvts in *. simpl in *. rewrite card_ct. nia. }
-    iApply (brel_fvt_of_int_correct_l (fin_val := CIPHER)); first done.
-    iApply (brel_fvt_of_int_correct_r (fin_val := CIPHER)); first done.
-    brel_pures_l. brel_pures_r.
-    iModIntro. by iExists c.
-  Qed.
+  Proof. apply (EQ_sem_typed _ _ _ _ hyb_ideal_EQ Bwd). Qed.
 
 End reduction_spec.
 

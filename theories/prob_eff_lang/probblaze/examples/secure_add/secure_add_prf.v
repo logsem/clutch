@@ -5,7 +5,10 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   spec_rules spec_ra class_instances.
 From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
+From iris.bi Require Import monpred.
+From iris.proofmode Require Import monpred.
 From clutch.prob_eff_lang.probblaze.examples.secure_add Require Import secure_add_def secure_add_bijection.
+From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_valgroup eq_handlers eq_compat.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -76,442 +79,232 @@ Section add_security.
       iModIntro; iApply brel_value; iIntros "$ !>"; done.
   Qed.
 
-  (* Calling related operations of the env (in row [θ]) from inside the
-     scenario's handlers, whose labels are [l1s] and [l2s]. *)
-  Lemma brel_env_call l1s l2s k1 k2 (f1 f2 v1 v2 : val) (τ κ : sem_ty Σ) (θ L : sem_row Σ) R :
-    ectx_labels k1 ⊆ l1s →
-    ectx_labels k2 ⊆ l2s →
-    (τ -{ θ }-> κ)%T f1 f2 -∗
-    τ v1 v2 -∗
-    (∀ w1 w2, κ w1 w2 -∗
-       BREL fill k1 w1 ≤ fill k2 w2
-         <|(l1s, l2s, iThyBot) :: iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)|> {{R}}) -∗
-    BREL fill k1 (f1 v1) ≤ fill k2 (f2 v2)
-      <|(l1s, l2s, iThyBot) :: iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)|> {{R}}.
+  (* The theory of the client's input ports, with the labels of [l] ([al])
+     and of [r] ([ar]); it is symmetric, so in direction [Bwd] it is the same
+     theory with the labels swapped. *)
+  Definition add_thy (al ar : label) : dir → iThy Σ := λ d, AddThy (pick d al ar) (pick d ar al).
+
+  Lemma add_thy_app al ar el er Q :
+    eq_thy_app (add_thy al ar) el er Q ⊢
+      ∃ m : nat, ⌜(el = (do: al (InjLV #m))%E ∧ er = (do: ar (InjLV #m))%E) ∨
+                  (el = (do: al (InjRV #m))%E ∧ er = (do: ar (InjRV #m))%E)⌝ ∗ ⎡□ Q #()%V #()%V⎤.
   Proof.
-    iIntros (Hk1 Hk2) "Hf Hv Hk".
-    iApply (brel_bind'' _ _ (iLblSig_to_iLblThy (¡ θ)%R) [(l1s, l2s, iThyBot)]).
-    { rewrite labels_l_cons /=. set_solver. }
-    { rewrite labels_r_cons /=. set_solver. }
-    { iApply to_iThy_le_intro'. unfold sem_row_union.
-      repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
-      solve_submseteq. }
-    rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-    iApply (brel_mono OS with "[] [Hf Hv] Hk"); first iApply to_iThy_le_refl.
-    rewrite /sem_ty_mbang /sem_ty_arr /=. by iApply "Hf".
+    split=> d. rewrite monPred_at_exist.
+    destruct d; rewrite /eq_thy_app /add_thy /pick /=;
+      iIntros "(%m & [[-> ->]|[-> ->]] & #HQ)"; iExists m;
+      rewrite monPred_at_sep monPred_at_pure monPred_at_embed; iFrame "HQ"; iPureIntro; naive_solver.
   Qed.
 
-  Lemma REAL_ADD_IDEAL_MS :
-    ⊢ sem_typed [] REAL_ADD SIM_IDEAL_ADD ⊥ (𝟙 -{ ⟨⟩ }-[ MS ]-> τ_ADD)%T [].
-  Proof with (repeat foldkont; brel_pures') using All.
-    iIntros (vs) "!> _". simpl.
-    iApply brel_value. iIntros "$ !>". iSplit; last done.
-    rewrite /sem_ty_mbang /sem_ty_arr /=. iModIntro.
-    iIntros (u1 u2) "[-> ->]".
+  (* The protocol [REAL_ADD] is [l], the simulated functionality [r]. *)
+  Lemma ADD_EQ :
+    ⊢ EQ REAL_ADD ≈ SIM_IDEAL_ADD <|iLblSig_to_iLblThy (⊥ : sem_row Σ)|> {{ ⟪ 𝟙 -{ ⟨⟩ }-[ MS ]-> τ_ADD ⟫ }}.
+  Proof with (repeat foldkont; eq_pures') using All.
+    iApply eq_value. iModIntro. iModIntro.
+    iApply eq_lift_arr. iIntros (u1 u2) "Hu". rewrite eq_lift_unit. iDestruct "Hu" as %[-> ->].
     unfold REAL_ADD, SIM_IDEAL_ADD, SIM_ADD, IDEAL_ADD, functionality_composition, func_comp...
     (* Calling the composites allocates the state: the protocol's flags and
-       F_CHAN's message on the left, F_ADD's inputs and the simulator's
-       message on the right. *)
-    brel_alloc_l doneA as "HdoneA"...
-    brel_alloc_l doneB as "HdoneB"...
-    brel_alloc_l msg as "Hmsg"...
-    brel_alloc_r lx as "Hlx"...
-    brel_alloc_r ly as "Hly"...
-    brel_alloc_r lu as "Hlu"...
-    iModIntro.
-    iIntros (L f1 f2) "Hf"...
-    iModIntro.
-    iIntros (θ e1 e2) "Heffs"...
-    iDestruct "Heffs" as (toC1 toC2 ch1 ch2) "(-> & -> & HtoC & Hch)".
-    iDestruct "HtoC" as (sAC1 sAC2 sBC1 sBC2) "(-> & -> & #HsAC & #HsBC)".
-    iDestruct "Hch" as (ls1 ls2 lr1 lr2) "(-> & -> & #Hls & #Hlr)"...
-    brel_effect_l ssend as "Hssend"...
-    brel_effect_l srecv as "Hsrecv"...
-    brel_effect_l add_l as "Hadd_l"...
-    brel_effect_r leak as "Hleak"...
-    brel_effect_r add_r as "Hadd_r"...
-    set (l1s := [add_l; srecv; ssend]).
-    set (l2s := [add_r; leak]).
-    set (θc := add_row l1s l2s add_l add_r).
-    iSpecialize ("Hf" $! θc).
-    iPoseProof (add_ports_typed l1s l2s add_l add_r) as "Hports".
-    unfold sem_val_typed. simpl. iDestruct "Hports" as "#Hports".
-    iSpecialize ("Hf" with "Hports").
-    set (IA := ((doneA ↦ #false ∗ msg ↦ NONEV ∗ lx ↦ₛ NONEV ∗ lu ↦ₛ NONEV) ∨
-                (∃ x r : vgG, doneA ↦□ #true ∗ msg ↦□ SOMEV (vgval r) ∗
-                   lx ↦ₛ□ SOMEV (vgval x) ∗ lu ↦ₛ□ SOMEV (vgval (x * r)%g)))%I).
-    set (IB := ((doneB ↦ #false ∗ ly ↦ₛ NONEV) ∨
-                (∃ y : vgG, doneB ↦ #true ∗ ly ↦ₛ SOMEV (vgval y)))%I).
-    iApply (brel_na_alloc (IA ∗ IB)%I addN).
+       F_CHAN's message in [l], F_ADD's inputs and the simulator's message in
+       [r]. *)
+    eq_alloc_l doneA as "HdoneA"...
+    eq_alloc_l doneB as "HdoneB"...
+    eq_alloc_l msg as "Hmsg"...
+    eq_alloc_r lx as "Hlx"...
+    eq_alloc_r ly as "Hly"...
+    eq_alloc_r lu as "Hlu"...
+    iApply eq_value. iModIntro. rewrite /τ_ADD. iEval (rewrite eq_lift_forall). iIntros (L).
+    iApply eq_lift_arr. iIntros (f1 f2) "Hf"...
+    iApply eq_value. iModIntro. iEval (rewrite eq_lift_forall). iIntros (θ).
+    iApply eq_lift_arr. iIntros (e1 e2) "Heffs"...
+    iEval (rewrite eq_lift_prod) in "Heffs". iDestruct "Heffs" as (toC1 toC2 ch1 ch2) "(-> & -> & HtoC & Hch)".
+    iEval (rewrite eq_lift_prod) in "HtoC". iDestruct "HtoC" as (sAC1 sAC2 sBC1 sBC2) "(-> & -> & #HsAC & #HsBC)".
+    iEval (rewrite eq_lift_prod) in "Hch". iDestruct "Hch" as (ls1 ls2 lr1 lr2) "(-> & -> & #Hls & #Hlr)"...
+    eq_effect_l ssend as "Hssend"...
+    eq_effect_l srecv as "Hsrecv"...
+    eq_effect_l add_l as "Hadd_l"...
+    eq_effect_r leak as "Hleak"...
+    eq_effect_r add_r as "Hadd_r"...
+    set (lls := [add_l; srecv; ssend]).
+    set (rls := [add_r; leak]).
+    (* The client's row: its input ports, with the labels of the program on
+       the left. *)
+    set (θc := λ d, add_row (pick d lls rls) (pick d rls lls) (pick d add_l add_r) (pick d add_r add_l)).
+    set (IA := ((doneA ↦ₗ #false ∗ msg ↦ₗ NONEV ∗ lx ↦ᵣ NONEV ∗ lu ↦ᵣ NONEV) ∨
+                (∃ x r : vgG, doneA ↦ₗ□ #true ∗ msg ↦ₗ□ SOMEV (vgval r) ∗
+                   lx ↦ᵣ□ SOMEV (vgval x) ∗ lu ↦ᵣ□ SOMEV (vgval (x * r)%g)))%I : iPropD Σ).
+    set (IB := ((doneB ↦ₗ #false ∗ ly ↦ᵣ NONEV) ∨
+                (∃ y : vgG, doneB ↦ₗ #true ∗ ly ↦ᵣ SOMEV (vgval y)))%I : iPropD Σ).
+    iApply (eq_na_alloc (IA ∗ IB) addN).
     iSplitL "HdoneA Hmsg Hlx Hlu HdoneB Hly".
     { iNext. iSplitL "HdoneA Hmsg Hlx Hlu"; iLeft; iFrame. }
     iIntros "#Hinv".
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hssend").
-    iApply (brel_add_label_l with "Hsrecv").
-    iApply (brel_add_label_l with "Hadd_l").
-    iApply (brel_add_label_r with "Hleak").
-    iApply (brel_add_label_r with "Hadd_r").
-    iApply brel_learn. iIntros "%Hdist _".
-    iApply (brel_exhaustion (f1 _) (f2 _) with "[Hf]");
-      [set_unfold; tauto | set_unfold; tauto | | ].
-    { iApply (brel_introduction_mono with "[] Hf").
-      iApply to_iThy_le_intro'. simpl.
-      apply submseteq_skip.
-      unfold sem_row_union.
-      repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
-      solve_submseteq. }
+    iApply eq_new_theory.
+    iApply eq_add_label_l. iFrame "Hssend".
+    iApply eq_add_label_l. iFrame "Hsrecv".
+    iApply eq_add_label_l. iFrame "Hadd_l".
+    iApply eq_add_label_r. iFrame "Hleak".
+    iApply eq_add_label_r. iFrame "Hadd_r".
+    iApply eq_learn_nodup. iIntros ([Hndl _]).
+    eq_reshape_l (f1 _). eq_reshape_r (f2 _).
+    iApply (eq_exhaustion _ _ _ _ (add_thy add_l add_r) with "[Hf]");
+      [set_unfold; tauto | set_unfold; tauto | |].
+    { iApply (eq_thy_mono _ _ (EqThy (λ d, iLblSig_to_iLblThy (sem_row_union (θc d) L)))).
+      { intros []; rewrite /θc /add_thy /pick /=; iApply to_iThy_le_intro'; simpl;
+          apply submseteq_skip; unfold sem_row_union;
+          repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app);
+          solve_submseteq. }
+      iApply (eq_lift_forall_app _ _ _ θc with "Hf").
+      iApply eq_lift_dep_intro. intros []; rewrite /θc /pick /=;
+        iPoseProof (add_ports_typed _ _ _ _) as "H"; unfold sem_val_typed; simpl; iDestruct "H" as "#H"; iApply "H". }
     iLöb as "IH".
-    iSplit; [iIntros (v1 v2) "%Hv1v2"; iModIntro; brel_pures; iModIntro; done |].
-    iIntros (k1 k2 e1 e2 Q) "!# %Hk1 %Hk2 HXQ #Hrel".
-    simpl.
-    iDestruct "HXQ" as (m) "[[[-> ->]|[-> ->]] #HQ]".
+    iSplit.
+    { iIntros "!>" (vl vr) "Hv". rewrite eq_lift_unit. iDestruct "Hv" as %[-> ->].
+      eq_pures_l. eq_pures_r. iApply eq_value. iModIntro. by rewrite eq_lift_unit. }
+    iIntros "!>" (k1 k2 e1 e2 Q) "%Hk1 %Hk2 HXQ #Hrel".
+    iDestruct (add_thy_app with "HXQ") as (m) "[%Hm #HQ]".
+    destruct Hm as [[-> ->]|[-> ->]].
     - (* Alice's input *)
-      brel_handle_os_l (ka) as "Hka"...
-      brel_handle_os_r (fa) as "Hfa"...
+      eq_handle_os ka fa as "Hka" "Hfa"...
       destruct (vg_of_int_sem m) as [x|] eqn:Hm; last first.
-      { iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done...
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
+      { eq_vg_of_int_none_l. eq_vg_of_int_none_r...
+        eq_cont_l. eq_cont_r.
+        eq_exhaustion (fill k1 #()%V) (fill k2 #()%V);
           [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"]. }
-      iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done...
-      iApply (brel_na_inv _ _ addN); first (set_unfold; tauto).
+      eq_vg_of_int_l. eq_vg_of_int_r...
+      iApply (eq_na_open _ _ addN); first (set_unfold; tauto).
       iFrame "Hinv".
       iIntros "[[[>HA0 | >HA1] HB] Hclose]".
       + (* Alice's first input *)
         iDestruct "HA0" as "(HdoneA & Hmsg & Hlx & Hlu)".
-        brel_load_l... brel_store_l...
-        brel_load_r... brel_store_r...
-        iApply (brel_handle_os_r [] [AppRCtx _]); first (simpl; set_solver).
+        eq_load_l... eq_store_l...
+        eq_load_r... eq_store_r...
+        iApply (eq_handle_os_r [] [AppRCtx _]); first (simpl; set_solver).
         iIntros (sa) "Hsa"...
         (* Alice's mask [g^ρ] against the simulator's [u = x · g^ρ] *)
-        iApply (brel_couple_rand_rand _ _ (add_coupling_nat x));
-          first apply add_coupling_nat_bound.
-        iIntros (ρ) "%Hρ"...
+        eq_focus_l (rand #_)%E. eq_focus_r (rand #_)%E.
+        iApply (eq_couple_rand_rand_bij _ _ (add_coupling_nat x)); first apply add_coupling_nat_bound.
+        iIntros (ρ) "%Hρ". simpl...
         rewrite add_coupling_nat_mult; last lia...
-        iApply brel_int_of_vg_sem_correct_l...
-        iApply (brel_handle_os_l [HandleCtx _ _ _ _ _] [AppRCtx _]); first (simpl; set_solver).
-        iIntros "!>" (ks) "Hks"...
-        iApply brel_vg_of_int_correct_l; first apply int_of_vg_of_int_sem...
-        brel_load_l... brel_store_l...
-        brel_store_r...
-        iMod (ghost_map_elem_persist with "HdoneA") as "#HdoneA".
-        iMod (ghost_map_elem_persist with "Hmsg") as "#Hmsg".
-        iMod (ghost_map_elem_persist with "Hlx") as "#Hlx".
-        iMod (ghost_map_elem_persist with "Hlu") as "#Hlu".
-        iApply brel_na_close. iFrame "Hclose".
+        eq_int_of_vg_l...
+        iApply (eq_handle_os_l [HandleCtx _ _ _ _ _] [AppRCtx _]); first (simpl; set_solver).
+        iIntros (ks) "Hks"...
+        pose proof (int_of_vg_of_int_sem (g ^+ ρ)%g).
+        eq_vg_of_int_l...
+        eq_load_l... eq_store_l...
+        eq_store_r...
+        iMod (eq_pt_l_persist with "HdoneA") as "#HdoneA".
+        iMod (eq_pt_l_persist with "Hmsg") as "#Hmsg".
+        iMod (eq_pt_r_persist with "Hlx") as "#Hlx".
+        iMod (eq_pt_r_persist with "Hlu") as "#Hlu".
+        iApply eq_na_close_rule. iFrame "Hclose".
         iSplitR "Hka Hfa Hsa Hks".
         { iNext. iFrame "HB". iRight. iExists x, (g ^+ ρ)%g. iFrame "#". }
         (* F_CHAN leaks that Alice sent *)
-        iApply (brel_env_call l1s l2s [HandleCtx _ _ _ _ _; AppRCtx _] [AppRCtx _] with "Hls []");
+        iApply (eq_env_call lls rls _ [HandleCtx _ _ _ _ _; AppRCtx _] [AppRCtx _] with "Hls [] [-]");
           [simpl; set_solver | simpl; set_solver | |].
-        { iExists #()%V, #()%V. iRight. repeat iSplit; try iPureIntro; done. }
-        iIntros (w1 w2) "(->&->)"...
-        brel_cont_l...
+        { iApply eq_lift_same. iExists #()%V, #()%V. iRight. repeat iSplit; try iPureIntro; done. }
+        iIntros (w1 w2) "Hw". rewrite eq_lift_unit. iDestruct "Hw" as %[-> ->]...
+        eq_cont_l...
         (* Alice's message to the aggregator *)
-        iApply (brel_env_call l1s l2s [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _] [AppRCtx _]
-                 with "HsAC []");
-          [simpl; set_solver | simpl; set_solver | by iExists _ |].
-        iIntros (w1 w2) "(->&->)"...
-        brel_cont_l. brel_cont_r... brel_cont_r.
-        iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
+        iApply (eq_env_call lls rls _ [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _] [AppRCtx _]
+                 with "HsAC [] [-]");
+          [simpl; set_solver | simpl; set_solver | iApply eq_lift_same; by iExists _ |].
+        iIntros (w1 w2) "Hw". rewrite eq_lift_unit. iDestruct "Hw" as %[-> ->]...
+        eq_cont_l. eq_cont_r... eq_cont_r.
+        eq_exhaustion (fill k1 #()%V) (fill k2 #()%V);
           [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
       + (* Alice already gave her input *)
         iDestruct "HA1" as (x' r) "(#HdoneA & #Hmsg & #Hlx & #Hlu)".
-        brel_load_l... brel_load_r...
-        iApply brel_na_close. iFrame "Hclose".
+        eq_load_l... eq_load_r...
+        iApply eq_na_close_rule. iFrame "Hclose".
         iSplitR "Hka Hfa".
         { iNext. iFrame "HB". iRight. iExists x', r. iFrame "#". }
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
+        eq_cont_l. eq_cont_r.
+        eq_exhaustion (fill k1 #()%V) (fill k2 #()%V);
           [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
     - (* Bob's input *)
-      destruct Hdist as [Hdl Hdr].
-      apply distinct_l_cons_inv in Hdl as [Hnd_l _].
-      apply NoDup_cons in Hnd_l as [Hn_add Hnd_l].
-      apply NoDup_cons in Hnd_l as [Hn_srecv _].
-      brel_handle_os_l (kb) as "Hkb"...
-      brel_handle_os_r (fb) as "Hfb"...
+      apply NoDup_cons in Hndl as [Hn_add Hndl].
+      apply NoDup_cons in Hndl as [Hn_srecv _].
+      eq_handle_os kb fb as "Hkb" "Hfb"...
       destruct (vg_of_int_sem m) as [y|] eqn:Hm; last first.
-      { iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done...
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
+      { eq_vg_of_int_none_l. eq_vg_of_int_none_r...
+        eq_cont_l. eq_cont_r.
+        eq_exhaustion (fill k1 #()%V) (fill k2 #()%V);
           [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"]. }
-      iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done...
-      iApply (brel_na_inv _ _ addN); first (set_unfold; tauto).
+      eq_vg_of_int_l. eq_vg_of_int_r...
+      iApply (eq_na_open _ _ addN); first (set_unfold; tauto).
       iFrame "Hinv".
       iIntros "[[HA [>HB0 | >HB1]] Hclose]".
       + (* Bob has not given an input yet *)
         iDestruct "HB0" as "(HdoneB & Hly)".
-        brel_load_l... brel_load_r...
-        iApply brel_na_close. iFrame "Hclose".
+        eq_load_l... eq_load_r...
+        iApply eq_na_close_rule. iFrame "Hclose".
         iSplitR "Hkb Hfb".
         { iNext. iFrame "HA". iLeft. iFrame. }
         (* Bob asks F_CHAN for [r]; the simulator forwards the env's decision *)
-        iApply (brel_handle_os_l [] [HandleCtx _ _ _ _ _; CaseCtx _ _]); first (simpl; set_solver).
-        iIntros "!>" (kr) "Hkr"...
-        iApply (brel_handle_os_r [] [CaseCtx _ _]); first (simpl; set_solver).
+        iApply (eq_handle_os_l [] [HandleCtx _ _ _ _ _; CaseCtx _ _]); first (simpl; set_solver).
+        iIntros (kr) "Hkr"...
+        iApply (eq_handle_os_r [] [CaseCtx _ _]); first (simpl; set_solver).
         iIntros (sb) "Hsb"...
-        iApply (brel_env_call l1s l2s [AppRCtx _] [AppRCtx _] with "Hlr []");
+        iApply (eq_env_call lls rls _ [AppRCtx _] [AppRCtx _] with "Hlr [] [-]");
           [simpl; set_solver | simpl; set_solver | |].
-        { iExists #()%V, #()%V. iLeft. repeat iSplit; try iPureIntro; done. }
-        iIntros (w1 w2) "(%a1 & %a2 & [(->&->&->&->)|(->&->&->&->)])"...
+        { iApply eq_lift_same. iExists #()%V, #()%V. iLeft. repeat iSplit; try iPureIntro; done. }
+        iIntros (w1 w2) "Hw". iEval (rewrite eq_lift_sum) in "Hw".
+        iDestruct "Hw" as (a1 a2) "[(-> & -> & Hu)|(-> & -> & Hu)]";
+          iEval (rewrite eq_lift_unit) in "Hu"; iDestruct "Hu" as %[-> ->]...
         * (* [r] is not delivered *)
-          brel_cont_l... brel_cont_l. brel_cont_r... brel_cont_r.
-          iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
+          eq_cont_l... eq_cont_l. eq_cont_r... eq_cont_r.
+          eq_exhaustion (fill k1 #()%V) (fill k2 #()%V);
             [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
         * (* [r] is delivered, if Alice has sent it *)
-          iApply (brel_na_inv _ _ addN); first (set_unfold; tauto).
+          iApply (eq_na_open _ _ addN); first (set_unfold; tauto).
           iFrame "Hinv".
           iIntros "[[[>HA0 | >HA1] >HB] Hclose]".
           -- (* Alice has not sent [r] yet *)
              iDestruct "HA0" as "(HdoneA & Hmsg & Hlx & Hlu)".
-             brel_load_l... brel_cont_l... brel_cont_r... brel_load_r...
-             iApply brel_na_close. iFrame "Hclose".
+             eq_load_l... eq_cont_l... eq_cont_r... eq_load_r...
+             iApply eq_na_close_rule. iFrame "Hclose".
              iSplitL "HdoneA Hmsg Hlx Hlu HB".
              { iNext. iFrame "HB". iLeft. iFrame. }
-             brel_cont_l. brel_cont_r.
-             iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
+             eq_cont_l. eq_cont_r.
+             eq_exhaustion (fill k1 #()%V) (fill k2 #()%V);
                [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
           -- (* Bob sends [y · r^-1] *)
              iDestruct "HA1" as (x r) "(#HdoneA & #Hmsg & #Hlx & #Hlu)".
-             iAssert (∃ (b : bool) v, doneB ↦ #b ∗ ly ↦ₛ v)%I with "[HB]" as (b v) "[HdoneB Hly]".
+             iAssert (∃ (b : bool) v, doneB ↦ₗ #b ∗ ly ↦ᵣ v)%I with "[HB]" as (b v) "[HdoneB Hly]".
              { iDestruct "HB" as "[[? ?]|(% & ? & ?)]"; iExists _, _; iFrame. }
-             brel_load_l... brel_cont_l... brel_store_l...
-             brel_cont_r... brel_load_r... brel_store_r...
-             iApply (brel_handle_os_r [] [AppRCtx _]); first (simpl; set_solver).
+             eq_load_l... eq_cont_l... eq_store_l...
+             eq_cont_r... eq_load_r... eq_store_r...
+             iApply (eq_handle_os_r [] [AppRCtx _]); first (simpl; set_solver).
              iIntros (so) "Hso"...
-             brel_load_r...
+             eq_load_r...
              rewrite add_mask_cancel.
-             iApply brel_na_close. iFrame "Hclose".
+             iApply eq_na_close_rule. iFrame "Hclose".
              iSplitL "HdoneB Hly".
              { iNext. iSplitR; [iRight; iExists x, r; iFrame "#" |]. iRight. iExists y. iFrame. }
-             iApply (brel_env_call l1s l2s [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _] [AppRCtx _]
-                      with "HsBC []");
-               [simpl; set_solver | simpl; set_solver | by iExists _ |].
-             iIntros (w1 w2) "(->&->)"...
-             brel_cont_l. brel_cont_r... brel_cont_r.
-             iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
+             iApply (eq_env_call lls rls _ [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _] [AppRCtx _]
+                      with "HsBC [] [-]");
+               [simpl; set_solver | simpl; set_solver | iApply eq_lift_same; by iExists _ |].
+             iIntros (w1 w2) "Hw". rewrite eq_lift_unit. iDestruct "Hw" as %[-> ->]...
+             eq_cont_l. eq_cont_r... eq_cont_r.
+             eq_exhaustion (fill k1 #()%V) (fill k2 #()%V);
                [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
       + (* Bob already gave his input *)
         iDestruct "HB1" as (y') "(HdoneB & Hly)".
-        brel_load_l... brel_load_r...
-        iApply brel_na_close. iFrame "Hclose".
+        eq_load_l... eq_load_r...
+        iApply eq_na_close_rule. iFrame "Hclose".
         iSplitR "Hkb Hfb".
         { iNext. iFrame "HA". iRight. iExists y'. iFrame. }
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
+        eq_cont_l. eq_cont_r.
+        eq_exhaustion (fill k1 #()%V) (fill k2 #()%V);
           [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
   Qed.
 
+  Lemma REAL_ADD_IDEAL_MS :
+    ⊢ sem_typed [] REAL_ADD SIM_IDEAL_ADD ⊥ (𝟙 -{ ⟨⟩ }-[ MS ]-> τ_ADD)%T [].
+  Proof using All. apply (EQ_sem_typed _ _ _ _ ADD_EQ Fwd). Qed.
+
   Lemma IDEAL_REAL_ADD_MS :
     ⊢ sem_typed [] SIM_IDEAL_ADD REAL_ADD ⊥ (𝟙 -{ ⟨⟩ }-[ MS ]-> τ_ADD)%T [].
-  Proof with (repeat foldkont; brel_pures') using All.
-    iIntros (vs) "!> _". simpl.
-    iApply brel_value. iIntros "$ !>". iSplit; last done.
-    rewrite /sem_ty_mbang /sem_ty_arr /=. iModIntro.
-    iIntros (u1 u2) "[-> ->]".
-    unfold REAL_ADD, SIM_IDEAL_ADD, SIM_ADD, IDEAL_ADD, functionality_composition, func_comp...
-    brel_alloc_l lx as "Hlx"...
-    brel_alloc_l ly as "Hly"...
-    brel_alloc_l lu as "Hlu"...
-    brel_alloc_r doneA as "HdoneA"...
-    brel_alloc_r doneB as "HdoneB"...
-    brel_alloc_r msg as "Hmsg"...
-    iModIntro.
-    iIntros (L f1 f2) "Hf"...
-    iModIntro.
-    iIntros (θ e1 e2) "Heffs"...
-    iDestruct "Heffs" as (toC1 toC2 ch1 ch2) "(-> & -> & HtoC & Hch)".
-    iDestruct "HtoC" as (sAC1 sAC2 sBC1 sBC2) "(-> & -> & #HsAC & #HsBC)".
-    iDestruct "Hch" as (ls1 ls2 lr1 lr2) "(-> & -> & #Hls & #Hlr)"...
-    brel_effect_l leak as "Hleak"...
-    brel_effect_l add_l as "Hadd_l"...
-    brel_effect_r ssend as "Hssend"...
-    brel_effect_r srecv as "Hsrecv"...
-    brel_effect_r add_r as "Hadd_r"...
-    set (l1s := [add_l; leak]).
-    set (l2s := [add_r; srecv; ssend]).
-    set (θc := add_row l1s l2s add_l add_r).
-    iSpecialize ("Hf" $! θc).
-    iPoseProof (add_ports_typed l1s l2s add_l add_r) as "Hports".
-    unfold sem_val_typed. simpl. iDestruct "Hports" as "#Hports".
-    iSpecialize ("Hf" with "Hports").
-    set (IA := ((lx ↦ NONEV ∗ lu ↦ NONEV ∗ doneA ↦ₛ #false ∗ msg ↦ₛ NONEV) ∨
-                (∃ x r : vgG, lx ↦□ SOMEV (vgval x) ∗ lu ↦□ SOMEV (vgval (x * r)%g) ∗
-                   doneA ↦ₛ□ #true ∗ msg ↦ₛ□ SOMEV (vgval r)))%I).
-    set (IB := ((ly ↦ NONEV ∗ doneB ↦ₛ #false) ∨
-                (∃ y : vgG, ly ↦ SOMEV (vgval y) ∗ doneB ↦ₛ #true))%I).
-    iApply (brel_na_alloc (IA ∗ IB)%I addN).
-    iSplitL "HdoneA Hmsg Hlx Hlu HdoneB Hly".
-    { iNext. iSplitL "HdoneA Hmsg Hlx Hlu"; iLeft; iFrame. }
-    iIntros "#Hinv".
-    iApply brel_new_theory.
-    iApply (brel_add_label_l with "Hleak").
-    iApply (brel_add_label_l with "Hadd_l").
-    iApply (brel_add_label_r with "Hssend").
-    iApply (brel_add_label_r with "Hsrecv").
-    iApply (brel_add_label_r with "Hadd_r").
-    iApply brel_learn. iIntros "%Hdist _".
-    iApply (brel_exhaustion (f1 _) (f2 _) with "[Hf]");
-      [set_unfold; tauto | set_unfold; tauto | | ].
-    { iApply (brel_introduction_mono with "[] Hf").
-      iApply to_iThy_le_intro'. simpl.
-      apply submseteq_skip.
-      unfold sem_row_union.
-      repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
-      solve_submseteq. }
-    iLöb as "IH".
-    iSplit; [iIntros (v1 v2) "%Hv1v2"; iModIntro; brel_pures; iModIntro; done |].
-    iIntros (k1 k2 e1 e2 Q) "!# %Hk1 %Hk2 HXQ #Hrel".
-    simpl.
-    iDestruct "HXQ" as (m) "[[[-> ->]|[-> ->]] #HQ]".
-    - (* Alice's input *)
-      brel_handle_os_l (fa) as "Hfa"...
-      brel_handle_os_r (ka) as "Hka"...
-      destruct (vg_of_int_sem m) as [x|] eqn:Hm; last first.
-      { iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done...
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
-          [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"]. }
-      iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done...
-      iApply (brel_na_inv _ _ addN); first (set_unfold; tauto).
-      iFrame "Hinv".
-      iIntros "[[[>HA0 | >HA1] HB] Hclose]".
-      + (* Alice's first input *)
-        iDestruct "HA0" as "(Hlx & Hlu & HdoneA & Hmsg)".
-        brel_load_l... brel_store_l...
-        iApply (brel_handle_os_l [] [AppRCtx _]); first (simpl; set_solver).
-        iIntros "!>" (sa) "Hsa"...
-        brel_load_r... brel_store_r...
-        (* the simulator's [u = g^μ] against Alice's mask [x^-1 · g^μ] *)
-        iApply (brel_couple_rand_rand _ _ (add_coupling_nat x^-1));
-          first apply add_coupling_nat_bound.
-        iIntros (μ) "%Hμ"...
-        rewrite add_coupling_nat_mult; last lia...
-        iApply brel_int_of_vg_sem_correct_r...
-        iApply (brel_handle_os_r [HandleCtx _ _ _ _ _] [AppRCtx _]); first (simpl; set_solver).
-        iIntros (ks) "Hks"...
-        iApply brel_vg_of_int_correct_r; first apply int_of_vg_of_int_sem...
-        brel_load_r... brel_store_r...
-        brel_store_l...
-        iMod (ghost_map_elem_persist with "HdoneA") as "#HdoneA".
-        iMod (ghost_map_elem_persist with "Hmsg") as "#Hmsg".
-        iMod (ghost_map_elem_persist with "Hlx") as "#Hlx".
-        iMod (ghost_map_elem_persist with "Hlu") as "#Hlu".
-        iApply brel_na_close. iFrame "Hclose".
-        iSplitR "Hka Hfa Hsa Hks".
-        { iNext. iFrame "HB". iRight. iExists x, (x^-1 * g ^+ μ)%g.
-          rewrite mulKVg. iFrame "#". }
-        (* F_CHAN leaks that Alice sent *)
-        iApply (brel_env_call l1s l2s [AppRCtx _] [HandleCtx _ _ _ _ _; AppRCtx _] with "Hls []");
-          [simpl; set_solver | simpl; set_solver | |].
-        { iExists #()%V, #()%V. iRight. repeat iSplit; try iPureIntro; done. }
-        iIntros (w1 w2) "(->&->)"...
-        brel_cont_r...
-        rewrite mulKVg.
-        (* Alice's message to the aggregator *)
-        iApply (brel_env_call l1s l2s [AppRCtx _] [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _]
-                 with "HsAC []");
-          [simpl; set_solver | simpl; set_solver | by iExists _ |].
-        iIntros (w1 w2) "(->&->)"...
-        brel_cont_l... brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
-          [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
-      + (* Alice already gave her input *)
-        iDestruct "HA1" as (x' r) "(#Hlx & #Hlu & #HdoneA & #Hmsg)".
-        brel_load_l... brel_load_r...
-        iApply brel_na_close. iFrame "Hclose".
-        iSplitR "Hka Hfa".
-        { iNext. iFrame "HB". iRight. iExists x', r. iFrame "#". }
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
-          [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
-    - (* Bob's input *)
-      destruct Hdist as [Hdl Hdr].
-      apply distinct_r_cons_inv in Hdr as [Hnd_r _].
-      apply NoDup_cons in Hnd_r as [Hn_add Hnd_r].
-      apply NoDup_cons in Hnd_r as [Hn_srecv _].
-      brel_handle_os_l (fb) as "Hfb"...
-      brel_handle_os_r (kb) as "Hkb"...
-      destruct (vg_of_int_sem m) as [y|] eqn:Hm; last first.
-      { iApply brel_vg_of_int_none_l; first done.
-        iApply brel_vg_of_int_none_r; first done...
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
-          [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"]. }
-      iApply brel_vg_of_int_correct_l; first done.
-      iApply brel_vg_of_int_correct_r; first done...
-      iApply (brel_na_inv _ _ addN); first (set_unfold; tauto).
-      iFrame "Hinv".
-      iIntros "[[HA [>HB0 | >HB1]] Hclose]".
-      + (* Bob has not given an input yet *)
-        iDestruct "HB0" as "(Hly & HdoneB)".
-        brel_load_l... brel_load_r...
-        iApply brel_na_close. iFrame "Hclose".
-        iSplitR "Hkb Hfb".
-        { iNext. iFrame "HA". iLeft. iFrame. }
-        (* the simulator forwards the env's decision; Bob asks F_CHAN for [r] *)
-        iApply (brel_handle_os_l [] [CaseCtx _ _]); first (simpl; set_solver).
-        iIntros "!>" (sb) "Hsb"...
-        iApply (brel_handle_os_r [] [HandleCtx _ _ _ _ _; CaseCtx _ _]); first (simpl; set_solver).
-        iIntros (kr) "Hkr"...
-        iApply (brel_env_call l1s l2s [AppRCtx _] [AppRCtx _] with "Hlr []");
-          [simpl; set_solver | simpl; set_solver | |].
-        { iExists #()%V, #()%V. iLeft. repeat iSplit; try iPureIntro; done. }
-        iIntros (w1 w2) "(%a1 & %a2 & [(->&->&->&->)|(->&->&->&->)])"...
-        * (* [r] is not delivered *)
-          brel_cont_l... brel_cont_l. brel_cont_r... brel_cont_r.
-          iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
-            [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
-        * (* [r] is delivered, if Alice has sent it *)
-          iApply (brel_na_inv _ _ addN); first (set_unfold; tauto).
-          iFrame "Hinv".
-          iIntros "[[[>HA0 | >HA1] >HB] Hclose]".
-          -- (* Alice has not sent [r] yet *)
-             iDestruct "HA0" as "(Hlx & Hlu & HdoneA & Hmsg)".
-             brel_cont_l... brel_load_l... brel_load_r... brel_cont_r...
-             iApply brel_na_close. iFrame "Hclose".
-             iSplitL "HdoneA Hmsg Hlx Hlu HB".
-             { iNext. iFrame "HB". iLeft. iFrame. }
-             brel_cont_l. brel_cont_r.
-             iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
-               [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
-          -- (* Bob sends [y · r^-1] *)
-             iDestruct "HA1" as (x r) "(#Hlx & #Hlu & #HdoneA & #Hmsg)".
-             iAssert (∃ v (b : bool), ly ↦ v ∗ doneB ↦ₛ #b)%I with "[HB]" as (v b) "[Hly HdoneB]".
-             { iDestruct "HB" as "[[? ?]|(% & ? & ?)]"; iExists _, _; iFrame. }
-             brel_cont_l... brel_load_l... brel_store_l...
-             iApply (brel_handle_os_l [] [AppRCtx _]); first (simpl; set_solver).
-             iIntros "!>" (so) "Hso"...
-             brel_load_l...
-             rewrite add_mask_cancel.
-             brel_load_r... brel_cont_r... brel_store_r...
-             iApply brel_na_close. iFrame "Hclose".
-             iSplitL "HdoneB Hly".
-             { iNext. iSplitR; [iRight; iExists x, r; iFrame "#" |]. iRight. iExists y. iFrame. }
-             iApply (brel_env_call l1s l2s [AppRCtx _] [HandleCtx _ _ _ _ _; HandleCtx _ _ _ _ _; AppRCtx _]
-                      with "HsBC []");
-               [simpl; set_solver | simpl; set_solver | by iExists _ |].
-             iIntros (w1 w2) "(->&->)"...
-             brel_cont_l... brel_cont_l. brel_cont_r.
-             iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
-               [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
-      + (* Bob already gave his input *)
-        iDestruct "HB1" as (y') "(Hly & HdoneB)".
-        brel_load_l... brel_load_r...
-        iApply brel_na_close. iFrame "Hclose".
-        iSplitR "Hkb Hfb".
-        { iNext. iFrame "HA". iRight. iExists y'. iFrame. }
-        brel_cont_l. brel_cont_r.
-        iApply (brel_exhaustion (fill k1 #()%V) (fill k2 #()%V));
-          [set_unfold; tauto | set_unfold; tauto | by iApply "Hrel" | iApply "IH"].
-  Qed.
+  Proof using All. apply (EQ_sem_typed _ _ _ _ ADD_EQ Bwd). Qed.
 
 End add_security.

@@ -1,5 +1,8 @@
 From clutch.prob_eff_lang.probblaze Require Import notation logic sem_judgement sem_types sem_def tactics proofmode.
+From iris.bi Require Import monpred.
+From iris.proofmode Require Import monpred.
 From clutch.prob_eff_lang.probblaze.examples Require Import fin_val_type.
+From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_finval.
 Set Default Proof Using "Type*".
 
 Section symmetric.
@@ -106,107 +109,64 @@ End programs.
 #[global] Arguments enc_real      {_ _ _ _ _ _} _.
 #[global] Arguments enc_ideal     {_ _ _ _ _ _} _.
 
+From clutch.prob_eff_lang.probblaze Require Import sem_row compatibility.
+
 Section OTS.
   Context `{ske : SYM}.
 
-  Lemma enc_real_tape_enc_real : 
-    ⊢ sem_typed [] (enc_real_tape ske) (enc_real ske) ⊥ (𝟙 ⊸ (msg.(sem_τFT) → cipher.(sem_τFT)))%T [].
+  (* [rand_cipher_coupl] in the logic for equivalences. *)
+  Lemma eq_rand_cipher_coupl E K K' (X : eqThy _) R :
+    (∀ c : cipher, EQ fill K (fvtval c) ≈ fill K' (fvtval c) @ E <|X|> {{ R }})
+    ⊢ EQ fill K (rand_cipher #()%V) ≈ fill K' (rand_cipher #()%V) @ E <|X|> {{ R }}.
   Proof.
-    iIntros "!# %vs Hvs /=". 
-    unfold enc_real_tape, enc_real.
-    iApply brel_value. iIntros "$ !>". 
-    iSplitL; last done.
-    iIntros (??) "(->&->)". 
-    brel_pures_l.
-    brel_pures_r.
-    brel_alloctape_l ι as "Hι".
-    iApply (brel_na_alloc (ι ↪N (Z.to_nat (key.(card) - 1); []))%I  (nroot .@ "inv")).
-    iSplitL "Hι"; [iNext; iFrame|].
-    iIntros "#HI".
-    brel_pures_l.
-    rewrite /sem_ty_arr /sem_ty_mbang /=.
-    iModIntro.
-    iIntros (m1 m2) "!> (%m&->&->)". 
-    iApply (brel_na_inv _ _ (nroot .@ "inv")); first set_solver.
-    iFrame "HI".
-    iIntros "(Hι & Hclose)".
-    brel_pures_l.
-    brel_pures_r.
-    rewrite /rand_key /rand_fvt.
-    brel_pures_r.
-    iApply brel_couple_TU; first done.
-    iSplitL "Hι"; first by iApply tapeN_to_empty.
-    iIntros (k) "Hι /=".
-    iAssert (ι ↪N (Z.to_nat (ks.(card) - 1); [fin_to_nat k]))%I with "[Hι]" as "Hι".
-    { iExists [_]. simpl. iFrame. done. }
-    brel_rand_l.
-    brel_pures_l.
-    iApply brel_na_close.
-    iFrame "Hclose Hι".
-    pose proof (fin_to_nat_lt k) as Hk.
-    pose proof kt_nontrivial as Hnt.
-    destruct (fvt_of_int_sem_surj (FV := key) (fin_to_nat k)) as (x & Hx & _);
-      first (unfold fvt_of_fvts in Hk |- *; lia).
-    unshelve iApply (@brel_fvt_of_int_correct_l _ _ kt); try done.
-    unshelve iApply (@brel_fvt_of_int_correct_r _ _ kt); try done.
-    brel_pures_l.
-    brel_pures_r.
-    unfold fvtval_as.
-    iApply brel_wand; first iApply (brel_enc_couple x m).
-    iIntros "!>" (??) "(%&H1&H2&_)".
-    iExists c.
-    unfold fvtval_as. 
-    iFrame.
+    split=> d. rewrite monPred_at_forall eq_rel_at. iIntros "H".
+    destruct d; rewrite /pick /=; iApply (rand_cipher_coupl (H := ske)); iIntros (c); iSpecialize ("H" $! c);
+      [iApply (eq_rel_at_elim Fwd)|iApply (eq_rel_at_elim Bwd)]; iApply "H".
   Qed.
 
-  Lemma enc_real_enc_real_tape : 
+  Lemma enc_real_tape_EQ :
+    ⊢ EQ enc_real_tape ske ≈ enc_real ske <|iLblSig_to_iLblThy (⊥ : sem_row Σ)|>
+        {{ ⟪ 𝟙 -{ ⟨⟩ }-[ MS ]-> (msg.(sem_τFT) → cipher.(sem_τFT)) ⟫ }}.
+  Proof.
+    rewrite /enc_real_tape /enc_real.
+    iApply eq_value. iModIntro. iModIntro. iApply eq_lift_arr. iIntros (u1 u2) "Hu".
+    rewrite eq_lift_unit. iDestruct "Hu" as %[-> ->].
+    eq_pures_l. eq_pures_r.
+    eq_alloctape_l ι as "Hι".
+    iApply (eq_na_alloc (ι ↪ₗN (Z.to_nat (key.(card) - 1); [])) (nroot .@ "inv")).
+    iSplitL "Hι"; first by iFrame.
+    iIntros "#HI". eq_pures_l.
+    iApply eq_value. iModIntro. iModIntro.
+    iApply eq_lift_arr. iIntros (m1 m2) "Hm". rewrite eq_lift_fvt. iDestruct "Hm" as %(m & -> & ->).
+    iApply (eq_na_open _ _ (nroot .@ "inv")); first solve_ndisj.
+    iFrame "HI". iIntros "[>Hι Hclose]".
+    eq_pures_l. eq_pures_r.
+    rewrite /rand_key /rand_fvt. eq_pures_r.
+    eq_couple_tape_rand "Hι". iIntros (n Hn) "Hι /=".
+    eq_rand_l as "_". eq_pures_l.
+    iApply eq_na_close_rule. iFrame "Hclose Hι".
+    pose proof kt_nontrivial as Hnt.
+    destruct (fvt_of_int_sem_surj (FV := key) n) as (x & Hx & _); first (unfold fvt_of_fv in Hn; lia).
+    eq_fvt_of_int_l Hx. eq_fvt_of_int_r Hx.
+    eq_pures_l. eq_pures_r.
+    iApply (eq_brel_self _ _ _ _ (brel_enc_couple x m)).
+    { intros ??. iIntros "(%c & -> & -> & HP)". iExists c. by iFrame. }
+    iIntros (vl vr) "(%c & -> & -> & _)". rewrite eq_lift_fvt. iPureIntro. by exists c.
+  Qed.
+
+  Lemma enc_real_tape_enc_real :
+    ⊢ sem_typed [] (enc_real_tape ske) (enc_real ske) ⊥ (𝟙 ⊸ (msg.(sem_τFT) → cipher.(sem_τFT)))%T [].
+  Proof.
+    iApply sem_typed_sub_ty; last iApply (EQ_sem_typed _ _ _ _ enc_real_tape_EQ Fwd).
+    iApply (ty_le_mbang_elim MS).
+  Qed.
+
+  Lemma enc_real_enc_real_tape :
     ⊢ sem_typed [] (enc_real ske) (enc_real_tape ske) ⊥ (𝟙 ⊸ (msg.(sem_τFT) → cipher.(sem_τFT)))%T [].
   Proof.
-    iIntros "!# %vs Hvs /=".
-    unfold enc_real_tape, enc_real.
-    iApply brel_value. iIntros "$ !>". 
-    iSplitL; last done.
-    iIntros (??) "(->&->)". 
-    brel_pures_l.
-    brel_pures_r.
-    brel_alloctape_r ι as "Hι".
-    iApply (brel_na_alloc (ι ↪ₛ (Z.to_nat (ks.(card) - 1); []))%I (nroot .@ "inv")).
-    iSplitL "Hι"; [iNext; iFrame|].
-    iIntros "#HI".
-    brel_pures_r.
-    rewrite /sem_ty_arr /sem_ty_mbang /=.
-    iModIntro.
-    iIntros (m1 m2) "!> (%m&->&->)".
-    iApply (brel_na_inv _ _ (nroot .@ "inv")); first set_solver.
-    iFrame "HI".
-    iIntros "(Hι & Hclose)".
-    brel_pures_l.
-    brel_pures_r.
-    rewrite /rand_key /rand_fvt.
-    brel_pures_l.
-    iApply brel_couple_UT; first done.
-    iSplitL "Hι"; first by iApply empty_to_spec_tapeN.
-    iIntros (k Hlt) "!> Hι /=".
-    brel_rand_r.
-    brel_pures_r.
-    iApply brel_na_close.
-    iFrame "Hclose".
-    iSplitL "Hι"; first (iNext; by iApply spec_tapeN_to_empty).
-    pose proof kt_nontrivial as Hnt.
-    destruct (fvt_of_int_sem_surj (FV := key) k) as (x & Hx & _);
-      first (unfold fvt_of_fvts in Hlt |- *; lia).
-    unshelve iApply (@brel_fvt_of_int_correct_l _ _ kt); try done.
-    unshelve iApply (@brel_fvt_of_int_correct_r _ _ kt); try done.
-    brel_pures_l.
-    brel_pures_r.
-    unfold fvtval_as.
-    iApply brel_wand; first iApply (brel_enc_couple x m).
-    iIntros "!>" (??) "(%&H1&H2&_)".
-    iExists c.
-    unfold fvtval_as. 
-    iFrame.
-  Qed. 
-
+    iApply sem_typed_sub_ty; last iApply (EQ_sem_typed _ _ _ _ enc_real_tape_EQ Bwd).
+    iApply (ty_le_mbang_elim MS).
+  Qed.
 
 End OTS.
 

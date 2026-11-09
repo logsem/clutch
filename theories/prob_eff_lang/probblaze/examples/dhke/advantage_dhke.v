@@ -32,8 +32,8 @@ From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row sem
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems uc_advantage uc_theorem.
 From clutch.prob_eff_lang.probblaze.examples.dhke Require Import
-  dhke_real_one dhke_real_other
-  dhke_sim_one dhke_sim_other
+  dhke_real
+  dhke_sim
   dhke_authchan.
 (* After the core lemmas: their files define a [chan] row that would shadow
    the interface type [dhke_typing.chan]. *)
@@ -193,7 +193,7 @@ Section dhke_relations_f.
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[] [Hfraca Hfracb]");
       [iApply to_iThy_le_bot
-      |iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_real_one.P γautha) (dhke_real_one.P' γauthb) with "Hfraca Hfracb")
+      |iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (P_at eq_logic.Fwd γautha) (P'_at eq_logic.Fwd γauthb) with "Hfraca Hfracb")
       |simpl].
     iIntros (F1 F2) "#HF".
     rewrite /func_comp. brel_pures'.
@@ -234,7 +234,7 @@ Section dhke_relations_f.
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[] [Hfraca Hfracb]");
       [iApply to_iThy_le_bot
-      |iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_real_other.P γautha) (dhke_real_other.P' γauthb) with "Hfraca Hfracb")
+      |iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (P_at eq_logic.Bwd γautha) (P'_at eq_logic.Bwd γauthb) with "Hfraca Hfracb")
       |simpl].
     iIntros (F1 F2) "#HF".
     rewrite /func_comp. brel_pures'.
@@ -281,7 +281,7 @@ Section dhke_relations_f.
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[] [Hfraca Hfracb]");
       [iApply to_iThy_le_bot
-      |iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_sim_one.P γautha) (dhke_sim_one.P γauthb) with "Hfraca Hfracb")
+      |iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (Psim_at eq_logic.Fwd γautha) (Psim_at eq_logic.Fwd γauthb) with "Hfraca Hfracb")
       |simpl].
     iIntros (F1 F2) "#HF".
     rewrite /func_comp. brel_pures'.
@@ -324,7 +324,7 @@ Section dhke_relations_f.
     assert (to_iThyIfMono OS [] = []) as <- by done.
     iApply (brel_mono OS with "[] [Hfraca Hfracb]");
       [iApply to_iThy_le_bot
-      |iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (dhke_sim_other.P γautha) (dhke_sim_other.P γauthb) with "Hfraca Hfracb")
+      |iApply (F_AUTH_F_AUTH_new γtoka γtokb γfraca γfracb (Psim_at eq_logic.Bwd γautha) (Psim_at eq_logic.Bwd γauthb) with "Hfraca Hfracb")
       |simpl].
     iIntros (F1 F2) "#HF".
     rewrite /func_comp. brel_pures'.

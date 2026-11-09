@@ -5,7 +5,10 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
   spec_rules spec_ra class_instances.
 From clutch.prob_eff_lang.probblaze Require Import tactics.
 From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem_judgement sem_def.
+From iris.bi Require Import monpred.
+From iris.proofmode Require Import monpred.
 From clutch.prob_eff_lang.probblaze.examples.secure_add3 Require Import add3_def add3_tbl.
+From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_handlers.
 
 Import valgroup_notation.
 Import valgroup_tactics.
@@ -247,3 +250,135 @@ Section net.
   Qed.
 
 End net.
+
+(** * The network in the logic for equivalences *)
+
+Section net_eq.
+  Context `{probblazeRGS Σ}.
+  #[local] Open Scope bi_scope.
+
+  (* The network's theory, with the labels of [l] ([ll]) and of [r] ([lr]);
+     the relations [Rmsg] and [Rdeliv] relate a message of [l] to one of [r],
+     so in direction [Bwd] they are flipped. *)
+  Definition flipR (R : Z → val → val → iProp Σ) : Z → val → val → iProp Σ := λ k v1 v2, R k v2 v1.
+
+  Definition net_thy (Rmsg Rdeliv : Z → val → val → iProp Σ) (ll lr : label) : dir → iThy Σ :=
+    λ d, match d with
+         | Fwd => NetThy Rmsg Rdeliv ll lr
+         | Bwd => NetThy (flipR Rmsg) (flipR Rdeliv) lr ll
+         end.
+
+  Definition eq_net_inv (ℓl ℓr : loc) (Rmsg : Z → val → val → iProp Σ) : iPropD Σ :=
+    MonPred (λ d, match d with Fwd => net_inv ℓl ℓr Rmsg | Bwd => net_inv ℓr ℓl (flipR Rmsg) end) _.
+
+  Definition eq_env_op_spec (X : eqThy Σ) (fl fr : val) : iPropD Σ :=
+    MonPred (λ d, env_op_spec (eq_thy_at X d) (pick d fl fr) (pick d fr fl)) _.
+
+  Definition eq_patch_spec (X : eqThy Σ) (pl pr : val) (Rmsg Rdeliv : Z → val → val → iProp Σ) : iPropD Σ :=
+    MonPred (λ d, match d with
+                  | Fwd => patch_spec (eq_thy_at X Fwd) pl pr Rmsg Rdeliv
+                  | Bwd => patch_spec (eq_thy_at X Bwd) pr pl (flipR Rmsg) (flipR Rdeliv)
+                  end) _.
+
+  Global Instance eq_env_op_spec_persistent X fl fr : Persistent (eq_env_op_spec X fl fr).
+  Proof. split=> d. rewrite monPred_at_persistently /= /env_op_spec. by iIntros "#H !>". Qed.
+  Global Instance eq_patch_spec_persistent X pl pr Rmsg Rdeliv : Persistent (eq_patch_spec X pl pr Rmsg Rdeliv).
+  Proof. split=> d. rewrite monPred_at_persistently. destruct d; rewrite /= /patch_spec; by iIntros "#H !>". Qed.
+
+  (* The patch spec stated in the logic for equivalences, for one proof of
+     both directions. *)
+  Definition eq_patch_spec_eq (X : eqThy Σ) (pl pr : val) (Rmsg Rdeliv : Z → val → val → iProp Σ) : iPropD Σ :=
+    □ ∀ lls rls kl kr (s d t : Z) (ml mr : val) (S : val → val → iPropD Σ),
+      ⌜hdr_ok s d t⌝ -∗ ⎡Rmsg (key s d t) ml mr⎤ -∗
+      (∀ ul ur, ⎡Rdeliv (key s d t) ul ur⎤ -∗
+         EQ fill kl ul ≈ fill kr ur <|eq_thy_cons lls rls (λ _, iThyBot) X|> {{ S }}) -∗
+      EQ fill kl (pl #s #d #t ml) ≈ fill kr (pr #s #d #t mr) <|eq_thy_cons lls rls (λ _, iThyBot) X|> {{ S }}.
+
+  Lemma eq_patch_spec_eq_at X pl pr Rmsg Rdeliv :
+    eq_patch_spec_eq X pl pr Rmsg Rdeliv ⊢ eq_patch_spec X pl pr Rmsg Rdeliv.
+  Proof.
+    iStartProof (iProp _). iIntros (d) "#H". destruct d; rewrite /=.
+    - iIntros "!>" (l1s l2s k1 k2 s d t m1 m2 S0 Hk1 Hk2 Hhdr) "Hm Hk".
+      iDestruct ("H" $! l1s l2s k1 k2 s d t m1 m2 (λ vl vr, ⎡S0 vl vr⎤)%I with "[] Hm [Hk]") as "H'".
+      { by iPureIntro. }
+      { iIntros (ul ur) "Hd". rewrite eq_rel_at /=. rewrite /pick /=. iApply ("Hk" with "Hd"). by iIntros "!>" (??) "$". }
+      rewrite eq_rel_at /=. rewrite /pick /=. iApply (brel_wand with "H'"). iIntros "!>" (??) "HS". by rewrite monPred_at_embed.
+    - iIntros "!>" (l1s l2s k1 k2 s d t m1 m2 S0 Hk1 Hk2 Hhdr) "Hm Hk".
+      iDestruct ("H" $! l2s l1s k2 k1 s d t m2 m1 (λ vl vr, ⎡S0 vr vl⎤)%I with "[] Hm [Hk]") as "H'".
+      { by iPureIntro. }
+      { iIntros (ul ur) "Hd". rewrite eq_rel_at /=. rewrite /pick /=. iApply ("Hk" with "Hd"). by iIntros "!>" (??) "$". }
+      rewrite eq_rel_at /=. rewrite /pick /=. iApply (brel_wand with "H'"). iIntros "!>" (??) "HS". by rewrite monPred_at_embed.
+  Qed.
+
+  (* The network's invariant, for two empty mailboxes. *)
+  Lemma eq_net_inv_alloc (ℓl ℓr : loc) (vl vr : val) Rmsg :
+    is_tbl vl ∅ → is_tbl vr ∅ → ℓl ↦ₗ vl ∗ ℓr ↦ᵣ vr ⊢ eq_net_inv ℓl ℓr Rmsg.
+  Proof.
+    intros Hl Hr. split=> d. rewrite monPred_at_sep. iIntros "[H1 H2]".
+    destruct d; rewrite /= /net_inv; iExists _, _, ∅, ∅; iFrame; (iSplit; [done|]); (iSplit; [done|]);
+      by rewrite big_sepM2_empty.
+  Qed.
+
+  (* [F_NET_sess_spec], in both directions. *)
+  Lemma eq_F_NET_sess_spec N (pl pr : val) (ℓl ℓr : loc) (fl fr nll nlr wl wr : val) Rmsg Rdeliv (X : eqThy Σ) R
+    `{!∀ k m1 m2, Persistent (Rmsg k m1 m2), !∀ k m1 m2, Timeless (Rmsg k m1 m2)} :
+    ⊢ eq_na_inv N (eq_net_inv ℓl ℓr Rmsg) -∗
+      eq_env_op_spec X nll nlr -∗ eq_env_op_spec X wl wr -∗
+      eq_patch_spec X pl pr Rmsg Rdeliv -∗
+      (∀ ll lr, EQ App fl (net_eps ll) ≈ App fr (net_eps lr)
+                  <|eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) X|> {{ R }}) -∗
+      EQ F_NET_sess pl #ℓl fl (nll, wl)%V ≈ F_NET_sess pr #ℓr fr (nlr, wr)%V <|X|> {{ R }}.
+  Proof.
+    iStartProof (iProp _). iIntros (d) "#Hinv #Hnl #Hw #Hp Hf". rewrite eq_rel_at.
+    destruct d; rewrite /pick /=.
+    - iApply (F_NET_sess_spec with "Hinv Hnl Hw Hp"). iIntros (l1 l2).
+      iApply (eq_rel_at_elim Fwd _ _ _ (eq_thy_cons [l1] [l2] (net_thy Rmsg Rdeliv l1 l2) X)).
+      iApply ("Hf" $! l1 l2).
+    - iApply (F_NET_sess_spec _ _ _ _ _ _ _ _ _ _ _ (flipR Rmsg) (flipR Rdeliv) with "Hinv Hnl Hw Hp").
+      iIntros (l1 l2).
+      iApply (eq_rel_at_elim Bwd _ _ _ (eq_thy_cons [l2] [l1] (net_thy Rmsg Rdeliv l2 l1) X)).
+      iApply ("Hf" $! l2 l1).
+  Qed.
+
+
+  (** The client's side, in both directions. *)
+  Lemma eq_sel3_net Kl Kr ll lr (j : Z) E X R :
+    (0 ≤ j < 3)%Z →
+    EQ fill Kl (net_ep ll j) ≈ fill Kr (net_ep lr j) @ E <|X|> {{ R }} ⊢
+    EQ fill Kl (sel3 (net_eps ll) #j) ≈ fill Kr (sel3 (net_eps lr) #j) @ E <|X|> {{ R }}.
+  Proof.
+    intros Hj. iIntros "H". rewrite /sel3 /net_eps.
+    assert (j = 0%Z ∨ j = 1%Z ∨ j = 2%Z)%type as [ -> | [ -> | -> ] ] by lia; eq_pures_l; by eq_pures_r.
+  Qed.
+
+  Lemma eq_net_send Rmsg Rdeliv ll lr X Kl Kr (i d t : Z) (ml mr : val) R :
+    NeutralEctx [ll] Kl → NeutralEctx [lr] Kr →
+    ⊢ ⎡Rmsg (key i d t) ml mr⎤ -∗
+      EQ fill Kl #()%V ≈ fill Kr #()%V <|eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) X|> {{ R }} -∗
+      EQ fill Kl (do: ll (InjLV (#i, ((#d, #t), ml)))) ≈ fill Kr (do: lr (InjLV (#i, ((#d, #t), mr))))
+        <|eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) X|> {{ R }}.
+  Proof.
+    intros HKl HKr. iStartProof (iProp _). iIntros (dd) "Hm Hk". rewrite !eq_rel_at.
+    destruct dd; rewrite /pick /=.
+    - by iApply (brel_net_send with "Hm Hk").
+    - by iApply (brel_net_send (flipR Rmsg) (flipR Rdeliv) with "Hm Hk").
+  Qed.
+
+  Lemma eq_net_recv Rmsg Rdeliv ll lr X Kl Kr (d s t : Z) R :
+    NeutralEctx [ll] Kl → NeutralEctx [lr] Kr → hdr_ok s d t →
+    ⊢ (∀ ul ur : val, ⎡Rdeliv (key s d t) ul ur⎤ -∗
+         EQ fill Kl ul ≈ fill Kr ur <|eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) X|> {{ R }}) -∗
+      EQ fill Kl (do: ll (InjRV (#d, (#s, #t)))) ≈ fill Kr (do: lr (InjRV (#d, (#s, #t))))
+        <|eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) X|> {{ R }}.
+  Proof.
+    intros HKl HKr Hhdr. iStartProof (iProp _). iIntros (dd) "Hk". rewrite eq_rel_at.
+    destruct dd; rewrite /pick /=.
+    - iApply brel_net_recv; [done..|]. iIntros (u1 u2) "Hu".
+      iApply (eq_rel_at_elim Fwd _ _ _ (eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) X)).
+      by iApply "Hk".
+    - iApply (brel_net_recv (flipR Rmsg) (flipR Rdeliv)); [done..|]. iIntros (u1 u2) "Hu".
+      iApply (eq_rel_at_elim Bwd _ _ _ (eq_thy_cons [ll] [lr] (net_thy Rmsg Rdeliv ll lr) X)).
+      by iApply ("Hk" $! u2 u1).
+  Qed.
+
+End net_eq.
