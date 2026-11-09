@@ -884,9 +884,9 @@ Section dhke_core_typing.
   (* The core of DH_KE                                                   *)
   (* ------------------------------------------------------------------ *)
 
-  Definition dh_env (θ : sem_row Σ) : env Σ :=
+  Definition dh_env (θ : sem_row Σ) (τt : sem_ty Σ) : env Σ :=
     [("doSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ }-> 𝟙)%T); ("doRecv", ((𝟙 + 𝟙) -{ θ }-> Option 𝔾)%T);
-     ("α", sem_ty_tape); ("β", sem_ty_tape);
+     ("α", τt); ("β", τt);
      ("l1", Refᶜ (Option ℕ)); ("l2", Refᶜ (Option ℕ))].
 
   Definition dh_body : expr :=
@@ -923,24 +923,35 @@ Section dhke_core_typing.
          end
      end)%E.
 
-  (* Draw the exponent from the tape, or load the cached one. *)
+  (* Sampling from a variable of tape type [τt]. *)
+  Definition sampler_typed (τt : sem_ty Σ) : iProp Σ :=
+    □ ∀ (x : string) Γ, sem_typed Γ x x ⟨⟩ τt Γ -∗
+      sem_typed Γ (samplelbl x #()%V) (samplelbl x #()%V) ⟨⟩ ℕ Γ.
+
+  Lemma tape_sampler_typed : ⊢ sampler_typed sem_ty_tape.
+  Proof using All.
+    iIntros "!>" (x Γ) "#Hx". rewrite /samplelbl.
+    iApplyT sem_typed_let; first iApplyT sem_typed_unit'.
+    iApplyT sem_typed_rand; [iApply "Hx"|iApplyT sem_typed_int'].
+    Unshelve. all: solve_typed_side.
+  Qed.
+
+  (* Draw the exponent, or load the cached one. *)
   Lemma dh_sample_or_load_typed (l α c : string) Γ :
     c ∉ env_dom Γ →
     ⊢ sem_typed Γ (!l) (!l) ⟨⟩ (Option ℕ) Γ -∗
       sem_typed Γ l l ⟨⟩ (Refᶜ (Option ℕ)) Γ -∗
-      sem_typed Γ α α ⟨⟩ sem_ty_tape Γ -∗
+      sem_typed Γ (samplelbl α #()%V) (samplelbl α #()%V) ⟨⟩ ℕ Γ -∗
       sem_typed Γ
         (match: !l with NONE => let: c := (samplelbl α #()%V) in l <- SOME c;; c | SOME c => c end)
         (match: !l with NONE => let: c := (samplelbl α #()%V) in l <- SOME c;; c | SOME c => c end)
         ⟨⟩ ℕ Γ.
   Proof using All.
-    iIntros (Hc) "#Hload #Hl #Hα". rewrite /samplelbl.
+    iIntros (Hc) "#Hload #Hl #Hs".
     iApplyT (sem_typed_match_split [] []).
     - iApply "Hload".
     - iApply env_le_refl.
-    - iApplyT sem_typed_let.
-      { iApplyT sem_typed_let; first iApplyT sem_typed_unit'.
-        iApplyT sem_typed_rand; [iApply "Hα"|iApplyT sem_typed_int']. }
+    - iApplyT sem_typed_let; first iApply "Hs".
       iApplyT sem_typed_seq.
       { iApplyT sem_typed_store_cpy_gen.
         2: { iApplyT sem_typed_injr. tvar_copy. }
@@ -953,12 +964,12 @@ Section dhke_core_typing.
       Unshelve. all: try solve_typed_side. all: simpl; exact Hc.
   Qed.
 
-  Lemma dh_handler_typed (θ ρh : sem_row Σ) :
-    ⊢ (¡ θ)%R ≤ᵣ ρh -∗
-    sem_typed (("p", (𝟙 + 𝟙)%T) :: ("k", (Option 𝔾 -{ ρh }-[OS]-> 𝟙)%T) :: dh_env θ)
-      dh_body dh_body ρh 𝟙 (dh_env θ).
+  Lemma dh_handler_typed (θ ρh : sem_row Σ) (τt : sem_ty Σ) `{!MultiT τt} :
+    ⊢ sampler_typed τt -∗ (¡ θ)%R ≤ᵣ ρh -∗
+    sem_typed (("p", (𝟙 + 𝟙)%T) :: ("k", (Option 𝔾 -{ ρh }-[OS]-> 𝟙)%T) :: dh_env θ τt)
+      dh_body dh_body ρh 𝟙 (dh_env θ τt).
   Proof using All.
-    iIntros "#Hρ". rewrite /dh_env /dh_body.
+    iIntros "#Hs #Hρ". rewrite /dh_env /dh_body.
     iApplyT (sem_typed_match_split [] []).
     - tvar.
     - iApply env_le_refl.
@@ -967,7 +978,7 @@ Section dhke_core_typing.
       { iApply sem_typed_sub_nil. iApply (dh_sample_or_load_typed "l1" "α" "a"); first solve_env_dom.
         - iApplyT sem_typed_load_cpy. tvar_copy.
         - tvar_copy.
-        - tvar_copy. }
+        - iApply "Hs"; tvar_copy. }
       iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; tvar_copy).
       iApplyT sem_typed_seq.
       { iApplyT sem_typed_app_fun_nil; first iApply "Hρ".
@@ -1000,7 +1011,7 @@ Section dhke_core_typing.
         { iApply sem_typed_sub_nil. iApply (dh_sample_or_load_typed "l2" "β" "b"); first solve_env_dom.
           - iApplyT sem_typed_load_cpy. tvar_copy.
           - tvar_copy.
-          - tvar_copy. }
+          - iApply "Hs"; tvar_copy. }
         iApplyT sem_typed_let; first (iApplyT sem_typed_vexp; tvar_copy).
         iApplyT sem_typed_seq.
         { iApplyT sem_typed_app_fun_nil; first iApply "Hρ".
@@ -1014,14 +1025,15 @@ Section dhke_core_typing.
   Qed.
 
   (* The core of [DH_KE], typed with its setup variables in the context. *)
-  Lemma dh_core_typed (θ θ₂ : sem_row Σ) :
-    ⊢ sem_typed [("f", (∀ᵣ θ₁, gk θ₁ -{ sem_row_union (¡θ₁) θ }-∘ 𝟙)%T); ("effs", chan θ₂);
-                 ("α", sem_ty_tape); ("β", sem_ty_tape);
+  Lemma dh_core_typed (θ θ₂ : sem_row Σ) (τt : sem_ty Σ) `{!MultiT τt} :
+    ⊢ sampler_typed τt -∗
+      sem_typed [("f", (∀ᵣ θ₁, gk θ₁ -{ sem_row_union (¡θ₁) θ }-∘ 𝟙)%T); ("effs", chan θ₂);
+                 ("α", τt); ("β", τt);
                  ("l1", Refᶜ (Option ℕ)); ("l2", Refᶜ (Option ℕ))]
         (dh_core "f" "effs" "α" "β" "l1" "l2") (dh_core "f" "effs" "α" "β" "l1" "l2")
         (sem_row_union (¡θ₂) θ) 𝟙 [].
   Proof using All.
-    rewrite /dh_core.
+    iIntros "#Hs". rewrite /dh_core.
     iApplyT sem_typed_pair_elim; first tvar.
     iApply sem_typed_effect_gen. iIntros (l1 l2). simpl.
     iApplyT sem_typed_let.
@@ -1030,7 +1042,7 @@ Section dhke_core_typing.
       iApply (sem_typed_do_const OS ⟨⟩%R (l1, l2) (𝟙 + 𝟙)%T (Option 𝔾)%T).
       iApply sem_typed_sub_nil. iApply sem_typed_var. }
     iApplyT sem_typed_sub_env_final; first iApply env_le_nil.
-    iApplyT (sem_typed_sub_env _ ([("doGK", _); ("f", _)] ++ dh_env θ₂)).
+    iApplyT (sem_typed_sub_env _ ([("doGK", _); ("f", _)] ++ dh_env θ₂ τt)).
     { rewrite /dh_env. simpl. env_solve16. }
     iApplyT (sem_typed_deep_handler_OS (l1, l2) (λ _, 𝟙 + 𝟙)%T (λ _, Option 𝔾)%T).
     - iApplyT sem_typed_app_fun_nil.
@@ -1040,7 +1052,7 @@ Section dhke_core_typing.
       + iApply row_le_mfbang_elim.
       + iApply row_le_refl.
       + row_le_submseteq.
-    - iIntros (?). iApply dh_handler_typed; row_le_submseteq.
+    - iIntros (?). iApply (dh_handler_typed with "Hs"); row_le_submseteq.
     - tvar.
       Unshelve. all: solve_typed_side.
   Qed.
@@ -1057,7 +1069,7 @@ Section dhke_core_typing.
     iApplyT sem_oval_typed_afun. simpl.
     iApplyT (sem_typed_sub_env _ [("f", _); ("effs", _); ("α", _); ("β", _); ("l1", _); ("l2", _)]).
     { simpl. env_solve16. }
-    iApply dh_core_typed.
+    iApply dh_core_typed. iApply tape_sampler_typed.
     Unshelve. all: solve_typed_side.
   Qed.
 

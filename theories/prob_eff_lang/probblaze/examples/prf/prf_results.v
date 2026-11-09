@@ -1,8 +1,10 @@
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From iris.algebra Require Import excl.
 From iris.algebra.lib Require Import dfrac_agree.
+From clutch.prob_eff_lang.probblaze.typing Require Import types.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy mode compatibility.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems uc_advantage uc_theorem.
+From clutch.prob_eff_lang.probblaze.uc Require Import uc_typed.
 From clutch.prob_eff_lang.probblaze.examples Require Import
   ske_sec_chan_def ske ske_sec_chan_common ske_sec_chan_typing advantage_ske_sec_chan
   fin_val_type fin_val_type_prod ske_prf dhke_common dhke_typing advantage_dhke_ske_sec_chan.
@@ -73,6 +75,16 @@ Section prf_results.
     - intros ?. iApply sem_typed_val. iApply (RED_SKE_typed (SKE := SKE_INST) OS). iApply HA.
   Qed.
 
+
+  Corollary adv_schan_prf_typed A :
+    ⊢ᵥ A : ((() -∘ T_SKE (ms := ms) (cs := CS)) ⇾ TBool)%ty →
+    advantage A SC_REAL SC_IDEAL #true <=
+      advantage (λ: "F", REDC A (RED "F")) PREAL PIDEAL #true.
+  Proof using All.
+    intros HA. apply adv_schan_prf, (typed_env_fac A (T_SKE (ms := ms) (cs := CS)) (λ _, τ_SKE (msg _) (CIPHER _))); last done.
+    intros. apply (T_SKE_subtype (msg := msg) (cipher := CIPHER)).
+  Qed.
+
 End prf_results.
 
 (** * The composed protocol (DH key exchange followed by the channel)
@@ -132,6 +144,18 @@ Section prf_results_comp.
         iApply ctx_adv_typed; first iApply HA. rewrite /τ_SKE /τ_DHKE_SKE.
         iApply (ctx_sim_typed OS SIM_DHKE (λ θ, hdl (cli (msg _)) θ) (oaleak (CIPHER _)) leakI aleak).
         iApply SIM_DHKE_typed_f.
+  Qed.
+
+
+  Corollary adv_composition_prf_typed A :
+    ⊢ᵥ A : ((() -∘ T_DHKE_SKE (cg := cg) (ms := ms) (cs := CS)) ⇾ TBool)%ty →
+    advantage A REAL (SIM ∘f IDEAL) #true <=
+      advantage (DH_RED A) (DH_real (vg := vg) (cg := cg) (vgg := vgg))
+                (DH_rand (vg := vg) (cg := cg) (vgg := vgg)) #true
+      + advantage (λ: "F", ENC_RED A (RED "F")) PREAL PIDEAL #true.
+  Proof using All.
+    intros HA. apply adv_composition_prf, (typed_env_fac A (T_DHKE_SKE (cg := cg) (ms := ms) (cs := CS)) (λ _, τ_DHKE_SKE (vg := vg) (msg _) (CIPHER _))); last done.
+    intros. apply (T_DHKE_SKE_subtype (G := G) (msg := msg) (cipher := CIPHER)).
   Qed.
 
 End prf_results_comp.

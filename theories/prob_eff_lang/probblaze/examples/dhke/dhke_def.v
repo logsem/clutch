@@ -179,58 +179,14 @@ Section def_implementation.
        λ: "f" "effs", dh_core "f" "effs" "α" "β" "l1" "l2")%V.
   Proof. reflexivity. Qed.
 
-  Definition DH_KE_tapeless : expr :=
+  (* [DH_KE] without tapes: [rand #n] is [rand(#()) #n], so binding the tape
+     variables to [#()] makes the core sample directly. *)
+  Definition DH_KE_tapeless : val := λ: <>,
+    let: "α" := #()%V in
+    let: "β" := #()%V in
     let: "l1" := ref NONEV in
     let: "l2" := ref NONEV in
-
-    λ: "f" "effs",
-      let, ("doSend", "doRecv") := "effs" in
-      
-      effect "getKey"  
-        let: "doGK" := (λ: "party", do: (EffName "getKey") "party") in
-        handle: "f" "doGK" with
-    | effect (EffName "getKey") "p", rec "k" =>
-        match: "p" with
-          (* Alice *)
-          InjL <> =>
-            (* Sample *)
-            let: "a" :=
-              (match: !"l1" with
-                 NONE => let: "a" := (sample #()%V) in "l1" <- SOME "a";; "a"
-               | SOME "a" => "a"
-               end) in
-            (* Compute gA *)
-            let: "gA" := g^"a" in
-            (* Send gA *)
-            ("doSend" ("gA", bob));;
-            (* Receive gB *)
-            let: "r" := ("doRecv" bob) in
-            match: "r" with
-              NONE => "k" NONEV
-            | SOME "gB" =>
-                (* Compute key *)
-                let: "key" := "gB"^"a" in
-                "k" (SOME "key")
-            end
-        (* Bob *)
-        | InjR <> =>
-            let: "r" := ("doRecv" alice) in
-            match: "r" with
-              NONE => "k" NONE
-            | SOME "gA" =>
-                let: "b" :=
-                  match: !"l2" with
-                    NONE => let: "b" := (sample #()%V) in "l2" <- SOME "b";; "b"
-                  | SOME "b" => "b"
-                  end in
-                let: "gB" := g^"b" in
-                ("doSend" ("gB", alice));;
-
-                let: "key" := "gA"^"b" in
-                "k" (SOME "key")
-            end
-        end
-    | return "y" => "y" end.
+    λ: "f" "effs", dh_core "f" "effs" "α" "β" "l1" "l2".
 
  Definition DH_SIM : val := λ: <>,
    let: "α" := alloc #n in

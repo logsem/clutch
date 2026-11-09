@@ -2,6 +2,7 @@ From iris.algebra.lib Require Import dfrac_agree.
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy mode compatibility.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems uc_advantage.
+From clutch.prob_eff_lang.probblaze.uc Require Import uc_typed.
 From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental.
 From clutch.prob_eff_lang.probblaze.examples.secure_add3 Require Import add3_def add3_prf.
 
@@ -63,16 +64,6 @@ Section adv_add3.
       iApply ty_le_prod; [iApply ty_le_refl | iIntros (??) "!#"; iApply τG_subtype].
   Qed.
 
-  (* The environment takes a single-session factory of the scenario. *)
-  Lemma T_ADD3_fac_bool_subtype `{!probblazeRGS Σ} η μ δ ξ :
-    ⊢ (interp._ty η μ δ ((() -∘ T_ADD3) ⇾ 𝔹) ξ)%T ≤ₜ (fac OS τ_ADD3 → 𝔹)%T.
-  Proof using All.
-    iApply ty_le_mbang_comp; first iApply mode_le_refl.
-    iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
-    iApply ty_le_trans; first iApply (ty_le_mbang_elim OS).
-    iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|iApply T_ADD3_subtype].
-  Qed.
-
   Theorem adv_ADD3 (m : mode) (A : val) :
     (∀ `{!probblazeRGS Σ}, ⊢ sem_val_typed A A (fac m τ_ADD3 → 𝔹)%T) →
     advantage A (REAL_ADD3 c) ((SIM_ADD3 c) ∘f (IDEAL_ADD3 c)) #true <= 0.
@@ -83,18 +74,12 @@ Section adv_add3.
       [iApply (REAL_ADD3_IDEAL_MS c Hc)|iApply (IDEAL_REAL_ADD3_MS c Hc)].
   Qed.
 
-  Theorem adv_ADD3_typed A :
+  Corollary adv_ADD3_typed A :
     ⊢ᵥ A : ((() -∘ T_ADD3) ⇾ TBool) →
     advantage A (REAL_ADD3 c) ((SIM_ADD3 c) ∘f (IDEAL_ADD3 c)) #true <= 0.
   Proof using All.
-    intros HAtyped. apply (adv_ADD3 OS).
-    intros HRGS.
-    apply (@fundamental_val Σ HRGS) in HAtyped.
-    iPoseProof HAtyped as "Hadv".
-    unfold bin_log_val_related.
-    iSpecialize ("Hadv" $! [] [] ∅ []).
-    iModIntro. iApply T_ADD3_fac_bool_subtype.
-    by rewrite /sem_val_typed /=.
+    intros HA. apply (adv_ADD3 OS), (typed_env_fac A T_ADD3 (λ _, τ_ADD3)); last done.
+    intros. apply T_ADD3_subtype.
   Qed.
 
 End adv_add3.

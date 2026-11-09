@@ -19,10 +19,13 @@ From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode.
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
+From clutch.prob_eff_lang.probblaze.typing Require Import types.
+From clutch.prob_eff_lang.probblaze.typing Require interp.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory mode adequacy.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row sem_sig sem_env sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems uc_advantage uc_theorem.
+From clutch.prob_eff_lang.probblaze.uc Require Import uc_typed.
 From clutch.prob_eff_lang.probblaze.examples Require Import mask sec_channel_def mask_bijection sec_channel_prf advantage_sec_channel.
 From clutch.prob_eff_lang.probblaze.examples Require Import dhke_common dhke_typing sec_channel_typing sec_channel_ideal_typing.
 From clutch.prob_eff_lang.probblaze.examples.dhke Require Import dhke_def advantage_dhke.
@@ -130,6 +133,50 @@ Section dhke_chan_advantage.
       + intros A' HA'. by apply (adv_SCHAN m).
       + exact HA.
     - rewrite Rplus_0_r. reflexivity.
+  Qed.
+
+  (** Syntactically typed environments *)
+
+  (* [τ_DHKE_CHAN], syntactically. *)
+  Definition T_DHKE_CHAN : type :=
+    (∀R:
+      (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> (() + τG)))
+             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()) -∘
+      (∀R: ∀R: ((((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> (() + ())))
+                 * (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ℕ))))
+             -{ (RFlip OS (RVar 1%nat)) ∪ᵣ ((RFlip OS (RVar 0%nat)) ∪ᵣ RVar 2%nat) }-∘ ()))%ty.
+
+  Lemma T_DHKE_CHAN_subtype `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ τ_DHKE_CHAN ≤ₜ interp.interp._ty η μ δ T_DHKE_CHAN ξ.
+  Proof using All.
+    rewrite /T_DHKE_CHAN /τ_DHKE_CHAN /hdl /cli /τ__f /oaleak /aleak /sem_ty_option /=.
+    iApply ty_le_row_forall; iIntros (θL).
+    iApply ty_le_arr; first iApply row_le_refl.
+    - (* the client: its receive returns a group element *)
+      iApply ty_le_row_forall; iIntros (θh).
+      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
+      iApply ty_le_prod; first iApply ty_le_refl.
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
+      iApply ty_le_sum; first iApply ty_le_refl.
+      iIntros (??) "!#". iApply τG_subtype.
+    - (* the leaks of the channel and of the key exchange take group elements *)
+      iApply ty_le_row_forall; iIntros (θ1). iApply ty_le_row_forall; iIntros (θ2).
+      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      iApply ty_le_prod; (iApply ty_le_prod; last iApply ty_le_refl);
+        (iApply ty_le_mbang_comp; first iApply mode_le_refl);
+        (iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl]);
+        (iApply ty_le_prod; last iApply ty_le_refl);
+        iIntros (??) "!#"; iApply τG_subtype.
+  Qed.
+
+  Corollary dhke_chan_realises_typed A :
+    ⊢ᵥ A : ((() -∘ T_DHKE_CHAN) ⇾ TBool)%ty →
+    advantage A REAL_DHKE_CHAN (SIM_DHKE_CHAN ∘f IDEAL_DHKE_CHAN) #true <=
+      advantage (RED_DHKE_CHAN A) DH_real DH_rand #true.
+  Proof using All.
+    intros HA. apply (dhke_chan_realises OS), (typed_env_fac A T_DHKE_CHAN (λ _, τ_DHKE_CHAN)); last done.
+    intros. apply T_DHKE_CHAN_subtype.
   Qed.
 
 End dhke_chan_advantage.

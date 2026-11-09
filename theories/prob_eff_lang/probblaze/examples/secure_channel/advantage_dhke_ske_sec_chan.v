@@ -22,10 +22,13 @@ From iris.algebra.lib Require Import dfrac_agree.
 From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmode.
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
+From clutch.prob_eff_lang.probblaze.typing Require Import types.
+From clutch.prob_eff_lang.probblaze.typing Require interp.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory mode adequacy.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row sem_sig sem_env sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage comp_operators.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems uc_advantage uc_theorem.
+From clutch.prob_eff_lang.probblaze.uc Require Import uc_typed.
 From clutch.prob_eff_lang.probblaze.examples Require Import fin_val_type ske ske_sec_chan_def ske_sec_chan_common ske_sec_chan_typing advantage_ske_sec_chan.
 From clutch.prob_eff_lang.probblaze.examples Require Import dhke_common dhke_typing.
 From clutch.prob_eff_lang.probblaze.examples.dhke Require Import dhke_def advantage_dhke.
@@ -552,6 +555,51 @@ Section dhke_ske_advantage.
     + intros A' HA'. by apply (dhke_realises (G := G) m).
     + intros A' HA'. by apply (adv_SKE (G := G) (ske := ske) (SKE := SKE) m).
     + exact HA.
+  Qed.
+
+  (** Syntactically typed environments *)
+
+  (* [τ_DHKE_SKE], syntactically. *)
+  Definition T_DHKE_SKE : type :=
+    (∀R:
+      (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> (() + ms.(τFT))))
+             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()) -∘
+      (∀R: ∀R: ((((cs.(τFT) * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> (() + ())))
+                 * (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ℕ))))
+             -{ (RFlip OS (RVar 1%nat)) ∪ᵣ ((RFlip OS (RVar 0%nat)) ∪ᵣ RVar 2%nat) }-∘ ()))%ty.
+
+  Lemma T_DHKE_SKE_subtype `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ τ_DHKE_SKE (msg _) (cipher _) ≤ₜ interp.interp._ty η μ δ T_DHKE_SKE ξ.
+  Proof using G msg cipher.
+    rewrite /T_DHKE_SKE /τ_DHKE_SKE /hdl /cli /τ__f /oaleak /aleak /sem_ty_option /=.
+    iApply ty_le_row_forall; iIntros (θL).
+    iApply ty_le_arr; first iApply row_le_refl.
+    - (* the client: its receive returns a message *)
+      iApply ty_le_row_forall; iIntros (θh).
+      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
+      iApply ty_le_prod; first iApply ty_le_refl.
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
+      iApply ty_le_sum; first iApply ty_le_refl.
+      iIntros (??) "!#". iApply (τFT_subtype (fin_val := msg _)).
+    - (* the leaks: the channel's takes a ciphertext, the key exchange's a group element *)
+      iApply ty_le_row_forall; iIntros (θ1). iApply ty_le_row_forall; iIntros (θ2).
+      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      iApply ty_le_prod; (iApply ty_le_prod; last iApply ty_le_refl);
+        (iApply ty_le_mbang_comp; first iApply mode_le_refl);
+        (iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl]);
+        (iApply ty_le_prod; last iApply ty_le_refl);
+        iIntros (??) "!#"; [iApply (τFT_subtype (fin_val := cipher _))|iApply τG_subtype].
+  Qed.
+
+  Corollary dhke_ske_realises_typed A :
+    ⊢ᵥ A : ((() -∘ T_DHKE_SKE) ⇾ TBool)%ty →
+    advantage A REAL_DHKE_SKE (SIM_DHKE_SKE ∘f (IDEAL_DHKE_SKE ms)) #true <=
+      advantage (RED_DHKE_SKE A) DH_real DH_rand #true
+      + advantage ((RED_SKE_DHKE ms) A) (enc_real ske) (enc_ideal ske) #true.
+  Proof using All.
+    intros HA. apply (dhke_ske_realises OS), (typed_env_fac A T_DHKE_SKE (λ _, τ_DHKE_SKE (msg _) (cipher _))); last done.
+    intros. apply T_DHKE_SKE_subtype.
   Qed.
 
 End dhke_ske_advantage.

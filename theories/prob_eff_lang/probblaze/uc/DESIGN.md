@@ -315,10 +315,14 @@ relational proofs, with multi-instance computational assumptions.
 
 The framework is `probblaze/uc/`: `comp_operators.v` (the three session
 operators, the session types and the seven associativity cores),
-`advantage.v`, `uc_systems.v`, `uc_advantage.v`, `uc_theorem.v`.  Each
+`advantage.v`, `uc_systems.v`, `uc_advantage.v`, `uc_theorem.v`, and
+`uc_typed.v` (`typed_env_fac`: a syntactically typed environment is a
+semantically typed one, so the syntactic versions of the bounds are
+corollaries).  Each
 case study lives in one folder of `examples/` (`dhke`, `auth`,
 `secure_channel` with both channel variants and their compositions with
-DHKE, `secure_add`, `secure_add3`, `prf`, `ot`), with files `<comp>_def.v`
+DHKE, `secure_add`, `secure_add3`, `prf`, `ot`; compositions live with the
+protocol that uses the other as a component, e.g. AUTH with DHKE in `dhke`), with files `<comp>_def.v`
 (programs and the systems `REAL_*`, `IDEAL_*`, `SIM_*`, `RED_*`),
 `<comp>_typing.v`, `<comp>_prf.v` or per-component core files (the
 relations), and `advantage_<comp>.v` (the top-level statement).  Systems

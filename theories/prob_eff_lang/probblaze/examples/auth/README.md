@@ -26,9 +26,9 @@ can swap the MAC:
    under an invariant per message slot.
 
 Step 2 spends error credits in every session, so the bound holds for
-one-shot environments only.  `auth_dhke` composes it with the DHKE result:
-DHKE run over `AUTH` instead of over `F_AUTH`, with the bound `2/q` plus the
-DDH term.
+one-shot environments only.  The composition with the DHKE result, `auth_dhke` (DHKE run over `AUTH`
+instead of over `F_AUTH`, with the bound `2/q` plus the DDH term), is in
+`dhke/advantage_auth_dhke.v`.
 
 | File | Contents |
 |---|---|
@@ -38,4 +38,3 @@ DDH term.
 | `auth_mac.v` | Group facts (abelian, prime order); the relations `MAC ≈ MAC_pad` (exact) and `MAC_pad ≈ MAC_ideal` (`1/q`). |
 | `auth_prf.v` | The skeleton lemma `auth_skel_rel`; the equivalence `AUTH_ideal ≈ S_AUTH ∘f F_AUTH` (`AUTH_SIM_EQ`, one proof in the logic of `eq/`) and its two directions. |
 | `advantage_auth.v` | Lifting a MAC relation with credits to the protocol (`AUTH_of_err`); the theorem `adv_AUTH`. |
-| `advantage_auth_dhke.v` | The composed systems `REAL_AUTH_DHKE = AUTH ∘f DH_KE`, `IDEAL_AUTH_DHKE`, `SIM_AUTH_DHKE = S_AUTH ∘f SIM_DHKE`, `RED_AUTH_DHKE`; the theorem `auth_dhke` by `uc_composition_f`. |

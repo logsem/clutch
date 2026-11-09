@@ -13,7 +13,7 @@ front-end theorems are stated for single-session environments (`fac OS`).
 | File | Contents |
 |---|---|
 | `ske_prf.v` | The classes `PRF_struct`/`PRF`, the games `prf_real`/`prf_ideal`, the scheme `PRF_SKE` as an instance of `SYM`, the reduction `red_prf` and the bound `adv_enc_prf`. |
-| `prf_results.v` | `adv_schan_prf` (the SKE channel with the PRF-based scheme, against the PRF games) and `adv_composition_prf` (DHKE followed by that channel: a DDH term plus a PRF term). |
+| `prf_results.v` | `adv_schan_prf` (the SKE channel with the PRF-based scheme, against the PRF games) and `adv_composition_prf` (DHKE followed by that channel: a DDH term plus a PRF term).  Their syntactic counterparts `adv_schan_prf_typed`, `adv_composition_prf_typed` are corollaries. |
 
 The abstract scheme (`SYM`, the oracles `enc_real`, `enc_real_tape`,
 `enc_ideal`) is in `ske/ske.v`.

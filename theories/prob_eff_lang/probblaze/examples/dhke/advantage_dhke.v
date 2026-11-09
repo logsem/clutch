@@ -27,10 +27,12 @@ From clutch Require Import stdpp_ext.
 From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode.
 From clutch.prob_eff_lang.probblaze.uc Require Import comp_operators.
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
+From clutch.prob_eff_lang.probblaze.typing Require Import types.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory logic mode adequacy.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row sem_sig sem_env sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems uc_advantage uc_theorem.
+From clutch.prob_eff_lang.probblaze.uc Require Import uc_typed.
 From clutch.prob_eff_lang.probblaze.examples.dhke Require Import
   dhke_real
   dhke_sim
@@ -38,6 +40,7 @@ From clutch.prob_eff_lang.probblaze.examples.dhke Require Import
 (* After the core lemmas: their files define a [chan] row that would shadow
    the interface type [dhke_typing.chan]. *)
 From clutch.prob_eff_lang.probblaze.examples Require Import dhke_common dhke_typing.
+From clutch.prob_eff_lang.probblaze.typing Require interp.
 From Stdlib Require Import Reals Psatz.
 
 Import fingroup.
@@ -399,6 +402,56 @@ Section dhke_advantage.
          - iApply sem_typed_val. iApply func_comp_f_assoc_rev;
              [iApply F_AUTH_typed|iApply DH_SIM_typed|iApply F_KE_lazy_alice_typed]. }
     by apply (adv_DHKE m).
+  Qed.
+
+  (** Syntactically typed environments *)
+
+  (* [τ__F aleak gk], syntactically: under the outer [∀R:], [RVar 0] is the
+     environment's row; under the inner ones, [RVar 0] is the client's (resp.
+     the channel's) row. *)
+  Definition T_DHKE : type :=
+    (∀R:
+      (∀R: ((() + ()) -{ RVar 0%nat }-> (() + τG)) -{ (RFlip OS (RVar 0%nat)) ∪ᵣ RVar 1%nat }-∘ ()) -∘
+      (∀R: (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ℕ)))
+             -{ (RFlip OS (RVar 0%nat)) ∪ᵣ RVar 1%nat }-∘ ()))%ty.
+
+  Lemma T_DHKE_subtype `{!probblazeRGS Σ} η μ δ ξ :
+    ⊢ τ__F aleak gk ≤ₜ interp.interp._ty η μ δ T_DHKE ξ.
+  Proof using All.
+    rewrite /T_DHKE /τ__F /aleak /gk /sem_ty_option /=.
+    iApply ty_le_row_forall. iIntros (θ).
+    iApply ty_le_arr; first iApply row_le_refl.
+    - iApply ty_le_row_forall; iIntros (θ1).
+      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
+      iApply ty_le_sum; first iApply ty_le_refl.
+      iIntros (??) "!#". iApply τG_subtype.
+    - iApply ty_le_row_forall; iIntros (θ2).
+      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      iApply ty_le_prod; last iApply ty_le_refl.
+      iApply ty_le_mbang_comp; first iApply mode_le_refl.
+      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
+      iApply ty_le_prod; last iApply ty_le_refl.
+      iIntros (??) "!#". iApply τG_subtype.
+  Qed.
+
+  Corollary adv_DHKE_typed A :
+    ⊢ᵥ A : ((() -∘ T_DHKE) ⇾ TBool)%ty →
+    advantage A (F_AUTH ∘f DH_KE) (F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)) #true <=
+      advantage (λ: "v", A (F_AUTH ∘fₚ (C_lazy "v")))%V DH_real DH_rand #true.
+  Proof using All.
+    intros HA. apply (adv_DHKE OS), (typed_env_fac A T_DHKE (λ _, τ__F aleak gk)); last done.
+    intros. apply T_DHKE_subtype.
+  Qed.
+
+  Corollary dhke_realises_typed A :
+    ⊢ᵥ A : ((() -∘ T_DHKE) ⇾ TBool)%ty →
+    advantage A REAL_DHKE (SIM_DHKE ∘f IDEAL_DHKE) #true <=
+      advantage (RED_DHKE A) DH_real DH_rand #true.
+  Proof using All.
+    intros HA. apply (dhke_realises OS), (typed_env_fac A T_DHKE (λ _, τ__F aleak gk)); last done.
+    intros. apply T_DHKE_subtype.
   Qed.
 
 End dhke_advantage.
