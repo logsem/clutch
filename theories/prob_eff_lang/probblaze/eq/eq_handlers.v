@@ -295,6 +295,40 @@ Section eq_handlers.
     - iIntros "!>" (s1 s2) "HQ". iApply (eq_rel_at_elim Fwd _ _ _ X). by iApply ("Hk" $! s1 s2).
     - iIntros "!>" (s1 s2) "HQ". iApply (eq_rel_at_elim Bwd _ _ _ X). by iApply ("Hk" $! s2 s1).
   Qed.
+
+  (* A theory is monotone if its continuation relation can be weakened by a
+     (not necessarily persistent) implication. *)
+  Definition iThy_mono (T : iThy Σ) : Prop :=
+    ∀ e1 e2 (Q Q' : expr -d> expr -d> iProp Σ),
+      T e1 e2 Q ∗ (∀ s1 s2, Q s1 s2 -∗ Q' s1 s2) ⊢ T e1 e2 Q'.
+
+  (* Performing effects of a symmetric, monotone theory, with a one-shot
+     continuation. *)
+  Lemma eq_introduction_sym lls rls (T : dir → iThy Σ) X kl kr el er R (Q : expr -d> expr -d> iProp Σ) :
+    eq_thy_sym T → iThy_mono (T Fwd) →
+    (∀ d, ((pick d lls rls, pick d rls lls), T d) ∈ eq_thy_at X d) →
+    NeutralEctx lls kl → NeutralEctx rls kr →
+    ⊢ ⎡T Fwd el er Q⎤ -∗
+      (∀ sl sr, ⎡Q sl sr⎤ -∗ EQ fill kl sl ≈ fill kr sr <|X|> {{ R }}) -∗
+      EQ fill kl el ≈ fill kr er <|X|> {{ R }}.
+  Proof.
+    intros Hsym Hmono Hin Hkl Hkr. iStartProof (iProp _). iIntros (d) "HT Hk". rewrite eq_rel_at.
+    iApply brel_introduction'; first apply (Hin d).
+    destruct d; rewrite /pick /=.
+    - iExists el, er, kl, kr,
+        (λ s1 s2, brel ⊤ (fill kl s1) (fill kr s2) (eq_thy_at X Fwd) (λ v1 v2, R v1 v2 Fwd)).
+      do 4 (iSplit; first done). iSplitL; last by iIntros "!>" (s1 s2) "H".
+      iApply (Hmono with "[$HT Hk]"). iIntros (s1 s2) "HQ".
+      iSpecialize ("Hk" $! s1 s2 with "[HQ]"); first done.
+      by rewrite eq_rel_at.
+    - iExists er, el, kr, kl,
+        (λ s1 s2, brel ⊤ (fill kr s1) (fill kl s2) (eq_thy_at X Bwd) (λ v1 v2, R v2 v1 Bwd)).
+      do 4 (iSplit; first done). iSplitL; last by iIntros "!>" (s1 s2) "H".
+      iApply (Hsym el er (λ s1 s2, brel ⊤ (fill kr s2) (fill kl s1) (eq_thy_at X Bwd) (λ v1 v2, R v2 v1 Bwd))).
+      iApply (Hmono with "[$HT Hk]"). iIntros (s1 s2) "HQ".
+      iSpecialize ("Hk" $! s1 s2 with "[HQ]"); first done.
+      by rewrite eq_rel_at.
+  Qed.
 End eq_handlers.
 
 (* ------------------------------------------------------------------ *)

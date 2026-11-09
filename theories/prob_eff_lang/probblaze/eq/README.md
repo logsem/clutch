@@ -29,10 +29,10 @@ unfolds them with `eq_rel_at`, `eq_rel_at_elim` and `eq_lift_at`.
 
 | File | Contents |
 |---|---|
-| `eq_logic.v` | The index, the judgement, the resources and lifted types.  Rules for values, pure steps given as a reduction sequence (`eq_rtc_pure_l`), non-atomic invariants, heap and tape steps, and couplings: tape/tape, tape/`rand`, `rand`/`rand`, along a bijection, and two tapes against one `rand`.  The lifting lemmas `eq_step_l`/`eq_step_r` (and the tactics `eq_lift_l`/`eq_lift_r`) turn a pair of refinement rules `brel_X_l`/`brel_X_r` into an `EQ` step.  `eq_brel_self` uses a symmetric refinement of a program with itself.  Tactics `eq_pures_l`, `eq_load_l`, …, `eq_focus_l`, and their `_r` versions. |
+| `eq_logic.v` | The index, the judgement, the resources and lifted types.  Rules for values, pure steps given as a reduction sequence (`eq_rtc_pure_l`) or on both sides at once (`eq_pures_lr`, which gives the later that Löb induction over a loop of both programs needs), non-atomic invariants, heap and tape steps, and couplings: tape/tape, tape/`rand`, `rand`/`rand`, along a bijection, and two tapes against one `rand`.  The lifting lemmas `eq_step_l`/`eq_step_r` (and the tactics `eq_lift_l`/`eq_lift_r`) turn a pair of refinement rules `brel_X_l`/`brel_X_r` into an `EQ` step.  `eq_brel_self` uses a symmetric refinement of a program with itself.  Tactics `eq_pures_l`, `eq_load_l`, …, `eq_focus_l`, and their `_r` versions. |
 | `eq_valgroup.v` | Group operations of `valgroup` (`eq_exp_l`, `eq_mult_l`, `eq_eq_l`, …) and `eq_lift_group`. |
 | `eq_finval.v` | Finite value types of `fin_val_type`: `eq_lift_fvt` and the tactics `eq_fvt_of_int_l Hx`, `eq_int_of_fvt_l fv` and their `_r` versions. |
-| `eq_handlers.v` | Effects and handlers: fresh labels (`eq_effect_l`), new theories and labels (`eq_new_theory`, `eq_add_label_l`), `eq_learn_nodup`, `eq_thy_mono`, exhaustion (`eq_exhaustion`), performing an effect of a theory (`eq_introduction`), symmetric theories (`eq_thy_sym`, `eq_thy_app_sym`), distinctness of the labels of `l` (`eq_learn_labels_l`), one-shot handlers on one side (`eq_handle_os_l`) and on both sides (`eq_handle_os`, which gives the later that Löb induction over handled effects needs), continuations (`eq_cont_l`).  Tactics of the same names. |
+| `eq_handlers.v` | Effects and handlers: fresh labels (`eq_effect_l`), new theories and labels (`eq_new_theory`, `eq_add_label_l`), `eq_learn_nodup`, `eq_thy_mono`, exhaustion (`eq_exhaustion`), performing an effect of a theory (`eq_introduction`), symmetric theories (`eq_thy_sym`, `eq_thy_app_sym`, `eq_introduction_sym`), distinctness of the labels of `l` (`eq_learn_labels_l`), one-shot handlers on one side (`eq_handle_os_l`) and on both sides (`eq_handle_os`, which gives the later that Löb induction over handled effects needs), continuations (`eq_cont_l`).  Tactics of the same names. |
 | `eq_compat.v` | Rules from the semantic typing rules: `eq_call_frame`, a call through an effectful arrow type in evaluation contexts, keeping a frame; `eq_env_call`, a call to a typed operation of the environment from below a handler's theory. |
 
 ## Users
@@ -61,7 +61,9 @@ labels, the programs and the continuation relation leaves it unchanged;
 `eq_thy_app_sym` then reads it at the `EQ` level as the ordinary theory, with
 the labels of `l`.  The examples prove only the symmetry, as a plain Iris fact (`add_thy_sym`, `schan_thy_sym`,
 `skechan_thy_sym`, `go_thy_sym`, `gk_thy_sym`).  Calls to typed operations of
-the environment go through `eq_env_call`.
+the environment go through `eq_env_call`.  Effects of a symmetric theory that is also monotone
+can be performed with a one-shot continuation (`eq_introduction_sym`); the
+network's client rules `eq_net_send`/`eq_net_recv` are proved this way.
 
 Outside this directory, a proof unfolds the judgement only in these places:
 
@@ -71,16 +73,6 @@ Outside this directory, a proof unfolds the judgement only in these places:
   turns its refinement premises into `EQ` premises.
 - **`ske.v`, `eq_rand_cipher_coupl`.**  The scheme's ciphertext coupling, lifted
   from its refinement version one direction at a time.
-- **Three-party addition, the network (`add3_net.v`).**  The network's session spec
-  `F_NET_sess_spec`, its client rules `brel_net_send`/`brel_net_recv` and the
-  network invariant are proved for refinements and generic in the message
-  relations.  `eq_F_NET_sess_spec`, `eq_net_send`, `eq_net_recv` and
-  `eq_net_inv_alloc` instantiate them in each direction, with the relations
-  flipped in direction `Bwd`; `eq_patch_spec_eq_at` turns the `EQ` spec of the simulator's patch
-  into the per-direction one that `F_NET_sess_spec` expects.
-- **Three-party addition, header operations (`add3_prf.v`).**  `F_NET_sess_spec`
-  expects the environment's header operations as refinement-level specs
-  (`env_op_spec`); `eq_hdr_spec_typed` provides them one direction at a time.
 - **DHKE (`dhke_eq.v`, `dhke_real.v`, `dhke_sim.v`).**  The authenticated channel's rules
   (`eq_chan_send_bob`, `eq_chan_send_alice`, `eq_chan_recv_alice`,
   `eq_chan_recv_bob`) are proved one direction at a time.  The refinements that the composition in

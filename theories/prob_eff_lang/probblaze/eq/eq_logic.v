@@ -337,6 +337,17 @@ Section eq_rules.
     - rewrite -brel_pure_step_later //. iIntros "H". by iModIntro.
   Qed.
 
+  (* Pure steps on both sides give a later in both directions, which Löb
+     induction over a loop of both programs needs. *)
+  Lemma eq_pure_lr E el el' er er' X R φl φr nl nr :
+    PureExec φl (S nl) el el' → φl → PureExec φr (S nr) er er' → φr →
+    ▷ EQ el' ≈ er' @ E <|X|> {{ R }} ⊢ EQ el ≈ er @ E <|X|> {{ R }}.
+  Proof.
+    intros ????. split=> d. rewrite monPred_at_later !eq_rel_at. destruct d; rewrite /pick /=.
+    - rewrite -brel_pure_step_later //. iIntros "H". iNext. by iApply (brel_pure_step_r with "H").
+    - rewrite -brel_pure_step_later //. iIntros "H". iNext. by iApply (brel_pure_step_r with "H").
+  Qed.
+
   Lemma eq_load_l E K ℓ dq v er X R :
     ℓ ↦ₗ{dq} v ∗ (ℓ ↦ₗ{dq} v -∗ EQ fill K (Val v) ≈ er @ E <|X|> {{ R }}) ⊢ EQ fill K (! #ℓ) ≈ er @ E <|X|> {{ R }}.
   Proof.
@@ -935,6 +946,17 @@ Section eq_tactics.
     assert (PureExec φ n er er') by (intros ?; by apply Hsteps). rewrite HΔ. by apply: eq_pure_r.
   Qed.
 
+  Lemma tac_eq_pure_lr {Δ Δ' E el el' er er' X R φl φr} nl nr :
+    DoPureSteps φl (S nl) el el' → φl → DoPureSteps φr (S nr) er er' → φr →
+    MaybeIntoLaterNEnvs 1 Δ Δ' →
+    envs_entails Δ' (EQ el' ≈ er' @ E <|X|> {{ R }}) → envs_entails Δ (EQ el ≈ er @ E <|X|> {{ R }}).
+  Proof.
+    rewrite envs_entails_unseal. intros [Hl] Hφl [Hr] Hφr ? HΔ.
+    assert (PureExec φl (S nl) el el') by (intros ?; by apply Hl).
+    assert (PureExec φr (S nr) er er') by (intros ?; by apply Hr).
+    rewrite into_laterN_env_sound HΔ /=. by apply: eq_pure_lr.
+  Qed.
+
   Lemma tac_eq_load_l E K Δ i ℓ dq v p el el' er X R :
     IntoCtx el (TCEq (Load #ℓ)) K → envs_lookup i Δ = Some (p, ℓ ↦ₗ{dq} v)%I → el' = fill K (Val v) →
     envs_entails Δ (EQ el' ≈ er @ E <|X|> {{ R }}) → envs_entails Δ (EQ el ≈ er @ E <|X|> {{ R }}).
@@ -1081,6 +1103,18 @@ Tactic Notation "eq_pures_r" :=
     notypeclasses refine (tac_eq_pure_r (S _) _ _ _);
       [ tc_solve || fail 1 "eq_pures_r: no pure steps can be performed"
       | try done
+      | simpl; pm_prettify ]).
+
+(* [eq_pures_lr]: pure steps on both sides, stripping a later from the
+   context. *)
+Tactic Notation "eq_pures_lr" :=
+  eq_goal_check ltac:(
+    notypeclasses refine (tac_eq_pure_lr _ _ _ _ _ _ _ _);
+      [ tc_solve || fail 1 "eq_pures_lr: no pure steps can be performed in l"
+      | try done
+      | tc_solve || fail 1 "eq_pures_lr: no pure steps can be performed in r"
+      | try done
+      | tc_solve
       | simpl; pm_prettify ]).
 
 Tactic Notation "eq_load_l" :=

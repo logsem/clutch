@@ -34,7 +34,7 @@ typing layers are shared between the two directions.
 |---|---|
 | `add3_def.v` | Parties `party`/`run_party`, network `F_NET`, protocol `Π`, the real system `REAL_ADD3 c = F_NET ∘F Π c`, functionality `F_ADD3` (`IDEAL_ADD3`), simulator `S_ADD3` (`SIM_ADD3`, with `patch` and `sim_leak`), semantic type `τ_ADD3`. |
 | `add3_tbl.v` | The network's write-once mailbox tables, and specs for looking up a key. |
-| `add3_net.v` | Relational spec of one network session, `F_NET_sess_spec`, generic in the two patches and in the relations on stored and delivered messages; client-side rules `brel_net_send`/`brel_net_recv`.  Their versions for the equivalence logic: `eq_F_NET_sess_spec`, `eq_net_send`, `eq_net_recv`. |
+| `add3_net.v` | Relational spec of one network session in the equivalence logic, `eq_F_NET_sess_spec`, generic in the two patches and in the relations on stored and delivered messages; client-side rules `eq_net_send`/`eq_net_recv`. |
 | `add3_party.v` | Write-once ghost slots recording the real inputs and samples; the message relations `Rmsg`/`Rdeliv`; the group identities; one party's run in both worlds, as an equivalence (`run_party_spec`, `eq_run_party_c`, `eq_run_party_h`). |
 | `add3_prf.v` | The start invariant (which parties have run, `x_c`, `δ`), the simulator's patch (`eq_patch_ok`), one session (`eq_go_sess_spec`), the client's row and ports, and the equivalence `ADD3_EQ`, with the refinements `REAL_ADD3_IDEAL_MS` and `IDEAL_REAL_ADD3_MS` as instances. |
 | `advantage_add3.v` | The security theorem `adv_ADD3 m` for environments `A : fac m τ_ADD3 → 𝔹`, and `adv_ADD3_typed` for syntactically typed environments (`T_ADD3`). |

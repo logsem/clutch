@@ -569,51 +569,6 @@ Section typed_infra.
       |iExists _, _; iLeft; repeat iSplit; try done].
   Qed.
 
-  (* Calling a typed operation of the environment (in row [θ]) from below
-     any theory [X] with labels [l1s], [l2s]. *)
-  Lemma brel_env_call' l1s l2s X k1 k2 (f1 f2 v1 v2 : val) (τ κ : sem_ty Σ) (θ L : sem_row Σ) R :
-    ectx_labels k1 ⊆ l1s →
-    ectx_labels k2 ⊆ l2s →
-    (τ -{ θ }-> κ)%T f1 f2 -∗
-    τ v1 v2 -∗
-    (∀ w1 w2, κ w1 w2 -∗
-       BREL fill k1 w1 ≤ fill k2 w2
-         <|(l1s, l2s, X) :: iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)|> {{R}}) -∗
-    BREL fill k1 (f1 v1) ≤ fill k2 (f2 v2)
-      <|(l1s, l2s, X) :: iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)|> {{R}}.
-  Proof.
-    iIntros (Hk1 Hk2) "Hf Hv Hk".
-    iApply (brel_bind'' _ _ (iLblSig_to_iLblThy (¡ θ)%R) [(l1s, l2s, X)]).
-    { rewrite labels_l_cons /=. set_solver. }
-    { rewrite labels_r_cons /=. set_solver. }
-    { iApply to_iThy_le_intro'. unfold sem_row_union.
-      repeat (rewrite -> iLblSig_to_iLblThy_proj; rewrite -> iLblSig_to_iLblThy_app).
-      solve_submseteq. }
-    rewrite iThyIfMono_iLblSig_to_iThyIfMono.
-    iApply (brel_mono OS with "[] [Hf Hv] Hk"); first iApply to_iThy_le_refl.
-    rewrite /sem_ty_mbang /sem_ty_arr /=. by iApply "Hf".
-  Qed.
-
-  Lemma hdr_spec_typed θ L f1 f2 :
-    (τ_hdr -{ θ }-> 𝟙)%T f1 f2 -∗
-    env_op_spec (iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)) f1 f2.
-  Proof.
-    iIntros "#Hf !>" (l1s l2s k1 k2 s d t S Hk1 Hk2) "Hk".
-    iApply (brel_env_call' with "Hf [] [Hk]"); [done | done | |].
-    - rewrite /τ_hdr /sem_ty_prod.
-      iExists _, _, _, _. repeat iSplit; try done; last by iExists _.
-      iExists _, _, _, _. repeat iSplit; try done; by iExists _.
-    - by iIntros (w1 w2) "[-> ->]".
-  Qed.
-
-
-  Lemma eq_hdr_spec_typed θ L fl fr :
-    ⊢ ⟪ τ_hdr -{ θ }-> 𝟙 ⟫ fl fr -∗
-      eq_env_op_spec (iLblSig_to_iLblThy (sem_row_union (¡ θ)%R L)) fl fr.
-  Proof.
-    iStartProof (iProp _). iIntros (d) "H". iEval (rewrite eq_lift_at) in "H".
-    destruct d; rewrite /pick /=; by iApply hdr_spec_typed.
-  Qed.
 
 End typed_infra.
 
@@ -701,10 +656,8 @@ Section main.
     iDestruct "Hops" as (nll nlr wl wr) "(-> & -> & #Hnl & #Hw)".
     eq_pures'.
     (* the network *)
-    iApply (eq_F_NET_sess_spec netN with "Hnet [] [] [] [Hf]").
-    { by iApply eq_hdr_spec_typed. }
-    { by iApply eq_hdr_spec_typed. }
-    { iApply eq_patch_spec_eq_at. by iApply (eq_patch_ok c Hc γx γr st0 st1 st2 x0 x1 x2 d xc startN). }
+    iApply (eq_F_NET_sess_spec _ _ netN with "Hnet Hnl Hw [] [Hf]").
+    { by iApply (eq_patch_ok c Hc γx γr st0 st1 st2 x0 x1 x2 d xc startN). }
     iIntros (ll lr). eq_pures'.
     (* the protocol against F_ADD3 and the simulator *)
     iApply (eq_go_sess_spec c Hc γx γr st0 st1 st2 x0 x1 x2 d xc startN with "Hstart Hlk [Hf]").
