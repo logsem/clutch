@@ -497,7 +497,8 @@ Section auth_typing.
     rewrite /auth_sess /auth_skel /auth_skel'.
     iApply (sem_typed_oval _ [_; _; _; _; _; _]).
     iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    (* the client-taking closure captures only copyable state *)
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _; _; _; _; _; _]). iApply sem_typed_RLam. iIntros (θ₂).
     iApplyT sem_oval_typed_afun. simpl.
     iApplyT sem_typed_pair_elim; first tvar.
@@ -642,7 +643,8 @@ Section auth_typing.
     do 4 (iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_bool')).
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _; _; _; _; _]).
     iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    (* the client-taking closure captures only copyable state *)
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _; _; _; _; _; _]). iApply sem_typed_RLam. iIntros (θ₂).
     iApplyT sem_oval_typed_afun. simpl.
     iApplyT sem_typed_pair_elim; first tvar.

@@ -75,7 +75,7 @@ Section dhke_chan_typing.
 
   (* The interface of the composed system: a channel client, over the
      authenticated-channel leakage and the DHKE leakage. *)
-  Definition τ_DHKE_CHAN : sem_ty Σ := (∀ᵣ θ, hdl cli θ ⊸ τ__f θ oaleak aleak)%T.
+  Definition τ_DHKE_CHAN : sem_ty Σ := (∀ᵣ θ, hdl cli θ → τ__f θ oaleak aleak)%T.
 
   Lemma REAL_DHKE_CHAN_typed_f m : ⊢ ⊨ᵥ REAL_DHKE_CHAN ≤ REAL_DHKE_CHAN : fac m τ_DHKE_CHAN.
   Proof using All.
@@ -141,7 +141,7 @@ Section dhke_chan_advantage.
   Definition T_DHKE_CHAN : type :=
     (∀R:
       (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> (() + τG)))
-             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()) -∘
+             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()) ⇾
       (∀R: ∀R: ((((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> (() + ())))
                  * (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ℕ))))
              -{ (RFlip OS (RVar 1%nat)) ∪ᵣ ((RFlip OS (RVar 0%nat)) ∪ᵣ RVar 2%nat) }-∘ ()))%ty.
@@ -151,6 +151,7 @@ Section dhke_chan_advantage.
   Proof using All.
     rewrite /T_DHKE_CHAN /τ_DHKE_CHAN /hdl /cli /τ__f /oaleak /aleak /sem_ty_option /=.
     iApply ty_le_row_forall; iIntros (θL).
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
     iApply ty_le_arr; first iApply row_le_refl.
     - (* the client: its receive returns a group element *)
       iApply ty_le_row_forall; iIntros (θh).

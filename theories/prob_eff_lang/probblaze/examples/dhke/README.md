@@ -18,7 +18,7 @@ mode-generic: at mode `MS` the bound is in terms of multi-instance DDH.
 | File | Contents |
 |---|---|
 | `dhke_def.v` | The programs: `F_AUTH`, `DH_KE`, `DH_SIM`, `F_KE_lazy_alice`, the reduction `C_lazy` (a factory parametrised by a DDH oracle, with session `C_lazy_sess`) and its two instances `C_DH_real`, `C_DH_rand`; the DDH oracles `DH_real`, `DH_rand`; the systems `REAL_DHKE = F_AUTH ∘f DH_KE`, `IDEAL_DHKE = F_KE_lazy_alice`, `SIM_DHKE = F_AUTH ∘f DH_SIM`, `RED_DHKE`.  The eager functionality `F_KE` is kept for later use. |
-| `dhke_common.v` | Ghost resources of the proofs (tokens, receipts, messages), the key-query theory `gk` and the authenticated-channel theories, the interface types `τ_DH`/`τ_DH_OS`. |
+| `dhke_common.v` | Ghost resources of the proofs (tokens, receipts, messages), the key-query theory `gk` and the authenticated-channel theories, the interface type `τ_DH` (equal to `τ__F aleak gk`). |
 | `dhke_typing.v` | Interface types (`chan`, `aleak`, `gk`, `leakI`), the typings of the four systems at both modes, the typing of the reduction, the typing of `DH_KE`'s core, and the long-context typing tactics. |
 | `dhke_eq.v` | Building blocks of the cores in the equivalence logic: `sample_or_read` in the protocol, the authenticated channel's send and receive rules (`eq_chan_send_bob`, …, `eq_chan_recv_alice`, …), the typing of the key query (`gk_typed`) and its theory (`gk_thy`). |
 | `dhke_real.v` | The real world against the protocol with the real DDH oracle, one client call, as one equivalence `DH_KE_C_DH_real_EQ`; the refinements `DH_KE ≤ C_DH_real` and back are its instances. |

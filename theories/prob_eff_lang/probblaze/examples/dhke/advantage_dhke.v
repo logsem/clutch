@@ -170,7 +170,11 @@ Section dhke_relations_f.
   (* Calling the composite factory: the operator's thunk, then the leaves
      in evaluation order.  The per-component core lemmas then apply to the
      session bodies.  The client-taking function of the result is
-     unrestricted ([τ_DH]); [τ__F aleak gk] follows by subtyping. *)
+     unrestricted: [τ_DH], which is [τ__F aleak gk]. *)
+
+  (* [τ_DH] of [dhke_common], in terms of the session types. *)
+  Lemma τ_DH_le_τ__F : ⊢ τ_DH ≤ₜ τ__F aleak gk.
+  Proof. iApply ty_le_refl. Qed.
 
   Lemma F_AUTH_DH_KE_C_DH_real_f m :
     ⊢ sem_typed [] (F_AUTH ∘f DH_KE) (F_AUTH ∘f C_DH_real) ⊥ (fac m τ_DH) [].
@@ -368,14 +372,14 @@ Section dhke_advantage.
     eapply (advantage_triangle _ _ (F_AUTH ∘f C_DH_real) _ _ 0); first last.
     { rewrite Rplus_0_l. reflexivity. }
     2: { apply (advantage_zero _ _ _ _ (λ H : probblazeRGS Σ, fac m (τ__F aleak gk))); [exact HA| |]; intros HRGS.
-         - iApply sem_typed_sub_ty; [iApply fac_le; iApply τ_DH_le_τ_DH_OS|iApply F_AUTH_DH_KE_C_DH_real_f].
-         - iApply sem_typed_sub_ty; [iApply fac_le; iApply τ_DH_le_τ_DH_OS|iApply F_AUTH_C_DH_real_DH_KE_f]. }
+         - iApply sem_typed_sub_ty; [iApply fac_le; iApply τ_DH_le_τ__F|iApply F_AUTH_DH_KE_C_DH_real_f].
+         - iApply sem_typed_sub_ty; [iApply fac_le; iApply τ_DH_le_τ__F|iApply F_AUTH_C_DH_real_DH_KE_f]. }
     (*   F_AUTH ∘f C_DH_rand  ≃  F_AUTH ∘f (DH_SIM ∘f F_KE_lazy_alice)       *)
     eapply (advantage_triangle _ _ (F_AUTH ∘f C_DH_rand) _ _ _ 0); first last.
     { rewrite Rplus_0_r. reflexivity. }
     1: { apply (advantage_zero _ _ _ _ (λ H : probblazeRGS Σ, fac m (τ__F aleak gk))); [exact HA| |]; intros HRGS.
-         - iApply sem_typed_sub_ty; [iApply fac_le; iApply τ_DH_le_τ_DH_OS|iApply F_AUTH_C_DH_rand_DH_SIM_F_KE_f].
-         - iApply sem_typed_sub_ty; [iApply fac_le; iApply τ_DH_le_τ_DH_OS|iApply F_AUTH_DH_SIM_F_KE_C_DH_rand_f]. }
+         - iApply sem_typed_sub_ty; [iApply fac_le; iApply τ_DH_le_τ__F|iApply F_AUTH_C_DH_rand_DH_SIM_F_KE_f].
+         - iApply sem_typed_sub_ty; [iApply fac_le; iApply τ_DH_le_τ__F|iApply F_AUTH_DH_SIM_F_KE_C_DH_rand_f]. }
     (*   F_AUTH ∘f C_DH_real  vs  F_AUTH ∘f C_DH_rand: the DDH step, through
          the reduction [λ d, A (F_AUTH ∘f C_lazy d)]                          *)
     etrans; first apply (advantage_pure_r_rev _ [] _ (fill [AppRCtx (fac_app func_comp F_AUTH); AppRCtx C_lazy] DH_rand) _);
@@ -411,7 +415,7 @@ Section dhke_advantage.
      the channel's) row. *)
   Definition T_DHKE : type :=
     (∀R:
-      (∀R: ((() + ()) -{ RVar 0%nat }-> (() + τG)) -{ (RFlip OS (RVar 0%nat)) ∪ᵣ RVar 1%nat }-∘ ()) -∘
+      (∀R: ((() + ()) -{ RVar 0%nat }-> (() + τG)) -{ (RFlip OS (RVar 0%nat)) ∪ᵣ RVar 1%nat }-∘ ()) ⇾
       (∀R: (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ℕ)))
              -{ (RFlip OS (RVar 0%nat)) ∪ᵣ RVar 1%nat }-∘ ()))%ty.
 
@@ -420,6 +424,7 @@ Section dhke_advantage.
   Proof using All.
     rewrite /T_DHKE /τ__F /aleak /gk /sem_ty_option /=.
     iApply ty_le_row_forall. iIntros (θ).
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
     iApply ty_le_arr; first iApply row_le_refl.
     - iApply ty_le_row_forall; iIntros (θ1).
       iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].

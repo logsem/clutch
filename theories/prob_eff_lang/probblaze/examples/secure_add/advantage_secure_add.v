@@ -35,7 +35,7 @@ Section adv_add.
   (* The same for syntactically typed environments, through the fundamental
      lemma: the environment takes a single-session factory of the scenario. *)
   Definition T_ADD : type :=
-    (∀R: (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (ℕ -{ RVar 0%nat }-> ())) -{ RVar 0%nat ∪ᵣ (RVar 1%nat) }-∘ ()) -∘
+    (∀R: (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (ℕ -{ RVar 0%nat }-> ())) -{ RVar 0%nat ∪ᵣ (RVar 1%nat) }-∘ ()) ⇾
        (∀R: ((((τG -{ RVar 0%nat }-> ()) * (τG -{ RVar 0%nat }-> ()))
               * ((((() + ()) -{ RVar 0%nat }-> ())) * ((() + ()) -{ RVar 0%nat }-> (() + ()))))
                -{ (RFlip OS (RVar 0%nat)) ∪ᵣ (RVar 1%nat) }-∘ ()))).
@@ -45,6 +45,7 @@ Section adv_add.
   Proof using All.
     rewrite /T_ADD /τ_ADD /sem_ty_option /=.
     iApply ty_le_row_forall; iIntros (?).
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
     iApply ty_le_arr; first iApply row_le_refl.
     - iApply ty_le_refl.
     - iApply ty_le_row_forall; iIntros (?).
