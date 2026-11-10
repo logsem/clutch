@@ -1,0 +1,13 @@
+; Environments (distinguishers) for the executable case studies, written in
+; the object language so that they are extracted together with the systems.
+(rocq.theory
+ (name clutch_exec)
+ (theories
+  clutch discprob
+  Stdlib Ltac2 iris stdpp Coquelicot Autosubst HB
+  mathcomp mathcomp.ssreflect mathcomp.solvable mathcomp.analysis)
+ (flags
+  -w -notation-overridden
+  -w -redundant-canonical-projection
+  -w -undeclared-scope
+  -w -ambiguous-paths))

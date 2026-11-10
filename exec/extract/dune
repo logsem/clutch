@@ -1,0 +1,22 @@
+; Extraction of the probblaze syntax, the deterministic parts of its
+; semantics, the case-study systems and the environments of ../theories.
+(rocq.extraction
+ (prelude extract)
+ (extracted_modules probblaze)
+ (theories
+  clutch clutch_exec discprob elpi elpi_elpi
+  Stdlib Ltac2 iris stdpp Coquelicot Autosubst HB
+  mathcomp mathcomp.ssreflect mathcomp.solvable mathcomp.analysis)
+ (flags
+  -w -notation-overridden
+  -w -redundant-canonical-projection
+  -w -undeclared-scope
+  -w -ambiguous-paths
+  -w -extraction))
+
+(library
+ (name probblaze_extracted)
+ (wrapped false)
+ (modules exec_fin probblaze)
+ (libraries zarith)
+ (flags (:standard -w -a)))
