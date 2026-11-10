@@ -332,7 +332,9 @@ Section rel.
     { iNext. iExists None, None, None. by iFrame. }
     iIntros "#Hinv2".
     eq_pures_r.
-    iApply eq_value. iModIntro. rewrite /τ__F eq_lift_forall. iIntros (θ).
+    (* all state is in the two slot invariants: the session may take any
+       number of clients *)
+    iApply eq_value. iModIntro. rewrite /τ__F eq_lift_forall. iIntros (θ). iModIntro.
     iApply eq_lift_arr. iIntros (f1 f2) "Hf". eq_pures_l. eq_pures_r.
     iApply eq_value. iModIntro. iEval (rewrite eq_lift_forall). iIntros (θ₂).
     iApply eq_lift_arr. iIntros (e1 e2) "He". iEval (rewrite /raw eq_lift_prod) in "He".

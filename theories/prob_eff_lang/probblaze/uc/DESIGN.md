@@ -8,13 +8,14 @@ theorem built on it (`uc_theorem.v`) and the case studies of `examples/`.
 
 | notion | what it is | type |
 |---|---|---|
-| **session** | a value that takes its client and then its environment ports, once | `τ__F τ τ'` (ports `τ`, client `τ'`), or a two-port variant built from `τ__f` |
+| **session** | a value that takes its client, any number of times, and then its environment ports | `τ__F τ τ'` (ports `τ`, client `τ'`), or a two-port variant built from `τ__f` |
 | **system** | a protocol, an ideal functionality, a simulator, or a composite | a **factory** `λ: <>, e` of type `fac m τ := 𝟙 -{⟨⟩}-[m]-> τ` |
 | **environment** | the distinguisher; receives a system | `fac m τ → 𝔹` |
 
 A call of a factory evaluates `e`: it allocates the session's state
-(references, tapes, keys) and returns a fresh session.  The session takes
-its client once (`⊸` inside `τ__F`).  The *mode* `m` of the factory says
+(references, tapes, keys) and returns a fresh session.  The session may
+take its client any number of times (`→` inside `τ__F`); those calls share
+the session's state.  The *mode* `m` of the factory says
 how many sessions the environment may create: `fac OS τ = 𝟙 ⊸ τ` is
 **single-session** (the thunk may be called once), `fac MS τ = 𝟙 → τ` is
 **multi-session** (any number of independent instances, created and
@@ -23,7 +24,7 @@ interleaved at the environment's discretion).  See §7.
 Session types, from `comp_operators.v`:
 
 ```
-τ__F τ τ'    := ∀ᵣ θ, (∀ᵣ θ₁, τ' θ₁ -{¡θ₁ ∪ θ}-∘ 𝟙) ⊸ (∀ᵣ θ₂, τ θ₂ -{¡θ₂ ∪ θ}-∘ 𝟙)
+τ__F τ τ'    := ∀ᵣ θ, (∀ᵣ θ₁, τ' θ₁ -{¡θ₁ ∪ θ}-∘ 𝟙) → (∀ᵣ θ₂, τ θ₂ -{¡θ₂ ∪ θ}-∘ 𝟙)
 τ__f θ τ1 τ2 := ∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τ2 θ2) -{¡θ1 ∪ ¡θ2 ∪ θ}-∘ 𝟙       (a two-port client/ports bundle)
 ```
 
@@ -95,10 +96,10 @@ one.  The instances:
 
 | lemma | composite type |
 |---|---|
-| `func_comp_f_typed_gen` | `fac m (∀ᵣ θ, M θ ⊸ T4 θ)`, `fac m (∀ᵣ θ, T1 θ ⊸ M θ)` give `fac m (∀ᵣ θ, T1 θ ⊸ T4 θ)`, for η-expandable `M` |
+| `func_comp_f_typed_gen` | `fac m (∀ᵣ θ, M θ → T4 θ)`, `fac m (∀ᵣ θ, T1 θ → M θ)` give `fac m (∀ᵣ θ, T1 θ → T4 θ)`, for η-expandable `M` |
 | `func_comp_f_typed` | `fac m (τ__F τ1 τ2)`, `fac m (τ__F τ2 τ3)` give `fac m (τ__F τ1 τ3)` |
-| `parallel_comp_f_typed` | `fac m (τ__F τ2 τ2')`, `fac m (τ__F τ1 τ1')` give `fac m (∀ᵣ θ, τ__f θ τ1' τ2' ⊸ τ__f θ τ1 τ2)` |
-| `functionality_comp_f_typed` | `fac m (τ__F τ2 τF)`, `fac m (∀ᵣ θ, τ1' θ ⊸ τ__f θ τ1 τF)` give `fac m (∀ᵣ θ, τ1' θ ⊸ τ__f θ τ1 τ2)` |
+| `parallel_comp_f_typed` | `fac m (τ__F τ2 τ2')`, `fac m (τ__F τ1 τ1')` give `fac m (∀ᵣ θ, τ__f θ τ1' τ2' → τ__f θ τ1 τ2)` |
+| `functionality_comp_f_typed` | `fac m (τ__F τ2 τF)`, `fac m (∀ᵣ θ, τ1' θ → τ__f θ τ1 τF)` give `fac m (∀ᵣ θ, τ1' θ → τ__f θ τ1 τ2)` |
 
 The program-level operators are typed as values by `fac_app_val_typed`
 (`fac m τF ⊸ fac m τG ⊸ fac m τ`; the arrows are `⊸` because a partial
@@ -135,10 +136,12 @@ line.
 ## 4. The session level (`comp_operators.v`)
 
 The operator library defines the three session operators, the session
-types `τ__F` and `τ__f`, and the seven associativity cores
+types `τ__F` and `τ__f`, and the eight associativity cores
 `func_comp_assoc(_rev)_core`, `func_comp_parallel_comp_assoc(_rev)_core`,
 `functionality_comp_func_comp_assoc(_gen)(_rev)_core`: `brel` statements
-for pairs of *expressions*, linear, with postcondition `τ ∗ [] ⊨ₑ vs`.
+for pairs of *expressions*, with postcondition `τ ∗ [] ⊨ₑ vs`.  The
+component relations are persistent (each session takes its client with
+`→`), so the composite session is related under `□`.
 The expression form is the primitive because the factory lemmas apply a
 core to the terms `F #()`, `G #()` and a session value, not to closed
 self-related expressions.
@@ -191,13 +194,13 @@ bound are visible):
 
 ```
 S  : fac m (τ__F τH τF)         F  : fac m (τ__F τF τJ2)        A₀ : fac m (τ__F τA τJ1)
-ρ  : fac m (∀ᵣ θ, τc θ ⊸ τ__f θ τJ1 τJ2)
-S' : fac m (∀ᵣ θ, (∀ᵣ θJ, τG θJ -{¡θJ ∪ θ}-∘ 𝟙) ⊸ τ__f θ τA τF)
-G  : fac m (∀ᵣ θ, τc θ ⊸ ∀ᵣ θJ, τG θJ -{¡θJ ∪ θ}-∘ 𝟙)
+ρ  : fac m (∀ᵣ θ, τc θ → τ__f θ τJ1 τJ2)
+S' : fac m (∀ᵣ θ, (∀ᵣ θJ, τG θJ -{¡θJ ∪ θ}-∘ 𝟙) → τ__f θ τA τF)
+G  : fac m (∀ᵣ θ, τc θ → ∀ᵣ θJ, τG θJ -{¡θJ ∪ θ}-∘ 𝟙)
 
 (∀ A : fac m (τ__F τH τJ2) → 𝔹,                   advantage A Rπ (S ∘f F) #b ≤ ε_π A) →
-(∀ A : fac m (∀ᵣ θ, τc θ ⊸ τ__f θ τA τF) → 𝔹,   advantage A ((F ||ᵣ A₀) ∘f ρ) (S' ∘f G) #b ≤ ε_ρ A) →
-∀ A : fac m (∀ᵣ θ, τc θ ⊸ τ__f θ τA τH) → 𝔹,
+(∀ A : fac m (∀ᵣ θ, τc θ → τ__f θ τA τF) → 𝔹,   advantage A ((F ||ᵣ A₀) ∘f ρ) (S' ∘f G) #b ≤ ε_ρ A) →
+∀ A : fac m (∀ᵣ θ, τc θ → τ__f θ τA τH) → 𝔹,
   advantage A ((Rπ ||ᵣ A₀) ∘f ρ) ((S ∘F S') ∘f G) #b
     ≤ ε_π (λ t, A ((t ||ᵣₚ A₀) ∘fₚ ρ)) + ε_ρ (λ t, A (S ∘Fₚ t))
 ```
@@ -242,12 +245,15 @@ distinction:
 | `OS` | `fac OS τ = 𝟙 ⊸ τ` | create one instance | single-session realisations, the classical statement |
 | `MS` | `fac MS τ = 𝟙 → τ` | create any number of independent instances | multi-session realisations |
 
-In both modes a *session* is one instance, used once (`τ__F`): an `MS`
-factory makes fresh state per call, it does not share state between calls.
-(`secure_add3` is the one example where an instance serves several
-clients: there the environment runs any number of sessions on one
-instance, which is the inner `→` of `τ_ADD3`, and the factory on top of it
-is of either mode like everywhere else.)
+In both modes a *session* is one instance: an `MS` factory makes fresh
+state per call, it does not share state between calls.  Within an
+instance, the environment may run its client any number of times (the
+`→` inside `τ__F`), and those runs share the instance's state.  Every
+system therefore allocates all of its state when the factory is called,
+before it takes a client; a per-client allocation would let two runs of
+one instance disagree with the ideal functionality (e.g. two encryptions
+under one key).  `secure_add3` goes further: its environment runs the
+parties of several sessions on one instance and interleaves them.
 
 **Everything is mode-generic.**  `fac_op`, its typing, the congruences, the
 associativity lemmas and `uc_composition` take the mode as a parameter; the
@@ -309,12 +315,14 @@ relational proofs, with multi-instance computational assumptions.
   group elements versus an abstract message space), and both relation
   proofs depend on that shape; a shared parametrised theory is a rewrite
   of those proofs.
-* **Oblivious transfer** (`examples/ot/`) is not yet on factories.
+* **Oblivious transfer** (`examples/ot/`) is not yet on factories, and
+  its environments still take the client-taking function with an affine
+  arrow (`τ_rc`, `τ_sc`): its systems allocate their state per client.
 
 ## 9. File layout
 
 The framework is `probblaze/uc/`: `comp_operators.v` (the three session
-operators, the session types and the seven associativity cores),
+operators, the session types and the eight associativity cores),
 `advantage.v`, `uc_systems.v`, `uc_advantage.v`, `uc_theorem.v`, and
 `uc_typed.v` (`typed_env_fac`: a syntactically typed environment is a
 semantically typed one, so the syntactic versions of the bounds are

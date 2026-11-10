@@ -115,7 +115,18 @@ Section add_security.
     eq_alloc_r lx as "Hlx"...
     eq_alloc_r ly as "Hly"...
     eq_alloc_r lu as "Hlu"...
-    iApply eq_value. iModIntro. rewrite /τ_ADD. iEval (rewrite eq_lift_forall). iIntros (L).
+    (* All state is in the invariant: the session may take any number of
+       clients. *)
+    set (IA := ((doneA ↦ₗ #false ∗ msg ↦ₗ NONEV ∗ lx ↦ᵣ NONEV ∗ lu ↦ᵣ NONEV) ∨
+                (∃ x r : vgG, doneA ↦ₗ□ #true ∗ msg ↦ₗ□ SOMEV (vgval r) ∗
+                   lx ↦ᵣ□ SOMEV (vgval x) ∗ lu ↦ᵣ□ SOMEV (vgval (x * r)%g)))%I : iPropD Σ).
+    set (IB := ((doneB ↦ₗ #false ∗ ly ↦ᵣ NONEV) ∨
+                (∃ y : vgG, doneB ↦ₗ #true ∗ ly ↦ᵣ SOMEV (vgval y)))%I : iPropD Σ).
+    iApply (eq_na_alloc (IA ∗ IB) addN).
+    iSplitL "HdoneA Hmsg Hlx Hlu HdoneB Hly".
+    { iNext. iSplitL "HdoneA Hmsg Hlx Hlu"; iLeft; iFrame. }
+    iIntros "#Hinv".
+    iApply eq_value. iModIntro. rewrite /τ_ADD. iEval (rewrite eq_lift_forall). iIntros (L). iModIntro.
     iApply eq_lift_arr. iIntros (f1 f2) "Hf"...
     iApply eq_value. iModIntro. iEval (rewrite eq_lift_forall). iIntros (θ).
     iApply eq_lift_arr. iIntros (e1 e2) "Heffs"...
@@ -132,15 +143,6 @@ Section add_security.
     (* The client's row: its input ports, with the labels of the program on
        the left. *)
     set (θc := λ d, add_row (pick d lls rls) (pick d rls lls) (pick d add_l add_r) (pick d add_r add_l)).
-    set (IA := ((doneA ↦ₗ #false ∗ msg ↦ₗ NONEV ∗ lx ↦ᵣ NONEV ∗ lu ↦ᵣ NONEV) ∨
-                (∃ x r : vgG, doneA ↦ₗ□ #true ∗ msg ↦ₗ□ SOMEV (vgval r) ∗
-                   lx ↦ᵣ□ SOMEV (vgval x) ∗ lu ↦ᵣ□ SOMEV (vgval (x * r)%g)))%I : iPropD Σ).
-    set (IB := ((doneB ↦ₗ #false ∗ ly ↦ᵣ NONEV) ∨
-                (∃ y : vgG, doneB ↦ₗ #true ∗ ly ↦ᵣ SOMEV (vgval y)))%I : iPropD Σ).
-    iApply (eq_na_alloc (IA ∗ IB) addN).
-    iSplitL "HdoneA Hmsg Hlx Hlu HdoneB Hly".
-    { iNext. iSplitL "HdoneA Hmsg Hlx Hlu"; iLeft; iFrame. }
-    iIntros "#Hinv".
     iApply eq_new_theory.
     iApply eq_add_label_l. iFrame "Hssend".
     iApply eq_add_label_l. iFrame "Hsrecv".

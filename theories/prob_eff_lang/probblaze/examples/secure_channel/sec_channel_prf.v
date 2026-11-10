@@ -297,14 +297,6 @@ Section schan_security.
     (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) → (*type of client*)
               (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
 
-  (* One-shot variant of [τ_CHAN], the shape the composition operators expect *)
-  Definition τ_CHAN_OS : sem_ty Σ :=
-    (∀ᵣ θ__L ,(∀ᵣ θₕ, (((sem_ty_nat -{ θₕ }-> 𝟙) × (𝟙 -{ θₕ }-> (Option  𝔾))) -{ sem_row_union  θₕ θ__L }-∘ 𝟙)) ⊸ (*type of client*)
-              (∀ᵣ θ₁, ∀ᵣ θ₂,  ((((𝔾 × (𝟙 + 𝟙)) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)) × (((𝟙 + 𝟙) -{ θ₂ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₂ }-> Option 𝟙))) -{ sem_row_union (¡ θ₁)%R (sem_row_union (¡θ₂)%R θ__L) }-∘ 𝟙))%T.
-
-  Lemma τ_CHAN_le_τ_CHAN_OS : ⊢ τ_CHAN ≤ₜ τ_CHAN_OS.
-  Proof. iApply ty_le_row_forall. iIntros (θ). iApply ty_le_mbang_elim. Qed.
-
   (* ---------------------------------------------------------------- *)
   (* The two relations, on the factories: calling the composites        *)
   (* allocates the functionalities' state (in evaluation order), then   *)

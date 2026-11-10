@@ -10,7 +10,7 @@
      advantage A REAL_SKE (SIM_SKE ∘f IDEAL_SKE)
        ≤ advantage (RED_SKE A) (enc_real ske) (enc_ideal ske)
 
-   for environments [A : fac m τsc_OS → 𝔹], through the hybrids GAME1 and
+   for environments [A : fac m τsc → 𝔹], through the hybrids GAME1 and
    GAME2 (the protocol with the encryption replaced by the real, resp. ideal,
    oracle; the four relations are in [ske_sec_chan_prf] and
    [ske_sec_chan_ideal_prf]). *)
@@ -69,24 +69,25 @@ Section ske_typing_f.
   Definition τ_ENC (m : mode) : sem_ty Σ := (𝟙 -{ ⟨⟩ }-[ m ]-> (Msg -{ ⊥ }-> Cph))%T.
 
   (* The interface of the channel, in the shape the composition theorem
-     expects: a channel client, over the authenticated-channel leakage and
-     the key-exchange leakage ([τsc_OS] of [ske_sec_chan_common], unfolded). *)
-  Definition τ_SKE : sem_ty Σ := (∀ᵣ θ, hdl (cli msg) θ ⊸ τ__f θ (oaleak cipher) leakI)%T.
+     expects: a channel client, taken any number of times, over the
+     authenticated-channel leakage and the key-exchange leakage ([τsc] of
+     [ske_sec_chan_common], unfolded). *)
+  Definition τ_SKE : sem_ty Σ := (∀ᵣ θ, hdl (cli msg) θ → τ__f θ (oaleak cipher) leakI)%T.
 
   Lemma τsc_le_τ_SKE : ⊢ τsc (msg) (cipher) ≤ₜ τ_SKE.
-  Proof using Type*. iApply ty_le_row_forall. iIntros (θ). iApply ty_le_mbang_elim. Qed.
+  Proof using Type*. iApply ty_le_row_forall. iIntros (θ). iApply ty_le_refl. Qed.
 
   (* The hybrid world of the channel. *)
   Lemma F_KE_F_OAUTH_typed_f m :
     ⊢ ⊨ᵥ (F_KE_lazy_alice ||ᵣ F_OAUTH) ≤ (F_KE_lazy_alice ||ᵣ F_OAUTH) :
-        fac m (∀ᵣ θ, τ__f θ (cchan cipher) gk ⊸ τ__f θ (oaleak cipher) leakI).
+        fac m (∀ᵣ θ, τ__f θ (cchan cipher) gk → τ__f θ (oaleak cipher) leakI).
   Proof using All.
     iApply parallel_comp_f_typed; [iApply (F_KE_lazy_alice_typed (G := G))|iApply (F_OAUTH_typed (G := G) (SKE := SKE))].
   Qed.
 
   (* The reduction: an oracle of mode [m] gives a factory of mode [m]. *)
   Lemma RED_CHAN_typed_f m :
-    ⊢ ⊨ᵥ (RED_CHAN ms) ≤ (RED_CHAN ms) : (τ_ENC m → fac m (∀ᵣ θ, hdl (cli msg) θ ⊸ τ__f θ (cchan cipher) gk))%T.
+    ⊢ ⊨ᵥ (RED_CHAN ms) ≤ (RED_CHAN ms) : (τ_ENC m → fac m (∀ᵣ θ, hdl (cli msg) θ → τ__f θ (cchan cipher) gk))%T.
   Proof using All.
     rewrite /RED_CHAN /τ_ENC. iApply (sem_typed_closure _ _ _ BAnon "enc" _ _ MS); first done. simpl.
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_]).
@@ -94,17 +95,11 @@ Section ske_typing_f.
     - iApplyT (sem_oval_typed_afun 𝟙%T ⟨⟩%R _ BAnon). simpl.
       iApplyT sem_typed_app_nil; last first.
       { iApplyT sem_typed_sub_ty; [iApply ty_le_mbang_elim|typed_var]. }
-      iApplyT sem_typed_sub_ty.
-      { iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
-        iApply ty_le_row_forall. iIntros (θ). iApply (ty_le_mbang_elim MS). }
-      iApply sem_typed_val. iApply (RED_CHAN_val_typed_u (G := G) (SKE := SKE)).
+      iApply sem_typed_val. iApply (RED_CHAN_val_typed (G := G) (SKE := SKE)).
     - iApplyT (sem_oval_typed_ufun 𝟙%T ⟨⟩%R _ _ BAnon BAnon). simpl.
       iApplyT sem_typed_app_nil; last first.
       { iApplyT sem_typed_sub_ty; [iApply ty_le_mbang_elim|typed_var]. }
-      iApplyT sem_typed_sub_ty.
-      { iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
-        iApply ty_le_row_forall. iIntros (θ). iApply (ty_le_mbang_elim MS). }
-      iApply sem_typed_val. iApply (RED_CHAN_val_typed_u (G := G) (SKE := SKE)).
+      iApply sem_typed_val. iApply (RED_CHAN_val_typed (G := G) (SKE := SKE)).
     Unshelve. all: solve_typed_side.
   Qed.
 
@@ -265,7 +260,7 @@ Section ske_advantage.
   Definition T_SKE : type :=
     (∀R:
       (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> (() + ms.(τFT))))
-             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()) -∘
+             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()) ⇾
       (∀R: ∀R: ((((cs.(τFT) * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> (() + ())))
                  * (((() + ()) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ()))))
              -{ (RFlip OS (RVar 1%nat)) ∪ᵣ ((RFlip OS (RVar 0%nat)) ∪ᵣ RVar 2%nat) }-∘ ()))%ty.
@@ -275,6 +270,7 @@ Section ske_advantage.
   Proof using msg cipher.
     rewrite /T_SKE /τ_SKE /hdl /cli /τ__f /oaleak /leakI /sem_ty_option /=.
     iApply ty_le_row_forall; iIntros (θL).
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
     iApply ty_le_arr; first iApply row_le_refl.
     - (* the client: its receive returns a message *)
       iApply ty_le_row_forall; iIntros (θh).
