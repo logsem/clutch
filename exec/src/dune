@@ -1,0 +1,15 @@
+(library
+ (name probblaze_exec)
+ (wrapped false)
+ (modules syn pp machine instances explore stats trace scenarios analysis)
+ (libraries probblaze_extracted zarith yojson))
+
+(executable
+ (name main)
+ (modules main)
+ (libraries probblaze_exec cmdliner yojson zarith))
+
+; dune build --root . @exec/src/exec-check : test every registered claim.
+(rule
+ (alias exec-check)
+ (action (run %{exe:main.exe} check)))

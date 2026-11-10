@@ -1,0 +1,6 @@
+#!/bin/sh
+# Build (quietly, if needed) and run the probblaze executable semantics.
+# Usage: exec/probblaze-exec COMMAND [ARGS]   (see exec/README.md)
+root=$(cd "$(dirname "$0")/.." && pwd)
+log=$(cd "$root" && dune build --root . ./exec/src/main.exe 2>&1) || { printf '%s\n' "$log" >&2; exit 1; }
+exec "$root/_build/default/exec/src/main.exe" "$@"
