@@ -49,7 +49,9 @@ filling and the operator evaluations are the extracted Rocq functions.  An
 effect is handled by the nearest enclosing handler with its label, which
 is where `decomp` stops.  With `--validate`, every step is compared with
 the step obtained from the extracted reference decomposition
-(`decomp`/`fill`/`to_eff`); `check --validate` passes on all case studies.
+(`decomp`/`fill`/`to_eff`).  Validation passes on every enumerated run of
+`dhke`, `schan`, `dhke-chan`, `add`, `auth` and `ske`, and on sampled runs
+of `add3` and `ot-rc`, whose exhaustive validation is too slow.
 
 **Randomness is a choice point.**  `rand` returns a branch to the driver
 (`src/explore.ml`), which picks the outcome: from a seed (`--seed S --run
