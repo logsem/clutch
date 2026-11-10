@@ -88,19 +88,19 @@ Section new_comp_verification.
         (let, ("m", "dst") := "payload" in
          match: !"message" with
          | NONE => "message" <- SOME "m" ;; ("doLeakSend" ("m", "dst"));; "k" #()%V
-         | SOME "message" => "k" #()%V
+         | SOME "stored" => "k" #()%V
          end)%E
         (let, ("m", "dst") := "payload" in
          match: !"message" with
          | NONE => "message" <- SOME "m" ;; ("doLeakSend" ("m", "dst"));; "k" #()%V
-         | SOME "message" => "k" #()%V
+         | SOME "stored" => "k" #()%V
          end)%E
         ρh 𝟙 [("message", Refᶜ (Option 𝔾)); ("doLeakSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)].
     Proof.
       iIntros "#Hρ".
       iApplyT sem_typed_pair_elim; first typed_var.
-      (* The [SOME "message"] branch shadows the reference, so it sets the
-       [message] entry aside; the [NONE] branch needs it. *)
+      (* The [SOME "stored"] binder is unused; the [message] entry is routed
+       around that branch, as the [NONE] branch and the output need it. *)
       iApplyT (sem_typed_match_split [] [("message", _)]).
       - iApplyT sem_typed_load_cpy. typed_var_copy.
       - iApply env_le_refl.
@@ -117,7 +117,7 @@ Section new_comp_verification.
         typed_cont.
       - iApply env_le_refl.
       - env_pick. iApply env_le_refl.
-      - (* Drop the shadowing [message : 𝔾]; [m] and [dst] are dropped by the
+      - (* Drop the unused binder [stored]; [m] and [dst] are dropped by the
          output split. *)
         iApplyT sem_typed_sub_env; first iApply env_le_weaken.
         iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|].

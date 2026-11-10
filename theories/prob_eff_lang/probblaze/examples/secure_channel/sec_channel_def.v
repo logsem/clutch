@@ -31,7 +31,7 @@ Section schannel.
         match: !"message" with
         | NONE => "message" <- SOME "m" ;;
                   ("doLeakSend" ("m", "dst"));; "k" #()%V
-        | SOME "message" => "k" #()%V
+        | SOME "stored" => "k" #()%V
         end
     | return "y" => "y" end with
 (* Receive Auth *)
