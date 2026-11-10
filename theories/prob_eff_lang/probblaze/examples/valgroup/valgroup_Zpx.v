@@ -55,10 +55,9 @@ Section Zpx.
   Proof. 
     apply Rec_val_typed; first done.
     simpl. rewrite -(app_nil_r [:: _]).
-    eapply (Rec_typed _ _ ∅); [done
+    eapply (Rec_typed _ _ ∅); [eapply (le.ConsM_le _ (BNamed _)); repeat constructor
                               |rewrite /ctx_dom //=; set_solver
                               |rewrite /ctx_dom //=
-                              |apply Forall_singleton; constructor
                               |simpl].
     eapply BinOp_typed; [constructor
                         |
@@ -96,10 +95,9 @@ Section Zpx.
     apply Val_typed.
     eapply Rec_val_typed; first done. simpl.
     rewrite -(app_nil_r [:: _]).
-    eapply (Rec_typed _ _ ∅); [done
+    eapply (Rec_typed _ _ ∅); [split; [done|apply Forall_singleton; constructor]
                               |rewrite /ctx_dom //=
                               |rewrite /ctx_dom //=
-                              |apply Forall_singleton; constructor
                               |].
     eapply If_typed.
     { eapply BinOp_typed; first constructor.
@@ -146,10 +144,9 @@ Section Zpx.
                       |eapply (le.TBangElim_le _ MS)
                       |].
     simpl. rewrite -(app_nil_r [:: _]).
-    eapply (Rec_typed _ _ ∅); [done
+    eapply (Rec_typed _ _ ∅); [eapply (le.ConsM_le _ (BNamed _)); repeat constructor
                               |rewrite /ctx_dom //=; set_solver
                               |rewrite /ctx_dom //=
-                              |apply Forall_singleton; constructor
                               |simpl].
     eapply App_typed; [constructor
                       |constructor
@@ -181,10 +178,9 @@ Section Zpx.
   Proof.
     apply Rec_val_typed; first done.
     simpl. rewrite -(app_nil_r [:: _]).
-    eapply (Rec_typed _ _ ∅); [done
+    eapply (Rec_typed _ _ ∅); [eapply (le.ConsM_le _ (BNamed _)); repeat constructor
                               |rewrite /ctx_dom //=; set_solver
                               |rewrite /ctx_dom //=
-                              |apply Forall_singleton; constructor
                               |simpl].
     eapply BinOp_typed; first constructor; apply Var_typed.
   Qed. 

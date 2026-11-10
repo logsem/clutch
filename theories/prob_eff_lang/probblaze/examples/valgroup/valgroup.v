@@ -111,13 +111,11 @@ Definition vexp_typed `{!clutch_group_struct} :
 Proof.
   unfold vexp, vexp'.
   apply Rec_val_typed; [done|].
-  cbn [ctx_insert].
-  rewrite <- (app_nil_r (("a", τG) :: ∅)).
+  rewrite <-(app_nil_r <[ "a" :=c τG ]> ∅).
   apply Rec_typed.
-  - done.
+  - split; first done. apply Forall_cons; split; [apply τG_multi|simpl; done].
   - cbn; set_solver.
   - cbn; set_solver.
-  - unfold le.MultiC; cbn; apply Forall_cons_2; [exact τG_multi | apply Forall_nil_2].
   - eapply (Sub_typed _ _
               (<["n":=c ℤ]>(<["vexp":=c (ℤ ⇾ τG)%ty]>(("a",τG)::∅)))
               ∅ ∅ RNil RNil _ τG τG).
@@ -148,13 +146,12 @@ Proof.
              | apply Val_typed; apply Int_val_typed ].
         -- coerce_fn. apply Var_typed.
       * coerce_fn.
-        cbn [ctx_insert].
-        rewrite <- (app_nil_r (("a", τG) :: ∅)).
-        apply Rec_typed.
-        { done. }
+        assert (<[ "a" :=c τG ]> ∅ = ("a", τG) :: ∅) as <- by done.
+        rewrite <-(app_nil_r <[ "a" :=c τG ]> ∅).
+        eapply (Rec_typed _ _ _ _ _ _ MS).
+        { do 2 constructor. apply τG_multi. }
         { cbn; set_solver. }
         { cbn; set_solver. }
-        { unfold le.MultiC; cbn; apply Forall_cons_2; [exact τG_multi | apply Forall_nil_2]. }
         eapply App_typed;
           [ apply le.RNil_le | apply le.RNil_le | apply RNil_rtype | apply RNil_rctx | | ].
         -- apply Var_typed.

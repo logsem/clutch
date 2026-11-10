@@ -147,7 +147,7 @@ Proof.
   { eapply (Sub_typed _ _ [("R", T)] _ [] _ RNil true _ (() -{ ρZ }-> St)%ty);
       [apply CRefl_le|apply CRefl_le|apply le.RExtend_le|erase_absent|].
     rewrite -(app_nil_r [("R", T)]).
-    eapply Rec_typed; [done|solve_fresh|solve_fresh|by apply Forall_singleton, T_multi|].
+    eapply Rec_typed; [apply (le.ConsM_le _ "R"); [apply le.MS_le, T_multi|apply le.NilM_le]|solve_fresh|solve_fresh|].
     simpl. rewrite -(app_nil_r [("R", T)]).
     eapply (DeepHandle_typed _ _ [] [] syntax.OS "w" _ _ _ _ _ _ RNil (SAbs "w") TUnit St TUnit TUnit);
       [first [constructor | done | intros [] | vm_compute; reflexivity] .. | | |].
@@ -155,7 +155,7 @@ Proof.
       eapply (App_typed _ _ [("R", T)] [] _ _ _ RNil ρw true (() -{ ρw }-> ())%ty TUnit);
         [apply le.RExtend_le|apply RRefl_le|once_nil|constructor| |].
       + apply typed_row_cons. rewrite -(app_nil_l [("R", T)]).
-        eapply Rec_typed; [done|solve_fresh|solve_fresh|constructor|]. simpl.
+        eapply Rec_typed; [constructor|solve_fresh|solve_fresh|]. simpl.
         eapply (Do_typed _ _ "w" _ RNil TUnit TUnit TUnit OS);
           [constructor|vm_compute; reflexivity|simpl; apply typed_val_row; constructor].
       + eapply (Sub_typed _ _ _ _ _ _ RNil true _ ((() -{ ρw }-> ()) -{ ρw }-> ())%ty);
@@ -173,7 +173,7 @@ Proof.
   (* [step]: resume a paused session once. *)
   eapply (Let_typed _ _ [("run", RunT)] _ _ _ _ _ StepT); [solve_fresh|solve_fresh| |].
   { apply typed_row_cons. rewrite /ctx_insert -(app_nil_l [("run", RunT)]).
-    eapply Rec_typed; [done|solve_fresh|done|constructor|]. simpl.
+    eapply Rec_typed; [constructor|solve_fresh|done|]. simpl.
     eapply (Match_typed _ _ [] [] _ _ _ _ _ _ TUnit (![OS] (() -∘ St))%ty); [solve_fresh .. | | |].
     - eapply (TUnfold _ _ _ _ (() + ![OS] (() -∘ TVar 0))%ty). apply Var_typed.
     - simpl. rewrite /St. apply TFold. asimpl. apply InjL_typed. apply Val_typed. constructor.

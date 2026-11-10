@@ -278,8 +278,8 @@ Section typing.
           apply Contraction_typed; first constructor.
           rewrite <-(app_nil_r _) at 1.
           eapply Rec_typed; try (by constructor); try set_solver.
-          -- rewrite /ctx_dom //=. 
           -- repeat constructor.
+          -- rewrite /ctx_dom //=.
           -- apply Weakening_typed.
              apply Contraction_typed; first constructor. 
              eapply (Pair_typed _ _ (<["b" :=c ℕ%ty ]> (<[ "a" :=c ℕ%ty]> ∅))).
