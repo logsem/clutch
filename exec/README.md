@@ -102,20 +102,31 @@ Wilson intervals (Newcombe's for differences) at `--confidence` (default
 |---|---|---|
 | `dhke` | `REAL_DHKE`, `SIM_DHKE ∘f IDEAL_DHKE`, the hybrids with `C_DH_real`/`C_DH_rand`, `DH_KE_tapeless`, the DDH games | honest key agreement; the three exact equivalences of the proof; `adv_DHKE` for a discrete-log distinguisher, whose advantage `1 − 1/|G|` equals that of the DDH reduction |
 | `schan` | `REAL_SCHAN`, `SIM_SCHAN ∘f IDEAL_SCHAN` | delivery; perfect security (`adv_SCHAN`) |
-| `dhke-chan` | `REAL_DHKE_CHAN`, `SIM_DHKE_CHAN ∘f IDEAL_DHKE_CHAN`, the DDH games | `dhke_chan_realises`; and that the composed channel never delivers (below) |
+| `dhke-chan` | `REAL_DHKE_CHAN`, `SIM_DHKE_CHAN ∘f IDEAL_DHKE_CHAN`, the DDH games | `dhke_chan_realises`; that the composed channel never delivers to a client that enters the session once, and does under the scheduler of `dhke_chan_delivery.v` (below) |
 | `add` | `REAL_ADD`, `SIM_IDEAL_ADD` | the aggregate is `x · y`; perfect security (`adv_ADD`) |
 | `add3` | `REAL_ADD3 c`, `SIM_IDEAL_ADD3 c` for `c = 0, 1, 2` | a scheduler environment that suspends sessions in the network's `wait` (as `scheduler_typed.Zsched`) runs the three parties; all output the product; perfect security (`adv_ADD3`) |
 | `auth` | `AUTH`, `AUTH_pad`, `AUTH_ideal`, `S_AUTH ∘f F_AUTH` | delivery; `MAC ≈ MAC_pad`, `AUTH_ideal ≈ S_AUTH ∘f F_AUTH`; `adv_AUTH ≤ 2/q` for a forger whose advantage is `1/q` |
 | `ot-rc` | the real and simulated worlds of `adv_ot_rc` | an honest receiver decrypts its message; `adv_ot_rc ≤ 3/n` |
 | `ske` | `REAL_SKE`, `SIM_IDEAL_SKE`, `GAME1`, `GAME2`, the encryption oracles, the PRF games, with `PRF_SKE` | delivery; `REAL_SKE ≈ GAME1`, `GAME2 ≈ SIM_IDEAL_SKE`; `adv_SKE` and `adv_schan_prf` for a toy PRF that leaks |
 
-**A finding.**  The secure channel composed with DHKE (`dhke-chan`) never
-delivers a message, for any schedule of the client: `CHAN` commits the
-message before it asks for Alice's key, and Alice's first key query in
-`DH_KE` fails because Bob has not sent his half yet, so the message is
-dropped.  The simulator reproduces this, so the security statement holds,
-but correctness does not.  With `F_KE_lazy_alice` instead of `DH_KE`
-(`schan`), the channel delivers.  See `run dhke-chan honest real`.
+**Delivery needs interleaving.**  The secure channel composed with DHKE (`dhke-chan`) never
+delivers a message to a client that uses the session once, whatever order
+it calls send and receive in: `CHAN` commits the message before it asks
+for Alice's key, and Alice's first key query in `DH_KE` fails because Bob
+has not sent his half yet, so the message is dropped.  The simulator
+reproduces this in the ideal world.  With `F_KE_lazy_alice` instead of
+`DH_KE` (`schan`), the channel delivers.  See `run dhke-chan honest real`.
+
+It does deliver under the scheduler of
+`examples/secure_channel/dhke_chan_delivery.v` (on `prob_eff_lang` since
+e07ad55b): when the key exchange leaks Alice's share, the environment runs
+Bob before the leak returns, by a nested call of the same session whose
+client receives once.  Bob's key query then finds Alice's share and sends
+his own, and Alice's query, when it continues, finds his.  The session
+takes a client any number of times since e74cf72e (`τ__F` with `→`), and
+all the calls share its state.  The environment `sched` is this scheduler;
+the message arrives with probability 1, in both worlds
+(`dhke_chan_delivers` is the real-world statement).
 
 `check` runs each case on its default instances (`list` shows them); the
 authentication and OT results assume a group of prime order, so those use

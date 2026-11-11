@@ -108,4 +108,25 @@ Section env_schan.
               end
           end
       end.
+
+  (** The scheduler of [dhke_chan_delivery.sched_prog]: when the key
+      exchange leaks a share (Alice's, the first time), Bob is activated
+      before the leak returns, by a nested call of the same session whose
+      client receives once.  The session takes a client any number of times
+      ([τ__F], since e74cf72e on prob_eff_lang), and the calls share its
+      state.  True iff the main client's receive gets Alice's message. *)
+  Definition env_chan_sched (obs : string → val) : val :=
+    λ: "X",
+      let: "m" := rand #n in
+      let: "res" := ref NONE in
+      let: "s" := "X" #()%V in
+      let: "scheduler" := (λ: "x",
+         (obs "ke.send") "x" ;;
+         "s" (λ: "ops", let, ("ssend", "srecv") := "ops" in (obs "bob received") ("srecv" #()%V))
+             (deliver_ports obs "oauth", deliver_ports obs "ke")) in
+      "s" (λ: "ops", let, ("ssend", "srecv") := "ops" in "ssend" "m" ;; "res" <- "srecv" #()%V)
+          (deliver_ports obs "oauth",
+           ("scheduler", (λ: "from", (obs "ke.recv") "from" ;; SOME #()%V))) ;;
+      (obs "received") ("m", !"res") ;;
+      is_some_elem !"res" "m".
 End env_schan.

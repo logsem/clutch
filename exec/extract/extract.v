@@ -82,7 +82,7 @@ Extraction "probblaze.ml"
   ske_sec_chan_def.RED_SKE RED_SKE_PRF
   (* environments *)
   dlog toy_mask env_dhke_honest env_dhke_dlog env_dhke_block
-  env_chan_honest env_chan_retry env_chan_peek env_dhke_chan_dlog
+  env_chan_honest env_chan_retry env_chan_peek env_dhke_chan_dlog env_chan_sched
   env_add_honest env_add_peek
   env_add3_honest env_add3_peek
   env_auth_honest env_auth_forge

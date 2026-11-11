@@ -154,6 +154,8 @@ let dhke_chan =
             grp P.env_chan_retry g);
         env "dlog" "recovers the key by a discrete log and unmasks the ciphertext" (fun g obs ->
             P.env_dhke_chan_dlog g.vg g.cg g.vgg (mask g) obs);
+        env "sched" "the scheduler of dhke_chan_delivery.v: Alice's share leak runs Bob by a nested call of the session" (fun g ->
+            grp P.env_chan_sched g);
         env "red-honest" "RED_DHKE_CHAN honest" (fun g obs ->
             P.rED_DHKE_CHAN g.vg g.cg (mask g) (grp P.env_chan_honest g obs));
         env "red-dlog" "RED_DHKE_CHAN dlog" (fun g obs ->
@@ -161,16 +163,24 @@ let dhke_chan =
       ];
     claims =
       [
-        (* Liveness: the composed channel never delivers.  CHAN commits the
-           message before asking for Alice's key, and Alice's first key query
-           in DH_KE fails because Bob has not sent his half yet; the
-           simulator reproduces this in the ideal world.  With
-           F_KE_lazy_alice instead of DH_KE ([schan]) the channel delivers. *)
+        (* Liveness: the composed channel never delivers to a client that
+           enters the session once.  CHAN commits the message before asking
+           for Alice's key, and Alice's first key query in DH_KE fails
+           because Bob has not sent his half yet; the simulator reproduces
+           this in the ideal world.  With F_KE_lazy_alice instead of DH_KE
+           ([schan]) the channel delivers. *)
         Always
           { w = { env = "honest"; sys = "real" }; expect = "false";
             doc = "never delivers: Alice's first key query fails, and CHAN has already committed the message" };
-        Always { w = { env = "retry"; sys = "real" }; expect = "false"; doc = "no schedule of the client delivers" };
+        Always { w = { env = "retry"; sys = "real" }; expect = "false"; doc = "no single-entry schedule of the client delivers" };
         Always { w = { env = "retry"; sys = "ideal" }; expect = "false"; doc = "nor in the ideal world" };
+        (* The scheduler of dhke_chan_delivery.v interleaves the parties:
+           Bob runs inside the leak of Alice's share, by a nested call of the
+           same session ([τ__F] is unrestricted since e74cf72e). *)
+        Always
+          { w = { env = "sched"; sys = "real" }; expect = "true";
+            doc = "dhke_chan_delivers: the scheduled run delivers the message" };
+        Always { w = { env = "sched"; sys = "ideal" }; expect = "true"; doc = "and so does the ideal world" };
         Adv_le
           {
             lhs = ("dlog", "real", "ideal");
