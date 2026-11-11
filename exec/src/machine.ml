@@ -356,7 +356,14 @@ let step ?emit ?(validate = false) cfg =
               | fr :: rest -> split (fr :: above) rest
             in
             match split [] stack with
-            | None -> stuck "unhandled effect %s" (label_name st l)
+            | None ->
+                (* The reference agrees: the whole program is [fill K (do l v)]
+                   with no handler for [l] in [K]. *)
+                (if validate then
+                   match P.to_eff (to_expr stack e) with
+                   | Some ((l', _), k) when Z.equal l l' && not (List.exists (Z.equal l) (P.ectx_labels k)) -> ()
+                   | _ -> failwith "validation failed: the reference does not find this effect unhandled");
+                stuck "unhandled effect %s" (label_name st l)
             | Some (above, (hs, m, e2, e3), rest) ->
                 (* [above] is outermost first, as continuations are. *)
                 let k = List.filter_map (function F f -> Some f | _ -> None) above in
