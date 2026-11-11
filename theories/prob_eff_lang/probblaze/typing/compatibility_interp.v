@@ -564,6 +564,46 @@ Lemma interp_c_mode_elim *)
     solve_env.
   Qed.
   
+  (* Copyable references [refᶜ τ], interpreted by [sem_ty_ref_cpy].  Thin
+     wrappers around the semantic rules [sem_typed_alloc_cpy],
+     [sem_typed_load_cpy] and [sem_typed_store_cpy_gen]; the syntactic side
+     conditions are transported by [multi_ty_sound] and
+     [row_type_sub_sound]. *)
+  Lemma interp_c_alloc_refc Δ Γ1 Γ2 ρ τ e1 e2 :
+    ⊢ (〈Δ; Γ1〉 ⊨ₜ e1 ≤log≤ e2 :ρ: τ⫤Γ2) -∗
+    (〈Δ; Γ1〉 ⊨ₜ ref e1 ≤log≤ ref e2 :ρ:refᶜ τ⫤Γ2).
+  Proof.
+    iIntros "#He". iIntros (η μ δ ξ Hδ).
+    iSpecialize ("He" $! η μ δ ξ Hδ).
+    rewrite !lbl_resolve_allocn !lbl_resolve_val.
+    iApply sem_typed_alloc_cpy. iApply "He".
+  Qed.
+
+  Lemma interp_c_load_refc Δ Γ1 Γ2 ρ τ e1 e2 :
+    le.MultiT τ →
+    ⊢ (〈Δ; Γ1〉 ⊨ₜ e1 ≤log≤ e2 :ρ: refᶜ τ⫤Γ2) -∗
+    (〈Δ; Γ1〉 ⊨ₜ ! e1 ≤log≤ ! e2 :ρ: τ⫤Γ2).
+  Proof.
+    iIntros (Hm) "#He". iIntros (η μ δ ξ Hδ).
+    iSpecialize ("He" $! η μ δ ξ Hδ).
+    rewrite !lbl_resolve_load.
+    pose proof (multi_ty_sound τ Hm η μ δ ξ).
+    iApply sem_typed_load_cpy. iApply "He".
+  Qed.
+
+  Lemma interp_c_store_refc Δ Γ1 Γ2 Γ3 ρ τ e1 e1' e2 e2' :
+    ρ R⪯T τ →
+    ⊢ (〈Δ; Γ2〉 ⊨ₜ e1 ≤log≤ e1' :ρ: refᶜ τ⫤Γ3) -∗
+    (〈Δ; Γ1〉 ⊨ₜ e2 ≤log≤ e2' :ρ: τ⫤Γ2) -∗
+    (〈Δ; Γ1〉 ⊨ₜ (e1 <- e2) ≤log≤ (e1' <- e2') :ρ: TUnit⫤Γ3).
+  Proof.
+    iIntros (Hρτ) "#He1 #He2". iIntros (η μ δ ξ Hδ).
+    iSpecialize ("He1" $! η μ δ ξ Hδ). iSpecialize ("He2" $! η μ δ ξ Hδ).
+    rewrite !lbl_resolve_store.
+    pose proof (row_type_sub_sound ρ τ Hρτ η μ δ ξ).
+    iApply (sem_typed_store_cpy_gen (interp._ty η μ δ τ ξ)); [iApply "He1"|iApply "He2"].
+  Qed.
+
   Lemma interp_c_alloctape Δ Γ1 Γ2 ρ e1 e2 :
     ⊢ (〈Δ; Γ1〉 ⊨ₜ e1 ≤log≤ e2 :ρ:TInt⫤Γ2) -∗
     (〈Δ; Γ1〉 ⊨ₜ alloc e1 ≤log≤ alloc e2 :ρ:TTape⫤Γ2).

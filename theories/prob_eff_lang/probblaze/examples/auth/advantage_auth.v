@@ -37,7 +37,7 @@ Section lift.
     l1 ↦ w1 -∗ l2 ↦ₛ w2 -∗ τ w1 w2 ={⊤}=∗ (Refᶜ τ)%T #l1 #l2.
   Proof.
     iIntros "Hl1 Hl2 Hτ".
-    iMod (inv_alloc (tyN.@(l1,l2)) _ (∃ w1 w2, l1 ↦ w1 ∗ l2 ↦ₛ w2 ∗ τ w1 w2)%I with "[Hl1 Hl2 Hτ]") as "#Hinv".
+    iMod (na_inv_alloc _ _ (tyN.@(l1,l2)) (∃ w1 w2, l1 ↦ w1 ∗ l2 ↦ₛ w2 ∗ τ w1 w2)%I with "[Hl1 Hl2 Hτ]") as "#Hinv".
     { iNext. iExists _, _. iFrame. }
     iModIntro. iExists l1, l2. by iFrame "Hinv".
   Qed.

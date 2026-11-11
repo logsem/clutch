@@ -1,6 +1,7 @@
 # Syntactic type checker for probblaze: hand-off plan
 
-Branch `prob_eff_lang`. Everything below refers to files under
+Branch `prob_eff_lang-tychk` (three commits ahead of `prob_eff_lang`).
+Everything below refers to files under
 `theories/prob_eff_lang/probblaze/` unless a path says otherwise.
 
 ## 0. Goal and context
@@ -37,12 +38,19 @@ Decisions already taken:
   (a frame slot per binder rule, see section 8) is shelved. Until then,
   programs are changed so that no binder shadows a live entry. One instance
   was renamed (`SOME "message"` became `SOME "stored"` in the authenticated
-  send handler, four files in `examples/secure_channel/`; compiled, not yet
-  committed at the time of writing). No other instance exists.
+  send handler, four files in `examples/secure_channel/`; commit `47ff68d0`).
+  No other instance exists.
 * Copyable references move to non-atomic invariants (section 1) and get
   syntactic typing rules in the first stage (section 2).
 * The driver is written in Ltac1 with typeclasses, matching the rest of
   probblaze (Ltac2 is only used under `theories/approxis/`).
+* `τ__F` (`uc/comp_operators.v:42`) takes its client unrestrictedly since
+  commit `09e8cb48` (`⊸` became `→`). Every `τ__F`-shaped syntactic mirror
+  (`T_SCHAN`, `T_DHKE`, `T_ADD`, `T_DHKE_CHAN`, `T_SKE`, `T_DHKE_SKE`) now has
+  `⇾` as its outer arrow and its `*_subtype` proof carries a
+  `ty_le_mbang_comp` step. The same commit deleted `τ__Fu`, `τ__Fu_le_τ__F`,
+  `EtaT`, `sem_oval_typed_eta`, `τ_DH_OS`, `τ_CHAN_OS`, `τsc_OS` and the
+  `*_typed_u` wrappers; do not look for them.
 
 ## 1. Stage A: copyable references on non-atomic invariants
 
@@ -137,8 +145,10 @@ Add, in this order:
 6. `compatibility_interp.v`: wrappers `interp_c_alloc_refc`,
    `interp_c_load_refc`, `interp_c_store_refc`, following
    `interp_c_alloc_ref` (`:519`) and using the three `*_cpy` lemmas;
-   `le.MultiT` is transported by `multi_ty_sound`, `ρ R⪯T τ` by the
-   row-type-sub soundness lemma used in the `App_typed` case.
+   `le.MultiT` is transported by `multi_ty_sound`
+   (`fundamental_subtyping.v:426`), `ρ R⪯T τ` by `row_type_sub_sound` (`:481`;
+   its context sibling is `row_env_sub_sound`, `:496`), as in the `App_typed`
+   case of `fundamental.v` (`:218`).
 7. `fundamental.v:133`: three new cases.
 8. A hand-written test derivation (new file `typing/tests.v`, or inside the
    file of the first target) for
@@ -159,9 +169,11 @@ Reusable material already in `examples/secure_add3/scheduler_typed.v`:
 
 C1. Side predicates as typeclass goals (`Hint Extern` or instances):
 `le.MultiT`, `le.MultiC`, `m m⪯C Γ`, `ρ R⪯T τ`, `ρ R⪯C Γ`, `le.OnceR`.
-Structural rules: base types, `TBang`, products, sums, `TRefC`, quantified
-types (via the bang-comm rules); `RNil_le_ctx` and `RRefl_le` exist in the
-derived-rules section of `types.v`. Abstract types supplied by classes
+Structural rules: base types, `TBang`, products, sums, `TRefC`, type and
+row quantifiers (via `TBangTForallTComm{1,2}_le` and
+`TBangTForallRComm{1,2}_le`); `RNil_le_ctx` and `RRefl_le` exist in the
+derived-rules section of `types.v`. Mode quantifiers have no bang rule, so
+`le.MultiT (∀M: τ)` is a residual goal (follow-up, section 10). Abstract types supplied by classes
 (`τG_multi` in `examples/valgroup/valgroup.v:61`, `τFT_multi` in
 `examples/fin_val_type/fin_val_type.v:31`) are registered as hints in their
 files. Anything else is a residual goal.
@@ -182,6 +194,19 @@ of normal forms (`RBot_le` for the empty source, `RExtend_le`/`RSwap_le` for
 signatures, `RVar_le` for atoms, `RUnion_le` congruence). Erasure
 (`RErase_le`) only at `b = true` and only for `SAbs` signatures, discharged
 with `erase_absent`. Note `RUnion_le` takes its premises at `b = false`.
+Transitivity is the constructor `le.RTrans_le`.
+
+The second lemma of the pair needs the converses of the flip rules, because
+`RFlipCons_le` and `RFlipUnion_le` only push a flip inward and the one-shot
+case cannot be derived. They were added on 2026-11-10 as `RFlipConsInv_le`
+and `RFlipUnionInv_le` (sound by reflexivity: both sides denote the same
+semantic row; `row_le_RFlipConsInv`, `row_le_RFlipUnionInv` in
+`fundamental_subtyping.v`). The converse of `RFlipNil_le` is an instance of
+`RFlipIntro_le`. A probe (`probe_tychk_row.v` at the repository root, not
+committed) has `norm_row`, `denorm`, both round-trip lemmas for all rows,
+and a first `row_le_solve`, all without admits. Its known limits:
+signatures are matched syntactically (no `≤S`), no `RErase_le`, and no
+contraction, so `{σ, σ} ≤ {σ}` fails.
 
 C4. One derived lemma per constructor in algorithmic form (inputs: `Δ`,
 `Γ1`, `e`, `ρ`; outputs: `τ` and `Γ2`, or `τ` checked). Points to get right:
@@ -190,7 +215,13 @@ C4. One derived lemma per constructor in algorithmic form (inputs: `Δ`,
   `StoreC_typed` thread the context through the right operand first.
 * `App_typed` has rows `ρ'`, `ρ''` and a flag `b`; instantiate both rows to
   `ρ` with `RRefl_le`, flag `true` (the existing proofs end with
-  `Unshelve. all: exact true`).
+  `Unshelve. all: first [exact true | exact OS]`; mode evars appear as well,
+  except in `Zsched_typed`, which passes every argument explicitly).
+* `App_typed` wants a bare `TArrow` (`-{ ρ'' }-∘`) in function position,
+  while `Rec_typed` and the notations `⇾`, `-{ ρ }->`, `-{ ρ }-[ m ]->`
+  produce `TBang m (TArrow …)` (`types.v:812-817`). Every application of a
+  lambda-typed value therefore goes through `Sub_typed` with `TBangElim_le`
+  (`:1116`).
 * Variables: consume (`typed_var_at`) by default; copy (`typed_var_bang`)
   when the entry is `MultiT` and used again. Deciding "used again" needs the
   free variables of the rest of the expression; a simpler first version
@@ -200,7 +231,8 @@ C4. One derived lemma per constructor in algorithmic form (inputs: `Δ`,
   the bound expression (that is the only derivation available, see section 8).
 * `Rec_typed`: the split `Γ ;; Γ'` is computed from the free variables of
   the body; `BAnon` needs `m m⪯C Γ`, a named function needs `le.MultiC Γ`;
-  the body must end with the empty context.
+  the body must end with the empty context. `Rec_pure_typed` puts `x` at the
+  head and `f` below it, the reverse of `Rec_typed`.
 * Values: `Val_typed` gives row `RNil`; coerce with `Sub_typed` and
   `RBot_le`. Literal naturals are `LitV (LitInt n)` with `n : nat`, and
   `TNat_le_TInt` relates the two numeric types.
@@ -214,12 +246,16 @@ C4. One derived lemma per constructor in algorithmic form (inputs: `Δ`,
   the expected row or an annotation.
 
 Acceptance: the existing syntactic lemmas re-proved with the derived lemmas
-and no hand derivation, in particular `Zsched_typed`
-(`examples/secure_add3/scheduler_typed.v`), `vexp_typed`
-(`examples/valgroup/valgroup_Zpx.v`), the lemmas of
-`examples/fin_val_type/fin_val_type_prod.v`, `sample_typed` and
-`DH_real_typed` (`examples/dhke/dhke_common.v`), `mask_typed`
-(`examples/secure_channel/mask.v`).
+and no hand derivation. They live in five files: `Zsched_typed`
+(`examples/secure_add3/scheduler_typed.v:140`), `vexp_typed`
+(`examples/valgroup/valgroup.v:109`), the seven instance lemmas of
+`examples/valgroup/valgroup_Zpx.v` (`vunit_p_typed`, `vmult_p_typed`,
+`vinv_p_typed`, `veq_p_typed`, `int_of_vg_p_typed`, `vg_of_int_p_typed`,
+`vgval_p_typed`), `int_of_prod_typed`, `prod_of_int_typed` and
+`fvtval_prod_typed` (`examples/fin_val_type/fin_val_type_prod.v`), and
+`sample_typed` and `DH_real_typed` (`examples/dhke/dhke_common.v`). There is
+no derivation of `mask_typed`: it is a field of `Class Mask`
+(`examples/secure_channel/mask.v:8`) that no instance proves.
 
 ## 4. Stage D: the driver tactic
 
@@ -247,8 +283,11 @@ fix. Add a wrapper only when a target needs it.
 
 Targets: `Zsched_typed` as regression, and one adversary-shaped value at a
 syntactic interface such as `T_SCHAN`
-(`examples/secure_channel/advantage_sec_channel.v`) whose body calls through
-row variables; such bodies are typeable only since `RBot_le`.
+(`examples/secure_channel/advantage_sec_channel.v:81`) whose body calls through
+row variables; such bodies are typeable only since `RBot_le`. Since
+`09e8cb48` the outer arrow of `T_SCHAN` is `⇾`, so a value at that interface
+is a `TBang MS` function: `Rec_typed` at mode `MS`, which needs
+`MS m⪯C Γ` on the captured context.
 
 ## 5. Stage E: bridge to the semantic interfaces
 
@@ -256,17 +295,56 @@ A checker result reaches the semantic world through `fundamental` /
 `fundamental_val` at an interpreted syntactic type, while the downstream
 theorems want the semantic interface types (`chan`, `gk`, `τ__F`, `fac`, the
 session types of `uc/uc_systems.v` and `uc/comp_operators.v`). Already
-present: `typed_env_fac` (`uc/uc_typed.v`) and hand-written mirrors with
-subtype lemmas (`T_SCHAN_subtype` in `advantage_sec_channel.v`, `T_DH`,
-`T_ADD`, `T_ADD3`, `T_rc`, `T_sc`).
+present: `typed_env_fac` (`uc/uc_typed.v:28`) and hand-written mirrors with
+subtype lemmas: `T_SCHAN` (`advantage_sec_channel.v:81`, subtype `:89`),
+`T_DHKE` (`dhke/advantage_dhke.v:416`), `T_ADD`
+(`secure_add/advantage_secure_add.v:37`), `T_ADD3`
+(`secure_add3/advantage_add3.v:32`), `T_DHKE_CHAN`
+(`advantage_dhke_sec_channel.v:141`), `T_SKE`
+(`advantage_ske_sec_chan.v:260`), `T_DHKE_SKE`
+(`advantage_dhke_ske_sec_chan.v:565`), `T_rc` and `T_sc`
+(`ot/advantage_ot.v:46`, `:324`). All but `T_rc`/`T_sc` are `τ__F`-shaped
+and since `09e8cb48` use `⇾`, with a `ty_le_mbang_comp` / `mode_le_refl`
+step in their subtype proofs.
 
 * A central simp set of interpretation unfolding lemmas (`interp._ty` on
-  `TArrow`, `TBang`, `TProd`, `TSum`, `TForallR`, `TRefC`, …); the ones in
-  `examples/ot/advantage_ot.v` are currently local.
+  `TArrow`, `TBang`, `TProd`, `TSum`, `TForallR`, `TRefC`, …). The only
+  existing ones are `interp_TArrow` and `interp_TBang` in
+  `examples/ot/advantage_ot.v:12-16` (plain lemmas by `reflexivity`, unused);
+  nothing exists for the other constructors.
 * A structural subtyping tactic that proves the `*_subtype` lemmas: they are
-  twenty lines of `ty_le_row_forall`, `ty_le_arr`, `ty_le_prod`,
-  `ty_le_sum`, `ty_le_mbang_comp` with leaves such as `τG_subtype`.
+  twenty lines of `ty_le_row_forall` (`sem_types.v:429`), `ty_le_arr`
+  (`:370`), `ty_le_prod` (`:394`), `ty_le_sum` (`:405`), `ty_le_mbang_comp`
+  (`:670`) with leaves such as `τG_subtype` (a field of `Class clutch_group`,
+  `examples/valgroup/valgroup.v:178`).
 * Syntactic mirrors for the remaining interface types.
+
+Status (2026-11-10, uncommitted): done except new mirrors.
+* `typing/interp_simp.v`: one `reflexivity` equation per constructor of
+  `vmode`, `type`, `row`, `eff_sig`, plus `!!!` on a cons and `interp._env`
+  on nil/cons; rewrite database and tactic `interp_simp` (does not go under
+  binders). The two lemmas in `advantage_ot.v` are left alone.
+* `typing/bridge.v`: `sem_ty_le_struct [using leaf]` proves
+  `τsem ≤ₜ interp._ty η μ δ T ξ` (either direction). It unfolds the mirror's
+  head, rewrites with `interp_simp`, and decomposes along whichever side is a
+  semantic former. Rows close by `row_le_refl`, modes by `mode_le_refl`,
+  `mode_le_MS` or `mode_le_OS`, and leaves by `ty_le_refl` or `leaf`. `leaf`
+  is tried on `A ≤ₜ B` and then after `iIntros (??) "!#"`. Unclosed goals are
+  left to the user. Every `iApply` is followed by `solve_constraints`: a
+  postponed unification failure otherwise escapes `first`/`try`.
+* All seven `*_subtype` proofs (`T_SCHAN`, `T_DHKE`, `T_ADD`, `T_ADD3`,
+  `T_DHKE_CHAN`, `T_SKE`, `T_DHKE_SKE`) are now one `sem_ty_le_struct` call.
+  The leaf is `iApply τG_subtype` and/or the two pinned `τFT_subtype`. Each
+  file gained the import `From clutch.prob_eff_lang.probblaze.typing Require
+  Import bridge.`. Only the six standard axioms are used.
+* Mirrors: none added, because no target needs one. Instances of `τ__F`,
+  `τ__f`, `hdl` and `fac` are expressible per instance; the operators
+  themselves are not (no type-level λ). With `τG`/`τFT` as the leaf,
+  `leakI` has an exact mirror. `gk` and `cli` have one only for
+  `τ ≤ ⟦T⟧`, and `aleak` and `oaleak` only for `⟦T⟧ ≤ τ`. `chan` and
+  `τ_ENC` have none in either direction, because `𝔾` and `Msg` are only
+  below `⟦τG⟧` and `⟦τFT⟧` (section 6). With a `TVar` instantiated to
+  `𝔾` they would all be exact. `τ_sl` and `pure_ty` have no counterpart.
 
 ## 6. Stage F: end-to-end conversion
 
@@ -274,22 +352,62 @@ Re-prove `oauth_send_handler_typed` (`examples/secure_channel/sec_channel_typing
 as a syntactic derivation found by `tychk`, transported by `fundamental` and
 the bridge; the semantic lemma becomes a corollary. This exercises copyable
 references, `Option` payloads with the sum bang rule, a one-shot continuation
-under a flipped row, and the renamed binder. Then the DH handler
-(`examples/dhke/dhke_typing.v`). Programs that must stay semantic: anything
-using `τ_sl` (ideal channel and simulator), `pure_ty` (authentication), and
-the relational escape lemmas (`sem_typed_of_brel3`, `select`, `sample2`).
+under a flipped row, and the renamed binder. Then the DH handler,
+`dh_handler_typed` (`examples/dhke/dhke_typing.v:864`). Programs that must
+stay semantic: anything using `τ_sl` (ideal channel and simulator; defined in
+`sec_channel_ideal_typing.v:46` and again in
+`advantage_dhke_ske_sec_chan.v:100`), `pure_ty` (`auth/auth_prf.v:192`), and
+the relational escape lemmas (`sem_typed_of_brel3` `auth_prf.v:54`,
+`sem_typed_select` `auth_typing.v:393`, `sem_typed_sample2`
+`auth_typing.v:95`).
+
+Row bound (decided 2026-11-10, option A). Both handler lemmas assume
+`(¡ θ) ≤ᵣ ρh`, which the syntactic judgement cannot express. They are
+restated with the explicit row `sem_row_union (¡ θ) ρ` (syntactic mirror
+`¡[OS] RVar 1 ∪ᵣ RVar 0`); each caller proves both inclusions between its
+handler row and that union with `row_le_submseteq`. The top-level typing
+statements do not change.
+
+Group type (open; decide when Stage F starts). Findings of 2026-11-10:
+* The authenticated channel never inspects what it stores: the send handler
+  stores and leaks `m`, the receive handler returns `!message`.
+* Proving the handlers at `⟦τG⟧` instead of `𝔾` does not suffice. Only
+  `𝔾 ⊆ ⟦τG⟧` holds (`τG_subtype`; for Zpx `τG := TInt`). F_OAUTH would then
+  hand `⟦τG⟧` values to CHAN, whose receive handler masks them
+  (`sem_typed_mask` needs `𝔾`; the SKE version decrypts and needs `Cph`),
+  and `uc_composition` forces F_OAUTH and CHAN to share one interface type.
+  The header comment of `sec_channel_typing.v` ("𝔾 = ⟦τG⟧") is wrong.
+* What works: derive the handler at a type variable, written `![MS] (TVar 0)`
+  so the payload is copyable, and instantiate the variable with `𝔾` (or `Cph`
+  for the SKE copy); `fundamental` holds for every type environment. Since
+  `𝔾` is pure, `![MS] 𝔾` and `𝔾` are equivalent, and `Refᶜ` respects
+  equivalence (`sem_ty_ref_cpy_proper`).
+* The DH handler computes `g^"a"` inline; exponentiation is only typed at
+  `τG`, so the type-variable route does not apply to it as is.
+
+Decision (2026-11-10): option 1. The two send handlers (`sec_channel_typing.v`
+and the SKE copy in `ske_sec_chan_typing.v`) are derived syntactically at a
+type variable `![MS] (TVar 0)` and instantiated with `𝔾` / `Cph`. The DH
+handler `dh_handler_typed` stays semantic for now. Options for it later:
+pass `g` and exponentiation to the handler as context variables (changes the
+DH program), or add opaque base types with certified values to the typing
+layer (large change).
 
 ## 7. Policies and gotchas
 
 * Shadowing: rename the inner binder (or use `<>` when unused). To find
   offending programs, look for non-empty set-aside frames in uses of
   `sem_typed_match_split` and for `sem_typed_frame_env_gen` around a binder.
-* `dune` must run from `/workspace/clutch-eff` with `--root .`; the parent
-  directory contains other dune projects with the same package name. Build
-  per file: `dune build --root . theories/…/foo.vo`.
-* `rocq-mcp` needs the imported `.vo` files built in
-  `_build/default/theories`; `_CoqProject` maps that directory to `clutch`.
-  Restart the session after a build. Heavy example files should be loaded by
+* The repository is `/workspace/projects/clutch`; run `dune` from there,
+  with `DUNE_BUILD_DIR=/home/node/build` (set in the environment). Build per
+  file: `dune build theories/…/foo.vo`.
+* `rocq-mcp` needs the imported `.vo` files in
+  `/home/node/build/default/theories`; `_CoqProject` must map that directory
+  to `clutch` (`_CoqProject.container` has the right content; the committed
+  `_CoqProject` points at `_build/`). dune produces no `.vos` files and
+  deletes touched markers on every build, so after each build run
+  `find /home/node/build/default -name "*.vo" | while read f; do [ -f "${f%.vo}.vos" ] || touch "${f%.vo}.vos"; done`
+  and then restart the session. Heavy example files should be loaded by
   incremental imports rather than one preamble.
 * Flags on row subtyping: `RUnion_le` premises at `false`; erasure only at
   `true`. The disjointness context is `le.row_to_disj_ctx ρ` of the ambient
@@ -332,3 +450,59 @@ instead of dropping.
 
 Each stage ends with no admits and a per-file build of everything it
 touched. Do not start a stage on an unbuilt predecessor.
+
+## 10. Follow-ups
+
+* Bang rule for mode quantifiers. `le._type` has bang commutation rules for
+  type and row quantifiers but none for `TForallM`, so `le.MultiT (∀M: τ)`
+  is not derivable structurally. Add `TBangTForallMComm1_le` and
+  `TBangTForallMComm2_le` next to the row-quantifier pair; they are sound by
+  `ty_le_mode_forall_mbang` and `ty_le_mbang_mode_forall`
+  (`sem_types.v:796`, `:788`). Unlike the type and row cases, the bang's
+  mode must be shifted when it moves under the binder, because `vmode` has
+  variables (`MVar`): the rule is `TBang m (TForallM α) ≤ TForallM (TBang
+  m.[ren (+1)] α)` and its converse. Soundness then also needs the
+  interpretation fact that a shifted mode ignores the new head of `μ`. The
+  soundness cases in `fundamental_subtyping.v` are positional bullets, so
+  insert them at the matching position. Not needed yet: no file under `examples/` or `uc/` uses
+  a mode quantifier (checked 2026-11-10).
+
+## 11. Status (2026-11-10, uncommitted)
+
+* Stage A done: `Refᶜ` is on `na_invP` (`sem_types.v`), the three `*_cpy`
+  lemmas use `brel_na_*`, `ref_cpy_alloc` uses `na_inv_alloc`.
+* Stage B done: `TRefC`, `refᶜ`, `TBangRefC_le`, `AllocC_typed`,
+  `LoadC_typed`, `StoreC_typed`, interpretation, soundness, wrappers
+  `interp_c_*_refc`, three cases in `fundamental`; hand derivation in
+  `typing/tests.v`. `fundamental` uses only the six standard axioms.
+* C3 rules: `RFlipConsInv_le`, `RFlipUnionInv_le` added (sound by
+  reflexivity).
+* Stage C and D done in `typing/tychk.v`: side-predicate hints, context
+  operations, row normaliser and `row_le_solve` (with `≤S` matching,
+  erasure and `once_solve`), algorithmic lemmas for every judgement, and the
+  driver `tychk` with the wrappers `tyann` and `sigann`. `typing/tychk_tests.v`
+  re-proves every syntactic lemma of the five example files with `tychk`
+  alone (the scheduler needs three annotations) plus an adversary at a
+  `T_SCHAN`-shaped interface. The original example proofs are unchanged.
+* Stage F preparation: option A for the row bound is applied (the two send
+  handlers and the DH handler are stated at `sem_row_union (¡ θ) ρ`; callers
+  use `clause_at_union_row` from `compatibility.v`). Top-level statements
+  are unchanged.
+* Build: every probblaze file builds with `dune build -j 1` and
+  `OCAMLRUNPARAM=o=20`, except that `examples/ot/OT_Rcorrupt_thunk.v` and
+  `OT_SCorrupt_thunk.v` are OOM-killed whenever anything else runs; build
+  them alone with `OCAMLRUNPARAM=o=10`.
+* Stage E done except new mirrors (none needed yet): `typing/interp_simp.v`
+  (unfolding equations, rewrite database `interp_simp`) and `typing/bridge.v`
+  (tactic `sem_ty_le_struct`). The seven `*_subtype` lemmas of the
+  advantage files are now one tactic call each; each of those files gained
+  one `Require Import` of `bridge`. See section 5 for the mirror analysis.
+* `examples/ot/OT_SCorrupt_thunk.v` and `advantage_ot.v` could not be
+  rebuilt here (OOM even alone with `o=10`); they are not otherwise affected.
+* Stage F, option 1, done for the send handler: `typing/stagef.v` has
+  `oauth_send_handler_syn` (`tychk` alone, one `tyann` giving the leak call
+  the row `¡[OS] (RVar 1)`, else `RVar 1 R⪯C Γ` is left) and its corollary
+  `oauth_send_handler_sem` at any `MultiT τ` (via `fundamental`, `[τ]`,
+  `[ρ; θ₂]`, `![MS] τ ≡ τ`). Both `oauth_send_handler_typed` are one
+  `iApply` of it, with `𝔾` / `Cph`; six standard axioms only.
+* Next: the DH handler (section 6).

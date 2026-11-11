@@ -216,6 +216,24 @@ Section compatiblity.
     iApply row_le_flip_union.
   Qed. 
   
+  Lemma row_le_RFlipConsInv D b m σ ρ :
+    ⊢ sem_row_le D b (RCons (SFlip m σ) (¡[ m] ρ)) (¡[ m] (RCons σ ρ)).
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; first (by destruct b).
+    rewrite /row_le /=. iApply to_iThy_le_refl.
+  Qed.
+
+  Lemma row_le_RFlipUnionInv D b m ρ1 ρ2 :
+    ⊢ sem_row_le D b (¡[ m] ρ1 ∪ᵣ ¡[ m] ρ2)%ty (¡[ m] (ρ1 ∪ᵣ ρ2)%ty).
+  Proof.
+    iIntros (????) "!# #HD".
+    iSplit; first (by destruct b).
+    rewrite /row_le /tc_opaque /=.
+    rewrite -iLblSig_to_iLblThy_flip_union.
+    iApply to_iThy_le_refl.
+  Qed.
+
   Lemma row_le_RFlipElim D b ρ :
     ⊢ sem_row_le D b (¡[ types.MS] ρ) ρ.
   Proof. 
@@ -381,6 +399,8 @@ Section fundamental_subtyping.
       + iApply row_le_RFlipNil.
       + iApply row_le_RFlipCons.
       + iApply row_le_RFlipUnion.
+      + iApply row_le_RFlipConsInv.
+      + iApply row_le_RFlipUnionInv.
       + iApply row_le_RFlipElim.
       + iApply row_le_RFlipIntro.
       + iApply row_le_RFlipIdemp1.
@@ -412,6 +432,7 @@ Section fundamental_subtyping.
       + iIntros (????) "!# #HD"; iApply ty_le_mbang_comp.
         * by iApply fundamental_mode.
         * by iApply fundamental_type.
+      + iIntros (????) "!# #HD"; iApply ty_le_mbang_intro_ref_cpy.
       + iIntros (????) "!# #HD"; iApply ty_le_mbang_prod.
       + iIntros (????) "!# #HD"; iApply ty_le_mbang_prod_inv.
       + iIntros (????) "!# #HD"; iApply ty_le_mbang_sum.

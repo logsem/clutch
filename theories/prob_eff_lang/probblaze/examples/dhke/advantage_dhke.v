@@ -41,6 +41,7 @@ From clutch.prob_eff_lang.probblaze.examples.dhke Require Import
    the interface type [dhke_typing.chan]. *)
 From clutch.prob_eff_lang.probblaze.examples Require Import dhke_common dhke_typing.
 From clutch.prob_eff_lang.probblaze.typing Require interp.
+From clutch.prob_eff_lang.probblaze.typing Require Import bridge.
 From Stdlib Require Import Reals Psatz.
 
 Import fingroup.
@@ -422,23 +423,7 @@ Section dhke_advantage.
   Lemma T_DHKE_subtype `{!probblazeRGS Σ} η μ δ ξ :
     ⊢ τ__F aleak gk ≤ₜ interp.interp._ty η μ δ T_DHKE ξ.
   Proof using All.
-    rewrite /T_DHKE /τ__F /aleak /gk /sem_ty_option /=.
-    iApply ty_le_row_forall. iIntros (θ).
-    iApply ty_le_mbang_comp; first iApply mode_le_refl.
-    iApply ty_le_arr; first iApply row_le_refl.
-    - iApply ty_le_row_forall; iIntros (θ1).
-      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
-      iApply ty_le_mbang_comp; first iApply mode_le_refl.
-      iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
-      iApply ty_le_sum; first iApply ty_le_refl.
-      iIntros (??) "!#". iApply τG_subtype.
-    - iApply ty_le_row_forall; iIntros (θ2).
-      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
-      iApply ty_le_prod; last iApply ty_le_refl.
-      iApply ty_le_mbang_comp; first iApply mode_le_refl.
-      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
-      iApply ty_le_prod; last iApply ty_le_refl.
-      iIntros (??) "!#". iApply τG_subtype.
+    sem_ty_le_struct using (iApply τG_subtype).
   Qed.
 
   Corollary adv_DHKE_typed A :

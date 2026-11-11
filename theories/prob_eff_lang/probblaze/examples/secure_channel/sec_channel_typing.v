@@ -9,6 +9,7 @@ From clutch.prob_eff_lang.probblaze Require Import sem_types sem_row sem_sig sem
 From clutch.prob_eff_lang.probblaze.examples Require Import dhke_common sec_channel_def sec_channel_prf dhke_authchan mask.
 From clutch.prob_eff_lang.probblaze.examples Require Export dhke_typing.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems.
+From clutch.prob_eff_lang.probblaze.typing Require stagef.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -24,7 +25,10 @@ Import valgroup_tactics.
 (* ⟦·⟧ of the syntactic types, so each lemma can (in a later step) be *)
 (* discharged by applying the fundamental lemma of the logical        *)
 (* relation to a syntactic typing derivation:                         *)
-(*   - 𝔾 = ⟦τG⟧ (the clutch-group syntactic type),                    *)
+(*   - 𝔾 is NOT ⟦τG⟧: only 𝔾 ≤ ⟦τG⟧ holds (τG_subtype).  A program    *)
+(*     that only stores and passes group elements is derived at a     *)
+(*     copyable type variable ![MS] (TVar 0) instead, which is then   *)
+(*     instantiated with 𝔾 (see typing/stagef.v),                     *)
 (*   - Option = sem_ty_option,                                        *)
 (*   - the row parameters range over ⟦row-variables⟧,                 *)
 (*   - products/sums/arrows/∀ᵣ/row-unions all have syntactic formers. *)
@@ -81,9 +85,8 @@ Section new_comp_verification.
     (* See the tactics at the end of [compatibility.v]. *)
     Import typed_hint_modes.
 
-    Lemma oauth_send_handler_typed (θ₂ ρh : sem_row Σ) :
-      ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
-      sem_typed [("payload", (𝔾 × (𝟙 + 𝟙))%T); ("k", (𝟙 -{ ρh }-[OS]-> 𝟙)%T);
+    Lemma oauth_send_handler_typed (θ₂ ρ : sem_row Σ) :
+      ⊢ sem_typed [("payload", (𝔾 × (𝟙 + 𝟙))%T); ("k", (𝟙 -{ sem_row_union (¡ θ₂) ρ }-[OS]-> 𝟙)%T);
                  ("message", Refᶜ (Option 𝔾)); ("doLeakSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)]
         (let, ("m", "dst") := "payload" in
          match: !"message" with
@@ -95,36 +98,11 @@ Section new_comp_verification.
          | NONE => "message" <- SOME "m" ;; ("doLeakSend" ("m", "dst"));; "k" #()%V
          | SOME "stored" => "k" #()%V
          end)%E
-        ρh 𝟙 [("message", Refᶜ (Option 𝔾)); ("doLeakSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)].
-    Proof.
-      iIntros "#Hρ".
-      iApplyT sem_typed_pair_elim; first typed_var.
-      (* The [SOME "stored"] binder is unused; the [message] entry is routed
-       around that branch, as the [NONE] branch and the output need it. *)
-      iApplyT (sem_typed_match_split [] [("message", _)]).
-      - iApplyT sem_typed_load_cpy. typed_var_copy.
-      - iApply env_le_refl.
-      - iApplyT sem_typed_seq.
-        { iApplyT sem_typed_store_cpy_gen.
-          2: { iApplyT sem_typed_injr. typed_var_copy. }
-          typed_var_copy. }
-        iApplyT sem_typed_seq.
-        { (* [k] is live across the leak call: fine because [¡θ₂] is OnceR. *)
-          iApplyT sem_typed_app_fun_nil; first iApply "Hρ".
-          - iApplyT sem_typed_pair; typed_var.
-          - typed_leak_fun. }
-        iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|].
-        typed_cont.
-      - iApply env_le_refl.
-      - env_pick. iApply env_le_refl.
-      - (* Drop the unused binder [stored]; [m] and [dst] are dropped by the
-         output split. *)
-        iApplyT sem_typed_sub_env; first iApply env_le_weaken.
-        iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApplyT sem_typed_unit'|].
-        typed_cont.
-      - env_solve.
-        Unshelve. all: solve_typed_side.
-    Qed.
+        (sem_row_union (¡ θ₂) ρ) 𝟙 [("message", Refᶜ (Option 𝔾)); ("doLeakSend", ((𝔾 × (𝟙 + 𝟙)) -{ θ₂ }-> 𝟙)%T)].
+    (* Stage F (typing/PLAN.md, section 6): a corollary of the syntactic
+       derivation [stagef.oauth_send_handler_syn], found by [tychk] at a
+       copyable type variable and instantiated with [𝔾]. *)
+    Proof. iApply (stagef.oauth_send_handler_sem 𝔾). Qed.
 
     Lemma oauth_recv_handler_typed (θ₂ ρh : sem_row Σ) :
       ⊢ (¡ θ₂)%R ≤ᵣ ρh -∗
@@ -210,7 +188,7 @@ Section new_comp_verification.
           * iApply row_le_mfbang_elim.
           * iApply row_le_refl.
           * row_le_submseteq.
-        + iIntros (?). iApply oauth_send_handler_typed. row_le_submseteq.
+        + iIntros (?). clause_at_union_row. iApply oauth_send_handler_typed.
         + typed_var.
       - iIntros (?). iApply oauth_recv_handler_typed. row_le_submseteq.
       - iApplyT sem_typed_sub_env_final; last typed_var. env_solve.

@@ -1,6 +1,7 @@
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgement sem_row syntax semantics proofmode valgroup adequacy mode compatibility.
 From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental.
+From clutch.prob_eff_lang.probblaze.typing Require Import bridge.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems uc_advantage.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_typed.
 From clutch.prob_eff_lang.probblaze.examples.secure_add Require Import secure_add_def secure_add_prf.
@@ -43,18 +44,7 @@ Section adv_add.
   Lemma T_ADD_subtype `{!probblazeRGS Σ} η μ δ ξ :
     ⊢ τ_ADD ≤ₜ (interp._ty η μ δ T_ADD ξ).
   Proof using All.
-    rewrite /T_ADD /τ_ADD /sem_ty_option /=.
-    iApply ty_le_row_forall; iIntros (?).
-    iApply ty_le_mbang_comp; first iApply mode_le_refl.
-    iApply ty_le_arr; first iApply row_le_refl.
-    - iApply ty_le_refl.
-    - iApply ty_le_row_forall; iIntros (?).
-      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
-      iApply ty_le_prod; last iApply ty_le_refl.
-      iApply ty_le_prod;
-        (iApply ty_le_mbang_comp; first iApply mode_le_refl);
-        (iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl]);
-        iIntros (??) "!#"; iApply τG_subtype.
+    sem_ty_le_struct using (iApply τG_subtype).
   Qed.
 
   Corollary adv_ADD_typed A :

@@ -4,6 +4,7 @@ From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_judgeme
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems uc_advantage.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_typed.
 From clutch.prob_eff_lang.probblaze.typing Require Import types interp fundamental.
+From clutch.prob_eff_lang.probblaze.typing Require Import bridge.
 From clutch.prob_eff_lang.probblaze.examples.secure_add3 Require Import add3_def add3_prf.
 
 Import fingroup.
@@ -41,27 +42,7 @@ Section adv_add3.
   Lemma T_ADD3_subtype `{!probblazeRGS Σ} η μ δ ξ :
     ⊢ τ_ADD3 ≤ₜ (interp._ty η μ δ T_ADD3 ξ).
   Proof using All.
-    rewrite /T_ADD3 /τ_ADD3 /τ_port /τ_envops /τ_view /τ_hdr /sem_ty_option /=.
-    iApply ty_le_type_forall; iIntros (α).
-    iApply ty_le_row_forall; iIntros (θL).
-    iApply ty_le_mbang_comp; first iApply mode_le_refl.
-    iApply ty_le_arr; first iApply row_le_refl.
-    - (* the client: its ports return group elements *)
-      iApply ty_le_row_forall; iIntros (θh).
-      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
-      iApply ty_le_prod; [iApply ty_le_prod |];
-        (iApply ty_le_mbang_comp; first iApply mode_le_refl);
-        (iApply ty_le_arr; [iApply row_le_refl | iApply ty_le_refl |]);
-        (iApply ty_le_sum; first iApply ty_le_refl);
-        iIntros (??) "!#"; iApply τG_subtype.
-    - (* the environment's operations: the leak takes group elements *)
-      iApply ty_le_row_forall; iIntros (θ1).
-      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
-      iApply ty_le_prod; [| iApply ty_le_prod; iApply ty_le_refl].
-      iApply ty_le_mbang_comp; first iApply mode_le_refl.
-      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
-      iApply ty_le_sum; [iIntros (??) "!#"; iApply τG_subtype |].
-      iApply ty_le_prod; [iApply ty_le_refl | iIntros (??) "!#"; iApply τG_subtype].
+    sem_ty_le_struct using (iApply τG_subtype).
   Qed.
 
   Theorem adv_ADD3 (m : mode) (A : val) :

@@ -21,6 +21,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
 From clutch.prob_eff_lang.probblaze.typing Require Import types.
 From clutch.prob_eff_lang.probblaze.typing Require interp.
+From clutch.prob_eff_lang.probblaze.typing Require Import bridge.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory mode adequacy.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row sem_sig sem_env sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
@@ -149,26 +150,7 @@ Section dhke_chan_advantage.
   Lemma T_DHKE_CHAN_subtype `{!probblazeRGS Σ} η μ δ ξ :
     ⊢ τ_DHKE_CHAN ≤ₜ interp.interp._ty η μ δ T_DHKE_CHAN ξ.
   Proof using All.
-    rewrite /T_DHKE_CHAN /τ_DHKE_CHAN /hdl /cli /τ__f /oaleak /aleak /sem_ty_option /=.
-    iApply ty_le_row_forall; iIntros (θL).
-    iApply ty_le_mbang_comp; first iApply mode_le_refl.
-    iApply ty_le_arr; first iApply row_le_refl.
-    - (* the client: its receive returns a group element *)
-      iApply ty_le_row_forall; iIntros (θh).
-      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
-      iApply ty_le_prod; first iApply ty_le_refl.
-      iApply ty_le_mbang_comp; first iApply mode_le_refl.
-      iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
-      iApply ty_le_sum; first iApply ty_le_refl.
-      iIntros (??) "!#". iApply τG_subtype.
-    - (* the leaks of the channel and of the key exchange take group elements *)
-      iApply ty_le_row_forall; iIntros (θ1). iApply ty_le_row_forall; iIntros (θ2).
-      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
-      iApply ty_le_prod; (iApply ty_le_prod; last iApply ty_le_refl);
-        (iApply ty_le_mbang_comp; first iApply mode_le_refl);
-        (iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl]);
-        (iApply ty_le_prod; last iApply ty_le_refl);
-        iIntros (??) "!#"; iApply τG_subtype.
+    sem_ty_le_struct using (iApply τG_subtype).
   Qed.
 
   Corollary dhke_chan_realises_typed A :

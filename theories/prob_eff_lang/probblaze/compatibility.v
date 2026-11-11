@@ -1237,12 +1237,11 @@ Section compatibility.
     iIntros "!# % % (Hτ & HΓ2) /=".
     iApply brel_alloc_l. iIntros (l1) "!> Hl1".
     iApply brel_alloc_r. iIntros (l2) "Hl2".
-    iIntros "Hd Hl".
-    iApply (rel_inv_alloc (tyN.@(l1,l2)) (∃ w1 w2, l1 ↦ w1 ∗ l2 ↦ₛ w2 ∗ τ w1 w2)%I with "[Hl1 Hl2 Hτ]"); [iFrame|].
+    iApply (brel_na_alloc (∃ w1 w2, l1 ↦ w1 ∗ l2 ↦ₛ w2 ∗ τ w1 w2)%I (tyN.@(l1,l2))).
+    iSplitL "Hl1 Hl2 Hτ"; [iNext; iExists _, _; iFrame|].
     iIntros "#Hinv".
-    iApply rel_value.
-    iFrame. iExists l1, l2.
-    by auto.
+    iApply brel_value. iIntros "Hown !>". iFrame.
+    iExists l1, l2. iFrame "Hinv". by auto.
   Qed. 
 
   Lemma sem_typed_load_cpy τ ρ Γ1 Γ2 e1 e2 `{! MultiT τ } :
@@ -1253,14 +1252,14 @@ Section compatibility.
     iApply (brel_bind [LoadCtx] [LoadCtx]); [iApply traversable_to_iThy|iApply to_iThy_le_refl|].
     iApply (brel_wand with "[HΓ1]"); first by iApply "He".
     iIntros "!# % % ((%l1 & %l2 & -> & -> & #Hinv) & HΓ2) //=".
-    iApply (brel_atomic_l _ []).
-    iIntros (K') "Hj".
-    iMod (inv_acc _ (tyN.@(l1,l2)) with "Hinv") as "[(%&%&>Hl1&>Hl2&#Hτ) Hclose]"; first done.
-    iModIntro. 
-    iMod (step_load with "[$Hj $Hl2]") as "[Hj Hl2]". 
-    iApply (wp_load with "Hl1"). iIntros "!> Hl1".
-    iMod ("Hclose" with "[Hl1 Hl2]") as "_"; [iExists _,_; by iFrame|].
-    iModIntro. iExists _. iFrame. simpl.
+    iApply (brel_na_inv _ _ (tyN.@(l1,l2))); [solve_ndisj|].
+    iSplitR; [iApply "Hinv"|].
+    iIntros "[(%w1 & %w2 & Hl1 & Hl2 & #Hτ) Hclose]".
+    iApply (brel_load_l with "Hl1"). iIntros "!> Hl1".
+    iApply (brel_load_r with "Hl2"). iIntros "Hl2".
+    iApply (brel_na_close (∃ w1 w2, l1 ↦ w1 ∗ l2 ↦ₛ w2 ∗ τ w1 w2)%I).
+    iSplitL "Hl1 Hl2"; [iNext; iExists _, _; iFrame "∗ #"|].
+    iSplitL "Hclose"; [iApply "Hclose"|].
     iApply brel_value. iIntros. by iFrame.
   Qed.
 
@@ -1294,15 +1293,15 @@ Section compatibility.
     iApply (brel_wand with "[HΓ2 Hτ]").
     { iApply (brel_mono_on_prop with "[][Hτ]"); [iApply row_type_sub|iApply "Hτ"|]. by iApply "He1". }
     iIntros "!# % % (((%l1 & %l2 & -> & -> & #Hinv) & HΓ3) & Hτ) //=".
-    iApply (brel_atomic_l _ []).
-    iIntros (K') "Hj". 
-    iMod (inv_acc _ (tyN.@(l1,l2)) with "Hinv") as "[(%&%&>Hl1&>Hl2&Hτw) Hclose]"; first done.
-    iModIntro. iApply spec_update_wp.
-    iMod (step_store with "[$Hj $Hl2]") as "[Hj Hl2]". iModIntro.
-    iApply (wp_store with "Hl1"). iIntros "!> Hl1".
-    iMod ("Hclose" with "[Hl1 Hl2 Hτ]") as "_"; [iExists _,_; iFrame|].
-    iModIntro. iExists _. iFrame. iApply brel_value.
-    iIntros. by iFrame.
+    iApply (brel_na_inv _ _ (tyN.@(l1,l2))); [solve_ndisj|].
+    iSplitR; [iApply "Hinv"|].
+    iIntros "[(%w1 & %w2 & Hl1 & Hl2 & Hτw) Hclose]".
+    iApply (brel_store_l with "Hl1"). iIntros "!> Hl1".
+    iApply (brel_store_r with "Hl2"). iIntros "Hl2".
+    iApply (brel_na_close (∃ w1 w2, l1 ↦ w1 ∗ l2 ↦ₛ w2 ∗ τ w1 w2)%I).
+    iSplitL "Hl1 Hl2 Hτ"; [iNext; iExists _, _; iFrame|].
+    iSplitL "Hclose"; [iApply "Hclose"|].
+    iApply brel_value. iIntros. by iFrame.
   Qed.
 
   (* Expression-level Store rule for a LINEAR reference ([sem_ty_ref], the
@@ -2521,6 +2520,25 @@ Section compatibility.
     by rewrite -(env_sem_typed_pw_equiv _ _ vs H2).
   Qed.
 
+  (* A handler clause typed at a row [ρu] that has the same components as the
+     caller's handler row [ρh] (inclusion both ways) also holds at [ρh].  Lets
+     a clause lemma be stated at an explicit row [sem_row_union (¡ θ) ρ]
+     instead of assuming the bound [¡ θ ≤ᵣ ρh], which the syntactic type
+     system cannot express (typing/PLAN.md, Stage F). *)
+  Lemma sem_typed_clause_row_eqv x k A B τ' Γ3 e1 e2 Γ' (ρh ρu : sem_row Σ) :
+    ⊢ ρh ≤ᵣ ρu -∗ ρu ≤ᵣ ρh -∗
+      sem_typed ((x, A) :: (k, (B -{ ρu }-[OS]-> τ')%T) :: Γ3) e1 e2 ρu τ' Γ' -∗
+      sem_typed ((x, A) :: (k, (B -{ ρh }-[OS]-> τ')%T) :: Γ3) e1 e2 ρh τ' Γ'.
+  Proof.
+    iIntros "#H1 #H2 He".
+    iApply (sem_typed_sub_row _ ρu with "H2").
+    iApply (sem_typed_sub_env _ ((x, A) :: (k, (B -{ ρu }-[OS]-> τ')%T) :: Γ3) with "[] He").
+    iApply env_le_cons; last iApply ty_le_refl.
+    iApply env_le_cons; first iApply env_le_refl.
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
+    iApply ty_le_arr; [done|iApply ty_le_refl|iApply ty_le_refl].
+  Qed.
+
 End compatibility.
 
     
@@ -2605,4 +2623,31 @@ Ltac env_solve :=
   | |- environments.envs_entails _ (_ ≤ₑ []) => iApply env_le_nil
   | |- environments.envs_entails _ (_ ≤ₑ _ :: _) =>
       first [ env_pick; env_solve | env_pick_copy; env_solve ]
+  end.
+
+(* A row inclusion between two rows with the same components, up to order. *)
+Ltac row_le_perm :=
+  iApply to_iThy_le_intro'; simpl; rewrite ?iLblSig_to_iLblThy_app; simpl;
+  rewrite ?iLblSig_to_iLblThy_app; apply Permutation_submseteq; solve_Permutation.
+
+(* [ρ] of the form [σ1 · … · σn · sem_row_union X Y] gives [(X, σ1 · … · σn · Y)]. *)
+Ltac row_pull_union ρ :=
+  lazymatch ρ with
+  | sem_row_union ?X ?Y => constr:((X, Y))
+  | sem_row_cons ?σ ?ρ' =>
+      let p := row_pull_union ρ' in
+      lazymatch p with (?X, ?Y) => constr:((X, sem_row_cons σ Y)) end
+  end.
+
+(* On a handler-clause goal at row [ρh = σ1 · … · sem_row_union X Y], move to
+   the row [sem_row_union X (σ1 · … · Y)], where clause lemmas are stated. *)
+Ltac clause_at_union_row :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (sem_typed _ _ _ ?ρh _ _) =>
+      let p := row_pull_union ρh in
+      lazymatch p with
+      | (?X, ?Y) =>
+          iApply (sem_typed_clause_row_eqv _ _ _ _ _ _ _ _ _ ρh (sem_row_union X Y));
+          [row_le_perm|row_le_perm|]
+      end
   end.

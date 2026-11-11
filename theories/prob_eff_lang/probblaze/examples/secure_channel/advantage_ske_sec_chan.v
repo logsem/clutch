@@ -24,6 +24,7 @@ From clutch.prob_eff_lang.probblaze Require Import logic primitive_laws proofmod
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
 From clutch.prob_eff_lang.probblaze.typing Require Import types.
 From clutch.prob_eff_lang.probblaze.typing Require interp.
+From clutch.prob_eff_lang.probblaze.typing Require Import bridge.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory mode adequacy.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row sem_sig sem_env sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage comp_operators.
@@ -268,27 +269,9 @@ Section ske_advantage.
   Lemma T_SKE_subtype `{!probblazeRGS Σ} η μ δ ξ :
     ⊢ τ_SKE (msg _) (cipher _) ≤ₜ interp.interp._ty η μ δ T_SKE ξ.
   Proof using msg cipher.
-    rewrite /T_SKE /τ_SKE /hdl /cli /τ__f /oaleak /leakI /sem_ty_option /=.
-    iApply ty_le_row_forall; iIntros (θL).
-    iApply ty_le_mbang_comp; first iApply mode_le_refl.
-    iApply ty_le_arr; first iApply row_le_refl.
-    - (* the client: its receive returns a message *)
-      iApply ty_le_row_forall; iIntros (θh).
-      iApply ty_le_arr; [iApply row_le_refl | | iApply ty_le_refl].
-      iApply ty_le_prod; first iApply ty_le_refl.
-      iApply ty_le_mbang_comp; first iApply mode_le_refl.
-      iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
-      iApply ty_le_sum; first iApply ty_le_refl.
-      iIntros (??) "!#". iApply (τFT_subtype (fin_val := msg _)).
-    - (* the leaks: the network's leak takes a ciphertext *)
-      iApply ty_le_row_forall; iIntros (θ1). iApply ty_le_row_forall; iIntros (θ2).
-      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
-      iApply ty_le_prod; last iApply ty_le_refl.
-      iApply ty_le_prod; last iApply ty_le_refl.
-      iApply ty_le_mbang_comp; first iApply mode_le_refl.
-      iApply ty_le_arr; [iApply row_le_refl| |iApply ty_le_refl].
-      iApply ty_le_prod; last iApply ty_le_refl.
-      iIntros (??) "!#". iApply (τFT_subtype (fin_val := cipher _)).
+    sem_ty_le_struct using
+      (first [ iApply (τFT_subtype (fin_val := msg _))
+             | iApply (τFT_subtype (fin_val := cipher _)) ]).
   Qed.
 
   Corollary adv_SKE_typed A :

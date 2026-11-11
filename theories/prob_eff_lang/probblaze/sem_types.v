@@ -32,10 +32,12 @@ Definition sem_ty_tape `{probblazeGS Σ} : sem_ty Σ :=
      ∃ (α1 α2 : loc) (N: nat), ⌜w1 = #lbl:α1⌝ ∧ ⌜w2 = #lbl:α2⌝ ∧
                                inv (logN .@ (α1, α2)) (α1 ↪ (N; []) ∗ α2 ↪ₛ (N; [])))%I.
 
-(* Copyable Reference Type *)
+(* Copyable Reference Type.  The contents live in a non-atomic invariant
+   ([na_invP], threaded by the relational judgement through [na_ownP]), so a
+   typing rule may keep the invariant open across several steps. *)
 Definition tyN := nroot .@ "ty".
-Definition sem_ty_ref_cpy `{!probblazeGS Σ} (τ : sem_ty Σ): sem_ty Σ := 
-  (λ v1 v2, ∃ l1 l2 : loc, ⌜ v1 = #l1 ⌝ ∗ ⌜ v2 = #l2 ⌝ ∗ inv (tyN .@ (l1,l2)) (∃ w1 w2, l1 ↦ w1 ∗ l2 ↦ₛ w2 ∗ τ w1 w2))%I.
+Definition sem_ty_ref_cpy `{!probblazeRGS Σ} (τ : sem_ty Σ): sem_ty Σ := 
+  (λ v1 v2, ∃ l1 l2 : loc, ⌜ v1 = #l1 ⌝ ∗ ⌜ v2 = #l2 ⌝ ∗ na_invP (tyN .@ (l1,l2)) (∃ w1 w2, l1 ↦ w1 ∗ l2 ↦ₛ w2 ∗ τ w1 w2))%I.
 
 (* Substructural Reference Type *)
 Definition sem_ty_ref `{!probblazeGS Σ} (τ : sem_ty Σ): sem_ty Σ := 

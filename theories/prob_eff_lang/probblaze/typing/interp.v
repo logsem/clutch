@@ -51,6 +51,7 @@ Module interp.
         | TBool => λne _, sem_ty_bool
         | TTape => λne _, sem_ty_tape
         | TRef τ => λne ξ, sem_ty_ref (_ty η μ δ τ ξ)
+        | TRefC τ => λne ξ, sem_ty_ref_cpy (_ty η μ δ τ ξ)
         | TProd τ1 τ2 => λne ξ, sem_ty_prod (_ty η μ δ τ1 ξ) (_ty η μ δ τ2 ξ)
         | TSum τ1 τ2 => λne ξ, sem_ty_sum (_ty η μ δ τ1 ξ) (_ty η μ δ τ2 ξ)
         | TBang m τ => λne ξ, sem_ty_mbang (_mode μ m) (_ty η μ δ τ ξ)

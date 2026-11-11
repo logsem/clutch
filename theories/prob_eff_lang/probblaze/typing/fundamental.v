@@ -257,6 +257,16 @@ Proof.
     + (* TAlloc *) 
       iApply interp_c_alloc_ref. apply fundamental in Ht.
       iPoseProof Ht as "Ht". by iApply "Ht". 
+    + (* AllocC_typed *)
+      iApply interp_c_alloc_refc. apply fundamental in Ht.
+      iPoseProof Ht as "Ht". by iApply "Ht".
+    + (* LoadC_typed *)
+      iApply interp_c_load_refc; [done|]. apply fundamental in Ht.
+      iPoseProof Ht as "Ht". by iApply "Ht".
+    + (* StoreC_typed *)
+      iApply interp_c_store_refc; [done| |];
+        [apply fundamental in Ht1 as Ht | apply fundamental in Ht2 as Ht];
+        iPoseProof Ht as "Ht"; by iApply "Ht".
     + (* TLoad *) iApply interp_c_load_ref. 
     + (* TStore *)
       (* Linear-reference store. *)

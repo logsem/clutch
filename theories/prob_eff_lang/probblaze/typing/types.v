@@ -47,6 +47,7 @@ Section syntax.
 
   (* Reference type. *)
   | TRef : type → type
+  | TRefC : type → type
 
   (* Tape type. *)
   | TTape : type
@@ -119,6 +120,7 @@ Section syntax.
     | TTape
     | TVar _ => τ
     | TRef α => TRef α.|[σ]
+    | TRefC α => TRefC α.|[σ]
     | TProd α β => TProd α.|[σ] β.|[σ]
     | TSum α β => TSum α.|[σ] β.|[σ]
     | TArrow α ρ β => TArrow α.|[σ] ρ.|[σ] β.|[σ]
@@ -200,6 +202,7 @@ Section syntax.
     | TTape => τ
     | TVar i => TVar (ξ i)
     | TRef α => TRef (rename ξ α)
+    | TRefC α => TRefC (rename ξ α)
     | TProd α β => TProd (rename ξ α) (rename ξ β)
     | TSum α β => TSum (rename ξ α) (rename ξ β)
     | TArrow α ρ β => TArrow (rename ξ α) (rename_type_row ξ ρ) (rename ξ β)
@@ -259,6 +262,7 @@ Section syntax.
          | TRec α => TRec (rename_row_type ξ α)
          | TBang m α => TBang m (rename_row_type ξ α)
          | TRef α => TRef (rename_row_type ξ α)
+         | TRefC α => TRefC (rename_row_type ξ α)
          end
   with rename_row_eff_sig (ξ : var → var) (s : eff_sig) : eff_sig :=
          match s with
@@ -281,6 +285,7 @@ Section syntax.
     | TTape => τ
     | TVar i => σ i
     | TRef α => TRef α.[σ]
+    | TRefC α => TRefC α.[σ]
     | TProd α β => TProd α.[σ] β.[σ]
     | TSum α β =>  TSum α.[σ] β.[σ]
     | TArrow α ρ β => TArrow α.[σ] ρ.|[σ] β.[σ]
@@ -334,6 +339,7 @@ Section syntax.
          | TTape
          | TVar _ => τ
          | TRef α => TRef α.|[σ]
+         | TRefC α => TRefC α.|[σ]
          | TProd α β => TProd α.|[σ] β.|[σ]
          | TSum α β =>  TSum α.|[σ] β.|[σ]
          | TArrow α ρ β => TArrow α.|[σ] ρ.[σ] β.|[σ]
@@ -832,6 +838,7 @@ Notation "∃: τ" :=
   (TExists τ%ty)
   (at level 100, τ at level 200) : FType_scope.
 Notation "'ref' τ" := (TRef τ%ty) (at level 10, τ at next level, right associativity): FType_scope.
+Notation "'refᶜ' τ" := (TRefC τ%ty) (at level 10, τ at next level, right associativity): FType_scope.
 Notation "![ m ] τ" := (TBang m τ%ty) (at level 10, τ at next level, right associativity): FType_scope.
 Notation "¡[ m ] ρ" := (RFlip m ρ) (at level 10, ρ at next level, right associativity).
 (* Notation "! τ" := (TBang MS τ%ty) (at level 10, τ at next level, right associativity): FType_scope. *)
@@ -1066,6 +1073,11 @@ Module le.
   | RFlipNil_le D b m : _row D b (RFlip m RNil) RNil
   | RFlipCons_le D b m σ ρ : _row D b (RFlip m (RCons σ ρ)) (RCons (SFlip m σ) (RFlip m ρ))
   | RFlipUnion_le D b m ρ1 ρ2 : _row D b (RFlip m (RUnion ρ1 ρ2)) (RUnion (RFlip m ρ1) (RFlip m ρ2))
+  (* Converses of [RFlipCons_le] and [RFlipUnion_le]: both sides denote the
+     same semantic row.  The converse of [RFlipNil_le] is an instance of
+     [RFlipIntro_le]. *)
+  | RFlipConsInv_le D b m σ ρ : _row D b (RCons (SFlip m σ) (RFlip m ρ)) (RFlip m (RCons σ ρ))
+  | RFlipUnionInv_le D b m ρ1 ρ2 : _row D b (RUnion (RFlip m ρ1) (RFlip m ρ2)) (RFlip m (RUnion ρ1 ρ2))
   | RFlipElim_le D b ρ : _row D b (RFlip MS ρ) ρ
   | RFlipIntro_le D b m ρ : _row D b ρ (RFlip m ρ)
   | RFlipIdemp1_le D b m ρ : _row D b (RFlip m (RFlip m ρ)) (RFlip m ρ)
@@ -1118,6 +1130,8 @@ Module le.
     _mode m' m →
     _type D α α' →
     _type D (TBang m α) (TBang m' α')
+  | TBangRefC_le D m α :
+    _type D (TRefC α) (TBang m (TRefC α))
   | TBangProd1_le D m α β :
     _type D (TProd (TBang m α) (TBang m β)) (TBang m (TProd α β))
   | TBangProd2_le D m α β :
@@ -1275,6 +1289,7 @@ Module vars.
     | TSum α β =>
         (_ty α) ∪ (_ty β)
     | TRef α
+    | TRefC α
     | TRec α
     | TBang _ α
     | TExists α
@@ -1423,6 +1438,9 @@ Inductive typed :
                     
 
 | TAlloc Δ Γ1 e ρ τ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2  → Δ .| Γ1 ⊢ₜ AllocN (Val $ LitV $ LitInt 1) e : ρ : ref τ ⊣ Γ2
+| AllocC_typed Δ Γ1 e ρ τ Γ2 : Δ .| Γ1 ⊢ₜ e : ρ : τ ⊣ Γ2 → Δ .| Γ1 ⊢ₜ AllocN (Val $ LitV $ LitInt 1) e : ρ : refᶜ τ ⊣ Γ2
+| LoadC_typed Δ Γ1 e ρ τ Γ2 : le.MultiT τ → Δ .| Γ1 ⊢ₜ e : ρ : refᶜ τ ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Load e : ρ : τ ⊣ Γ2
+| StoreC_typed Δ Γ1 Γ2 Γ3 e1 e2 ρ τ : ρ R⪯T τ → Δ .| Γ2 ⊢ₜ e1 : ρ : refᶜ τ ⊣ Γ3 → Δ .| Γ1 ⊢ₜ e2 : ρ : τ ⊣ Γ2 → Δ .| Γ1 ⊢ₜ Store e1 e2 : ρ : () ⊣ Γ3
                      (* generalized load rule to allow reuse of affine references *)
 | TLoad Δ Γ (x : string) τ : Δ .| <[ x :=c ref τ ]> Γ ⊢ₜ Load (Var x) : RNil : τ ⊣ <[ x :=c ref ⊤ ]> Γ 
                      (* generalized store rule to allow to store a different type *)

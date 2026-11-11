@@ -861,12 +861,14 @@ Section dhke_core_typing.
       Unshelve. all: try solve_typed_side. all: simpl; exact Hc.
   Qed.
 
-  Lemma dh_handler_typed (θ ρh : sem_row Σ) (τt : sem_ty Σ) `{!MultiT τt} :
-    ⊢ sampler_typed τt -∗ (¡ θ)%R ≤ᵣ ρh -∗
-    sem_typed (("p", (𝟙 + 𝟙)%T) :: ("k", (Option 𝔾 -{ ρh }-[OS]-> 𝟙)%T) :: dh_env θ τt)
-      dh_body dh_body ρh 𝟙 (dh_env θ τt).
+  Lemma dh_handler_typed (θ ρ : sem_row Σ) (τt : sem_ty Σ) `{!MultiT τt} :
+    ⊢ sampler_typed τt -∗
+    sem_typed (("p", (𝟙 + 𝟙)%T) :: ("k", (Option 𝔾 -{ sem_row_union (¡ θ) ρ }-[OS]-> 𝟙)%T) :: dh_env θ τt)
+      dh_body dh_body (sem_row_union (¡ θ) ρ) 𝟙 (dh_env θ τt).
   Proof using All.
-    iIntros "#Hs #Hρ". rewrite /dh_env /dh_body.
+    iIntros "#Hs".
+    iAssert ((¡ θ)%R ≤ᵣ sem_row_union (¡ θ) ρ)%I as "#Hρ"; first row_le_submseteq.
+    rewrite /dh_env /dh_body.
     iApplyT (sem_typed_match_split [] []).
     - tvar.
     - iApply env_le_refl.
@@ -949,7 +951,7 @@ Section dhke_core_typing.
       + iApply row_le_mfbang_elim.
       + iApply row_le_refl.
       + row_le_submseteq.
-    - iIntros (?). iApply (dh_handler_typed with "Hs"); row_le_submseteq.
+    - iIntros (?). clause_at_union_row. iApply (dh_handler_typed with "Hs").
     - tvar.
       Unshelve. all: solve_typed_side.
   Qed.
