@@ -59,9 +59,9 @@ Section sec_channel_ideal_typing.
     (((𝟙 + 𝟙) -{ θ }-> τ_sl) × ((𝟙 + 𝟙) -{ θ }-> Option ℕ))%T.
 
   Definition τ_FCHAN : sem_ty Σ :=
-    (∀ᵣ θ, hdl cli θ ⊸ ∀ᵣ θJ, fleak θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)%T.
+    (∀ᵣ θ, hdl cli θ → ∀ᵣ θJ, fleak θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)%T.
   Definition τ_CHAN_SIM : sem_ty Σ :=
-    (∀ᵣ θ, (∀ᵣ θJ, fleak θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) ⊸ τ__f θ oaleak leakI)%T.
+    (∀ᵣ θ, (∀ᵣ θJ, fleak θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) → τ__f θ oaleak leakI)%T.
 
   (* ------------------------------------------------------------------ *)
   (* F_CHAN                                                              *)
@@ -226,7 +226,8 @@ Section sec_channel_ideal_typing.
     iApply fac_closure.
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    (* the client-taking closure captures only copyable state *)
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _]).
     iApply sem_typed_RLam. iIntros (θJ).
     iApplyT sem_oval_typed_afun. simpl.
@@ -398,7 +399,8 @@ Section sec_channel_ideal_typing.
       - iApply env_le_refl. }
     (* The state is captured by the client-taking closures *)
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    (* the client-taking closure captures only copyable state *)
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _; _; _]).
     iApply sem_typed_RLam. iIntros (θ1). iApply sem_typed_RLam. iIntros (θ2).
     iApplyT sem_oval_typed_afun. simpl.

@@ -118,7 +118,7 @@ Section dhke_tapeless.
     do 2 (iApplyT sem_typed_let; first iApply alloc_rule);
     do 2 (iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none));
     iApply sem_typed_sub_nil; iApply (sem_typed_oval _ [_; _; _; _]); iApply sem_typed_RLam; iIntros (θ);
-    iApplyT sem_oval_typed_afun;
+    iApplyT sem_oval_typed_ufun;
     iApply (sem_typed_oval _ [_; _; _; _; _]); iApply sem_typed_RLam; iIntros (θ₂);
     iApplyT sem_oval_typed_afun; simpl;
     iApplyT (sem_typed_sub_env _ [("f", _); ("effs", _); ("α", _); ("β", _); ("l1", _); ("l2", _)]);

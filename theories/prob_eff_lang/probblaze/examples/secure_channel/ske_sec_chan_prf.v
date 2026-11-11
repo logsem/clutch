@@ -41,7 +41,6 @@ Section schan_security.
   #[local] Notation sec_channel := (@sec_channel Σ mt).
   #[local] Notation skechan_thy := (@skechan_thy Σ mt).
   #[local] Notation τsc := (@τsc Σ _ mt ct ms cs msg cipher).
-  #[local] Notation τsc_OS := (@τsc_OS Σ _ mt ct ms cs msg cipher).
   #[local] Notation SEM_TYPED_EFF := (@SEM_TYPED_EFF Σ _ mt ms msg).
 
 

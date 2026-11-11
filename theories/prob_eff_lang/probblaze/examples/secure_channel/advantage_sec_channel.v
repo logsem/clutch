@@ -10,7 +10,7 @@
 
      advantage A ((F_KE_lazy_alice ||ᵣ F_OAUTH) ∘f CHAN) (CHAN_SIM_lazy ∘f F_CHAN) ≤ 0
 
-   for environments [A : fac m τ_CHAN_OS → 𝔹].  The two relations are
+   for environments [A : fac m τ_CHAN → 𝔹].  The two relations are
    proved in [sec_channel_prf]. *)
 
 From iris.proofmode Require Import base proofmode classes.
@@ -67,31 +67,31 @@ Section schan_advantage.
   Context {M : ∀ `{probblazeRGS Σ}, Mask_struc}.
 
   Theorem adv_SCHAN (m : mode) (A : val) :
-    (∀ `{!probblazeRGS Σ}, ⊢ sem_val_typed A A (fac m τ_CHAN_OS → 𝔹)%T) →
+    (∀ `{!probblazeRGS Σ}, ⊢ sem_val_typed A A (fac m τ_CHAN → 𝔹)%T) →
     advantage A REAL_SCHAN (SIM_SCHAN ∘f IDEAL_SCHAN) #true <= 0.
   Proof using All.
     intros HA.
-    apply (advantage_zero _ _ _ _ (λ H : probblazeRGS Σ, fac m τ_CHAN_OS)); [exact HA| |]; intros HRGS;
-      (iApply sem_typed_sub_ty; first (iApply fac_le; iApply τ_CHAN_le_τ_CHAN_OS));
+    apply (advantage_zero _ _ _ _ (λ H : probblazeRGS Σ, fac m τ_CHAN)); [exact HA| |]; intros HRGS;
       [iApply R_CHAN_SIM_f|iApply SIM_R_CHAN_f].
   Qed.
 
   (** Syntactically typed environments *)
 
-  (* [τ_CHAN_OS], syntactically. *)
+  (* [τ_CHAN], syntactically. *)
   Definition T_SCHAN : type :=
     (∀R:
       (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> (() + τG)))
-             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()) -∘
+             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()) ⇾
       (∀R: ∀R: ((((τG * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> (() + ())))
                  * (((() + ()) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ()))))
              -{ (RFlip OS (RVar 1%nat)) ∪ᵣ ((RFlip OS (RVar 0%nat)) ∪ᵣ RVar 2%nat) }-∘ ()))%ty.
 
   Lemma T_SCHAN_subtype `{!probblazeRGS Σ} η μ δ ξ :
-    ⊢ τ_CHAN_OS ≤ₜ interp.interp._ty η μ δ T_SCHAN ξ.
+    ⊢ τ_CHAN ≤ₜ interp.interp._ty η μ δ T_SCHAN ξ.
   Proof using All.
-    rewrite /T_SCHAN /τ_CHAN_OS /sem_ty_option /=.
+    rewrite /T_SCHAN /τ_CHAN /sem_ty_option /=.
     iApply ty_le_row_forall; iIntros (θL).
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
     iApply ty_le_arr; first iApply row_le_refl.
     - (* the client: its receive returns a group element *)
       iApply ty_le_row_forall; iIntros (θh).
@@ -116,7 +116,7 @@ Section schan_advantage.
     ⊢ᵥ A : ((() -∘ T_SCHAN) ⇾ TBool)%ty →
     advantage A REAL_SCHAN (SIM_SCHAN ∘f IDEAL_SCHAN) #true <= 0.
   Proof using All.
-    intros HA. apply (adv_SCHAN OS), (typed_env_fac A T_SCHAN (λ _, τ_CHAN_OS)); last done.
+    intros HA. apply (adv_SCHAN OS), (typed_env_fac A T_SCHAN (λ _, τ_CHAN)); last done.
     intros. apply T_SCHAN_subtype.
   Qed.
 

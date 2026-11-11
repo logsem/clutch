@@ -163,7 +163,7 @@ Section new_comp_verification.
         Unshelve. all: solve_typed_side.
     Qed.
 
-    Lemma F_OAUTH_typed_u m : ⊢ ⊨ᵥ F_OAUTH ≤ F_OAUTH : fac m (τ__Fu oaleak chan).
+    Lemma F_OAUTH_typed m : ⊢ ⊨ᵥ F_OAUTH ≤ F_OAUTH : fac m (τ__F oaleak chan).
     Proof using Type*.
       iApply fac_closure.
       iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApplyT sem_typed_none).
@@ -217,10 +217,6 @@ Section new_comp_verification.
         Unshelve. all: solve_typed_side.
     Qed.
 
-    Corollary F_OAUTH_typed m : ⊢ ⊨ᵥ F_OAUTH ≤ F_OAUTH : fac m (τ__F oaleak chan).
-    Proof using All.
-      iApply sem_val_typed_sub; [iApply fac_le; iApply τ__Fu_le_τ__F|iApply F_OAUTH_typed_u].
-    Qed.
       
   End f_oauth.
 
@@ -498,7 +494,7 @@ Section new_comp_verification.
         Unshelve. all: solve_typed_side.
     Qed.
 
-    Lemma CHAN_typed_u m :
+    Lemma CHAN_typed m :
       ⊢ ⊨ᵥ CHAN ≤ CHAN : fac m (∀ᵣ θ, hdl cli θ → τ__f θ chan gk).
     Proof using All.
       iApply fac_closure.
@@ -511,13 +507,6 @@ Section new_comp_verification.
       iApplyT sem_oval_typed_afun. simpl.
       iApply sem_typed_swap_second. iApply CHAN_body_typed.
       Unshelve. all: solve_typed_side.
-    Qed.
-
-    Lemma CHAN_typed m :
-      ⊢ ⊨ᵥ CHAN ≤ CHAN : fac m (∀ᵣ θ, hdl cli θ ⊸ τ__f θ chan gk).
-    Proof using All.
-      iApply sem_val_typed_sub; last iApply CHAN_typed_u.
-      iApply fac_le. iApply ty_le_row_forall. iIntros (θ). iApply (ty_le_mbang_elim MS).
     Qed.
 
   End chan.

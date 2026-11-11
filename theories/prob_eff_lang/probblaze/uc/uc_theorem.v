@@ -28,7 +28,7 @@ From iris.proofmode Require Import base proofmode classes.
 From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode.
 From clutch.prob_eff_lang.probblaze.uc Require Import comp_operators.
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
-From clutch.prob_eff_lang.probblaze Require Import notation metatheory semantics adequacy.
+From clutch.prob_eff_lang.probblaze Require Import notation metatheory semantics adequacy mode.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row sem_sig sem_env sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From clutch.prob_eff_lang.probblaze.uc Require Import uc_systems uc_advantage.
@@ -99,9 +99,9 @@ Section contexts.
   (* The hybrid-world context [λ x. (x ||ᵣ A₀) ∘f ρ], as an open term in [x]. *)
   Lemma ctx_hybrid_typed (m : mode) (A₀ ρ : val) (τc τJ1 τJ2 τA τH : sem_row Σ → sem_ty Σ) :
     ⊢ ⊨ᵥ A₀ ≤ A₀ : fac m (τ__F τA τJ1) -∗
-      ⊨ᵥ ρ ≤ ρ : fac m (∀ᵣ θ, τc θ ⊸ τ__f θ τJ1 τJ2) -∗
+      ⊨ᵥ ρ ≤ ρ : fac m (∀ᵣ θ, τc θ → τ__f θ τJ1 τJ2) -∗
       sem_typed [("v", fac m (τ__F τH τJ2))] (fill (hybrid_ctx A₀ ρ) "v") (fill (hybrid_ctx A₀ ρ) "v") ⊥
-        (fac m (∀ᵣ θ, τc θ ⊸ τ__f θ τA τH)) [].
+        (fac m (∀ᵣ θ, τc θ → τ__f θ τA τH)) [].
   Proof.
     iIntros "#HA₀ #Hρ". simpl.
     iApplyT sem_typed_app_nil; last first.
@@ -118,8 +118,8 @@ Section contexts.
   (* The simulator context [λ x. S ∘F x]. *)
   Lemma ctx_sim_typed (m : mode) (S : val) (τc τA τF τH : sem_row Σ → sem_ty Σ) :
     ⊢ ⊨ᵥ S ≤ S : fac m (τ__F τH τF) -∗
-      sem_typed [("v", fac m (∀ᵣ θ, τc θ ⊸ τ__f θ τA τF))] (fill (sim_ctx S) "v") (fill (sim_ctx S) "v") ⊥
-        (fac m (∀ᵣ θ, τc θ ⊸ τ__f θ τA τH)) [].
+      sem_typed [("v", fac m (∀ᵣ θ, τc θ → τ__f θ τA τF))] (fill (sim_ctx S) "v") (fill (sim_ctx S) "v") ⊥
+        (fac m (∀ᵣ θ, τc θ → τ__f θ τA τH)) [].
   Proof.
     iIntros "#HS". simpl.
     iApplyT sem_typed_app_nil; last typed_var.
@@ -159,24 +159,25 @@ Section contexts.
      [G]: [S']'s output row in the other order, and [G]'s port quantifier
      outside the arrow.  Both are subtyping. *)
   Lemma sim_assoc_shape_le (τG τA τF : sem_row Σ → sem_ty Σ) :
-    ⊢ (∀ᵣ θ, (∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) ⊸ τ__f θ τA τF)%T ≤ₜ
-      (∀ᵣ θ, (∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) ⊸
+    ⊢ (∀ᵣ θ, (∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) → τ__f θ τA τF)%T ≤ₜ
+      (∀ᵣ θ, (∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) →
           ∀ᵣ θ1, ∀ᵣ θ2, (τA θ1 × τF θ2) -{ sem_row_union (¡θ2) (sem_row_union (¡θ1) θ) }-∘ 𝟙)%T.
   Proof.
     iApply ty_le_row_forall; iIntros (θ).
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
     iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|].
     rewrite /τ__f. iApply ty_le_row_forall; iIntros (θ1). iApply ty_le_row_forall; iIntros (θ2).
     iApply ty_le_arr; [row_le_submseteq|iApply ty_le_refl|iApply ty_le_refl].
   Qed.
 
   Lemma fun_assoc_shape_le (τc τG : sem_row Σ → sem_ty Σ) :
-    ⊢ (∀ᵣ θ, τc θ ⊸ ∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)%T ≤ₜ
-      (∀ᵣ θ, ∀ᵣ θJ, τc θ ⊸ τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)%T.
+    ⊢ (∀ᵣ θ, τc θ → ∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)%T ≤ₜ
+      (∀ᵣ θ, ∀ᵣ θJ, τc θ → τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)%T.
   Proof.
     iApply ty_le_row_forall; iIntros (θ).
     iIntros "!# %v1 %v2 H %θJ".
-    iDestruct (ty_le_arr with "[] [] []") as "Hle";
-      [iApply row_le_refl|iApply ty_le_refl|iApply (ty_le_row_forall_inst _ θJ)|].
+    iDestruct (ty_le_mbang_comp MS MS with "[] []") as "Hle"; first iApply mode_le_refl.
+    { iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|iApply (ty_le_row_forall_inst _ θJ)]. }
     iApply ("Hle" with "H").
   Qed.
 
@@ -202,26 +203,26 @@ Section uc_composition.
     (∀ `{probblazeRGS Σ}, ⊢ ⊨ᵥ S ≤ S : fac m (τ__F τH τF)) →
     (∀ `{probblazeRGS Σ}, ⊢ ⊨ᵥ F ≤ F : fac m (τ__F τF τJ2)) →
     (∀ `{probblazeRGS Σ}, ⊢ ⊨ᵥ A₀ ≤ A₀ : fac m (τ__F τA τJ1)) →
-    (∀ `{probblazeRGS Σ}, ⊢ ⊨ᵥ ρ ≤ ρ : fac m (∀ᵣ θ, τc θ ⊸ τ__f θ τJ1 τJ2)) →
+    (∀ `{probblazeRGS Σ}, ⊢ ⊨ᵥ ρ ≤ ρ : fac m (∀ᵣ θ, τc θ → τ__f θ τJ1 τJ2)) →
     (∀ `{probblazeRGS Σ}, ⊢ ⊨ᵥ S' ≤ S' :
-        fac m (∀ᵣ θ, (∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) ⊸ τ__f θ τA τF)) →
+        fac m (∀ᵣ θ, (∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) → τ__f θ τA τF)) →
     (∀ `{probblazeRGS Σ}, ⊢ ⊨ᵥ G ≤ G :
-        fac m (∀ᵣ θ, τc θ ⊸ ∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)) →
+        fac m (∀ᵣ θ, τc θ → ∀ᵣ θJ, τG θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)) →
     (* π realises F in the H-hybrid world with simulator S *)
     (∀ A : val, (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (fac m (τ__F τH τJ2) → 𝔹)%T) →
        advantage A Rπ (S ∘f F) #b <= ε_π A) →
     (* ρ realises G in the (F, A₀)-hybrid world with simulator S' *)
-    (∀ A : val, (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (fac m (∀ᵣ θ, τc θ ⊸ τ__f θ τA τF) → 𝔹)%T) →
+    (∀ A : val, (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (fac m (∀ᵣ θ, τc θ → τ__f θ τA τF) → 𝔹)%T) →
        advantage A ((F ||ᵣ A₀) ∘f ρ) (S' ∘f G) #b <= ε_ρ A) →
     (* the composed protocol realises G with the composed simulator S ∘F S' *)
     ∀ A : val,
-      (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (fac m (∀ᵣ θ, τc θ ⊸ τ__f θ τA τH) → 𝔹)%T) →
+      (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (fac m (∀ᵣ θ, τc θ → τ__f θ τA τH) → 𝔹)%T) →
       advantage A ((Rπ ||ᵣ A₀) ∘f ρ) ((S ∘F S') ∘f G) #b
         <= ε_π (λ: "v", A (("v" ||ᵣₚ A₀) ∘fₚ ρ))%V + ε_ρ (λ: "v", A (S ∘Fₚ "v"))%V.
   Proof.
     intros HS HF HA₀ Hρ HS' HG Hπ Hρ' A HA.
     (* The type of the composed systems. *)
-    set (β := λ H : probblazeRGS Σ, fac m (∀ᵣ θ, τc H θ ⊸ τ__f θ (τA H) (τH H))%T).
+    set (β := λ H : probblazeRGS Σ, fac m (∀ᵣ θ, τc H θ → τ__f θ (τA H) (τH H))%T).
     (* The chain of hybrids:
          (Rπ ||ᵣ A₀) ∘f ρ
        ≤ ((S ∘f F) ||ᵣ A₀) ∘f ρ          [Hπ, through the hybrid context]

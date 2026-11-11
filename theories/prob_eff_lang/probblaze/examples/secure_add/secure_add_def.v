@@ -178,7 +178,7 @@ Section secure_add_type.
      and then the aggregator's operations together with the leak operations
      of [F_CHAN]. *)
   Definition τ_ADD : sem_ty Σ :=
-    (∀ᵣ θ__L, (∀ᵣ θₕ, ((ℕ -{ θₕ }-> 𝟙) × (ℕ -{ θₕ }-> 𝟙)) -{ sem_row_union θₕ θ__L }-∘ 𝟙) ⊸
+    (∀ᵣ θ__L, (∀ᵣ θₕ, ((ℕ -{ θₕ }-> 𝟙) × (ℕ -{ θₕ }-> 𝟙)) -{ sem_row_union θₕ θ__L }-∘ 𝟙) →
        (∀ᵣ θ₁, (((𝔾 -{ θ₁ }-> 𝟙) × (𝔾 -{ θ₁ }-> 𝟙))
                 × (((𝟙 + 𝟙) -{ θ₁ }-> 𝟙) × ((𝟙 + 𝟙) -{ θ₁ }-> Option 𝟙)))
                  -{ sem_row_union (¡ θ₁)%R θ__L }-∘ 𝟙))%T.

@@ -114,12 +114,12 @@ Section dhke_ske_typing.
     (((𝟙 + 𝟙) -{ θ }-> τ_sl) × ((𝟙 + 𝟙) -{ θ }-> Option Cph))%T.
 
   Definition τ_FCHAN_ske : sem_ty Σ :=
-    (∀ᵣ θ, hdl (cli msg) θ ⊸ ∀ᵣ θJ, fleak_ske θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)%T.
+    (∀ᵣ θ, hdl (cli msg) θ → ∀ᵣ θJ, fleak_ske θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙)%T.
   Definition τ_CHAN_SIM_ske : sem_ty Σ :=
-    (∀ᵣ θ, (∀ᵣ θJ, fleak_ske θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) ⊸ τ__f θ (oaleak cipher) leakI)%T.
+    (∀ᵣ θ, (∀ᵣ θJ, fleak_ske θJ -{ sem_row_union (¡θJ) θ }-∘ 𝟙) → τ__f θ (oaleak cipher) leakI)%T.
   (* The interface of the composed system: a channel client, over the
      authenticated-channel leakage and the DHKE leakage. *)
-  Definition τ_DHKE_SKE : sem_ty Σ := (∀ᵣ θ, hdl (cli msg) θ ⊸ τ__f θ (oaleak cipher) aleak)%T.
+  Definition τ_DHKE_SKE : sem_ty Σ := (∀ᵣ θ, hdl (cli msg) θ → τ__f θ (oaleak cipher) aleak)%T.
 
   (* ---------------------------------------------------------------- *)
   (* F_CHAN                                                             *)
@@ -284,7 +284,8 @@ Section dhke_ske_typing.
     iApply fac_closure.
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApply (sem_typed_none Msg)).
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    (* the client-taking closure captures only copyable state *)
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _]).
     iApply sem_typed_RLam. iIntros (θJ).
     iApplyT sem_oval_typed_afun. simpl.
@@ -433,7 +434,8 @@ Section dhke_ske_typing.
     iApplyT sem_typed_let; first (iApplyT sem_typed_alloc_cpy; iApply (sem_typed_none 𝟙)).
     (* The state is captured by the client-taking closures *)
     iApply sem_typed_sub_nil. iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    (* the client-taking closure captures only copyable state *)
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _; _]).
     iApply sem_typed_RLam. iIntros (θ1). iApply sem_typed_RLam. iIntros (θ2).
     iApplyT sem_oval_typed_afun. simpl.
@@ -563,7 +565,7 @@ Section dhke_ske_advantage.
   Definition T_DHKE_SKE : type :=
     (∀R:
       (∀R: ((ℕ -{ RVar 0%nat }-> ()) * (() -{ RVar 0%nat }-> (() + ms.(τFT))))
-             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()) -∘
+             -{ RVar 0%nat ∪ᵣ RVar 1%nat }-∘ ()) ⇾
       (∀R: ∀R: ((((cs.(τFT) * (() + ())) -{ RVar 1%nat }-> ()) * ((() + ()) -{ RVar 1%nat }-> (() + ())))
                  * (((τG * (() + ())) -{ RVar 0%nat }-> ()) * ((() + ()) -{ RVar 0%nat }-> (() + ℕ))))
              -{ (RFlip OS (RVar 1%nat)) ∪ᵣ ((RFlip OS (RVar 0%nat)) ∪ᵣ RVar 2%nat) }-∘ ()))%ty.
@@ -573,6 +575,7 @@ Section dhke_ske_advantage.
   Proof using G msg cipher.
     rewrite /T_DHKE_SKE /τ_DHKE_SKE /hdl /cli /τ__f /oaleak /aleak /sem_ty_option /=.
     iApply ty_le_row_forall; iIntros (θL).
+    iApply ty_le_mbang_comp; first iApply mode_le_refl.
     iApply ty_le_arr; first iApply row_le_refl.
     - (* the client: its receive returns a message *)
       iApply ty_le_row_forall; iIntros (θh).

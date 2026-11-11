@@ -1,8 +1,8 @@
 (* Systems as factories.
 
    A *session* is a value of a session type such as [τ__F τ τ']
-   (comp_operators): it takes its client and then its environment ports,
-   once.  A *system* (a protocol, an ideal functionality, a simulator, or a
+   (comp_operators): it takes its client, any number of times (the calls
+   share the session's state), and then its environment ports.  A *system* (a protocol, an ideal functionality, a simulator, or a
    composition of these) is a *factory*: a value [λ: <>, e] of type
    [fac m τ := 𝟙 -{⟨⟩}-[m]-> τ] whose call evaluates [e], i.e. allocates the
    state of a fresh session and returns it.  The mode [m] is the number of
@@ -111,36 +111,40 @@ Section systems.
     iApply HM. by iApply "Hg".
   Qed.
 
+  (* The closure that takes the client is unrestricted, so it may capture
+     only the two (persistent) sessions. *)
   Lemma func_comp_val_typed (T1 M T4 : sem_row Σ → sem_ty Σ) :
     (∀ θ, ⊢ eta_ty (M θ)) →
     ⊢ ⊨ᵥ func_comp ≤ func_comp :
-      ((∀ᵣ θ, M θ ⊸ T4 θ) ⊸ (∀ᵣ θ, T1 θ ⊸ M θ) ⊸ (∀ᵣ θ, T1 θ ⊸ T4 θ))%T.
+      ((∀ᵣ θ, M θ → T4 θ) ⊸ (∀ᵣ θ, T1 θ → M θ) ⊸ (∀ᵣ θ, T1 θ → T4 θ))%T.
   Proof.
     intros HM.
     iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
     iApply sem_typed_closure; first done.
     iApply (sem_typed_oval _ [_]). iApplyT sem_oval_typed_afun.
     iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun. simpl.
+    iApplyT sem_oval_typed_ufun. simpl.
     iApplyT sem_typed_app_fun_nil; first iApply row_le_refl.
     - iApplyT (sem_typed_sub_env _ [("f", T1 θ); ("G", T1 θ ⊸ M θ); ("F", _)]).
       { iApply env_le_cons; last iApply ty_le_refl.
-        iApply env_le_cons; [iApply env_le_refl|iApply ty_le_row_forall_inst]. }
+        iApply env_le_cons; [iApply env_le_refl|].
+        iApply ty_le_trans; [iApply ty_le_row_forall_inst|iApply ty_le_mbang_elim]. }
       iApply (sem_typed_oval _ [("f", _); ("G", _)] [("F", _)]).
       iApply sem_oval_typed_eta; [done|done|apply HM].
-    - iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst.
+    - iApplyT sem_typed_sub_ty; last typed_var.
+      iApply ty_le_trans; [iApply ty_le_row_forall_inst|iApply ty_le_mbang_elim].
       Unshelve. all: solve_typed_side.
   Qed.
 
   Lemma parallel_comp_val_typed (τ1 τ1' τ2 τ2' : sem_row Σ → sem_ty Σ) :
     ⊢ ⊨ᵥ parallel_composition ≤ parallel_composition :
-      (τ__F τ2 τ2' ⊸ τ__F τ1 τ1' ⊸ ∀ᵣ θ, τ__f θ τ1' τ2' ⊸ τ__f θ τ1 τ2)%T.
+      (τ__F τ2 τ2' ⊸ τ__F τ1 τ1' ⊸ ∀ᵣ θ, τ__f θ τ1' τ2' → τ__f θ τ1 τ2)%T.
   Proof.
     iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
     iApply sem_typed_closure; first done.
     iApply (sem_typed_oval _ [_]). iApplyT sem_oval_typed_afun.
     iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ1).
     iApply sem_typed_RLam. iIntros (θ2).
     iApplyT sem_oval_typed_afun. simpl.
@@ -150,6 +154,7 @@ Section systems.
     2: { iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApply (sem_typed_oval _ [_; _; _])|].
          2: { iApplyT sem_typed_sub_ty; last typed_var.
               iApply ty_le_trans; first iApply (ty_le_row_forall_inst _ (sem_row_union (¡ θ1) θ)).
+              iApply ty_le_trans; first iApply ty_le_mbang_elim.
               iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|iApply ty_le_row_forall_inst]. }
          iApply sem_typed_RLam. iIntros (θh). iApplyT sem_oval_typed_afun. simpl.
          iApplyT sem_typed_app_fun_nil.
@@ -157,6 +162,7 @@ Section systems.
          2: { iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApply (sem_typed_oval _ [_; _])|].
               2: { iApplyT sem_typed_sub_ty; last typed_var.
                    iApply ty_le_trans; first iApply (ty_le_row_forall_inst _ (sem_row_union (¡ θh) θ)).
+                   iApply ty_le_trans; first iApply ty_le_mbang_elim.
                    iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|iApply ty_le_row_forall_inst]. }
               iApply sem_typed_RLam. iIntros (θh2). iApplyT sem_oval_typed_afun. simpl.
               iApplyT sem_typed_app_fun_nil.
@@ -171,13 +177,13 @@ Section systems.
 
   Lemma functionality_comp_val_typed (τ1' τ1 τF τ2 : sem_row Σ → sem_ty Σ) :
     ⊢ ⊨ᵥ functionality_composition ≤ functionality_composition :
-      (τ__F τ2 τF ⊸ (∀ᵣ θ, τ1' θ ⊸ τ__f θ τ1 τF) ⊸ ∀ᵣ θ, τ1' θ ⊸ τ__f θ τ1 τ2)%T.
+      (τ__F τ2 τF ⊸ (∀ᵣ θ, τ1' θ → τ__f θ τ1 τF) ⊸ ∀ᵣ θ, τ1' θ → τ__f θ τ1 τ2)%T.
   Proof.
     iApply sem_val_typed_sub; first iApply (ty_le_mbang_elim OS).
     iApply sem_typed_closure; first done.
     iApply (sem_typed_oval _ [_]). iApplyT sem_oval_typed_afun.
     iApply (sem_typed_oval _ [_; _]). iApply sem_typed_RLam. iIntros (θ).
-    iApplyT sem_oval_typed_afun.
+    iApplyT sem_oval_typed_ufun.
     iApply (sem_typed_oval _ [_; _; _]). iApply sem_typed_RLam. iIntros (θ1).
     iApply sem_typed_RLam. iIntros (θ2).
     iApplyT sem_oval_typed_afun. simpl.
@@ -187,21 +193,21 @@ Section systems.
     2: { iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|iApply (sem_typed_oval _ [_; _; _])|].
          2: { iApplyT sem_typed_sub_ty; last typed_var.
               iApply ty_le_trans; first iApply (ty_le_row_forall_inst _ (sem_row_union (¡ θ1) θ)).
+              iApply ty_le_trans; first iApply ty_le_mbang_elim.
               iApply ty_le_arr; [iApply row_le_refl|iApply ty_le_refl|iApply ty_le_row_forall_inst]. }
          iApply sem_typed_RLam. iIntros (θF). iApplyT sem_oval_typed_afun. simpl.
          iApplyT sem_typed_app_fun_nil.
          2: { iApply sem_typed_sub_nil. iApplyT sem_typed_pair; typed_var. }
          2: { iApplyT sem_typed_sub_ty; last first.
               { iApplyT sem_typed_app_fun_nil; [iApply row_le_refl|typed_var|].
-                iApplyT sem_typed_sub_ty; last typed_var. iApply ty_le_row_forall_inst. }
+                iApplyT sem_typed_sub_ty; last typed_var.
+                iApply ty_le_trans; first iApply ty_le_row_forall_inst. iApply ty_le_mbang_elim. }
               rewrite /τ__f. iApply ty_le_trans; first iApply (ty_le_row_forall_inst _ θ1).
               iApply (ty_le_row_forall_inst _ θF). }
          row_le_submseteq. }
     row_le_submseteq.
     Unshelve. all: solve_typed_side.
   Qed.
-
-
 
 
   (* ---------------------------------------------------------------- *)
@@ -262,9 +268,9 @@ Section systems.
 
   Lemma func_comp_f_typed_gen (m : mode) (F F' G G' : val) (T1 M T4 : sem_row Σ → sem_ty Σ) :
     (∀ θ, ⊢ eta_ty (M θ)) →
-    ⊢ ⊨ᵥ F ≤ F' : fac m (∀ᵣ θ, M θ ⊸ T4 θ) -∗
-      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, T1 θ ⊸ M θ) -∗
-      ⊨ᵥ (F ∘f G)%fac ≤ (F' ∘f G')%fac : fac m (∀ᵣ θ, T1 θ ⊸ T4 θ).
+    ⊢ ⊨ᵥ F ≤ F' : fac m (∀ᵣ θ, M θ → T4 θ) -∗
+      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, T1 θ → M θ) -∗
+      ⊨ᵥ (F ∘f G)%fac ≤ (F' ∘f G')%fac : fac m (∀ᵣ θ, T1 θ → T4 θ).
   Proof. intros HM. iApply fac_op_typed. by iApply func_comp_val_typed. Qed.
 
   Lemma func_comp_f_typed (m : mode) (F F' G G' : val) (τ1 τ2 τ3 : sem_row Σ → sem_ty Σ) :
@@ -278,13 +284,13 @@ Section systems.
   Lemma parallel_comp_f_typed (m : mode) (F F' G G' : val) (τ1 τ1' τ2 τ2' : sem_row Σ → sem_ty Σ) :
     ⊢ ⊨ᵥ F ≤ F' : fac m (τ__F τ2 τ2') -∗
       ⊨ᵥ G ≤ G' : fac m (τ__F τ1 τ1') -∗
-      ⊨ᵥ (F ||ᵣ G)%fac ≤ (F' ||ᵣ G')%fac : fac m (∀ᵣ θ, τ__f θ τ1' τ2' ⊸ τ__f θ τ1 τ2).
+      ⊨ᵥ (F ||ᵣ G)%fac ≤ (F' ||ᵣ G')%fac : fac m (∀ᵣ θ, τ__f θ τ1' τ2' → τ__f θ τ1 τ2).
   Proof. iApply fac_op_typed. iApply parallel_comp_val_typed. Qed.
 
   Lemma functionality_comp_f_typed (m : mode) (F F' G G' : val) (τ1' τ1 τF τ2 : sem_row Σ → sem_ty Σ) :
     ⊢ ⊨ᵥ F ≤ F' : fac m (τ__F τ2 τF) -∗
-      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, τ1' θ ⊸ τ__f θ τ1 τF) -∗
-      ⊨ᵥ (F ∘F G)%fac ≤ (F' ∘F G')%fac : fac m (∀ᵣ θ, τ1' θ ⊸ τ__f θ τ1 τ2).
+      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, τ1' θ → τ__f θ τ1 τF) -∗
+      ⊨ᵥ (F ∘F G)%fac ≤ (F' ∘F G')%fac : fac m (∀ᵣ θ, τ1' θ → τ__f θ τ1 τ2).
   Proof. iApply fac_op_typed. iApply functionality_comp_val_typed. Qed.
 
   (* ---------------------------------------------------------------- *)
@@ -314,7 +320,7 @@ Section systems.
   Lemma func_comp_app_typed_gen (m : mode) (T1 M T4 : sem_row Σ → sem_ty Σ) :
     (∀ θ, ⊢ eta_ty (M θ)) →
     ⊢ ⊨ᵥ fac_app func_comp ≤ fac_app func_comp :
-        (fac m (∀ᵣ θ, M θ ⊸ T4 θ) ⊸ fac m (∀ᵣ θ, T1 θ ⊸ M θ) ⊸ fac m (∀ᵣ θ, T1 θ ⊸ T4 θ))%T.
+        (fac m (∀ᵣ θ, M θ → T4 θ) ⊸ fac m (∀ᵣ θ, T1 θ → M θ) ⊸ fac m (∀ᵣ θ, T1 θ → T4 θ))%T.
   Proof. intros HM. iApply fac_app_val_typed. by iApply func_comp_val_typed. Qed.
 
   Lemma func_comp_app_typed (m : mode) (τ1 τ2 τ3 : sem_row Σ → sem_ty Σ) :
@@ -326,12 +332,12 @@ Section systems.
 
   Lemma parallel_comp_app_typed (m : mode) (τ1 τ1' τ2 τ2' : sem_row Σ → sem_ty Σ) :
     ⊢ ⊨ᵥ fac_app parallel_composition ≤ fac_app parallel_composition :
-        (fac m (τ__F τ2 τ2') ⊸ fac m (τ__F τ1 τ1') ⊸ fac m (∀ᵣ θ, τ__f θ τ1' τ2' ⊸ τ__f θ τ1 τ2))%T.
+        (fac m (τ__F τ2 τ2') ⊸ fac m (τ__F τ1 τ1') ⊸ fac m (∀ᵣ θ, τ__f θ τ1' τ2' → τ__f θ τ1 τ2))%T.
   Proof. iApply fac_app_val_typed. iApply parallel_comp_val_typed. Qed.
 
   Lemma functionality_comp_app_typed (m : mode) (τ1' τ1 τF τ2 : sem_row Σ → sem_ty Σ) :
     ⊢ ⊨ᵥ fac_app functionality_composition ≤ fac_app functionality_composition :
-        (fac m (τ__F τ2 τF) ⊸ fac m (∀ᵣ θ, τ1' θ ⊸ τ__f θ τ1 τF) ⊸ fac m (∀ᵣ θ, τ1' θ ⊸ τ__f θ τ1 τ2))%T.
+        (fac m (τ__F τ2 τF) ⊸ fac m (∀ᵣ θ, τ1' θ → τ__f θ τ1 τF) ⊸ fac m (∀ᵣ θ, τ1' θ → τ__f θ τ1 τ2))%T.
   Proof. iApply fac_app_val_typed. iApply functionality_comp_val_typed. Qed.
 
   (* ---------------------------------------------------------------- *)
@@ -421,50 +427,50 @@ Section systems.
      that uses the port of [G]. *)
   Lemma func_comp_parallel_comp_f_assoc (m : mode) (F F' G G' J J' : val) (τ1 τ2 τG τ1' τ2' : sem_row Σ → sem_ty Σ) :
     ⊢ ⊨ᵥ F ≤ F' : fac m (τ__F τ2 τG) -∗ ⊨ᵥ G ≤ G' : fac m (τ__F τG τ1') -∗ ⊨ᵥ J ≤ J' : fac m (τ__F τ1 τ2') -∗
-      ⊨ᵥ ((F ∘f G) ||ᵣ J)%fac ≤ (F' ∘F (G' ||ᵣ J'))%fac : fac m (∀ᵣ θ, τ__f θ τ2' τ1' ⊸ τ__f θ τ1 τ2).
+      ⊨ᵥ ((F ∘f G) ||ᵣ J)%fac ≤ (F' ∘F (G' ||ᵣ J'))%fac : fac m (∀ᵣ θ, τ__f θ τ2' τ1' → τ__f θ τ1 τ2).
   Proof. iApply fac_assoc_L. intros ??????. apply func_comp_parallel_comp_assoc_core. Qed.
 
   Lemma func_comp_parallel_comp_f_assoc_rev (m : mode) (F F' G G' J J' : val) (τ1 τ2 τG τ1' τ2' : sem_row Σ → sem_ty Σ) :
     ⊢ ⊨ᵥ F ≤ F' : fac m (τ__F τ2 τG) -∗ ⊨ᵥ G ≤ G' : fac m (τ__F τG τ1') -∗ ⊨ᵥ J ≤ J' : fac m (τ__F τ1 τ2') -∗
-      ⊨ᵥ (F ∘F (G ||ᵣ J))%fac ≤ ((F' ∘f G') ||ᵣ J')%fac : fac m (∀ᵣ θ, τ__f θ τ2' τ1' ⊸ τ__f θ τ1 τ2).
+      ⊨ᵥ (F ∘F (G ||ᵣ J))%fac ≤ ((F' ∘f G') ||ᵣ J')%fac : fac m (∀ᵣ θ, τ__f θ τ2' τ1' → τ__f θ τ1 τ2).
   Proof. iApply fac_assoc_R. intros ??????. apply func_comp_parallel_comp_assoc_rev_core. Qed.
 
   (* [(F ∘F G) ∘f J ≃ F ∘F (G ∘f J)], for a two-port [J] ("gen") and for a
      one-port [J]. *)
   Lemma functionality_comp_func_comp_f_assoc_gen (m : mode) (F F' G G' J J' : val)
       (τ1 τ2 τ1' τF : sem_row Σ → sem_ty Σ) (τJ : sem_row Σ → sem_row Σ → sem_ty Σ) :
-    ⊢ ⊨ᵥ F ≤ F' : fac m (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ }-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙) -∗
-      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, (∀ᵣ θJ1, ∀ᵣ θJ2, τJ θJ1 θJ2 -{ sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ) }-∘ 𝟙) ⊸ (∀ᵣ θ1, (∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ1)%R (sem_row_union (¡θ2)%R θ) }-∘ 𝟙))) -∗
-      ⊨ᵥ J ≤ J' : fac m (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θJ1, ∀ᵣ θJ2, (τJ θJ1 θJ2) -{ sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ) }-∘ 𝟙)) -∗
+    ⊢ ⊨ᵥ F ≤ F' : fac m (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ }-∘ 𝟙) → ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙) -∗
+      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, (∀ᵣ θJ1, ∀ᵣ θJ2, τJ θJ1 θJ2 -{ sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ) }-∘ 𝟙) → (∀ᵣ θ1, (∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ1)%R (sem_row_union (¡θ2)%R θ) }-∘ 𝟙))) -∗
+      ⊨ᵥ J ≤ J' : fac m (∀ᵣ θ, (τ1' θ) → (∀ᵣ θJ1, ∀ᵣ θJ2, (τJ θJ1 θJ2) -{ sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ) }-∘ 𝟙)) -∗
       ⊨ᵥ ((F ∘F G) ∘f J)%fac ≤ (F' ∘F (G' ∘f J'))%fac :
-        fac m (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙)).
+        fac m (∀ᵣ θ, (τ1' θ) → (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙)).
   Proof. iApply fac_assoc_L. intros ??????. apply functionality_comp_func_comp_assoc_gen_core. Qed.
 
   Lemma functionality_comp_func_comp_f_assoc_gen_rev (m : mode) (F F' G G' J J' : val)
       (τ1 τ2 τ1' τF : sem_row Σ → sem_ty Σ) (τJ : sem_row Σ → sem_row Σ → sem_ty Σ) :
-    ⊢ ⊨ᵥ F ≤ F' : fac m (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ }-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙) -∗
-      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, (∀ᵣ θJ1, ∀ᵣ θJ2, τJ θJ1 θJ2 -{ sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ) }-∘ 𝟙) ⊸ (∀ᵣ θ1, (∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ1)%R (sem_row_union (¡θ2)%R θ) }-∘ 𝟙))) -∗
-      ⊨ᵥ J ≤ J' : fac m (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θJ1, ∀ᵣ θJ2, (τJ θJ1 θJ2) -{ sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ) }-∘ 𝟙)) -∗
+    ⊢ ⊨ᵥ F ≤ F' : fac m (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ }-∘ 𝟙) → ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙) -∗
+      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, (∀ᵣ θJ1, ∀ᵣ θJ2, τJ θJ1 θJ2 -{ sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ) }-∘ 𝟙) → (∀ᵣ θ1, (∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ1)%R (sem_row_union (¡θ2)%R θ) }-∘ 𝟙))) -∗
+      ⊨ᵥ J ≤ J' : fac m (∀ᵣ θ, (τ1' θ) → (∀ᵣ θJ1, ∀ᵣ θJ2, (τJ θJ1 θJ2) -{ sem_row_union (¡θJ1)%R (sem_row_union (¡θJ2)%R θ) }-∘ 𝟙)) -∗
       ⊨ᵥ (F ∘F (G ∘f J))%fac ≤ ((F' ∘F G') ∘f J')%fac :
-        fac m (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙)).
+        fac m (∀ᵣ θ, (τ1' θ) → (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙)).
   Proof. iApply fac_assoc_R. intros ??????. apply functionality_comp_func_comp_assoc_gen_rev_core. Qed.
 
   Lemma functionality_comp_func_comp_f_assoc (m : mode) (F F' G G' J J' : val)
       (τ1 τ2 τ1' τJ τF : sem_row Σ → sem_ty Σ) :
-    ⊢ ⊨ᵥ F ≤ F' : fac m (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ }-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙) -∗
-      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, (∀ᵣ θJ, τJ θJ -{ sem_row_union (¡θJ)%R θ }-∘ 𝟙) ⊸ ∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ2)%R (sem_row_union (¡θ1)%R θ) }-∘ 𝟙) -∗
-      ⊨ᵥ J ≤ J' : fac m (∀ᵣ θ, ∀ᵣ θJ, τ1' θ ⊸ τJ θJ -{ sem_row_union (¡θJ)%R θ }-∘ 𝟙) -∗
+    ⊢ ⊨ᵥ F ≤ F' : fac m (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ }-∘ 𝟙) → ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙) -∗
+      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, (∀ᵣ θJ, τJ θJ -{ sem_row_union (¡θJ)%R θ }-∘ 𝟙) → ∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ2)%R (sem_row_union (¡θ1)%R θ) }-∘ 𝟙) -∗
+      ⊨ᵥ J ≤ J' : fac m (∀ᵣ θ, ∀ᵣ θJ, τ1' θ → τJ θJ -{ sem_row_union (¡θJ)%R θ }-∘ 𝟙) -∗
       ⊨ᵥ ((F ∘F G) ∘f J)%fac ≤ (F' ∘F (G' ∘f J'))%fac :
-        fac m (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙)).
+        fac m (∀ᵣ θ, (τ1' θ) → (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙)).
   Proof. iApply fac_assoc_L. intros ??????. apply functionality_comp_func_comp_assoc_core. Qed.
 
   Lemma functionality_comp_func_comp_f_assoc_rev (m : mode) (F F' G G' J J' : val)
       (τ1 τ2 τ1' τJ τF : sem_row Σ → sem_ty Σ) :
-    ⊢ ⊨ᵥ F ≤ F' : fac m (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ }-∘ 𝟙) ⊸ ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙) -∗
-      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, (∀ᵣ θJ, τJ θJ -{ sem_row_union (¡θJ)%R θ }-∘ 𝟙) ⊸ ∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ2)%R (sem_row_union (¡θ1)%R θ) }-∘ 𝟙) -∗
-      ⊨ᵥ J ≤ J' : fac m (∀ᵣ θ, ∀ᵣ θJ, τ1' θ ⊸ τJ θJ -{ sem_row_union (¡θJ)%R θ }-∘ 𝟙) -∗
+    ⊢ ⊨ᵥ F ≤ F' : fac m (∀ᵣ θ, (∀ᵣ θF, τF θF -{ sem_row_union (¡θF)%R θ }-∘ 𝟙) → ∀ᵣ θ1, τ2 θ1 -{ sem_row_union (¡θ1)%R θ }-∘ 𝟙) -∗
+      ⊨ᵥ G ≤ G' : fac m (∀ᵣ θ, (∀ᵣ θJ, τJ θJ -{ sem_row_union (¡θJ)%R θ }-∘ 𝟙) → ∀ᵣ θ1, ∀ᵣ θ2, (τ1 θ1 × τF θ2) -{ sem_row_union (¡θ2)%R (sem_row_union (¡θ1)%R θ) }-∘ 𝟙) -∗
+      ⊨ᵥ J ≤ J' : fac m (∀ᵣ θ, ∀ᵣ θJ, τ1' θ → τJ θJ -{ sem_row_union (¡θJ)%R θ }-∘ 𝟙) -∗
       ⊨ᵥ (F ∘F (G ∘f J))%fac ≤ ((F' ∘F G') ∘f J')%fac :
-        fac m (∀ᵣ θ, (τ1' θ) ⊸ (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙)).
+        fac m (∀ᵣ θ, (τ1' θ) → (∀ᵣ θ1, ∀ᵣ θ2, ((τ1 θ1) × (τ2 θ2)) -{ sem_row_union (¡ θ1)%R (sem_row_union (¡ θ2)%R θ) }-∘ 𝟙)).
   Proof. iApply fac_assoc_R. intros ??????. apply functionality_comp_func_comp_assoc_rev_core. Qed.
 
 End systems.
