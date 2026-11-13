@@ -30,7 +30,7 @@ opam update
 opam install ./rocq-clutch.opam --deps-only
 ```
 
-You should now be able to build the development by using `dune build`, or `dune build theories/eris/tutorial/tutorial.vo` to build only the files required for the tutorial.
+You should now be able to build the development by using `dune build`.
 
 ## Overview
 
