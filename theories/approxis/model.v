@@ -182,8 +182,6 @@ Notation "∀ A1 .. An , C" :=
 Section semtypes_properties.
   Context `{!approxisRGS Σ}.
 
-  (* The reference type relation is functional and injective.
-     Thanks to Amin. *)
   Lemma interp_ref_funct E (A : lrel Σ) (l l1 l2 : loc) :
     ↑logN ⊆ E →
     (ref A)%lrel #l #l1 ∗ (ref A)%lrel #l #l2

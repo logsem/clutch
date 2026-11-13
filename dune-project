@@ -6,8 +6,6 @@
 
 (generate_opam_files true)
 
-(source (github logsem/clutch))
-
 (authors "anonymous")
 
 (maintainers "anonymous <anon@ymo.us>")

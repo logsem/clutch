@@ -29,9 +29,6 @@ Import valgroup_tactics.
 (*   - the row parameters range over ⟦row-variables⟧,                 *)
 (*   - products/sums/arrows/∀ᵣ/row-unions all have syntactic formers. *)
 (*                                                                    *)
-(* For now they are admitted; the interface definitions below may     *)
-(* need minor adjustments once the proofs are carried out.  This file *)
-(* only imports the base theory, so it can be iterated on quickly.    *)
 (* ------------------------------------------------------------------ *)
 
 Section new_comp_verification.
