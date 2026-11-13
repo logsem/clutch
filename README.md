@@ -131,7 +131,7 @@ Case studies, each with its own README:
 
 ## Axioms
 
-The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Rocq's standard library. For example, the following list is produced when executing the command `print_assumptions.v` in [`theories/prob_eff_lang/probblaze/print_assumptions.v`](theories/clutch/prob_eff_lang/probblaze/print_assumptions.v), printing the assumptions for `uc_composition`:
+The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Rocq's standard library. For example, the following list is produced when executing the command `print_assumptions.v` in [`theories/prob_eff_lang/probblaze/print_assumptions.v`](theories/prob_eff_lang/probblaze/print_assumptions.v), printing the assumptions for `uc_composition`:
 
 ```
 ClassicalDedekindReals.sig_not_dec : forall P : Prop, {~ ~ P} + {~ P}
