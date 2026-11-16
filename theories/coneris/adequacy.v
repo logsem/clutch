@@ -22,34 +22,99 @@ Section adequacy.
   
   Lemma step_fupd_fupdN_S n (P : iProp Σ) :  ((|={∅}▷=>^(S n) P) ⊣⊢ (|={∅}=> |={∅}▷=>^(S n) P))%I.
   Proof. iSplit; iIntros; simpl; iApply fupd_idemp; iFrame. Qed.
-  
+
+  (** Pure-monotonicity through [▷^k ◇ ⌜·⌝]. *)
+  Local Lemma laterN_except_0_pure_mono k (P Q : Prop) :
+    (P → Q) → ((▷^k ◇ ⌜P⌝ : iProp Σ)%I ⊢ ▷^k ◇ ⌜Q⌝).
+  Proof. intros HPQ. apply bi.laterN_mono, bi.except_0_mono, bi.pure_mono, HPQ. Qed.
+
+  (** Push [∀] through [|={∅}▷=>^n] of plain pure props (via [fupd_finally]). *)
+  Lemma step_fupdN_pure_forall_intro {A} (Φ : A → Prop) n E :
+    (∀ a, |={E|}=> ▷^n ◇ ⌜Φ a⌝) ⊢ |={E|}=> ▷^n ◇ ⌜∀ a, Φ a⌝ : iProp Σ.
+  Proof.
+    iIntros "H".
+    iApply (fupd_finally_mono _ _ (▷^n ◇ ⌜∀ a, Φ a⌝)%I); last first.
+    { iApply fupd_finally_forall. iIntros (a). iApply "H". }
+    rewrite -laterN_forall. apply bi.laterN_mono.
+    rewrite -except_0_forall. apply bi.except_0_mono.
+    apply pure_forall_2.
+  Qed.
+
+  (** ** Compatibility shims for the old [|={l; E|}=> ▷^k ◇ P] (hfupd)
+       interface, expressed in terms of the new [fupd_finally] modality
+       [|={E|}=> ▷^k ◇ P].  These keep the call sites below close to their
+       pre-MR-1217 form. *)
+
+  Notation hfupd_mono := fupd_finally_mono (only parsing).
+
+  Lemma hfupd_intro {E} (P : iProp Σ) `{!Plain P} :
+    P -∗ |={E|}=> P.
+  Proof.
+    iIntros "HP".
+    iAssert (■ P)%I with "[HP]" as "#HP'"; [by iApply plain_plainly|].
+    by iApply fupd_finally_intro.
+  Qed.
+
+  Lemma hfupd_intro_pure {E n} (φ : Prop) :
+    φ → ⊢ |={E|}=> ▷^n ◇ ⌜φ⌝ : iProp Σ.
+  Proof.
+    intros Hφ. iApply fupd_finally_intro. by iPureIntro.
+  Qed.
+
+  Lemma laterN_hfupd l {E} k (P : iProp Σ) :
+    ▷^l (|={E|}=> ▷^k ◇ P) ⊢ |={E|}=> ▷^(l + k) ◇ P.
+  Proof.
+    induction l as [|l IH]; simpl.
+    - iIntros "H". by iApply (fupd_finally_mono with "H").
+    - iIntros "H". rewrite IH. rewrite fupd_finally_later.
+      iApply (fupd_finally_mono with "H"). iIntros "H".
+      by rewrite except_0_laterN except_0_idemp.
+  Qed.
+
+  Lemma elim_fupd_hfupd_plain (k l : nat) (E1 E2 : coPset) (P Q : iProp Σ) :
+    l ≤ k →
+    (|={E1, E2}=> P) ∗ (∀ l', ⌜l' = l⌝ -∗ P -∗ |={E2|}=> ▷^(k - l') ◇ Q)
+    ⊢ |={E1|}=> ▷^k ◇ Q.
+  Proof.
+    iIntros (Hlk) "[H1 H2]". iMod "H1" as "HP".
+    iSpecialize ("H2" $! l with "[//] HP").
+    iApply (fupd_finally_mono with "H2").
+    replace k with (l + (k - l))%nat at 2 by lia.
+    rewrite laterN_add. iIntros "H". by iApply laterN_intro.
+  Qed.
+
+  Lemma fupd_plain_hfupd' (l : nat) (E1 E2 : coPset) {P : iProp Σ} `{!Plain P} :
+    (|={E1, E2}=> P) ⊢ |={E1|}=> ▷^l ◇ P.
+  Proof.
+    iIntros "H". iMod "H" as "HP". by iApply hfupd_intro.
+  Qed.
+
   Lemma pgl_dbind' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (T : A' → Prop) ε' n :
     ⌜ 0 <= ε' ⌝ -∗
-    (∀ a , |={∅}=>|={∅}▷=>^(n) ⌜pgl (f a) T ε'⌝) -∗
-    |={∅}=> |={∅}▷=>^(n) ⌜pgl (dbind f μ) T (ε')⌝ : iProp Σ.
+    (∀ a , |={∅|}=> ▷^(S n) ◇ ⌜pgl (f a) T ε'⌝) -∗
+    |={∅|}=> ▷^(S n) ◇ ⌜pgl (dbind f μ) T (ε')⌝ : iProp Σ.
   Proof.
     iIntros (?) "H".
-    iApply (step_fupdN_mono _ _ _ (⌜(∀ a, pgl (f a) T ε')⌝)).
-    { iIntros (?). iPureIntro.
-      rewrite <-Rplus_0_l. eapply pgl_dbind; try done.
-      by apply pgl_trivial. }
-    iIntros (?) "/=".
-    iApply "H". 
+    iPoseProof (step_fupdN_pure_forall_intro _ (S n) ∅ with "H") as "H".
+    iApply (fupd_finally_mono with "H").
+    apply (laterN_except_0_pure_mono (S n)). intros Hall.
+    rewrite <-Rplus_0_l. eapply pgl_dbind; try done.
+    by apply pgl_trivial.
   Qed.
-  
+
   Lemma pgl_dbind_adv' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (T : A' → Prop) ε' n :
     ⌜ exists r, forall a, 0 <= ε' a <= r ⌝ -∗
-    (∀ a , |={∅}=> |={∅}▷=>^(n) ⌜pgl (f a) T (ε' a)⌝) -∗
-    |={∅}=> |={∅}▷=>^(n) ⌜pgl (dbind f μ) T ( Expval μ ε')⌝ : iProp Σ.
+    (∀ a , |={∅|}=> ▷^(S n) ◇ ⌜pgl (f a) T (ε' a)⌝) -∗
+    |={∅|}=> ▷^(S n) ◇ ⌜pgl (dbind f μ) T ( Expval μ ε')⌝ : iProp Σ.
   Proof.
     iIntros (?) "H".
-    iApply (step_fupdN_mono _ _ _ (⌜(∀ a, pgl (f a) T (ε' a))⌝)).
-    { iIntros (?). iPureIntro. rewrite <-Rplus_0_l. eapply pgl_dbind_adv; try done.
-      by apply pgl_trivial.
-    }
-    by iIntros (?) "/=".
+    iPoseProof (step_fupdN_pure_forall_intro _ (S n) ∅ with "H") as "H".
+    iApply (fupd_finally_mono with "H").
+    apply (laterN_except_0_pure_mono (S n)). intros Hall.
+    rewrite <-Rplus_0_l. eapply pgl_dbind_adv; try done.
+    by apply pgl_trivial.
   Qed.
 
   Lemma wp_adequacy_val_fupd `{Countable sch_int_state}  (ζ : sch_int_state) e es (sch: scheduler con_prob_lang_mdp sch_int_state) n v σ ε φ `{!TapeOblivious sch_int_state sch}:

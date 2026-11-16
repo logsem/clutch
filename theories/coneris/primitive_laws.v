@@ -10,7 +10,7 @@ From clutch.con_prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
 Class conerisGS Σ := HeapG {
-  conerisGS_invG : invGS_gen HasNoLc Σ;
+  conerisGS_invG : invGS_gen HasLc Σ;
   (* CMRA for the state *)
   conerisGS_heap : ghost_mapG Σ loc val;
   conerisGS_tapes : ghost_mapG Σ loc tape;

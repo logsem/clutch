@@ -22,7 +22,7 @@ Local Open Scope NNR_scope.
 *)
 
 Class conerisWpGS (Λ : conLanguage) (Σ : gFunctors) := ConerisWpGS {
-  conerisWpGS_invGS :: invGS_gen HasNoLc Σ;
+  conerisWpGS_invGS :: invGS_gen HasLc Σ;
   state_interp : state Λ → iProp Σ;
   fork_post: val Λ -> iProp Σ;
   err_interp : nonnegreal → iProp Σ;
