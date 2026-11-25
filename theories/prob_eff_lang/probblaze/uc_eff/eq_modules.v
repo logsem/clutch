@@ -139,4 +139,7 @@ Section eq_modules_group.
     iApply eq_lift_group. by iExists y.
   Qed.
 
+  Lemma eq_group_val (x y : vgG) : x = y → ⊢ ⟪ 𝔾 ⟫ (vgval x) (vgval y).
+  Proof. intros ->. iApply eq_lift_group. by iExists y. Qed.
+
 End eq_modules_group.

@@ -9,7 +9,8 @@
    [channel_proof.v]; the composition with Diffie-Hellman key exchange is
    in [channel_dhke.v].
 
-   The sender's and the receiver's ports are one-shot (affine). *)
+   The sender's and the receiver's ports are one-shot (affine), and the
+   receiver's blocks until the message is there. *)
 
 From clutch.prob_eff_lang.probblaze Require Export notation valgroup.
 From clutch.prob_eff_lang.probblaze Require Import class_instances.
@@ -45,8 +46,10 @@ Section channel.
       (* send: store the message and leak it *)
       (λ: "x", "box" <- SOME "x";; "leak" "x",
 
-      (* recv: ask the adversary to deliver, and read the message *)
-       λ: <>, if: "deliver" #()%V then !"box" else NONE).
+      (* recv: call [deliver] until the message is there *)
+       rec: "recv" <> :=
+         "deliver" #()%V;;
+         match: !"box" with NONE => "recv" #()%V | SOME "x" => "x" end).
 
   (* ---------------------------------------------------------------- *)
   (* The protocol.                                                      *)
@@ -62,28 +65,22 @@ Section channel.
 
       (* the sender: get the key and send the masked message *)
       (λ: "m",
-         match: "keyA" #()%V with
-           NONE => #()%V
-         | SOME "k" => "send" ("m" · "k")
-         end,
+         let: "k" := "keyA" #()%V in
+         "send" ("m" · "k"),
 
       (* the receiver: get the key, receive, and unmask *)
        λ: <>,
-         match: "keyB" #()%V with
-           NONE => NONE
-         | SOME "k" => match: "recv" #()%V with
-                         NONE => NONE
-                       | SOME "c" => SOME ("c" · ("k"^-1))
-                       end
-         end).
+         let: "k" := "keyB" #()%V in
+         let: "c" := "recv" #()%V in
+         "c" · ("k"^-1)).
 
   (* ---------------------------------------------------------------- *)
   (* The ideal secure channel.                                          *)
   (* ---------------------------------------------------------------- *)
 
   (* It takes the adversary's operations [notify] (a message was sent) and
-     [allow] (may the receiver get it?) and returns the sender's and the
-     receiver's port. *)
+     [allow] (the receiver gets the message when this returns) and returns
+     the sender's and the receiver's port. *)
   Definition F_CHAN : val :=
     λ: "adv",
       let, ("notify", "allow") := "adv" in
@@ -94,8 +91,10 @@ Section channel.
       (* the sender: the adversary only learns that there is a message *)
       (λ: "m", "box" <- SOME "m";; "notify" #()%V,
 
-      (* the receiver: gets the message if the adversary allows it *)
-       λ: <>, if: "allow" #()%V then !"box" else NONE).
+      (* the receiver: call [allow] until the message is there *)
+       rec: "recv" <> :=
+         "allow" #()%V;;
+         match: !"box" with NONE => "recv" #()%V | SOME "m" => "m" end).
 
   (* ---------------------------------------------------------------- *)
   (* The simulator.                                                     *)
@@ -116,24 +115,25 @@ Section channel.
       let: "sent" := ref #false in
       let: "ρ" := alloc #n in
 
-      (* notify: a message was sent; play the initiator of the key exchange
-         and, if it gets a key, show the adversary a random group element *)
+      (* notify: a message was sent; play the initiator of the key
+         exchange, then show the adversary a random group element *)
       (λ: <>,
          "started" <- #true;;
          "notify" #true;;
-         if: "allow" #true
-         then "sent" <- #true;; "leak" (g^(samplelbl "ρ" #()%V))
-         else #()%V,
+         "allow" #true;;
+         "sent" <- #true;;
+         "leak" (g^(samplelbl "ρ" #()%V)),
 
-      (* allow: may the receiver get the message?  play the responder of
-         the key exchange and, if it gets a key, ask the adversary to
-         deliver; agree only if the fake ciphertext is out *)
+      (* allow: play the receiver; wait for the key as the responder of the
+         key exchange does, then for the fake ciphertext *)
        λ: <>,
-         if: "allow" #false then
-           let: "s" := !"started" in
-           "notify" #false;;
-           if: "s" then (let: "d" := "deliver" #()%V in "d" && !"sent") else #false
-         else #false).
+         (rec: "wait" <> :=
+            "allow" #false;;
+            if: !"started" then #()%V else "wait" #()%V) #()%V;;
+         "notify" #false;;
+         (rec: "wait" <> :=
+            "deliver" #()%V;;
+            if: !"sent" then #()%V else "wait" #()%V) #()%V).
 
   (* The protocol on its two functionalities, and the ideal module. *)
   Definition HYB_CHAN : val := (CHAN ⊳ (F_KE ⊗ F_OAUTH))%md.
@@ -149,16 +149,16 @@ Section channel_types.
 
   (* The adversarial interface of the one-way authenticated channel. *)
   Definition ONet (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝔾 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> 𝔹))%T.
+    ((𝔾 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> 𝟙))%T.
   (* Its endpoints: the sender's and the receiver's. *)
   Definition OEp (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝔾 -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ Option 𝔾))%T.
+    ((𝔾 -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ 𝔾))%T.
   (* The adversarial interface of the secure channel. *)
   Definition CAdv (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝟙 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> 𝔹))%T.
+    ((𝟙 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> 𝟙))%T.
   (* The ports of the secure channel: the sender's and the receiver's. *)
   Definition SChan (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝔾 -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ Option 𝔾))%T.
+    ((𝔾 -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ 𝔾))%T.
 
   (* The typings of the components ([channel_typing.v]):
        F_OAUTH : Mod ONet OEp

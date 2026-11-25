@@ -70,46 +70,38 @@ Section dhke_typing.
       { done. }
       iIntros "!>" (vl vr) "Hu _". iEval (rewrite eq_lift_unit) in "Hu".
       iDestruct "Hu" as %[-> ->]. simpl. eq_pures_l. eq_pures_r.
-      iApply (eq_call_frame θ (¡ θ)%R 𝔹%T 𝔹%T emp%I a1 a2 _ _ [IfCtx _ _] [IfCtx _ _]
+      iApply (eq_call_frame θ (¡ θ)%R 𝔹%T 𝟙%T emp%I a1 a2 _ _ [AppRCtx _] [AppRCtx _]
                 with "Hρ Hall [] []"); try (intros; apply _).
       { iApply eq_lift_same. by iExists _. }
       { done. }
-      iIntros "!>" (vl vr) "Hb _". iEval (rewrite eq_lift_bool) in "Hb".
-      iDestruct "Hb" as %(b' & -> & ->). simpl. destruct b'; eq_pures_l; eq_pures_r.
-      + iApply eq_value. iModIntro. by iApply eq_some.
-      + iApply eq_value. iModIntro. iApply eq_none.
+      iIntros "!>" (vl vr) "Hu _". iEval (rewrite eq_lift_unit) in "Hu".
+      iDestruct "Hu" as %[-> ->]. simpl. eq_pures'.
+      iApply eq_value. iModIntro. by iApply eq_group_val.
     - (* the responder *)
       iApply eq_lift_arr. iIntros (ul ur) "Hu".
       iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
       eq_pures_l. eq_pures_r.
-      iApply (eq_call_frame θ (¡ θ)%R 𝔹%T 𝔹%T emp%I a1 a2 _ _ [IfCtx _ _] [IfCtx _ _]
+      iLöb as "IH".
+      iApply (eq_call_frame θ (¡ θ)%R 𝔹%T 𝟙%T emp%I a1 a2 _ _ [AppRCtx _] [AppRCtx _]
                 with "Hρ Hall [] []"); try (intros; apply _).
       { iApply eq_lift_same. by iExists _. }
       { done. }
-      iIntros "!>" (vl vr) "Hb _". iEval (rewrite eq_lift_bool) in "Hb".
-      iDestruct "Hb" as %(b' & -> & ->). simpl. destruct b'; eq_pures_l; eq_pures_r.
-      + iApply (eq_na_open _ _ NK); first done. iFrame "Hinv". iIntros "[>H Hclose]".
-        iDestruct "H" as "[[Hkr Hkr']|(%k & Hkr & Hkr')]"; eq_load_l; eq_load_r;
-          iApply eq_na_close_rule; iFrame "Hclose".
-        * iSplitL "Hkr Hkr'"; first (iNext; iLeft; iFrame).
-          eq_pures_l. eq_pures_r.
-          iApply (eq_call_frame θ (¡ θ)%R 𝔹%T 𝟙%T emp%I n1 n2 _ _ [AppRCtx _] [AppRCtx _]
-                    with "Hρ Hnot [] []"); try (intros; apply _).
-          { iApply eq_lift_same. by iExists _. }
-          { done. }
-          iIntros "!>" (vl vr) "Hu _". iEval (rewrite eq_lift_unit) in "Hu".
-          iDestruct "Hu" as %[-> ->]. simpl. eq_pures'.
-          iApply eq_value. iModIntro. iApply eq_none.
-        * iSplitL "Hkr Hkr'"; first (iNext; iRight; iExists _; iFrame).
-          eq_pures_l. eq_pures_r.
-          iApply (eq_call_frame θ (¡ θ)%R 𝔹%T 𝟙%T emp%I n1 n2 _ _ [AppRCtx _] [AppRCtx _]
-                    with "Hρ Hnot [] []"); try (intros; apply _).
-          { iApply eq_lift_same. by iExists _. }
-          { done. }
-          iIntros "!>" (vl vr) "Hu _". iEval (rewrite eq_lift_unit) in "Hu".
-          iDestruct "Hu" as %[-> ->]. simpl. eq_pures'.
-          iApply eq_value. iModIntro. by iApply eq_some.
-      + iApply eq_value. iModIntro. iApply eq_none.
+      iIntros "!>" (vl vr) "Hu _". iEval (rewrite eq_lift_unit) in "Hu".
+      iDestruct "Hu" as %[-> ->]. simpl. eq_pures_l. eq_pures_r.
+      iApply (eq_na_open _ _ NK); first done. iFrame "Hinv". iIntros "[>H Hclose]".
+      iDestruct "H" as "[[Hkr Hkr']|(%k & Hkr & Hkr')]"; eq_load_l; eq_load_r;
+        iApply eq_na_close_rule; iFrame "Hclose".
+      + iSplitL "Hkr Hkr'"; first (iNext; iLeft; iFrame).
+        eq_pures_lr. try (try eq_pures_l). try (try eq_pures_r). iApply "IH".
+      + iSplitL "Hkr Hkr'"; first (iNext; iRight; iExists _; iFrame).
+        eq_pures_l. eq_pures_r.
+        iApply (eq_call_frame θ (¡ θ)%R 𝔹%T 𝟙%T emp%I n1 n2 _ _ [AppRCtx _] [AppRCtx _]
+                  with "Hρ Hnot [] []"); try (intros; apply _).
+        { iApply eq_lift_same. by iExists _. }
+        { done. }
+        iIntros "!>" (vl vr) "Hu _". iEval (rewrite eq_lift_unit) in "Hu".
+        iDestruct "Hu" as %[-> ->]. simpl. eq_pures'.
+        iApply eq_value. iModIntro. by iApply eq_group_val.
   Qed.
 
   Lemma S_DHKE_eq : ⊢ ⟪ Mod Net Ctl ⟫ S_DHKE S_DHKE.
@@ -158,18 +150,23 @@ Section dhke_typing.
       iModIntro. iApply eq_lift_arr. iIntros (pl pr) "Hp".
       iEval (rewrite eq_lift_bool) in "Hp". iDestruct "Hp" as %(p & -> & ->).
       eq_pures_l. eq_pures_r.
-      iApply (eq_call MS θ 𝔹%T 𝔹%T d1 d2 _ _ [AppRCtx _] [AppRCtx _] with "Hdel []");
+      iLöb as "IH".
+      iApply (eq_call MS θ 𝔹%T 𝟙%T d1 d2 _ _ [AppRCtx _] [AppRCtx _] with "Hdel []");
         try (intros; apply _).
       { iApply eq_lift_same. by iExists _. }
-      iIntros "!>" (vl vr) "Hb". iEval (rewrite eq_lift_bool) in "Hb".
-      iDestruct "Hb" as %(b' & -> & ->). simpl. destruct b'; eq_pures_l; eq_pures_r.
-      + destruct p; eq_pures_l; eq_pures_r;
-          (iApply (eq_na_open _ _ NS); first done); iFrame "Hinv"; iIntros "[>H Hclose]";
-          iDestruct "H" as "((%bA & HsA & HsA') & (%bB & HsB & HsB') & Hα & Hβ)";
-          eq_load_l; eq_load_r; iApply eq_na_close_rule; iFrame "Hclose";
-          (iSplitL; first (iNext; iFrame));
-          iApply eq_value; iModIntro; iApply eq_lift_bool; by iExists _.
-      + iApply eq_value. iModIntro. iApply eq_lift_bool. by iExists _.
+      iIntros "!>" (vl vr) "Hu". iEval (rewrite eq_lift_unit) in "Hu".
+      iDestruct "Hu" as %[-> ->]. simpl.
+      destruct p; eq_pures_l; eq_pures_r;
+        (iApply (eq_na_open _ _ NS); first done); iFrame "Hinv"; iIntros "[>H Hclose]";
+        iDestruct "H" as "((%bA & HsA & HsA') & (%bB & HsB & HsB') & Hα & Hβ)";
+        eq_load_l; eq_load_r; iApply eq_na_close_rule; iFrame "Hclose";
+        (iSplitL; first (iNext; iFrame)).
+      + destruct bB.
+        * eq_pures'. iApply eq_value. iModIntro. by iEval (rewrite eq_lift_unit).
+        * eq_pures_lr. try (try eq_pures_l). try (try eq_pures_r). iApply "IH".
+      + destruct bA.
+        * eq_pures'. iApply eq_value. iModIntro. by iEval (rewrite eq_lift_unit).
+        * eq_pures_lr. try (try eq_pures_l). try (try eq_pures_r). iApply "IH".
   Qed.
 
   Lemma F_KE_typed : ⊢ ⊨ᵥ F_KE ≤ F_KE : Mod Ctl Keys.

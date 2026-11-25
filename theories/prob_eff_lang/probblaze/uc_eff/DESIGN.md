@@ -63,8 +63,19 @@ protocol is associativity.
 
 **Honest ports are one-shot.** A port that an honest party calls once is
 an affine function. This removes the "first call only" guards and
-option-reference bookkeeping of the existing code. Ports that are
+the bookkeeping references of the existing code. Ports that are
 multi-use or handed to the adversary are unrestricted and keep guards.
+
+**Waiting ports block.** A port that waits for something (a message, a
+key) returns it, not an option. It calls the adversary and checks whether
+the thing is there, and repeats until it is:
+
+    recv () ≜ deliver (); match !box with None ⇒ recv () | Some m ⇒ m
+
+The adversary's operation returns unit: it lets the party go on by
+returning, and holds it back by not returning (its handler keeps the
+continuation). Protocols therefore have no failure branches. A simulator
+blocks in the same way, in step with the real protocol.
 
 **One-shot rows.** Ports run at the row `¡θ`: the environment resumes a
 suspended party at most once. The DHKE proof needs this (to carry tape
@@ -115,28 +126,30 @@ The initiator is `#true`, the responder `#false`.
     F_AUTH (leak, deliver) ≜
       let mA = ref None in let mB = ref None in
       -- the initiator's endpoint
-      ( ( λ m.  mA := Some m; leak (true, m)
-        , λ (). if deliver true then !mB else None )
+      ( ( λ m. mA := Some m; leak (true, m)
+        , rec recv (). deliver true;
+                       match !mB with None ⇒ recv () | Some m ⇒ m )
       -- the responder's endpoint
-      , ( λ m.  mB := Some m; leak (false, m)
-        , λ (). if deliver false then !mA else None ) )
+      , ( λ m. mB := Some m; leak (false, m)
+        , rec recv (). deliver false;
+                       match !mA with None ⇒ recv () | Some m ⇒ m ) )
 
     DH_KE ((sendA, recvA), (sendB, recvB)) ≜
       let α, β = new tapes in
       -- the initiator
-      ( λ (). let a = rand(α) in sendA (g^a);
-              match recvA () with None ⇒ None | Some B ⇒ Some (B^a)
+      ( λ (). let a = rand(α) in sendA (g^a); let B = recvA () in B^a
       -- the responder
-      , λ (). match recvB () with None ⇒ None
-              | Some A ⇒ let b = rand(β) in sendB (g^b); Some (A^b) )
+      , λ (). let A = recvB () in let b = rand(β) in sendB (g^b); A^b )
 
     F_KE (notify, allow) ≜
       let γ = new tape in let kr = ref None in
       -- the initiator
       ( λ (). let key = g^rand(γ) in kr := Some key;
-              notify true; if allow true then Some key else None
+              notify true; allow true; key
       -- the responder
-      , λ (). if allow false then (let k = !kr in notify false; k) else None )
+      , rec resp (). allow false;
+                     match !kr with None ⇒ resp ()
+                     | Some k ⇒ notify false; k )
 
     S_DHKE (leak, deliver) ≜
       let sentA, sentB = ref false in let α, β = new tapes in
@@ -144,15 +157,17 @@ The initiator is `#true`, the responder `#false`.
       ( λ p. (if p then sentA else sentB) := true;
              leak (p, g^rand(if p then α else β))
       -- allow
-      , λ p. let d = deliver p in d && !(if p then sentB else sentA) )
+      , rec allow p. deliver p;
+                     if !(if p then sentB else sentA) then () else allow p )
 
     REAL_DHKE ≜ DH_KE ⊳ F_AUTH        IDEAL_DHKE ≜ F_KE ⊳ S_DHKE
 
 The simulator shows the adversary a fake half when a party starts, and
-lets a party have the key when the adversary delivers and the peer's fake
-half is out. `F_KE` samples the key when the initiator starts, not when
-the instance is created: a protocol that uses the key can then couple it
-with something that depends on its own input (section 5).
+lets a party have the key once the adversary has delivered and the peer's
+fake half is out. `F_KE` samples the key when the initiator starts, not
+when the instance is created: a protocol that uses the key can then couple
+it with something that depends on its own input (section 5). Its responder
+waits until the key is there.
 
     dhke_security :
       advantage A REAL_DHKE IDEAL_DHKE ≤ advantage (RED_DHKE A) DH_real DH_rand
@@ -169,6 +184,11 @@ Notes from the proof:
   sketches of the simulator had this bug; the proof found it.
 * `DH_KE`, `F_KE` and `S_DHKE` allocate presampling tapes, as proof
   devices.
+* The waiting loops are related by Löb induction. The channel's `recv`
+  (real) runs against the simulator's `allow` (ideal): both call `deliver`
+  and then read a location, and the invariant says the two locations are
+  set together. The rule `eq_pures_lr` (a pure step on both sides) gives
+  the later that the induction needs.
 
 ## 5. A secure channel, and its composition with DHKE (mechanised)
 
@@ -181,35 +201,36 @@ sends it over a one-way authenticated channel.
     F_OAUTH (leak, deliver) ≜
       let box = ref None in
       -- send
-      ( λ x.  box := Some x; leak x
+      ( λ x. box := Some x; leak x
       -- recv
-      , λ (). if deliver () then !box else None )
+      , rec recv (). deliver ();
+                     match !box with None ⇒ recv () | Some x ⇒ x )
 
     CHAN ((keyA, keyB), (send, recv)) ≜
       -- the sender
-      ( λ m.  match keyA () with None ⇒ () | Some k ⇒ send (m · k)
+      ( λ m.  let k = keyA () in send (m · k)
       -- the receiver
-      , λ (). match keyB () with None ⇒ None
-              | Some k ⇒ match recv () with None ⇒ None
-                                          | Some c ⇒ Some (c · k⁻¹) )
+      , λ (). let k = keyB () in let c = recv () in c · k⁻¹ )
 
     F_CHAN (notify, allow) ≜
       let box = ref None in
       -- the sender
-      ( λ m.  box := Some m; notify ()
+      ( λ m. box := Some m; notify ()
       -- the receiver
-      , λ (). if allow () then !box else None )
+      , rec recv (). allow ();
+                     match !box with None ⇒ recv () | Some m ⇒ m )
 
     S_CHAN ((notify, allow), (leak, deliver)) ≜
       let started, sent = ref false in let ρ = new tape in
       -- notify
-      ( λ (). started := true; notify true;
-              if allow true then (sent := true; leak (g^rand(ρ))) else ()
+      ( λ (). started := true; notify true; allow true;
+              sent := true; leak (g^rand(ρ))
       -- allow
-      , λ (). if allow false then
-                let s = !started in notify false;
-                if s then (let d = deliver () in d && !sent) else false
-              else false )
+      , λ (). (rec wait (). allow false;
+                            if !started then () else wait ()) ();
+              notify false;
+              (rec wait (). deliver ();
+                            if !sent then () else wait ()) () )
 
 Interfaces: `F_OAUTH : Mod ONet OEp`, `CHAN : Mod (Keys × OEp) SChan`,
 `F_CHAN : Mod CAdv SChan`, `S_CHAN : Mod (Ctl × ONet) CAdv`. The simulator
@@ -249,8 +270,8 @@ and the authenticated channel.
 Notes from the proofs:
 
 * *Order of effects in the simulator.* `S_CHAN` sets `started` before
-  `notify true` and `sent` before `leak`, and reads `started` before
-  `notify false` and `sent` after `deliver`, because the real programs
+  `notify true` and `sent` before `leak`, and reads `started` after
+  `allow false` and `sent` after `deliver`, because the real programs
   write and read the key and the ciphertext at those points. The adversary
   can run the other party from inside any of these callbacks, so each
   order is observable.
@@ -395,10 +416,12 @@ leaves the adversary's ports alone.
 
 ## 9. Open points
 
-* A blocking `recv` for `F_AUTH` (loop until the adversary delivers and
-  the message is there) would remove the option from its result and the
-  `None` branches from the protocols. The same applies to `F_OAUTH` and to
-  the key ports.
+* Blocking ports loop when the adversary returns too early, so an
+  adversary that always returns at once makes a party diverge. Both
+  worlds diverge alike, and the logic is about partial correctness, so
+  the statements are unaffected; a `deliver` that could only return when
+  the message is there would need the functionality to hold the party's
+  continuation.
 * `F_OAUTH` duplicates one direction of `F_AUTH`. Instantiating the
   channel's authenticated channel from `F_AUTH` (or from the AUTH protocol
   below) would be a second use of `uc_composition`.

@@ -6,7 +6,9 @@
 
    Every component is a closed value that takes the operations it uses and
    returns the operations it offers.  The parties' ports are one-shot
-   (affine), so there is no "first call only" bookkeeping.  The initiator
+   (affine), so there is no "first call only" bookkeeping, and they block:
+   a party that waits for a message calls the adversary until the message
+   is there.  The initiator
    (Alice) is [#true], the responder (Bob) is [#false].  The tapes in
    [DH_KE] and [S_DHKE] are proof devices. *)
 
@@ -33,7 +35,8 @@ Section dhke.
   (* ---------------------------------------------------------------- *)
 
   (* It takes the adversary's operations [leak] and [deliver] and returns
-     one endpoint (send, recv) per party. *)
+     one endpoint (send, recv) per party.  [recv] blocks: it calls
+     [deliver] until the message is there. *)
   Definition F_AUTH : val :=
     λ: "adv",
       let, ("leak", "deliver") := "adv" in
@@ -44,11 +47,15 @@ Section dhke.
 
       (* the initiator's endpoint *)
       ((λ: "m", "mA" <- SOME "m";; "leak" (#true, "m"),
-        λ: <>, if: "deliver" #true then !"mB" else NONE),
+        rec: "recv" <> :=
+          "deliver" #true;;
+          match: !"mB" with NONE => "recv" #()%V | SOME "m" => "m" end),
 
       (* the responder's endpoint *)
        (λ: "m", "mB" <- SOME "m";; "leak" (#false, "m"),
-        λ: <>, if: "deliver" #false then !"mA" else NONE)).
+        rec: "recv" <> :=
+          "deliver" #false;;
+          match: !"mA" with NONE => "recv" #()%V | SOME "m" => "m" end)).
 
   (* ---------------------------------------------------------------- *)
   (* The protocol.                                                      *)
@@ -68,28 +75,25 @@ Section dhke.
          let, ("send", "recv") := "epA" in
          let: "a" := samplelbl "α" #()%V in
          "send" (g^"a");;
-         match: "recv" #()%V with
-           NONE => NONE
-         | SOME "B" => SOME ("B"^"a")
-         end,
+         let: "B" := "recv" #()%V in
+         "B"^"a",
 
       (* the responder *)
        λ: <>,
          let, ("send", "recv") := "epB" in
-         match: "recv" #()%V with
-           NONE => NONE
-         | SOME "A" => let: "b" := samplelbl "β" #()%V in
-                       "send" (g^"b");;
-                       SOME ("A"^"b")
-         end).
+         let: "A" := "recv" #()%V in
+         let: "b" := samplelbl "β" #()%V in
+         "send" (g^"b");;
+         "A"^"b").
 
   (* ---------------------------------------------------------------- *)
   (* The ideal key exchange.                                            *)
   (* ---------------------------------------------------------------- *)
 
   (* It takes the adversary's operations [notify] (a party has started) and
-     [allow] (may a party get the key?) and returns one key port per party.
-     The key is sampled when the initiator starts. *)
+     [allow] (a party gets the key when this returns) and returns one key
+     port per party.  The key is sampled when the initiator starts; the
+     responder blocks until then. *)
   Definition F_KE : val :=
     λ: "adv",
       let, ("notify", "allow") := "adv" in
@@ -103,13 +107,16 @@ Section dhke.
          let: "key" := g^(samplelbl "γ" #()%V) in
          "kr" <- SOME "key";;
          "notify" #true;;
-         if: "allow" #true then SOME "key" else NONE,
+         "allow" #true;;
+         "key",
 
       (* the responder *)
-       λ: <>,
-         if: "allow" #false
-         then (let: "k" := !"kr" in "notify" #false;; "k")
-         else NONE).
+       rec: "resp" <> :=
+         "allow" #false;;
+         match: !"kr" with
+           NONE => "resp" #()%V
+         | SOME "k" => "notify" #false;; "k"
+         end).
 
   (* ---------------------------------------------------------------- *)
   (* The simulator.                                                     *)
@@ -135,11 +142,11 @@ Section dhke.
          (if: "p" then "sentA" else "sentB") <- #true;;
          "leak" ("p", g^(if: "p" then samplelbl "α" #()%V else samplelbl "β" #()%V)),
 
-      (* allow: may party [p] get the key?  ask the adversary to deliver,
-         and agree only if the peer's fake half is out *)
-       λ: "p",
-         let: "d" := "deliver" "p" in
-         "d" && !(if: "p" then "sentB" else "sentA")).
+      (* allow: party [p] waits for its peer's half; ask the adversary to
+         deliver until the peer's fake half is out *)
+       rec: "allow" "p" :=
+         "deliver" "p";;
+         if: !(if: "p" then "sentB" else "sentA") then #()%V else "allow" "p").
 
   (* ---------------------------------------------------------------- *)
   (* The reduction to DDH.                                              *)
@@ -155,18 +162,15 @@ Section dhke.
       (λ: <>,
          let, ("send", "recv") := "epA" in
          "send" "ga";;
-         match: "recv" #()%V with
-           NONE => NONE
-         | SOME <> => SOME "gc"
-         end,
+         "recv" #()%V;;
+         "gc",
 
       (* the responder *)
        λ: <>,
          let, ("send", "recv") := "epB" in
-         match: "recv" #()%V with
-           NONE => NONE
-         | SOME <> => "send" "gb";; SOME "gc"
-         end).
+         "recv" #()%V;;
+         "send" "gb";;
+         "gc").
   Definition C_DH : val := λ: "DH" "eps", C_DH_of "DH".
   Definition C_DH_v (d : val) : val := λ: "eps", C_DH_of d.
 
@@ -188,18 +192,18 @@ Section dhke_types.
 
   (* The adversarial interface of the authenticated channel. *)
   Definition Net (θ : sem_row Σ) : sem_ty Σ :=
-    (((𝔹 × 𝔾) -{ θ }-> 𝟙) × (𝔹 -{ θ }-> 𝔹))%T.
+    (((𝔹 × 𝔾) -{ θ }-> 𝟙) × (𝔹 -{ θ }-> 𝟙))%T.
   (* One endpoint of the channel; the two endpoints. *)
   Definition Ep (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝔾 -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ Option 𝔾))%T.
+    ((𝔾 -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ 𝔾))%T.
   Definition Eps (θ : sem_row Σ) : sem_ty Σ := (Ep θ × Ep θ)%T.
   (* The adversarial interface of the key exchange. *)
   Definition Ctl (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝔹 -{ θ }-> 𝟙) × (𝔹 -{ θ }-> 𝔹))%T.
+    ((𝔹 -{ θ }-> 𝟙) × (𝔹 -{ θ }-> 𝟙))%T.
   (* The key ports of the two parties.  The row is one-shot: the adversary
      resumes a suspended party at most once. *)
   Definition Keys (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝟙 -{ ¡ θ }-∘ Option 𝔾) × (𝟙 -{ ¡ θ }-∘ Option 𝔾))%T.
+    ((𝟙 -{ ¡ θ }-∘ 𝔾) × (𝟙 -{ ¡ θ }-∘ 𝔾))%T.
 
   (* The typings of the components:
        F_AUTH : Mod Net Eps       DH_KE  : Mod Eps Keys
