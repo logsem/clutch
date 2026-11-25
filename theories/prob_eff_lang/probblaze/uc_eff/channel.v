@@ -17,7 +17,7 @@ From clutch.prob_eff_lang.probblaze Require Import class_instances.
 From clutch.prob_eff_lang.probblaze Require Import logic adequacy sem_def sem_types sem_row sem_judgement.
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From clutch.prob_eff_lang.probblaze.examples.dhke Require Import dhke_def.
-From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules dhke.
+From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules auth dhke.
 From Stdlib Require Import Reals.
 
 Import fingroup.
@@ -29,27 +29,6 @@ Section channel.
   Context {vgg : @val_group_generator vg}.
 
   #[local] Notation n := (S n'').
-
-  (* ---------------------------------------------------------------- *)
-  (* The one-way authenticated channel.                                 *)
-  (* ---------------------------------------------------------------- *)
-
-  (* It takes the adversary's operations [leak] and [deliver] and returns
-     the sender's and the receiver's endpoint. *)
-  Definition F_OAUTH : val :=
-    λ: "adv",
-      let, ("leak", "deliver") := "adv" in
-
-      (* state: the message *)
-      let: "box" := ref NONE in
-
-      (* send: store the message and leak it *)
-      (λ: "x", "box" <- SOME "x";; "leak" "x",
-
-      (* recv: call [deliver] until the message is there *)
-       rec: "recv" <> :=
-         "deliver" #()%V;;
-         match: !"box" with NONE => "recv" #()%V | SOME "x" => "x" end).
 
   (* ---------------------------------------------------------------- *)
   (* The protocol.                                                      *)
@@ -147,12 +126,6 @@ Section channel_types.
   Context {cg : clutch_group_struct}.
   Context {vgg : @val_group_generator vg}.
 
-  (* The adversarial interface of the one-way authenticated channel. *)
-  Definition ONet (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝔾 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> 𝟙))%T.
-  (* Its endpoints: the sender's and the receiver's. *)
-  Definition OEp (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝔾 -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ 𝔾))%T.
   (* The adversarial interface of the secure channel. *)
   Definition CAdv (θ : sem_row Σ) : sem_ty Σ :=
     ((𝟙 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> 𝟙))%T.
@@ -161,7 +134,6 @@ Section channel_types.
     ((𝔾 -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ 𝔾))%T.
 
   (* The typings of the components ([channel_typing.v]):
-       F_OAUTH : Mod ONet OEp
        CHAN    : Mod (IProd Keys OEp) SChan
        F_CHAN  : Mod CAdv SChan
        S_CHAN  : Mod (IProd Ctl ONet) CAdv

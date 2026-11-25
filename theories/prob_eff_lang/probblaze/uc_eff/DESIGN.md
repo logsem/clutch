@@ -119,27 +119,39 @@ given. A module body runs without effects, so the interfaces it holds,
 which may be affine, are kept across the calls it makes; that is what
 makes the tensor well typed.
 
-## 4. DHKE (mechanised: `dhke.v`, `dhke_proof.v`, `dhke_typing.v`)
+## 4. Authenticated channels and DHKE (mechanised)
 
-The initiator is `#true`, the responder `#false`.
+Files: `auth.v`, `auth_typing.v`, `dhke.v`, `dhke_proof.v`,
+`dhke_typing.v`.
 
-    F_AUTH (leak, deliver) ≜
-      let mA = ref None in let mB = ref None in
-      -- the initiator's endpoint
-      ( ( λ m. mA := Some m; leak (true, m)
-        , rec recv (). deliver true;
-                       match !mB with None ⇒ recv () | Some m ⇒ m )
-      -- the responder's endpoint
-      , ( λ m. mB := Some m; leak (false, m)
-        , rec recv (). deliver false;
-                       match !mA with None ⇒ recv () | Some m ⇒ m ) )
+**One primitive.** The one-way authenticated channel carries one message
+from a sender to a receiver; the adversary sees it and decides when it is
+delivered. The two-way channel is two of them side by side, one per
+direction, A to B first:
 
-    DH_KE ((sendA, recvA), (sendB, recvB)) ≜
+    F_OAUTH (leak, deliver) ≜
+      let box = ref None in
+      -- send
+      ( λ x. box := Some x; leak x
+      -- recv
+      , rec recv (). deliver ();
+                     match !box with None ⇒ recv () | Some x ⇒ x )
+
+    F_AUTH ≜ F_OAUTH ⊗ F_OAUTH
+
+    F_OAUTH : Mod ONet OEp        F_AUTH : Mod (ONet × ONet) (OEp × OEp)
+
+The typing of `F_AUTH` is the typing of the tensor. Its adversary has a
+`leak` and a `deliver` per direction; no operation takes a party tag.
+
+**DHKE.** The initiator is `#true`, the responder `#false`.
+
+    DH_KE ((sendAB, recvAB), (sendBA, recvBA)) ≜
       let α, β = new tapes in
       -- the initiator
-      ( λ (). let a = rand(α) in sendA (g^a); let B = recvA () in B^a
+      ( λ (). let a = rand(α) in sendAB (g^a); let B = recvBA () in B^a
       -- the responder
-      , λ (). let A = recvB () in let b = rand(β) in sendB (g^b); A^b )
+      , λ (). let A = recvAB () in let b = rand(β) in sendBA (g^b); A^b )
 
     F_KE (notify, allow) ≜
       let γ = new tape in let kr = ref None in
@@ -151,14 +163,16 @@ The initiator is `#true`, the responder `#false`.
                      match !kr with None ⇒ resp ()
                      | Some k ⇒ notify false; k )
 
-    S_DHKE (leak, deliver) ≜
+    S_DHKE ((leakAB, deliverAB), (leakBA, deliverBA)) ≜
       let sentA, sentB = ref false in let α, β = new tapes in
       -- notify
-      ( λ p. (if p then sentA else sentB) := true;
-             leak (p, g^rand(if p then α else β))
+      ( λ p. if p then (sentA := true; leakAB (g^rand(α)))
+                  else (sentB := true; leakBA (g^rand(β)))
       -- allow
-      , rec allow p. deliver p;
-                     if !(if p then sentB else sentA) then () else allow p )
+      , λ p. if p then (rec wait (). deliverBA ();
+                                     if !sentB then () else wait ()) ()
+                  else (rec wait (). deliverAB ();
+                                     if !sentA then () else wait ()) () )
 
     REAL_DHKE ≜ DH_KE ⊳ F_AUTH        IDEAL_DHKE ≜ F_KE ⊳ S_DHKE
 
@@ -196,15 +210,8 @@ Files: `channel.v`, `channel_proof.v`, `channel_typing.v`,
 `channel_dhke.v`.
 
 A one-time secure channel: the sender masks its message with the key and
-sends it over a one-way authenticated channel.
-
-    F_OAUTH (leak, deliver) ≜
-      let box = ref None in
-      -- send
-      ( λ x. box := Some x; leak x
-      -- recv
-      , rec recv (). deliver ();
-                     match !box with None ⇒ recv () | Some x ⇒ x )
+sends it over a one-way authenticated channel, a third instance of
+`F_OAUTH` (section 4).
 
     CHAN ((keyA, keyB), (send, recv)) ≜
       -- the sender
@@ -232,7 +239,7 @@ sends it over a one-way authenticated channel.
               (rec wait (). deliver ();
                             if !sent then () else wait ()) () )
 
-Interfaces: `F_OAUTH : Mod ONet OEp`, `CHAN : Mod (Keys × OEp) SChan`,
+Interfaces: `CHAN : Mod (Keys × OEp) SChan`,
 `F_CHAN : Mod CAdv SChan`, `S_CHAN : Mod (Ctl × ONet) CAdv`. The simulator
 plays both parties of the key exchange towards the adversary and shows it
 a random group element as the ciphertext.
@@ -252,7 +259,8 @@ the simulator's ciphertext `g^r` along the bijection `r ↦ log(m · g^c)`.
         ≤ advantage (RED_DHKE (λ v. A (CHAN ⊳ (v ⊗ F_OAUTH))))
                     DH_real DH_rand
 
-for environments typed at `Mod (Net × ONet) SChan → 𝔹`. It is
+for environments typed at `Mod (Net × ONet) SChan → 𝔹`, where
+`Net = ONet × ONet`: the real world has three one-way channels. It is
 `uc_composition` with `Rw = REAL_DHKE ⊗ F_OAUTH`, `F = F_KE ⊗ F_OAUTH`,
 `S = S_DHKE ⊗ id`, `ρ = CHAN`, `S' = S_CHAN`, `G = F_CHAN`:
 
@@ -285,7 +293,7 @@ Notes from the proofs:
   without a frame at the operation's own row (`eq_call`; the simulators'
   operations are multi-use, so their state lives in an invariant and
   nothing needs to be kept across a call).
-* The typings are the largest part of the work (about 470 lines for six
+* The typings are the largest part of the work (about 500 lines for six
   components) and are routine. A syntactic type system with tapes and the
   group type would produce them.
 
@@ -366,20 +374,22 @@ and it brings the client-taking shape back.
 |---|---|---|
 | `modules.v` | `Mod`, `⊳`, `⊗`, identity; typing, associativity, interchange; environment extensions; `uc_composition` | proved |
 | `eq_modules.v` | rules of the `eq/` logic for modules: calling ports and operations, self-equivalence to typing | proved |
+| `auth.v` | `F_OAUTH`, `F_AUTH ≜ F_OAUTH ⊗ F_OAUTH`, their interfaces | definitions |
+| `auth_typing.v` | typings of `F_OAUTH`, `F_AUTH` | proved |
 | `dhke.v` | DHKE components, interfaces, `dhke_secure` | definitions |
 | `dhke_proof.v` | `dhke_security` | proved |
 | `dhke_typing.v` | typings of `F_KE`, `S_DHKE` | proved |
 | `channel.v` | channel components, interfaces, `chan_secure` | definitions |
 | `channel_proof.v` | `chan_security` | proved |
-| `channel_typing.v` | typings of `F_OAUTH`, `CHAN`, `F_CHAN`, `S_CHAN` | proved |
+| `channel_typing.v` | typings of `CHAN`, `F_CHAN`, `S_CHAN` | proved |
 | `channel_dhke.v` | `chan_dhke_security`: the channel over DHKE by `uc_composition` | proved |
 
 No admits. `Print Assumptions chan_dhke_security` lists only the classical
 axioms of the reals library, functional and propositional extensionality
 and indefinite description; the group is a `clutch_group` instance.
 
-Not done: the typings of `F_AUTH` and `DH_KE` (not needed: the composition
-theorem assumes nothing about the real module); the other case studies.
+Not done: the typing of `DH_KE` (not needed: the composition theorem
+assumes nothing about the real module); the other case studies.
 
 ## 8. The other case studies in this style (sketches)
 
@@ -422,9 +432,6 @@ leaves the adversary's ports alone.
   the statements are unaffected; a `deliver` that could only return when
   the message is there would need the functionality to hold the party's
   continuation.
-* `F_OAUTH` duplicates one direction of `F_AUTH`. Instantiating the
-  channel's authenticated channel from `F_AUTH` (or from the AUTH protocol
-  below) would be a second use of `uc_composition`.
 * Component typings are proved by hand (section 5).
 * The handler presentation of simulators as a stated theorem.
 * Simulators that hold a continuation (alternative E), if a case study

@@ -20,7 +20,7 @@ From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_valgroup eq_co
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage uc_advantage.
 From clutch.prob_eff_lang.probblaze.examples.dhke Require Import dhke_def.
 From clutch.prob_eff_lang.probblaze.examples.secure_add Require Import secure_add_bijection.
-From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules eq_modules dhke channel.
+From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules eq_modules auth dhke channel.
 
 Import fingroup.
 Import fingroup.fingroup.

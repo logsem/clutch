@@ -1,4 +1,5 @@
-(* Diffie-Hellman key exchange as modules (uc_eff/DESIGN.md).
+(* Diffie-Hellman key exchange over the two-way authenticated channel of
+   [auth.v], as modules (uc_eff/DESIGN.md).
 
    The components, their interfaces, the real and ideal modules, the
    reduction, and the security statement [dhke_secure], which is proved in
@@ -17,7 +18,7 @@ From clutch.prob_eff_lang.probblaze Require Import class_instances.
 From clutch.prob_eff_lang.probblaze Require Import logic adequacy sem_def sem_types sem_row sem_judgement.
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage.
 From clutch.prob_eff_lang.probblaze.examples.dhke Require Import dhke_def.
-From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules.
+From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules auth.
 From Stdlib Require Import Reals.
 
 Import fingroup.
@@ -31,40 +32,16 @@ Section dhke.
   #[local] Notation n := (S n'').
 
   (* ---------------------------------------------------------------- *)
-  (* The authenticated channel.                                         *)
-  (* ---------------------------------------------------------------- *)
-
-  (* It takes the adversary's operations [leak] and [deliver] and returns
-     one endpoint (send, recv) per party.  [recv] blocks: it calls
-     [deliver] until the message is there. *)
-  Definition F_AUTH : val :=
-    λ: "adv",
-      let, ("leak", "deliver") := "adv" in
-
-      (* state: one message slot per direction *)
-      let: "mA" := ref NONE in
-      let: "mB" := ref NONE in
-
-      (* the initiator's endpoint *)
-      ((λ: "m", "mA" <- SOME "m";; "leak" (#true, "m"),
-        rec: "recv" <> :=
-          "deliver" #true;;
-          match: !"mB" with NONE => "recv" #()%V | SOME "m" => "m" end),
-
-      (* the responder's endpoint *)
-       (λ: "m", "mB" <- SOME "m";; "leak" (#false, "m"),
-        rec: "recv" <> :=
-          "deliver" #false;;
-          match: !"mA" with NONE => "recv" #()%V | SOME "m" => "m" end)).
-
-  (* ---------------------------------------------------------------- *)
   (* The protocol.                                                      *)
   (* ---------------------------------------------------------------- *)
 
-  (* It takes the two endpoints and returns one key port per party. *)
+  (* It takes the endpoints of the two-way authenticated channel, those of
+     the direction A to B first, and returns one key port per party. *)
   Definition DH_KE : val :=
     λ: "eps",
-      let, ("epA", "epB") := "eps" in
+      let, ("epAB", "epBA") := "eps" in
+      let, ("sendAB", "recvAB") := "epAB" in
+      let, ("sendBA", "recvBA") := "epBA" in
 
       (* state: the tapes of the two exponents *)
       let: "α" := alloc #n in
@@ -72,18 +49,16 @@ Section dhke.
 
       (* the initiator *)
       (λ: <>,
-         let, ("send", "recv") := "epA" in
          let: "a" := samplelbl "α" #()%V in
-         "send" (g^"a");;
-         let: "B" := "recv" #()%V in
+         "sendAB" (g^"a");;
+         let: "B" := "recvBA" #()%V in
          "B"^"a",
 
       (* the responder *)
        λ: <>,
-         let, ("send", "recv") := "epB" in
-         let: "A" := "recv" #()%V in
+         let: "A" := "recvAB" #()%V in
          let: "b" := samplelbl "β" #()%V in
-         "send" (g^"b");;
+         "sendBA" (g^"b");;
          "A"^"b").
 
   (* ---------------------------------------------------------------- *)
@@ -122,12 +97,14 @@ Section dhke.
   (* The simulator.                                                     *)
   (* ---------------------------------------------------------------- *)
 
-  (* It takes the operations of the channel's adversary, [leak] and
-     [deliver], and returns those of the key exchange's, [notify] and
-     [allow]. *)
+  (* It takes the operations of the adversary of the two-way channel,
+     [leak] and [deliver] for each direction, and returns those of the key
+     exchange's, [notify] and [allow]. *)
   Definition S_DHKE : val :=
     λ: "adv",
-      let, ("leak", "deliver") := "adv" in
+      let, ("netAB", "netBA") := "adv" in
+      let, ("leakAB", "deliverAB") := "netAB" in
+      let, ("leakBA", "deliverBA") := "netBA" in
 
       (* state: which parties have started, and the tapes of the fake
          halves *)
@@ -137,16 +114,23 @@ Section dhke.
       let: "β" := alloc #n in
 
       (* notify: party [p] has started; record it, then show the adversary
-         a fake half *)
+         a fake half on the party's outgoing direction *)
       (λ: "p",
-         (if: "p" then "sentA" else "sentB") <- #true;;
-         "leak" ("p", g^(if: "p" then samplelbl "α" #()%V else samplelbl "β" #()%V)),
+         if: "p"
+         then "sentA" <- #true;; "leakAB" (g^(samplelbl "α" #()%V))
+         else "sentB" <- #true;; "leakBA" (g^(samplelbl "β" #()%V)),
 
       (* allow: party [p] waits for its peer's half; ask the adversary to
-         deliver until the peer's fake half is out *)
-       rec: "allow" "p" :=
-         "deliver" "p";;
-         if: !(if: "p" then "sentB" else "sentA") then #()%V else "allow" "p").
+         deliver on the incoming direction until the peer's fake half is
+         out *)
+       λ: "p",
+         if: "p"
+         then (rec: "wait" <> :=
+                 "deliverBA" #()%V;;
+                 if: !"sentB" then #()%V else "wait" #()%V) #()%V
+         else (rec: "wait" <> :=
+                 "deliverAB" #()%V;;
+                 if: !"sentA" then #()%V else "wait" #()%V) #()%V).
 
   (* ---------------------------------------------------------------- *)
   (* The reduction to DDH.                                              *)
@@ -156,20 +140,20 @@ Section dhke.
      is the program, [C_DH_v d] the value it evaluates to on the oracle [d]. *)
   Definition C_DH_of (DH : expr) : expr :=
       let, ("ga", "gb", "gc") := DH #()%V in
-      let, ("epA", "epB") := "eps" in
+      let, ("epAB", "epBA") := "eps" in
+      let, ("sendAB", "recvAB") := "epAB" in
+      let, ("sendBA", "recvBA") := "epBA" in
 
       (* the initiator *)
       (λ: <>,
-         let, ("send", "recv") := "epA" in
-         "send" "ga";;
-         "recv" #()%V;;
+         "sendAB" "ga";;
+         "recvBA" #()%V;;
          "gc",
 
       (* the responder *)
        λ: <>,
-         let, ("send", "recv") := "epB" in
-         "recv" #()%V;;
-         "send" "gb";;
+         "recvAB" #()%V;;
+         "sendBA" "gb";;
          "gc").
   Definition C_DH : val := λ: "DH" "eps", C_DH_of "DH".
   Definition C_DH_v (d : val) : val := λ: "eps", C_DH_of d.
@@ -190,13 +174,6 @@ Section dhke_types.
   Context {cg : clutch_group_struct}.
   Context {vgg : @val_group_generator vg}.
 
-  (* The adversarial interface of the authenticated channel. *)
-  Definition Net (θ : sem_row Σ) : sem_ty Σ :=
-    (((𝔹 × 𝔾) -{ θ }-> 𝟙) × (𝔹 -{ θ }-> 𝟙))%T.
-  (* One endpoint of the channel; the two endpoints. *)
-  Definition Ep (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝔾 -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ 𝔾))%T.
-  Definition Eps (θ : sem_row Σ) : sem_ty Σ := (Ep θ × Ep θ)%T.
   (* The adversarial interface of the key exchange. *)
   Definition Ctl (θ : sem_row Σ) : sem_ty Σ :=
     ((𝔹 -{ θ }-> 𝟙) × (𝔹 -{ θ }-> 𝟙))%T.
@@ -206,8 +183,8 @@ Section dhke_types.
     ((𝟙 -{ ¡ θ }-∘ 𝔾) × (𝟙 -{ ¡ θ }-∘ 𝔾))%T.
 
   (* The typings of the components:
-       F_AUTH : Mod Net Eps       DH_KE  : Mod Eps Keys
-       F_KE   : Mod Ctl Keys      S_DHKE : Mod Net Ctl
+       DH_KE  : Mod Eps Keys      F_KE   : Mod Ctl Keys
+       S_DHKE : Mod Net Ctl
        C_DH d : Mod Eps Keys      for a DDH oracle d
      so that  REAL_DHKE, IDEAL_DHKE : Mod Net Keys.  Those of [F_KE] and
      [S_DHKE] are proved in [dhke_typing.v]; the security proof relates the

@@ -19,7 +19,7 @@ From clutch.prob_eff_lang.probblaze Require Import notation metatheory semantics
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row sem_sig sem_env sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze.uc Require Import advantage uc_advantage.
 From clutch.prob_eff_lang.probblaze.examples.dhke Require Import dhke_def.
-From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules dhke dhke_typing dhke_proof.
+From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules auth auth_typing dhke dhke_typing dhke_proof.
 From clutch.prob_eff_lang.probblaze.uc_eff Require Import channel channel_typing channel_proof.
 From Stdlib Require Import Reals Psatz.
 

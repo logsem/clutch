@@ -14,7 +14,7 @@ From clutch.prob_eff_lang.probblaze Require Import notation metatheory semantics
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row sem_sig sem_env sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_valgroup eq_compat.
 From clutch.prob_eff_lang.probblaze.examples.dhke Require Import dhke_def.
-From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules eq_modules dhke.
+From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules eq_modules auth dhke.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -108,8 +108,12 @@ Section dhke_typing.
   Proof.
     rewrite /Mod. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
-    rewrite /Net. iEval (rewrite eq_lift_prod) in "Hadv".
-    iDestruct "Hadv" as (l1 l2 d1 d2) "(-> & -> & #Hleak & #Hdel)".
+    rewrite /Net /IProd /ONet. iEval (rewrite eq_lift_prod) in "Hadv".
+    iDestruct "Hadv" as (abl abr bal bar) "(-> & -> & Hab & Hba)".
+    iEval (rewrite eq_lift_prod) in "Hab".
+    iDestruct "Hab" as (la1 la2 da1 da2) "(-> & -> & #Hla & #Hda)".
+    iEval (rewrite eq_lift_prod) in "Hba".
+    iDestruct "Hba" as (lb1 lb2 db1 db2) "(-> & -> & #Hlb & #Hdb)".
     rewrite /S_DHKE /samplelbl.
     eq_pures_l. eq_alloc_l sA as "HsA". eq_pures_l. eq_alloc_l sB as "HsB". eq_pures_l.
     eq_alloctape_l α as "Hα". eq_pures_l. eq_alloctape_l β as "Hβ". eq_pures_l.
@@ -132,9 +136,7 @@ Section dhke_typing.
         iApply eq_na_close_rule. iFrame "Hclose".
         iSplitL "HsA HsA' HB Hα Hα' Hβ"; first (iNext; iFrame).
         eq_pures'.
-        iApply (eq_lift_app with "Hleak").
-        iApply eq_lift_same. iExists _, _, _, _. iSplit; first done. iSplit; first done.
-        iSplit; [by iExists _|by iExists _].
+        iApply (eq_lift_app with "Hla"). iApply eq_lift_group. by iExists _.
       + iApply (eq_na_open _ _ NS); first done. iFrame "Hinv". iIntros "[>H Hclose]".
         iDestruct "H" as "(HA & (%bB & HsB & HsB') & Hα & [Hβ Hβ'])".
         eq_store_l. eq_store_r. eq_pures_l. eq_pures_r.
@@ -143,28 +145,33 @@ Section dhke_typing.
         iApply eq_na_close_rule. iFrame "Hclose".
         iSplitL "HsB HsB' HA Hα Hβ Hβ'"; first (iNext; iFrame).
         eq_pures'.
-        iApply (eq_lift_app with "Hleak").
-        iApply eq_lift_same. iExists _, _, _, _. iSplit; first done. iSplit; first done.
-        iSplit; [by iExists _|by iExists _].
+        iApply (eq_lift_app with "Hlb"). iApply eq_lift_group. by iExists _.
     - (* allow *)
       iModIntro. iApply eq_lift_arr. iIntros (pl pr) "Hp".
       iEval (rewrite eq_lift_bool) in "Hp". iDestruct "Hp" as %(p & -> & ->).
-      eq_pures_l. eq_pures_r.
-      iLöb as "IH".
-      iApply (eq_call MS θ 𝔹%T 𝟙%T d1 d2 _ _ [AppRCtx _] [AppRCtx _] with "Hdel []");
-        try (intros; apply _).
-      { iApply eq_lift_same. by iExists _. }
-      iIntros "!>" (vl vr) "Hu". iEval (rewrite eq_lift_unit) in "Hu".
-      iDestruct "Hu" as %[-> ->]. simpl.
-      destruct p; eq_pures_l; eq_pures_r;
-        (iApply (eq_na_open _ _ NS); first done); iFrame "Hinv"; iIntros "[>H Hclose]";
-        iDestruct "H" as "((%bA & HsA & HsA') & (%bB & HsB & HsB') & Hα & Hβ)";
-        eq_load_l; eq_load_r; iApply eq_na_close_rule; iFrame "Hclose";
-        (iSplitL; first (iNext; iFrame)).
-      + destruct bB.
+      destruct p; eq_pures_l; eq_pures_r; iLöb as "IH".
+      + iApply (eq_call MS θ 𝟙%T 𝟙%T db1 db2 _ _ [AppRCtx _] [AppRCtx _] with "Hdb []");
+          try (intros; apply _).
+        { by iEval (rewrite eq_lift_unit). }
+        iIntros "!>" (vl vr) "Hu". iEval (rewrite eq_lift_unit) in "Hu".
+        iDestruct "Hu" as %[-> ->]. simpl. eq_pures_l. eq_pures_r.
+        iApply (eq_na_open _ _ NS); first done. iFrame "Hinv". iIntros "[>H Hclose]".
+        iDestruct "H" as "(HA & (%bB & HsB & HsB') & Hα & Hβ)".
+        eq_load_l. eq_load_r. iApply eq_na_close_rule. iFrame "Hclose".
+        iSplitL; first (iNext; iFrame).
+        destruct bB.
         * eq_pures'. iApply eq_value. iModIntro. by iEval (rewrite eq_lift_unit).
         * eq_pures_lr. try (try eq_pures_l). try (try eq_pures_r). iApply "IH".
-      + destruct bA.
+      + iApply (eq_call MS θ 𝟙%T 𝟙%T da1 da2 _ _ [AppRCtx _] [AppRCtx _] with "Hda []");
+          try (intros; apply _).
+        { by iEval (rewrite eq_lift_unit). }
+        iIntros "!>" (vl vr) "Hu". iEval (rewrite eq_lift_unit) in "Hu".
+        iDestruct "Hu" as %[-> ->]. simpl. eq_pures_l. eq_pures_r.
+        iApply (eq_na_open _ _ NS); first done. iFrame "Hinv". iIntros "[>H Hclose]".
+        iDestruct "H" as "((%bA & HsA & HsA') & HB & Hα & Hβ)".
+        eq_load_l. eq_load_r. iApply eq_na_close_rule. iFrame "Hclose".
+        iSplitL; first (iNext; iFrame).
+        destruct bA.
         * eq_pures'. iApply eq_value. iModIntro. by iEval (rewrite eq_lift_unit).
         * eq_pures_lr. try (try eq_pures_l). try (try eq_pures_r). iApply "IH".
   Qed.
