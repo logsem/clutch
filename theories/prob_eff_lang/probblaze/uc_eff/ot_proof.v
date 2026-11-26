@@ -76,9 +76,10 @@ Section ot_eq.
 
   Lemma real_ideal_EQ :
     ⎡↯ (1 / n)⎤ ∗ ⎡↯ (1 / n)⎤ ∗ ⎡↯ (1 / n)⎤
-    ⊢ ⟪ AMod (IProd Pub RNet) SPort ⟫ REAL_OT IDEAL_OT.
+    ⊢ ⟪ ModA (IProd Pub RNet) SPort ⟫ REAL_OT IDEAL_OT.
   Proof.
-    iIntros "(He1 & He2 & He3)". rewrite /AMod. iEval (rewrite eq_lift_forall). iIntros (θ).
+    iIntros "(He1 & He2 & He3)". rewrite /ModA /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
+    rewrite eq_lift_mbang /=.
     iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /IProd /RNet /Pub. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (pl pr nl nr) "(-> & -> & #Hpub & Hnet)".
@@ -202,7 +203,7 @@ Section ot_security.
   Proof.
     intros A HA.
     apply (sem_typed_advantage_aff A REAL_OT IDEAL_OT
-             (λ H : probblazeRGS Σ, AMod (IProd Pub RNet) SPort) (3 / n)).
+             (λ H : probblazeRGS Σ, ModA (IProd Pub RNet) SPort) (3 / n)).
     { apply Rcomplements.Rdiv_le_0_compat; first lra. apply lt_0_INR. lia. }
     { exact HA. }
     split; intros HRGS; iIntros "Herr"; iDestruct (ot_credits with "Herr") as "Herr".

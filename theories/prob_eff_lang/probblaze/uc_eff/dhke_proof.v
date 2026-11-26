@@ -46,7 +46,7 @@ Section dhke_eq.
     ⊢ EQ REAL_DHKE ≈ (C_DH_v DH_real ⊳ F_AUTH)%md <|iLblSig_to_iLblThy (⊥ : sem_row Σ)|>
         {{ ⟪ Mod Net Keys ⟫ }}.
   Proof.
-    iApply eq_value. iModIntro. rewrite /Mod. iEval (rewrite eq_lift_forall). iIntros (θ).
+    iApply eq_value. iModIntro. rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /Net /IProd /ONet. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (abl abr bal bar) "(-> & -> & Hab & Hba)".
@@ -151,7 +151,7 @@ Section dhke_eq.
     ⊢ EQ (C_DH_v DH_rand ⊳ F_AUTH)%md ≈ IDEAL_DHKE <|iLblSig_to_iLblThy (⊥ : sem_row Σ)|>
         {{ ⟪ Mod Net Keys ⟫ }}.
   Proof.
-    iApply eq_value. iModIntro. rewrite /Mod. iEval (rewrite eq_lift_forall). iIntros (θ).
+    iApply eq_value. iModIntro. rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /Net /IProd /ONet. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (abl abr bal bar) "(-> & -> & Hab & Hba)".

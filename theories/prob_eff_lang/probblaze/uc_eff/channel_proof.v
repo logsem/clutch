@@ -53,7 +53,7 @@ Section channel_eq.
     ⊢ EQ HYB_CHAN ≈ IDEAL_CHAN <|iLblSig_to_iLblThy (⊥ : sem_row Σ)|>
         {{ ⟪ Mod (IProd Ctl ONet) SChan ⟫ }}.
   Proof.
-    iApply eq_value. iModIntro. rewrite /Mod. iEval (rewrite eq_lift_forall). iIntros (θ).
+    iApply eq_value. iModIntro. rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /IProd /Ctl /ONet. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (ctll ctlr netl netr) "(-> & -> & Hctl & Hnet)".

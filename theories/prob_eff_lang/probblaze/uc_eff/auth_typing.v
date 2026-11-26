@@ -34,7 +34,7 @@ Section auth_typing.
 
   Lemma F_OAUTH_eq : ⊢ ⟪ Mod ONet OEp ⟫ F_OAUTH F_OAUTH.
   Proof.
-    rewrite /Mod. iEval (rewrite eq_lift_forall). iIntros (θ).
+    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /ONet. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (l1 l2 d1 d2) "(-> & -> & #Hleak & #Hdel)".

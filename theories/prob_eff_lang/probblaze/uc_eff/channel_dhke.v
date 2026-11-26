@@ -75,7 +75,7 @@ Section channel_dhke.
            DH_real DH_rand #true.
   Proof.
     intros HA.
-    etrans; first apply (uc_composition
+    etrans; first apply (uc_composition MS
       (REAL_DHKE ⊗ F_OAUTH) (S_DHKE ⊗ id_mod) (F_KE ⊗ F_OAUTH) CHAN S_CHAN F_CHAN true
       (λ A, advantage (RED_DHKE (λ: "v", A (tens_app "v" F_OAUTH))%V) DH_real DH_rand #true) (λ _, 0)
       (λ _, IProd Net ONet) (λ _, IProd Ctl ONet) (λ _, CAdv) (λ _, IProd Keys OEp) (λ _, SChan)).

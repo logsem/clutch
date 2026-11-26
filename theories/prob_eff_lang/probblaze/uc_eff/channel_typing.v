@@ -35,7 +35,7 @@ Section channel_typing.
 
   Lemma F_CHAN_eq : ⊢ ⟪ Mod CAdv SChan ⟫ F_CHAN F_CHAN.
   Proof.
-    rewrite /Mod. iEval (rewrite eq_lift_forall). iIntros (θ).
+    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /CAdv. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (n1 n2 a1 a2) "(-> & -> & #Hnot & #Hall)".
@@ -88,7 +88,7 @@ Section channel_typing.
      keeps the one it has not used yet across the call to the other. *)
   Lemma CHAN_eq : ⊢ ⟪ Mod (IProd Keys OEp) SChan ⟫ CHAN CHAN.
   Proof.
-    rewrite /Mod. iEval (rewrite eq_lift_forall). iIntros (θ).
+    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /IProd /Keys /OEp. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (keysl keysr epl epr) "(-> & -> & Hkeys & Hep)".
@@ -137,7 +137,7 @@ Section channel_typing.
 
   Lemma S_CHAN_eq : ⊢ ⟪ Mod (IProd Ctl ONet) CAdv ⟫ S_CHAN S_CHAN.
   Proof.
-    rewrite /Mod. iEval (rewrite eq_lift_forall). iIntros (θ).
+    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /IProd /Ctl /ONet. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (ctll ctlr netl netr) "(-> & -> & Hctl & Hnet)".

@@ -173,5 +173,5 @@ End ot_types.
 Definition ot_secure `{!probblazeRGpreS Σ}
     {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg} : Prop :=
   ∀ A : val,
-    (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (AMod (IProd Pub RNet) SPort → 𝔹)%T) →
+    (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (ModA (IProd Pub RNet) SPort → 𝔹)%T) →
     (advantage A REAL_OT IDEAL_OT #true <= 3 / S (S n''))%R.

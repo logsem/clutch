@@ -37,7 +37,7 @@ Section dhke_typing.
 
   Lemma F_KE_eq : ⊢ ⟪ Mod Ctl Keys ⟫ F_KE F_KE.
   Proof.
-    rewrite /Mod. iEval (rewrite eq_lift_forall). iIntros (θ).
+    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /Ctl. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (n1 n2 a1 a2) "(-> & -> & #Hnot & #Hall)".
@@ -106,7 +106,7 @@ Section dhke_typing.
 
   Lemma S_DHKE_eq : ⊢ ⟪ Mod Net Ctl ⟫ S_DHKE S_DHKE.
   Proof.
-    rewrite /Mod. iEval (rewrite eq_lift_forall). iIntros (θ).
+    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /Net /IProd /ONet. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (abl abr bal bar) "(-> & -> & Hab & Hba)".
