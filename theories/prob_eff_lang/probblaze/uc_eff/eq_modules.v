@@ -5,6 +5,7 @@
 From iris.proofmode Require Import base proofmode classes.
 From iris.bi Require Import monpred.
 From iris.proofmode Require Import monpred.
+From clutch.prelude Require Import fin.
 From clutch.prob_eff_lang.probblaze Require Import primitive_laws proofmode.
 From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_instances tactics.
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory semantics logic adequacy mode.
@@ -114,6 +115,34 @@ Section eq_modules.
     - iApply (brel_call_frame_aff θ' ρ A B (P Bwd) with "Hρ Hf Hw HP").
       iIntros "!>" (v1 v2) "HB HP". iApply (eq_rel_at_elim_const Bwd).
       iApply ("Hc" $! v2 v1 with "[HB] HP"). by rewrite eq_lift_at.
+  Qed.
+
+  (* Coupling a [rand] of [l] with a [rand] of [r] along a bijection [f],
+     except on one value [a] of [l], at the price of an error credit. *)
+  Lemma eq_couple_rand_rand_avoid E N (a : nat) f `{!Bij f} Kl Kr X R z :
+    TCEq N (Z.to_nat z) → (∀ n, n < S N → f n < S N)%nat%type → (a < S N)%nat →
+    ⎡↯ (1 / S N)⎤ ∗
+    (∀ n, ⌜n ≤ N⌝ -∗ ⌜n ≠ a⌝ -∗ EQ fill Kl #n ≈ fill Kr #(f n) @ E <|X|> {{ R }})
+    ⊢ EQ fill Kl (rand #z) ≈ fill Kr (rand #z) @ E <|X|> {{ R }}.
+  Proof.
+    intros HN Hdom Ha. split=> d.
+    rewrite monPred_at_sep monPred_at_embed monPred_at_forall eq_rel_at. iIntros "[Herr H]".
+    destruct d; rewrite /pick /=.
+    - iApply (brel_couple_couple_avoid _ _ [nat_to_fin Ha] f); [apply NoDup_singleton|done|].
+      iFrame "Herr". iIntros "!>" (n Hn). iSpecialize ("H" $! (fin_to_nat n)).
+      iApply (eq_rel_at_elim Fwd). iApply "H"; iPureIntro.
+      + pose proof (fin_to_nat_lt n). lia.
+      + intros Heq. apply Hn. assert (n = nat_to_fin Ha) as ->; last by constructor.
+        apply fin_to_nat_inj. by rewrite fin_to_nat_to_fin.
+    - pose proof (f_inv_bij f).
+      iApply (brel_couple_couple_avoid _ _ [nat_to_fin (Hdom a Ha)] (f_inv f));
+        [apply NoDup_singleton|intros n Hn; apply (f_inv_restr (S N) f Hdom n Hn)|].
+      iFrame "Herr". iIntros "!>" (m Hm). iSpecialize ("H" $! (f_inv f (fin_to_nat m))).
+      rewrite f_inv_cancel_r.
+      iApply (eq_rel_at_elim Bwd). iApply "H"; iPureIntro.
+      + pose proof (f_inv_restr (S N) f Hdom m (fin_to_nat_lt m)). lia.
+      + intros Heq. apply Hm. assert (m = nat_to_fin (Hdom a Ha)) as ->; last by constructor.
+        apply fin_to_nat_inj. by rewrite fin_to_nat_to_fin -Heq f_inv_cancel_r.
   Qed.
 
 End eq_modules.

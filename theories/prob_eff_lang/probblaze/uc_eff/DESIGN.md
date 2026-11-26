@@ -297,7 +297,116 @@ Notes from the proofs:
   components) and are routine. A syntactic type system with tapes and the
   group type would produce them.
 
-## 6. Alternatives considered
+## 6. Oblivious transfer with a corrupted receiver (mechanised)
+
+Files: `ot.v`, `ot_arith.v`, `ot_proof.v`. The protocol is the one of `examples/ot`
+(1-out-of-2 OT in the CRS model); the choice bit `b` selects `m_b`.
+
+**Corruption.** A corrupted party's code is absent and the adversary plays
+it. Each corruption case is written directly, as in `examples/ot` and as
+is usual in mechanisations; it is not derived from an honest protocol.
+What the corrupted party would have used becomes part of the adversarial
+interface:
+
+* *Network.* A channel with a corrupted end adds nothing to what the
+  adversary can do, so the honest party talks to the adversary: `recv`
+  returns the corrupted party's message (the adversary blocks by not
+  returning), `send` takes the reply. There is no `F_OAUTH`.
+* *Functionality.* The functionality asks the adversary for the corrupted
+  party's input and hands it that party's output, through two adversarial
+  operations.
+
+A simulator is then an ordinary module from the real adversarial
+interface to the ideal one, the ideal world is `F ⊳ S`, and there is no
+mutual dependency between simulator and functionality.
+
+    F_CRS publish ≜
+      let crs = (g^sample, g^sample, g^sample, g^sample) in    -- (h1, h0, g1, g0)
+      publish crs; crs
+
+    OT_S (crs, (recv, send)) ≜
+      λ (m0, m1). let (u, v) = recv () in
+                  if u = 1 then () else
+                  send (enc (g0, h0, u, v) m0, enc (g1, h1, u, v) m1)
+
+    F_OT_R (choose, output) ≜
+      λ (m0, m1). let b = choose () in
+                  output (if b then m1 else m0)
+
+    S_OT_R (publish, (recv, send)) ≜
+      -- a reference string with a trapdoor
+      let g1, g0 = g^sample, g^sample in
+      let t1, t0 = sample, sample in
+      let crs = (g1^t1, g0^t0, g1, g0) in
+      publish crs;
+      let st = ref None in
+      -- choose: take the receiver's message and extract the choice
+      ( λ (). let (u, v) = recv () in
+              st := Some (u, v); v ≠ u^t0
+      -- output: encrypt the chosen message, and a dummy
+      , λ m. let (u, v) = !st in
+             if u = 1 then () else
+             let (m0, m1) = if v = u^t0 then (m, g) else (g, m) in
+             send (enc (g0, h0, u, v) m0, enc (g1, h1, u, v) m1) )
+
+    REAL_OT  ≜ OT_S ⊳ (F_CRS ⊗ id)        IDEAL_OT ≜ F_OT_R ⊳ S_OT_R
+
+    Pub    ≜ Crs → 𝟙                       -- pure: called while the module is set up
+    RNet θ ≜ (𝟙 -{θ}-> 𝔾 × 𝔾) × ((𝔾 × 𝔾) × (𝔾 × 𝔾) -{θ}-> 𝟙)
+    OTAdv θ ≜ (𝟙 -{θ}-> 𝔹) × (𝔾 -{θ}-> 𝟙)
+    SPort θ ≜ (𝔾 × 𝔾) -{¡θ}-∘ 𝟙
+
+**Statement** (`ot_security`), for a group of prime order `n`:
+
+    A : AMod (Pub × RNet) SPort → 𝔹   ⊢   advantage A REAL_OT IDEAL_OT ≤ 3/n
+
+**One instance.** `AMod X Y ≜ ∀θ. X θ ⊸ Y θ` is a module that the
+environment instantiates once. A statistical bound is spent when the
+module is instantiated (here: when the reference string is sampled), so
+the statement is false for an environment that may create several
+instances; `examples/ot` has the same restriction.
+
+Notes from the proof:
+
+* One proof in the equivalence logic, read in both directions, instead of
+  the two refinements of `examples/ot`; the number-theoretic lemmas of
+  `examples/ot/ot_bijection.v` are reused, the mirrored ones are not
+  needed. The rule that was missing is a coupling along a bijection that
+  avoids one value for an error credit (`eq_couple_rand_rand_avoid` in
+  `eq_modules.v`).
+* The credits: `1/n` for each of `g0`, `g1` not being the unit, `1/n` for
+  the two trapdoors being different.
+* The two worlds line up call for call: `recv` then `send` on the left,
+  `choose` (which calls `recv`) then `output` (which calls `send`) on the
+  right. The sender's port is one-shot, so the simulator's state is owned
+  by the port and no invariant is needed.
+* Typed payloads remove the group-membership checks and their failure
+  branches, and there is no handler: the relational proof is about 110
+  lines, against 860.
+* The arithmetic is factored into `ot_arith.v` as lemmas on group
+  elements `g ^+ k` for natural numbers `k`: the trapdoor bijection
+  (`trap`, `trap_exp`), the masking of a ciphertext by a dummy (`mask_r`,
+  `mask_s`, `mask_fst`, `mask_snd`) and when a key is not degenerate
+  (`nondeg_other`, `nondeg_self`). The conversion to the `fin n` of
+  `ot_bijection.v` happens inside those lemmas only.
+
+**Composition.** `F_OT_R : Mod OTAdv SPort` is a plain module, so a
+protocol `ρ` on the sender's port composes by `uc_composition`; in the
+hybrid world the environment plays the corrupted receiver by providing
+`choose` and `output`. Two things are needed first:
+
+* `uc_composition` is stated for `Mod`. With a statistical step it has to
+  be stated for one-instance modules. The module type should take the
+  mode as a parameter, with the operator lemmas and the theorem proved for
+  any mode; a statement for `Mod` implies the one for `AMod`.
+* For OT reversal on top of this case (Alice, the OT receiver, corrupted),
+  Bob samples his mask before he calls the sender port, hence before
+  `choose` is called, while the proof couples the mask with a value that
+  depends on the choice. A sender port in two phases,
+  `λ (). let b = choose () in λ (m0, m1). output …`, lets Bob sample
+  afterwards; the real sender already has this shape.
+
+## 7. Alternatives considered
 
 **A. Keep `uc/`, repair it.** Index an interface by a single row so that a
 product of interfaces is an interface, and add an identity. This would
@@ -364,16 +473,15 @@ and it brings the client-taking shape back.
   through the simulator (`S ⊗ id`); global effects gave that for free. In
   the channel over DHKE this cost one lemma (`dhke_beside_oauth`, about
   twenty-five lines) and the interchange law.
-* Active corruption needs an explicit knot: the simulator needs the
-  functionality's corrupted port and the functionality needs the
-  simulator's operations (section 8).
+* Corruption cases are written one by one; the honest protocol does not
+  appear in their statements (section 6).
 
-## 7. Status
+## 8. Status
 
 | File | Contents | State |
 |---|---|---|
-| `modules.v` | `Mod`, `⊳`, `⊗`, identity; typing, associativity, interchange; environment extensions; `uc_composition` | proved |
-| `eq_modules.v` | rules of the `eq/` logic for modules: calling ports and operations, self-equivalence to typing | proved |
+| `modules.v` | `Mod`, `AMod`, `⊳`, `⊗`, identity; typing, associativity, interchange; environment extensions; `uc_composition` | proved |
+| `eq_modules.v` | rules of the `eq/` logic for modules: calling ports and operations, self-equivalence to typing, coupling with an avoided value | proved |
 | `auth.v` | `F_OAUTH`, `F_AUTH ≜ F_OAUTH ⊗ F_OAUTH`, their interfaces | definitions |
 | `auth_typing.v` | typings of `F_OAUTH`, `F_AUTH` | proved |
 | `dhke.v` | DHKE components, interfaces, `dhke_secure` | definitions |
@@ -383,15 +491,18 @@ and it brings the client-taking shape back.
 | `channel_proof.v` | `chan_security` | proved |
 | `channel_typing.v` | typings of `CHAN`, `F_CHAN`, `S_CHAN` | proved |
 | `channel_dhke.v` | `chan_dhke_security`: the channel over DHKE by `uc_composition` | proved |
+| `ot.v` | OT components with a corrupted receiver, interfaces, `ot_secure` | definitions |
+| `ot_arith.v` | the bijections on exponents the OT proof couples along (trapdoor, ciphertext masking), over natural numbers | proved |
+| `ot_proof.v` | `ot_security` | proved |
 
-No admits. `Print Assumptions chan_dhke_security` lists only the classical
+No admits. `Print Assumptions` of `chan_dhke_security` and of `ot_security` lists only the classical
 axioms of the reals library, functional and propositional extensionality
 and indefinite description; the group is a `clutch_group` instance.
 
 Not done: the typing of `DH_KE` (not needed: the composition theorem
 assumes nothing about the real module); the other case studies.
 
-## 8. The other case studies in this style (sketches)
+## 9. The other case studies in this style (sketches)
 
 **AUTH from one-time MACs.** `AUTH : Mod RawNet Eps` tags and verifies
 with two one-time MAC instances; `S_AUTH : Mod RawNet Net` tags the leaked
@@ -410,21 +521,14 @@ parties. The `started` flags and the "one session per environment call"
 mechanism disappear; the environment calls three ports and schedules by
 handling the network's `wait`.
 
-**OT, active corruption.** A corrupted party's code is deleted and what it
-could use is handed to the adversary: in the real world the environment
-gets those ports; in the ideal world the simulator gets the corrupted
-party's port of `F_OT` and offers simulated versions of what the party
-could call. The simulator and the functionality depend on each other, so
-they are tied through a reference:
+**OT with a corrupted sender.** As section 6, with the receiver's code kept:
+the functionality asks the adversary for the two messages, and the bound
+is a DDH term plus `2/n` through a reduction that replaces `F_CRS`.
 
-    let r = ref ⊥ in
-    let (corrupt, honest) = F_OT (λ x. !r x) in
-    r := S_OT adv corrupt; …
+**OT reversal.** `F_TO` from `F_OT` and one authenticated message; see the
+notes on composition in section 6.
 
-Composition under corruption only layers the honest party's code and
-leaves the adversary's ports alone.
-
-## 9. Open points
+## 10. Open points
 
 * Blocking ports loop when the adversary returns too early, so an
   adversary that always returns at once makes a party diverge. Both
@@ -433,6 +537,8 @@ leaves the adversary's ports alone.
   the message is there would need the functionality to hold the party's
   continuation.
 * Component typings are proved by hand (section 5).
+* `uc_composition` for one-instance modules, and the component typings of
+  the OT example, which it needs (section 6).
 * The handler presentation of simulators as a stated theorem.
 * Simulators that hold a continuation (alternative E), if a case study
   needs one.

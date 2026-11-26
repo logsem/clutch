@@ -106,6 +106,11 @@ Section modules.
   (* The type of a module from interface [X] to interface [Y]. *)
   Definition Mod (X Y : sem_row Σ → sem_ty Σ) : sem_ty Σ := (∀ᵣ θ, X θ → Y θ)%T.
 
+  (* A module that the environment may instantiate only once.  Statements
+     with a statistical bound are about such modules: the bound is spent
+     when the module is instantiated. *)
+  Definition AMod (X Y : sem_row Σ → sem_ty Σ) : sem_ty Σ := (∀ᵣ θ, X θ ⊸ Y θ)%T.
+
   Global Instance Sys_persistent X Y v1 v2 : Persistent (Mod X Y v1 v2).
   Proof. rewrite /Mod /sem_ty_row_forall /sem_ty_mbang /=. apply _. Qed.
 
