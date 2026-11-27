@@ -67,7 +67,7 @@ Section ot_corrupted_receiver.
       λ: <>,
         let, ("u", "v") := "recv" #()%V in
         let: "b" := ~ (veq "v" ("u"^"t0")) in
-        let: "k" := OT_S ("crs", ((λ: <>, ("u", "v")), "send")) #()%V in
+        let: "k" := OT_S ((λ: <>, "crs"), ((λ: <>, ("u", "v")), "send")) #()%V in
         ("b", λ: "m", "k" (if: "b" then (g ^ #(Z.of_nat 1), "m") else ("m", g ^ #(Z.of_nat 1)))).
 
   (* The real and the ideal module. *)
@@ -93,7 +93,7 @@ Section ot_corrupted_receiver_types.
     (𝟙 -{ ¡ θ }-∘ (𝔹 × (𝔾 -{ ¡ θ }-∘ 𝟙)))%T.
 
   (* The typings of the components:
-       F_CRS  : Mod Pub (λ _, Crs)        OT_S   : Mod (IProd (λ _, Crs) RNet) SPort
+       F_CRS  : Mod Pub CrsPort           OT_S   : Mod (IProd CrsPort RNet) SPort
        F_OT_R : Mod OTAdv SPort           S_OT_R : Mod (IProd Pub RNet) OTAdv
      so that  REAL_OT_R, IDEAL_OT_R : Mod (IProd Pub RNet) SPort. *)
 

@@ -72,6 +72,11 @@ Section eq_modules.
   Lemma eq_loop_ctx Kl Kr X R : ⊢ EQ fill Kl (loop #()%V) ≈ fill Kr (loop #()%V) <|X|> {{ R }}.
   Proof. iApply eq_bind_nil. iApply eq_loop. Qed.
 
+  (* A module, or a function of the empty row, called from inside an
+     operation at a one-shot row. *)
+  Lemma row_le_nil_flip (θ : sem_row Σ) : ⊢@{iPropD Σ} ⎡(¡ ⟨⟩)%R ≤ᵣ (¡ θ)%R⎤.
+  Proof. iApply (row_le_trans _ ⟨⟩%R); [iApply row_le_mfbang_elim_nil|iApply row_le_nil]. Qed.
+
   (* A persistent operation can be used as a one-shot one. *)
   Lemma eq_arr_aff (θ : sem_row Σ) (τ κ : sem_ty Σ) (fl fr : val) :
     ⟪ τ -{ θ }-> κ ⟫ fl fr ⊢ ⟪ τ -{ ¡ θ }-∘ κ ⟫ fl fr.

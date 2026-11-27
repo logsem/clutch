@@ -105,15 +105,23 @@ Section ot.
   (* ---------------------------------------------------------------- *)
 
   (* The reference string taken from a DDH sampler [dh]: the functionality
-     publishes it to the adversary and returns it.
+     samples it when it is set up, sends it to the adversary (push), and
+     gives the parties a port to request it (pull).  The string is the same
+     for every request; sampling it at the first request instead would make
+     no observable difference.  This is the [F_crs] of the UC literature,
+     which hands the string to the parties of the protocol and to the
+     adversary.
 
        module F_CRS_DH (Dh : DDH) (Adv : sig val publish : crs -> unit end) =
-         struct let crs = Dh.sample () ;; Adv.publish crs end *)
+         struct
+           let crs = Dh.sample () ;; Adv.publish crs
+           let get () = crs
+         end *)
   Definition F_CRS_DH (dh : val) : val :=
     λ: "publish",
       let: "crs" := dh #()%V in
       "publish" "crs";;
-      "crs".
+      λ: <>, "crs".
 
   (* The reference string of the protocol: [(h1, h0, g1, g)] for three
      random group elements, i.e. a random DDH tuple. *)
@@ -123,7 +131,7 @@ Section ot.
     λ: "dh" "publish",
       let: "crs" := "dh" #()%V in
       "publish" "crs";;
-      "crs".
+      λ: <>, "crs".
 
   Lemma F_CRS_DH_app_pure (dh : val) : rtc pure_step (F_CRS_DH_app dh) (F_CRS_DH dh).
   Proof.
@@ -139,17 +147,18 @@ Section ot.
   (* The protocol: the sender.                                          *)
   (* ---------------------------------------------------------------- *)
 
-  (* It takes the reference string and its network: [recv] returns the
-     receiver's message, [send] takes the sender's reply.  It returns the
-     sender's port, in two phases: the first takes the receiver's message,
-     the second the sender's messages. *)
+  (* It takes the reference string's port and its network: [recv] returns
+     the receiver's message, [send] takes the sender's reply.  It returns
+     the sender's port, in two phases: the first requests the reference
+     string and takes the receiver's message, the second the sender's
+     messages. *)
   Definition OT_S : val :=
     λ: "res",
       let, ("crs", "net") := "res" in
       let, ("recv", "send") := "net" in
-      let, ("h1", "h0", "g1", "g0") := "crs" in
 
       λ: <>,
+        let, ("h1", "h0", "g1", "g0") := "crs" #()%V in
         let, ("u", "v") := "recv" #()%V in
         λ: "mm",
           let, ("m0", "m1") := "mm" in
@@ -166,16 +175,17 @@ Section ot.
   (* The protocol: the receiver.                                        *)
   (* ---------------------------------------------------------------- *)
 
-  (* It takes the reference string and its network: [send] takes the
-     receiver's message, [recv] returns the sender's reply.  Its port
-     takes the choice [b] and returns [m_b]. *)
+  (* It takes the reference string's port and its network: [send] takes
+     the receiver's message, [recv] returns the sender's reply.  Its port
+     takes the choice [b], requests the reference string, and returns
+     [m_b]. *)
   Definition OT_R : val :=
     λ: "res",
       let, ("crs", "net") := "res" in
       let, ("send", "recv") := "net" in
-      let, ("h1", "h0", "g1", "g0") := "crs" in
 
       λ: "b",
+        let, ("h1", "h0", "g1", "g0") := "crs" #()%V in
         let: "x" := sample #()%V in
         let, ("gb", "hb") := if: "b" then ("g1", "h1") else ("g0", "h0") in
         "send" ("gb"^"x", "hb"^"x");;
@@ -337,9 +347,11 @@ Section ot_types.
   Context {cg : clutch_group_struct}.
   Context {vgg : @val_group_generator vg}.
 
-  (* The reference string, and the operation that publishes it. *)
+  (* The reference string, the operation that publishes it to the
+     adversary, and the parties' port that requests it. *)
   Definition Crs : sem_ty Σ := (𝔾 × 𝔾 × 𝔾 × 𝔾)%T.
   Definition Pub (θ : sem_row Σ) : sem_ty Σ := (Crs → 𝟙)%T.
+  Definition CrsPort (θ : sem_row Σ) : sem_ty Σ := (𝟙 → Crs)%T.
   (* The sender's port, in two phases: the first fixes the receiver's
      choice, the second takes the sender's messages (see the comment at the
      top of the file). *)

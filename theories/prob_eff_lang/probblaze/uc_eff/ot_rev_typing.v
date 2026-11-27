@@ -149,10 +149,6 @@ Section ot_rev_typing.
     iApply tens_op_typed; [iApply F_OT_R_typed|iApply id_mod_typed].
   Qed.
 
-  (* The simulator runs the hybrid, a module, from inside an operation. *)
-  Lemma row_le_nil_flip (θ : sem_row Σ) : ⊢@{iPropD Σ} ⎡(¡ ⟨⟩)%R ≤ᵣ (¡ θ)%R⎤.
-  Proof. iApply (row_le_trans _ ⟨⟩%R); [iApply row_le_mfbang_elim_nil|iApply row_le_nil]. Qed.
-
   Lemma S_TO_S_eq : ⊢ ⟪ Mod (IProd OTAdv ARecv) TOSAdv ⟫ S_TO_S S_TO_S.
   Proof.
     iPoseProof (val_typed_eq _ _ HYB_TO_S_typed) as "HH".

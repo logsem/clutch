@@ -102,7 +102,7 @@ Section ot_corrupted_sender_types.
   Definition OTSAdv (θ : sem_row Σ) : sem_ty Σ := (𝟙 -{ θ }-> 𝔾 × 𝔾)%T.
 
   (* The typings of the components:
-       F_CRS  : Mod Pub (λ _, Crs)        OT_R   : Mod (IProd (λ _, Crs) SNet) RPort
+       F_CRS  : Mod Pub CrsPort           OT_R   : Mod (IProd CrsPort SNet) RPort
        F_OT_S : Mod OTSAdv RPort          S_OT_S : Mod (IProd Pub SNet) OTSAdv
      so that  REAL_OT_S, IDEAL_OT_S : Mod (IProd Pub SNet) RPort. *)
 
