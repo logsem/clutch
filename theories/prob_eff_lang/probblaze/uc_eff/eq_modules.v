@@ -47,6 +47,103 @@ Section eq_modules.
   Lemma eq_bool (b : bool) : ⊢ ⟪ (𝔹 : sem_ty Σ) ⟫ #b #b.
   Proof. iEval (rewrite eq_lift_bool). by iExists b. Qed.
 
+  (* A persistent operation can be used as a one-shot one. *)
+  Lemma eq_arr_aff (θ : sem_row Σ) (τ κ : sem_ty Σ) (fl fr : val) :
+    ⟪ τ -{ θ }-> κ ⟫ fl fr ⊢ ⟪ τ -{ ¡ θ }-∘ κ ⟫ fl fr.
+  Proof.
+    iIntros "Hf". iApply eq_lift_arr. iIntros (wl wr) "Hw".
+    iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
+    iApply (eq_call_frame θ (¡ θ)%R τ κ emp%I fl fr wl wr [] [] with "Hρ Hf Hw []");
+      try (intros; apply _); first done.
+    iIntros "!>" (vl vr) "H _". iApply eq_value. by iModIntro.
+  Qed.
+
+  (* A first-order type: related values are equal and satisfy [φ].  Such
+     values can be kept in an invariant as a pure fact. *)
+  Definition eq_ground (τ : sem_ty Σ) (φ : val → Prop) : Prop :=
+    ∀ vl vr, ⟪ τ ⟫ vl vr ⊣⊢ ⌜vl = vr ∧ φ vl⌝.
+
+  Lemma eq_ground_bool : eq_ground 𝔹 (λ v, ∃ b : bool, v = #b)%type.
+  Proof.
+    intros vl vr. rewrite eq_lift_bool. iSplit.
+    - iIntros "(%b & -> & ->)". iPureIntro. eauto.
+    - iIntros "(-> & %b & ->)". by iExists b.
+  Qed.
+
+  Lemma eq_ground_prod τ κ φ ψ :
+    eq_ground τ φ → eq_ground κ ψ →
+    eq_ground (τ × κ) (λ v, ∃ a b, v = (a, b)%V ∧ φ a ∧ ψ b)%type.
+  Proof.
+    intros Hτ Hκ vl vr. rewrite eq_lift_prod. setoid_rewrite Hτ. setoid_rewrite Hκ. iSplit.
+    - iIntros "(%al & %ar & %bl & %br & -> & -> & [-> %Ha] & [-> %Hb])".
+      iPureIntro. split; first done. eauto.
+    - iIntros "(-> & %a & %b & -> & %Ha & %Hb)".
+      iExists a, a, b, b. eauto.
+  Qed.
+
+  (* A message box holding a value of a first-order type. *)
+  Definition box_rel_gen (φ : val → Prop) (m m' : loc) : iPropD Σ :=
+    (m ↦ₗ NONEV ∗ m' ↦ᵣ NONEV) ∨ ∃ x, ⌜φ x⌝ ∗ m ↦ₗ SOMEV x ∗ m' ↦ᵣ SOMEV x.
+
+  (* A Boolean flag, the same on both sides. *)
+  Definition bool_ref (l l' : loc) : iPropD Σ := ∃ b : bool, l ↦ₗ #b ∗ l' ↦ᵣ #b.
+
+  (* Reading and writing a flag or a box kept in a non-atomic invariant,
+     in one go: open, access, close. *)
+  Lemma eq_na_load_bool N l l' Kl Kr X R :
+    ⊢ eq_na_inv N (bool_ref l l') -∗
+    (∀ b : bool, EQ fill Kl #b ≈ fill Kr #b <|X|> {{ R }}) -∗
+    EQ fill Kl (! #l) ≈ fill Kr (! #l') <|X|> {{ R }}.
+  Proof.
+    iIntros "#Hinv H". iApply (eq_na_open _ _ N); first done. iFrame "Hinv".
+    iIntros "[>(%b & Hl & Hl') Hclose]".
+    iApply eq_load_l. iFrame "Hl". iIntros "Hl". iApply eq_load_r. iFrame "Hl'". iIntros "Hl'".
+    iApply eq_na_close_rule. iFrame "Hclose". iSplitL "Hl Hl'"; first (iNext; iExists b; iFrame).
+    iApply "H".
+  Qed.
+
+  Lemma eq_na_store_bool N l l' (b : bool) Kl Kr X R :
+    ⊢ eq_na_inv N (bool_ref l l') -∗
+    EQ fill Kl #()%V ≈ fill Kr #()%V <|X|> {{ R }} -∗
+    EQ fill Kl (#l <- #b) ≈ fill Kr (#l' <- #b) <|X|> {{ R }}.
+  Proof.
+    iIntros "#Hinv H". iApply (eq_na_open _ _ N); first done. iFrame "Hinv".
+    iIntros "[>(%b' & Hl & Hl') Hclose]".
+    iApply eq_store_l. iFrame "Hl". iIntros "Hl". iApply eq_store_r. iFrame "Hl'". iIntros "Hl'".
+    iApply eq_na_close_rule. iFrame "Hclose". iSplitL "Hl Hl'"; first (iNext; iExists b; iFrame).
+    iApply "H".
+  Qed.
+
+  Lemma eq_na_load_box N φ m m' Kl Kr X R :
+    ⊢ eq_na_inv N (box_rel_gen φ m m') -∗
+    (∀ w, ⌜w = NONEV ∨ ∃ x, φ x ∧ w = SOMEV x⌝ -∗ EQ fill Kl w ≈ fill Kr w <|X|> {{ R }}) -∗
+    EQ fill Kl (! #m) ≈ fill Kr (! #m') <|X|> {{ R }}.
+  Proof.
+    iIntros "#Hinv H". iApply (eq_na_open _ _ N); first done. iFrame "Hinv".
+    iIntros "[>Hb Hclose]".
+    iDestruct "Hb" as "[[Hl Hl']|(%x & %Hx & Hl & Hl')]";
+      iApply eq_load_l; iFrame "Hl"; iIntros "Hl"; iApply eq_load_r; iFrame "Hl'"; iIntros "Hl'";
+      iApply eq_na_close_rule; iFrame "Hclose".
+    - iSplitL "Hl Hl'"; first (iNext; iLeft; iFrame). iApply "H". by iLeft.
+    - iSplitL "Hl Hl'"; first (iNext; iRight; iExists x; by iFrame). iApply "H". iRight. eauto.
+  Qed.
+
+  Lemma eq_na_store_box N φ m m' x Kl Kr X R :
+    φ x →
+    ⊢ eq_na_inv N (box_rel_gen φ m m') -∗
+    EQ fill Kl #()%V ≈ fill Kr #()%V <|X|> {{ R }} -∗
+    EQ fill Kl (#m <- SOMEV x) ≈ fill Kr (#m' <- SOMEV x) <|X|> {{ R }}.
+  Proof.
+    iIntros (Hx) "#Hinv H". iApply (eq_na_open _ _ N); first done. iFrame "Hinv".
+    iIntros "[>Hb Hclose]".
+    iAssert (∃ v v', m ↦ₗ v ∗ m' ↦ᵣ v')%I with "[Hb]" as (v v') "[Hl Hl']".
+    { iDestruct "Hb" as "[[??]|(% & _ & ? & ?)]"; iExists _, _; iFrame. }
+    iApply eq_store_l. iFrame "Hl". iIntros "Hl". iApply eq_store_r. iFrame "Hl'". iIntros "Hl'".
+    iApply eq_na_close_rule. iFrame "Hclose".
+    iSplitL "Hl Hl'"; first (iNext; iRight; iExists x; by iFrame).
+    iApply "H".
+  Qed.
+
   (* A points-to of the right-hand program in two halves: one half can
      serve as a token that the location has not yet been written by its
      owner. *)
@@ -186,5 +283,12 @@ Section eq_modules_group.
 
   Lemma eq_group_val (x y : vgG) : x = y → ⊢ ⟪ 𝔾 ⟫ (vgval x) (vgval y).
   Proof. intros ->. iApply eq_lift_group. by iExists y. Qed.
+
+  Lemma eq_ground_group : eq_ground 𝔾 (λ v, ∃ x : vgG, v = vgval x)%type.
+  Proof.
+    intros vl vr. rewrite eq_lift_group. iSplit.
+    - iIntros "(%x & -> & ->)". iPureIntro. eauto.
+    - iIntros "(-> & %x & ->)". by iExists x.
+  Qed.
 
 End eq_modules_group.

@@ -46,10 +46,18 @@ Section auth_types.
   Definition OEp (θ : sem_row Σ) : sem_ty Σ :=
     ((𝔾 -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ 𝔾))%T.
 
+  (* The same, for messages of type [τ]; [ONet] and [OEp] are the
+     instances at [𝔾]. *)
+  Definition ONetT (τ : sem_ty Σ) (θ : sem_row Σ) : sem_ty Σ :=
+    ((τ -{ θ }-> 𝟙) × (𝟙 -{ θ }-> 𝟙))%T.
+  Definition OEpT (τ : sem_ty Σ) (θ : sem_row Σ) : sem_ty Σ :=
+    ((τ -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ τ))%T.
+
   (* The two-way channel: one of each per direction, A to B first. *)
   Definition Net : sem_row Σ → sem_ty Σ := IProd ONet ONet.
   Definition Eps : sem_row Σ → sem_ty Σ := IProd OEp OEp.
 
-  (* F_OAUTH : Mod ONet OEp ([auth_typing.v]), hence F_AUTH : Mod Net Eps. *)
+  (* F_OAUTH : Mod (ONetT τ) (OEpT τ) for a first-order [τ] ([auth_typing.v]),
+     hence F_AUTH : Mod Net Eps. *)
 
 End auth_types.

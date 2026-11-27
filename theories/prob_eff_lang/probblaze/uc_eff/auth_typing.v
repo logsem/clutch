@@ -32,35 +32,38 @@ Section auth_typing.
 
   Definition NO : namespace := nroot .@ "oauth".
 
-  Lemma F_OAUTH_eq : ⊢ ⟪ Mod ONet OEp ⟫ F_OAUTH F_OAUTH.
+  (* The channel carries any first-order type. *)
+  Lemma F_OAUTH_eq_gen (τ : sem_ty Σ) (φ : val → Prop) :
+    eq_ground τ φ → ⊢ ⟪ Mod (ONetT τ) (OEpT τ) ⟫ F_OAUTH F_OAUTH.
   Proof.
+    intros Hτ.
     rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
-    rewrite /ONet. iEval (rewrite eq_lift_prod) in "Hadv".
+    rewrite /ONetT. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (l1 l2 d1 d2) "(-> & -> & #Hleak & #Hdel)".
     rewrite /F_OAUTH.
     eq_pures_l. eq_alloc_l box as "Hbox". eq_pures_l.
     eq_pures_r. eq_alloc_r box' as "Hbox'". eq_pures_r.
-    iApply (eq_na_alloc (box_rel box box') NO).
+    iApply (eq_na_alloc (box_rel_gen φ box box') NO).
     iSplitL "Hbox Hbox'"; first (iNext; iLeft; iFrame). iIntros "#Hinv".
-    iApply eq_value. iModIntro. rewrite /OEp. iEval (rewrite eq_lift_prod).
+    iApply eq_value. iModIntro. rewrite /OEpT. iEval (rewrite eq_lift_prod).
     iExists _, _, _, _. iSplit; first done. iSplit; first done.
     iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
     iSplitL.
     - (* send *)
       iApply eq_lift_arr. iIntros (xl xr) "Hx".
-      iEval (rewrite eq_lift_group) in "Hx". iDestruct "Hx" as %(x & -> & ->).
+      iEval (rewrite Hτ) in "Hx". iDestruct "Hx" as %[<- Hx].
       eq_pures_l. eq_pures_r.
       iApply (eq_na_open _ _ NO); first done. iFrame "Hinv". iIntros "[>H Hclose]".
       iAssert (∃ v v', box ↦ₗ v ∗ box' ↦ᵣ v')%I with "[H]" as (v v') "[Hb Hb']".
-      { iDestruct "H" as "[[??]|(% & ? & ?)]"; iExists _, _; iFrame. }
+      { iDestruct "H" as "[[??]|(% & _ & ? & ?)]"; iExists _, _; iFrame. }
       eq_store_l. eq_store_r.
       iApply eq_na_close_rule. iFrame "Hclose".
-      iSplitL "Hb Hb'"; first (iNext; iRight; iExists _; iFrame).
+      iSplitL "Hb Hb'"; first (iNext; iRight; iExists _; by iFrame).
       eq_pures_l. eq_pures_r.
-      iApply (eq_call_frame θ (¡ θ)%R 𝔾 𝟙%T emp%I l1 l2 _ _ [] [] with "Hρ Hleak [] []");
+      iApply (eq_call_frame θ (¡ θ)%R τ 𝟙%T emp%I l1 l2 _ _ [] [] with "Hρ Hleak [] []");
         try (intros; apply _).
-      { iApply eq_lift_group. by iExists _. }
+      { iEval (rewrite Hτ). done. }
       { done. }
       iIntros "!>" (vl vr) "Hu _". simpl. by iApply eq_value.
     - (* recv *)
@@ -75,13 +78,20 @@ Section auth_typing.
       iIntros "!>" (vl vr) "Hu _". iEval (rewrite eq_lift_unit) in "Hu".
       iDestruct "Hu" as %[-> ->]. simpl. eq_pures_l. eq_pures_r.
       iApply (eq_na_open _ _ NO); first done. iFrame "Hinv". iIntros "[>H Hclose]".
-      iDestruct "H" as "[[Hb Hb']|(%x & Hb & Hb')]"; eq_load_l; eq_load_r;
+      iDestruct "H" as "[[Hb Hb']|(%x & %Hx & Hb & Hb')]"; eq_load_l; eq_load_r;
         iApply eq_na_close_rule; iFrame "Hclose".
       + iSplitL "Hb Hb'"; first (iNext; iLeft; iFrame).
         eq_pures_lr. try (try eq_pures_l). try (try eq_pures_r). iApply "IH".
-      + iSplitL "Hb Hb'"; first (iNext; iRight; iExists _; iFrame).
-        eq_pures'. iApply eq_value. iModIntro. by iApply eq_group_val.
+      + iSplitL "Hb Hb'"; first (iNext; iRight; iExists _; by iFrame).
+        eq_pures'. iApply eq_value. iModIntro. by iEval (rewrite Hτ).
   Qed.
+
+  Lemma F_OAUTH_typed_gen (τ : sem_ty Σ) (φ : val → Prop) :
+    eq_ground τ φ → ⊢ ⊨ᵥ F_OAUTH ≤ F_OAUTH : Mod (ONetT τ) (OEpT τ).
+  Proof. intros Hτ. apply eq_val_typed, (F_OAUTH_eq_gen τ φ Hτ). Qed.
+
+  Lemma F_OAUTH_eq : ⊢ ⟪ Mod ONet OEp ⟫ F_OAUTH F_OAUTH.
+  Proof. iApply (F_OAUTH_eq_gen 𝔾 _ eq_ground_group). Qed.
 
   Lemma F_OAUTH_typed : ⊢ ⊨ᵥ F_OAUTH ≤ F_OAUTH : Mod ONet OEp.
   Proof. apply eq_val_typed, F_OAUTH_eq. Qed.
