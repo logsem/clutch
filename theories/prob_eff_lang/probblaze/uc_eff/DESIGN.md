@@ -779,6 +779,41 @@ close in one step (`eq_na_load_bool`, `eq_na_store_bool`,
 `eq_na_load_box`, `eq_na_store_box`). `S_OT_H` and `S_TO_H` are typed by
 composition.
 
+**Evidence for the model: an out-of-order schedule (`ot_rev_schedule.v`).**
+An environment whose adversarial operations are plain functions runs the
+parties last-in-first-out: inside a callback it may call another port,
+but must return before the first party continues. On the honest reversal
+this deadlocks in both orders. Bob first: he waits in the OT for Alice's
+choice; Alice, called inside his callback, chooses and then waits for
+Bob's OT messages, but Bob is below her on the stack. Alice first: Bob,
+called inside her callback, sends his OT messages and waits for Alice's
+message on the channel, but Alice is below him. So without effects no
+environment sees the reversal finish.
+
+`SCHED_ENV` declares an effect `w` (signature `𝟙 ⇒ 𝟙`), gives the world
+adversarial operations that perform `w` where a party waits, and runs
+each port under a shallow one-shot handler that pauses the party by
+returning its continuation. It runs Bob until he waits in the OT, Alice
+until she waits in the OT, Bob until he waits on the channel, Alice to the
+end, and Bob to the end. Proved:
+
+* `sched_to_completes`: on `HYB_TO_H` the run returns `true` (Bob's output
+  is `x_c`) with probability `1`, for all inputs, from any state: by a
+  one-sided `BREL #true ≤ run` and adequacy.
+* `SCHED_ENV_typed`: `SCHED_ENV : Mod TOHNet TPorts → 𝔹`, by the
+  semantic compatibility rules (effect allocation, `do`, shallow one-shot
+  handlers, the module's instance at the row of `w`). The context the
+  handler rule carries across a handler must be copyable, so the other
+  party's port and the paused states are framed around each handler;
+  that needs the environment's row to be one-shot (`OnceR`).
+* `sched_to_ideal_completes`: by `to_h_security`, the ideal world
+  completes under the same schedule with the same output.
+
+Next steps of the same argument: a mutant of the reversal that leaks
+Bob's choice after he receives Alice's message (insecure; its leak is
+unreachable without effects, reached by this schedule); the rewinding
+attack that multi-shot ports would allow; the cost of composition.
+
 ## 7. Alternatives considered
 
 **A. Keep `uc/`, repair it.** Index an interface by a single row so that a
@@ -914,6 +949,7 @@ section 10.
 | `ot_typing.v` | typings of `F_OT_R`, `S_OT_R`, `F_OT_S`, `S_OT_S`, `F_OT_H`, `DUMMY_OT`, `OT_S`, `OT_R`, `PARTIES_OT`, `F_CRS_DH DDH_real`, `HYB1_OT_H DDH_real`, `S_OT_H` | proved |
 | `ot_rev_typing.v` | typings of `TO_S`, `TO_R` (for any one-shot interface to Alice's message), `PARTIES_TO`, `F_TO_S`, `HYB_TO_S`, `S_TO_S`, `F_TO_R`, `HYB_TO_R`, `S_TO_R`, `F_TO_H`, `DUMMY_TO`, `HYB_TO_H`, `S_TO_H` | proved |
 | `ot_rev_ot.v` | the reversal on the real OT, three cases: `to_s_ot_security`, `to_r_ot_security`, `to_h_ot_security` by `uc_composition OS` | proved |
+| `ot_rev_schedule.v` | an out-of-order environment for the honest reversal: completes with probability 1 on the hybrid and the ideal world; typed at the environments' type | proved |
 | `links.v` | two-way modules `ModL`, `link` (lazy import from above), typing, associativity, environment extensions, `uc_composition_link`, for either mode; embedding of one-way modules, `realises_embed`; section 11 | proved |
 
 No admits. `Print Assumptions` of `chan_dhke_security`, `ot_r_security` and the three theorems of `ot_rev_ot.v` lists only the classical
