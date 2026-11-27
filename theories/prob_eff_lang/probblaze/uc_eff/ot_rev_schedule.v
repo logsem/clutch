@@ -110,23 +110,27 @@ Section ot_rev_schedule.
 
 End ot_rev_schedule.
 
-(* Handling an operation on the right, found under up to two frames
+(* Handling an operation on the right, found under one or two frames
    outside the handler and up to eight inside it. *)
-Ltac brel_handle_r k Hk :=
+Ltac brel_handle_r_in Ko k Hk :=
   first
-    [ iApply (brel_handle_os_r [AppRCtx _] [AppRCtx _])
-    | iApply (brel_handle_os_r [AppRCtx _] [AppRCtx _; AppRCtx _])
-    | iApply (brel_handle_os_r [AppRCtx _] [AppRCtx _; AppRCtx _; AppRCtx _])
-    | iApply (brel_handle_os_r [AppRCtx _] [AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _])
-    | iApply (brel_handle_os_r [AppRCtx _] [AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _])
-    | iApply (brel_handle_os_r [AppRCtx _]
+    [ iApply (brel_handle_os_r Ko [AppRCtx _])
+    | iApply (brel_handle_os_r Ko [AppRCtx _; AppRCtx _])
+    | iApply (brel_handle_os_r Ko [AppRCtx _; AppRCtx _; AppRCtx _])
+    | iApply (brel_handle_os_r Ko [AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _])
+    | iApply (brel_handle_os_r Ko [AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _])
+    | iApply (brel_handle_os_r Ko
                 [AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _])
-    | iApply (brel_handle_os_r [AppRCtx _]
+    | iApply (brel_handle_os_r Ko
                 [AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _])
-    | iApply (brel_handle_os_r [AppRCtx _]
+    | iApply (brel_handle_os_r Ko
                 [AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _; AppRCtx _;
                  AppRCtx _]) ];
   [ simpl; set_solver | iIntros (k) Hk ].
+
+Ltac brel_handle_r k Hk :=
+  first [ brel_handle_r_in open_constr:([AppRCtx _]) k Hk
+        | brel_handle_r_in open_constr:([AppRCtx _; AppRCtx _]) k Hk ].
 
 (* A sample on the right only, found in its evaluation context. *)
 Lemma tac_brel_randU_r `{!probblazeRGS Σ} E K Δ eₛ eₜ N z X R :
@@ -408,6 +412,38 @@ Proof.
   apply ub. by exists σ.
 Qed.
 
+Section brel_lim_exec.
+  Context `{Hpre : probblazeRGpreS Σ}.
+  #[local] Open Scope R_scope.
+
+(* A program that is related to a value [v], with equal results, returns
+   [v] with probability [1]. *)
+Lemma brel_lim_exec_1 (e : expr) (v : val) σ :
+  (∀ `{!probblazeRGS Σ}, ⊢ BREL v ≤ e <|⊥|> {{ λ v1 v2, ⌜v1 = v2⌝ }}) →
+  lim_exec (e, σ) v = 1.
+Proof.
+  intros Hrel.
+  assert (ARcoupl (lim_exec (Val v, σ)) (lim_exec (e, σ)) (λ v1 v2, v1 = v2) 0) as Hc.
+  { apply (brel_refines_coupling Σ (λ _ v1 v2, ⌜v1 = v2⌝)%I).
+    - iIntros (? v1 v2) "$".
+    - intros HRGS. iApply Hrel. }
+  apply Rle_antisym; first apply pmf_le_1.
+  set (f := λ w : val, if bool_decide (w = v) then 1 else 0).
+  assert (∀ a, 0 <= f a <= 1) as Hf.
+  { intros a. rewrite /f. case_bool_decide; lra. }
+  specialize (Hc f f Hf Hf ltac:(by intros a b ->)).
+  rewrite Rplus_0_r (lim_exec_final (Val v, σ) v) // in Hc.
+  rewrite (SeriesC_ext (λ a, dret v a * f a) (λ a, if bool_decide (a = v) then 1 else 0))
+    in Hc.
+  2: { intros a. rewrite /f /pmf /= /dret_pmf. by repeat case_bool_decide; simplify_eq; lra. }
+  rewrite SeriesC_singleton in Hc.
+  rewrite (SeriesC_ext _ (λ b, if bool_decide (b = v) then lim_exec (e, σ) b else 0)) in Hc.
+  2: { intros b. rewrite /f. case_bool_decide; lra. }
+  by rewrite SeriesC_singleton_dependent in Hc.
+Qed.
+
+End brel_lim_exec.
+
 Section ot_rev_schedule_adequacy.
   Context {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg}.
   Context `{Hpre : probblazeRGpreS Σ}.
@@ -418,27 +454,7 @@ Section ot_rev_schedule_adequacy.
      with probability [1], for all inputs and from any state. *)
   Theorem sched_to_completes (x0 x1 c : bool) σ :
     lim_exec (SCHED_TO x0 x1 c, σ) #true = 1.
-  Proof.
-    assert (ARcoupl (lim_exec (Val #true, σ)) (lim_exec (SCHED_TO x0 x1 c, σ))
-              (λ v1 v2, v1 = v2) 0) as Hc.
-    { apply (brel_refines_coupling Σ (λ _ v1 v2, ⌜v1 = v2⌝)%I).
-      - iIntros (? v1 v2) "$".
-      - intros HRGS. iApply sched_to_correct. }
-    apply Rle_antisym; first apply pmf_le_1.
-    set (f := λ v : val, if bool_decide (v = #true) then 1 else 0).
-    assert (∀ a, 0 <= f a <= 1) as Hf.
-    { intros a. rewrite /f. case_bool_decide; lra. }
-    specialize (Hc f f Hf Hf ltac:(by intros a b ->)).
-    rewrite Rplus_0_r (lim_exec_final (Val #true, σ) #true) // in Hc.
-    rewrite (SeriesC_ext (λ a, dret #true a * f a)
-               (λ a, if bool_decide (a = #true) then 1 else 0)) in Hc.
-    2: { intros a. rewrite /f /pmf /= /dret_pmf. by repeat case_bool_decide; simplify_eq; lra. }
-    rewrite SeriesC_singleton in Hc.
-    rewrite (SeriesC_ext _ (λ b, if bool_decide (b = #true)
-                                  then lim_exec (SCHED_TO x0 x1 c, σ) b else 0)) in Hc.
-    2: { intros b. rewrite /f. case_bool_decide; lra. }
-    by rewrite SeriesC_singleton_dependent in Hc.
-  Qed.
+  Proof. apply brel_lim_exec_1. intros HRGS. iApply sched_to_correct. Qed.
 
   (* The environment is one the security theorem of the honest reversal
      covers, so the ideal world, the ideal transfer with its simulator,

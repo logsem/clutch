@@ -809,10 +809,44 @@ end, and Bob to the end. Proved:
 * `sched_to_ideal_completes`: by `to_h_security`, the ideal world
   completes under the same schedule with the same output.
 
-Next steps of the same argument: a mutant of the reversal that leaks
-Bob's choice after he receives Alice's message (insecure; its leak is
-unreachable without effects, reached by this schedule); the rewinding
-attack that multi-shot ports would allow; the cost of composition.
+**Evidence for the model: a mutant only an out-of-order environment
+detects (`ot_rev_leak.v`).** `TO_R_LEAK` is Bob with an extra adversarial
+operation `tell : 𝔹 -{θ}-> 𝟙`: after he has received Alice's message he
+tells the adversary his choice `c`. The environment knows `c`, but the
+ideal transfer gives the simulator nothing that depends on it, so the
+mutant is insecure. The leak comes after Bob's receive on the channel,
+which no last-in-first-out environment lets him reach (the deadlock
+above). In a model whose environments have only plain functions as
+adversarial operations, `tell` is never called and the mutant would pass
+as secure with the honest simulator.
+
+`SCHED_LEAK x0 x1 c` runs the schedule of `SCHED_ENV` with Bob's choice
+`c`, with `tell` storing into a cell, and returns `true` when the cell
+holds `c`. Proved:
+
+* `sched_leak_real`: on the mutant hybrid (`HYB_TO_H_LEAK`, `tell` passed
+  through with `id_mod`) the run returns `true` with probability `1`.
+* `SCHED_LEAK_typed`: `SCHED_LEAK : Mod TOHNetL TPorts → 𝔹`, where
+  `TOHNetL θ = TOHNet θ × (𝔹 -{θ}-> 𝟙)`.
+* `to_h_leak_insecure`: for **every** simulator `S` typed
+  `Mod TOHNetL TOHAdv`, there is a `c` with
+  `advantage (SCHED_LEAK x0 x1 c) HYB_TO_H_LEAK (F_TO_H ⊳ S) ≥ 1/2`.
+
+The argument over all simulators is relational, not a computation.
+`SCHED_LEAK_typed_gen` types the environment with `c` on the left and
+`f c` on the right, at the type `Mod TOHNetL (PortsB f TO) → 𝔹_f`, where
+`𝔹_f` relates `b` with `f b` and Bob's port takes `𝔹_f` to `TO`.
+`f = id` gives the typing above. `f = negb` relates the environments
+for `c` and `¬c`, whose results are `b` and `¬b` because the cell holds
+the same value on both sides. `F_TO_H_neg_eq` shows that the ideal
+transfer is related to itself with Bob's choices `c` and `¬c` (his
+outputs at `⊤`); the simulator is related to itself by its typing.
+Adequacy gives `Pr[E_c → true] ≤ Pr[E_¬c → false]` on the ideal side, so
+`Pr[E_true → true] + Pr[E_false → true] ≤ 1`. The real side gives `1` for
+both, so one of the two advantages is at least `1/2`.
+
+Next steps of the same argument: the rewinding attack that multi-shot
+ports would allow; the cost of composition.
 
 ## 7. Alternatives considered
 
@@ -950,6 +984,7 @@ section 10.
 | `ot_rev_typing.v` | typings of `TO_S`, `TO_R` (for any one-shot interface to Alice's message), `PARTIES_TO`, `F_TO_S`, `HYB_TO_S`, `S_TO_S`, `F_TO_R`, `HYB_TO_R`, `S_TO_R`, `F_TO_H`, `DUMMY_TO`, `HYB_TO_H`, `S_TO_H` | proved |
 | `ot_rev_ot.v` | the reversal on the real OT, three cases: `to_s_ot_security`, `to_r_ot_security`, `to_h_ot_security` by `uc_composition OS` | proved |
 | `ot_rev_schedule.v` | an out-of-order environment for the honest reversal: completes with probability 1 on the hybrid and the ideal world; typed at the environments' type | proved |
+| `ot_rev_leak.v` | a mutant reversal whose Bob leaks his choice after receiving Alice's message; the out-of-order environment detects it with advantage ≥ 1/2 against every typed simulator | proved |
 | `links.v` | two-way modules `ModL`, `link` (lazy import from above), typing, associativity, environment extensions, `uc_composition_link`, for either mode; embedding of one-way modules, `realises_embed`; section 11 | proved |
 
 No admits. `Print Assumptions` of `chan_dhke_security`, `ot_r_security` and the three theorems of `ot_rev_ot.v` lists only the classical
