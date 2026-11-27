@@ -62,6 +62,43 @@ Set Default Proof Using "Type*".
     rewrite f_inv_cancel_r. done.
   Qed.
 
+  (** * rand(N) ~ nothing, avoiding a value, and nothing ~ rand(N) *)
+  Lemma ARcoupl_rand_dret_avoid `{Countable A} N (x : fin (S N)) z σ (a : A) (ε : nonnegreal) :
+    (1 / S N = ε)%R →
+    N = Z.to_nat z →
+    ARcoupl (prim_step (rand #z) σ) (dret a)
+      (λ ρ a', ∃ n : fin (S N), ρ = (Val #n, σ) ∧ n ≠ x ∧ a' = a) ε.
+  Proof.
+    intros Nε Nz.
+    setoid_rewrite head_prim_step_eq;
+      last (eexists; apply head_step_support_equiv_rel; unshelve constructor; eauto using Fin.F1).
+    simpl. rewrite -Nz.
+    rewrite -(dmap_dret (λ x, x) _) /dmap.
+    replace ε with (ε + nnreal_zero)%NNR by (apply nnreal_ext; simpl; lra).
+    eapply ARcoupl_dbind; [destruct ε; done|simpl; lra|..]; last first.
+    { rewrite -Nε. apply (ARcoupl_dunif_no_coll_l _ _ x). real_solver. }
+    move=> n ? [xn ->]. apply ARcoupl_dret; [done|].
+    exists n. auto.
+  Qed.
+
+  Lemma ARcoupl_dret_rand_avoid `{Countable A} N (x : fin (S N)) z σ (a : A) (ε : nonnegreal) :
+    (1 / S N = ε)%R →
+    N = Z.to_nat z →
+    ARcoupl (dret a) (prim_step (rand #z) σ)
+      (λ a' ρ, ∃ n : fin (S N), a' = a ∧ ρ = (Val #n, σ) ∧ n ≠ x) ε.
+  Proof.
+    intros Nε Nz.
+    setoid_rewrite head_prim_step_eq;
+      last (eexists; apply head_step_support_equiv_rel; unshelve constructor; eauto using Fin.F1).
+    simpl. rewrite -Nz.
+    rewrite -(dmap_dret (λ x, x) _) /dmap.
+    replace ε with (ε + nnreal_zero)%NNR by (apply nnreal_ext; simpl; lra).
+    eapply ARcoupl_dbind; [destruct ε; done|simpl; lra|..]; last first.
+    { rewrite -Nε. apply (ARcoupl_dunif_no_coll_r _ _ x). real_solver. }
+    move=> ? n [-> xn]. apply ARcoupl_dret; [done|].
+    exists n. auto.
+  Qed.
+
   (** * Approximate rand(N) ~ rand(M) coupling, N <= M, along an injection *)
   Lemma ARcoupl_rand_rand_inj (N M : nat) f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} z w σ1 σ1' (ε : nonnegreal) :
     (N <= M)%nat →

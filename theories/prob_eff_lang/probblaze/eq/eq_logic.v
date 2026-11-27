@@ -630,6 +630,62 @@ Section eq_rules.
       iSpecialize ("H" $! n). iApply (eq_rel_at_elim Bwd). iApply ("H" with "Hα []"). by iPureIntro.
   Qed.
 
+  (* A [rand] of one program that the other does not match: any value. *)
+  Lemma eq_randU_l E K N z er X R :
+    TCEq N (Z.to_nat z) →
+    (∀ n, ⌜n ≤ N⌝ -∗ EQ fill K #n ≈ er @ E <|X|> {{ R }})
+    ⊢ EQ fill K (rand #z) ≈ er @ E <|X|> {{ R }}.
+  Proof.
+    intros HN. split=> d. rewrite monPred_at_forall eq_rel_at. iIntros "H".
+    destruct d; rewrite /pick /=.
+    - iApply brel_randU_l. iIntros (n Hn). iSpecialize ("H" $! n).
+      iApply (eq_rel_at_elim Fwd). iApply "H". by iPureIntro.
+    - iApply brel_randU_r. iIntros (n Hn). iSpecialize ("H" $! n).
+      iApply (eq_rel_at_elim Bwd). iApply "H". by iPureIntro.
+  Qed.
+
+  Lemma eq_randU_r E K N z el X R :
+    TCEq N (Z.to_nat z) →
+    (∀ n, ⌜n ≤ N⌝ -∗ EQ el ≈ fill K #n @ E <|X|> {{ R }})
+    ⊢ EQ el ≈ fill K (rand #z) @ E <|X|> {{ R }}.
+  Proof.
+    intros HN. split=> d. rewrite monPred_at_forall eq_rel_at. iIntros "H".
+    destruct d; rewrite /pick /=.
+    - iApply brel_randU_r. iIntros (n Hn). iSpecialize ("H" $! n).
+      iApply (eq_rel_at_elim Fwd). iApply "H". by iPureIntro.
+    - iApply brel_randU_l. iIntros (n Hn). iSpecialize ("H" $! n).
+      iApply (eq_rel_at_elim Bwd). iApply "H". by iPureIntro.
+  Qed.
+
+  (* The same, avoiding the value [m] for an error credit. *)
+  Lemma eq_rand_avoid_l E K N z (m : nat) er X R :
+    TCEq N (Z.to_nat z) →
+    ⎡↯ (1 / S N)⎤ ∗ (∀ n, ⌜n ≠ m⌝ -∗ ⌜n ≤ N⌝ -∗ EQ fill K #n ≈ er @ E <|X|> {{ R }})
+    ⊢ EQ fill K (rand #z) ≈ er @ E <|X|> {{ R }}.
+  Proof.
+    intros HN. split=> d.
+    rewrite monPred_at_sep monPred_at_embed monPred_at_forall eq_rel_at. iIntros "[Herr H]".
+    destruct d; rewrite /pick /=.
+    - iApply brel_rand_avoid_l. iFrame "Herr". iIntros (n Hne Hn). iSpecialize ("H" $! n).
+      iApply (eq_rel_at_elim Fwd). iApply ("H" with "[] []"); by iPureIntro.
+    - iApply brel_rand_avoid_r. iFrame "Herr". iIntros (n Hne Hn). iSpecialize ("H" $! n).
+      iApply (eq_rel_at_elim Bwd). iApply ("H" with "[] []"); by iPureIntro.
+  Qed.
+
+  Lemma eq_rand_avoid_r E K N z (m : nat) el X R :
+    TCEq N (Z.to_nat z) →
+    ⎡↯ (1 / S N)⎤ ∗ (∀ n, ⌜n ≠ m⌝ -∗ ⌜n ≤ N⌝ -∗ EQ el ≈ fill K #n @ E <|X|> {{ R }})
+    ⊢ EQ el ≈ fill K (rand #z) @ E <|X|> {{ R }}.
+  Proof.
+    intros HN. split=> d.
+    rewrite monPred_at_sep monPred_at_embed monPred_at_forall eq_rel_at. iIntros "[Herr H]".
+    destruct d; rewrite /pick /=.
+    - iApply brel_rand_avoid_r. iFrame "Herr". iIntros (n Hne Hn). iSpecialize ("H" $! n).
+      iApply (eq_rel_at_elim Fwd). iApply ("H" with "[] []"); by iPureIntro.
+    - iApply brel_rand_avoid_l. iFrame "Herr". iIntros (n Hne Hn). iSpecialize ("H" $! n).
+      iApply (eq_rel_at_elim Bwd). iApply ("H" with "[] []"); by iPureIntro.
+  Qed.
+
   (* Coupling a [rand] of [l] with a tape of [r] along a bijection [f]. *)
   Lemma eq_couple_rand_tape_bij E N f `{!Bij f} K α X R z ns er :
     TCEq N (Z.to_nat z) → (∀ n, n < S N → f n < S N)%nat%type → to_val er = None →

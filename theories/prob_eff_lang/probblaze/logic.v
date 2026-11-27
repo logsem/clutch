@@ -1649,6 +1649,41 @@ Lemma rel_exhaustion_sum_l' (m : mode) k1 k2 e1 e2 X Y Z R S :
     iApply ("H" with "[$][$][$][$][$]").
   Qed.
     
+  Lemma rel_rand_avoid_l K E N z (m : nat) e X R :
+    TCEq N (Z.to_nat z) →
+    ↯ (1 / S N) ∗ (∀ n, ⌜n ≠ m⌝ -∗ ⌜n ≤ N⌝ -∗ REL fill K (Val #n) ≤ e @ E <|X|> {{R}})
+    ⊢ REL fill K (rand #z) ≤ e @ E <|X|> {{R}}.
+  Proof.
+    iIntros (->) "[Hε H]".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp %k' %ε Hj Hnais Herr Hlt".
+    rewrite -!fill_app.
+    iApply wp_bind.
+    iApply (wp_rand_avoid_l (N := Z.to_nat z) m z _ _ _ _ eq_refl with "Hε").
+    iIntros "!>" (n) "[%Hne %Hle]".
+    iSpecialize ("H" $! n Hne Hle).
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    rewrite !fill_app.
+    iApply ("H" with "[$][$][$][$][$]").
+  Qed.
+
+  Lemma rel_rand_avoid_r K E N z (m : nat) e X R :
+    TCEq N (Z.to_nat z) →
+    ↯ (1 / S N) ∗ (∀ n, ⌜n ≠ m⌝ -∗ ⌜n ≤ N⌝ -∗ REL e ≤ fill K (Val #n) @ E <|X|> {{R}})
+    ⊢ REL e ≤ fill K (rand #z) @ E <|X|> {{R}}.
+  Proof.
+    iIntros (->) "[Hε H]".
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    iIntros (k1 k2 S) "Hkwp %k2' %ε Hj Hnais Herr %Hpos".
+    rewrite -!fill_app.
+    iApply (wp_rand_avoid_r (N := Z.to_nat z) m z _ _ _ _ _ _ eq_refl). iFrame "Hj Hε".
+    iIntros (n) "Hj %Hne %Hle".
+    iSpecialize ("H" $! n Hne Hle).
+    rewrite !rel_unfold /rel_pre obs_refines_eq /obs_refines_def.
+    rewrite !fill_app.
+    by iApply ("H" with "[$][$][$][$]").
+  Qed.
+
   Lemma rel_couple_couple_avoid (N:nat) l f `{Bij nat nat f} z E K K' X R:
     NoDup l ->
     TCEq N (Z.to_nat z) →
@@ -3515,6 +3550,46 @@ Section brel_probabilistic_rules.
     by iApply ("Hrel" with "[$][$]").
   Qed.
   Definition brel_rand_empty_l := brel_randT_empty_l.
+
+  Lemma brel_randU_l E K N z e X R :
+    TCEq N (Z.to_nat z) →
+    (∀ n, ⌜n ≤ N⌝ -∗ BREL fill K (Val #n) ≤ e @ E <|X|> {{R}})
+    ⊢ BREL fill K (rand #z) ≤ e @ E <|X|> {{R}}.
+  Proof.
+    iIntros (?) "Hrel #Hvalid Hdistinct".
+    iApply rel_randU_empty_l. iIntros (n Hn).
+    by iApply ("Hrel" $! n Hn with "Hvalid Hdistinct").
+  Qed.
+
+  Lemma brel_randU_r E K N z e X R :
+    TCEq N (Z.to_nat z) →
+    (∀ n, ⌜n ≤ N⌝ -∗ BREL e ≤ fill K (Val #n) @ E <|X|> {{R}})
+    ⊢ BREL e ≤ fill K (rand #z) @ E <|X|> {{R}}.
+  Proof.
+    iIntros (?) "Hrel #Hvalid Hdistinct".
+    iApply rel_randU_empty_r. iIntros (n Hn).
+    by iApply ("Hrel" $! n Hn with "Hvalid Hdistinct").
+  Qed.
+
+  Lemma brel_rand_avoid_l E K N z (m : nat) e X R :
+    TCEq N (Z.to_nat z) →
+    ↯ (1 / S N) ∗ (∀ n, ⌜n ≠ m⌝ -∗ ⌜n ≤ N⌝ -∗ BREL fill K (Val #n) ≤ e @ E <|X|> {{R}})
+    ⊢ BREL fill K (rand #z) ≤ e @ E <|X|> {{R}}.
+  Proof.
+    iIntros (?) "[Hε Hrel] #Hvalid Hdistinct".
+    iApply rel_rand_avoid_l. iFrame "Hε". iIntros (n Hne Hn).
+    by iApply ("Hrel" $! n Hne Hn with "Hvalid Hdistinct").
+  Qed.
+
+  Lemma brel_rand_avoid_r E K N z (m : nat) e X R :
+    TCEq N (Z.to_nat z) →
+    ↯ (1 / S N) ∗ (∀ n, ⌜n ≠ m⌝ -∗ ⌜n ≤ N⌝ -∗ BREL e ≤ fill K (Val #n) @ E <|X|> {{R}})
+    ⊢ BREL e ≤ fill K (rand #z) @ E <|X|> {{R}}.
+  Proof.
+    iIntros (?) "[Hε Hrel] #Hvalid Hdistinct".
+    iApply rel_rand_avoid_r. iFrame "Hε". iIntros (n Hne Hn).
+    by iApply ("Hrel" $! n Hne Hn with "Hvalid Hdistinct").
+  Qed.
 
   Lemma brel_couple_couple_avoid E (N:nat) l f `{Bij nat nat f} z K K' X R:
     NoDup l ->

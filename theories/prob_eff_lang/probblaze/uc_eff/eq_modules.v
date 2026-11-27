@@ -44,6 +44,22 @@ Section eq_modules.
       + iExists _, _. iRight. by iFrame.
   Qed.
 
+  Lemma eq_bool (b : bool) : ⊢ ⟪ (𝔹 : sem_ty Σ) ⟫ #b #b.
+  Proof. iEval (rewrite eq_lift_bool). by iExists b. Qed.
+
+  (* A points-to of the right-hand program in two halves: one half can
+     serve as a token that the location has not yet been written by its
+     owner. *)
+  Lemma eq_pt_r_half ℓ v : ℓ ↦ᵣ v ⊣⊢ ℓ ↦ᵣ{DfracOwn (1/2)} v ∗ ℓ ↦ᵣ{DfracOwn (1/2)} v.
+  Proof.
+    split=> d. rewrite monPred_at_sep.
+    destruct d; rewrite /eq_pt_r /=; iSplit.
+    - iIntros "H". by iDestruct "H" as "[$ $]".
+    - iIntros "[H1 H2]". by iCombine "H1 H2" as "H".
+    - iIntros "H". by iDestruct "H" as "[$ $]".
+    - iIntros "[H1 H2]". by iCombine "H1 H2" as "H".
+  Qed.
+
   (* Related state of the two programs: a flag, and a pair of empty tapes. *)
   Definition flag_rel (s s' : loc) : iPropD Σ := ∃ b : bool, s ↦ₗ #b ∗ s' ↦ᵣ #b.
   Definition tape_rel (N : nat) (α α' : loc) : iPropD Σ := α ↪ₗN (N; []) ∗ α' ↪ᵣN (N; []).

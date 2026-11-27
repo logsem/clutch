@@ -5,6 +5,7 @@ From clutch.prelude Require Import stdpp_ext fin.
 From clutch.prob_eff_lang.probblaze Require Import ectx_lifting.
 From clutch.prob_eff_lang.probblaze Require Import syntax notation metatheory erasure.
 From clutch.prob_eff_lang.probblaze Require Import spec_rules.
+From clutch.approxis Require Import lifting.
 From clutch.prob_eff_lang.probblaze Require Export primitive_laws semantics.
 
 Section rules.
@@ -125,6 +126,78 @@ Section rules.
       iApply "HΨ".
       rewrite Hff. iFrame.
       by iPureIntro.
+  Qed.
+
+  (** rand on one side only, avoiding a value (ported from approxis) *)
+  Lemma wp_rand_avoid_l {N} (m : nat) (z : Z) E s (ε : R) :
+    TCEq N (Z.to_nat z) →
+    ε = 1 / (S N) →
+    {{{ ↯ ε }}} rand #z @ s; E {{{ (n : nat), RET #n; ⌜n ≠ m⌝ ∗ ⌜n ≤ N⌝ }}}.
+  Proof.
+    iIntros (-> -> Φ) "Hε Hwp".
+    iApply wp_lift_prim_step_l_dret; [done|].
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ec_supply_ec_inv with "Hε2 Hε") as %(ε & ? & -> & ?).
+    iExists _, _, _.
+    repeat iSplit.
+    - done.
+    - iPureIntro. eexists. apply head_step_prim_step. apply head_step_support_equiv_rel.
+      by apply (RandNoTapeS _ (Z.to_nat z) 0%fin).
+    - iPureIntro. eapply (ARcoupl_rand_dret_avoid _ (fin_force (Z.to_nat z) m)); [by rewrite H|done].
+    - iIntros (?? (n & [= -> ->] & ? & [=])).
+      iMod (ec_supply_decrease with "Hε2 Hε") as (????) "Hs".
+      simplify_eq.
+      do 2 iModIntro.
+      iMod "Hclose'" as "_".
+      iFrame.
+      rewrite -wp_value.
+      iDestruct ("Hwp" with "[]") as "$".
+      + iPureIntro. split.
+        * destruct (le_gt_dec m (Z.to_nat z)).
+          -- intros H3. apply H1. apply fin_to_nat_inj.
+             rewrite fin_force_to_nat_le; auto.
+          -- pose proof (fin_to_nat_lt n). lia.
+        * pose proof (fin_to_nat_lt n). lia.
+      + iApply ec_supply_eq; [|done]. lra.
+  Qed.
+
+  Lemma wp_rand_avoid_r {N} (m : nat) (z : Z) K e E Φ (ε : R) :
+    TCEq N (Z.to_nat z) →
+    ε = 1 / (S N) →
+    ⤇ fill K (rand #z) ∗ ↯ ε ∗
+    (∀ (n : nat), ⤇ fill K #n -∗ ⌜n ≠ m⌝ -∗ ⌜n ≤ N⌝ -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (-> ->) "(HK & Hε & Hwp)".
+    iApply wp_lift_step_spec_couple.
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iDestruct (spec_auth_prog_agree with "Hauth2 HK") as "->".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iDestruct (ec_supply_ec_inv with "Hε2 Hε") as %(ε & ? & -> & ?).
+    iApply (spec_coupl_erasable_steps 1 _ (dret σ1)); [done|..].
+    { rewrite pexec_1 step_or_final_no_final //; last first.
+      { apply reducible_not_final. eexists. apply fill_step. apply head_step_prim_step.
+        apply head_step_support_equiv_rel. by apply (RandNoTapeS _ (Z.to_nat z) 0%fin). }
+      eapply ARcoupl_steps_ctx_bind_r; [done|done|].
+      eapply (ARcoupl_dret_rand_avoid _ (fin_force (Z.to_nat z) m)); [by rewrite H|done]. }
+    { apply dret_erasable. }
+    iIntros (??? (e2'' & [= ->] & (y & -> & [= -> ->] & ?))) "!>".
+    iApply spec_coupl_ret.
+    iMod (spec_update_prog (fill K #_) with "Hauth2 HK") as "[$ HK]".
+    iMod (ec_supply_decrease with "Hε2 Hε") as (????) "H".
+    simplify_eq.
+    iMod "Hclose'" as "_".
+    iFrame.
+    iDestruct ("Hwp" with "[$] []") as "Hwp".
+    { iPureIntro.
+      destruct (le_gt_dec m (Z.to_nat z)).
+      - intros H3. apply H2. apply fin_to_nat_inj.
+        rewrite fin_force_to_nat_le; auto.
+      - pose proof (fin_to_nat_lt y). lia. }
+    iSplitL "H".
+    { iApply ec_supply_eq; [|done]. lra. }
+    iApply "Hwp". iPureIntro. pose proof (fin_to_nat_lt y). lia.
   Qed.
 
   (** rand(unit, N) ~ rand(unit, M) coupling, N <= M, under inj *)
