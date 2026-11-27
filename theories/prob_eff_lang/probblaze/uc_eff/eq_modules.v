@@ -20,6 +20,14 @@ Import valgroup_notation.
 
 #[local] Set Default Proof Using "All".
 
+(* Rewrite every [bool_decide P] for which [P] or [¬ P] is a hypothesis;
+   for a decision taken once and met again later in a program. *)
+Ltac rewrite_bool_decides :=
+  repeat match goal with
+    | H : ?P |- context [bool_decide ?P] => rewrite (bool_decide_eq_true_2 P H)
+    | H : ¬ ?P |- context [bool_decide ?P] => rewrite (bool_decide_eq_false_2 P H)
+  end.
+
 Section eq_modules.
   Context `{!probblazeRGS Σ}.
   #[local] Open Scope bi_scope.
@@ -183,6 +191,14 @@ Section eq_modules.
   Proof.
     intros [H]. specialize (H Fwd). rewrite monPred_at_emp eq_lift_at /pick /= in H.
     rewrite /sem_val_typed /tc_opaque. iModIntro. by iApply H.
+  Qed.
+
+  (* Conversely, a typing is a self-equivalence. *)
+  Lemma val_typed_eq (v : val) (τ : sem_ty Σ) : (⊢ ⊨ᵥ v ≤ v : τ) → ⊢ ⟪ τ ⟫ v v.
+  Proof.
+    rewrite /sem_val_typed /tc_opaque. intros H. split=> d.
+    rewrite monPred_at_emp eq_lift_at. iIntros "_". iDestruct H as "#H".
+    destruct d; done.
   Qed.
 
   (* Calling an operation in evaluation contexts, without a frame: at the

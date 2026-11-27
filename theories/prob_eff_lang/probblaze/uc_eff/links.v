@@ -194,13 +194,6 @@ Section links.
   Proof. rewrite eq_lift_mbang /=. iIntros "#H". done. Qed.
 
   (* Typings and self-equivalences of values. *)
-  Lemma val_typed_eq (v : val) (τ : sem_ty Σ) : (⊢ ⊨ᵥ v ≤ v : τ) → ⊢ ⟪ τ ⟫ v v.
-  Proof.
-    rewrite /sem_val_typed /tc_opaque. intros H. split=> d.
-    rewrite monPred_at_emp eq_lift_at. iIntros "_". iDestruct H as "#H".
-    destruct d; done.
-  Qed.
-
   (* A closed proof gives a typing in each direction (a closed proof is
      persistent, whatever [τ]). *)
   Lemma eq_typed_l (vl vr : val) (τ : sem_ty Σ) : (⊢ ⟪ τ ⟫ vl vr) → ⊢ ⊨ᵥ vl ≤ vr : τ.

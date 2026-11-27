@@ -51,7 +51,9 @@ Section ot_corrupted_sender.
   (* It publishes a reference string in decryption mode, with the
      trapdoor [y] ([g1 = g0^y]), sends the receiver's message
      [(g0^a0, h0^a0) = (g1^a1, h1^a1)] for [a0 = a1 y], and decrypts both
-     ciphertexts. *)
+     ciphertexts.  This is the real receiver on the dummy choice [false]
+     (secret [a0]), except that it also opens slot [1], with [a1]: it
+     cannot run [OT_R] itself, which keeps its secret. *)
   Definition S_OT_S : val :=
     λ: "adv",
       let, ("publish", "net") := "adv" in

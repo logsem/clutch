@@ -124,15 +124,15 @@ Section ot_rev_typing.
   Lemma F_TO_S_eq : ⊢ ⟪ Mod TOSAdv TPort ⟫ F_TO_S F_TO_S.
   Proof.
     rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
-    iModIntro. iApply eq_lift_arr. iIntros (il ir) "#Hinput".
+    iModIntro. iApply eq_lift_arr. iIntros (il ir) "Hinput".
     rewrite /F_TO_S. eq_pures'.
     iApply eq_value. iModIntro. rewrite /TPort. iApply eq_lift_arr. iIntros (cl cr) "Hc".
     iEval (rewrite eq_lift_bool) in "Hc". iDestruct "Hc" as %(c & -> & ->).
     iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
-    eq_pures'.
-    iApply (eq_call_frame θ (¡ θ)%R 𝟙%T (𝔹 × 𝔹)%T emp%I il ir _ _ [AppRCtx _] [AppRCtx _]
-              with "Hρ Hinput [] []"); try (intros; apply _);
-      [by iEval (rewrite eq_lift_unit)|done|].
+    eq_pures'. rewrite /TOSAdv.
+    eq_reshape_l (il _). eq_reshape_r (ir _).
+    iApply (eq_call_frame_aff θ (¡ θ)%R 𝟙%T (𝔹 × 𝔹)%T emp%I with "Hρ Hinput [] []");
+      try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
     iIntros "!>" (xl xr) "Hx _". iEval (rewrite eq_lift_prod) in "Hx".
     iDestruct "Hx" as (x0l x0r x1l x1r) "(-> & -> & Hx0 & Hx1)".
     iEval (rewrite eq_lift_bool) in "Hx0". iDestruct "Hx0" as %(x0 & -> & ->).
@@ -143,38 +143,55 @@ Section ot_rev_typing.
   Lemma F_TO_S_typed : ⊢ ⊨ᵥ F_TO_S ≤ F_TO_S : Mod TOSAdv TPort.
   Proof. apply eq_val_typed, F_TO_S_eq. Qed.
 
+  Lemma HYB_TO_S_typed : ⊢ ⊨ᵥ HYB_TO_S ≤ HYB_TO_S : Mod (IProd OTAdv ARecv) TPort.
+  Proof.
+    iApply comp_op_typed; first iApply TO_R_typed.
+    iApply tens_op_typed; [iApply F_OT_R_typed|iApply id_mod_typed].
+  Qed.
+
+  (* The simulator runs the hybrid, a module, from inside an operation. *)
+  Lemma row_le_nil_flip (θ : sem_row Σ) : ⊢@{iPropD Σ} ⎡(¡ ⟨⟩)%R ≤ᵣ (¡ θ)%R⎤.
+  Proof. iApply (row_le_trans _ ⟨⟩%R); [iApply row_le_mfbang_elim_nil|iApply row_le_nil]. Qed.
+
   Lemma S_TO_S_eq : ⊢ ⟪ Mod (IProd OTAdv ARecv) TOSAdv ⟫ S_TO_S S_TO_S.
   Proof.
-    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
+    iPoseProof (val_typed_eq _ _ HYB_TO_S_typed) as "HH".
+    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall) in "HH".
+    iEval (rewrite eq_lift_forall). iIntros (θ). iSpecialize ("HH" $! θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
-    rewrite /IProd /OTAdv /ARecv. iEval (rewrite eq_lift_prod) in "Hadv".
-    iDestruct "Hadv" as (otl otr rl rr) "(-> & -> & Hot & #Hrecv)".
-    iEval (rewrite eq_lift_prod) in "Hot".
-    iDestruct "Hot" as (cl cr ol or) "(-> & -> & #Hchoose & #Houtput)".
-    rewrite /S_TO_S /ot_rev.flip /bxor /gbit is_unit. eq_pures'.
-    iApply eq_value. iModIntro. rewrite /TOSAdv. iModIntro.
-    iApply eq_lift_arr. iIntros (ul ur) "Hu".
+    rewrite /IProd /ARecv. iEval (rewrite eq_lift_prod) in "Hadv".
+    iDestruct "Hadv" as (chl chr rl rr) "(-> & -> & Hch & #Hrecv)".
+    rewrite /S_TO_S /bxor. eq_pures'.
+    iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
+    iPoseProof (row_le_nil_flip θ) as "#H0".
+    iApply eq_value. iModIntro. rewrite /TOSAdv. iApply eq_lift_arr. iIntros (ul ur) "Hu".
     iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
+    eq_pures'. rewrite /OTAdv.
+    (* Alice's OT choice. *)
+    eq_reshape_l (chl _). eq_reshape_r (chr _).
+    iApply (eq_call_frame_aff θ (¡ θ)%R 𝟙%T (𝔹 × (𝔾 -{ ¡ θ }-∘ 𝟙))%T emp%I with "Hρ Hch [] []");
+      try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
+    iIntros "!>" (pl pr) "Hp _". iEval (rewrite eq_lift_prod) in "Hp".
+    iDestruct "Hp" as (sl sr ol or) "(-> & -> & Hs & Hout)".
+    iEval (rewrite eq_lift_bool) in "Hs". iDestruct "Hs" as %(s & -> & ->).
     eq_pures'.
-    eq_reshape_l (cl _). eq_reshape_r (cr _).
-    iApply (eq_call MS θ 𝟙%T 𝔹%T with "Hchoose"); try (intros; apply _);
-      first by iEval (rewrite eq_lift_unit).
-    iIntros "!>" (sl sr) "Hs". iEval (rewrite eq_lift_bool) in "Hs". iDestruct "Hs" as %(s & -> & ->).
-    eq_pures'.
-    eq_couple_rand_rand. iIntros (k Hk).
-    assert (k = 0%nat ∨ k = 1%nat)%type as [-> | ->] by (simpl in Hk; lia);
-      (eq_pures';
-       eq_reshape_l (ol _); eq_reshape_r (or _);
-       (iApply (eq_call MS θ 𝔾%T 𝟙%T with "Houtput"); try (intros; apply _);
-          [by iApply eq_group_val|]);
-       iIntros "!>" (??) "Hu"; iEval (rewrite eq_lift_unit) in "Hu"; iDestruct "Hu" as %[-> ->];
-       eq_pures'; eq_reshape_l (rl _); eq_reshape_r (rr _);
-       (iApply (eq_call MS θ 𝟙%T 𝔹%T with "Hrecv"); try (intros; apply _);
-          [by iEval (rewrite eq_lift_unit)|]);
-       iIntros "!>" (ml mr) "Hm"; iEval (rewrite eq_lift_bool) in "Hm";
-       iDestruct "Hm" as %(m & -> & ->);
-       destruct m, s; eq_pures'; iApply eq_value; iModIntro; iEval (rewrite eq_lift_prod);
-       iExists _, _, _, _; do 2 (iSplit; first done); iSplitL; iApply eq_bool).
+    (* Bob on the dummy choice, with the choice replayed. *)
+    eq_reshape_l (HYB_TO_S _). eq_reshape_r (HYB_TO_S _).
+    iApply (eq_call_frame ⟨⟩%R (¡ θ)%R (OTAdv θ × ARecv θ)%T (TPort θ) emp%I
+              with "H0 HH [Hout] []"); try (intros; apply _); [|done|].
+    { iEval (rewrite eq_lift_prod). iExists _, _, _, _. do 2 (iSplit; first done).
+      iSplitL; last done. rewrite /OTAdv. iApply eq_lift_arr. iIntros (??) "Hw".
+      iEval (rewrite eq_lift_unit) in "Hw". iDestruct "Hw" as %[-> ->]. eq_pures'.
+      iApply eq_value. iModIntro. iEval (rewrite eq_lift_prod).
+      iExists _, _, _, _. do 2 (iSplit; first done). iFrame "Hout". iApply eq_bool. }
+    iIntros "!>" (tl tr) "Ht _". rewrite /TPort. eq_pures'.
+    eq_reshape_l (tl _). eq_reshape_r (tr _).
+    iApply (eq_call_frame_aff θ (¡ θ)%R 𝔹%T 𝔹%T emp%I with "Hρ Ht [] []");
+      try (intros; apply _); [iApply eq_bool|done|].
+    iIntros "!>" (xl xr) "Hx _". iEval (rewrite eq_lift_bool) in "Hx".
+    iDestruct "Hx" as %(x0 & -> & ->).
+    destruct x0, s; eq_pures'; iApply eq_value; iModIntro; iEval (rewrite eq_lift_prod);
+      iExists _, _, _, _; do 2 (iSplit; first done); iSplitL; iApply eq_bool.
   Qed.
 
   Lemma S_TO_S_typed : ⊢ ⊨ᵥ S_TO_S ≤ S_TO_S : Mod (IProd OTAdv ARecv) TOSAdv.
@@ -187,9 +204,7 @@ Section ot_rev_typing.
   Lemma F_TO_R_eq : ⊢ ⟪ Mod TORAdv TSPort ⟫ F_TO_R F_TO_R.
   Proof.
     rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
-    iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
-    rewrite /TORAdv. iEval (rewrite eq_lift_prod) in "Hadv".
-    iDestruct "Hadv" as (cl cr ol or) "(-> & -> & #Hchoose & #Houtput)".
+    iModIntro. iApply eq_lift_arr. iIntros (chl chr) "Hch".
     rewrite /F_TO_R. eq_pures'.
     iApply eq_value. iModIntro. rewrite /TSPort. iApply eq_lift_arr. iIntros (xl xr) "Hx".
     iEval (rewrite eq_lift_prod) in "Hx".
@@ -197,14 +212,15 @@ Section ot_rev_typing.
     iEval (rewrite eq_lift_bool) in "Hx0". iDestruct "Hx0" as %(x0 & -> & ->).
     iEval (rewrite eq_lift_bool) in "Hx1". iDestruct "Hx1" as %(x1 & -> & ->).
     iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
-    eq_pures'.
-    eq_reshape_l (cl _). eq_reshape_r (cr _).
-    iApply (eq_call_frame θ (¡ θ)%R 𝟙%T 𝔹%T emp%I with "Hρ Hchoose [] []");
+    eq_pures'. rewrite /TORAdv.
+    eq_reshape_l (chl _). eq_reshape_r (chr _).
+    iApply (eq_call_frame_aff θ (¡ θ)%R 𝟙%T (𝔹 × (𝔹 -{ ¡ θ }-∘ 𝟙))%T emp%I with "Hρ Hch [] []");
       try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
-    iIntros "!>" (bl br) "Hb _". iEval (rewrite eq_lift_bool) in "Hb".
-    iDestruct "Hb" as %(b & -> & ->).
-    destruct b; eq_pures';
-      (iApply (eq_call_frame θ (¡ θ)%R 𝔹%T 𝟙%T emp%I ol or _ _ [] [] with "Hρ Houtput [] []");
+    iIntros "!>" (pl pr) "Hp _". iEval (rewrite eq_lift_prod) in "Hp".
+    iDestruct "Hp" as (cl cr ol or) "(-> & -> & Hc & Hout)".
+    iEval (rewrite eq_lift_bool) in "Hc". iDestruct "Hc" as %(c & -> & ->).
+    destruct c; eq_pures';
+      (iApply (eq_call_frame_aff θ (¡ θ)%R 𝔹%T 𝟙%T emp%I ol or _ _ [] [] with "Hρ Hout [] []");
          try (intros; apply _); [iApply eq_bool|done|]);
       iIntros "!>" (??) "Hu _"; by iApply eq_value.
   Qed.
@@ -212,54 +228,58 @@ Section ot_rev_typing.
   Lemma F_TO_R_typed : ⊢ ⊨ᵥ F_TO_R ≤ F_TO_R : Mod TORAdv TSPort.
   Proof. apply eq_val_typed, F_TO_R_eq. Qed.
 
-  Definition NSTR : namespace := nroot .@ "stor".
-
-  (* The simulator's state, Bob's mask, the same on both sides. *)
-  Definition str_rel (st st' : loc) : iPropD Σ :=
-    ∃ w : val, st ↦ₗ w ∗ st' ↦ᵣ w ∗ ⌜w = NONEV ∨ ∃ r : bool, w = SOMEV #r⌝.
+  Lemma HYB_TO_R_typed : ⊢ ⊨ᵥ HYB_TO_R ≤ HYB_TO_R : Mod (IProd OTSAdv ASend) TSPort.
+  Proof.
+    iApply comp_op_typed; first iApply TO_S_typed.
+    iApply tens_op_typed; [iApply F_OT_S_typed|iApply id_mod_typed].
+  Qed.
 
   Lemma S_TO_R_eq : ⊢ ⟪ Mod (IProd OTSAdv ASend) TORAdv ⟫ S_TO_R S_TO_R.
   Proof.
-    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
+    iPoseProof (val_typed_eq _ _ HYB_TO_R_typed) as "HH".
+    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall) in "HH".
+    iEval (rewrite eq_lift_forall). iIntros (θ). iSpecialize ("HH" $! θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /IProd /OTSAdv /ASend. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (il ir sl sr) "(-> & -> & #Hinput & #Hsend)".
     rewrite /S_TO_R /bxor /ungbit. eq_pures'.
-    eq_alloc_l st as "Hst". eq_pures_l. eq_alloc_r st' as "Hst'". eq_pures_r.
-    iApply (eq_na_alloc (str_rel st st') NSTR).
-    iSplitL "Hst Hst'"; first (iNext; iExists _; iFrame; by iLeft). iIntros "#Hinv".
-    iApply eq_value. iModIntro. rewrite /TORAdv. iEval (rewrite eq_lift_prod).
-    iExists _, _, _, _. do 2 (iSplit; first done). iSplitL.
-    - (* choose *)
-      iModIntro. iApply eq_lift_arr. iIntros (ul ur) "Hu".
-      iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
-      eq_pures'.
-      eq_reshape_l (il _). eq_reshape_r (ir _).
-      iApply (eq_call MS θ 𝟙%T (𝔾 × 𝔾)%T with "Hinput"); try (intros; apply _);
-        first by iEval (rewrite eq_lift_unit).
-      iIntros "!>" (uvl uvr) "Huv". iEval (rewrite eq_lift_prod) in "Huv".
-      iDestruct "Huv" as (u0l u0r u1l u1r) "(-> & -> & Hu0 & Hu1)".
-      iEval (rewrite eq_lift_group) in "Hu0". iDestruct "Hu0" as (u0) "[-> ->]".
-      iEval (rewrite eq_lift_group) in "Hu1". iDestruct "Hu1" as (u1) "[-> ->]".
-      eq_pures'.
-      iApply (eq_na_open _ _ NSTR); first done. iFrame "Hinv". iIntros "[>H Hclose]".
-      iDestruct "H" as (w) "(Hst & Hst' & _)".
-      case_bool_decide; case_bool_decide; eq_pures'; eq_store_l; eq_store_r;
-        (iApply eq_na_close_rule; iFrame "Hclose";
-         iSplitL "Hst Hst'"; first (iNext; iExists _; iFrame; iRight; by iExists _));
-        eq_pures'; iApply eq_value; iApply eq_bool.
-    - (* output *)
-      iModIntro. iApply eq_lift_arr. iIntros (xl xr) "Hx".
+    iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
+    iPoseProof (row_le_nil_flip θ) as "#H0".
+    iApply eq_value. iModIntro. rewrite /TORAdv. iApply eq_lift_arr. iIntros (ul ur) "Hu".
+    iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
+    eq_pures'.
+    (* Bob's OT messages. *)
+    eq_reshape_l (il _). eq_reshape_r (ir _).
+    iApply (eq_call_frame θ (¡ θ)%R 𝟙%T (𝔾 × 𝔾)%T emp%I with "Hρ Hinput [] []");
+      try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
+    iIntros "!>" (uvl uvr) "Huv _". iEval (rewrite eq_lift_prod) in "Huv".
+    iDestruct "Huv" as (u0l u0r u1l u1r) "(-> & -> & Hu0 & Hu1)".
+    iEval (rewrite eq_lift_group) in "Hu0". iDestruct "Hu0" as (u0) "[-> ->]".
+    iEval (rewrite eq_lift_group) in "Hu1". iDestruct "Hu1" as (u1) "[-> ->]".
+    eq_pures'.
+    (* His choice, and Alice on [(x, x)] with his messages replayed. *)
+    iAssert (⟪ 𝔹 -{ ¡ θ }-∘ 𝟙 ⟫
+               (λ: "x", HYB_TO_R ((λ: <>, (vgval u0, vgval u1)), sl) ("x", "x"))%V
+               (λ: "x", HYB_TO_R ((λ: <>, (vgval u0, vgval u1)), sr) ("x", "x"))%V)%I as "Hk".
+    { iApply eq_lift_arr. iIntros (xl xr) "Hx".
       iEval (rewrite eq_lift_bool) in "Hx". iDestruct "Hx" as %(x & -> & ->).
       eq_pures'.
-      iApply (eq_na_open _ _ NSTR); first done. iFrame "Hinv". iIntros "[>H Hclose]".
-      iDestruct "H" as (w) "(Hst & Hst' & %Hw)".
-      eq_load_l. eq_load_r.
-      iApply eq_na_close_rule. iFrame "Hclose".
-      iSplitL "Hst Hst'"; first (iNext; iExists _; by iFrame).
-      destruct Hw as [->|(r & ->)].
-      { eq_pures'. iApply eq_value. by iEval (rewrite eq_lift_unit). }
-      destruct x, r; eq_pures'; iApply (eq_lift_app with "Hsend"); iApply eq_bool.
+      eq_reshape_l (HYB_TO_R _). eq_reshape_r (HYB_TO_R _).
+      iApply (eq_call_frame ⟨⟩%R (¡ θ)%R (OTSAdv θ × ASend θ)%T (TSPort θ) emp%I
+                with "H0 HH [] []"); try (intros; apply _); [|done|].
+      { iEval (rewrite eq_lift_prod). iExists _, _, _, _. do 2 (iSplit; first done).
+        iSplitL; last done. rewrite /OTSAdv. iModIntro. iApply eq_lift_arr. iIntros (??) "Hw".
+        iEval (rewrite eq_lift_unit) in "Hw". iDestruct "Hw" as %[-> ->]. eq_pures'.
+        iApply eq_value. iModIntro. by iApply eq_pair. }
+      iIntros "!>" (tl tr) "Ht _". rewrite /TSPort. eq_pures'.
+      iApply (eq_call_frame_aff θ (¡ θ)%R (𝔹 × 𝔹)%T 𝟙%T emp%I tl tr _ _ [] [] with "Hρ Ht [] []");
+        try (intros; apply _); [|done|].
+      { iEval (rewrite eq_lift_prod). iExists _, _, _, _. do 2 (iSplit; first done).
+        iSplitL; iApply eq_bool. }
+      iIntros "!>" (??) "Hu _". by iApply eq_value. }
+    case_bool_decide; case_bool_decide; eq_pures';
+      iApply eq_value; iModIntro; iEval (rewrite eq_lift_prod);
+      iExists _, _, _, _; (do 2 (iSplit; first done)); (iSplitR; [iApply eq_bool|iApply "Hk"]).
   Qed.
 
   Lemma S_TO_R_typed : ⊢ ⊨ᵥ S_TO_R ≤ S_TO_R : Mod (IProd OTSAdv ASend) TORAdv.

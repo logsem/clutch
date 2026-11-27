@@ -27,43 +27,31 @@ Section ot_rev_corrupted_receiver.
 
   (* It asks the adversary for Bob's choice and hands it the chosen bit. *)
   Definition F_TO_R : val :=
-    λ: "adv",
-      let, ("choose", "output") := "adv" in
-
+    λ: "choose",
       λ: "xx",
         let, ("x0", "x1") := "xx" in
-        let: "c" := "choose" #()%V in
+        let, ("c", "output") := "choose" #()%V in
         "output" (if: "c" then "x1" else "x0").
 
   (* ---------------------------------------------------------------- *)
   (* The simulator.                                                     *)
   (* ---------------------------------------------------------------- *)
 
-  (* It reads Bob's mask [r] and choice [c] off his OT messages
-     [(u0, u1) = (gbit r, gbit (r ⊕ c))], and sends Alice's message
-     [x_c ⊕ r]. *)
+  (* The hybrid world: Alice on the ideal OT with Bob corrupted, her
+     message to the adversary. *)
+  Definition HYB_TO_R : val := (TO_S ⊳ (F_OT_S ⊗ id_mod))%md.
+
+  (* It reads Bob's choice [c = r ⊕ r1] off his OT messages
+     [(u0, u1) = (gbit r, gbit r1)], and runs Alice on the bits
+     [(x_c, x_c)], replaying his messages to the OT. *)
   Definition S_TO_R : val :=
     λ: "adv",
       let, ("input", "send") := "adv" in
+      λ: <>,
+        let, ("u0", "u1") := "input" #()%V in
+        (bxor (ungbit "u0") (ungbit "u1"),
+         λ: "x", HYB_TO_R ((λ: <>, ("u0", "u1")), "send") ("x", "x")).
 
-      (* state: Bob's mask *)
-      let: "st" := ref NONE in
-
-      (* choose: Bob's OT messages *)
-      (λ: <>,
-         let, ("u0", "u1") := "input" #()%V in
-         let, ("r", "r1") := (ungbit "u0", ungbit "u1") in
-         "st" <- SOME "r";;
-         bxor "r" "r1",
-
-      (* output: Alice's message *)
-       λ: "x",
-         match: !"st" with
-           NONE => #()%V
-         | SOME "r" => "send" (bxor "x" "r")
-         end).
-
-  Definition HYB_TO_R : val := (TO_S ⊳ (F_OT_S ⊗ id_mod))%md.
   Definition IDEAL_TO_R : val := (F_TO_R ⊳ S_TO_R)%md.
 
 End ot_rev_corrupted_receiver.
@@ -77,8 +65,9 @@ Section ot_rev_corrupted_receiver_types.
   (* Alice's message, to the adversary. *)
   Definition ASend (θ : sem_row Σ) : sem_ty Σ := (𝔹 -{ θ }-> 𝟙)%T.
   (* The adversarial interface of the ideal transfer with Bob corrupted:
-     his choice, and the chosen bit. *)
-  Definition TORAdv (θ : sem_row Σ) : sem_ty Σ := ((𝟙 -{ θ }-> 𝔹) × (𝔹 -{ θ }-> 𝟙))%T.
+     his choice, and the operation that delivers the chosen bit.  One-shot:
+     only the functionality calls it. *)
+  Definition TORAdv (θ : sem_row Σ) : sem_ty Σ := (𝟙 -{ ¡ θ }-∘ (𝔹 × (𝔹 -{ ¡ θ }-∘ 𝟙)))%T.
 
   (* The typings of the components:
        TO_S   : Mod (IProd RPort ASend) TSPort    F_OT_S ⊗ id : Mod (IProd OTSAdv ASend) (IProd RPort ASend)

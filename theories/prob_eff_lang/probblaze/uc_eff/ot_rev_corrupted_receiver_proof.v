@@ -41,9 +41,9 @@ Section ot_rev_corrupted_receiver_eq.
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /IProd /OTSAdv /ASend. iEval (rewrite eq_lift_prod) in "Hadv".
     iDestruct "Hadv" as (il ir sl sr) "(-> & -> & #Hinput & #Hsend)".
-    rewrite /HYB_TO_R /IDEAL_TO_R /comp_op /tens_op /id_mod /TO_S /F_OT_S /F_TO_R /S_TO_R
+    rewrite /IDEAL_TO_R /F_TO_R /S_TO_R /HYB_TO_R /comp_op /tens_op /id_mod /TO_S /F_OT_S
       /bxor /ungbit.
-    eq_pures_l. eq_pures_r. eq_alloc_r st as "Hst". eq_pures_r.
+    eq_pures_l. eq_pures_r.
 
     (* Alice's port. *)
     iApply eq_value. iModIntro. rewrite /TSPort. iApply eq_lift_arr. iIntros (xl xr) "Hx".
@@ -52,17 +52,18 @@ Section ot_rev_corrupted_receiver_eq.
     iEval (rewrite eq_lift_bool) in "Hx0". iDestruct "Hx0" as %(x0 & -> & ->).
     iEval (rewrite eq_lift_bool) in "Hx1". iDestruct "Hx1" as %(x1 & -> & ->).
     iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
-    (* Bob's OT messages; Alice's message. *)
+    (* Bob's OT messages (read by the simulator, and replayed to the dummy
+       Alice's OT); Alice's message. *)
     destruct x0, x1; eq_pures';
       eq_reshape_l (il _); eq_reshape_r (ir _);
-      (iApply (eq_call_frame θ (¡ θ)%R 𝟙%T (𝔾 × 𝔾)%T (st ↦ᵣ NONEV)%I with "Hρ Hinput [] Hst");
-         try (intros; apply _); [by iEval (rewrite eq_lift_unit)|]);
-      iIntros "!>" (uvl uvr) "Huv Hst"; iEval (rewrite eq_lift_prod) in "Huv";
+      (iApply (eq_call_frame θ (¡ θ)%R 𝟙%T (𝔾 × 𝔾)%T emp%I with "Hρ Hinput [] []");
+         try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|]);
+      iIntros "!>" (uvl uvr) "Huv _"; iEval (rewrite eq_lift_prod) in "Huv";
       iDestruct "Huv" as (u0l u0r u1l u1r) "(-> & -> & Hu0 & Hu1)";
       iEval (rewrite eq_lift_group) in "Hu0"; iDestruct "Hu0" as (u0) "[-> ->]";
       iEval (rewrite eq_lift_group) in "Hu1"; iDestruct "Hu1" as (u1) "[-> ->]";
-      eq_pures'; case_bool_decide; case_bool_decide;
-      eq_pures'; eq_store_r; eq_pures'; eq_load_r; eq_pures';
+      destruct (decide (u0 = g)), (decide (u1 = g));
+      eq_pures'; rewrite_bool_decides; eq_pures'; rewrite_bool_decides; eq_pures';
       (iApply (eq_call_frame θ (¡ θ)%R 𝔹%T 𝟙%T emp%I sl sr _ _ [] [] with "Hρ Hsend [] []");
          try (intros; apply _); [iApply eq_bool|done|]);
       iIntros "!>" (??) "Hu _"; by iApply eq_value.

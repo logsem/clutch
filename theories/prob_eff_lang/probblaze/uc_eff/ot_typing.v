@@ -37,18 +37,18 @@ Section ot_typing.
   Lemma F_OT_R_eq : ⊢ ⟪ Mod OTAdv SPort ⟫ F_OT_R F_OT_R.
   Proof.
     rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
-    iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
-    rewrite /OTAdv. iEval (rewrite eq_lift_prod) in "Hadv".
-    iDestruct "Hadv" as (cl cr ol or) "(-> & -> & #Hchoose & #Houtput)".
+    iModIntro. iApply eq_lift_arr. iIntros (cl cr) "Hchoose".
     rewrite /F_OT_R. eq_pures'.
     iApply eq_value. iModIntro. rewrite /SPort. iApply eq_lift_arr. iIntros (ul ur) "Hu".
     iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
     iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
-    eq_pures'.
-    iApply (eq_call_frame θ (¡ θ)%R 𝟙%T 𝔹%T emp%I cl cr _ _ [AppRCtx _] [AppRCtx _]
-              with "Hρ Hchoose [] []"); try (intros; apply _);
-      [by iEval (rewrite eq_lift_unit)|done|].
-    iIntros "!>" (bl br) "Hb _". iEval (rewrite eq_lift_bool) in "Hb". iDestruct "Hb" as %(b & -> & ->).
+    eq_pures'. rewrite /OTAdv.
+    eq_reshape_l (cl _). eq_reshape_r (cr _).
+    iApply (eq_call_frame_aff θ (¡ θ)%R 𝟙%T (𝔹 × (𝔾 -{ ¡ θ }-∘ 𝟙))%T emp%I with "Hρ Hchoose [] []");
+      try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
+    iIntros "!>" (pl pr) "Hp _". iEval (rewrite eq_lift_prod) in "Hp".
+    iDestruct "Hp" as (bl br ol or) "(-> & -> & Hb & Hout)".
+    iEval (rewrite eq_lift_bool) in "Hb". iDestruct "Hb" as %(b & -> & ->).
     eq_pures'.
     iApply eq_value. iModIntro. iApply eq_lift_arr. iIntros (ml mr) "Hm".
     iEval (rewrite eq_lift_prod) in "Hm".
@@ -56,7 +56,7 @@ Section ot_typing.
     iEval (rewrite eq_lift_group) in "Hm0". iDestruct "Hm0" as (m0) "[-> ->]".
     iEval (rewrite eq_lift_group) in "Hm1". iDestruct "Hm1" as (m1) "[-> ->]".
     destruct b; eq_pures';
-      (iApply (eq_call_frame θ (¡ θ)%R 𝔾%T 𝟙%T emp%I ol or _ _ [] [] with "Hρ Houtput [] []");
+      (iApply (eq_call_frame_aff θ (¡ θ)%R 𝔾%T 𝟙%T emp%I ol or _ _ [] [] with "Hρ Hout [] []");
          try (intros; apply _); [by iApply eq_group_val|done|]);
       iIntros "!>" (??) "Hu _"; by iApply eq_value.
   Qed.
@@ -64,72 +64,7 @@ Section ot_typing.
   Lemma F_OT_R_typed : ⊢ ⊨ᵥ F_OT_R ≤ F_OT_R : Mod OTAdv SPort.
   Proof. apply eq_val_typed, F_OT_R_eq. Qed.
 
-  Definition NSR : namespace := nroot .@ "sotr".
-
-  (* The simulator's state, the same on both sides. *)
-  Definition st_rel (st st' : loc) : iPropD Σ :=
-    ∃ w : val, st ↦ₗ w ∗ st' ↦ᵣ w ∗ ⌜w = NONEV ∨ ∃ u v : vgG, w = SOMEV (vgval u, vgval v)%V⌝.
-
-  Lemma S_OT_R_eq : ⊢ ⟪ Mod (IProd Pub RNet) OTAdv ⟫ S_OT_R S_OT_R.
-  Proof.
-    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
-    iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
-    rewrite /IProd /Pub /RNet. iEval (rewrite eq_lift_prod) in "Hadv".
-    iDestruct "Hadv" as (pl pr nl nr) "(-> & -> & #Hpub & Hnet)".
-    iEval (rewrite eq_lift_prod) in "Hnet".
-    iDestruct "Hnet" as (rl rr sl sr) "(-> & -> & #Hrecv & #Hsend)".
-    rewrite /S_OT_R /sample /enc is_unit.
-    eq_pures'.
-    eq_couple_rand_rand. iIntros (a1 Ha1). eq_pures'.
-    eq_couple_rand_rand. iIntros (t0 Ht0). eq_pures'.
-    eq_couple_rand_rand. iIntros (t1 Ht1). eq_pures'.
-    eq_reshape_l (pl _). eq_reshape_r (pr _).
-    iApply (eq_call MS ⟨⟩%R Crs 𝟙%T with "Hpub"); try (intros; apply _); first iApply eq_crs.
-    iIntros "!>" (wl wr) "_". simpl. eq_pures'.
-    eq_alloc_l st as "Hst". eq_pures_l. eq_alloc_r st' as "Hst'". eq_pures_r.
-    iApply (eq_na_alloc (st_rel st st') NSR).
-    iSplitL "Hst Hst'"; first (iNext; iExists _; iFrame; by iLeft). iIntros "#Hinv".
-    iApply eq_value. iModIntro. rewrite /OTAdv. iEval (rewrite eq_lift_prod).
-    iExists _, _, _, _. do 2 (iSplit; first done). iSplitL.
-    - (* choose *)
-      iModIntro. iApply eq_lift_arr. iIntros (ul ur) "Hu".
-      iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
-      eq_pures'.
-      eq_reshape_l (rl _). eq_reshape_r (rr _).
-      iApply (eq_call MS θ 𝟙%T (𝔾 × 𝔾)%T with "Hrecv"); try (intros; apply _);
-        first by iEval (rewrite eq_lift_unit).
-      iIntros "!>" (uvl uvr) "Huv". iEval (rewrite eq_lift_prod) in "Huv".
-      iDestruct "Huv" as (ul ur vl vr) "(-> & -> & Hu & Hv)".
-      iEval (rewrite eq_lift_group) in "Hu". iDestruct "Hu" as (u) "[-> ->]".
-      iEval (rewrite eq_lift_group) in "Hv". iDestruct "Hv" as (v) "[-> ->]".
-      eq_pures'.
-      iApply (eq_na_open _ _ NSR); first done. iFrame "Hinv". iIntros "[>H Hclose]".
-      iDestruct "H" as (w) "(Hst & Hst' & _)".
-      eq_store_l. eq_store_r.
-      iApply eq_na_close_rule. iFrame "Hclose".
-      iSplitL "Hst Hst'"; first (iNext; iExists _; iFrame; iRight; by iExists _, _).
-      eq_pures'. iApply eq_value. iApply eq_bool.
-    - (* output *)
-      iModIntro. iApply eq_lift_arr. iIntros (ml mr) "Hm".
-      iEval (rewrite eq_lift_group) in "Hm". iDestruct "Hm" as (m) "[-> ->]".
-      eq_pures'.
-      iApply (eq_na_open _ _ NSR); first done. iFrame "Hinv". iIntros "[>H Hclose]".
-      iDestruct "H" as (w) "(Hst & Hst' & %Hw)".
-      eq_load_l. eq_load_r.
-      iApply eq_na_close_rule. iFrame "Hclose".
-      iSplitL "Hst Hst'"; first (iNext; iExists _; by iFrame).
-      destruct Hw as [->|(u & v & ->)].
-      { eq_pures'. iApply eq_value. by iEval (rewrite eq_lift_unit). }
-      eq_pures'.
-      case_bool_decide; eq_pures';
-        [iApply eq_value; by iEval (rewrite eq_lift_unit)|].
-      case_bool_decide; eq_pures';
-        (do 4 (eq_couple_rand_rand; iIntros (? ?); eq_pures');
-         iApply (eq_lift_app with "Hsend"); by iApply eq_ctxts).
-  Qed.
-
-  Lemma S_OT_R_typed : ⊢ ⊨ᵥ S_OT_R ≤ S_OT_R : Mod (IProd Pub RNet) OTAdv.
-  Proof. apply eq_val_typed, S_OT_R_eq. Qed.
+  (* [S_OT_R] runs the real sender; its typing is after [OT_S_eq]. *)
 
   (* ---------------------------------------------------------------- *)
   (* Sender corrupted.                                                  *)
@@ -444,5 +379,72 @@ Section ot_typing.
 
   Lemma S_OT_H_typed : ⊢ ⊨ᵥ S_OT_H ≤ S_OT_H : Mod OTHNet OTHAdv.
   Proof. iApply comp_op_typed; [iApply DUMMY_OT_typed|iApply HYB1_OT_H_real_typed]. Qed.
+
+  (* ---------------------------------------------------------------- *)
+  (* The simulator with the receiver corrupted, which runs [OT_S].      *)
+  (* ---------------------------------------------------------------- *)
+
+  Lemma S_OT_R_eq : ⊢ ⟪ Mod (IProd Pub RNet) OTAdv ⟫ S_OT_R S_OT_R.
+  Proof.
+    iPoseProof OT_S_eq as "HS".
+    rewrite /Mod /ModM. iEval (rewrite eq_lift_forall) in "HS".
+    iEval (rewrite eq_lift_forall). iIntros (θ). iSpecialize ("HS" $! θ).
+    iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
+    rewrite /IProd /Pub /RNet. iEval (rewrite eq_lift_prod) in "Hadv".
+    iDestruct "Hadv" as (pl pr nl nr) "(-> & -> & #Hpub & Hnet)".
+    iEval (rewrite eq_lift_prod) in "Hnet".
+    iDestruct "Hnet" as (rl rr sl sr) "(-> & -> & #Hrecv & #Hsend)".
+    rewrite /S_OT_R /sample.
+    eq_pures'.
+    eq_couple_rand_rand. iIntros (a1 Ha1). eq_pures'.
+    eq_couple_rand_rand. iIntros (t0 Ht0). eq_pures'.
+    eq_couple_rand_rand. iIntros (t1 Ht1). eq_pures'.
+    eq_reshape_l (pl _). eq_reshape_r (pr _).
+    iApply (eq_call MS ⟨⟩%R Crs 𝟙%T with "Hpub"); try (intros; apply _); first iApply eq_crs.
+    iIntros "!>" (wl wr) "_". simpl. eq_pures'.
+    iApply eq_value. iModIntro. rewrite /OTAdv. iApply eq_lift_arr. iIntros (ul ur) "Hu".
+    iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
+    iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
+    iAssert (⎡(¡ ⟨⟩)%R ≤ᵣ (¡ θ)%R⎤)%I as "#H0".
+    { iApply (row_le_trans _ ⟨⟩%R); [iApply row_le_mfbang_elim_nil|iApply row_le_nil]. }
+    eq_pures'.
+    (* The receiver's message. *)
+    eq_reshape_l (rl _). eq_reshape_r (rr _).
+    iApply (eq_call_frame θ (¡ θ)%R 𝟙%T (𝔾 × 𝔾)%T emp%I with "Hρ Hrecv [] []");
+      try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
+    iIntros "!>" (uvl uvr) "Huv _". iEval (rewrite eq_lift_prod) in "Huv".
+    iDestruct "Huv" as (ul ur vl vr) "(-> & -> & Hu & Hv)".
+    iEval (rewrite eq_lift_group) in "Hu". iDestruct "Hu" as (u) "[-> ->]".
+    iEval (rewrite eq_lift_group) in "Hv". iDestruct "Hv" as (v) "[-> ->]".
+    eq_pures'.
+    (* The real sender, on that message. *)
+    eq_reshape_l (OT_S _). eq_reshape_r (OT_S _).
+    iApply (eq_call_frame ⟨⟩%R (¡ θ)%R
+              (Crs × ((𝟙 -{ ¡ θ }-∘ (𝔾 × 𝔾)) × (((𝔾 × 𝔾) × (𝔾 × 𝔾)) -{ ¡ θ }-∘ 𝟙)))%T (SPort θ)
+              emp%I with "H0 HS [] []"); try (intros; apply _); [|done|].
+    { iEval (rewrite eq_lift_prod). iExists _, _, _, _. do 2 (iSplit; first done).
+      iSplitR; first iApply eq_crs.
+      iEval (rewrite eq_lift_prod). iExists _, _, _, _. do 2 (iSplit; first done). iSplitR.
+      - iApply eq_lift_arr. iIntros (??) "Hw". iEval (rewrite eq_lift_unit) in "Hw".
+        iDestruct "Hw" as %[-> ->]. eq_pures'. iApply eq_value. iModIntro. by iApply eq_pair.
+      - by iApply eq_arr_aff. }
+    iIntros "!>" (spl spr) "Hsp _". rewrite /SPort. eq_pures'.
+    eq_reshape_l (spl _). eq_reshape_r (spr _).
+    iApply (eq_call_frame_aff θ (¡ θ)%R 𝟙%T ((𝔾 × 𝔾) -{ ¡ θ }-∘ 𝟙)%T emp%I with "Hρ Hsp [] []");
+      try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
+    iIntros "!>" (kl kr) "Hk _". eq_pures'.
+    (* The extracted choice, and the second phase on the chosen message. *)
+    iApply eq_value. iModIntro. iEval (rewrite eq_lift_prod).
+    iExists _, _, _, _. do 2 (iSplit; first done). iSplitR; first iApply eq_bool.
+    iApply eq_lift_arr. iIntros (ml mr) "Hm".
+    iEval (rewrite eq_lift_group) in "Hm". iDestruct "Hm" as (m) "[-> ->]".
+    case_bool_decide; eq_pures';
+      (iApply (eq_call_frame_aff θ (¡ θ)%R (𝔾 × 𝔾)%T 𝟙%T emp%I kl kr _ _ [] [] with "Hρ Hk [] []");
+         try (intros; apply _); [by iApply eq_pair|done|]);
+      iIntros "!>" (??) "Hu _"; by iApply eq_value.
+  Qed.
+
+  Lemma S_OT_R_typed : ⊢ ⊨ᵥ S_OT_R ≤ S_OT_R : Mod (IProd Pub RNet) OTAdv.
+  Proof. apply eq_val_typed, S_OT_R_eq. Qed.
 
 End ot_typing.

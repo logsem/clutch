@@ -54,7 +54,7 @@ Section ot_corrupted_receiver_eq.
     iDestruct "Hadv" as (pl pr nl nr) "(-> & -> & #Hpub & Hnet)".
     iEval (rewrite eq_lift_prod) in "Hnet".
     iDestruct "Hnet" as (rl rr sl sr) "(-> & -> & #Hrecv & #Hsend)".
-    rewrite /REAL_OT_R /IDEAL_OT_R /comp_op /tens_op /id_mod /F_CRS /F_CRS_DH /DDH_rand /OT_S /F_OT_R /S_OT_R /sample is_unit.
+    rewrite /REAL_OT_R /IDEAL_OT_R /comp_op /tens_op /id_mod /F_CRS /F_CRS_DH /DDH_rand /F_OT_R /S_OT_R /OT_S /sample is_unit.
     eq_pures_l. eq_pures_r.
 
     (* The reference string [(h1, h0, g1, g)].  The generator [g1 = g ^+ a1]
@@ -74,7 +74,6 @@ Section ot_corrupted_receiver_eq.
     eq_reshape_l (pl _). eq_reshape_r (pr _).
     iApply (eq_call MS ⟨⟩%R Crs 𝟙%T with "Hpub"); try (intros; apply _); first iApply eq_crs.
     iIntros "!>" (wl wr) "_". simpl. eq_pures'.
-    eq_alloc_r st as "Hst". eq_pures'.
 
     (* The sender's port, first phase: the receiver's message [(u, v)],
        from which the simulator extracts the choice. *)
@@ -83,13 +82,13 @@ Section ot_corrupted_receiver_eq.
     iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
     eq_pures'.
     eq_reshape_l (rl _). eq_reshape_r (rr _).
-    iApply (eq_call_frame θ (¡ θ)%R 𝟙%T (𝔾 × 𝔾)%T (st ↦ᵣ NONEV)%I with "Hρ Hrecv [] Hst");
-      try (intros; apply _); first by iEval (rewrite eq_lift_unit).
-    iIntros "!>" (uvl uvr) "Huv Hst". iEval (rewrite eq_lift_prod) in "Huv".
+    iApply (eq_call_frame θ (¡ θ)%R 𝟙%T (𝔾 × 𝔾)%T emp%I with "Hρ Hrecv [] []");
+      try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
+    iIntros "!>" (uvl uvr) "Huv _". iEval (rewrite eq_lift_prod) in "Huv".
     iDestruct "Huv" as (ul ur vl vr) "(-> & -> & Hu & Hv)".
     iEval (rewrite eq_lift_group) in "Hu". iDestruct "Hu" as (u) "[-> ->]".
     iEval (rewrite eq_lift_group) in "Hv". iDestruct "Hv" as (v) "[-> ->]".
-    simpl. eq_pures'. eq_store_r. eq_pures'.
+    simpl. eq_pures'.
 
     (* Second phase: the sender's messages. *)
     iApply eq_value. iModIntro. iApply eq_lift_arr. iIntros (ml mr) "Hm".
@@ -104,7 +103,7 @@ Section ot_corrupted_receiver_eq.
     destruct (decide (g ^+ ku = 1)%g) as [Hu|Hu].
     { (* [u] is the unit: the sender stops. *)
       rewrite (bool_decide_eq_true_2 _ Hu). eq_pures'.
-      case_bool_decide; eq_pures'; eq_load_r; eq_pures'; rewrite (bool_decide_eq_true_2 _ Hu);
+      case_bool_decide; eq_pures'; rewrite (bool_decide_eq_true_2 _ Hu);
         eq_pures'; iApply eq_value; by iEval (rewrite eq_lift_unit). }
     rewrite (bool_decide_eq_false_2 _ Hu).
 
@@ -112,8 +111,7 @@ Section ot_corrupted_receiver_eq.
     - (* The message opens slot [0]: the choice is [m0], and the ciphertext
          of [m1] is that of the dummy. *)
       rewrite (bool_decide_eq_true_2 _ Hv).
-      eq_pures'. eq_load_r. eq_pures'. rewrite (bool_decide_eq_false_2 _ Hu). eq_pures'.
-      rewrite (bool_decide_eq_true_2 _ Hv). eq_pures'.
+      eq_pures'. rewrite (bool_decide_eq_false_2 _ Hu). eq_pures'.
       couple_along (mask_s a1 t1 km1 ku kv); first by apply mask_s_lt.
       iIntros (s1 Hs1). eq_pures'.
       couple_along (mask_r a1 t1 km1 ku kv); first by apply mask_r_lt.
@@ -128,8 +126,7 @@ Section ot_corrupted_receiver_eq.
     - (* It does not: the choice is [m1], and the ciphertext of [m0] is that
          of the dummy. *)
       rewrite (bool_decide_eq_false_2 _ Hv).
-      eq_pures'. eq_load_r. eq_pures'. rewrite (bool_decide_eq_false_2 _ Hu). eq_pures'.
-      rewrite (bool_decide_eq_false_2 _ Hv). eq_pures'.
+      eq_pures'. rewrite (bool_decide_eq_false_2 _ Hu). eq_pures'.
       eq_couple_rand_rand. iIntros (s1 Hs1). eq_pures'.
       eq_couple_rand_rand. iIntros (r1 Hr1). eq_pures'.
       couple_along (mask_s 1 t0 km0 ku kv); first by apply mask_s_lt.

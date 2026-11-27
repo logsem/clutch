@@ -6,7 +6,8 @@
    to the adversary directly: a channel with a corrupted end adds nothing
    to what the adversary can do.  In the ideal world the functionality
    asks the adversary for the receiver's choice and hands it the chosen
-   message.
+   message; the simulator runs the real sender on the chosen message and
+   a dummy.
 
    The components, their interfaces, the real and ideal modules, and the
    security statement [ot_r_secure], which is proved in
@@ -35,11 +36,9 @@ Section ot_corrupted_receiver.
      and [output] (the receiver's message) and returns the sender's port:
      the first phase fixes the choice, the second takes the messages. *)
   Definition F_OT_R : val :=
-    λ: "adv",
-      let, ("choose", "output") := "adv" in
-
+    λ: "choose",
       λ: <>,
-        let: "b" := "choose" #()%V in
+        let, ("b", "output") := "choose" #()%V in
         λ: "mm",
           let, ("m0", "m1") := "mm" in
           "output" (if: "b" then "m1" else "m0").
@@ -48,9 +47,10 @@ Section ot_corrupted_receiver.
   (* The simulator.                                                     *)
   (* ---------------------------------------------------------------- *)
 
-  (* It publishes a reference string with a trapdoor [(t1, t0)], extracts
-     the choice from the receiver's message with [t0], and encrypts the
-     chosen message under its key and a dummy under the other. *)
+  (* It publishes a reference string with a trapdoor [(t1, t0)], reads the
+     receiver's message [(u, v)] and extracts the choice with [t0], and
+     runs the real sender on that message, with the chosen message in the
+     chosen slot and a dummy in the other. *)
   Definition S_OT_R : val :=
     λ: "adv",
       let, ("publish", "net") := "adv" in
@@ -64,33 +64,11 @@ Section ot_corrupted_receiver.
       let: "crs" := ("h1", "h0", "g1", g) in
       "publish" "crs";;
 
-      (* state: the receiver's message *)
-      let: "st" := ref NONE in
-
-      (* choose: take the receiver's message and extract the choice *)
-      (λ: <>,
-         let: "uv" := "recv" #()%V in
-         "st" <- SOME "uv";;
-         let, ("u", "v") := "uv" in
-         ~ (veq "v" ("u"^"t0")),
-
-      (* output: encrypt the chosen message, and a dummy *)
-       λ: "m",
-         match: !"st" with
-           NONE => #()%V
-         | SOME "uv" =>
-             let, ("u", "v") := "uv" in
-             if: veq "u" vunit then #()%V else
-               let, ("m0", "m1") :=
-                 if: veq "v" ("u"^"t0") then ("m", g ^ #(Z.of_nat 1)) else (g ^ #(Z.of_nat 1), "m") in
-               let: "pk0" := (g, "h0", "u", "v") in
-               let: "pk1" := ("g1", "h1", "u", "v") in
-               let, ("r0", "s0", "r1", "s1") :=
-                 (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
-               let: "e0" := enc "pk0" "m0" "r0" "s0" in
-               let: "e1" := enc "pk1" "m1" "r1" "s1" in
-               "send" ("e0", "e1")
-         end).
+      λ: <>,
+        let, ("u", "v") := "recv" #()%V in
+        let: "b" := ~ (veq "v" ("u"^"t0")) in
+        let: "k" := OT_S ("crs", ((λ: <>, ("u", "v")), "send")) #()%V in
+        ("b", λ: "m", "k" (if: "b" then (g ^ #(Z.of_nat 1), "m") else ("m", g ^ #(Z.of_nat 1)))).
 
   (* The real and the ideal module. *)
   Definition REAL_OT_R : val := (OT_S ⊳ (F_CRS ⊗ id_mod))%md.
@@ -108,9 +86,11 @@ Section ot_corrupted_receiver_types.
      the sender's reply. *)
   Definition RNet (θ : sem_row Σ) : sem_ty Σ :=
     ((𝟙 -{ θ }-> 𝔾 × 𝔾) × (((𝔾 × 𝔾) × (𝔾 × 𝔾)) -{ θ }-> 𝟙))%T.
-  (* The adversarial interface of the ideal oblivious transfer. *)
+  (* The adversarial interface of the ideal oblivious transfer: the
+     receiver's choice, and the operation that delivers the chosen
+     message.  One-shot: only the functionality calls it. *)
   Definition OTAdv (θ : sem_row Σ) : sem_ty Σ :=
-    ((𝟙 -{ θ }-> 𝔹) × (𝔾 -{ θ }-> 𝟙))%T.
+    (𝟙 -{ ¡ θ }-∘ (𝔹 × (𝔾 -{ ¡ θ }-∘ 𝟙)))%T.
 
   (* The typings of the components:
        F_CRS  : Mod Pub (λ _, Crs)        OT_S   : Mod (IProd (λ _, Crs) RNet) SPort

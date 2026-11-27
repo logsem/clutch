@@ -36,25 +36,21 @@ Section ot_rev_corrupted_sender.
   (* The simulator.                                                     *)
   (* ---------------------------------------------------------------- *)
 
-  (* It plays the OT with Alice: takes her choice [s = x0 ⊕ x1], hands her
-     a random bit [ρ] (her OT output [r ⊕ (s ∧ c)]), and reads her inputs
-     off her message [m = x0 ⊕ ρ]. *)
+  (* The hybrid world: Bob on the ideal OT with Alice corrupted, Alice's
+     message beside it. *)
+  Definition HYB_TO_S : val := (TO_R ⊳ (F_OT_R ⊗ id_mod))%md.
+
+  (* It runs Bob on the dummy choice [false], whose output is Alice's
+     [x0], after reading her OT choice [s = x0 ⊕ x1] and replaying it to
+     the OT. *)
   Definition S_TO_S : val :=
     λ: "adv",
-      let, ("ot", "recv") := "adv" in
-      let, ("choose", "output") := "ot" in
-
+      let, ("choose", "recv") := "adv" in
       λ: <>,
-        let: "s" := "choose" #()%V in
-        let: "ρ" := flip #()%V in
-        "output" (gbit "ρ");;
-        let: "m" := "recv" #()%V in
-        let: "x0" := bxor "m" "ρ" in
+        let, ("s", "output") := "choose" #()%V in
+        let: "x0" := HYB_TO_S ((λ: <>, ("s", "output")), "recv") #false in
         ("x0", bxor "x0" "s").
 
-  (* The hybrid world (Bob on the ideal OT, Alice's message beside it) and
-     the ideal world. *)
-  Definition HYB_TO_S : val := (TO_R ⊳ (F_OT_R ⊗ id_mod))%md.
   Definition IDEAL_TO_S : val := (F_TO_S ⊳ S_TO_S)%md.
 
 End ot_rev_corrupted_sender.
@@ -69,7 +65,7 @@ Section ot_rev_corrupted_sender_types.
   Definition ARecv (θ : sem_row Σ) : sem_ty Σ := (𝟙 -{ θ }-> 𝔹)%T.
   (* The adversarial interface of the ideal transfer with Alice
      corrupted: her bits. *)
-  Definition TOSAdv (θ : sem_row Σ) : sem_ty Σ := (𝟙 -{ θ }-> 𝔹 × 𝔹)%T.
+  Definition TOSAdv (θ : sem_row Σ) : sem_ty Σ := (𝟙 -{ ¡ θ }-∘ 𝔹 × 𝔹)%T.
 
   (* The typings of the components:
        TO_R   : Mod (IProd SPort ARecv) TPort    F_OT_R ⊗ id : Mod (IProd OTAdv ARecv) (IProd SPort ARecv)

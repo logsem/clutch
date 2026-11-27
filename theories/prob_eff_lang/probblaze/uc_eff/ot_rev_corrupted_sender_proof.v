@@ -2,10 +2,11 @@
    perfect (uc_eff/DESIGN.md, section 6).
 
    Bob on the ideal OT, [TO_R ⊳ (F_OT_R ⊗ id)], and the ideal transfer
-   with the simulator, [F_TO_S ⊳ S_TO_S], line up call for call: [choose],
-   a sample, [output], [recv].  Bob's mask [r] is coupled with the
-   simulator's [ρ] along [ρ = r ⊕ (s ∧ c)], which is known when Bob
-   samples because the OT's sender port has two phases (ot.v). *)
+   with the simulator, [F_TO_S ⊳ S_TO_S], which runs the same Bob on the
+   choice [false], line up call for call: [choose], a sample, [output],
+   [recv].  Bob's mask [r] is coupled with the dummy Bob's [ρ] along
+   [ρ = r ⊕ (s ∧ c)], which is known when Bob samples because the OT's
+   sender port has two phases (ot.v). *)
 
 From iris.proofmode Require Import base proofmode classes.
 From iris.bi Require Import monpred.
@@ -41,10 +42,8 @@ Section ot_rev_corrupted_sender_eq.
     iApply eq_value. iModIntro. rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /IProd /OTAdv /ARecv. iEval (rewrite eq_lift_prod) in "Hadv".
-    iDestruct "Hadv" as (otl otr rl rr) "(-> & -> & Hot & #Hrecv)".
-    iEval (rewrite eq_lift_prod) in "Hot".
-    iDestruct "Hot" as (cl cr ol or) "(-> & -> & #Hchoose & #Houtput)".
-    rewrite /HYB_TO_S /IDEAL_TO_S /comp_op /tens_op /id_mod /TO_R /F_OT_R /F_TO_S /S_TO_S
+    iDestruct "Hadv" as (cl cr rl rr) "(-> & -> & Hchoose & #Hrecv)".
+    rewrite /IDEAL_TO_S /F_TO_S /S_TO_S /HYB_TO_S /comp_op /tens_op /id_mod /TO_R /F_OT_R
       /ot_rev.flip /bxor /gbit is_unit.
     eq_pures_l. eq_pures_r.
 
@@ -54,11 +53,13 @@ Section ot_rev_corrupted_sender_eq.
     iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
     eq_pures'.
 
-    (* Alice's OT choice [s]. *)
+    (* Alice's OT choice [s]; on the right the simulator replays it to the
+       dummy Bob's OT. *)
     eq_reshape_l (cl _). eq_reshape_r (cr _).
-    iApply (eq_call_frame θ (¡ θ)%R 𝟙%T 𝔹%T emp%I with "Hρ Hchoose [] []");
+    iApply (eq_call_frame_aff θ (¡ θ)%R 𝟙%T (𝔹 × (𝔾 -{ ¡ θ }-∘ 𝟙))%T emp%I with "Hρ Hchoose [] []");
       try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
-    iIntros "!>" (svl svr) "Hs _".
+    iIntros "!>" (pl pr) "Hp _". iEval (rewrite eq_lift_prod) in "Hp".
+    iDestruct "Hp" as (svl svr ol or) "(-> & -> & Hs & Houtput)".
     iEval (rewrite eq_lift_bool) in "Hs". iDestruct "Hs" as %(s & -> & ->).
     eq_pures'.
 
@@ -69,7 +70,7 @@ Section ot_rev_corrupted_sender_eq.
     (* Alice's OT output, her message [m], and Bob's output. *)
     destruct s, c, k as [|[|k]]; try lia; eq_pures';
       eq_reshape_l (ol _); eq_reshape_r (or _);
-      (iApply (eq_call_frame θ (¡ θ)%R 𝔾%T 𝟙%T emp%I with "Hρ Houtput [] []");
+      (iApply (eq_call_frame_aff θ (¡ θ)%R 𝔾%T 𝟙%T emp%I with "Hρ Houtput [] []");
          try (intros; apply _); [by iApply eq_group_val|done|]);
       iIntros "!>" (??) "Hu _"; iEval (rewrite eq_lift_unit) in "Hu"; iDestruct "Hu" as %[-> ->];
       eq_pures'; eq_reshape_l (rl _); eq_reshape_r (rr _);

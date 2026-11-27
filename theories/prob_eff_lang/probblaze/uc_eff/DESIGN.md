@@ -342,8 +342,8 @@ mutual dependency between simulator and functionality.
             λ (m0, m1). if u = 1 then () else
                         send (enc (g0, h0, u, v) m0, enc (g1, h1, u, v) m1)
 
-    F_OT_R (choose, output) ≜
-      λ (). let b = choose () in
+    F_OT_R choose ≜
+      λ (). let (b, output) = choose () in
             λ (m0, m1). output (if b then m1 else m0)
 
     S_OT_R (publish, (recv, send)) ≜
@@ -352,21 +352,18 @@ mutual dependency between simulator and functionality.
       let t0, t1 = sample, sample in
       let crs = (g1^t1, g^t0, g1, g) in
       publish crs;
-      let st = ref None in
-      -- choose: take the receiver's message and extract the choice
-      ( λ (). let (u, v) = recv () in
-              st := Some (u, v); v ≠ u^t0
-      -- output: encrypt the chosen message, and a dummy
-      , λ m. let (u, v) = !st in
-             if u = 1 then () else
-             let (m0, m1) = if v = u^t0 then (m, g) else (g, m) in
-             send (enc (g, h0, u, v) m0, enc (g1, h1, u, v) m1) )
+      -- the receiver's message, the extracted choice, and the real
+      -- sender on that message: the chosen message and a dummy
+      λ (). let (u, v) = recv () in
+            let b = (v ≠ u^t0) in
+            let k = OT_S (crs, (λ (). (u, v), send)) () in
+            (b, λ m. k (if b then (g, m) else (m, g)))
 
     REAL_OT_R  ≜ OT_S ⊳ (F_CRS ⊗ id)        IDEAL_OT_R ≜ F_OT_R ⊳ S_OT_R
 
     Pub    ≜ Crs → 𝟙                       -- pure: called while the module is set up
     RNet θ ≜ (𝟙 -{θ}-> 𝔾 × 𝔾) × ((𝔾 × 𝔾) × (𝔾 × 𝔾) -{θ}-> 𝟙)
-    OTAdv θ ≜ (𝟙 -{θ}-> 𝔹) × (𝔾 -{θ}-> 𝟙)
+    OTAdv θ ≜ 𝟙 -{¡θ}-∘ (𝔹 × (𝔾 -{¡θ}-∘ 𝟙))     -- one-shot: only F_OT_R calls it
     SPort θ ≜ 𝟙 -{¡θ}-∘ ((𝔾 × 𝔾) -{¡θ}-∘ 𝟙)
 
 The sender's port has two phases: the first fixes the receiver's choice
@@ -445,31 +442,30 @@ reversal needs XOR on them.
       λ c. let (x0, x1) = input () in
            if c then x1 else x0
 
-    S_TO ((choose, output), recv) ≜
-      λ (). let s = choose () in              -- Alice's OT choice, x0 ⊕ x1
-            let ρ = flip () in                -- what Alice's OT hands her
-            output (gbit ρ);
-            let m = recv () in
-            let x0 = m ⊕ ρ in                 -- Alice's inputs
-            (x0, x0 ⊕ s)
+    HYB_TO_S ≜ TO_R ⊳ (F_OT_R ⊗ id)
 
-    TPort θ ≜ 𝔹 -{¡θ}-∘ 𝔹       ARecv θ ≜ 𝟙 -{θ}-> 𝔹       TOAdv θ ≜ 𝟙 -{θ}-> 𝔹 × 𝔹
+    S_TO_S (choose, recv) ≜                   -- (mechanised form)
+      λ (). let (s, output) = choose () in    -- Alice's OT choice, x0 ⊕ x1
+            let x0 = HYB_TO_S ((λ (). (s, output)), recv) false in
+            (x0, x0 ⊕ s)                      -- Bob on the dummy choice outputs x0
+
+    TPort θ ≜ 𝔹 -{¡θ}-∘ 𝔹       ARecv θ ≜ 𝟙 -{θ}-> 𝔹       TOAdv θ ≜ 𝟙 -{¡θ}-∘ 𝔹 × 𝔹
 
     TO_R : Mod (SPort × ARecv) TPort          F_OT_R ⊗ id : Mod (OTAdv × ARecv) (SPort × ARecv)
-    S_TO : Mod (OTAdv × ARecv) TOAdv          F_TO_S      : Mod TOAdv TPort
+    S_TO_S : Mod (OTAdv × ARecv) TOAdv        F_TO_S      : Mod TOAdv TPort
 
 `recv` is not a port of `F_OT_R`; it is passed beside it, so the hybrid
 world is `TO_R ⊳ (F_OT_R ⊗ id)`. Statements:
 
 1. Reversal is perfect, for `Mod`:
-   `advantage A (TO_R ⊳ (F_OT_R ⊗ id)) (F_TO_S ⊳ S_TO) ≤ 0`. The worlds
+   `advantage A (TO_R ⊳ (F_OT_R ⊗ id)) (F_TO_S ⊳ S_TO_S) ≤ 0`. The worlds
    line up call for call (`choose`, sample, `output`, `recv`), with the
    one coupling `ρ = r ⊕ (s ∧ c)`. It needs the two-phase sender port:
    `s` is known when Bob samples `r`. For `ModA` by `advantage_Mod_ModA`.
 2. `REAL_OT_R ⊗ id` realises `F_OT_R ⊗ id` with `S_OT_R ⊗ id` up to `2/n`,
    from `ot_r_security` by `env_beside_typed` and interchange.
 3. By `uc_composition OS`:
-   `advantage A (TO_R ⊳ (REAL_OT_R ⊗ id)) (F_TO_S ⊳ (S_TO ⊳ (S_OT_R ⊗ id))) ≤ 2/n`.
+   `advantage A (TO_R ⊳ (REAL_OT_R ⊗ id)) (F_TO_S ⊳ (S_TO_S ⊳ (S_OT_R ⊗ id))) ≤ 2/n`.
 
 **OT with a corrupted sender (mechanised, `ot_corrupted_sender.v`, `ot_corrupted_sender_proof.v`;
 pseudocode not reviewed before mechanising).** The receiver's code is
@@ -528,47 +524,63 @@ with an endpoint replaced by the adversary.
       (OT_S (crs, (recv_rs, send_sr)), OT_R (crs, (send_rs, recv_sr)))
     REAL_OT_H ≜ PARTIES_OT ⊳ (F_CRS ⊗ (F_OAUTH ⊗ F_OAUTH))
 
-    F_OT_H (yield_s, yield_r) ≜
+    F_OT_H (run_s, run_r) ≜
       let ch = ref false in let mm = ref None in
-      ( λ (). (wait: yield_s (); until !ch);    -- sender, first phase
-              λ (m0, m1). mm := Some (m0, m1); yield_s ()
-      , λ b. ch := true;                         -- receiver
-             let (m0, m1) = (wait: yield_r (); until !mm = Some _) in
-             if b then m1 else m0 )
+      ( λ (). let run_s2 = run_s () in           -- sender, first phase
+              if !ch then (λ (m0, m1). mm := Some (m0, m1); run_s2 ())
+              else loop ()
+      , λ b. ch := true; run_r ();               -- receiver
+             match !mm with Some (m0, m1) → if b then m1 else m0
+                          | None → loop () )
 
-**Honest functionalities: one `yield` per party.** `yield_P ()` means
-"party P is at a scheduling point; resume it when you like" (UC's
-delayed output, for blocking ports). A party yields wherever the real
-party calls the network, and nowhere else. The textbook functionality,
-whose input calls return at once, is not available: when a port returns
-is observable to the environment, and the real parties block, so the
-ideal one must keep the real parties' waiting points. Which real event
-happened is visible to the adversary through the order of a party's
-yields, as it would be through the network; the simulator is a state
-machine per party that maps each yield to that party's next real move,
-and decides the next move after the real move returns, which is where
-the functionality checks its condition. (An earlier version had one
-operation per network event, four for `F_OT_H` and six for `F_TO_H`:
-the same leakage, a larger interface.)
+    DUMMY_OT (sport, rport) ≜
+      (λ (). let k = sport () in λ (). k (1, 1), λ (). rport false; ())
+    S_OT_H ≜ DUMMY_OT ⊳ HYB1_OT_H DDH_real
+    OTHAdv θ ≜ (𝟙 -{¡θ}-∘ (𝟙 -{¡θ}-∘ 𝟙)) × (𝟙 -{¡θ}-∘ 𝟙)
 
-The simulator `S_OT_H` publishes a reference string in decryption
-mode; at the receiver's first yield it leaks `(g^a, h0^a)` for a fresh
-`a` and delivers; at the sender's second it leaks encryptions of random
-elements, `(g_i^t_i, g^d_i · u^t_i)`.
+**Honest functionalities: the adversary runs a party.** A port records
+the party's input and hands control to the adversary with that party's
+operation; when it returns, the party is done (UC's delayed output).
+The sender's operation returns the operation for its second phase. The
+functionality checks its conditions afterwards and never returns a port
+that is not yet entitled to: the sender's first phase if the receiver
+has not chosen, the receiver's output if the sender has not given its
+messages (it diverges instead). The ports block as the real ones do,
+and the environment schedules them by handling the network operations
+inside the simulator, so the simulator can run a whole party in one
+call. The simulator is the textbook one in the CRS model: the real
+parties on dummy inputs (choice `false`, messages `(1, 1)`), on a
+reference string it chooses in decryption mode. It holds no state and
+is typed by composition. (Earlier versions gave the adversary one
+`yield` per party and party move, with a simulator that was a state
+machine per party, or one operation per network event; see the honest
+reversal below for why that was dropped.)
 
     A : ModA OTHNet OTPorts → 𝔹   ⊢
       advantage A REAL_OT_H IDEAL_OT_H
         ≤ advantage (RED1_OT_H A) DDH_rand DDH_real
-          + advantage (RED2_OT_H A) DDH_real DDH_rand + 3/n
+          + advantage (RED2_OT_H A) DDH_real DDH_rand
+          + advantage (RED2_OT_H (DENV_OT_H A)) DDH_real DDH_rand + 3/n
 
-Four steps (`ot_h_security`):
+`DENV_OT_H A ≜ λ v. A (F_OT_H ⊳ (DUMMY_OT ⊳ v))` (as nested `comp_app`).
+The steps (`ot_h_security`):
 
 | Step | From → to | Cost |
 |---|---|---|
-| A | `REAL_OT_H = HYB1_OT_H DDH_rand` → `HYB1_OT_H DDH_real` (decryption mode) | DDH, reduction `RED1_OT_H` |
+| A | `REAL_OT_H = HYB1_OT_H DDH_rand` → `HYB1_OT_H DDH_real` (decryption mode) | DDH, reduction `RED1_OT_H A` |
 | B | `HYB1_OT_H DDH_real` → `HYB2_OT_H DDH_real` | `1/n` (`y ≠ 0`) |
-| C | `HYB2_OT_H DDH_real` → `HYB2_OT_H DDH_rand` | DDH, reduction `RED2_OT_H` |
-| D | `HYB2_OT_H DDH_rand` → `F_OT_H ⊳ S_OT_H` | `2/n` (`p ≠ 0`, `c ≠ p q`) |
+| C | `HYB2_OT_H DDH_real` → `HYB2_OT_H DDH_rand` | DDH, reduction `RED2_OT_H A` |
+| E | `HYB2_OT_H DDH_rand` → `F_OT_H ⊳ (DUMMY_OT ⊳ HYB2_OT_H DDH_rand)` | `1/n` (`c ≠ p q`) |
+| C⁻¹ | → `F_OT_H ⊳ (DUMMY_OT ⊳ HYB2_OT_H DDH_real)` | DDH, reduction `RED2_OT_H (DENV_OT_H A)` |
+| B⁻¹ | → `F_OT_H ⊳ (DUMMY_OT ⊳ HYB1_OT_H DDH_real) = IDEAL_OT_H` | `1/n` |
+
+C⁻¹ and B⁻¹ are steps C and B for the environment `DENV_OT_H A`, typed
+by `env_under_typed` with the typings of `F_OT_H` and `DUMMY_OT`
+(`advantage_reduction_ctx` twice, `under_dummy_adv`; `advantage_sym` for
+the direction). Step A is not repeated: the simulator keeps the
+decryption-mode string, the textbook choice. A simulator running the
+real protocol unchanged (`DUMMY_OT ⊳ REAL_OT_H`) would cost a fourth DDH
+term.
 
 `HYB2_OT_H dh` is the parties with a decryption-mode string they sample
 themselves (they need its `y`), whose receiver's message and ciphertexts
@@ -581,15 +593,18 @@ taken at the same point on the other side:
 * B: the receiver's `z` with `p = y_b z`; the sender's `s_i` with `α_i`
   and `r_i` with `β_i = r_i + (x − q) s_i`; the tuple's `q` on the right
   only. The receiver's output is its decryption, `m_b` by correctness.
-* D: the tuple's `p` with the simulator's `a` (avoiding `0`, so `u ≠ 1`
-  and the hybrid's sender always sends, as the simulator always leaks);
-  `q`, and `c` avoiding `p q`, on the left only; `α_i` with
-  `d_i = (c − p q) α_i + log m_i` and `β_i` with `t_i = q α_i + β_i`. The
-  ciphertexts no longer depend on `m_i`.
+* E: the receiver's message `(A, A^x)` does not depend on its choice;
+  the tuple is the same on both sides, `c` avoiding `p q`; slot `i` of
+  the real sender against the dummy one: `α_i ↦ α_i + δ_i`,
+  `β_i ↦ β_i − q δ_i` for `δ_i = log m_i / (c − p q)`, so the
+  ciphertexts of `m_i` and of `1` are the same. The invariants are one
+  per channel box, as in the honest reversal.
 
-The proofs of B and D have the shape of the honest OT reversal: an
-invariant over the stages, half points-to as tokens, the simulator's
-flags. New rules: a one-sided `rand` (`eq_randU_l/r`) and a one-sided
+The proofs of B and E have one invariant per channel box, "not yet
+sent on both sides" or "sent, with related values", whose writer holds
+half of the right-hand points-to as its "not yet" token; the hybrid's
+tuple and messages are owned by their writer and persistent once
+written. New rules: a one-sided `rand` (`eq_randU_l/r`) and a one-sided
 `rand` avoiding a value for an error credit (`eq_rand_avoid_l/r`, ported
 from approxis), in the core logic; affine couplings of exponents in
 `ot_arith.v` (`gexp`, `aff`). Stdlib's `ring` does not apply to `'F_n`
@@ -607,22 +622,44 @@ the OT with a corrupted sender, and her message goes to the adversary:
 
     TO_S (rport, send) ≜ λ (x0, x1). let z = ungbit (rport (x0 ⊕ x1)) in
                                      send (x0 ⊕ z)            -- ungbit u = (u = g)
-    F_TO_R (choose, output) ≜ λ (x0, x1). let c = choose () in
-                                          output (if c then x1 else x0)
+    F_TO_R choose ≜ λ (x0, x1). let (c, output) = choose () in
+                                output (if c then x1 else x0)
     S_TO_R (input, send) ≜
-      let st = ref None in
-      ( λ (). let (u0, u1) = input () in       -- Bob's OT messages
-              let r, r1 = ungbit u0, ungbit u1 in
-              st := Some r; r ⊕ r1             -- his mask and his choice
-      , λ x. let r = !st in send (x ⊕ r) )
+      λ (). let (u0, u1) = input () in        -- Bob's OT messages
+            (ungbit u0 ⊕ ungbit u1,           -- his choice
+             λ x. HYB_TO_R ((λ (). (u0, u1)), send) (x, x))   -- Alice on (x_c, x_c)
 
     HYB_TO_R ≜ TO_S ⊳ (F_OT_S ⊗ id)   IDEAL_TO_R ≜ F_TO_R ⊳ S_TO_R
     TSPort θ ≜ 𝔹 × 𝔹 -{¡θ}-∘ 𝟙   ASend θ ≜ 𝔹 -{θ}-> 𝟙
-    TORAdv θ ≜ (𝟙 -{θ}-> 𝔹) × (𝔹 -{θ}-> 𝟙)
+    TORAdv θ ≜ 𝟙 -{¡θ}-∘ (𝔹 × (𝔹 -{¡θ}-∘ 𝟙))
 
 Whatever group elements Bob sends, Alice's message is
-`x0 ⊕ ungbit u_s = x_c ⊕ r` for `r = ungbit u0`, `c = r ⊕ ungbit u1`:
-no sample, no coupling, a case analysis on the bits.
+`x0 ⊕ ungbit u_s = x_c ⊕ r` for `r = ungbit u0`, `c = r ⊕ ungbit u1`,
+which is what Alice on `(x_c, x_c)` sends: no sample, no coupling, a case
+analysis on the bits.
+
+**Simulators with a corrupted party: the real honest party on
+synthesised inputs.** As in the honest cases, a simulator runs the
+honest party's real code; with a party corrupted it also extracts that
+party's input for the functionality, and feeds the honest party inputs
+built from what the functionality returns:
+
+| Case | Runs | On | Extracts |
+|---|---|---|---|
+| OT, receiver corrupted (`S_OT_R`) | `OT_S` | `(m_b, g)` or `(g, m_b)` | `b`, with the trapdoor `t0` |
+| reversal, Alice corrupted (`S_TO_S`) | `HYB_TO_S` | Bob's choice `false` | `x1 = x0 ⊕ s` |
+| reversal, Bob corrupted (`S_TO_R`) | `HYB_TO_R` | Alice's bits `(x_c, x_c)` | `c = ungbit u0 ⊕ ungbit u1` |
+
+The simulator reads the corrupted party's message itself and gives the
+honest party a network operation that replays it, so the adversary sees
+each call once and the simulator keeps no state. The functionality's
+operation for the corrupted party is one-shot and returns the operation
+for the rest (`OTAdv`, `TORAdv`), so the simulator can call the honest
+party's one-shot port from it; the simulators are typed through the
+typings of the parties (`val_typed_eq`, module call at `¡⟨⟩ ≤ ¡θ`). The
+OT with a corrupted sender is the exception: extracting `m1` needs the
+receiver's secret, which `OT_R` keeps, so `S_OT_S` is the receiver's
+code on the dummy choice with the second slot opened by the trapdoor.
 
 *Both honest* (`to_h_security`, perfect, for `Mod`). Alice and Bob
 on `F_OT_H` and an `F_OAUTH` from Alice to Bob:
@@ -631,39 +668,55 @@ on `F_OT_H` and an `F_OAUTH` from Alice to Bob:
       (TO_S (rport, send), TO_R (sport, recv))
     HYB_TO_H ≜ PARTIES_TO ⊳ (F_OT_H ⊗ F_OAUTH)
 
-    F_TO_H (yield_a, yield_b) ≜
-      let xs = ref None in let cs = ref false in let fin = ref false in
-      ( λ (x0, x1). xs := Some (x0, x1);                -- Alice
-                    (wait: yield_a (); until !cs);
-                    fin := true; yield_a ()
-      , λ c. let (x0, x1) = (wait: yield_b (); until !xs = Some _) in
-             cs := true; yield_b ();                    -- Bob
-             (wait: yield_b (); until !fin);
-             if c then x1 else x0 )
+    F_TO_H (run_a, run_b) ≜
+      let xs = ref None in
+      ( λ x. xs := Some x; run_a ()                      -- Alice
+      , λ c. run_b ();                                   -- Bob
+             match !xs with Some (x0, x1) → if c then x1 else x0
+                          | None → loop () )
 
-    S_TO_H ((yield_s, yield_r), (leak, deliver)) ≜
-      let rho, a_in, a_last, b_go, b_sent = ref false, … in
-      ( λ (). if !a_last then leak !rho                 -- Alice's last move
-              else (a_in := true; yield_r ();           -- waiting for Bob
-                    if !b_sent then a_last := true)
-      , λ (). if !b_sent then deliver ()                -- waiting for Alice's message
-              else if !b_go then (rho := flip (); b_sent := true; yield_s ())
-              else (yield_s ();                         -- waiting for Alice
-                    if !a_in then b_go := true) )
+    DUMMY_TO (alice, bob) ≜ (λ (). alice (false, false), λ (). bob false; ())
+    S_TO_H ≜ DUMMY_TO ⊳ HYB_TO_H
 
-    TOHAdv θ ≜ (𝟙 -{θ}-> 𝟙) × (𝟙 -{θ}-> 𝟙)
+    TOHAdv θ ≜ (𝟙 -{¡θ}-∘ 𝟙) × (𝟙 -{¡θ}-∘ 𝟙)
 
-Alice's message is uniform to the adversary; the simulator samples it
-when Bob sends, which is when Bob samples his mask, so the two samples
-can be coupled along `ρ = x0 ⊕ r ⊕ (s ∧ c)` (all known then). The proof
-is an invariant over four stages (nobody has started; Alice has her
-input; Bob has sent `(gbit r, gbit r1)`; Alice has sent), which also
-fixes the simulator's shared flags `a_in`, `b_sent` and `rho`; `a_last`
-and `b_go` are owned by Alice and Bob. A party
-shows that it has not yet made its move with half of a points-to that it
-alone writes (`eq_pt_r_half`); the invariant quantifies over the bits
-Bob sends, `(r, r1)` with `c = r ⊕ r1`, so that they are determined by
-the values in the heap.
+A party's port records its input and hands control to the simulator for
+the whole of that party's run (UC's delayed output); Bob's port returns
+`x_c` only if Alice has given her bits, and otherwise never returns. The
+simulator is the textbook one: the real parties on dummy inputs. Its
+parties block where the real ones do, on its own OT and channel, whose
+adversarial operations are the simulator's; the environment schedules
+them by handling those operations, so no component holds a continuation
+and the simulator keeps no state of its own. Its typing is that of the
+hybrid and `DUMMY_TO`. The operations `run_a`, `run_b` are one-shot:
+only the functionality calls them, once each.
+
+The proof relates the real run with the dummy run. Both sides run the
+same party code against the same OT and channel, so their positions line
+up; the invariants are one per location that one party writes once
+(`ch` and `mm` of the OT, `box` of the channel), each "not yet written on
+both sides" or "written with related values", with the writer's
+half points-to as its "not yet" token. Bob's mask is coupled with the
+dummy Bob's along `ρ = x0 ⊕ r ⊕ (s ∧ c)`, so that the dummy Alice sends
+Alice's message: when Bob samples, Alice has chosen in the OT, so the
+functionality holds her bits. The invariants quantify over the values in
+the heap, with a pure condition on them (`mm_ok`, `box_ok`), since an
+existential bit under `gbit` is not found by unification.
+
+*Why not a functionality that yields per network move.* The first
+version gave the simulator one operation per party, `yield_a`/`yield_b`,
+called wherever the real party calls the network; the functionality ran
+the wait loops and checked its own flags after each yield (commit
+eb4d8b6d). A simulator called back once per move and returning at once
+is a state machine: it needed five references (`rho` and four program
+counters), and the proof one invariant over four stages that related its
+flags with the real world's progress. Effects remove the need: the
+environment already suspends a party at any network call, however deep,
+so the simulator may run a whole party in one call. The old `uc/`
+design would not have helped: its simulators are tail-resumptive
+handlers (`k (c x)`), with the same one-step shape. Holding continuations
+in the simulator (alternative E) would also give direct-style
+simulators, but is not needed here.
 
 **The composition with the real OT (`ot_rev_ot.v`; typings in
 `ot_typing.v`, `ot_rev_typing.v`).** For each case, statement 2 is the
@@ -678,7 +731,7 @@ once (`ModA`), as the OT statements require.
 |---|---|---|---|---|
 | Alice corrupted | `to_s_ot_security` | `id` (Alice's message, `ARecv`) | `S_TO_S ⊳ (S_OT_R ⊗ id)` | `2/n` |
 | Bob corrupted | `to_r_ot_security` | `id` (Alice's message, `ASend`) | `S_TO_R ⊳ (S_OT_S ⊗ id)` | DDH + `1/n` |
-| both honest | `to_h_ot_security` | `F_OAUTH` carrying a bit | `S_TO_H ⊳ (S_OT_H ⊗ id)` | two DDH terms + `3/n` |
+| both honest | `to_h_ot_security` | `F_OAUTH` carrying a bit | `S_TO_H ⊳ (S_OT_H ⊗ id)` | three DDH terms + `3/n` |
 
 The DDH reductions get the environment with the reversal's parties
 composed in front and the identity or the channel beside, as in
@@ -700,10 +753,11 @@ proofs changed:
   operation (`TO_S_eq_gen`, `TO_R_eq_gen`); a persistent operation can
   (`eq_arr_aff`).
 
-The state of `F_OT_H`, `S_OT_H`, `F_TO_H`, `S_TO_H` is a flag or a box
-per reference, each in its own non-atomic invariant, with rules that open,
-access and close in one step (`eq_na_load_bool`, `eq_na_store_bool`,
-`eq_na_load_box`, `eq_na_store_box`).
+The state of `F_OT_H` and `F_TO_H` is a flag or a box per reference,
+each in its own non-atomic invariant, with rules that open, access and
+close in one step (`eq_na_load_bool`, `eq_na_store_bool`,
+`eq_na_load_box`, `eq_na_store_box`). `S_OT_H` and `S_TO_H` are typed by
+composition.
 
 ## 7. Alternatives considered
 
@@ -823,22 +877,22 @@ section 10.
 | `channel_proof.v` | `chan_security` | proved |
 | `channel_typing.v` | typings of `CHAN`, `F_CHAN`, `S_CHAN` | proved |
 | `channel_dhke.v` | `chan_dhke_security`: the channel over DHKE by `uc_composition` | proved |
-| `ot.v` | OT: the protocol (`F_CRS`, `OT_S`, `OT_R`, `enc`, `dec`), the DDH samplers and `F_CRS_DH`; both honest: `F_OT_H`, `S_OT_H`, `REAL_OT_H`, `IDEAL_OT_H`, hybrids, reductions, `ot_h_secure` | definitions |
-| `ot_proof.v` | `ot_h_security` (two DDH terms + `3/n`) | proved |
+| `ot.v` | OT: the protocol (`F_CRS`, `OT_S`, `OT_R`, `enc`, `dec`), the DDH samplers and `F_CRS_DH`; both honest: `F_OT_H` (delegating), `S_OT_H ≜ DUMMY_OT ⊳ HYB1_OT_H DDH_real`, `REAL_OT_H`, `IDEAL_OT_H`, hybrids, reductions, `ot_h_secure` | definitions |
+| `ot_proof.v` | `ot_h_security` (three DDH terms + `3/n`) | proved |
 | `ot_eq.v` | the OT values in the eq logic (`eq_crs`, `eq_pair`, `eq_ctxts`, `eq_lift_ctxts`) and the `couple_along` tactics, shared by the OT proofs | proved |
 | `ot_arith.v` | the bijections on exponents the OT proofs couple along (trapdoor, ciphertext masking), over natural numbers | proved |
 | `ot_corrupted_receiver.v` | `F_OT_R`, `S_OT_R`, `REAL_OT_R`, `IDEAL_OT_R`, `ot_r_secure` | definitions |
 | `ot_corrupted_receiver_proof.v` | `ot_r_security` (`2/n`) | proved |
 | `ot_corrupted_sender.v` | `F_OT_S`, `S_OT_S`, the reduction `DDH_RED`, `ot_s_secure` | definitions |
 | `ot_corrupted_sender_proof.v` | `ot_s_security` (DDH + `1/n`) | proved |
-| `ot_rev.v` | OT reversal: the parties `TO_R`, `TO_S`, bits; both honest: `F_TO_H`, `S_TO_H`, `to_h_secure` | definitions |
+| `ot_rev.v` | OT reversal: the parties `TO_R`, `TO_S`, bits; both honest: `F_TO_H` (delegating), `S_TO_H ≜ DUMMY_TO ⊳ HYB_TO_H`, `to_h_secure` | definitions |
 | `ot_rev_proof.v` | `to_h_security` (perfect) | proved |
 | `ot_rev_corrupted_sender.v` | Alice corrupted: `F_TO_S`, `S_TO_S`, `to_s_secure` | definitions |
 | `ot_rev_corrupted_sender_proof.v` | `to_s_security` (perfect) | proved |
 | `ot_rev_corrupted_receiver.v` | Bob corrupted: `F_TO_R`, `S_TO_R`, `to_r_secure` | definitions |
 | `ot_rev_corrupted_receiver_proof.v` | `to_r_security` (perfect) | proved |
-| `ot_typing.v` | typings of `F_OT_R`, `S_OT_R`, `F_OT_S`, `S_OT_S`, `F_OT_H`, `S_OT_H` | proved |
-| `ot_rev_typing.v` | typings of `TO_S`, `TO_R` (for any one-shot interface to Alice's message), `PARTIES_TO`, `F_TO_S`, `S_TO_S`, `F_TO_R`, `S_TO_R`, `F_TO_H`, `S_TO_H` | proved |
+| `ot_typing.v` | typings of `F_OT_R`, `S_OT_R`, `F_OT_S`, `S_OT_S`, `F_OT_H`, `DUMMY_OT`, `OT_S`, `OT_R`, `PARTIES_OT`, `F_CRS_DH DDH_real`, `HYB1_OT_H DDH_real`, `S_OT_H` | proved |
+| `ot_rev_typing.v` | typings of `TO_S`, `TO_R` (for any one-shot interface to Alice's message), `PARTIES_TO`, `F_TO_S`, `HYB_TO_S`, `S_TO_S`, `F_TO_R`, `HYB_TO_R`, `S_TO_R`, `F_TO_H`, `DUMMY_TO`, `HYB_TO_H`, `S_TO_H` | proved |
 | `ot_rev_ot.v` | the reversal on the real OT, three cases: `to_s_ot_security`, `to_r_ot_security`, `to_h_ot_security` by `uc_composition OS` | proved |
 | `links.v` | two-way modules `ModL`, `link` (lazy import from above), typing, associativity, environment extensions, `uc_composition_link`, for either mode; embedding of one-way modules, `realises_embed`; section 11 | proved |
 
