@@ -1,5 +1,5 @@
-(* Oblivious transfer in the CRS model, as modules (uc_eff/DESIGN.md,
-   section 6): the protocol, and the case where both parties are honest.
+(* Oblivious transfer in the CRS model, as modules: the protocol, and the
+   case where both parties are honest.
 
    The protocol is that of [examples/ot] (1-out-of-2 OT in the CRS model);
    the choice bit [b] selects the message [m_b].  The parties take the
@@ -21,26 +21,21 @@
 
    The sender's port has two phases, [λ (). … λ (m0, m1). …]: the first
    waits for the receiver's message (and so fixes the receiver's choice),
-   the second takes the sender's messages.  This is not the textbook
-   functionality, whose sender port takes the messages at once and leaves
-   the order of the inputs open.  The two-phase port is a concession to
-   the proof method of the clients, not a property of OT:
+   the second takes the sender's messages.  The textbook functionality
+   instead takes the sender's messages at once and leaves the order of
+   the inputs open.  The two phases are there for the clients' proofs:
 
-   - In OT reversal (DESIGN.md, section 6) the client samples a mask [r]
-     and the proof couples it with the simulator's sample along
-     [ρ = r ⊕ (s ∧ c)], which depends on the receiver's choice [s].  The
-     couplings of the logic are fixed when the earlier sample is taken, so
-     [s] has to be known by then: the client must sample after the first
-     phase.  With the textbook port the client samples before the choice,
-     and the paper argument (the mask is independent of everything the
-     adversary has seen) has no counterpart among the coupling rules.
-   - The real protocol already has this shape (the receiver speaks first),
-     and a one-phase client calls the two phases one after the other, so
-     nothing a client could do with the textbook port is lost.
-
-   The right thing would be the textbook port together with a rule that
-   moves a sample past a call to the adversary that does not receive it,
-   for one-shot rows; see DESIGN.md, section 10.
+   - In OT reversal ([ot_rev.v]) the client samples a mask [r], and the
+     proof couples it with the simulator's sample along
+     [ρ = r ⊕ (s ∧ c)], which depends on the receiver's choice [s].  A
+     coupling is fixed when the first of the two samples is taken, so [s]
+     must be known by then: the client samples after the first phase.
+     With a one-phase port the client would sample before the choice, and
+     the argument that the mask is independent of everything the
+     adversary has seen has no counterpart among the coupling rules.
+   - The real protocol has this shape anyway (the receiver speaks first),
+     and a client that does not need it calls the two phases one after
+     the other.
 
    With both parties honest the ideal functionality [F_OT_H] hands control
    to the adversary for a whole party's run, with one operation per party

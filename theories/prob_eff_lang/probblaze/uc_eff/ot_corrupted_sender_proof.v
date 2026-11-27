@@ -1,5 +1,4 @@
-(* Security of oblivious transfer with a corrupted sender as modules
-   (uc_eff/DESIGN.md, section 6).
+(* Security of oblivious transfer with a corrupted sender.
 
    Two steps, from the real module [OT_R ⊳ (F_CRS ⊗ id)] to the ideal
    module [F_OT_S ⊳ S_OT_S]:

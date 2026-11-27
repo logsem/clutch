@@ -1,5 +1,4 @@
-(* Security of oblivious transfer with a corrupted receiver as modules
-   (uc_eff/DESIGN.md).
+(* Security of oblivious transfer with a corrupted receiver.
 
    The real module [OT_S ⊳ (F_CRS ⊗ id_mod)] and the ideal module
    [F_OT_R ⊳ S_OT_R] are related by one proof in the equivalence logic of

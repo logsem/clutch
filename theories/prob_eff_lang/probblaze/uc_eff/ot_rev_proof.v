@@ -1,5 +1,4 @@
-(* Oblivious transfer reversal with both parties honest is perfect
-   (uc_eff/DESIGN.md, section 6).
+(* Oblivious transfer reversal with both parties honest is perfect.
 
    The simulator runs the real parties on dummy inputs, so both programs
    run the same party code against the same OT and channel, with Alice's

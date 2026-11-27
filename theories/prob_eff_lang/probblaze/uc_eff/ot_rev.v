@@ -1,6 +1,6 @@
 (* Oblivious transfer reversal: a transfer the other way round (TO) from
-   one oblivious transfer and one message (uc_eff/DESIGN.md, section 6):
-   the protocol, and the case where both parties are honest.
+   one oblivious transfer and one message: the protocol, and the case
+   where both parties are honest.
 
    In the OT, Bob is the sender and Alice the receiver.  In the TO, Alice
    is the sender, with two bits [(x0, x1)], and Bob the receiver, with a
@@ -19,7 +19,7 @@
 
      module TO_R (Ot : OT.sender) (Net : sig val recv : unit -> bool end) = struct
        let transfer c =
-         let snd = Ot.choose () in            (* Alice's OT choice is fixed *)
+         let snd = Ot.start () in             (* waits until Alice has chosen *)
          let r = flip () in
          snd (gbit r, gbit (r ⊕ c));
          Net.recv () ⊕ r

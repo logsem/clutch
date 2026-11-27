@@ -1,5 +1,4 @@
-(* Oblivious transfer with a corrupted receiver, as modules
-   (uc_eff/DESIGN.md, section 6).
+(* Oblivious transfer with a corrupted receiver, as modules.
 
    The protocol is in [ot.v].  The receiver is corrupted, so its code is
    absent and the adversary plays it.  In the real world the sender talks
@@ -32,9 +31,10 @@ Section ot_corrupted_receiver.
   (* The ideal oblivious transfer, receiver corrupted.                  *)
   (* ---------------------------------------------------------------- *)
 
-  (* It takes the adversary's operations [choose] (the receiver's choice)
-     and [output] (the receiver's message) and returns the sender's port:
-     the first phase fixes the choice, the second takes the messages. *)
+  (* It takes the adversary's operation [choose], which returns the
+     receiver's choice and the operation that hands the receiver its
+     message, and returns the sender's port: the first phase fixes the
+     choice, the second takes the messages. *)
   Definition F_OT_R : val :=
     λ: "choose",
       λ: <>,

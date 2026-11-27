@@ -1,5 +1,4 @@
-(* Oblivious transfer reversal with the sender (Alice) corrupted
-   (uc_eff/DESIGN.md, section 6).
+(* Oblivious transfer reversal with the sender (Alice) corrupted.
 
    The protocol is in [ot_rev.v].  Alice's code is absent: her message is
    an adversarial operation [recv], and Bob uses the OT with a corrupted

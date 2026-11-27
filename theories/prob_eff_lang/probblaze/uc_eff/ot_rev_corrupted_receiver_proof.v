@@ -1,8 +1,12 @@
 (* Oblivious transfer reversal with the receiver (Bob) corrupted is
-   perfect (uc_eff/DESIGN.md, section 6).
+   perfect.
 
-   The simulator reads Bob's mask and choice off his OT messages; the
-   proof is a case analysis on the bits. *)
+   The simulator reads Bob's choice [c = r ⊕ r1] off his OT messages
+   [(u0, u1) = (gbit r, gbit r1)] and runs Alice on the bits [(x_c, x_c)].
+   Whatever group elements Bob sends, Alice's message
+   [x0 ⊕ ungbit u_s] for [s = x0 ⊕ x1] is [x_c ⊕ ungbit u0], which is what
+   Alice on [(x_c, x_c)] sends: no sample, no coupling, a case analysis on
+   the bits. *)
 
 From iris.proofmode Require Import base proofmode classes.
 From iris.bi Require Import monpred.
@@ -31,8 +35,7 @@ Section ot_rev_corrupted_receiver_eq.
   Context {vgg : @val_group_generator vg}.
   #[local] Open Scope bi_scope.
 
-  (* Bob corrupted: the simulator reads Bob's mask and choice off his OT
-     messages; no sample, no coupling. *)
+  (* Alice on the real inputs against Alice on [(x_c, x_c)]. *)
   Lemma hyb_ideal_TO_R_EQ :
     ⊢ EQ HYB_TO_R ≈ IDEAL_TO_R <|iLblSig_to_iLblThy (⊥ : sem_row Σ)|>
         {{ ⟪ Mod (IProd OTSAdv ASend) TSPort ⟫ }}.

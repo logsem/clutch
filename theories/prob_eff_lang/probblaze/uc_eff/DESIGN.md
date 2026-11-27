@@ -334,11 +334,12 @@ mutual dependency between simulator and functionality.
     DDH_real () ≜ let y, x = sample, sample in (g^(y x), g^x, g^y, g)
     DDH_rand () ≜ let y, x, z = sample, sample, sample in (g^z, g^x, g^y, g)
 
-    F_CRS_DH dh publish ≜ let crs = dh () in publish crs; crs    -- crs = (h1, h0, g1, g0)
+    F_CRS_DH dh publish ≜ let crs = dh () in publish crs; λ (). crs   -- crs = (h1, h0, g1, g0)
     F_CRS ≜ F_CRS_DH DDH_rand                                   -- three random elements, g0 = g
 
-    OT_S (crs, (recv, send)) ≜
-      λ (). let (u, v) = recv () in
+    OT_S (get, (recv, send)) ≜
+      λ (). let (h1, h0, g1, g0) = get () in
+            let (u, v) = recv () in
             λ (m0, m1). if u = 1 then () else
                         send (enc (g0, h0, u, v) m0, enc (g1, h1, u, v) m1)
 
@@ -362,9 +363,27 @@ mutual dependency between simulator and functionality.
     REAL_OT_R  ≜ OT_S ⊳ (F_CRS ⊗ id)        IDEAL_OT_R ≜ F_OT_R ⊳ S_OT_R
 
     Pub    ≜ Crs → 𝟙                       -- pure: called while the module is set up
+    CrsPort ≜ 𝟙 → Crs                      -- the parties' request
     RNet θ ≜ (𝟙 -{θ}-> 𝔾 × 𝔾) × ((𝔾 × 𝔾) × (𝔾 × 𝔾) -{θ}-> 𝟙)
     OTAdv θ ≜ 𝟙 -{¡θ}-∘ (𝔹 × (𝔾 -{¡θ}-∘ 𝟙))     -- one-shot: only F_OT_R calls it
     SPort θ ≜ 𝟙 -{¡θ}-∘ ((𝔾 × 𝔾) -{¡θ}-∘ 𝟙)
+
+**The reference string: a pull for the parties, a push for the
+adversary.** `F_CRS_DH` samples the string when it is set up, sends it to
+the adversary, and gives the parties a port `get` to request it; `OT_S`
+and `OT_R` request it when their port is called. This is the local
+`F_crs` of the UC literature, which hands the string to the parties of
+the protocol and to the adversary: Canetti–Dodis–Pass–Walfish (TCC 2007,
+§3.1) describe it as "dedicated to a given protocol execution" and say
+that it "gives the reference string only to the adversary and the
+participants in that execution"; Groth–Ostrovsky ("Cryptography in the
+multi-string model", Fig. 5) output it "to all parties and S". The
+adversary does not query it; only the global `Ḡcrs` of the GUC paper is
+queried by anyone, the environment included. Sampling at the first
+request instead of at set-up makes no observable difference (the
+string is the same for every request), so it is sampled eagerly and
+the proofs couple it where they did before; each request is a pure
+step.
 
 The sender's port has two phases: the first fixes the receiver's choice
 (`recv`, resp. `choose`), the second takes the messages. A client may then
@@ -473,8 +492,9 @@ kept and the adversary plays the sender: the receiver `send`s its message
 to the adversary and `recv`s the reply. The functionality asks the
 adversary for the sender's messages when the receiver chooses.
 
-    OT_R (crs, (send, recv)) ≜                -- the receiver
-      λ b. let x = sample in
+    OT_R (get, (send, recv)) ≜                -- the receiver
+      λ b. let (h1, h0, g1, g0) = get () in
+           let x = sample in
            let (gb, hb) = if b then (g1, h1) else (g0, h0) in
            send (gb^x, hb^x);
            let (e0, e1) = recv () in
@@ -521,7 +541,7 @@ message, then the ciphertexts). The corruption cases are the same code
 with an endpoint replaced by the adversary.
 
     PARTIES_OT (crs, ((send_rs, recv_rs), (send_sr, recv_sr))) ≜
-      (OT_S (crs, (recv_rs, send_sr)), OT_R (crs, (send_rs, recv_sr)))
+      (OT_S (crs, (recv_rs, send_sr)), OT_R (crs, (send_rs, recv_sr)))   -- crs: the port
     REAL_OT_H ≜ PARTIES_OT ⊳ (F_CRS ⊗ (F_OAUTH ⊗ F_OAUTH))
 
     F_OT_H (run_s, run_r) ≜
@@ -570,7 +590,7 @@ The steps (`ot_h_security`):
 | A | `REAL_OT_H = HYB1_OT_H DDH_rand` → `HYB1_OT_H DDH_real` (decryption mode) | DDH, reduction `RED1_OT_H A` |
 | B | `HYB1_OT_H DDH_real` → `HYB2_OT_H DDH_real` | `1/n` (`y ≠ 0`) |
 | C | `HYB2_OT_H DDH_real` → `HYB2_OT_H DDH_rand` | DDH, reduction `RED2_OT_H A` |
-| E | `HYB2_OT_H DDH_rand` → `F_OT_H ⊳ (DUMMY_OT ⊳ HYB2_OT_H DDH_rand)` | `1/n` (`c ≠ p q`) |
+| D | `HYB2_OT_H DDH_rand` → `F_OT_H ⊳ (DUMMY_OT ⊳ HYB2_OT_H DDH_rand)` | `1/n` (`c ≠ p q`) |
 | C⁻¹ | → `F_OT_H ⊳ (DUMMY_OT ⊳ HYB2_OT_H DDH_real)` | DDH, reduction `RED2_OT_H (DENV_OT_H A)` |
 | B⁻¹ | → `F_OT_H ⊳ (DUMMY_OT ⊳ HYB1_OT_H DDH_real) = IDEAL_OT_H` | `1/n` |
 
@@ -593,14 +613,14 @@ taken at the same point on the other side:
 * B: the receiver's `z` with `p = y_b z`; the sender's `s_i` with `α_i`
   and `r_i` with `β_i = r_i + (x − q) s_i`; the tuple's `q` on the right
   only. The receiver's output is its decryption, `m_b` by correctness.
-* E: the receiver's message `(A, A^x)` does not depend on its choice;
+* D: the receiver's message `(A, A^x)` does not depend on its choice;
   the tuple is the same on both sides, `c` avoiding `p q`; slot `i` of
   the real sender against the dummy one: `α_i ↦ α_i + δ_i`,
   `β_i ↦ β_i − q δ_i` for `δ_i = log m_i / (c − p q)`, so the
   ciphertexts of `m_i` and of `1` are the same. The invariants are one
   per channel box, as in the honest reversal.
 
-The proofs of B and E have one invariant per channel box, "not yet
+The proofs of B and D have one invariant per channel box, "not yet
 sent on both sides" or "sent, with related values", whose writer holds
 half of the right-hand points-to as its "not yet" token; the hybrid's
 tuple and messages are owned by their writer and persistent once

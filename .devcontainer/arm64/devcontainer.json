@@ -2,11 +2,17 @@
 	"name": "clutch arm64 container",
 	"image": "ghcr.io/logsem/clutch/docker-arm64",
 	"mounts": [
-		"source=${localEnv:HOME}/.cache/dune,target=/root/.cache/dune,type=bind,consistency=cached"
+		"source=${localEnv:HOME}/.cache/dune,target=/root/.cache/dune,type=bind,consistency=cached",
+		// Claude Code's state (login, memory, session history), kept across container rebuilds.
+		"source=clutch-claude-config,target=/root/.claude,type=volume"
 	],
+	"containerEnv": {
+		// Keep all of Claude Code's state inside the volume above.
+		"CLAUDE_CONFIG_DIR": "/root/.claude"
+	},
 	"customizations": {
 		"vscode": {
-		  "extensions": ["maximedenes.vscoq"]
+		  "extensions": ["maximedenes.vscoq", "anthropic.claude-code"]
 		},
 		"settings": {
 			"terminal.integrated.profiles.linux": {

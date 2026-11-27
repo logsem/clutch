@@ -1,11 +1,13 @@
-(* Oblivious transfer reversal composed with oblivious transfer
-   (uc_eff/DESIGN.md, section 6): the reversal on the real OT protocol
-   realises the transfer, by [uc_composition] at one-instance modules.
+(* Oblivious transfer reversal composed with oblivious transfer: the
+   reversal on the real OT protocol realises the transfer, by
+   [uc_composition] at one-instance modules.
 
-   For each case, statement 2 is the OT's realisation beside the
-   interface the reversal adds (Alice's message), from the OT's security
-   theorem by [env_beside_typed] and interchange; statement 3 composes it
-   with the reversal's perfect realisation. *)
+   For each case there are two results.  The first ([*_beside]) is the
+   OT's realisation of its functionality beside what the reversal adds to
+   it (Alice's message, through the adversary or a channel), from the OT's
+   security theorem by [env_beside_typed] and interchange.  The second
+   ([*_ot_security]) composes it with the reversal's perfect realisation
+   of the transfer on the ideal OT. *)
 
 From iris.proofmode Require Import base proofmode classes.
 From iris.bi Require Import monpred.
@@ -37,7 +39,7 @@ Section ot_rev_ot.
   (* Alice corrupted: the OT with a corrupted receiver.                 *)
   (* ---------------------------------------------------------------- *)
 
-  (* Statement 2: the OT realises its functionality beside Alice's
+  (* The OT realises its functionality beside Alice's
      message. *)
   Lemma ot_r_beside (A : val) :
     (∀ `{probblazeRGS Σ},
@@ -69,7 +71,7 @@ Section ot_rev_ot.
           |iApply id_mod_typed].
   Qed.
 
-  (* Statement 3: Bob on the real OT realises the transfer with Alice
+  (* Bob on the real OT realises the transfer with Alice
      corrupted, with the simulator [S_TO_S ⊳ (S_OT_R ⊗ id)]. *)
   Theorem to_s_ot_security (A : val) :
     (∀ `{probblazeRGS Σ},
@@ -101,7 +103,7 @@ Section ot_rev_ot.
   (* Bob corrupted: the OT with a corrupted sender.                     *)
   (* ---------------------------------------------------------------- *)
 
-  (* Statement 2: the OT realises its functionality beside Alice's
+  (* The OT realises its functionality beside Alice's
      message; the DDH reduction gets the environment with the identity
      beside. *)
   Lemma ot_s_beside (A : val) :
@@ -137,7 +139,7 @@ Section ot_rev_ot.
           |iApply id_mod_typed].
   Qed.
 
-  (* Statement 3: Alice on the real OT realises the transfer with Bob
+  (* Alice on the real OT realises the transfer with Bob
      corrupted, with the simulator [S_TO_R ⊳ (S_OT_S ⊗ id)]. *)
   Theorem to_r_ot_security (A : val) :
     (∀ `{probblazeRGS Σ},
@@ -172,7 +174,7 @@ Section ot_rev_ot.
   (* Both honest.                                                       *)
   (* ---------------------------------------------------------------- *)
 
-  (* Statement 2: the OT realises its functionality beside the channel
+  (* The OT realises its functionality beside the channel
      carrying Alice's message; the DDH reductions get the environment
      with the channel beside. *)
   Lemma ot_h_beside (A : val) :
@@ -216,7 +218,7 @@ Section ot_rev_ot.
           |iApply Mod_ModA_typed; iApply (F_OAUTH_typed_gen 𝔹 _ eq_ground_bool)].
   Qed.
 
-  (* Statement 3: the parties on the real OT and the channel realise the
+  (* the parties on the real OT and the channel realise the
      transfer, with the simulator [S_TO_H ⊳ (S_OT_H ⊗ id)]. *)
   Theorem to_h_ot_security (A : val) :
     (∀ `{probblazeRGS Σ},

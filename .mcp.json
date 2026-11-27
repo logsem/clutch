@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "rocq-solid": {
+      "command": "rocq-solid-mcp",
+      "args": [],
+      "env": {
+        "ROCQ_LSP_TIMEOUT": "290"
+      }
+    }
+  }
+}

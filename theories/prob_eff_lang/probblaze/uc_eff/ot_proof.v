@@ -1,5 +1,4 @@
-(* Security of oblivious transfer with both parties honest
-   (uc_eff/DESIGN.md, section 6).
+(* Security of oblivious transfer with both parties honest.
 
    From the real module [REAL_OT_H = HYB1_OT_H DDH_rand] to the ideal
    module [F_OT_H ⊳ S_OT_H]:
@@ -11,7 +10,7 @@
       tuple by rerandomisation, when [y ≠ 0]: [1/n].
    C. [hyb2_ddh]: that tuple real against random: the DDH advantage of
       [RED2_OT_H A].
-   E. [hyb2_dummy_EQ]: with a random tuple the ciphertexts hide the
+   D. [hyb2_dummy_EQ]: with a random tuple the ciphertexts hide the
       messages and the receiver's message does not depend on the choice:
       the hybrid on the real inputs against the hybrid on the dummy ones
       under the functionality, when [c ≠ p q]: [1/n].
@@ -269,7 +268,7 @@ Section ot_h_eq.
 
   Definition NE : namespace := nroot .@ "otE".
 
-  (* The state of step E.  Left: the hybrid with the real inputs; right:
+  (* The state of step D.  Left: the hybrid with the real inputs; right:
      the hybrid with the dummy inputs under the functionality.  On each
      side the hybrid has the channels' boxes [brs], [bsr], the tuple [tup]
      and the sender's messages [mm]; the functionality has [ch] and [mmF].
@@ -296,7 +295,7 @@ Section ot_h_eq.
        mm ↦ₗ□ SOMEV (vgval m0, vgval m1)%V ∗ mmF ↦ᵣ□ SOMEV (vgval m0, vgval m1)%V ∗
        mm' ↦ᵣ□ SOMEV (d0, d1)%V).
 
-  (* Step E. *)
+  (* Step D. *)
   Lemma hyb2_dummy_EQ :
     ⎡↯ (1 / n)⎤ ⊢
       ⟪ ModA OTHNet OTPorts ⟫ (HYB2_OT_H DDH_rand) (F_OT_H ⊳ (DUMMY_OT ⊳ HYB2_OT_H DDH_rand))%md.
@@ -525,7 +524,7 @@ Section ot_h_security.
       rewrite !monPred_at_embed eq_lift_at /pick /= in H. by iApply H.
   Qed.
 
-  (* Step E. *)
+  (* Step D. *)
   Lemma hyb2_dummy_adv (A : val) :
     (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (ModA OTHNet OTPorts → 𝔹)%T) →
     (advantage A (HYB2_OT_H DDH_rand) (F_OT_H ⊳ (DUMMY_OT ⊳ HYB2_OT_H DDH_rand))%md #true
@@ -585,7 +584,7 @@ Section ot_h_security.
     apply (advantage_triangle _ _ (HYB2_OT_H DDH_rand) _ _
              (advantage (RED2_OT_H A) DDH_real DDH_rand #true) (εd + 2 / n)); [| |lra].
     { apply hyb2_ddh. }
-    (* Step E: the dummy inputs. *)
+    (* Step D: the dummy inputs. *)
     apply (advantage_triangle _ _ (F_OT_H ⊳ (DUMMY_OT ⊳ HYB2_OT_H DDH_rand))%md _ _
              (1 / n) (εd + 1 / n)); [| |lra].
     { by apply hyb2_dummy_adv. }

@@ -1,7 +1,8 @@
-(* The typings of the components of oblivious transfer (uc_eff/DESIGN.md,
-   section 6), as self-equivalences in the logic of [eq/]: the
-   functionalities and simulators of the three cases.  They are the
-   premises of [uc_composition] for the clients of OT ([ot_rev_ot.v]). *)
+(* The typings of the components of oblivious transfer, as
+   self-equivalences in the logic of [eq/]: the parties, the reference
+   string, and the functionalities and simulators of the three cases.
+   They are the premises of [uc_composition] for the clients of OT
+   ([ot_rev_ot.v]). *)
 
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Import na_invariants.

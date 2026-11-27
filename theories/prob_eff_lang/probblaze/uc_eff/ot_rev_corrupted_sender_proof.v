@@ -1,5 +1,5 @@
 (* Oblivious transfer reversal with the sender (Alice) corrupted is
-   perfect (uc_eff/DESIGN.md, section 6).
+   perfect.
 
    Bob on the ideal OT, [TO_R ⊳ (F_OT_R ⊗ id)], and the ideal transfer
    with the simulator, [F_TO_S ⊳ S_TO_S], which runs the same Bob on the

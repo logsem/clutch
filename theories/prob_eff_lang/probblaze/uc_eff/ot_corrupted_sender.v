@@ -1,5 +1,4 @@
-(* Oblivious transfer with a corrupted sender, as modules
-   (uc_eff/DESIGN.md, section 6).
+(* Oblivious transfer with a corrupted sender, as modules.
 
    The protocol is in [ot.v]; here the sender is corrupted, so its code is
    absent and the adversary plays it.  In the real world the
