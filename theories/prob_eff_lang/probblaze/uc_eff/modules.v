@@ -93,6 +93,9 @@ Notation "f ⊗ g" := (tens_op f g) (at level 35, right associativity) : mod_sco
 (* The identity module. *)
 Definition id_mod : val := λ: "a", "a".
 
+(* Divergence: a port that never returns. *)
+Definition loop : val := rec: "loop" <> := "loop" #()%V.
+
 Lemma tens_app_pure (f g : val) : rtc pure_step (tens_app f g) (tens_op f g).
 Proof.
   rewrite /tens_app /tens_op.
@@ -433,6 +436,21 @@ End modules.
 (* ------------------------------------------------------------------ *)
 (* The composition theorem.                                            *)
 (* ------------------------------------------------------------------ *)
+
+(* The advantage is symmetric: it is the least upper bound of distances
+   [|Pr[A X] - Pr[A Y]|], the same set either way round. *)
+Lemma advantage_sym (A X Y : expr) (v : val) :
+  nonneg (advantage A X Y v) = nonneg (advantage A Y X v).
+Proof.
+  rewrite /advantage /= /advantage_R.
+  destruct completeness as [x [ubx lubx]]; destruct completeness as [y [uby luby]]; simpl.
+  assert (∀ ε, pr_dist_st (A X) (A Y) v ε ↔ pr_dist_st (A Y) (A X) v ε) as Hset.
+  { intros ε. rewrite /pr_dist_st /pr_dist /=.
+    split; intros [σ <-]; exists σ; simpl; apply Rabs_minus_sym. }
+  apply Rle_antisym.
+  - apply lubx. intros ε Hε. apply uby. by apply Hset.
+  - apply luby. intros ε Hε. apply ubx. by apply Hset.
+Qed.
 
 Section uc_composition.
   Context `{!probblazeRGpreS Σ}.

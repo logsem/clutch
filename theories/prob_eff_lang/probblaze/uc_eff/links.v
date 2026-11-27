@@ -67,9 +67,6 @@ From Stdlib Require Import Reals Psatz.
 (* The code.                                                           *)
 (* ------------------------------------------------------------------ *)
 
-(* Divergence, for a look-up of a placeholder that is not filled yet. *)
-Definition loop : val := rec: "loop" <> := "loop" #()%V.
-
 (* Looking up a placeholder. *)
 Definition getter : val :=
   λ: "r" <>, match: !"r" with NONE => loop #()%V | SOME "y" => "y" end.
@@ -195,19 +192,6 @@ Section links.
   (* A persistent function of the empty row is an affine one. *)
   Lemma eq_lift_arr_ms_aff (A B : sem_ty Σ) fl fr : ⟪ A → B ⟫ fl fr ⊢ ⟪ A ⊸ B ⟫ fl fr.
   Proof. rewrite eq_lift_mbang /=. iIntros "#H". done. Qed.
-
-  (* Both programs diverge. *)
-  Lemma eq_loop X R : ⊢ EQ loop #()%V ≈ loop #()%V <|X|> {{ R }}.
-  Proof.
-    (* One beta step through the definition of [loop] on each side (as
-       [wp_rec] does); [eq_pures] would reduce forever. *)
-    assert (AsRecV loop "loop" BAnon ("loop" #()%V)%E) as Hrec by done.
-    iLöb as "IH".
-    iApply (eq_pure_lr _ _ _ _ _ _ _ True True 0 0
-              (pure_beta _ _ _ _ _ (AsRecV0 := Hrec)) I
-              (pure_beta _ _ _ _ _ (AsRecV0 := Hrec)) I).
-    simpl. iApply "IH".
-  Qed.
 
   (* Typings and self-equivalences of values. *)
   Lemma val_typed_eq (v : val) (τ : sem_ty Σ) : (⊢ ⊨ᵥ v ≤ v : τ) → ⊢ ⟪ τ ⟫ v v.

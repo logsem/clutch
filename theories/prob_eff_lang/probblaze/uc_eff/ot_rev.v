@@ -119,88 +119,52 @@ Section ot_rev.
       let, ("send", "recv") := "ab" in
       (TO_S ("rport", "send"), TO_R ("sport", "recv")).
 
+  Definition HYB_TO_H : val := (PARTIES_TO ⊳ (F_OT_H ⊗ F_OAUTH))%md.
+
   (* ---------------------------------------------------------------- *)
   (* The ideal transfer, both honest.                                   *)
   (* ---------------------------------------------------------------- *)
 
-  (* It takes the adversary's operations [yield_a] and [yield_b], one per
-     party, which the party calls wherever the real party calls the
-     network (ot.v: UC's delayed output, for blocking ports). *)
+  (* It takes the adversary's operations [run_a] and [run_b], one per
+     party.  A party's port records its input and hands control to the
+     adversary with that party's operation; when the operation returns,
+     the party is done (UC's delayed output).  Bob gets [x_c] only if
+     Alice has given her bits; otherwise his port never returns. *)
   Definition F_TO_H : val :=
     λ: "adv",
-      let, ("yield_a", "yield_b") := "adv" in
+      let, ("run_a", "run_b") := "adv" in
 
-      (* state: Alice's bits, whether Bob has chosen, whether Alice is
-         done *)
+      (* state: Alice's bits *)
       let: "xs" := ref NONE in
-      let: "cs" := ref #false in
-      let: "fin" := ref #false in
 
-      (* Alice: wait for Bob's input, then finish *)
-      (λ: "xx",
-         "xs" <- SOME "xx";;
-         (rec: "wait" <> :=
-            "yield_a" #()%V;;
-            if: !"cs" then #()%V else "wait" #()%V) #()%V;;
-         "fin" <- #true;;
-         "yield_a" #()%V,
+      (* Alice *)
+      (λ: "xx", "xs" <- SOME "xx";; "run_a" #()%V,
 
-      (* Bob: wait for Alice's input, choose, wait for Alice to finish *)
+      (* Bob *)
        λ: "c",
-         let, ("x0", "x1") :=
-           (rec: "wait" <> :=
-              "yield_b" #()%V;;
-              match: !"xs" with NONE => "wait" #()%V | SOME "xx" => "xx" end) #()%V in
-         "cs" <- #true;;
-         "yield_b" #()%V;;
-         (rec: "wait" <> :=
-            "yield_b" #()%V;;
-            if: !"fin" then #()%V else "wait" #()%V) #()%V;;
-         if: "c" then "x1" else "x0").
+         "run_b" #()%V;;
+         match: !"xs" with
+           NONE => loop #()%V
+         | SOME "xx" => let, ("x0", "x1") := "xx" in if: "c" then "x1" else "x0"
+         end).
 
   (* ---------------------------------------------------------------- *)
   (* The simulator.                                                     *)
   (* ---------------------------------------------------------------- *)
 
-  (* It maps each party's yields to that party's next move in the real
-     world: for Alice, [yield_r] of the OT until Bob has sent, then the
-     leak of her message, a random bit; for Bob, [yield_s] of the OT until
-     Alice has her input, then sending (it samples the bit then, when Bob
-     samples his mask), then [deliver] of the channel.  It decides the
-     next move after each real move returns, which is where the
-     functionality checks its condition. *)
-  Definition S_TO_H : val :=
-    λ: "adv",
-      let, ("ot", "net") := "adv" in
-      let, ("yield_s", "yield_r") := "ot" in
-      let, ("leak", "deliver") := "net" in
+  (* The real parties on dummy inputs: [run_a] runs Alice with bits
+     [(false, false)], [run_b] runs Bob with choice [false] and drops his
+     output.  The parties block where the real ones do, on the OT and the
+     channel, whose adversarial operations are the simulator's; the
+     environment schedules them by handling those operations. *)
+  Definition DUMMY_TO : val :=
+    λ: "ports",
+      let, ("alice", "bob") := "ports" in
+      (λ: <>, "alice" (#false, #false)%V,
+       λ: <>, "bob" #false;; #()%V).
 
-      (* state: Alice's message, and how far each party is *)
-      let: "rho" := ref #false in
-      let: "a_in" := ref #false in
-      let: "a_last" := ref #false in
-      let: "b_go" := ref #false in
-      let: "b_sent" := ref #false in
+  Definition S_TO_H : val := (DUMMY_TO ⊳ HYB_TO_H)%md.
 
-      (* Alice *)
-      (λ: <>,
-         if: !"a_last" then "leak" !"rho" else
-           ("a_in" <- #true;;
-            "yield_r" #()%V;;
-            if: !"b_sent" then "a_last" <- #true else #()%V),
-
-      (* Bob *)
-       λ: <>,
-         if: !"b_sent" then "deliver" #()%V else
-         if: !"b_go" then
-           ("rho" <- flip #()%V;;
-            "b_sent" <- #true;;
-            "yield_s" #()%V)
-         else
-           ("yield_s" #()%V;;
-            if: !"a_in" then "b_go" <- #true else #()%V)).
-
-  Definition HYB_TO_H : val := (PARTIES_TO ⊳ (F_OT_H ⊗ F_OAUTH))%md.
   Definition IDEAL_TO_H : val := (F_TO_H ⊳ S_TO_H)%md.
 
 End ot_rev.
@@ -217,9 +181,10 @@ Section ot_rev_types.
   Definition TSPort (θ : sem_row Σ) : sem_ty Σ := ((𝔹 × 𝔹) -{ ¡ θ }-∘ 𝟙)%T.
 
   (* Both honest: the hybrid adversarial interface (the honest OT's and
-     the channel's), the ideal one, and both ports. *)
+     the channel's), the ideal one (one-shot: only the functionality
+     calls it, once per party), and both ports. *)
   Definition TOHNet (θ : sem_row Σ) : sem_ty Σ := (OTHAdv θ × LNet 𝔹 θ)%T.
-  Definition TOHAdv (θ : sem_row Σ) : sem_ty Σ := ((𝟙 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> 𝟙))%T.
+  Definition TOHAdv (θ : sem_row Σ) : sem_ty Σ := ((𝟙 -{ ¡ θ }-∘ 𝟙) × (𝟙 -{ ¡ θ }-∘ 𝟙))%T.
   Definition TPorts (θ : sem_row Σ) : sem_ty Σ := (TSPort θ × TPort θ)%T.
 
 End ot_rev_types.

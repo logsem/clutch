@@ -13,7 +13,8 @@ From clutch.prob_eff_lang.probblaze Require Import spec_rules spec_ra class_inst
 From clutch.prob_eff_lang.probblaze Require Import notation metatheory semantics logic adequacy mode.
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row sem_sig sem_env sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_valgroup eq_compat.
-From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules eq_modules auth ot ot_eq
+From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules eq_modules auth auth_typing ot ot_eq
+  ot_typing
   ot_corrupted_receiver ot_corrupted_sender ot_rev ot_rev_corrupted_sender
   ot_rev_corrupted_receiver.
 
@@ -311,21 +312,15 @@ Section ot_rev_typing.
     rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
     iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
     rewrite /TOHAdv. iEval (rewrite eq_lift_prod) in "Hadv".
-    iDestruct "Hadv" as (yal yar ybl ybr) "(-> & -> & #Hya & #Hyb)".
+    iDestruct "Hadv" as (ral rar rbl rbr) "(-> & -> & Hra & Hrb)".
     rewrite /F_TO_H.
-    eq_pures_l. eq_alloc_l xs as "Hxs". eq_pures_l. eq_alloc_l cs as "Hcs". eq_pures_l.
-    eq_alloc_l fin as "Hfin". eq_pures_l.
-    eq_pures_r. eq_alloc_r xs' as "Hxs'". eq_pures_r. eq_alloc_r cs' as "Hcs'". eq_pures_r.
-    eq_alloc_r fin' as "Hfin'". eq_pures_r.
+    eq_pures_l. eq_alloc_l xs as "Hxs". eq_pures_l.
+    eq_pures_r. eq_alloc_r xs' as "Hxs'". eq_pures_r.
     iApply (eq_na_alloc (box_rel_gen bits xs xs') (NTH .@ "xs")).
     iSplitL "Hxs Hxs'"; first (iNext; iLeft; iFrame). iIntros "#Ixs".
-    iApply (eq_na_alloc (bool_ref cs cs') (NTH .@ "cs")).
-    iSplitL "Hcs Hcs'"; first (iNext; iExists _; iFrame). iIntros "#Ics".
-    iApply (eq_na_alloc (bool_ref fin fin') (NTH .@ "fin")).
-    iSplitL "Hfin Hfin'"; first (iNext; iExists _; iFrame). iIntros "#Ifin".
     iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
     iApply eq_value. iModIntro. rewrite /TPorts. iEval (rewrite eq_lift_prod).
-    iExists _, _, _, _. do 2 (iSplit; first done). iSplitL.
+    iExists _, _, _, _. do 2 (iSplit; first done). iSplitL "Hra".
     - (* Alice *)
       rewrite /TSPort. iApply eq_lift_arr. iIntros (xl xr) "Hx".
       iEval (rewrite eq_lift_prod) in "Hx".
@@ -335,147 +330,67 @@ Section ot_rev_typing.
       eq_pures'.
       assert (bits (#x0, #x1)%V) as Hb by (by exists x0, x1).
       eq_reshape_l (Store _ _). eq_reshape_r (Store _ _).
-      iApply (eq_na_store_box _ _ _ _ _ _ _ _ _ Hb with "Ixs").
-      eq_pures'.
-      iLöb as "IH".
-      eq_reshape_l (yal _). eq_reshape_r (yar _).
-      iApply (eq_call_frame θ (¡ θ)%R 𝟙%T 𝟙%T emp%I with "Hρ Hya [] []");
+      iApply (eq_na_store_box _ _ _ _ _ _ _ _ _ Hb with "Ixs"). eq_pures'.
+      iApply (eq_call_frame_aff θ (¡ θ)%R 𝟙%T 𝟙%T emp%I ral rar _ _ [] [] with "Hρ Hra [] []");
         try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
-      iIntros "!>" (??) "Hu _". iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
-      eq_pures'.
-      eq_reshape_l (Load _). eq_reshape_r (Load _).
-      iApply (eq_na_load_bool with "Ics"). iIntros ([]).
-      + eq_pures'.
-        eq_reshape_l (Store _ _). eq_reshape_r (Store _ _).
-        iApply (eq_na_store_bool with "Ifin"). eq_pures'.
-        iApply (eq_call_frame θ (¡ θ)%R 𝟙%T 𝟙%T emp%I yal yar _ _ [] [] with "Hρ Hya [] []");
-          try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
-        iIntros "!>" (??) "Hu _". by iApply eq_value.
-      + eq_pures_lr. try (try eq_pures_l). try (try eq_pures_r). iApply "IH".
+      iIntros "!>" (??) "Hu _". by iApply eq_value.
     - (* Bob *)
       rewrite /TPort. iApply eq_lift_arr. iIntros (cl cr) "Hc".
       iEval (rewrite eq_lift_bool) in "Hc". iDestruct "Hc" as %(c & -> & ->).
       eq_pures'.
-      iLöb as "IH".
-      eq_reshape_l (ybl _). eq_reshape_r (ybr _).
-      iApply (eq_call_frame θ (¡ θ)%R 𝟙%T 𝟙%T emp%I with "Hρ Hyb [] []");
+      eq_reshape_l (rbl _). eq_reshape_r (rbr _).
+      iApply (eq_call_frame_aff θ (¡ θ)%R 𝟙%T 𝟙%T emp%I with "Hρ Hrb [] []");
         try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
       iIntros "!>" (??) "Hu _". iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
       eq_pures'.
       eq_reshape_l (Load _). eq_reshape_r (Load _).
       iApply (eq_na_load_box with "Ixs"). iIntros (w) "%Hw".
       destruct Hw as [->|(? & (x0 & x1 & ->) & ->)].
-      { eq_pures_lr. try (try eq_pures_l). try (try eq_pures_r). iApply "IH". }
-      eq_pures'.
-      eq_reshape_l (Store _ _). eq_reshape_r (Store _ _).
-      iApply (eq_na_store_bool with "Ics"). eq_pures'.
-      eq_reshape_l (ybl _). eq_reshape_r (ybr _).
-      iApply (eq_call_frame θ (¡ θ)%R 𝟙%T 𝟙%T emp%I with "Hρ Hyb [] []");
-        try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
-      iIntros "!>" (??) "Hu _". iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
-      eq_pures'.
-      iClear "IH". iLöb as "IH".
-      eq_reshape_l (ybl _). eq_reshape_r (ybr _).
-      iApply (eq_call_frame θ (¡ θ)%R 𝟙%T 𝟙%T emp%I with "Hρ Hyb [] []");
-        try (intros; apply _); [by iEval (rewrite eq_lift_unit)|done|].
-      iIntros "!>" (??) "Hu _". iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
-      eq_pures'.
-      eq_reshape_l (Load _). eq_reshape_r (Load _).
-      iApply (eq_na_load_bool with "Ifin"). iIntros ([]).
-      + destruct c; eq_pures'; iApply eq_value; iModIntro; iApply eq_bool.
-      + eq_pures_lr. try (try eq_pures_l). try (try eq_pures_r). iApply "IH".
+      { eq_pures'. iApply eq_loop. }
+      destruct c; eq_pures'; iApply eq_value; iModIntro; iApply eq_bool.
   Qed.
 
   Lemma F_TO_H_typed : ⊢ ⊨ᵥ F_TO_H ≤ F_TO_H : Mod TOHAdv TPorts.
   Proof. apply eq_val_typed, F_TO_H_eq. Qed.
 
-  Lemma S_TO_H_eq : ⊢ ⟪ Mod TOHNet TOHAdv ⟫ S_TO_H S_TO_H.
+  (* The dummy inputs. *)
+  Lemma DUMMY_TO_eq : ⊢ ⟪ Mod TPorts TOHAdv ⟫ DUMMY_TO DUMMY_TO.
   Proof.
     rewrite /Mod /ModM. iEval (rewrite eq_lift_forall). iIntros (θ).
-    iModIntro. iApply eq_lift_arr. iIntros (advl advr) "Hadv".
-    rewrite /TOHNet /OTHAdv /LNet. iEval (rewrite eq_lift_prod) in "Hadv".
-    iDestruct "Hadv" as (otl otr nl nr) "(-> & -> & Hot & Hnet)".
-    iEval (rewrite eq_lift_prod) in "Hot".
-    iDestruct "Hot" as (ysl ysr yrl yrr) "(-> & -> & #Hys & #Hyr)".
-    iEval (rewrite eq_lift_prod) in "Hnet".
-    iDestruct "Hnet" as (lkl lkr dl dr) "(-> & -> & #Hleak & #Hdel)".
-    rewrite /S_TO_H /ot_rev.flip.
-    eq_pures_l. eq_alloc_l rho as "H1". eq_pures_l. eq_alloc_l ain as "H2". eq_pures_l.
-    eq_alloc_l alast as "H3". eq_pures_l. eq_alloc_l bgo as "H4". eq_pures_l.
-    eq_alloc_l bsent as "H5". eq_pures_l.
-    eq_pures_r. eq_alloc_r rho' as "H1'". eq_pures_r. eq_alloc_r ain' as "H2'". eq_pures_r.
-    eq_alloc_r alast' as "H3'". eq_pures_r. eq_alloc_r bgo' as "H4'". eq_pures_r.
-    eq_alloc_r bsent' as "H5'". eq_pures_r.
-    iApply (eq_na_alloc (bool_ref rho rho') (NTH .@ "rho")).
-    iSplitL "H1 H1'"; first (iNext; iExists _; iFrame). iIntros "#Irho".
-    iApply (eq_na_alloc (bool_ref ain ain') (NTH .@ "ain")).
-    iSplitL "H2 H2'"; first (iNext; iExists _; iFrame). iIntros "#Iain".
-    iApply (eq_na_alloc (bool_ref alast alast') (NTH .@ "alast")).
-    iSplitL "H3 H3'"; first (iNext; iExists _; iFrame). iIntros "#Ialast".
-    iApply (eq_na_alloc (bool_ref bgo bgo') (NTH .@ "bgo")).
-    iSplitL "H4 H4'"; first (iNext; iExists _; iFrame). iIntros "#Ibgo".
-    iApply (eq_na_alloc (bool_ref bsent bsent') (NTH .@ "bsent")).
-    iSplitL "H5 H5'"; first (iNext; iExists _; iFrame). iIntros "#Ibsent".
+    iModIntro. iApply eq_lift_arr. iIntros (pl pr) "Hp".
+    rewrite /TPorts. iEval (rewrite eq_lift_prod) in "Hp".
+    iDestruct "Hp" as (al ar bl br) "(-> & -> & Ha & Hb)".
+    rewrite /DUMMY_TO. eq_pures'.
+    iAssert (⎡(¡ θ)%R ≤ᵣ (¡ θ)%R⎤)%I as "#Hρ"; first by iApply row_le_refl.
     iApply eq_value. iModIntro. rewrite /TOHAdv. iEval (rewrite eq_lift_prod).
-    iExists _, _, _, _. do 2 (iSplit; first done). iSplitL.
-    - (* Alice *)
-      iModIntro. iApply eq_lift_arr. iIntros (ul ur) "Hu".
-      iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
-      eq_pures'.
-      eq_reshape_l (Load _). eq_reshape_r (Load _).
-      iApply (eq_na_load_bool with "Ialast"). iIntros ([]).
-      + eq_pures'.
-        eq_reshape_l (Load _). eq_reshape_r (Load _).
-        iApply (eq_na_load_bool with "Irho"). iIntros (r). eq_pures'.
-        iApply (eq_lift_app with "Hleak"). iApply eq_bool.
-      + eq_pures'.
-        eq_reshape_l (Store _ _). eq_reshape_r (Store _ _).
-        iApply (eq_na_store_bool with "Iain"). eq_pures'.
-        eq_reshape_l (yrl _). eq_reshape_r (yrr _).
-        iApply (eq_call MS θ 𝟙%T 𝟙%T with "Hyr"); try (intros; apply _);
-          first by iEval (rewrite eq_lift_unit).
-        iIntros "!>" (??) "Hu". iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
-        eq_pures'.
-        eq_reshape_l (Load _). eq_reshape_r (Load _).
-        iApply (eq_na_load_bool with "Ibsent"). iIntros ([]); eq_pures'.
-        * eq_reshape_l (Store _ _). eq_reshape_r (Store _ _).
-          iApply (eq_na_store_bool with "Ialast"). eq_pures'.
-          iApply eq_value. by iEval (rewrite eq_lift_unit).
-        * iApply eq_value. by iEval (rewrite eq_lift_unit).
-    - (* Bob *)
-      iModIntro. iApply eq_lift_arr. iIntros (ul ur) "Hu".
-      iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
-      eq_pures'.
-      eq_reshape_l (Load _). eq_reshape_r (Load _).
-      iApply (eq_na_load_bool with "Ibsent"). iIntros ([]).
-      { eq_pures'. iApply (eq_lift_app with "Hdel"). by iEval (rewrite eq_lift_unit). }
-      eq_pures'.
-      eq_reshape_l (Load _). eq_reshape_r (Load _).
-      iApply (eq_na_load_bool with "Ibgo"). iIntros ([]).
-      + eq_pures'.
-        eq_couple_rand_rand. iIntros (k Hk).
-        assert (k = 0%nat ∨ k = 1%nat)%type as [-> | ->] by (simpl in Hk; lia);
-          (eq_pures';
-           eq_reshape_l (Store _ _); eq_reshape_r (Store _ _);
-           iApply (eq_na_store_bool with "Irho"); eq_pures';
-           eq_reshape_l (Store _ _); eq_reshape_r (Store _ _);
-           iApply (eq_na_store_bool with "Ibsent"); eq_pures';
-           iApply (eq_lift_app with "Hys"); by iEval (rewrite eq_lift_unit)).
-      + eq_pures'.
-        eq_reshape_l (ysl _). eq_reshape_r (ysr _).
-        iApply (eq_call MS θ 𝟙%T 𝟙%T with "Hys"); try (intros; apply _);
-          first by iEval (rewrite eq_lift_unit).
-        iIntros "!>" (??) "Hu". iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->].
-        eq_pures'.
-        eq_reshape_l (Load _). eq_reshape_r (Load _).
-        iApply (eq_na_load_bool with "Iain"). iIntros ([]); eq_pures'.
-        * eq_reshape_l (Store _ _). eq_reshape_r (Store _ _).
-          iApply (eq_na_store_bool with "Ibgo"). eq_pures'.
-          iApply eq_value. by iEval (rewrite eq_lift_unit).
-        * iApply eq_value. by iEval (rewrite eq_lift_unit).
+    iExists _, _, _, _. do 2 (iSplit; first done). iSplitL "Ha".
+    - iApply eq_lift_arr. iIntros (ul ur) "Hu".
+      iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->]. eq_pures'.
+      rewrite /TSPort.
+      iApply (eq_call_frame_aff θ (¡ θ)%R (𝔹 × 𝔹)%T 𝟙%T emp%I al ar _ _ [] [] with "Hρ Ha [] []");
+        try (intros; apply _); [|done|].
+      { iEval (rewrite eq_lift_prod). iExists _, _, _, _. do 2 (iSplit; first done).
+        iSplitL; iApply eq_bool. }
+      iIntros "!>" (??) "Hu _". by iApply eq_value.
+    - iApply eq_lift_arr. iIntros (ul ur) "Hu".
+      iEval (rewrite eq_lift_unit) in "Hu". iDestruct "Hu" as %[-> ->]. eq_pures'.
+      rewrite /TPort. eq_reshape_l (bl _). eq_reshape_r (br _).
+      iApply (eq_call_frame_aff θ (¡ θ)%R 𝔹%T 𝔹%T emp%I with "Hρ Hb [] []");
+        try (intros; apply _); [iApply eq_bool|done|].
+      iIntros "!>" (??) "_ _". eq_pures'. iApply eq_value. by iEval (rewrite eq_lift_unit).
+  Qed.
+
+  Lemma DUMMY_TO_typed : ⊢ ⊨ᵥ DUMMY_TO ≤ DUMMY_TO : Mod TPorts TOHAdv.
+  Proof. apply eq_val_typed, DUMMY_TO_eq. Qed.
+
+  (* The hybrid, and the simulator: the hybrid on dummy inputs. *)
+  Lemma HYB_TO_H_typed : ⊢ ⊨ᵥ HYB_TO_H ≤ HYB_TO_H : Mod TOHNet TPorts.
+  Proof.
+    iApply comp_op_typed; first iApply PARTIES_TO_typed.
+    iApply tens_op_typed; [iApply F_OT_H_typed|iApply (F_OAUTH_typed_gen 𝔹 _ eq_ground_bool)].
   Qed.
 
   Lemma S_TO_H_typed : ⊢ ⊨ᵥ S_TO_H ≤ S_TO_H : Mod TOHNet TOHAdv.
-  Proof. apply eq_val_typed, S_TO_H_eq. Qed.
+  Proof. iApply comp_op_typed; [iApply DUMMY_TO_typed|iApply HYB_TO_H_typed]. Qed.
 
 End ot_rev_typing.

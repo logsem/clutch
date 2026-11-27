@@ -12,6 +12,7 @@ From clutch.prob_eff_lang.probblaze Require Import notation metatheory semantics
 From clutch.prob_eff_lang.probblaze Require Import sem_def sem_types sem_row sem_sig sem_env sem_judgement compatibility.
 From clutch.prob_eff_lang.probblaze Require Import valgroup.
 From clutch.prob_eff_lang.probblaze.eq Require Import eq_logic eq_valgroup eq_compat.
+From clutch.prob_eff_lang.probblaze.uc_eff Require Import modules.
 
 Import fingroup.
 Import fingroup.fingroup.
@@ -46,6 +47,22 @@ Section eq_modules.
 
   Lemma eq_bool (b : bool) : ⊢ ⟪ (𝔹 : sem_ty Σ) ⟫ #b #b.
   Proof. iEval (rewrite eq_lift_bool). by iExists b. Qed.
+
+  (* Both programs diverge. *)
+  Lemma eq_loop X R : ⊢ EQ loop #()%V ≈ loop #()%V <|X|> {{ R }}.
+  Proof.
+    (* One beta step through the definition of [loop] on each side (as
+       [wp_rec] does); [eq_pures] would reduce forever. *)
+    assert (AsRecV loop "loop" BAnon ("loop" #()%V)%E) as Hrec by done.
+    iLöb as "IH".
+    iApply (eq_pure_lr _ _ _ _ _ _ _ True True 0 0
+              (pure_beta _ _ _ _ _ (AsRecV0 := Hrec)) I
+              (pure_beta _ _ _ _ _ (AsRecV0 := Hrec)) I).
+    simpl. iApply "IH".
+  Qed.
+
+  Lemma eq_loop_ctx Kl Kr X R : ⊢ EQ fill Kl (loop #()%V) ≈ fill Kr (loop #()%V) <|X|> {{ R }}.
+  Proof. iApply eq_bind_nil. iApply eq_loop. Qed.
 
   (* A persistent operation can be used as a one-shot one. *)
   Lemma eq_arr_aff (θ : sem_row Σ) (τ κ : sem_ty Σ) (fl fr : val) :

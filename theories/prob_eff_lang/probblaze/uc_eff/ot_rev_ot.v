@@ -182,12 +182,15 @@ Section ot_rev_ot.
     advantage A (REAL_OT_H ⊗ F_OAUTH) ((F_OT_H ⊗ F_OAUTH) ⊳ (S_OT_H ⊗ id_mod)) #true
       <= advantage (RED1_OT_H (λ: "v", A (tens_app "v" F_OAUTH))%V) DDH_rand DDH_real #true
          + advantage (RED2_OT_H (λ: "v", A (tens_app "v" F_OAUTH))%V) DDH_real DDH_rand #true
+         + advantage (RED2_OT_H (DENV_OT_H (λ: "v", A (tens_app "v" F_OAUTH))%V)) DDH_real DDH_rand #true
          + 3 / n.
   Proof.
     intros HA.
     apply (advantage_triangle _ _ (IDEAL_OT_H ⊗ F_OAUTH) _ _
              (advantage (RED1_OT_H (λ: "v", A (tens_app "v" F_OAUTH))%V) DDH_rand DDH_real #true
               + advantage (RED2_OT_H (λ: "v", A (tens_app "v" F_OAUTH))%V) DDH_real DDH_rand #true
+              + advantage (RED2_OT_H (DENV_OT_H (λ: "v", A (tens_app "v" F_OAUTH))%V))
+                  DDH_real DDH_rand #true
               + 3 / n) 0); [| |lra].
     - etrans; first apply (advantage_pure_l_rev _ [] (tens_app REAL_OT_H F_OAUTH) _ _);
         [done|apply tens_app_pure|].
@@ -225,6 +228,10 @@ Section ot_rev_ot.
          + advantage
            (RED2_OT_H (λ: "v", (λ: "v", A (comp_app PARTIES_TO "v"))%V (tens_app "v" F_OAUTH))%V)
            DDH_real DDH_rand #true
+         + advantage
+           (RED2_OT_H (DENV_OT_H
+              (λ: "v", (λ: "v", A (comp_app PARTIES_TO "v"))%V (tens_app "v" F_OAUTH))%V))
+           DDH_real DDH_rand #true
          + 3 / n.
   Proof.
     intros HA.
@@ -232,6 +239,8 @@ Section ot_rev_ot.
       (REAL_OT_H ⊗ F_OAUTH) (S_OT_H ⊗ id_mod) (F_OT_H ⊗ F_OAUTH) PARTIES_TO S_TO_H F_TO_H true
       (λ A, advantage (RED1_OT_H (λ: "v", A (tens_app "v" F_OAUTH))%V) DDH_rand DDH_real #true
             + advantage (RED2_OT_H (λ: "v", A (tens_app "v" F_OAUTH))%V) DDH_real DDH_rand #true
+            + advantage (RED2_OT_H (DENV_OT_H (λ: "v", A (tens_app "v" F_OAUTH))%V))
+                DDH_real DDH_rand #true
             + 3 / n)
       (λ _, 0)
       (λ _, IProd OTHNet (ONetT 𝔹)) (λ _, TOHNet) (λ _, TOHAdv)

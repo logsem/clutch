@@ -42,14 +42,12 @@
    moves a sample past a call to the adversary that does not receive it,
    for one-shot rows; see DESIGN.md, section 10.
 
-   With both parties honest the ideal functionality [F_OT_H] gives the
-   adversary one operation per party, [yield_s] and [yield_r], which the
-   party calls wherever the real party calls the network: "this party is
-   at a scheduling point; resume it when you like" (UC's delayed output,
-   for blocking ports).  The ideal functionality has to keep the real
-   party's waiting points, because when a port returns is observable to
-   the environment.  Its security proof is not done: it needs two DDH
-   steps (DESIGN.md, section 6). *)
+   With both parties honest the ideal functionality [F_OT_H] hands control
+   to the adversary for a whole party's run, with one operation per party
+   ([run_s], [run_r]), and the simulator runs the real parties on dummy
+   inputs.  The environment schedules the parties by handling the network
+   operations, so neither the functionality nor the simulator keeps track
+   of how far a party is.  The proof is in [ot_proof.v]. *)
 
 From clutch.prob_eff_lang.probblaze Require Export notation valgroup.
 From clutch.prob_eff_lang.probblaze Require Import class_instances.
@@ -188,34 +186,35 @@ Section ot.
   (* The ideal oblivious transfer, both parties honest.                 *)
   (* ---------------------------------------------------------------- *)
 
-  (* It takes the adversary's operations [yield_s] and [yield_r], one per
-     party, and returns the sender's and the receiver's port. *)
+  (* It takes the adversary's operations [run_s] and [run_r], one per
+     party, and returns the sender's and the receiver's port.  A port
+     records the party's input and hands control to the adversary for the
+     whole of that party's run (UC's delayed output); [run_s] returns the
+     operation for the sender's second phase.  The sender's first phase
+     returns only if the receiver has chosen, and the receiver gets [m_b]
+     only if the sender has given its messages; otherwise the port never
+     returns. *)
   Definition F_OT_H : val :=
     λ: "adv",
-      let, ("yield_s", "yield_r") := "adv" in
+      let, ("run_s", "run_r") := "adv" in
 
       (* state: whether the receiver has chosen, and the messages *)
       let: "ch" := ref #false in
       let: "mm" := ref NONE in
 
-      (* the sender: wait for the receiver's choice, then take the
-         messages *)
+      (* the sender *)
       (λ: <>,
-         (rec: "wait" <> :=
-            "yield_s" #()%V;;
-            if: !"ch" then #()%V else "wait" #()%V) #()%V;;
-         λ: "mm'",
-           "mm" <- SOME "mm'";;
-           "yield_s" #()%V,
+         let: "run_s2" := "run_s" #()%V in
+         if: !"ch" then (λ: "mm'", "mm" <- SOME "mm'";; "run_s2" #()%V) else loop #()%V,
 
-      (* the receiver: choose, wait for the messages, take the chosen one *)
+      (* the receiver *)
        λ: "b",
          "ch" <- #true;;
-         let, ("m0", "m1") :=
-           (rec: "wait" <> :=
-              "yield_r" #()%V;;
-              match: !"mm" with NONE => "wait" #()%V | SOME "m" => "m" end) #()%V in
-         if: "b" then "m1" else "m0").
+         "run_r" #()%V;;
+         match: !"mm" with
+           NONE => loop #()%V
+         | SOME "m" => let, ("m0", "m1") := "m" in if: "b" then "m1" else "m0"
+         end).
 
   (* ---------------------------------------------------------------- *)
   (* The real module, both parties honest.                              *)
@@ -234,68 +233,31 @@ Section ot.
   Definition REAL_OT_H : val := (PARTIES_OT ⊳ (F_CRS ⊗ (F_OAUTH ⊗ F_OAUTH)))%md.
 
   (* ---------------------------------------------------------------- *)
-  (* The simulator, both parties honest.                                *)
-  (* ---------------------------------------------------------------- *)
-
-  (* It publishes a reference string in decryption mode and maps each
-     party's yields to that party's next move in the real world: for the
-     receiver, its message [(g^a, h0^a)] for a fresh [a] and then
-     [deliver] of the ciphertexts' channel; for the sender, [deliver] of
-     the receiver's channel until the receiver has sent, then encryptions
-     of random elements [g^d_i] under [u]. *)
-  Definition S_OT_H : val :=
-    λ: "adv",
-      let, ("publish", "nets") := "adv" in
-      let, ("rs", "sr") := "nets" in
-      let, ("leak_rs", "deliver_rs") := "rs" in
-      let, ("leak_sr", "deliver_sr") := "sr" in
-
-      (* a reference string in decryption mode *)
-      let: "y" := sample #()%V in
-      let: "x" := sample #()%V in
-      let: "g1" := g^"y" in
-      let, ("h1", "h0") := ("g1"^"x", g^"x") in
-      "publish" ("h1", "h0", "g1", g);;
-
-      (* state: the receiver's message, and whether the sender is in its
-         second phase *)
-      let: "uu" := ref NONE in
-      let: "s_go" := ref #false in
-
-      (* the sender *)
-      (λ: <>,
-         if: !"s_go" then
-           match: !"uu" with
-             NONE => #()%V
-           | SOME "u" =>
-               let, ("t0", "d0", "t1", "d1") :=
-                 (sample #()%V, sample #()%V, sample #()%V, sample #()%V) in
-               "leak_sr" ((g^"t0", g^"d0" · "u"^"t0"), ("g1"^"t1", g^"d1" · "u"^"t1"))
-           end
-         else
-           ("deliver_rs" #()%V;;
-            match: !"uu" with NONE => #()%V | SOME <> => "s_go" <- #true end),
-
-      (* the receiver *)
-       λ: <>,
-         match: !"uu" with
-           NONE =>
-             let: "a" := sample #()%V in
-             "uu" <- SOME (g^"a");;
-             "leak_rs" (g^"a", "h0"^"a");;
-             "deliver_sr" #()%V
-         | SOME <> => "deliver_sr" #()%V
-         end).
-
-  Definition IDEAL_OT_H : val := (F_OT_H ⊳ S_OT_H)%md.
-
-  (* ---------------------------------------------------------------- *)
   (* The hybrids and the reductions.                                    *)
   (* ---------------------------------------------------------------- *)
 
   (* The real parties on a reference string from a DDH sampler [dh]; the
      real module is [HYB1_OT_H DDH_rand]. *)
   Definition HYB1_OT_H (dh : val) : val := (PARTIES_OT ⊳ (F_CRS_DH dh ⊗ (F_OAUTH ⊗ F_OAUTH)))%md.
+
+  (* ---------------------------------------------------------------- *)
+  (* The simulator, both parties honest.                                *)
+  (* ---------------------------------------------------------------- *)
+
+  (* The real parties on dummy inputs: [run_s] runs the sender's first
+     phase and returns its second phase on the messages [(1, 1)]; [run_r]
+     runs the receiver with choice [false] and drops its output.  As usual
+     in the CRS model, the simulator chooses the reference string: a DDH
+     tuple (decryption mode), so that the receiver's message hides its
+     choice and both ciphertexts are encryptions. *)
+  Definition DUMMY_OT : val :=
+    λ: "ports",
+      let, ("sport", "rport") := "ports" in
+      (λ: <>, let: "k" := "sport" #()%V in λ: <>, "k" (vunit, vunit),
+       λ: <>, "rport" #false;; #()%V).
+
+  Definition S_OT_H : val := (DUMMY_OT ⊳ HYB1_OT_H DDH_real)%md.
+  Definition IDEAL_OT_H : val := (F_OT_H ⊳ S_OT_H)%md.
 
   (* The parties with a reference string in decryption mode, whose
      receiver's message and ciphertexts are built from one tuple of the
@@ -362,6 +324,11 @@ Section ot.
     λ: "v", A (comp_app PARTIES_OT (tens_app (F_CRS_DH_app "v") (F_OAUTH ⊗ F_OAUTH)%md)).
   Definition RED2_OT_H (A : val) : val := λ: "v", A (HYB2_app "v").
 
+  (* The environment with the functionality and the dummy inputs in front:
+     the hybrid steps are taken again on the ideal side, under it. *)
+  Definition DENV_OT_H (A : val) : val :=
+    λ: "v", (λ: "v", A (comp_app F_OT_H "v"))%V (comp_app DUMMY_OT "v").
+
 End ot.
 
 Section ot_types.
@@ -389,9 +356,11 @@ Section ot_types.
      ciphertexts. *)
   Definition OTHNet (θ : sem_row Σ) : sem_ty Σ :=
     (Pub θ × (LNet (𝔾 × 𝔾) θ × LNet ((𝔾 × 𝔾) × (𝔾 × 𝔾)) θ))%T.
-  (* The adversarial interface of the ideal transfer: one scheduling
-     operation per party. *)
-  Definition OTHAdv (θ : sem_row Σ) : sem_ty Σ := ((𝟙 -{ θ }-> 𝟙) × (𝟙 -{ θ }-> 𝟙))%T.
+  (* The adversarial interface of the ideal transfer: one operation per
+     party, which runs it (the sender's returns its second phase).
+     One-shot: only the functionality calls them. *)
+  Definition OTHAdv (θ : sem_row Σ) : sem_ty Σ :=
+    ((𝟙 -{ ¡ θ }-∘ (𝟙 -{ ¡ θ }-∘ 𝟙)) × (𝟙 -{ ¡ θ }-∘ 𝟙))%T.
   (* Both ports. *)
   Definition OTPorts (θ : sem_row Σ) : sem_ty Σ := (SPort θ × RPort θ)%T.
 
@@ -399,12 +368,14 @@ End ot_types.
 
 (* The security statement, both parties honest, for a group of order [n]:
    an environment that instantiates the module once tells the real from
-   the ideal module with at most the DDH advantages of the two reductions
-   plus [3/n]. *)
+   the ideal module with at most the DDH advantages of three reductions
+   (the second step twice: for the real inputs, and for the dummy ones
+   under the functionality) plus [3/n]. *)
 Definition ot_h_secure `{!probblazeRGpreS Σ}
     {vg : val_group} {cg : clutch_group_struct} {vgg : @val_group_generator vg} : Prop :=
   ∀ A : val,
     (∀ `{probblazeRGS Σ}, ⊢ sem_val_typed A A (ModA OTHNet OTPorts → 𝔹)%T) →
     (advantage A REAL_OT_H IDEAL_OT_H #true
        <= advantage (RED1_OT_H A) DDH_rand DDH_real #true
-          + advantage (RED2_OT_H A) DDH_real DDH_rand #true + 3 / S (S n''))%R.
+          + advantage (RED2_OT_H A) DDH_real DDH_rand #true
+          + advantage (RED2_OT_H (DENV_OT_H A)) DDH_real DDH_rand #true + 3 / S (S n''))%R.

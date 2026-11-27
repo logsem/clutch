@@ -447,59 +447,61 @@ Section ot_field.
   Qed.
 
   (* ---------------------------------------------------------------- *)
-  (* Step D of the honest OT.                                           *)
+  (* Step E of the honest OT.                                           *)
   (* ---------------------------------------------------------------- *)
 
   Definition F1 : Fn := 1%R.
-  (* The coefficient [c - p q] of the coupling [α ↦ (c - p q) α + l]. *)
+  (* The coefficient [c - p q], invertible when the tuple is not a DDH
+     tuple. *)
   Definition dcoef (c p q : nat) : Fn := (expF c - expF p * expF q)%R.
-  (* The shift [q α] of the coupling [β ↦ β + q α]. *)
-  Definition tshift (q a : nat) : Fn := (expF q * expF a)%R.
   (* The value [c] avoids. *)
   Definition pqval (p q : nat) : nat := nat_of_ord (expF p * expF q)%R.
 
   Lemma pqval_lt p q : (pqval p q < n)%nat.
   Proof. apply Fval_lt. Qed.
 
-  Lemma gpow_ne1 (p : nat) : p ≤ S n'' → p ≠ 0%nat → g ^+ p ≠ 1.
-  Proof.
-    move=> Hp Hnz H. have : g ^+ p = g ^+ 0 by rewrite expg0.
-    move/(expg_eq_mod_inv n_prime). rewrite !div.modn_small //; apply/ssrnat.ltP; lia.
-  Qed.
+  (* A slot [(B^α g^β, m C^α A^β)] with [m = g^l], against the same with
+     [m = 1]: [α ↦ α + δ] and [β ↦ β - q δ] for [δ = l / (c - p q)],
+     where [(C, B, A) = (g^c, g^q, g^p)] and [c ≠ p q]. *)
+  Definition eshift (c p q l : nat) : Fn := (expF l / dcoef c p q)%R.
+  Definition eshiftq (c p q l : nat) : Fn := (- (expF q * eshift c p q l))%R.
 
-  Lemma dcoef_bij (c p q : nat) (L : Fn) :
-    c ≤ S n'' → c ≠ pqval p q → Bij (aff (dcoef c p q) L).
+  Lemma affF1_bij (b : Fn) : Bij (aff F1 b).
+  Proof. apply: aff_bij. exact: oner_neq0. Qed.
+
+  Lemma dcoef_nz (c p q : nat) : c ≤ S n'' → c ≠ pqval p q → is_true (dcoef c p q != 0%R).
   Proof.
-    move=> Hc Hne. apply: aff_bij. rewrite /dcoef subr_eq0. apply/eqP => H.
+    move=> Hc Hne. rewrite /dcoef subr_eq0. apply/eqP => H.
     apply: Hne. rewrite /pqval -H val_expF div.modn_small //. apply/ssrnat.ltP; lia.
   Qed.
 
-  Lemma tshift_bij (q a : nat) : Bij (aff F1 (tshift q a)).
-  Proof. apply: aff_bij. exact: oner_neq0. Qed.
-
-  (* The simulator's ciphertexts are the hybrid's. *)
-  Lemma encD_fst0 (q a b : nat) :
-    (b < n)%nat → g ^+ aff F1 (tshift q a) b = g ^+ q ^+ a * g ^+ b.
+  Lemma encE_fst (q a b : nat) (δ : Fn) :
+    (a < n)%nat → (b < n)%nat →
+    g ^+ q ^+ aff F1 δ a * g ^+ aff F1 (- (expF q * δ))%R b = g ^+ q ^+ a * g ^+ b.
   Proof.
-    move=> Hb. rewrite gexp_aff // !gexp_nat gexp_pow -gexp_add /F1 /tshift.
-    by rewrite mul1r addrC.
+    move=> Ha Hb. rewrite gexp_aff // [g ^+ q]gexp_nat !gexp_pow expF_aff // (gexp_nat b).
+    rewrite -!gexp_add /F1. congr gexp.
+    rewrite !mul1r mulrDr -addrA [(expF q * δ + _)%R]addrC subrK //.
   Qed.
 
-  Lemma encD_fst1 (y q a b : nat) :
-    (b < n)%nat → g ^+ y ^+ aff F1 (tshift q a) b = (g ^+ q ^+ a * g ^+ b) ^+ y.
-  Proof. move=> Hb. by rewrite -encD_fst0 // expgAC. Qed.
-
-  Lemma encD_snd (c p q l a b : nat) :
+  Lemma encE_fst1 (y q a b : nat) (δ : Fn) :
     (a < n)%nat → (b < n)%nat →
-    g ^+ aff (dcoef c p q) (expF l) a * g ^+ p ^+ aff F1 (tshift q a) b
+    (g ^+ q ^+ aff F1 δ a * g ^+ aff F1 (- (expF q * δ))%R b) ^+ y = (g ^+ q ^+ a * g ^+ b) ^+ y.
+  Proof. move=> Ha Hb. by rewrite encE_fst. Qed.
+
+  Lemma encE_snd (c p q l a b : nat) :
+    c ≤ S n'' → c ≠ pqval p q → (a < n)%nat → (b < n)%nat →
+    1 * (g ^+ c ^+ aff F1 (eshift c p q l) a * g ^+ p ^+ aff F1 (eshiftq c p q l) b)
     = g ^+ l * (g ^+ c ^+ a * g ^+ p ^+ b).
   Proof.
-    move=> Ha Hb. rewrite gexp_aff // [g ^+ p]gexp_nat gexp_pow expF_aff //.
-    rewrite (gexp_nat l) (gexp_nat c) !gexp_pow -!gexp_add /dcoef /tshift /F1.
-    congr gexp.
-    rewrite mul1r mulrDr mulrA mulrBl [(_ - _ + expF l)%R]addrC -addrA.
-    congr (_ + _)%R.
-    by rewrite [(expF p * expF b + _)%R]addrC addrA subrK.
+    move=> Hc Hne Ha Hb.
+    have Hδ : (dcoef c p q * eshift c p q l = expF l)%R.
+    { rewrite /eshift mulrC divfK //. exact: dcoef_nz. }
+    rewrite mul1g [g ^+ c]gexp_nat [g ^+ p]gexp_nat (gexp_nat l) !gexp_pow !expF_aff //.
+    rewrite -!gexp_add /F1 /eshiftq. congr gexp.
+    move: Hδ. set E := eshift c p q l. move=> Hδ.
+    rewrite -Hδ /dcoef !mul1r !mulrDr mulrN mulrBl [(expF p * (expF q * E))%R]mulrA.
+    by rewrite addrACA addrC.
   Qed.
 
 End ot_field.
